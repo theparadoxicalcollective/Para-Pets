@@ -1074,13 +1074,13 @@ export default function PvpBattlePage({
   // The bottom bar shows 5 chips with a quantity badge instead of one
   // chip per potion (which would overflow horribly for stacks of 50).
   // `remaining` tracks consumption — drop one at a time off the front.
-  type SlotState = BattlePotionSlot & { remaining: string[] };
+  type SlotState = BattlePotionSlot & { remaining: number };
   const [slotsRemaining, setSlotsRemaining] = useState<SlotState[]>(
-    () => potionSlots.map(s => ({ ...s, remaining: [...s.inventoryIds] })),
+    () => potionSlots.map(s => ({ ...s, remaining: s.qty })),
   );
   const slotsRemainingRef = useRef<SlotState[]>(slotsRemaining);
   useEffect(() => {
-    const next = potionSlots.map(s => ({ ...s, remaining: [...s.inventoryIds] }));
+    const next = potionSlots.map(s => ({ ...s, remaining: s.qty }));
     slotsRemainingRef.current = next;
     setSlotsRemaining(next);
   }, [potionSlots]);
@@ -1098,8 +1098,8 @@ export default function PvpBattlePage({
   const consumePotion = useCallback((slotIndex: number, targetAllyUid: string | null) => {
     if (!battleActiveRef.current) return;
     const slot = slotsRemainingRef.current[slotIndex];
-    if (!slot || slot.remaining.length === 0) return;
-    const inventoryId = slot.remaining[0];
+    if (!slot || slot.remaining <= 0) return;
+    const inventoryId = slot.inventoryId;
     // Prefer slot metadata (which is captured at battle-prep time and
     // doesn't depend on `myInventory` having loaded by now). Fall back
     // to the live inventory row if the slot somehow lost its stats.
@@ -1162,10 +1162,10 @@ export default function PvpBattlePage({
       spawnSparks(reviveTarget.x, reviveTarget.y, ["#fbbf24", "#fde68a", "#fef3c7"]);
     }
 
-    // Pop the consumed id off this slot's remaining stack.
+    // Decrement this slot's remaining count by one charge.
     {
       const updated = slotsRemainingRef.current.map((s, i) =>
-        i === slotIndex ? { ...s, remaining: s.remaining.slice(1) } : s,
+        i === slotIndex ? { ...s, remaining: Math.max(0, s.remaining - 1) } : s,
       );
       slotsRemainingRef.current = updated;
       setSlotsRemaining(updated);
@@ -1173,11 +1173,10 @@ export default function PvpBattlePage({
 
     usePotionMutation.mutate(inventoryId, {
       onError: () => {
-        // Roll back the pet state AND put the consumed id back at the
-        // front of the slot's remaining stack so the player gets the
-        // potion they thought they'd used.
+        // Roll back the pet state AND restore the consumed charge so
+        // the player gets the potion they thought they'd used.
         const reverted = slotsRemainingRef.current.map((s, i) =>
-          i === slotIndex ? { ...s, remaining: [inventoryId, ...s.remaining] } : s,
+          i === slotIndex ? { ...s, remaining: s.remaining + 1 } : s,
         );
         slotsRemainingRef.current = reverted;
         setSlotsRemaining(reverted);
@@ -1214,7 +1213,7 @@ export default function PvpBattlePage({
   const beginPotionDrag = useCallback((slotIndex: number, e: React.PointerEvent) => {
     if (!battleActiveRef.current) return;
     const slot = slotsRemainingRef.current[slotIndex];
-    if (!slot || slot.remaining.length === 0) return;
+    if (!slot || slot.remaining <= 0) return;
     e.stopPropagation();
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -2128,14 +2127,14 @@ export default function PvpBattlePage({
               so the parent arena's slash-handler never starts. Drop
               on an ally → consume one from the front of that slot's
               remaining stack. */}
-          {phase === "battle" && slotsRemaining.some(s => s.remaining.length > 0) && (
+          {phase === "battle" && slotsRemaining.some(s => s.remaining > 0) && (
             <div
               className="absolute z-30 flex gap-1.5 pointer-events-auto left-1/2 -translate-x-1/2"
               style={{ bottom: 32 }}
               data-testid="pvp-potion-bar"
             >
               {slotsRemaining.map((slot, i) => {
-                const qty = slot.remaining.length;
+                const qty = slot.remaining;
                 if (qty === 0) return null;
                 const isMana = (slot.manaRestored ?? 0) > 0;
                 const isRevive = (slot.petsRevived ?? 0) > 0;

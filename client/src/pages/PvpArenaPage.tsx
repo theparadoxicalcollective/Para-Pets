@@ -201,19 +201,20 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
   // and the slot persists across battles (used potions just shrink the
   // count via auto-clamping when inventory changes). Restored from
   // localStorage so the loadout survives reloads.
-  const POTION_LS_KEY = "pvp:potionSlots:v2";
+  const POTION_LS_KEY = "pvp:potionSlots:v3";
   const [selectedPotionSlots, setSelectedPotionSlots] = useState<(BattlePotionSlot | null)[]>(() => {
-    // Strict v2 schema validator. We can't trust localStorage —
-    // older builds, malformed entries, or tampered values would
-    // otherwise leak straight into runtime state and crash deeper
-    // consumers (BattleArena reads imageUrl, name, healthRestored,
-    // etc.). So we explicitly require every field to be the right
-    // shape before promoting a slot.
+    // Strict v3 schema validator. v3 collapsed each slot from "a list of
+    // inventory ids" down to a single inventory row + qty (the row IS the
+    // stack). We can't trust localStorage — older builds, malformed
+    // entries, or tampered values would otherwise leak straight into
+    // runtime state and crash deeper consumers (BattleArena reads
+    // imageUrl, name, healthRestored, etc.). So we explicitly require
+    // every field to be the right shape before promoting a slot.
     const isValidSlot = (s: any): s is BattlePotionSlot => {
       if (!s || typeof s !== "object") return false;
       if (typeof s.shopItemId !== "string") return false;
-      if (!Array.isArray(s.inventoryIds) || s.inventoryIds.length === 0) return false;
-      if (!s.inventoryIds.every((id: unknown) => typeof id === "string" && id.length > 0)) return false;
+      if (typeof s.inventoryId !== "string" || s.inventoryId.length === 0) return false;
+      if (typeof s.qty !== "number" || !Number.isFinite(s.qty) || s.qty <= 0) return false;
       if (typeof s.name !== "string") return false;
       if (s.imageUrl != null && typeof s.imageUrl !== "string") return false;
       if (s.healthRestored != null && typeof s.healthRestored !== "number") return false;
@@ -479,36 +480,21 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     (i: any) => i.type === "potion" && (((i.healthRestored ?? 0) > 0) || ((i.manaRestored ?? 0) > 0) || ((i.petsRevived ?? 0) > 0))
   );
 
-  // Group identical potions into stacks of up to 50 for the picker UI.
-  // Each row in `inventory` is a single potion (one use), so 200 healing
-  // potions = 200 inventory rows. Showing them individually clutters the
-  // picker; instead we group by shopItemId (or by name fallback for
-  // legacy rows without a shop_item_id) and cap every visible stack at
-  // POTION_STACK_SIZE. A type with 137 potions would render as 3 stacks
-  // (50 / 50 / 37). Tapping a stack equips the next un-selected id.
+  // Per-row stacks for the picker UI. Each row in `inventory` is now an
+  // already-merged stack (server caps purchases at 50/row), so we render
+  // one tile per row. Tapping a tile equips that whole row (one slot =
+  // one inventory row = one stack). 137 potions buys would land as 3
+  // rows: 50 / 50 / 37, and the picker shows them as three separate
+  // tiles. The shop-side limit is shared with the server constant.
   const POTION_STACK_SIZE = 50;
-  const potionStacks = ((): Array<{
-    key: string; rep: any; ids: string[]; count: number;
-  }> => {
-    const groups = new Map<string, { rep: any; ids: string[] }>();
-    for (const p of battlePotions) {
-      const key = p.shopItemId || `name:${p.name}`;
-      const g = groups.get(key) || { rep: p, ids: [] };
-      g.ids.push(p.inventoryId || p.id);
-      groups.set(key, g);
-    }
-    const out: Array<{ key: string; rep: any; ids: string[]; count: number }> = [];
-    for (const [key, { rep, ids }] of groups) {
-      // Slice the flat id list into chunks of POTION_STACK_SIZE so very
-      // large bags still display as multiple full stacks instead of one
-      // giant pile.
-      for (let i = 0; i < ids.length; i += POTION_STACK_SIZE) {
-        const chunk = ids.slice(i, i + POTION_STACK_SIZE);
-        out.push({ key: `${key}#${i / POTION_STACK_SIZE}`, rep, ids: chunk, count: chunk.length });
-      }
-    }
-    return out;
-  })();
+  const potionStacks: Array<{
+    key: string; rep: any; inventoryId: string; qty: number;
+  }> = battlePotions.map((p: any) => ({
+    key: p.inventoryId || p.id,
+    rep: p,
+    inventoryId: p.inventoryId || p.id,
+    qty: Math.max(1, p.quantity ?? 1),
+  }));
 
   // Active pet: the player's currently-equipped pet from the rest of the
   // game. We always seed the first PvP slot with it so the player never
@@ -555,21 +541,25 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     });
   };
 
-  // Picker → equip up to 50 unequipped ids of this type into the
-  // lowest-index empty slot. Auto-closes the picker.
-  const equipPotionStackToNextEmpty = (rep: any, allIdsForType: string[]) => {
+  // Picker → drop the chosen inventory row (one stack) into the
+  // lowest-index empty slot. The slot owns the row id and a snapshot of
+  // its quantity (capped at POTION_STACK_SIZE for safety). Already-
+  // equipped rows are skipped so a player can't double-bind one stack
+  // into two slots. Auto-closes the picker.
+  const equipPotionStackToNextEmpty = (rep: any, inventoryId: string, qty: number) => {
     setSelectedPotionSlots(prev => {
       const emptyIdx = prev.findIndex(s => s === null);
       if (emptyIdx === -1) return prev;
-      const alreadyEquipped = new Set(prev.flatMap(s => s ? s.inventoryIds : []));
-      const available = allIdsForType
-        .filter(id => !alreadyEquipped.has(id))
-        .slice(0, POTION_STACK_SIZE);
-      if (available.length === 0) return prev;
+      const alreadyEquipped = new Set(
+        prev.filter((s): s is BattlePotionSlot => s !== null).map(s => s.inventoryId),
+      );
+      if (alreadyEquipped.has(inventoryId)) return prev;
+      const safeQty = Math.max(1, Math.min(POTION_STACK_SIZE, qty));
       const next = [...prev];
       next[emptyIdx] = {
         shopItemId: rep.shopItemId || `name:${rep.name}`,
-        inventoryIds: available,
+        inventoryId,
+        qty: safeQty,
         name: rep.name,
         imageUrl: rep.imageUrl ?? null,
         healthRestored: rep.healthRestored ?? null,
@@ -597,19 +587,30 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     // alone — without this gate, a cold reload would clamp persisted
     // slots to null before inventory ever arrived.
     if (!inventoryReady || !Array.isArray(inventory)) return;
-    const validIds = new Set<string>();
+    // Build a row-id → live qty map so we can both prove the row still
+    // exists and re-snapshot its quantity. The snapshot can drift when
+    // the player consumes potions outside of this loadout (world
+    // battles, /api/explore/use-potion calls, etc.) — without re-syncing
+    // the slot here, the count would only update on next equip.
+    const liveQty = new Map<string, number>();
     for (const i of inventory as any[]) {
-      if (i && i.type === "potion") validIds.add(i.inventoryId || i.id);
+      if (i && i.type === "potion") {
+        liveQty.set(i.inventoryId || i.id, Math.max(0, i.quantity ?? 1));
+      }
     }
     setSelectedPotionSlots(prev => {
       let changed = false;
       const next = prev.map(slot => {
         if (!slot) return slot;
-        const filtered = slot.inventoryIds.filter(id => validIds.has(id));
-        if (filtered.length === slot.inventoryIds.length) return slot;
+        const live = liveQty.get(slot.inventoryId);
+        if (live === undefined || live <= 0) {
+          changed = true;
+          return null;
+        }
+        const clamped = Math.min(live, POTION_STACK_SIZE);
+        if (clamped === slot.qty) return slot;
         changed = true;
-        if (filtered.length === 0) return null;
-        return { ...slot, inventoryIds: filtered };
+        return { ...slot, qty: clamped };
       });
       return changed ? next : prev;
     });
@@ -1189,7 +1190,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             <div className="flex gap-2 justify-between">
               {Array.from({ length: 5 }, (_, i) => {
                 const slot = selectedPotionSlots[i];
-                const qty = slot?.inventoryIds.length ?? 0;
+                const qty = slot?.qty ?? 0;
                 const isEmpty = !slot || qty === 0;
                 const isMana = slot && (slot.manaRestored ?? 0) > 0;
                 const isRevive = slot && (slot.petsRevived ?? 0) > 0;
@@ -1394,29 +1395,31 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                     {potionStacks.map((stack) => {
                       const inv = stack.rep;
                       const isMana = (inv.manaRestored ?? 0) > 0;
-                      // How many of THIS stack the player has currently
-                      // equipped, so the picker can show e.g. "×48"
-                      // (50 in stack − 2 already in slots) and disable
-                      // the stack once it's empty or the loadout is full.
+                      // Whether this exact inventory row is already
+                      // equipped (each row maps to at most one slot in
+                      // the new model). The tile is disabled once it's
+                      // bound or the loadout is full.
                       const allEquippedIds = new Set(
-                        selectedPotionSlots.flatMap(s => s ? s.inventoryIds : []),
+                        selectedPotionSlots
+                          .filter((s): s is BattlePotionSlot => s !== null)
+                          .map(s => s.inventoryId),
                       );
-                      const equippedFromStack = stack.ids.filter(id => allEquippedIds.has(id)).length;
-                      const remaining = stack.count - equippedFromStack;
+                      const isEquipped = allEquippedIds.has(stack.inventoryId);
+                      const remaining = isEquipped ? 0 : stack.qty;
                       const loadoutFull = selectedPotionSlots.every(s => s !== null);
-                      const disabled = remaining <= 0 || loadoutFull;
-                      const partiallySelected = equippedFromStack > 0;
+                      const disabled = isEquipped || loadoutFull;
+                      const partiallySelected = isEquipped;
                       return (
                         <button
                           key={stack.key}
                           data-testid={`button-potion-stack-${stack.key}`}
                           disabled={disabled}
                           onClick={() => {
-                            // Equip the entire stack (up to 50 of this
-                            // potion type) into the lowest-index empty
-                            // slot and close the picker so the player
-                            // immediately sees the slot fill in.
-                            equipPotionStackToNextEmpty(stack.rep, stack.ids);
+                            // Equip this whole inventory row (one stack)
+                            // into the lowest-index empty slot and close
+                            // the picker so the player immediately sees
+                            // the slot fill in.
+                            equipPotionStackToNextEmpty(stack.rep, stack.inventoryId, stack.qty);
                           }}
                           className="relative rounded-xl p-2 flex flex-col items-center gap-1 transition-all active:scale-95"
                           style={{

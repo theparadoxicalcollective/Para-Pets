@@ -120,7 +120,16 @@ interface EncounterPet {
 
 export interface BattlePotionSlot {
   shopItemId: string;
-  inventoryIds: string[];
+  // The single inventory row (= stack) that backs this slot. Each slot
+  // owns exactly one row from the user's inventory; the row's quantity
+  // (1-50) determines how many charges are available. When the player
+  // equips a stack the whole stack drops in as one slot.
+  inventoryId: string;
+  // Snapshot of the row's quantity at equip time. The battle UI will
+  // count down from here as charges are used; the auto-clamp in the
+  // arena page reconciles this against the live inventory row's
+  // quantity (e.g. if the user used some elsewhere between battles).
+  qty: number;
   name: string;
   imageUrl: string | null;
   healthRestored: number | null;
@@ -553,8 +562,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const applyDamageToEnemyRef = useRef<(amt: number, x: number, y: number, isCrit?: boolean) => void>(() => {});
 
   // ── Potion slots ─────────────────────────────────────────────────────────
-  const [activeSlots, setActiveSlots] = useState<(BattlePotionSlot & { remaining: string[] })[]>([]);
-  const activeSlotsRef = useRef<(BattlePotionSlot & { remaining: string[] })[]>([]);
+  // Each entry mirrors a BattlePotionSlot (one stack/inventory row) plus a
+  // `remaining` counter that ticks down as the player consumes charges in
+  // the current battle. We never mutate the underlying inventory id — the
+  // server decrements the row's quantity and the auto-clamp on the parent
+  // page reconciles the snapshot on the next inventory refresh.
+  const [activeSlots, setActiveSlots] = useState<(BattlePotionSlot & { remaining: number })[]>([]);
+  const activeSlotsRef = useRef<(BattlePotionSlot & { remaining: number })[]>([]);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("battleTutorialSeen"));
 
   // ── Potion drag state ────────────────────────────────────────────────────
@@ -666,7 +680,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
         const slots = battlePotionSlots
           .filter((s): s is BattlePotionSlot => s !== null && s !== undefined)
-          .map(s => ({ ...s, remaining: [...s.inventoryIds] }));
+          .map(s => ({ ...s, remaining: s.qty }));
         activeSlotsRef.current = slots;
         setActiveSlots(slots);
         startWave(data.encounters[0], 0);
@@ -1596,9 +1610,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   // auto-targeting: heal / mana → lead pet, revive → first fainted extra.
   const usePotion = useCallback((slotIndex: number, targetPetIdx?: number) => {
     const slot = activeSlotsRef.current[slotIndex];
-    if (!slot || slot.remaining.length === 0) return;
+    if (!slot || slot.remaining <= 0) return;
     if (!battleActiveRef.current) return;
-    const inventoryId = slot.remaining[0];
+    const inventoryId = slot.inventoryId;
     const isHeal = (slot.healthRestored ?? 0) > 0;
     const isMana = (slot.manaRestored ?? 0) > 0;
     const isRevive = (slot.petsRevived ?? 0) > 0;
@@ -1718,7 +1732,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       }
     }
     const updated = activeSlotsRef.current.map((s, i) =>
-      i === slotIndex ? { ...s, remaining: s.remaining.slice(1) } : s
+      i === slotIndex ? { ...s, remaining: Math.max(0, s.remaining - 1) } : s
     );
     activeSlotsRef.current = updated;
     setActiveSlots([...updated]);
@@ -1747,7 +1761,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const beginPotionDrag = useCallback((slotIndex: number, e: React.PointerEvent) => {
     if (!battleActiveRef.current) return;
     const slot = activeSlotsRef.current[slotIndex];
-    if (!slot || slot.remaining.length === 0) return;
+    if (!slot || slot.remaining <= 0) return;
     e.stopPropagation();
     e.preventDefault();
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
@@ -2633,7 +2647,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(4px)" }}>
                 {Array.from({ length: 5 }, (_, i) => {
                   const slot = activeSlots[i];
-                  const qty = slot?.remaining.length ?? 0;
+                  const qty = slot?.remaining ?? 0;
                   const isEmpty = !slot || qty === 0;
                   const isHeal = slot && (slot.healthRestored ?? 0) > 0;
                   const isMana = slot && (slot.manaRestored ?? 0) > 0;

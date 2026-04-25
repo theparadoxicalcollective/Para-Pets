@@ -121,6 +121,11 @@ interface InventoryItem {
   shopItemId: string;
   name: string;
   type: string;
+  // Stack size for the row. The server collapses identical purchases
+  // (e.g. potions) into a single row with quantity > 1 (capped at the
+  // type's stack limit, currently 50). Older single-use items leave
+  // this missing or set to 1.
+  quantity?: number;
   isHatched?: boolean;
   imageUrl?: string | null;
   hatchedImageUrl?: string | null;
@@ -4066,16 +4071,29 @@ export default function WorldPage({ user }: WorldPageProps) {
         if (!battleLoc) return null;
 
         const potions = inventory.filter(i => i.type === "potion" && ((i.healthRestored ?? 0) > 0 || (i.manaRestored ?? 0) > 0 || (i.petsRevived ?? 0) > 0));
-        // Group inventory potions by shopItemId so the picker shows one
-        // tile per kind with a ×N "remaining" badge — same model as PvP.
-        const groupedPotions: Record<string, { shopItemId: string; name: string; imageUrl?: string | null; healthRestored?: number | null; manaRestored?: number | null; petsRevived?: number | null; items: InventoryItem[] }> = {};
-        for (const p of potions) {
-          if (!groupedPotions[p.shopItemId]) {
-            groupedPotions[p.shopItemId] = { shopItemId: p.shopItemId, name: p.name, imageUrl: p.imageUrl, healthRestored: p.healthRestored, manaRestored: p.manaRestored, petsRevived: p.petsRevived, items: [] };
-          }
-          groupedPotions[p.shopItemId].items.push(p);
-        }
-        const potionGroups = Object.values(groupedPotions);
+        // Per-row stacks for the picker — each inventory row is its own
+        // stack tile (the server already merges identical purchases up
+        // to POTION_STACK_SIZE per row). Same model as PvP. 137 potions
+        // bought lands as 3 rows (50/50/37) and renders as 3 tiles.
+        const POTION_STACK_SIZE = 50;
+        const potionGroups: Array<{
+          key: string; inventoryId: string; qty: number;
+          shopItemId: string; name: string;
+          imageUrl?: string | null;
+          healthRestored?: number | null;
+          manaRestored?: number | null;
+          petsRevived?: number | null;
+        }> = potions.map(p => ({
+          key: p.inventoryId,
+          inventoryId: p.inventoryId,
+          qty: Math.max(1, p.quantity ?? 1),
+          shopItemId: p.shopItemId,
+          name: p.name,
+          imageUrl: p.imageUrl,
+          healthRestored: p.healthRestored,
+          manaRestored: p.manaRestored,
+          petsRevived: p.petsRevived,
+        }));
 
         // Tap a slot to clear it (matches PvP behavior).
         const removeFromSlot = (slotIdx: number) => {
@@ -4085,32 +4103,29 @@ export default function WorldPage({ user }: WorldPageProps) {
           setBattlePotionSlots(updated);
         };
 
-        // Picker → equip a STACK of up to 50 of this potion type into
-        // the first empty slot. Auto-closes the picker so the player
-        // sees the slot fill in instantly (PvP UX). Each slot now
-        // holds a stack instead of a single potion, so 50 healing
-        // potions fit in one slot instead of needing all 5.
-        const POTION_STACK_SIZE = 50;
+        // Picker → drop the chosen inventory row into the first empty
+        // slot. The slot owns the row id and a snapshot of its qty
+        // (capped at POTION_STACK_SIZE for safety). Already-bound rows
+        // are skipped so a player can't double-bind one stack into two
+        // slots.
         const equipPotionFromGroup = (group: typeof potionGroups[0]) => {
           const updated = [...battlePotionSlots] as (BattlePotionSlot | null)[];
           const emptyIdx = updated.findIndex(s => s === null);
           if (emptyIdx === -1) return;
           const allAssignedIds = new Set(
-            updated.reduce((acc, s) => s ? [...acc, ...s.inventoryIds] : acc, [] as string[]),
+            updated.filter((s): s is BattlePotionSlot => s !== null).map(s => s.inventoryId),
           );
-          const ids = group.items
-            .map(i => i.inventoryId)
-            .filter(id => !allAssignedIds.has(id))
-            .slice(0, POTION_STACK_SIZE);
-          if (ids.length === 0) return;
+          if (allAssignedIds.has(group.inventoryId)) return;
+          const safeQty = Math.max(1, Math.min(POTION_STACK_SIZE, group.qty));
           updated[emptyIdx] = {
             shopItemId: group.shopItemId,
-            inventoryIds: ids,
+            inventoryId: group.inventoryId,
+            qty: safeQty,
             name: group.name,
             imageUrl: group.imageUrl ?? null,
             healthRestored: group.healthRestored ?? null,
             manaRestored: group.manaRestored ?? null,
-            petsRevived: (group as any).petsRevived ?? null,
+            petsRevived: group.petsRevived ?? null,
           };
           setBattlePotionSlots(updated);
           setPotionPickerOpen(false);
@@ -4185,7 +4200,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                                 boxShadow: "0 1px 4px rgba(0,0,0,0.5)",
                               }}
                             >
-                              ×{slot.inventoryIds.length}
+                              ×{slot.qty}
                             </div>
                           </>
                         ) : (
@@ -4381,17 +4396,18 @@ export default function WorldPage({ user }: WorldPageProps) {
                         {potionGroups.map((group) => {
                           const isHeal = (group.healthRestored ?? 0) > 0;
                           const isMana = (group.manaRestored ?? 0) > 0;
-                          const equippedFromGroup = battlePotionSlots.reduce(
-                            (acc, s) => s?.shopItemId === group.shopItemId ? acc + s.inventoryIds.length : acc,
-                            0,
-                          );
-                          const remaining = group.items.length - equippedFromGroup;
+                          // Whether this exact inventory row is bound
+                          // to a slot already (one row → at most one
+                          // slot in the new model). Tile is disabled
+                          // once it's bound or the loadout is full.
+                          const isEquipped = battlePotionSlots.some(s => s?.inventoryId === group.inventoryId);
+                          const remaining = isEquipped ? 0 : group.qty;
                           const loadoutFull = battlePotionSlots.every((s) => s !== null);
-                          const disabled = remaining <= 0 || loadoutFull;
+                          const disabled = isEquipped || loadoutFull;
                           return (
                             <button
-                              key={group.shopItemId}
-                              data-testid={`button-potion-stack-${group.shopItemId}`}
+                              key={group.key}
+                              data-testid={`button-potion-stack-${group.key}`}
                               disabled={disabled}
                               onClick={() => equipPotionFromGroup(group)}
                               className="relative rounded-xl p-2 flex flex-col items-center gap-1 transition-all active:scale-95"

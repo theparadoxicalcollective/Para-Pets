@@ -402,6 +402,88 @@ app.use((req, res, next) => {
   await runMigration("uq_pond_fish_location_item", () =>
     db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS uq_pond_fish_location_item ON pond_fish (location_id, shop_item_id)`));
 
+  // One-time consolidation: collapse every user's per-row potion inventory
+  // into stacks of up to 50. Older builds inserted one row per potion
+  // purchased, so a player who bought 46 small health potions had 46
+  // separate rows. Going forward the shop endpoint stacks them for new
+  // purchases, but we want existing inventories to also benefit so the
+  // first new purchase doesn't fill a tiny partial row before spilling
+  // into a full stack.
+  await runOnce("consolidate_potion_stacks_2026_04", async () => {
+    const POTION_STACK_LIMIT = 50;
+    // Only target user/item groups whose CURRENT layout is wrong:
+    // either there's a stack above the limit OR there's more than one
+    // partial stack (i.e. all-but-the-last stack should be at the
+    // limit). This way a re-run after a clean migration is a no-op
+    // even though `runOnce` already gates re-runs after success — the
+    // tighter filter also keeps each iteration cheap if the migration
+    // gets re-applied to a different DB by hand.
+    const r: any = await db.execute(sql`
+      SELECT ui.user_id, ui.shop_item_id
+      FROM user_inventory ui
+      JOIN shop_items si ON si.id = ui.shop_item_id
+      WHERE si.type = 'potion'
+      GROUP BY ui.user_id, ui.shop_item_id
+      HAVING
+        MAX(COALESCE(ui.quantity, 1)) > ${POTION_STACK_LIMIT}
+        OR SUM(CASE WHEN COALESCE(ui.quantity, 1) < ${POTION_STACK_LIMIT} THEN 1 ELSE 0 END) > 1
+    `);
+    const groups: { user_id: string; shop_item_id: string }[] = r.rows ?? r;
+    for (const g of groups) {
+      // Per-group transaction: if any of the update/delete/insert
+      // steps for ONE user/item group fails, that group rolls back as
+      // a unit so we never lose qty (e.g. row deleted before the new
+      // stack got inserted). Other groups are unaffected.
+      await db.transaction(async (tx) => {
+        const rows: any = await tx.execute(sql`
+          SELECT id, COALESCE(quantity, 1) AS quantity
+          FROM user_inventory
+          WHERE user_id = ${g.user_id} AND shop_item_id = ${g.shop_item_id}
+          ORDER BY acquired_at ASC NULLS FIRST
+          FOR UPDATE
+        `);
+        const list: { id: string; quantity: number }[] = rows.rows ?? rows;
+        if (list.length === 0) return;
+        // Use ?? rather than || so a legitimate stored `0` stays 0 —
+        // otherwise zero-qty husks (which this migration explicitly
+        // wants to clean) would each contribute 1 to the rebuild and
+        // mint phantom potions.
+        const totalQty = list.reduce((acc, x) => acc + Number(x.quantity ?? 1), 0);
+        if (totalQty <= 0) {
+          // Defensive: clean up any zero-qty husks that may exist.
+          await tx.execute(sql`DELETE FROM user_inventory WHERE user_id = ${g.user_id} AND shop_item_id = ${g.shop_item_id}`);
+          return;
+        }
+        const keepId = list[0].id;
+        const dropIds = list.slice(1).map(x => x.id);
+        // Build the new stack distribution: as many full-50 stacks as
+        // fit, then a remainder. The first stack reuses the existing
+        // oldest row so any external references to it (none currently,
+        // but defensive) stay valid.
+        const stackSizes: number[] = [];
+        let left = totalQty;
+        while (left > 0) {
+          const chunk = Math.min(POTION_STACK_LIMIT, left);
+          stackSizes.push(chunk);
+          left -= chunk;
+        }
+        await tx.execute(sql`UPDATE user_inventory SET quantity = ${stackSizes[0] ?? 0} WHERE id = ${keepId}`);
+        if (dropIds.length > 0) {
+          // Drizzle's `sql` template doesn't auto-bind JS arrays to
+          // Postgres array params, so use sql.join to expand the list
+          // into a real `id IN (...)` clause with one bind per id.
+          await tx.execute(sql`DELETE FROM user_inventory WHERE id IN (${sql.join(dropIds.map(id => sql`${id}`), sql`, `)})`);
+        }
+        for (let i = 1; i < stackSizes.length; i++) {
+          await tx.execute(sql`
+            INSERT INTO user_inventory (user_id, shop_item_id, quantity)
+            VALUES (${g.user_id}, ${g.shop_item_id}, ${stackSizes[i]})
+          `);
+        }
+      });
+    }
+  });
+
   // One-time backfill: synchronize each world's fishing-spot stock so every
   // spot in a given world has the same fish list. We pick the spot with the
   // most fish in each world as the source of truth and copy its fish into

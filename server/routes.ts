@@ -1708,6 +1708,14 @@ export async function registerRoutes(
         // Bait stacks: each purchase gives 5 charges stacked onto one inventory row
         const baitChargesPerPurchase = 5;
         invItem = await storage.addToInventory(user.id, itemId, {}, baitChargesPerPurchase * purchaseCount);
+      } else if (shopItem.type === "potion") {
+        // Potions stack up to 50 per row. Tops off existing partial stacks
+        // before creating new ones, so a player who has 46 small health
+        // potions and buys 10 more ends up with one stack of 50 and a
+        // new stack of 6 — not 11 separate single-quantity rows.
+        const POTION_STACK_LIMIT = 50;
+        const touched = await storage.addStackingItem(user.id, itemId, purchaseCount, POTION_STACK_LIMIT);
+        invItem = touched[touched.length - 1] ?? null;
       } else {
         for (let i = 0; i < purchaseCount; i++) {
           const extraFields: any = {};
@@ -4409,9 +4417,13 @@ export async function registerRoutes(
       const manaAmount = shopItem.manaRestored || 0;
       const petsRevived = shopItem.petsRevived || 0;
 
-      await storage.removeFromInventory(inventoryId);
+      // Potions stack now — using one decrements the row's quantity, only
+      // deleting the row when the stack hits zero. Returning the post-use
+      // quantity lets the client reconcile its cached badge counts.
+      const { depleted, item: updatedRow } = await storage.decrementInventoryQuantity(inventoryId);
+      const remainingQty = depleted ? 0 : (updatedRow?.quantity ?? 0);
 
-      return res.json({ healAmount, manaAmount, petsRevived, potionName: shopItem.name });
+      return res.json({ healAmount, manaAmount, petsRevived, potionName: shopItem.name, remainingQty, depleted });
     } catch (err) {
       console.error("Use potion error:", err);
       return res.status(500).json({ message: "Failed to use potion" });

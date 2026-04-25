@@ -113,7 +113,9 @@ export interface IStorage {
   deleteShopItem(id: string): Promise<void>;
   getUserInventory(userId: string): Promise<UserInventoryItem[]>;
   addToInventory(userId: string, shopItemId: string, extraFields?: Partial<UserInventoryItem>, stackQty?: number): Promise<UserInventoryItem>;
+  addStackingItem(userId: string, shopItemId: string, qty: number, limit: number): Promise<UserInventoryItem[]>;
   decrementBaitQuantity(inventoryId: string): Promise<{ depleted: boolean; item: UserInventoryItem | undefined }>;
+  decrementInventoryQuantity(inventoryId: string): Promise<{ depleted: boolean; item: UserInventoryItem | undefined }>;
   getInventoryItem(userId: string, shopItemId: string): Promise<UserInventoryItem | undefined>;
   countInventoryPetCopies(userId: string, shopItemId: string): Promise<number>;
   getInventoryItemById(id: string): Promise<UserInventoryItem | undefined>;
@@ -671,19 +673,120 @@ export class DatabaseStorage implements IStorage {
   }
 
   async decrementBaitQuantity(inventoryId: string): Promise<{ depleted: boolean; item: UserInventoryItem | undefined }> {
-    const inv = await this.getInventoryItemById(inventoryId);
-    if (!inv) return { depleted: true, item: undefined };
-    const newQty = Math.max(0, (inv.quantity ?? 1) - 1);
-    if (newQty === 0) {
-      await db.delete(userInventory).where(eq(userInventory.id, inventoryId));
-      return { depleted: true, item: undefined };
-    }
-    const [updated] = await db
-      .update(userInventory)
-      .set({ quantity: newQty })
-      .where(eq(userInventory.id, inventoryId))
-      .returning();
-    return { depleted: false, item: updated };
+    return this.decrementInventoryQuantity(inventoryId);
+  }
+
+  // Generic "consume one charge" against a stacked inventory row. Used by
+  // bait, potions, and any other stackable consumable. If the row drops
+  // to zero it's removed entirely so the inventory list stays clean.
+  async decrementInventoryQuantity(inventoryId: string): Promise<{ depleted: boolean; item: UserInventoryItem | undefined }> {
+    // Atomic decrement: do the qty math in SQL with a guard
+    // (`quantity > 0`) so concurrent uses can never double-decrement
+    // or take the count below zero. If no row matched (already at
+    // zero, or just deleted by another caller) we delete and report
+    // depleted. If the post-decrement value is zero, we delete the
+    // row in the same transaction so the inventory list stays clean.
+    return await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(userInventory)
+        .set({ quantity: sql`${userInventory.quantity} - 1` })
+        .where(and(eq(userInventory.id, inventoryId), sql`COALESCE(${userInventory.quantity}, 1) > 0`))
+        .returning();
+      if (!updated) {
+        // Either the row never existed, was already at 0, or was
+        // deleted by a concurrent caller. Make sure no zero-qty
+        // husk lingers in the table.
+        await tx.delete(userInventory).where(eq(userInventory.id, inventoryId));
+        return { depleted: true, item: undefined };
+      }
+      if ((updated.quantity ?? 0) <= 0) {
+        await tx.delete(userInventory).where(eq(userInventory.id, inventoryId));
+        return { depleted: true, item: undefined };
+      }
+      return { depleted: false, item: updated };
+    });
+  }
+
+  // Stack a freshly-purchased run of one consumable (potion, bait, etc.) into
+  // the user's existing rows up to a per-row `limit`, spilling overflow into
+  // new rows. Returns every row that was touched/created so the caller can
+  // surface "you now have X stacks" feedback if desired.
+  //
+  // Algorithm (idempotent if `qty === 0`):
+  //   1. Look at every existing row of (userId, shopItemId), ordered oldest
+  //      first so the first stack the player ever bought stays the head.
+  //   2. Top off rows whose quantity < limit, in order, until either qty is
+  //      exhausted or every existing row is at the limit.
+  //   3. For any leftover qty, insert new rows of size `limit` (last one
+  //      gets the remainder).
+  async addStackingItem(userId: string, shopItemId: string, qty: number, limit: number = 50): Promise<UserInventoryItem[]> {
+    if (qty <= 0) return [];
+    if (limit <= 0) limit = 1;
+
+    // Wrap the whole top-off + spill in a transaction with row-level
+    // locks (`FOR UPDATE`) on the user's existing rows of this item.
+    // Without locks, two concurrent buys can read the same `cur` and
+    // each write `cur + add`, dropping one increment on the floor
+    // (i.e. the player paid for both but only got one bumped). The
+    // transaction also ensures partial failures roll back so coins
+    // and inventory stay consistent.
+    return await db.transaction(async (tx) => {
+      const touched: UserInventoryItem[] = [];
+
+      // Empty-set race: when no rows exist yet for (userId, shopItemId),
+      // FOR UPDATE has nothing to lock, so two concurrent first-time
+      // buys could both observe "no rows" and each insert their own
+      // partial stack — quantity is preserved but the canonical
+      // "at most one partial stack" invariant is violated. A
+      // transaction-scoped advisory lock keyed on (userId, shopItemId)
+      // serializes those concurrent inserts and is auto-released on
+      // commit/rollback. The two-int variant takes int4 args, so we
+      // hash the (varchar) ids down to int4 with `hashtext`.
+      await tx.execute(sql`
+        SELECT pg_advisory_xact_lock(hashtext(${userId})::int, hashtext(${shopItemId})::int)
+      `);
+
+      // Lock & read this user's rows of the item, oldest first so the
+      // first stack the player ever bought stays the head row.
+      const existingRaw: any = await tx.execute(sql`
+        SELECT * FROM user_inventory
+        WHERE user_id = ${userId} AND shop_item_id = ${shopItemId}
+        ORDER BY acquired_at ASC NULLS FIRST
+        FOR UPDATE
+      `);
+      const existing: UserInventoryItem[] = (existingRaw.rows ?? existingRaw) as UserInventoryItem[];
+
+      let remaining = qty;
+      for (const row of existing) {
+        if (remaining <= 0) break;
+        const cur = row.quantity ?? 1;
+        if (cur >= limit) continue;
+        const space = limit - cur;
+        const add = Math.min(space, remaining);
+        // Atomic add against the row's current quantity, capped at
+        // `limit` even if a stale read raced us. The cap protects
+        // against any future code path that bypasses the lock.
+        const [updated] = await tx
+          .update(userInventory)
+          .set({ quantity: sql`LEAST(${limit}, COALESCE(${userInventory.quantity}, 1) + ${add})` })
+          .where(eq(userInventory.id, row.id))
+          .returning();
+        touched.push(updated);
+        remaining -= add;
+      }
+
+      while (remaining > 0) {
+        const chunk = Math.min(limit, remaining);
+        const [inserted] = await tx
+          .insert(userInventory)
+          .values({ userId, shopItemId, quantity: chunk })
+          .returning();
+        touched.push(inserted);
+        remaining -= chunk;
+      }
+
+      return touched;
+    });
   }
 
   async decrementPoleUses(inventoryId: string): Promise<UserInventoryItem | undefined> {
