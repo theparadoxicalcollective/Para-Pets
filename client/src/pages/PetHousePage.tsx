@@ -2755,7 +2755,17 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
             petBounce ? "feed-pet-happy"
             : petCircling ? "pet-care-squish-bounce"
             : petPressed ? "pet-care-squish"
-            : "pet-idle-squish"
+            // Default idle: NO outer squish wrapper. The active pet on the
+            // home page (HomePage.tsx ~L931) renders the same <PetAnimator
+            // mode="idle" /> with no extra outer animation, so its internal
+            // body-breath / head-bob / shoulder / arm motions are the sole
+            // source of motion. Pet Care used to layer .pet-idle-squish
+            // (3.6 s scaleY/scaleX) on top, which beat against the
+            // internal 4.5 s body breath at a different period and made
+            // the idle look "off". Press / circle / happy interaction
+            // states still get their own wrapper animations for tactile
+            // feedback — only the at-rest idle is now identical to home.
+            : ""
           }
           style={{ width: "100%", height: "100%" }}
         >
