@@ -3,9 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
-import chestIcon from "@assets/daily_login_chest_icon.png";
+import chestIcon from "@assets/generated_images/icon_gift_treasure.png";
 import coinIconImg from "@assets/icon_coin.png";
-import pvpTicketIcon from "@assets/generated_images/nav_icon_pvp.png";
+import pvpTicketIcon from "@assets/Photoroom_20260415_83701_PM_1776304592941.png";
 
 interface ClaimStatus {
   canClaim: boolean;
@@ -149,25 +149,21 @@ export default function DailyClaimCard({
       {showBurst && <ClaimBurst onDone={() => setShowBurst(false)} />}
 
       <div className="flex items-stretch p-3 gap-3">
-        {/* Chest icon */}
-        <div
-          className="flex-shrink-0 rounded-xl overflow-hidden"
-          style={{
-            width: 86,
-            height: 86,
-            background:
-              "radial-gradient(circle at 50% 55%, rgba(127,191,176,0.25) 0%, transparent 70%)",
-            border: "1px solid rgba(127,191,176,0.18)",
-          }}
-        >
+        {/* Chest icon — no container frame; CSS mask fades the icon's
+            dark scene edges into the card so there's no visible box. */}
+        <div className="flex-shrink-0" style={{ width: 86, height: 86 }}>
           <img
             src={chestIcon}
             alt="Daily reward chest"
             data-testid="img-daily-chest"
             className="w-full h-full object-contain"
             style={{
+              WebkitMaskImage:
+                "radial-gradient(circle at 50% 55%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 72%)",
+              maskImage:
+                "radial-gradient(circle at 50% 55%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 72%)",
               filter: canClaim
-                ? "drop-shadow(0 0 8px rgba(127,191,176,0.55))"
+                ? "drop-shadow(0 0 10px rgba(127,191,176,0.55))"
                 : "saturate(0.7) brightness(0.85)",
               transition: "filter 0.4s ease",
             }}
@@ -192,7 +188,7 @@ export default function DailyClaimCard({
                 <img
                   src={coinIconImg}
                   alt="Coins"
-                  className="w-5 h-5 object-contain"
+                  className="w-6 h-6 object-contain"
                   style={{ filter: "drop-shadow(0 0 4px rgba(255,200,80,0.5))" }}
                 />
                 <span
@@ -209,12 +205,12 @@ export default function DailyClaimCard({
                 <img
                   src={pvpTicketIcon}
                   alt="PvP tickets"
-                  className="w-5 h-5 object-contain"
-                  style={{ filter: "drop-shadow(0 0 4px rgba(255,120,120,0.5))" }}
+                  className="w-7 h-7 object-contain"
+                  style={{ filter: "drop-shadow(0 0 4px rgba(127,191,176,0.55))" }}
                 />
                 <span
                   className="font-fantasy text-[13px]"
-                  style={{ color: "#ffb8b0" }}
+                  style={{ color: "#cfe6dc" }}
                 >
                   +{REWARD_TICKETS}
                 </span>
