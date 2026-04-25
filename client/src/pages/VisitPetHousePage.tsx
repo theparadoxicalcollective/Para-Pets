@@ -99,8 +99,11 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
     const container = containerRef.current;
     if (!container) return;
     const w = container.offsetWidth;
-    const imgW = container.offsetHeight * aspectRef.current;
-    setPanX(Math.min(0, Math.max(Math.min(0, w - imgW), drag.startPanX + (e.clientX - drag.startX))));
+    const h = container.offsetHeight;
+    const imgW = h * aspectRef.current;
+    const min = Math.min(0, w - imgW);
+    const newPanX = Math.min(0, Math.max(min, drag.startPanX + (e.clientX - drag.startX)));
+    setPanX(newPanX);
   }, []);
 
   const onUp = useCallback((e: React.PointerEvent) => {
@@ -177,8 +180,8 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
         className="absolute flex items-center justify-center font-bold text-xs tracking-widest rounded-full px-4 py-2"
         style={{
           zIndex: 10,
-          left: `${leaveButtonX * 100}%`,
-          top: `${leaveButtonY * 100}%`,
+          left: imgWidth > 0 ? panX + leaveButtonX * imgWidth : `${leaveButtonX * 100}%`,
+          top: containerH > 0 ? leaveButtonY * containerH : `${leaveButtonY * 100}%`,
           transform: "translate(-50%, -50%)",
           background: "rgba(0,0,0,0.32)", color: "rgba(255,255,255,0.7)",
           border: "1px solid rgba(255,255,255,0.18)",
@@ -369,9 +372,7 @@ export default function VisitPetHousePage() {
                   src={b.imageUrl} alt={b.name} draggable={false}
                   style={{
                     width: displayW, height: displayW, objectFit: "contain",
-                    filter: isMailbox
-                      ? "drop-shadow(0 0 14px rgba(127,255,212,0.55)) drop-shadow(0 3px 6px rgba(0,0,0,0.55))"
-                      : "drop-shadow(0 0 10px rgba(255,210,80,0.3)) drop-shadow(0 3px 6px rgba(0,0,0,0.55))",
+                    filter: "drop-shadow(0 0 10px rgba(255,210,80,0.3)) drop-shadow(0 3px 6px rgba(0,0,0,0.55))",
                     transform: b.flippedX ? "scaleX(-1)" : undefined,
                     flexShrink: 0,
                   }}
