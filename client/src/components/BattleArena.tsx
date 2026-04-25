@@ -1904,9 +1904,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             <div className="text-white text-2xl font-bold animate-pulse">VS</div>
             <div style={{ animation: "petIntro 0.7s ease-out 0.25s both" }} className="flex flex-col items-center">
               <div className="w-36 flex items-center justify-center" style={{ aspectRatio: "1/1" }}>
-                {pet.petTemplateId ? (
-                  <PetAnimatorCanvas petTemplateId={pet.petTemplateId} size={200} className="w-full h-full" />
-                ) : pet.imageUrl ? (
+                {/* Still pet portrait (was the parts-based PetAnimatorCanvas).
+                    Per user spec the world-battle arena now uses the
+                    full-body PNG instead of the multi-part animated
+                    rig — same image admins upload to shop_items. The
+                    canvas rig is still available app-wide for spots
+                    that explicitly need idle animation. */}
+                {pet.imageUrl ? (
                   <img src={pet.imageUrl} alt={pet.name} className="w-full object-contain drop-shadow-lg" style={{ maxHeight: "144px" }} />
                 ) : (
                   <img src={petPawIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain" }} />
@@ -2160,9 +2164,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   onPointerDown={epReady ? (e) => { e.stopPropagation(); handleExtraPetClick(si); } : undefined}
                   data-testid={`button-extra-pet-skill-${si}`}
                 >
-                  {(ep as any).petTemplateId ? (
-                    <PetAnimatorCanvas petTemplateId={(ep as any).petTemplateId} size={PET_SPRITE_SIZE} style={epGlowStyle} />
-                  ) : (ep.hatchedImageUrl || ep.imageUrl) ? (
+                  {/* Extra-pet sprite — still PNG (was the canvas rig).
+                      hatchedImageUrl is preferred over imageUrl because
+                      hatched art is the post-hatch full-body portrait;
+                      imageUrl is the unhatched egg in some flows. */}
+                  {(ep.hatchedImageUrl || ep.imageUrl) ? (
                     <img src={(ep.hatchedImageUrl || ep.imageUrl)!} alt={ep.name} className="object-contain" style={{ width: PET_SPRITE_SIZE, height: PET_SPRITE_SIZE, ...(epGlowStyle || {}) }} />
                   ) : (
                     <img src={petPawIcon} alt="" style={{ width: PET_SPRITE_SIZE * 0.5, height: PET_SPRITE_SIZE * 0.5, objectFit: "contain", ...(epGlowStyle || {}) }} />
@@ -2238,13 +2244,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   animation: "counterGlow 0.55s ease-in-out infinite",
                 }} />
               )}
-              {pet.petTemplateId ? (
-                <PetAnimatorCanvas
-                  petTemplateId={pet.petTemplateId}
-                  size={PET_SPRITE_SIZE}
-                  style={mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill ? PET_RARITY_GLOW_STYLE : undefined}
-                />
-              ) : pet.imageUrl ? (
+              {/* Active pet sprite — still PNG (was the canvas rig).
+                  petRarityGlow is the same per-rarity halo the canvas
+                  used; running it as a CSS animation on the <img> traces
+                  the silhouette via drop-shadow so the glow follows the
+                  pet's actual outline rather than its bounding box. */}
+              {pet.imageUrl ? (
                 <img
                   src={pet.imageUrl}
                   alt={pet.name}
