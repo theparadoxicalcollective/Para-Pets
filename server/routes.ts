@@ -5716,12 +5716,23 @@ export async function registerRoutes(
       // ── Bot pass (always included) ──
       // ±100 % ATK band, falling through to all bots if that's empty.
       // De-duplication isn't needed because bots and humans are
-      // disjoint (different `isBot` flag), but we cap the bot count at
-      // 6 so the lobby grid doesn't get visually dominated by bots
-      // when the human pool is small.
+      // disjoint (different `isBot` flag). We shuffle the in-band pool
+      // before slicing so a player who rerolls the lobby sees a
+      // different subset each time — without the shuffle, the
+      // `updatedAt`-ordered query would surface the same 8 bots
+      // every reroll (the seeder updates rows sequentially every boot,
+      // so `updatedAt` is effectively a fixed order). Cap at 8 so the
+      // lobby grid doesn't get visually dominated by bots when the
+      // human pool is small but still surfaces most of the 10-bot
+      // roster across two rerolls.
       let botsMatched: any[] = inBand(bots, 1.0);
       if (botsMatched.length === 0) botsMatched = bots.slice();
-      if (botsMatched.length > 6) botsMatched = botsMatched.slice(0, 6);
+      // Fisher–Yates shuffle (in-place on the local copy).
+      for (let i = botsMatched.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [botsMatched[i], botsMatched[j]] = [botsMatched[j], botsMatched[i]];
+      }
+      if (botsMatched.length > 8) botsMatched = botsMatched.slice(0, 8);
 
       // Humans first so they render at the top of the grid; bots
       // immediately after so the lobby always feels full.

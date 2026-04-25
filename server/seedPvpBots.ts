@@ -1,23 +1,31 @@
 /**
  * PvP Bot seeder.
  *
- * Creates 5 persistent bot opponents so a player can battle right away even
+ * Creates 10 persistent bot opponents so a player can battle right away even
  * when no other humans have set up their team yet. Bots:
  *   - have `isBot=true` so they're excluded from the public Hall-of-Earnings
- *     and Devotion leaderboards, but they DO appear on the PvP leaderboard
- *     (so seeded bots provide a starting podium for fresh worlds) and they
- *     surface in opponent matchmaking because matchmaking only filters by
- *     attack power, not bot-status.
+ *     and Devotion leaderboards AND from the PvP leaderboard. (Bots used to
+ *     show on the PvP board to seed a starting podium for fresh worlds, but
+ *     the user reverted that — the BP/W/L podium is for real players only.)
+ *     Bots still surface in opponent matchmaking because matchmaking filters
+ *     by attack power, not bot-status.
  *   - own 5 hatched pets each, with stats following the in-game progression
  *     (base 50/50 atk/def, 1000 hp at level 1; per-level growth roughly
  *     mirrors the rate a real player would see by spending 3 power-up slots
- *     per level on a rarity-3+ pet).
- *   - span 5 difficulty tiers so a player encounters varied attack power
- *     across opponent rerolls.
+ *     per level on a rarity-3+ pet — the upper tiers exceed that cap to give
+ *     end-game players genuine boss fights).
+ *   - span 10 difficulty tiers (rookie → boss) so a player encounters varied
+ *     attack power across opponent rerolls.
+ *   - draw their pet *appearance* from the full set of hatched pet shop
+ *     items rather than always using the first one (which used to make every
+ *     bot pet a Panda). Each pet is randomly assigned a different pet
+ *     template, so bot teams visually mix species.
  *
- * The seeder is idempotent: it bails early if 5 or more `isBot` users
- * already exist. To force a re-seed, delete the bot users (and their
- * inventory + battle group rows) first.
+ * The seeder reconciles state on every boot — each named bot's user row,
+ * pet inventory rows, and battle group are refreshed so a partially-failed
+ * previous seed (or a tier rebalance) self-heals on the next boot. Existing
+ * bots' pet shopItemIds are also re-rolled on each boot so older bots that
+ * were seeded with all-Panda teams visually update to the new mixed roster.
  */
 import bcrypt from "bcryptjs";
 import { eq, and } from "drizzle-orm";
@@ -42,23 +50,33 @@ type BotTier = {
   healthPerLevel: number;
 };
 
-// Five tiers, low→high. Bots were previously trivial to beat — players
-// reported steamrolling every tier in seconds. Per-level stat gains
-// have been bumped another ~50–70 % across the board so even the
-// rookie bot has bite and the top tier reads as a legit boss fight.
-// Levels were also pushed higher so the maxed bot is genuinely
-// end-game material (level 50 is the in-game cap).
+// Ten tiers, low→high. Bots were previously trivial to beat — players
+// reported steamrolling every tier in seconds. The original five tiers
+// (Sparrow_Recruit … Veridian_Wraith) are kept as-is for early-game
+// matchmaking; five NEW boss-class tiers (Obsidian_Champion …
+// Apex_Para_Lord) have been added on top so end-game players have
+// genuinely punishing opponents. Per-level gains keep climbing in the
+// new tiers — some exceed what a real player can build by spending
+// every available power-up slot, intentionally, since these are meant
+// to be challenge fights.
 //
 // Approximate computed attack power (sum of atk + def/2 + level*5
-// across 5 pets) for the midpoint of each tier post-bump:
-//   Tier 1 ≈  900   |   Tier 2 ≈ 1800   |   Tier 3 ≈ 3000
-//   Tier 4 ≈ 4400   |   Tier 5 ≈ 6200
+// across 5 pets) for the midpoint of each tier:
+//   Tier 1 ≈   900  | Tier 2 ≈  1800 | Tier 3 ≈  3000
+//   Tier 4 ≈  4400  | Tier 5 ≈  6200 | Tier 6 ≈  8400
+//   Tier 7 ≈ 10800  | Tier 8 ≈ 13500 | Tier 9 ≈ 16200
+//   Tier 10 ≈ 18800
 const BOT_TIERS: BotTier[] = [
-  { username: "Sparrow_Recruit",   levelMin: 8,  levelMax: 12, atkPerLevel: 2.4, defPerLevel: 1.8, healthPerLevel: 1.2 },
-  { username: "Glade_Wanderer",    levelMin: 14, levelMax: 20, atkPerLevel: 2.7, defPerLevel: 2.0, healthPerLevel: 1.1 },
-  { username: "Mossheart_Knight",  levelMin: 22, levelMax: 30, atkPerLevel: 3.0, defPerLevel: 2.2, healthPerLevel: 1.0 },
-  { username: "Ember_Stormcaller", levelMin: 32, levelMax: 40, atkPerLevel: 3.3, defPerLevel: 2.3, healthPerLevel: 0.9 },
-  { username: "Veridian_Wraith",   levelMin: 42, levelMax: 50, atkPerLevel: 3.6, defPerLevel: 2.4, healthPerLevel: 0.8 },
+  { username: "Sparrow_Recruit",    levelMin: 8,  levelMax: 12, atkPerLevel: 2.4, defPerLevel: 1.8, healthPerLevel: 1.2 },
+  { username: "Glade_Wanderer",     levelMin: 14, levelMax: 20, atkPerLevel: 2.7, defPerLevel: 2.0, healthPerLevel: 1.1 },
+  { username: "Mossheart_Knight",   levelMin: 22, levelMax: 30, atkPerLevel: 3.0, defPerLevel: 2.2, healthPerLevel: 1.0 },
+  { username: "Ember_Stormcaller",  levelMin: 32, levelMax: 40, atkPerLevel: 3.3, defPerLevel: 2.3, healthPerLevel: 0.9 },
+  { username: "Veridian_Wraith",    levelMin: 42, levelMax: 50, atkPerLevel: 3.6, defPerLevel: 2.4, healthPerLevel: 0.8 },
+  { username: "Obsidian_Champion",  levelMin: 45, levelMax: 50, atkPerLevel: 3.9, defPerLevel: 2.5, healthPerLevel: 0.85 },
+  { username: "Stormrend_Tyrant",   levelMin: 48, levelMax: 50, atkPerLevel: 4.2, defPerLevel: 2.6, healthPerLevel: 0.9 },
+  { username: "Eclipse_Sovereign",  levelMin: 50, levelMax: 50, atkPerLevel: 4.5, defPerLevel: 2.7, healthPerLevel: 0.95 },
+  { username: "Ruin_Harbinger",     levelMin: 50, levelMax: 50, atkPerLevel: 4.8, defPerLevel: 2.8, healthPerLevel: 1.0 },
+  { username: "Apex_Para_Lord",     levelMin: 50, levelMax: 50, atkPerLevel: 5.2, defPerLevel: 3.0, healthPerLevel: 1.1 },
 ];
 
 const BOT_PETS_PER_TEAM = 5;
@@ -108,19 +126,22 @@ function buildPetStats(tier: BotTier, level: number) {
  * Safe to call on every server boot — exits fast if bots already exist.
  */
 export async function seedPvpBots(): Promise<void> {
-  // Need at least one pet shop item to attach inventory rows to. Bots use
-  // whatever the first pet shop item is. If admins haven't created any pets
-  // yet, skip silently — bots without a pet template render as a paw icon
-  // anyway, but having no shop item to FK against would hard-fail the insert.
-  const [petShopItem] = await db
+  // Pull EVERY pet shop item so each bot pet can be visually different. The
+  // older seeder grabbed only the first row, which is why every bot's whole
+  // team rendered as the same Panda. We now pick at random per pet from the
+  // full pool. If admins haven't created any pets yet, skip silently —
+  // bots without a pet template render as a paw icon anyway, but having
+  // no shop item to FK against would hard-fail the insert.
+  const allPetShopItems = await db
     .select({ id: shopItems.id })
     .from(shopItems)
-    .where(eq(shopItems.type, "pet"))
-    .limit(1);
-  if (!petShopItem) {
+    .where(eq(shopItems.type, "pet"));
+  if (allPetShopItems.length === 0) {
     console.log("[seedPvpBots] no pet shop items found; skipping bot seed");
     return;
   }
+  const pickPetShopItemId = (): string =>
+    allPetShopItems[Math.floor(Math.random() * allPetShopItems.length)].id;
 
   // No top-level early-return: we always reconcile each named bot's user
   // row, pets, and battle group so a previous half-failed seed self-heals
@@ -158,14 +179,41 @@ export async function seedPvpBots(): Promise<void> {
         .returning({ id: users.id });
     }
 
-    // Find existing pets the previous seed may have created. If we already
-    // have BOT_PETS_PER_TEAM, re-use them. Otherwise build a fresh team.
+    // Find existing pets the previous seed may have created. Order by `id`
+    // so the lineup we save into the battle group is deterministic across
+    // boots — otherwise an unordered scan can re-shuffle pet slots every
+    // restart, which would silently change the saved battle_group and
+    // confuse anyone debugging "why did the bot's lead pet swap?".
     const existingPets = await db
       .select({ id: userInventory.id })
       .from(userInventory)
-      .where(eq(userInventory.userId, botUser.id));
+      .where(eq(userInventory.userId, botUser.id))
+      .orderBy(userInventory.id);
 
     let petInventoryIds: string[] = existingPets.map(p => p.id);
+
+    // ── 1) Always refresh existing rows (stats + shopItemId) ──
+    // Done unconditionally so a partial-failure seed (e.g. only 2 pets
+    // created on the previous boot) STILL gets its existing rows
+    // updated to the latest tier numbers — the previous version
+    // skipped this entire branch when count < 5, which left
+    // legacy all-Panda pets stale.
+    for (const pid of petInventoryIds) {
+      const level = rand(tier.levelMin, tier.levelMax);
+      const { atk, def, health } = buildPetStats(tier, level);
+      await db
+        .update(userInventory)
+        .set({
+          shopItemId: pickPetShopItemId(),
+          petLevel: level,
+          petAtk: atk,
+          petDef: def,
+          petHealth: health,
+        })
+        .where(eq(userInventory.id, pid));
+    }
+
+    // ── 2) Insert any missing pets to reach BOT_PETS_PER_TEAM ──
     if (petInventoryIds.length < BOT_PETS_PER_TEAM) {
       const usedNicks = new Set<string>();
       const need = BOT_PETS_PER_TEAM - petInventoryIds.length;
@@ -176,7 +224,10 @@ export async function seedPvpBots(): Promise<void> {
           .insert(userInventory)
           .values({
             userId: botUser.id,
-            shopItemId: petShopItem.id,
+            // Random pet template per pet so the team is visually mixed
+            // instead of all-Pandas. We don't enforce uniqueness within a
+            // team — a bot can roll the same species twice if RNG agrees.
+            shopItemId: pickPetShopItemId(),
             isHatched: true,
             petLevel: level,
             petAtk: atk,
@@ -186,25 +237,6 @@ export async function seedPvpBots(): Promise<void> {
           })
           .returning({ id: userInventory.id });
         petInventoryIds.push(petRow.id);
-      }
-    } else {
-      // Bots already exist from a previous seed — refresh their stats so
-      // any tier rebalance (atk/def/health gains, level range) actually
-      // applies to live matchmaking instead of being stuck at the values
-      // the pet was first inserted with. We DON'T touch petInventoryIds,
-      // so the saved battle group keeps pointing at the same rows.
-      for (const pid of petInventoryIds) {
-        const level = rand(tier.levelMin, tier.levelMax);
-        const { atk, def, health } = buildPetStats(tier, level);
-        await db
-          .update(userInventory)
-          .set({
-            petLevel: level,
-            petAtk: atk,
-            petDef: def,
-            petHealth: health,
-          })
-          .where(eq(userInventory.id, pid));
       }
     }
 

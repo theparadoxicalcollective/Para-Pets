@@ -1823,14 +1823,12 @@ export class DatabaseStorage implements IStorage {
    */
   async getPvpLeaderboardFull(): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number; attackPower: number; isAdmin?: boolean; isModerator?: boolean; isBot?: boolean }[]> {
     // Start FROM users (not pvp_battles) so EVERY eligible account shows
-    // up on the leaderboard immediately — including the seeded PvP bots
-    // that haven't fought a battle yet, and brand-new human players who
-    // are still at 0 BP. The previous implementation joined the other way
-    // and only listed users who already had at least one pvp_battles row,
-    // which is why bots were missing from the board until somebody lost
-    // to them. Admins are filtered out so true staff accounts don't
-    // pollute the public ranking; moderators DO compete (see filter
-    // below for the rationale).
+    // up on the leaderboard immediately — including brand-new human players
+    // who are still at 0 BP. The previous implementation joined the other
+    // way and only listed users who already had at least one pvp_battles
+    // row, which is why fresh sign-ups never appeared until they fought
+    // their first battle. Admins, moderators, and bots are filtered out
+    // (see filter below) so the public board is real-player-only.
     const userRows = await db.select({
       id: users.id,
       username: users.username,
@@ -1840,14 +1838,18 @@ export class DatabaseStorage implements IStorage {
       isBot: users.isBot,
     }).from(users);
 
-    // Only regular players are RANKED on the public leaderboard.
-    // Admins and moderators are excluded from this list — but the
-    // /api/pvp/leaderboard route still returns their personal BP /
-    // wins / losses via a separate stats lookup (getUserPvpStats),
-    // so the Rank panel shows their tracked numbers with rank = N/A.
+    // Only regular human players are RANKED on the public leaderboard.
+    // Admins and moderators are excluded so true staff accounts don't
+    // pollute the ranking — the /api/pvp/leaderboard route still returns
+    // their personal BP/wins/losses via getUserPvpStats so the Rank panel
+    // can render N/A. Bots are also excluded (the user reverted the
+    // earlier "bots seed a starting podium" decision — the leaderboard
+    // is for real players' BP/W/L only). Bots still appear in opponent
+    // matchmaking, just not on the rankings board.
     const eligible = userRows.filter(u =>
       !u.isAdmin &&
       !u.isModerator &&
+      !u.isBot &&
       !LEADERBOARD_EXCLUDED_USERNAMES.has((u.username || "").toLowerCase())
     );
     if (eligible.length === 0) return [];
