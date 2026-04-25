@@ -1424,6 +1424,7 @@ app.use((req, res, next) => {
       { match: "cottage",  file: "bg_welcome_center.webp"  },
       { match: "fortune",  file: "bg_well_of_fortune.webp"  },
       { match: "cellar",   file: "bg_market_cellar.webp"    },
+      { match: "central",  file: "bg_central_market.png"    },
     ];
     for (const seed of DOOR_BG_SEEDS) {
       const door = doorRows.find((d: any) =>

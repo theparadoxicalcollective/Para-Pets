@@ -1374,20 +1374,24 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                Click opens the door, even if the user has no roaming pet
                on the map.                                                  */}
           {kcDoors.map(door => {
-            // Five tiny firefly dots scattered in a small cluster at the
-            // door entrance. Each one is dim, small, and pulses on its
-            // own offset/delay so the cluster shimmers softly rather
-            // than reading as a single beacon. The whole cluster fits
-            // inside ~50px so it just hints at "something here" without
-            // calling out the door's exact shape or position. Fixed
-            // offsets (not random) so the layout is stable across
-            // re-renders and matches between server-controlled doors.
-            const fireflies: Array<{ x: number; y: number; size: number; delay: string; duration: string; alpha: number }> = [
-              { x: -14, y:  -6, size: 4, delay: "0s",    duration: "2.6s", alpha: 0.85 },
-              { x:   8, y: -18, size: 3, delay: "0.7s",  duration: "3.1s", alpha: 0.75 },
-              { x:  16, y:  -2, size: 5, delay: "1.4s",  duration: "2.9s", alpha: 0.95 },
-              { x:  -6, y: -22, size: 3, delay: "0.3s",  duration: "3.4s", alpha: 0.7  },
-              { x:   2, y:  -8, size: 4, delay: "1.9s",  duration: "2.4s", alpha: 0.8  },
+            // Cluster size mirrors the admin's own trigger circle EXACTLY
+            // (same formula and same translate(-50%,-100%) anchor below)
+            // so the player-facing orbs cover precisely the area the
+            // admin placed — no offset, no clamp drift for unusually
+            // small or large doors.
+            const rPx = door.triggerRadius * (MAP_W / 100);
+            const wrapSize = rPx * 2;
+            // Magical light orbs — fewer, larger, brighter than fireflies.
+            // Positions are fractions of the wrap radius so they scale with
+            // the door size. cy < 0 puts the orb above center, cy > 0 below.
+            // sizeRel is a fraction of rPx so orbs grow with the door zone.
+            const orbs: Array<{ cx: number; cy: number; sizeRel: number; delay: string; duration: string }> = [
+              { cx: -0.55, cy: -0.10, sizeRel: 0.18, delay: "0s",    duration: "3.0s" },
+              { cx:  0.45, cy: -0.45, sizeRel: 0.13, delay: "0.6s",  duration: "3.4s" },
+              { cx:  0.60, cy:  0.10, sizeRel: 0.20, delay: "1.2s",  duration: "2.8s" },
+              { cx: -0.20, cy: -0.60, sizeRel: 0.11, delay: "0.3s",  duration: "3.6s" },
+              { cx:  0.10, cy: -0.20, sizeRel: 0.16, delay: "1.8s",  duration: "2.6s" },
+              { cx: -0.40, cy:  0.30, sizeRel: 0.10, delay: "2.2s",  duration: "3.1s" },
             ];
             return (
               <div
@@ -1396,20 +1400,24 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   position: "absolute",
                   left: `${door.posX}%`,
                   top: `${door.posY}%`,
-                  // Match the bottom-center anchor used by pets, doors and
-                  // buildings so the cluster sits right at the entrance.
+                  // Anchor at the door's bottom-center (same as admin
+                  // trigger zone and pets/buildings), then push the
+                  // cluster UPWARD so it visually floats at door height
+                  // rather than at ground level. Without this the orbs
+                  // appeared "too low" relative to the door entrance
+                  // the admin had set.
                   transform: "translate(-50%, -100%)",
-                  width: 64,
-                  height: 64,
+                  width: wrapSize,
+                  height: wrapSize,
                   zIndex: 90,
                   pointerEvents: "none",
                 }}
                 data-testid={`door-glow-wrap-${door.id}`}
               >
                 {/* Invisible click target — covers the whole cluster so
-                    players can tap anywhere near the fireflies, but the
-                    target itself is fully transparent so the area still
-                    looks empty / mysterious. */}
+                    players can tap anywhere near the orbs, but the target
+                    itself is fully transparent so the area still looks
+                    mysterious. */}
                 <button
                   type="button"
                   aria-label={`Enter ${door.name}`}
@@ -1434,32 +1442,39 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                     cursor: "pointer",
                     pointerEvents: "auto",
                     padding: 0,
+                    borderRadius: "50%",
                   }}
                 />
-                {/* The fireflies themselves — tiny dim golden dots with
-                    soft halos. Each dot pulses independently. None of
-                    them intercept pointer events; the invisible button
-                    above handles all clicks. */}
-                {fireflies.map((f, i) => (
-                  <div
-                    key={i}
-                    aria-hidden
-                    style={{
-                      position: "absolute",
-                      left: "50%",
-                      bottom: 18,
-                      width: f.size,
-                      height: f.size,
-                      marginLeft: f.x - f.size / 2,
-                      marginBottom: f.y,
-                      borderRadius: "50%",
-                      background: `rgba(255,236,170,${f.alpha})`,
-                      boxShadow: `0 0 ${f.size + 2}px rgba(252,211,77,${f.alpha * 0.8}), 0 0 ${f.size * 2}px rgba(251,191,36,${f.alpha * 0.4})`,
-                      pointerEvents: "none",
-                      animation: `kcDoorFirefly ${f.duration} ease-in-out ${f.delay} infinite`,
-                    }}
-                  />
-                ))}
+                {/* Magical light orbs — soft luminous spheres with a bright
+                    white core, golden body, warm amber halo, and a wide
+                    diffuse glow that bleeds into the air. Each orb pulses
+                    on its own delay/duration so the cluster feels alive. */}
+                {orbs.map((orb, i) => {
+                  const sizePx = Math.max(7, Math.round(rPx * orb.sizeRel));
+                  return (
+                    <div
+                      key={i}
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        left: "50%",
+                        top: "50%",
+                        width: sizePx,
+                        height: sizePx,
+                        marginLeft: rPx * orb.cx - sizePx / 2,
+                        marginTop:  rPx * orb.cy - sizePx / 2,
+                        borderRadius: "50%",
+                        // Bright pearly core, warm gold body, deep amber rim
+                        background:
+                          "radial-gradient(circle at 35% 30%, rgba(255,255,240,1) 0%, rgba(255,236,170,0.95) 25%, rgba(252,211,77,0.90) 55%, rgba(217,150,12,0.6) 90%, rgba(120,70,4,0) 100%)",
+                        // Layered halos for that "magical aura" feel
+                        boxShadow: `0 0 ${sizePx * 0.8}px rgba(255,236,170,0.95), 0 0 ${sizePx * 1.8}px rgba(252,211,77,0.7), 0 0 ${sizePx * 3.2}px rgba(251,191,36,0.35)`,
+                        pointerEvents: "none",
+                        animation: `kcDoorOrb ${orb.duration} ease-in-out ${orb.delay} infinite`,
+                      }}
+                    />
+                  );
+                })}
               </div>
             );
           })}
