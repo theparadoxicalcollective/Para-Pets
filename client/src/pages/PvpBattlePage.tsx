@@ -5,7 +5,6 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { playHit, playPlayerHurt, playBattleVictory, playDefeat } from "@/lib/sounds";
 import { ArrowLeft, X } from "lucide-react";
-import PetAnimatorCanvas from "@/components/PetAnimatorCanvas";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
 import skullDefeatIcon from "@assets/generated_images/icon_skull_defeat.png";
@@ -229,9 +228,9 @@ export default function PvpBattlePage({
   // The animate() RAF loop used to call `setPets([...ps])` 60 times per
   // second so the bound `style.left/top` and `style.width` on every
   // sprite & bar would re-render. With 8+ pets, plus their child HP/
-  // mana bars, plus the React.memo'd PetAnimatorCanvas inside each one,
-  // that meant React was reconciling the entire battle subtree 60 fps
-  // — which is what made the screen feel "very glitchy".
+  // mana bars, plus the (now removed) per-pet animator inside each
+  // one, that meant React was reconciling the entire battle subtree
+  // 60 fps — which is what made the screen feel "very glitchy".
   //
   // The fix: skip React entirely for things that change every frame.
   // We attach refs to the pet wrapper, the HP-bar inner, and the mana-
@@ -1203,6 +1202,18 @@ export default function PvpBattlePage({
         @keyframes bIdle { 0%,100%{transform:translate(-50%,-50%)} 50%{transform:translate(-50%,calc(-50% - 4px))} }
         @keyframes bResultIn { 0%{transform:scale(0.85) translateY(18px);opacity:0} 100%{transform:scale(1) translateY(0);opacity:1} }
         @keyframes bHit { 0%{filter:brightness(1)} 18%{filter:brightness(2.4) saturate(0.4)} 60%{filter:brightness(0.6)} 100%{filter:brightness(1)} }
+        /* Squish-on-hit. Pure CSS transform so the browser composites
+           it on the GPU — zero JS / canvas cost. The wrapper already
+           applies bHit (brightness flash) on the same trigger; squish
+           runs in parallel via the inner img's own animation. The
+           sequence reads as: snap-compress (60 % horizontal stretch
+           on impact) → over-recover (108 % vertical) → settle. Total
+           320 ms matches bHit so both effects start and end together. */
+        @keyframes pSquish { 0%{transform:scale(1,1)} 22%{transform:scale(1.18,0.78)} 55%{transform:scale(0.92,1.08)} 80%{transform:scale(1.04,0.97)} 100%{transform:scale(1,1)} }
+        /* Defeat tilt — pet rotates and fades out when its hp hits 0.
+           Used by the koSpin treatment but also available as a one-shot
+           effect on the still-image sprite. */
+        @keyframes pDefeat { 0%{transform:rotate(0deg) scale(1);opacity:1;filter:saturate(1)} 100%{transform:rotate(75deg) scale(0.85);opacity:0.35;filter:saturate(0.2) brightness(0.6)} }
         @keyframes bShake { 0%,100%{margin-left:0} 20%{margin-left:-4px} 40%{margin-left:4px} 60%{margin-left:-3px} 80%{margin-left:2px} }
         @keyframes skillGlow { 0%,100%{box-shadow:0 0 12px 4px rgba(167,139,250,0.6), 0 0 24px 8px rgba(124,58,237,0.35)} 50%{box-shadow:0 0 20px 8px rgba(196,181,253,0.85), 0 0 38px 14px rgba(167,139,250,0.55)} }
         @keyframes targetPulse { 0%,100%{opacity:0.55} 50%{opacity:1} }
@@ -1418,10 +1429,11 @@ export default function PvpBattlePage({
             // because the previous ribbon was wider than most pets'
             // visible silhouette and read as a separate banner.
             const barWidth = Math.round(size * 0.42);
-            // With fitVisible enabled on the PetAnimatorCanvas the
-            // visible pet now fills ~94 % of the wrapper (a small
-            // margin is left so the wing flap and above-head bounce
-            // don't clip). The wrapper box edges are therefore right
+            // The pet <img> is rendered with objectFit: contain at the
+            // full wrapper size, so the visible silhouette typically
+            // fills ~94 % of the wrapper (the PNG itself usually has a
+            // small transparent margin baked in). The wrapper box
+            // edges are therefore right
             // up against the visible silhouette, so the bars no longer
             // need a deep inset to reach the pet — they sit at the
             // wrapper edge with a tiny 3 % gap (= half of the 6 %
@@ -1495,14 +1507,22 @@ export default function PvpBattlePage({
                   </div>
                 )}
 
-                {/* Sprite — same direct-render pattern as the PvE Murk
-                    Cave arena (BattleArena.tsx). The PetAnimatorCanvas is
-                    rendered AT its native `size` so every part fits inside
-                    the canvas's drawing buffer and nothing gets clipped.
-                    The enemy gets a horizontal flip via scaleX(-1) so it
-                    faces the player. The wrapper is `position: relative`
-                    so any absolute children (X_X hit overlay) resolve to
-                    THIS box, not to the outer flex column. */}
+                {/* Sprite — PvP renders pets as plain <img> tags using
+                    the shop_item.imageUrl (the full-body PNG admins
+                    upload for every pet). No PetAnimatorCanvas, no
+                    per-frame redraw loop, no FPS throttle — just the
+                    GPU compositing one small image per pet. The
+                    canvas approach was originally added to prevent
+                    iOS GPU crashes from the part-based <img> renderer
+                    (12 textures × N pets), but a SINGLE <img> per pet
+                    has none of that risk and runs essentially for
+                    free. All "alive" feel comes from CSS effects on
+                    impact / charge / defeat instead of idle motion.
+                    The enemy gets a horizontal flip via scaleX(-1) so
+                    it faces the player. The wrapper is
+                    `position: relative` so any absolute children
+                    (X_X hit overlay) resolve to THIS box, not to the
+                    outer flex column. */}
                 <div
                   style={{
                     width: size,
@@ -1525,37 +1545,42 @@ export default function PvpBattlePage({
                     outlineOffset: 3,
                   }}
                 >
-                  {pet.petTemplateId ? (
-                    /* PvP opts in to 60 fps + 1.5× supersampled buffer.
-                       60 fps eliminates the "30 fps stutter" feel during
-                       swipes, charges, and impacts (modern phones are
-                       60 Hz minimum, so 30 fps means every other frame
-                       is dropped, which the eye reads as judder). The
-                       1.5× buffer gives the small PvP sprite sizes
-                       (74–168 CSS px) more pixels to sample from and
-                       fixes the "pixelated pet" look at high pet
-                       counts — see PetAnimatorCanvas Props for the
-                       budget math. PvE callers (BattleArena, etc.) keep
-                       the legacy 30 fps × 1× buffer because their pets
-                       render larger and don't need the extra cost. */
-                    <PetAnimatorCanvas
-                      petTemplateId={pet.petTemplateId}
-                      size={size}
-                      fitVisible
-                      fps={60}
-                      bufferScale={1.5}
-                    />
-                  ) : pet.imageUrl ? (
+                  {pet.imageUrl ? (
                     <img
                       src={pet.imageUrl}
                       alt=""
+                      // NOTE: deliberately no `crossOrigin` attribute.
+                      // The PNG is purely displayed (we never read
+                      // pixels via canvas), and adding crossOrigin
+                      // would (a) break loading entirely if the
+                      // image bucket doesn't return CORS headers,
+                      // and (b) force a separate cache entry from
+                      // the non-CORS fetches the rest of the app
+                      // uses for the same URL — i.e. it would slow
+                      // first-load, not speed it up.
+                      // Prevent the browser's default tap-highlight /
+                      // long-press menu when fingers brush the sprite
+                      // during fast swipe play.
+                      draggable={false}
                       style={{
                         width: size,
                         height: size,
                         objectFit: "contain",
+                        // Squish-on-impact runs in parallel with the
+                        // wrapper's bHit brightness flash. transform-
+                        // origin: 50% 100% pivots from the feet so the
+                        // pet "stomps" downward instead of compressing
+                        // through its midline (which reads more like a
+                        // hit absorbed in the legs than a body
+                        // teleport).
+                        animation: isHit ? "pSquish 0.32s ease-out" : undefined,
+                        transformOrigin: "50% 100%",
                         filter: pet.isPlayer
                           ? "drop-shadow(0 0 10px rgba(167,139,250,0.5))"
                           : "drop-shadow(0 0 10px rgba(239,68,68,0.45))",
+                        WebkitUserSelect: "none",
+                        userSelect: "none",
+                        WebkitTouchCallout: "none",
                       }}
                     />
                   ) : (

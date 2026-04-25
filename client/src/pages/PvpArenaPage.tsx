@@ -9,7 +9,6 @@ import pvpTicketImg from "@assets/Photoroom_20260415_83701_PM_1776304592941.png"
 import pvpNavIcon from "@assets/generated_images/nav_icon_pvp.png";
 import coinIconImg from "@assets/icon_coin.png";
 import { ArrowLeft, Users, Check, Heart, Droplets, Trophy, Plus, X } from "lucide-react";
-import PetAnimator from "@/components/PetAnimator";
 import PvpBattlePage from "./PvpBattlePage";
 import PvpMatchmakingOverlay from "@/components/PvpMatchmakingOverlay";
 import forestBgImg from "@assets/generated_images/pvp_ruins_battlefield_bg.png";
@@ -1042,11 +1041,15 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                   >
                     {inv ? (
                       <div className="w-full h-full p-0.5 flex items-center justify-center">
-                        {inv.petTemplateId
-                          ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={72} fillContainer fitVisible className="w-full h-full" />
-                          : inv.imageUrl
-                            ? <img src={inv.imageUrl} className="w-full h-full object-contain" />
-                            : <img src={petPawIcon} alt="" className="w-full h-full object-contain" style={{ opacity: 0.7 }} />}
+                        {/* Battle-group slot — always uses the still PNG.
+                            Was previously a parts-based PetAnimator when
+                            petTemplateId existed, but PvP is intentionally
+                            still-image-only across the lobby + battle
+                            (matches the user's "we don't need the canvas
+                            for PvP" decision). */}
+                        {inv.imageUrl
+                          ? <img src={inv.imageUrl} className="w-full h-full object-contain" draggable={false} />
+                          : <img src={petPawIcon} alt="" className="w-full h-full object-contain" style={{ opacity: 0.7 }} draggable={false} />}
                       </div>
                     ) : (
                       <span className="text-xl text-white/30 font-light">+</span>
@@ -1236,11 +1239,9 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                             </div>
                           )}
                           <div className="w-20 h-20 flex items-center justify-center">
-                            {inv.petTemplateId
-                              ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={80} fillContainer fitVisible className="w-full h-full" />
-                              : inv.imageUrl
-                              ? <img src={inv.imageUrl} className="w-full h-full object-contain" />
-                              : <img src={petPawIcon} alt="" className="w-14 h-14 object-contain" />}
+                            {inv.imageUrl
+                              ? <img src={inv.imageUrl} className="w-full h-full object-contain" draggable={false} />
+                              : <img src={petPawIcon} alt="" className="w-14 h-14 object-contain" draggable={false} />}
                           </div>
                           <div className="text-white/85 text-[10px] truncate w-full text-center font-medium">{inv.petNickname || inv.name}</div>
                           <div className="text-white/40 text-[8px]">Lv {inv.petLevel || 1}</div>
@@ -1362,11 +1363,9 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                         </div>
                       )}
                       <div className="w-20 h-20 flex items-center justify-center">
-                        {inv.petTemplateId
-                          ? <PetAnimator petTemplateId={inv.petTemplateId} mode="idle" view="front" size={80} fillContainer fitVisible className="w-full h-full" />
-                          : inv.imageUrl
-                          ? <img src={inv.imageUrl} className="w-full h-full object-contain" />
-                          : <img src={petPawIcon} alt="" className="w-14 h-14 object-contain" />}
+                        {inv.imageUrl
+                          ? <img src={inv.imageUrl} className="w-full h-full object-contain" draggable={false} />
+                          : <img src={petPawIcon} alt="" className="w-14 h-14 object-contain" draggable={false} />}
                       </div>
                       <div className="text-center">
                         <div className="text-white/80 text-[11px] font-bold truncate w-full">{inv.petNickname || inv.name}</div>
