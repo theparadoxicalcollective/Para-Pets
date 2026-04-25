@@ -265,6 +265,20 @@ export type PetAnimationOverrides = {
      *  Clamped to the 0–4.5 s breath cycle. Default 0 (= locked to
      *  body, current behaviour). */
     backOffsetSec?: number;
+    /** When true, the SECONDARY head wrappers (groupIdx > 0 — i.e. head 2
+     *  and head 3 on multi-head pets) render BEHIND the body layer
+     *  instead of the default in-front placement. Used by Cerberus
+     *  Serpent so the side heads visibly weave behind the central body
+     *  silhouette. The primary head (groupIdx 0) is unaffected. Default
+     *  false (= every head rides above the body, current behaviour). */
+    secondaryHeadsBehindBody?: boolean;
+    /** When true, the SECONDARY head wrappers (groupIdx > 0) replace the
+     *  default vertical head bob with a tiny horizontal sway keyframe
+     *  (petIdleHeadSway). Independent of secondaryHeadsBehindBody. The
+     *  primary head keeps its normal bob. Used by Cerberus Serpent so
+     *  the side heads drift left/right gently while the centre head
+     *  bobs normally. Default false. */
+    secondaryHeadSway?: boolean;
   };
 };
 

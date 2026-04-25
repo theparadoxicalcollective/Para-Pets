@@ -106,6 +106,13 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   front_accessory_2: "petIdleSideShoulder",
   back_accessory_1: "petIdleBody",
   back_accessory_2: "petIdleBody",
+  // Front-facing-only accessories that sit BEHIND the body silhouette
+  // (e.g. capes, satchels mounted on the chest from the back). They ride
+  // the body's breath in lockstep so they never appear to drift apart
+  // from the torso during inhale / exhale. Layer below body in
+  // LAYER_ORDER (z=3) so they read as "tucked behind" the body.
+  front_left_accessory: "petIdleBody",
+  front_right_accessory: "petIdleBody",
   // Hair pieces sway gently like ears
   hair_left: "petIdleLeftEar",
   hair_right: "petIdleRightEar",
@@ -349,6 +356,19 @@ const ANIMATION_STYLES = `
   @keyframes petIdleMouthSwivel {
     from { transform: rotate(-0.6deg); }
     to   { transform: rotate(0.6deg); }
+  }
+  /* Per-pet override (idle.secondaryHeadSway): replaces the secondary
+     head wrappers' default vertical bob (petIdleHead) with a tiny
+     horizontal sway. Used by Cerberus Serpent so the side heads drift
+     gently left/right (independent of the body's breath) while the
+     centre head keeps its normal bob. Amplitude is intentionally tiny
+     — ±0.4 % of the canvas (~1.2 px on a 300-px-rendered pet) — so it
+     reads as "the head is alive" without ever looking like the head
+     is rolling. 2-keyframe + alternate (added to ALTERNATE_MOTION_ANIMS
+     below) gives a smooth sine ping-pong. */
+  @keyframes petIdleHeadSway {
+    from { transform: translateX(-0.4%); }
+    to   { transform: translateX(0.4%); }
   }
   /* ── Idle: 2-keyframe motion designed for animation-direction: alternate.
 
@@ -767,6 +787,12 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       left_shoulder: "4.5s", right_shoulder: "4.5s",
       back_accessory_1: "4.5s", back_accessory_2: "4.5s",
       front_accessory_1: "4s", front_accessory_2: "4s",
+      // Front-facing-only behind-body accessories ride the body's 4.5 s
+      // breath in lockstep (they're on petIdleBody, see IDLE_ANIMATIONS),
+      // so they MUST share the body's 4.5 s period — otherwise even with
+      // the shared bodyBreathDelay they'd visibly drift out of phase
+      // within a few seconds (same reasoning as back_accessory_1/2).
+      front_left_accessory: "4.5s", front_right_accessory: "4.5s",
       // Above-head accessory floats on its own slow cycle, deliberately
       // out of phase with the head bob (3 s) so crowns / halos read as
       // a separate floating object rather than rigidly attached.
@@ -823,6 +849,12 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   // Side-view depth keyframes — also 2-keyframe from/to motions, so they
   // must alternate (ping-pong) instead of snapping back to 0 each cycle.
   "petIdleSideShoulder", "petIdleSideFrontArm",
+  // Per-pet override (idle.secondaryHeadSway): tiny horizontal sway
+  // applied to secondary head wrappers (Cerberus). Same 2-keyframe
+  // from/to motion as petIdleHead, so it MUST alternate to ping-pong
+  // smoothly instead of snapping back to translateX(-0.4%) each cycle
+  // (which would produce a visible "tic" every 3 s).
+  "petIdleHeadSway",
   // Per-pet override head-breath. Must alternate (sine ping-pong) so it
   // shares the SAME rhythm profile as petIdleBody — otherwise the head
   // would inflate then snap back to 1.0 each cycle while the body keeps
@@ -890,6 +922,15 @@ const LAYER_ORDER: Record<string, number> = {
   back_shoulder: 4,
   // ── Body ───────────────────────────────────────────────────────────────
   body: 5,
+  // ── Front-facing-only accessories that sit BEHIND the body silhouette
+  //    (e.g. capes, satchels mounted on the chest from the back). Z=3
+  //    drops them under body (z=5) but keeps them above tails (z=1) and
+  //    wings (z=2) so they sit cleanly tucked behind the torso. Sit at
+  //    the same z as back_accessory_1/2 for consistency, since the visual
+  //    role is identical (accessories that ride the body's breath from
+  //    behind the silhouette).
+  front_left_accessory: 3,
+  front_right_accessory: 3,
   // ── Front-side accessories / front wings (in front of body) ────────────
   front_wing_2: 6,
   front_wing: 6,
@@ -1079,6 +1120,13 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   const idleHeadScalesWithBody = !!animOverrides.idle?.headScalesWithBody;
   const idleMouthBreath = !!animOverrides.idle?.mouthBreath;
   const idleSubtleBreath = !!animOverrides.idle?.subtleBreath;
+  // Per-pet override (Cerberus Serpent): secondary head wrappers
+  // (groupIdx > 0) layer BEHIND the body silhouette and use a tiny
+  // horizontal sway instead of the standard vertical bob. The PRIMARY
+  // head (groupIdx 0) is unaffected by either flag — it keeps its
+  // normal in-front placement and standard bob.
+  const idleSecondaryHeadsBehindBody = !!animOverrides.idle?.secondaryHeadsBehindBody;
+  const idleSecondaryHeadSway = !!animOverrides.idle?.secondaryHeadSway;
   // Clamp the back-offset into the body's 4.5 s breath cycle. Anything
   // larger just wraps and reads as a smaller offset; anything <= 0 is
   // treated as "no offset" and back parts ride the body in lockstep
@@ -1572,6 +1620,24 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           // Sleep mode uses the gentle petSleepHead bob, petting uses the
           // bouncier petPettingHead. Otherwise use the active mode's head
           // animation (skipped for house/static).
+          // Per-pet override (Cerberus): SECONDARY heads use a tiny
+          // horizontal sway in idle mode instead of the standard vertical
+          // bob. Independent of the body's breath, so they read as "the
+          // side heads are alive on their own" while the centre head
+          // still rides the body's breath.
+          //
+          // CRITICAL: identify primary vs secondary by HEAD PART TYPE,
+          // NOT by groupIdx. headGroups are ordered by the iteration of
+          // headParts in buildHeadGroups, which itself comes from
+          // viewParts sorted by zIndex — so groupIdx is a layering
+          // index, NOT a semantic "head 1 / head 2 / head 3" identity.
+          // The PRIMARY head is always the part with partType === "head"
+          // (no h2_/h3_ prefix); SECONDARY heads have partType "h2_head"
+          // or "h3_head". This guarantees the override targets the
+          // intended heads regardless of the admin-chosen z-ordering.
+          const isSecondaryHead = group.head.partType !== "head";
+          const useSecondaryHeadSway =
+            mode === "idle" && isSecondaryHead && idleSecondaryHeadSway;
           const wrapperAnim =
             mode === "sleep" ? "petSleepHead" :
             mode === "petting" ? "petPettingHead" :
@@ -1585,9 +1651,11 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             // so the scale reads as "head rises with torso" rather than
             // detaching from it.
             mode === "idle" ? (
-              idleHeadScalesWithBody
-                ? "petIdleHeadBreath"
-                : (idleSubtleBreath ? "petIdleHeadSubtle" : "petIdleHead")
+              useSecondaryHeadSway
+                ? "petIdleHeadSway"
+                : (idleHeadScalesWithBody
+                    ? "petIdleHeadBreath"
+                    : (idleSubtleBreath ? "petIdleHeadSubtle" : "petIdleHead"))
             ) :
             (mode !== "house" && mode !== "static") ? anims["head"] :
             undefined;
@@ -1625,6 +1693,29 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
 
           const allGroupParts = [group.head, ...group.faceParts];
 
+          // Per-pet override (Cerberus): drop the SECONDARY head wrappers
+          // BELOW the body silhouette. Default head wrapper sits at zIndex
+          // 9 (above all body parts, which are compressed into 1..8).
+          // When the override is active we anchor the wrapper at one less
+          // than the body part's compressed z so the secondary head reads
+          // as tucked behind the torso while still sitting in FRONT of
+          // legs / tails / wings (which are below body in the compressed
+          // range). Falls back to 4 (just below the typical body z of
+          // 5–6) if the body part somehow wasn't found.
+          //
+          // Same rule as useSecondaryHeadSway above: identify secondary
+          // by HEAD PART TYPE (h2_head / h3_head), NOT by groupIdx.
+          let headWrapperZ = 9;
+          if (idleSecondaryHeadsBehindBody && isSecondaryHead) {
+            const bodyPartForLayer = bodyParts.find(p => p.partType === "body");
+            const bodyCompressedZ = bodyPartForLayer
+              ? compressedZ.get(bodyPartForLayer.id)
+              : undefined;
+            headWrapperZ = bodyCompressedZ !== undefined
+              ? Math.max(1, bodyCompressedZ - 1)
+              : 4;
+          }
+
           return (
             <div
               key={`head-group-${groupIdx}`}
@@ -1635,7 +1726,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                 animation: wrapperAnim ? buildAnimationCss(wrapperAnim, wrapperDuration, wrapperDelay) : undefined,
                 transformOrigin: wrapperOrigin,
                 willChange: wrapperAnim ? "transform" : undefined,
-                zIndex: 9,
+                zIndex: headWrapperZ,
                 pointerEvents: "none",
               }}
             >

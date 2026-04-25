@@ -530,6 +530,34 @@ app.use((req, res, next) => {
     `);
   });
 
+  // Cerberus Serpent idle overrides. The three-headed serpent visually
+  // works best when the two SIDE heads (head 2 + head 3) tuck behind
+  // the central body silhouette and weave gently side-to-side, while
+  // the centre head (head 1) keeps its standard upward bob locked to
+  // the body's breath. The two flags below are independent:
+  //   • secondaryHeadsBehindBody → secondary head wrappers render at
+  //     bodyZ-1 instead of zIndex 9 (renderer logic in PetAnimator).
+  //   • secondaryHeadSway        → secondary head wrappers swap their
+  //     vertical bob for the petIdleHeadSway keyframe (~±0.4 % X).
+  // NOT gated by runOnce because Cerberus Serpent may be created in
+  // the admin panel AFTER deploy. The COALESCE-jsonb-merge pattern is
+  // idempotent — every server start re-applies the override (no-op if
+  // pet doesn't exist; cheap single UPDATE if it does), so admins can
+  // create the pet at any time and the override is in place after the
+  // very next server boot. Other pets are matched by NAME only and
+  // remain untouched.
+  await db.execute(sql`
+    UPDATE pet_templates
+    SET animation_overrides = COALESCE(animation_overrides, '{}'::jsonb) || jsonb_build_object(
+      'idle',
+      COALESCE(animation_overrides->'idle', '{}'::jsonb) || jsonb_build_object(
+        'secondaryHeadsBehindBody', true,
+        'secondaryHeadSway', true
+      )
+    )
+    WHERE LOWER(name) LIKE '%cerberus%serpent%'
+  `);
+
   // Backfill `item_image_url` on player_market_listings for any historical
   // rows that were created before the listing endpoint started copying the
   // shop item's image URL into the row. Without this, a number of legacy

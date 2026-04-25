@@ -45,6 +45,11 @@ const LAYER_ORDER: Record<string, number> = {
   back_arm: 4, back_shoulder: 4,
   // ── Body ──────────────────────────────────────────────────────────────
   body: 5,
+  // ── Front-facing-only accessories that sit BEHIND the body silhouette
+  //    (capes, satchels). Same z=3 + role as back_accessory_1/2 — kept
+  //    in lockstep with PetAnimator's LAYER_ORDER so the canvas + img
+  //    renderers stack identically.
+  front_left_accessory: 3, front_right_accessory: 3,
   // ── Front-side accessories / front wings (in front of body) ───────────
   front_wing_2: 6, front_wing: 6,
   front_accessory_2: 6, front_accessory_1: 6,
@@ -170,10 +175,20 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     // Shoulders + front/back accessories all breathe with the body so the
     // whole torso group expands and contracts together. Mirrors the img-
     // renderer's IDLE_ANIMATIONS mapping to petIdleBody.
+    //
+    // front_left_accessory + front_right_accessory are NEW front-facing-
+    // only accessories that sit BEHIND the body silhouette (LAYER_ORDER
+    // z=3, alongside back_accessory_1/2). They MUST ride the body's
+    // breath in lockstep — if they fell back to the static default here,
+    // the canvas renderer would draw them frozen while the img renderer
+    // animates them via petIdleBody, producing the renderer-drift bug
+    // the architect flagged. Same case branch as the existing back
+    // accessories so the visual role + behaviour is identical.
     case "left_shoulder": case "right_shoulder":
     case "front_shoulder": case "back_shoulder":
     case "front_accessory_1": case "front_accessory_2":
     case "back_accessory_1": case "back_accessory_2":
+    case "front_left_accessory": case "front_right_accessory":
       return bodyBreath(sec);
 
     // Wings — gentle ±3° sine flap at 4 s + a small ty oscillation so the
@@ -282,6 +297,12 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
   // detaching from it.
   const idleHeadScalesWithBodyRef = useRef(false);
   const idleMouthBreathRef = useRef(false);
+  // Per-pet override (Cerberus): SECONDARY head wrappers (h2_/h3_-prefixed
+  // head-group parts) layer behind the body silhouette and use a tiny
+  // horizontal sway instead of the standard vertical bob. Refs so the
+  // RAF draw loop reads the latest value without re-binding.
+  const idleSecondaryHeadsBehindBodyRef = useRef(false);
+  const idleSecondaryHeadSwayRef = useRef(false);
   const bodyAnchorRef = useRef<{ x: number; y: number } | null>(null);
 
   // Cap DPR at 2 — battle-arena renders 3 of these at once and 3× DPR (iPhone)
@@ -317,9 +338,31 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
     const resolvedView = facing === "back" ? "back"
       : (frontCount === 0 && backCount > 0) ? "back" : "front";
 
+    // Per-pet override (Cerberus): drop SECONDARY head-group parts
+    // (h2_/h3_ prefixed) into a z slot just below body (z=5 in
+    // LAYER_ORDER) so the side heads render BEHIND the body silhouette.
+    // The base offset (4) keeps them above legs/tails/wings (z=1–3);
+    // the per-part add (LAYER_ORDER[basePt] * 0.001) preserves the
+    // natural face stack order WITHIN the secondary head group so the
+    // eyes still draw above the head etc. Mirrors the img-renderer's
+    // headWrapperZ = bodyCompressedZ - 1 logic. Falls through to the
+    // standard LAYER_ORDER path for non-secondary parts and for pets
+    // that haven't opted in.
+    const secondaryHeadsBehind = !!templateData.animationOverrides?.idle?.secondaryHeadsBehindBody;
+    const isSecondaryHeadGroupPart = (pt: string): boolean =>
+      (pt.startsWith("h2_") || pt.startsWith("h3_")) && isHeadGroupPart(pt);
+    const effectivePartZ = (part: PetPart): number => {
+      if (secondaryHeadsBehind && isSecondaryHeadGroupPart(part.partType)) {
+        const basePt = part.partType.replace(/^h[23]_/, "");
+        const subZ = LAYER_ORDER[basePt] ?? 10;
+        return 4 + subZ * 0.001;
+      }
+      return LAYER_ORDER[part.partType] ?? part.zIndex;
+    };
+
     const viewParts = allParts
       .filter(p => p.view === resolvedView)
-      .sort((a, b) => (LAYER_ORDER[a.partType] ?? a.zIndex) - (LAYER_ORDER[b.partType] ?? b.zIndex));
+      .sort((a, b) => effectivePartZ(a) - effectivePartZ(b));
 
     if (!viewParts.length) return;
 
@@ -329,6 +372,8 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
     // any opt-in tweaks until an admin updates them via direct DB write.
     idleHeadScalesWithBodyRef.current = !!templateData.animationOverrides?.idle?.headScalesWithBody;
     idleMouthBreathRef.current = !!templateData.animationOverrides?.idle?.mouthBreath;
+    idleSecondaryHeadsBehindBodyRef.current = !!templateData.animationOverrides?.idle?.secondaryHeadsBehindBody;
+    idleSecondaryHeadSwayRef.current = !!templateData.animationOverrides?.idle?.secondaryHeadSway;
 
     // Compute the body's world-space breathe anchor — same formula the img
     // renderer uses (PetAnimator.tsx ≈ L1208–1218). Non-flying pets anchor
@@ -563,6 +608,23 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         ? Math.sin((sec / 4.5) * 2 * Math.PI - Math.PI / 2) * 0.6 * D2R
         : null;
 
+      // Per-pet override (Cerberus): SECONDARY heads (h2_/h3_-prefixed
+      // head-group parts) sway horizontally instead of riding the
+      // standard vertical bob. Mirrors the img-renderer's
+      // petIdleHeadSway keyframe (translateX from -0.4% to +0.4% of the
+      // canvas wrapper, alternate). Calibration matches the existing
+      // headBob ratio: petIdleHead's translateY(-0.9%) maps to a
+      // canvas amplitude of 3.6 logical units (factor 4), so
+      // translateX(±0.4%) maps to ±1.6 logical units. sinWave returns
+      // -1..+1 directly, giving a smooth ping-pong without the kfi-
+      // based 0..1 envelope the bob uses (since sway is symmetrical
+      // around 0, not a one-sided lift like the bob).
+      const headSwayPx = idleSecondaryHeadSwayRef.current
+        ? sinWave(sec, 3) * 1.6 * (drawSpan / size) * fitScale
+        : 0;
+      const isSecondaryHeadGroupPartLocal = (pt: string): boolean =>
+        (pt.startsWith("h2_") || pt.startsWith("h3_")) && isHeadGroupPart(pt);
+
       for (const { part, img } of parts) {
         // Heads route through evalAnim("head") above; for individual
         // head-group parts we still call evalAnim so eyes blink and
@@ -612,16 +674,31 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         // conversion as headBobPx above; do NOT multiply by dpr. Also
         // multiplied by fitScale so anim motion stays proportional to
         // the visibly-rendered pet (when fitVisible enlarges the pet).
-        let dy = anim.ty ? anim.ty * (drawSpan / size) * fitScale : 0;
-        if (isHeadGroupPart(part.partType) && part.partType !== "head" && part.partType !== "h2_head" && part.partType !== "h3_head") {
-          // Already-bobbing parts (head itself) shouldn't double-bob.
-          dy += headBobPx;
+        //
+        // Per-pet override (Cerberus): SECONDARY heads sway horizontally
+        // INSTEAD of bobbing vertically. We zero out both the natural
+        // ty (returned by evalAnim for "head"/"h2_head"/"h3_head") AND
+        // the shared headBob — sway entirely replaces the vertical
+        // motion so the side heads don't double-up bob+sway. The dx is
+        // applied alongside dy in the transform below.
+        const isSecondaryHeadHere = isSecondaryHeadGroupPartLocal(part.partType);
+        const useSwayOverride = idleSecondaryHeadSwayRef.current && isSecondaryHeadHere;
+        let dx = 0;
+        let dy = 0;
+        if (useSwayOverride) {
+          dx = headSwayPx;
+        } else {
+          dy = anim.ty ? anim.ty * (drawSpan / size) * fitScale : 0;
+          if (isHeadGroupPart(part.partType) && part.partType !== "head" && part.partType !== "h2_head" && part.partType !== "h3_head") {
+            // Already-bobbing parts (head itself) shouldn't double-bob.
+            dy += headBobPx;
+          }
         }
 
         const sx = anim.sx ?? 1;
         const sy = anim.sy ?? 1;
         const hasScale = sx !== 1 || sy !== 1;
-        const hasTransform = rot !== 0 || dy !== 0 || hasScale;
+        const hasTransform = rot !== 0 || dx !== 0 || dy !== 0 || hasScale;
 
         // Outer wrapper transform for opted-in head-group parts: scale
         // by the body's breath (sx, sy) around the body anchor. This is
@@ -642,8 +719,10 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         }
         if (hasTransform) {
           // Apply transforms around the pivot so rotation/scale don't
-          // drift the part across the canvas.
-          ctx.translate(px, py + dy);
+          // drift the part across the canvas. dx is the horizontal sway
+          // (Cerberus secondary heads); dy is the vertical bob /
+          // above-head float / part-specific ty.
+          ctx.translate(px + dx, py + dy);
           if (rot !== 0) ctx.rotate(rot);
           if (hasScale) ctx.scale(sx, sy);
           ctx.translate(-px, -py);

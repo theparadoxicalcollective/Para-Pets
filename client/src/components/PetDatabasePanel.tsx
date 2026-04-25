@@ -103,16 +103,22 @@ const FRONT_PART_GROUPS: { group: string; parts: PartDef[]; collapsed?: boolean 
 
   // ── Body (drawn under all heads, above back hair) ──────────────────────
   { group: "Body Parts", parts: [
-    { key: "left_shoulder",  label: "Left Shoulder",  defaultZ: 54, layer: "front" },
-    { key: "right_shoulder", label: "Right Shoulder", defaultZ: 53, layer: "front" },
-    { key: "left_arm",       label: "Left Arm",       defaultZ: 52, layer: "front" },
-    { key: "right_arm",      label: "Right Arm",      defaultZ: 51, layer: "front" },
-    { key: "body",           label: "Body",           defaultZ: 50, layer: "body"  },
-    { key: "left_leg",       label: "Left Leg",       defaultZ: 49, layer: "back"  },
-    { key: "right_leg",      label: "Right Leg",      defaultZ: 48, layer: "back"  },
-    { key: "tail",           label: "Tail One",       defaultZ: 47, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },
-    { key: "tail_2",         label: "Tail Two",       defaultZ: 46, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },
-    { key: "tail_3",         label: "Tail Three",     defaultZ: 45, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },
+    { key: "left_shoulder",        label: "Left Shoulder",         defaultZ: 54, layer: "front" },
+    { key: "right_shoulder",       label: "Right Shoulder",        defaultZ: 53, layer: "front" },
+    { key: "left_arm",             label: "Left Arm",              defaultZ: 52, layer: "front" },
+    { key: "right_arm",            label: "Right Arm",             defaultZ: 51, layer: "front" },
+    { key: "body",                 label: "Body",                  defaultZ: 50, layer: "body"  },
+    // Front-facing-only accessories that sit BEHIND the body silhouette
+    // (capes, satchels, harnesses worn under the body image). They ride
+    // the body's breath in lockstep so they never appear to drift apart
+    // from the torso. Layer below body in the renderer (LAYER_ORDER z=3).
+    { key: "front_left_accessory",  label: "Front Left Accessory",  defaultZ: 44, layer: "back"  },
+    { key: "front_right_accessory", label: "Front Right Accessory", defaultZ: 43, layer: "back"  },
+    { key: "left_leg",             label: "Left Leg",              defaultZ: 49, layer: "back"  },
+    { key: "right_leg",            label: "Right Leg",             defaultZ: 48, layer: "back"  },
+    { key: "tail",                 label: "Tail One",              defaultZ: 47, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },
+    { key: "tail_2",               label: "Tail Two",              defaultZ: 46, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },
+    { key: "tail_3",               label: "Tail Three",            defaultZ: 45, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },
   ]},
 
   // ── Head-anchored wings (per head, behind back hair) ───────────────────
