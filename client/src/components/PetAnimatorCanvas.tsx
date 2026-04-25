@@ -244,11 +244,27 @@ interface Props {
    *  Caller-driven so PvE callers (BattleArena, PetEquip) can keep the
    *  legacy padded layout untouched while PvP opts in. */
   fitVisible?: boolean;
+  /** Target frame rate. Default 30 keeps the conservative budget that
+   *  PvE arenas were designed against. PvP opts in to 60 for a more
+   *  responsive feel during swipes & charge animations — the smaller
+   *  PvP sprite sizes (74–168 px) keep total per-frame cost under
+   *  budget even at 60 fps with 5 pets on screen. */
+  fps?: number;
+  /** Buffer-resolution multiplier on top of `size * dpr`. Default 1
+   *  (the current behaviour). Pass 1.5–2 to supersample — useful in
+   *  PvP where the displayed sprite is small (74–168 CSS px) and the
+   *  source PNG parts have to be downsampled hard to fit. With
+   *  `bufferScale = 1.5` the buffer becomes 234×234 for a 78 px pet at
+   *  DPR 2 (instead of 156×156), giving the GPU more source pixels to
+   *  sample from and the result composites onto the page through the
+   *  browser's hardware bilinear scaler — same crispness boost as a
+   *  3× retina screen would give us, without the 9× per-frame cost. */
+  bufferScale?: number;
   className?: string;
   style?: React.CSSProperties;
 }
 
-function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fitVisible = false, className = "", style }: Props) {
+function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fitVisible = false, fps = 30, bufferScale = 1, className = "", style }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef    = useRef(0);
   const t0Ref     = useRef(0);
@@ -260,7 +276,10 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
   // turns each frame into ~9× the work of a logical-pixel canvas, dropping the
   // whole battle to single-digit FPS. 2× still looks crisp on retina.
   const dpr = typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1;
-  const canvasPx = Math.round(size * dpr);
+  // Apply optional buffer-scale supersampling. Capped at 3× total
+  // (DPR 2 × bufferScale 1.5) so we never exceed ~9 MB of canvas RAM
+  // per pet even at the largest PvP sprite size of 168 px.
+  const canvasPx = Math.round(size * dpr * Math.min(Math.max(bufferScale, 1), 1.5));
 
   const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string }>({
     queryKey: ["/api/pet-template-parts", petTemplateId],
@@ -332,10 +351,16 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     t0Ref.current = performance.now();
-    // Throttle to ~30fps. With 3 pets on screen the previous 60fps redraw was
-    // saturating the iOS GPU. Pet idle animations look identical at 30fps.
+    // Frame-rate throttle. Default is 30 fps — historically chosen
+    // because 60 fps with 3 pets on screen was saturating the iOS GPU.
+    // Callers (notably PvP) can opt back into 60 fps via the `fps`
+    // prop now that the per-pet draw cost has dropped substantially
+    // (DPR cap at 2, image-smoothing at "medium", alpha-bounds
+    // caching). At small PvP sprite sizes (74–168 px) the GPU has
+    // plenty of headroom for 60 fps × 5 pets, and the responsiveness
+    // boost during swipes / charge animations is dramatic.
     let lastDraw = 0;
-    const FRAME_MS = 1000 / 30;
+    const FRAME_MS = 1000 / Math.max(15, Math.min(fps, 60));
 
     const draw = (now: number) => {
       rafRef.current = requestAnimationFrame(draw);
@@ -502,7 +527,11 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
 
     rafRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [canvasPx, fillContainer, fitVisible]);
+    // `fps` is intentionally in the deps so a runtime fps change
+    // (e.g. PvE → PvP transition reusing the same canvas instance)
+    // tears down the RAF loop and recomputes FRAME_MS instead of
+    // staying stuck at the original throttle.
+  }, [canvasPx, fillContainer, fitVisible, fps]);
 
   return (
     <canvas

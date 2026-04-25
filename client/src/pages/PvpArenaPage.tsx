@@ -1653,11 +1653,45 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                     !!purchasingBundleId ||
                     (!!pendingConfirmBundleId && !isPendingConfirm) ||
                     !canAfford;
+                  // ── Tap-vs-scroll guard ──────────────────────────
+                  // Plain onClick on a button inside a vertically-
+                  // scrolling shop list fires too easily on mobile —
+                  // iOS Safari in particular treats a finger that
+                  // moved <10 px as a "click" even if the user was
+                  // clearly trying to scroll. We track the pointer-
+                  // down position and skip onClick if the finger
+                  // travelled >12 px in any direction during the
+                  // gesture. 12 px is generous enough to absorb
+                  // jitter but tight enough that a real intentional
+                  // tap still lands. We also consider the gesture a
+                  // scroll if the touch lasts longer than ~700 ms
+                  // (slow-drag scrolling). Refs live on the closure
+                  // so each bundle button stays self-contained.
+                  let downX = 0, downY = 0, downT = 0, moved = false;
+                  const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+                    downX = e.clientX; downY = e.clientY; downT = performance.now(); moved = false;
+                  };
+                  const onPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+                    if (moved) return;
+                    if (Math.abs(e.clientX - downX) > 12 || Math.abs(e.clientY - downY) > 12) moved = true;
+                  };
+                  const onClickGuarded: React.MouseEventHandler<HTMLButtonElement> = (e) => {
+                    // Block synthetic clicks that follow a scroll-
+                    // gesture or a long-press.
+                    if (moved || performance.now() - downT > 700) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      return;
+                    }
+                    handleBuyBundle(bundle.id);
+                  };
                   return (
                     <button
                       key={bundle.id}
                       type="button"
-                      onClick={() => handleBuyBundle(bundle.id)}
+                      onPointerDown={onPointerDown}
+                      onPointerMove={onPointerMove}
+                      onClick={onClickGuarded}
                       disabled={disabled}
                       data-testid={`button-buy-ticket-bundle-${bundle.id}`}
                       className="relative flex flex-col items-center justify-between rounded-xl px-2 pt-3 pb-2.5 active:scale-[0.97] transition-transform disabled:opacity-50 disabled:active:scale-100"
@@ -1666,6 +1700,13 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                         border: `1px solid ${v.border}`,
                         boxShadow: v.glow,
                         minHeight: 168,
+                        // Allow vertical scrolling to start from this
+                        // button's hit area without the browser
+                        // needing to "decide" between tap and pan —
+                        // touch-action: pan-y immediately yields the
+                        // gesture to the scroll container as soon as
+                        // any vertical movement is detected.
+                        touchAction: "pan-y",
                       }}
                     >
                       {/* Ticket fan — layered ticket cutouts behind the

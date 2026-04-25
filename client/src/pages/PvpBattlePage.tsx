@@ -1526,7 +1526,25 @@ export default function PvpBattlePage({
                   }}
                 >
                   {pet.petTemplateId ? (
-                    <PetAnimatorCanvas petTemplateId={pet.petTemplateId} size={size} fitVisible />
+                    /* PvP opts in to 60 fps + 1.5× supersampled buffer.
+                       60 fps eliminates the "30 fps stutter" feel during
+                       swipes, charges, and impacts (modern phones are
+                       60 Hz minimum, so 30 fps means every other frame
+                       is dropped, which the eye reads as judder). The
+                       1.5× buffer gives the small PvP sprite sizes
+                       (74–168 CSS px) more pixels to sample from and
+                       fixes the "pixelated pet" look at high pet
+                       counts — see PetAnimatorCanvas Props for the
+                       budget math. PvE callers (BattleArena, etc.) keep
+                       the legacy 30 fps × 1× buffer because their pets
+                       render larger and don't need the extra cost. */
+                    <PetAnimatorCanvas
+                      petTemplateId={pet.petTemplateId}
+                      size={size}
+                      fitVisible
+                      fps={60}
+                      bufferScale={1.5}
+                    />
                   ) : pet.imageUrl ? (
                     <img
                       src={pet.imageUrl}
