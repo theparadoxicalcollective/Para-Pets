@@ -6982,45 +6982,17 @@ export async function registerRoutes(
     }
   }, 30 * 60 * 1000);
 
-  // ── Daily Login Rewards ───────────────────────────────────────────────────
-  // Public: get all 7 days config with items
-  app.get("/api/daily-login/config", async (_req, res) => {
-    try {
-      const result = await db.execute(sql`
-        SELECT dlr.day_number, dlr.coin_amount,
-               COALESCE(
-                 json_agg(
-                   json_build_object(
-                     'id', si.id,
-                     'name', si.name,
-                     'imageUrl', si.image_url,
-                     'type', si.type,
-                     'quantity', dlri.quantity
-                   )
-                 ) FILTER (WHERE si.id IS NOT NULL),
-                 '[]'::json
-               ) AS items
-        FROM daily_login_rewards dlr
-        LEFT JOIN daily_login_reward_items dlri ON dlri.day_number = dlr.day_number
-        LEFT JOIN shop_items si ON si.id = dlri.shop_item_id
-        GROUP BY dlr.day_number
-        ORDER BY dlr.day_number
-      `);
-      return res.json(result.rows);
-    } catch (err) {
-      console.error("Daily login config error:", err);
-      return res.status(500).json({ message: "Failed to get daily login config" });
-    }
-  });
+  // ── Daily Claim (fixed reward, once per 24h) ──────────────────────────────
+  const DAILY_REWARD_COINS = 100;
+  const DAILY_REWARD_TICKETS = 10;
+  const DAILY_PVP_TICKET_ID = "a1b2c3d4-9001-4000-8000-000000000099";
 
-  // Auth: get current player's daily login status
-  app.get("/api/daily-login/status", isAuthenticated, async (req, res) => {
+  // Auth: get player's claim status (canClaim + nextClaimAt)
+  app.get("/api/daily-claim/status", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      // Do timing check fully in SQL to avoid JS timezone discrepancies with PG timestamps
-      const totalResult = await db.execute(sql`
+      const result = await db.execute(sql`
         SELECT
-          COUNT(*)::int AS total,
           MAX(claimed_at) AS last_claimed,
           (MAX(claimed_at) IS NULL OR NOW() - MAX(claimed_at) >= INTERVAL '24 hours') AS can_claim,
           CASE WHEN MAX(claimed_at) IS NOT NULL
@@ -7030,148 +7002,98 @@ export async function registerRoutes(
         FROM player_daily_login_claims
         WHERE user_id = ${user.id}
       `);
-      const total: number = totalResult.rows[0].total as number;
-      const lastClaimed = totalResult.rows[0].last_claimed;
-      const canClaim: boolean = totalResult.rows[0].can_claim as boolean;
-      const nextClaimAt = totalResult.rows[0].next_claim_at;
-      const currentCycle = Math.floor(total / 7);
-      const nextDay = (total % 7) + 1;
-      const claimedRows = await db.execute(sql`
-        SELECT day_number FROM player_daily_login_claims
-        WHERE user_id = ${user.id} AND cycle_number = ${currentCycle}
-        ORDER BY day_number
-      `);
       return res.json({
-        totalClaims: total,
-        currentCycle,
-        nextDay,
-        canClaim,
-        lastClaimedAt: lastClaimed,
-        nextClaimAt,
-        claimedDaysInCycle: claimedRows.rows.map((r: any) => r.day_number),
+        canClaim: !!result.rows[0].can_claim,
+        lastClaimedAt: result.rows[0].last_claimed,
+        nextClaimAt: result.rows[0].next_claim_at,
       });
     } catch (err) {
-      console.error("Daily login status error:", err);
-      return res.status(500).json({ message: "Failed to get daily login status" });
+      console.error("Daily claim status error:", err);
+      return res.status(500).json({ message: "Failed to get daily claim status" });
     }
   });
 
-  // Auth: claim today's daily login reward
-  app.post("/api/daily-login/claim", isAuthenticated, async (req, res) => {
+  // Auth: claim daily reward (100 coins + 10 PvP tickets, once every 24h).
+  // Wrapped in a DB transaction with row-level lock on the user so two
+  // concurrent claim requests cannot both pass the eligibility check and
+  // double-credit the player.
+  app.post("/api/daily-claim", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      // Use SQL for timing to avoid JS timezone issues with PG timestamps
-      const totalResult = await db.execute(sql`
-        SELECT
-          COUNT(*)::int AS total,
-          (MAX(claimed_at) IS NULL OR NOW() - MAX(claimed_at) >= INTERVAL '24 hours') AS can_claim
-        FROM player_daily_login_claims
-        WHERE user_id = ${user.id}
-      `);
-      const total: number = totalResult.rows[0].total as number;
-      const canClaim: boolean = totalResult.rows[0].can_claim as boolean;
-      const currentCycle = Math.floor(total / 7);
-      const nextDay = (total % 7) + 1;
-      if (!canClaim) {
-        return res.status(400).json({ message: "Already claimed today. Come back in 24 hours!" });
-      }
-      const rewardResult = await db.execute(sql`
-        SELECT dlr.coin_amount,
-               COALESCE(
-                 json_agg(
-                   json_build_object(
-                     'shopItemId', dlri.shop_item_id,
-                     'quantity', dlri.quantity,
-                     'name', si.name,
-                     'imageUrl', si.image_url
-                   )
-                 ) FILTER (WHERE dlri.id IS NOT NULL),
-                 '[]'::json
-               ) AS items
-        FROM daily_login_rewards dlr
-        LEFT JOIN daily_login_reward_items dlri ON dlri.day_number = dlr.day_number
-        LEFT JOIN shop_items si ON si.id = dlri.shop_item_id
-        WHERE dlr.day_number = ${nextDay}
-        GROUP BY dlr.coin_amount
-      `);
-      if (!rewardResult.rows[0]) {
-        return res.status(404).json({ message: "Reward not configured for this day" });
-      }
-      const coinAmount: number = (rewardResult.rows[0].coin_amount as number) || 0;
-      const items: any[] = (rewardResult.rows[0].items as any[]) || [];
-      if (coinAmount > 0) {
-        await db.execute(sql`
+      const result = await db.transaction(async (tx) => {
+        // 1. Acquire a row-level lock on the user row. All concurrent
+        //    claim requests for this user serialize behind this lock.
+        await tx.execute(sql`SELECT id FROM users WHERE id = ${user.id} FOR UPDATE`);
+
+        // 2. Recheck eligibility inside the lock.
+        const check = await tx.execute(sql`
+          SELECT (MAX(claimed_at) IS NULL OR NOW() - MAX(claimed_at) >= INTERVAL '24 hours') AS can_claim
+          FROM player_daily_login_claims
+          WHERE user_id = ${user.id}
+        `);
+        if (!check.rows[0].can_claim) {
+          return { ok: false as const };
+        }
+
+        // 3. Grant coins.
+        await tx.execute(sql`
           UPDATE users
-          SET coins = coins + ${coinAmount},
-              total_coins_earned = total_coins_earned + ${coinAmount}
+          SET coins = coins + ${DAILY_REWARD_COINS},
+              total_coins_earned = total_coins_earned + ${DAILY_REWARD_COINS}
           WHERE id = ${user.id}
         `);
+
+        // 4. Grant PvP tickets — atomic SQL-side increment.
+        //    Strategy: try to UPDATE the oldest existing stack with
+        //    `quantity + N` and RETURNING id. If 0 rows returned (no
+        //    stack exists, or it was concurrently deleted by an
+        //    /api/pvp/start consume), INSERT a fresh stack. This closes
+        //    both the lost-update race and the SELECT-then-UPDATE
+        //    delete-window race.
+        const updated = await tx.execute(sql`
+          UPDATE user_inventory
+          SET quantity = quantity + ${DAILY_REWARD_TICKETS}
+          WHERE id = (
+            SELECT id FROM user_inventory
+            WHERE user_id = ${user.id} AND shop_item_id = ${DAILY_PVP_TICKET_ID}
+            ORDER BY id
+            LIMIT 1
+          )
+          RETURNING id
+        `);
+        if (updated.rows.length === 0) {
+          await tx.execute(sql`
+            INSERT INTO user_inventory (user_id, shop_item_id, quantity)
+            VALUES (${user.id}, ${DAILY_PVP_TICKET_ID}, ${DAILY_REWARD_TICKETS})
+          `);
+        }
+
+        // 5. Record the claim and return canonical timestamps.
+        const inserted = await tx.execute(sql`
+          INSERT INTO player_daily_login_claims (user_id, cycle_number, day_number)
+          VALUES (${user.id}, 0, 1)
+          RETURNING claimed_at, claimed_at + INTERVAL '24 hours' AS next_claim_at
+        `);
+        return {
+          ok: true as const,
+          claimedAt: inserted.rows[0].claimed_at,
+          nextClaimAt: inserted.rows[0].next_claim_at,
+        };
+      });
+
+      if (!result.ok) {
+        return res.status(400).json({ message: "Already claimed. Come back in 24 hours!" });
       }
-      for (const item of items) {
-        await storage.addToInventory(user.id, item.shopItemId, undefined, item.quantity);
-      }
-      await db.execute(sql`
-        INSERT INTO player_daily_login_claims (user_id, cycle_number, day_number)
-        VALUES (${user.id}, ${currentCycle}, ${nextDay})
-      `);
-      return res.json({ day: nextDay, coinAmount, items });
+      return res.json({
+        coinAmount: DAILY_REWARD_COINS,
+        pvpTickets: DAILY_REWARD_TICKETS,
+        canClaim: false,
+        lastClaimedAt: result.claimedAt,
+        nextClaimAt: result.nextClaimAt,
+      });
     } catch (err) {
-      console.error("Daily login claim error:", err);
+      console.error("Daily claim error:", err);
       return res.status(500).json({ message: "Failed to claim daily reward" });
-    }
-  });
-
-  // Admin: update a day's coin amount
-  app.put("/api/admin/daily-login/:day", isAdmin, async (req, res) => {
-    try {
-      const day = parseInt(String(req.params.day));
-      if (day < 1 || day > 7) return res.status(400).json({ message: "Day must be 1-7" });
-      const { coinAmount } = req.body;
-      await db.execute(sql`
-        UPDATE daily_login_rewards
-        SET coin_amount = ${coinAmount ?? 0}, updated_at = now()
-        WHERE day_number = ${day}
-      `);
-      return res.json({ success: true });
-    } catch (err) {
-      console.error("Admin daily login update error:", err);
-      return res.status(500).json({ message: "Failed to update daily reward" });
-    }
-  });
-
-  // Admin: add (or update quantity of) an item on a day
-  app.post("/api/admin/daily-login/:day/items", isAdmin, async (req, res) => {
-    try {
-      const day = parseInt(String(req.params.day));
-      if (day < 1 || day > 7) return res.status(400).json({ message: "Day must be 1-7" });
-      const { shopItemId, quantity } = req.body;
-      if (!shopItemId) return res.status(400).json({ message: "shopItemId required" });
-      await db.execute(sql`
-        INSERT INTO daily_login_reward_items (day_number, shop_item_id, quantity)
-        VALUES (${day}, ${shopItemId}, ${quantity ?? 1})
-        ON CONFLICT (day_number, shop_item_id)
-        DO UPDATE SET quantity = EXCLUDED.quantity
-      `);
-      return res.json({ success: true });
-    } catch (err) {
-      console.error("Admin daily login add item error:", err);
-      return res.status(500).json({ message: "Failed to add item to daily reward" });
-    }
-  });
-
-  // Admin: remove an item from a day
-  app.delete("/api/admin/daily-login/:day/items/:shopItemId", isAdmin, async (req, res) => {
-    try {
-      const day = parseInt(String(req.params.day));
-      const { shopItemId } = req.params;
-      await db.execute(sql`
-        DELETE FROM daily_login_reward_items
-        WHERE day_number = ${day} AND shop_item_id = ${shopItemId}
-      `);
-      return res.json({ success: true });
-    } catch (err) {
-      console.error("Admin daily login remove item error:", err);
-      return res.status(500).json({ message: "Failed to remove item from daily reward" });
     }
   });
 

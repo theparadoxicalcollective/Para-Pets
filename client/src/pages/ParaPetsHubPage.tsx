@@ -37,7 +37,7 @@ import worldSwamp        from "@assets/bg_swamp_map.png";
 import worldVolcanic     from "@assets/bg_volcanic_map.png";
 import worldSnowy        from "@assets/bg_snowy_mountain_map.png";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
-import DailyLoginBar from "@/components/DailyLoginBar";
+import DailyClaimCard from "@/components/DailyClaimCard";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -1213,8 +1213,8 @@ export default function ParaPetsHubPage() {
             </div>
           )}
 
-          {/* Daily Login Rewards — below guest CTA when logged out */}
-          <DailyLoginBar
+          {/* Daily Reward — below guest CTA when logged out */}
+          <DailyClaimCard
             user={user}
             onSignInRequest={() => setShowSignIn(true)}
           />
