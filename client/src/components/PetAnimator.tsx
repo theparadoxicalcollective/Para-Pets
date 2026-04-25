@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { getAlphaBounds, getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
+import type { PetAnimationOverrides } from "@shared/schema";
 
 interface PetPart {
   id: string;
@@ -367,6 +368,20 @@ const ANIMATION_STYLES = `
   @keyframes petIdleHead {
     from { transform: translateY(0%); }
     to   { transform: translateY(-0.9%); }
+  }
+  /* Per-pet override (idle.headScalesWithBody): combines the standard
+     head bob with the body's breathe scale so the head + every face
+     part inflates / deflates in lockstep with the torso. Numbers are
+     literally petIdleHead's translateY paired with petIdleBody's
+     scale (1.028, 1.05) so a pet that opts into this keyframe reads
+     as one continuously-breathing silhouette. The wrapper's
+     transform-origin is set to the body anchor at render time so the
+     head expands AROUND the body's pivot — producing the visible
+     "head rises with the body" effect rather than scaling around the
+     canvas centre (which would look detached). */
+  @keyframes petIdleHeadBreath {
+    from { transform: translateY(0%) scale(1, 1); }
+    to   { transform: translateY(-0.9%) scale(1.028, 1.05); }
   }
   @keyframes petIdleLeftEar {
     from { transform: rotate(-2deg); }
@@ -765,6 +780,11 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   // Side-view depth keyframes — also 2-keyframe from/to motions, so they
   // must alternate (ping-pong) instead of snapping back to 0 each cycle.
   "petIdleSideShoulder", "petIdleSideFrontArm",
+  // Per-pet override head-breath. Must alternate (sine ping-pong) so it
+  // shares the SAME rhythm profile as petIdleBody — otherwise the head
+  // would inflate then snap back to 1.0 each cycle while the body keeps
+  // breathing smoothly, producing a visible "pop" at every loop reset.
+  "petIdleHeadBreath",
 ]);
 
 // Build the CSS `animation` shorthand for a given keyframe name. For the
@@ -954,7 +974,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     return () => ro.disconnect();
   }, [fillContainer]);
 
-  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean }>({
+  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean; animationOverrides?: PetAnimationOverrides }>({
     queryKey: ["/api/pet-template-parts", petTemplateId],
     queryFn: async () => {
       const res = await fetch(`/api/pet-template-parts/${petTemplateId}`, { credentials: "include" });
@@ -997,6 +1017,13 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // don't read as "floating off the ground".
   const canFly = !!templateData?.canFly;
   const idleAnimMap = canFly ? IDLE_ANIMATIONS : IDLE_ANIMATIONS_GROUND;
+  // Per-pet animation overrides — defaults to {} for any pet without
+  // tweaks, so every field below falls back to the global default. New
+  // pets get `{}` automatically (DB column default) so they animate
+  // exactly like before; specific pets (e.g. Crimson Dragon) opt into
+  // tweaks via direct DB updates.
+  const animOverrides = templateData?.animationOverrides ?? {};
+  const idleHeadScalesWithBody = !!animOverrides.idle?.headScalesWithBody;
 
   // Determine which view to render:
   // 1. If template is explicitly saved as side-facing ("back"), always use "back"
@@ -1446,9 +1473,27 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             // (even on ground pets — the small lift reads as following the
             // body's breath, not as floating, because the body is also
             // visibly inflating upward at the same moment).
-            mode === "idle" ? "petIdleHead" :
+            // Per-pet override `idle.headScalesWithBody` swaps in
+            // petIdleHeadBreath so the head also inflates / deflates
+            // with the body's breath. Anchored at the body pivot below
+            // so the scale reads as "head rises with torso" rather than
+            // detaching from it.
+            mode === "idle" ? (idleHeadScalesWithBody ? "petIdleHeadBreath" : "petIdleHead") :
             (mode !== "house" && mode !== "static") ? anims["head"] :
             undefined;
+          // Head wrapper transform-origin. Default leaves it at the
+          // wrapper's centre (50% 50% of the canvas) which is fine for
+          // pure translateY animations like petIdleHead. When the
+          // headScalesWithBody override is active we MUST anchor the
+          // wrapper at the body's pivot so the scale grows / shrinks
+          // around the same world point the body itself does — without
+          // this, the head wrapper would scale around the canvas centre
+          // and the head would visibly slide off the body during inhale.
+          const wrapperOrigin: string | undefined =
+            mode === "idle" && idleHeadScalesWithBody &&
+            bodyAnchorWorldX !== undefined && bodyAnchorWorldY !== undefined
+              ? `${((bodyAnchorWorldX / CANVAS_SIZE) * 100).toFixed(2)}% ${((bodyAnchorWorldY / CANVAS_SIZE) * 100).toFixed(2)}%`
+              : undefined;
           // In idle mode, override the head's natural 3 s rhythm so it
           // matches the body's 4.5 s breath — and lock its phase to
           // bodyBreathDelay so every head lifts on the body's inhale and
@@ -1478,6 +1523,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                 left: 0, top: 0,
                 width: "100%", height: "100%",
                 animation: wrapperAnim ? buildAnimationCss(wrapperAnim, wrapperDuration, wrapperDelay) : undefined,
+                transformOrigin: wrapperOrigin,
                 willChange: wrapperAnim ? "transform" : undefined,
                 zIndex: 9,
                 pointerEvents: "none",

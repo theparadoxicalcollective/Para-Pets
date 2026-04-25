@@ -15,6 +15,7 @@
 import { memo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAlphaBounds, getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
+import type { PetAnimationOverrides } from "@shared/schema";
 
 interface PetPart {
   id: string; templateId: string; partType: string; view: string; imageUrl: string;
@@ -271,6 +272,16 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
   const blinkRef  = useRef(Math.random() * 4);
   const partsRef  = useRef<{ part: PetPart; img: HTMLImageElement }[]>([]);
   const readyRef  = useRef(false);
+  // Per-pet animation tweaks. Stored in refs so the RAF draw loop (which
+  // only depends on canvasPx/fillContainer/fitVisible/fps and never re-
+  // runs on templateData changes) can read fresh values every frame
+  // without restarting the loop. Body anchor is the world-space (1000-
+  // unit) point the body's breathe-scale pivots around — head-group
+  // parts that opt into headScalesWithBody scale around this same
+  // point so the head appears to inflate WITH the torso instead of
+  // detaching from it.
+  const idleHeadScalesWithBodyRef = useRef(false);
+  const bodyAnchorRef = useRef<{ x: number; y: number } | null>(null);
 
   // Cap DPR at 2 — battle-arena renders 3 of these at once and 3× DPR (iPhone)
   // turns each frame into ~9× the work of a logical-pixel canvas, dropping the
@@ -281,7 +292,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
   // per pet even at the largest PvP sprite size of 168 px.
   const canvasPx = Math.round(size * dpr * Math.min(Math.max(bufferScale, 1), 1.5));
 
-  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string }>({
+  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean; animationOverrides?: PetAnimationOverrides }>({
     queryKey: ["/api/pet-template-parts", petTemplateId],
     queryFn: async () => {
       const res = await fetch(`/api/pet-template-parts/${petTemplateId}`, { credentials: "include" });
@@ -299,6 +310,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
 
     const allParts = templateData.parts;
     const facing = templateData.facing ?? "front";
+    const canFly = !!templateData.canFly;
     const frontCount = allParts.filter(p => p.view === "front").length;
     const backCount  = allParts.filter(p => p.view === "back").length;
     const resolvedView = facing === "back" ? "back"
@@ -309,6 +321,51 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
       .sort((a, b) => (LAYER_ORDER[a.partType] ?? a.zIndex) - (LAYER_ORDER[b.partType] ?? b.zIndex));
 
     if (!viewParts.length) return;
+
+    // Per-pet animation override flag (read from DB column on petTemplates).
+    // Empty / missing override → false → renderer behaves exactly like the
+    // global default. New pets get `{}` automatically so they don't trigger
+    // any opt-in tweaks until an admin updates them via direct DB write.
+    idleHeadScalesWithBodyRef.current = !!templateData.animationOverrides?.idle?.headScalesWithBody;
+
+    // Compute the body's world-space breathe anchor — same formula the img
+    // renderer uses (PetAnimator.tsx ≈ L1208–1218). Non-flying pets anchor
+    // at the body's bottom-center (feet) so the head rises UPWARD with the
+    // breath; flying pets anchor at the body's pivot (alpha-bbox-corrected)
+    // so the head rises around the hover pivot. Stored once per templateData
+    // load so the RAF loop doesn't recompute it every frame.
+    const bodyPart = viewParts.find(p => p.partType === "body");
+    // Recompute the body anchor from the latest available alpha bounds.
+    // For flying pets the anchor depends on the body's alpha-trimmed
+    // bounding box, which is only available AFTER getAlphaBounds() has
+    // finished decoding and scanning the body image — on cold cache
+    // that's an async event that lands ~100–500 ms after the part
+    // entries are created. We call this once eagerly (so non-flying
+    // pets get their anchor immediately, and flying pets that already
+    // have the bounds cached from a previous render skip the wait),
+    // then again from the body image's onload once getAlphaBounds
+    // resolves, so canFly + override + cold cache renders correctly
+    // instead of permanently using FULL_BOUNDS.
+    const recomputeBodyAnchor = () => {
+      if (!bodyPart) { bodyAnchorRef.current = null; return; }
+      if (!canFly) {
+        bodyAnchorRef.current = {
+          x: bodyPart.posX + bodyPart.width * 0.5,
+          y: bodyPart.posY + bodyPart.height * 1.0,
+        };
+        return;
+      }
+      const bodyAb = getAlphaBoundsSync(bodyPart.imageUrl) ?? FULL_BOUNDS;
+      const bpxFrac = (bodyPart.pivotX ?? 50) / 100;
+      const bpyFrac = (bodyPart.pivotY ?? 50) / 100;
+      const bodyOriginXFrac = bodyAb.left + bodyAb.width * bpxFrac;
+      const bodyOriginYFrac = bodyAb.top + bodyAb.height * bpyFrac;
+      bodyAnchorRef.current = {
+        x: bodyPart.posX + bodyPart.width * bodyOriginXFrac,
+        y: bodyPart.posY + bodyPart.height * bodyOriginYFrac,
+      };
+    };
+    recomputeBodyAnchor();
 
     const entries = viewParts.map(part => {
       const img = new Image();
@@ -329,7 +386,20 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
       // (and other PetAnimatorCanvas instances showing the same
       // template) all read from cache for free.
       if (entry.img.naturalWidth > 0) {
-        void getAlphaBounds(entry.part.imageUrl, entry.img);
+        const boundsPromise = getAlphaBounds(entry.part.imageUrl, entry.img);
+        // For flying pets with the headScalesWithBody override, the
+        // body anchor needs to be recomputed once the body image's
+        // alpha-trimmed bounds are available — otherwise the very
+        // first render (cold cache) uses FULL_BOUNDS and the head
+        // scales around the wrong world point. Non-body parts and
+        // non-flying pets don't need this (their anchor is already
+        // correct after the eager recomputeBodyAnchor() above).
+        if (canFly && bodyPart && entry.part.id === bodyPart.id) {
+          void boundsPromise.then(() => {
+            if (cancelled) return;
+            recomputeBodyAnchor();
+          });
+        }
       }
       if (++loaded === entries.length) { partsRef.current = entries; readyRef.current = true; }
     };
@@ -460,6 +530,27 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
       // smaller relative to the pet — visible drift on tall sprites).
       const headBobPx = headBob * (drawSpan / size) * fitScale;
 
+      // Per-pet override: when `idle.headScalesWithBody` is true, the
+      // head wrapper ALSO inflates / deflates with the body's breath.
+      // Computed once per frame (single sin sample) and applied as an
+      // outer transform around the body anchor for every head-group
+      // part below — mirrors the img-renderer's petIdleHeadBreath
+      // keyframe + bodyAnchor transform-origin pair so the canvas
+      // and CSS renderers match visually for opted-in pets.
+      const headWrap = idleHeadScalesWithBodyRef.current ? bodyBreath(sec) : null;
+      const headWrapAnchor = headWrap && bodyAnchorRef.current;
+      let headWrapAx = 0, headWrapAy = 0;
+      if (headWrapAnchor && bodyAnchorRef.current) {
+        // Convert body anchor world coords (1000-unit space) into the
+        // same buffer-px space the per-part draw boxes live in. Mirrors
+        // the lLogical / left math below: fit-scale around fitCx/fitCy,
+        // then map onto drawSpan with the offset.
+        const aLogicalX = (bodyAnchorRef.current.x - fitCx) * fitScale + CANVAS_SIZE / 2;
+        const aLogicalY = (bodyAnchorRef.current.y - fitCy) * fitScale + CANVAS_SIZE / 2;
+        headWrapAx = offset + (aLogicalX / CANVAS_SIZE) * drawSpan;
+        headWrapAy = offset + (aLogicalY / CANVAS_SIZE) * drawSpan;
+      }
+
       for (const { part, img } of parts) {
         // Heads route through evalAnim("head") above; for individual
         // head-group parts we still call evalAnim so eyes blink and
@@ -510,8 +601,23 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         const hasScale = sx !== 1 || sy !== 1;
         const hasTransform = rot !== 0 || dy !== 0 || hasScale;
 
+        // Outer wrapper transform for opted-in head-group parts: scale
+        // by the body's breath (sx, sy) around the body anchor. This is
+        // the canvas equivalent of the img-renderer's head wrapper
+        // <div> applying petIdleHeadBreath with transformOrigin set to
+        // bodyAnchorWorldX/Y. Applied BEFORE the per-part transform so
+        // every head-group part inflates/deflates around the SAME world
+        // point (the body's pivot) and the head silhouette stays fused
+        // to the torso instead of detaching.
+        const applyHeadWrap = !!(headWrapAnchor && isHeadGroupPart(part.partType));
+
         ctx.save();
         ctx.globalAlpha = op;
+        if (applyHeadWrap && headWrap) {
+          ctx.translate(headWrapAx, headWrapAy);
+          ctx.scale(headWrap.sx ?? 1, headWrap.sy ?? 1);
+          ctx.translate(-headWrapAx, -headWrapAy);
+        }
         if (hasTransform) {
           // Apply transforms around the pivot so rotation/scale don't
           // drift the part across the canvas.

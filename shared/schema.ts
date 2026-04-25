@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, timestamp, integer, real, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, timestamp, integer, real, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -227,6 +227,24 @@ export const gameSettings = pgTable("game_settings", {
   value: text("value").notNull(),
 });
 
+// Per-pet animation override schema. Stored as JSONB on petTemplates so each
+// pet can carry its own tweaks on top of the global defaults baked into
+// PetAnimator / PetAnimatorCanvas. Empty object `{}` means "use defaults
+// for everything" — every field is optional and falls back to the global
+// behaviour when missing. Schema is intentionally extensible so new knobs
+// (petting bounce, sleep depth, etc.) can be added later without a
+// migration; the renderer just gates each field with a `?? default`.
+export type PetAnimationOverrides = {
+  idle?: {
+    /** When true, the head wrapper (head + every face/head-group part) ALSO
+     *  scales with the body's breath, in addition to the existing head bob.
+     *  Anchored at the body's pivot so the head visually inflates / rises
+     *  in lockstep with the torso (used to make Crimson Dragon's whole
+     *  silhouette breathe as one). Default false. */
+    headScalesWithBody?: boolean;
+  };
+};
+
 export const petTemplates = pgTable("pet_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -239,6 +257,14 @@ export const petTemplates = pgTable("pet_templates", {
   // from the live game (filtered out of the regular admin pet list) so admins
   // can experiment with parts without polluting real gameplay data.
   isTest: boolean("is_test").notNull().default(false),
+  // Per-pet animation overrides. Defaults to `{}` (= use global defaults
+  // for every animation knob). New pets created through the admin path
+  // automatically receive `{}` so they animate with the standard idle /
+  // petting / sleep behaviour out of the box. Specific pets are then
+  // tweaked via direct DB updates (e.g. Crimson Dragon's head-scales-with-
+  // body). Renderer reads each field with `?? default` so missing fields
+  // are equivalent to "no override".
+  animationOverrides: jsonb("animation_overrides").$type<PetAnimationOverrides>().notNull().default(sql`'{}'::jsonb`),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

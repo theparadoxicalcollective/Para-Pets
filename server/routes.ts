@@ -3292,7 +3292,15 @@ export async function registerRoutes(
         storage.getPetTemplateParts(templateId),
         storage.getPetTemplate(templateId),
       ]);
-      const result = { parts, facing: template?.facing ?? "front", canFly: template?.canFly ?? false };
+      const result = {
+        parts,
+        facing: template?.facing ?? "front",
+        canFly: template?.canFly ?? false,
+        // Per-pet animation overrides — empty object means "use defaults".
+        // Renderer (PetAnimator + PetAnimatorCanvas) reads each field with
+        // a fallback so missing fields are equivalent to no override.
+        animationOverrides: template?.animationOverrides ?? {},
+      };
       setCachedTemplateParts(templateId, result);
       return res.json(result);
     } catch (err) {
