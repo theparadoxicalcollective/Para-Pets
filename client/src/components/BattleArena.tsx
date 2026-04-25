@@ -600,7 +600,18 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   useEffect(() => {
     const fetchEncounter = async () => {
       try {
-        const res = await apiRequest("POST", `/api/explore/${locationId}/encounter`);
+        // Send the extra pets' inventory IDs so the server can resolve
+        // their assembled battle-image URLs (template.frontAssembled) the
+        // same way it does for the active pet. Without this, slots 1–2
+        // fall back to the raw hatched portrait, which has more padding
+        // than the assembled image and looks ~30% smaller in the arena.
+        const extraPetInventoryIds = [equippedPets[1]?.inventoryId, equippedPets[2]?.inventoryId]
+          .filter((x): x is string => typeof x === "string" && x.length > 0);
+        const res = await apiRequest(
+          "POST",
+          `/api/explore/${locationId}/encounter`,
+          { extraPetInventoryIds },
+        );
         const data = await res.json();
         if (!data.encounters || data.encounters.length === 0) {
           toast({ title: "No enemies found", description: "This area seems peaceful..." });
@@ -615,10 +626,22 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         worldDefeatSentRef.current = false;
         petStatsRef.current = { atk: data.pet.atk, def: data.pet.def, maxHp: data.pet.hp };
 
-        // Initialize extra pets (slots 1 and 2 from equippedPets)
+        // Initialize extra pets (slots 1 and 2 from equippedPets). Apply
+        // server-resolved battle images so all 3 sprites use the same
+        // assembled-image source — keeps right-side pets the same size as
+        // the active (left) pet.
+        const battleImages: Record<string, string> = (data.extraPetImages ?? {}) as Record<string, string>;
+        const applyBattleImage = (ep: EquippedPet | null): EquippedPet | null => {
+          if (!ep) return null;
+          const url = ep.inventoryId ? battleImages[ep.inventoryId] : undefined;
+          if (!url) return ep;
+          // Override BOTH fields so the renderer picks the assembled
+          // image regardless of which fallback chain it walks.
+          return { ...ep, hatchedImageUrl: url, imageUrl: url };
+        };
         const extraSlots: [EquippedPet | null, EquippedPet | null] = [
-          (equippedPets[1] ?? null) as EquippedPet | null,
-          (equippedPets[2] ?? null) as EquippedPet | null,
+          applyBattleImage((equippedPets[1] ?? null) as EquippedPet | null),
+          applyBattleImage((equippedPets[2] ?? null) as EquippedPet | null),
         ];
         equippedExtraPetsRef.current = extraSlots;
         const totalPets = 1 + extraSlots.filter(Boolean).length;

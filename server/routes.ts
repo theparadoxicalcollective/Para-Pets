@@ -4179,6 +4179,34 @@ export async function registerRoutes(
         }
       }
 
+      // Resolve battle-image URLs for the player's *extra* equipped pets so
+      // the BattleArena can render them at the same scale/proportions as
+      // the active pet. Without this, slot 0 renders the assembled
+      // template (tight bounds) while slots 1–2 fall back to the raw
+      // hatched portrait (lots of transparent padding) — the right-side
+      // pets end up looking ~30% smaller. Same lookup as the active pet.
+      // Cap at 2 since the world-battle UI only supports 2 extra pet
+      // slots — prevents a client from spamming hundreds of inventory
+      // lookups per encounter request.
+      const extraIds: string[] = Array.isArray(req.body?.extraPetInventoryIds)
+        ? req.body.extraPetInventoryIds
+            .filter((x: any): x is string => typeof x === "string" && x.length > 0)
+            .slice(0, 2)
+        : [];
+      const extraPetImages: Record<string, string> = {};
+      if (extraIds.length > 0) {
+        await Promise.all(extraIds.map(async (invId) => {
+          const inv = inventoryJoined.find((it: any) => it.id === invId && it.isHatched);
+          if (!inv) return;
+          let url: string | null = inv.hatchedImageUrl || inv.imageUrl || null;
+          if (inv.petTemplateId) {
+            const tpl = await storage.getPetTemplate(inv.petTemplateId);
+            if (tpl?.frontAssembled) url = tpl.frontAssembled;
+          }
+          if (url) extraPetImages[invId] = url;
+        }));
+      }
+
       return res.json({
         encounters,
         pet: {
@@ -4199,6 +4227,7 @@ export async function registerRoutes(
           skillAffects: (activePet as any).skillAffects || null,
           rarity: (activePet as any).rarity ?? null,
         },
+        extraPetImages,
       });
     } catch (err) {
       console.error("Generate encounter error:", err);
