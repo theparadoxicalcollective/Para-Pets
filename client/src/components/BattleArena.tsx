@@ -60,17 +60,30 @@ interface AutoOrb {
   petIdx: number;
 }
 
-const PET_SPRITE_SIZE = 230;
+// Sprite box size for active + extra pets in the world-battle arena.
+// The PetAnimatorCanvas rig used to render at 230 because every part
+// included a fair amount of transparent padding around the actual
+// silhouette. Raw PNG portraits have no such padding, so 230 made the
+// sprites feel ~75% larger and caused 3-pet parties to overlap each
+// other on mobile (the arena is only ~390 px wide on iPhone). 130 keeps
+// them readable and roomy at every party size — a 3-pet line at
+// x=12/44/76 leaves ~30 px of breathing room between sprite edges. */
+const PET_SPRITE_SIZE = 130;
 // Hoisted so PetAnimatorCanvas's React.memo equality holds — both the
 // active pet and extra pets pass this same object reference for the
 // "skill ready" glow, instead of allocating a fresh `{ animation: ... }`
 // each render and forcing the canvas to reconcile every parent tick.
 const PET_RARITY_GLOW_STYLE: React.CSSProperties = { animation: "petRarityGlow 1s ease-in-out infinite" };
 
+// Layout for the active + extra pet sprites. x is a % of arena width,
+// y a % of arena height. Spacing was widened (3-pet line moved from
+// 16/44/72 to 12/44/76) after the canvas rig was replaced with raw
+// PNG portraits, which have no built-in transparent padding and so
+// otherwise touched / overlapped at the original spacing.
 function getPetPos(idx: number, total: number): { x: number; y: number } {
   if (total <= 1) return { x: 22, y: 64 };
-  if (total === 2) return [{ x: 26, y: 64 }, { x: 62, y: 64 }][idx] ?? { x: 26, y: 64 };
-  return [{ x: 16, y: 64 }, { x: 44, y: 64 }, { x: 72, y: 64 }][idx] ?? { x: 22, y: 64 };
+  if (total === 2) return [{ x: 28, y: 64 }, { x: 64, y: 64 }][idx] ?? { x: 28, y: 64 };
+  return [{ x: 12, y: 64 }, { x: 44, y: 64 }, { x: 76, y: 64 }][idx] ?? { x: 22, y: 64 };
 }
 
 interface EncounterEnemy {
