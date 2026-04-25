@@ -1313,6 +1313,14 @@ export default function PvpBattlePage({
            Used by the koSpin treatment but also available as a one-shot
            effect on the still-image sprite. */
         @keyframes pDefeat { 0%{transform:rotate(0deg) scale(1);opacity:1;filter:saturate(1)} 100%{transform:rotate(75deg) scale(0.85);opacity:0.35;filter:saturate(0.2) brightness(0.6)} }
+        /* Persistent "unconscious" feel for downed player pets — slow
+           brightness/opacity wave so the body doesn't read as flat /
+           erased. Pairs with the tipped-over wrapper transform and the
+           floating skull badge to make alive vs down instantly readable. */
+        @keyframes koBreathe { 0%,100%{opacity:0.78;filter:grayscale(1) brightness(0.46) contrast(1.08) sepia(0.35) hue-rotate(175deg) saturate(1.6)} 50%{opacity:0.92;filter:grayscale(1) brightness(0.58) contrast(1.08) sepia(0.35) hue-rotate(175deg) saturate(1.6)} }
+        /* Skull badge gentle pulse — sits above the fallen pet and
+           telegraphs "knocked out" at a glance. */
+        @keyframes koSkullPulse { 0%,100%{transform:translate(-50%,0) scale(0.94);opacity:0.85;filter:drop-shadow(0 0 4px rgba(239,68,68,0.55)) drop-shadow(0 0 10px rgba(239,68,68,0.35))} 50%{transform:translate(-50%,-2px) scale(1.04);opacity:1;filter:drop-shadow(0 0 6px rgba(248,113,113,0.85)) drop-shadow(0 0 14px rgba(239,68,68,0.6))} }
         @keyframes bShake { 0%,100%{margin-left:0} 20%{margin-left:-4px} 40%{margin-left:4px} 60%{margin-left:-3px} 80%{margin-left:2px} }
         /* Pet-image glow applied via filter: drop-shadow so it traces
            the actual silhouette of the sprite (rather than a circular
@@ -1632,20 +1640,49 @@ export default function PvpBattlePage({
                     `position: relative` so any absolute children
                     (X_X hit overlay) resolve to THIS box, not to the
                     outer flex column. */}
+                {/* Floor shadow for downed pets — flat dark ellipse beneath
+                    the body so the tipped-over sprite reads as "collapsed
+                    on the ground" rather than just rotated in space.
+                    Sibling of the rotated sprite so it stays flat. */}
+                {isDead && (
+                  <div
+                    className="absolute pointer-events-none"
+                    style={{
+                      left: "50%",
+                      bottom: `${Math.round(size * 0.06)}px`,
+                      transform: "translateX(-50%)",
+                      width: Math.round(size * 0.78),
+                      height: Math.round(size * 0.13),
+                      background: "radial-gradient(ellipse at center, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.28) 45%, rgba(0,0,0,0) 72%)",
+                      borderRadius: "50%",
+                      zIndex: 1,
+                    }}
+                  />
+                )}
                 <div
                   style={{
                     width: size,
                     height: size,
                     position: "relative",
                     borderRadius: "50%",
-                    // Dead player pets get a "downed" pose: squished
-                    // toward the floor (scaleY < 1, pivoting from the
-                    // feet) and pushed down a touch so they read as
-                    // collapsed rather than just shorter. The wrapper's
-                    // own translate(-50%,-50%) is on the OUTER box, so
-                    // the squish here doesn't shift the logical anchor.
+                    zIndex: 2,
+                    // Downed pose — pet tips over toward the floor instead
+                    // of just shrinking. Player and enemy mirror each
+                    // other (scaleX(-1) on enemy reverses the visual
+                    // rotation direction) so they collapse symmetrically
+                    // toward the center of the arena, which reads like
+                    // they actually fell during the fight. The angle and
+                    // scale are deliberately conservative because PvP
+                    // 5v5 lane spacing is only ~17 % of arena width — a
+                    // larger tilt projects the rotated body into the
+                    // neighboring slot and starts visually clipping
+                    // adjacent pets (the previous 72 deg / 0.78 scale
+                    // pushed the head ~58 px out of a 78 px slot in
+                    // 5v5). 55 deg + 0.68 scale + 14 % translateY keeps
+                    // the projection inside the slot at every roster
+                    // size while still reading as "fallen over".
                     transform: isDead
-                      ? `${pet.isPlayer ? "" : "scaleX(-1) "}scaleY(0.55) translateY(18%)`
+                      ? `${pet.isPlayer ? "" : "scaleX(-1) "}rotate(55deg) scale(0.68) translateY(14%)`
                       : (pet.isPlayer ? undefined : "scaleX(-1)"),
                     transformOrigin: "50% 100%",
                     animation: isDead
@@ -1663,7 +1700,7 @@ export default function PvpBattlePage({
                           ? "2px solid rgba(74,222,128,0.85)"
                           : undefined,
                     outlineOffset: 3,
-                    opacity: isDead ? 0.65 : 1,
+                    transition: "transform 0.45s cubic-bezier(0.34, 1.32, 0.64, 1)",
                   }}
                 >
                   {pet.imageUrl ? (
@@ -1703,7 +1740,7 @@ export default function PvpBattlePage({
                         // takes precedence so the impact feedback isn't
                         // muted by the slow skill pulse.
                         animation: isDead
-                          ? undefined
+                          ? "koBreathe 2.6s ease-in-out infinite"
                           : isHit
                             ? "pSquish 0.32s ease-out"
                             : isSkillReady
@@ -1713,12 +1750,13 @@ export default function PvpBattlePage({
                         // Base team-color drop-shadow. Overridden by the
                         // skillGlowImg keyframe while the pulse runs;
                         // otherwise provides the static purple/red rim.
-                        // Dead player pets are desaturated + dimmed so
-                        // they read as "downed" at a glance — combined
-                        // with the wrapper's squish, this gives the
-                        // collapsed-on-the-floor look the user asked for.
+                        // Dead pets get their filter from the koBreathe
+                        // keyframe (cool-blue desaturated tint that
+                        // gently pulses) — set as the static base here
+                        // so the look is correct even if the animation
+                        // hasn't started its first frame yet.
                         filter: isDead
-                          ? "grayscale(1) brightness(0.55)"
+                          ? "grayscale(1) brightness(0.5) contrast(1.08) sepia(0.35) hue-rotate(175deg) saturate(1.6)"
                           : pet.isPlayer
                             ? "drop-shadow(0 0 10px rgba(167,139,250,0.5))"
                             : "drop-shadow(0 0 10px rgba(239,68,68,0.45))",
@@ -1747,6 +1785,30 @@ export default function PvpBattlePage({
                   )}
                 </div>
 
+                {/* Floating skull badge — only on downed pets. Sits just
+                    above the fallen body and pulses gently so players
+                    can scan the row and instantly tell which pet is
+                    knocked out vs which is still in the fight. Kept
+                    OUTSIDE the rotating sprite wrapper so it stays
+                    upright over the collapsed body. */}
+                {isDead && (
+                  <img
+                    src={skullDefeatIcon}
+                    alt=""
+                    draggable={false}
+                    className="absolute pointer-events-none"
+                    style={{
+                      left: "50%",
+                      top: `${Math.round(size * 0.04)}px`,
+                      width: Math.round(size * 0.34),
+                      height: Math.round(size * 0.34),
+                      objectFit: "contain",
+                      transform: "translateX(-50%)",
+                      animation: "koSkullPulse 2.4s ease-in-out infinite",
+                      zIndex: 5,
+                    }}
+                  />
+                )}
                 {/* ALLY HP + mana stack — anchored at the visible feet
                     edge (≈ 18 % up from the wrapper's bottom, mirror of
                     the enemy treatment). Absolute so it doesn't change
