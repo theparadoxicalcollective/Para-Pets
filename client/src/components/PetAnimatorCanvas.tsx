@@ -412,13 +412,13 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
       // template) all read from cache for free.
       if (entry.img.naturalWidth > 0) {
         const boundsPromise = getAlphaBounds(entry.part.imageUrl, entry.img);
-        // For flying pets with the headScalesWithBody override, the
-        // body anchor needs to be recomputed once the body image's
-        // alpha-trimmed bounds are available — otherwise the very
-        // first render (cold cache) uses FULL_BOUNDS and the head
-        // scales around the wrong world point. Non-body parts and
-        // non-flying pets don't need this (their anchor is already
-        // correct after the eager recomputeBodyAnchor() above).
+        // For flying pets, the body anchor needs to be recomputed once
+        // the body image's alpha-trimmed bounds are available — the
+        // very first render (cold cache) uses FULL_BOUNDS, so the
+        // anchor (used for the body's breathe pivot) initially points
+        // at the wrong world point. Non-body parts and non-flying pets
+        // don't need this (their anchor is already correct after the
+        // eager recomputeBodyAnchor() above).
         if (canFly && bodyPart && entry.part.id === bodyPart.id) {
           void boundsPromise.then(() => {
             if (cancelled) return;
