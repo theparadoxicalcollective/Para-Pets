@@ -28,6 +28,7 @@ interface FishingItem {
   fishSwimZone: string | null;
   catchEasePercent: number | null;
   locationId: string | null;
+  isSeaAnimal: boolean | null;
   createdAt: string;
 }
 
@@ -43,13 +44,39 @@ interface FishPart {
   zIndex: number;
 }
 
-const FISH_PART_TYPES = [
-  { key: "body",       label: "Body",       defaultZ: 1 },
-  { key: "tail",       label: "Tail",       defaultZ: 2 },
-  { key: "top_fin",    label: "Top Fin",    defaultZ: 3 },
-  { key: "bottom_fin", label: "Bottom Fin", defaultZ: 0 },
-  { key: "head_fin",   label: "Head Fin",   defaultZ: 4 },
+const FISH_PART_TYPES_NORMAL = [
+  { key: "head_accessory", label: "Head Accessory", defaultZ: 9 },
+  { key: "head",           label: "Head",           defaultZ: 8 },
+  { key: "top_fin",        label: "Top Fin",        defaultZ: 7 },
+  { key: "side_fin",       label: "Side Fin",       defaultZ: 6 },
+  { key: "accessory",      label: "Accessory",      defaultZ: 5 },
+  { key: "bottom_fin_1",   label: "Bottom Fin 1",   defaultZ: 4 },
+  { key: "bottom_fin_2",   label: "Bottom Fin 2",   defaultZ: 3 },
+  { key: "body",           label: "Body",           defaultZ: 2 },
+  { key: "tail",           label: "Tail",           defaultZ: 1 },
 ] as const;
+
+const FISH_PART_TYPES_SEA_ANIMAL = [
+  { key: "head_accessory", label: "Head Accessory", defaultZ: 12 },
+  { key: "eyes_open",      label: "Eyes (Open)",    defaultZ: 11 },
+  { key: "head",           label: "Head",           defaultZ: 10 },
+  { key: "front_arm",      label: "Front Arm",      defaultZ: 9  },
+  { key: "front_leg",      label: "Front Leg",      defaultZ: 8  },
+  { key: "body",           label: "Body",           defaultZ: 7  },
+  { key: "back_arm",       label: "Back Arm",       defaultZ: 6  },
+  { key: "back_leg",       label: "Back Leg",       defaultZ: 5  },
+  { key: "back_accessory", label: "Back Accessory", defaultZ: 4  },
+  { key: "tail_1",         label: "Tail 1",         defaultZ: 3  },
+  { key: "tail_2",         label: "Tail 2",         defaultZ: 2  },
+  { key: "tail_3",         label: "Tail 3",         defaultZ: 1  },
+] as const;
+
+type FishPartTypeDef = { key: string; label: string; defaultZ: number };
+
+const FISH_PART_TYPES_ALL: FishPartTypeDef[] = [
+  ...FISH_PART_TYPES_NORMAL,
+  ...FISH_PART_TYPES_SEA_ANIMAL.filter(p => !FISH_PART_TYPES_NORMAL.some(n => n.key === p.key)),
+];
 
 const CANVAS_SIZE = 500;
 
@@ -275,7 +302,7 @@ export default function FishingAdminPanel({ restrict }: { restrict?: "fish" | "s
             </div>
 
             <div className="flex flex-wrap gap-1.5 justify-center">
-              {FISH_PART_TYPES.map(pt => {
+              {(selectedFish?.isSeaAnimal ? FISH_PART_TYPES_SEA_ANIMAL : FISH_PART_TYPES_NORMAL).map(pt => {
                 const exists = fishParts.some(p => p.partType === pt.key);
                 return (
                   <button
@@ -335,7 +362,7 @@ export default function FishingAdminPanel({ restrict }: { restrict?: "fish" | "s
           <PartUploadModal
             partType={uploadPartType}
             fishItemId={selectedFishId}
-            defaultZ={FISH_PART_TYPES.find(p => p.key === uploadPartType)?.defaultZ ?? 1}
+            defaultZ={(selectedFish?.isSeaAnimal ? FISH_PART_TYPES_SEA_ANIMAL : FISH_PART_TYPES_NORMAL).find(p => p.key === uploadPartType)?.defaultZ ?? FISH_PART_TYPES_ALL.find(p => p.key === uploadPartType)?.defaultZ ?? 1}
             onClose={() => setUploadPartType(null)}
             onUpload={(fishItemId, partType, imageData, zIndex) => {
               addPartMutation.mutate({ fishItemId, partType, imageData, zIndex });
@@ -495,6 +522,7 @@ function FishingItemForm({ item, onClose, onSuccess, restrict }: { item: Fishing
   const [poleMaxUses, setPoleMaxUses] = useState(item?.poleMaxUses?.toString() || "");
   const [catchEasePercent, setCatchEasePercent] = useState(item?.catchEasePercent?.toString() || "0");
   const [fishSwimZone, setFishSwimZone] = useState<"full" | "bottom">((item?.fishSwimZone as "full" | "bottom") || "full");
+  const [isSeaAnimal, setIsSeaAnimal] = useState<boolean>(item?.isSeaAnimal ?? false);
   const [facingDirection, setFacingDirection] = useState<"right" | "left">(
     (item?.facingDirection as "right" | "left") || "right"
   );
@@ -545,6 +573,7 @@ function FishingItemForm({ item, onClose, onSuccess, restrict }: { item: Fishing
         starRarity: fishingType === "fish" ? parseInt(starRarity) || 1 : null,
         facingDirection: fishingType === "fish" ? facingDirection : null,
         fishSwimZone: fishingType === "fish" ? fishSwimZone : null,
+        isSeaAnimal: fishingType === "fish" ? isSeaAnimal : false,
         catchEasePercent: fishingType === "pole" ? (parseInt(catchEasePercent) || 0) : null,
         rarityBoostPercent: fishingType === "bait" ? parseInt(rarityBoostPercent) || 0 : null,
         baitRarityBoostStar: fishingType === "bait" ? parseInt(baitRarityBoostStar) || null : null,
@@ -698,6 +727,32 @@ function FishingItemForm({ item, onClose, onSuccess, restrict }: { item: Fishing
                   ))}
                 </div>
                 <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Full: fish roams entire aquarium. Bottom: fish stays near the floor with a little swim room.</p>
+              </div>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Sea Animal</label>
+                <div className="flex gap-2">
+                  {([
+                    { v: false, label: "Normal Fish" },
+                    { v: true,  label: "Sea Animal" },
+                  ] as const).map(opt => (
+                    <button
+                      key={String(opt.v)}
+                      type="button"
+                      data-testid={`button-sea-animal-${opt.v ? "yes" : "no"}`}
+                      onClick={() => setIsSeaAnimal(opt.v)}
+                      className="flex-1 py-2 rounded-md font-fantasy text-[10px] tracking-wider"
+                      style={{
+                        background: isSeaAnimal === opt.v ? "rgba(96,165,250,0.25)" : "rgba(0,0,0,0.2)",
+                        border: isSeaAnimal === opt.v ? "1px solid rgba(96,165,250,0.6)" : "1px solid rgba(96,165,250,0.15)",
+                        color: isSeaAnimal === opt.v ? "#60a5fa" : "#6a8090",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="font-fantasy text-[#6a5840] text-[8px] mt-0.5">Sea animals (octopus, crab, etc.) use a different part set with arms, legs, and multi-segment tails.</p>
               </div>
             </div>
           )}

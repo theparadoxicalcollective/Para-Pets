@@ -10,7 +10,7 @@ interface AqCaughtFish {
   shopItemId: string;
   caughtAt: string;
   inAquarium: boolean;
-  item: { id: string; name: string; imageUrl: string | null; starRarity: number | null; facingDirection: string | null; fishSwimZone?: string | null; hasParts?: boolean } | null;
+  item: { id: string; name: string; imageUrl: string | null; starRarity: number | null; facingDirection: string | null; fishSwimZone?: string | null; hasParts?: boolean; isSeaAnimal?: boolean } | null;
 }
 
 interface AqFishEntry {
@@ -22,6 +22,7 @@ interface AqFishEntry {
   facingDirection: string | null;
   fishSwimZone?: string | null;
   hasParts?: boolean;
+  isSeaAnimal?: boolean;
 }
 
 interface SwimmingFish extends AqFishEntry {
@@ -90,11 +91,76 @@ function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
 const FISH_PARTS_CANVAS = 500;
 const FISH_RENDER_SIZE = 220;
 
+// Per-part-type animation map. Includes:
+//  - the standard fish layer set (tail, top_fin, side_fin, bottom_fin_1/2)
+//  - the renamed head_accessory (was head_fin), kept STATIC since accessories
+//    like hats / crowns shouldn't bob
+//  - the legacy keys (head_fin, bottom_fin) so previously uploaded parts still
+//    animate correctly after the rename / split
+//  - the Sea Animal extended set (eyes_open blinks, limbs sway, tail_1/2/3
+//    each get a slightly out-of-phase sway so multi-tentacle critters look
+//    alive instead of moving in lockstep)
+// Top fin sliding motion was tuned DOWN per request:
+//   - rotation amplitude: 5° → 1.5° (-1° to 0.5°)
+//   - duration: 1.6s → 2.6s (slower, so it reads as a gentle drift, not a slide)
 const FISH_PART_ANIM: Record<string, { anim: string; duration: string; origin: string }> = {
-  tail:        { anim: "fishTailWag",    duration: "0.55s", origin: "15% 50%" },
-  top_fin:     { anim: "fishFinUp",      duration: "1.6s",  origin: "50% 95%" },
-  bottom_fin:  { anim: "fishFinDown",    duration: "1.4s",  origin: "50% 5%"  },
-  head_fin:    { anim: "fishHeadFin",    duration: "1.8s",  origin: "50% 50%" },
+  tail:           { anim: "fishTailWag",    duration: "0.55s", origin: "15% 50%" },
+  top_fin:        { anim: "fishTopFinSway", duration: "2.6s",  origin: "50% 95%" },
+  side_fin:       { anim: "fishSideFin",    duration: "1.5s",  origin: "10% 50%" },
+  bottom_fin_1:   { anim: "fishFinDown",    duration: "1.4s",  origin: "50% 5%"  },
+  bottom_fin_2:   { anim: "fishFinDown",    duration: "1.6s",  origin: "50% 5%"  },
+  // Legacy aliases — keep so existing fish keep animating after the rename:
+  bottom_fin:     { anim: "fishFinDown",    duration: "1.4s",  origin: "50% 5%"  },
+  head_fin:       { anim: "fishHeadFin",    duration: "1.8s",  origin: "50% 50%" },
+  // Sea Animal limbs / tails — independent sway periods so they don't sync.
+  front_arm:      { anim: "fishLimbSwayA",  duration: "1.7s",  origin: "50% 0%"  },
+  front_leg:      { anim: "fishLimbSwayB",  duration: "1.9s",  origin: "50% 0%"  },
+  back_arm:       { anim: "fishLimbSwayA",  duration: "2.1s",  origin: "50% 0%"  },
+  back_leg:       { anim: "fishLimbSwayB",  duration: "2.3s",  origin: "50% 0%"  },
+  tail_1:         { anim: "fishTailSegA",   duration: "1.8s",  origin: "50% 0%"  },
+  tail_2:         { anim: "fishTailSegB",   duration: "2.0s",  origin: "50% 0%"  },
+  tail_3:         { anim: "fishTailSegA",   duration: "2.4s",  origin: "50% 0%"  },
+  // Eyes_open blinks every ~3s by briefly hiding (no closed-eye art needed
+  // — the head art doubles as the closed-eye state).
+  eyes_open:      { anim: "fishBlink",      duration: "3.4s",  origin: "50% 50%" },
+};
+
+// Canonical fish layer order — kept in lockstep with the editor's
+// FISH_PART_TYPES_NORMAL / FISH_PART_TYPES_SEA_ANIMAL tables so the
+// in-aquarium render and the admin part editor stack identically.
+// Higher value = drawn on top.
+const FISH_LAYER_ORDER_NORMAL: Record<string, number> = {
+  tail: 1,
+  body: 2,
+  bottom_fin_2: 3,
+  bottom_fin_1: 4,
+  bottom_fin: 4,         // legacy
+  accessory: 5,
+  side_fin: 6,
+  top_fin: 7,
+  head: 8,
+  head_accessory: 9,
+  head_fin: 9,           // legacy alias for head_accessory
+};
+const FISH_LAYER_ORDER_SEA_ANIMAL: Record<string, number> = {
+  tail_3: 1, tail_2: 2, tail_1: 3,
+  back_accessory: 4,
+  back_leg: 5,
+  back_arm: 6,
+  body: 7,
+  front_leg: 8,
+  front_arm: 9,
+  head: 10,
+  eyes_open: 11,
+  head_accessory: 12,
+  // Tail (legacy single tail) and other legacy keys fall back to the
+  // standard set so a fish migrated from "normal" to "sea animal" keeps
+  // a sensible order until the admin re-uploads the new tail segments.
+  tail: 1,
+};
+const fishEffectiveZ = (partType: string, fallbackZ: number, isSeaAnimal: boolean): number => {
+  const table = isSeaAnimal ? FISH_LAYER_ORDER_SEA_ANIMAL : FISH_LAYER_ORDER_NORMAL;
+  return table[partType] ?? fallbackZ;
 };
 
 interface FishPartData {
@@ -108,7 +174,7 @@ interface FishPartData {
   zIndex: number;
 }
 
-function FishPartsView({ fishItemId, size, flipped }: { fishItemId: string; size: number; flipped: boolean }) {
+function FishPartsView({ fishItemId, size, flipped, isSeaAnimal }: { fishItemId: string; size: number; flipped: boolean; isSeaAnimal: boolean }) {
   const { data: parts = [] } = useQuery<FishPartData[]>({
     queryKey: ["/api/fish-parts", fishItemId],
     queryFn: async () => {
@@ -138,8 +204,11 @@ function FishPartsView({ fishItemId, size, flipped }: { fishItemId: string; size
         transform: `scale(${scale})`,
         transformOrigin: "top left",
       }}>
-        {[...parts].sort((a, b) => a.zIndex - b.zIndex).map(part => {
+        {[...parts]
+          .sort((a, b) => fishEffectiveZ(a.partType, a.zIndex, isSeaAnimal) - fishEffectiveZ(b.partType, b.zIndex, isSeaAnimal))
+          .map(part => {
           const anim = FISH_PART_ANIM[part.partType];
+          const layerZ = fishEffectiveZ(part.partType, part.zIndex, isSeaAnimal);
           return (
             <img
               key={part.id}
@@ -152,7 +221,7 @@ function FishPartsView({ fishItemId, size, flipped }: { fishItemId: string; size
                 top: `${(part.posY / FISH_PARTS_CANVAS) * 100}%`,
                 width: `${(part.width / FISH_PARTS_CANVAS) * 100}%`,
                 height: `${(part.height / FISH_PARTS_CANVAS) * 100}%`,
-                zIndex: part.zIndex,
+                zIndex: layerZ,
                 objectFit: "contain",
                 pointerEvents: "none",
                 userSelect: "none",
@@ -190,6 +259,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         facingDirection: f.item?.facingDirection ?? null,
         fishSwimZone: f.item?.fishSwimZone ?? null,
         hasParts: f.item?.hasParts ?? false,
+        isSeaAnimal: f.item?.isSeaAnimal ?? false,
       })),
   [fishInventory]);
 
@@ -289,6 +359,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         facingDirection: item.facingDirection ?? s.facingDirection,
         fishSwimZone: zone,
         hasParts: item.hasParts ?? s.hasParts,
+        isSeaAnimal: item.isSeaAnimal ?? s.isSeaAnimal,
         y: Math.max(yMin, Math.min(yMax, s.y)),
       };
     }));
@@ -510,6 +581,13 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         @keyframes fishFinUp     { from { transform: rotate(-3deg); } to { transform: rotate(2deg);  } }
         @keyframes fishFinDown   { from { transform: rotate(0deg);  } to { transform: rotate(2.5deg); } }
         @keyframes fishHeadFin   { from { transform: rotate(-3deg) translateY(-1px); } to { transform: rotate(2deg) translateY(2px); } }
+        @keyframes fishTopFinSway { from { transform: rotate(-1deg); } to { transform: rotate(0.5deg); } }
+        @keyframes fishSideFin    { from { transform: rotate(-6deg); } to { transform: rotate(8deg);  } }
+        @keyframes fishLimbSwayA  { from { transform: rotate(-7deg); } to { transform: rotate(7deg);  } }
+        @keyframes fishLimbSwayB  { from { transform: rotate(6deg);  } to { transform: rotate(-6deg); } }
+        @keyframes fishTailSegA   { from { transform: rotate(-5deg); } to { transform: rotate(5deg);  } }
+        @keyframes fishTailSegB   { from { transform: rotate(4deg);  } to { transform: rotate(-4deg); } }
+        @keyframes fishBlink      { 0%,92%,100% { opacity:1; } 95%,97% { opacity:0; } }
       `}</style>
 
       <img src={aquariumBg} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
@@ -549,6 +627,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
                 fishItemId={f.shopItemId}
                 size={fishSize}
                 flipped={((f.facingDirection !== "left") !== f.facingRight)}
+                isSeaAnimal={f.isSeaAnimal ?? false}
               />
             : f.imageUrl
               ? <img src={f.imageUrl} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none", transform: ((f.facingDirection !== "left") !== f.facingRight) ? "scaleX(-1)" : undefined }} draggable={false} />

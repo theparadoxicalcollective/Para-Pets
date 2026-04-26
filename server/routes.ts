@@ -4859,7 +4859,22 @@ export async function registerRoutes(
     }
   });
 
-  const ALLOWED_FISH_PART_TYPES = new Set(["body", "tail", "top_fin", "bottom_fin", "head_fin"]);
+  const ALLOWED_FISH_PART_TYPES = new Set([
+    // ── Standard fish layer set ─────────────────────────────────────────
+    "body", "tail", "top_fin", "side_fin", "accessory",
+    "bottom_fin_1", "bottom_fin_2", "head", "head_accessory",
+    // Legacy types kept for backwards compatibility with previously
+    // uploaded fish parts (head_fin → head_accessory rename, single
+    // bottom_fin → bottom_fin_1/_2 split). Existing parts continue to
+    // load and animate; new uploads should use the new keys.
+    "head_fin", "bottom_fin",
+    // ── Sea Animal extended layer set ───────────────────────────────────
+    // Picked when the parent fish item has isSeaAnimal=true. eyes_open
+    // doubles for blink (hide to "close"). Tail_1/2/3 are independent
+    // tail segments (e.g. seahorse curl, octopus tentacles).
+    "eyes_open", "front_arm", "front_leg", "back_arm", "back_leg",
+    "back_accessory", "tail_1", "tail_2", "tail_3",
+  ]);
   const ALLOWED_EQUIP_SLOTS = new Set(["pole", "bait"]);
 
   app.post("/api/admin/fish-parts/:fishItemId", isAuthenticated, async (req, res) => {

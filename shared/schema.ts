@@ -71,6 +71,13 @@ export const shopItems = pgTable("shop_items", {
   shopPosY: real("shop_pos_y").notNull().default(50),
   shopWidth: integer("shop_width").notNull().default(72),
   fishingType: text("fishing_type"),
+  // For type === "fishing" + fishingType === "fish": when true, this fish
+  // uses the extended "Sea Animal" parts layer set (head_accessory,
+  // eyes_open, head, front_arm/leg, body, back_arm/leg, back_accessory,
+  // tail_1/2/3) instead of the standard fish parts. The aquarium
+  // renderer keys off this flag to pick the right layer order + per-part
+  // animations.
+  isSeaAnimal: boolean("is_sea_animal").notNull().default(false),
   hooklessImageUrl: text("hookless_image_url"),
   rarityBoostPercent: integer("rarity_boost_percent"),
   starRarity: integer("star_rarity"),

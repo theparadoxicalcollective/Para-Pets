@@ -346,7 +346,61 @@ export default function PetDatabasePanel({
     }
   }, [templateDetail?.id, templateDetail?.facing]);
 
-  const viewParts = (templateDetail?.parts || []).filter(p => p.view === activeView).sort((a, b) => a.zIndex - b.zIndex);
+  // Editor preview must stack parts in EXACTLY the same order the in-game
+  // renderer (PetAnimator / PetAnimatorCanvas) uses, otherwise the admin
+  // sees "ear_2 in front of the face" when the live game shows it tucked
+  // behind the head. Mirrors PetAnimator's LAYER_ORDER table verbatim and
+  // uses the same secondary-head (h2_/h3_) depth-trick PetAnimatorCanvas
+  // applies (so Heads 2/3 render BEHIND the body in the editor too).
+  // Fallback to the part's stored zIndex when the part type isn't in the
+  // canonical table (e.g. one-off custom parts).
+  // IMPORTANT: keep this in lockstep with PetAnimator.tsx LAYER_ORDER
+  //            (≈ L1006) and PetAnimatorCanvas.tsx LAYER_ORDER (≈ L32).
+  const PREVIEW_LAYER_ORDER: Record<string, number> = {
+    head_wing_left: 1, head_wing_right: 1,
+    tail: 1, tail_2: 1, tail_3: 1, back_hair: 1,
+    back_wing: 2, back_wing_2: 2,
+    right_wing: 2, left_wing: 2, wing_set2_left: 2, wing_set2_right: 2,
+    back_leg: 3, right_leg: 3, left_leg: 3,
+    back_accessory_2: 3, back_accessory_1: 3,
+    front_left_accessory: 3, front_right_accessory: 3,
+    back_arm: 4, back_shoulder: 4,
+    body: 5,
+    front_wing_2: 6, front_wing: 6,
+    front_accessory_2: 6, front_accessory_1: 6,
+    front_leg: 7, right_arm: 7,
+    front_arm: 8, left_arm: 8, front_shoulder: 8,
+    right_ear: 9, left_ear: 9,
+    right_ear_2: 9, left_ear_2: 9,
+    neck: 9,
+    head: 10,
+    accessory_2: 11, accessory_1: 11,
+    mouth: 12, mouth_closed: 13,
+    eyes_closed: 14, eyes: 15,
+    hair_right: 16, hair_left: 17,
+    above_head: 18,
+  };
+  const previewIsHeadGroupBase = new Set([
+    "eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed",
+    "hair_left", "hair_right", "accessory_1", "accessory_2", "above_head",
+    "left_ear_2", "right_ear_2",
+  ]);
+  const previewIsSecondaryHeadGroupPart = (pt: string): boolean => {
+    if (!pt.startsWith("h2_") && !pt.startsWith("h3_")) return false;
+    const base = pt.replace(/^h[23]_/, "");
+    return base === "head" || previewIsHeadGroupBase.has(base);
+  };
+  const previewEffectiveZ = (p: { partType: string; zIndex: number }): number => {
+    if (previewIsSecondaryHeadGroupPart(p.partType)) {
+      const base = p.partType.replace(/^h[23]_/, "");
+      const subZ = PREVIEW_LAYER_ORDER[base] ?? 10;
+      return 4 + subZ * 0.001;
+    }
+    return PREVIEW_LAYER_ORDER[p.partType] ?? p.zIndex;
+  };
+  const viewParts = (templateDetail?.parts || [])
+    .filter(p => p.view === activeView)
+    .sort((a, b) => previewEffectiveZ(a) - previewEffectiveZ(b));
 
   const createMutation = useMutation({
     mutationFn: async (name: string) => {
