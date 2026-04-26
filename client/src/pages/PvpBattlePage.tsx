@@ -124,8 +124,6 @@ const CHARGE_INTERVAL_MS = 700;
 const CHARGE_DIVE_MS = 720;
 /** How fast it returns to the swarm after impact. */
 const CHARGE_RETURN_MS = 300;
-/** Damage % of enemy ATK when a charge lands on an ally. */
-const CHARGE_DMG_MULT = 0.85;
 // Passive mana constants removed per user feedback ("mana shouldn't
 // fill automatically"). Mana now only accrues from giving or
 // receiving hits — see SWIPE_MANA_* below for the swipe-side income
@@ -283,11 +281,12 @@ export default function PvpBattlePage({
   const RARITY_COLORS = ["", "#a0a0b0", "#4ade80", "#60a5fa", "#c084fc", "#f0c040"];
 
   // Combo: increments each unique enemy hit within COMBO_WINDOW_MS.
-  // The damage multiplier scales 1× → 1.6× by combo 5+. We mirror the
-  // count to a ref so the swipe-hit event can read+advance the same
-  // value synchronously — using `comboCount` from the closure runs a
-  // tick behind the actual count and divorces displayed combo from
-  // applied damage.
+  // PURELY COSMETIC — combos no longer multiply damage. The on-screen
+  // counter still tracks tap streaks for player feedback / juice, but
+  // basic-attack damage is strictly `pet.atk − floor(target.def × 0.25)`
+  // so the ATK number on the pet card maps 1:1 to the damage you see.
+  // Special skills are the only path to extra damage, scaled by
+  // admin-configured `skillDamagePercent`.
   const [comboCount, setComboCount] = useState(0);
   const comboCountRef = useRef(0);
   const lastHitTimeRef = useRef(0);
@@ -770,9 +769,10 @@ export default function PvpBattlePage({
             e.x = e.baseX + (target.x - e.baseX) * eased;
             e.y = e.baseY + (target.y - e.baseY) * eased;
             if (k >= 1) {
-              // Damage tick
-              const raw = Math.max(1, e.atk * CHARGE_DMG_MULT - target.def * 0.25);
-              const dmg = Math.max(1, Math.floor(raw + Math.random() * 6 - 3));
+              // Damage tick — basic attack: deterministic ATK vs DEF, no
+              // multipliers or variance. Mirrors the player tap formula
+              // so a 1,600 ATK opponent hits for ~1,600 damage too.
+              const dmg = Math.max(1, e.atk - Math.floor(target.def * 0.25));
               target.hp = Math.max(0, target.hp - dmg);
               spawnFloatNum(target.x, target.y - 10, dmg);
               spawnSparks(target.x, target.y, ["#ef4444", "#f87171", "#fca5a5"]);
@@ -935,8 +935,11 @@ export default function PvpBattlePage({
     return { x: ((cx - rect.left) / rect.width) * 100, y: ((cy - rect.top) / rect.height) * 100 };
   }, []);
 
-  /** Advance the combo counter and return the new value so the caller
-   *  can apply the matching multiplier in the same tick. */
+  /** Advance the combo counter and return the new value. The counter is
+   *  cosmetic-only — it drives the on-screen "Nx COMBO" badge but does
+   *  NOT scale damage. The return value is preserved in case future
+   *  cosmetic effects (badge size, color, sparks) want to react to the
+   *  current streak. */
   const bumpCombo = useCallback((): number => {
     const now = Date.now();
     const next = (now - lastHitTimeRef.current < COMBO_WINDOW_MS)
@@ -1012,16 +1015,21 @@ export default function PvpBattlePage({
     if (!bestTap) return;
     const tapOpp = bestTap.opp;
 
-    const tapIsCrit = Math.random() < 0.15;
     // Slot-0 is the lead attacker for damage attribution. If they've
     // been KO'd, fall back to whoever's alive in the party.
     const tapAttacker = myAlive.find(p => p.slotIdx === 0) ?? myAlive[0];
     if (!tapAttacker) return;
 
-    const tapCombo = bumpCombo();
-    const tapComboMult = 1 + Math.min(tapCombo * 0.12, 0.6);
-    const tapRaw = tapAttacker.atk - Math.floor(tapOpp.def * 0.25) + Math.floor(Math.random() * 8) - 4;
-    const tapDmg = Math.max(1, Math.floor(tapRaw * (tapIsCrit ? 1.8 : 1) * tapComboMult));
+    // Combo counter still ticks for the on-screen "Nx COMBO" badge, but
+    // it intentionally does NOT scale the damage. Basic-attack damage is
+    // deterministic: pet ATK minus a flat 25% slice of the target's DEF.
+    // This keeps the card-shown ATK value honest (1,600 ATK = ~1,600
+    // damage per tap, not 3,000+ via combo/crit stacking). Crits are
+    // also removed for the same reason — special skills are the only
+    // multiplier path now.
+    bumpCombo();
+    const tapIsCrit = false;
+    const tapDmg = Math.max(1, tapAttacker.atk - Math.floor(tapOpp.def * 0.25));
     tapOpp.hp = Math.max(0, tapOpp.hp - tapDmg);
     // Mana distribution — slot-0 attacker takes the lion's share, all
     // other live allies bank a smaller amount so backup pets still
