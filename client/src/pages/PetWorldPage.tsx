@@ -522,6 +522,38 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // ── Own pet + joystick movement ────────────────────────────────────────────
   const ownPet = useMemo(() => onlinePets.find(p => p.userId === user.id), [onlinePets, user.id]);
 
+  // Fetch own pet's template so we know the natural facing of its still-image
+  // sprite. This lets us initialize `facingLeft` to the natural direction
+  // BEFORE the player has touched the joystick — without this, a left-facing
+  // pet would render mirrored at rest because the XOR flip below sees
+  // facingLeft=false (default) vs naturalFacingLeft=true and applies scaleX(-1).
+  const { data: ownPetTemplate } = useQuery<{ facing: string }>({
+    queryKey: ["/api/pet-template-parts", ownPet?.petTemplateId],
+    queryFn: async () => {
+      const res = await fetch(`/api/pet-template-parts/${ownPet!.petTemplateId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!ownPet?.petTemplateId,
+    staleTime: Infinity,
+  });
+
+  // Sync facingLeft to own pet's natural facing on initial load and whenever
+  // the active pet swaps. Only runs while the joystick is idle so we don't
+  // stomp on the player's current movement direction.
+  useEffect(() => {
+    if (!ownPet || joystickActRef.current) return;
+    const tplFacing = ownPetTemplate?.facing;
+    const isSideTpl = tplFacing === "left" || tplFacing === "right";
+    const naturalLeft = isSideTpl
+      ? tplFacing === "left"
+      : ownPet.facingDirection === "left";
+    if (facingLeftRef.current !== naturalLeft) {
+      facingLeftRef.current = naturalLeft;
+      setFacingLeft(naturalLeft);
+    }
+  }, [ownPet?.userId, ownPet?.facingDirection, ownPet?.petTemplateId, ownPetTemplate?.facing]);
+
   // Seed localPetPos once the player's pet is known, then center the camera on it
   useEffect(() => {
     if (ownPet && localPetPosRef.current === null) {
