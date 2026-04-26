@@ -83,6 +83,14 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   // single ear pair.
   left_ear_2: "petIdleLeftEar",
   right_ear_2: "petIdleRightEar",
+  // Neck — rides the body breath alongside shoulders, back_arm,
+  // back accessories, etc. (all mapped to petIdleBody) so the
+  // chest-to-head connection reads as one continuous breathing
+  // silhouette. The head wrapper above bobs INDEPENDENTLY (head
+  // anchor at the neck's top edge), so the neck stays planted
+  // on the body while the head lifts and falls — the visual
+  // effect is "head bobs on top of a breathing neck".
+  neck: "petIdleBody",
   left_arm: "petIdleLeftArm",
   right_arm: "petIdleRightArm",
   body: "petIdleBody",
@@ -203,6 +211,9 @@ const WALK_ANIMATIONS: Record<string, string> = {
   right_ear: "petWalkRightEar",
   left_ear_2: "petWalkLeftEar",
   right_ear_2: "petWalkRightEar",
+  // Neck rides the body's walk bob so it stays glued to the chest
+  // as the pet steps. Same reasoning as the idle mapping above.
+  neck: "petWalkBody",
   left_arm: "petWalkLeftArm",
   right_arm: "petWalkRightArm",
   body: "petWalkBody",
@@ -232,6 +243,8 @@ const ZOOM_ANIMATIONS: Record<string, string> = {
 // by the renderer; this map drives body / limb motion only.
 const PETTING_ANIMATIONS: Record<string, string> = {
   body: "petPettingBody",
+  // Neck bounces with the body while the pet is being petted.
+  neck: "petPettingBody",
   left_arm: "petPettingLeftArm",
   right_arm: "petPettingRightArm",
   left_ear: "petPettingLeftEar",
@@ -285,6 +298,8 @@ const PETTING_ANIMATIONS: Record<string, string> = {
 // petted-style closed-eyes pose, forced by the renderer.
 const SLEEP_ANIMATIONS: Record<string, string> = {
   body: "petSleepBody",
+  // Neck breathes calmly with the body during sleep.
+  neck: "petSleepBody",
   // head is handled by the head-group wrapper (petSleepHead) below.
   left_ear: "petSleepLeftEar",
   right_ear: "petSleepRightEar",
@@ -884,6 +899,12 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       // for the depth cue.
       back_shoulder: "4.5s", front_shoulder: "4s",
       left_shoulder: "4.5s", right_shoulder: "4.5s",
+      // Neck shares the body's exact 4.5 s breath period so it inflates
+      // and exhales on the same beat (any other duration would visibly
+      // drift off the body within seconds even with a shared
+      // bodyBreathDelay — see the long comment above about why every
+      // petIdleBody-mapped part needs 4.5 s).
+      neck: "4.5s",
       // All six accessory part types share petIdleAccessorySway (see
       // IDLE_ANIMATIONS) and a 4 s cycle. They are NO LONGER body-
       // breath-synced — the user's request was a slight independent
@@ -1035,6 +1056,12 @@ const LAYER_ORDER: Record<string, number> = {
   // tune per-pet stacking via the part's individual zOrder.
   right_ear_2: 9,
   left_ear_2: 9,
+  // Neck — sits one tick below the head (z=10) and at the same band
+  // as the ears (z=9), so the head visibly stacks ON TOP of the neck
+  // while the neck stacks ON TOP of body / arms / shoulders / chest
+  // accessories (all <= 8). Works for both front- and side-facing
+  // views since LAYER_ORDER doesn't distinguish view.
+  neck: 9,
   head: 10,
   // Head-anchored accessories (hats, bows, glasses) sit just above the head
   // but under the mouth / eyes / hair so the face still reads cleanly.

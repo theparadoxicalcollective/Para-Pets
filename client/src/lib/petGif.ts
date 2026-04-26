@@ -60,6 +60,9 @@ const LAYER_ORDER: Record<string, number> = {
   left_arm: 8, front_arm: 8, right_ear: 9, left_ear: 9,
   // Second ear pair on Head 1 — same z-band as the primary ears.
   right_ear_2: 9, left_ear_2: 9,
+  // Neck — sits one tick below the head, above body / arms / shoulders.
+  // Mirrors PetAnimator's LAYER_ORDER.
+  neck: 9,
   head: 10, mouth: 12, mouth_closed: 13, eyes_closed: 14, eyes: 15,
 };
 
@@ -124,6 +127,10 @@ function canonicalPartType(pt: string): string {
   // exported GIF.
   if (base === "left_ear_2") return "left_ear";
   if (base === "right_ear_2") return "right_ear";
+  // Neck rides the body breath in the GIF — canonicalize to "body" so
+  // the export uses the same scale curve as the body. Mirrors
+  // PetAnimator's IDLE_ANIMATIONS where neck → petIdleBody.
+  if (base === "neck") return "body";
   if (base === "back_hair") return "tail";
   if (base === "tail_2" || base === "tail_3") return "tail";
   if (base === "left_shoulder" || base === "right_shoulder" ||

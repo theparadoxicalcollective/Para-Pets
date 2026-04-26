@@ -60,6 +60,10 @@ const LAYER_ORDER: Record<string, number> = {
   // Second ear pair on Head 1 — same z-band as the primary ears.
   // Mirrors PetAnimator's LAYER_ORDER.
   right_ear_2: 9, left_ear_2: 9,
+  // Neck — sits one tick below the head (z=10) and above body / arms /
+  // shoulders / accessories. Mirrors PetAnimator's LAYER_ORDER so the
+  // canvas + img renderers stack the neck identically.
+  neck: 9,
   head: 10,
   accessory_2: 11, accessory_1: 11,
   mouth: 12,
@@ -280,6 +284,12 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     // expansion rather than translation. (Trimmed from 4.6 / 2.8 % so
     // the body and head bob read at parity — see bodyBreath comment.)
     case "body":
+      return bodyBreath(sec);
+
+    // Neck — rides the body breath alongside shoulders and back_arm so
+    // the chest-to-head silhouette inflates and exhales as one unit.
+    // Mirrors PetAnimator's IDLE_ANIMATIONS where neck → petIdleBody.
+    case "neck":
       return bodyBreath(sec);
 
     // Head — gentle vertical bob. ty is now ZERO here because the

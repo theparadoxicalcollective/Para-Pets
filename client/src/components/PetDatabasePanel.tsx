@@ -126,6 +126,15 @@ const FRONT_PART_GROUPS: { group: string; parts: PartDef[]; collapsed?: boolean 
     // Same defaultZ scheme the side view uses.
     { key: "front_accessory_1",    label: "Front Accessory 1",     defaultZ: 56, layer: "front" },
     { key: "front_accessory_2",    label: "Front Accessory 2",     defaultZ: 55, layer: "front" },
+    // Neck — single part type that works for both front- and side-
+    // facing pets (admin uploads one image per view, like body). Sits
+    // ABOVE the body silhouette and arms / shoulders / accessories
+    // (so the neck visibly emerges from the chest) but BELOW the
+    // head, ears, and ear_2 layers (so the head reads as resting on
+    // top of the neck). LAYER_ORDER puts it at z=9 (one tick below
+    // head=10), and the editor defaultZ of 60 keeps it grouped near
+    // the chest accessories in the parts list.
+    { key: "neck",                 label: "Neck",                  defaultZ: 60, layer: "front" },
     { key: "body",                 label: "Body",                  defaultZ: 50, layer: "body"  },
     // Front-facing-only LEFT / RIGHT positional accessories that sit
     // BEHIND the body silhouette (capes, satchels, harnesses worn under
