@@ -388,16 +388,18 @@ const ANIMATION_STYLES = `
      canvas) so the lift scales naturally with the rendered pet size.
      The wrapper sits inside an inner-div that's scaled by partScale
      (0.3 for 1000-px source pets), so an absolute pixel value here gets
-     squashed by the same factor on screen. -0.9% on a 1000-unit canvas
-     = 9 inner-px = ~2.7 px on screen at typical pet sizes — small
-     enough to feel like a breath, big enough to actually be perceived.
-     Reduced from -1.5% so the head reads as a calm bob instead of a
-     visible nod (especially noticeable on the side-view care/active-pet
-     pages where the head is in profile and any vertical motion stands
-     out more than on the front-facing arena view). */
+     squashed by the same factor on screen.
+     Bumped from -0.9% → -1.4% so the head's rise visibly tracks the
+     body's breath: with the previous tiny lift the head appeared to
+     "stay small" while the body inflated noticeably underneath, which
+     read as the two moving on different rhythms. The body-breath
+     scale was simultaneously dialed back (see petIdleBody below) so
+     the new head amplitude restores parity between head and torso
+     during the inhale/exhale. Both still phase-locked via
+     headSyncBreath / bodyBreathDelay so they peak together. */
   @keyframes petIdleHead {
     from { transform: translateY(0%); }
-    to   { transform: translateY(-0.9%); }
+    to   { transform: translateY(-1.4%); }
   }
   @keyframes petIdleLeftEar {
     from { transform: rotate(-2deg); }
@@ -415,10 +417,18 @@ const ANIMATION_STYLES = `
     from { transform: rotate(0deg); }
     to   { transform: rotate(-3.5deg); }
   }
-  /* Body breathing — alternates between rest and inhale peak. */
+  /* Body breathing — alternates between rest and inhale peak.
+     Reduced from scale(1.028, 1.05) → scale(1.020, 1.038) so the
+     torso's inhale doesn't visibly outgrow the head bob. With the
+     previous 5% Y-scale on the body and only -0.9% lift on the
+     head, players reported the body looking "too big" relative to
+     the head at peak inhale — the two were on the same 4.5 s beat
+     but the disparity in amplitudes made them read as out-of-sync.
+     Trimming the body breath ~25% (and bumping the head bob to
+     -1.4%) restores visual parity between the two. */
   @keyframes petIdleBody {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.028, 1.05); }
+    to   { transform: scale(1.020, 1.038); }
   }
   /* Wings — flap motion. The wings travel UP together (matched
      translateY) on the up-stroke and DOWN together on the down-stroke,
@@ -449,21 +459,33 @@ const ANIMATION_STYLES = `
     from { transform: translateY(0px); }
     to   { transform: translateY(1.5px); }
   }
-  /* Tails. Single-tail pets just lift gently with the body breath. Multi-
-     tail pets (tail_2 / tail_3) additionally fan a hair left/right so the
-     tails don't perfectly overlap. Amplitudes are deliberately tiny
-     (≤ 1.5 px) so the tail base never separates from the body silhouette. */
+  /* Tails. All three tails get a small swivel (rotate) similar in
+     spirit to the wing swivel — but with deliberately different
+     amplitudes per slot so multi-tailed pets don't read as moving in
+     lockstep:
+       • tail   (slot 1): barely a whisper of swivel (±0.5°) — keeps
+         single-tail pets calm so the tail just rides the breath.
+       • tail_2 (slot 2): a more visible swivel (±2.5°) plus a small
+         left-leaning translate.
+       • tail_3 (slot 3): mirrored swivel (±2.5° flipped) plus a small
+         right-leaning translate.
+     Per-slot durations (set in getPartDuration → tail/tail_2/tail_3)
+     are also intentionally different (4.5 s / 3.7 s / 4.1 s) so the
+     three tails continuously drift in and out of phase with each
+     other — same trick the wings already use to look alive instead
+     of mirrored. Pivot is the part's own pivot (set in the editor)
+     so the swivel rotates around the tail base. */
   @keyframes petIdleTail {
-    from { transform: translateY(0px); }
-    to   { transform: translateY(-1.5px); }
+    from { transform: translateY(0px)   rotate(-0.5deg); }
+    to   { transform: translateY(-1.5px) rotate( 0.5deg); }
   }
   @keyframes petIdleTail2 {
-    from { transform: translate(0px, 0px); }
-    to   { transform: translate(-1.5px, -1.5px); }
+    from { transform: translate(0px,   0px)   rotate(-2.5deg); }
+    to   { transform: translate(-1px, -1.5px) rotate( 2.5deg); }
   }
   @keyframes petIdleTail3 {
-    from { transform: translate(0px, 0px); }
-    to   { transform: translate(1.5px, -1.5px); }
+    from { transform: translate(0px,  0px)   rotate( 2.5deg); }
+    to   { transform: translate(1px, -1.5px) rotate(-2.5deg); }
   }
   /* Ground head: small left/right tilt instead of upward bob. Reduced
      from ±0.6deg → ±0.4deg so the head reads as a barely-there sway
@@ -744,10 +766,15 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       // longer cycle so each phase has enough time to glide.
       left_wing: "4s", right_wing: "4s",
       left_leg: "4s", right_leg: "4s",
-      // Tails ride the body breath, so all three tail variants lock to the
-      // body's 4.5 s rhythm. back_arm matches body too so it stays synced
-      // with back_accessory_1 (also on petIdleBody / 4.5 s).
-      tail: "4.5s", tail_2: "4.5s", tail_3: "4.5s",
+      // Tail slot 1 still tracks the body's 4.5 s rhythm so it reads as
+      // breathing with the body (and its swivel is tiny — see
+      // petIdleTail keyframe). Slots 2 and 3 deliberately use DIFFERENT
+      // durations so multi-tailed pets don't have all three tails
+      // ticking on the same beat — same desync trick the wings use.
+      // 3.7 s and 4.1 s are coprime-ish with the body's 4.5 s so they
+      // continuously drift in and out of phase rather than
+      // re-converging on a fixed pattern.
+      tail: "4.5s", tail_2: "3.7s", tail_3: "4.1s",
       front_arm: "3.5s", back_arm: "4.5s",
       front_leg: "4s", back_leg: "4s",
       front_wing: "4s", back_wing: "4s",
@@ -1613,22 +1640,26 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           // locked to bodyBreathDelay so every primary head lifts on the
           // body's inhale and settles on the exhale.
           //
-          // SECONDARY heads (h2_/h3_) use the 3 s petIdleHeadSway and
-          // get a small per-head phase offset so h2 and h3 sway just a
-          // notch out of sync with each other (and with their twin on
-          // any other multi-head pet) — reads as "the side heads are
-          // alive on their own rhythm" rather than mirroring lockstep.
-          // The offsets (~0.3 / 0.6 s on a 3 s cycle = ~10 % / 20 %) are
-          // small enough that both heads still feel related to each
-          // other but never line up at exactly the same X at the same
-          // moment. Other modes keep the per-head-group stagger so
+          // SECONDARY heads (h2_/h3_) use petIdleHeadSway. To prevent
+          // the two side heads from looking like a mirrored pair, h2
+          // and h3 now run on DIFFERENT durations entirely (3.2 s vs
+          // 4.1 s) instead of the previous shared 3 s + small phase
+          // offset. Different periods means the two heads continuously
+          // drift in and out of phase with each other rather than
+          // re-locking on the same beat every cycle — the same desync
+          // trick the wings and tails 2/3 use. Each head also keeps a
+          // larger phase offset (0.4 s / 1.4 s) to spread their
+          // starting positions further apart so they don't line up at
+          // load. Other modes keep the per-head-group stagger so
           // multi-head pets don't all bob in lockstep.
           const headSyncBreath = mode === "idle" && !useSecondaryHeadSway && bodyBreathDelay !== undefined;
           const swayPhaseOffsetSec =
-            group.head.partType === "h3_head" ? 0.6 :
-            group.head.partType === "h2_head" ? 0.3 : 0;
+            group.head.partType === "h3_head" ? 1.4 :
+            group.head.partType === "h2_head" ? 0.4 : 0;
+          const secondaryHeadSwayDuration =
+            group.head.partType === "h3_head" ? "4.1s" : "3.2s";
           const wrapperDuration =
-            useSecondaryHeadSway ? "3s" :
+            useSecondaryHeadSway ? secondaryHeadSwayDuration :
             headSyncBreath ? "4.5s" :
             getPartDuration("head", mode);
           const wrapperDelay: string =

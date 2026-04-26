@@ -125,12 +125,18 @@ interface AnimResult {
 // Body breath helper — used by every part that the img-renderer maps
 // to `petIdleBody`: body itself, all four shoulder variants, back_arm
 // (side-facing), and front/back accessories. Same 4.5 s period and
-// ±2.8 % / ±4.6 % asymmetric scale as the body so the whole "back of
+// ±2.0 % / ±3.8 % asymmetric scale as the body so the whole "back of
 // the pet" group inhales/exhales as one unit. Mirrors PetAnimator.tsx
 // IDLE_ANIMATIONS where these parts all share petIdleBody.
+//
+// Amplitude trimmed (was 0.028 / 0.046) so the body's inhale doesn't
+// visibly outgrow the head bob — the head's lift was simultaneously
+// bumped (see "head" case below) so the two now read in parity at
+// peak inhale instead of the body looking "too big" relative to a
+// barely-moving head.
 function bodyBreath(sec: number): AnimResult {
   const w = (1 + sinWave(sec, 4.5)) * 0.5; // 0..1 sine
-  return { op: 1, rot: 0, sx: 1 + w * 0.028, sy: 1 + w * 0.046 };
+  return { op: 1, rot: 0, sx: 1 + w * 0.020, sy: 1 + w * 0.038 };
 }
 
 function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
@@ -212,25 +218,52 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     case "head_wing_right":
       return { op: 1, rot:  sinWave(sec, 4) * 3 * D2R, ty: -sinWave(sec, 4) * 0.6 };
 
-    // Tail — gentle upward lift on the body's 4.5 s rhythm so it reads as
-    // part of the body breath rather than wagging independently. Matches
-    // the img-renderer's petIdleTail (translateY 0 → −1.5 px). All three
-    // tail slots share the same beat so multi-tailed pets lift together.
-    case "tail": case "tail_2": case "tail_3":
-      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, 4.5)) * 0.5) * 1.5 };
+    // Tails — every slot now also picks up a small swivel rotation
+    // (similar in spirit to the wing swivel) plus a gentle upward
+    // lift. Per-slot durations and amplitudes deliberately differ
+    // so multi-tailed pets don't read as moving in lockstep. Mirrors
+    // the img-renderer's petIdleTail / petIdleTail2 / petIdleTail3:
+    //   • tail   (slot 1): 4.5 s (body breath), ±0.5° swivel — barely
+    //     a whisper, single-tail pets stay calm.
+    //   • tail_2 (slot 2): 3.7 s, ±2.5° swivel — visible swing.
+    //   • tail_3 (slot 3): 4.1 s, ∓2.5° swivel (mirrored) — visible
+    //     swing in the opposite direction so a 3-tail fan looks lively
+    //     rather than synchronized.
+    case "tail":
+      return {
+        op: 1,
+        rot: sinWave(sec, 4.5) * 0.5 * D2R,
+        ty: -((1 + sinWave(sec, 4.5)) * 0.5) * 1.5,
+      };
+    case "tail_2":
+      return {
+        op: 1,
+        rot: sinWave(sec, 3.7) * 2.5 * D2R,
+        ty: -((1 + sinWave(sec, 3.7)) * 0.5) * 1.5,
+      };
+    case "tail_3":
+      return {
+        op: 1,
+        rot: -sinWave(sec, 4.1) * 2.5 * D2R,
+        ty: -((1 + sinWave(sec, 4.1)) * 0.5) * 1.5,
+      };
 
-    // Body — breathing. Vertical scale grows / shrinks ~4.6 % at peak,
-    // horizontal ~2.8 %. Pivots from part center so the breath reads as
-    // expansion rather than translation.
+    // Body — breathing. Vertical scale grows / shrinks ~3.8 % at peak,
+    // horizontal ~2.0 %. Pivots from part center so the breath reads as
+    // expansion rather than translation. (Trimmed from 4.6 / 2.8 % so
+    // the body and head bob read at parity — see bodyBreath comment.)
     case "body":
       return bodyBreath(sec);
 
-    // Head — gentle vertical bob, identical to the img-renderer's
-    // petIdleHead (peak −3.6 px scaled to canvas). The translation is
-    // applied to every HEAD_GROUP_PARTS member at draw time so the eyes
-    // and mouth stay glued to the skull.
+    // Head — gentle vertical bob. Bumped from peak −3.6 → −5.6 px so
+    // the head's lift visibly tracks the body's breath instead of
+    // looking like it stays put while the body inflates around it.
+    // Mirrors the img-renderer's petIdleHead bump from -0.9% → -1.4%
+    // (~1.55× larger, same ratio applied here). The translation is
+    // applied to every HEAD_GROUP_PARTS member at draw time so the
+    // eyes and mouth stay glued to the skull.
     case "head":
-      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, 3)) * 0.5) * 3.6 };
+      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, 3)) * 0.5) * 5.6 };
 
     // Above-head accessory (crowns / halos / horns / hats). Previously
     // -7 px (and the img renderer was -15 % of the part height) which
@@ -566,16 +599,21 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
       // without the kfi-based 0..1 envelope the bob uses (since sway is
       // symmetrical around 0, not a one-sided lift like the bob).
       //
-      // h2 and h3 get a small per-head phase offset (0.3 / 0.6 s on a
-      // 3 s sway cycle) so the two side heads are just a notch out of
-      // sync with each other — reads as "alive on their own rhythm"
-      // rather than mirrored lockstep. Mirrors the img-renderer's
-      // swayPhaseOffsetSec wrapperDelay so both renderers desync the
-      // side heads identically.
+      // h2 and h3 now run on DIFFERENT periods entirely (3.2 s vs
+      // 4.1 s) instead of the previous shared 3 s with a small phase
+      // offset — different durations means the two side heads
+      // continuously drift in and out of phase with each other rather
+      // than re-locking on the same beat every cycle, so they read as
+      // "alive on their own rhythms" instead of mirrored. Larger
+      // phase offsets (0.4 / 1.4 s) spread their starting positions
+      // further apart at load. Mirrors the img-renderer's
+      // wrapperDuration / swayPhaseOffsetSec so both renderers desync
+      // the side heads identically.
       const headSwayAmpPx = 1.6 * (drawSpan / size) * fitScale;
       const swayPxFor = (pt: string) => {
-        const phaseOffset = pt.startsWith("h3_") ? 0.6 : pt.startsWith("h2_") ? 0.3 : 0;
-        return sinWave(sec + phaseOffset, 3) * headSwayAmpPx;
+        if (pt.startsWith("h3_")) return sinWave(sec + 1.4, 4.1) * headSwayAmpPx;
+        if (pt.startsWith("h2_")) return sinWave(sec + 0.4, 3.2) * headSwayAmpPx;
+        return 0;
       };
       const isSecondaryHeadGroupPartLocal = (pt: string): boolean =>
         (pt.startsWith("h2_") || pt.startsWith("h3_")) && isHeadGroupPart(pt);
