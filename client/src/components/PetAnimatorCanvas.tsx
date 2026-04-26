@@ -172,24 +172,24 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     case "back_arm":
       return bodyBreath(sec);
 
-    // Shoulders + front/back accessories all breathe with the body so the
-    // whole torso group expands and contracts together. Mirrors the img-
-    // renderer's IDLE_ANIMATIONS mapping to petIdleBody.
-    //
-    // front_left_accessory + front_right_accessory are NEW front-facing-
-    // only accessories that sit BEHIND the body silhouette (LAYER_ORDER
-    // z=3, alongside back_accessory_1/2). They MUST ride the body's
-    // breath in lockstep — if they fell back to the static default here,
-    // the canvas renderer would draw them frozen while the img renderer
-    // animates them via petIdleBody, producing the renderer-drift bug
-    // the architect flagged. Same case branch as the existing back
-    // accessories so the visual role + behaviour is identical.
+    // Shoulders breathe with the body so the whole torso group expands
+    // and contracts together. Mirrors the img-renderer's IDLE_ANIMATIONS
+    // mapping to petIdleBody.
     case "left_shoulder": case "right_shoulder":
     case "front_shoulder": case "back_shoulder":
+      return bodyBreath(sec);
+
+    // All six accessory part types share a tiny independent rotation
+    // sway (±0.4° at 4 s, mirrors petIdleAccessorySway in the img
+    // renderer). Independent of body breath — the user's request was
+    // "have any accessories sway slightly", not lockstep-with-body.
+    // Amplitude is small enough that even behind-body accessories
+    // (back_accessory_*, front_left/right_accessory) don't visibly
+    // drift off the body silhouette.
     case "front_accessory_1": case "front_accessory_2":
     case "back_accessory_1": case "back_accessory_2":
     case "front_left_accessory": case "front_right_accessory":
-      return bodyBreath(sec);
+      return { op: 1, rot: sinWave(sec, 4) * 0.4 * D2R };
 
     // Wings — gentle ±3° sine flap at 4 s + a small ty oscillation so the
     // wings read as flapping (lifting through the rotation) instead of

@@ -107,13 +107,27 @@ const FRONT_PART_GROUPS: { group: string; parts: PartDef[]; collapsed?: boolean 
     { key: "right_shoulder",       label: "Right Shoulder",        defaultZ: 53, layer: "front" },
     { key: "left_arm",             label: "Left Arm",              defaultZ: 52, layer: "front" },
     { key: "right_arm",            label: "Right Arm",             defaultZ: 51, layer: "front" },
+    // Front Accessory 1 / 2 — generic in-front-of-body accessories
+    // (necklaces, medallions, chest armour pieces). Sit ABOVE body but
+    // below the head so the face still reads cleanly. defaultZ 56 / 55
+    // places them above shoulders (54 / 53) and arms (52 / 51) so the
+    // accessory always reads on top of any limb that might overlap it.
+    // Same defaultZ scheme the side view uses.
+    { key: "front_accessory_1",    label: "Front Accessory 1",     defaultZ: 56, layer: "front" },
+    { key: "front_accessory_2",    label: "Front Accessory 2",     defaultZ: 55, layer: "front" },
     { key: "body",                 label: "Body",                  defaultZ: 50, layer: "body"  },
-    // Front-facing-only accessories that sit BEHIND the body silhouette
-    // (capes, satchels, harnesses worn under the body image). They ride
-    // the body's breath in lockstep so they never appear to drift apart
-    // from the torso. Layer below body in the renderer (LAYER_ORDER z=3).
+    // Front-facing-only LEFT / RIGHT positional accessories that sit
+    // BEHIND the body silhouette (capes, satchels, harnesses worn under
+    // the body image). LAYER_ORDER z=3, alongside back_accessory_1/2.
     { key: "front_left_accessory",  label: "Front Left Accessory",  defaultZ: 44, layer: "back"  },
     { key: "front_right_accessory", label: "Front Right Accessory", defaultZ: 43, layer: "back"  },
+    // Back Accessory 1 / 2 — generic behind-body accessories (capes,
+    // wings of fabric, pinned items on the back). Layer "back" puts them
+    // under body in the renderer (LAYER_ORDER z=3). defaultZ 42 / 41
+    // sorts them just below the L/R behind-body accessories so the
+    // ordering reads "body > LR-behind > 1-2-behind > tails > wings".
+    { key: "back_accessory_1",     label: "Back Accessory 1",      defaultZ: 42, layer: "back"  },
+    { key: "back_accessory_2",     label: "Back Accessory 2",      defaultZ: 41, layer: "back"  },
     { key: "left_leg",             label: "Left Leg",              defaultZ: 49, layer: "back"  },
     { key: "right_leg",            label: "Right Leg",             defaultZ: 48, layer: "back"  },
     { key: "tail",                 label: "Tail One",              defaultZ: 47, layer: "back",  defaultPivotX: 50, defaultPivotY: 0 },

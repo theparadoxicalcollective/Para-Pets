@@ -102,17 +102,28 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   // shoulder keyframe so a chest-mounted accessory (medal, harness)
   // doesn't read as locked to the body. Back accessories must stay on
   // petIdleBody so they ride the breath in lockstep with back_arm.
-  front_accessory_1: "petIdleSideShoulder",
-  front_accessory_2: "petIdleSideShoulder",
-  back_accessory_1: "petIdleBody",
-  back_accessory_2: "petIdleBody",
+  // ── Accessories — all six accessory part types share a tiny rotation
+  //    sway (petIdleAccessorySway, ±0.4°) so they read as "alive on
+  //    their own" without ever drifting noticeably off the body
+  //    silhouette. This is intentionally INDEPENDENT of the body
+  //    breath (unlike the prior petIdleBody binding for back
+  //    accessories) — the user's request was "have any accessories
+  //    sway slightly", not "ride the body's breath". Behind-body
+  //    accessories (back_*, front_left/right_*) at ±0.4° rotation
+  //    don't visibly slide off the body silhouette because the
+  //    amplitude is so small (~1.4 px on a 200-px-rendered pet's
+  //    100-px-tall accessory).
+  front_accessory_1: "petIdleAccessorySway",
+  front_accessory_2: "petIdleAccessorySway",
+  back_accessory_1: "petIdleAccessorySway",
+  back_accessory_2: "petIdleAccessorySway",
   // Front-facing-only accessories that sit BEHIND the body silhouette
   // (e.g. capes, satchels mounted on the chest from the back). They ride
   // the body's breath in lockstep so they never appear to drift apart
   // from the torso during inhale / exhale. Layer below body in
   // LAYER_ORDER (z=3) so they read as "tucked behind" the body.
-  front_left_accessory: "petIdleBody",
-  front_right_accessory: "petIdleBody",
+  front_left_accessory: "petIdleAccessorySway",
+  front_right_accessory: "petIdleAccessorySway",
   // Hair pieces sway gently like ears
   hair_left: "petIdleLeftEar",
   hair_right: "petIdleRightEar",
@@ -721,6 +732,23 @@ const ANIMATION_STYLES = `
     from { transform: rotate(0deg); }
     to   { transform: rotate(7deg); }
   }
+  /* Universal accessory sway — every accessory part type
+     (front_accessory_1/2, back_accessory_1/2, front_left_accessory,
+     front_right_accessory) uses this so they all read as "alive on
+     their own" during idle. Amplitude is intentionally TINY (±0.4°,
+     applied as a 0deg→0.8deg from/to with the rotation pivoting around
+     the shared transform-origin so the visible sway lands at half on
+     each side after the alternate-direction ping-pong). At ±0.4° even
+     a 100-px-tall behind-body accessory only sweeps ~0.7 px at the
+     furthest extreme, so back accessories don't visibly drift off the
+     body silhouette they're meant to be tucked behind. 2-keyframe
+     from/to + ALTERNATE_MOTION_ANIMS (added below) so the motion ping-
+     pongs smoothly between the two extremes instead of snapping back
+     to 0deg each cycle. */
+  @keyframes petIdleAccessorySway {
+    from { transform: rotate(-0.4deg); }
+    to   { transform: rotate(0.4deg); }
+  }
 
 `;
 
@@ -785,14 +813,16 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       // for the depth cue.
       back_shoulder: "4.5s", front_shoulder: "4s",
       left_shoulder: "4.5s", right_shoulder: "4.5s",
-      back_accessory_1: "4.5s", back_accessory_2: "4.5s",
+      // All six accessory part types share petIdleAccessorySway (see
+      // IDLE_ANIMATIONS) and a 4 s cycle. They are NO LONGER body-
+      // breath-synced — the user's request was a slight independent
+      // sway, not "ride the body" — so they don't need to match the
+      // body's 4.5 s period anymore. Keeping all six on the same 4 s
+      // cycle so multiple accessories on the same pet sway in unison
+      // (looks intentional, not random).
+      back_accessory_1: "4s", back_accessory_2: "4s",
       front_accessory_1: "4s", front_accessory_2: "4s",
-      // Front-facing-only behind-body accessories ride the body's 4.5 s
-      // breath in lockstep (they're on petIdleBody, see IDLE_ANIMATIONS),
-      // so they MUST share the body's 4.5 s period — otherwise even with
-      // the shared bodyBreathDelay they'd visibly drift out of phase
-      // within a few seconds (same reasoning as back_accessory_1/2).
-      front_left_accessory: "4.5s", front_right_accessory: "4.5s",
+      front_left_accessory: "4s", front_right_accessory: "4s",
       // Above-head accessory floats on its own slow cycle, deliberately
       // out of phase with the head bob (3 s) so crowns / halos read as
       // a separate floating object rather than rigidly attached.
@@ -849,6 +879,12 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   // Side-view depth keyframes — also 2-keyframe from/to motions, so they
   // must alternate (ping-pong) instead of snapping back to 0 each cycle.
   "petIdleSideShoulder", "petIdleSideFrontArm",
+  // Universal accessory sway — 2-keyframe rotation from -0.4° to 0.4°
+  // applied to all six accessory part types. MUST alternate so the
+  // sway smoothly ping-pongs between the two extremes; otherwise
+  // every cycle would visibly snap back to -0.4° (a tic every 4 s on
+  // every accessory the pet is wearing).
+  "petIdleAccessorySway",
   // Per-pet override (idle.secondaryHeadSway): tiny horizontal sway
   // applied to secondary head wrappers (Cerberus). Same 2-keyframe
   // from/to motion as petIdleHead, so it MUST alternate to ping-pong
