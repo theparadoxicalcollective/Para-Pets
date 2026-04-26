@@ -58,12 +58,16 @@ const LAYER_ORDER: Record<string, number> = {
   back_leg: 3, right_wing: 3, back_arm: 4, left_wing: 4,
   body: 5, front_wing: 6, right_arm: 7, front_leg: 7,
   left_arm: 8, front_arm: 8, right_ear: 9, left_ear: 9,
+  // Second ear pair on Head 1 — same z-band as the primary ears.
+  right_ear_2: 9, left_ear_2: 9,
   head: 10, mouth: 12, mouth_closed: 13, eyes_closed: 14, eyes: 15,
 };
 
 const FACE_PART_TYPES = new Set([
   "eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed",
   "hair_left", "hair_right", "accessory_1", "accessory_2",
+  // Second ear pair on Head 1 — must group with the head wrapper.
+  "left_ear_2", "right_ear_2",
 ]);
 
 const ANIM_ONLY_PARTS = new Set([
@@ -112,6 +116,14 @@ function canonicalPartType(pt: string): string {
   if (base === "wing_set2_right") return "right_wing";
   if (base === "hair_left") return "left_ear";
   if (base === "hair_right") return "right_ear";
+  // Second ear pair on Head 1 — canonicalize to the primary ear so the
+  // GIF export reuses the same mirrored rotation curve. Out-of-phase
+  // drift between the two pairs comes from per-part-id phase delay
+  // (see partPhase below), which differs by part.id, so the second
+  // pair naturally beats slightly out of sync with the first in the
+  // exported GIF.
+  if (base === "left_ear_2") return "left_ear";
+  if (base === "right_ear_2") return "right_ear";
   if (base === "back_hair") return "tail";
   if (base === "tail_2" || base === "tail_3") return "tail";
   if (base === "left_shoulder" || base === "right_shoulder" ||

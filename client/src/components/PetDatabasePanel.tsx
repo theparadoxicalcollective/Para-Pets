@@ -82,6 +82,16 @@ const headFrontParts = (i: HeadIdx, baseZ: number, backHairZ: number): PartDef[]
     { key: k("head"),         label: "Head",             defaultZ: baseZ + 2,  layer: "front" },
     { key: k("left_ear"),     label: "Left Ear",         defaultZ: baseZ + 1,  layer: "front" },
     { key: k("right_ear"),    label: "Right Ear",        defaultZ: baseZ + 0,  layer: "front" },
+    // Second pair of ears — ONLY exposed on Head 1 (per user request).
+    // Mirrors the primary ears but swings on a slightly different beat
+    // (3.1 s vs 3.5 s in PetAnimator's getPartDuration). Multi-head
+    // pets (Head 2 / Head 3) keep their original single ear pair so
+    // the editor doesn't get cluttered with parts most templates
+    // won't use.
+    ...(i === 1 ? [
+      { key: "left_ear_2",  label: "Left Ear 2",  defaultZ: baseZ - 1, layer: "front" as const },
+      { key: "right_ear_2", label: "Right Ear 2", defaultZ: baseZ - 2, layer: "front" as const },
+    ] : []),
     // Back hair lives in this head's section but renders behind the body so
     // it visually sways behind the head/shoulders. Per-head so each head has
     // its own swaying hair piece on multi-headed pets.

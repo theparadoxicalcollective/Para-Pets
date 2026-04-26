@@ -72,6 +72,17 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   head: "petIdleHead",
   left_ear: "petIdleLeftEar",
   right_ear: "petIdleRightEar",
+  // Second pair of ears on Head One — share the same mirrored
+  // keyframes as left_ear / right_ear so they swing the same shape
+  // (left rotates one way, right rotates the opposite). The visible
+  // "slightly out of sync" feel comes from a different cycle period
+  // (3.1 s vs 3.5 s) defined in getPartDuration below — coprime-ish
+  // periods drift continuously in and out of phase rather than
+  // re-converging on a fixed beat. Only present on Head 1 in the
+  // admin editor; multi-head pets (h2_/h3_) keep their original
+  // single ear pair.
+  left_ear_2: "petIdleLeftEar",
+  right_ear_2: "petIdleRightEar",
   left_arm: "petIdleLeftArm",
   right_arm: "petIdleRightArm",
   body: "petIdleBody",
@@ -190,6 +201,8 @@ const WALK_ANIMATIONS: Record<string, string> = {
   head: "petWalkHead",
   left_ear: "petWalkLeftEar",
   right_ear: "petWalkRightEar",
+  left_ear_2: "petWalkLeftEar",
+  right_ear_2: "petWalkRightEar",
   left_arm: "petWalkLeftArm",
   right_arm: "petWalkRightArm",
   body: "petWalkBody",
@@ -223,6 +236,8 @@ const PETTING_ANIMATIONS: Record<string, string> = {
   right_arm: "petPettingRightArm",
   left_ear: "petPettingLeftEar",
   right_ear: "petPettingRightEar",
+  left_ear_2: "petPettingLeftEar",
+  right_ear_2: "petPettingRightEar",
   left_wing: "petPettingLeftWing",
   right_wing: "petPettingRightWing",
   tail: "petPettingTail",
@@ -273,6 +288,8 @@ const SLEEP_ANIMATIONS: Record<string, string> = {
   // head is handled by the head-group wrapper (petSleepHead) below.
   left_ear: "petSleepLeftEar",
   right_ear: "petSleepRightEar",
+  left_ear_2: "petSleepLeftEar",
+  right_ear_2: "petSleepRightEar",
   hair_left: "petSleepLeftEar",
   hair_right: "petSleepRightEar",
   tail: "petSleepTail",
@@ -308,6 +325,8 @@ const HOUSE_ANIMATIONS: Record<string, string> = {
   mouth_closed: "petIdleMouthClosed",
   left_ear: "petIdleLeftEar",
   right_ear: "petIdleRightEar",
+  left_ear_2: "petIdleLeftEar",
+  right_ear_2: "petIdleRightEar",
   left_arm: "petIdleLeftArm",
   right_arm: "petIdleRightArm",
   left_wing: "petIdleLeftWing",
@@ -335,6 +354,10 @@ const ANIM_ONLY_PARTS = new Set([
 const FACE_PART_TYPES = new Set([
   "eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed",
   "hair_left", "hair_right", "accessory_1", "accessory_2", "above_head",
+  // Second pair of ears on Head One — face-anchored so they ride the
+  // head-group bob (otherwise they'd float in place while the head
+  // bobbed beneath them, detaching from the silhouette).
+  "left_ear_2", "right_ear_2",
 ]);
 const isFacePart = (partType: string): boolean => {
   if (FACE_PART_TYPES.has(partType)) return true;
@@ -808,6 +831,13 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
     const durations: Record<string, string> = {
       eyes: "4s", eyes_closed: "4s", mouth: "5s", mouth_closed: "5s",
       head: "3s", left_ear: "3.5s", right_ear: "3.5s",
+      // Second ear pair on Head 1 uses 3.1 s — coprime-ish with the
+      // primary ear period (3.5 s) so the two pairs continuously
+      // drift in and out of phase rather than re-locking on a
+      // visible cycle. Mirrored shape from petIdleLeftEar /
+      // petIdleRightEar (left/right rotate opposite directions),
+      // just on a slightly faster beat.
+      left_ear_2: "3.1s", right_ear_2: "3.1s",
       // Arms slowed from 3.5 s → 4.5 s so the front-facing left/right
       // arm sweep doesn't read as twitchy next to the body's deep
       // 4.5 s breathing — the previous 3.5 s made the arms feel
@@ -881,6 +911,7 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       head: "2.4s", body: "2.4s",
       left_arm: "2.4s", right_arm: "2.4s",
       left_ear: "2.4s", right_ear: "2.4s",
+      left_ear_2: "2.1s", right_ear_2: "2.1s",
       left_wing: "2.4s", right_wing: "2.4s",
       tail: "2.6s",
       front_arm: "2.4s", back_arm: "2.4s",
@@ -999,6 +1030,11 @@ const LAYER_ORDER: Record<string, number> = {
   // ── Face / head (most live inside the head-group wrapper at z=9) ───────
   right_ear: 9,
   left_ear: 9,
+  // Second ear pair on Head 1 — same z-band as the primary ears so
+  // they sit alongside them in the head silhouette. Admin can fine-
+  // tune per-pet stacking via the part's individual zOrder.
+  right_ear_2: 9,
+  left_ear_2: 9,
   head: 10,
   // Head-anchored accessories (hats, bows, glasses) sit just above the head
   // but under the mouth / eyes / hair so the face still reads cleanly.

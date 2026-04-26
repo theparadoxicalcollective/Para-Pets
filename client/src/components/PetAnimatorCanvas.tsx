@@ -57,6 +57,9 @@ const LAYER_ORDER: Record<string, number> = {
   front_arm: 8, left_arm: 8, front_shoulder: 8,
   // ── Face / head ───────────────────────────────────────────────────────
   right_ear: 9, left_ear: 9,
+  // Second ear pair on Head 1 — same z-band as the primary ears.
+  // Mirrors PetAnimator's LAYER_ORDER.
+  right_ear_2: 9, left_ear_2: 9,
   head: 10,
   accessory_2: 11, accessory_1: 11,
   mouth: 12,
@@ -85,6 +88,11 @@ const LAYER_ORDER: Record<string, number> = {
 const FACE_BASE_PARTS = new Set([
   "eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed",
   "hair_left", "hair_right", "accessory_1", "accessory_2", "above_head",
+  // Second pair of ears on Head 1 — must ride the head-bob wrapper
+  // alongside the primary ears (same rule as in PetAnimator's
+  // FACE_PART_TYPES). Out-of-phase swing comes from a slightly
+  // different period (3.1 s vs 3.5 s) below.
+  "left_ear_2", "right_ear_2",
 ]);
 const isHeadGroupPart = (partType: string): boolean => {
   if (partType === "head") return true;
@@ -161,6 +169,14 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
       return { op: 1, rot: -sinWave(sec, 3.5) * 2 * D2R };
     case "right_ear": case "hair_right":
       return { op: 1, rot:  sinWave(sec, 3.5) * 2 * D2R };
+    // Second ear pair on Head 1 — same ±2° mirrored swing as the
+    // primary ears, but on a 3.1 s period so it continuously drifts
+    // in and out of phase with the 3.5 s primary pair. Mirrors the
+    // img-renderer's IDLE_ANIMATIONS + getPartDuration entries.
+    case "left_ear_2":
+      return { op: 1, rot: -sinWave(sec, 3.1) * 2 * D2R };
+    case "right_ear_2":
+      return { op: 1, rot:  sinWave(sec, 3.1) * 2 * D2R };
 
     // Front-facing arms — symmetric ±2° pendulum centered on 0°
     // (period 4.5 s, matches the body's breath rhythm). Mirrors the
