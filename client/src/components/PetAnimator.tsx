@@ -1608,16 +1608,33 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           // pure translateY / translateX motions used by petIdleHead and
           // petIdleHeadSway respectively.
           const wrapperOrigin: string | undefined = undefined;
-          // In idle mode, override the head's natural 3 s rhythm so it
-          // matches the body's 4.5 s breath — and lock its phase to
-          // bodyBreathDelay so every head lifts on the body's inhale and
-          // settles on the exhale. Other modes keep the per-head-group
-          // stagger so multi-head pets don't all bob in lockstep.
-          const headSyncBreath = mode === "idle" && bodyBreathDelay !== undefined;
-          const wrapperDuration = headSyncBreath ? "4.5s" : getPartDuration("head", mode);
-          const wrapperDelay: string = (headSyncBreath && bodyBreathDelay)
-            ? bodyBreathDelay
-            : `${groupDelay}s`;
+          // In idle mode, the PRIMARY head (vertical bob) overrides its
+          // natural 3 s rhythm to match the body's 4.5 s breath — phase-
+          // locked to bodyBreathDelay so every primary head lifts on the
+          // body's inhale and settles on the exhale.
+          //
+          // SECONDARY heads (h2_/h3_) use the 3 s petIdleHeadSway and
+          // get a small per-head phase offset so h2 and h3 sway just a
+          // notch out of sync with each other (and with their twin on
+          // any other multi-head pet) — reads as "the side heads are
+          // alive on their own rhythm" rather than mirroring lockstep.
+          // The offsets (~0.3 / 0.6 s on a 3 s cycle = ~10 % / 20 %) are
+          // small enough that both heads still feel related to each
+          // other but never line up at exactly the same X at the same
+          // moment. Other modes keep the per-head-group stagger so
+          // multi-head pets don't all bob in lockstep.
+          const headSyncBreath = mode === "idle" && !useSecondaryHeadSway && bodyBreathDelay !== undefined;
+          const swayPhaseOffsetSec =
+            group.head.partType === "h3_head" ? 0.6 :
+            group.head.partType === "h2_head" ? 0.3 : 0;
+          const wrapperDuration =
+            useSecondaryHeadSway ? "3s" :
+            headSyncBreath ? "4.5s" :
+            getPartDuration("head", mode);
+          const wrapperDelay: string =
+            useSecondaryHeadSway ? `-${swayPhaseOffsetSec.toFixed(2)}s` :
+            (headSyncBreath && bodyBreathDelay) ? bodyBreathDelay :
+            `${groupDelay}s`;
           // In sleep AND petting modes, force the face into a calm closed-eye
           // expression (same opacity overrides as the existing "petted" expression).
           const effectiveExpression: typeof expression =

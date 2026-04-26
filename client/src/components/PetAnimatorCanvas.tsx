@@ -565,7 +565,18 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
       // sinWave returns -1..+1 directly, giving a smooth ping-pong
       // without the kfi-based 0..1 envelope the bob uses (since sway is
       // symmetrical around 0, not a one-sided lift like the bob).
-      const headSwayPx = sinWave(sec, 3) * 1.6 * (drawSpan / size) * fitScale;
+      //
+      // h2 and h3 get a small per-head phase offset (0.3 / 0.6 s on a
+      // 3 s sway cycle) so the two side heads are just a notch out of
+      // sync with each other — reads as "alive on their own rhythm"
+      // rather than mirrored lockstep. Mirrors the img-renderer's
+      // swayPhaseOffsetSec wrapperDelay so both renderers desync the
+      // side heads identically.
+      const headSwayAmpPx = 1.6 * (drawSpan / size) * fitScale;
+      const swayPxFor = (pt: string) => {
+        const phaseOffset = pt.startsWith("h3_") ? 0.6 : pt.startsWith("h2_") ? 0.3 : 0;
+        return sinWave(sec + phaseOffset, 3) * headSwayAmpPx;
+      };
       const isSecondaryHeadGroupPartLocal = (pt: string): boolean =>
         (pt.startsWith("h2_") || pt.startsWith("h3_")) && isHeadGroupPart(pt);
 
@@ -620,7 +631,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         let dx = 0;
         let dy = 0;
         if (isSecondaryHeadHere) {
-          dx = headSwayPx;
+          dx = swayPxFor(part.partType);
         } else {
           dy = anim.ty ? anim.ty * (drawSpan / size) * fitScale : 0;
           if (isHeadGroupPart(part.partType) && part.partType !== "head" && part.partType !== "h2_head" && part.partType !== "h3_head") {
