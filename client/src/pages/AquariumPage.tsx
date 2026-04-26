@@ -29,7 +29,17 @@ interface SwimmingFish extends AqFishEntry {
   x: number;
   y: number;
   vx: number;
+  // Target horizontal velocity that vx eases toward each frame. Setting a
+  // command-velocity (e.g. when entering chase / flee / fast / wall-bounce)
+  // updates targetVx and the swim loop lerps vx toward it (~0.08/frame),
+  // so direction reversals and speed changes ramp smoothly instead of
+  // snapping — that's most of the new "fluid" feel.
+  targetVx: number;
   wobble: number;
+  // Per-fish wobble phase speed. Was a hard-coded 0.032 for every fish;
+  // randomising it (0.022–0.034) means each fish has its own breathing
+  // rhythm, so a school of fish never pulses up/down in unison.
+  wobbleSpeed: number;
   facingRight: boolean;
   baseSpeed: number;
   state: "normal" | "fast" | "chasing" | "fleeing";
@@ -80,12 +90,18 @@ function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
   const defaultY = isBottom
     ? BOTTOM_FLOOR_MIN + Math.random() * (BOTTOM_FLOOR_MAX - BOTTOM_FLOOR_MIN)
     : 26 + Math.random() * 44;
+  const initialVx = startsRight ? baseSpeed : -baseSpeed;
   return {
     ...entry,
     x: x ?? (Math.random() * 80),
     y: y ?? defaultY,
-    vx: startsRight ? baseSpeed : -baseSpeed,
+    vx: initialVx,
+    targetVx: initialVx,
     wobble: Math.random() * Math.PI * 2,
+    // Per-fish wobble speed: small random spread around the old fixed
+    // 0.032 so different fish breathe at different rates instead of
+    // pulsing in lockstep.
+    wobbleSpeed: 0.022 + Math.random() * 0.014,
     facingRight: startsRight,
     baseSpeed,
     state: "normal",
