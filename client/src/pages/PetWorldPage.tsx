@@ -12,7 +12,7 @@ import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
 import coinIconImg from "@assets/icon_coin.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
 import joystickBaseImg  from "@assets/generated_images/joystick_base.png";
-import joystickThumbImg from "@assets/generated_images/joystick_thumb_v2.png";
+import joystickThumbImg from "@assets/generated_images/joystick_thumb_v3.png";
 
 const WORLD_ID = "pet_world";
 const ACCENT = "#7fffd4";
@@ -3467,10 +3467,22 @@ function WorldRoamingPet({
   // The natural-facing source differs too: still images were generated
   // facing pet.facingDirection at hatch, while parts pets are arranged
   // according to templateData.facing.
+  //
+  // For own-pet still images: when the underlying template is side-facing
+  // (templateData.facing === "left" | "right"), trust the template's
+  // direction over pet.facingDirection — the still image was generated to
+  // match the template parts, so a left-facing-template pet's still image
+  // is a left-facing portrait regardless of the per-pet facingDirection
+  // field. Falling back to pet.facingDirection only when the template is
+  // front/back/missing keeps the legacy behavior for non-side templates.
   const rendersAsStillImage = (isOwn && !!petImg) || (!pet.petTemplateId && !!petImg);
+  const templateFacing = templateData?.facing;
+  const templateIsSideFacing = templateFacing === "left" || templateFacing === "right";
   const naturalFacingLeft   = rendersAsStillImage
-    ? (pet.facingDirection === "left")
-    : ((templateData?.facing ?? pet.facingDirection ?? "front") === "left");
+    ? (templateIsSideFacing
+        ? templateFacing === "left"
+        : pet.facingDirection === "left")
+    : ((templateFacing ?? pet.facingDirection ?? "front") === "left");
   const nameTopPx = rendersAsStillImage ? -4 : Math.round(minTopFrac * sz) - 4;
 
   // Seeded per-pet so each pet drifts and bobs at a unique phase/speed
@@ -3517,11 +3529,13 @@ function WorldRoamingPet({
               it. The lean adds an unmistakable cue without needing any
               per-pet artwork changes. Applied on a wrapper OUTSIDE the
               scaleX flip below so the rotation direction stays correct
-              regardless of whether the sprite is mirrored. */}
+              regardless of whether the sprite is mirrored. Kept subtle
+              (3 deg) so it reads as a slight forward lean rather than a
+              clown-style tilt. */}
           <div
             style={{
               transform: (isOwn && isMoving)
-                ? `rotate(${facingLeft ? -6 : 6}deg)`
+                ? `rotate(${facingLeft ? -3 : 3}deg)`
                 : undefined,
               transformOrigin: "center bottom",
               transition: "transform 0.18s ease-out",
@@ -3535,11 +3549,14 @@ function WorldRoamingPet({
 
             {/* Pet sprite — XOR flip: movement direction vs natural facing direction.
                 naturalFacingLeft is computed above and picks the right source
-                per render branch (still image uses pet.facingDirection;
-                parts-based uses templateData.facing). Without that split,
-                a left-facing still image would get flipped to face right
-                when the player moved left, because templateData.facing
-                defaults to "front" for most templates. */}
+                per render branch:
+                  - parts-based uses templateData.facing
+                  - still image uses templateData.facing when it is side-facing
+                    (left/right), otherwise falls back to pet.facingDirection
+                Without that split, a left-facing still image would get flipped
+                to face right when the player moved left, because
+                templateData.facing defaults to "front" for most templates and
+                pet.facingDirection alone misses side-facing-template pets. */}
             <div
               style={{
                 transform: (facingLeft !== naturalFacingLeft) ? "scaleX(-1)" : undefined,
