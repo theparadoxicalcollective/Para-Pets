@@ -61,13 +61,22 @@ const AQ_TEAL = "#5eead4";
 
 function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
   const tier = Math.random();
-  const baseSpeed = tier < 0.33
+  const isBottom = entry.fishSwimZone === "bottom";
+  // Per request: slow ALL fish down a notch, with bottom-zone fish slightly
+  // slower than full-page (upper) swimmers. Multipliers applied to the raw
+  // tiered baseSpeed so the slow/medium/fast personality spread is preserved.
+  //   full-page fish: ×0.70  (≈30% slower than the original swim speeds)
+  //   bottom fish:    ×0.55  (≈21% slower than the new full-page speed)
+  // Bottom fish hover near the floor and only occasionally drift up — the
+  // additional slow-down sells "settled on the seabed" rather than "patrol".
+  const speedMultiplier = isBottom ? 0.55 : 0.70;
+  const rawSpeed = tier < 0.33
     ? 0.050 + Math.random() * 0.020
     : tier < 0.67
     ? 0.085 + Math.random() * 0.030
     : 0.130 + Math.random() * 0.035;
+  const baseSpeed = rawSpeed * speedMultiplier;
   const startsRight = entry.facingDirection !== "left";
-  const isBottom = entry.fishSwimZone === "bottom";
   const defaultY = isBottom
     ? BOTTOM_FLOOR_MIN + Math.random() * (BOTTOM_FLOOR_MAX - BOTTOM_FLOOR_MIN)
     : 26 + Math.random() * 44;
@@ -588,6 +597,24 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         @keyframes fishTailSegA   { from { transform: rotate(-5deg); } to { transform: rotate(5deg);  } }
         @keyframes fishTailSegB   { from { transform: rotate(4deg);  } to { transform: rotate(-4deg); } }
         @keyframes fishBlink      { 0%,92%,100% { opacity:1; } 95%,97% { opacity:0; } }
+        /* Aquarium bubbles — flowy, irregular blob shapes that drift up
+           from the bottom and gently sway side-to-side. We deliberately
+           avoid perfect circles: the irregular border-radius (50% 60%
+           45% 55% / …) plus a slight scale-skew at mid-rise gives each
+           bubble a soft, water-shaped silhouette instead of a hard
+           orb. The gradient (light-teal core fading to fully transparent
+           edge) reads as a thin film of refracted water rather than a
+           solid ball. Each bubble instance below randomises size, lane,
+           opacity, duration and delay so the column never repeats. */
+        @keyframes aqBubbleRise {
+          0%   { transform: translate(0px, 0%)    scale(0.85) rotate(0deg);   opacity: 0; }
+          12%  { opacity: var(--bubble-opacity, 0.25); }
+          25%  { transform: translate(6px, -25%)  scale(1.05, 0.95) rotate(8deg); }
+          50%  { transform: translate(-4px, -55%) scale(0.95, 1.08) rotate(-6deg); }
+          75%  { transform: translate(5px, -82%)  scale(1.04, 0.96) rotate(5deg); }
+          92%  { opacity: var(--bubble-opacity, 0.25); }
+          100% { transform: translate(0px, -110%) scale(0.9)  rotate(0deg);   opacity: 0; }
+        }
       `}</style>
 
       <img src={aquariumBg} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
