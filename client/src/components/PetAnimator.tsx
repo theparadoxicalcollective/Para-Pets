@@ -572,8 +572,8 @@ const ANIMATION_STYLES = `
      of mirrored. Pivot is the part's own pivot (set in the editor)
      so the swivel rotates around the tail base. */
   @keyframes petIdleTail {
-    from { transform: translateY(0px)   rotate(-0.5deg); }
-    to   { transform: translateY(-1.5px) rotate( 0.5deg); }
+    from { transform: translateY(0px)   rotate(-1.4deg); }
+    to   { transform: translateY(-1.5px) rotate( 1.4deg); }
   }
   @keyframes petIdleTail2 {
     from { transform: translate(0px,   0px)   rotate(-2.5deg); }
@@ -1535,8 +1535,22 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   if (bodyPartForBreath) {
     const bodyAb = getAlphaBoundsSync(bodyPartForBreath.imageUrl) ?? FULL_BOUNDS;
     const visibleBodyHeight = bodyPartForBreath.height * bodyAb.height; // 0..CANVAS_SIZE
-    const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 4.6;
-    const clamped = Math.min(2.4, Math.max(1.0, bodyTopRisePct));
+    // For ground pets the body inflates from "50% 100%" (feet), so the top
+    // edge rises by the FULL 4.6% of body height. For flying pets the body
+    // inflates around its hover pivot — top edge only rises by the fraction
+    // of the body that sits ABOVE the pivot (≈ pivotY-from-top of the
+    // alpha-trimmed body). Without this scale, flying pets' heads were
+    // bobbing far higher than the body's actual top, producing the
+    // "head floating off the body" effect on flying pets.
+    let topRiseFraction = 1.0;
+    if (canFly) {
+      const bpyFrac = (bodyPartForBreath.pivotY ?? 50) / 100;
+      const originYFrac = bodyAb.top + bodyAb.height * bpyFrac;
+      topRiseFraction = Math.max(0, Math.min(1, originYFrac));
+    }
+    const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 4.6 * topRiseFraction;
+    const minBob = canFly ? 0.5 : 1.0;
+    const clamped = Math.min(2.4, Math.max(minBob, bodyTopRisePct));
     headBobCssPct = `-${clamped.toFixed(2)}%`;
   }
 
