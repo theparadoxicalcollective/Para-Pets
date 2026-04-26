@@ -390,23 +390,28 @@ const ANIMATION_STYLES = `
      (0.3 for 1000-px source pets), so an absolute pixel value here gets
      squashed by the same factor on screen.
 
-     Set to -2.5% (was -1.4%) so the head VISIBLY rises during the
-     body's inhale instead of looking like it sinks into the body.
-     Math: with petIdleBody at scale(1, 1.038) anchored at the feet
-     (50% 100%), a typical body image filling ~50% of the canvas
-     pushes its OWN top edge up by ~1.9% of the canvas. If the head
-     bob is anywhere near that number (the previous 1.4% was BELOW
-     it!), the body's top "rises to meet" the head and the head
-     visibly disappears into the silhouette — which players read as
-     "the head is going DOWN while the body breathes up" even though
-     the head IS lifting. -2.5% gives the head a clear ~0.6% net
-     lead over the body's top edge so the head reads as clearly
-     rising with the inhale and settling on the exhale, exactly the
-     way breathing reads in real life. Both still phase-locked via
-     headSyncBreath / bodyBreathDelay so they peak together. */
+     The -% LIFT amount is now PER-PET via the --pet-head-bob CSS
+     variable (set inline on the head wrapper in the render loop).
+     Why: a fixed lift was wrong because petIdleBody scales the body
+     by a multiplicative factor (1.038) anchored at the feet, so the
+     body's TOP edge moves up by (visible-body-height × 0.038). Tall-
+     body pets (typical mons, ~50 % of canvas) get a top rise of
+     ~1.9 %; small-body pets (e.g. The Paradox, where the body is
+     dwarfed by its accessories at ~25 % of canvas) only get a top
+     rise of ~0.95 %. With a fixed -2.5 % head bob, the small-body
+     pets ended up lifting the head WAY above their barely-moving
+     body — the exact "head flying off the body" complaint.
+
+     The wrapper now sets --pet-head-bob = -(bodyTopRisePct + 0.6) %,
+     clamped to [-3.2 %, -1.5 %], so the head ALWAYS leads the body's
+     top by ~0.6 % regardless of how big or small the body is. One
+     formula, no per-pet overrides needed. The fallback -2.5 % only
+     fires for body-less templates (abstract / pure-float pets).
+     Both still phase-locked via headSyncBreath / bodyBreathDelay so
+     they peak together. */
   @keyframes petIdleHead {
     from { transform: translateY(0%); }
-    to   { transform: translateY(-2.5%); }
+    to   { transform: translateY(var(--pet-head-bob, -2.5%)); }
   }
   @keyframes petIdleLeftEar {
     from { transform: rotate(-2deg); }
@@ -764,7 +769,15 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
     const durations: Record<string, string> = {
       eyes: "4s", eyes_closed: "4s", mouth: "5s", mouth_closed: "5s",
       head: "3s", left_ear: "3.5s", right_ear: "3.5s",
-      left_arm: "3.5s", right_arm: "3.5s",
+      // Arms slowed from 3.5 s → 4.5 s so the front-facing left/right
+      // arm sweep doesn't read as twitchy next to the body's deep
+      // 4.5 s breathing — the previous 3.5 s made the arms feel
+      // visibly "fast" relative to everything else, which on small-
+      // body pets like The Paradox came across as the arms
+      // overpowering the calm idle. 4.5 s also shares the body's
+      // breath rhythm so the shoulders / arms read as one continuous
+      // group instead of ticking on a separate beat.
+      left_arm: "4.5s", right_arm: "4.5s",
       // Body breathing slowed to 4.5 s — combined with the new 9-keyframe
       // sine, this reads as deep relaxed breathing instead of a quick puff.
       body: "4.5s",
@@ -782,7 +795,13 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       // continuously drift in and out of phase rather than
       // re-converging on a fixed pattern.
       tail: "4.5s", tail_2: "3.7s", tail_3: "4.1s",
-      front_arm: "3.5s", back_arm: "4.5s",
+      // Side-view front arm slowed from 3.5 s → 4 s to match the
+      // calmer arm cadence (left/right_arm went from 3.5 → 4.5 s).
+      // 4 s instead of 4.5 s keeps a slight depth-cue desync from
+      // back_arm (which rides the body's 4.5 s breath) so the
+      // forward arm still reads as visibly swinging in front of the
+      // back arm rather than locked to it.
+      front_arm: "4s", back_arm: "4.5s",
       front_leg: "4s", back_leg: "4s",
       front_wing: "4s", back_wing: "4s",
       // Every part that's mapped to `petIdleBody` MUST share the body's
@@ -1384,6 +1403,29 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     }
   }
 
+  // Per-pet head-bob amount (in %) for the petIdleHead keyframe. Computed
+  // from the body's ALPHA-TRIMMED visible height so the head's lift always
+  // leads the body's top edge by ~0.6 % of the canvas, no matter how
+  // big or small the body is on this particular template.
+  //   bodyTopRise % = (visibleBodyHeight / CANVAS_SIZE) × 3.8
+  //                   ── because petIdleBody scales scale(1, 1.038) at feet
+  //   headBobPct    = bodyTopRisePct + 0.6   (the ~0.6 % visual lead)
+  //   clamp         = [1.5 %, 3.2 %]   (so the bob is always visible
+  //                                     but never absurdly large)
+  // The wrapper uses this via the --pet-head-bob CSS variable (see the
+  // petIdleHead keyframe). Re-evaluates whenever bumpAlphaVersion fires
+  // after the body's alpha scan resolves, so cold-cache renders settle
+  // onto the correct value within a frame or two of mount.
+  let headBobCssPct: string | undefined;
+  if (bodyPartForBreath) {
+    const bodyAb = getAlphaBoundsSync(bodyPartForBreath.imageUrl) ?? FULL_BOUNDS;
+    const visibleBodyHeight = bodyPartForBreath.height * bodyAb.height; // 0..CANVAS_SIZE
+    const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 3.8;
+    const raw = bodyTopRisePct + 0.6;
+    const clamped = Math.min(3.2, Math.max(1.5, raw));
+    headBobCssPct = `-${clamped.toFixed(2)}%`;
+  }
+
   // Helper: render a single part image with given animation (or none).
   // `transformOriginOverride` lets callers override the part's pivot-based
   // transform-origin — used for the body part on ground pets so the breathe
@@ -1705,6 +1747,15 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
               : 4;
           }
 
+          // Inject the per-pet head-bob amount as a CSS variable that the
+          // petIdleHead keyframe reads (var(--pet-head-bob, -2.5%)). Only
+          // set when this wrapper actually uses petIdleHead (idle mode,
+          // primary head, body found) — secondary heads use sway, other
+          // modes use their own keyframes that don't reference the var.
+          const headBobVarStyle =
+            (headSyncBreath && headBobCssPct)
+              ? ({ "--pet-head-bob": headBobCssPct } as React.CSSProperties)
+              : undefined;
           return (
             <div
               key={`head-group-${groupIdx}`}
@@ -1717,6 +1768,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                 willChange: wrapperAnim ? "transform" : undefined,
                 zIndex: headWrapperZ,
                 pointerEvents: "none",
+                ...(headBobVarStyle ?? {}),
               }}
             >
               {allGroupParts.map((part) => {

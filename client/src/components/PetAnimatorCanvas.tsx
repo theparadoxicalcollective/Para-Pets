@@ -163,11 +163,22 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     case "right_ear": case "hair_right":
       return { op: 1, rot:  sinWave(sec, 3.5) * 2 * D2R };
 
-    // Front-facing arms — slow gentle sweep.
-    case "left_arm": case "front_arm":
-      return { op: 1, rot: -sinWave(sec, 3.5) * 3 * D2R };
+    // Front-facing arms — slow gentle sweep. Periods slowed from
+    // 3.5 s → 4.5 s for the front-facing left/right arms so the
+    // sweep matches the body's 4.5 s breath rhythm and reads as a
+    // calm part of the breathing group instead of ticking on a
+    // separate, slightly-faster beat. Side-view front_arm bumped
+    // 3.5 → 4 s — slower than before but still desynced from
+    // back_arm (which rides the body's 4.5 s breath) so the forward
+    // arm reads as visibly swinging in front of the back arm rather
+    // than locked to it. Mirrors the img-renderer's getPartDuration
+    // changes for left_arm / right_arm / front_arm in idle mode.
+    case "left_arm":
+      return { op: 1, rot: -sinWave(sec, 4.5) * 3 * D2R };
     case "right_arm":
-      return { op: 1, rot:  sinWave(sec, 3.5) * 2 * D2R };
+      return { op: 1, rot:  sinWave(sec, 4.5) * 2 * D2R };
+    case "front_arm":
+      return { op: 1, rot: -sinWave(sec, 4) * 3 * D2R };
 
     // Side-facing back arm breathes with the body instead of swinging on
     // its own — that way the back arm rises and falls in perfect sync
@@ -255,21 +266,21 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     case "body":
       return bodyBreath(sec);
 
-    // Head — gentle vertical bob. Set to peak −10 px (was −5.6) so
-    // the head VISIBLY rises during the body's inhale instead of
-    // looking like it sinks into the body. The body's scale anchored
-    // at the feet pushes its own top edge up by ~1.9% of the canvas
-    // during inhale; if the head bob is anywhere near that, the body
-    // visually "rises to meet" the head and players read it as the
-    // head going DOWN while the body breathes up. -10 px (~2.5% of a
-    // 400-px canvas) gives the head a clear lead over the body's top
-    // edge so the head reads as clearly rising with the inhale.
-    // Mirrors the img-renderer's petIdleHead -2.5% (same 4× ratio
-    // calibration we use elsewhere for percent → canvas units).
-    // The translation is applied to every HEAD_GROUP_PARTS member at
-    // draw time so the eyes and mouth stay glued to the skull.
+    // Head — gentle vertical bob. ty is now ZERO here because the
+    // head bob amplitude is PER-PET (computed from the body's
+    // alpha-trimmed visible height — see headBobAmpRef in
+    // PetAnimatorCanvasInner). The actual bob is applied externally
+    // in the draw loop using that ref so every head-group part
+    // (head, eyes, mouth, ears) receives the same amplitude. This
+    // matches the img renderer's petIdleHead var(--pet-head-bob)
+    // approach and fixes the small-body-pet bug where a fixed
+    // amplitude looked huge on pets like The Paradox while looking
+    // right on big-body pets — same fix, same formula, both
+    // renderers stay in sync. The translation is applied to every
+    // HEAD_GROUP_PARTS member at draw time so the eyes and mouth
+    // stay glued to the skull.
     case "head":
-      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, 3)) * 0.5) * 10 };
+      return { op: 1, rot: 0, ty: 0 };
 
     // Above-head accessory (crowns / halos / horns / hats). Previously
     // -7 px (and the img renderer was -15 % of the part height) which
@@ -331,6 +342,16 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
   // templateData changes) can read the latest value every frame without
   // restarting the loop.
   const bodyAnchorRef = useRef<{ x: number; y: number } | null>(null);
+  // Per-pet head-bob amplitude in canvas logical px (the value that
+  // multiplies the sin wave in the draw loop). Computed from the
+  // body's ALPHA-TRIMMED visible height so the head's lift always
+  // leads the body's top edge by ~0.6 % of the canvas, no matter how
+  // big or small the body is. Mirrors the img-renderer's
+  // --pet-head-bob CSS variable approach (see PetAnimator.tsx). The
+  // 4× factor at the end converts the % value into the canvas's
+  // logical-px scale (the same calibration the rest of evalAnim uses
+  // for percent → canvas units).
+  const headBobAmpRef = useRef<number>(10); // default ≈ -2.5 % × 4
 
   // Cap DPR at 2 — battle-arena renders 3 of these at once and 3× DPR (iPhone)
   // turns each frame into ~9× the work of a logical-pixel canvas, dropping the
@@ -410,26 +431,46 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
     // then again from the body image's onload once getAlphaBounds
     // resolves, so canFly + override + cold cache renders correctly
     // instead of permanently using FULL_BOUNDS.
-    const recomputeBodyAnchor = () => {
-      if (!bodyPart) { bodyAnchorRef.current = null; return; }
+    const recomputeBodyDerived = () => {
+      if (!bodyPart) {
+        bodyAnchorRef.current = null;
+        headBobAmpRef.current = 10; // safe fallback ≈ fixed 2.5 %
+        return;
+      }
+      // Body anchor — feet for non-flying pets, alpha-corrected pivot
+      // for flying pets. Same formula as the img renderer.
       if (!canFly) {
         bodyAnchorRef.current = {
           x: bodyPart.posX + bodyPart.width * 0.5,
           y: bodyPart.posY + bodyPart.height * 1.0,
         };
-        return;
+      } else {
+        const bodyAbForAnchor = getAlphaBoundsSync(bodyPart.imageUrl) ?? FULL_BOUNDS;
+        const bpxFrac = (bodyPart.pivotX ?? 50) / 100;
+        const bpyFrac = (bodyPart.pivotY ?? 50) / 100;
+        const bodyOriginXFrac = bodyAbForAnchor.left + bodyAbForAnchor.width * bpxFrac;
+        const bodyOriginYFrac = bodyAbForAnchor.top + bodyAbForAnchor.height * bpyFrac;
+        bodyAnchorRef.current = {
+          x: bodyPart.posX + bodyPart.width * bodyOriginXFrac,
+          y: bodyPart.posY + bodyPart.height * bodyOriginYFrac,
+        };
       }
+      // Per-pet head-bob amplitude. Same formula as the img renderer's
+      // headBobCssPct: the head's lift should ALWAYS lead the body's
+      // top edge by ~0.6 % of the canvas, regardless of body size.
+      //   bodyTopRise % = (visibleBodyHeight / CANVAS_SIZE) × 3.8
+      //                   ── because petIdleBody scales scale(1, 1.038)
+      //   headBobPct    = bodyTopRisePct + 0.6
+      //   clamp         = [1.5 %, 3.2 %]
+      //   ampLogical    = clamped × 4   (the % → logical-px factor)
       const bodyAb = getAlphaBoundsSync(bodyPart.imageUrl) ?? FULL_BOUNDS;
-      const bpxFrac = (bodyPart.pivotX ?? 50) / 100;
-      const bpyFrac = (bodyPart.pivotY ?? 50) / 100;
-      const bodyOriginXFrac = bodyAb.left + bodyAb.width * bpxFrac;
-      const bodyOriginYFrac = bodyAb.top + bodyAb.height * bpyFrac;
-      bodyAnchorRef.current = {
-        x: bodyPart.posX + bodyPart.width * bodyOriginXFrac,
-        y: bodyPart.posY + bodyPart.height * bodyOriginYFrac,
-      };
+      const visibleBodyHeight = bodyPart.height * bodyAb.height;
+      const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 3.8;
+      const raw = bodyTopRisePct + 0.6;
+      const clamped = Math.min(3.2, Math.max(1.5, raw));
+      headBobAmpRef.current = clamped * 4;
     };
-    recomputeBodyAnchor();
+    recomputeBodyDerived();
 
     const entries = viewParts.map(part => {
       const img = new Image();
@@ -451,17 +492,20 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
       // template) all read from cache for free.
       if (entry.img.naturalWidth > 0) {
         const boundsPromise = getAlphaBounds(entry.part.imageUrl, entry.img);
-        // For flying pets, the body anchor needs to be recomputed once
-        // the body image's alpha-trimmed bounds are available — the
-        // very first render (cold cache) uses FULL_BOUNDS, so the
-        // anchor (used for the body's breathe pivot) initially points
-        // at the wrong world point. Non-body parts and non-flying pets
-        // don't need this (their anchor is already correct after the
-        // eager recomputeBodyAnchor() above).
-        if (canFly && bodyPart && entry.part.id === bodyPart.id) {
+        // Once the BODY image's alpha-trimmed bounds resolve we
+        // recompute every body-derived value:
+        //   • body anchor (only matters for flying pets — non-flying
+        //     anchor is just the geometric feet, no alpha needed)
+        //   • head-bob amplitude (matters for ALL pets since the
+        //     amplitude scales with the visible body height)
+        // Cold-cache renders briefly use FULL_BOUNDS as a fallback,
+        // then snap to the correct values within ~100–500 ms once
+        // the alpha scan finishes. Same RAF loop reads the latest
+        // ref values every frame so no animation restart is needed.
+        if (bodyPart && entry.part.id === bodyPart.id) {
           void boundsPromise.then(() => {
             if (cancelled) return;
-            recomputeBodyAnchor();
+            recomputeBodyDerived();
           });
         }
       }
@@ -583,8 +627,14 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
 
       // Compute the head bob ONCE per frame so every head-group part
       // (head, eyes, mouth, ears) shares the same vertical offset and
-      // the face stays anchored to the skull as it floats.
-      const headBob = evalAnim("head", sec, blinkRef.current).ty ?? 0;
+      // the face stays anchored to the skull as it floats. The
+      // amplitude is PER-PET (read from headBobAmpRef) so small-body
+      // pets like The Paradox don't get the head launched off the
+      // body — see the headBobAmpRef comment / recomputeBodyDerived
+      // for the formula. evalAnim("head") now returns ty=0 because
+      // the bob is applied externally here; the head itself picks
+      // up headBobPx in the part loop below alongside the face parts.
+      const headBob = -((1 + sinWave(sec, 3)) * 0.5) * headBobAmpRef.current;
       // Convert "CSS px @ requested size" to canvas-buffer px. drawSpan
       // is ALREADY in buffer px (= canvasPx = size·dpr after rounding),
       // so the ratio drawSpan/size already includes the dpr factor —
@@ -678,8 +728,14 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
           dx = swayPxFor(part.partType);
         } else {
           dy = anim.ty ? anim.ty * (drawSpan / size) * fitScale : 0;
-          if (isHeadGroupPart(part.partType) && part.partType !== "head" && part.partType !== "h2_head" && part.partType !== "h3_head") {
-            // Already-bobbing parts (head itself) shouldn't double-bob.
+          if (isHeadGroupPart(part.partType) && part.partType !== "h2_head" && part.partType !== "h3_head") {
+            // Apply the per-pet head bob to every PRIMARY head-group
+            // part — including "head" itself. evalAnim("head") now
+            // returns ty=0 (the bob is computed externally above with
+            // the per-pet amplitude), so this is no longer a double-
+            // bob — the head and face parts all share exactly one
+            // headBobPx contribution and stay glued together as the
+            // skull floats.
             dy += headBobPx;
           }
         }
