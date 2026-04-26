@@ -999,8 +999,51 @@ function buildHeadGroups(parts: PetPart[]): { head: PetPart; faceParts: PetPart[
   const groups = headParts.map(h => ({ head: h, faceParts: [] as PetPart[] }));
   const faceParts = parts.filter(p => isFacePart(p.partType));
 
+  // Pre-index head groups by their head's partType so prefix-based
+  // assignment (below) can find the matching wrapper in O(1). Maps
+  // "head" → group 0, "h2_head" → group 1, "h3_head" → group 2 (or
+  // whatever order the admin uploaded them in).
+  const groupByHeadType = new Map<string, number>();
+  headParts.forEach((h, i) => groupByHeadType.set(h.partType, i));
+
   for (const fp of faceParts) {
-    // First try overlap-based assignment
+    // PREFIX OVERRIDE (highest priority): if the face part is named
+    // h2_eyes / h3_left_ear / h2_mouth_closed / etc., the admin's
+    // EXPLICIT INTENT is "this belongs to head 2 / head 3" — honor
+    // that regardless of geometric overlap. Without this rule, a
+    // secondary head that happens to be positioned close to (or
+    // overlapping with) the primary head could pull h2_eyes into the
+    // primary head's wrapper, leaving the eyes static while h2_head
+    // sways. The user explicitly named the part with the prefix to
+    // signal which head it belongs to — that's a stronger signal than
+    // bbox proximity.
+    const prefixMatch = fp.partType.match(/^(h[23])_/);
+    if (prefixMatch) {
+      const targetHeadType = `${prefixMatch[1]}_head`;
+      const targetGroupIdx = groupByHeadType.get(targetHeadType);
+      if (targetGroupIdx !== undefined) {
+        groups[targetGroupIdx].faceParts.push(fp);
+        continue;
+      }
+      // Falls through to overlap/proximity if the named head doesn't
+      // exist (admin uploaded h2_eyes without h2_head — degraded but
+      // graceful: we still place the part somewhere).
+    }
+    // Likewise, an UN-prefixed face part (eyes, left_ear, mouth) is
+    // EXPLICITLY for the primary head — don't let bbox overlap pull it
+    // into a secondary head's wrapper just because the secondary head
+    // is positioned over it. Honor the implicit "no prefix = primary"
+    // contract for symmetry with the prefix override above.
+    if (!prefixMatch) {
+      const primaryIdx = groupByHeadType.get("head");
+      if (primaryIdx !== undefined) {
+        groups[primaryIdx].faceParts.push(fp);
+        continue;
+      }
+    }
+
+    // GEOMETRIC FALLBACK (only reached when prefix didn't resolve):
+    // overlap-based assignment first
     let bestOverlap = 0;
     let bestIdx = -1;
     for (let i = 0; i < headParts.length; i++) {
