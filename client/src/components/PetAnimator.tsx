@@ -356,17 +356,43 @@ const ANIMATION_STYLES = `
     0%, 100% { opacity: 1; }
   }
   /* Secondary-head sway: SECONDARY heads (h2_head / h3_head part types)
-     replace the standard vertical bob (petIdleHead) with a tiny
-     horizontal sway. Multi-head pets read as "the side heads drift
-     gently left/right (independent of the body's breath) while the
-     centre head keeps its normal bob". Amplitude is intentionally tiny
-     — ±0.4 % of the canvas (~1.2 px on a 300-px-rendered pet) — so it
-     reads as "the head is alive" without ever looking like the head
-     is rolling. 2-keyframe + alternate (added to ALTERNATE_MOTION_ANIMS
-     below) gives a smooth sine ping-pong. */
+     replace the standard vertical bob (petIdleHead) with a richer
+     "alive on its own" motion. h2 and h3 each get their OWN keyframe
+     so the two side heads have visibly DIFFERENT motion personalities
+     (not just mirrored timings of the same shape) — that's how multi-
+     head pets like the Cerberus Serpent read as "three individual
+     characters sharing a body" instead of "one centre head + two
+     synchronized props".
+
+     Both keyframes combine three motions:
+       • horizontal sway (translateX)
+       • subtle vertical drift (translateY)
+       • small wrapper rotation around the canvas centre — the head
+         arcs through space rather than sliding straight, which adds
+         the "looking around" character. Amplitudes are kept small
+         (±0.5 % translate, ±1° rotate) so even a head positioned at
+         the canvas edge swings only ~1–2 px on screen — enough to
+         feel alive, never enough to detach from the body silhouette.
+
+     h2_head: leans left → right, nodding slightly down at the right
+              extreme (the "shy lean" character).
+     h3_head: opposite sway with a stronger rotational tilt and a
+              small lift at the right extreme (the "alert glance"
+              character). Mirroring the rotation sign and the dy
+              direction gives h3 a fundamentally different motion
+              SHAPE than h2, which is what the user means by "feel
+              like their own individual character".
+
+     Per-head durations (3.2 s for h2, 4.1 s for h3) live in the
+     wrapperDuration logic below and continuously drift in/out of
+     phase so the two never lock to a shared beat. */
   @keyframes petIdleHeadSway {
-    from { transform: translateX(-0.4%); }
-    to   { transform: translateX(0.4%); }
+    from { transform: translate(-0.5%, -0.2%) rotate(-0.9deg); }
+    to   { transform: translate( 0.5%,  0.3%) rotate( 0.9deg); }
+  }
+  @keyframes petIdleHeadSwayAlt {
+    from { transform: translate( 0.5%,  0.3%) rotate( 1.2deg); }
+    to   { transform: translate(-0.5%, -0.4%) rotate(-1.2deg); }
   }
   /* ── Idle: 2-keyframe motion designed for animation-direction: alternate.
 
@@ -421,26 +447,37 @@ const ANIMATION_STYLES = `
     from { transform: rotate(2deg); }
     to   { transform: rotate(-1deg); }
   }
+  /* Front-facing arms — symmetric swing through 0° so the arm reads
+     as a calm pendulum motion centered on its rest position rather
+     than a one-sided "raise" that always returns to the same neutral
+     before lifting again. The previous (0° → 5°) / (0° → -3.5°)
+     range had the arms ALWAYS biased to one side at every other
+     keyframe boundary, which on big front-facing pets like the
+     Black Forest Dragon and Seer Rabbit read as the arm "twitching
+     up and resetting" instead of swaying. ±2° + alternate gives
+     a true sine-pendulum that mirrors left/right naturally. */
   @keyframes petIdleLeftArm {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(5deg); }
+    from { transform: rotate(-2deg); }
+    to   { transform: rotate(2deg); }
   }
   @keyframes petIdleRightArm {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(-3.5deg); }
+    from { transform: rotate(2deg); }
+    to   { transform: rotate(-2deg); }
   }
   /* Body breathing — alternates between rest and inhale peak.
-     Reduced from scale(1.028, 1.05) → scale(1.020, 1.038) so the
-     torso's inhale doesn't visibly outgrow the head bob. With the
-     previous 5% Y-scale on the body and only -0.9% lift on the
-     head, players reported the body looking "too big" relative to
-     the head at peak inhale — the two were on the same 4.5 s beat
-     but the disparity in amplitudes made them read as out-of-sync.
-     Trimming the body breath ~25% (and bumping the head bob to
-     -1.4%) restores visual parity between the two. */
+     Tuned to scale(1.024, 1.046): just enough Y-stretch that the
+     breath is visible on small-body pets like The Paradox (whose
+     visible body is only ~25% of the canvas, so a too-small scale
+     made the breathing imperceptible) without the torso visibly
+     outgrowing the head bob on big-body pets. This shape pairs
+     with the per-pet head-bob formula below (factor 4.6 = 100×
+     the Y-scale delta of 0.046, no lead): head bob is now ALWAYS
+     ≤ body's actual top rise, guaranteeing the head can't visibly
+     fly above the body silhouette at peak inhale regardless of
+     pet size. */
   @keyframes petIdleBody {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.020, 1.038); }
+    to   { transform: scale(1.024, 1.046); }
   }
   /* Wings — flap motion. The wings travel UP together (matched
      translateY) on the up-stroke and DOWN together on the down-stroke,
@@ -880,11 +917,11 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   // every cycle would visibly snap back to -0.4° (a tic every 4 s on
   // every accessory the pet is wearing).
   "petIdleAccessorySway",
-  // Secondary-head sway: tiny horizontal sway applied to secondary
-  // head wrappers (h2_head / h3_head). Same 2-keyframe from/to motion
-  // as petIdleHead, so it MUST alternate to ping-pong smoothly instead
-  // of snapping back to translateX(-0.4%) each cycle.
-  "petIdleHeadSway",
+  // Secondary-head sway: distinct 2-keyframe motions for h2_head and
+  // h3_head wrappers (translate + rotate). Both MUST alternate to
+  // ping-pong smoothly instead of snapping back to the "from" extreme
+  // each cycle.
+  "petIdleHeadSway", "petIdleHeadSwayAlt",
 ]);
 
 // Build the CSS `animation` shorthand for a given keyframe name. For the
@@ -1404,14 +1441,27 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   }
 
   // Per-pet head-bob amount (in %) for the petIdleHead keyframe. Computed
-  // from the body's ALPHA-TRIMMED visible height so the head's lift always
-  // leads the body's top edge by ~0.6 % of the canvas, no matter how
-  // big or small the body is on this particular template.
-  //   bodyTopRise % = (visibleBodyHeight / CANVAS_SIZE) × 3.8
-  //                   ── because petIdleBody scales scale(1, 1.038) at feet
-  //   headBobPct    = bodyTopRisePct + 0.6   (the ~0.6 % visual lead)
-  //   clamp         = [1.5 %, 3.2 %]   (so the bob is always visible
-  //                                     but never absurdly large)
+  // from the body's ALPHA-TRIMMED visible height so the head's lift
+  // TRACKS the body's actual top rise on this particular template — the
+  // head and the body's top edge now move together rather than the head
+  // leading by a fixed extra amount, which prevents the "head flying off
+  // the body" perception that big front-facing pets (Black Forest Dragon,
+  // Seer Rabbit) showed at the previous +0.6 % lead.
+  //
+  //   bodyTopRise % = (visibleBodyHeight / CANVAS_SIZE) × 4.6
+  //                   ── because petIdleBody scales scale(1, 1.046) at feet,
+  //                      so the body's top edge rises by 4.6 % × the visible
+  //                      body's fraction of the canvas
+  //   headBobPct    = bodyTopRisePct           (no lead — head matches body)
+  //   clamp         = [1.0 %, 2.4 %]   (lower than body's max rise of
+  //                                     ~4.6 % so head NEVER overshoots
+  //                                     the body's top; min keeps bob
+  //                                     barely visible on tiny-body pets)
+  //
+  // Net effect: head bob ≤ body's actual top rise for ALL pets, so the
+  // head can only ever sink slightly into the body's silhouette at peak
+  // inhale — never fly above it.
+  //
   // The wrapper uses this via the --pet-head-bob CSS variable (see the
   // petIdleHead keyframe). Re-evaluates whenever bumpAlphaVersion fires
   // after the body's alpha scan resolves, so cold-cache renders settle
@@ -1420,9 +1470,8 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   if (bodyPartForBreath) {
     const bodyAb = getAlphaBoundsSync(bodyPartForBreath.imageUrl) ?? FULL_BOUNDS;
     const visibleBodyHeight = bodyPartForBreath.height * bodyAb.height; // 0..CANVAS_SIZE
-    const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 3.8;
-    const raw = bodyTopRisePct + 0.6;
-    const clamped = Math.min(3.2, Math.max(1.5, raw));
+    const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 4.6;
+    const clamped = Math.min(2.4, Math.max(1.0, bodyTopRisePct));
     headBobCssPct = `-${clamped.toFixed(2)}%`;
   }
 
@@ -1666,41 +1715,48 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           // index, NOT a semantic "head 1 / head 2 / head 3" identity.
           const isSecondaryHead = group.head.partType !== "head";
           const useSecondaryHeadSway = mode === "idle" && isSecondaryHead;
+          // h2_head and h3_head get DIFFERENT keyframes (not just
+          // mirrored timings of the same motion) so the two side
+          // heads on multi-head pets like the Cerberus Serpent read
+          // as individual characters with their own personality —
+          // see the petIdleHeadSway / petIdleHeadSwayAlt comments
+          // above for the motion shapes.
+          const isH3Head = group.head.partType === "h3_head";
           const wrapperAnim =
             mode === "sleep" ? "petSleepHead" :
             mode === "petting" ? "petPettingHead" :
             // In idle, the PRIMARY head uses the upward-translation
             // petIdleHead (even on ground pets — the small lift reads as
-            // following the body's breath). SECONDARY heads use the tiny
-            // horizontal sway petIdleHeadSway so they read as alive on
+            // following the body's breath). SECONDARY heads use the
+            // distinct sway keyframes (petIdleHeadSway for h2,
+            // petIdleHeadSwayAlt for h3) so they read as alive on
             // their own next to the centre head.
             mode === "idle"
-              ? (useSecondaryHeadSway ? "petIdleHeadSway" : "petIdleHead")
+              ? (useSecondaryHeadSway
+                  ? (isH3Head ? "petIdleHeadSwayAlt" : "petIdleHeadSway")
+                  : "petIdleHead")
               :
             (mode !== "house" && mode !== "static") ? anims["head"] :
             undefined;
           // Head wrapper transform-origin defaults to the wrapper's
-          // centre (50% 50% of the canvas), which is correct for the
-          // pure translateY / translateX motions used by petIdleHead and
-          // petIdleHeadSway respectively.
+          // centre (50% 50% of the canvas) — important for the
+          // secondary-head sway keyframes which now include a small
+          // rotation (rotate around the canvas centre = head arcs
+          // through space). The primary head's pure translateY also
+          // works correctly with this origin.
           const wrapperOrigin: string | undefined = undefined;
           // In idle mode, the PRIMARY head (vertical bob) overrides its
           // natural 3 s rhythm to match the body's 4.5 s breath — phase-
           // locked to bodyBreathDelay so every primary head lifts on the
           // body's inhale and settles on the exhale.
           //
-          // SECONDARY heads (h2_/h3_) use petIdleHeadSway. To prevent
-          // the two side heads from looking like a mirrored pair, h2
-          // and h3 now run on DIFFERENT durations entirely (3.2 s vs
-          // 4.1 s) instead of the previous shared 3 s + small phase
-          // offset. Different periods means the two heads continuously
-          // drift in and out of phase with each other rather than
-          // re-locking on the same beat every cycle — the same desync
-          // trick the wings and tails 2/3 use. Each head also keeps a
-          // larger phase offset (0.4 s / 1.4 s) to spread their
-          // starting positions further apart so they don't line up at
-          // load. Other modes keep the per-head-group stagger so
-          // multi-head pets don't all bob in lockstep.
+          // SECONDARY heads (h2_/h3_) use the distinct sway keyframes
+          // (h2 → petIdleHeadSway, h3 → petIdleHeadSwayAlt). Different
+          // durations (3.2 s vs 4.1 s) AND different motion shapes mean
+          // the two side heads continuously drift in and out of phase
+          // AND look like fundamentally different motion personalities,
+          // not mirrored copies. Each also keeps a phase offset
+          // (0.4 s / 1.4 s) so they don't line up at load.
           const headSyncBreath = mode === "idle" && !useSecondaryHeadSway && bodyBreathDelay !== undefined;
           const swayPhaseOffsetSec =
             group.head.partType === "h3_head" ? 1.4 :

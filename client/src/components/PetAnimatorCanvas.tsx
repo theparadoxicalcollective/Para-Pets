@@ -125,18 +125,17 @@ interface AnimResult {
 // Body breath helper — used by every part that the img-renderer maps
 // to `petIdleBody`: body itself, all four shoulder variants, back_arm
 // (side-facing), and front/back accessories. Same 4.5 s period and
-// ±2.0 % / ±3.8 % asymmetric scale as the body so the whole "back of
+// ±2.4 % / ±4.6 % asymmetric scale as the body so the whole "back of
 // the pet" group inhales/exhales as one unit. Mirrors PetAnimator.tsx
 // IDLE_ANIMATIONS where these parts all share petIdleBody.
 //
-// Amplitude trimmed (was 0.028 / 0.046) so the body's inhale doesn't
-// visibly outgrow the head bob — the head's lift was simultaneously
-// bumped (see "head" case below) so the two now read in parity at
-// peak inhale instead of the body looking "too big" relative to a
-// barely-moving head.
+// Amplitudes pair with the per-pet head-bob formula (see headBobAmpRef
+// in PetAnimatorCanvasInner) — the head bob is now ALWAYS clamped to
+// be ≤ the body's actual top rise, so the head can only sink slightly
+// into the body silhouette at peak inhale, never fly above it.
 function bodyBreath(sec: number): AnimResult {
   const w = (1 + sinWave(sec, 4.5)) * 0.5; // 0..1 sine
-  return { op: 1, rot: 0, sx: 1 + w * 0.020, sy: 1 + w * 0.038 };
+  return { op: 1, rot: 0, sx: 1 + w * 0.024, sy: 1 + w * 0.046 };
 }
 
 function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
@@ -163,18 +162,21 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     case "right_ear": case "hair_right":
       return { op: 1, rot:  sinWave(sec, 3.5) * 2 * D2R };
 
-    // Front-facing arms — slow gentle sweep. Periods slowed from
-    // 3.5 s → 4.5 s for the front-facing left/right arms so the
-    // sweep matches the body's 4.5 s breath rhythm and reads as a
-    // calm part of the breathing group instead of ticking on a
-    // separate, slightly-faster beat. Side-view front_arm bumped
-    // 3.5 → 4 s — slower than before but still desynced from
-    // back_arm (which rides the body's 4.5 s breath) so the forward
-    // arm reads as visibly swinging in front of the back arm rather
-    // than locked to it. Mirrors the img-renderer's getPartDuration
-    // changes for left_arm / right_arm / front_arm in idle mode.
+    // Front-facing arms — symmetric ±2° pendulum centered on 0°
+    // (period 4.5 s, matches the body's breath rhythm). Mirrors the
+    // img-renderer's petIdleLeftArm / petIdleRightArm keyframes
+    // (-2° → +2° / +2° → -2°). The previous range biased the arms
+    // to one side (canvas had ±3° / ±2° asymmetric, img had 0°→5° /
+    // 0°→-3.5°), which on big front-facing pets like the Black
+    // Forest Dragon and Seer Rabbit read as the arm "twitching up
+    // and resetting" instead of swaying. A true sine-pendulum
+    // through 0° fixes both the readability and the renderer drift.
+    // Side-view front_arm stays on its own 4 s cycle so it desyncs
+    // from back_arm (which rides the body's 4.5 s breath); kept at
+    // ±3° because side-view arms are visibly larger relative to the
+    // body silhouette than front-facing arms.
     case "left_arm":
-      return { op: 1, rot: -sinWave(sec, 4.5) * 3 * D2R };
+      return { op: 1, rot: -sinWave(sec, 4.5) * 2 * D2R };
     case "right_arm":
       return { op: 1, rot:  sinWave(sec, 4.5) * 2 * D2R };
     case "front_arm":
@@ -456,18 +458,18 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         };
       }
       // Per-pet head-bob amplitude. Same formula as the img renderer's
-      // headBobCssPct: the head's lift should ALWAYS lead the body's
-      // top edge by ~0.6 % of the canvas, regardless of body size.
-      //   bodyTopRise % = (visibleBodyHeight / CANVAS_SIZE) × 3.8
-      //                   ── because petIdleBody scales scale(1, 1.038)
-      //   headBobPct    = bodyTopRisePct + 0.6
-      //   clamp         = [1.5 %, 3.2 %]
-      //   ampLogical    = clamped × 4   (the % → logical-px factor)
+      // headBobCssPct: head's lift TRACKS the body's actual top rise
+      // (no lead) so the head can never visibly fly above the body
+      // silhouette regardless of pet size.
+      //   bodyTopRise % = (visibleBodyHeight / CANVAS_SIZE) × 4.6
+      //                   ── because petIdleBody scales scale(1, 1.046)
+      //   headBobPct    = bodyTopRisePct       (no lead — head matches body)
+      //   clamp         = [1.0 %, 2.4 %]
+      //   ampLogical    = clamped × 4          (the % → logical-px factor)
       const bodyAb = getAlphaBoundsSync(bodyPart.imageUrl) ?? FULL_BOUNDS;
       const visibleBodyHeight = bodyPart.height * bodyAb.height;
-      const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 3.8;
-      const raw = bodyTopRisePct + 0.6;
-      const clamped = Math.min(3.2, Math.max(1.5, raw));
+      const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 4.6;
+      const clamped = Math.min(2.4, Math.max(1.0, bodyTopRisePct));
       headBobAmpRef.current = clamped * 4;
     };
     recomputeBodyDerived();
@@ -634,7 +636,13 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
       // for the formula. evalAnim("head") now returns ty=0 because
       // the bob is applied externally here; the head itself picks
       // up headBobPx in the part loop below alongside the face parts.
-      const headBob = -((1 + sinWave(sec, 3)) * 0.5) * headBobAmpRef.current;
+      //
+      // Period 4.5 s — phase-locked to the body breath rhythm so the
+      // primary head lifts on the body's inhale and settles on the
+      // exhale. Mirrors the img-renderer's headSyncBreath override
+      // which forces the primary head's natural 3 s petIdleHead
+      // animation onto the 4.5 s body cadence in idle mode.
+      const headBob = -((1 + sinWave(sec, 4.5)) * 0.5) * headBobAmpRef.current;
       // Convert "CSS px @ requested size" to canvas-buffer px. drawSpan
       // is ALREADY in buffer px (= canvasPx = size·dpr after rounding),
       // so the ratio drawSpan/size already includes the dpr factor —
@@ -644,35 +652,77 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
       // smaller relative to the pet — visible drift on tall sprites).
       const headBobPx = headBob * (drawSpan / size) * fitScale;
 
-      // SECONDARY heads (h2_/h3_-prefixed head-group parts) ALWAYS sway
-      // horizontally instead of riding the standard vertical bob.
-      // Mirrors the img-renderer's petIdleHeadSway keyframe
-      // (translateX from -0.4% to +0.4% of the canvas wrapper, alternate).
-      // Calibration matches the existing headBob ratio: petIdleHead's
-      // translateY(-0.9%) maps to a canvas amplitude of 3.6 logical units
-      // (factor 4), so translateX(±0.4%) maps to ±1.6 logical units.
-      // sinWave returns -1..+1 directly, giving a smooth ping-pong
-      // without the kfi-based 0..1 envelope the bob uses (since sway is
-      // symmetrical around 0, not a one-sided lift like the bob).
+      // SECONDARY heads (h2_/h3_-prefixed head-group parts) ALWAYS use
+      // a richer combined motion (sway + small drift + rotation) instead
+      // of riding the standard vertical bob. h2 and h3 each get a
+      // DISTINCT motion personality so the two side heads on multi-head
+      // pets like the Cerberus Serpent read as individual characters
+      // rather than mirrored copies of one shape.
       //
-      // h2 and h3 now run on DIFFERENT periods entirely (3.2 s vs
-      // 4.1 s) instead of the previous shared 3 s with a small phase
-      // offset — different durations means the two side heads
-      // continuously drift in and out of phase with each other rather
-      // than re-locking on the same beat every cycle, so they read as
-      // "alive on their own rhythms" instead of mirrored. Larger
-      // phase offsets (0.4 / 1.4 s) spread their starting positions
-      // further apart at load. Mirrors the img-renderer's
-      // wrapperDuration / swayPhaseOffsetSec so both renderers desync
-      // the side heads identically.
-      const headSwayAmpPx = 1.6 * (drawSpan / size) * fitScale;
-      const swayPxFor = (pt: string) => {
-        if (pt.startsWith("h3_")) return sinWave(sec + 1.4, 4.1) * headSwayAmpPx;
-        if (pt.startsWith("h2_")) return sinWave(sec + 0.4, 3.2) * headSwayAmpPx;
-        return 0;
+      // Mirrors the img-renderer's petIdleHeadSway / petIdleHeadSwayAlt
+      // keyframes — each keyframe combines translate(X, Y) and rotate.
+      // Calibration: factor 4 matches the existing headBob convention
+      // (headBobAmpRef = clamped × 4), so % values stay numerically
+      // consistent with the head bob inside the canvas renderer. This
+      // is intentionally a smaller absolute amplitude than the literal
+      // CSS-% math would give (which would be ×10 for CANVAS_SIZE=1000),
+      // because the canvas pet has been visually calibrated against the
+      // factor-4 head bob for many iterations — switching to ×10 here
+      // would make the sway 2.5× larger than the head bob and break
+      // the established visual balance. Both renderers display the
+      // SAME pet visually; relative ratios within each renderer matter
+      // more than literal cross-renderer pixel parity.
+      //
+      // So: petIdleHead's translateY(-2.4%) maps to canvas amplitude
+      // 9.6 logical units (= 2.4 × 4), and translate(±0.5%) maps to
+      // ±2.0 logical units, translate(±0.4%) → ±1.6 units, etc.
+      //
+      // Different periods (3.2 s for h2, 4.1 s for h3) plus larger
+      // phase offsets (0.4 / 1.4 s) keep the two heads continuously
+      // drifting in and out of phase so they never lock to the same
+      // beat. sinWave returns -1..+1 directly so the motions are
+      // symmetric around 0, just like the alternate-direction CSS
+      // keyframes in the img renderer.
+      const PCT_TO_LOGICAL = 4 * (drawSpan / size) * fitScale;
+      const swayMotionFor = (pt: string): { dx: number; dy: number; rot: number } => {
+        if (pt.startsWith("h3_")) {
+          // h3_head: sway right→left, lift slightly + tilt — the
+          // "alert glance" character. Mirrors petIdleHeadSwayAlt.
+          //   translateX  +0.5% → -0.5%  (mean 0,  amp 0.5%)
+          //   translateY  +0.3% → -0.4%  (mean -0.05%, amp 0.35%)
+          //   rotate      +1.2° → -1.2°  (mean 0,  amp 1.2°)
+          const t = sinWave(sec + 1.4, 4.1);
+          return {
+            dx: -t * 0.5 * PCT_TO_LOGICAL,
+            dy: -t * 0.35 * PCT_TO_LOGICAL - 0.05 * PCT_TO_LOGICAL,
+            rot: -t * 1.2 * D2R,
+          };
+        }
+        if (pt.startsWith("h2_")) {
+          // h2_head: sway left→right, slight nod down — the "shy lean"
+          // character. Mirrors petIdleHeadSway.
+          //   translateX  -0.5% → +0.5%  (mean 0,  amp 0.5%)
+          //   translateY  -0.2% → +0.3%  (mean 0.05%, amp 0.25%)
+          //   rotate      -0.9° → +0.9°  (mean 0,  amp 0.9°)
+          const t = sinWave(sec + 0.4, 3.2);
+          return {
+            dx: t * 0.5 * PCT_TO_LOGICAL,
+            dy: t * 0.25 * PCT_TO_LOGICAL + 0.05 * PCT_TO_LOGICAL,
+            rot: t * 0.9 * D2R,
+          };
+        }
+        return { dx: 0, dy: 0, rot: 0 };
       };
       const isSecondaryHeadGroupPartLocal = (pt: string): boolean =>
         (pt.startsWith("h2_") || pt.startsWith("h3_")) && isHeadGroupPart(pt);
+      // Canvas-centre pivot for the secondary head wrapper rotation —
+      // matches the img-renderer's wrapper transform-origin (50% 50%
+      // of the canvas) so a small wrapper rotation makes each head
+      // arc through space around the centre rather than spinning in
+      // place. drawSpan is in buffer px; offset adds the centred
+      // padding when fillContainer is off.
+      const wrapperCx = offset + drawSpan / 2;
+      const wrapperCy = offset + drawSpan / 2;
 
       for (const { part, img } of parts) {
         // Heads route through evalAnim("head") above; for individual
@@ -715,17 +765,22 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         // multiplied by fitScale so anim motion stays proportional to
         // the visibly-rendered pet (when fitVisible enlarges the pet).
         //
-        // SECONDARY heads (h2_/h3_-prefixed) ALWAYS sway horizontally
-        // INSTEAD of bobbing vertically. We zero out both the natural
-        // ty (returned by evalAnim for "h2_head"/"h3_head") AND the
-        // shared headBob — sway entirely replaces the vertical motion
-        // so the side heads don't double-up bob+sway. The dx is
-        // applied alongside dy in the transform below.
+        // SECONDARY heads (h2_/h3_-prefixed) ALWAYS use the combined
+        // sway motion (dx + dy + wrapper rotation) INSTEAD of bobbing
+        // vertically. We zero out both the natural ty (returned by
+        // evalAnim for "h2_head"/"h3_head") AND the shared headBob so
+        // they don't double-up bob+sway. The wrapper rotation is
+        // applied around the canvas centre below so all parts of the
+        // same secondary head group stay glued and arc together.
         const isSecondaryHeadHere = isSecondaryHeadGroupPartLocal(part.partType);
         let dx = 0;
         let dy = 0;
+        let wrapperRot = 0;
         if (isSecondaryHeadHere) {
-          dx = swayPxFor(part.partType);
+          const m = swayMotionFor(part.partType);
+          dx = m.dx;
+          dy = m.dy;
+          wrapperRot = m.rot;
         } else {
           dy = anim.ty ? anim.ty * (drawSpan / size) * fitScale : 0;
           if (isHeadGroupPart(part.partType) && part.partType !== "h2_head" && part.partType !== "h3_head") {
@@ -743,15 +798,25 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         const sx = anim.sx ?? 1;
         const sy = anim.sy ?? 1;
         const hasScale = sx !== 1 || sy !== 1;
-        const hasTransform = rot !== 0 || dx !== 0 || dy !== 0 || hasScale;
+        const hasTransform = rot !== 0 || dx !== 0 || dy !== 0 || hasScale || wrapperRot !== 0;
 
         ctx.save();
         ctx.globalAlpha = op;
         if (hasTransform) {
+          // For secondary heads, apply the wrapper rotation FIRST
+          // (around the canvas centre = same pivot the img-renderer's
+          // wrapper rotates around) so every h2_/h3_ part of the same
+          // head group rotates as one coherent unit. Then apply the
+          // per-part transform on top.
+          if (wrapperRot !== 0) {
+            ctx.translate(wrapperCx, wrapperCy);
+            ctx.rotate(wrapperRot);
+            ctx.translate(-wrapperCx, -wrapperCy);
+          }
           // Apply transforms around the pivot so rotation/scale don't
-          // drift the part across the canvas. dx is the horizontal sway
-          // (secondary heads); dy is the vertical bob / above-head float
-          // / part-specific ty.
+          // drift the part across the canvas. dx/dy are the sway
+          // translations (secondary heads) or vertical bob /
+          // above-head float / part-specific ty.
           ctx.translate(px + dx, py + dy);
           if (rot !== 0) ctx.rotate(rot);
           if (hasScale) ctx.scale(sx, sy);
