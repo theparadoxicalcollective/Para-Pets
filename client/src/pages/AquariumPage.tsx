@@ -412,30 +412,30 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         const posMap = new Map(prev.map(f => [f.id, { x: f.x, y: f.y }]));
 
         let updated = prev.map(f => {
-          let { x, y, vx, wobble, facingRight, baseSpeed, state, stateTimer, chaseTargetId } = f;
+          let { x, y, vx, targetVx, wobble, wobbleSpeed, facingRight, baseSpeed, state, stateTimer, chaseTargetId } = f;
 
           stateTimer = Math.max(0, stateTimer - 1);
 
           if (stateTimer === 0) {
             if (state === "chasing") {
               facingRight = !facingRight;
-              vx = (facingRight ? 1 : -1) * baseSpeed;
+              targetVx = (facingRight ? 1 : -1) * baseSpeed;
               state = "normal";
               chaseTargetId = undefined;
               stateTimer = 80 + Math.floor(Math.random() * 120);
             } else if (state === "fleeing") {
-              vx = (facingRight ? 1 : -1) * baseSpeed;
+              targetVx = (facingRight ? 1 : -1) * baseSpeed;
               state = "normal";
               chaseTargetId = undefined;
               stateTimer = 80 + Math.floor(Math.random() * 120);
             } else if (state === "fast") {
               state = "normal";
-              vx = (facingRight ? 1 : -1) * baseSpeed;
+              targetVx = (facingRight ? 1 : -1) * baseSpeed;
               stateTimer = 80 + Math.floor(Math.random() * 140);
             } else {
               if (Math.random() < 0.20) {
                 state = "fast";
-                vx = (facingRight ? 1 : -1) * baseSpeed * 1.8;
+                targetVx = (facingRight ? 1 : -1) * baseSpeed * 1.8;
                 stateTimer = 20 + Math.floor(Math.random() * 35);
               } else {
                 stateTimer = 100 + Math.floor(Math.random() * 160);
@@ -448,8 +448,8 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
             if (target) {
               const chaseSpeed = baseSpeed * 1.8;
               const dx = target.x - x;
-              if (dx > 2)       { vx = chaseSpeed;  facingRight = true; }
-              else if (dx < -2) { vx = -chaseSpeed; facingRight = false; }
+              if (dx > 2)       { targetVx = chaseSpeed;  facingRight = true; }
+              else if (dx < -2) { targetVx = -chaseSpeed; facingRight = false; }
             }
           }
 
@@ -458,12 +458,13 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
             if (target) {
               const fleeSpeed = baseSpeed * 3.4;
               const dx = target.x - x;
-              if (dx > 2)       { vx = -fleeSpeed; facingRight = false; }
-              else if (dx < -2) { vx = fleeSpeed;  facingRight = true; }
+              if (dx > 2)       { targetVx = -fleeSpeed; facingRight = false; }
+              else if (dx < -2) { targetVx = fleeSpeed;  facingRight = true; }
             }
           }
 
-          wobble = (wobble + 0.032) % (Math.PI * 2);
+          vx += (targetVx - vx) * 0.08;
+          wobble = (wobble + wobbleSpeed) % (Math.PI * 2);
           const sineY = Math.sin(wobble) * 0.012;
           x += vx;
           const zone = swimZoneRef.current.get(f.shopItemId) ?? f.fishSwimZone ?? null;
@@ -499,7 +500,8 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
           if (x < 5)  { x = 5;  vx = Math.abs(vx);  facingRight = true; }
           if (x > 91) { x = 91; vx = -Math.abs(vx); facingRight = false; }
 
-          return { ...f, x, y, vx, wobble, facingRight, baseSpeed, state, stateTimer, chaseTargetId, targetY, targetYTimer };
+          if (x <= 5 || x >= 91) targetVx = vx;
+          return { ...f, x, y, vx, targetVx, wobble, wobbleSpeed, facingRight, baseSpeed, state, stateTimer, chaseTargetId, targetY, targetYTimer };
         });
 
         const activeChasers = updated.filter(f => f.state === "chasing").length;
@@ -638,6 +640,39 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
       <div className="absolute inset-0 pointer-events-none" style={{
         background: "linear-gradient(180deg,rgba(1,8,16,0.55) 0%,transparent 25%,transparent 72%,rgba(1,8,16,0.65) 100%)",
       }}/>
+
+      {Array.from({ length: 12 }).map((_, i) => {
+        const size = 18 + Math.random() * 34;
+        const left = Math.random() * 100;
+        const duration = 12 + Math.random() * 10;
+        const delay = -(Math.random() * 14);
+        const lane = (Math.random() * 18) - 9;
+        const opacity = 0.08 + Math.random() * 0.16;
+        return (
+          <div
+            key={`bubble-${i}`}
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: `${left}%`,
+              bottom: "-12%",
+              width: size,
+              height: size * (0.75 + Math.random() * 0.45),
+              borderRadius: "50% 62% 48% 58% / 60% 48% 62% 42%",
+              background: "radial-gradient(circle at 35% 30%, rgba(214,255,250,0.52) 0%, rgba(173,242,239,0.16) 28%, rgba(173,242,239,0.05) 55%, rgba(173,242,239,0) 76%)",
+              border: "1px solid rgba(207,255,250,0.16)",
+              boxShadow: "inset 0 0 12px rgba(206,255,250,0.10), 0 0 10px rgba(118,240,229,0.05)",
+              opacity,
+              backdropFilter: "blur(1px)",
+              filter: "blur(0.2px)",
+              transform: `translateX(${lane}px)`,
+              animation: `aqBubbleRise ${duration}s linear infinite`,
+              animationDelay: `${delay}s`,
+              willChange: "transform, opacity",
+            }}
+          />
+        );
+      })}
 
       {swimmers.map(f => {
         const rarity = f.starRarity ?? 1;
