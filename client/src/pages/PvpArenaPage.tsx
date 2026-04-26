@@ -470,9 +470,18 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPetIds]);
 
-  const hatchedPets = (inventory as any[]).filter(
-    (inv: any) => inv.type === "pet" && inv.isHatched
-  );
+  // Sorted highest → lowest ATK so the pet picker in the Prepare-for-Battle
+  // panel surfaces the player's strongest fighters first. Ties fall back to
+  // pet level (then name) for a stable, predictable order.
+  const hatchedPets = (inventory as any[])
+    .filter((inv: any) => inv.type === "pet" && inv.isHatched)
+    .sort((a: any, b: any) => {
+      const atkDiff = (b.petAtk ?? 0) - (a.petAtk ?? 0);
+      if (atkDiff !== 0) return atkDiff;
+      const lvlDiff = (b.petLevel ?? 0) - (a.petLevel ?? 0);
+      if (lvlDiff !== 0) return lvlDiff;
+      return String(a.petNickname || a.name || "").localeCompare(String(b.petNickname || b.name || ""));
+    });
 
   // Battle-usable potions: anything in inventory typed as "potion" that
   // actually does something useful in combat (heals HP/mana or revives).
