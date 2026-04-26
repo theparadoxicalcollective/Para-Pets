@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readFileAsDataUrl } from "@/lib/utils";
 import { Plus, Trash2, X, ArrowLeft, Save, Layers, Link2, Pencil, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
 
 interface PetTemplate {
   id: string;
@@ -494,16 +495,37 @@ export default function PetDatabasePanel({
     return data[3] > 10;
   }, [loadImageToCache]);
 
-  // Synchronous version — only works after the image is cached; returns true (safe default) if not cached yet
+  // Synchronous version — when the per-pixel cache is ready, returns
+  // true only for opaque pixels. When the cache is NOT yet ready
+  // (image still loading on first click after template open), falls
+  // back to the alpha BOUNDING BOX from getAlphaBoundsSync — so a
+  // click that lands inside a part's PNG box but OUTSIDE the visible
+  // pixels' bbox correctly reports false. This prevents the
+  // "clicking the leg selects the eyes" bug, where eyes are stored
+  // as a near-full-canvas PNG with a tiny visible region in the
+  // centre and were stealing every click on parts beneath them
+  // before their pixel data finished decoding.
   const isOpaqueSyncAt = useCallback((imageUrl: string, relX: number, relY: number): boolean => {
     const cv = pixelCacheRef.current.get(imageUrl);
-    if (!cv) return true;
-    const ctx = cv.getContext("2d");
-    if (!ctx || cv.width === 0 || cv.height === 0) return true;
-    const px = Math.max(0, Math.min(Math.floor(relX * cv.width), cv.width - 1));
-    const py = Math.max(0, Math.min(Math.floor(relY * cv.height), cv.height - 1));
-    const data = ctx.getImageData(px, py, 1, 1).data;
-    return data[3] > 10;
+    if (cv) {
+      const ctx = cv.getContext("2d");
+      if (!ctx || cv.width === 0 || cv.height === 0) return false;
+      const px = Math.max(0, Math.min(Math.floor(relX * cv.width), cv.width - 1));
+      const py = Math.max(0, Math.min(Math.floor(relY * cv.height), cv.height - 1));
+      const data = ctx.getImageData(px, py, 1, 1).data;
+      return data[3] > 10;
+    }
+    // Cache miss — use the visible-pixels bbox as a coarser but
+    // still-useful hit test. relX/relY are the click coords in the
+    // part's full-PNG 0..1 space, and alphaBounds returns the
+    // visible region in the same space.
+    const ab = getAlphaBoundsSync(imageUrl) ?? FULL_BOUNDS;
+    return (
+      relX >= ab.left &&
+      relX <= ab.left + ab.width &&
+      relY >= ab.top &&
+      relY <= ab.top + ab.height
+    );
   }, []);
 
   const handleCanvasPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {

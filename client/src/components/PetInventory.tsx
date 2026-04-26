@@ -105,8 +105,24 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
       return res.json();
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      // Update the user cache IMMEDIATELY (synchronous) before any of
+      // the dependent components re-render. Calling onUserUpdate first
+      // (which calls queryClient.setQueryData on /api/auth/me) means by
+      // the time HomePage / WorldPage / FloatingNav re-render in the
+      // next microtask, both the new activePetId AND the matching pet
+      // inventory entry are guaranteed to be present together.
+      //
+      // Then invalidate /api/auth/me AND /api/inventory in parallel.
+      // The previous code only invalidated /api/auth/me, so the user
+      // object had a fresh activePetId pointing at a pet that the
+      // /api/inventory cache might not yet include — components doing
+      // `inventory.find(p => p.id === activePetId)` saw `undefined`
+      // mid-swap and crashed downstream consumers (PetPowerUpModal,
+      // GlobalLevelUpOverlay, FloatingNav avatar). Invalidating both
+      // forces a coherent refetch.
       onUserUpdate(data);
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       toast({
         title: data.activePetId ? "Pet Selected" : "Pet Deselected",
         description: data.activePetId ? "Your companion has been chosen!" : "No active pet",

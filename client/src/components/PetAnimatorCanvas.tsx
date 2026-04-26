@@ -165,29 +165,27 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     // Front-facing arms — symmetric ±2° pendulum centered on 0°
     // (period 4.5 s, matches the body's breath rhythm). Mirrors the
     // img-renderer's petIdleLeftArm / petIdleRightArm keyframes
-    // (-2° → +2° / +2° → -2°). The previous range biased the arms
-    // to one side (canvas had ±3° / ±2° asymmetric, img had 0°→5° /
-    // 0°→-3.5°), which on big front-facing pets like the Black
-    // Forest Dragon and Seer Rabbit read as the arm "twitching up
-    // and resetting" instead of swaying. A true sine-pendulum
-    // through 0° fixes both the readability and the renderer drift.
-    // Side-view front_arm stays on its own 4 s cycle so it desyncs
-    // from back_arm (which rides the body's 4.5 s breath); kept at
-    // ±3° because side-view arms are visibly larger relative to the
-    // body silhouette than front-facing arms.
+    // (-2° → +2° / +2° → -2°).
     case "left_arm":
       return { op: 1, rot: -sinWave(sec, 4.5) * 2 * D2R };
     case "right_arm":
       return { op: 1, rot:  sinWave(sec, 4.5) * 2 * D2R };
-    case "front_arm":
-      return { op: 1, rot: -sinWave(sec, 4) * 3 * D2R };
 
-    // Side-facing back arm breathes with the body instead of swinging on
-    // its own — that way the back arm rises and falls in perfect sync
-    // with back_accessory_1 (capes, satchels, quivers mounted on the
-    // back arm) so they don't drift apart during idle. Matches img-
-    // renderer where back_arm shares petIdleBody.
-    case "back_arm":
+    // Side-facing limbs — ALL ride the body breath so the side-
+    // profile pet inflates and deflates as ONE silhouette. Earlier
+    // front_arm had its own ±3° rotation, the legs translated 1.5 px,
+    // and only back_arm rode the body breath — so the front arm
+    // visibly desynced from the chest, the front leg ticked on its
+    // own beat, and the back arm appeared static next to a moving
+    // front arm. Mirrors the img-renderer's IDLE_ANIMATIONS where
+    // front_arm/back_arm/front_leg/back_leg are all mapped to
+    // petIdleBody. The transformOriginOverride logic in the img
+    // renderer makes them scale around the body's foot anchor;
+    // canvas already scales each part around its own pivot which is
+    // typically the shoulder/hip, giving the same visual "rises with
+    // the chest" effect.
+    case "front_arm": case "back_arm":
+    case "front_leg": case "back_leg":
       return bodyBreath(sec);
 
     // Shoulders breathe with the body so the whole torso group expands

@@ -133,21 +133,30 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   // Front-facing wing sets
   wing_set2_left: "petIdleLeftWing",
   wing_set2_right: "petIdleRightWing",
-  // Side-facing limbs.
-  // back_arm shares `petIdleBody` (the breath scale) instead of swinging on
-  // its own — that way the back arm rises and falls in perfect sync with
-  // back_accessory_1 (which also uses petIdleBody), so quivers, satchels,
-  // capes etc. mounted on the back arm don't drift away from the back
-  // accessories during idle. Duration is also matched to body (4.5 s) in
-  // getPartDuration so the phase locks.
-  // front_arm gets its own slightly-larger amplitude keyframe so the
-  // forward arm in profile reads with a clearer swing for depth (the
-  // shared petIdleLeftArm keyframe is a smaller 5° sweep that's tuned
-  // for the front-view left arm).
-  front_arm: "petIdleSideFrontArm",
+  // Side-facing limbs — ALL routed to `petIdleBody` so the entire
+  // side-facing pet (body + both arms + both legs) inflates and
+  // deflates as ONE coherent silhouette during idle. Earlier the
+  // front_arm had its own ±7° rotation (petIdleSideFrontArm), the
+  // legs translated 1.5px on petIdleLeftLeg/petIdleRightLeg, and
+  // only the back_arm rode the body breath — so visually the back
+  // arm appeared static, the front leg ticked down on its own
+  // beat, and the front arm swung independently of the chest. The
+  // user reported all three as "arms not staying with the body".
+  // Putting every limb on petIdleBody (with the body-anchor
+  // transform-origin override in renderPartImg) means every limb
+  // scales around the SAME world point as the body — feet for
+  // ground pets, hover pivot for flying pets — so a back_arm
+  // attached at the shoulder visibly rises with the chest, a front
+  // leg at the foot stays glued to the floor while it scales
+  // imperceptibly, and the front arm tracks the body without its
+  // own desynced rotation. Duration is matched to body (4.5 s) in
+  // getPartDuration so the phase locks. Per-pet keyframe-level
+  // motion (ear twitches, tail swivels, wing flaps) still runs
+  // independently — only the LIMBS were the problem.
+  front_arm: "petIdleBody",
   back_arm: "petIdleBody",
-  front_leg: "petIdleLeftLeg",
-  back_leg: "petIdleRightLeg",
+  front_leg: "petIdleBody",
+  back_leg: "petIdleBody",
   // Side-facing wings mirror each other like the ears: the front wing flaps
   // one direction and the back wing flaps the opposite direction so the two
   // never sit perfectly in sync. Applies to both wing-set 1 and wing-set 2.
@@ -745,13 +754,6 @@ const ANIMATION_STYLES = `
     from { transform: rotate(0deg); }
     to   { transform: rotate(1.8deg); }
   }
-  /* Side-view front arm — slightly larger amplitude than petIdleLeftArm
-     (which is also used for the front-view left arm) so the front arm
-     in profile reads with a clearer "swing" / depth cue. */
-  @keyframes petIdleSideFrontArm {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(7deg); }
-  }
   /* Universal accessory sway — every accessory part type
      (front_accessory_1/2, back_accessory_1/2, front_left_accessory,
      front_right_accessory) uses this so they all read as "alive on
@@ -910,7 +912,7 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   "petAboveHeadBounce",
   // Side-view depth keyframes — also 2-keyframe from/to motions, so they
   // must alternate (ping-pong) instead of snapping back to 0 each cycle.
-  "petIdleSideShoulder", "petIdleSideFrontArm",
+  "petIdleSideShoulder",
   // Universal accessory sway — 2-keyframe rotation from -0.4° to 0.4°
   // applied to all six accessory part types. MUST alternate so the
   // sway smoothly ping-pongs between the two extremes; otherwise
