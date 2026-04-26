@@ -490,73 +490,12 @@ app.use((req, res, next) => {
   // every other fishing spot in that world. Going forward the
   // addFishToPond / removeFishFromPond storage methods keep things in sync
   // automatically, so this only needs to run once per deploy environment.
-  // Crimson Dragon idle-animation tuning. The default body-breath
-  // amplitude is too dramatic on this pet because its silhouette is
-  // large and the headScalesWithBody override doubles the visual
-  // impact. We also want the back arm + back accessories to read as
-  // slightly separate motion (a satchel/wing settling a beat after
-  // the shoulders) without ever drifting apart from each other.
-  // Idempotent jsonb merge keeps any existing overrides intact.
-  await runOnce("crimson_dragon_idle_breath_tuning_2026_04", async () => {
-    await db.execute(sql`
-      UPDATE pet_templates
-      SET animation_overrides = COALESCE(animation_overrides, '{}'::jsonb) || jsonb_build_object(
-        'idle',
-        COALESCE(animation_overrides->'idle', '{}'::jsonb) || jsonb_build_object(
-          'subtleBreath', true,
-          'backOffsetSec', 0.6
-        )
-      )
-      WHERE LOWER(name) LIKE '%crimson%dragon%'
-    `);
-  });
-
-  // Reduce the crimson dragon's back/head breath offset. The previous tuning
-  // (backOffsetSec: 0.6) created a visible separation where the head/back
-  // appeared to lift too far off the body during the idle breath, reading as
-  // a heave rather than a calm sway. Halving the offset to 0.25 keeps the
-  // depth cue (back parts still phase-shifted from body) but reduces the
-  // visible head-lift to "just a tab" as requested.
-  await runOnce("crimson_dragon_back_offset_tighten_2026_04", async () => {
-    await db.execute(sql`
-      UPDATE pet_templates
-      SET animation_overrides = COALESCE(animation_overrides, '{}'::jsonb) || jsonb_build_object(
-        'idle',
-        COALESCE(animation_overrides->'idle', '{}'::jsonb) || jsonb_build_object(
-          'backOffsetSec', 0.25
-        )
-      )
-      WHERE LOWER(name) LIKE '%crimson%dragon%'
-    `);
-  });
-
-  // Cerberus Serpent idle overrides. The three-headed serpent visually
-  // works best when the two SIDE heads (head 2 + head 3) tuck behind
-  // the central body silhouette and weave gently side-to-side, while
-  // the centre head (head 1) keeps its standard upward bob locked to
-  // the body's breath. The two flags below are independent:
-  //   • secondaryHeadsBehindBody → secondary head wrappers render at
-  //     bodyZ-1 instead of zIndex 9 (renderer logic in PetAnimator).
-  //   • secondaryHeadSway        → secondary head wrappers swap their
-  //     vertical bob for the petIdleHeadSway keyframe (~±0.4 % X).
-  // NOT gated by runOnce because Cerberus Serpent may be created in
-  // the admin panel AFTER deploy. The COALESCE-jsonb-merge pattern is
-  // idempotent — every server start re-applies the override (no-op if
-  // pet doesn't exist; cheap single UPDATE if it does), so admins can
-  // create the pet at any time and the override is in place after the
-  // very next server boot. Other pets are matched by NAME only and
-  // remain untouched.
-  await db.execute(sql`
-    UPDATE pet_templates
-    SET animation_overrides = COALESCE(animation_overrides, '{}'::jsonb) || jsonb_build_object(
-      'idle',
-      COALESCE(animation_overrides->'idle', '{}'::jsonb) || jsonb_build_object(
-        'secondaryHeadsBehindBody', true,
-        'secondaryHeadSway', true
-      )
-    )
-    WHERE LOWER(name) LIKE '%cerberus%serpent%'
-  `);
+  // (Per-pet animation override seeding removed: every pet now uses the
+  // global per-part-type animation map in PetAnimator / PetAnimatorCanvas,
+  // so admins tweak motion in one place and every pet picks it up.
+  // h2_/h3_-prefixed secondary heads always render behind body + sway as
+  // a built-in default — that used to be a Cerberus-only override and is
+  // now a global rule for any multi-head pet.)
 
   // Backfill `item_image_url` on player_market_listings for any historical
   // rows that were created before the listing endpoint started copying the

@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { getAlphaBounds, getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
-import type { PetAnimationOverrides } from "@shared/schema";
 
 interface PetPart {
   id: string;
@@ -356,23 +355,11 @@ const ANIMATION_STYLES = `
   @keyframes petIdleMouthClosed {
     0%, 100% { opacity: 1; }
   }
-  /* Per-pet override (idle.mouthBreath): subtle swivel applied to the
-     closed-mouth overlay so the jaw appears to drift gently with the
-     body's breath, without ever fading in the open-mouth overlay (the
-     paired cross-fade produced a visible white-edged ghost where the
-     two overlays didn't perfectly align in alpha). Amplitude is much
-     smaller than the wing flap (±5°) — only ±0.6° — so it reads as
-     "the mouth is alive" without ever looking like the pet is moving
-     its head. Phase-locked to bodyBreathDelay + 4.5 s duration. */
-  @keyframes petIdleMouthSwivel {
-    from { transform: rotate(-0.6deg); }
-    to   { transform: rotate(0.6deg); }
-  }
-  /* Per-pet override (idle.secondaryHeadSway): replaces the secondary
-     head wrappers' default vertical bob (petIdleHead) with a tiny
-     horizontal sway. Used by Cerberus Serpent so the side heads drift
+  /* Secondary-head sway: SECONDARY heads (h2_head / h3_head part types)
+     replace the standard vertical bob (petIdleHead) with a tiny
+     horizontal sway. Multi-head pets read as "the side heads drift
      gently left/right (independent of the body's breath) while the
-     centre head keeps its normal bob. Amplitude is intentionally tiny
+     centre head keeps its normal bob". Amplitude is intentionally tiny
      — ±0.4 % of the canvas (~1.2 px on a 300-px-rendered pet) — so it
      reads as "the head is alive" without ever looking like the head
      is rolling. 2-keyframe + alternate (added to ALTERNATE_MOTION_ANIMS
@@ -412,32 +399,6 @@ const ANIMATION_STYLES = `
     from { transform: translateY(0%); }
     to   { transform: translateY(-0.9%); }
   }
-  /* Per-pet override (idle.headScalesWithBody): combines the standard
-     head bob with the body's breathe scale so the head + every face
-     part inflates / deflates in lockstep with the torso. Numbers are
-     literally petIdleHead's translateY paired with petIdleBody's
-     scale (1.028, 1.05) so a pet that opts into this keyframe reads
-     as one continuously-breathing silhouette. The wrapper's
-     transform-origin is set to the body anchor at render time so the
-     head expands AROUND the body's pivot — producing the visible
-     "head rises with the body" effect rather than scaling around the
-     canvas centre (which would look detached). */
-  @keyframes petIdleHeadBreath {
-    from { transform: translateY(0%) scale(1, 1); }
-    to   { transform: translateY(-0.9%) scale(1.028, 1.05); }
-  }
-  /* Per-pet override pairing (idle.subtleBreath without headScalesWithBody):
-     same upward head bob as petIdleHead but with a tiny fraction of
-     the amplitude (-0.15% vs -0.9%, roughly 1/6th). Used by visually
-     large pets like Crimson Dragon where the body is using
-     petIdleBodySubtle (half amplitude) and even a half-amplitude
-     head lift still read as "the head is flying off the body". At
-     -0.15% the head is doing a barely-perceptible sway that simply
-     follows the body's calm breath without ever looking detached. */
-  @keyframes petIdleHeadSubtle {
-    from { transform: translateY(0%); }
-    to   { transform: translateY(-0.15%); }
-  }
   @keyframes petIdleLeftEar {
     from { transform: rotate(-2deg); }
     to   { transform: rotate(1deg); }
@@ -458,18 +419,6 @@ const ANIMATION_STYLES = `
   @keyframes petIdleBody {
     from { transform: scale(1, 1); }
     to   { transform: scale(1.028, 1.05); }
-  }
-  /* Per-pet override (idle.subtleBreath): same breath rhythm at roughly
-     half the inflate amplitude. Used by visually large pets like Crimson
-     Dragon where the standard breath reads as a heave (especially when
-     headScalesWithBody is also active and the head is riding the body's
-     scale). All body-synced parts (back_arm, back_accessory_*, shoulders)
-     are routed through this keyframe via idleBodyAnimName below so the
-     subtle breath stays consistent across the whole "breathes with body"
-     group. */
-  @keyframes petIdleBodySubtle {
-    from { transform: scale(1, 1); }
-    to   { transform: scale(1.014, 1.025); }
   }
   /* Wings — flap motion. The wings travel UP together (matched
      translateY) on the up-stroke and DOWN together on the down-stroke,
@@ -865,13 +814,6 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   "petIdleLeftEar", "petIdleRightEar",
   "petIdleLeftArm", "petIdleRightArm",
   "petIdleBody",
-  // Per-pet override (idle.subtleBreath): same 2-keyframe shape as
-  // petIdleBody, just with a smaller scale target. Must alternate so it
-  // shares the body's sine ping-pong rhythm — without this it would
-  // snap back to 1.0 every cycle while every other body-synced part
-  // (which keeps using petIdleBody's alternate behaviour via this set)
-  // smoothly ping-pongs, producing a visible "tic" at the loop reset.
-  "petIdleBodySubtle",
   "petIdleLeftWing", "petIdleRightWing",
   "petIdleLeftLeg", "petIdleRightLeg",
   "petIdleTail", "petIdleTail2", "petIdleTail3",
@@ -885,27 +827,11 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   // every cycle would visibly snap back to -0.4° (a tic every 4 s on
   // every accessory the pet is wearing).
   "petIdleAccessorySway",
-  // Per-pet override (idle.secondaryHeadSway): tiny horizontal sway
-  // applied to secondary head wrappers (Cerberus). Same 2-keyframe
-  // from/to motion as petIdleHead, so it MUST alternate to ping-pong
-  // smoothly instead of snapping back to translateX(-0.4%) each cycle
-  // (which would produce a visible "tic" every 3 s).
+  // Secondary-head sway: tiny horizontal sway applied to secondary
+  // head wrappers (h2_head / h3_head). Same 2-keyframe from/to motion
+  // as petIdleHead, so it MUST alternate to ping-pong smoothly instead
+  // of snapping back to translateX(-0.4%) each cycle.
   "petIdleHeadSway",
-  // Per-pet override head-breath. Must alternate (sine ping-pong) so it
-  // shares the SAME rhythm profile as petIdleBody — otherwise the head
-  // would inflate then snap back to 1.0 each cycle while the body keeps
-  // breathing smoothly, producing a visible "pop" at every loop reset.
-  "petIdleHeadBreath",
-  // Per-pet override head-bob subtle. 2-keyframe shape so it must
-  // alternate (sine ping-pong) like every other 2-keyframe motion —
-  // shares the body's 4.5 s alternate cycle so the head lift / settle
-  // tracks the subtle body breath instead of snapping back each loop.
-  "petIdleHeadSubtle",
-  // Per-pet override mouth-swivel. Alternates so the closed-mouth
-  // overlay sweeps gently from −0.6° → +0.6° → −0.6° in lock-step with
-  // the body's breath (the half-period of the alternate matches the
-  // body's inhale / exhale).
-  "petIdleMouthSwivel",
 ]);
 
 // Build the CSS `animation` shorthand for a given keyframe name. For the
@@ -1147,7 +1073,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     return () => ro.disconnect();
   }, [fillContainer]);
 
-  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean; animationOverrides?: PetAnimationOverrides }>({
+  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean }>({
     queryKey: ["/api/pet-template-parts", petTemplateId],
     queryFn: async () => {
       const res = await fetch(`/api/pet-template-parts/${petTemplateId}`, { credentials: "include" });
@@ -1190,43 +1116,17 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // don't read as "floating off the ground".
   const canFly = !!templateData?.canFly;
   const idleAnimMap = canFly ? IDLE_ANIMATIONS : IDLE_ANIMATIONS_GROUND;
-  // Per-pet animation overrides — defaults to {} for any pet without
-  // tweaks, so every field below falls back to the global default. New
-  // pets get `{}` automatically (DB column default) so they animate
-  // exactly like before; specific pets (e.g. Crimson Dragon) opt into
-  // tweaks via direct DB updates.
-  const animOverrides = templateData?.animationOverrides ?? {};
-  const idleHeadScalesWithBody = !!animOverrides.idle?.headScalesWithBody;
-  const idleMouthBreath = !!animOverrides.idle?.mouthBreath;
-  const idleSubtleBreath = !!animOverrides.idle?.subtleBreath;
-  // Per-pet override (Cerberus Serpent): secondary head wrappers
-  // (groupIdx > 0) layer BEHIND the body silhouette and use a tiny
-  // horizontal sway instead of the standard vertical bob. The PRIMARY
-  // head (groupIdx 0) is unaffected by either flag — it keeps its
-  // normal in-front placement and standard bob.
-  const idleSecondaryHeadsBehindBody = !!animOverrides.idle?.secondaryHeadsBehindBody;
-  const idleSecondaryHeadSway = !!animOverrides.idle?.secondaryHeadSway;
-  // Clamp the back-offset into the body's 4.5 s breath cycle. Anything
-  // larger just wraps and reads as a smaller offset; anything <= 0 is
-  // treated as "no offset" and back parts ride the body in lockstep
-  // (the existing default).
-  const rawBackOffset = animOverrides.idle?.backOffsetSec ?? 0;
-  const idleBackOffsetSec = rawBackOffset > 0 ? Math.min(rawBackOffset, 4.5) : 0;
-  // Body-synced parts (body, shoulders, back_arm, back_accessory_*) all
-  // pick up this animation name in idle mode. Per-pet `subtleBreath`
-  // override swaps in the smaller-amplitude keyframe so the WHOLE
-  // breathing group stays consistent.
-  const idleBodyAnimName = idleSubtleBreath ? "petIdleBodySubtle" : "petIdleBody";
-  // Set of animation names that count as "the body's breath keyframe"
-  // for delay-sync, transform-origin sync, and the alternate-motion
-  // ease — both the standard and the subtle override variant qualify.
+  // Every pet renders from the same global per-part-type animation map
+  // (IDLE_ANIMATIONS, IDLE_ANIMATIONS_GROUND, WALK_ANIMATIONS, etc.) so
+  // animation behaviour is tweaked in ONE place and applies to every
+  // pet uniformly. The only built-in special-case is multi-head pets:
+  // SECONDARY head wrappers (h2_/h3_-prefixed head part types) always
+  // layer BEHIND the body silhouette and use a tiny horizontal sway
+  // instead of the standard vertical bob (see headWrapperZ + wrapperAnim
+  // in the head-group render block below). The PRIMARY head
+  // ("head" part type) keeps its normal in-front placement and bob.
   const isBodyBreathAnim = (name: string | null | undefined) =>
-    name === "petIdleBody" || name === "petIdleBodySubtle";
-  // Back-arm + back-accessory parts share a SECOND delay (offset from
-  // bodyBreathDelay by idleBackOffsetSec) so they remain in sync with
-  // each other but slightly out of sync with the body. See the
-  // `backBreathDelay` derivation below renderPartImg.
-  const BACK_OFFSET_PARTS = new Set(["back_arm", "back_accessory_1", "back_accessory_2"]);
+    name === "petIdleBody";
 
   // Determine which view to render:
   // 1. If template is explicitly saved as side-facing ("back"), always use "back"
@@ -1413,12 +1313,6 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // front_shoulder + front_accessory_1/2 moved to petIdleSideShoulder for
   // an independent depth cue, so they no longer share this delay.
   let bodyBreathDelay: string | undefined;
-  // Sibling delay for back_arm + back_accessory_1/2 when the per-pet
-  // override `idle.backOffsetSec` is active. Stays undefined for pets
-  // without the override so back parts continue to ride bodyBreathDelay
-  // exactly. Computed below alongside bodyBreathDelay so they share the
-  // same source phase.
-  let backBreathDelay: string | undefined;
   // World-space anchor (in canvas units) where the body's breathe scale
   // pivots — every body-synced part (back_arm, back_accessory_1/2,
   // shoulders) needs to scale around THIS exact point so their inflate
@@ -1436,14 +1330,6 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     }
     const bodyBreathOffsetSec = (h % 1500) / 1000;
     bodyBreathDelay = `-${bodyBreathOffsetSec.toFixed(2)}s`;
-    if (idleBackOffsetSec > 0) {
-      // Wrap into 0..4.5 (the body breath cycle) so the offset always
-      // reads as a small phase shift no matter how big the override
-      // value is. Negative CSS animation-delay keeps the same convention
-      // as bodyBreathDelay.
-      const backOffsetMod = (bodyBreathOffsetSec + idleBackOffsetSec) % 4.5;
-      backBreathDelay = `-${backOffsetMod.toFixed(2)}s`;
-    }
     // Mirror the body part's own transform-origin choice (see the
     // bodyOrigin computation in the part-render loop and the override
     // logic in renderPartImg below): non-flying pets anchor at "50%
@@ -1505,13 +1391,9 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       // in lockstep (which would create a visible "stop" at every cycle
       // boundary).
       if (isBodyBreathAnim(animName) && bodyBreathDelay !== undefined) {
-        // Per-pet `idle.backOffsetSec` override: back_arm + back_accessory_*
-        // share their own (slightly shifted) delay so they remain in sync
-        // with each other but a beat off the body. Every other body-synced
-        // part keeps the canonical bodyBreathDelay.
-        computedDelay = (backBreathDelay !== undefined && BACK_OFFSET_PARTS.has(part.partType))
-          ? backBreathDelay
-          : bodyBreathDelay;
+        // Body-breath group all share the canonical bodyBreathDelay so
+        // body, shoulders, back_arm etc. inhale and exhale together.
+        computedDelay = bodyBreathDelay;
       } else {
         let h = 0;
         for (let i = 0; i < part.id.length; i++) h = (h * 31 + part.id.charCodeAt(i)) >>> 0;
@@ -1676,16 +1558,8 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             return renderPartImg(part, animName ?? null, undefined, wingDelay, bodyOrigin, partZ);
           }
           const anims = mode === "idle" ? idleAnimMap : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
-          const rawAnimName = lookupAnim(anims, part.partType) || anims.body;
-          if (!rawAnimName) return null;
-          // Per-pet `idle.subtleBreath` override swaps the body breath
-          // keyframe for the smaller-amplitude variant on every body-
-          // synced part (body, shoulders, back_arm, back_accessory_*)
-          // so the WHOLE breathing group reads as the same calmer
-          // breath instead of just the body.
-          const animName = (mode === "idle" && rawAnimName === "petIdleBody")
-            ? idleBodyAnimName
-            : rawAnimName;
+          const animName = lookupAnim(anims, part.partType) || anims.body;
+          if (!animName) return null;
           // Only the idle body keyframe scales — walk/zoom body uses
           // translateY only, so the anchor override is harmless either way.
           return renderPartImg(part, animName, undefined, wingDelay, bodyOrigin, partZ);
@@ -1699,58 +1573,41 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           // Sleep mode uses the gentle petSleepHead bob, petting uses the
           // bouncier petPettingHead. Otherwise use the active mode's head
           // animation (skipped for house/static).
-          // Per-pet override (Cerberus): SECONDARY heads use a tiny
-          // horizontal sway in idle mode instead of the standard vertical
-          // bob. Independent of the body's breath, so they read as "the
-          // side heads are alive on their own" while the centre head
-          // still rides the body's breath.
+          //
+          // SECONDARY HEADS (h2_head / h3_head part types) ALWAYS use a
+          // tiny horizontal sway in idle mode instead of the standard
+          // vertical bob. They also render BEHIND the body silhouette
+          // (see headWrapperZ below). The PRIMARY head ("head" part type)
+          // keeps its normal upward bob and in-front placement. This is a
+          // built-in default for any multi-head pet — formerly a per-pet
+          // override (Cerberus Serpent) that was promoted to a global
+          // rule so per-pet animation tweaks aren't needed.
           //
           // CRITICAL: identify primary vs secondary by HEAD PART TYPE,
           // NOT by groupIdx. headGroups are ordered by the iteration of
           // headParts in buildHeadGroups, which itself comes from
           // viewParts sorted by zIndex — so groupIdx is a layering
           // index, NOT a semantic "head 1 / head 2 / head 3" identity.
-          // The PRIMARY head is always the part with partType === "head"
-          // (no h2_/h3_ prefix); SECONDARY heads have partType "h2_head"
-          // or "h3_head". This guarantees the override targets the
-          // intended heads regardless of the admin-chosen z-ordering.
           const isSecondaryHead = group.head.partType !== "head";
-          const useSecondaryHeadSway =
-            mode === "idle" && isSecondaryHead && idleSecondaryHeadSway;
+          const useSecondaryHeadSway = mode === "idle" && isSecondaryHead;
           const wrapperAnim =
             mode === "sleep" ? "petSleepHead" :
             mode === "petting" ? "petPettingHead" :
-            // In idle, ALL heads use the upward-translation petIdleHead
-            // (even on ground pets — the small lift reads as following the
-            // body's breath, not as floating, because the body is also
-            // visibly inflating upward at the same moment).
-            // Per-pet override `idle.headScalesWithBody` swaps in
-            // petIdleHeadBreath so the head also inflates / deflates
-            // with the body's breath. Anchored at the body pivot below
-            // so the scale reads as "head rises with torso" rather than
-            // detaching from it.
-            mode === "idle" ? (
-              useSecondaryHeadSway
-                ? "petIdleHeadSway"
-                : (idleHeadScalesWithBody
-                    ? "petIdleHeadBreath"
-                    : (idleSubtleBreath ? "petIdleHeadSubtle" : "petIdleHead"))
-            ) :
+            // In idle, the PRIMARY head uses the upward-translation
+            // petIdleHead (even on ground pets — the small lift reads as
+            // following the body's breath). SECONDARY heads use the tiny
+            // horizontal sway petIdleHeadSway so they read as alive on
+            // their own next to the centre head.
+            mode === "idle"
+              ? (useSecondaryHeadSway ? "petIdleHeadSway" : "petIdleHead")
+              :
             (mode !== "house" && mode !== "static") ? anims["head"] :
             undefined;
-          // Head wrapper transform-origin. Default leaves it at the
-          // wrapper's centre (50% 50% of the canvas) which is fine for
-          // pure translateY animations like petIdleHead. When the
-          // headScalesWithBody override is active we MUST anchor the
-          // wrapper at the body's pivot so the scale grows / shrinks
-          // around the same world point the body itself does — without
-          // this, the head wrapper would scale around the canvas centre
-          // and the head would visibly slide off the body during inhale.
-          const wrapperOrigin: string | undefined =
-            mode === "idle" && idleHeadScalesWithBody &&
-            bodyAnchorWorldX !== undefined && bodyAnchorWorldY !== undefined
-              ? `${((bodyAnchorWorldX / CANVAS_SIZE) * 100).toFixed(2)}% ${((bodyAnchorWorldY / CANVAS_SIZE) * 100).toFixed(2)}%`
-              : undefined;
+          // Head wrapper transform-origin defaults to the wrapper's
+          // centre (50% 50% of the canvas), which is correct for the
+          // pure translateY / translateX motions used by petIdleHead and
+          // petIdleHeadSway respectively.
+          const wrapperOrigin: string | undefined = undefined;
           // In idle mode, override the head's natural 3 s rhythm so it
           // matches the body's 4.5 s breath — and lock its phase to
           // bodyBreathDelay so every head lifts on the body's inhale and
@@ -1772,20 +1629,18 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
 
           const allGroupParts = [group.head, ...group.faceParts];
 
-          // Per-pet override (Cerberus): drop the SECONDARY head wrappers
-          // BELOW the body silhouette. Default head wrapper sits at zIndex
-          // 9 (above all body parts, which are compressed into 1..8).
-          // When the override is active we anchor the wrapper at one less
-          // than the body part's compressed z so the secondary head reads
-          // as tucked behind the torso while still sitting in FRONT of
-          // legs / tails / wings (which are below body in the compressed
-          // range). Falls back to 4 (just below the typical body z of
-          // 5–6) if the body part somehow wasn't found.
-          //
-          // Same rule as useSecondaryHeadSway above: identify secondary
-          // by HEAD PART TYPE (h2_head / h3_head), NOT by groupIdx.
+          // SECONDARY head wrappers (h2_head / h3_head) ALWAYS render
+          // BELOW the body silhouette so multi-head pets read with side
+          // heads tucked behind the central torso. Default head wrapper
+          // sits at zIndex 9 (above all body parts, which are compressed
+          // into 1..8). Secondary head wrappers anchor at one less than
+          // the body part's compressed z so they tuck behind the torso
+          // while still sitting in FRONT of legs / tails / wings (which
+          // are below body in the compressed range). Falls back to 4
+          // (just below the typical body z of 5–6) if the body part
+          // somehow wasn't found. PRIMARY head wrappers stay at 9.
           let headWrapperZ = 9;
-          if (idleSecondaryHeadsBehindBody && isSecondaryHead) {
+          if (isSecondaryHead) {
             const bodyPartForLayer = bodyParts.find(p => p.partType === "body");
             const bodyCompressedZ = bodyPartForLayer
               ? compressedZ.get(bodyPartForLayer.id)
@@ -1853,31 +1708,6 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                   }
                   const delay = isEyePart ? groupBlinkOffset : `${groupDelay}s`;
                   return renderPartImg(part, animName, undefined, delay);
-                }
-                // Per-pet mouth-breath override (idle only, neutral
-                // expression only). Replaces the prior paired cross-fade
-                // (which produced a visible white-edged ghost where the
-                // open and closed overlays didn't align in alpha) with a
-                // tiny swivel applied to the closed-mouth overlay only.
-                // The open-mouth overlay is left at its default (hidden
-                // via petIdleMouth's opacity:0 keyframe) so it never
-                // fades in. Phase-locked to bodyBreathDelay + 4.5 s.
-                //
-                // Strict gates:
-                //   - mode === "idle": IDLE-only; walk / zoom / sleep /
-                //     petting / house / static keep default mouth behavior.
-                //   - effectiveExpression === "neutral": happy / petted
-                //     poses ignore the swivel (happy pins the open mouth
-                //     visible; petted hides both — neither should sway).
-                const baseType = part.partType.replace(/^h[23]_/, "");
-                if (
-                  mode === "idle" &&
-                  effectiveExpression === "neutral" &&
-                  idleMouthBreath &&
-                  bodyBreathDelay !== undefined &&
-                  baseType === "mouth_closed"
-                ) {
-                  return renderPartImg(part, "petIdleMouthSwivel", undefined, bodyBreathDelay, undefined, undefined, "4.5s");
                 }
                 // Head itself has no per-part animation (wrapper handles the bobbing)
                 const partAnimName = isHeadPartType(part.partType) ? null : (lookupAnim(anims, part.partType) ?? null);

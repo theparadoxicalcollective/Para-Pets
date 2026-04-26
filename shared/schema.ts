@@ -227,61 +227,6 @@ export const gameSettings = pgTable("game_settings", {
   value: text("value").notNull(),
 });
 
-// Per-pet animation override schema. Stored as JSONB on petTemplates so each
-// pet can carry its own tweaks on top of the global defaults baked into
-// PetAnimator / PetAnimatorCanvas. Empty object `{}` means "use defaults
-// for everything" — every field is optional and falls back to the global
-// behaviour when missing. Schema is intentionally extensible so new knobs
-// (petting bounce, sleep depth, etc.) can be added later without a
-// migration; the renderer just gates each field with a `?? default`.
-export type PetAnimationOverrides = {
-  idle?: {
-    /** When true, the head wrapper (head + every face/head-group part) ALSO
-     *  scales with the body's breath, in addition to the existing head bob.
-     *  Anchored at the body's pivot so the head visually inflates / rises
-     *  in lockstep with the torso (used to make Crimson Dragon's whole
-     *  silhouette breathe as one). Default false. */
-    headScalesWithBody?: boolean;
-    /** When true, the open-mouth overlay ("mouth" part) cross-fades in and
-     *  out gently in sync with the body's breath, so the pet's jaws appear
-     *  to part slightly during inhale and close on exhale. Used for pets
-     *  that should look like they're breathing through an open mouth (e.g.
-     *  Crimson Dragon). Requires both "mouth" (open) and "mouth_closed"
-     *  parts to exist on the template; ignored otherwise. Default false. */
-    mouthBreath?: boolean;
-    /** When true, the body's breath keyframe is swapped for a smaller-
-     *  amplitude version (about half the inflate). Combines naturally with
-     *  headScalesWithBody — the larger the silhouette, the more the
-     *  default ±2.8/5 % scale reads as a heave. Used for visually big
-     *  pets like Crimson Dragon where the standard breath looks
-     *  exaggerated. Default false (= standard amplitude). */
-    subtleBreath?: boolean;
-    /** Seconds of phase offset applied to back_arm + back_accessory_1/2
-     *  relative to the body's breath cycle. The three back parts SHARE
-     *  the same offset so they remain perfectly in sync with each other,
-     *  but they sit slightly out of phase with the body — adds a hint of
-     *  separate motion (a satchel / wing settling a beat after the
-     *  shoulders) without ever drifting far enough to look broken.
-     *  Clamped to the 0–4.5 s breath cycle. Default 0 (= locked to
-     *  body, current behaviour). */
-    backOffsetSec?: number;
-    /** When true, the SECONDARY head wrappers (groupIdx > 0 — i.e. head 2
-     *  and head 3 on multi-head pets) render BEHIND the body layer
-     *  instead of the default in-front placement. Used by Cerberus
-     *  Serpent so the side heads visibly weave behind the central body
-     *  silhouette. The primary head (groupIdx 0) is unaffected. Default
-     *  false (= every head rides above the body, current behaviour). */
-    secondaryHeadsBehindBody?: boolean;
-    /** When true, the SECONDARY head wrappers (groupIdx > 0) replace the
-     *  default vertical head bob with a tiny horizontal sway keyframe
-     *  (petIdleHeadSway). Independent of secondaryHeadsBehindBody. The
-     *  primary head keeps its normal bob. Used by Cerberus Serpent so
-     *  the side heads drift left/right gently while the centre head
-     *  bobs normally. Default false. */
-    secondaryHeadSway?: boolean;
-  };
-};
-
 export const petTemplates = pgTable("pet_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -294,14 +239,6 @@ export const petTemplates = pgTable("pet_templates", {
   // from the live game (filtered out of the regular admin pet list) so admins
   // can experiment with parts without polluting real gameplay data.
   isTest: boolean("is_test").notNull().default(false),
-  // Per-pet animation overrides. Defaults to `{}` (= use global defaults
-  // for every animation knob). New pets created through the admin path
-  // automatically receive `{}` so they animate with the standard idle /
-  // petting / sleep behaviour out of the box. Specific pets are then
-  // tweaked via direct DB updates (e.g. Crimson Dragon's head-scales-with-
-  // body). Renderer reads each field with `?? default` so missing fields
-  // are equivalent to "no override".
-  animationOverrides: jsonb("animation_overrides").$type<PetAnimationOverrides>().notNull().default(sql`'{}'::jsonb`),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
