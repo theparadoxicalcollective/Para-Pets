@@ -255,15 +255,21 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     case "body":
       return bodyBreath(sec);
 
-    // Head — gentle vertical bob. Bumped from peak −3.6 → −5.6 px so
-    // the head's lift visibly tracks the body's breath instead of
-    // looking like it stays put while the body inflates around it.
-    // Mirrors the img-renderer's petIdleHead bump from -0.9% → -1.4%
-    // (~1.55× larger, same ratio applied here). The translation is
-    // applied to every HEAD_GROUP_PARTS member at draw time so the
-    // eyes and mouth stay glued to the skull.
+    // Head — gentle vertical bob. Set to peak −10 px (was −5.6) so
+    // the head VISIBLY rises during the body's inhale instead of
+    // looking like it sinks into the body. The body's scale anchored
+    // at the feet pushes its own top edge up by ~1.9% of the canvas
+    // during inhale; if the head bob is anywhere near that, the body
+    // visually "rises to meet" the head and players read it as the
+    // head going DOWN while the body breathes up. -10 px (~2.5% of a
+    // 400-px canvas) gives the head a clear lead over the body's top
+    // edge so the head reads as clearly rising with the inhale.
+    // Mirrors the img-renderer's petIdleHead -2.5% (same 4× ratio
+    // calibration we use elsewhere for percent → canvas units).
+    // The translation is applied to every HEAD_GROUP_PARTS member at
+    // draw time so the eyes and mouth stay glued to the skull.
     case "head":
-      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, 3)) * 0.5) * 5.6 };
+      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, 3)) * 0.5) * 10 };
 
     // Above-head accessory (crowns / halos / horns / hats). Previously
     // -7 px (and the img renderer was -15 % of the part height) which

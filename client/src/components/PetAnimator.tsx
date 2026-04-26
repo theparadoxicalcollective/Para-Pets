@@ -389,17 +389,24 @@ const ANIMATION_STYLES = `
      The wrapper sits inside an inner-div that's scaled by partScale
      (0.3 for 1000-px source pets), so an absolute pixel value here gets
      squashed by the same factor on screen.
-     Bumped from -0.9% → -1.4% so the head's rise visibly tracks the
-     body's breath: with the previous tiny lift the head appeared to
-     "stay small" while the body inflated noticeably underneath, which
-     read as the two moving on different rhythms. The body-breath
-     scale was simultaneously dialed back (see petIdleBody below) so
-     the new head amplitude restores parity between head and torso
-     during the inhale/exhale. Both still phase-locked via
+
+     Set to -2.5% (was -1.4%) so the head VISIBLY rises during the
+     body's inhale instead of looking like it sinks into the body.
+     Math: with petIdleBody at scale(1, 1.038) anchored at the feet
+     (50% 100%), a typical body image filling ~50% of the canvas
+     pushes its OWN top edge up by ~1.9% of the canvas. If the head
+     bob is anywhere near that number (the previous 1.4% was BELOW
+     it!), the body's top "rises to meet" the head and the head
+     visibly disappears into the silhouette — which players read as
+     "the head is going DOWN while the body breathes up" even though
+     the head IS lifting. -2.5% gives the head a clear ~0.6% net
+     lead over the body's top edge so the head reads as clearly
+     rising with the inhale and settling on the exhale, exactly the
+     way breathing reads in real life. Both still phase-locked via
      headSyncBreath / bodyBreathDelay so they peak together. */
   @keyframes petIdleHead {
     from { transform: translateY(0%); }
-    to   { transform: translateY(-1.4%); }
+    to   { transform: translateY(-2.5%); }
   }
   @keyframes petIdleLeftEar {
     from { transform: rotate(-2deg); }
