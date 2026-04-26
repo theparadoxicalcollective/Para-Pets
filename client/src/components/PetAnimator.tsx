@@ -571,17 +571,30 @@ const ANIMATION_STYLES = `
      other — same trick the wings already use to look alive instead
      of mirrored. Pivot is the part's own pivot (set in the editor)
      so the swivel rotates around the tail base. */
+  /* Tail rise amount is bumped (was -1.5px on every tail) so the lift is
+     visibly aligned with the body's actual top rise on inhale. The body
+     anchors at "50% 100%" (feet) and scales Y by 1.046, so a typical body
+     filling ~60 % of a 256 px canvas rises ~7 px at peak — a 1.5 px tail
+     lift was lost in that gap and the body appeared to leave the tail
+     behind. Slot 1 gets the largest follow (-3.5px) since it's also
+     phase-locked to bodyBreathDelay (see the delay branch in
+     renderPartImg below — isTailIdleAnim routes petIdleTail/2/3 onto
+     the body's shared delay so all three tails START on the same beat
+     as the body's inhale). Slots 2 and 3 keep slightly smaller rises
+     plus their own different periods (3.7 s / 4.1 s vs body's 4.5 s)
+     so they continuously drift in and out of phase with body and with
+     each other — same trick the wings use. */
   @keyframes petIdleTail {
     from { transform: translateY(0px)   rotate(-1.4deg); }
-    to   { transform: translateY(-1.5px) rotate( 1.4deg); }
+    to   { transform: translateY(-3.5px) rotate( 1.4deg); }
   }
   @keyframes petIdleTail2 {
     from { transform: translate(0px,   0px)   rotate(-2.5deg); }
-    to   { transform: translate(-1px, -1.5px) rotate( 2.5deg); }
+    to   { transform: translate(-1px, -3px) rotate( 2.5deg); }
   }
   @keyframes petIdleTail3 {
     from { transform: translate(0px,  0px)   rotate( 2.5deg); }
-    to   { transform: translate(1px, -1.5px) rotate(-2.5deg); }
+    to   { transform: translate(1px, -3px) rotate(-2.5deg); }
   }
   /* Ground head: small left/right tilt instead of upward bob. Reduced
      from ±0.6deg → ±0.4deg so the head reads as a barely-there sway
@@ -1282,6 +1295,17 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // ("head" part type) keeps its normal in-front placement and bob.
   const isBodyBreathAnim = (name: string | null | undefined) =>
     name === "petIdleBody";
+  // Tail idle keyframes — petIdleTail / petIdleTail2 / petIdleTail3 — should
+  // share the body's STARTING phase (bodyBreathDelay) so all three tails
+  // rise on the same beat as the body's inhale and the body never appears
+  // to leave the tail behind. Slot 1 (4.5 s) stays in lockstep with the
+  // body forever; slots 2 and 3 (3.7 s / 4.1 s) start in phase but drift
+  // — that's intentional (see the petIdleTail keyframe comment).
+  // NOTE: this only routes the DELAY, not the transform-origin — tails
+  // keep their own pivot-based origin so the swivel still rotates around
+  // the tail base (isBodyBreathAnim still gates the origin override).
+  const isTailIdleAnim = (name: string | null | undefined) =>
+    name === "petIdleTail" || name === "petIdleTail2" || name === "petIdleTail3";
 
   // Determine which view to render:
   // 1. If template is explicitly saved as side-facing ("back"), always use "back"
@@ -1597,6 +1621,29 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       if (isBodyBreathAnim(animName) && bodyBreathDelay !== undefined) {
         // Body-breath group all share the canonical bodyBreathDelay so
         // body, shoulders, back_arm etc. inhale and exhale together.
+        computedDelay = bodyBreathDelay;
+      } else if (
+        isTailIdleAnim(animName) &&
+        bodyBreathDelay !== undefined &&
+        (part.partType === "tail" || part.partType === "tail_2" || part.partType === "tail_3")
+      ) {
+        // Tails — phase-lock the START of each tail's cycle to the
+        // body's inhale so tails 1/2/3 all rise on the same beat as
+        // the body. Slot 1 (4.5 s) stays in lockstep with the body
+        // forever; slots 2 & 3 (3.7 s / 4.1 s) start in phase but
+        // continuously drift — that's the intentional "looking alive"
+        // multi-tail behaviour. Without this, each tail picked up its
+        // own per-part hash delay and the body could be mid-inhale
+        // while the tail was just starting its cycle, producing the
+        // "body leaves tail behind" gap on the back of the pet.
+        //
+        // IMPORTANT: gate by part TYPE as well as animation name. The
+        // petIdleTail keyframe is also reused by `back_hair` (see the
+        // IDLE_ANIMATIONS map) — but back_hair has its own duration and
+        // shouldn't inherit the tail-specific phase-lock. Without this
+        // partType gate, back_hair would also get bodyBreathDelay and
+        // start body-locked, which is a behaviour change beyond the
+        // intended "tails follow body breath" scope.
         computedDelay = bodyBreathDelay;
       } else {
         let h = 0;
