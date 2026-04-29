@@ -2849,32 +2849,44 @@ export default function WorldPage({ user }: WorldPageProps) {
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-3">
-                {displayItems.map(item => {
+                {displayItems.map((item, idx) => {
+                  const prev = displayItems[idx - 1];
+                  const showTypeDivider = pickerFilter === "all" && (!prev || prev.type !== item.type);
                   const imgSrc = item.type === "pet" ? (item.eggImageUrl || item.imageUrl) : item.imageUrl;
                   const isOwned = item.type === "pet" && ownedItemIds.has(item.id);
                   const canAfford = currentUser.coins >= item.price;
                   const descLines = getItemDescription(item);
                   return (
-                    <div
-                      key={item.id}
-                      data-testid={`card-shop-item-${item.id}`}
-                      className="relative flex flex-col items-center rounded-2xl transition-transform active:scale-95"
-                      style={{
-                        background: "linear-gradient(160deg, rgba(255,255,255,0.06) 0%, rgba(0,0,0,0.35) 100%)",
-                        border: `1.5px solid ${accent}30`,
-                        boxShadow: `0 2px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)`,
-                        cursor: "pointer",
-                        padding: "10px 8px 8px",
-                      }}
-                      onClick={() => {
-                        if (currentUser.isAdmin) return;
-                        playTick();
-                        setSelectedShopItem(item);
-                        setBuyStep(1);
-                        setBuyQty(1);
-                        setBuyError(null);
-                      }}
-                    >
+                    <div key={item.id}>
+                      {showTypeDivider && (
+                        <div className="col-span-3 py-1">
+                          <div className="flex items-center gap-2">
+                            <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.12)" }} />
+                            <span className="font-fantasy text-[9px] tracking-[0.24em]" style={{ color: `${accent}70` }}>
+                              {item.type.replace("_", " ").toUpperCase()}
+                            </span>
+                            <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.12)" }} />
+                          </div>
+                        </div>
+                      )}
+                      <div
+                        className="relative flex flex-col items-center rounded-2xl transition-transform active:scale-95"
+                        style={{
+                          background: "linear-gradient(160deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.58) 100%)",
+                          border: `1.5px solid ${accent}30`,
+                          boxShadow: `0 2px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)`,
+                          cursor: "pointer",
+                          padding: "10px 8px 8px",
+                        }}
+                        onClick={() => {
+                          if (currentUser.isAdmin) return;
+                          playTick();
+                          setSelectedShopItem(item);
+                          setBuyStep(1);
+                          setBuyQty(1);
+                          setBuyError(null);
+                        }}
+                      >
                       {/* Admin remove button */}
                       {currentUser.isAdmin && (
                         <button
@@ -2922,6 +2934,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                       <div className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: canAfford ? `${accent}20` : "rgba(80,60,40,0.25)", border: `1px solid ${canAfford ? accent + "50" : "rgba(100,80,50,0.35)"}` }}>
                         <img src={coinIconImg} alt="" style={{ width: "9px", height: "9px", objectFit: "contain" }} />
                         <span className="font-fantasy" style={{ fontSize: "9px", color: canAfford ? accent : "#7a6040", fontWeight: 700 }}>{item.price}</span>
+                      </div>
                       </div>
                     </div>
                   );
