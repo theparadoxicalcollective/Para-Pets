@@ -615,24 +615,6 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         @keyframes fishTailSegA   { from { transform: rotate(-5deg); } to { transform: rotate(5deg);  } }
         @keyframes fishTailSegB   { from { transform: rotate(4deg);  } to { transform: rotate(-4deg); } }
         @keyframes fishBlink      { 0%,92%,100% { opacity:1; } 95%,97% { opacity:0; } }
-        /* Aquarium bubbles — flowy, irregular blob shapes that drift up
-           from the bottom and gently sway side-to-side. We deliberately
-           avoid perfect circles: the irregular border-radius (50% 60%
-           45% 55% / …) plus a slight scale-skew at mid-rise gives each
-           bubble a soft, water-shaped silhouette instead of a hard
-           orb. The gradient (light-teal core fading to fully transparent
-           edge) reads as a thin film of refracted water rather than a
-           solid ball. Each bubble instance below randomises size, lane,
-           opacity, duration and delay so the column never repeats. */
-        @keyframes aqBubbleRise {
-          0%   { transform: translate(0px, 0%)    scale(0.85) rotate(0deg);   opacity: 0; }
-          12%  { opacity: var(--bubble-opacity, 0.25); }
-          25%  { transform: translate(6px, -25%)  scale(1.05, 0.95) rotate(8deg); }
-          50%  { transform: translate(-4px, -55%) scale(0.95, 1.08) rotate(-6deg); }
-          75%  { transform: translate(5px, -82%)  scale(1.04, 0.96) rotate(5deg); }
-          92%  { opacity: var(--bubble-opacity, 0.25); }
-          100% { transform: translate(0px, -110%) scale(0.9)  rotate(0deg);   opacity: 0; }
-        }
       `}</style>
 
       <img src={aquariumBg} alt="" className="absolute inset-0 w-full h-full object-cover" draggable={false} />
@@ -640,39 +622,6 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
       <div className="absolute inset-0 pointer-events-none" style={{
         background: "linear-gradient(180deg,rgba(1,8,16,0.55) 0%,transparent 25%,transparent 72%,rgba(1,8,16,0.65) 100%)",
       }}/>
-
-      {Array.from({ length: 12 }).map((_, i) => {
-        const size = 18 + Math.random() * 34;
-        const left = Math.random() * 100;
-        const duration = 12 + Math.random() * 10;
-        const delay = -(Math.random() * 14);
-        const lane = (Math.random() * 18) - 9;
-        const opacity = 0.08 + Math.random() * 0.16;
-        return (
-          <div
-            key={`bubble-${i}`}
-            aria-hidden="true"
-            style={{
-              position: "absolute",
-              left: `${left}%`,
-              bottom: "-12%",
-              width: size,
-              height: size * (0.75 + Math.random() * 0.45),
-              borderRadius: "50% 62% 48% 58% / 60% 48% 62% 42%",
-              background: "radial-gradient(circle at 35% 30%, rgba(214,255,250,0.52) 0%, rgba(173,242,239,0.16) 28%, rgba(173,242,239,0.05) 55%, rgba(173,242,239,0) 76%)",
-              border: "1px solid rgba(207,255,250,0.16)",
-              boxShadow: "inset 0 0 12px rgba(206,255,250,0.10), 0 0 10px rgba(118,240,229,0.05)",
-              opacity,
-              backdropFilter: "blur(1px)",
-              filter: "blur(0.2px)",
-              transform: `translateX(${lane}px)`,
-              animation: `aqBubbleRise ${duration}s linear infinite`,
-              animationDelay: `${delay}s`,
-              willChange: "transform, opacity",
-            }}
-          />
-        );
-      })}
 
       {swimmers.map(f => {
         const rarity = f.starRarity ?? 1;

@@ -377,12 +377,12 @@ export default function PetDatabasePanel({
     accessory_2: 11, accessory_1: 11,
     mouth: 12, mouth_closed: 13,
     eyes_closed: 14, eyes: 15,
-    hair_right: 16, hair_left: 17,
-    above_head: 18,
+    hair_right: 16, hair_left: 17, hair_center: 18,
+    above_head: 19,
   };
   const previewIsHeadGroupBase = new Set([
     "eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed",
-    "hair_left", "hair_right", "accessory_1", "accessory_2", "above_head",
+    "hair_left", "hair_right", "hair_center", "accessory_1", "accessory_2", "above_head",
     "left_ear_2", "right_ear_2",
   ]);
   const previewIsSecondaryHeadGroupPart = (pt: string): boolean => {

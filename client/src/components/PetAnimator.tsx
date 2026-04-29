@@ -1086,7 +1086,8 @@ const LAYER_ORDER: Record<string, number> = {
   eyes: 15,
   hair_right: 16,
   hair_left: 17,
-  above_head: 18,
+  hair_center: 18,
+  above_head: 19,
 };
 
 // Stagger offsets for duplicate same-type non-head parts
