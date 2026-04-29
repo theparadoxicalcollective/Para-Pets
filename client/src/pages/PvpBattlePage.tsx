@@ -401,14 +401,8 @@ export default function PvpBattlePage({
       return {
         uid: nextUid(), invId: e.id,
         name: invItem.petNickname || invItem.name || "Pet",
-        // Pets in PvP should render as the hatched creature, not the
-        // egg. shop_items stores both URLs; `imageUrl` is the shop /
-        // egg art and `hatchedImageUrl` is the actual pet sprite. Fall
-        // back to imageUrl only if a pet's hatched art is somehow
-        // missing so we never render an empty slot. Use `||` (not
-        // `??`) to match the rest of the codebase — an empty-string
-        // hatchedImageUrl should fall through, not block fallback.
-        imageUrl: (invItem as any).hatchedImageUrl || invItem.imageUrl || null,
+        // World battle should use the hatched still image, matching Murk Cave.
+        imageUrl: invItem.hatchedImageUrl || invItem.imageUrl || null,
         petTemplateId: invItem.petTemplateId ?? null,
         starRarity: invItem.starRarity ?? 1,
         maxHp: invItem.petHealth || 800, hp: invItem.petHealth || 800,
@@ -433,12 +427,7 @@ export default function PvpBattlePage({
       return {
         uid: nextUid(), invId: p.inventoryId || p.id,
         name: p.petNickname || p.name || "Foe",
-        // Same hatched-vs-egg fallback as for the player's own pets
-        // — opponents are also hatched creatures and should never
-        // show their egg art on the battlefield. Truthy `||` matches
-        // the rest of the codebase so an empty-string hatched URL
-        // still falls through to the egg art instead of rendering
-        // a blank sprite.
+        // World battle should use the hatched still image, matching Murk Cave.
         imageUrl: p.hatchedImageUrl || p.imageUrl || null,
         petTemplateId: p.petTemplateId ?? null,
         starRarity: p.starRarity ?? 1,
