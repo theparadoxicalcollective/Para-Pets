@@ -218,6 +218,8 @@ export default function PvpBattlePage({
 
   const [pets, setPets] = useState<BattlePet[]>([]);
   const petsRef = useRef<BattlePet[]>([]);
+  const initialAllyCountRef = useRef(0);
+  const initialEnemyCountRef = useRef(0);
   const battleActiveRef = useRef(false);
   const battleStartMsRef = useRef(0);
   const animFrameRef = useRef(0);
@@ -462,6 +464,8 @@ export default function PvpBattlePage({
     const built = buildPets();
     if (!built || !built.filter(p => p.isPlayer).length) return;
     petsRef.current = built;
+    initialAllyCountRef.current = built.filter(p => p.isPlayer).length;
+    initialEnemyCountRef.current = built.filter(p => !p.isPlayer).length;
     setPets(built);
     setPhase("countdown");
   }, [phase, oppLoading, buildPets]);
@@ -897,7 +901,7 @@ export default function PvpBattlePage({
         const mEl = petManaRefs.current.get(p.uid);
         if (mEl) {
           mEl.style.width      = `${(p.mana / MAX_MANA) * 100}%`;
-          mEl.style.background = p.mana >= MAX_MANA ? "#c084fc" : "#4c1d95";
+          mEl.style.background = p.mana >= MAX_MANA ? "#4ade80" : "#166534";
         }
       }
       // Throttled state push so React still fires for the discrete UI
@@ -1147,7 +1151,7 @@ export default function PvpBattlePage({
     if (canMana) {
       if (!rollback.some(r => r.uid === aliveTarget.uid)) snap(aliveTarget);
       aliveTarget.mana = Math.min(MAX_MANA, aliveTarget.mana + mana);
-      spawnSparks(aliveTarget.x, aliveTarget.y, ["#a78bfa", "#c4b5fd", "#ddd6fe"]);
+      spawnSparks(aliveTarget.x, aliveTarget.y, ["#4ade80", "#86efac", "#bbf7d0"]);
     }
     if (canRevive) {
       snap(reviveTarget);
@@ -1359,7 +1363,7 @@ export default function PvpBattlePage({
            box-shadow halo around the wrapper, which read as "the pet
            is inside a glowing bubble"). drop-shadow follows the alpha
            edge, so the pet itself appears to emit light. */
-        @keyframes skillGlowImg { 0%,100%{filter:drop-shadow(0 0 8px rgba(196,181,253,0.85)) drop-shadow(0 0 16px rgba(167,139,250,0.55))} 50%{filter:drop-shadow(0 0 14px rgba(221,214,254,1)) drop-shadow(0 0 28px rgba(167,139,250,0.85))} }
+        @keyframes skillGlowImg { 0%,100%{filter:drop-shadow(0 0 8px rgba(74,222,128,0.85)) drop-shadow(0 0 16px rgba(34,197,94,0.55))} 50%{filter:drop-shadow(0 0 14px rgba(134,239,172,1)) drop-shadow(0 0 28px rgba(74,222,128,0.85))} }
         @keyframes targetPulse { 0%,100%{opacity:0.55} 50%{opacity:1} }
         @keyframes dropZonePulse { 0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,0.55), 0 0 18px rgba(74,222,128,0.35)} 50%{box-shadow:0 0 0 8px rgba(74,222,128,0.0), 0 0 28px rgba(74,222,128,0.55)} }
         @keyframes bOrb { 0%{transform:translate(0,0) scale(0.6);opacity:0} 30%{opacity:1} 100%{transform:translate(var(--ox,0px),-180px) scale(1.1);opacity:0} }
@@ -1454,8 +1458,8 @@ export default function PvpBattlePage({
       {/* Skill targeting banner */}
       {pendingSkill && pendingPet && (
         <div className="relative z-20 shrink-0 mx-3 mt-1 mb-1 rounded-lg px-3 py-2 text-center text-[11px] tracking-wider"
-          style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.3), rgba(167,139,250,0.2))", border: "1px solid rgba(167,139,250,0.4)" }}>
-          <span className="text-purple-200 font-bold">{pendingPet.name}</span>
+          style={{ background: "linear-gradient(135deg, rgba(20,80,40,0.45), rgba(74,222,128,0.15))", border: "1px solid rgba(74,222,128,0.45)" }}>
+          <span className="text-emerald-300 font-bold">{pendingPet.name}</span>
           <span className="text-white/50"> → </span>
           <span className="text-yellow-300 font-bold">{pendingPet.specialSkill || pendingPet.specialSkillType || "Special"}</span>
           <span className="text-white/40"> · Tap an enemy to target</span>
@@ -1541,8 +1545,8 @@ export default function PvpBattlePage({
             // (squished) ally next to them. Keeping the total count
             // stable preserves the original slot positions/sizes.
             const sideCount = pet.isPlayer
-              ? pets.filter(p => p.isPlayer).length
-              : pets.filter(p => !p.isPlayer).length;
+              ? (initialAllyCountRef.current || pets.filter(p => p.isPlayer).length)
+              : (initialEnemyCountRef.current || pets.filter(p => !p.isPlayer).length);
             // Sized so the FULL pet (including transparent padding around
             // the artwork) reads at roughly the same visual size as the
             // PvE Murk Cave arena — without using a transform-scale wrapper
@@ -1790,7 +1794,7 @@ export default function PvpBattlePage({
                         filter: isDead
                           ? "grayscale(1) brightness(0.5) contrast(1.08) sepia(0.35) hue-rotate(175deg) saturate(1.6)"
                           : pet.isPlayer
-                            ? "drop-shadow(0 0 10px rgba(167,139,250,0.5))"
+                            ? "drop-shadow(0 0 10px rgba(74,222,128,0.5))"
                             : "drop-shadow(0 0 10px rgba(239,68,68,0.45))",
                         WebkitUserSelect: "none",
                         userSelect: "none",
@@ -1798,7 +1802,7 @@ export default function PvpBattlePage({
                       }}
                     />
                   ) : (
-                    <div style={{ width: size, height: size, background: pet.isPlayer ? "rgba(100,60,200,0.3)" : "rgba(200,60,60,0.3)", borderRadius: "50%", border: `2px solid ${pet.isPlayer ? "rgba(167,139,250,0.5)" : "rgba(239,68,68,0.5)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ width: size, height: size, background: pet.isPlayer ? "rgba(20,80,40,0.3)" : "rgba(200,60,60,0.3)", borderRadius: "50%", border: `2px solid ${pet.isPlayer ? "rgba(74,222,128,0.5)" : "rgba(239,68,68,0.5)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <img src={petPawIcon} alt="" style={{ width: size * 0.65, height: size * 0.65, objectFit: "contain" }} />
                     </div>
                   )}
@@ -1871,7 +1875,7 @@ export default function PvpBattlePage({
                     </div>
                     {hasSkill && (
                       <div className="h-1 w-full bg-black/50 rounded-full overflow-hidden">
-                        <div ref={(el) => { petManaRefs.current.set(pet.uid, el); }} className="h-full rounded-full" style={{ width: `${(pet.mana / MAX_MANA) * 100}%`, background: pet.mana >= MAX_MANA ? "#c084fc" : "#4c1d95" }} />
+                        <div ref={(el) => { petManaRefs.current.set(pet.uid, el); }} className="h-full rounded-full" style={{ width: `${(pet.mana / MAX_MANA) * 100}%`, background: pet.mana >= MAX_MANA ? "#4ade80" : "#166534" }} />
                       </div>
                     )}
                   </div>
@@ -1879,7 +1883,7 @@ export default function PvpBattlePage({
 
                 {/* Skill ready / pending labels */}
                 {isSkillReady && !isPendingSource && (
-                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] text-purple-200 font-bold tracking-wider animate-pulse">
+                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] text-amber-300 font-bold tracking-wider animate-pulse">
                     ✦ {pet.specialSkill || pet.specialSkillType || "Special"}
                   </div>
                 )}
@@ -2151,9 +2155,9 @@ export default function PvpBattlePage({
                       background: isRevive
                         ? "rgba(251,191,36,0.18)"
                         : isMana
-                          ? "rgba(124,58,237,0.22)"
+                          ? "rgba(20,80,40,0.30)"
                           : "rgba(34,197,94,0.20)",
-                      border: `1px solid ${isRevive ? "rgba(251,191,36,0.55)" : isMana ? "rgba(167,139,250,0.55)" : "rgba(34,197,94,0.55)"}`,
+                      border: `1px solid ${isRevive ? "rgba(251,191,36,0.55)" : isMana ? "rgba(74,222,128,0.55)" : "rgba(34,197,94,0.55)"}`,
                       boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
                       opacity: isBeingDragged ? 0.35 : 1,
                       cursor: "grab",
@@ -2172,8 +2176,8 @@ export default function PvpBattlePage({
                         data-testid={`text-pvp-potion-qty-${i}`}
                         style={{
                           background: "rgba(0,0,0,0.85)",
-                          border: `1px solid ${isRevive ? "rgba(251,191,36,0.6)" : isMana ? "rgba(167,139,250,0.6)" : "rgba(34,197,94,0.6)"}`,
-                          color: isRevive ? "#fde68a" : isMana ? "#c4b5fd" : "#86efac",
+                          border: `1px solid ${isRevive ? "rgba(251,191,36,0.6)" : isMana ? "rgba(74,222,128,0.6)" : "rgba(34,197,94,0.6)"}`,
+                          color: isRevive ? "#fde68a" : isMana ? "#86efac" : "#86efac",
                           opacity: isBeingDragged ? 0 : 1,
                         }}
                       >
@@ -2254,7 +2258,7 @@ export default function PvpBattlePage({
               </div>
               <div className="text-white/40 text-[10px] tracking-widest mt-1">No battle points lost.</div>
               <button onClick={() => onClose(resultOutcome)} data-testid="button-pvp-result-close" className="mt-3 px-7 py-2.5 rounded-xl text-[11px] font-black tracking-[0.2em] text-white/85"
-                style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.4), rgba(76,29,149,0.4))", border: "1px solid rgba(167,139,250,0.5)" }}>
+                style={{ background: "linear-gradient(135deg, rgba(20,80,40,0.55), rgba(15,60,30,0.55))", border: "1px solid rgba(74,222,128,0.45)" }}>
                 BACK TO LOBBY
               </button>
             </div>
