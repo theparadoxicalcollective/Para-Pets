@@ -1829,21 +1829,23 @@ export default function WorldPage({ user }: WorldPageProps) {
                       onPointerDown={(e) => handlePointerDown(e, loc)}
                     >
                       <div className="relative w-full" style={{ aspectRatio: "1", pointerEvents: "none" }}>
-                        {loc.iconUrl ? (
+                        {(loc.iconUrl || (loc.type === "fishing" && worldId === "volcanic")) ? (
                           <div
                             className="w-full h-full"
                             style={loc.type === "fishing" ? { animation: "breathe 3s ease-in-out infinite" } : undefined}
                           >
                           <img
-                            src={loc.iconUrl}
+                            src={loc.type === "fishing" && worldId === "volcanic" ? "/world-assets/icon_fishing_volcanic.png" : loc.iconUrl!}
                             alt={loc.name}
                             className="w-full h-full object-contain relative z-10"
                             draggable={false}
                             style={{
                               filter: loc.type === "fishing"
-                                ? worldId === "swamp"
-                                  ? "drop-shadow(0 3px 8px rgba(0,0,0,0.5)) drop-shadow(0 0 18px rgba(45,212,191,0.8)) drop-shadow(0 0 40px rgba(20,184,166,0.5))"
-                                  : "drop-shadow(0 3px 8px rgba(0,0,0,0.5)) drop-shadow(0 0 18px rgba(56,189,248,0.7)) drop-shadow(0 0 40px rgba(56,189,248,0.35))"
+                                ? worldId === "volcanic"
+                                  ? "drop-shadow(0 3px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 18px rgba(251,146,60,0.9)) drop-shadow(0 0 40px rgba(239,68,68,0.6))"
+                                  : worldId === "swamp"
+                                    ? "drop-shadow(0 3px 8px rgba(0,0,0,0.5)) drop-shadow(0 0 18px rgba(45,212,191,0.8)) drop-shadow(0 0 40px rgba(20,184,166,0.5))"
+                                    : "drop-shadow(0 3px 8px rgba(0,0,0,0.5)) drop-shadow(0 0 18px rgba(56,189,248,0.7)) drop-shadow(0 0 40px rgba(56,189,248,0.35))"
                                 : "drop-shadow(0 3px 6px rgba(0,0,0,0.5))",
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
                               transition: "filter 0.15s ease, transform 0.15s ease",
@@ -1866,8 +1868,12 @@ export default function WorldPage({ user }: WorldPageProps) {
                                     width: b.size,
                                     height: b.size,
                                     borderRadius: "50%",
-                                    background: "radial-gradient(circle at 35% 30%, rgba(204,251,241,0.35), rgba(45,212,191,0.12))",
-                                    border: "0.5px solid rgba(153,246,228,0.25)",
+                                    background: worldId === "volcanic"
+                                      ? "radial-gradient(circle at 35% 30%, rgba(254,215,170,0.45), rgba(251,146,60,0.18))"
+                                      : "radial-gradient(circle at 35% 30%, rgba(204,251,241,0.35), rgba(45,212,191,0.12))",
+                                    border: worldId === "volcanic"
+                                      ? "0.5px solid rgba(252,165,90,0.35)"
+                                      : "0.5px solid rgba(153,246,228,0.25)",
                                     animation: `fishBubbleRise ${b.dur} ease-in-out ${b.delay} infinite`,
                                     willChange: "transform, opacity",
                                     pointerEvents: "none",
