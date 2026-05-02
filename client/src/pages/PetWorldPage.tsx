@@ -19,7 +19,11 @@ import joystickThumbImg from "@assets/generated_images/joystick_thumb_v3.png";
 const WORLD_ID = "pet_world";
 const ACCENT = "#7fffd4";
 const MAP_W = 1080;
-const MAP_H_DEFAULT = 700;
+// LOCKED — derived from bgGround (IMG_6459_1774675340089.jpeg) 3000×1920.
+// NEVER change after admin has placed KC doors/decor — all positions are stored
+// as percentages of (MAP_W × KC_MAP_H). Changing this shifts everything.
+const KC_MAP_H = 691;
+const MAP_H_DEFAULT = KC_MAP_H;
 
 const FRAME_W = 390;
 const FRAME_H = 844;
@@ -1021,17 +1025,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // Keep kcDoorsRef in sync for RAF loop access
   kcDoorsRef.current = kcDoors;
 
-  // ── map setup: compute height from background image aspect ratio ───────────
+  // ── map setup: use fixed KC_MAP_H so door/decor positions never shift ───────
+  // (KC_MAP_H is locked to the canonical bgGround aspect ratio — see constant above)
   useEffect(() => {
-    const img = new Image();
-    img.onload = () => {
-      if (img.naturalWidth > 0) {
-        const h = Math.round(MAP_W * img.naturalHeight / img.naturalWidth);
-        mapHRef.current = h;
-        setMapH(h);
-      }
-    };
-    img.src = bgGround;
+    mapHRef.current = KC_MAP_H;
+    setMapH(KC_MAP_H);
   }, []);
 
   // ── initial centering on mount / mapH change ───────────────────────────────

@@ -183,10 +183,18 @@ const MAP_W = 1080;
 const MAP_H_DEFAULT = 1920;
 
 // Per-world fixed map heights (in MAP_W=1080 pixel space).
-// Set when a new background image has a different aspect ratio but the map
-// layout (locations/decor) should stay exactly where it was placed.
+// NEVER change these after admin has placed items — all positions are stored
+// as percentages of (MAP_W × mapH), so a different mapH shifts everything.
+// To derive the value: Math.round(1080 * imgH / imgW) for the canonical bg image.
 const WORLD_FIXED_MAP_H: Record<string, number> = {
-  swamp: 2339, // bg_swamp_map_v6 — preserve original map height
+  swamp:           2339, // bg_swamp_map_v6.jpeg 2729×4096
+  snowy_mountain:  1980, // bg_snowy_mountain_map.webp 768×1408
+  sky_realm:       1980, // bg_sky_realm_map.webp 768×1408
+  volcanic:        1980, // bg_volcanic_map.webp 768×1408
+  haunted_woods:   1980, // bg_haunted_woods_map.webp 768×1408
+  enchanted_grove: 1980, // bg_enchanted_grove_map.webp 768×1408
+  island:          1980, // bg_island_map.webp 768×1408
+  desert:          1980, // bg_desert_map.webp 768×1408
 };
 
 // The game always renders inside a 390×844 phone frame (on both mobile and
