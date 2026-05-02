@@ -70,18 +70,19 @@ const headFrontParts = (i: HeadIdx, baseZ: number, backHairZ: number): PartDef[]
   // Reuse the original key names for Head 1 so existing data is preserved.
   const k = (suffix: string) => `${p}${suffix}`;
   return [
-    { key: k("above_head"),   label: "Above Head",       defaultZ: baseZ + 12, layer: "front" },
+    { key: k("above_head"),   label: "Above Head",       defaultZ: baseZ + 13, layer: "front" },
+    { key: k("hair_center"),  label: "Hair Center",      defaultZ: baseZ + 12, layer: "front" },
     { key: k("hair_left"),    label: "Hair Piece Left",  defaultZ: baseZ + 11, layer: "front" },
     { key: k("hair_right"),   label: "Hair Piece Right", defaultZ: baseZ + 10, layer: "front" },
-    { key: k("eyes"),         label: "Eyes (Open)",      defaultZ: baseZ + 8,  layer: "front" },
-    { key: k("eyes_closed"),  label: "Eyes (Closed)",    defaultZ: baseZ + 7,  layer: "front", animOnly: true },
-    { key: k("mouth_closed"), label: "Mouth (Closed)",   defaultZ: baseZ + 6,  layer: "front" },
-    { key: k("mouth"),        label: "Mouth (Open)",     defaultZ: baseZ + 5,  layer: "front", animOnly: true },
-    { key: k("accessory_1"),  label: "Accessory 1",      defaultZ: baseZ + 4,  layer: "front" },
-    { key: k("accessory_2"),  label: "Accessory 2",      defaultZ: baseZ + 3,  layer: "front" },
-    { key: k("head"),         label: "Head",             defaultZ: baseZ + 2,  layer: "front" },
-    { key: k("left_ear"),     label: "Left Ear",         defaultZ: baseZ + 1,  layer: "front" },
-    { key: k("right_ear"),    label: "Right Ear",        defaultZ: baseZ + 0,  layer: "front" },
+    { key: k("eyes"),         label: "Eyes (Open)",      defaultZ: baseZ + 9,  layer: "front" },
+    { key: k("eyes_closed"),  label: "Eyes (Closed)",    defaultZ: baseZ + 8,  layer: "front", animOnly: true },
+    { key: k("mouth_closed"), label: "Mouth (Closed)",   defaultZ: baseZ + 7,  layer: "front" },
+    { key: k("mouth"),        label: "Mouth (Open)",     defaultZ: baseZ + 6,  layer: "front", animOnly: true },
+    { key: k("accessory_1"),  label: "Accessory 1",      defaultZ: baseZ + 5,  layer: "front" },
+    { key: k("accessory_2"),  label: "Accessory 2",      defaultZ: baseZ + 4,  layer: "front" },
+    { key: k("head"),         label: "Head",             defaultZ: baseZ + 3,  layer: "front" },
+    { key: k("left_ear"),     label: "Left Ear",         defaultZ: baseZ + 2,  layer: "front" },
+    { key: k("right_ear"),    label: "Right Ear",        defaultZ: baseZ + 1,  layer: "front" },
     // Second pair of ears — ONLY exposed on Head 1 (per user request).
     // Mirrors the primary ears but swings on a slightly different beat
     // (3.1 s vs 3.5 s in PetAnimator's getPartDuration). Multi-head
