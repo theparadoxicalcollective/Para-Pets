@@ -445,66 +445,6 @@ export default function MapPage({ user }: MapPageProps) {
                           </div>
                         )}
 
-                        {locked && (
-                          <>
-                            <div
-                              className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none gap-0.5"
-                            >
-                              <span style={{ fontSize: "clamp(14px, 4vw, 20px)", lineHeight: 1 }}>🔒</span>
-                              <div
-                                className="font-fantasy text-center leading-tight px-1.5 py-0.5"
-                                style={{
-                                  background: "rgba(8,4,18,0.92)",
-                                  border: "1px solid rgba(160,130,60,0.6)",
-                                  borderRadius: "4px",
-                                  color: "#e0c060",
-                                  fontSize: "clamp(7px, 2vw, 10px)",
-                                  letterSpacing: "0.1em",
-                                  textShadow: "0 0 8px rgba(220,180,60,0.5)",
-                                  boxShadow: "0 0 12px rgba(0,0,0,0.8)",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                Coming Soon
-                              </div>
-                            </div>
-                          </>
-                        )}
-
-                        {currentUser.isAdmin && (
-                          <button
-                            data-testid={`button-edit-world-${w.id}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openEditModal(w);
-                            }}
-                            className="absolute -top-1 -left-1 w-5 h-5 rounded-full flex items-center justify-center z-30"
-                            style={{
-                              background: "rgba(60,40,140,0.9)",
-                              border: "1px solid rgba(140,100,240,0.5)",
-                              cursor: "pointer",
-                            }}
-                          >
-                            <Pencil className="w-2.5 h-2.5 text-white" />
-                          </button>
-                        )}
-                        {currentUser.isAdmin && !w.isDefault && (
-                          <button
-                            data-testid={`button-delete-world-${w.id}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (confirm(`Delete "${w.name}"?`)) deleteWorldMutation.mutate(w.id);
-                            }}
-                            className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center z-30"
-                            style={{
-                              background: "rgba(220,50,50,0.9)",
-                              border: "1px solid rgba(255,100,100,0.5)",
-                              cursor: "pointer",
-                            }}
-                          >
-                            <Trash2 className="w-3 h-3 text-white" />
-                          </button>
-                        )}
                       </div>
                       {selectedWorldId === w.id && (
                         <div className="flex flex-col items-center gap-1 mt-0.5 relative z-10" style={{ animation: "fadeIn 0.2s ease-out" }}>
@@ -540,36 +480,6 @@ export default function MapPage({ user }: MapPageProps) {
           )}
         </div>
 
-        {currentUser.isAdmin && (
-          <div className="fixed top-4 right-4 flex items-center gap-2 z-30">
-            <button
-              data-testid="button-edit-map-bg"
-              onClick={() => { setMapBgPreview(null); setShowMapBgEdit(true); }}
-              className="w-11 h-11 rounded-full flex items-center justify-center transition-transform active:scale-90"
-              style={{
-                background: "linear-gradient(135deg, #1a2850 0%, #102040 100%)",
-                border: "2px solid rgba(100,140,240,0.5)",
-                boxShadow: "0 4px 16px rgba(60,100,200,0.3), 0 0 20px rgba(100,140,240,0.15)",
-                cursor: "pointer",
-              }}
-            >
-              <ImageIcon className="w-5 h-5 text-white" />
-            </button>
-            <button
-              data-testid="button-add-world"
-              onClick={() => setShowAddWorld(true)}
-              className="w-11 h-11 rounded-full flex items-center justify-center transition-transform active:scale-90"
-              style={{
-                background: "linear-gradient(135deg, #2a1850 0%, #1a1040 100%)",
-                border: "2px solid rgba(140,100,240,0.5)",
-                boxShadow: "0 4px 20px rgba(100,60,200,0.4), 0 0 30px rgba(140,100,240,0.2)",
-                cursor: "pointer",
-              }}
-            >
-              <Plus className="w-6 h-6 text-white" />
-            </button>
-          </div>
-        )}
 
 
       </div>

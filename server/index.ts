@@ -842,7 +842,7 @@ app.use((req, res, next) => {
     swamp: "bg_swamp_map_v6.jpeg",
     snowy_mountain: "bg_snowy_mountain_map.webp",
     sky_realm: "bg_sky_realm_map.webp",
-    volcanic: "bg_volcanic_map.webp",
+    volcanic: "bg_volcanic_map_v2.jpeg",
     haunted_woods: "bg_haunted_woods_map.webp",
     enchanted_grove: "bg_enchanted_grove_map.webp",
     island: "bg_island_map.webp",

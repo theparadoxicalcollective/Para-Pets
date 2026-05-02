@@ -190,7 +190,7 @@ const WORLD_FIXED_MAP_H: Record<string, number> = {
   swamp:           1621, // bg_swamp_map_v6.jpeg 2729×4096 — natural at MAP_W=1080
   snowy_mountain:  1980, // bg_snowy_mountain_map.webp 768×1408
   sky_realm:       1980, // bg_sky_realm_map.webp 768×1408
-  volcanic:        1980, // bg_volcanic_map.webp 768×1408
+  volcanic:        1619, // bg_volcanic_map_v2.jpeg 843×1264 — natural at MAP_W=1080
   haunted_woods:   1980, // bg_haunted_woods_map.webp 768×1408
   enchanted_grove: 1980, // bg_enchanted_grove_map.webp 768×1408
   island:          1980, // bg_island_map.webp 768×1408
@@ -2871,9 +2871,6 @@ export default function WorldPage({ user }: WorldPageProps) {
                     <div className="font-fantasy text-center" style={{ fontSize: 10, letterSpacing: "0.05em", color: isActive ? "#7dde9a" : "rgba(150,220,170,0.65)", lineHeight: 1.3 }}>
                       {labels[tab]}
                     </div>
-                    {isComingSoon && (
-                      <div className="font-fantasy text-center" style={{ fontSize: 8, color: "rgba(120,200,140,0.45)", letterSpacing: "0.08em", marginTop: 1 }}>coming soon</div>
-                    )}
                   </button>
                 );
               })}
@@ -2892,12 +2889,9 @@ export default function WorldPage({ user }: WorldPageProps) {
                   ? sortedItems.filter(i => i.fishingType === fishingShopTab)
                   : [];
                 if (fishingShopTab === "aquarium") return (
-                  <div className="flex flex-col items-center justify-center py-20 gap-3">
-                    <div className="text-5xl" style={{ filter: "drop-shadow(0 0 12px rgba(74,180,100,0.5))" }}>🐟</div>
-                    <div className="text-center px-8 py-5 rounded-2xl" style={{ background: "rgba(10,30,15,0.7)", border: "1px solid rgba(74,180,100,0.2)" }}>
-                      <p className="font-fantasy tracking-widest" style={{ color: "#7dde9a", fontSize: 13 }}>Aquarium</p>
-                      <p className="font-fantasy tracking-wider mt-1" style={{ color: "rgba(150,220,170,0.6)", fontSize: 10 }}>Coming Soon</p>
-                      <p className="font-fantasy mt-2" style={{ color: "rgba(120,190,140,0.45)", fontSize: 9, letterSpacing: "0.04em" }}>A wondrous collection of rare aquatic companions awaits...</p>
+                  <div className="flex items-center justify-center py-20">
+                    <div className="text-center px-8 py-6 rounded-2xl" style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(74,180,100,0.2)" }}>
+                      <p className="font-fantasy text-[#c8b89a] text-sm tracking-wider">No wares yet.</p>
                     </div>
                   </div>
                 );
