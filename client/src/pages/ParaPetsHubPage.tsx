@@ -1054,57 +1054,6 @@ export default function ParaPetsHubPage() {
             </>
           )}
 
-          {/* ── Admin-only Animator testbed access ─────────────────────────── */}
-          {user?.isAdmin && (
-            <>
-              <RuneDivider />
-              <div
-                data-testid="hub-admin-animator-cta"
-                className="rounded-2xl px-5 py-5 flex items-center justify-between gap-4 mb-2"
-                style={{
-                  background: "linear-gradient(135deg, rgba(40,28,0,0.85), rgba(28,20,0,0.85))",
-                  border: "1px solid rgba(240,192,64,0.32)",
-                  boxShadow: "0 0 28px rgba(240,192,64,0.08), inset 0 1px 0 rgba(240,192,64,0.08)",
-                }}
-              >
-                <div className="flex flex-col">
-                  <span
-                    className="font-fantasy text-[10px] tracking-widest"
-                    style={{ color: "rgba(240,192,64,0.7)" }}
-                  >
-                    ADMIN ONLY
-                  </span>
-                  <span
-                    className="font-fantasy text-sm tracking-widest"
-                    style={{ color: "#f0c040", textShadow: "0 0 12px rgba(240,192,64,0.3)" }}
-                  >
-                    Animator Testbed
-                  </span>
-                  <span
-                    className="font-fantasy text-[10px] mt-0.5"
-                    style={{ color: "rgba(240,220,160,0.55)" }}
-                  >
-                    Sandbox replica of the pet parts editor
-                  </span>
-                </div>
-                <Link
-                  href="/test-animator"
-                  data-testid="link-hub-animator"
-                  className="font-fantasy text-xs tracking-widest rounded-2xl transition-all active:scale-95 flex-shrink-0"
-                  style={{
-                    color: "#060a10",
-                    padding: "10px 20px",
-                    background: "linear-gradient(135deg,#f0c040 0%,#b58a1a 100%)",
-                    boxShadow: "0 0 16px rgba(240,192,64,0.32), 0 2px 8px rgba(0,0,0,0.5)",
-                    letterSpacing: "0.1em",
-                  }}
-                >
-                  Animator
-                </Link>
-              </div>
-            </>
-          )}
-
           {/* ── Founders gateway ──────────────────────────────────────────── */}
           <RuneDivider />
           <Link

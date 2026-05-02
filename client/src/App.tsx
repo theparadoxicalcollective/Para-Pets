@@ -31,7 +31,6 @@ const AuthPage           = lazy(() => import("@/pages/AuthPage"));
 const MaintenancePage    = lazy(() => import("@/pages/MaintenancePage"));
 const MapPage            = lazy(() => import("@/pages/MapPage"));
 const AdminPage          = lazy(() => import("@/pages/AdminPage"));
-const TestAnimatorPage   = lazy(() => import("@/pages/TestAnimatorPage"));
 const WorldPage          = lazy(() => import("@/pages/WorldPage"));
 const CoinShopPage       = lazy(() => import("@/pages/CoinShopPage"));
 const ResetPasswordPage  = lazy(() => import("@/pages/ResetPasswordPage"));
@@ -346,7 +345,6 @@ function AppRouter() {
     location === "/hub" ||
     location === "/founders" ||
     location === "/admin" ||
-    location === "/test-animator" ||
     location.startsWith("/visit/");
 
   if (isFullScreenPath || !user) {
@@ -360,9 +358,6 @@ function AppRouter() {
           <Route path="/founders"><FoundersPage /></Route>
           <Route path="/admin">
             {user?.isAdmin ? <AdminPage user={user} /> : <Redirect to="/" />}
-          </Route>
-          <Route path="/test-animator">
-            {user?.isAdmin ? <TestAnimatorPage user={user} /> : <Redirect to="/" />}
           </Route>
           <Route path="/visit/:userId">
             {user ? <VisitPetHousePage /> : <Redirect to="/auth" />}
