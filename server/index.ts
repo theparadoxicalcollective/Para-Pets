@@ -985,7 +985,7 @@ app.use((req, res, next) => {
         await storage.createWorldLocation({
           id: "8e211716-0448-496e-8582-6ce1025ac4e4",
           worldId: "swamp",
-          name: "Bayou's Heart",
+          name: "The Mixing Tree",
           description: "The mystical heart of the bayou, pulsing with ancient power and hidden secrets.",
           type: "quest",
           isShop: false,
@@ -997,7 +997,7 @@ app.use((req, res, next) => {
           ...(bayousHeartIcon ? { iconUrl: bayousHeartIcon } : {}),
           ...(bayousHeartBg ? { bgUrl: bayousHeartBg } : {}),
         } as any);
-        console.log("Bayou's Heart restored (was missing from DB).");
+        console.log("The Mixing Tree restored (was missing from DB).");
       }
 
       await storage.setGameSetting("missing_locs_restore_v1", "done");
@@ -1894,6 +1894,19 @@ app.use((req, res, next) => {
     }
   }
   console.log("Location icons refreshed with versioned static URLs.");
+
+  // One-time: rename Bayou's Heart → The Mixing Tree
+  try {
+    const mixingTreeRenameDone = await storage.getGameSetting("mixing_tree_rename_v1");
+    if (!mixingTreeRenameDone) {
+      const MIXING_TREE_ID = "8e211716-0448-496e-8582-6ce1025ac4e4";
+      await db.execute(sql`UPDATE world_locations SET name = 'The Mixing Tree' WHERE id = ${MIXING_TREE_ID} AND name = 'Bayou''s Heart'`);
+      await storage.setGameSetting("mixing_tree_rename_v1", "done");
+      console.log("Renamed Bayou's Heart → The Mixing Tree.");
+    }
+  } catch (err) {
+    console.error("Mixing Tree rename error (non-fatal):", err);
+  }
 
   // Migrate all remaining base64 image URLs to media_blobs (idempotent: skips non-base64 values)
   try {

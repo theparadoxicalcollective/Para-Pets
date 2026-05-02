@@ -3686,38 +3686,70 @@ export default function WorldPage({ user }: WorldPageProps) {
           )}
 
           <div className="relative z-10 flex flex-col h-full">
-            <div className="flex items-center justify-between px-4 pb-3" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
-              <div className="flex items-center gap-3">
-                {activeLoc.iconUrl && (
-                  <img src={activeLoc.iconUrl} alt="" className="w-10 h-10 rounded-lg object-contain" style={{ border: `1px solid ${accent}40`, filter: `drop-shadow(0 0 8px ${accent}30)` }} />
-                )}
-                <div>
-                  <h3 className="font-fantasy text-lg tracking-widest font-semibold" style={{ color: accent, textShadow: `0 0 15px ${accent}50` }}>
-                    {activeLoc.name}
-                  </h3>
-                  {activeLoc.description && (
-                    <p className="font-fantasy text-[10px] tracking-wider" style={{ color: `${accent}88` }}>
-                      {activeLoc.description}
-                    </p>
-                  )}
-                </div>
+            {activeLoc.id === BAYOUS_HEART_ID ? (
+              <div className="relative flex items-center justify-center px-4 pb-3" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
+                <h3
+                  className="font-fantasy text-xl tracking-[0.18em] font-semibold text-center"
+                  style={{
+                    color: "#d4a017",
+                    textShadow: "0 0 18px rgba(212,160,23,0.65), 0 0 36px rgba(212,160,23,0.28)",
+                  }}
+                >
+                  {activeLoc.name}
+                </h3>
+                <button
+                  data-testid="button-close-location-view"
+                  onClick={() => { setShowLocationView(false); setActiveLocationId(null); }}
+                  className="absolute right-4 w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(212,160,23,0.22) 0%, rgba(212,160,23,0.10) 100%)",
+                    border: "2px solid rgba(212,160,23,0.55)",
+                    color: "#d4a017",
+                    cursor: "pointer",
+                  }}
+                >
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M19 12H5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                    <path d="M10.5 6.5L5 12L10.5 17.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M19 12L16.5 9.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.55"/>
+                    <path d="M19 12L16.5 14.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.55"/>
+                  </svg>
+                </button>
               </div>
-              <button
-                data-testid="button-close-location-view"
-                onClick={() => { setShowLocationView(false); setActiveLocationId(null); }}
-                className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                style={{
-                  background: `linear-gradient(135deg, ${accent}30 0%, ${accent}15 100%)`,
-                  border: `2px solid ${accent}60`,
-                  color: accent,
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  fontWeight: "bold",
-                }}
-              >
-                X
-              </button>
-            </div>
+            ) : (
+              <div className="flex items-center justify-between px-4 pb-3" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
+                <div className="flex items-center gap-3">
+                  {activeLoc.iconUrl && (
+                    <img src={activeLoc.iconUrl} alt="" className="w-10 h-10 rounded-lg object-contain" style={{ border: `1px solid ${accent}40`, filter: `drop-shadow(0 0 8px ${accent}30)` }} />
+                  )}
+                  <div>
+                    <h3 className="font-fantasy text-lg tracking-widest font-semibold" style={{ color: accent, textShadow: `0 0 15px ${accent}50` }}>
+                      {activeLoc.name}
+                    </h3>
+                    {activeLoc.description && (
+                      <p className="font-fantasy text-[10px] tracking-wider" style={{ color: `${accent}88` }}>
+                        {activeLoc.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  data-testid="button-close-location-view"
+                  onClick={() => { setShowLocationView(false); setActiveLocationId(null); }}
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                  style={{
+                    background: `linear-gradient(135deg, ${accent}30 0%, ${accent}15 100%)`,
+                    border: `2px solid ${accent}60`,
+                    color: accent,
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: "bold",
+                  }}
+                >
+                  X
+                </button>
+              </div>
+            )}
 
             <div
               ref={locViewRef}
