@@ -85,11 +85,15 @@ export default function FoundersPage() {
 
   return (
     <div
-      className="relative min-h-screen w-full"
+      className="relative w-full"
       style={{
+        position: "absolute",
+        inset: 0,
+        overflowY: "auto",
+        overflowX: "clip",
+        WebkitOverflowScrolling: "touch",
         backgroundColor: "#06120a",
         color: "#e8d97a",
-        overflowX: "clip",
       }}
       data-testid="founders-page"
     >
