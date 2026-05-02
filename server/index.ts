@@ -1569,6 +1569,20 @@ app.use((req, res, next) => {
     console.error("Door background seed error (non-fatal):", err);
   }
 
+  // Migration: ensure the Central Market door in Keeper's Central is marked as a shop
+  // so the items panel renders and the background uses cover mode (not panoramic scroll).
+  try {
+    await db.execute(sql`
+      UPDATE kc_doors
+      SET is_shop = true
+      WHERE world_id = 'pet_world'
+        AND LOWER(name) LIKE '%central%'
+        AND is_shop = false
+    `);
+  } catch (err) {
+    console.error("Central Market door isShop migration error (non-fatal):", err);
+  }
+
   // Migration: restore Elysian Bayou layout to pre-migration state
   // Removes wrongly-recreated locations, restores 6 original fishing spots,
   // populates pond_fish for all fishing locations, and fixes deleted_seed_location_ids.
