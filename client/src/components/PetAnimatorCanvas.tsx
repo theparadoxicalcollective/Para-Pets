@@ -174,11 +174,13 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
       return { op: 1, rot: -sinWave(sec, 3.5) * 2 * D2R };
     case "right_ear": case "hair_right":
       return { op: 1, rot:  sinWave(sec, 3.5) * 2 * D2R };
-    // Center hair — sits symmetrically so no rotation; rides the head
-    // bob (applied externally). Mirrors the img-renderer's petIdleBody
-    // mapping for hair_center in idle mode (scale only, no rotation).
+    // Center hair — rides the head-group bob applied externally (headBobPx
+    // in the draw loop). Any additional per-part motion (formerly bodyBreath
+    // = scale from the body's feet anchor) compounds with that bob and pushes
+    // the hair above the head on every up-stroke. Return identity so the
+    // wrapper's translateY is the ONLY force acting on this part.
     case "hair_center":
-      return bodyBreath(sec);
+      return { op: 1, rot: 0 };
     // Second ear pair on Head 1 — same ±2° mirrored swing as the
     // primary ears, but on a 3.1 s period so it continuously drifts
     // in and out of phase with the 3.5 s primary pair. Mirrors the

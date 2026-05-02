@@ -1976,12 +1976,22 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                   if (isAnimOnly) return null;
                   return renderPartImg(part, null);
                 }
+                // Parts that ride the head-wrapper bob silently — no per-part
+                // animation. `head` itself has always been here. `hair_center`
+                // is added because it sits symmetrically on the skull and any
+                // independent animation (formerly petIdleBody = scale from the
+                // body's feet anchor) compounds with the wrapper's translateY,
+                // causing the hair to visibly overshoot the head on every bob.
+                // The wrapper's motion is the ONLY motion these parts need.
+                const isWrapperRider = isHeadPartType(part.partType) || part.partType === "hair_center";
+
                 if (mode === "sleep") {
                   // Sleep: head itself rides the wrapper bob; ears / hair
                   // pick up their gentle SLEEP_ANIMATIONS sway so the head
                   // group reads as "alive but resting" instead of frozen.
+                  // hair_center rides the wrapper silently (no independent anim).
                   if (isAnimOnly) return null;
-                  if (isHeadPartType(part.partType)) return renderPartImg(part, null);
+                  if (isWrapperRider) return renderPartImg(part, null);
                   const animName = lookupAnim(SLEEP_ANIMATIONS, part.partType);
                   return renderPartImg(part, animName ?? null, undefined, `${groupDelay}s`);
                 }
@@ -1989,8 +1999,9 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                   // Petting: head itself rides the bouncy wrapper; ears /
                   // hair / accessories animate via PETTING_ANIMATIONS so
                   // the whole head visibly wiggles.
+                  // hair_center rides the wrapper silently (no independent anim).
                   if (isAnimOnly) return null;
-                  if (isHeadPartType(part.partType)) return renderPartImg(part, null);
+                  if (isWrapperRider) return renderPartImg(part, null);
                   const animName = lookupAnim(PETTING_ANIMATIONS, part.partType);
                   return renderPartImg(part, animName ?? null, undefined, `${groupDelay}s`);
                 }
@@ -2003,8 +2014,9 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                   const delay = isEyePart ? groupBlinkOffset : `${groupDelay}s`;
                   return renderPartImg(part, animName, undefined, delay);
                 }
-                // Head itself has no per-part animation (wrapper handles the bobbing)
-                const partAnimName = isHeadPartType(part.partType) ? null : (lookupAnim(anims, part.partType) ?? null);
+                // Wrapper-riding parts (head, hair_center) get no per-part animation.
+                // For all other face parts, look up their own animation.
+                const partAnimName = isWrapperRider ? null : (lookupAnim(anims, part.partType) ?? null);
                 const delay = isEyePart ? groupBlinkOffset : `${groupDelay}s`;
                 return renderPartImg(part, partAnimName, undefined, delay);
               })}
