@@ -297,6 +297,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   const [barrelSelected, setBarrelSelected] = useState(false);
   const draggableLocIdRef = useRef<string | null>(null);
   const shopJustOpened = useRef<number>(0);
+  const shopScrollRef = useRef<HTMLDivElement>(null);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -2781,6 +2782,49 @@ export default function WorldPage({ user }: WorldPageProps) {
           {/* ── Divider ─────────────────────────────────────── */}
           <div className="relative flex-shrink-0 mx-4 mb-3" style={{ zIndex: 10, height: "1px", background: isFishingShop ? "linear-gradient(90deg, transparent, rgba(74,180,100,0.5), transparent)" : `linear-gradient(90deg, transparent, ${accent}50, transparent)` }} />
 
+          {/* ── Type tabs (non-fishing) ──────────────────────── */}
+          {!isFishingShop && (() => {
+            const TYPE_ORDER = ["pet","edibles","power_up","potion","special","accessory","item","gift"];
+            const TYPE_LABELS: Record<string,string> = { pet:"Pets", edibles:"Edibles", power_up:"Power-Ups", potion:"Potions", special:"Special", accessory:"Accessories", item:"Items", gift:"Gifts" };
+            const presentTypes = TYPE_ORDER.filter(t => sortedItems.some(i => i.type === t));
+            const hasHomeGoods = shopBundlesForSale.length > 0 || shopDecorForSale.length > 0;
+            if (presentTypes.length === 0 && !hasHomeGoods) return null;
+            const allTabs = [...presentTypes, ...(hasHomeGoods ? ["home_goods"] : [])];
+            if (allTabs.length <= 1) return null;
+            return (
+              <div className="relative flex-shrink-0 flex gap-2 px-3 pb-3 overflow-x-auto" style={{ zIndex: 10, scrollbarWidth: "none" }}>
+                {allTabs.map(t => {
+                  const label = t === "home_goods" ? "Home Goods" : (TYPE_LABELS[t] ?? t);
+                  return (
+                    <button
+                      key={t}
+                      data-testid={`button-shop-tab-${t}`}
+                      onClick={() => {
+                        const el = shopScrollRef.current?.querySelector(`[data-section="${t}"]`) as HTMLElement | null;
+                        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }}
+                      className="flex-shrink-0 font-fantasy tracking-widest transition-all active:scale-95"
+                      style={{
+                        fontSize: 10,
+                        letterSpacing: "0.12em",
+                        padding: "6px 14px",
+                        borderRadius: 20,
+                        background: `${accent}18`,
+                        border: `1.5px solid ${accent}55`,
+                        color: accent,
+                        cursor: "pointer",
+                        boxShadow: `0 0 10px ${accent}18`,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
           {/* ── Fishing Shop Category Tabs ──────────────────── */}
           {isFishingShop && (
             <div className="relative flex-shrink-0 flex gap-2 px-3 pb-3" style={{ zIndex: 10 }}>
@@ -2816,169 +2860,163 @@ export default function WorldPage({ user }: WorldPageProps) {
             </div>
           )}
 
-          {/* ── Scrollable Items Grid ───────────────────────── */}
-          <div className="relative flex-1 overflow-y-auto px-3 pb-4" style={{ zIndex: 10, scrollbarWidth: "none" }}>
-            {(() => {
-              const displayItems = isFishingShop && fishingShopTab !== "aquarium"
-                ? sortedItems.filter(i => i.fishingType === fishingShopTab)
-                : isFishingShop && fishingShopTab === "aquarium"
-                ? []
-                : sortedItems;
-              const isAquariumTab = isFishingShop && fishingShopTab === "aquarium";
-              return itemsLoading ? (
+          {/* ── Scrollable Items Body ────────────────────────── */}
+          <div ref={shopScrollRef} className="relative flex-1 overflow-y-auto pb-6" style={{ zIndex: 10, scrollbarWidth: "none" }}>
+            {itemsLoading ? (
               <div className="flex items-center justify-center py-20">
-                <div className="animate-spin rounded-full" style={{ width: 40, height: 40, border: "3px solid rgba(74,180,100,0.25)", borderTopColor: "rgba(74,180,100,0.9)" }} />
+                <div className="animate-spin rounded-full" style={{ width: 40, height: 40, border: `3px solid ${accent}25`, borderTopColor: `${accent}90` }} />
               </div>
-            ) : isAquariumTab ? (
-              <div className="flex flex-col items-center justify-center py-20 gap-3">
-                <div className="text-5xl" style={{ filter: "drop-shadow(0 0 12px rgba(74,180,100,0.5))" }}>🐟</div>
-                <div className="text-center px-8 py-5 rounded-2xl" style={{ background: "rgba(10,30,15,0.7)", border: "1px solid rgba(74,180,100,0.2)" }}>
-                  <p className="font-fantasy tracking-widest" style={{ color: "#7dde9a", fontSize: 13 }}>Aquarium</p>
-                  <p className="font-fantasy tracking-wider mt-1" style={{ color: "rgba(150,220,170,0.6)", fontSize: 10 }}>Coming Soon</p>
-                  <p className="font-fantasy mt-2" style={{ color: "rgba(120,190,140,0.45)", fontSize: 9, letterSpacing: "0.04em" }}>A wondrous collection of rare aquatic companions awaits...</p>
-                </div>
-              </div>
-            ) : displayItems.length === 0 ? (
+            ) : isFishingShop ? (
+              (() => {
+                const displayItems = fishingShopTab !== "aquarium"
+                  ? sortedItems.filter(i => i.fishingType === fishingShopTab)
+                  : [];
+                if (fishingShopTab === "aquarium") return (
+                  <div className="flex flex-col items-center justify-center py-20 gap-3">
+                    <div className="text-5xl" style={{ filter: "drop-shadow(0 0 12px rgba(74,180,100,0.5))" }}>🐟</div>
+                    <div className="text-center px-8 py-5 rounded-2xl" style={{ background: "rgba(10,30,15,0.7)", border: "1px solid rgba(74,180,100,0.2)" }}>
+                      <p className="font-fantasy tracking-widest" style={{ color: "#7dde9a", fontSize: 13 }}>Aquarium</p>
+                      <p className="font-fantasy tracking-wider mt-1" style={{ color: "rgba(150,220,170,0.6)", fontSize: 10 }}>Coming Soon</p>
+                      <p className="font-fantasy mt-2" style={{ color: "rgba(120,190,140,0.45)", fontSize: 9, letterSpacing: "0.04em" }}>A wondrous collection of rare aquatic companions awaits...</p>
+                    </div>
+                  </div>
+                );
+                if (displayItems.length === 0) return (
+                  <div className="flex items-center justify-center py-20">
+                    <div className="text-center px-8 py-6 rounded-2xl" style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(74,180,100,0.2)" }}>
+                      <p className="font-fantasy text-[#c8b89a] text-sm tracking-wider">No wares yet.</p>
+                      {currentUser.isAdmin && <p className="font-fantasy text-[10px] tracking-wider mt-1" style={{ color: "rgba(74,180,100,0.6)" }}>Tap + to add items</p>}
+                    </div>
+                  </div>
+                );
+                return (
+                  <div className="grid grid-cols-3 gap-3 px-3 pt-2">
+                    {displayItems.map(item => {
+                      const imgSrc = item.imageUrl;
+                      const canAfford = currentUser.coins >= item.price;
+                      const descLines = getItemDescription(item);
+                      return (
+                        <div
+                          key={item.id}
+                          className="relative flex flex-col items-center rounded-2xl transition-transform active:scale-95"
+                          style={{ background: "linear-gradient(160deg,rgba(0,0,0,0.42),rgba(0,0,0,0.58))", border: `1.5px solid ${accent}30`, boxShadow: `0 2px 16px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.05)`, cursor: "pointer", padding: "10px 8px 8px" }}
+                          onClick={() => { if (currentUser.isAdmin) return; playTick(); setSelectedShopItem(item); setBuyStep(1); setBuyQty(1); setBuyError(null); }}
+                        >
+                          {currentUser.isAdmin && (
+                            <button data-testid={`button-unassign-item-${item.id}`} onClick={e => { e.stopPropagation(); if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id }); }} className="absolute -top-2 -right-2 z-10 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer" }}><X className="w-3 h-3 text-white" /></button>
+                          )}
+                          <div className="w-full flex items-center justify-center mb-2" style={{ height: "72px" }}>
+                            {imgSrc ? <img src={imgSrc} alt={item.name} className="max-w-full max-h-full object-contain" style={{ filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.7)) drop-shadow(0 0 6px ${accent}30)` }} /> : <Package className="w-10 h-10" style={{ color: `${accent}60` }} />}
+                          </div>
+                          <p className="font-fantasy text-center text-white leading-tight mb-1.5" style={{ fontSize: "10px", lineHeight: "1.3" }}>{item.name}</p>
+                          {descLines.length > 0 && <p className="font-fantasy text-center leading-tight mb-1.5" style={{ fontSize: "8px", color: `${accent}bb`, lineHeight: "1.2" }}>{descLines[0]}</p>}
+                          <div className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: canAfford ? `${accent}20` : "rgba(80,60,40,0.25)", border: `1px solid ${canAfford ? accent + "50" : "rgba(100,80,50,0.35)"}` }}>
+                            <img src={coinIconImg} alt="" style={{ width: "9px", height: "9px", objectFit: "contain" }} />
+                            <span className="font-fantasy" style={{ fontSize: "9px", color: canAfford ? accent : "#7a6040", fontWeight: 700 }}>{item.price}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()
+            ) : sortedItems.length === 0 && shopBundlesForSale.length === 0 && shopDecorForSale.length === 0 ? (
               <div className="flex items-center justify-center py-20">
-                <div className="text-center px-8 py-6 rounded-2xl" style={{ background: "rgba(0,0,0,0.55)", border: `1px solid ${isFishingShop ? "rgba(74,180,100,0.2)" : `${accent}20`}` }}>
+                <div className="text-center px-8 py-6 rounded-2xl" style={{ background: "rgba(0,0,0,0.55)", border: `1px solid ${accent}20` }}>
                   <p className="font-fantasy text-[#c8b89a] text-sm tracking-wider">No wares yet.</p>
-                  {currentUser.isAdmin && (
-                    <p className="font-fantasy text-[10px] tracking-wider mt-1" style={{ color: isFishingShop ? "rgba(74,180,100,0.6)" : `${accent}60` }}>Tap + to add items</p>
-                  )}
+                  {currentUser.isAdmin && <p className="font-fantasy text-[10px] tracking-wider mt-1" style={{ color: `${accent}60` }}>Tap + to add items</p>}
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-3">
-                {displayItems.map((item, idx) => {
-                  const prev = displayItems[idx - 1];
-                  const showTypeDivider = pickerFilter === "all" && (!prev || prev.type !== item.type);
-                  const imgSrc = item.type === "pet" ? (item.eggImageUrl || item.imageUrl) : item.imageUrl;
-                  const isOwned = item.type === "pet" && ownedItemIds.has(item.id);
-                  const canAfford = currentUser.coins >= item.price;
-                  const descLines = getItemDescription(item);
-                  return (
-                    <div key={item.id}>
-                      {showTypeDivider && (
-                        <div className="col-span-3 py-1">
-                          <div className="flex items-center gap-2">
-                            <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.12)" }} />
-                            <span className="font-fantasy text-[9px] tracking-[0.24em]" style={{ color: `${accent}70` }}>
-                              {item.type.replace("_", " ").toUpperCase()}
-                            </span>
-                            <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.12)" }} />
-                          </div>
+              (() => {
+                const TYPE_ORDER = ["pet","edibles","power_up","potion","special","accessory","item","gift"];
+                const TYPE_LABELS: Record<string,string> = { pet:"Pets", edibles:"Edibles", power_up:"Power-Ups", potion:"Potions", special:"Special", accessory:"Accessories", item:"Items", gift:"Gifts" };
+                const grouped = TYPE_ORDER
+                  .filter(t => sortedItems.some(i => i.type === t))
+                  .map(t => ({ type: t, label: TYPE_LABELS[t] ?? t, groupItems: sortedItems.filter(i => i.type === t) }));
+                const hasHomeGoods = shopBundlesForSale.length > 0 || shopDecorForSale.length > 0;
+                return (
+                  <>
+                    {grouped.map(({ type, label, groupItems }) => (
+                      <div key={type} data-section={type} className="mb-6 pt-2">
+                        {/* Centered section label */}
+                        <div className="text-center mb-1 px-4">
+                          <span className="font-fantasy tracking-[0.22em]" style={{ fontSize: 13, color: accent, textShadow: `0 0 14px ${accent}55`, letterSpacing: "0.22em" }}>
+                            {label.toUpperCase()}
+                          </span>
                         </div>
-                      )}
-                      <div
-                        className="relative flex flex-col items-center rounded-2xl transition-transform active:scale-95"
-                        style={{
-                          background: "linear-gradient(160deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.58) 100%)",
-                          border: `1.5px solid ${accent}30`,
-                          boxShadow: `0 2px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)`,
-                          cursor: "pointer",
-                          padding: "10px 8px 8px",
-                        }}
-                        onClick={() => {
-                          if (currentUser.isAdmin) return;
-                          playTick();
-                          setSelectedShopItem(item);
-                          setBuyStep(1);
-                          setBuyQty(1);
-                          setBuyError(null);
-                        }}
-                      >
-                      {/* Admin remove button */}
-                      {currentUser.isAdmin && (
-                        <button
-                          data-testid={`button-unassign-item-${item.id}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id });
-                          }}
-                          className="absolute -top-2 -right-2 z-10 w-5 h-5 rounded-full flex items-center justify-center"
-                          style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer" }}
-                        >
-                          <X className="w-3 h-3 text-white" />
-                        </button>
-                      )}
-                      {/* Owned badge */}
-                      {isOwned && (
-                        <div className="absolute top-1 left-1 z-10 px-1.5 py-0.5 rounded-full font-fantasy" style={{ fontSize: "7px", background: "rgba(232,168,0,0.25)", border: "1px solid rgba(232,168,0,0.5)", color: "#e8c84a" }}>
-                          Owned
+                        {/* Full-width divider */}
+                        <div className="mb-4 mx-4" style={{ height: 1, background: `linear-gradient(90deg, transparent, ${accent}70, transparent)` }} />
+                        {/* Items grid */}
+                        <div className="grid grid-cols-3 gap-3 px-3">
+                          {groupItems.map(item => {
+                            const imgSrc = item.type === "pet" ? (item.eggImageUrl || item.imageUrl) : item.imageUrl;
+                            const isOwned = item.type === "pet" && ownedItemIds.has(item.id);
+                            const canAfford = currentUser.coins >= item.price;
+                            const descLines = getItemDescription(item);
+                            return (
+                              <div
+                                key={item.id}
+                                className="relative flex flex-col items-center rounded-2xl transition-transform active:scale-95"
+                                style={{ background: "linear-gradient(160deg,rgba(0,0,0,0.42),rgba(0,0,0,0.58))", border: `1.5px solid ${accent}30`, boxShadow: `0 2px 16px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.05)`, cursor: "pointer", padding: "10px 8px 8px" }}
+                                onClick={() => { if (currentUser.isAdmin) return; playTick(); setSelectedShopItem(item); setBuyStep(1); setBuyQty(1); setBuyError(null); }}
+                              >
+                                {currentUser.isAdmin && (
+                                  <button data-testid={`button-unassign-item-${item.id}`} onClick={e => { e.stopPropagation(); if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id }); }} className="absolute -top-2 -right-2 z-10 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer" }}><X className="w-3 h-3 text-white" /></button>
+                                )}
+                                {isOwned && (
+                                  <div className="absolute top-1 left-1 z-10 px-1.5 py-0.5 rounded-full font-fantasy" style={{ fontSize: "7px", background: "rgba(232,168,0,0.25)", border: "1px solid rgba(232,168,0,0.5)", color: "#e8c84a" }}>Owned</div>
+                                )}
+                                <div className="w-full flex items-center justify-center mb-2" style={{ height: "72px" }}>
+                                  {imgSrc ? <img src={imgSrc} alt={item.name} className="max-w-full max-h-full object-contain" style={{ filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.7)) drop-shadow(0 0 6px ${accent}30)` }} /> : <Package className="w-10 h-10" style={{ color: `${accent}60` }} />}
+                                </div>
+                                <p className="font-fantasy text-center text-white leading-tight mb-1.5" style={{ fontSize: "10px", lineHeight: "1.3" }}>{item.name}</p>
+                                {descLines.length > 0 && <p className="font-fantasy text-center leading-tight mb-1.5" style={{ fontSize: "8px", color: `${accent}bb`, lineHeight: "1.2" }}>{descLines[0]}</p>}
+                                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: canAfford ? `${accent}20` : "rgba(80,60,40,0.25)", border: `1px solid ${canAfford ? accent + "50" : "rgba(100,80,50,0.35)"}` }}>
+                                  <img src={coinIconImg} alt="" style={{ width: "9px", height: "9px", objectFit: "contain" }} />
+                                  <span className="font-fantasy" style={{ fontSize: "9px", color: canAfford ? accent : "#7a6040", fontWeight: 700 }}>{item.price}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      )}
-                      {/* Item image */}
-                      <div className="w-full flex items-center justify-center mb-2" style={{ height: "72px" }}>
-                        {imgSrc ? (
-                          <img
-                            src={imgSrc}
-                            alt={item.name}
-                            className="max-w-full max-h-full object-contain"
-                            style={{ filter: `drop-shadow(0 2px 8px rgba(0,0,0,0.7)) drop-shadow(0 0 6px ${accent}30)` }}
-                          />
-                        ) : (
-                          <Package className="w-10 h-10" style={{ color: `${accent}60` }} />
-                        )}
                       </div>
-                      {/* Item name */}
-                      <p className="font-fantasy text-center text-white leading-tight mb-1.5" style={{ fontSize: "10px", textShadow: "0 1px 4px rgba(0,0,0,0.8)", lineHeight: "1.3" }}>
-                        {item.name}
-                      </p>
-                      {/* Description hint */}
-                      {descLines.length > 0 && (
-                        <p className="font-fantasy text-center leading-tight mb-1.5" style={{ fontSize: "8px", color: `${accent}bb`, lineHeight: "1.2" }}>
-                          {descLines[0]}
-                        </p>
-                      )}
-                      {/* Price */}
-                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: canAfford ? `${accent}20` : "rgba(80,60,40,0.25)", border: `1px solid ${canAfford ? accent + "50" : "rgba(100,80,50,0.35)"}` }}>
-                        <img src={coinIconImg} alt="" style={{ width: "9px", height: "9px", objectFit: "contain" }} />
-                        <span className="font-fantasy" style={{ fontSize: "9px", color: canAfford ? accent : "#7a6040", fontWeight: 700 }}>{item.price}</span>
-                      </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
+                    ))}
 
-            {/* ── House Bundles / Decor shelf ─────────────── */}
-            {(shopBundlesForSale.length > 0 || shopDecorForSale.length > 0) && (
-              <div className="mt-4">
-                <div className="mb-2 flex items-center gap-2">
-                  <div className="flex-1 h-px" style={{ background: `${accent}30` }} />
-                  <span className="font-fantasy text-[9px] tracking-widest" style={{ color: `${accent}80` }}>HOME GOODS</span>
-                  <div className="flex-1 h-px" style={{ background: `${accent}30` }} />
-                </div>
-                <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
-                  {shopBundlesForSale.map(bundle => (
-                    <button
-                      key={bundle.id}
-                      data-testid={`button-buy-bundle-shop-${bundle.id}`}
-                      onClick={() => { if (!currentUser.isAdmin) buyBundleMutation.mutate(bundle.id); }}
-                      disabled={buyBundleMutation.isPending || currentUser.isAdmin}
-                      className="flex-shrink-0 flex flex-col items-center gap-1.5 group"
-                      style={{ cursor: currentUser.isAdmin ? "default" : "pointer" }}
-                    >
-                      <div className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center transition-transform group-active:scale-90" style={{ background: "rgba(255,255,255,0.07)", border: `1.5px solid ${accent}40`, boxShadow: `0 2px 10px rgba(0,0,0,0.5)` }}>
-                        {bundle.shopImageUrl ? <img src={bundle.shopImageUrl} alt={bundle.name} className="w-full h-full object-cover" /> : <span className="text-2xl">🏡</span>}
+                    {/* ── Home Goods section ───────────────────── */}
+                    {hasHomeGoods && (
+                      <div data-section="home_goods" className="mb-6 pt-2">
+                        <div className="text-center mb-1 px-4">
+                          <span className="font-fantasy tracking-[0.22em]" style={{ fontSize: 13, color: accent, textShadow: `0 0 14px ${accent}55`, letterSpacing: "0.22em" }}>
+                            HOME GOODS
+                          </span>
+                        </div>
+                        <div className="mb-4 mx-4" style={{ height: 1, background: `linear-gradient(90deg, transparent, ${accent}70, transparent)` }} />
+                        <div className="flex gap-3 overflow-x-auto px-3 pb-2" style={{ scrollbarWidth: "none" }}>
+                          {shopBundlesForSale.map(bundle => (
+                            <button key={bundle.id} data-testid={`button-buy-bundle-shop-${bundle.id}`} onClick={() => { if (!currentUser.isAdmin) buyBundleMutation.mutate(bundle.id); }} disabled={buyBundleMutation.isPending || currentUser.isAdmin} className="flex-shrink-0 flex flex-col items-center gap-1.5 group" style={{ cursor: currentUser.isAdmin ? "default" : "pointer" }}>
+                              <div className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center transition-transform group-active:scale-90" style={{ background: "rgba(255,255,255,0.07)", border: `1.5px solid ${accent}40`, boxShadow: `0 2px 10px rgba(0,0,0,0.5)` }}>
+                                {bundle.shopImageUrl ? <img src={bundle.shopImageUrl} alt={bundle.name} className="w-full h-full object-cover" /> : <span className="text-2xl">🏡</span>}
+                              </div>
+                              <p className="font-fantasy text-[8px] text-white/80 max-w-[64px] text-center truncate leading-tight">{bundle.name}</p>
+                              <span className="font-fantasy text-[8px] px-2 py-0.5 rounded-full" style={{ background: `${accent}25`, color: accent, border: `1px solid ${accent}40` }}>{bundle.price}c</span>
+                            </button>
+                          ))}
+                          {shopDecorForSale.map(decor => (
+                            <div key={decor.id} data-testid={`button-buy-decor-shop-${decor.id}`} className="flex-shrink-0 flex flex-col items-center gap-1.5">
+                              <div className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center" style={{ background: "rgba(255,255,255,0.07)", border: `1.5px solid ${accent}40`, boxShadow: `0 2px 10px rgba(0,0,0,0.5)` }}>
+                                {decor.imageUrl ? <img src={decor.imageUrl} alt={decor.name} className="w-full h-full object-cover" /> : <span className="text-2xl">🪴</span>}
+                              </div>
+                              <p className="font-fantasy text-[8px] text-white/80 max-w-[64px] text-center truncate leading-tight">{decor.name}</p>
+                              <span className="font-fantasy text-[8px] px-2 py-0.5 rounded-full" style={{ background: `${accent}25`, color: accent, border: `1px solid ${accent}40` }}>{decor.price}c</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <p className="font-fantasy text-[8px] text-white/80 max-w-[64px] text-center truncate leading-tight">{bundle.name}</p>
-                      <span className="font-fantasy text-[8px] px-2 py-0.5 rounded-full" style={{ background: `${accent}25`, color: accent, border: `1px solid ${accent}40` }}>{bundle.price}c</span>
-                    </button>
-                  ))}
-                  {shopDecorForSale.map(decor => (
-                    <div key={decor.id} data-testid={`button-buy-decor-shop-${decor.id}`} className="flex-shrink-0 flex flex-col items-center gap-1.5">
-                      <div className="w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center" style={{ background: "rgba(255,255,255,0.07)", border: `1.5px solid ${accent}40`, boxShadow: `0 2px 10px rgba(0,0,0,0.5)` }}>
-                        {decor.imageUrl ? <img src={decor.imageUrl} alt={decor.name} className="w-full h-full object-cover" /> : <span className="text-2xl">🪴</span>}
-                      </div>
-                      <p className="font-fantasy text-[8px] text-white/80 max-w-[64px] text-center truncate leading-tight">{decor.name}</p>
-                      <span className="font-fantasy text-[8px] px-2 py-0.5 rounded-full" style={{ background: `${accent}25`, color: accent, border: `1px solid ${accent}40` }}>{decor.price}c</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                    )}
+                  </>
+                );
+              })()
             )}
           </div>
 
