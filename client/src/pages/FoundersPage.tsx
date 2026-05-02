@@ -85,10 +85,11 @@ export default function FoundersPage() {
 
   return (
     <div
-      className="relative min-h-screen w-full overflow-x-hidden"
+      className="relative min-h-screen w-full"
       style={{
         backgroundColor: "#06120a",
         color: "#e8d97a",
+        overflowX: "clip",
       }}
       data-testid="founders-page"
     >
