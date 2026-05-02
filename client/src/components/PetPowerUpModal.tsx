@@ -32,6 +32,9 @@ interface PetPowerUpModalProps {
   petTemplateId: string | null;
   rarity: number;
   petLevel: number;
+  petAtk: number;
+  petDef: number;
+  petHealth: number;
   itemsRemaining: number;
   items: PowerUpItem[];
   isPending: boolean;
@@ -126,7 +129,8 @@ const ANIM_DURATION = 2400;
 // ── Component ────────────────────────────────────────────────────────────────
 export default function PetPowerUpModal({
   petName, petImage, petTemplateId, rarity,
-  petLevel, itemsRemaining, items, isPending,
+  petLevel, petAtk, petDef, petHealth,
+  itemsRemaining, items, isPending,
   title = "POWER UP", subtitle,
   successEffect,
   onUseItem, onSuccessAnimEnd, onClose,
@@ -498,6 +502,54 @@ export default function PetPowerUpModal({
         <div className="mt-1.5 flex items-center gap-2">
           <div className="font-fantasy text-[13px] tracking-wider" style={{ color: "#fcd34d", textShadow: "0 0 12px rgba(252,211,77,0.4)" }}>{petName}</div>
           <div className="font-fantasy text-[10px] px-2 py-0.5 rounded-full" style={{ color: "#86efac", background: "rgba(10,30,12,0.8)", border: "1px solid rgba(134,239,172,0.3)" }}>Lv.{petLevel}</div>
+        </div>
+
+        {/* Stat bars */}
+        <div
+          className="mt-2 w-full px-1 flex flex-col gap-1.5"
+          style={{ maxWidth: 300 }}
+          data-testid="section-pet-stats"
+        >
+          {([
+            { label: "ATK", value: petAtk,    color: "#f87171", rgb: "248,113,113", max: 200 },
+            { label: "DEF", value: petDef,    color: "#60a5fa", rgb: "96,165,250",  max: 200 },
+            { label: "HP",  value: petHealth, color: "#4ade80", rgb: "74,222,128",  max: 2500 },
+          ] as const).map(({ label, value, color, rgb, max }) => {
+            const pct = Math.min(100, Math.round((value / max) * 100));
+            return (
+              <div key={label} className="flex items-center gap-2">
+                <span
+                  className="font-fantasy text-[10px] font-bold tracking-widest w-7 text-right flex-shrink-0"
+                  style={{ color, textShadow: `0 0 8px rgba(${rgb},0.6)` }}
+                >
+                  {label}
+                </span>
+                <div
+                  className="flex-1 rounded-full overflow-hidden"
+                  style={{ height: 7, background: `rgba(${rgb},0.12)`, border: `1px solid rgba(${rgb},0.25)` }}
+                >
+                  <div
+                    data-testid={`bar-stat-${label.toLowerCase()}`}
+                    style={{
+                      width: `${pct}%`,
+                      height: "100%",
+                      background: `linear-gradient(90deg, rgba(${rgb},0.55) 0%, rgba(${rgb},1) 100%)`,
+                      boxShadow: `0 0 6px rgba(${rgb},0.7)`,
+                      borderRadius: "9999px",
+                      transition: "width 0.5s cubic-bezier(0.34,1.56,0.64,1)",
+                    }}
+                  />
+                </div>
+                <span
+                  className="font-fantasy text-[10px] tabular-nums w-10 flex-shrink-0"
+                  style={{ color: `rgba(${rgb},0.9)`, textShadow: `0 0 6px rgba(${rgb},0.4)` }}
+                  data-testid={`text-stat-${label.toLowerCase()}`}
+                >
+                  {value}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
