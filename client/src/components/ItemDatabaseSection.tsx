@@ -39,6 +39,7 @@ export interface ShopItemFull {
   baitRarityBoostStar: number | null;
   poleMaxUses: number | null;
   giftPoints?: number | null;
+  facingDirection?: string | null;
   createdAt: string;
 }
 
@@ -548,6 +549,7 @@ function AdminItemForm({
   const [skillHealPercent, setSkillHealPercent] = useState((item as any)?.skillHealPercent?.toString() || "");
   const [skillType, setSkillType] = useState<string>((item as any)?.skillType || "");
   const [skillAffects, setSkillAffects] = useState<string>((item as any)?.skillAffects || "");
+  const [facingDirection, setFacingDirection] = useState<string>((item as any)?.facingDirection || "");
 
   // Affects options are filtered by skill type so the admin can't pick a
   // nonsensical pairing (e.g. a damage skill that "affects self").
@@ -638,6 +640,7 @@ function AdminItemForm({
           skillType === "heal" && skillHealPercent.trim()
             ? parseFloat(skillHealPercent) : null;
         payload.petTemplateId = petTemplateId || null;
+        payload.facingDirection = facingDirection || null;
         if (eggImageData) payload.eggImageData = eggImageData;
         if (hatchedImageData) payload.hatchedImageData = hatchedImageData;
         payload.statBoostType = null;
@@ -1024,6 +1027,42 @@ function AdminItemForm({
                   </p>
                 </div>
               )}
+              {/* ── Facing direction ────────────────────────────────────── */}
+              <div className="col-span-full mt-2">
+                <div className="border-t border-[#a89878]/30 mb-2" />
+                <div className="font-fantasy text-[#d4c2a0] text-xs tracking-widest uppercase mb-2">KC World Facing</div>
+                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mb-2">
+                  Which direction the pet sprite naturally faces — used on Keeper's Central to flip the sprite correctly when walking.
+                </p>
+                <div className="flex gap-2">
+                  {[
+                    { value: "",      label: "Not set" },
+                    { value: "left",  label: "◀ Faces Left" },
+                    { value: "right", label: "Faces Right ▶" },
+                  ].map(({ value, label }) => (
+                    <button
+                      key={value}
+                      data-testid={`button-facing-${value || "unset"}`}
+                      type="button"
+                      onClick={() => setFacingDirection(value)}
+                      className="flex-1 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider"
+                      style={{
+                        background: facingDirection === value
+                          ? "linear-gradient(135deg, rgba(255,179,71,0.35) 0%, rgba(255,140,0,0.25) 100%)"
+                          : "rgba(242,232,208,0.08)",
+                        border: facingDirection === value
+                          ? "1px solid rgba(255,179,71,0.7)"
+                          : "1px solid rgba(138,120,88,0.3)",
+                        color: facingDirection === value ? "#ffb347" : "#a89878",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <ImageUpload
                 label="Egg Image (PNG or GIF)"
                 preview={eggImagePreview}

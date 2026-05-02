@@ -547,13 +547,20 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // Sync facingLeft to own pet's natural facing on initial load and whenever
   // the active pet swaps. Only runs while the joystick is idle so we don't
   // stomp on the player's current movement direction.
+  // Must match the naturalFacingLeft formula inside WorldRoamingPet exactly.
   useEffect(() => {
     if (!ownPet || joystickActRef.current) return;
     const tplFacing = ownPetTemplate?.facing;
-    const isSideTpl = tplFacing === "left" || tplFacing === "right";
-    const naturalLeft = isSideTpl
-      ? tplFacing === "left"
-      : ownPet.facingDirection === "left";
+    const naturalLeft =
+      tplFacing === "left"  ? true :
+      tplFacing === "right" ? false :
+      // "back" = side-profile template. These are drawn facing LEFT by convention
+      // (confirmed by production data: all facingDirection fields are null, and
+      // the user consistently sees wrong direction with the old "assumes right"
+      // default). Override only when facingDirection is explicitly "right".
+      tplFacing === "back"  ? (ownPet.facingDirection !== "right") :
+      // "front" / unknown → front-facing or symmetric, default to right-facing.
+      (ownPet.facingDirection === "left");
     if (facingLeftRef.current !== naturalLeft) {
       facingLeftRef.current = naturalLeft;
       setFacingLeft(naturalLeft);
@@ -1314,7 +1321,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 posY={resolvedY}
                 isOwn={isOwn}
                 isMoving={isOwn ? petIsMoving : false}
-                facingLeft={isOwn ? facingLeft : false}
+                facingLeft={isOwn ? facingLeft : undefined}
                 onTap={() => setSelectedPet(pet)}
               />
             );
@@ -3612,7 +3619,7 @@ function WorldRoamingPet({
   posY: number;
   isOwn: boolean;
   isMoving: boolean;
-  facingLeft: boolean;
+  facingLeft: boolean | undefined;
   onTap: () => void;
 }) {
   const { data: templateData } = useQuery<{
@@ -3760,7 +3767,7 @@ function WorldRoamingPet({
                 pet.facingDirection alone misses side-facing-template pets. */}
             <div
               style={{
-                transform: (facingLeft !== naturalFacingLeft) ? "scaleX(-1)" : undefined,
+                transform: ((facingLeft ?? naturalFacingLeft) !== naturalFacingLeft) ? "scaleX(-1)" : undefined,
                 transition: "transform 0.1s ease",
               }}
             >
