@@ -5,7 +5,9 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store, DoorOpen, Package } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
-import { playShopBell } from "@/lib/sounds";
+import { playShopBell, playChime, playTick } from "@/lib/sounds";
+import { burstGoldenOrbs } from "@/lib/goldenOrbs";
+import priceTagImg from "@assets/price_tag.png";
 import PetAnimator from "@/components/PetAnimator";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
@@ -167,6 +169,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [showDoorItemPicker,  setShowDoorItemPicker]  = useState(false);
   const [doorPickerTab,       setDoorPickerTab]       = useState<"items"|"house"|"decor">("items");
   const [doorPickerFilter,    setDoorPickerFilter]    = useState("all");
+  const [selectedDoorShopItem, setSelectedDoorShopItem] = useState<KCShopItem | null>(null);
+  const [doorBuyStep,         setDoorBuyStep]         = useState<0 | 1 | 2>(0);
+  const [doorBuyQty,          setDoorBuyQty]          = useState(1);
+  const [doorBuyError,        setDoorBuyError]        = useState<string | null>(null);
   const [bgPanX,            setBgPanX]            = useState(0);
   const bgPanXRef       = useRef(0);
   const [bgRenderedW,       setBgRenderedW]        = useState(0);
@@ -908,6 +914,30 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       toast({ title: "Item Removed" });
     },
     onError: () => toast({ title: "Error", description: "Failed to remove item", variant: "destructive" }),
+  });
+
+  const doorBuyMutation = useMutation({
+    mutationFn: async ({ itemId, quantity }: { itemId: string; quantity: number }) => {
+      const res = await apiRequest("POST", `/api/shop/${WORLD_ID}/buy/${itemId}`, { quantity });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      setDoorBuyStep(0);
+      setDoorBuyError(null);
+      setSelectedDoorShopItem(null);
+      playChime();
+      const qty = data.quantity ?? 1;
+      toast({ title: "Purchased!", description: qty > 1 ? `${qty}× added to your inventory` : "Added to your inventory" });
+    },
+    onError: (err: any) => {
+      let msg = "Could not purchase item";
+      try {
+        const parsed = JSON.parse(err.message.split(": ").slice(1).join(": "));
+        msg = parsed.message || msg;
+      } catch {}
+      setDoorBuyError(msg);
+    },
   });
 
   const assignDoorBundleMutation = useMutation({
@@ -2700,63 +2730,104 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 );
               })}
               </div>{/* end decor scrolling layer */}
+            </div>{/* end background / interiorRef div */}
 
-              {/* Shop items panel — shown for shop doors */}
-              {door.isShop && (
+            {/* ── Shop layout — full-height panel for shop doors ── */}
+            {door.isShop && (() => {
+              const sortedDoorItems = [...doorShopItems].sort((a, b) => a.price - b.price);
+              const TYPE_ORDER = ["pet","edibles","power_up","potion","special","accessory","item","fishing","gift"];
+              const TYPE_LABELS: Record<string,string> = { pet:"Pets", edibles:"Edibles", power_up:"Power-Ups", potion:"Potions", special:"Special", accessory:"Accessories", item:"Items", fishing:"Fishing", gift:"Gifts" };
+              const allPresentTypes = [...new Set(sortedDoorItems.map(i => i.type))];
+              const presentTypes = [...TYPE_ORDER.filter(t => allPresentTypes.includes(t)), ...allPresentTypes.filter(t => !TYPE_ORDER.includes(t))];
+              const getDoorItemDescription = (item: KCShopItem): string[] => {
+                const lines: string[] = [];
+                if (item.type === "pet") {
+                  if (item.rarity) lines.push("★".repeat(item.rarity) + " Rarity");
+                  if (item.hatchTime) lines.push(`Hatch: ${item.hatchTime}h`);
+                } else if (item.description) {
+                  lines.push(item.description);
+                }
+                return lines;
+              };
+              return (
                 <div style={{
                   position: "absolute", bottom: 0, left: 0, right: 0,
-                  maxHeight: "52vh",
+                  height: "62vh",
                   display: "flex", flexDirection: "column",
-                  background: "linear-gradient(180deg, rgba(4,10,6,0.0) 0%, rgba(4,10,6,0.97) 14%)",
-                  paddingTop: 24,
+                  zIndex: 30,
+                  pointerEvents: "auto",
                 }}>
-                  {/* Items grid */}
-                  <div className="flex-1 overflow-y-auto px-3 pb-4" style={{ scrollbarWidth: "none" }}>
-                    {doorShopItems.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-6 gap-2">
-                        <Store style={{ width: 32, height: 32, color: `${ACCENT}35` }} />
-                        <p className="font-fantasy text-[10px] text-center" style={{ color: `${ACCENT}50` }}>No items for sale yet</p>
+                  {/* Scene-to-shop gradient fade */}
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 72, background: "linear-gradient(180deg, transparent 0%, rgba(8,6,14,0.94) 100%)", pointerEvents: "none" }} />
+
+                  {/* Shop header */}
+                  <div className="relative flex items-center justify-between px-4 pt-5 pb-2 flex-shrink-0" style={{ zIndex: 2, background: "rgba(8,6,14,0.94)" }}>
+                    <span className="font-fantasy text-base tracking-widest font-semibold" style={{ color: "#d4a017", textShadow: "0 0 14px rgba(212,160,23,0.6)" }}>{door.name}</span>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ background: "rgba(20,14,4,0.85)", border: "1px solid rgba(212,160,23,0.35)" }}>
+                      <img src={coinIconImg} alt="" style={{ width: 12, height: 12, objectFit: "contain" }} />
+                      <span className="font-fantasy text-[11px]" style={{ color: "#f0c040" }}>{me?.coins ?? 0} coins</span>
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="flex-shrink-0 mx-4 mb-2" style={{ zIndex: 2, height: 1, background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.5), transparent)" }} />
+
+                  {/* Type tabs — only if more than one type */}
+                  {presentTypes.length > 1 && (
+                    <div className="flex-shrink-0 flex gap-2 px-3 pb-2 overflow-x-auto" style={{ zIndex: 2, scrollbarWidth: "none", background: "rgba(8,6,14,0.94)" }}>
+                      {presentTypes.map(t => (
+                        <button key={t} className="flex-shrink-0 font-fantasy tracking-widest transition-all active:scale-95"
+                          style={{ fontSize: 10, letterSpacing: "0.12em", padding: "5px 12px", borderRadius: 20, background: "rgba(212,160,23,0.15)", border: "1.5px solid rgba(212,160,23,0.45)", color: "#d4a017", cursor: "pointer", whiteSpace: "nowrap" }}>
+                          {TYPE_LABELS[t] ?? t.replace(/_/g, " ")}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Scrollable items body */}
+                  <div className="flex-1 overflow-y-auto pb-8 px-3 pt-1" style={{ zIndex: 2, scrollbarWidth: "none", background: "rgba(8,6,14,0.94)" }}>
+                    {sortedDoorItems.length === 0 ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="text-center px-8 py-6 rounded-2xl" style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(212,160,23,0.2)" }}>
+                          <p className="font-fantasy text-[#c8b89a] text-sm tracking-wider">No wares yet.</p>
+                          {user.isAdmin && <p className="font-fantasy text-[10px] tracking-wider mt-1" style={{ color: "rgba(212,160,23,0.6)" }}>Tap + to add items</p>}
+                        </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-3 gap-2.5">
-                        {doorShopItems.map(item => {
+                      <div className="grid grid-cols-3 gap-3 pt-1">
+                        {sortedDoorItems.map(item => {
                           const img = item.hatchedImageUrl || item.eggImageUrl || item.imageUrl;
-                          const rarityColor = ["", "#a0a0b0", "#4ade80", "#60a5fa", "#c084fc", "#f0c040"][Math.min(5, item.rarity ?? 0)];
+                          const canAfford = (me?.coins ?? 0) >= item.price;
+                          const descLines = getDoorItemDescription(item);
                           return (
-                            <div key={item.id}
+                            <div
+                              key={item.id}
                               data-testid={`door-shop-item-${item.id}`}
-                              className="relative flex flex-col items-center gap-1 rounded-xl p-2 transition-transform active:scale-95 cursor-pointer"
-                              style={{
-                                background: "rgba(10,22,12,0.88)",
-                                border: `1px solid ${ACCENT}30`,
-                                boxShadow: rarityColor ? `0 0 8px ${rarityColor}20` : undefined,
-                              }}>
-                              {/* Admin unassign button */}
+                              className="relative flex flex-col items-center rounded-2xl transition-transform active:scale-95"
+                              style={{ background: "linear-gradient(160deg,rgba(0,0,0,0.42),rgba(0,0,0,0.58))", border: "1.5px solid rgba(212,160,23,0.3)", boxShadow: "0 2px 16px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.05)", cursor: "pointer", padding: "10px 8px 8px" }}
+                              onClick={() => { if (user.isAdmin) return; playTick(); setSelectedDoorShopItem(item); setDoorBuyStep(1); setDoorBuyQty(1); setDoorBuyError(null); }}
+                            >
                               {user.isAdmin && (
                                 <button
                                   data-testid={`button-unassign-door-item-${item.id}`}
                                   onPointerDown={e => e.stopPropagation()}
                                   onClick={e => { e.stopPropagation(); if (activeDoorId) unassignDoorItemMutation.mutate({ doorId: activeDoorId, itemId: item.id }); }}
-                                  style={{
-                                    position: "absolute", top: -8, right: -8,
-                                    width: 20, height: 20, borderRadius: "50%",
-                                    background: "rgba(220,38,38,0.9)", border: "1.5px solid rgba(255,100,100,0.6)",
-                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                    cursor: "pointer", zIndex: 10,
-                                  }}>
+                                  className="absolute -top-2 -right-2 z-10 w-5 h-5 rounded-full flex items-center justify-center"
+                                  style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer" }}
+                                >
                                   <X style={{ width: 10, height: 10, color: "white" }} />
                                 </button>
                               )}
-                              <div className="w-14 h-14 flex items-center justify-center rounded-lg overflow-hidden"
-                                style={{ background: "rgba(6,14,8,0.7)" }}>
-                                {img ? <img src={img} alt={item.name} style={{ width: 52, height: 52, objectFit: "contain" }} draggable={false} />
-                                  : <Package style={{ width: 26, height: 26, color: `${ACCENT}50` }} />}
+                              <div className="w-full flex items-center justify-center mb-2" style={{ height: 72 }}>
+                                {img
+                                  ? <img src={img} alt={item.name} className="max-w-full max-h-full object-contain" style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.7)) drop-shadow(0 0 6px rgba(212,160,23,0.3))" }} />
+                                  : <Package style={{ width: 40, height: 40, color: "rgba(212,160,23,0.5)" }} />}
                               </div>
-                              <span className="font-fantasy text-[8px] tracking-wide text-center leading-tight line-clamp-2"
-                                style={{ color: `${ACCENT}cc` }}>{item.name}</span>
-                              <div className="flex items-center gap-1">
-                                <img src={coinIconImg} alt="coins" style={{ width: 9, height: 9, objectFit: "contain" }} />
-                                <span className="font-fantasy text-[8px]" style={{ color: "#f0c040" }}>{item.price}</span>
+                              <p className="font-fantasy text-center text-white leading-tight mb-1.5" style={{ fontSize: 10, lineHeight: 1.3 }}>{item.name}</p>
+                              {descLines.length > 0 && <p className="font-fantasy text-center leading-tight mb-1.5" style={{ fontSize: 8, color: "rgba(212,160,23,0.75)", lineHeight: 1.2 }}>{descLines[0]}</p>}
+                              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: canAfford ? "rgba(212,160,23,0.2)" : "rgba(80,60,40,0.25)", border: `1px solid ${canAfford ? "rgba(212,160,23,0.5)" : "rgba(100,80,50,0.35)"}` }}>
+                                <img src={coinIconImg} alt="" style={{ width: 9, height: 9, objectFit: "contain" }} />
+                                <span className="font-fantasy" style={{ fontSize: 9, color: canAfford ? "#f0c040" : "#7a6040", fontWeight: 700 }}>{item.price}</span>
                               </div>
                             </div>
                           );
@@ -2765,8 +2836,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                     )}
                   </div>
                 </div>
-              )}
-            </div>
+              );
+            })()}
 
             {/* ── Interior HUD ── */}
             <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 60 }}>
@@ -2885,6 +2956,114 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                         Cancel
                       </button>
                     </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Price-tag buy modal for door shop items ─────────────────────── */}
+      {selectedDoorShopItem && doorBuyStep > 0 && (() => {
+        const item = selectedDoorShopItem;
+        const img = item.hatchedImageUrl || item.eggImageUrl || item.imageUrl;
+        const maxQty = item.type === "pet" ? 1 : 20;
+        const totalCost = item.price * (item.type === "pet" ? 1 : doorBuyQty);
+        const canAfford = (me?.coins ?? 0) >= totalCost;
+        const descLines: string[] = [];
+        if (item.type === "pet") {
+          if (item.rarity) descLines.push("★".repeat(item.rarity) + " Rarity");
+          if (item.hatchTime) descLines.push(`Hatch: ${item.hatchTime}h`);
+        } else if (item.description) {
+          descLines.push(item.description);
+        }
+        return (
+          <div className="fixed inset-0 flex items-center justify-center overflow-hidden" style={{ zIndex: 200, maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+            <div className="absolute inset-0 bg-black/70" onClick={() => { setSelectedDoorShopItem(null); setDoorBuyStep(0); setDoorBuyError(null); setDoorBuyQty(1); }} />
+            <div className="relative z-10 flex flex-col items-center" style={{ gap: 14 }}>
+              {/* Price tag */}
+              <div className="relative" style={{ width: "min(115vw, 115vh)", height: "min(115vw, 115vh)" }}>
+                <img src={priceTagImg} alt="" className="absolute inset-0 w-full h-full pointer-events-none select-none" style={{ objectFit: "fill", filter: "drop-shadow(0 14px 36px rgba(0,0,0,0.95)) drop-shadow(0 3px 8px rgba(0,0,0,0.7))" }} />
+                {/* Item image */}
+                {doorBuyStep === 1 && (
+                  <div style={{ position: "absolute", left: "50%", top: "63%", transform: "translate(-50%, -50%)", zIndex: 25, width: 96, height: 96, pointerEvents: "none" }}>
+                    {img ? <img src={img} alt={item.name} className="w-full h-full object-contain" style={{ filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.75))" }} /> : <Package style={{ width: 80, height: 80, color: "rgba(80,40,10,0.75)" }} />}
+                  </div>
+                )}
+                {/* Step 1: name + description + price */}
+                {doorBuyStep === 1 && (
+                  <div className="absolute flex flex-col justify-between" style={{ top: "41%", left: "29%", right: "29%", bottom: "11%", overflow: "hidden" }}>
+                    <div className="text-center">
+                      <h3 className="font-fantasy font-bold leading-tight" style={{ color: "#1a0700", fontSize: 14, textShadow: "-1px -1px 0 rgba(255,225,150,0.85), 1px -1px 0 rgba(255,225,150,0.85), -1px 1px 0 rgba(255,225,150,0.85), 1px 1px 0 rgba(255,225,150,0.85)" }}>{item.name}</h3>
+                    </div>
+                    <div>
+                      {descLines.length > 0 && (
+                        <div style={{ marginBottom: 5 }}>
+                          {descLines.slice(0, 3).map((line, i) => (
+                            <div key={i} className="font-fantasy text-center" style={{ fontSize: 9.5, fontWeight: "bold", color: "#1e0800", lineHeight: 1.45, textShadow: "-1px -1px 0 rgba(255,225,150,0.7), 1px -1px 0 rgba(255,225,150,0.7), -1px 1px 0 rgba(255,225,150,0.7), 1px 1px 0 rgba(255,225,150,0.7)" }}>{line}</div>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{ borderTop: "1px solid rgba(100,50,10,0.28)", marginBottom: 6 }} />
+                      <div className="flex items-center justify-center" style={{ gap: 5 }}>
+                        <img src={coinIconImg} alt="" style={{ width: 14, height: 14, objectFit: "contain" }} />
+                        <span className="font-fantasy font-bold" style={{ fontSize: 15, color: "#1e0800", textShadow: "-1px -1px 0 rgba(255,225,150,0.85), 1px -1px 0 rgba(255,225,150,0.85), -1px 1px 0 rgba(255,225,150,0.85), 1px 1px 0 rgba(255,225,150,0.85)" }}>{item.price} coins</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* Step 2: name + qty + total */}
+                {doorBuyStep === 2 && (
+                  <div className="absolute flex flex-col justify-center items-center" style={{ top: "41%", left: "29%", right: "29%", bottom: "5%", overflow: "hidden", gap: 6 }}>
+                    <h3 className="font-fantasy font-bold text-center" style={{ fontSize: 14, color: "#1a0700", textShadow: "-1px -1px 0 rgba(255,225,150,0.85), 1px -1px 0 rgba(255,225,150,0.85), -1px 1px 0 rgba(255,225,150,0.85), 1px 1px 0 rgba(255,225,150,0.85)" }}>{item.name}</h3>
+                    <div style={{ borderTop: "1px solid rgba(100,50,10,0.25)", width: "100%" }} />
+                    {item.type !== "pet" && (
+                      <div className="flex flex-col items-center" style={{ gap: 3 }}>
+                        <span className="font-fantasy" style={{ fontSize: 9, color: "#2e1000", fontWeight: 600, textShadow: "-1px -1px 0 rgba(255,225,150,0.7), 1px -1px 0 rgba(255,225,150,0.7), -1px 1px 0 rgba(255,225,150,0.7), 1px 1px 0 rgba(255,225,150,0.7)" }}>How many?</span>
+                        <div className="flex items-center" style={{ gap: 16 }}>
+                          {doorBuyQty > 1 && (
+                            <button onClick={() => setDoorBuyQty(q => Math.max(1, q - 1))} className="rounded-full flex items-center justify-center font-bold transition-transform active:scale-90" style={{ width: 30, height: 30, background: "rgba(65,30,5,0.28)", border: "1.5px solid rgba(130,65,18,0.55)", color: "#1e0900", cursor: "pointer", fontSize: 16 }}>−</button>
+                          )}
+                          <span className="font-fantasy font-bold" style={{ fontSize: 24, color: "#1e0900", minWidth: "2ch", textAlign: "center", textShadow: "-1px -1px 0 rgba(255,225,150,0.8), 1px -1px 0 rgba(255,225,150,0.8), -1px 1px 0 rgba(255,225,150,0.8), 1px 1px 0 rgba(255,225,150,0.8)" }}>{doorBuyQty}</span>
+                          <button onClick={() => setDoorBuyQty(q => Math.min(maxQty, q + 1))} className="rounded-full flex items-center justify-center font-bold transition-transform active:scale-90" style={{ width: 30, height: 30, background: "rgba(65,30,5,0.28)", border: "1.5px solid rgba(130,65,18,0.55)", color: "#1e0900", cursor: "pointer", fontSize: 16 }}>+</button>
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex items-center" style={{ gap: 5 }}>
+                      <img src={coinIconImg} alt="" style={{ width: 16, height: 16, objectFit: "contain" }} />
+                      <span className="font-fantasy font-bold" style={{ fontSize: 18, color: "#1e0900", textShadow: "-1px -1px 0 rgba(255,225,150,0.8), 1px -1px 0 rgba(255,225,150,0.8), -1px 1px 0 rgba(255,225,150,0.8), 1px 1px 0 rgba(255,225,150,0.8)" }}>{totalCost} coins</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {/* Buy button — step 1 */}
+              {doorBuyStep === 1 && (
+                <div className="flex flex-col items-center" style={{ gap: 4, maxWidth: "90vw", width: "100%" }}>
+                  <button
+                    data-testid="button-door-price-buy"
+                    onClick={() => { setDoorBuyStep(2); setDoorBuyQty(1); }}
+                    className="w-full font-fantasy font-bold tracking-wide transition-transform active:scale-95"
+                    style={{ padding: "11px 40px", fontSize: 14, borderRadius: 12, background: canAfford ? "linear-gradient(135deg, rgba(115,62,10,0.97) 0%, rgba(78,40,6,0.97) 100%)" : "rgba(60,42,18,0.55)", border: `2px solid ${canAfford ? "rgba(220,148,42,0.9)" : "rgba(100,75,40,0.3)"}`, color: canAfford ? "#ffd04a" : "#7a6040", cursor: "pointer", boxShadow: canAfford ? "0 4px 16px rgba(90,45,0,0.5)" : "none", letterSpacing: "0.08em" }}
+                  >Buy</button>
+                  {!canAfford && <p className="font-fantasy text-center" style={{ fontSize: 10, color: "#e84040", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>Not enough coins</p>}
+                </div>
+              )}
+              {/* Confirm / back — step 2 */}
+              {doorBuyStep === 2 && (
+                <div className="flex flex-col items-center" style={{ gap: 6, maxWidth: "90vw", width: "100%" }}>
+                  {doorBuyError && (
+                    <div className="font-fantasy text-center w-full" style={{ fontSize: 9, padding: "5px 10px", borderRadius: 8, background: "rgba(150,10,10,0.35)", color: "#ffaaaa", border: "1px solid rgba(200,50,50,0.4)" }}>{doorBuyError}</div>
+                  )}
+                  <div className="flex w-full" style={{ gap: 10 }}>
+                    <button onClick={() => { setDoorBuyStep(1); setDoorBuyError(null); }} className="flex-1 font-fantasy font-semibold transition-transform active:scale-95" style={{ padding: "11px 0", fontSize: 13, borderRadius: 12, background: "rgba(40,25,8,0.7)", border: "1.5px solid rgba(115,65,20,0.5)", color: "#c8a060", cursor: "pointer" }}>Back</button>
+                    <button
+                      data-testid="button-door-confirm-buy"
+                      onClick={(e) => { burstGoldenOrbs(e.clientX, e.clientY); doorBuyMutation.mutate({ itemId: item.id, quantity: doorBuyQty }); }}
+                      disabled={doorBuyMutation.isPending}
+                      className="flex-1 font-fantasy font-bold transition-transform active:scale-95 disabled:opacity-50"
+                      style={{ padding: "11px 0", fontSize: 13, borderRadius: 12, background: "linear-gradient(135deg, rgba(115,62,10,0.97) 0%, rgba(78,40,6,0.97) 100%)", border: "2px solid rgba(220,148,42,0.9)", color: "#ffd04a", cursor: "pointer", boxShadow: "0 4px 14px rgba(90,45,0,0.5)" }}
+                    >{doorBuyMutation.isPending ? "Buying…" : "Confirm Buy!"}</button>
                   </div>
                 </div>
               )}
