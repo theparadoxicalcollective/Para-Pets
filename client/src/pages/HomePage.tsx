@@ -248,9 +248,14 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       const res = await apiRequest("POST", `/api/pets/${inventoryId}/petting-reward`, {});
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      if (data?.coins !== undefined) {
+        queryClient.setQueryData(["/api/auth/me"], (old: any) =>
+          old ? { ...old, coins: data.coins } : old
+        );
+        setCurrentUser(prev => ({ ...prev, coins: data.coins }));
+      }
     },
   });
   // Mirrors the Pet Care page: a circular drag triggers continuous heart and
