@@ -24,6 +24,7 @@ import bgShopBayou from "@assets/bg_shop_bayou.png";
 import bgShopFishing from "@assets/bg_shop_fishing.png";
 import bgShopCentralMarket from "@assets/bg_central_market.png";
 import bgShopVolcanic from "@assets/bg_shop_volcanic.png";
+import bgShopVolcanicPets from "@assets/bg_shop_volcanic_pets.png";
 import shopVolcanicFishing from "@assets/icon_fishing_shop_volcanic.png";
 import npcLavaHook from "@assets/npc_lava_hook_shopkeeper.png";
 import shopFrostpeak from "@assets/shop_frostpeak.png";
@@ -1856,7 +1857,7 @@ export default function WorldPage({ user }: WorldPageProps) {
                           />
                           {/* Floating bubbles — fishing spots only (not shop buildings) */}
                           {loc.type === "fishing" && !loc.isShop && (
-                            <div style={{ position: "absolute", inset: 0, zIndex: 50, pointerEvents: "none", contain: "strict" }}>
+                            <div style={{ position: "absolute", inset: 0, zIndex: 50, pointerEvents: "none", overflow: "visible" }}>
                               {([
                                 { left: "22%", bottom: "26%", size: 5, dur: "5.5s", delay: "0.0s" },
                                 { left: "50%", bottom: "20%", size: 6, dur: "5.2s", delay: "2.8s" },
@@ -2766,16 +2767,22 @@ export default function WorldPage({ user }: WorldPageProps) {
         const sortedItems = [...items].sort((a, b) => a.price - b.price);
         const isFishingShop = activeLoc?.type === "fishing";
         const isVolcanicFishing = isFishingShop && worldId === "volcanic";
+        const isVolcanicShop = worldId === "volcanic" && !isFishingShop;
         const isCentralMarket = worldId === "pet_world";
-        const shopBg = isFishingShop ? (isVolcanicFishing ? bgShopVolcanic : bgShopFishing) : isCentralMarket ? bgShopCentralMarket : (worldId === "swamp" ? bgShopBayou : bgShopMystical);
+        const shopBg = isFishingShop
+          ? (isVolcanicFishing ? bgShopVolcanic : bgShopFishing)
+          : isCentralMarket ? bgShopCentralMarket
+          : isVolcanicShop ? bgShopVolcanicPets
+          : worldId === "swamp" ? bgShopBayou
+          : bgShopMystical;
         return (
-        <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: isCentralMarket ? "#08060a" : isVolcanicFishing ? "#0d0502" : "#080510", overflow: "hidden" }}>
+        <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: isCentralMarket ? "#08060a" : (isVolcanicFishing || isVolcanicShop) ? "#0d0502" : "#080510", overflow: "hidden" }}>
           {/* Themed background image — fixed, not admin-uploaded */}
-          <img src={shopBg} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ zIndex: 0, opacity: isVolcanicFishing ? 0.45 : 0.55 }} />
+          <img src={shopBg} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ zIndex: 0, opacity: (isVolcanicFishing || isVolcanicShop) ? 0.45 : 0.55 }} />
           {/* Dark overlay for readability */}
-          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, background: isVolcanicFishing ? "linear-gradient(180deg, rgba(10,3,2,0.88) 0%, rgba(18,6,3,0.62) 40%, rgba(10,3,2,0.82) 100%)" : isFishingShop ? "linear-gradient(180deg, rgba(2,10,6,0.86) 0%, rgba(4,14,8,0.60) 40%, rgba(2,10,5,0.80) 100%)" : isCentralMarket ? "linear-gradient(180deg, rgba(6,4,10,0.82) 0%, rgba(10,7,18,0.55) 40%, rgba(6,4,12,0.72) 100%)" : "linear-gradient(180deg, rgba(4,2,14,0.82) 0%, rgba(8,4,22,0.55) 40%, rgba(6,3,18,0.72) 100%)" }} />
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, background: (isVolcanicFishing || isVolcanicShop) ? "linear-gradient(180deg, rgba(10,3,2,0.88) 0%, rgba(18,6,3,0.62) 40%, rgba(10,3,2,0.82) 100%)" : isFishingShop ? "linear-gradient(180deg, rgba(2,10,6,0.86) 0%, rgba(4,14,8,0.60) 40%, rgba(2,10,5,0.80) 100%)" : isCentralMarket ? "linear-gradient(180deg, rgba(6,4,10,0.82) 0%, rgba(10,7,18,0.55) 40%, rgba(6,4,12,0.72) 100%)" : "linear-gradient(180deg, rgba(4,2,14,0.82) 0%, rgba(8,4,22,0.55) 40%, rgba(6,3,18,0.72) 100%)" }} />
           {/* Subtle accent shimmer at top */}
-          <div className="absolute top-0 left-0 right-0 h-32 pointer-events-none" style={{ zIndex: 2, background: isVolcanicFishing ? "linear-gradient(180deg, rgba(180,60,20,0.28) 0%, transparent 100%)" : isFishingShop ? "linear-gradient(180deg, rgba(40,120,60,0.18) 0%, transparent 100%)" : `linear-gradient(180deg, ${accent}18 0%, transparent 100%)` }} />
+          <div className="absolute top-0 left-0 right-0 h-32 pointer-events-none" style={{ zIndex: 2, background: (isVolcanicFishing || isVolcanicShop) ? "linear-gradient(180deg, rgba(180,60,20,0.28) 0%, transparent 100%)" : isFishingShop ? "linear-gradient(180deg, rgba(40,120,60,0.18) 0%, transparent 100%)" : `linear-gradient(180deg, ${accent}18 0%, transparent 100%)` }} />
           {/* Lava ember particles for volcanic fishing shop */}
           {isVolcanicFishing && (
             <>

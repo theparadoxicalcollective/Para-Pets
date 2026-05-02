@@ -318,6 +318,18 @@ uri = "file://attached_assets/generated_images/npc_lava_hook_shopkeeper.png"
 type = "image"
 title = "volcanic fisherman NPC shopkeeper character"
 
+[[generated]]
+id = "n8IQaj99ZBZ4HuGWgfMXQ"
+uri = "file://attached_assets/bg_shop_volcanic_pets.png"
+type = "image"
+title = "volcanic pet shop interior background"
+
+[[generated]]
+id = "SzSe97-5VIhWhc6YbWNY7"
+uri = "file://attached_assets/bg_fishing_volcanic.png"
+type = "image"
+title = "volcanic fishing spot background"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

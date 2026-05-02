@@ -882,6 +882,7 @@ app.use((req, res, next) => {
     "a1b2c3d4-0006-4000-8000-000000000006": "bg_mossy_cauldron.webp",
     "a1b2c3d4-0008-4000-8000-000000000008": "bg_soggy_hook_v1.webp",
     "a1b2c3d4-0002-4000-8000-000000000002": "bg_willowmere_cottage.webp",
+    "3b3bb453-e012-4ba3-9308-71c1376d84a8": "bg_fishing_volcanic.png",
   };
   for (const [locId, bgFile] of Object.entries(LOC_BG_ALWAYS_REFRESH)) {
     try {
