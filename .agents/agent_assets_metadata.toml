@@ -312,6 +312,12 @@ uri = "file://attached_assets/bg_shop_volcanic.png"
 type = "image"
 title = "volcanic fishing shop interior background"
 
+[[generated]]
+id = "ULkgc0dxreLN_R3G7U800"
+uri = "file://attached_assets/generated_images/npc_lava_hook_shopkeeper.png"
+type = "image"
+title = "volcanic fisherman NPC shopkeeper character"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
@@ -1247,3 +1253,9 @@ id = "tGK48PbNVItpSBuX695eV"
 uri = "file://attached_assets/generated_images/icon_fishing_volcanic.png"
 type = "image"
 title = "Volcanic fishing spot icon v2 (preview)"
+
+[[outputs]]
+id = "qFszGaNmeFYwlsfZx8cg5"
+uri = "file://attached_assets/generated_images/npc_lava_hook_shopkeeper.png"
+type = "image"
+title = "Volcanic Fisherman NPC (preview)"

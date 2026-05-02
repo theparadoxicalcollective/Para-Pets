@@ -25,6 +25,7 @@ import bgShopFishing from "@assets/bg_shop_fishing.png";
 import bgShopCentralMarket from "@assets/bg_central_market.png";
 import bgShopVolcanic from "@assets/bg_shop_volcanic.png";
 import shopVolcanicFishing from "@assets/icon_fishing_shop_volcanic.png";
+import npcLavaHook from "@assets/npc_lava_hook_shopkeeper.png";
 import shopFrostpeak from "@assets/shop_frostpeak.png";
 import shopSkyRealm from "@assets/shop_sky_realm.png";
 import shopVolcanic from "@assets/shop_volcanic.png";
@@ -2852,15 +2853,16 @@ export default function WorldPage({ user }: WorldPageProps) {
             </div>
           </div>
 
-          {/* ── Volcanic Fishing Shop Building Showcase ─────── */}
+          {/* ── Volcanic Fishing Shop NPC ─────────────────────── */}
           {isVolcanicFishing && (
-            <div className="relative flex-shrink-0 flex flex-col items-center px-4 pb-2" style={{ zIndex: 10 }}>
-              <div className="relative" style={{ width: "min(220px, 58vw)", aspectRatio: "1" }}>
-                <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,80,10,0.22) 0%, rgba(180,40,5,0.08) 50%, transparent 75%)", filter: "blur(18px)", animation: "lavaGlow 4s ease-in-out infinite" }} />
+            <div className="relative flex-shrink-0 flex flex-col items-center px-4 pb-1" style={{ zIndex: 10 }}>
+              <div className="relative" style={{ width: "min(160px, 42vw)", aspectRatio: "3/4" }}>
+                {/* warm lava glow behind NPC */}
+                <div style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "120%", height: "60%", borderRadius: "50%", background: "radial-gradient(ellipse, rgba(255,80,10,0.28) 0%, rgba(180,40,5,0.10) 50%, transparent 75%)", filter: "blur(14px)", animation: "lavaGlow 4s ease-in-out infinite" }} />
                 <img
-                  src={shopVolcanicFishing}
-                  alt="Volcanic Fishing Shack"
-                  style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 4px 24px rgba(255,80,10,0.55)) drop-shadow(0 0 48px rgba(255,60,5,0.3))", animation: "breathe 4s ease-in-out infinite" }}
+                  src={npcLavaHook}
+                  alt="Shopkeeper"
+                  style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 4px 18px rgba(255,80,10,0.6)) drop-shadow(0 0 36px rgba(255,60,5,0.25))", animation: "breathe 3.5s ease-in-out infinite" }}
                   draggable={false}
                 />
               </div>
