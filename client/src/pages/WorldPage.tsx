@@ -65,7 +65,7 @@ const WORLD_CONFIG: Record<string, { name: string; shopIcon: string; accent: str
   desert: { name: "Scorched Desert", shopIcon: shopDesert, accent: "#daa520", bgGradient: "linear-gradient(180deg, rgba(40,25,5,0.7) 0%, rgba(80,50,10,0.3) 50%, rgba(20,12,3,0.7) 100%)" },
   enchanted_grove: { name: "Enchanted Grove", shopIcon: shopEnchantedGrove, accent: "#7fffd4", bgGradient: "linear-gradient(180deg, rgba(5,30,20,0.7) 0%, rgba(10,60,40,0.3) 50%, rgba(5,15,10,0.7) 100%)" },
   haunted_woods: { name: "Haunted Woods", shopIcon: shopHauntedWoods, accent: "#8b008b", bgGradient: "linear-gradient(180deg, rgba(30,5,30,0.7) 0%, rgba(60,10,60,0.3) 50%, rgba(15,3,15,0.7) 100%)" },
-  swamp: { name: "Elysian Swamplands", shopIcon: shopSwamp, accent: "#9370db", bgGradient: "linear-gradient(180deg, rgba(20,15,35,0.7) 0%, rgba(40,30,70,0.3) 50%, rgba(10,8,18,0.7) 100%)" },
+  swamp: { name: "Elysian Swamplands", shopIcon: shopSwamp, accent: "#5cb87a", bgGradient: "linear-gradient(180deg, rgba(20,15,35,0.7) 0%, rgba(40,30,70,0.3) 50%, rgba(10,8,18,0.7) 100%)" },
 };
 
 interface ShopItem {
@@ -2784,9 +2784,10 @@ export default function WorldPage({ user }: WorldPageProps) {
 
           {/* ── Type tabs (non-fishing) ──────────────────────── */}
           {!isFishingShop && (() => {
-            const TYPE_ORDER = ["pet","edibles","power_up","potion","special","accessory","item","gift"];
-            const TYPE_LABELS: Record<string,string> = { pet:"Pets", edibles:"Edibles", power_up:"Power-Ups", potion:"Potions", special:"Special", accessory:"Accessories", item:"Items", gift:"Gifts" };
-            const presentTypes = TYPE_ORDER.filter(t => sortedItems.some(i => i.type === t));
+            const TYPE_ORDER = ["pet","edibles","power_up","potion","special","accessory","item","fishing","gift"];
+            const TYPE_LABELS: Record<string,string> = { pet:"Pets", edibles:"Edibles", power_up:"Power-Ups", potion:"Potions", special:"Special", accessory:"Accessories", item:"Items", fishing:"Fishing", gift:"Gifts" };
+            const allPresentTypes = [...new Set(sortedItems.map(i => i.type))];
+            const presentTypes = [...TYPE_ORDER.filter(t => allPresentTypes.includes(t)), ...allPresentTypes.filter(t => !TYPE_ORDER.includes(t))];
             const hasHomeGoods = shopBundlesForSale.length > 0 || shopDecorForSale.length > 0;
             if (presentTypes.length === 0 && !hasHomeGoods) return null;
             const allTabs = [...presentTypes, ...(hasHomeGoods ? ["home_goods"] : [])];
@@ -2929,11 +2930,11 @@ export default function WorldPage({ user }: WorldPageProps) {
               </div>
             ) : (
               (() => {
-                const TYPE_ORDER = ["pet","edibles","power_up","potion","special","accessory","item","gift"];
-                const TYPE_LABELS: Record<string,string> = { pet:"Pets", edibles:"Edibles", power_up:"Power-Ups", potion:"Potions", special:"Special", accessory:"Accessories", item:"Items", gift:"Gifts" };
-                const grouped = TYPE_ORDER
-                  .filter(t => sortedItems.some(i => i.type === t))
-                  .map(t => ({ type: t, label: TYPE_LABELS[t] ?? t, groupItems: sortedItems.filter(i => i.type === t) }));
+                const TYPE_ORDER = ["pet","edibles","power_up","potion","special","accessory","item","fishing","gift"];
+                const TYPE_LABELS: Record<string,string> = { pet:"Pets", edibles:"Edibles", power_up:"Power-Ups", potion:"Potions", special:"Special", accessory:"Accessories", item:"Items", fishing:"Fishing", gift:"Gifts" };
+                const allPresentTypes = [...new Set(sortedItems.map(i => i.type))];
+                const orderedTypes = [...TYPE_ORDER.filter(t => allPresentTypes.includes(t)), ...allPresentTypes.filter(t => !TYPE_ORDER.includes(t))];
+                const grouped = orderedTypes.map(t => ({ type: t, label: TYPE_LABELS[t] ?? t.replace(/_/g, " "), groupItems: sortedItems.filter(i => i.type === t) }));
                 const hasHomeGoods = shopBundlesForSale.length > 0 || shopDecorForSale.length > 0;
                 return (
                   <>
