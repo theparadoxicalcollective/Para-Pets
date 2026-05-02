@@ -494,6 +494,8 @@ export default function PetDatabasePanel({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts", selectedTemplateId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts"] });
     },
   });
 
@@ -503,6 +505,8 @@ export default function PetDatabasePanel({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts", selectedTemplateId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts"] });
       setSelectedPartId(null);
       toast({ title: "Removed", description: "Part removed" });
     },
@@ -522,6 +526,8 @@ export default function PetDatabasePanel({
       await apiRequest("PATCH", `/api/admin/pet-templates/${selectedTemplateId}`, { facing: activeView });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts", selectedTemplateId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts"] });
       toast({ title: "Saved!", description: `${facingMode === "front" ? "Front" : "Side"} view assembled and saved` });
     },
     onError: () => {

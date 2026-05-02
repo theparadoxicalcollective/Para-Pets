@@ -142,9 +142,11 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   // LAYER_ORDER (z=3) so they read as "tucked behind" the body.
   front_left_accessory: "petIdleAccessorySway",
   front_right_accessory: "petIdleAccessorySway",
-  // Hair pieces sway gently like ears
+  // Hair pieces sway gently like ears; center hair bobs with the head
+  // group (no rotation — it sits symmetrically and just rides the head bob).
   hair_left: "petIdleLeftEar",
   hair_right: "petIdleRightEar",
+  hair_center: "petIdleBody",
   back_hair: "petIdleTail",
   // Above-head accessory (crowns / halos / hats) gets a small extra bounce
   // on top of the head wrapper's bob so it reads as floating / buoyant.
@@ -266,6 +268,7 @@ const PETTING_ANIMATIONS: Record<string, string> = {
   back_wing_2: "petPettingRightWing",
   hair_left: "petPettingLeftEar",
   hair_right: "petPettingRightEar",
+  hair_center: "petPettingBody",
   back_hair: "petPettingTail",
   above_head: "petAboveHeadBounce",
   // Shoulders / accessories breathe with the bouncy body
@@ -307,6 +310,7 @@ const SLEEP_ANIMATIONS: Record<string, string> = {
   right_ear_2: "petSleepRightEar",
   hair_left: "petSleepLeftEar",
   hair_right: "petSleepRightEar",
+  hair_center: "petSleepBody",
   tail: "petSleepTail",
   tail_2: "petSleepTail",
   tail_3: "petSleepTail",
@@ -368,7 +372,7 @@ const ANIM_ONLY_PARTS = new Set([
 // (isFacePart) covers those without listing every key.
 const FACE_PART_TYPES = new Set([
   "eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed",
-  "hair_left", "hair_right", "accessory_1", "accessory_2", "above_head",
+  "hair_left", "hair_right", "hair_center", "accessory_1", "accessory_2", "above_head",
   // Second pair of ears on Head One — face-anchored so they ride the
   // head-group bob (otherwise they'd float in place while the head
   // bobbed beneath them, detaching from the silhouette).

@@ -92,7 +92,7 @@ const LAYER_ORDER: Record<string, number> = {
 // regular wings) so they MUST stay out of this set.
 const FACE_BASE_PARTS = new Set([
   "eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed",
-  "hair_left", "hair_right", "accessory_1", "accessory_2", "above_head",
+  "hair_left", "hair_right", "hair_center", "accessory_1", "accessory_2", "above_head",
   // Second pair of ears on Head 1 — must ride the head-bob wrapper
   // alongside the primary ears (same rule as in PetAnimator's
   // FACE_PART_TYPES). Out-of-phase swing comes from a slightly
@@ -174,6 +174,11 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
       return { op: 1, rot: -sinWave(sec, 3.5) * 2 * D2R };
     case "right_ear": case "hair_right":
       return { op: 1, rot:  sinWave(sec, 3.5) * 2 * D2R };
+    // Center hair — sits symmetrically so no rotation; rides the head
+    // bob (applied externally). Mirrors the img-renderer's petIdleBody
+    // mapping for hair_center in idle mode (scale only, no rotation).
+    case "hair_center":
+      return bodyBreath(sec);
     // Second ear pair on Head 1 — same ±2° mirrored swing as the
     // primary ears, but on a 3.1 s period so it continuously drifts
     // in and out of phase with the 3.5 s primary pair. Mirrors the
