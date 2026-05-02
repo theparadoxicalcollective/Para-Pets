@@ -283,9 +283,6 @@ export default function PetDatabasePanel({
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [sideFacingDir, setSideFacingDir] = useState<"left" | "right">("left");
   const canvasRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ partId: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
-  const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
-  const didDrag = useRef(false);
   const pixelCacheRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -602,16 +599,17 @@ export default function PetDatabasePanel({
     );
   }, []);
 
-  const handleCanvasPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+  // Click on canvas to select a part (pixel-accurate hit test). Parts can no
+  // longer be individually dragged — use the "Move All" D-pad below instead.
+  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const canvasEl = canvasRef.current;
     if (!canvasEl) return;
     const rect = canvasEl.getBoundingClientRect();
     const scale = rect.width / CANVAS_SIZE;
     const canvasX = (e.clientX - rect.left) / scale;
     const canvasY = (e.clientY - rect.top) / scale;
-    // Only respond to clicks within the canvas bounds
     if (canvasX < 0 || canvasX > CANVAS_SIZE || canvasY < 0 || canvasY > CANVAS_SIZE) return;
-    // Find topmost opaque part using sync cache
+    // Hit-test top-to-bottom by zIndex, picking the first opaque part under the click
     const sorted = [...viewParts].sort((a, b) => b.zIndex - a.zIndex);
     for (const part of sorted) {
       if (canvasX < part.posX || canvasX > part.posX + part.width ||
@@ -619,53 +617,21 @@ export default function PetDatabasePanel({
       const relX = (canvasX - part.posX) / part.width;
       const relY = (canvasY - part.posY) / part.height;
       if (!isOpaqueSyncAt(part.imageUrl, relX, relY)) continue;
-      // Found an opaque part — start drag
-      e.preventDefault();
-      e.currentTarget.setPointerCapture(e.pointerId);
-      didDrag.current = false;
-      dragRef.current = {
-        partId: part.id,
-        startX: e.clientX,
-        startY: e.clientY,
-        origX: part.posX,
-        origY: part.posY,
-      };
       setSelectedPartId(part.id);
       return;
     }
-    // Clicked on empty canvas space — deselect
+    // Missed all parts — deselect
     setSelectedPartId(null);
   }, [viewParts, isOpaqueSyncAt]);
 
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!dragRef.current || !canvasRef.current) return;
-    e.preventDefault();
-    const rect = canvasRef.current.getBoundingClientRect();
-    const scale = rect.width / CANVAS_SIZE;
-    const dx = (e.clientX - dragRef.current.startX) / scale;
-    const dy = (e.clientY - dragRef.current.startY) / scale;
-    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) didDrag.current = true;
-    const newX = Math.round(dragRef.current.origX + dx);
-    const newY = Math.round(dragRef.current.origY + dy);
-    setDragPos({ id: dragRef.current.partId, x: newX, y: newY });
-  }, []);
-
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    if (!dragRef.current) return;
-    e.preventDefault();
-    const d = dragRef.current;
-    dragRef.current = null;
-    if (didDrag.current && dragPos) {
-      updatePartMutation.mutate({ partId: d.partId, posX: dragPos.x, posY: dragPos.y });
-    }
-    setDragPos(null);
-  }, [dragPos, updatePartMutation]);
-
-  const nudge = useCallback((dx: number, dy: number) => {
-    const part = viewParts.find(p => p.id === selectedPartId);
-    if (!part) return;
-    updatePartMutation.mutate({ partId: part.id, posX: part.posX + dx, posY: part.posY + dy });
-  }, [selectedPartId, viewParts, updatePartMutation]);
+  // Move every part in the current view by the same delta. This shifts the
+  // entire pet composition without changing relative part positions.
+  const nudgeAll = useCallback((dx: number, dy: number) => {
+    if (viewParts.length === 0) return;
+    viewParts.forEach(part => {
+      updatePartMutation.mutate({ partId: part.id, posX: part.posX + dx, posY: part.posY + dy });
+    });
+  }, [viewParts, updatePartMutation]);
 
   const resizePart = useCallback((delta: number) => {
     const part = viewParts.find(p => p.id === selectedPartId);
@@ -756,9 +722,8 @@ export default function PetDatabasePanel({
           </span>
         </div>
 
-        {/* Canvas — overflow visible so parts can extend beyond bounds.
-            All pointer handling is on the canvas element itself so parts
-            that visually extend outside cannot block buttons below. */}
+        {/* Canvas — click to select a part; use the D-pad below to reposition.
+            Parts cannot be individually dragged so accidental moves are prevented. */}
         <div
           ref={canvasRef}
           className="relative mx-auto rounded-lg"
@@ -768,28 +733,23 @@ export default function PetDatabasePanel({
             overflow: "visible",
             background: "repeating-conic-gradient(rgba(255,255,255,0.03) 0% 25%, transparent 0% 50%) 0 0 / 20px 20px",
             border: "2px dashed rgba(240,192,64,0.25)",
-            touchAction: "none",
-            cursor: selectedPartId ? "grab" : "default",
+            cursor: "default",
           }}
-          onPointerDown={handleCanvasPointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
+          onClick={handleCanvasClick}
         >
           {viewParts.map(part => {
-            const pos = dragPos?.id === part.id ? { x: dragPos.x, y: dragPos.y } : { x: part.posX, y: part.posY };
             const isSelected = selectedPartId === part.id;
-            const isDragging = dragRef.current?.partId === part.id;
             return (
               <div
                 key={part.id}
                 data-testid={`canvas-part-${part.id}`}
                 className="absolute"
                 style={{
-                  left: `${(pos.x / CANVAS_SIZE) * 100}%`,
-                  top: `${(pos.y / CANVAS_SIZE) * 100}%`,
+                  left: `${(part.posX / CANVAS_SIZE) * 100}%`,
+                  top: `${(part.posY / CANVAS_SIZE) * 100}%`,
                   width: `${(part.width / CANVAS_SIZE) * 100}%`,
                   height: `${(part.height / CANVAS_SIZE) * 100}%`,
-                  zIndex: part.zIndex + (isDragging ? 100 : 0),
+                  zIndex: part.zIndex,
                   pointerEvents: "none",
                   outline: isSelected ? "2px solid rgba(240,192,64,0.8)" : "none",
                   outlineOffset: "2px",
@@ -815,89 +775,98 @@ export default function PetDatabasePanel({
           })}
         </div>
 
-        {/* Nudge D-pad — shown directly under canvas when a part is selected */}
-        {selectedPart && (
+        {/* Move All D-pad — always visible when parts exist. Moves the entire
+            pet composition (all parts in this view) by the step amount. */}
+        {viewParts.length > 0 && (
           <div
             className="flex flex-col gap-2 px-3 py-3 rounded-lg"
             style={{ background: "rgba(240,192,64,0.08)", border: "1px solid rgba(240,192,64,0.2)" }}
           >
-            {/* Step size selector */}
-            <div className="flex items-center gap-1.5">
-              <span className="font-fantasy text-[8px] tracking-wider" style={{ color: "#6a5840" }}>Step:</span>
-              {([1, 5, 10] as const).map(s => (
-                <button
-                  key={s}
-                  data-testid={`button-nudge-step-${s}`}
-                  onClick={() => setNudgeStep(s)}
-                  className="rounded-md font-fantasy text-[9px] tracking-wider transition-all active:scale-95"
-                  style={{
-                    padding: "2px 8px",
-                    background: nudgeStep === s ? "rgba(240,192,64,0.25)" : "rgba(0,0,0,0.3)",
-                    border: nudgeStep === s ? "1px solid rgba(240,192,64,0.6)" : "1px solid rgba(240,192,64,0.15)",
-                    color: nudgeStep === s ? "#f0c040" : "#6a5840",
-                    cursor: "pointer",
-                  }}
-                >{s}px</button>
-              ))}
+            <div className="flex items-center justify-between">
+              <span className="font-fantasy text-[9px] tracking-wider" style={{ color: "#a89878" }}>Move All Parts</span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-fantasy text-[8px] tracking-wider" style={{ color: "#6a5840" }}>Step:</span>
+                {([1, 5, 10] as const).map(s => (
+                  <button
+                    key={s}
+                    data-testid={`button-nudge-step-${s}`}
+                    onClick={() => setNudgeStep(s)}
+                    className="rounded-md font-fantasy text-[9px] tracking-wider transition-all active:scale-95"
+                    style={{
+                      padding: "2px 8px",
+                      background: nudgeStep === s ? "rgba(240,192,64,0.25)" : "rgba(0,0,0,0.3)",
+                      border: nudgeStep === s ? "1px solid rgba(240,192,64,0.6)" : "1px solid rgba(240,192,64,0.15)",
+                      color: nudgeStep === s ? "#f0c040" : "#6a5840",
+                      cursor: "pointer",
+                    }}
+                  >{s}px</button>
+                ))}
+              </div>
             </div>
 
-            <div className="flex gap-4 items-center justify-center">
-              {/* D-pad */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 36px)", gap: 4 }}>
+            <div className="flex items-center justify-center">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 40px)", gridTemplateRows: "repeat(3, 40px)", gap: 4 }}>
                 <div />
                 <button
                   data-testid="button-nudge-up"
-                  onPointerDown={e => { e.stopPropagation(); nudge(0, -nudgeStep); }}
+                  onClick={() => nudgeAll(0, -nudgeStep)}
                   className="flex items-center justify-center rounded-lg transition-all active:scale-90"
-                  style={{ height: 36, background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
-                ><ChevronUp className="w-4 h-4" /></button>
+                  style={{ background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
+                ><ChevronUp className="w-5 h-5" /></button>
                 <div />
 
                 <button
                   data-testid="button-nudge-left"
-                  onPointerDown={e => { e.stopPropagation(); nudge(-nudgeStep, 0); }}
+                  onClick={() => nudgeAll(-nudgeStep, 0)}
                   className="flex items-center justify-center rounded-lg transition-all active:scale-90"
-                  style={{ height: 36, background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
-                ><ChevronLeft className="w-4 h-4" /></button>
-                <div className="flex flex-col items-center justify-center" style={{ height: 36 }}>
-                  <span className="font-fantasy text-[7px] leading-tight" style={{ color: "#a89878" }}>{selectedPart.posX}</span>
-                  <span className="font-fantasy text-[7px] leading-tight" style={{ color: "#6a5840" }}>x,y</span>
-                  <span className="font-fantasy text-[7px] leading-tight" style={{ color: "#a89878" }}>{selectedPart.posY}</span>
+                  style={{ background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
+                ><ChevronLeft className="w-5 h-5" /></button>
+                <div className="flex items-center justify-center rounded-lg" style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(240,192,64,0.1)" }}>
+                  <span className="font-fantasy text-[8px]" style={{ color: "#6a5840" }}>↕↔</span>
                 </div>
                 <button
                   data-testid="button-nudge-right"
-                  onPointerDown={e => { e.stopPropagation(); nudge(nudgeStep, 0); }}
+                  onClick={() => nudgeAll(nudgeStep, 0)}
                   className="flex items-center justify-center rounded-lg transition-all active:scale-90"
-                  style={{ height: 36, background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
-                ><ChevronRight className="w-4 h-4" /></button>
+                  style={{ background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
+                ><ChevronRight className="w-5 h-5" /></button>
 
                 <div />
                 <button
                   data-testid="button-nudge-down"
-                  onPointerDown={e => { e.stopPropagation(); nudge(0, nudgeStep); }}
+                  onClick={() => nudgeAll(0, nudgeStep)}
                   className="flex items-center justify-center rounded-lg transition-all active:scale-90"
-                  style={{ height: 36, background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
-                ><ChevronDown className="w-4 h-4" /></button>
+                  style={{ background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
+                ><ChevronDown className="w-5 h-5" /></button>
                 <div />
               </div>
+            </div>
+          </div>
+        )}
 
-              {/* Size +/- column */}
-              <div className="flex flex-col items-center gap-1.5">
-                <span className="font-fantasy text-[8px] tracking-wider" style={{ color: "#6a5840" }}>Size</span>
-                <button
-                  data-testid="button-size-increase"
-                  onPointerDown={e => { e.stopPropagation(); resizePart(nudgeStep); }}
-                  className="flex items-center justify-center rounded-lg font-bold transition-all active:scale-90"
-                  style={{ width: 36, height: 36, fontSize: 20, background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
-                >+</button>
-                <span className="font-fantasy text-[7px]" style={{ color: "#a89878" }}>{selectedPart.width}×{selectedPart.height}</span>
-                <button
-                  data-testid="button-size-decrease"
-                  onPointerDown={e => { e.stopPropagation(); resizePart(-nudgeStep); }}
-                  className="flex items-center justify-center rounded-lg font-bold transition-all active:scale-90"
-                  style={{ width: 36, height: 36, fontSize: 20, background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
-                >−</button>
-              </div>
+        {/* Selected-part size control — only shown when a part is clicked */}
+        {selectedPart && (
+          <div
+            className="flex items-center justify-between px-3 py-2 rounded-lg"
+            style={{ background: "rgba(127,255,212,0.05)", border: "1px solid rgba(127,255,212,0.2)" }}
+          >
+            <span className="font-fantasy text-[9px] tracking-wider" style={{ color: "#7fbfb0" }}>
+              Resize: <span style={{ color: "#f0c040" }}>{selectedPart.partType}</span>
+              <span style={{ color: "#6a5840" }}> ({selectedPart.width}×{selectedPart.height})</span>
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                data-testid="button-size-decrease"
+                onClick={() => resizePart(-nudgeStep)}
+                className="flex items-center justify-center rounded-lg font-bold transition-all active:scale-90"
+                style={{ width: 32, height: 32, fontSize: 18, background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
+              >−</button>
+              <button
+                data-testid="button-size-increase"
+                onClick={() => resizePart(nudgeStep)}
+                className="flex items-center justify-center rounded-lg font-bold transition-all active:scale-90"
+                style={{ width: 32, height: 32, fontSize: 18, background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
+              >+</button>
             </div>
           </div>
         )}
