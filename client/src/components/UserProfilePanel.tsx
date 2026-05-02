@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { getNextZ } from "@/lib/layerManager";
+import { setNavHidden } from "@/lib/navVisibility";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
@@ -53,6 +54,12 @@ function cropToCanvas(src: string, offsetX: number, offsetY: number): Promise<st
 
 export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props) {
   const [myZ] = useState(() => getNextZ());
+
+  // Hide the FloatingNav while this panel is open so it doesn't overlap the sheet
+  useEffect(() => {
+    setNavHidden(true);
+    return () => setNavHidden(false);
+  }, []);
   const [newUsername, setNewUsername] = useState("");
   const [profilePreview, setProfilePreview] = useState<string | null>(null);
   const [profileImageData, setProfileImageData] = useState<string | null>(null);
