@@ -3720,7 +3720,11 @@ function WorldRoamingPet({
         left: `${posX}%`,
         top:  `${posY}%`,
         transform: "translate(-50%, -100%)",
-        zIndex: 9 + Math.round((posY / 100) * 60),
+        // Painter's algorithm: same scale as locations (base 10) + 2 so pets
+        // sit just in front of places/decor at the same depth, then naturally
+        // drop behind anything whose anchor point is clearly higher on screen.
+        // Crossover ≈ 3 % map-height (≈ 20 px) above the location anchor.
+        zIndex: 12 + Math.round((posY / 100) * 60),
         pointerEvents: "none",
         userSelect: "none",
         // Smooth glide between SSE position updates for other players' pets;
