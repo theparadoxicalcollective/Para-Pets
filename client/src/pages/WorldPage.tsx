@@ -1176,7 +1176,7 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const openLocation = useCallback((loc: WorldLocationData) => {
     setActiveLocationId(loc.id);
-    if (loc.type === "fishing") {
+    if (loc.type === "fishing" && !loc.isShop) {
       setShowLocationView(false);
       setShowShop(false);
       setShowFishing(true);
@@ -1826,23 +1826,23 @@ export default function WorldPage({ user }: WorldPageProps) {
                         top: `${pos.y}%`,
                         width: `${loc.iconSize || 300}px`,
                         cursor: currentUser.isAdmin ? "grab" : "pointer",
-                        zIndex: isDragging ? 200 : selectedLocId === loc.id ? 150 : (loc.type === "fishing" ? 100 + i : 10 + i),
+                        zIndex: isDragging ? 200 : selectedLocId === loc.id ? 150 : (loc.type === "fishing" && !loc.isShop ? 100 + i : 10 + i),
                       }}
                       onPointerDown={(e) => handlePointerDown(e, loc)}
                     >
                       <div className="relative w-full" style={{ aspectRatio: "1", pointerEvents: "none" }}>
-                        {(loc.iconUrl || (loc.type === "fishing" && worldId === "volcanic")) ? (
+                        {(loc.iconUrl || (loc.type === "fishing" && !loc.isShop && worldId === "volcanic")) ? (
                           <div
                             className="w-full h-full"
-                            style={loc.type === "fishing" ? { animation: "breathe 3s ease-in-out infinite" } : undefined}
+                            style={loc.type === "fishing" && !loc.isShop ? { animation: "breathe 3s ease-in-out infinite" } : undefined}
                           >
                           <img
-                            src={loc.type === "fishing" && worldId === "volcanic" ? "/world-assets/icon_fishing_volcanic.png" : loc.iconUrl!}
+                            src={loc.type === "fishing" && !loc.isShop && worldId === "volcanic" ? "/world-assets/icon_fishing_volcanic.png" : loc.iconUrl!}
                             alt={loc.name}
                             className="w-full h-full object-contain relative z-10"
                             draggable={false}
                             style={{
-                              filter: loc.type === "fishing"
+                              filter: loc.type === "fishing" && !loc.isShop
                                 ? worldId === "volcanic"
                                   ? "drop-shadow(0 3px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 18px rgba(251,146,60,0.9)) drop-shadow(0 0 40px rgba(239,68,68,0.6))"
                                   : worldId === "swamp"
@@ -1853,8 +1853,8 @@ export default function WorldPage({ user }: WorldPageProps) {
                               transition: "filter 0.15s ease, transform 0.15s ease",
                             }}
                           />
-                          {/* Floating bubbles — GPU-composited overlay, clicks pass through */}
-                          {loc.type === "fishing" && (
+                          {/* Floating bubbles — fishing spots only (not shop buildings) */}
+                          {loc.type === "fishing" && !loc.isShop && (
                             <div style={{ position: "absolute", inset: 0, zIndex: 50, pointerEvents: "none", contain: "strict" }}>
                               {([
                                 { left: "22%", bottom: "26%", size: 5, dur: "5.5s", delay: "0.0s" },
