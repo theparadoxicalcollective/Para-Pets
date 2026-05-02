@@ -93,65 +93,72 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
 
         {/* LEFT: profile photo + name/coins to its right */}
         <div className="flex items-center gap-2 min-w-0">
-          {/* Profile photo column (photo + admin star below) */}
+          {/* Profile photo — admin star overlays its corner so it adds no vertical height */}
           <div className="flex flex-col items-center gap-1 flex-shrink-0">
-            <button
-              data-testid="button-profile"
-              onClick={onProfileClick}
-              className="relative flex-shrink-0 transition-transform duration-150 active:scale-95"
-              style={{ background: "none", border: "none", cursor: "pointer" }}
-            >
-              <div className="relative topbar-profile-size-sm">
-                <div
-                  className="absolute inset-0 rounded-lg z-20 pointer-events-none"
-                  style={{
-                    border: "2.5px solid #c9a030",
-                    boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5), inset 0 0 3px rgba(201,160,48,0.15)",
-                  }}
-                />
-                <div className="absolute z-10 overflow-hidden rounded-lg" style={{ inset: "0px" }}>
-                  {user.profileImage ? (
-                    <img
-                      data-testid="img-profile-avatar"
-                      src={user.profileImage}
-                      alt={user.username}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div
-                      className="w-full h-full flex items-center justify-center"
-                      style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}
-                    >
-                      <span className="font-fantasy text-[#d4a017] font-bold" style={{ fontSize: "clamp(14px, 4vw, 20px)" }}>
-                        {(user.username ?? "?").charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </button>
-            {user.isAdmin && (
+            <div className="relative flex-shrink-0">
               <button
-                data-testid="button-admin-icon"
-                onClick={() => location === "/admin" ? navigate("/") : navigate("/admin")}
-                className="topbar-icon-size-sm flex-shrink-0 flex items-center justify-center transition-transform duration-150 active:scale-90"
-                style={{
-                  background: location === "/admin"
-                    ? "linear-gradient(135deg, rgba(212,160,23,0.55) 0%, rgba(180,120,10,0.5) 100%)"
-                    : "linear-gradient(135deg, rgba(212,160,23,0.25) 0%, rgba(180,120,10,0.25) 100%)",
-                  border: "2px solid rgba(212,160,23,0.6)",
-                  cursor: "pointer",
-                  boxShadow: location === "/admin"
-                    ? "0 2px 10px rgba(0,0,0,0.6), 0 0 18px rgba(212,160,23,0.45)"
-                    : "0 2px 10px rgba(0,0,0,0.6), 0 0 14px rgba(212,160,23,0.2)",
-                  borderRadius: "10px",
-                }}
+                data-testid="button-profile"
+                onClick={onProfileClick}
+                className="relative flex-shrink-0 transition-transform duration-150 active:scale-95"
+                style={{ background: "none", border: "none", cursor: "pointer", display: "block" }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f0c040" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 4px rgba(240,192,64,0.6))" }}>
-                  <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" fill="rgba(240,192,64,0.3)" />
-                </svg>
+                <div className="relative topbar-profile-size-sm">
+                  <div
+                    className="absolute inset-0 rounded-lg z-20 pointer-events-none"
+                    style={{
+                      border: "2.5px solid #c9a030",
+                      boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5), inset 0 0 3px rgba(201,160,48,0.15)",
+                    }}
+                  />
+                  <div className="absolute z-10 overflow-hidden rounded-lg" style={{ inset: "0px" }}>
+                    {user.profileImage ? (
+                      <img
+                        data-testid="img-profile-avatar"
+                        src={user.profileImage}
+                        alt={user.username}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div
+                        className="w-full h-full flex items-center justify-center"
+                        style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}
+                      >
+                        <span className="font-fantasy text-[#d4a017] font-bold" style={{ fontSize: "clamp(14px, 4vw, 20px)" }}>
+                          {(user.username ?? "?").charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </button>
-            )}
+              {user.isAdmin && (
+                <button
+                  data-testid="button-admin-icon"
+                  onClick={(e) => { e.stopPropagation(); location === "/admin" ? navigate("/") : navigate("/admin"); }}
+                  className="absolute flex items-center justify-center transition-transform duration-150 active:scale-90"
+                  style={{
+                    bottom: -5,
+                    right: -5,
+                    width: 20,
+                    height: 20,
+                    borderRadius: "6px",
+                    background: location === "/admin"
+                      ? "linear-gradient(135deg, rgba(212,160,23,0.9) 0%, rgba(180,120,10,0.85) 100%)"
+                      : "linear-gradient(135deg, rgba(212,160,23,0.6) 0%, rgba(180,120,10,0.55) 100%)",
+                    border: "1.5px solid rgba(212,160,23,0.9)",
+                    cursor: "pointer",
+                    boxShadow: location === "/admin"
+                      ? "0 0 8px rgba(212,160,23,0.7)"
+                      : "0 0 5px rgba(212,160,23,0.4)",
+                    zIndex: 30,
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#f0c040" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 3px rgba(240,192,64,0.8))" }}>
+                    <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" fill="rgba(240,192,64,0.5)" />
+                  </svg>
+                </button>
+              )}
+            </div>
             {/* Admin messages envelope — below profile photo, only when messages exist */}
             {adminMsgs.length > 0 && (
               <div className="relative" ref={adminMsgRef}>
