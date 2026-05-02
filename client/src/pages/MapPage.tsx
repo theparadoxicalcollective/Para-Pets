@@ -24,6 +24,7 @@ interface MapPageProps {
     profileImage: string | null;
     coins: number;
     isAdmin: boolean;
+    isModerator: boolean;
     activePetId: string | null;
     lastUsernameChange: string | null;
     lastProfilePicChange: string | null;
@@ -230,7 +231,7 @@ export default function MapPage({ user }: MapPageProps) {
 
   const [navigatingWorldId, setNavigatingWorldId] = useState<string | null>(null);
 
-  const isWorldLocked = (w: WorldData) => !currentUser.isAdmin && w.id !== "swamp";
+  const isWorldLocked = (w: WorldData) => !currentUser.isAdmin && !currentUser.isModerator && w.id !== "swamp";
 
   const handleWorldClick = useCallback((w: WorldData) => {
     if (didDrag.current) return;
@@ -443,6 +444,29 @@ export default function MapPage({ user }: MapPageProps) {
                           </div>
                         )}
 
+                        {locked && (
+                          <div
+                            className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none gap-0.5"
+                          >
+                            <span style={{ fontSize: "clamp(14px, 4vw, 20px)", lineHeight: 1 }}>🔒</span>
+                            <div
+                              className="font-fantasy text-center leading-tight px-1.5 py-0.5"
+                              style={{
+                                background: "rgba(8,4,18,0.92)",
+                                border: "1px solid rgba(160,130,60,0.6)",
+                                borderRadius: "4px",
+                                color: "#e0c060",
+                                fontSize: "clamp(7px, 2vw, 10px)",
+                                letterSpacing: "0.1em",
+                                textShadow: "0 0 8px rgba(220,180,60,0.5)",
+                                boxShadow: "0 0 12px rgba(0,0,0,0.8)",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              Coming Soon
+                            </div>
+                          </div>
+                        )}
                       </div>
                       {selectedWorldId === w.id && (
                         <div className="flex flex-col items-center gap-1 mt-0.5 relative z-10" style={{ animation: "fadeIn 0.2s ease-out" }}>
