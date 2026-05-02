@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readFileAsDataUrl } from "@/lib/utils";
-import { Plus, Trash2, X, ArrowLeft, Save, Layers, Link2, Pencil, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Trash2, X, ArrowLeft, Save, Layers, Link2, Pencil, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Play, Pause } from "lucide-react";
 import { getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
+import PetAnimatorCanvas from "@/components/PetAnimatorCanvas";
 
 interface PetTemplate {
   id: string;
@@ -271,6 +272,7 @@ export default function PetDatabasePanel({
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
   const [nudgeStep, setNudgeStep] = useState<1 | 5 | 10>(1);
   const [facingMode, setFacingMode] = useState<"front" | "side">("front");
+  const [showAnimPreview, setShowAnimPreview] = useState(false);
 
   // Notify parent whenever the facing mode toggles (front ↔ side) so the
   // Test-Animator save preview can match.
@@ -716,14 +718,36 @@ export default function PetDatabasePanel({
           </div>
         )}
 
-        <div className="flex justify-center gap-2 mb-1">
+        <div className="flex justify-center items-center gap-2 mb-1">
           <span className="px-4 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider" style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)", border: "1px solid rgba(212,160,23,0.6)", color: "#f0c040" }}>
             {viewLabel}
           </span>
+          {selectedTemplateId && viewParts.length > 0 && (
+            <button
+              data-testid="button-toggle-anim-preview"
+              onClick={() => setShowAnimPreview(v => !v)}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider transition-all active:scale-95"
+              style={{
+                background: showAnimPreview
+                  ? "linear-gradient(135deg, rgba(74,222,128,0.22) 0%, rgba(34,197,94,0.14) 100%)"
+                  : "rgba(0,0,0,0.3)",
+                border: showAnimPreview
+                  ? "1px solid rgba(74,222,128,0.55)"
+                  : "1px solid rgba(240,192,64,0.25)",
+                color: showAnimPreview ? "#4ade80" : "#a89878",
+                cursor: "pointer",
+              }}
+            >
+              {showAnimPreview ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+              {showAnimPreview ? "Pause" : "Animate"}
+            </button>
+          )}
         </div>
 
         {/* Canvas — click to select a part; use the D-pad below to reposition.
-            Parts cannot be individually dragged so accidental moves are prevented. */}
+            Parts cannot be individually dragged so accidental moves are prevented.
+            When showAnimPreview is on, a live PetAnimatorCanvas overlays the
+            static parts so the admin can see exactly how the pet moves in-game. */}
         <div
           ref={canvasRef}
           className="relative mx-auto rounded-lg"
@@ -732,47 +756,69 @@ export default function PetDatabasePanel({
             aspectRatio: "1",
             overflow: "visible",
             background: "repeating-conic-gradient(rgba(255,255,255,0.03) 0% 25%, transparent 0% 50%) 0 0 / 20px 20px",
-            border: "2px dashed rgba(240,192,64,0.25)",
+            border: showAnimPreview
+              ? "2px solid rgba(74,222,128,0.45)"
+              : "2px dashed rgba(240,192,64,0.25)",
             cursor: "default",
           }}
           onClick={handleCanvasClick}
         >
-          {viewParts.map(part => {
-            const isSelected = selectedPartId === part.id;
-            return (
-              <div
-                key={part.id}
-                data-testid={`canvas-part-${part.id}`}
-                className="absolute"
-                style={{
-                  left: `${(part.posX / CANVAS_SIZE) * 100}%`,
-                  top: `${(part.posY / CANVAS_SIZE) * 100}%`,
-                  width: `${(part.width / CANVAS_SIZE) * 100}%`,
-                  height: `${(part.height / CANVAS_SIZE) * 100}%`,
-                  zIndex: part.zIndex,
-                  pointerEvents: "none",
-                  outline: isSelected ? "2px solid rgba(240,192,64,0.8)" : "none",
-                  outlineOffset: "2px",
-                  borderRadius: "4px",
-                }}
-              >
-                <img
-                  src={part.imageUrl}
-                  alt={part.partType}
-                  className="w-full h-full object-contain pointer-events-none"
-                  draggable={false}
-                />
-                {isSelected && (
-                  <div
-                    className="absolute -top-5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded font-fantasy text-[8px] tracking-wider whitespace-nowrap"
-                    style={{ background: "rgba(240,192,64,0.9)", color: "#1a0a00", pointerEvents: "none" }}
-                  >
-                    {part.partType}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {/* Static positioning layer — always rendered so click-to-select works.
+              Faded when animation preview is active so the animated canvas reads
+              clearly without the static images competing visually. */}
+          <div style={{ opacity: showAnimPreview ? 0 : 1, transition: "opacity 0.25s" }}>
+            {viewParts.map(part => {
+              const isSelected = selectedPartId === part.id;
+              return (
+                <div
+                  key={part.id}
+                  data-testid={`canvas-part-${part.id}`}
+                  className="absolute"
+                  style={{
+                    left: `${(part.posX / CANVAS_SIZE) * 100}%`,
+                    top: `${(part.posY / CANVAS_SIZE) * 100}%`,
+                    width: `${(part.width / CANVAS_SIZE) * 100}%`,
+                    height: `${(part.height / CANVAS_SIZE) * 100}%`,
+                    zIndex: part.zIndex,
+                    pointerEvents: "none",
+                    outline: isSelected ? "2px solid rgba(240,192,64,0.8)" : "none",
+                    outlineOffset: "2px",
+                    borderRadius: "4px",
+                  }}
+                >
+                  <img
+                    src={part.imageUrl}
+                    alt={part.partType}
+                    className="w-full h-full object-contain pointer-events-none"
+                    draggable={false}
+                  />
+                  {isSelected && (
+                    <div
+                      className="absolute -top-5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded font-fantasy text-[8px] tracking-wider whitespace-nowrap"
+                      style={{ background: "rgba(240,192,64,0.9)", color: "#1a0a00", pointerEvents: "none" }}
+                    >
+                      {part.partType}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Live animated overlay — pointer-events: none so part clicks work. */}
+          {showAnimPreview && selectedTemplateId && (
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{ zIndex: 9999, transition: "opacity 0.25s" }}
+            >
+              <PetAnimatorCanvas
+                petTemplateId={selectedTemplateId}
+                size={400}
+                fillContainer
+                fps={60}
+              />
+            </div>
+          )}
         </div>
 
         {/* Move All D-pad — always visible when parts exist. Moves the entire
