@@ -475,7 +475,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     onSuccess: (data, variables) => {
       const item = inventory.find(i => i.inventoryId === variables.itemInvId);
       const boostLabel = item
-        ? `+${item.statBoostAmount || "?"} ${item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "Lvl pts"}`
+        ? `+${item.statBoostAmount || "?"} ${item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : item.statBoostType === "lvl" ? "Feed pts" : "Lvl pts"}`
         : "Power Up!";
       setPetModalSuccess({ type: item?.statBoostType === "lvl" ? "level" : "stat", label: boostLabel });
       if (data?.petLevel && activePetForModal && data.petLevel > activePetForModal.petLevel) {

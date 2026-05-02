@@ -308,7 +308,7 @@ function computeItemEffect(shop: any): string | null {
     }
     return null;
   }
-  if (shop.type === "edibles") return shop.statBoostAmount ? `+${shop.statBoostAmount} LVL pts` : null;
+  if (shop.type === "edibles") return shop.statBoostAmount ? `+${shop.statBoostAmount} Feed pts` : null;
   if (shop.type === "fishing") {
     if (shop.fishingType === "fish") {
       const rarities = ["Common","Uncommon","Rare","Epic","Legendary"];

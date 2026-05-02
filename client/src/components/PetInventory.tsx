@@ -1250,7 +1250,7 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
                         border: `1px solid ${item.statBoostType === "health" ? "rgba(74,222,128,0.4)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.4)" : item.statBoostType === "def" ? "rgba(96,165,250,0.4)" : "rgba(192,132,252,0.4)"}`,
                       }}
                     >
-                      +{item.statBoostAmount || "?"} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : "Lvl pts"}
+                      +{item.statBoostAmount || "?"} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : item.statBoostType === "lvl" ? "Feed pts" : "Lvl pts"}
                     </span>
                   )}
                   <span
@@ -1358,7 +1358,7 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
                       border: `1px solid ${selectedItem.statBoostType === "health" ? "rgba(74,222,128,0.3)" : selectedItem.statBoostType === "atk" ? "rgba(248,113,113,0.3)" : selectedItem.statBoostType === "def" ? "rgba(96,165,250,0.3)" : "rgba(192,132,252,0.3)"}`,
                     }}
                   >
-                    +{selectedItem.statBoostAmount || "?"} {selectedItem.statBoostType === "health" ? "HP" : selectedItem.statBoostType === "atk" ? "ATK" : selectedItem.statBoostType === "def" ? "DEF" : "Lvl pts"}
+                    +{selectedItem.statBoostAmount || "?"} {selectedItem.statBoostType === "health" ? "HP" : selectedItem.statBoostType === "atk" ? "ATK" : selectedItem.statBoostType === "def" ? "DEF" : selectedItem.statBoostType === "lvl" ? "Feed pts" : "Lvl pts"}
                   </span>
                 </div>
               )}

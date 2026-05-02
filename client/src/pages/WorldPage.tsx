@@ -1387,7 +1387,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       if (item.defBoost) lines.push(`Boosts DEF by ${item.defBoost}`);
       if (item.healthBoost) lines.push(`Boosts HP by ${item.healthBoost}`);
       if (item.statBoostType && item.statBoostAmount) {
-        const label = item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : item.statBoostType === "level" ? "Level Points" : item.statBoostType;
+        const label = item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : item.statBoostType === "lvl" ? "Feed pts" : item.statBoostType === "level" ? "Level Points" : item.statBoostType;
         lines.push(`+${item.statBoostAmount} ${label}`);
       }
       if (item.petsRevived) lines.push(`Revives ${item.petsRevived} pet(s)`);
