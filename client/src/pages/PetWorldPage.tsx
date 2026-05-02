@@ -604,10 +604,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           let closestDist = Infinity;
           for (const door of kcDoorsRef.current) {
             if (doorCooldownRef.current === door.id) continue;
-            const ddxPx = (nx - door.posX) / 100 * MAP_W;
-            const ddyPx = (ny - door.posY) / 100 * mapHRef.current;
-            const distPx = Math.sqrt(ddxPx * ddxPx + ddyPx * ddyPx);
             const rPx    = door.triggerRadius / 100 * MAP_W;
+            const doorCY = door.posY - (rPx / mapHRef.current * 100);
+            const ddxPx = (nx - door.posX) / 100 * MAP_W;
+            const ddyPx = (ny - doorCY) / 100 * mapHRef.current;
+            const distPx = Math.sqrt(ddxPx * ddxPx + ddyPx * ddyPx);
             if (distPx < rPx && distPx < closestDist) { closestDist = distPx; closestDoor = door; }
           }
           if (closestDoor) {
@@ -672,10 +673,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         let closestDist = Infinity;
         for (const door of kcDoorsRef.current) {
           if (doorCooldownRef.current === door.id) continue;
-          const ddxPx = (pos.x - door.posX) / 100 * MAP_W;
-          const ddyPx = (pos.y - door.posY) / 100 * mapHRef.current;
-          const distPx = Math.sqrt(ddxPx * ddxPx + ddyPx * ddyPx);
           const rPx    = door.triggerRadius / 100 * MAP_W;
+          const doorCY = door.posY - (rPx / mapHRef.current * 100);
+          const ddxPx = (pos.x - door.posX) / 100 * MAP_W;
+          const ddyPx = (pos.y - doorCY) / 100 * mapHRef.current;
+          const distPx = Math.sqrt(ddxPx * ddxPx + ddyPx * ddyPx);
           if (distPx < rPx && distPx < closestDist) { closestDist = distPx; closestDoor = door; }
         }
         if (closestDoor) { activeDoorIdRef.current = closestDoor.id; setActiveDoorId(closestDoor.id); }
@@ -694,10 +696,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     let closestDist = Infinity;
     for (const door of kcDoorsRef.current) {
       if (doorCooldownRef.current === door.id) continue;
-      const ddxPx = (localPetPos.x - door.posX) / 100 * MAP_W;
-      const ddyPx = (localPetPos.y - door.posY) / 100 * mapHRef.current;
-      const distPx = Math.sqrt(ddxPx * ddxPx + ddyPx * ddyPx);
       const rPx    = door.triggerRadius / 100 * MAP_W;
+      const doorCY = door.posY - (rPx / mapHRef.current * 100);
+      const ddxPx = (localPetPos.x - door.posX) / 100 * MAP_W;
+      const ddyPx = (localPetPos.y - doorCY) / 100 * mapHRef.current;
+      const distPx = Math.sqrt(ddxPx * ddxPx + ddyPx * ddyPx);
       if (distPx < rPx && distPx < closestDist) { closestDist = distPx; closestDoor = door; }
     }
     if (closestDoor) {
@@ -1342,7 +1345,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   top: `${pos.y}%`,
                   width: sz,
                   cursor: user.isAdmin ? "grab" : "default",
-                  zIndex: selectedLocId === loc.id ? 150 : locDragPos?.id === loc.id ? 200 : 10 + Math.round(((pos.y - (sz / 2 / mapH) * 100) / 100) * 60),
+                  zIndex: selectedLocId === loc.id ? 150 : locDragPos?.id === loc.id ? 200 : 10 + Math.round(((pos.y - (sz * 0.3 / mapH) * 100) / 100) * 60),
                   transform: "translate(-50%, -100%)",
                   touchAction: "none",
                   userSelect: "none",
@@ -1422,7 +1425,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   left: `${dpos.x}%`, top: `${dpos.y}%`,
                   width: `${p.size}px`, height: `${p.size}px`,
                   transform: "translate(-50%, -50%)",
-                  zIndex: isPassThrough ? 300 : (decorDragPos?.id === p.id ? 200 : 10 + Math.round((dpos.y / 100) * 60)),
+                  zIndex: isPassThrough ? 300 : (decorDragPos?.id === p.id ? 200 : 10 + Math.round(((dpos.y + (p.size * 0.3 / mapH) * 100) / 100) * 60)),
                   cursor: user.isAdmin ? "grab" : "default",
                   touchAction: user.isAdmin ? "none" : "auto",
                   pointerEvents: (!user.isAdmin && isPassThrough) ? "none" : "auto",
