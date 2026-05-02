@@ -3660,7 +3660,7 @@ function WorldRoamingPet({
 
   // sz is in map-canvas pixels. Kept small so pets read as little
   // characters on the world map and don't dwarf nearby locations.
-  const sz     = 100;
+  const sz     = 60;
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
   const displayName = pet.petNickname || pet.name;
 
@@ -3688,12 +3688,20 @@ function WorldRoamingPet({
   // front/back/missing keeps the legacy behavior for non-side templates.
   const rendersAsStillImage = (isOwn && !!petImg) || (!pet.petTemplateId && !!petImg);
   const templateFacing = templateData?.facing;
-  const templateIsSideFacing = templateFacing === "left" || templateFacing === "right";
-  const naturalFacingLeft   = rendersAsStillImage
-    ? (templateIsSideFacing
-        ? templateFacing === "left"
-        : pet.facingDirection === "left")
-    : ((templateFacing ?? pet.facingDirection ?? "front") === "left");
+  // naturalFacingLeft: true if the sprite's artwork naturally faces left.
+  // • Explicit "left"/"right" templates → the template direction is the source
+  //   of truth for both still-image renders (generated to match the template)
+  //   and parts-based PetAnimator renders.
+  // • "front" / "back" / unknown → fall back to pet.facingDirection. This covers
+  //   side-profile pets whose parts were saved as "back" view — their stored
+  //   facingDirection says which way they actually face, and we honour it
+  //   regardless of whether the pet renders as a still image or as live parts.
+  //   Previously the PetAnimator path always computed ("back" === "left") = false,
+  //   which ignored facingDirection entirely and caused the wrong side to be shown.
+  const naturalFacingLeft =
+    templateFacing === "left"  ? true  :
+    templateFacing === "right" ? false :
+    (pet.facingDirection === "left");
   const nameTopPx = rendersAsStillImage ? -4 : Math.round(minTopFrac * sz) - 4;
 
   // Seeded per-pet so each pet drifts and bobs at a unique phase/speed
@@ -3730,28 +3738,6 @@ function WorldRoamingPet({
             : undefined
           : `${floatAnim} ${floatDuration} ease-in-out ${floatDelay} infinite ${hasWings ? "alternate" : ""}`,
       }}>
-          {/* Directional lean — when the player is actively moving their
-              own pet, tilt the sprite a few degrees toward the travel
-              direction (left = lean left, right = lean right). Many of
-              our pet images are roughly front-facing or symmetric, so a
-              pure horizontal flip gives almost no visual feedback that
-              the player is moving — the camera follows the pet, so the
-              pet stays centered on screen and the world shifts under
-              it. The lean adds an unmistakable cue without needing any
-              per-pet artwork changes. Applied on a wrapper OUTSIDE the
-              scaleX flip below so the rotation direction stays correct
-              regardless of whether the sprite is mirrored. Kept subtle
-              (3 deg) so it reads as a slight forward lean rather than a
-              clown-style tilt. */}
-          <div
-            style={{
-              transform: (isOwn && isMoving)
-                ? `rotate(${facingLeft ? -3 : 3}deg)`
-                : undefined,
-              transformOrigin: "center bottom",
-              transition: "transform 0.18s ease-out",
-            }}
-          >
           {/* Single position:relative box (sz × sz map-pixels).
               Badge and stars are absolutely positioned using the pet's ACTUAL
               bounding box (minTopFrac / maxBotFrac) computed from the real part
@@ -3859,7 +3845,6 @@ function WorldRoamingPet({
                 cursor: "pointer",
               }}
             />
-          </div>
           </div>
       </div>
       </div>
