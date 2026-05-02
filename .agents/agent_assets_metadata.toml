@@ -300,6 +300,12 @@ uri = "file://attached_assets/generated_images/joystick_thumb.png"
 type = "image"
 title = "joystick thumb orb"
 
+[[generated]]
+id = "hGKkm-PPGMzb9Q9N4dgCQ"
+uri = "file://attached_assets/generated_images/icon_fishing_volcanic.png"
+type = "image"
+title = "volcanic lava fishing spot icon"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
@@ -1229,3 +1235,9 @@ id = "ao9cpyvyXyH2QIL8j99iq"
 uri = "file://attached_assets/admin_icon_fishing.png"
 type = "image"
 title = "Current fishing spot icon"
+
+[[outputs]]
+id = "tGK48PbNVItpSBuX695eV"
+uri = "file://attached_assets/generated_images/icon_fishing_volcanic.png"
+type = "image"
+title = "New volcanic fishing spot icon (preview)"
