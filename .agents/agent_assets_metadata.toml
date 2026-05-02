@@ -306,6 +306,12 @@ uri = "file://attached_assets/generated_images/icon_fishing_volcanic.png"
 type = "image"
 title = "volcanic lava pool flat top down icon"
 
+[[generated]]
+id = "Krgu0iNsIwNy22oHSl7Qi"
+uri = "file://attached_assets/bg_shop_volcanic.png"
+type = "image"
+title = "volcanic fishing shop interior background"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
