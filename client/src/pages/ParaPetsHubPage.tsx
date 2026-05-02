@@ -6,7 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 import heroBanner        from "@assets/hub_hero_banner.png";
-import mascot            from "@assets/hub_mascot.png";
+import mascot            from "@assets/Photoroom_20260502_90936_AM_1777731667331.png";
 import runeCircle        from "@assets/hub_rune_circle.png";
 import eggsImg           from "@assets/hub_eggs.png";
 import podiumImg         from "@assets/hub_podium.png";

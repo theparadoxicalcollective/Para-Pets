@@ -25,6 +25,7 @@ const strengthOf = (o: MatchmakingOpponent) =>
 interface Props {
   me: any;
   myBp: number;
+  myAtk?: number;
   opponents: MatchmakingOpponent[];
   onCancel: () => void;
   onMatchConfirmed: (opp: MatchmakingOpponent) => void;
@@ -47,6 +48,7 @@ interface Props {
 export default function PvpMatchmakingOverlay({
   me,
   myBp,
+  myAtk,
   opponents,
   onCancel,
   onMatchConfirmed,
@@ -153,7 +155,7 @@ export default function PvpMatchmakingOverlay({
           filter: "brightness(0.35) saturate(1.1) blur(2px)",
         }}
       />
-      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at center, rgba(20,8,40,0.55) 0%, rgba(2,4,10,0.92) 80%)" }} />
+      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at center, rgba(4,18,10,0.55) 0%, rgba(2,4,10,0.92) 80%)" }} />
 
       {/* Inline keyframes — keeps this component self-contained so we
           don't have to plumb global CSS for a one-off screen. */}
@@ -211,17 +213,17 @@ export default function PvpMatchmakingOverlay({
               className="absolute rounded-full"
               style={{
                 inset: 24,
-                border: "1px solid rgba(167,139,250,0.65)",
-                boxShadow: "0 0 26px rgba(167,139,250,0.35) inset",
+                border: "1px solid rgba(74,222,128,0.60)",
+                boxShadow: "0 0 26px rgba(74,222,128,0.30) inset",
                 animation: "mmRingSpinR 5s linear infinite",
               }}
             />
-            {/* Inner ring — fast, purple */}
+            {/* Inner ring — fast, gold */}
             <div
               className="absolute rounded-full"
               style={{
                 inset: 54,
-                border: "1px dashed rgba(236,72,153,0.55)",
+                border: "1px dashed rgba(251,191,36,0.55)",
                 animation: "mmRingSpin 2.2s linear infinite",
               }}
             />
@@ -269,8 +271,8 @@ export default function PvpMatchmakingOverlay({
             <div
               className="flex items-center gap-2 rounded-full px-3 py-1.5"
               style={{
-                background: "rgba(20,10,40,0.8)",
-                border: "1px solid rgba(167,139,250,0.3)",
+                background: "rgba(8,22,14,0.88)",
+                border: "1px solid rgba(74,222,128,0.28)",
                 minWidth: 180,
               }}
             >
@@ -279,14 +281,14 @@ export default function PvpMatchmakingOverlay({
                   {spotlight.profileImage ? (
                     <img src={spotlight.profileImage} className="w-6 h-6 rounded-full object-cover border border-white/15" />
                   ) : (
-                    <div className="w-6 h-6 rounded-full bg-purple-900/40 border border-purple-400/15 flex items-center justify-center">
+                    <div className="w-6 h-6 rounded-full bg-emerald-900/40 border border-emerald-400/15 flex items-center justify-center">
                       <img src={petPawIcon} alt="" style={{ width: 14, height: 14, opacity: 0.55 }} />
                     </div>
                   )}
                   <div className="text-white/85 text-[11px] font-semibold truncate flex-1">{spotlight.username}</div>
                   {strengthOf(spotlight) > 0 && (
                     <div className="text-amber-300 text-[10px] tabular-nums font-black">
-                      {strengthOf(spotlight)} {spotlight.attackPower != null ? "AP" : "BP"}
+                      {strengthOf(spotlight)} ATK
                     </div>
                   )}
                 </>
@@ -333,7 +335,7 @@ export default function PvpMatchmakingOverlay({
             style={{
               width: 280,
               height: 280,
-              border: "2px solid rgba(236,72,153,0.75)",
+              border: "2px solid rgba(74,222,128,0.65)",
               animation: "mmShockwave 1.3s ease-out 0.2s forwards",
               top: "50%",
               left: "50%",
@@ -354,9 +356,9 @@ export default function PvpMatchmakingOverlay({
               side="left"
               name={me?.username ?? "You"}
               profileImage={me?.profileImage ?? null}
-              bp={myBp}
-              bpLabel="BP"
-              accent="rgba(56,189,248,0.6)"
+              bp={myAtk ?? myBp}
+              bpLabel="ATK"
+              accent="rgba(74,222,128,0.65)"
               isAdmin={!!me?.isAdmin}
               isModerator={!!me?.isModerator}
             />
@@ -384,7 +386,7 @@ export default function PvpMatchmakingOverlay({
               name={matched.username}
               profileImage={matched.profileImage}
               bp={strengthOf(matched)}
-              bpLabel={matched.attackPower != null ? "AP" : "BP"}
+              bpLabel="ATK"
               accent="rgba(239,68,68,0.6)"
               isAdmin={!!matched.isAdmin}
               isModerator={!!matched.isModerator}
@@ -404,7 +406,7 @@ export default function PvpMatchmakingOverlay({
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: "radial-gradient(circle at 50% 50%, rgba(251,191,36,0.7) 0%, rgba(236,72,153,0.35) 40%, rgba(0,0,0,0) 75%)",
+            background: "radial-gradient(circle at 50% 50%, rgba(251,191,36,0.7) 0%, rgba(74,222,128,0.30) 40%, rgba(0,0,0,0) 75%)",
             animation: "mmFlashIn 0.55s ease-out forwards",
             mixBlendMode: "screen",
           }}
@@ -466,7 +468,7 @@ function PortraitCard({
         <RoleBadge isAdmin={isAdmin} isModerator={isModerator} />
       </div>
       <div className="text-amber-300 text-[10px] font-black tracking-wider tabular-nums">
-        {Math.max(0, bp)} BP
+        {Math.max(0, bp)} {bpLabel}
       </div>
     </div>
   );

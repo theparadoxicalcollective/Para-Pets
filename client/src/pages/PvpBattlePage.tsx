@@ -1364,6 +1364,7 @@ export default function PvpBattlePage({
            is inside a glowing bubble"). drop-shadow follows the alpha
            edge, so the pet itself appears to emit light. */
         @keyframes skillGlowImg { 0%,100%{filter:drop-shadow(0 0 8px rgba(74,222,128,0.85)) drop-shadow(0 0 16px rgba(34,197,94,0.55))} 50%{filter:drop-shadow(0 0 14px rgba(134,239,172,1)) drop-shadow(0 0 28px rgba(74,222,128,0.85))} }
+        @keyframes skillRingPulse { 0%,100%{box-shadow:0 0 10px 2px rgba(251,191,36,0.35),inset 0 0 8px rgba(251,191,36,0.10);border-color:rgba(251,191,36,0.50);opacity:0.75} 50%{box-shadow:0 0 22px 6px rgba(251,191,36,0.65),inset 0 0 14px rgba(251,191,36,0.22);border-color:rgba(251,191,36,0.85);opacity:1} }
         @keyframes targetPulse { 0%,100%{opacity:0.55} 50%{opacity:1} }
         @keyframes dropZonePulse { 0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,0.55), 0 0 18px rgba(74,222,128,0.35)} 50%{box-shadow:0 0 0 8px rgba(74,222,128,0.0), 0 0 28px rgba(74,222,128,0.55)} }
         @keyframes bOrb { 0%{transform:translate(0,0) scale(0.6);opacity:0} 30%{opacity:1} 100%{transform:translate(var(--ox,0px),-180px) scale(1.1);opacity:0} }
@@ -1676,6 +1677,25 @@ export default function PvpBattlePage({
                     `position: relative` so any absolute children
                     (X_X hit overlay) resolve to THIS box, not to the
                     outer flex column. */}
+                {/* Skill-ready gold ring — semi-transparent circle that
+                    pulses around the pet when its mana is full and a
+                    skill is available. Uses box-shadow so the glow
+                    bleeds outward from the ring edge without clipping
+                    the sprite behind it. */}
+                {isSkillReady && !isPendingSource && (
+                  <div
+                    className="absolute pointer-events-none"
+                    style={{
+                      inset: -4,
+                      borderRadius: "50%",
+                      border: "2px solid rgba(251,191,36,0.70)",
+                      background: "rgba(251,191,36,0.06)",
+                      animation: "skillRingPulse 1.2s ease-in-out infinite",
+                      zIndex: 11,
+                    }}
+                  />
+                )}
+
                 {/* Floor shadow for downed pets — flat dark ellipse beneath
                     the body so the tipped-over sprite reads as "collapsed
                     on the ground" rather than just rotated in space.

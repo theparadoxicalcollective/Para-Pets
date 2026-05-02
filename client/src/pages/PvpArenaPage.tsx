@@ -1557,6 +1557,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
         <PvpMatchmakingOverlay
           me={me}
           myBp={myBp}
+          myAtk={myLb?.entry.attackPower ?? 0}
           opponents={matchmakingPool}
           onCancel={() => {
             // Player bailed out before we locked a match. Because we
