@@ -1451,7 +1451,7 @@ export async function registerRoutes(
   // Hunger drains at HUNGER_DECAY_PER_MIN points per minute while the pet is
   // placed in the pet house (inside or outside). When hunger hits 0, mood
   // starts draining at MOOD_DECAY_PER_MIN. Both are clamped on each tick.
-  const HUNGER_DECAY_PER_MIN = 1;     // 1 hunger pt / minute while placed
+  const HUNGER_DECAY_PER_MIN = 0.5;   // 0.5 hunger pt / minute while placed/active
   // Mood drains while the pet is "hungry" (below 50% of its max hunger). Below
   // that threshold mood drops at MOOD_STARVE_DECAY_PER_MIN. On top of that,
   // pets that have not been fed OR petted in a while suffer a slow neglect
@@ -1553,13 +1553,15 @@ export async function registerRoutes(
       }));
 
       // Apply hunger/mood time decay for every hatched pet. Pets that are
-      // placed in the pet house lose hunger over time; pets sitting in
-      // inventory are static.
+      // placed in the pet house OR set as the user's active pet lose hunger
+      // over time; pets sitting idle in inventory are static.
       const placedPositions = await storage.getPetHousePositions(user.id);
       const placedSet = new Set(placedPositions.map((p) => p.inventoryId));
+      const activePetId = user.activePetId ?? null;
       await Promise.all(filteredRows.map(async ({ inventory: inv, shopItem }) => {
         if (shopItem?.type === "pet" && inv.isHatched) {
-          await applyPetTimeDecay(inv, placedSet.has(inv.id));
+          const isActive = activePetId !== null && inv.id === activePetId;
+          await applyPetTimeDecay(inv, placedSet.has(inv.id) || isActive);
         }
       }));
 
@@ -2015,7 +2017,7 @@ export async function registerRoutes(
       if (pettedPet && pettedPet.userId === user.id) {
         const maxH = Math.max(1, pettedPet.petHealth ?? 1000);
         const curH = pettedPet.petHunger == null || pettedPet.petHunger < 0 ? maxH : pettedPet.petHunger;
-        const moodGain = (curH / maxH) >= 0.5 ? 3 : 0;
+        const moodGain = (curH / maxH) >= 0.5 ? 1 : 0;
         let newMood = Math.min(100, (pettedPet.petMood ?? 100) + moodGain);
         // Recent battle defeats cap how high mood can rise.
         if (pettedPet.lastBattleDefeatAt) {
@@ -2110,7 +2112,7 @@ export async function registerRoutes(
       // already too hungry to enjoy the meal. This keeps the mood bar harder
       // to fill — feeding alone can't max it out.
       const wasHungry = (currentHunger / maxHunger) < 0.5;
-      const moodGain = wasHungry ? 2 : 5;
+      const moodGain = wasHungry ? 1 : 3;
       let newMood = Math.min(100, (petInv.petMood ?? 100) + moodGain);
       // Recent battle defeats cap how high mood can rise.
       if (petInv.lastBattleDefeatAt) {
