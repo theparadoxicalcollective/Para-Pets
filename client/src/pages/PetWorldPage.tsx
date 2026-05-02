@@ -3708,6 +3708,10 @@ function WorldRoamingPet({
   const naturalFacingLeft =
     templateFacing === "left"  ? true  :
     templateFacing === "right" ? false :
+    // "back" = side-profile template; default facing LEFT (same rule as the
+    // parent useEffect so the two formulas always agree).
+    templateFacing === "back"  ? (pet.facingDirection !== "right") :
+    // "front" / unknown → front-facing or symmetric; rely on the explicit field.
     (pet.facingDirection === "left");
   const nameTopPx = rendersAsStillImage ? -4 : Math.round(minTopFrac * sz) - 4;
 

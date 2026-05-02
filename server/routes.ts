@@ -1604,6 +1604,7 @@ export async function registerRoutes(
         lastFedAt: inv.lastFedAt ?? null,
         lastPettedAt: inv.lastPettedAt ?? null,
         lastBattleDefeatAt: inv.lastBattleDefeatAt ?? null,
+        facingDirection: shopItem?.facingDirection ?? null,
         giftPoints: shopItem?.giftPoints ?? null,
         petStatsUpdatedAt: inv.petStatsUpdatedAt ?? null,
         itemsUsedThisLevel: inv.itemsUsedThisLevel,
@@ -3686,6 +3687,24 @@ export async function registerRoutes(
       }
 
       const updated = await storage.updateShopItem((req.params.itemId as string), updateData);
+
+      // If facingDirection changed, hot-patch any SSE clients whose active pet
+      // is this shop item so they see the correct facing immediately without
+      // needing to reload Keeper's Central.
+      if (updateData.facingDirection !== undefined) {
+        const shopItemId = req.params.itemId as string;
+        for (const [uid, client] of _worldClients) {
+          if (client.petData?.shopItemId === shopItemId) {
+            client.petData = { ...client.petData, facingDirection: updateData.facingDirection };
+            const payload = { ...client.petData, posX: client.posX, posY: client.posY };
+            // Tell the owner their own pet data changed
+            sendSSEEvent(client.res, "join", payload);
+            // Tell everyone else so their roster updates too
+            broadcastWorld("join", payload, uid);
+          }
+        }
+      }
+
       return res.json(updated);
     } catch (err) {
       console.error("Update shop item error:", err);
