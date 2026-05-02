@@ -293,19 +293,36 @@ export default function ItemDatabaseSection({
 
       {/* Type filter — items section only */}
       {!isPetSection && (
-        <div className="flex gap-2">
-          <select
-            data-testid="select-filter-type"
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="flex-1 px-2 py-1.5 rounded-md font-fantasy text-[10px] outline-none"
-            style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }}
-          >
-            <option value="all">All Types</option>
-            {ITEM_CATEGORIES.filter(c => c.key !== "pets").map(c => (
-              <option key={c.key} value={c.key}>{c.label}</option>
-            ))}
-          </select>
+        <div
+          className="flex gap-1.5 overflow-x-auto pb-1"
+          style={{ scrollbarWidth: "none" }}
+          data-testid="row-filter-tabs"
+        >
+          {[{ key: "all", label: "All", color: "#f0c040" }, ...ITEM_CATEGORIES.filter(c => c.key !== "pets")].map(c => {
+            const active = filterType === c.key;
+            return (
+              <button
+                key={c.key}
+                data-testid={`tab-filter-${c.key}`}
+                onClick={() => setFilterType(c.key)}
+                className="flex-shrink-0 px-3 py-1 rounded-full font-fantasy text-[10px] tracking-wider transition-all"
+                style={{
+                  background: active
+                    ? `linear-gradient(135deg, ${c.color}30 0%, ${c.color}18 100%)`
+                    : "rgba(0,0,0,0.25)",
+                  border: active
+                    ? `1px solid ${c.color}80`
+                    : "1px solid rgba(212,160,23,0.2)",
+                  color: active ? c.color : "rgba(168,152,120,0.85)",
+                  cursor: "pointer",
+                  boxShadow: active ? `0 0 8px ${c.color}30` : "none",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {c.label}
+              </button>
+            );
+          })}
         </div>
       )}
 
