@@ -46,7 +46,7 @@ const TIER_VISUALS: Record<string, { border: string; glow: string; chip: string;
   bronze:  { border: "rgba(205,127,50,0.55)",  glow: "0 0 18px rgba(205,127,50,0.30)",  chip: "rgba(205,127,50,0.18)",  text: "#d8a070", stack: 1 },
   silver:  { border: "rgba(203,213,225,0.55)", glow: "0 0 22px rgba(203,213,225,0.30)", chip: "rgba(203,213,225,0.18)", text: "#e2e8f0", stack: 2 },
   gold:    { border: "rgba(251,191,36,0.60)",  glow: "0 0 26px rgba(251,191,36,0.38)",  chip: "rgba(251,191,36,0.22)",  text: "#fbbf24", stack: 2 },
-  purple:  { border: "rgba(167,139,250,0.65)", glow: "0 0 30px rgba(167,139,250,0.42)", chip: "rgba(167,139,250,0.22)", text: "#c4b5fd", stack: 3 },
+  purple:  { border: "rgba(74,222,128,0.65)",  glow: "0 0 30px rgba(74,222,128,0.42)",  chip: "rgba(74,222,128,0.22)",  text: "#86efac", stack: 3 },
   amber:   { border: "rgba(240,192,64,0.75)",  glow: "0 0 36px rgba(240,192,64,0.50)",  chip: "rgba(240,192,64,0.24)",  text: "#fcd34d", stack: 3 },
   magenta: { border: "rgba(255,80,255,0.80)",  glow: "0 0 44px rgba(255,80,255,0.55)",  chip: "rgba(255,80,255,0.22)",  text: "#f0abfc", stack: 4 },
 };
@@ -698,14 +698,14 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                that matters in PvP)
              • PvP ticket chip pinned to the right so the player can
                always see how many matches they have left at a glance. */}
-      <div className="relative z-10 flex items-center gap-3 pl-4 pr-2 pb-2.5 shrink-0" style={{ background: "rgba(5,8,15,0.7)", borderBottom: "1px solid rgba(167,139,250,0.12)", paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
+      <div className="relative z-10 flex items-center gap-3 pl-4 pr-2 pb-2.5 shrink-0" style={{ background: "rgba(5,8,15,0.7)", borderBottom: "1px solid rgba(74,222,128,0.10)", paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
         <button onClick={onClose} data-testid="button-close-pvp" className="w-10 h-10 flex items-center justify-center rounded-lg text-white/50 hover:text-white/80 transition-colors shrink-0 active:scale-90" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
           <ArrowLeft size={20} />
         </button>
         {/* Profile pic */}
         {me?.profileImage
-          ? <img src={me.profileImage} className="w-9 h-9 rounded-full border border-purple-400/40 object-cover shrink-0" />
-          : <div className="w-9 h-9 rounded-full border border-purple-400/30 bg-purple-900/50 flex items-center justify-center shrink-0">
+          ? <img src={me.profileImage} className="w-9 h-9 rounded-full border border-emerald-400/40 object-cover shrink-0" />
+          : <div className="w-9 h-9 rounded-full border border-emerald-400/30 bg-emerald-900/50 flex items-center justify-center shrink-0">
               <img src={petPawIcon} alt="" style={{ width: 20, height: 20, objectFit: "contain", opacity: 0.5 }} />
             </div>}
         <div className="flex-1 min-w-0">
@@ -771,7 +771,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
         <div className="relative shrink-0 pt-3 pb-1.5 px-4">
           <div
             className="text-center text-2xl font-black tracking-[0.18em] text-white"
-            style={{ textShadow: "0 0 28px rgba(167,139,250,0.55), 0 2px 4px rgba(0,0,0,0.6)" }}
+            style={{ textShadow: "0 0 28px rgba(74,222,128,0.45), 0 2px 4px rgba(0,0,0,0.6)" }}
             data-testid="text-pvp-arena-title"
           >
             PvP Arena
@@ -795,8 +795,8 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             className="mx-auto rounded-2xl"
             style={{
               maxWidth: 360,
-              background: "linear-gradient(180deg, rgba(20,10,40,0.82) 0%, rgba(10,6,22,0.86) 100%)",
-              border: "1px solid rgba(167,139,250,0.22)",
+              background: "linear-gradient(180deg, rgba(8,22,14,0.88) 0%, rgba(4,12,8,0.92) 100%)",
+              border: "1px solid rgba(74,222,128,0.18)",
               boxShadow: "0 6px 22px rgba(0,0,0,0.45)",
             }}
           >
@@ -812,9 +812,9 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                 onClick={() => setShowFullBoard(v => !v)}
                 className="text-[9px] tracking-[0.18em] font-bold px-2 py-0.5 rounded-md active:scale-95"
                 style={{
-                  background: "rgba(167,139,250,0.16)",
-                  border: "1px solid rgba(167,139,250,0.35)",
-                  color: "#c4b5fd",
+                  background: "rgba(74,222,128,0.14)",
+                  border: "1px solid rgba(74,222,128,0.32)",
+                  color: "#86efac",
                 }}
               >
                 {showFullBoard ? "TOP 10" : "TOP 100"}
@@ -882,7 +882,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                         })}
                         className="flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer transition-colors hover:bg-white/5 active:scale-[0.99]"
                         style={{
-                          background: isMe ? "rgba(124,58,237,0.22)" : "transparent",
+                          background: isMe ? "rgba(20,80,40,0.32)" : "transparent",
                           borderBottom: i === lastIdx ? "none" : "1px solid rgba(255,255,255,0.04)",
                         }}
                       >
@@ -899,7 +899,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                         </div>
                         {entry.profileImage
                           ? <img src={entry.profileImage} className="w-7 h-7 rounded-full object-cover border border-white/10 shrink-0" />
-                          : <div className="w-7 h-7 rounded-full bg-purple-900/40 border border-purple-400/15 flex items-center justify-center shrink-0">
+                          : <div className="w-7 h-7 rounded-full bg-emerald-900/40 border border-emerald-400/15 flex items-center justify-center shrink-0">
                               <img src={petPawIcon} alt="" style={{ width: 16, height: 16, objectFit: "contain", opacity: 0.5 }} />
                             </div>}
                         <div className="flex-1 min-w-0 flex items-center gap-1.5">
@@ -933,7 +933,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               {myRank && !isHiddenFromBoard ? (
                 <div className="mt-2 pt-2 border-t border-white/10">
                   <div
-                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer transition-colors hover:bg-purple-700/30 active:scale-[0.99]"
+                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-md cursor-pointer transition-colors hover:bg-emerald-700/20 active:scale-[0.99]"
                     data-testid="row-my-placement"
                     role="button"
                     onClick={() => me?.id && setSelectedPlayer({
@@ -945,8 +945,8 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                       },
                     })}
                     style={{
-                      background: "rgba(124,58,237,0.22)",
-                      border: "1px solid rgba(167,139,250,0.45)",
+                      background: "rgba(20,80,40,0.32)",
+                      border: "1px solid rgba(74,222,128,0.40)",
                     }}
                   >
                     <div className="w-6 text-right text-white/85 text-[12px] font-bold tabular-nums shrink-0">
@@ -954,7 +954,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                     </div>
                     {me?.profileImage
                       ? <img src={me.profileImage} className="w-7 h-7 rounded-full object-cover border border-white/15 shrink-0" />
-                      : <div className="w-7 h-7 rounded-full bg-purple-900/40 border border-purple-400/15 flex items-center justify-center shrink-0">
+                      : <div className="w-7 h-7 rounded-full bg-emerald-900/40 border border-emerald-400/15 flex items-center justify-center shrink-0">
                           <img src={petPawIcon} alt="" style={{ width: 16, height: 16, objectFit: "contain", opacity: 0.5 }} />
                         </div>}
                     <div className="flex-1 min-w-0 text-white/95 text-[12px] font-semibold truncate">
@@ -987,8 +987,8 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             className="rounded-2xl p-3 mx-auto w-full"
             style={{
               maxWidth: 360,
-              background: "linear-gradient(180deg, rgba(20,10,40,0.78) 0%, rgba(10,6,22,0.82) 100%)",
-              border: "1px solid rgba(167,139,250,0.22)",
+              background: "linear-gradient(180deg, rgba(8,22,14,0.84) 0%, rgba(4,12,8,0.88) 100%)",
+              border: "1px solid rgba(74,222,128,0.18)",
               boxShadow: "0 6px 22px rgba(0,0,0,0.45)",
             }}
             data-testid="card-rank-panel"
@@ -1009,9 +1009,9 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             <div className="grid grid-cols-3 gap-2 mb-3">
               <div
                 className="rounded-lg py-1.5 flex flex-col items-center justify-center"
-                style={{ background: "rgba(167,139,250,0.10)", border: "1px solid rgba(167,139,250,0.25)" }}
+                style={{ background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.22)" }}
               >
-                <div className="text-[8px] tracking-[0.2em] text-purple-200/70 font-bold">RANK</div>
+                <div className="text-[8px] tracking-[0.2em] text-emerald-200/70 font-bold">RANK</div>
                 <div className="text-white text-[15px] font-black tabular-nums leading-tight" data-testid="text-my-rank">
                   {isHiddenFromBoard ? "N/A" : (hasPlayed && myRank ? `#${myRank}` : "—")}
                 </div>
@@ -1085,8 +1085,8 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             className="rounded-2xl p-3 mx-auto mt-auto w-full"
             style={{
               maxWidth: 360,
-              background: "linear-gradient(180deg, rgba(20,10,40,0.78) 0%, rgba(10,6,22,0.82) 100%)",
-              border: "1px solid rgba(167,139,250,0.22)",
+              background: "linear-gradient(180deg, rgba(8,22,14,0.84) 0%, rgba(4,12,8,0.88) 100%)",
+              border: "1px solid rgba(74,222,128,0.18)",
               boxShadow: "0 6px 22px rgba(0,0,0,0.45)",
             }}
           >
@@ -1107,8 +1107,8 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             {/* Pets */}
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2">
-                <Users size={13} className="text-purple-300" />
-                <span className="text-[10px] tracking-[0.18em] font-bold text-purple-200">PETS</span>
+                <Users size={13} className="text-emerald-300" />
+                <span className="text-[10px] tracking-[0.18em] font-bold text-emerald-200">PETS</span>
               </div>
               <span className="text-[10px] text-white/40" data-testid="text-pets-selected-count">{selectedPetIds.length}/5</span>
             </div>
@@ -1141,15 +1141,15 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                       background: isActivePetHere
                         ? "rgba(251,191,36,0.16)"
                         : inv
-                          ? "rgba(124,58,237,0.18)"
+                          ? "rgba(20,80,40,0.28)"
                           : "rgba(255,255,255,0.04)",
                       border: isActivePetHere
                         ? "2px solid rgba(251,191,36,0.85)"
-                        : `1px solid ${inv ? "rgba(167,139,250,0.5)" : "rgba(255,255,255,0.10)"}`,
+                        : `1px solid ${inv ? "rgba(74,222,128,0.45)" : "rgba(255,255,255,0.10)"}`,
                       boxShadow: isActivePetHere
                         ? "0 0 14px rgba(251,191,36,0.55), inset 0 0 10px rgba(251,191,36,0.15)"
                         : inv
-                          ? "0 0 10px rgba(124,58,237,0.25)"
+                          ? "0 0 10px rgba(74,222,128,0.20)"
                           : undefined,
                     }}
                   >
@@ -1216,14 +1216,14 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                         : isRevive
                           ? "rgba(251,191,36,0.20)"
                           : isMana
-                            ? "rgba(124,58,237,0.22)"
+                            ? "rgba(20,80,40,0.30)"
                             : "rgba(34,197,94,0.18)",
                       border: `1px solid ${isEmpty
                         ? "rgba(255,255,255,0.10)"
                         : isRevive
                           ? "rgba(251,191,36,0.55)"
                           : isMana
-                            ? "rgba(167,139,250,0.55)"
+                            ? "rgba(74,222,128,0.55)"
                             : "rgba(34,197,94,0.5)"}`,
                     }}
                   >
@@ -1236,7 +1236,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                           : isRevive
                             ? <span className="text-2xl">✨</span>
                             : isMana
-                              ? <Droplets className="w-7 h-7" style={{ color: "#a78bfa" }} />
+                              ? <Droplets className="w-7 h-7" style={{ color: "#4ade80" }} />
                               : <Heart className="w-7 h-7" style={{ color: "#f87171", fill: "rgba(248,113,113,0.3)" }} />}
                         {/* Stack count badge — shows how many of this
                             potion are currently equipped in this slot. */}
@@ -1245,8 +1245,8 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                           data-testid={`text-potion-slot-qty-${i}`}
                           style={{
                             background: "rgba(0,0,0,0.85)",
-                            border: `1px solid ${isRevive ? "rgba(251,191,36,0.55)" : isMana ? "rgba(167,139,250,0.55)" : "rgba(34,197,94,0.55)"}`,
-                            color: isRevive ? "#fde68a" : isMana ? "#c4b5fd" : "#86efac",
+                            border: `1px solid ${isRevive ? "rgba(251,191,36,0.55)" : isMana ? "rgba(74,222,128,0.55)" : "rgba(34,197,94,0.55)"}`,
+                            color: isRevive ? "#fde68a" : isMana ? "#86efac" : "#86efac",
                             boxShadow: "0 1px 4px rgba(0,0,0,0.5)",
                           }}
                         >
@@ -1262,7 +1262,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* ── Sticky "Begin Battle" button ── */}
-        <div className="shrink-0 px-4 pb-safe pb-5 pt-3" style={{ background: "linear-gradient(0deg, rgba(5,8,15,0.95) 0%, rgba(5,8,15,0.6) 100%)", borderTop: "1px solid rgba(167,139,250,0.08)" }}>
+        <div className="shrink-0 px-4 pb-safe pb-5 pt-3" style={{ background: "linear-gradient(0deg, rgba(5,8,15,0.95) 0%, rgba(5,8,15,0.6) 100%)", borderTop: "1px solid rgba(74,222,128,0.07)" }}>
           <button
             data-testid="button-begin-battle"
             onClick={async () => {
@@ -1312,8 +1312,8 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             }}
             className="w-full flex items-center justify-center gap-3 rounded-xl py-3.5 transition-all active:scale-95"
             style={{
-              background: "linear-gradient(180deg, rgba(30,22,55,0.92) 0%, rgba(18,12,32,0.95) 100%)",
-              border: "1px solid rgba(167,139,250,0.35)",
+              background: "linear-gradient(180deg, rgba(10,30,18,0.92) 0%, rgba(5,18,10,0.96) 100%)",
+              border: "1px solid rgba(74,222,128,0.35)",
             }}
           >
             <img src={pvpNavIcon} alt="" className="w-8 h-8 object-contain" />
@@ -1333,8 +1333,8 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-sm mx-auto rounded-t-3xl"
             style={{
-              background: "linear-gradient(180deg, #15102a 0%, #0a0814 100%)",
-              border: "1px solid rgba(167,139,250,0.25)",
+              background: "linear-gradient(180deg, #0a1810 0%, #040c07 100%)",
+              border: "1px solid rgba(74,222,128,0.22)",
               borderBottom: "none",
               maxHeight: "82vh",
               display: "flex",
@@ -1373,14 +1373,14 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                           className="relative rounded-xl p-2 flex flex-col items-center gap-1 transition-all active:scale-95"
                           style={{
                             background: selected
-                              ? "linear-gradient(135deg, rgba(124,58,237,0.32), rgba(167,139,250,0.10))"
+                              ? "linear-gradient(135deg, rgba(20,80,40,0.40), rgba(74,222,128,0.12))"
                               : "rgba(255,255,255,0.04)",
-                            border: `1px solid ${selected ? "rgba(167,139,250,0.6)" : "rgba(255,255,255,0.08)"}`,
+                            border: `1px solid ${selected ? "rgba(74,222,128,0.55)" : "rgba(255,255,255,0.08)"}`,
                             opacity: full ? 0.4 : 1,
                           }}
                         >
                           {selected && (
-                            <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center">
+                            <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-emerald-600 flex items-center justify-center">
                               <Check size={9} className="text-white" />
                             </div>
                           )}
@@ -1434,10 +1434,10 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                           style={{
                             background: partiallySelected
                               ? (isMana
-                                  ? "linear-gradient(135deg, rgba(124,58,237,0.32), rgba(167,139,250,0.10))"
+                                  ? "linear-gradient(135deg, rgba(20,80,40,0.40), rgba(74,222,128,0.12))"
                                   : "linear-gradient(135deg, rgba(34,197,94,0.32), rgba(74,222,128,0.10))")
                               : "rgba(255,255,255,0.04)",
-                            border: `1px solid ${partiallySelected ? (isMana ? "rgba(167,139,250,0.6)" : "rgba(34,197,94,0.6)") : "rgba(255,255,255,0.08)"}`,
+                            border: `1px solid ${partiallySelected ? (isMana ? "rgba(74,222,128,0.60)" : "rgba(34,197,94,0.6)") : "rgba(255,255,255,0.08)"}`,
                             opacity: disabled ? 0.4 : 1,
                           }}
                         >
@@ -1448,8 +1448,8 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                             data-testid={`text-potion-stack-count-${stack.key}`}
                             style={{
                               background: "rgba(0,0,0,0.7)",
-                              border: `1px solid ${isMana ? "rgba(167,139,250,0.5)" : "rgba(34,197,94,0.5)"}`,
-                              color: isMana ? "#c4b5fd" : "#86efac",
+                              border: `1px solid ${isMana ? "rgba(74,222,128,0.50)" : "rgba(34,197,94,0.5)"}`,
+                              color: isMana ? "#86efac" : "#86efac",
                             }}
                           >
                             ×{remaining}
@@ -1458,7 +1458,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                             {inv.imageUrl
                               ? <img src={inv.imageUrl} className="w-12 h-12 object-contain" />
                               : isMana
-                                ? <Droplets className="w-9 h-9" style={{ color: "#a78bfa" }} />
+                                ? <Droplets className="w-9 h-9" style={{ color: "#4ade80" }} />
                                 : <Heart className="w-9 h-9" style={{ color: "#f87171", fill: "rgba(248,113,113,0.3)" }} />}
                           </div>
                           <div className="text-white/85 text-[10px] truncate w-full text-center font-medium">{inv.name}</div>
@@ -1480,7 +1480,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             <button onClick={() => setTab("lobby")} className="w-10 h-10 flex items-center justify-center rounded-lg text-white/50 hover:text-white/80 active:scale-90 shrink-0" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <ArrowLeft size={18} />
             </button>
-            <div className="flex-1 text-sm tracking-[0.2em] text-purple-300 font-bold">BATTLE GROUP</div>
+            <div className="flex-1 text-sm tracking-[0.2em] text-emerald-300 font-bold">BATTLE GROUP</div>
             <div className="text-white/30 text-[10px]">{selectedPetIds.length}/5 selected</div>
           </div>
           <div className="text-white/30 text-[10px] tracking-wider px-4 py-2 shrink-0">
@@ -1501,13 +1501,13 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                       onClick={() => togglePet(invId)}
                       className="rounded-xl p-3 flex flex-col items-center gap-2 transition-all active:scale-95 relative"
                       style={{
-                        background: selected ? "linear-gradient(135deg, rgba(124,58,237,0.25), rgba(167,139,250,0.1))" : "rgba(255,255,255,0.04)",
-                        border: `1px solid ${selected ? "rgba(167,139,250,0.5)" : "rgba(255,255,255,0.08)"}`,
-                        boxShadow: selected ? "0 0 12px rgba(124,58,237,0.25)" : undefined,
+                        background: selected ? "linear-gradient(135deg, rgba(20,80,40,0.40), rgba(74,222,128,0.12))" : "rgba(255,255,255,0.04)",
+                        border: `1px solid ${selected ? "rgba(74,222,128,0.50)" : "rgba(255,255,255,0.08)"}`,
+                        boxShadow: selected ? "0 0 12px rgba(74,222,128,0.22)" : undefined,
                       }}
                     >
                       {selected && (
-                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
+                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center">
                           <Check size={10} className="text-white" />
                         </div>
                       )}
@@ -1536,9 +1536,9 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               style={{
                 background: groupSaved
                   ? "linear-gradient(135deg, #15803d, #166534)"
-                  : "linear-gradient(135deg, #4c1d95, #7c3aed)",
-                color: "#e9d5ff",
-                boxShadow: "0 0 18px rgba(124,58,237,0.4)",
+                  : "linear-gradient(135deg, #14532d, #166534)",
+                color: "#d1fae5",
+                boxShadow: "0 0 18px rgba(74,222,128,0.3)",
               }}
             >
               {groupSaved ? "✓ SAVED!" : saveBattleGroup.isPending ? "SAVING..." : "SAVE GROUP"}
@@ -1613,9 +1613,9 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-xs rounded-2xl p-6 text-center"
             style={{
-              background: "linear-gradient(180deg, #1a1230 0%, #0a0814 100%)",
-              border: "1px solid rgba(167,139,250,0.35)",
-              boxShadow: "0 18px 50px rgba(0,0,0,0.6), 0 0 28px rgba(167,139,250,0.15)",
+              background: "linear-gradient(180deg, #0a1810 0%, #040c07 100%)",
+              border: "1px solid rgba(74,222,128,0.32)",
+              boxShadow: "0 18px 50px rgba(0,0,0,0.6), 0 0 28px rgba(74,222,128,0.12)",
             }}
           >
             <div
@@ -1636,8 +1636,8 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               data-testid="button-pvp-alert-dismiss"
               className="w-full rounded-xl py-3 text-amber-100 text-[12px] tracking-[0.22em] font-bold active:scale-95"
               style={{
-                background: "linear-gradient(180deg, rgba(60,40,90,0.9) 0%, rgba(30,20,55,0.95) 100%)",
-                border: "1px solid rgba(167,139,250,0.45)",
+                background: "linear-gradient(180deg, rgba(10,35,20,0.92) 0%, rgba(5,18,10,0.96) 100%)",
+                border: "1px solid rgba(74,222,128,0.42)",
               }}
             >
               GOT IT
@@ -1737,15 +1737,15 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             className="w-full max-w-md rounded-t-2xl sm:rounded-2xl flex flex-col"
             style={{
               maxHeight: "90vh",
-              background: "linear-gradient(180deg, #1a1230 0%, #0a0814 100%)",
-              border: "1px solid rgba(167,139,250,0.35)",
-              boxShadow: "0 18px 50px rgba(0,0,0,0.6), 0 0 28px rgba(167,139,250,0.2)",
+              background: "linear-gradient(180deg, #0a1810 0%, #040c07 100%)",
+              border: "1px solid rgba(74,222,128,0.32)",
+              boxShadow: "0 18px 50px rgba(0,0,0,0.6), 0 0 28px rgba(74,222,128,0.15)",
             }}
           >
             {/* Header — title, current coin balance, close button */}
             <div
               className="flex items-center gap-3 px-4 py-3 border-b shrink-0"
-              style={{ borderColor: "rgba(167,139,250,0.18)" }}
+              style={{ borderColor: "rgba(74,222,128,0.15)" }}
             >
               <img src={pvpTicketImg} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
               <div className="flex-1 min-w-0">
