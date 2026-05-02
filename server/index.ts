@@ -1864,6 +1864,60 @@ app.use((req, res, next) => {
     console.error("KC layout restore error (non-fatal):", err);
   }
 
+  // Seed volcanic world locations (pet shop + fishing shack building icon refresh)
+  try {
+    const VOLCANIC_PET_SHOP_ID = "c3d4e5f6-0001-4000-8000-000000000001";
+    const volcanicPetShopDone = await storage.getGameSetting("volcanic_pet_shop_v1");
+    if (!volcanicPetShopDone) {
+      const existing = await db.execute(sql`SELECT id FROM world_locations WHERE id = ${VOLCANIC_PET_SHOP_ID}`);
+      if ((existing as any).rows?.length === 0) {
+        const assetPath = path.join(process.cwd(), "attached_assets", "icon_pet_shop_volcanic.png");
+        const mtime = fs.existsSync(assetPath) ? fs.statSync(assetPath).mtimeMs : Date.now();
+        const iconUrl = `/world-assets/icon_pet_shop_volcanic.png?v=${Math.floor(mtime / 1000)}`;
+        const petShopName = "Ember's Menagerie";
+        const petShopDesc = "A volcanic pet shop where exotic fire-realm creatures await their new companions.";
+        await db.execute(sql`
+          INSERT INTO world_locations (id, world_id, name, type, description, pos_x, pos_y, glow_color, icon_size, sort_order, is_shop, icon_url)
+          VALUES (
+            ${VOLCANIC_PET_SHOP_ID}, 'volcanic', ${petShopName}, 'shop',
+            ${petShopDesc}, 35, 40, '#ff4500', 350, 10, true, ${iconUrl}
+          )
+        `);
+        console.log("Volcanic Pet Shop seeded.");
+      }
+      await storage.setGameSetting("volcanic_pet_shop_v1", "done");
+    }
+  } catch (err) {
+    console.error("Volcanic pet shop seed error (non-fatal):", err);
+  }
+
+  // Seed volcanic fishing shack building as a named shop location icon (refresh always)
+  try {
+    const VOLCANIC_FISHING_SHOP_ID = "c3d4e5f6-0002-4000-8000-000000000002";
+    const volcanicFishingShopDone = await storage.getGameSetting("volcanic_fishing_shack_v1");
+    if (!volcanicFishingShopDone) {
+      const existing = await db.execute(sql`SELECT id FROM world_locations WHERE id = ${VOLCANIC_FISHING_SHOP_ID}`);
+      if ((existing as any).rows?.length === 0) {
+        const assetPath = path.join(process.cwd(), "attached_assets", "icon_fishing_shop_volcanic.png");
+        const mtime = fs.existsSync(assetPath) ? fs.statSync(assetPath).mtimeMs : Date.now();
+        const iconUrl = `/world-assets/icon_fishing_shop_volcanic.png?v=${Math.floor(mtime / 1000)}`;
+        const fishingShopName = "The Lava Hook";
+        const fishingShopDesc = "A rugged lava-stone fishing shack selling poles, bait, and volcanic fishing gear.";
+        await db.execute(sql`
+          INSERT INTO world_locations (id, world_id, name, type, description, pos_x, pos_y, glow_color, icon_size, sort_order, is_shop, icon_url)
+          VALUES (
+            ${VOLCANIC_FISHING_SHOP_ID}, 'volcanic', ${fishingShopName}, 'fishing',
+            ${fishingShopDesc}, 65, 40, '#ff4500', 350, 11, true, ${iconUrl}
+          )
+        `);
+        console.log("Volcanic Fishing Shop seeded.");
+      }
+      await storage.setGameSetting("volcanic_fishing_shack_v1", "done");
+    }
+  } catch (err) {
+    console.error("Volcanic fishing shack seed error (non-fatal):", err);
+  }
+
   // Always refresh known location icons as versioned static URLs — runs AFTER all seeding code
   // so it overrides any loadAssetBase64 calls that re-set base64 icons during startup.
   const LOC_ICON_ALWAYS_REFRESH: Record<string, string> = {
@@ -1880,6 +1934,8 @@ app.use((req, res, next) => {
     "4146afef-828a-4bc1-8e1b-015c7073f895": "icon_kc_central_market.png",
     "de656c2e-4ada-405a-8cfb-a59c9f6b318b": "icon_kc_welcome_center.png",
     "707d872b-0a93-4369-ba8d-3d8b4b4bd09a": "icon_kc_well_of_fortune.png",
+    "c3d4e5f6-0001-4000-8000-000000000001": "icon_pet_shop_volcanic.png",
+    "c3d4e5f6-0002-4000-8000-000000000002": "icon_fishing_shop_volcanic.png",
   };
   for (const [locId, iconFile] of Object.entries(LOC_ICON_ALWAYS_REFRESH)) {
     try {
