@@ -1515,8 +1515,9 @@ export default function WorldPage({ user }: WorldPageProps) {
               transformOrigin: "0 0",
               transform: `translate(${mapX}px, ${mapY}px) scale(${mapScale})`,
               backgroundImage: committedWorldBg ? `url(${committedWorldBg})` : undefined,
-              backgroundSize: "100% 100%",
+              backgroundSize: "cover",
               backgroundRepeat: "no-repeat",
+              backgroundPosition: "center top",
             }}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
