@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -7,12 +8,16 @@ export default function BagInventoryPage() {
   const [, navigate] = useLocation();
   const { data: user } = useQuery<any>({ queryKey: ["/api/auth/me"] });
 
-  if (!user) return null;
+  const lastUserRef = useRef<any>(null);
+  if (user) lastUserRef.current = user;
+
+  const resolvedUser = user ?? lastUserRef.current;
+  if (!resolvedUser) return null;
 
   return (
     <div className="absolute inset-0">
       <PetInventory
-        user={user}
+        user={resolvedUser}
         onClose={() => navigate("/")}
         onUserUpdate={(u) => queryClient.setQueryData(["/api/auth/me"], u)}
         defaultTab="bag"
