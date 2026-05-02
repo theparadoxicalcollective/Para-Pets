@@ -187,7 +187,7 @@ const MAP_H_DEFAULT = 1920;
 // as percentages of (MAP_W × mapH), so a different mapH shifts everything.
 // To derive the value: Math.round(1080 * imgH / imgW) for the canonical bg image.
 const WORLD_FIXED_MAP_H: Record<string, number> = {
-  swamp:           2339, // bg_swamp_map_v6.jpeg 2729×4096
+  swamp:           1621, // bg_swamp_map_v6.jpeg 2729×4096 — natural at MAP_W=1080
   snowy_mountain:  1980, // bg_snowy_mountain_map.webp 768×1408
   sky_realm:       1980, // bg_sky_realm_map.webp 768×1408
   volcanic:        1980, // bg_volcanic_map.webp 768×1408
