@@ -647,6 +647,20 @@ app.use((req, res, next) => {
 
   try {
     await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS founders (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        name varchar(120) NOT NULL,
+        added_by varchar,
+        created_at timestamp NOT NULL DEFAULT now()
+      )
+    `);
+    console.log("founders table ready.");
+  } catch (err) {
+    console.error("founders table setup error (non-fatal):", err);
+  }
+
+  try {
+    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS world_chat_messages (
         id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id varchar NOT NULL,
