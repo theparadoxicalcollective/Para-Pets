@@ -249,7 +249,7 @@ export default function PvpMatchmakingOverlay({
                 style={{
                   width: 108,
                   height: 108,
-                  background: "radial-gradient(circle, rgba(251,191,36,0.35) 0%, rgba(40,20,70,0.9) 70%)",
+                  background: "radial-gradient(circle, rgba(251,191,36,0.35) 0%, rgba(4,18,10,0.92) 70%)",
                   border: "1px solid rgba(251,191,36,0.5)",
                   boxShadow: "0 0 40px rgba(251,191,36,0.45)",
                 }}
@@ -452,7 +452,7 @@ function PortraitCard({
         style={{
           width: 112,
           height: 112,
-          background: "rgba(20,10,40,0.9)",
+          background: "rgba(6,18,10,0.92)",
           border: `2px solid ${accent}`,
           boxShadow: `0 0 28px ${accent}, inset 0 0 12px rgba(0,0,0,0.5)`,
         }}
