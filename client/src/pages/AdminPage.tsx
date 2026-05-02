@@ -179,8 +179,6 @@ export default function AdminPage({ user }: AdminPageProps) {
         backgroundSize: "cover",
         backgroundPosition: "center top",
         backgroundRepeat: "no-repeat",
-        maxWidth: "768px",
-        margin: "0 auto",
       }}
     >
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/60 to-black/80 z-0 pointer-events-none" />

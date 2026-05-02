@@ -25,8 +25,6 @@ const MAP_W = 1080;
 const KC_MAP_H = 691;
 const MAP_H_DEFAULT = KC_MAP_H;
 
-const FRAME_W = 390;
-const FRAME_H = 844;
 
 const LIGHT_ORB_SENTINEL        = "__light_orb__";
 const LIGHT_ORB_BLUE_SENTINEL   = "__light_orb_blue__";
@@ -106,6 +104,22 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [mapScale, setMapScale] = useState(1);
   const [mapH, setMapH]         = useState(MAP_H_DEFAULT);
   const mapHRef                 = useRef(MAP_H_DEFAULT);
+
+  // Dynamic frame dimensions — update when the viewport is resized.
+  const frameWRef = useRef(window.innerWidth);
+  const frameHRef = useRef(window.innerHeight);
+  const [frameW, setFrameW] = useState(window.innerWidth);
+  const [frameH, setFrameH] = useState(window.innerHeight);
+  useEffect(() => {
+    const onResize = () => {
+      frameWRef.current = window.innerWidth;
+      frameHRef.current = window.innerHeight;
+      setFrameW(window.innerWidth);
+      setFrameH(window.innerHeight);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   const mapTransformRef         = useRef({ x: 0, y: 0, scale: 1 });
   const mapPanPointersRef       = useRef(new Map<number, { x: number; y: number }>());
   const mapPanStartRef          = useRef<{ x: number; y: number; mapX: number; mapY: number } | null>(null);
@@ -579,10 +593,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       localPetPosRef.current = init;
       setLocalPetPos(init);
       // Pan the camera so the pet is horizontally centered in the frame on entry
-      const coverSc = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
+      const coverSc = Math.max(frameWRef.current / MAP_W, frameHRef.current / mapHRef.current);
       const scaledMapW = MAP_W * coverSc;
       const petScreenX = (init.x / 100) * scaledMapW;
-      const targetMapX = FRAME_W / 2 - petScreenX;
+      const targetMapX = frameWRef.current / 2 - petScreenX;
       applyMapTransform(targetMapX, 0, coverSc);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -626,9 +640,9 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         // ── Camera follow: keep pet centered, clamped at map edges ──────────
         const { x: curMapX, y: curMapY, scale: sc } = mapTransformRef.current;
         const scaledMapW = MAP_W * sc;
-        if (scaledMapW > FRAME_W) {
+        if (scaledMapW > frameWRef.current) {
           const petMapX = (nx / 100) * scaledMapW;
-          const targetX = Math.max(FRAME_W - scaledMapW, Math.min(0, FRAME_W / 2 - petMapX));
+          const targetX = Math.max(frameWRef.current - scaledMapW, Math.min(0, frameWRef.current / 2 - petMapX));
           if (Math.abs(targetX - curMapX) > 0.5) {
             const newMapX = curMapX + (targetX - curMapX) * Math.min(1, dt * 8);
             mapTransformRef.current = { x: newMapX, y: curMapY, scale: sc };
@@ -1034,23 +1048,23 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
 
   // ── initial centering on mount / mapH change ───────────────────────────────
   useEffect(() => {
-    const coverSc = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
+    const coverSc = Math.max(frameWRef.current / MAP_W, frameHRef.current / mapHRef.current);
     // Start at cover scale so the world fills the frame
     const initSc  = coverSc;
-    const ix = (FRAME_W - MAP_W * initSc) / 2;
-    const iy = (FRAME_H - mapHRef.current * initSc) / 2;
+    const ix = (frameWRef.current - MAP_W * initSc) / 2;
+    const iy = (frameHRef.current - mapHRef.current * initSc) / 2;
     mapTransformRef.current = { x: ix, y: iy, scale: initSc };
     setMapX(ix); setMapY(iy); setMapScale(initSc);
-  }, [mapH]);
+  }, [mapH, frameW, frameH]);
 
   // ── clamp + apply (horizontal pan only, no zoom) ───────────────────────────
   const applyMapTransform = useCallback((x: number, _y: number, _sc: number) => {
-    const coverSc = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
+    const coverSc = Math.max(frameWRef.current / MAP_W, frameHRef.current / mapHRef.current);
     const mw = MAP_W * coverSc;
     const mh = mapHRef.current * coverSc;
     // Lock scale to cover; lock Y to vertical center; only X scrolls
-    const cx = mw <= FRAME_W ? (FRAME_W - mw) / 2 : Math.max(FRAME_W - mw, Math.min(0, x));
-    const cy = (FRAME_H - mh) / 2;
+    const cx = mw <= frameWRef.current ? (frameWRef.current - mw) / 2 : Math.max(frameWRef.current - mw, Math.min(0, x));
+    const cy = (frameHRef.current - mh) / 2;
     mapTransformRef.current = { x: cx, y: cy, scale: coverSc };
     setMapX(cx); setMapY(cy); setMapScale(coverSc);
   }, []);
@@ -1280,7 +1294,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   return (
     <div
       className="fixed inset-0 z-50 overflow-hidden"
-      style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: "#060e06" }}
+      style={{ background: "#060e06" }}
     >
       {/* ══ Map canvas — single background, full pan + zoom ════════════════ */}
       <div

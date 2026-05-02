@@ -10,7 +10,6 @@ import { playClick, unlockAudio } from "@/lib/sounds";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
-import desktopBackdrop from "@assets/bg_desktop_backdrop.webp";
 import homeBg from "@assets/bg_home_v2.png";
 
 // ── Eagerly imported (always or near-always needed at startup) ──────────────
@@ -474,8 +473,8 @@ function CrashReporter() {
       const raw = localStorage.getItem("__para_last_error");
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      // Only show errors from the last 2 minutes — older ones are from past sessions
-      if (Date.now() - parsed.ts > 2 * 60 * 1000) {
+      // Only show errors from the last 20 seconds — transient hot-reload errors clear quickly
+      if (Date.now() - parsed.ts > 20 * 1000) {
         localStorage.removeItem("__para_last_error");
         return null;
       }
@@ -536,30 +535,12 @@ function App() {
     clearChunkReloadFlag();
   }, []);
 
-  // On desktop, scale the phone frame down so it always fits in the viewport
-  // without clipping any content (exactly like a device emulator).
-  // On mobile the frame is full-screen so scale stays 1.
-  const [frameScale, setFrameScale] = useState(1);
+  // --fh always tracks the real viewport height so every page fills the screen.
   useEffect(() => {
-    const compute = () => {
-      if (window.innerWidth < 768) {
-        // Mobile: full-screen, no scale needed
-        setFrameScale(1);
-        document.documentElement.style.setProperty("--fh", "100dvh");
-        return;
-      }
-      // Tablets & desktops: scale the 390×844 frame to fill as much of the
-      // viewport as possible while keeping the exact portrait aspect ratio.
-      // 0.97 breathing room gives a small margin without wasting screen space.
-      const scaleByH = (window.innerHeight * 0.97) / 844;
-      const scaleByW = (window.innerWidth * 0.97) / 390;
-      setFrameScale(Math.min(scaleByH, scaleByW));
-      // Pages use var(--fh) so they always fill exactly the 844px frame height
-      document.documentElement.style.setProperty("--fh", "844px");
-    };
-    compute();
-    window.addEventListener("resize", compute);
-    return () => window.removeEventListener("resize", compute);
+    const update = () => document.documentElement.style.setProperty("--fh", `${window.innerHeight}px`);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
   }, []);
 
   useEffect(() => {
@@ -621,45 +602,12 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <CrashReporter />
-        {/* Mobile: full-screen  |  Tablet & Desktop: game frame centered on fantasy backdrop */}
-        <div
-          className="w-full h-[100dvh] overflow-hidden flex items-center justify-center"
-          style={{
-            // On mobile the frame fills the screen so the backdrop is invisible.
-            // On tablets/desktops it shows as the scenic background behind the frame.
-            backgroundImage: `url(${desktopBackdrop})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundRepeat: "no-repeat",
-          }}
-        >
-          {/* Dark overlay to deepen the backdrop slightly so the game frame pops */}
-          <div className="absolute inset-0 pointer-events-none hidden md:block"
-            style={{ background: "rgba(4,8,14,0.45)" }} />
+        {/* Full-screen on every device — no phone-frame overlay */}
+        <div className="w-full h-[100dvh] overflow-hidden">
           <div
             data-phone-frame="true"
-            className="relative w-full h-full overflow-hidden md:w-[390px] md:h-[844px] md:rounded-[2.5rem] md:flex-shrink-0"
-            style={{
-              isolation: "isolate",
-              /*
-               * translateZ(0)  → creates a new containing block so every
-               *   position:fixed child stays INSIDE this frame on all screens.
-               * scale(frameScale) → scales the 390×844 frame to fill as much of
-               *   the viewport as possible while keeping the exact aspect ratio.
-               * On mobile frameScale is always 1, so there's no visual change.
-               */
-              transform: `translateZ(0) scale(${frameScale})`,
-              transformOrigin: "center center",
-              /* gold decorative ring — only visible on tablet/desktop where there is backdrop space */
-              boxShadow: [
-                "0 0 0 3px rgba(212,175,55,0.88)",
-                "0 0 0 6px rgba(160,110,0,0.32)",
-                "0 0 0 7px rgba(90,60,0,0.18)",
-                "0 0 44px rgba(212,175,55,0.22)",
-                "inset 0 0 0 1px rgba(255,225,90,0.13)",
-                "0 28px 72px rgba(0,0,0,0.88)",
-              ].join(", "),
-            }}
+            className="relative w-full h-full overflow-hidden"
+            style={{ isolation: "isolate", transform: "translateZ(0)" }}
           >
             <RouterErrorBoundary>
               <AppRouter />

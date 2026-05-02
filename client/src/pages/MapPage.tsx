@@ -248,8 +248,6 @@ export default function MapPage({ user }: MapPageProps) {
       className="relative w-full h-screen-frame overflow-hidden flex flex-col"
       style={{
         background: "linear-gradient(180deg, #080812 0%, #0a0d1a 15%, #0d1020 35%, #0a0e1c 55%, #0d1020 75%, #080812 100%)",
-        maxWidth: "768px",
-        margin: "0 auto",
       }}
     >
       <div

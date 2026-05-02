@@ -197,13 +197,8 @@ const WORLD_FIXED_MAP_H: Record<string, number> = {
   desert:          1980, // bg_desert_map.webp 768×1408
 };
 
-// The game always renders inside a 390×844 phone frame (on both mobile and
-// desktop). Using these constants instead of window.innerWidth/Height ensures
-// the map scale and item positions are identical to iPhone 12 on every device.
-const FRAME_W = 390;
-const FRAME_H = 844;
-// Always treat as phone: enables pinch/scroll zoom and correct init scale
-// regardless of the actual device viewport width.
+// Frame dimensions track the real viewport so the map fills every screen.
+// isMobilePhone kept as true to always enable pinch/scroll controls.
 const isMobilePhone = () => true;
 
 export default function WorldPage({ user }: WorldPageProps) {
@@ -320,6 +315,22 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const areaRef = useRef<HTMLDivElement>(null);
   const vpRef = useRef<HTMLDivElement>(null);
+
+  // Dynamic frame dimensions — update when the viewport is resized.
+  const frameWRef = useRef(window.innerWidth);
+  const frameHRef = useRef(window.innerHeight);
+  const [frameW, setFrameW] = useState(window.innerWidth);
+  const [frameH, setFrameH] = useState(window.innerHeight);
+  useEffect(() => {
+    const onResize = () => {
+      frameWRef.current = window.innerWidth;
+      frameHRef.current = window.innerHeight;
+      setFrameW(window.innerWidth);
+      setFrameH(window.innerHeight);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const dragRef = useRef<{ locId: string; startCanvasX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
@@ -995,13 +1006,13 @@ export default function WorldPage({ user }: WorldPageProps) {
   const clampTransform = useCallback((x: number, y: number, sc: number) => {
     const mw = MAP_W * sc;
     const mh = mapHRef.current * sc;
-    const cx = mw <= FRAME_W ? (FRAME_W - mw) / 2 : Math.max(FRAME_W - mw, Math.min(0, x));
-    const cy = mh <= FRAME_H ? (FRAME_H - mh) / 2 : Math.max(FRAME_H - mh, Math.min(0, y));
+    const cx = mw <= frameWRef.current ? (frameWRef.current - mw) / 2 : Math.max(frameWRef.current - mw, Math.min(0, x));
+    const cy = mh <= frameHRef.current ? (frameHRef.current - mh) / 2 : Math.max(frameHRef.current - mh, Math.min(0, y));
     return { x: cx, y: cy };
   }, []);
 
   const applyMapTransform = useCallback((x: number, y: number, _sc: number) => {
-    const coverSc = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
+    const coverSc = Math.max(frameWRef.current / MAP_W, frameHRef.current / mapHRef.current);
     const { x: cx, y: cy } = clampTransform(x, y, coverSc);
     mapTransformRef.current = { x: cx, y: cy, scale: coverSc };
     setMapX(cx);
@@ -1010,14 +1021,14 @@ export default function WorldPage({ user }: WorldPageProps) {
   }, [clampTransform]);
 
   useEffect(() => {
-    const coverSc = Math.max(FRAME_W / MAP_W, FRAME_H / mapHRef.current);
-    const ix = (FRAME_W - MAP_W * coverSc) / 2;
-    const iy = (FRAME_H - mapHRef.current * coverSc) / 2;
+    const coverSc = Math.max(frameWRef.current / MAP_W, frameHRef.current / mapHRef.current);
+    const ix = (frameWRef.current - MAP_W * coverSc) / 2;
+    const iy = (frameHRef.current - mapHRef.current * coverSc) / 2;
     mapTransformRef.current = { x: ix, y: iy, scale: coverSc };
     setMapX(ix);
     setMapY(iy);
     setMapScale(coverSc);
-  }, [worldId, mapH]);
+  }, [worldId, mapH, frameW, frameH]);
 
   const handleVpPointerDown = useCallback((e: React.PointerEvent) => {
     // Safety: clear any stale drag state that wasn't cleaned up (e.g. after pointerCancel)
@@ -1421,7 +1432,7 @@ export default function WorldPage({ user }: WorldPageProps) {
   if (!world || !worldApiData || !worldBgLoaded || locationsLoading) {
     const loadAccent = world?.accent ?? "#9370db";
     return (
-      <div className="w-full h-screen-frame flex flex-col items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", background: "rgba(8,5,20,1)" }}>
+      <div className="w-full h-screen-frame flex flex-col items-center justify-center" style={{ background: "rgba(8,5,20,1)" }}>
         <div
           className="animate-spin rounded-full"
           style={{ width: 48, height: 48, border: `3px solid ${loadAccent}25`, borderTopColor: loadAccent }}
@@ -1435,10 +1446,6 @@ export default function WorldPage({ user }: WorldPageProps) {
   return (
     <div
       className="relative w-full h-screen-frame overflow-hidden"
-      style={{
-        maxWidth: "768px",
-        margin: "0 auto",
-      }}
     >
       <style>{`
         @keyframes locFloat {

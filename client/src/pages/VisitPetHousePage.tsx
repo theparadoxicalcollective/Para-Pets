@@ -115,7 +115,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
     <div
       ref={containerRef}
       className="fixed inset-0"
-      style={{ zIndex: 60, background: "#000", overflow: "hidden", touchAction: "none", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+      style={{ zIndex: 60, background: "#000", overflow: "hidden", touchAction: "none" }}
       onPointerDown={onDown}
       onPointerMove={onMove}
       onPointerUp={onUp}

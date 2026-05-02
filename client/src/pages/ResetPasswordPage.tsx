@@ -68,8 +68,6 @@ export default function ResetPasswordPage() {
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
-        maxWidth: "768px",
-        margin: "0 auto",
       }}
     >
       <div className="absolute inset-0 bg-black/40 z-0" />

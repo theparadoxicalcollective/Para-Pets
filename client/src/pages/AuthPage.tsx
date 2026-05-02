@@ -257,8 +257,6 @@ export default function AuthPage() {
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
-        maxWidth: "768px",
-        margin: "0 auto",
       }}
     >
       {/* Lighter vignette — let the forest breathe */}

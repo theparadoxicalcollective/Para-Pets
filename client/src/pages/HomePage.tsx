@@ -589,8 +589,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         backgroundSize: "cover",
         backgroundPosition: "center top",
         backgroundRepeat: "no-repeat",
-        maxWidth: "768px",
-        margin: "0 auto",
         caretColor: "transparent",
       }}
     >
