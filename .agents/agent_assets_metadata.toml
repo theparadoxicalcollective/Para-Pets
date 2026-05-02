@@ -1132,7 +1132,7 @@ title = "Spirit Potion (pale green, ghost figures)"
 id = "BXPjcoY3xOP6UjgKbGVR0"
 uri = "file://attached_assets/icon_fishing_shack.png"
 type = "image"
-title = "The Soggy Hook — Map Icon"
+title = "Current fishing spot icon (The Soggy Hook)"
 
 [[outputs]]
 id = "2XYHj1M-z09agjDuU9Nds"
@@ -1223,3 +1223,9 @@ id = "NUktNglD7VS2oHnTMSHAL"
 uri = "file://attached_assets/generated_images/veridian_watcher_avatar.png"
 type = "image"
 title = "New Veridian Watcher portrait"
+
+[[outputs]]
+id = "ao9cpyvyXyH2QIL8j99iq"
+uri = "file://attached_assets/admin_icon_fishing.png"
+type = "image"
+title = "Current fishing spot icon"
