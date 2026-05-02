@@ -283,7 +283,6 @@ export default function PetDatabasePanel({
   // Per-group expand/collapse state. Undefined = use the group's default
   // (defined by `collapsed: true` on the group definition).
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
-  const [sideFacingDir, setSideFacingDir] = useState<"left" | "right">("left");
   const canvasRef = useRef<HTMLDivElement>(null);
   const pixelCacheRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const { toast } = useToast();
@@ -657,7 +656,7 @@ export default function PetDatabasePanel({
 
   if (selectedTemplateId && templateDetail) {
     const linkedPet = getLinkedShopPet(templateDetail.id);
-    const viewLabel = facingMode === "front" ? "Front View" : sideFacingDir === "left" ? "Side View (Left)" : "Side View (Right)";
+    const viewLabel = facingMode === "front" ? "Front View" : "Side View";
 
     return (
       <div className="flex flex-col gap-3">
@@ -962,33 +961,6 @@ export default function PetDatabasePanel({
               Side Facing
             </button>
           </div>
-          {facingMode === "side" && (
-            <div className="flex border-t" style={{ borderColor: "rgba(240,192,64,0.15)" }}>
-              <button
-                data-testid="button-side-left"
-                onClick={() => setSideFacingDir("left")}
-                className="flex-1 py-1.5 font-fantasy text-[9px] tracking-wider transition-colors"
-                style={{
-                  background: sideFacingDir === "left" ? "rgba(127,255,212,0.12)" : "transparent",
-                  color: sideFacingDir === "left" ? "#7fffd4" : "#6a5840",
-                  borderRight: "1px solid rgba(240,192,64,0.15)",
-                }}
-              >
-                ← Left Facing
-              </button>
-              <button
-                data-testid="button-side-right"
-                onClick={() => setSideFacingDir("right")}
-                className="flex-1 py-1.5 font-fantasy text-[9px] tracking-wider transition-colors"
-                style={{
-                  background: sideFacingDir === "right" ? "rgba(127,255,212,0.12)" : "transparent",
-                  color: sideFacingDir === "right" ? "#7fffd4" : "#6a5840",
-                }}
-              >
-                Right Facing →
-              </button>
-            </div>
-          )}
           {hasOtherViewParts && (
             <div className="px-2 py-1.5 border-t" style={{ borderColor: "rgba(240,192,64,0.15)", background: "rgba(240,160,32,0.06)" }}>
               <p className="font-fantasy text-[8px] tracking-wider text-center" style={{ color: "#a89878" }}>
