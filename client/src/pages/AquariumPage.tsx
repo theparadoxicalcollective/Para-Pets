@@ -604,6 +604,14 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
       <style>{`
         @keyframes aqSlideIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
         @keyframes aqPanelUp { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
+        @keyframes aquaBubbleRise {
+          0%   { transform: translateY(0)    translateX(0px);   opacity: 0;    }
+          8%   { opacity: 0.55; }
+          45%  { transform: translateY(-38vh) translateX(4px);  opacity: 0.45; }
+          55%  { transform: translateY(-46vh) translateX(-3px); opacity: 0.38; }
+          80%  { transform: translateY(-66vh) translateX(2px);  opacity: 0.22; }
+          100% { transform: translateY(-84vh) translateX(0px);  opacity: 0;    }
+        }
         @keyframes fishTailWag   { from { transform: scaleX(0.95); } to { transform: scaleX(1.0); } }
         @keyframes fishFinUp     { from { transform: rotate(-3deg); } to { transform: rotate(2deg);  } }
         @keyframes fishFinDown   { from { transform: rotate(0deg);  } to { transform: rotate(2.5deg); } }
@@ -622,6 +630,46 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
       <div className="absolute inset-0 pointer-events-none" style={{
         background: "linear-gradient(180deg,rgba(1,8,16,0.55) 0%,transparent 25%,transparent 72%,rgba(1,8,16,0.65) 100%)",
       }}/>
+
+      {/* Rising bubbles — pure CSS, no JS state */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 5 }}>
+        {([
+          { left: "8%",  size: 5,  dur: "6.2s", delay: "0s"    },
+          { left: "14%", size: 4,  dur: "7.8s", delay: "1.4s"  },
+          { left: "21%", size: 7,  dur: "5.5s", delay: "0.6s"  },
+          { left: "28%", size: 4,  dur: "8.4s", delay: "3.1s"  },
+          { left: "34%", size: 6,  dur: "6.9s", delay: "0.2s"  },
+          { left: "40%", size: 5,  dur: "7.3s", delay: "4.8s"  },
+          { left: "47%", size: 9,  dur: "5.8s", delay: "1.9s"  },
+          { left: "53%", size: 4,  dur: "9.1s", delay: "0.4s"  },
+          { left: "58%", size: 6,  dur: "6.6s", delay: "5.5s"  },
+          { left: "64%", size: 5,  dur: "7.0s", delay: "2.7s"  },
+          { left: "70%", size: 4,  dur: "8.7s", delay: "0.9s"  },
+          { left: "75%", size: 7,  dur: "6.1s", delay: "3.8s"  },
+          { left: "81%", size: 5,  dur: "7.5s", delay: "1.1s"  },
+          { left: "87%", size: 4,  dur: "9.3s", delay: "6.2s"  },
+          { left: "11%", size: 6,  dur: "8.0s", delay: "7.0s"  },
+          { left: "44%", size: 4,  dur: "6.4s", delay: "2.3s"  },
+          { left: "61%", size: 5,  dur: "7.9s", delay: "4.1s"  },
+          { left: "90%", size: 6,  dur: "5.6s", delay: "0.7s"  },
+        ] as const).map((b, i) => (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              bottom: "5%",
+              left: b.left,
+              width: b.size,
+              height: b.size,
+              borderRadius: "50%",
+              background: "radial-gradient(circle at 35% 35%, rgba(255,255,255,0.75), rgba(94,234,212,0.25))",
+              border: "0.5px solid rgba(94,234,212,0.35)",
+              animation: `aquaBubbleRise ${b.dur} ease-in infinite`,
+              animationDelay: b.delay,
+            }}
+          />
+        ))}
+      </div>
 
       {swimmers.map(f => {
         const rarity = f.starRarity ?? 1;
