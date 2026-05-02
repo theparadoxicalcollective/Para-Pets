@@ -1460,11 +1460,11 @@ export default function WorldPage({ user }: WorldPageProps) {
           50% { opacity: 1; transform: scale(1.1); }
         }
         @keyframes fishBubbleRise {
-          0%   { transform: translateY(0px) translateX(0px) scale(0.35); opacity: 0; }
-          10%  { opacity: 0.9;  transform: translateY(-4px) translateX(1px) scale(1); }
-          40%  { opacity: 0.75; transform: translateY(-28px) translateX(-3px) scale(0.92); }
-          75%  { opacity: 0.4;  transform: translateY(-62px) translateX(3px) scale(0.78); }
-          100% { transform: translateY(-90px) translateX(0px) scale(0.5); opacity: 0; }
+          0%   { transform: translate3d(0px,0px,0) scale(0.35); opacity: 0; }
+          10%  { opacity: 0.55; transform: translate3d(1px,-4px,0) scale(1); }
+          40%  { opacity: 0.45; transform: translate3d(-3px,-28px,0) scale(0.92); }
+          75%  { opacity: 0.22; transform: translate3d(3px,-62px,0) scale(0.78); }
+          100% { transform: translate3d(0px,-90px,0) scale(0.5); opacity: 0; }
         }
         .loc-node { transition: filter 0.2s ease; touch-action: none; }
         .loc-node:active { filter: brightness(1.15); }
@@ -1825,32 +1825,33 @@ export default function WorldPage({ user }: WorldPageProps) {
                               transition: "filter 0.15s ease, transform 0.15s ease",
                             }}
                           />
-                          {/* Floating bubbles rising from fishing spots */}
-                          {loc.type === "fishing" && ([
-                            { left: "16%", bottom: "28%", size: 5, dur: "5.5s", delay: "0.0s" },
-                            { left: "32%", bottom: "35%", size: 4, dur: "6.8s", delay: "1.4s" },
-                            { left: "50%", bottom: "22%", size: 6, dur: "5.0s", delay: "3.0s" },
-                            { left: "67%", bottom: "32%", size: 4, dur: "7.5s", delay: "0.7s" },
-                            { left: "82%", bottom: "26%", size: 3, dur: "6.2s", delay: "4.2s" },
-                          ].map((b, bi) => (
-                            <div
-                              key={bi}
-                              style={{
-                                position: "absolute",
-                                bottom: b.bottom,
-                                left: b.left,
-                                width: b.size,
-                                height: b.size,
-                                borderRadius: "50%",
-                                background: "radial-gradient(circle at 35% 30%, rgba(204,251,241,0.45), rgba(45,212,191,0.18))",
-                                border: "0.5px solid rgba(153,246,228,0.3)",
-                                boxShadow: "0 0 4px rgba(45,212,191,0.35), 0 0 8px rgba(20,184,166,0.18)",
-                                animation: `fishBubbleRise ${b.dur} ease-in-out ${b.delay} infinite`,
-                                pointerEvents: "none",
-                                zIndex: 15,
-                              }}
-                            />
-                          )))}
+                          {/* Floating bubbles — GPU-composited overlay, clicks pass through */}
+                          {loc.type === "fishing" && (
+                            <div style={{ position: "absolute", inset: 0, zIndex: 50, pointerEvents: "none", contain: "strict" }}>
+                              {([
+                                { left: "22%", bottom: "26%", size: 5, dur: "5.5s", delay: "0.0s" },
+                                { left: "50%", bottom: "20%", size: 6, dur: "5.2s", delay: "2.8s" },
+                                { left: "78%", bottom: "30%", size: 4, dur: "6.4s", delay: "1.2s" },
+                              ].map((b, bi) => (
+                                <div
+                                  key={bi}
+                                  style={{
+                                    position: "absolute",
+                                    bottom: b.bottom,
+                                    left: b.left,
+                                    width: b.size,
+                                    height: b.size,
+                                    borderRadius: "50%",
+                                    background: "radial-gradient(circle at 35% 30%, rgba(204,251,241,0.35), rgba(45,212,191,0.12))",
+                                    border: "0.5px solid rgba(153,246,228,0.25)",
+                                    animation: `fishBubbleRise ${b.dur} ease-in-out ${b.delay} infinite`,
+                                    willChange: "transform, opacity",
+                                    pointerEvents: "none",
+                                  }}
+                                />
+                              )))}
+                            </div>
+                          )}
                           </div>
                         ) : (
                           <div
