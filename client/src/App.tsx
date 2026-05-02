@@ -550,9 +550,9 @@ function App() {
       }
       // Tablets & desktops: scale the 390×844 frame to fill as much of the
       // viewport as possible while keeping the exact portrait aspect ratio.
-      // 0.93 breathing room so the frame never kisses the viewport edges.
-      const scaleByH = (window.innerHeight * 0.93) / 844;
-      const scaleByW = (window.innerWidth * 0.93) / 390;
+      // 0.97 breathing room gives a small margin without wasting screen space.
+      const scaleByH = (window.innerHeight * 0.97) / 844;
+      const scaleByW = (window.innerWidth * 0.97) / 390;
       setFrameScale(Math.min(scaleByH, scaleByW));
       // Pages use var(--fh) so they always fill exactly the 844px frame height
       document.documentElement.style.setProperty("--fh", "844px");

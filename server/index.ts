@@ -839,7 +839,7 @@ app.use((req, res, next) => {
 
   // Always refresh all world backgrounds — served as static files under /world-assets/
   const WORLD_BG_ASSETS: Record<string, string> = {
-    swamp: "bg_swamp_map.webp",
+    swamp: "bg_swamp_map_v6.jpeg",
     snowy_mountain: "bg_snowy_mountain_map.webp",
     sky_realm: "bg_sky_realm_map.webp",
     volcanic: "bg_volcanic_map.webp",

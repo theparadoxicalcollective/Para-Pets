@@ -182,6 +182,13 @@ interface WorldApiData {
 const MAP_W = 1080;
 const MAP_H_DEFAULT = 1920;
 
+// Per-world fixed map heights (in MAP_W=1080 pixel space).
+// Set when a new background image has a different aspect ratio but the map
+// layout (locations/decor) should stay exactly where it was placed.
+const WORLD_FIXED_MAP_H: Record<string, number> = {
+  swamp: 2339, // bg_swamp_map_v6 — preserve original map height
+};
+
 // The game always renders inside a 390×844 phone frame (on both mobile and
 // desktop). Using these constants instead of window.innerWidth/Height ensures
 // the map scale and item positions are identical to iPhone 12 on every device.
@@ -959,7 +966,7 @@ export default function WorldPage({ user }: WorldPageProps) {
     img.onload = () => {
       if (cancelled) return;
       if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-        const h = Math.round(MAP_W * img.naturalHeight / img.naturalWidth);
+        const h = WORLD_FIXED_MAP_H[worldId] ?? Math.round(MAP_W * img.naturalHeight / img.naturalWidth);
         mapHRef.current = h;
         setMapH(h);
       }
