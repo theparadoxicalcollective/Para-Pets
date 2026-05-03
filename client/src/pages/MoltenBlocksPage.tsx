@@ -165,7 +165,8 @@ function clearLines(board: Cell[][]): { board: Cell[][]; cleared: number } {
 const POINTS_PER_ROW = 10;
 const POINTS_PER_COIN_TIER = 100;   // every 100 score points → COINS_PER_TIER coins
 const COINS_PER_TIER = 6;
-const TETRIS_BONUS_COINS = 5;       // +5 coins for clearing 4+ rows in one drop
+const TRIPLE_BONUS_COINS = 2;       // +2 coins for clearing exactly 3 rows in one drop
+const TETRIS_BONUS_COINS = 3;       // +3 coins for clearing 4+ rows in one drop
 const STARTING_LIVES = 1;
 
 export default function MoltenBlocksPage() {
@@ -467,7 +468,7 @@ export default function MoltenBlocksPage() {
         const newTiers = tiersAfter - tiersBefore;
         const tierCoins = newTiers > 0 ? newTiers * COINS_PER_TIER : 0;
         // Tetris bonus — 4 or more rows cleared in a single lock awards a flat bonus.
-        const bonusCoins = n >= 4 ? TETRIS_BONUS_COINS : 0;
+        const bonusCoins = n >= 4 ? TETRIS_BONUS_COINS : n === 3 ? TRIPLE_BONUS_COINS : 0;
         const coinsAdded = tierCoins + bonusCoins;
         scoreRef.current = nextScore;
         coinsEarnedRef.current = coinsEarnedRef.current + coinsAdded;
