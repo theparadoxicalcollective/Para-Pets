@@ -28,6 +28,7 @@ import mixingTreeCauldronImg from "@assets/icon_mixing_tree_cauldron.png";
 import bgShopVolcanicPets from "@assets/bg_shop_volcanic_pets.png";
 import bgShopForgeFang from "@assets/bg_shop_forge_fang_volcanic.png";
 import bgShopBookshopVolcanic from "@assets/bg_shop_bookshop_volcanic.png";
+import bgShopFoodVolcanic from "@assets/bg_shop_food_volcanic.png";
 import shopVolcanicFishing from "@assets/icon_fishing_shop_volcanic.png";
 import npcLavaHook from "@assets/npc_lava_hook_shopkeeper.png";
 import shopFrostpeak from "@assets/shop_frostpeak.png";
@@ -2848,6 +2849,7 @@ export default function WorldPage({ user }: WorldPageProps) {
           const id = activeLoc?.id ?? "";
           if (id === "c3d4e5f6-0003-4000-8000-000000000003") return bgShopForgeFang;
           if (id === "c3d4e5f6-0004-4000-8000-000000000004") return bgShopBookshopVolcanic;
+          if (id === "c3d4e5f6-0006-4000-8000-000000000006") return bgShopFoodVolcanic;
           return bgShopVolcanicPets;
         })();
         const shopBg = isFishingShop

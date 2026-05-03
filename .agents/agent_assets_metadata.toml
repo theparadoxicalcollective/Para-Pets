@@ -414,6 +414,12 @@ uri = "file://attached_assets/icon_food_shop_volcanic.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "ip2MlPidElt5qpTrRoWMq"
+uri = "file://attached_assets/bg_shop_food_volcanic.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

@@ -884,6 +884,7 @@ app.use((req, res, next) => {
     "a1b2c3d4-0002-4000-8000-000000000002": "bg_willowmere_cottage.webp",
     "c3d4e5f6-0003-4000-8000-000000000003": "bg_shop_forge_fang_volcanic.png",
     "c3d4e5f6-0004-4000-8000-000000000004": "bg_shop_bookshop_volcanic.png",
+    "c3d4e5f6-0006-4000-8000-000000000006": "bg_shop_food_volcanic.png",
   };
   for (const [locId, bgFile] of Object.entries(LOC_BG_ALWAYS_REFRESH)) {
     try {
@@ -1966,6 +1967,35 @@ app.use((req, res, next) => {
     console.error("Volcanic accessory shop seed error (non-fatal):", err);
   }
 
+  // Seed volcanic food shop — uses the same one-shot game_settings flag pattern
+  // as the other volcanic shops so it inserts once, then becomes admin-movable
+  // (position/size persisted via the standard world_locations PATCH route).
+  try {
+    const VOLCANIC_FOOD_SHOP_ID = "c3d4e5f6-0006-4000-8000-000000000006";
+    const volcanicFoodShopDone = await storage.getGameSetting("volcanic_food_shop_v1");
+    if (!volcanicFoodShopDone) {
+      const existing = await db.execute(sql`SELECT id FROM world_locations WHERE id = ${VOLCANIC_FOOD_SHOP_ID}`);
+      if ((existing as any).rows?.length === 0) {
+        const assetPath = path.join(process.cwd(), "attached_assets", "icon_food_shop_volcanic.png");
+        const mtime = fs.existsSync(assetPath) ? fs.statSync(assetPath).mtimeMs : Date.now();
+        const iconUrl = `/world-assets/icon_food_shop_volcanic.png?v=${Math.floor(mtime / 1000)}`;
+        const shopName = "The Cinder Hearth";
+        const shopDesc = "A volcanic eatery serving lava-roasted meats, fire-baked breads, and bubbling magma stews.";
+        await db.execute(sql`
+          INSERT INTO world_locations (id, world_id, name, type, description, pos_x, pos_y, glow_color, icon_size, sort_order, is_shop, icon_url)
+          VALUES (
+            ${VOLCANIC_FOOD_SHOP_ID}, 'volcanic', ${shopName}, 'shop',
+            ${shopDesc}, 25, 70, '#ff4500', 350, 13, true, ${iconUrl}
+          )
+        `);
+        console.log("Volcanic Food Shop seeded.");
+      }
+      await storage.setGameSetting("volcanic_food_shop_v1", "done");
+    }
+  } catch (err) {
+    console.error("Volcanic food shop seed error (non-fatal):", err);
+  }
+
   // Seed volcanic bookshop
   try {
     const VOLCANIC_BOOKSHOP_ID = "c3d4e5f6-0004-4000-8000-000000000004";
@@ -2041,6 +2071,7 @@ app.use((req, res, next) => {
     "c3d4e5f6-0003-4000-8000-000000000003": "icon_accessory_shop_volcanic.png",
     "c3d4e5f6-0004-4000-8000-000000000004": "icon_bookshop_volcanic.png",
     "c3d4e5f6-0005-4000-8000-000000000005": "icon_lava_fortress_volcanic.png",
+    "c3d4e5f6-0006-4000-8000-000000000006": "icon_food_shop_volcanic.png",
   };
   for (const [locId, iconFile] of Object.entries(LOC_ICON_ALWAYS_REFRESH)) {
     try {
