@@ -40,7 +40,7 @@ const LEFT_ITEMS = [
   { id: "quest",     label: "Quest",     icon: questIcon  },
   { id: "pvp",       label: "PvP",       icon: pvpIcon    },
   { id: "inventory", label: "Pets",      icon: petsIcon   },
-  { id: "map",       label: "Map",       icon: mapIcon,    fill: true },
+  { id: "map",       label: "Map",       icon: mapIcon },
 ];
 
 // ── Right column: Home, Pet House, Market, Aquarium, Keeper's Central, Pet Bag
@@ -346,10 +346,12 @@ function NavButton({
         />
       </span>
 
-      {/* Icon label */}
+      {/* Icon label — sits above the icon so the fanned-out column reads
+          like a labelled menu instead of stacking each label under the
+          next icon up. */}
       <span style={{
         position: "absolute",
-        bottom: -14,
+        top: -12,
         left: "50%",
         transform: "translateX(-50%)",
         fontSize: 8,

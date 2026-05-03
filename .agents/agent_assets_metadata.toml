@@ -396,6 +396,18 @@ uri = "file://attached_assets/icon_mixing_tree_cauldron.png"
 type = "image"
 title = "bayou themed cauldron icon"
 
+[[generated]]
+id = "4jAD_YbYv5Cdv2SQZUzID"
+uri = "file://attached_assets/generated_images/nav_icon_active_pet_new.png"
+type = "image"
+title = "main paw print icon"
+
+[[generated]]
+id = "lWwFE3AOcAgihIotlhKNe"
+uri = "file://attached_assets/generated_images/nav_icon_badges.png"
+type = "image"
+title = "isolated badges medallion"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
