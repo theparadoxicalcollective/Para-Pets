@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=600, initial-scale=1.0">
+<title>Para Pets — Worlds of Wonder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" media="print" onload="this.media='all'"
+  href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 600px;
+    height: 600px;
+    overflow: hidden;
+    background: #060d08;
+  }
+
+  .ad {
+    position: relative;
+    width: 600px;
+    height: 600px;
+    overflow: hidden;
+    font-family: 'Lora', Georgia, serif;
+  }
+
+  .bg {
+    position: absolute;
+    inset: 0;
+    background-image: url('/__mockup/ads/images/bg_bayous_heart.png');
+    background-size: cover;
+    background-position: center center;
+    transform: scale(1.05);
+    animation: breathe 20s ease-in-out infinite alternate;
+  }
+
+  @keyframes breathe {
+    0%   { transform: scale(1.05) translate(0px, 0px); }
+    100% { transform: scale(1.09) translate(-5px, 5px); }
+  }
+
+  /* Teal/emerald color wash */
+  .color-cast {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 70% 40%, rgba(0, 180, 120, 0.18) 0%, transparent 60%);
+  }
+
+  .vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 25%, rgba(3,8,5,0.70) 100%);
+  }
+
+  .gradient-bottom {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 290px;
+    background: linear-gradient(to top,
+      rgba(3,7,5,0.97) 0%,
+      rgba(4,10,7,0.86) 32%,
+      rgba(6,12,8,0.48) 65%,
+      transparent 100%);
+  }
+
+  .gradient-top {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 130px;
+    background: linear-gradient(to bottom, rgba(3,7,5,0.80) 0%, transparent 100%);
+  }
+
+  /* Logo */
+  .logo {
+    position: absolute;
+    top: 22px;
+    left: 24px;
+    width: 110px;
+    opacity: 0.95;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.8));
+  }
+
+  /* Multi-pet composition */
+  .pet-main {
+    position: absolute;
+    right: 20px;
+    bottom: 175px;
+    width: 195px;
+    height: 195px;
+    object-fit: contain;
+    filter:
+      drop-shadow(0 0 28px rgba(60, 220, 160, 0.55))
+      drop-shadow(0 0 8px rgba(0, 255, 150, 0.3));
+    animation: float-main 4.8s ease-in-out infinite;
+  }
+
+  @keyframes float-main {
+    0%, 100% { transform: translateY(0px) rotate(-2deg); }
+    50%       { transform: translateY(-12px) rotate(2deg); }
+  }
+
+  /* Wisp orbs floating around */
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(100,255,200,0.9), rgba(0,200,120,0.4));
+    animation: orb-float var(--dur, 3.5s) ease-in-out var(--delay, 0s) infinite alternate;
+  }
+
+  @keyframes orb-float {
+    0%   { transform: translateY(0) scale(1); opacity: 0.6; }
+    100% { transform: translateY(-14px) scale(1.2); opacity: 0.9; }
+  }
+
+  /* Text block */
+  .text-block {
+    position: absolute;
+    bottom: 36px;
+    left: 28px;
+    right: 28px;
+  }
+
+  .eyebrow {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #56e8aa;
+    opacity: 0.85;
+    margin-bottom: 10px;
+  }
+
+  .headline {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 38px;
+    font-weight: 700;
+    line-height: 1.12;
+    color: #f0ffee;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.7), 0 0 40px rgba(60,200,130,0.2);
+    margin-bottom: 12px;
+  }
+
+  .headline em {
+    font-style: italic;
+    color: #56e8aa;
+  }
+
+  .subline {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 15px;
+    font-weight: 400;
+    font-style: italic;
+    color: #80b89a;
+    letter-spacing: 0.03em;
+    opacity: 0.9;
+    margin-bottom: 18px;
+  }
+
+  .tagline {
+    display: inline-block;
+    font-family: 'Lora', Georgia, serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #030a06;
+    background: linear-gradient(135deg, #30d97a, #00a855);
+    padding: 6px 16px;
+    border-radius: 2px;
+    box-shadow: 0 0 20px rgba(0,200,100,0.3);
+  }
+
+  .divider {
+    width: 48px;
+    height: 1.5px;
+    background: linear-gradient(to right, #56e8aa, transparent);
+    margin-bottom: 12px;
+    opacity: 0.7;
+  }
+
+  /* World count badge */
+  .worlds-badge {
+    position: absolute;
+    top: 22px;
+    right: 22px;
+    background: rgba(3,10,6,0.75);
+    border: 1px solid rgba(86,232,170,0.35);
+    border-radius: 4px;
+    padding: 8px 14px;
+    text-align: center;
+    backdrop-filter: blur(4px);
+  }
+
+  .worlds-badge .number {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: #56e8aa;
+    line-height: 1;
+    display: block;
+  }
+
+  .worlds-badge .label {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 9px;
+    font-weight: 400;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #80b89a;
+    display: block;
+    margin-top: 2px;
+  }
+</style>
+</head>
+<body>
+<div class="ad">
+  <div class="bg"></div>
+  <div class="color-cast"></div>
+  <div class="vignette"></div>
+  <div class="gradient-top"></div>
+  <div class="gradient-bottom"></div>
+
+  <!-- Floating orbs (wisp-like) -->
+  <div class="orb" style="width:10px;height:10px;top:38%;left:58%;--dur:2.8s;--delay:0s;"></div>
+  <div class="orb" style="width:7px;height:7px;top:28%;left:66%;--dur:3.4s;--delay:0.9s;"></div>
+  <div class="orb" style="width:12px;height:12px;top:44%;left:50%;--dur:2.5s;--delay:1.5s;"></div>
+  <div class="orb" style="width:6px;height:6px;top:22%;left:72%;--dur:3.1s;--delay:0.4s;"></div>
+  <div class="orb" style="width:9px;height:9px;top:55%;left:42%;--dur:2.9s;--delay:2.0s;"></div>
+
+  <!-- Logo -->
+  <img class="logo" src="/__mockup/ads/images/logo_parapets_v4.png" alt="Para Pets">
+
+  <!-- Worlds badge -->
+  <div class="worlds-badge">
+    <span class="number">6+</span>
+    <span class="label">Worlds</span>
+  </div>
+
+  <!-- Pet -->
+  <img class="pet-main" src="/__mockup/ads/images/betta_galaxy.png" alt="Galaxy Betta">
+
+  <!-- Text -->
+  <div class="text-block">
+    <div class="eyebrow">Elysian Swamplands</div>
+    <div class="divider"></div>
+    <div class="headline">Worlds of<br><em>wonder.</em></div>
+    <div class="subline">Explore six mystical realms with rare pets</div>
+    <div class="tagline">Play Para Pets Free</div>
+  </div>
+</div>
+</body>
+</html>

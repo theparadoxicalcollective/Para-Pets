@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=600, initial-scale=1.0">
+<title>Para Pets — Your Companion Awaits</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" media="print" onload="this.media='all'"
+  href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 600px;
+    height: 600px;
+    overflow: hidden;
+    background: #0d0805;
+  }
+
+  .ad {
+    position: relative;
+    width: 600px;
+    height: 600px;
+    overflow: hidden;
+    font-family: 'Lora', Georgia, serif;
+  }
+
+  .bg {
+    position: absolute;
+    inset: 0;
+    background-image: url('/__mockup/ads/images/bg_enchanted_grove_map.png');
+    background-size: cover;
+    background-position: center top;
+    transform: scale(1.04);
+    animation: drift 18s ease-in-out infinite alternate;
+  }
+
+  @keyframes drift {
+    0%   { transform: scale(1.04) translate(0px, 0px); }
+    100% { transform: scale(1.08) translate(-6px, -4px); }
+  }
+
+  /* Vignette overlay */
+  .vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 35%, rgba(8, 5, 2, 0.55) 100%);
+  }
+
+  /* Bottom text gradient */
+  .gradient-bottom {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 280px;
+    background: linear-gradient(to top,
+      rgba(8,4,1,0.97) 0%,
+      rgba(8,4,1,0.88) 30%,
+      rgba(13,8,5,0.55) 65%,
+      transparent 100%);
+  }
+
+  /* Top fade for logo */
+  .gradient-top {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 140px;
+    background: linear-gradient(to bottom,
+      rgba(8,4,1,0.75) 0%,
+      transparent 100%);
+  }
+
+  /* Logo */
+  .logo {
+    position: absolute;
+    top: 22px;
+    left: 24px;
+    width: 110px;
+    opacity: 0.95;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.7));
+  }
+
+  /* Pet image */
+  .pet {
+    position: absolute;
+    right: 24px;
+    bottom: 170px;
+    width: 200px;
+    height: 200px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 28px rgba(186,255,220,0.5)) drop-shadow(0 0 8px rgba(100,200,160,0.7));
+    animation: float 4.5s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-10px); }
+  }
+
+  /* Accessory */
+  .accessory {
+    position: absolute;
+    right: 14px;
+    bottom: 350px;
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 14px rgba(255,215,0,0.6));
+    animation: float 3.8s ease-in-out infinite reverse;
+  }
+
+  /* Gold sparkle dots */
+  .sparkle {
+    position: absolute;
+    border-radius: 50%;
+    background: #ffd700;
+    opacity: 0;
+    animation: sparkle-anim var(--dur, 2.4s) ease-in-out var(--delay, 0s) infinite;
+  }
+
+  @keyframes sparkle-anim {
+    0%   { opacity: 0; transform: scale(0.4); }
+    50%  { opacity: 0.9; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0.4); }
+  }
+
+  /* Text block */
+  .text-block {
+    position: absolute;
+    bottom: 36px;
+    left: 28px;
+    right: 28px;
+  }
+
+  .eyebrow {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #f0c040;
+    opacity: 0.85;
+    margin-bottom: 10px;
+  }
+
+  .headline {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 38px;
+    font-weight: 700;
+    line-height: 1.12;
+    color: #fff8ee;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.7), 0 0 40px rgba(200,160,80,0.2);
+    margin-bottom: 12px;
+  }
+
+  .headline em {
+    font-style: italic;
+    color: #ffd700;
+  }
+
+  .subline {
+    font-family: 'Lora', Georgia, serif;
+    font-size: 15px;
+    font-weight: 400;
+    font-style: italic;
+    color: #c9b88a;
+    letter-spacing: 0.03em;
+    opacity: 0.9;
+    margin-bottom: 18px;
+  }
+
+  .tagline {
+    display: inline-block;
+    font-family: 'Lora', Georgia, serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #0d0805;
+    background: linear-gradient(135deg, #ffd700, #f0a500);
+    padding: 6px 16px;
+    border-radius: 2px;
+  }
+
+  /* Decorative gold line */
+  .divider {
+    width: 48px;
+    height: 1.5px;
+    background: linear-gradient(to right, #ffd700, transparent);
+    margin-bottom: 12px;
+    opacity: 0.7;
+  }
+</style>
+</head>
+<body>
+<div class="ad">
+  <!-- Background scene -->
+  <div class="bg"></div>
+  <div class="vignette"></div>
+  <div class="gradient-top"></div>
+  <div class="gradient-bottom"></div>
+
+  <!-- Sparkles -->
+  <div class="sparkle" style="width:5px;height:5px;top:42%;left:62%;--dur:2.1s;--delay:0s;"></div>
+  <div class="sparkle" style="width:4px;height:4px;top:31%;left:55%;--dur:3.0s;--delay:0.7s;"></div>
+  <div class="sparkle" style="width:6px;height:6px;top:52%;left:70%;--dur:2.6s;--delay:1.2s;"></div>
+  <div class="sparkle" style="width:3px;height:3px;top:25%;left:74%;--dur:1.9s;--delay:0.3s;"></div>
+  <div class="sparkle" style="width:4px;height:4px;top:60%;left:48%;--dur:2.8s;--delay:1.8s;"></div>
+
+  <!-- Logo -->
+  <img class="logo" src="/__mockup/ads/images/logo_parapets_v4.png" alt="Para Pets">
+
+  <!-- Pet + Accessory -->
+  <img class="accessory" src="/__mockup/ads/images/acc_magic_crown.png" alt="">
+  <img class="pet" src="/__mockup/ads/images/betta_celestial.png" alt="Celestial Betta">
+
+  <!-- Text -->
+  <div class="text-block">
+    <div class="eyebrow">Enchanted Grove</div>
+    <div class="divider"></div>
+    <div class="headline">Your companion<br><em>awaits.</em></div>
+    <div class="subline">Hatch magical pets in a world of wonder</div>
+    <div class="tagline">Play Para Pets Free</div>
+  </div>
+</div>
+</body>
+</html>
