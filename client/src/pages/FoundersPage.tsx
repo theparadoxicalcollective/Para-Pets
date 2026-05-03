@@ -328,13 +328,13 @@ export default function FoundersPage() {
             </p>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center justify-center gap-y-2 max-w-2xl mx-auto" data-testid="founders-list">
+          <div className="max-w-2xl mx-auto text-center leading-relaxed" style={{ wordSpacing: 4 }} data-testid="founders-list">
             {founders.map((f, idx) => (
-              <span key={f.id} className="flex items-center">
+              <span key={f.id} style={{ display: "inline-flex", alignItems: "center" }}>
                 {idx > 0 && (
                   <span style={{ color: "#1a0e00", fontSize: 13, margin: "0 8px", userSelect: "none", fontWeight: 900 }}>★</span>
                 )}
-                <span className="flex items-center gap-1" data-testid={`founder-row-${f.id}`}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }} data-testid={`founder-row-${f.id}`}>
                   <span
                     data-testid={`text-founder-name-${f.id}`}
                     style={{
