@@ -117,6 +117,7 @@ export interface IStorage {
   addStackingItem(userId: string, shopItemId: string, qty: number, limit: number): Promise<UserInventoryItem[]>;
   decrementBaitQuantity(inventoryId: string): Promise<{ depleted: boolean; item: UserInventoryItem | undefined }>;
   decrementInventoryQuantity(inventoryId: string): Promise<{ depleted: boolean; item: UserInventoryItem | undefined }>;
+  tryConsumeOneFromInventory(inventoryId: string, userId: string): Promise<{ consumed: boolean }>;
   getInventoryItem(userId: string, shopItemId: string): Promise<UserInventoryItem | undefined>;
   countInventoryPetCopies(userId: string, shopItemId: string): Promise<number>;
   getInventoryItemById(id: string): Promise<UserInventoryItem | undefined>;
@@ -710,6 +711,36 @@ export class DatabaseStorage implements IStorage {
         return { depleted: true, item: undefined };
       }
       return { depleted: false, item: updated };
+    });
+  }
+
+  // Atomic, unambiguous "consume exactly one" for callers that need a
+  // definitive yes/no (e.g. the cauldron drop endpoint, where we must only
+  // credit the cauldron if a unit was actually taken from the player's
+  // inventory). Unlike decrementInventoryQuantity, this distinguishes
+  // "consumed the last one" from "nothing happened" via the boolean return.
+  // Also enforces ownership so a stolen inventoryId from another user can't
+  // be used.
+  async tryConsumeOneFromInventory(inventoryId: string, userId: string): Promise<{ consumed: boolean }> {
+    return await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(userInventory)
+        .set({ quantity: sql`${userInventory.quantity} - 1` })
+        .where(and(
+          eq(userInventory.id, inventoryId),
+          eq(userInventory.userId, userId),
+          sql`COALESCE(${userInventory.quantity}, 1) > 0`,
+        ))
+        .returning();
+      if (!updated) {
+        // No row matched — either wrong owner, already 0, or row missing.
+        // Nothing was consumed.
+        return { consumed: false };
+      }
+      if ((updated.quantity ?? 0) <= 0) {
+        await tx.delete(userInventory).where(eq(userInventory.id, inventoryId));
+      }
+      return { consumed: true };
     });
   }
 

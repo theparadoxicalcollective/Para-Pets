@@ -2726,6 +2726,147 @@ export async function registerRoutes(
     }
   });
 
+  // ── Mixing Tree cauldron ────────────────────────────────────────────────
+  // Layout (admin-controlled position+size, shared by everyone) is stored in
+  // game_settings as a single JSON blob. Per-user cauldron contents (the
+  // ingredients a player has dropped in) live in their own per-user setting
+  // key so we don't need a new table.
+  const CAULDRON_LAYOUT_KEY = "mixing_tree_cauldron_layout";
+  const cauldronContentsKey = (userId: string) => `cauldron_contents:${userId}`;
+  const DEFAULT_CAULDRON_LAYOUT = { x: 50, y: 8, size: 38 }; // % of bg, size = width %
+
+  app.get("/api/cauldron/layout", async (_req, res) => {
+    try {
+      const raw = await storage.getGameSetting(CAULDRON_LAYOUT_KEY);
+      if (!raw) return res.json(DEFAULT_CAULDRON_LAYOUT);
+      try {
+        const parsed = JSON.parse(raw);
+        return res.json({
+          x: typeof parsed.x === "number" ? parsed.x : DEFAULT_CAULDRON_LAYOUT.x,
+          y: typeof parsed.y === "number" ? parsed.y : DEFAULT_CAULDRON_LAYOUT.y,
+          size: typeof parsed.size === "number" ? parsed.size : DEFAULT_CAULDRON_LAYOUT.size,
+        });
+      } catch {
+        return res.json(DEFAULT_CAULDRON_LAYOUT);
+      }
+    } catch (err) {
+      console.error("Get cauldron layout error:", err);
+      return res.status(500).json({ message: "Failed to load cauldron layout" });
+    }
+  });
+
+  app.patch("/api/admin/cauldron/layout", isAdmin, async (req, res) => {
+    try {
+      const { x, y, size } = req.body || {};
+      if (typeof x !== "number" || typeof y !== "number" || typeof size !== "number") {
+        return res.status(400).json({ message: "x, y, size required as numbers" });
+      }
+      const layout = {
+        x: Math.max(0, Math.min(100, x)),
+        y: Math.max(0, Math.min(100, y)),
+        size: Math.max(10, Math.min(90, size)),
+      };
+      await storage.setGameSetting(CAULDRON_LAYOUT_KEY, JSON.stringify(layout));
+      return res.json(layout);
+    } catch (err) {
+      console.error("Set cauldron layout error:", err);
+      return res.status(500).json({ message: "Failed to update cauldron layout" });
+    }
+  });
+
+  app.get("/api/cauldron/contents", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const raw = await storage.getGameSetting(cauldronContentsKey(user.id));
+      const contents: Array<{ shopItemId: string; quantity: number }> =
+        raw ? (() => { try { const p = JSON.parse(raw); return Array.isArray(p) ? p : []; } catch { return []; } })() : [];
+      // Hydrate with current item details (name + image) for the panel.
+      const hydrated = await Promise.all(
+        contents.map(async (c) => {
+          const item = await storage.getShopItem(c.shopItemId);
+          if (!item) return null;
+          return {
+            shopItemId: c.shopItemId,
+            quantity: c.quantity,
+            name: item.name,
+            imageUrl: item.imageUrl,
+          };
+        })
+      );
+      return res.json(hydrated.filter(Boolean));
+    } catch (err) {
+      console.error("Get cauldron contents error:", err);
+      return res.status(500).json({ message: "Failed to load cauldron contents" });
+    }
+  });
+
+  app.post("/api/cauldron/contents", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { inventoryId } = req.body || {};
+      if (!inventoryId || typeof inventoryId !== "string") {
+        return res.status(400).json({ message: "inventoryId is required" });
+      }
+      // Verify the inventory row belongs to this user and is an ingredient
+      // BEFORE we attempt the atomic consume — this lets us return a clean
+      // 400/404 instead of silently no-op'ing on bad input.
+      const inv = await storage.getInventoryItemById(inventoryId);
+      if (!inv || inv.userId !== user.id) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+      const shopItem = await storage.getShopItem(inv.shopItemId);
+      if (!shopItem || shopItem.type !== "ingredient") {
+        return res.status(400).json({ message: "Only ingredients can be added to the cauldron" });
+      }
+      // Capacity check — the cauldron only holds two ingredients per brew so
+      // the upcoming "mix" mechanic always operates on a clean pair. Enforce
+      // server-side too so a tampered client can't bypass the UI cap.
+      const CAULDRON_CAPACITY = 2;
+      const existingRaw = await storage.getGameSetting(cauldronContentsKey(user.id));
+      let existingContents: Array<{ shopItemId: string; quantity: number }> = [];
+      if (existingRaw) {
+        try { const p = JSON.parse(existingRaw); if (Array.isArray(p)) existingContents = p; } catch {}
+      }
+      const existingTotal = existingContents.reduce((n, c) => n + (c.quantity || 0), 0);
+      if (existingTotal >= CAULDRON_CAPACITY) {
+        return res.status(409).json({ message: "Cauldron is full" });
+      }
+      // Atomically take one unit from the player's inventory. We MUST only
+      // credit the cauldron if `consumed === true`, otherwise concurrent
+      // requests on the same inventory row could over-credit (the old
+      // decrementInventoryQuantity conflated "consumed last unit" with
+      // "nothing happened" via its `depleted` flag).
+      const { consumed } = await storage.tryConsumeOneFromInventory(inventoryId, user.id);
+      if (!consumed) {
+        return res.status(409).json({ message: "Out of stock" });
+      }
+      // Append/merge into per-user contents JSON, reusing the read we did
+      // for the capacity check above. (Per-user key means there is no
+      // cross-user write contention, and a single user spamming taps is
+      // naturally serialised by the inventory consume above — they can't
+      // get past the consume step without a real unit being decremented.)
+      const existing = existingContents.find((c) => c.shopItemId === inv.shopItemId);
+      if (existing) existing.quantity += 1;
+      else existingContents.push({ shopItemId: inv.shopItemId, quantity: 1 });
+      await storage.setGameSetting(cauldronContentsKey(user.id), JSON.stringify(existingContents));
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("Add to cauldron error:", err);
+      return res.status(500).json({ message: "Failed to add to cauldron" });
+    }
+  });
+
+  app.delete("/api/cauldron/contents", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      await storage.setGameSetting(cauldronContentsKey(user.id), JSON.stringify([]));
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("Clear cauldron error:", err);
+      return res.status(500).json({ message: "Failed to clear cauldron" });
+    }
+  });
+
   app.patch("/api/admin/worlds/:worldId/position", isAdmin, async (req, res) => {
     try {
       const { posX, posY } = req.body;

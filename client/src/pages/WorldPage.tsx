@@ -424,12 +424,67 @@ export default function WorldPage({ user }: WorldPageProps) {
     staleTime: 0,
   });
 
+  // The cauldron panel needs the inventory available too so players can see
+  // which ingredients they own and drop them in.
+  const [cauldronOpen, setCauldronOpen] = useState(false);
+
   const { data: inventory = [] } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
-    enabled: showShop || showBattlePrep,
+    enabled: showShop || showBattlePrep || cauldronOpen,
     staleTime: 0,
     refetchInterval: 30 * 1000,
     refetchOnWindowFocus: true,
+  });
+
+  // Mixing Tree cauldron layout — admin-controlled position+size shared by
+  // all players. Stored server-side in game_settings so it survives restarts
+  // and is identical for every player.
+  const { data: cauldronLayout } = useQuery<{ x: number; y: number; size: number }>({
+    queryKey: ["/api/cauldron/layout"],
+    staleTime: 60 * 1000,
+  });
+  const cauldronX = cauldronLayout?.x ?? 50;
+  const cauldronY = cauldronLayout?.y ?? 8;
+  const cauldronSize = cauldronLayout?.size ?? 38;
+
+  const cauldronLayoutMutation = useMutation({
+    mutationFn: async (payload: { x: number; y: number; size: number }) => {
+      const res = await apiRequest("PATCH", "/api/admin/cauldron/layout", payload);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/cauldron/layout"], data);
+    },
+  });
+
+  // Per-user cauldron contents — what the player has dropped in so far.
+  const { data: cauldronContents = [] } = useQuery<Array<{ shopItemId: string; quantity: number; name: string; imageUrl: string | null }>>({
+    queryKey: ["/api/cauldron/contents"],
+    enabled: cauldronOpen,
+    staleTime: 0,
+  });
+
+  const addToCauldronMutation = useMutation({
+    mutationFn: async (inventoryId: string) => {
+      const res = await apiRequest("POST", "/api/cauldron/contents", { inventoryId });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cauldron/contents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+    },
+    onError: () => {
+      toast({ title: "Failed", description: "Could not add to the cauldron", variant: "destructive" });
+    },
+  });
+
+  const clearCauldronMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", "/api/cauldron/contents");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cauldron/contents"] });
+    },
   });
 
   const { data: allShopItems = [], refetch: refetchAllShopItems, isLoading: isAllShopItemsLoading } = useQuery<ShopItem[]>({
@@ -3803,45 +3858,14 @@ export default function WorldPage({ user }: WorldPageProps) {
                 {/* Large slow pulse — lower left */}
                 <div style={{ position: "absolute", left: "22%", top: "60%", width: 60, height: 60, borderRadius: "50%", background: "radial-gradient(circle, rgba(120,185,255,0.4) 0%, rgba(80,150,255,0.08) 55%, transparent 75%)", filter: "blur(14px)", animation: "bayouOrbPulse 7s ease-in-out infinite 4s" }} />
               </div>
-              {/* Bayou-themed cauldron — sits as a decorative scene element
-                  on the Mixing Tree interior background. Lower-centre, with
-                  a soft teal under-glow puddle so it feels grounded in the
-                  scene rather than pasted on. Pointer-events disabled so
-                  it never blocks the existing interactive layers. */}
-              <div
-                className="absolute pointer-events-none"
-                style={{
-                  left: "50%",
-                  bottom: "8%",
-                  transform: "translateX(-50%)",
-                  width: "min(38%, 220px)",
-                  zIndex: 6,
-                }}
-              >
-                {/* under-cauldron glow puddle */}
-                <div
-                  style={{
-                    position: "absolute",
-                    left: "50%",
-                    bottom: "-6%",
-                    transform: "translateX(-50%)",
-                    width: "92%",
-                    height: 28,
-                    borderRadius: "50%",
-                    background: "radial-gradient(ellipse at center, rgba(45,212,191,0.45) 0%, rgba(20,83,75,0.22) 45%, transparent 75%)",
-                    filter: "blur(7px)",
-                  }}
-                />
-                <img
-                  src={mixingTreeCauldronImg}
-                  alt=""
-                  className="w-full h-auto block select-none"
-                  draggable={false}
-                  style={{
-                    filter: "drop-shadow(0 8px 14px rgba(0,0,0,0.65)) drop-shadow(0 0 12px rgba(45,138,120,0.45))",
-                  }}
-                />
-              </div>
+              <CauldronOverlay
+                isAdmin={!!currentUser.isAdmin}
+                x={cauldronX}
+                y={cauldronY}
+                size={cauldronSize}
+                onCommit={(layout) => cauldronLayoutMutation.mutate(layout)}
+                onClick={() => setCauldronOpen(true)}
+              />
             </>
           )}
 
@@ -4767,6 +4791,18 @@ export default function WorldPage({ user }: WorldPageProps) {
         />
       )}
 
+      {cauldronOpen && (
+        <CauldronPanel
+          inventory={inventory}
+          contents={cauldronContents}
+          onAdd={(invId) => addToCauldronMutation.mutate(invId)}
+          onClear={() => clearCauldronMutation.mutate()}
+          onClose={() => setCauldronOpen(false)}
+          isAdding={addToCauldronMutation.isPending}
+          isClearing={clearCauldronMutation.isPending}
+        />
+      )}
+
       {/* Player decor message popup */}
       {showDecorMsg && (
         <div
@@ -4988,6 +5024,380 @@ function PondAdminModal({ locationId, accent, onClose }: { locationId: string; a
         </div>
       </div>
 
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CauldronOverlay — the bayou cauldron decoration shown inside the Mixing
+// Tree's interior view. Players see it as a clickable scene element that
+// opens the ingredient panel. Admins additionally get a drag handle (move
+// the whole cauldron around the scene) and a corner resize grip (change
+// its size). Position + size are persisted server-side so changes are
+// shared by everyone and survive restarts.
+// ─────────────────────────────────────────────────────────────────────────────
+function CauldronOverlay({
+  isAdmin, x, y, size, onCommit, onClick,
+}: {
+  isAdmin: boolean;
+  x: number;
+  y: number;
+  size: number;
+  onCommit: (layout: { x: number; y: number; size: number }) => void;
+  onClick: () => void;
+}) {
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [draft, setDraft] = useState<{ x: number; y: number; size: number } | null>(null);
+  const dragStateRef = useRef<{
+    mode: "move" | "resize";
+    startClientX: number;
+    startClientY: number;
+    startX: number;
+    startY: number;
+    startSize: number;
+    parentRect: DOMRect;
+  } | null>(null);
+
+  const cur = draft ?? { x, y, size };
+
+  const beginDrag = (mode: "move" | "resize", e: React.PointerEvent) => {
+    if (!isAdmin) return;
+    const parent = wrapRef.current?.parentElement;
+    if (!parent) return;
+    e.stopPropagation();
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragStateRef.current = {
+      mode,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startX: cur.x,
+      startY: cur.y,
+      startSize: cur.size,
+      parentRect: parent.getBoundingClientRect(),
+    };
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    const s = dragStateRef.current;
+    if (!s) return;
+    const dxPct = ((e.clientX - s.startClientX) / s.parentRect.width) * 100;
+    const dyPct = ((e.clientY - s.startClientY) / s.parentRect.height) * 100;
+    if (s.mode === "move") {
+      setDraft({
+        x: Math.max(0, Math.min(100, s.startX + dxPct)),
+        y: Math.max(0, Math.min(100, s.startY - dyPct)), // y is from bottom
+        size: s.startSize,
+      });
+    } else {
+      setDraft({
+        x: s.startX,
+        y: s.startY,
+        size: Math.max(10, Math.min(90, s.startSize + dxPct)),
+      });
+    }
+  };
+
+  const endDrag = (e: React.PointerEvent) => {
+    const s = dragStateRef.current;
+    if (!s) return;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+    dragStateRef.current = null;
+    if (draft) {
+      onCommit(draft);
+      // keep the draft until the parent re-renders with the new server value;
+      // clearing here briefly causes a flicker if the query hasn't updated.
+      setTimeout(() => setDraft(null), 0);
+    }
+  };
+
+  return (
+    <div
+      ref={wrapRef}
+      className="absolute"
+      style={{
+        left: `${cur.x}%`,
+        bottom: `${cur.y}%`,
+        transform: "translateX(-50%)",
+        width: `${cur.size}%`,
+        maxWidth: 320,
+        zIndex: 6,
+        cursor: isAdmin ? "move" : "pointer",
+        touchAction: "none",
+      }}
+      onPointerDown={(e) => isAdmin && beginDrag("move", e)}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onClick={(e) => {
+        // Suppress click-after-drag for admins so a move gesture doesn't open
+        // the panel. Players just get the open behaviour.
+        if (isAdmin && draft) return;
+        e.stopPropagation();
+        onClick();
+      }}
+      data-testid="cauldron-mixing-tree"
+    >
+      {/* under-cauldron glow puddle */}
+      <div
+        className="pointer-events-none"
+        style={{
+          position: "absolute",
+          left: "50%",
+          bottom: "-6%",
+          transform: "translateX(-50%)",
+          width: "92%",
+          height: 28,
+          borderRadius: "50%",
+          background: "radial-gradient(ellipse at center, rgba(45,212,191,0.45) 0%, rgba(20,83,75,0.22) 45%, transparent 75%)",
+          filter: "blur(7px)",
+        }}
+      />
+      <img
+        src={mixingTreeCauldronImg}
+        alt=""
+        className="w-full h-auto block select-none pointer-events-none"
+        draggable={false}
+        style={{
+          filter: "drop-shadow(0 8px 14px rgba(0,0,0,0.65)) drop-shadow(0 0 12px rgba(45,138,120,0.45))",
+        }}
+      />
+      {isAdmin && (
+        <>
+          {/* admin outline so the draggable hit-area is visible */}
+          <div
+            className="absolute inset-0 pointer-events-none rounded-md"
+            style={{
+              border: "1px dashed rgba(94,234,212,0.55)",
+              boxShadow: "inset 0 0 16px rgba(94,234,212,0.18)",
+            }}
+          />
+          {/* resize grip — bottom-right corner */}
+          <div
+            onPointerDown={(e) => beginDrag("resize", e)}
+            onPointerMove={onPointerMove}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            className="absolute"
+            data-testid="cauldron-resize-handle"
+            style={{
+              right: -8,
+              bottom: -8,
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              background: "linear-gradient(135deg, #2dd4bf 0%, #0f766e 100%)",
+              border: "1.5px solid rgba(20,30,30,0.85)",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.6)",
+              cursor: "nwse-resize",
+              touchAction: "none",
+            }}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CauldronPanel — modal that shows the player's "Ingredients" inventory and
+// the cauldron's current contents. Players tap or drag an ingredient onto
+// the cauldron drop-zone to add one of it (decrements inventory and appends
+// to the per-user cauldron contents).
+// ─────────────────────────────────────────────────────────────────────────────
+function CauldronPanel({
+  inventory, contents, onAdd, onClear, onClose, isAdding, isClearing,
+}: {
+  inventory: InventoryItem[];
+  contents: Array<{ shopItemId: string; quantity: number; name: string; imageUrl: string | null }>;
+  onAdd: (inventoryId: string) => void;
+  onClear: () => void;
+  onClose: () => void;
+  isAdding: boolean;
+  isClearing: boolean;
+}) {
+  const ingredients = useMemo(
+    () => inventory.filter((i) => i.type === "ingredient"),
+    [inventory]
+  );
+  const [dragOver, setDragOver] = useState(false);
+  const { toast } = useToast();
+
+  // Cap how many ingredients can sit in the cauldron at once. Two-item
+  // mixing is the next mechanic we'll layer on top, so the brew must be
+  // exactly two ingredients before anything happens. Tapping/dropping a
+  // third ingredient is rejected with a friendly toast.
+  const CAULDRON_CAPACITY = 2;
+  const totalInCauldron = contents.reduce((n, c) => n + c.quantity, 0);
+  const isFull = totalInCauldron >= CAULDRON_CAPACITY;
+
+  const tryAdd = (invId: string) => {
+    if (isFull) {
+      toast({
+        title: "Cauldron is full",
+        description: `Only ${CAULDRON_CAPACITY} ingredients at a time. Clear it to start a new brew.`,
+      });
+      return;
+    }
+    onAdd(invId);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const invId = e.dataTransfer.getData("text/plain");
+    if (invId) tryAdd(invId);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center pointer-events-none" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+      {/* Soft scrim — tappable to close, but doesn't darken the cauldron
+          much so the player can still see what they're brewing. */}
+      <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={onClose} />
+      <div
+        className="relative w-full rounded-t-2xl p-4 animate-slide-up overflow-hidden pointer-events-auto"
+        style={{
+          background: "linear-gradient(135deg, rgba(20,30,28,0.98) 0%, rgba(15,40,38,0.98) 100%)",
+          border: "1px solid rgba(94,234,212,0.45)",
+          borderBottom: "none",
+          boxShadow: "0 -8px 40px rgba(0,0,0,0.7), 0 0 30px rgba(45,212,191,0.18)",
+          maxHeight: "55vh",
+        }}
+      >
+        <button
+          data-testid="button-close-cauldron"
+          onClick={onClose}
+          className="absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center"
+          style={{ background: "linear-gradient(135deg, #1e3a36 0%, #0f2422 100%)", border: "1.5px solid rgba(94,234,212,0.5)", color: "#5eead4", cursor: "pointer" }}
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        <h3 className="font-fantasy text-center text-base tracking-[0.18em] mb-3" style={{ color: "#5eead4", textShadow: "0 0 14px rgba(94,234,212,0.4)" }}>
+          The Cauldron
+        </h3>
+
+        {/* Drop zone — visual cauldron + current contents */}
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          className="rounded-xl p-3 mb-3"
+          data-testid="cauldron-drop-zone"
+          style={{
+            background: dragOver
+              ? "radial-gradient(circle at 50% 60%, rgba(94,234,212,0.28) 0%, rgba(15,40,38,0.7) 70%)"
+              : "radial-gradient(circle at 50% 60%, rgba(45,212,191,0.12) 0%, rgba(15,40,38,0.6) 70%)",
+            border: `1px dashed rgba(94,234,212,${dragOver ? 0.85 : 0.45})`,
+            transition: "all 120ms ease",
+            minHeight: 110,
+          }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-fantasy text-[10px] tracking-wider" style={{ color: "#5eead4aa" }}>
+              In the cauldron · {totalInCauldron}/{CAULDRON_CAPACITY}
+            </span>
+            {totalInCauldron > 0 && (
+              <button
+                data-testid="button-clear-cauldron"
+                onClick={onClear}
+                disabled={isClearing}
+                className="font-fantasy text-[10px] tracking-wider disabled:opacity-50"
+                style={{ background: "none", border: "none", color: "#fca5a5", cursor: "pointer" }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {/* Two explicit slots — once both are filled, the brew is ready
+              for the upcoming "mix" mechanic. We render contents flat by
+              expanding each row's quantity into individual slot pips so a
+              ×2 of the same ingredient still shows as two slots filled. */}
+          <div className="grid grid-cols-2 gap-2">
+            {(() => {
+              const slots: Array<{ shopItemId: string; name: string; imageUrl: string | null } | null> = [];
+              for (const c of contents) {
+                for (let i = 0; i < c.quantity; i++) {
+                  slots.push({ shopItemId: c.shopItemId, name: c.name, imageUrl: c.imageUrl });
+                }
+              }
+              while (slots.length < CAULDRON_CAPACITY) slots.push(null);
+              return slots.slice(0, CAULDRON_CAPACITY).map((s, idx) => (
+                <div
+                  key={idx}
+                  data-testid={`cauldron-slot-${idx}`}
+                  className="flex flex-col items-center justify-center rounded-lg"
+                  style={{
+                    background: s ? "rgba(94,234,212,0.10)" : "rgba(94,234,212,0.04)",
+                    border: `1px ${s ? "solid" : "dashed"} rgba(94,234,212,${s ? 0.30 : 0.25})`,
+                    minHeight: 64,
+                    padding: 6,
+                  }}
+                >
+                  {s ? (
+                    <>
+                      {s.imageUrl ? (
+                        <img src={s.imageUrl} alt="" className="w-9 h-9 object-contain" />
+                      ) : (
+                        <div className="w-9 h-9 rounded bg-black/30" />
+                      )}
+                      <p className="font-fantasy text-[9px] leading-tight text-center mt-0.5 line-clamp-1" style={{ color: "#d1faf3" }}>{s.name}</p>
+                    </>
+                  ) : (
+                    <span className="font-fantasy text-[10px]" style={{ color: "#5eead466" }}>empty slot</span>
+                  )}
+                </div>
+              ));
+            })()}
+          </div>
+        </div>
+
+        {/* Ingredients inventory */}
+        <div className="mb-1 flex items-center justify-between">
+          <h4 className="font-fantasy text-xs tracking-wider" style={{ color: "#d1faf3" }}>Your Ingredients</h4>
+          <span className="font-fantasy text-[10px]" style={{ color: isFull ? "#fca5a5" : "#5eead488" }}>
+            {isFull ? "cauldron full · clear to add more" : "tap or drag to add"}
+          </span>
+        </div>
+        <div className="overflow-y-auto" style={{ maxHeight: "28vh" }}>
+          {ingredients.length === 0 ? (
+            <p className="font-fantasy text-xs text-center py-6" style={{ color: "#5eead466" }}>
+              You don't have any ingredients yet.
+            </p>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {ingredients.map((ing) => (
+                <button
+                  key={ing.inventoryId}
+                  data-testid={`button-add-ingredient-${ing.inventoryId}`}
+                  draggable={!isFull}
+                  onDragStart={(e) => { e.dataTransfer.setData("text/plain", ing.inventoryId); }}
+                  onClick={() => tryAdd(ing.inventoryId)}
+                  disabled={isAdding || isFull}
+                  className="flex flex-col items-center gap-1 p-2 rounded-lg disabled:opacity-50"
+                  style={{
+                    background: "rgba(94,234,212,0.08)",
+                    border: "1px solid rgba(94,234,212,0.22)",
+                    cursor: "grab",
+                  }}
+                >
+                  <div className="w-12 h-12 rounded-md flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
+                    {ing.imageUrl ? (
+                      <img src={ing.imageUrl} alt="" className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="font-fantasy text-[10px]" style={{ color: "#5eead466" }}>?</span>
+                    )}
+                  </div>
+                  <p className="font-fantasy text-[10px] text-center leading-tight line-clamp-2" style={{ color: "#d1faf3" }}>{ing.name}</p>
+                  {(ing.quantity ?? 1) > 1 && (
+                    <p className="font-fantasy text-[9px]" style={{ color: "#5eead4aa" }}>×{ing.quantity}</p>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

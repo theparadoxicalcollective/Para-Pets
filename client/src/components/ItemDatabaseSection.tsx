@@ -54,7 +54,7 @@ export const WORLD_OPTIONS = [
   { id: "haunted_woods", name: "Haunted Woods" },
 ];
 
-const NON_PET_TYPES = ["power_up", "accessory", "potion", "special", "decor", "edibles", "fishing", "gift"];
+const NON_PET_TYPES = ["power_up", "accessory", "potion", "special", "decor", "edibles", "fishing", "gift", "ingredient"];
 
 function formatTypeName(type: string): string {
   if (type === "power_up") return "Power Up";
@@ -73,6 +73,7 @@ export const ITEM_CATEGORIES = [
   { key: "accessories", label: "Accessories", color: "#f9a8d4" },
   { key: "power_ups",   label: "Power Ups",   color: "#fde68a" },
   { key: "decor",       label: "Decor",       color: "#d9f99d" },
+  { key: "ingredients", label: "Ingredients", color: "#fbbf24" },
 ] as const;
 
 export type ItemCategoryKey = typeof ITEM_CATEGORIES[number]["key"];
@@ -140,6 +141,7 @@ export function getItemCategory(item: ShopItemFull): ItemCategoryKey {
   if (item.type === "accessory") return "accessories";
   if (item.type === "power_up" || item.type === "item") return "power_ups";
   if (item.type === "decor") return "decor";
+  if (item.type === "ingredient") return "ingredients";
   return "power_ups";
 }
 
