@@ -3498,6 +3498,8 @@ export default function WorldPage({ user }: WorldPageProps) {
                     { label: "All", value: "all" },
                     { label: "Potions", value: "potion" },
                     { label: "Power-Ups", value: "power_up" },
+                    { label: "Edibles", value: "edibles" },
+                    { label: "Gifts", value: "gift" },
                     { label: "Special", value: "special" },
                     { label: "Accessories", value: "accessory" },
                     { label: "Pets", value: "pet" },
