@@ -2011,6 +2011,39 @@ app.use((req, res, next) => {
       await storage.setGameSetting("volcanic_edibles_v1", "done");
       console.log(`Volcanic edibles seeded (${inserted} new).`);
     }
+
+    // Always refresh image_url for the seeded edibles so a re-exported asset
+    // (e.g. background-removed PNG) shows up without a manual DB edit. Uses
+    // the file mtime as the ?v= cache-buster, matching how the location
+    // backgrounds and icons stay fresh on every restart.
+    const edibleFiles = [
+      "edible_brimstone_pepper.png", "edible_lava_egg.png", "edible_cinder_crisps.png",
+      "edible_magma_skewer.png", "edible_ember_berry_tart.png", "edible_sulfur_mushroom_stew.png",
+      "edible_roasted_drake_wing.png", "edible_volcanic_bone_broth.png",
+      "edible_obsidian_glazed_ham.png", "edible_phoenix_feast_platter.png",
+    ];
+    const edibleNameByFile: Record<string, string> = {
+      "edible_brimstone_pepper.png": "Brimstone Pepper",
+      "edible_lava_egg.png": "Lava Egg",
+      "edible_cinder_crisps.png": "Cinder Crisps",
+      "edible_magma_skewer.png": "Magma Skewer",
+      "edible_ember_berry_tart.png": "Ember Berry Tart",
+      "edible_sulfur_mushroom_stew.png": "Sulfur Mushroom Stew",
+      "edible_roasted_drake_wing.png": "Roasted Drake Wing",
+      "edible_volcanic_bone_broth.png": "Volcanic Bone Broth",
+      "edible_obsidian_glazed_ham.png": "Obsidian Glazed Ham",
+      "edible_phoenix_feast_platter.png": "Phoenix Feast Platter",
+    };
+    for (const file of edibleFiles) {
+      const assetPath = path.join(process.cwd(), "attached_assets", file);
+      if (!fs.existsSync(assetPath)) continue;
+      const v = Math.floor(fs.statSync(assetPath).mtimeMs / 1000);
+      const url = `/world-assets/${file}?v=${v}`;
+      const name = edibleNameByFile[file];
+      await db.execute(
+        sql`UPDATE shop_items SET image_url = ${url} WHERE name = ${name} AND type = 'edibles'`
+      );
+    }
   } catch (err) {
     console.error("Volcanic edibles seed error (non-fatal):", err);
   }
