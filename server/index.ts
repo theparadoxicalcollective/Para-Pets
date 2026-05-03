@@ -1978,6 +1978,33 @@ app.use((req, res, next) => {
     console.error("Volcanic bookshop seed error (non-fatal):", err);
   }
 
+  // Seed volcanic lava fortress (non-shop landmark that opens its own scenic view)
+  try {
+    const VOLCANIC_FORTRESS_ID = "c3d4e5f6-0005-4000-8000-000000000005";
+    const volcanicFortressDone = await storage.getGameSetting("volcanic_fortress_v1");
+    if (!volcanicFortressDone) {
+      const existing = await db.execute(sql`SELECT id FROM world_locations WHERE id = ${VOLCANIC_FORTRESS_ID}`);
+      if ((existing as any).rows?.length === 0) {
+        const assetPath = path.join(process.cwd(), "attached_assets", "icon_lava_fortress_volcanic.png");
+        const mtime = fs.existsSync(assetPath) ? fs.statSync(assetPath).mtimeMs : Date.now();
+        const iconUrl = `/world-assets/icon_lava_fortress_volcanic.png?v=${Math.floor(mtime / 1000)}`;
+        const fortressName = "The Molten Bastion";
+        const fortressDesc = "An ancient fortress carved from obsidian, its halls alive with rivers of glowing lava.";
+        await db.execute(sql`
+          INSERT INTO world_locations (id, world_id, name, type, description, pos_x, pos_y, glow_color, icon_size, sort_order, is_shop, icon_url)
+          VALUES (
+            ${VOLCANIC_FORTRESS_ID}, 'volcanic', ${fortressName}, 'area',
+            ${fortressDesc}, 75, 25, '#ff6a00', 350, 14, false, ${iconUrl}
+          )
+        `);
+        console.log("Volcanic Lava Fortress seeded.");
+      }
+      await storage.setGameSetting("volcanic_fortress_v1", "done");
+    }
+  } catch (err) {
+    console.error("Volcanic fortress seed error (non-fatal):", err);
+  }
+
   // Always refresh known location icons as versioned static URLs — runs AFTER all seeding code
   // so it overrides any loadAssetBase64 calls that re-set base64 icons during startup.
   const LOC_ICON_ALWAYS_REFRESH: Record<string, string> = {
@@ -1998,6 +2025,7 @@ app.use((req, res, next) => {
     "c3d4e5f6-0002-4000-8000-000000000002": "icon_fishing_shop_volcanic.png",
     "c3d4e5f6-0003-4000-8000-000000000003": "icon_accessory_shop_volcanic.png",
     "c3d4e5f6-0004-4000-8000-000000000004": "icon_bookshop_volcanic.png",
+    "c3d4e5f6-0005-4000-8000-000000000005": "icon_lava_fortress_volcanic.png",
   };
   for (const [locId, iconFile] of Object.entries(LOC_ICON_ALWAYS_REFRESH)) {
     try {
@@ -2012,6 +2040,22 @@ app.use((req, res, next) => {
     }
   }
   console.log("Location icons refreshed with versioned static URLs.");
+
+  // Always refresh the volcanic fortress background
+  try {
+    const fortressBgFile = "bg_lava_fortress_volcanic.png";
+    const fortressBgPath = path.join(process.cwd(), "attached_assets", fortressBgFile);
+    if (fs.existsSync(fortressBgPath)) {
+      const v = Math.floor(fs.statSync(fortressBgPath).mtimeMs / 1000);
+      const fortressBgUrl = `/world-assets/${fortressBgFile}?v=${v}`;
+      await db.execute(
+        sql`UPDATE world_locations SET bg_url = ${fortressBgUrl} WHERE id = 'c3d4e5f6-0005-4000-8000-000000000005'`
+      );
+      console.log(`Volcanic fortress bg refreshed (${fortressBgUrl}).`);
+    }
+  } catch (err) {
+    console.error("Volcanic fortress bg refresh error (non-fatal):", err);
+  }
 
   // Always refresh the volcanic fishing spot background using raw SQL (runs AFTER all seeding,
   // so the row is guaranteed to exist). Uses sql.raw() to embed the UUID directly — Drizzle's
