@@ -330,6 +330,18 @@ uri = "file://attached_assets/bg_fishing_volcanic.png"
 type = "image"
 title = "volcanic fishing spot background"
 
+[[generated]]
+id = "mXDSK68vmb0123pGPM9vk"
+uri = "file://attached_assets/bg_shop_forge_fang_volcanic.png"
+type = "image"
+title = "forge and fang volcanic accessory shop background"
+
+[[generated]]
+id = "LWa0QPky8lBw7p90MLhGs"
+uri = "file://attached_assets/bg_shop_bookshop_volcanic.png"
+type = "image"
+title = "volcanic bookshop interior background"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

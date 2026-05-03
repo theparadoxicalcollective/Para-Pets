@@ -25,6 +25,8 @@ import bgShopFishing from "@assets/bg_shop_fishing.png";
 import bgShopCentralMarket from "@assets/bg_central_market.png";
 import bgShopVolcanic from "@assets/bg_shop_volcanic.png";
 import bgShopVolcanicPets from "@assets/bg_shop_volcanic_pets.png";
+import bgShopForgeFang from "@assets/bg_shop_forge_fang_volcanic.png";
+import bgShopBookshopVolcanic from "@assets/bg_shop_bookshop_volcanic.png";
 import shopVolcanicFishing from "@assets/icon_fishing_shop_volcanic.png";
 import npcLavaHook from "@assets/npc_lava_hook_shopkeeper.png";
 import shopFrostpeak from "@assets/shop_frostpeak.png";
@@ -2769,10 +2771,16 @@ export default function WorldPage({ user }: WorldPageProps) {
         const isVolcanicFishing = isFishingShop && worldId === "volcanic";
         const isVolcanicShop = worldId === "volcanic" && !isFishingShop;
         const isCentralMarket = worldId === "pet_world";
+        const volcanicShopBg = (() => {
+          const id = activeLoc?.id ?? "";
+          if (id === "c3d4e5f6-0003-4000-8000-000000000003") return bgShopForgeFang;
+          if (id === "c3d4e5f6-0004-4000-8000-000000000004") return bgShopBookshopVolcanic;
+          return bgShopVolcanicPets;
+        })();
         const shopBg = isFishingShop
           ? (isVolcanicFishing ? bgShopVolcanic : bgShopFishing)
           : isCentralMarket ? bgShopCentralMarket
-          : isVolcanicShop ? bgShopVolcanicPets
+          : isVolcanicShop ? volcanicShopBg
           : worldId === "swamp" ? bgShopBayou
           : bgShopMystical;
         return (

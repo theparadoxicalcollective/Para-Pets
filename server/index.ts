@@ -883,6 +883,8 @@ app.use((req, res, next) => {
     "a1b2c3d4-0008-4000-8000-000000000008": "bg_soggy_hook_v1.webp",
     "a1b2c3d4-0002-4000-8000-000000000002": "bg_willowmere_cottage.webp",
     "3b3bb453-e012-4ba3-9308-71c1376d84a8": "bg_fishing_volcanic.png",
+    "c3d4e5f6-0003-4000-8000-000000000003": "bg_shop_forge_fang_volcanic.png",
+    "c3d4e5f6-0004-4000-8000-000000000004": "bg_shop_bookshop_volcanic.png",
   };
   for (const [locId, bgFile] of Object.entries(LOC_BG_ALWAYS_REFRESH)) {
     try {
@@ -1946,6 +1948,33 @@ app.use((req, res, next) => {
     console.error("Volcanic accessory shop seed error (non-fatal):", err);
   }
 
+  // Seed volcanic bookshop
+  try {
+    const VOLCANIC_BOOKSHOP_ID = "c3d4e5f6-0004-4000-8000-000000000004";
+    const volcanicBookshopDone = await storage.getGameSetting("volcanic_bookshop_v1");
+    if (!volcanicBookshopDone) {
+      const existing = await db.execute(sql`SELECT id FROM world_locations WHERE id = ${VOLCANIC_BOOKSHOP_ID}`);
+      if ((existing as any).rows?.length === 0) {
+        const assetPath = path.join(process.cwd(), "attached_assets", "icon_bookshop_volcanic.png");
+        const mtime = fs.existsSync(assetPath) ? fs.statSync(assetPath).mtimeMs : Date.now();
+        const iconUrl = `/world-assets/icon_bookshop_volcanic.png?v=${Math.floor(mtime / 1000)}`;
+        const shopName = "The Pyrenean Press";
+        const shopDesc = "A volcanic bookshop stocked with ancient fire-lore tomes, geomancy scrolls, and lava-crystal curiosities.";
+        await db.execute(sql`
+          INSERT INTO world_locations (id, world_id, name, type, description, pos_x, pos_y, glow_color, icon_size, sort_order, is_shop, icon_url)
+          VALUES (
+            ${VOLCANIC_BOOKSHOP_ID}, 'volcanic', ${shopName}, 'shop',
+            ${shopDesc}, 25, 60, '#ff4500', 350, 13, true, ${iconUrl}
+          )
+        `);
+        console.log("Volcanic Bookshop seeded.");
+      }
+      await storage.setGameSetting("volcanic_bookshop_v1", "done");
+    }
+  } catch (err) {
+    console.error("Volcanic bookshop seed error (non-fatal):", err);
+  }
+
   // Always refresh known location icons as versioned static URLs — runs AFTER all seeding code
   // so it overrides any loadAssetBase64 calls that re-set base64 icons during startup.
   const LOC_ICON_ALWAYS_REFRESH: Record<string, string> = {
@@ -1965,6 +1994,7 @@ app.use((req, res, next) => {
     "c3d4e5f6-0001-4000-8000-000000000001": "icon_pet_shop_volcanic.png",
     "c3d4e5f6-0002-4000-8000-000000000002": "icon_fishing_shop_volcanic.png",
     "c3d4e5f6-0003-4000-8000-000000000003": "icon_accessory_shop_volcanic.png",
+    "c3d4e5f6-0004-4000-8000-000000000004": "icon_bookshop_volcanic.png",
   };
   for (const [locId, iconFile] of Object.entries(LOC_ICON_ALWAYS_REFRESH)) {
     try {
