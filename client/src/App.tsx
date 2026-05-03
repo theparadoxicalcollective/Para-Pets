@@ -15,6 +15,7 @@ import homeBg from "@assets/bg_home_v2.png";
 // ── Eagerly imported (always or near-always needed at startup) ──────────────
 import HomePage from "@/pages/HomePage";
 import LoadingScreen from "@/components/LoadingScreen";
+import WorldLoadingScreen from "@/components/WorldLoadingScreen";
 import WelcomeGiftScreen from "@/components/WelcomeGiftScreen";
 import DevelopmentNoticeScreen from "@/components/DevelopmentNoticeScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
@@ -146,6 +147,21 @@ function EmailGateScreen({ email }: { email: string }) {
 function PvpArenaWrapper() {
   const [, setLocation] = useLocation();
   return <PvpArenaPage onClose={() => setLocation("/")} />;
+}
+
+const THEMED_WORLDS = new Set(["volcanic", "swamp"]);
+
+function WorldLoadingGate({ location, user }: { location: string; user: any }) {
+  const worldId = location.replace("/world/", "").split("/")[0];
+  const [screenDone, setScreenDone] = useState(!THEMED_WORLDS.has(worldId));
+  return (
+    <>
+      <WorldPage user={user} />
+      {!screenDone && (
+        <WorldLoadingScreen worldId={worldId} onReady={() => setScreenDone(true)} />
+      )}
+    </>
+  );
 }
 
 // Paths where FloatingNav should NOT appear
@@ -407,7 +423,7 @@ function AppRouter() {
         )}
         {location.startsWith("/world/") && (
           <div key={location} className="page-overlay" style={{ position: "absolute", inset: 0 }}>
-            <WorldPage user={user} />
+            <WorldLoadingGate location={location} user={user} />
           </div>
         )}
         {location === "/coins" && (
