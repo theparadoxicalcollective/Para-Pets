@@ -8,6 +8,7 @@ import blockS from "@assets/Photoroom_20260502_115949_PM_1777784698006.png";
 import blockZ from "@assets/Photoroom_20260502_115824_PM_1777784698006.png";
 import blockL from "@assets/Photoroom_20260503_120218_AM_1777784698006.png";
 import blockJ from "@assets/Photoroom_20260503_120311_AM_1777784698006.png";
+import bgMolten from "@assets/shop_volcanic.png";
 
 // ── Tetromino shapes (4-rotation matrices, SRS-style) ──────────────────────
 type Piece = "I" | "O" | "T" | "S" | "Z" | "L" | "J";
@@ -534,7 +535,9 @@ export default function MoltenBlocksPage() {
       ctx.rect(x, y, size, size);
       ctx.clip();
       if (ghost) ctx.globalAlpha = 0.22;
-      const pad = Math.ceil(size * 0.10);
+      // Aggressive overscale (~22%) so the rounded transparent corners of
+      // the source PNG are pushed well past the cell boundary.
+      const pad = Math.ceil(size * 0.22);
       ctx.drawImage(img, x - pad, y - pad, size + pad * 2, size + pad * 2);
       ctx.restore();
       // 3) Coloured glow rim so each piece is identifiable at a glance.
@@ -568,13 +571,12 @@ export default function MoltenBlocksPage() {
     const offX = Math.floor((W - boardW) / 2);
     const offY = Math.floor((H - boardH) / 2);
 
-    // Background — molten obsidian gradient
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, "#1a0a06");
-    bg.addColorStop(0.5, "#0d0503");
-    bg.addColorStop(1, "#1f0a04");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, W, H);
+    // Background — clear so the page-level Molten icon image shows through
+    // behind the playfield, then paint a translucent dark wash inside the
+    // bordered play area only, for block legibility.
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "rgba(8,3,1,0.55)";
+    ctx.fillRect(offX, offY, boardW, boardH);
 
     // Subtle grid
     ctx.strokeStyle = "rgba(255,140,50,0.07)";
@@ -845,19 +847,27 @@ export default function MoltenBlocksPage() {
       data-testid="page-molten-blocks"
       style={{
         position: "absolute", inset: 0,
-        background: "radial-gradient(ellipse at 50% 30%, #2a0d04 0%, #120602 55%, #050201 100%)",
+        backgroundImage: `url(${bgMolten})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
         display: "flex", flexDirection: "column",
         userSelect: "none", touchAction: "none", overflow: "hidden",
         fontFamily: "Lora, serif", color: "#f5d589",
       }}
     >
+      {/* Translucent black overlay so foreground game UI stays legible */}
+      <div style={{
+        position: "absolute", inset: 0, background: "rgba(0,0,0,0.62)",
+        pointerEvents: "none", zIndex: 0,
+      }} />
       {/* Top accent line */}
-      <div style={{ height: 2, flexShrink: 0, background: "linear-gradient(90deg,transparent,#d97706,#fbbf24,#d97706,transparent)" }} />
+      <div style={{ height: 2, flexShrink: 0, position: "relative", zIndex: 1, background: "linear-gradient(90deg,transparent,#d97706,#fbbf24,#d97706,transparent)" }} />
 
       {/* Header — score / level / next.
           Top padding honours the device safe-area (iOS notch / Android status bar)
           so the score and lives are never clipped on mobile. */}
-      <div style={{ flexShrink: 0, padding: "calc(env(safe-area-inset-top, 0px) + 12px) 12px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+      <div style={{ flexShrink: 0, position: "relative", zIndex: 1, padding: "calc(env(safe-area-inset-top, 0px) + 12px) 12px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <button
           data-testid="button-exit-molten-blocks"
           onClick={() => navigate("/world/volcanic")}
@@ -893,7 +903,7 @@ export default function MoltenBlocksPage() {
       </div>
 
       {/* Main playfield + side panel */}
-      <div style={{ flex: 1, minHeight: 0, display: "flex", padding: "6px 8px 8px", gap: 8 }}>
+      <div style={{ flex: 1, minHeight: 0, position: "relative", zIndex: 1, display: "flex", padding: "6px 6px 8px", gap: 6 }}>
         <div
           style={{ flex: 1, minHeight: 0, position: "relative" }}
           onPointerDown={onPointerDown}
@@ -908,22 +918,22 @@ export default function MoltenBlocksPage() {
           />
         </div>
 
-        {/* Side panel — Next + best */}
-        <div style={{ width: 100, flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Side panel — Next + best (compact to give the playfield more room) */}
+        <div style={{ width: 76, flexShrink: 0, display: "flex", flexDirection: "column", gap: 6 }}>
           <Panel label="NEXT">
             <canvas
               ref={sideCanvasRef}
               data-testid="canvas-next"
-              style={{ width: "100%", height: 92, display: "block" }}
+              style={{ width: "100%", height: 70, display: "block" }}
             />
           </Panel>
           <Panel label="BEST">
-            <div data-testid="text-hi-score" style={{ textAlign: "center", padding: "6px 0", fontSize: 19, color: accent, fontWeight: 600 }}>
+            <div data-testid="text-hi-score" style={{ textAlign: "center", padding: "3px 0", fontSize: 15, color: accent, fontWeight: 600 }}>
               {hiScore.toLocaleString()}
             </div>
           </Panel>
           <Panel label="COINS">
-            <div data-testid="text-coins-earned" style={{ textAlign: "center", padding: "6px 0", fontSize: 19, color: "#ffd166", fontWeight: 600 }}>
+            <div data-testid="text-coins-earned" style={{ textAlign: "center", padding: "3px 0", fontSize: 15, color: "#ffd166", fontWeight: 600 }}>
               {coinsEarned.toLocaleString()}
             </div>
           </Panel>
@@ -936,7 +946,7 @@ export default function MoltenBlocksPage() {
               background: "rgba(20,8,4,0.65)",
               border: `1px solid ${holdPiece ? "rgba(251,191,36,0.55)" : "rgba(251,191,36,0.25)"}`,
               borderRadius: 8,
-              padding: "4px 4px 6px",
+              padding: "3px 3px 5px",
               cursor: "pointer",
               opacity: 1,
               outline: "none",
@@ -944,15 +954,15 @@ export default function MoltenBlocksPage() {
               color: "inherit",
             }}
           >
-            <div style={{ fontSize: 11, letterSpacing: "0.22em", color: "#a06a30", textAlign: "center", marginBottom: 2 }}>HOLD</div>
+            <div style={{ fontSize: 9, letterSpacing: "0.22em", color: "#a06a30", textAlign: "center", marginBottom: 2 }}>HOLD</div>
             <canvas
               ref={holdCanvasRef}
               data-testid="canvas-hold"
-              style={{ width: "100%", height: 72, display: "block" }}
+              style={{ width: "100%", height: 54, display: "block" }}
             />
           </button>
           <div style={{ flex: 1 }} />
-          <div style={{ fontSize: 10, lineHeight: 1.45, color: "#7a5530", textAlign: "center", letterSpacing: "0.08em" }}>
+          <div style={{ fontSize: 9, lineHeight: 1.4, color: "#7a5530", textAlign: "center", letterSpacing: "0.06em" }}>
             TAP rotate<br/>SWIPE move<br/>HOLD soft drop<br/>FLICK ↓ slam
           </div>
         </div>
