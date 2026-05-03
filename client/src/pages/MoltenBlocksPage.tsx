@@ -208,6 +208,7 @@ export default function MoltenBlocksPage() {
   });
   const [paused, setPaused] = useState(false);
   const [gameOver, setGameOver] = useState(false);
+  const [returnSummary, setReturnSummary] = useState<{ coins: number; score: number } | null>(null);
   const [imagesReady, setImagesReady] = useState(false);
   const [coinAward, setCoinAward] = useState<{ amount: number; status: "idle" | "submitting" | "done" | "error" }>({ amount: 0, status: "idle" });
   // Brief floating "+5 coins!" toast inside the game when a tier is hit
@@ -1070,12 +1071,50 @@ export default function MoltenBlocksPage() {
           <button
             data-testid="button-return-cashout"
             onClick={async () => {
-              // Cash out whatever the player has earned, then leave the game.
+              const snap = { coins: coinsEarnedRef.current, score: scoreRef.current };
+              setReturnSummary(snap);
+              setPaused(false);
               await finalizeRun();
-              navigate("/world/volcanic");
             }}
             style={{ ...overlayBtnStyle(accent), background: "rgba(20,8,4,0.85)" }}
           >Return &amp; Keep Earnings</button>
+        </Overlay>
+      )}
+
+      {/* Return-summary popup — shown after "Return & Keep Earnings" is tapped */}
+      {returnSummary && (
+        <Overlay>
+          <div style={{ fontSize: 10, letterSpacing: "0.34em", color: "#a06a30" }}>VOLCANIC ISLE</div>
+          <h2 style={{
+            margin: "6px 0 2px", fontSize: 26, color: accent, letterSpacing: "0.16em",
+            textShadow: "0 0 18px rgba(255,140,30,0.55), 0 0 6px rgba(255,200,40,0.4)",
+          }}>YOUR EARNINGS</h2>
+          <div style={{ fontSize: 11, color: "#7a5530", marginBottom: 14, letterSpacing: "0.06em" }}>
+            Safe and sound — here's what you're taking home.
+          </div>
+
+          <div style={{
+            background: "rgba(20,8,4,0.88)", border: "1px solid rgba(251,191,36,0.38)",
+            borderRadius: 12, padding: "14px 22px", marginBottom: 14, minWidth: 230,
+          }}>
+            <SummaryRow label="Score"        value={returnSummary.score.toLocaleString()}        testId="text-return-score"  highlight />
+            <SummaryRow label="Coins earned" value={`+${returnSummary.coins.toLocaleString()}`}  testId="text-return-coins"  coinColor />
+          </div>
+
+          <div data-testid="text-return-coin-status" style={{ fontSize: 11, color: "#a06a30", marginBottom: 14, letterSpacing: "0.06em", minHeight: 14 }}>
+            {coinAward.status === "submitting" && "Adding coins to your purse…"}
+            {coinAward.status === "done" && returnSummary.coins > 0 && `${coinAward.amount} coins added to your balance.`}
+            {coinAward.status === "done" && returnSummary.coins === 0 && "No coins this run — try clearing more rows!"}
+            {coinAward.status === "error" && (
+              <span style={{ color: "#ff8a5a" }}>Couldn't credit coins — they'll be saved next time.</span>
+            )}
+          </div>
+
+          <button
+            data-testid="button-confirm-return"
+            onClick={() => navigate("/world/volcanic")}
+            style={{ ...overlayBtnStyle(accent), fontSize: 13, padding: "11px 28px" }}
+          >Return to Volcanic Isle</button>
         </Overlay>
       )}
 
