@@ -352,43 +352,43 @@ title = "volcanic bobber"
 id = "AuesWXsTdZ8DHzPvRd4CD"
 uri = "file://attached_assets/molten_block_I.png"
 type = "image"
-title = "generated_image"
+title = "flat molten I tile"
 
 [[generated]]
 id = "o7vsHlDlohnSo1x7yIk7X"
 uri = "file://attached_assets/molten_block_O.png"
 type = "image"
-title = "generated_image"
+title = "flat molten O tile"
 
 [[generated]]
 id = "iE1DT5-cKAwNDZwu6gZ4H"
 uri = "file://attached_assets/molten_block_T.png"
 type = "image"
-title = "generated_image"
+title = "flat molten T tile"
 
 [[generated]]
 id = "3nDpeHNo7IBmiKa4hK0bf"
 uri = "file://attached_assets/molten_block_S.png"
 type = "image"
-title = "generated_image"
+title = "flat molten S tile"
 
 [[generated]]
 id = "pcadm2CIGCzABVCGXUBvw"
 uri = "file://attached_assets/molten_block_Z.png"
 type = "image"
-title = "generated_image"
+title = "flat molten Z tile"
 
 [[generated]]
 id = "OM0ID07wjU9cL4Eeu_CeD"
 uri = "file://attached_assets/molten_block_L.png"
 type = "image"
-title = "generated_image"
+title = "flat molten L tile"
 
 [[generated]]
 id = "Osvc2HYAbaPNe3iZMOpMm"
 uri = "file://attached_assets/molten_block_J.png"
 type = "image"
-title = "generated_image"
+title = "flat molten J tile"
 
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"

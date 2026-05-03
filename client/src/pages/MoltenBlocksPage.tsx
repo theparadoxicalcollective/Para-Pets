@@ -70,6 +70,20 @@ const PIECE_GLOW: Record<Piece, string> = {
   J: "rgba(80,140,255,0.85)",
 };
 
+// Solid base colour painted UNDER each tile texture so that any transparent
+// or off-colour pixels at the edges of the source PNG can never bleed
+// through to the canvas background. Tuned to match the dominant rock hue
+// of each generated molten block so the seam is invisible.
+const PIECE_BASE: Record<Piece, string> = {
+  I: "#3d2410",
+  O: "#3a1f08",
+  T: "#1f0d28",
+  S: "#1a2010",
+  Z: "#2a0808",
+  L: "#0a0a0a",
+  J: "#0a1230",
+};
+
 const PIECE_IMG_SRC: Record<Piece, string> = {
   I: blockI, O: blockO, T: blockT, S: blockS, Z: blockZ, L: blockL, J: blockJ,
 };
@@ -189,6 +203,10 @@ export default function MoltenBlocksPage() {
   const [coinAward, setCoinAward] = useState<{ amount: number; status: "idle" | "submitting" | "done" | "error" }>({ amount: 0, status: "idle" });
   // Brief floating "+5 coins!" toast inside the game when a tier is hit
   const [coinFlash, setCoinFlash] = useState<{ amount: number; ts: number } | null>(null);
+  // Pre-game intro overlay — shown once on mount; dismissed by Start button.
+  // While true, startNewGame has run but we keep the loop paused so the
+  // player can read the rules before the first piece begins to fall.
+  const [showIntro, setShowIntro] = useState(true);
 
   // ── Preload block textures into HTMLImageElement refs ───────────────────
   const imgsRef = useRef<Record<Piece, HTMLImageElement>>({} as any);
@@ -405,7 +423,7 @@ export default function MoltenBlocksPage() {
     let raf = 0;
     const loop = (t: number) => {
       // Drop tick
-      if (runningRef.current && !paused && activeRef.current && !flashRef.current) {
+      if (runningRef.current && !paused && !showIntro && activeRef.current && !flashRef.current) {
         const interval = softDropRef.current ? Math.min(60, dropIntervalRef.current) : dropIntervalRef.current;
         if (t - lastDropRef.current >= interval) {
           lastDropRef.current = t;
@@ -420,12 +438,19 @@ export default function MoltenBlocksPage() {
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paused, lockAndClear, tryMove, imagesReady]);
+  }, [paused, showIntro, lockAndClear, tryMove, imagesReady]);
 
   // ── Drawing ────────────────────────────────────────────────────────────
   const drawCell = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number, type: Piece, ghost = false) => {
     const img = imgsRef.current[type];
     if (img && img.complete && img.naturalWidth > 0) {
+      // Paint a solid base square first — guarantees the cell is fully
+      // covered even if the texture PNG has any transparent or light-edge
+      // pixels around the perimeter.
+      if (!ghost) {
+        ctx.fillStyle = PIECE_BASE[type];
+        ctx.fillRect(x, y, size, size);
+      }
       ctx.save();
       if (ghost) ctx.globalAlpha = 0.22;
       ctx.drawImage(img, x, y, size, size);
@@ -786,8 +811,47 @@ export default function MoltenBlocksPage() {
         </div>
       </div>
 
+      {/* Pre-game intro: title + tutorial + Start button (mount-only) */}
+      {showIntro && !gameOver && (
+        <Overlay>
+          <div style={{ fontSize: 11, letterSpacing: "0.32em", color: "#a06a30" }}>THE MOLTEN BASTION</div>
+          <h2 style={{
+            margin: "6px 0 4px", fontSize: 34, color: accent, letterSpacing: "0.16em",
+            textShadow: "0 0 18px rgba(255,140,30,0.6), 0 0 6px rgba(255,200,40,0.5)",
+          }}>MOLTEN BLOCKS</h2>
+          <div style={{ fontSize: 12, color: "#7a5530", marginBottom: 16, letterSpacing: "0.06em", fontStyle: "italic" }}>
+            Stack the lava-stone before the bastion fills.
+          </div>
+
+          <div style={{
+            background: "rgba(20,8,4,0.85)", border: "1px solid rgba(251,191,36,0.35)",
+            borderRadius: 10, padding: "14px 18px", marginBottom: 16, maxWidth: 320,
+            textAlign: "left", lineHeight: 1.55, fontSize: 12, color: "#f5d589",
+          }}>
+            <TutoLine icon="✦" text="Clear rows to score 3 points each." />
+            <TutoLine icon="✦" text="Every 35 points earns 5 coins for your purse." />
+            <TutoLine icon="♥" text="You have 3 lives — top out and lose one." />
+            <TutoLine icon="↺" text="TAP to rotate the falling piece." />
+            <TutoLine icon="↔" text="SWIPE left or right to move." />
+            <TutoLine icon="↓" text="HOLD down for soft drop, FLICK down to slam." />
+          </div>
+
+          <button
+            data-testid="button-start-game"
+            onClick={() => {
+              // Reset the drop clock so the first piece doesn't fall the
+              // instant the player taps Start (the loop was paused while
+              // the intro was up, so `lastDropRef` is stale).
+              lastDropRef.current = performance.now();
+              setShowIntro(false);
+            }}
+            style={{ ...overlayBtnStyle(accent), fontSize: 15, padding: "12px 32px", letterSpacing: "0.18em" }}
+          >START</button>
+        </Overlay>
+      )}
+
       {/* Pause overlay */}
-      {paused && !gameOver && (
+      {paused && !gameOver && !showIntro && (
         <Overlay>
           <h2 style={{ margin: 0, fontSize: 28, color: accent, letterSpacing: "0.18em" }}>PAUSED</h2>
           <button
@@ -919,6 +983,15 @@ function Overlay({ children }: { children: React.ReactNode }) {
       gap: 8, padding: 20, textAlign: "center",
     }}>
       {children}
+    </div>
+  );
+}
+
+function TutoLine({ icon, text }: { icon: string; text: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 10, padding: "2px 0" }}>
+      <span style={{ color: "#fbbf24", fontSize: 12, minWidth: 16, textAlign: "center" }}>{icon}</span>
+      <span>{text}</span>
     </div>
   );
 }
