@@ -231,7 +231,7 @@ export default function MapPage({ user }: MapPageProps) {
 
   const [navigatingWorldId, setNavigatingWorldId] = useState<string | null>(null);
 
-  const isWorldLocked = (w: WorldData) => !currentUser.isAdmin && !currentUser.isModerator && w.id !== "swamp";
+  const isWorldLocked = (w: WorldData) => !currentUser.isAdmin && w.id !== "swamp" && w.id !== "volcanic";
 
   const handleWorldClick = useCallback((w: WorldData) => {
     if (didDrag.current) return;
