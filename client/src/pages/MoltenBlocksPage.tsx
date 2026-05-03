@@ -58,30 +58,31 @@ const SHAPES: Record<Piece, number[][][]> = {
 };
 
 const COLS = 10;
-const ROWS = 20;
+const ROWS = 18;
 
+// Per-piece coloured glow rim drawn around each cell so the player can
+// quickly tell pieces apart at a glance.
 const PIECE_GLOW: Record<Piece, string> = {
-  I: "rgba(255,200,40,0.85)",
-  O: "rgba(255,160,40,0.85)",
-  T: "rgba(190,80,255,0.85)",
-  S: "rgba(120,255,90,0.85)",
-  Z: "rgba(255,60,60,0.9)",
-  L: "rgba(255,120,30,0.9)",
-  J: "rgba(80,140,255,0.85)",
+  I: "rgba(255,140,40,0.9)",   // bubbly orange
+  O: "rgba(255,200,40,0.95)",  // bright amber
+  T: "rgba(200,90,255,0.9)",   // purple
+  S: "rgba(120,255,90,0.9)",   // green
+  Z: "rgba(255,60,60,0.95)",   // red lava
+  L: "rgba(255,150,30,0.9)",   // black-orange lava
+  J: "rgba(80,255,220,0.9)",   // teal swirl
 };
 
-// Solid base colour painted UNDER each tile texture so that any transparent
-// or off-colour pixels at the edges of the source PNG can never bleed
-// through to the canvas background. Tuned to match the dominant rock hue
-// of each generated molten block so the seam is invisible.
+// Solid base colour painted UNDER each tile texture so any transparent
+// pixels at the rounded corners of the source PNG can never bleed through
+// to the canvas background. Tuned to match the dominant tone of each tile.
 const PIECE_BASE: Record<Piece, string> = {
-  I: "#3d2410",
+  I: "#3a1f08",
   O: "#3a1f08",
   T: "#1f0d28",
-  S: "#1a2010",
+  S: "#0c2010",
   Z: "#2a0808",
   L: "#0a0a0a",
-  J: "#0a1230",
+  J: "#0a2228",
 };
 
 const PIECE_IMG_SRC: Record<Piece, string> = {
@@ -180,10 +181,9 @@ export default function MoltenBlocksPage() {
   const activeRef = useRef<ActivePiece | null>(null);
   const nextRef = useRef<Piece | null>(null);
   // Held piece — Tetris-style "hold" slot. Tap the HOLD box to stash the
-  // currently-falling piece and pull the next; tap again to swap. canHoldRef
-  // prevents repeatedly hold-swapping the same piece without ever locking it.
+  // currently-falling piece and pull the next; tap again to swap. There is
+  // no once-per-piece restriction — the player can swap freely.
   const holdRef = useRef<Piece | null>(null);
-  const canHoldRef = useRef<boolean>(true);
   const [holdPiece, setHoldPiece] = useState<Piece | null>(null);
   const flashRef = useRef<{ rows: number[]; until: number } | null>(null);
   const lastDropRef = useRef<number>(0);
@@ -248,7 +248,6 @@ export default function MoltenBlocksPage() {
     softDropRef.current = false;
     gameOverRef.current = false;
     runningRef.current = true;
-    canHoldRef.current = true;
   }, [pullPiece]);
 
   const startNewGame = useCallback(() => {
@@ -338,8 +337,6 @@ export default function MoltenBlocksPage() {
       }
     } else {
       activeRef.current = p;
-      // Re-arm the hold slot — each fresh piece may be hold-swapped once.
-      canHoldRef.current = true;
     }
   }, [pullPiece, resetBoard, finalizeRun]);
 
@@ -352,7 +349,7 @@ export default function MoltenBlocksPage() {
     if (gameOverRef.current || !runningRef.current) return;
     if (paused || showIntro) return;
     if (!activeRef.current || flashRef.current) return;
-    if (!canHoldRef.current) return;
+    // No once-per-piece restriction — the player can swap as often as they like.
 
     const currentType = activeRef.current.type;
     const stashed = holdRef.current;
@@ -403,7 +400,6 @@ export default function MoltenBlocksPage() {
         activeRef.current = p;
       }
     }
-    canHoldRef.current = false;
   }, [paused, showIntro, pullPiece, resetBoard, finalizeRun]);
 
   // ── Lock current piece, clear lines, update score / level ───────────────
@@ -524,14 +520,33 @@ export default function MoltenBlocksPage() {
   const drawCell = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number, type: Piece, ghost = false) => {
     const img = imgsRef.current[type];
     if (img && img.complete && img.naturalWidth > 0) {
-      // The new textures are designed with rounded edges and transparent
-      // surroundings, so we draw them straight onto the playfield without
-      // a square base fill or rectangular glow stroke (those would clash
-      // with the rounded tile shape).
+      // 1) Solid base fill so transparent rounded corners can never reveal
+      //    the playfield background through the cell.
+      if (!ghost) {
+        ctx.fillStyle = PIECE_BASE[type];
+        ctx.fillRect(x, y, size, size);
+      }
+      // 2) Draw the texture slightly OVERSCALED and clipped to the cell so
+      //    the rounded edges of the PNG push past the cell boundary —
+      //    making the tile fill the square completely.
       ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, size, size);
+      ctx.clip();
       if (ghost) ctx.globalAlpha = 0.22;
-      ctx.drawImage(img, x, y, size, size);
+      const pad = Math.ceil(size * 0.10);
+      ctx.drawImage(img, x - pad, y - pad, size + pad * 2, size + pad * 2);
       ctx.restore();
+      // 3) Coloured glow rim so each piece is identifiable at a glance.
+      if (!ghost) {
+        ctx.save();
+        ctx.shadowColor = PIECE_GLOW[type];
+        ctx.shadowBlur = Math.max(4, size * 0.25);
+        ctx.strokeStyle = PIECE_GLOW[type];
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
+        ctx.restore();
+      }
     } else {
       // Fallback solid colour cell
       ctx.fillStyle = ghost ? PIECE_GLOW[type].replace(/[\d.]+\)$/, "0.18)") : PIECE_GLOW[type];
@@ -916,7 +931,7 @@ export default function MoltenBlocksPage() {
           <button
             data-testid="button-hold"
             onClick={tryHold}
-            disabled={!canHoldRef.current || paused || showIntro || gameOver}
+            disabled={paused || showIntro || gameOver}
             style={{
               background: "rgba(20,8,4,0.65)",
               border: `1px solid ${holdPiece ? "rgba(251,191,36,0.55)" : "rgba(251,191,36,0.25)"}`,
