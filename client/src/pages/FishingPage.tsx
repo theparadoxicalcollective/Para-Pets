@@ -87,9 +87,120 @@ const NIBBLE_MAX_BY_RARITY     = [3, 3, 2, 2, 1];             // 5★ gets 1 cha
 const NIBBLE_TIMEOUT_BY_RARITY = [2500, 2200, 1800, 1400, 1100]; // ms per window — all humanly achievable
 const ACCENT = "#5eead4"; // module-level default (used by sub-components)
 
+// Per-world fishing theme — accent colour, pond surface/glow gradients, shimmer lines and float style.
+// Add a new entry here whenever a new fishing world is introduced; all other worlds fall back to "swamp".
+type FloatStyle = "water" | "lava" | "ice" | "sky" | "sand" | "forest" | "dark";
+interface FishingWorldTheme {
+  accent: string;
+  pondGlow: string;
+  pondSurface: string;
+  shimmer1: string;
+  shimmer2: string;
+  floatStyle: FloatStyle;
+}
+const FISHING_WORLD_THEMES: Record<string, FishingWorldTheme> = {
+  swamp: {
+    accent: "#5eead4",
+    pondGlow: "radial-gradient(ellipse at center, rgba(94,234,212,0.12) 0%, rgba(56,189,248,0.06) 50%, transparent 75%)",
+    pondSurface: "radial-gradient(ellipse at 40% 38%, rgba(147,210,210,0.18) 0%, rgba(56,180,180,0.10) 40%, rgba(14,90,110,0.08) 70%, transparent 100%)",
+    shimmer1: "rgba(200,240,240,0.25)",
+    shimmer2: "rgba(200,240,240,0.18)",
+    floatStyle: "water",
+  },
+  volcanic: {
+    accent: "#ff6520",
+    pondGlow: "radial-gradient(ellipse at center, rgba(255,100,20,0.18) 0%, rgba(200,60,10,0.08) 50%, transparent 75%)",
+    pondSurface: "radial-gradient(ellipse at 40% 38%, rgba(255,140,30,0.22) 0%, rgba(200,80,10,0.14) 40%, rgba(100,30,5,0.10) 70%, transparent 100%)",
+    shimmer1: "rgba(255,180,80,0.28)",
+    shimmer2: "rgba(255,160,60,0.20)",
+    floatStyle: "lava",
+  },
+  snowy_mountain: {
+    accent: "#88ccff",
+    pondGlow: "radial-gradient(ellipse at center, rgba(136,204,255,0.15) 0%, rgba(180,220,255,0.07) 50%, transparent 75%)",
+    pondSurface: "radial-gradient(ellipse at 40% 38%, rgba(180,220,255,0.20) 0%, rgba(136,204,255,0.12) 40%, rgba(80,140,200,0.08) 70%, transparent 100%)",
+    shimmer1: "rgba(200,230,255,0.30)",
+    shimmer2: "rgba(180,210,255,0.22)",
+    floatStyle: "ice",
+  },
+  sky_realm: {
+    accent: "#ffd700",
+    pondGlow: "radial-gradient(ellipse at center, rgba(255,215,0,0.15) 0%, rgba(255,200,0,0.07) 50%, transparent 75%)",
+    pondSurface: "radial-gradient(ellipse at 40% 38%, rgba(255,235,100,0.22) 0%, rgba(255,215,0,0.14) 40%, rgba(200,160,0,0.08) 70%, transparent 100%)",
+    shimmer1: "rgba(255,240,160,0.30)",
+    shimmer2: "rgba(255,220,100,0.22)",
+    floatStyle: "sky",
+  },
+  island: {
+    accent: "#20b2aa",
+    pondGlow: "radial-gradient(ellipse at center, rgba(32,178,170,0.14) 0%, rgba(0,180,160,0.07) 50%, transparent 75%)",
+    pondSurface: "radial-gradient(ellipse at 40% 38%, rgba(32,200,180,0.20) 0%, rgba(0,180,160,0.12) 40%, rgba(0,120,110,0.08) 70%, transparent 100%)",
+    shimmer1: "rgba(100,230,210,0.28)",
+    shimmer2: "rgba(80,210,190,0.20)",
+    floatStyle: "water",
+  },
+  desert: {
+    accent: "#daa520",
+    pondGlow: "radial-gradient(ellipse at center, rgba(218,165,32,0.15) 0%, rgba(200,140,20,0.07) 50%, transparent 75%)",
+    pondSurface: "radial-gradient(ellipse at 40% 38%, rgba(218,165,32,0.18) 0%, rgba(180,130,20,0.10) 40%, rgba(120,80,10,0.07) 70%, transparent 100%)",
+    shimmer1: "rgba(240,200,80,0.28)",
+    shimmer2: "rgba(220,180,60,0.20)",
+    floatStyle: "sand",
+  },
+  enchanted_grove: {
+    accent: "#7fffd4",
+    pondGlow: "radial-gradient(ellipse at center, rgba(127,255,212,0.14) 0%, rgba(80,220,160,0.07) 50%, transparent 75%)",
+    pondSurface: "radial-gradient(ellipse at 40% 38%, rgba(127,255,212,0.18) 0%, rgba(80,220,160,0.10) 40%, rgba(40,160,100,0.07) 70%, transparent 100%)",
+    shimmer1: "rgba(160,255,220,0.28)",
+    shimmer2: "rgba(127,255,212,0.20)",
+    floatStyle: "forest",
+  },
+  haunted_woods: {
+    accent: "#bf5fff",
+    pondGlow: "radial-gradient(ellipse at center, rgba(139,0,139,0.20) 0%, rgba(100,0,100,0.09) 50%, transparent 75%)",
+    pondSurface: "radial-gradient(ellipse at 40% 38%, rgba(180,50,200,0.18) 0%, rgba(139,0,139,0.10) 40%, rgba(80,0,80,0.07) 70%, transparent 100%)",
+    shimmer1: "rgba(200,100,220,0.25)",
+    shimmer2: "rgba(180,80,200,0.18)",
+    floatStyle: "dark",
+  },
+};
+const DEFAULT_FISHING_THEME = FISHING_WORLD_THEMES.swamp;
+
+function PondFloats({ floatStyle }: { floatStyle: FloatStyle }) {
+  if (floatStyle === "lava") return (<>
+    <div style={{ position: "absolute", top: "10%", left: "62%", width: 10, height: 10, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,160,40,0.80), rgba(200,80,10,0.50))", border: "1px solid rgba(255,120,30,0.60)", animation: "lilyFloat 3s ease-in-out infinite" }} />
+    <div style={{ position: "absolute", top: "38%", left: "15%", width: 7, height: 7, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,140,30,0.70), rgba(180,60,5,0.40))", border: "1px solid rgba(255,100,20,0.50)", animation: "lilyFloat 4.5s ease-in-out infinite 1s" }} />
+  </>);
+  if (floatStyle === "ice") return (<>
+    <div style={{ position: "absolute", top: "10%", left: "62%", width: 20, height: 20, borderRadius: "3px", background: "radial-gradient(circle, rgba(200,230,255,0.60), rgba(136,204,255,0.30))", border: "1px solid rgba(200,230,255,0.50)", transform: "rotate(45deg)", animation: "lilyFloat 6s ease-in-out infinite" }} />
+    <div style={{ position: "absolute", top: "38%", left: "15%", width: 13, height: 13, borderRadius: "3px", background: "radial-gradient(circle, rgba(200,230,255,0.50), rgba(136,204,255,0.25))", border: "1px solid rgba(180,220,255,0.40)", transform: "rotate(20deg)", animation: "lilyFloat 8s ease-in-out infinite 1.2s" }} />
+  </>);
+  if (floatStyle === "sky") return (<>
+    <div style={{ position: "absolute", top: "8%", left: "60%", width: 26, height: 14, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(255,240,160,0.55), rgba(255,215,0,0.25))", border: "1px solid rgba(255,235,100,0.40)", animation: "lilyFloat 7s ease-in-out infinite" }} />
+    <div style={{ position: "absolute", top: "42%", left: "12%", width: 18, height: 10, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(255,240,160,0.45), rgba(255,215,0,0.20))", border: "1px solid rgba(255,220,80,0.30)", animation: "lilyFloat 9s ease-in-out infinite 1.5s" }} />
+  </>);
+  if (floatStyle === "sand") return (<>
+    <div style={{ position: "absolute", top: "14%", left: "64%", width: 18, height: 6, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(218,165,32,0.45), rgba(180,130,10,0.20))", border: "1px solid rgba(218,165,32,0.35)", animation: "lilyFloat 8s ease-in-out infinite" }} />
+    <div style={{ position: "absolute", top: "44%", left: "14%", width: 12, height: 4, borderRadius: "50%", background: "radial-gradient(ellipse, rgba(218,165,32,0.35), rgba(160,110,10,0.15))", border: "1px solid rgba(200,150,20,0.25)", animation: "lilyFloat 10s ease-in-out infinite 2s" }} />
+  </>);
+  if (floatStyle === "forest") return (<>
+    <div style={{ position: "absolute", top: "10%", left: "62%", width: 22, height: 22, borderRadius: "50%", background: "radial-gradient(circle, rgba(127,255,212,0.50), rgba(40,200,120,0.25))", border: "1px solid rgba(127,255,212,0.35)", animation: "lilyFloat 6s ease-in-out infinite" }} />
+    <div style={{ position: "absolute", top: "38%", left: "15%", width: 14, height: 14, borderRadius: "50%", background: "radial-gradient(circle, rgba(127,255,212,0.40), rgba(40,200,120,0.18))", border: "1px solid rgba(127,255,212,0.25)", animation: "lilyFloat 8s ease-in-out infinite 1s" }} />
+  </>);
+  if (floatStyle === "dark") return (<>
+    <div style={{ position: "absolute", top: "10%", left: "62%", width: 16, height: 16, borderRadius: "50%", background: "radial-gradient(circle, rgba(200,80,220,0.50), rgba(139,0,139,0.25))", border: "1px solid rgba(200,80,220,0.40)", animation: "lilyFloat 5s ease-in-out infinite" }} />
+    <div style={{ position: "absolute", top: "38%", left: "15%", width: 10, height: 10, borderRadius: "50%", background: "radial-gradient(circle, rgba(180,60,200,0.40), rgba(120,0,120,0.20))", border: "1px solid rgba(180,60,200,0.30)", animation: "lilyFloat 7s ease-in-out infinite 1.3s" }} />
+  </>);
+  // default: water (swamp + island)
+  return (<>
+    <div style={{ position: "absolute", top: "10%", left: "62%", width: 22, height: 22, borderRadius: "50%", background: "radial-gradient(circle, rgba(74,200,130,0.55), rgba(34,140,80,0.30))", border: "1px solid rgba(100,220,140,0.35)", animation: "lilyFloat 6s ease-in-out infinite" }} />
+    <div style={{ position: "absolute", top: "38%", left: "15%", width: 14, height: 14, borderRadius: "50%", background: "radial-gradient(circle, rgba(74,200,130,0.45), rgba(34,140,80,0.20))", border: "1px solid rgba(100,220,140,0.25)", animation: "lilyFloat 8s ease-in-out infinite 1s" }} />
+  </>);
+}
+
 export default function FishingPage({ locationId, locationName, bgUrl, worldId, user, onClose }: FishingPageProps) {
-  const isVolcanic = worldId === "volcanic";
-  const accent = isVolcanic ? "#ff6520" : ACCENT;
+  const theme = FISHING_WORLD_THEMES[worldId ?? ""] ?? DEFAULT_FISHING_THEME;
+  const accent = theme.accent;
   const [phase, setPhase] = useState<FishingPhase>("idle");
   const [showPolePanel, setShowPolePanel] = useState(false);
   const [showBaitPanel, setShowBaitPanel] = useState(false);
@@ -703,9 +814,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
           position: "absolute",
           inset: "-12px",
           borderRadius: "50%",
-          background: isVolcanic
-            ? "radial-gradient(ellipse at center, rgba(255,100,20,0.18) 0%, rgba(200,60,10,0.08) 50%, transparent 75%)"
-            : "radial-gradient(ellipse at center, rgba(94,234,212,0.12) 0%, rgba(56,189,248,0.06) 50%, transparent 75%)",
+          background: theme.pondGlow,
           animation: "pondGlow 4s ease-in-out infinite",
         }} />
         {/* Pool surface oval — clickable cast target */}
@@ -719,9 +828,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
             width: "100%",
             paddingBottom: "38%",
             borderRadius: "50%",
-            background: isVolcanic
-              ? "radial-gradient(ellipse at 40% 38%, rgba(255,140,30,0.22) 0%, rgba(200,80,10,0.14) 40%, rgba(100,30,5,0.10) 70%, transparent 100%)"
-              : "radial-gradient(ellipse at 40% 38%, rgba(147,210,210,0.18) 0%, rgba(56,180,180,0.10) 40%, rgba(14,90,110,0.08) 70%, transparent 100%)",
+            background: theme.pondSurface,
             border: phase === "idle" && hasPole
               ? `1.5px solid ${accent}88`
               : `1.5px solid ${accent}38`,
@@ -735,15 +842,15 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
             cursor: (phase === "idle" && hasPole) || phase === "nibble" ? "pointer" : "default",
           }}
         >
-          {/* shimmer / lava streaks */}
+          {/* shimmer streaks — colour matches world theme */}
           <div style={{
             position: "absolute", top: "28%", left: "20%", width: "22%", height: "2px",
-            background: isVolcanic ? "rgba(255,180,80,0.28)" : "rgba(200,240,240,0.25)", borderRadius: 4,
+            background: theme.shimmer1, borderRadius: 4,
             animation: "shimmer1 5s ease-in-out infinite",
           }} />
           <div style={{
             position: "absolute", top: "52%", left: "55%", width: "14%", height: "1.5px",
-            background: isVolcanic ? "rgba(255,160,60,0.20)" : "rgba(200,240,240,0.18)", borderRadius: 4,
+            background: theme.shimmer2, borderRadius: 4,
             animation: "shimmer2 7s ease-in-out infinite",
           }} />
           {phase === "idle" && hasPole && (
@@ -766,38 +873,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
             </div>
           )}
         </div>
-        {/* Decorative floats — lily pads for water worlds, lava bubbles for volcanic */}
-        {isVolcanic ? (<>
-          <div style={{
-            position: "absolute", top: "10%", left: "62%",
-            width: 10, height: 10, borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(255,160,40,0.80), rgba(200,80,10,0.50))",
-            border: "1px solid rgba(255,120,30,0.60)",
-            animation: "lilyFloat 3s ease-in-out infinite",
-          }} />
-          <div style={{
-            position: "absolute", top: "38%", left: "15%",
-            width: 7, height: 7, borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(255,140,30,0.70), rgba(180,60,5,0.40))",
-            border: "1px solid rgba(255,100,20,0.50)",
-            animation: "lilyFloat 4.5s ease-in-out infinite 1s",
-          }} />
-        </>) : (<>
-          <div style={{
-            position: "absolute", top: "10%", left: "62%",
-            width: 22, height: 22, borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(74,200,130,0.55), rgba(34,140,80,0.30))",
-            border: "1px solid rgba(100,220,140,0.35)",
-            animation: "lilyFloat 6s ease-in-out infinite",
-          }} />
-          <div style={{
-            position: "absolute", top: "38%", left: "15%",
-            width: 14, height: 14, borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(74,200,130,0.45), rgba(34,140,80,0.20))",
-            border: "1px solid rgba(100,220,140,0.25)",
-            animation: "lilyFloat 8s ease-in-out infinite 1s",
-          }} />
-        </>)}
+        {/* Decorative floats — style varies by world theme */}
+        <PondFloats floatStyle={theme.floatStyle} />
       </div>
 
       {!bgLoaded && (
@@ -1084,6 +1161,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
           fishState={tensionState.fishState}
           snapEffect={tensionState.snapEffect}
           onHoldChange={(holding) => { isHoldingRef.current = holding; }}
+          accent={accent}
           sweetLow={[0.25, 0.28, 0.30, 0.33, 0.35][Math.max(0, Math.min(4, nibbleRarityRef.current - 1))]}
           sweetHigh={[0.75, 0.72, 0.70, 0.67, 0.65][Math.max(0, Math.min(4, nibbleRarityRef.current - 1))]}
         />
@@ -1243,6 +1321,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
       {showFishBook && (
         <FishBookPanel
           onClose={() => setShowFishBook(false)}
+          accent={accent}
         />
       )}
 
@@ -1527,8 +1606,10 @@ function FishInventoryPanel({
 
 function FishBookPanel({
   onClose,
+  accent,
 }: {
   onClose: () => void;
+  accent: string;
 }) {
   const [filter, setFilter] = useState<"all" | "caught" | "uncaught">("all");
 
@@ -1880,7 +1961,7 @@ function PondAdminPanel({
 }
 
 function TensionReel({
-  catchProgress, tension, escapeMeter, fishState, snapEffect, onHoldChange, sweetLow, sweetHigh,
+  catchProgress, tension, escapeMeter, fishState, snapEffect, onHoldChange, accent, sweetLow, sweetHigh,
 }: {
   catchProgress: number;
   tension: number;
@@ -1888,6 +1969,7 @@ function TensionReel({
   fishState: FishBehaviorState;
   snapEffect: boolean;
   onHoldChange: (holding: boolean) => void;
+  accent: string;
   sweetLow: number;
   sweetHigh: number;
 }) {

@@ -882,18 +882,21 @@ app.use((req, res, next) => {
     "a1b2c3d4-0006-4000-8000-000000000006": "bg_mossy_cauldron.webp",
     "a1b2c3d4-0008-4000-8000-000000000008": "bg_soggy_hook_v1.webp",
     "a1b2c3d4-0002-4000-8000-000000000002": "bg_willowmere_cottage.webp",
-    "3b3bb453-e012-4ba3-9308-71c1376d84a8": "bg_fishing_volcanic.png",
     "c3d4e5f6-0003-4000-8000-000000000003": "bg_shop_forge_fang_volcanic.png",
     "c3d4e5f6-0004-4000-8000-000000000004": "bg_shop_bookshop_volcanic.png",
   };
   for (const [locId, bgFile] of Object.entries(LOC_BG_ALWAYS_REFRESH)) {
     try {
       const assetPath = path.join(process.cwd(), "attached_assets", bgFile);
-      if (!fs.existsSync(assetPath)) continue;
+      if (!fs.existsSync(assetPath)) { console.warn(`LOC_BG_ALWAYS_REFRESH: ${bgFile} not found, skipping ${locId}`); continue; }
       const mtime = fs.statSync(assetPath).mtimeMs;
       const v = Math.floor(mtime / 1000);
       const bgUrl = `/world-assets/${bgFile}?v=${v}`;
-      await db.execute(sql`UPDATE world_locations SET bg_url = ${bgUrl} WHERE id = ${locId} AND (bg_url IS NULL OR bg_url NOT LIKE ${`/world-assets/${bgFile}?v=${v}`})`);
+      // Unconditional UPDATE — always write the correct versioned URL on every restart.
+      // No conditional check: the LIKE pattern with ?v= can silently misbehave in some drivers.
+      const result = await db.execute(sql`UPDATE world_locations SET bg_url = ${bgUrl} WHERE id = ${locId}`);
+      const affected = (result as any).rowCount ?? (result as any).rows?.length ?? "?";
+      console.log(`LOC_BG: ${bgFile} → ${locId} (${affected} row${affected === 1 ? "" : "s"})`);
     } catch (err) {
       console.error(`Location bg refresh error for ${locId} (non-fatal):`, err);
     }
@@ -1973,6 +1976,23 @@ app.use((req, res, next) => {
     }
   } catch (err) {
     console.error("Volcanic bookshop seed error (non-fatal):", err);
+  }
+
+  // Always refresh the volcanic fishing spot background — runs AFTER all location seeding
+  // so the row is guaranteed to exist. Uses storage.updateWorldLocation (ORM layer) to
+  // avoid UUID parameterization mismatches that affect raw db.execute() calls.
+  try {
+    const VOLCANIC_FISHING_SPOT_ID = "3b3bb453-e012-4ba3-9308-71c1376d84a8";
+    const volcFishBgFile = "bg_fishing_volcanic.png";
+    const volcFishBgPath = path.join(process.cwd(), "attached_assets", volcFishBgFile);
+    if (fs.existsSync(volcFishBgPath)) {
+      const v = Math.floor(fs.statSync(volcFishBgPath).mtimeMs / 1000);
+      const bgUrl = `/world-assets/${volcFishBgFile}?v=${v}`;
+      await storage.updateWorldLocation(VOLCANIC_FISHING_SPOT_ID, { bgUrl } as any);
+      console.log(`Volcanic fishing spot background refreshed (${bgUrl}).`);
+    }
+  } catch (err) {
+    console.error("Volcanic fishing spot bg refresh error (non-fatal):", err);
   }
 
   // Always refresh known location icons as versioned static URLs — runs AFTER all seeding code
