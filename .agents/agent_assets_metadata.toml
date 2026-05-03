@@ -570,6 +570,42 @@ uri = "file://attached_assets/fish_lord_inferno.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "RTaQEwBI7hIfCk_afja4C"
+uri = "file://attached_assets/book_ember_codex_strength.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "X7NqT8LXyupQL6PQK-DYV"
+uri = "file://attached_assets/book_tome_of_lava_hide.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "0Y1mzhcXLer8ngPR0gpoO"
+uri = "file://attached_assets/book_magma_heart_manuscript.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "TAV3klS-fTuMJrPF54XVm"
+uri = "file://attached_assets/book_pyromancer_battle_grimoire.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "dEnMHuRylgw0C-BKdxDsf"
+uri = "file://attached_assets/book_obsidian_bulwark_codex.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "0H28lzo_x9Vb6aZw2plg6"
+uri = "file://attached_assets/book_phoenix_apex_compendium.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

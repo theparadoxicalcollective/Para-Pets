@@ -2115,6 +2115,59 @@ app.use((req, res, next) => {
     console.error("Volcanic fish seed error (non-fatal):", err);
   }
 
+  try {
+    const COIN_PER_STAT = 7;
+    const volcanicBooks = [
+      { name: "Ember Codex of Strength",      stat: "atk",    amount: 6,  file: "book_ember_codex_strength.png" },
+      { name: "Tome of Lava Hide",            stat: "def",    amount: 6,  file: "book_tome_of_lava_hide.png" },
+      { name: "Magma Heart Manuscript",       stat: "health", amount: 10, file: "book_magma_heart_manuscript.png" },
+      { name: "Pyromancer's Battle Grimoire", stat: "atk",    amount: 10, file: "book_pyromancer_battle_grimoire.png" },
+      { name: "Obsidian Bulwark Codex",       stat: "def",    amount: 16, file: "book_obsidian_bulwark_codex.png" },
+      { name: "Phoenix Apex Compendium",      stat: "health", amount: 30, file: "book_phoenix_apex_compendium.png" },
+    ];
+    let inserted = 0;
+    let updated = 0;
+    for (const b of volcanicBooks) {
+      const assetPath = path.join(process.cwd(), "attached_assets", b.file);
+      if (!fs.existsSync(assetPath)) {
+        console.warn(`Volcanic book asset missing, skipping: ${b.file}`);
+        continue;
+      }
+      const v = Math.floor(fs.statSync(assetPath).mtimeMs / 1000);
+      const imageUrl = `/world-assets/${b.file}?v=${v}`;
+      const price = b.amount * COIN_PER_STAT;
+      const existing = await db.execute(
+        sql`SELECT id FROM shop_items WHERE name = ${b.name} AND type = 'power_up' LIMIT 1`
+      );
+      if ((existing as any).rows?.length) {
+        await db.execute(sql`
+          UPDATE shop_items
+          SET price = ${price},
+              world_id = 'volcanic',
+              image_url = ${imageUrl},
+              stat_boost_type = ${b.stat},
+              stat_boost_amount = ${b.amount},
+              atk_boost = NULL,
+              def_boost = NULL,
+              health_boost = NULL
+          WHERE name = ${b.name} AND type = 'power_up'
+        `);
+        updated++;
+      } else {
+        await db.execute(sql`
+          INSERT INTO shop_items (name, price, type, world_id, image_url, stat_boost_type, stat_boost_amount)
+          VALUES (${b.name}, ${price}, 'power_up', 'volcanic', ${imageUrl}, ${b.stat}, ${b.amount})
+        `);
+        inserted++;
+      }
+    }
+    if (inserted || updated) {
+      console.log(`Volcanic books refreshed (${inserted} new, ${updated} updated).`);
+    }
+  } catch (err) {
+    console.error("Volcanic books seed error (non-fatal):", err);
+  }
+
   // Seed volcanic food shop — uses the same one-shot game_settings flag pattern
   // as the other volcanic shops so it inserts once, then becomes admin-movable
   // (position/size persisted via the standard world_locations PATCH route).
