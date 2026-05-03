@@ -666,7 +666,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           <div
             ref={petContainerRef}
             className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]"
-            style={{ marginBottom: activePet ? "5svh" : undefined }}
+            style={{ marginBottom: activePet ? "8svh" : undefined }}
           >
 
             {/* Rarity sparkle lights (3/4/5 star) — gated until container has real height */}
