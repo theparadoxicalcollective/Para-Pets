@@ -2282,6 +2282,54 @@ app.use((req, res, next) => {
     console.error("Swamp accessories seed error (non-fatal):", err);
   }
 
+  // Seed 6 volcanic-themed accessory items (one-shot). Pricing: 12 coins
+  // per stat point (accessories don't break). Mixed stat profiles.
+  try {
+    const volcanicAccessoriesDone = await storage.getGameSetting("volcanic_accessories_v1");
+    const volcanicAccessories = [
+      { name: "Obsidian Drake Greatsword", file: "accessory_volcanic_sword.png",  atk: 200, def: 0,   hp: 0,   price: 2400 },
+      { name: "Magma Bolt Crossbow",       file: "accessory_volcanic_bow.png",    atk: 175, def: 0,   hp: 0,   price: 2100 },
+      { name: "Phoenix Heart Staff",       file: "accessory_volcanic_staff.png",  atk: 160, def: 0,   hp: 60,  price: 2640 },
+      { name: "Drakeplate Cuirass",        file: "accessory_volcanic_armor.png",  atk: 0,   def: 130, hp: 50,  price: 2160 },
+      { name: "Cinderforge Bulwark",       file: "accessory_volcanic_shield.png", atk: 0,   def: 120, hp: 0,   price: 1440 },
+      { name: "Ember Heart Amulet",        file: "accessory_volcanic_amulet.png", atk: 0,   def: 0,   hp: 200, price: 2400 },
+    ];
+    if (!volcanicAccessoriesDone) {
+      let inserted = 0;
+      for (const it of volcanicAccessories) {
+        const assetPath = path.join(process.cwd(), "attached_assets", it.file);
+        if (!fs.existsSync(assetPath)) { console.warn(`Volcanic accessory missing, skipping: ${it.file}`); continue; }
+        const v = Math.floor(fs.statSync(assetPath).mtimeMs / 1000);
+        const imageUrl = `/world-assets/${it.file}?v=${v}`;
+        const existing = await db.execute(
+          sql`SELECT id FROM shop_items WHERE name = ${it.name} AND type = 'accessory' LIMIT 1`
+        );
+        if ((existing as any).rows?.length) continue;
+        await db.execute(sql`
+          INSERT INTO shop_items (name, price, type, world_id, image_url, atk_boost, def_boost, health_boost)
+          VALUES (${it.name}, ${it.price}, 'accessory', 'volcanic', ${imageUrl},
+                  ${it.atk || null}, ${it.def || null}, ${it.hp || null})
+        `);
+        inserted++;
+      }
+      await storage.setGameSetting("volcanic_accessories_v1", "done");
+      console.log(`Volcanic accessories seeded (${inserted} new).`);
+    }
+    // Always refresh image_url so re-exported (background-stripped) PNGs
+    // show up without a manual DB edit.
+    for (const it of volcanicAccessories) {
+      const assetPath = path.join(process.cwd(), "attached_assets", it.file);
+      if (!fs.existsSync(assetPath)) continue;
+      const v = Math.floor(fs.statSync(assetPath).mtimeMs / 1000);
+      const url = `/world-assets/${it.file}?v=${v}`;
+      await db.execute(
+        sql`UPDATE shop_items SET image_url = ${url} WHERE name = ${it.name} AND type = 'accessory'`
+      );
+    }
+  } catch (err) {
+    console.error("Volcanic accessories seed error (non-fatal):", err);
+  }
+
   // Seed volcanic bookshop
   try {
     const VOLCANIC_BOOKSHOP_ID = "c3d4e5f6-0004-4000-8000-000000000004";

@@ -720,6 +720,42 @@ uri = "file://attached_assets/accessory_swamp_amulet.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "xAUIWjOchnzhJexE7fsKh"
+uri = "file://attached_assets/accessory_volcanic_sword.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "XmuQPN0zc8KV3hBiEGh-X"
+uri = "file://attached_assets/accessory_volcanic_bow.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "yyeakhVL_k0DFe5aqOppa"
+uri = "file://attached_assets/accessory_volcanic_staff.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "KEGDIQG_bxpTQ2rwk9DEQ"
+uri = "file://attached_assets/accessory_volcanic_armor.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "sCuWzIuSVX_QmtOK9OalQ"
+uri = "file://attached_assets/accessory_volcanic_shield.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "OjDWwGftUdeITmMbOpX9J"
+uri = "file://attached_assets/accessory_volcanic_amulet.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
