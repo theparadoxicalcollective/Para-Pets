@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { playChime, playTick, playShopBell } from "@/lib/sounds";
+import { playChime, playTick, playShopBell, playMapTap } from "@/lib/sounds";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1290,6 +1290,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       setShowNoPetMessage(true);
       return;
     }
+    playMapTap();
     openLocation(loc);
   }, [currentUser.activePetId, currentUser.isAdmin, hasHatchedActivePet, openLocation]);
 

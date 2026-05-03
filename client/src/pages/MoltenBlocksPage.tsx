@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { playBlockMove, playBlockRotate, playBlockLock, playBlockHardDrop, playLineClear, playHoldSwap, playDefeat, playShopBell } from "@/lib/sounds";
 import blockI from "@assets/Photoroom_20260502_115639_PM_1777784698006.png";
 import blockO from "@assets/Photoroom_20260503_120122_AM_1777784698006.png";
 import blockT from "@assets/Photoroom_20260502_115749_PM_1777784698006.png";
@@ -371,6 +372,7 @@ export default function MoltenBlocksPage() {
         runningRef.current = false;
         activeRef.current = null;
         setGameOver(true);
+        playDefeat();
         finalizeRun();
       }
     } else {
@@ -391,6 +393,7 @@ export default function MoltenBlocksPage() {
 
     const currentType = activeRef.current.type;
     const stashed = holdRef.current;
+    playHoldSwap();
     if (stashed == null) {
       // First hold this run — stash current and bring in the next-queue piece.
       holdRef.current = currentType;
@@ -474,6 +477,8 @@ export default function MoltenBlocksPage() {
         scoreRef.current = nextScore;
         coinsEarnedRef.current = coinsEarnedRef.current + coinsAdded;
         setScore(nextScore);
+        playLineClear(n);
+        if (tierCoins > 0) setTimeout(() => playShopBell(), 200);
         if (coinsAdded > 0) {
           setCoinsEarned(coinsEarnedRef.current);
           setCoinFlash({ amount: coinsAdded, ts: performance.now() });
@@ -493,6 +498,7 @@ export default function MoltenBlocksPage() {
     } else {
       boardRef.current = locked;
       activeRef.current = null;
+      playBlockLock();
       spawnNext();
     }
   }, [level, spawnNext]);
@@ -516,6 +522,7 @@ export default function MoltenBlocksPage() {
           x: activeRef.current.x + k,
           rot: ((activeRef.current.rot + 1) % 4) as 0 | 1 | 2 | 3,
         };
+        playBlockRotate();
         return;
       }
     }
@@ -529,6 +536,7 @@ export default function MoltenBlocksPage() {
       activeRef.current = { ...activeRef.current, y: activeRef.current.y + dy };
       // Score is awarded ONLY on line clears — no per-cell hard-drop bonus.
     }
+    playBlockHardDrop();
     lockAndClear();
   }, [lockAndClear]);
 
@@ -824,9 +832,12 @@ export default function MoltenBlocksPage() {
     // Horizontal stepping — step once per STEP_PX of travel since last step
     if (Math.abs(dx) >= STEP_PX) {
       const steps = Math.trunc(dx / STEP_PX);
+      let movedAny = false;
       for (let i = 0; i < Math.abs(steps); i++) {
         if (!tryMove(steps > 0 ? 1 : -1, 0)) break;
+        movedAny = true;
       }
+      if (movedAny) playBlockMove();
       g.lastStepX = g.lastStepX + steps * STEP_PX;
     }
   };
@@ -870,8 +881,8 @@ export default function MoltenBlocksPage() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (gameOver) return;
-      if (e.key === "ArrowLeft")        { e.preventDefault(); tryMove(-1, 0); }
-      else if (e.key === "ArrowRight")  { e.preventDefault(); tryMove(1, 0); }
+      if (e.key === "ArrowLeft")        { e.preventDefault(); if (tryMove(-1, 0)) playBlockMove(); }
+      else if (e.key === "ArrowRight")  { e.preventDefault(); if (tryMove(1, 0)) playBlockMove(); }
       else if (e.key === "ArrowDown")   { e.preventDefault(); softDropRef.current = true; }
       else if (e.key === "ArrowUp" || e.key === "x" || e.key === "X") { e.preventDefault(); tryRotate(); }
       else if (e.key === " ")           { e.preventDefault(); hardDrop(); }

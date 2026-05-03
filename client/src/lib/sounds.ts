@@ -493,6 +493,231 @@ export function playDefeat() {
   } catch {}
 }
 
+// ── Molten Blocks game sounds ────────────────────────────────────────────────
+
+/** Piece steps left or right — subtle mechanical click. */
+export function playBlockMove() {
+  try {
+    const c = getCtx(); if (!c) return;
+    const osc = c.createOscillator(); const gain = c.createGain();
+    osc.connect(gain); gain.connect(c.destination);
+    osc.type = "square";
+    osc.frequency.setValueAtTime(260, c.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(160, c.currentTime + 0.022);
+    gain.gain.setValueAtTime(0.10, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.028);
+    osc.start(c.currentTime); osc.stop(c.currentTime + 0.032);
+  } catch {}
+}
+
+/** Piece rotates — quick rising blip. */
+export function playBlockRotate() {
+  try {
+    const c = getCtx(); if (!c) return;
+    const osc = c.createOscillator(); const gain = c.createGain();
+    osc.connect(gain); gain.connect(c.destination);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(420, c.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(780, c.currentTime + 0.055);
+    gain.gain.setValueAtTime(0.17, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.07);
+    osc.start(c.currentTime); osc.stop(c.currentTime + 0.08);
+  } catch {}
+}
+
+/** Piece locks into the board naturally — low thud with noise snap. */
+export function playBlockLock() {
+  try {
+    const c = getCtx(); if (!c) return;
+    const comp = c.createDynamicsCompressor(); comp.connect(c.destination);
+    const osc = c.createOscillator(); const gain = c.createGain();
+    osc.connect(gain); gain.connect(comp);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(150, c.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(55, c.currentTime + 0.09);
+    gain.gain.setValueAtTime(0.32, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.13);
+    osc.start(c.currentTime); osc.stop(c.currentTime + 0.15);
+    const bufLen = Math.floor(c.sampleRate * 0.02);
+    const buf = c.createBuffer(1, bufLen, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
+    const noise = c.createBufferSource(); const flt = c.createBiquadFilter(); const ng = c.createGain();
+    flt.type = "bandpass"; flt.frequency.value = 1100; flt.Q.value = 1.2;
+    noise.buffer = buf; noise.connect(flt); flt.connect(ng); ng.connect(comp);
+    ng.gain.setValueAtTime(0.11, c.currentTime);
+    ng.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.025);
+    noise.start(c.currentTime);
+  } catch {}
+}
+
+/** Hard-drop slam — heavier punch + rumble. */
+export function playBlockHardDrop() {
+  try {
+    const c = getCtx(); if (!c) return;
+    const comp = c.createDynamicsCompressor(); comp.connect(c.destination);
+    const osc = c.createOscillator(); const gain = c.createGain();
+    osc.connect(gain); gain.connect(comp);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(210, c.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(45, c.currentTime + 0.14);
+    gain.gain.setValueAtTime(0.52, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.19);
+    osc.start(c.currentTime); osc.stop(c.currentTime + 0.21);
+    const bufLen = Math.floor(c.sampleRate * 0.04);
+    const buf = c.createBuffer(1, bufLen, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
+    const noise = c.createBufferSource(); const flt = c.createBiquadFilter(); const ng = c.createGain();
+    flt.type = "bandpass"; flt.frequency.value = 750; flt.Q.value = 0.8;
+    noise.buffer = buf; noise.connect(flt); flt.connect(ng); ng.connect(comp);
+    ng.gain.setValueAtTime(0.22, c.currentTime);
+    ng.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.055);
+    noise.start(c.currentTime);
+  } catch {}
+}
+
+/**
+ * Row clear sound — escalates with the number of rows:
+ *   1 → satisfying pop + sizzle
+ *   2 → double pop
+ *   3 → triple pop + riser
+ *   4+ → volcanic explosion + triumphant chimes (Tetris)
+ */
+export function playLineClear(n: number) {
+  try {
+    const c = getCtx(); if (!c) return;
+    if (n >= 4) {
+      // Tetris — big lava explosion + ascending chimes
+      const bufLen = Math.floor(c.sampleRate * 0.36);
+      const buf = c.createBuffer(1, bufLen, c.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
+      const noise = c.createBufferSource(); const flt = c.createBiquadFilter(); const ng = c.createGain();
+      flt.type = "lowpass"; flt.frequency.value = 3200;
+      noise.buffer = buf; noise.connect(flt); flt.connect(ng); ng.connect(c.destination);
+      ng.gain.setValueAtTime(0.36, c.currentTime);
+      ng.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.36);
+      noise.start(c.currentTime);
+      const osc = c.createOscillator(); const gain = c.createGain();
+      osc.connect(gain); gain.connect(c.destination);
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(90, c.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(820, c.currentTime + 0.28);
+      gain.gain.setValueAtTime(0.20, c.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.32);
+      osc.start(c.currentTime); osc.stop(c.currentTime + 0.35);
+      [1046.5, 1318.5, 1567.98, 2093].forEach((freq, i) => {
+        const t = c.currentTime + 0.10 + i * 0.07;
+        const o = c.createOscillator(); const g = c.createGain();
+        o.connect(g); g.connect(c.destination);
+        o.type = "sine"; o.frequency.setValueAtTime(freq, t);
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.22, t + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.52);
+        o.start(t); o.stop(t + 0.56);
+      });
+    } else if (n === 3) {
+      // Triple — three rising pops + noise burst
+      [0, 0.06, 0.12].forEach((delay, i) => {
+        const t = c.currentTime + delay;
+        const o = c.createOscillator(); const g = c.createGain();
+        o.connect(g); g.connect(c.destination);
+        o.type = "sine";
+        o.frequency.setValueAtTime(400 + i * 110, t);
+        o.frequency.exponentialRampToValueAtTime(780 + i * 110, t + 0.055);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.21, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.19);
+        o.start(t); o.stop(t + 0.22);
+      });
+      const bufLen2 = Math.floor(c.sampleRate * 0.14);
+      const buf2 = c.createBuffer(1, bufLen2, c.sampleRate);
+      const d2 = buf2.getChannelData(0);
+      for (let i = 0; i < bufLen2; i++) d2[i] = Math.random() * 2 - 1;
+      const noise2 = c.createBufferSource(); const flt2 = c.createBiquadFilter(); const ng2 = c.createGain();
+      flt2.type = "bandpass"; flt2.frequency.value = 2200; flt2.Q.value = 0.9;
+      noise2.buffer = buf2; noise2.connect(flt2); flt2.connect(ng2); ng2.connect(c.destination);
+      ng2.gain.setValueAtTime(0.16, c.currentTime + 0.10);
+      ng2.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.27);
+      noise2.start(c.currentTime + 0.10);
+    } else if (n === 2) {
+      // Double — two crisp pops
+      [0, 0.07].forEach((delay, i) => {
+        const t = c.currentTime + delay;
+        const o = c.createOscillator(); const g = c.createGain();
+        o.connect(g); g.connect(c.destination);
+        o.type = "sine";
+        o.frequency.setValueAtTime(370 + i * 100, t);
+        o.frequency.exponentialRampToValueAtTime(650 + i * 100, t + 0.052);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.19, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.17);
+        o.start(t); o.stop(t + 0.20);
+      });
+    } else {
+      // Single — pop + hiss sizzle
+      const o = c.createOscillator(); const g = c.createGain();
+      o.connect(g); g.connect(c.destination);
+      o.type = "sine";
+      o.frequency.setValueAtTime(370, c.currentTime);
+      o.frequency.exponentialRampToValueAtTime(680, c.currentTime + 0.058);
+      g.gain.setValueAtTime(0, c.currentTime); g.gain.linearRampToValueAtTime(0.19, c.currentTime + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.16);
+      o.start(c.currentTime); o.stop(c.currentTime + 0.19);
+      const bufLen3 = Math.floor(c.sampleRate * 0.08);
+      const buf3 = c.createBuffer(1, bufLen3, c.sampleRate);
+      const d3 = buf3.getChannelData(0);
+      for (let i = 0; i < bufLen3; i++) d3[i] = Math.random() * 2 - 1;
+      const noise3 = c.createBufferSource(); const flt3 = c.createBiquadFilter(); const ng3 = c.createGain();
+      flt3.type = "highpass"; flt3.frequency.value = 3800;
+      noise3.buffer = buf3; noise3.connect(flt3); flt3.connect(ng3); ng3.connect(c.destination);
+      ng3.gain.setValueAtTime(0.11, c.currentTime);
+      ng3.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.1);
+      noise3.start(c.currentTime);
+    }
+  } catch {}
+}
+
+/** Hold-piece swap — two quick ascending blips. */
+export function playHoldSwap() {
+  try {
+    const c = getCtx(); if (!c) return;
+    [430, 650].forEach((freq, i) => {
+      const t = c.currentTime + i * 0.045;
+      const o = c.createOscillator(); const g = c.createGain();
+      o.connect(g); g.connect(c.destination);
+      o.type = "sine"; o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.15, t + 0.009);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.10);
+      o.start(t); o.stop(t + 0.12);
+    });
+  } catch {}
+}
+
+/** World-map location tap — rocky thwump with stone texture. */
+export function playMapTap() {
+  try {
+    const c = getCtx(); if (!c) return;
+    const osc = c.createOscillator(); const gain = c.createGain();
+    osc.connect(gain); gain.connect(c.destination);
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(330, c.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(190, c.currentTime + 0.042);
+    gain.gain.setValueAtTime(0.26, c.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.058);
+    osc.start(c.currentTime); osc.stop(c.currentTime + 0.066);
+    const bufLen = Math.floor(c.sampleRate * 0.03);
+    const buf = c.createBuffer(1, bufLen, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
+    const noise = c.createBufferSource(); const flt = c.createBiquadFilter(); const ng = c.createGain();
+    flt.type = "bandpass"; flt.frequency.value = 580; flt.Q.value = 2.2;
+    noise.buffer = buf; noise.connect(flt); flt.connect(ng); ng.connect(c.destination);
+    ng.gain.setValueAtTime(0.13, c.currentTime);
+    ng.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.038);
+    noise.start(c.currentTime);
+  } catch {}
+}
+
 export function playBattleVictory() {
   try {
     const c = getCtx();
