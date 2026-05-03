@@ -169,6 +169,7 @@ export default function MoltenBlocksPage() {
   const [, navigate] = useLocation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sideCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const holdCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Game state stored in refs so the rAF loop is stable; React state mirrors
   // the bits the UI needs to display (score, level, etc.) and triggers
@@ -177,6 +178,12 @@ export default function MoltenBlocksPage() {
   const bagRef = useRef<Piece[]>([]);
   const activeRef = useRef<ActivePiece | null>(null);
   const nextRef = useRef<Piece | null>(null);
+  // Held piece — Tetris-style "hold" slot. Tap the HOLD box to stash the
+  // currently-falling piece and pull the next; tap again to swap. canHoldRef
+  // prevents repeatedly hold-swapping the same piece without ever locking it.
+  const holdRef = useRef<Piece | null>(null);
+  const canHoldRef = useRef<boolean>(true);
+  const [holdPiece, setHoldPiece] = useState<Piece | null>(null);
   const flashRef = useRef<{ rows: number[]; until: number } | null>(null);
   const lastDropRef = useRef<number>(0);
   const dropIntervalRef = useRef<number>(800);
@@ -240,6 +247,7 @@ export default function MoltenBlocksPage() {
     softDropRef.current = false;
     gameOverRef.current = false;
     runningRef.current = true;
+    canHoldRef.current = true;
   }, [pullPiece]);
 
   const startNewGame = useCallback(() => {
@@ -258,6 +266,8 @@ export default function MoltenBlocksPage() {
     setGameOver(false); setPaused(false);
     setCoinAward({ amount: 0, status: "idle" });
     setCoinFlash(null);
+    holdRef.current = null;
+    setHoldPiece(null);
   }, [resetBoard]);
 
   // Initialize on mount
@@ -327,8 +337,73 @@ export default function MoltenBlocksPage() {
       }
     } else {
       activeRef.current = p;
+      // Re-arm the hold slot — each fresh piece may be hold-swapped once.
+      canHoldRef.current = true;
     }
   }, [pullPiece, resetBoard, finalizeRun]);
+
+  // ── Hold-piece swap ─────────────────────────────────────────────────────
+  // Stash the current falling piece into the hold slot. If the slot is
+  // empty, the next-queue piece begins falling. If a piece is already
+  // held, the two are swapped. Each falling piece may only be hold-swapped
+  // once, to prevent infinite stalling.
+  const tryHold = useCallback(() => {
+    if (gameOverRef.current || !runningRef.current) return;
+    if (paused || showIntro) return;
+    if (!activeRef.current || flashRef.current) return;
+    if (!canHoldRef.current) return;
+
+    const currentType = activeRef.current.type;
+    const stashed = holdRef.current;
+    if (stashed == null) {
+      // First hold this run — stash current and bring in the next-queue piece.
+      holdRef.current = currentType;
+      setHoldPiece(currentType);
+      const nextType = nextRef.current!;
+      const p = spawn(nextType);
+      nextRef.current = pullPiece();
+      if (collides(boardRef.current, p)) {
+        // Top-out on the swapped-in piece — same handling as spawnNext().
+        const remaining = livesRef.current - 1;
+        livesRef.current = remaining;
+        setLives(remaining);
+        if (remaining > 0) {
+          resetBoard();
+        } else {
+          gameOverRef.current = true;
+          runningRef.current = false;
+          activeRef.current = null;
+          setGameOver(true);
+          finalizeRun();
+        }
+      } else {
+        activeRef.current = p;
+      }
+    } else {
+      // Swap the held piece in for the falling one.
+      holdRef.current = currentType;
+      setHoldPiece(currentType);
+      const p = spawn(stashed);
+      if (collides(boardRef.current, p)) {
+        // Swapping in the held piece would top out — same life/over flow.
+        const remaining = livesRef.current - 1;
+        livesRef.current = remaining;
+        setLives(remaining);
+        if (remaining > 0) {
+          resetBoard();
+        } else {
+          gameOverRef.current = true;
+          runningRef.current = false;
+          activeRef.current = null;
+          setGameOver(true);
+          finalizeRun();
+        }
+      } else {
+        activeRef.current = p;
+      }
+    }
+    canHoldRef.current = false;
+  }, [paused, showIntro, pullPiece, resetBoard, finalizeRun]);
 
   // ── Lock current piece, clear lines, update score / level ───────────────
   const lockAndClear = useCallback(() => {
@@ -561,15 +636,15 @@ export default function MoltenBlocksPage() {
     }
   };
 
-  const drawSide = () => {
-    const canvas = sideCanvasRef.current;
+  // Render a single piece centred inside the given canvas. Used by both the
+  // NEXT and HOLD side panels.
+  const drawPieceCanvas = (canvas: HTMLCanvasElement | null, t: Piece | null) => {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
-    if (!nextRef.current) return;
-    const t = nextRef.current;
+    if (t == null) return;
     const shape = SHAPES[t][0];
     const cell = Math.floor(Math.min(W / 5, H / 4));
     const w = shape[0].length * cell;
@@ -582,6 +657,11 @@ export default function MoltenBlocksPage() {
         drawCell(ctx, offX + c * cell, offY + r * cell, cell, t);
       }
     }
+  };
+
+  const drawSide = () => {
+    drawPieceCanvas(sideCanvasRef.current, nextRef.current);
+    drawPieceCanvas(holdCanvasRef.current, holdRef.current);
   };
 
   // ── Resize canvases to their container, accounting for DPR ──────────────
@@ -600,6 +680,13 @@ export default function MoltenBlocksPage() {
         const dpr = Math.min(2, window.devicePixelRatio || 1);
         s.width = Math.floor(rect.width * dpr);
         s.height = Math.floor(rect.height * dpr);
+      }
+      const h = holdCanvasRef.current;
+      if (h) {
+        const rect = h.getBoundingClientRect();
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        h.width = Math.floor(rect.width * dpr);
+        h.height = Math.floor(rect.height * dpr);
       }
     };
     fit();
@@ -841,6 +928,30 @@ export default function MoltenBlocksPage() {
               {coinsEarned.toLocaleString()}
             </div>
           </Panel>
+          {/* HOLD slot — tap to stash the falling piece (or swap with the held one) */}
+          <button
+            data-testid="button-hold"
+            onClick={tryHold}
+            disabled={!canHoldRef.current || paused || showIntro || gameOver}
+            style={{
+              background: "rgba(20,8,4,0.65)",
+              border: `1px solid ${holdPiece ? "rgba(251,191,36,0.55)" : "rgba(251,191,36,0.25)"}`,
+              borderRadius: 8,
+              padding: "4px 4px 6px",
+              cursor: "pointer",
+              opacity: 1,
+              outline: "none",
+              fontFamily: "inherit",
+              color: "inherit",
+            }}
+          >
+            <div style={{ fontSize: 9, letterSpacing: "0.22em", color: "#a06a30", textAlign: "center", marginBottom: 2 }}>HOLD</div>
+            <canvas
+              ref={holdCanvasRef}
+              data-testid="canvas-hold"
+              style={{ width: "100%", height: 60, display: "block" }}
+            />
+          </button>
           <div style={{ flex: 1 }} />
           <div style={{ fontSize: 9, lineHeight: 1.4, color: "#7a5530", textAlign: "center", letterSpacing: "0.08em" }}>
             TAP rotate<br/>SWIPE move<br/>HOLD soft drop<br/>FLICK ↓ slam
