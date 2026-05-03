@@ -1848,11 +1848,17 @@ export default function WorldPage({ user }: WorldPageProps) {
                             style={{
                               filter: loc.type === "fishing" && !loc.isShop
                                 ? worldId === "volcanic"
-                                  ? "drop-shadow(0 3px 8px rgba(0,0,0,0.6)) drop-shadow(0 0 18px rgba(251,146,60,0.9)) drop-shadow(0 0 40px rgba(239,68,68,0.6))"
+                                  // Tight rim glow: 1–2 px shadow hugs the icon silhouette so
+                                  // it reads as a shiny outline rather than a large square bloom.
+                                  // Gold inner rim → orange mid → no far spread.
+                                  ? "drop-shadow(0 2px 5px rgba(0,0,0,0.65)) drop-shadow(0 0 1.5px rgba(251,191,36,1)) drop-shadow(0 0 5px rgba(251,146,60,0.65))"
                                   : worldId === "swamp"
-                                    ? "drop-shadow(0 3px 8px rgba(0,0,0,0.5)) drop-shadow(0 0 18px rgba(45,212,191,0.8)) drop-shadow(0 0 40px rgba(20,184,166,0.5))"
-                                    : "drop-shadow(0 3px 8px rgba(0,0,0,0.5)) drop-shadow(0 0 18px rgba(56,189,248,0.7)) drop-shadow(0 0 40px rgba(56,189,248,0.35))"
-                                : "drop-shadow(0 3px 6px rgba(0,0,0,0.5))",
+                                    ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1.5px rgba(167,243,208,0.9)) drop-shadow(0 0 5px rgba(45,212,191,0.5))"
+                                    : "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1.5px rgba(186,230,253,0.9)) drop-shadow(0 0 5px rgba(56,189,248,0.5))"
+                                // Non-fishing location icons (shops, NPCs, etc.) get a subtle
+                                // rim using the location's own glow colour so each icon has
+                                // a hint of its own identity without a large bloom.
+                                : `drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px ${glow}cc) drop-shadow(0 0 4px ${glow}55)`,
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
                               transition: "filter 0.15s ease, transform 0.15s ease",
                             }}
