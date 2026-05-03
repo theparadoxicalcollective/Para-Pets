@@ -615,6 +615,17 @@ const ANIMATION_STYLES = `
     from { transform: rotate(-0.4deg); }
     to   { transform: rotate(0.4deg); }
   }
+  /* Side-facing idle head — combines the upward bob (matching petIdleHead)
+     with a gentle forward nod (0.7°) so the head reads as breathing rather
+     than just sliding vertically. The chin lifts fractionally as the chest
+     expands on inhale, which is how a real neck-on-ribcage pivot would look
+     from the side. Same %/duration/delay as petIdleHead so the CSS renderer's
+     body-anchor origin override and bodyBreathDelay phase-lock still work —
+     the head and body still peak at the same moment. */
+  @keyframes petIdleHeadSide {
+    from { transform: translateY(0) rotate(0deg); }
+    to   { transform: translateY(var(--pet-head-bob, -2.5%)) rotate(0.7deg); }
+  }
 
   @keyframes petWalkEyes {
     0%, 85%, 100% { opacity: 1; }
@@ -985,7 +996,7 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
 // a momentary pause at every keyframe boundary (slope=0 endpoints), so
 // wings, ears, tails etc. felt jolty. Two extremes + alternate fixes it.
 const ALTERNATE_MOTION_ANIMS = new Set<string>([
-  "petIdleHead", "petIdleHeadGround",
+  "petIdleHead", "petIdleHeadGround", "petIdleHeadSide",
   "petIdleLeftEar", "petIdleRightEar",
   "petIdleLeftArm", "petIdleRightArm",
   "petIdleBody",
@@ -1847,7 +1858,22 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           // Only the idle body keyframe scales — walk/zoom body uses
           // translateY only, so the anchor override is harmless either way.
           // tailOrigin takes precedence over bodyOrigin (tails are never "body").
-          return renderPartImg(part, animName, undefined, wingDelay, tailOrigin ?? bodyOrigin, partZ);
+          //
+          // In idle mode, stagger the back_leg 0.4 s behind the front_leg so
+          // the two side-view legs breathe on slightly different beats. Both
+          // are still on petIdleBody — only the phase shifts. Mirrors the
+          // canvas renderer's bodyBreath(sec - 0.4) for back_leg.
+          let legDelay: string | undefined = wingDelay;
+          if (
+            mode === "idle" &&
+            part.partType === "back_leg" &&
+            bodyBreathDelay !== undefined &&
+            wingDelay === undefined
+          ) {
+            const baseSec = parseFloat(bodyBreathDelay.replace("s", ""));
+            legDelay = `${(baseSec + 0.4).toFixed(2)}s`;
+          }
+          return renderPartImg(part, animName, undefined, legDelay, tailOrigin ?? bodyOrigin, partZ);
         })}
 
         {/* Head groups — each head gets its own wrapper with associated face parts */}
@@ -1894,7 +1920,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             mode === "idle"
               ? (useSecondaryHeadSway
                   ? (isH3Head ? "petIdleHeadSwayAlt" : "petIdleHeadSway")
-                  : "petIdleHead")
+                  : (resolvedView === "back" ? "petIdleHeadSide" : "petIdleHead"))
               :
             (mode !== "house" && mode !== "static") ? anims["head"] :
             undefined;

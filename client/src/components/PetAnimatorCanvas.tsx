@@ -215,8 +215,15 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     // typically the shoulder/hip, giving the same visual "rises with
     // the chest" effect.
     case "front_arm": case "back_arm":
-    case "front_leg": case "back_leg":
+    case "front_leg":
       return bodyBreath(sec);
+    case "back_leg":
+      // 0.4 s phase lag — back_leg peaks slightly after front_leg so the
+      // two side-view legs don't inflate on the exact same beat. The -0.4
+      // shifts the sine argument left (the wave peaks 0.4 s later in real
+      // time) producing a natural rolling-breath sway between the legs.
+      // Mirrors PetAnimator.tsx where back_leg gets bodyBreathDelay + 0.4 s.
+      return bodyBreath(sec - 0.4);
 
     // Shoulders breathe with the body so the whole torso group expands
     // and contracts together. Mirrors the img-renderer's IDLE_ANIMATIONS
@@ -378,6 +385,8 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
   // templateData changes) can read the latest value every frame without
   // restarting the loop.
   const bodyAnchorRef = useRef<{ x: number; y: number } | null>(null);
+  // Stored in a ref so the RAF draw loop can read it without restarting.
+  const resolvedViewRef = useRef<string>("front");
   // Per-pet head-bob amplitude in canvas logical px (the value that
   // multiplies the sin wave in the draw loop). Computed from the
   // body's ALPHA-TRIMMED visible height so the head's lift always
@@ -421,6 +430,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
     const backCount  = allParts.filter(p => p.view === "back").length;
     const resolvedView = facing === "back" ? "back"
       : (frontCount === 0 && backCount > 0) ? "back" : "front";
+    resolvedViewRef.current = resolvedView;
 
     // SECONDARY head-group parts (h2_/h3_-prefixed) ALWAYS drop into a
     // z slot just below body (z=5 in LAYER_ORDER) so multi-head pets
@@ -818,6 +828,12 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         let dx = 0;
         let dy = 0;
         let wrapperRot = 0;
+        // Side-facing head nod: a small rotation applied in addition to
+        // the vertical headBobPx so the head appears to breathe rather than
+        // just slide up and down. Only the "head" part rotates — eyes and
+        // ears ride the wrapper dy already and don't need their own rotation.
+        // Mirrors PetAnimator.tsx's petIdleHeadSide keyframe (0.7°).
+        let headNodRot = 0;
         if (isSecondaryHeadHere) {
           const m = swayMotionFor(part.partType);
           dx = m.dx;
@@ -834,13 +850,16 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
             // headBobPx contribution and stay glued together as the
             // skull floats.
             dy += headBobPx;
+            if (resolvedViewRef.current === "back" && part.partType === "head") {
+              headNodRot = sinWave(sec, 4.5) * 0.7 * D2R;
+            }
           }
         }
 
         const sx = anim.sx ?? 1;
         const sy = anim.sy ?? 1;
         const hasScale = sx !== 1 || sy !== 1;
-        const hasTransform = rot !== 0 || dx !== 0 || dy !== 0 || hasScale || wrapperRot !== 0;
+        const hasTransform = (rot + headNodRot) !== 0 || dx !== 0 || dy !== 0 || hasScale || wrapperRot !== 0;
 
         ctx.save();
         ctx.globalAlpha = op;
@@ -860,7 +879,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
           // translations (secondary heads) or vertical bob /
           // above-head float / part-specific ty.
           ctx.translate(px + dx, py + dy);
-          if (rot !== 0) ctx.rotate(rot);
+          if ((rot + headNodRot) !== 0) ctx.rotate(rot + headNodRot);
           if (hasScale) ctx.scale(sx, sy);
           ctx.translate(-px, -py);
         }
