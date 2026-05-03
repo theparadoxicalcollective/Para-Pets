@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
 import gemCrystalIcon from "@assets/generated_images/icon_gem_crystal.png";
-import enchantedGroveBg from "@assets/bg_enchanted_grove_map.webp";
+import homeBg from "@assets/bg_home_v2.png";
 
 interface AccessoryItem {
   inventoryId: string;
@@ -53,7 +53,7 @@ interface Props {
 }
 
 const PET_PREVIEW_DROPSHADOW_STYLE: React.CSSProperties = {
-  filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.65)) drop-shadow(0 0 14px rgba(180,130,255,0.2))",
+  filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.65)) drop-shadow(0 0 14px rgba(34,197,94,0.2))",
 };
 
 const RARITY_COLOR: Record<number, string> = {
@@ -263,7 +263,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       className="fixed inset-0 z-[200] flex flex-col"
       style={{
         maxWidth: "768px", margin: "0 auto", left: 0, right: 0,
-        backgroundImage: `linear-gradient(180deg, rgba(8,6,22,0.55) 0%, rgba(6,8,26,0.72) 50%, rgba(4,6,20,0.88) 100%), url(${enchantedGroveBg})`,
+        backgroundImage: `linear-gradient(180deg, rgba(4,8,5,0.50) 0%, rgba(3,7,4,0.68) 50%, rgba(2,5,3,0.86) 100%), url(${homeBg})`,
         backgroundSize: "cover",
         backgroundPosition: "center top",
         backgroundRepeat: "no-repeat",
@@ -274,8 +274,8 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         style={{
           paddingTop: "calc(env(safe-area-inset-top, 0px) + 16px)",
           paddingBottom: 14,
-          borderBottom: "1px solid rgba(160,120,255,0.2)",
-          background: "linear-gradient(180deg, rgba(8,6,22,0.7) 0%, rgba(8,6,22,0.2) 100%)",
+          borderBottom: "1px solid rgba(34,197,94,0.2)",
+          background: "linear-gradient(180deg, rgba(4,8,5,0.72) 0%, rgba(4,8,5,0.2) 100%)",
           backdropFilter: "blur(8px)",
         }}
       >
@@ -288,7 +288,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
             >
               EQUIP ACCESSORIES
             </p>
-            <p className="font-fantasy text-[10px] tracking-wide" style={{ color: "rgba(200,180,255,0.5)" }}>{petName}</p>
+            <p className="font-fantasy text-[10px] tracking-wide" style={{ color: "rgba(160,220,140,0.55)" }}>{petName}</p>
           </div>
         </div>
         <button
@@ -298,11 +298,11 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
           className="rounded-full flex items-center justify-center transition-all active:scale-90"
           style={{
             width: 44, height: 44,
-            background: "linear-gradient(180deg, rgba(30,20,55,0.9) 0%, rgba(16,10,36,0.9) 100%)",
-            border: "1.5px solid rgba(160,120,255,0.4)",
-            color: "#e8d8ff",
+            background: "linear-gradient(180deg, rgba(6,18,10,0.9) 0%, rgba(4,12,7,0.9) 100%)",
+            border: "1.5px solid rgba(34,197,94,0.35)",
+            color: "#c8f0c0",
             cursor: "pointer",
-            boxShadow: "0 0 14px rgba(160,120,255,0.2), inset 0 0 8px rgba(0,0,0,0.5)",
+            boxShadow: "0 0 14px rgba(34,197,94,0.15), inset 0 0 8px rgba(0,0,0,0.5)",
             WebkitTapHighlightColor: "transparent",
           }}
         >
@@ -328,7 +328,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
                 position: "absolute",
                 inset: "-10%",
                 borderRadius: "50%",
-                background: `radial-gradient(circle at center, ${rc}38 0%, ${rc}14 35%, rgba(120,80,220,0.08) 60%, transparent 75%)`,
+                background: `radial-gradient(circle at center, ${rc}38 0%, ${rc}14 35%, rgba(22,163,74,0.08) 60%, transparent 75%)`,
                 filter: "blur(3px)",
                 animation: "feed-halo-pulse 4s ease-in-out infinite",
                 pointerEvents: "none",
@@ -337,7 +337,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
             {petTemplateId ? (
               <PetAnimator petTemplateId={petTemplateId} mode="idle" size={220} fillContainer style={PET_PREVIEW_DROPSHADOW_STYLE} />
             ) : petImage ? (
-              <img src={petImage} alt={petName} className="w-full h-full object-contain" style={{ filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.7)) drop-shadow(0 0 14px rgba(160,100,255,0.22))" }} />
+              <img src={petImage} alt={petName} className="w-full h-full object-contain" style={{ filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.7)) drop-shadow(0 0 14px rgba(22,163,74,0.22))" }} />
             ) : (
               <div className="w-full h-full rounded-2xl" style={{ background: "rgba(255,255,255,0.04)" }} />
             )}
@@ -345,7 +345,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         </div>
 
         <div className="px-5 pb-4">
-          <p className="font-fantasy text-[9px] tracking-widest mb-3 text-center" style={{ color: "rgba(200,180,255,0.4)" }}>
+          <p className="font-fantasy text-[9px] tracking-widest mb-3 text-center" style={{ color: "rgba(160,220,140,0.45)" }}>
             ACCESSORY SLOTS — {equippedAccessories.length}/{maxSlots} EQUIPPED
           </p>
 
@@ -386,7 +386,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
           </div>
 
           {extraSlots < 2 && (
-            <p className="font-fantasy text-[8px] tracking-widest text-center mt-3" style={{ color: "rgba(200,180,255,0.3)" }}>
+            <p className="font-fantasy text-[8px] tracking-widest text-center mt-3" style={{ color: "rgba(160,220,140,0.32)" }}>
               Tap a locked slot to unlock it for {SLOT_COST.toLocaleString()} coins
             </p>
           )}
@@ -395,13 +395,13 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         <div
           className="mx-5 rounded-2xl p-4 mb-8"
           style={{
-            background: "linear-gradient(180deg, rgba(14,10,32,0.75) 0%, rgba(8,6,22,0.75) 100%)",
-            border: "1px solid rgba(160,120,255,0.2)",
-            boxShadow: "0 0 24px rgba(120,80,220,0.08), inset 0 0 20px rgba(0,0,0,0.5)",
+            background: "linear-gradient(180deg, rgba(4,14,8,0.75) 0%, rgba(3,10,6,0.75) 100%)",
+            border: "1px solid rgba(34,197,94,0.18)",
+            boxShadow: "0 0 24px rgba(22,163,74,0.06), inset 0 0 20px rgba(0,0,0,0.5)",
             backdropFilter: "blur(6px)",
           }}
         >
-          <p className="font-fantasy text-[9px] tracking-widest mb-3" style={{ color: "rgba(200,180,255,0.4)" }}>
+          <p className="font-fantasy text-[9px] tracking-widest mb-3" style={{ color: "rgba(160,220,140,0.45)" }}>
             YOUR ACCESSORIES — DRAG OR TAP TO EQUIP
           </p>
           {bagAccessories.length === 0 ? (
@@ -428,8 +428,8 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
                     }}
                     className="rounded-xl p-2 flex flex-col items-center gap-1 transition-all active:scale-95"
                     style={{
-                      background: "linear-gradient(180deg, rgba(20,14,44,0.85) 0%, rgba(10,7,26,0.85) 100%)",
-                      border: "1px solid rgba(160,120,255,0.22)",
+                      background: "linear-gradient(180deg, rgba(4,16,8,0.85) 0%, rgba(3,10,6,0.85) 100%)",
+                      border: "1px solid rgba(34,197,94,0.2)",
                       boxShadow: "inset 0 0 10px rgba(0,0,0,0.4)",
                       opacity: isDragging ? 0.35 : 1,
                       cursor: isDragging ? "grabbing" : "grab",
@@ -441,7 +441,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
                         ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
                         : <img src={gemCrystalIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />}
                     </div>
-                    <span className="font-fantasy text-[7px] tracking-wider text-center w-full truncate" style={{ color: "rgba(220,200,255,0.7)" }}>{item.name}</span>
+                    <span className="font-fantasy text-[7px] tracking-wider text-center w-full truncate" style={{ color: "rgba(200,230,180,0.75)" }}>{item.name}</span>
                     <div className="flex flex-col items-center gap-0.5">
                       {(item.atkBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#f87171" }}>+{item.atkBoost} ATK</span>}
                       {(item.defBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#60a5fa" }}>+{item.defBoost} DEF</span>}
@@ -456,10 +456,10 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       </div>
 
       {unequipConfirm && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center px-8" style={{ background: "rgba(4,3,14,0.93)" }}>
+        <div className="absolute inset-0 z-10 flex items-center justify-center px-8" style={{ background: "rgba(2,5,3,0.93)" }}>
           <div
             className="w-full rounded-2xl p-6 flex flex-col items-center gap-4"
-            style={{ background: "rgba(14,10,32,0.98)", border: `1.5px solid ${rc}44`, maxWidth: 320 }}
+            style={{ background: "rgba(4,14,8,0.98)", border: `1.5px solid ${rc}44`, maxWidth: 320 }}
           >
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.5)", border: `1px solid ${rc}44` }}>
               {unequipConfirm.imageUrl
@@ -468,7 +468,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
             </div>
             <div className="text-center">
               <p className="font-fantasy font-bold tracking-wider text-sm mb-1" style={{ color: rc }}>Unequip Accessory?</p>
-              <p className="font-fantasy text-[11px] leading-relaxed" style={{ color: "rgba(220,200,255,0.5)" }}>
+              <p className="font-fantasy text-[11px] leading-relaxed" style={{ color: "rgba(180,220,160,0.55)" }}>
                 Remove <span style={{ color: "rgba(255,255,255,0.85)" }}>{unequipConfirm.name}</span> from {petName}? It will go back to your bag.
               </p>
             </div>
@@ -492,20 +492,20 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       )}
 
       {unlockConfirm && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center px-8" style={{ background: "rgba(4,3,14,0.93)" }}>
+        <div className="absolute inset-0 z-10 flex items-center justify-center px-8" style={{ background: "rgba(2,5,3,0.93)" }}>
           <div
             className="w-full rounded-2xl p-6 flex flex-col items-center gap-4"
-            style={{ background: "rgba(14,10,32,0.98)", border: "1.5px solid rgba(180,140,255,0.4)", maxWidth: 320 }}
+            style={{ background: "rgba(4,14,8,0.98)", border: "1.5px solid rgba(240,192,64,0.4)", maxWidth: 320 }}
           >
             <div
               className="w-16 h-16 rounded-full flex items-center justify-center"
-              style={{ background: "linear-gradient(135deg, rgba(30,16,60,0.9) 0%, rgba(20,10,44,0.9) 100%)", border: "2px solid rgba(180,140,255,0.4)", boxShadow: "0 0 24px rgba(140,80,255,0.25)" }}
+              style={{ background: "linear-gradient(135deg, rgba(30,22,4,0.9) 0%, rgba(20,14,3,0.9) 100%)", border: "2px solid rgba(240,192,64,0.4)", boxShadow: "0 0 24px rgba(240,192,64,0.2)" }}
             >
-              <Lock size={28} style={{ color: "rgba(180,140,255,0.9)" }} />
+              <Lock size={28} style={{ color: "rgba(240,192,64,0.9)" }} />
             </div>
             <div className="text-center">
-              <p className="font-fantasy font-bold tracking-wider text-sm mb-1" style={{ color: "rgba(200,170,255,0.95)" }}>Unlock Accessory Slot?</p>
-              <p className="font-fantasy text-[11px] leading-relaxed mb-2" style={{ color: "rgba(200,180,255,0.5)" }}>
+              <p className="font-fantasy font-bold tracking-wider text-sm mb-1" style={{ color: "rgba(240,192,64,0.95)" }}>Unlock Accessory Slot?</p>
+              <p className="font-fantasy text-[11px] leading-relaxed mb-2" style={{ color: "rgba(160,220,140,0.55)" }}>
                 Add a new slot so {petName} can wear one more accessory.
               </p>
               <p className="font-fantasy text-base font-bold" style={{ color: "#fbbf24" }}>
@@ -527,7 +527,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
                 onClick={() => unlockMutation.mutate()}
                 disabled={unlockMutation.isPending || (user?.coins ?? 0) < SLOT_COST}
                 className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-wider transition-all active:scale-95 disabled:opacity-40"
-                style={{ background: "linear-gradient(135deg, rgba(140,80,255,0.35) 0%, rgba(100,50,200,0.35) 100%)", border: "1.5px solid rgba(160,100,255,0.6)", color: "rgba(200,170,255,0.95)", cursor: "pointer" }}
+                style={{ background: "linear-gradient(135deg, rgba(180,140,20,0.35) 0%, rgba(140,100,10,0.35) 100%)", border: "1.5px solid rgba(240,192,64,0.55)", color: "rgba(240,192,64,0.95)", cursor: "pointer" }}
               >{unlockMutation.isPending ? "UNLOCKING..." : "UNLOCK"}</button>
             </div>
           </div>
@@ -535,7 +535,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       )}
 
       {equipMutation.isPending && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center" style={{ background: "rgba(4,3,14,0.65)" }}>
+        <div className="absolute inset-0 z-20 flex items-center justify-center" style={{ background: "rgba(2,5,3,0.65)" }}>
           <p className="font-fantasy text-sm animate-pulse" style={{ color: rc }}>Equipping…</p>
         </div>
       )}
@@ -560,27 +560,27 @@ function SlotCell({ slot, maxSlots, acc, isOver, draggingId, rc, onClick, onDrag
   const locked = slot >= maxSlots;
 
   const borderColor = locked
-    ? "rgba(100,80,140,0.3)"
+    ? "rgba(30,80,50,0.3)"
     : acc
     ? `${rc}88`
     : isOver && draggingId
     ? `${rc}cc`
-    : "rgba(160,120,255,0.3)";
+    : "rgba(34,197,94,0.28)";
 
   const bg = locked
-    ? "linear-gradient(160deg, rgba(10,7,22,0.7) 0%, rgba(6,4,16,0.7) 100%)"
+    ? "linear-gradient(160deg, rgba(4,10,6,0.7) 0%, rgba(2,6,4,0.7) 100%)"
     : acc
-    ? "linear-gradient(160deg, rgba(18,12,40,0.92) 0%, rgba(10,7,28,0.92) 100%)"
+    ? "linear-gradient(160deg, rgba(4,18,10,0.92) 0%, rgba(3,12,7,0.92) 100%)"
     : isOver && draggingId
-    ? `linear-gradient(160deg, rgba(${rc === "#ffd700" ? "80,60,10" : "40,20,80"},0.5) 0%, rgba(${rc === "#ffd700" ? "50,35,5" : "20,10,50"},0.5) 100%)`
-    : "linear-gradient(160deg, rgba(14,10,32,0.6) 0%, rgba(8,6,22,0.6) 100%)";
+    ? `linear-gradient(160deg, rgba(${rc === "#ffd700" ? "80,60,10" : "10,40,20"},0.5) 0%, rgba(${rc === "#ffd700" ? "50,35,5" : "5,24,12"},0.5) 100%)`
+    : "linear-gradient(160deg, rgba(4,14,8,0.6) 0%, rgba(3,10,6,0.6) 100%)";
 
   const boxShadow = locked
     ? "inset 0 0 14px rgba(0,0,0,0.6)"
     : acc
-    ? `0 0 18px ${rc}22, inset 0 0 16px rgba(120,80,220,0.08)`
+    ? `0 0 18px ${rc}22, inset 0 0 16px rgba(22,163,74,0.08)`
     : isOver && draggingId
-    ? `0 0 22px ${rc}44, inset 0 0 18px rgba(120,80,220,0.15)`
+    ? `0 0 22px ${rc}44, inset 0 0 18px rgba(22,163,74,0.15)`
     : "inset 0 0 14px rgba(0,0,0,0.5)";
 
   return (
@@ -606,12 +606,12 @@ function SlotCell({ slot, maxSlots, acc, isOver, draggingId, rc, onClick, onDrag
         <div className="flex flex-col items-center justify-center h-full gap-2 py-1">
           <div
             className="w-10 h-10 rounded-full flex items-center justify-center"
-            style={{ background: "rgba(40,20,70,0.8)", border: "1.5px solid rgba(120,90,180,0.35)", boxShadow: "inset 0 0 10px rgba(0,0,0,0.5)" }}
+            style={{ background: "rgba(10,26,16,0.8)", border: "1.5px solid rgba(34,120,70,0.35)", boxShadow: "inset 0 0 10px rgba(0,0,0,0.5)" }}
           >
-            <Lock size={18} style={{ color: "rgba(140,100,200,0.7)" }} />
+            <Lock size={18} style={{ color: "rgba(34,197,94,0.7)" }} />
           </div>
           <div className="text-center">
-            <p className="font-fantasy text-[7px] tracking-wider" style={{ color: "rgba(160,120,220,0.6)" }}>LOCKED</p>
+            <p className="font-fantasy text-[7px] tracking-wider" style={{ color: "rgba(34,197,94,0.6)" }}>LOCKED</p>
             <p className="font-fantasy text-[7px]" style={{ color: "rgba(251,191,36,0.6)" }}>3,000 coins</p>
           </div>
         </div>
@@ -637,14 +637,14 @@ function SlotCell({ slot, maxSlots, acc, isOver, draggingId, rc, onClick, onDrag
           <div
             className="w-11 h-11 rounded-full flex items-center justify-center"
             style={{
-              background: "radial-gradient(circle at center, rgba(120,80,220,0.12) 0%, rgba(60,30,120,0.06) 60%, transparent 100%)",
-              border: `1.5px solid rgba(160,120,255,0.2)`,
-              boxShadow: "inset 0 0 12px rgba(0,0,0,0.5), 0 0 8px rgba(120,80,220,0.1)",
+              background: "radial-gradient(circle at center, rgba(22,163,74,0.12) 0%, rgba(10,80,35,0.06) 60%, transparent 100%)",
+              border: `1.5px solid rgba(34,197,94,0.2)`,
+              boxShadow: "inset 0 0 12px rgba(0,0,0,0.5), 0 0 8px rgba(22,163,74,0.1)",
             }}
           >
-            <span style={{ fontSize: 18, color: "rgba(160,120,255,0.35)", lineHeight: 1 }}>✦</span>
+            <span style={{ fontSize: 18, color: "rgba(34,197,94,0.35)", lineHeight: 1 }}>✦</span>
           </div>
-          <span className="font-fantasy text-[7px] tracking-wider" style={{ color: "rgba(160,120,255,0.3)" }}>EMPTY</span>
+          <span className="font-fantasy text-[7px] tracking-wider" style={{ color: "rgba(34,197,94,0.3)" }}>EMPTY</span>
         </div>
       )}
     </div>
