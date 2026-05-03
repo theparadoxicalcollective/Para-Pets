@@ -583,6 +583,8 @@ const VERIDIAN_WATCHER_ID = "veridian-watcher";
 // Persisted on the user record (users.last_watcher_greeted_at) so it survives restarts.
 const LOGIN_GREETING_COOLDOWN_MS = 3 * 60 * 60 * 1000;
 
+let lastWatcherMessageAt = 0;
+
 async function postWatcherMessage(message: string): Promise<void> {
   try {
     await storage.addWorldChatMessage({
@@ -592,6 +594,7 @@ async function postWatcherMessage(message: string): Promise<void> {
       message,
       isBot: true,
     });
+    lastWatcherMessageAt = Date.now();
     storage.purgeOldWorldChatMessages().catch(() => {});
   } catch (err) {
     console.error("[VW] Failed to post message:", err);
@@ -7330,9 +7333,11 @@ export async function registerRoutes(
   });
 
   // ── Veridian Watcher Background Jobs ──────────────────────────────────────
-  // 30-minute quote poster
+  const VW_QUOTE_INTERVAL_MS = 3 * 60 * 60 * 1000;
+  const VW_BACKTOBACK_GUARD_MS = 60 * 60 * 1000;
   setInterval(async () => {
     try {
+      if (Date.now() - lastWatcherMessageAt < VW_BACKTOBACK_GUARD_MS) return;
       const quotes = await storage.getVWQuotes();
       if (quotes.length === 0) return;
       const pick = quotes[Math.floor(Math.random() * quotes.length)];
@@ -7340,7 +7345,7 @@ export async function registerRoutes(
     } catch (err) {
       console.error("[VW] Quote error:", err);
     }
-  }, 30 * 60 * 1000);
+  }, VW_QUOTE_INTERVAL_MS);
 
   // ── Daily Claim (fixed reward, once per 24h) ──────────────────────────────
   const DAILY_REWARD_COINS = 100;
@@ -7498,33 +7503,37 @@ export async function registerRoutes(
   cleanupStaleRewards();
   setInterval(cleanupStaleRewards, 6 * 60 * 60 * 1000);
 
-  // Leaderboard monitor — fires only when a NEW player enters the top 3 (not on reorders).
-  // Polls every 5 minutes so newcomers are surfaced quickly.
-  let lastLeaderboardTop3Names = new Set<string>();
-  let leaderboardMonitorPrimed = false;
+  // PvP leaderboard monitor — fires when a player moves UP in PvP rank.
+  // Polls every 5 minutes. Tracks rank per username so position improvements are detected.
+  let pvpRankSnapshot = new Map<string, number>();
+  let pvpLeaderboardPrimed = false;
   setInterval(async () => {
     try {
-      const leaderboard = await storage.getBadgeLeaderboard(3);
-      const top3 = leaderboard.slice(0, 3) as any[];
-      const currentNames = new Set<string>(top3.map((u: any) => u.username));
-      const newcomers = [...currentNames].filter(n => !lastLeaderboardTop3Names.has(n));
-      if (leaderboardMonitorPrimed && newcomers.length > 0) {
-        for (const newName of newcomers) {
-          const entry = top3.find((u: any) => u.username === newName);
+      const leaderboard = await storage.getPvpLeaderboard(20);
+      const currentSnapshot = new Map<string, number>();
+      leaderboard.forEach((entry: any, idx: number) => {
+        currentSnapshot.set(entry.username, idx + 1);
+      });
+      if (pvpLeaderboardPrimed) {
+        for (const [username, newRank] of currentSnapshot.entries()) {
+          const oldRank = pvpRankSnapshot.get(username);
+          const movedUp = oldRank === undefined ? false : newRank < oldRank;
+          if (!movedUp) continue;
+          const entry = leaderboard[newRank - 1] as any;
           if (!entry) continue;
-          const rankIdx = top3.indexOf(entry);
-          const medals = ["🥇", "🥈", "🥉"];
           const fullUser = await storage.getUser(entry.userId).catch(() => null);
           if (fullUser?.watcherShoutoutsEnabled === false) continue;
+          const medals = ["🥇", "🥈", "🥉"];
+          const medal = newRank <= 3 ? `${medals[newRank - 1]} ` : "";
           await postWatcherMessage(
-            `👁️ The Watcher observes... a new champion rises! ${medals[rankIdx]} ${newName} has claimed a place among the top three. Will you rise to challenge them?`
+            `👁️ The Watcher observes... ${medal}${username} has risen to rank #${newRank} on the PvP leaderboard. A formidable challenger emerges!`
           );
         }
       }
-      lastLeaderboardTop3Names = currentNames;
-      leaderboardMonitorPrimed = true;
+      pvpRankSnapshot = currentSnapshot;
+      pvpLeaderboardPrimed = true;
     } catch (err) {
-      console.error("[VW] Leaderboard monitor error:", err);
+      console.error("[VW] PvP leaderboard monitor error:", err);
     }
   }, 5 * 60 * 1000);
 
