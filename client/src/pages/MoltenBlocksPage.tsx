@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import blockI from "@assets/molten_block_I.png";
-import blockO from "@assets/molten_block_O.png";
-import blockT from "@assets/molten_block_T.png";
-import blockS from "@assets/molten_block_S.png";
-import blockZ from "@assets/molten_block_Z.png";
-import blockL from "@assets/molten_block_L.png";
-import blockJ from "@assets/molten_block_J.png";
+import blockI from "@assets/Photoroom_20260502_115639_PM_1777784698006.png";
+import blockO from "@assets/Photoroom_20260503_120122_AM_1777784698006.png";
+import blockT from "@assets/Photoroom_20260502_115749_PM_1777784698006.png";
+import blockS from "@assets/Photoroom_20260502_115949_PM_1777784698006.png";
+import blockZ from "@assets/Photoroom_20260502_115824_PM_1777784698006.png";
+import blockL from "@assets/Photoroom_20260503_120218_AM_1777784698006.png";
+import blockJ from "@assets/Photoroom_20260503_120311_AM_1777784698006.png";
 
 // ── Tetromino shapes (4-rotation matrices, SRS-style) ──────────────────────
 type Piece = "I" | "O" | "T" | "S" | "Z" | "L" | "J";
@@ -524,27 +524,14 @@ export default function MoltenBlocksPage() {
   const drawCell = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number, type: Piece, ghost = false) => {
     const img = imgsRef.current[type];
     if (img && img.complete && img.naturalWidth > 0) {
-      // Paint a solid base square first — guarantees the cell is fully
-      // covered even if the texture PNG has any transparent or light-edge
-      // pixels around the perimeter.
-      if (!ghost) {
-        ctx.fillStyle = PIECE_BASE[type];
-        ctx.fillRect(x, y, size, size);
-      }
+      // The new textures are designed with rounded edges and transparent
+      // surroundings, so we draw them straight onto the playfield without
+      // a square base fill or rectangular glow stroke (those would clash
+      // with the rounded tile shape).
       ctx.save();
       if (ghost) ctx.globalAlpha = 0.22;
       ctx.drawImage(img, x, y, size, size);
       ctx.restore();
-      // Subtle glow rim for solid pieces
-      if (!ghost) {
-        ctx.save();
-        ctx.shadowColor = PIECE_GLOW[type];
-        ctx.shadowBlur = Math.max(4, size * 0.25);
-        ctx.strokeStyle = PIECE_GLOW[type];
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
-        ctx.restore();
-      }
     } else {
       // Fallback solid colour cell
       ctx.fillStyle = ghost ? PIECE_GLOW[type].replace(/[\d.]+\)$/, "0.18)") : PIECE_GLOW[type];
