@@ -521,24 +521,27 @@ export default function MoltenBlocksPage() {
   const drawCell = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number, type: Piece, ghost = false) => {
     const img = imgsRef.current[type];
     if (img && img.complete && img.naturalWidth > 0) {
-      // 1) Solid base fill so transparent rounded corners can never reveal
-      //    the playfield background through the cell.
+      // 1) Solid base fill — last-line defence against any transparent
+      //    pixel ever revealing the playfield background through the cell.
       if (!ghost) {
         ctx.fillStyle = PIECE_BASE[type];
         ctx.fillRect(x, y, size, size);
       }
-      // 2) Draw the texture slightly OVERSCALED and clipped to the cell so
-      //    the rounded edges of the PNG push past the cell boundary —
-      //    making the tile fill the square completely.
+      // 2) Source-crop the PNG: the artwork has a rounded transparent
+      //    margin around a solid interior, so we sample ONLY the inner
+      //    opaque region (skipping ~16% from each edge) and stretch it
+      //    to fill the entire cell. This guarantees the cell looks fully
+      //    textured with no transparent corners or rounded edges showing.
       ctx.save();
-      ctx.beginPath();
-      ctx.rect(x, y, size, size);
-      ctx.clip();
       if (ghost) ctx.globalAlpha = 0.22;
-      // Aggressive overscale (~22%) so the rounded transparent corners of
-      // the source PNG are pushed well past the cell boundary.
-      const pad = Math.ceil(size * 0.22);
-      ctx.drawImage(img, x - pad, y - pad, size + pad * 2, size + pad * 2);
+      const nW = img.naturalWidth, nH = img.naturalHeight;
+      const sInsetX = nW * 0.16;
+      const sInsetY = nH * 0.16;
+      ctx.drawImage(
+        img,
+        sInsetX, sInsetY, nW - sInsetX * 2, nH - sInsetY * 2,
+        x, y, size, size,
+      );
       ctx.restore();
       // 3) Coloured glow rim so each piece is identifiable at a glance.
       if (!ghost) {
