@@ -609,40 +609,73 @@ export default function MoltenBlocksPage() {
 
   // ── Touch / pointer controls ────────────────────────────────────────────
   // Gesture model (designed for thumbs on a phone):
-  //   - Tap (small movement, < 220 ms) → rotate
-  //   - Horizontal swipe → step left/right one cell per ~CELL of travel
-  //   - Downward swipe held → soft drop (faster fall)
+  //   - Quick tap (< 240 ms, small movement) → rotate
+  //   - Horizontal swipe → step left/right one cell per ~STEP_PX of travel
+  //   - HOLD finger still on screen for HOLD_MS → soft drop (faster fall)
   //   - Hard, fast downward flick → hard drop
+  //
+  // The hold-to-soft-drop only engages once the finger has been planted
+  // for HOLD_MS without moving much, so a tap or a swipe never accidentally
+  // triggers it. Releasing the finger always cancels soft drop.
   const gestureRef = useRef<{
     active: boolean;
+    primaryId: number;
     startX: number; startY: number;
     lastStepX: number;
     startTime: number;
     movedH: number;
     movedV: number;
-    softDropTriggered: boolean;
-  }>({ active: false, startX: 0, startY: 0, lastStepX: 0, startTime: 0, movedH: 0, movedV: 0, softDropTriggered: false });
+    holdTimer: number | null;     // setTimeout id that arms soft-drop
+    softDropArmed: boolean;       // true once the hold-timer has fired
+  }>({ active: false, primaryId: -1, startX: 0, startY: 0, lastStepX: 0, startTime: 0, movedH: 0, movedV: 0, holdTimer: null, softDropArmed: false });
 
-  const STEP_PX = 28; // px the finger must travel to step the piece by 1 cell
+  const STEP_PX = 28;     // px of travel to step the piece one cell sideways
+  const HOLD_MS = 220;    // hold this long without moving → soft drop engages
+  const HOLD_MOVE_TOL = 10; // pixels of movement that cancel the hold-arm
+
+  const cancelHoldTimer = () => {
+    if (gestureRef.current.holdTimer != null) {
+      clearTimeout(gestureRef.current.holdTimer);
+      gestureRef.current.holdTimer = null;
+    }
+  };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (gameOver || paused) return;
+    if (gameOver || paused || showIntro) return;
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    // Ignore additional fingers while a primary gesture is active.
+    if (gestureRef.current.active) return;
+    cancelHoldTimer();
     gestureRef.current = {
-      active: true, startX: e.clientX, startY: e.clientY,
+      active: true, primaryId: e.pointerId,
+      startX: e.clientX, startY: e.clientY,
       lastStepX: e.clientX, startTime: performance.now(),
-      movedH: 0, movedV: 0, softDropTriggered: false,
+      movedH: 0, movedV: 0,
+      holdTimer: window.setTimeout(() => {
+        // Finger has stayed put long enough — engage soft drop.
+        if (gestureRef.current.active) {
+          gestureRef.current.softDropArmed = true;
+          softDropRef.current = true;
+        }
+      }, HOLD_MS),
+      softDropArmed: false,
     };
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
     const g = gestureRef.current;
-    if (!g.active || gameOver || paused) return;
+    if (!g.active || e.pointerId !== g.primaryId || gameOver || paused) return;
     const dx = e.clientX - g.lastStepX;
     const totalDx = e.clientX - g.startX;
     const totalDy = e.clientY - g.startY;
     g.movedH = Math.max(g.movedH, Math.abs(totalDx));
     g.movedV = Math.max(g.movedV, Math.abs(totalDy));
+
+    // Any meaningful movement before soft drop arms cancels the hold —
+    // the user is swiping, not holding.
+    if (!g.softDropArmed && (g.movedH > HOLD_MOVE_TOL || g.movedV > HOLD_MOVE_TOL)) {
+      cancelHoldTimer();
+    }
 
     // Horizontal stepping — step once per STEP_PX of travel since last step
     if (Math.abs(dx) >= STEP_PX) {
@@ -652,38 +685,40 @@ export default function MoltenBlocksPage() {
       }
       g.lastStepX = g.lastStepX + steps * STEP_PX;
     }
-
-    // Soft-drop while finger is held downward past a threshold
-    if (totalDy > 24 && Math.abs(totalDy) > Math.abs(totalDx)) {
-      softDropRef.current = true;
-      g.softDropTriggered = true;
-    } else if (totalDy < 12) {
-      softDropRef.current = false;
-    }
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
     const g = gestureRef.current;
-    if (!g.active) return;
-    g.active = false;
+    if (!g.active || e.pointerId !== g.primaryId) return;
+    cancelHoldTimer();
     softDropRef.current = false;
+    const wasSoftDropping = g.softDropArmed;
+    g.active = false;
+    g.primaryId = -1;
+    g.softDropArmed = false;
     if (gameOver || paused) return;
     const dt = performance.now() - g.startTime;
     const totalDy = e.clientY - g.startY;
     const totalDx = e.clientX - g.startX;
-    // Hard drop: fast downward flick (>120 px in <300 ms, mostly vertical)
-    if (dt < 300 && totalDy > 120 && Math.abs(totalDy) > Math.abs(totalDx) * 1.5) {
+    // Hard drop: fast downward flick (>120 px in <300 ms, mostly vertical).
+    // Skipped if the user was already soft-dropping — they meant to hold.
+    if (!wasSoftDropping && dt < 300 && totalDy > 120 && Math.abs(totalDy) > Math.abs(totalDx) * 1.5) {
       hardDrop();
       return;
     }
-    // Tap: small movement, short duration → rotate
-    if (g.movedH < 12 && g.movedV < 12 && dt < 240) {
+    // Tap: small movement, short duration → rotate. Skipped during a hold
+    // so releasing a soft-drop never accidentally rotates.
+    if (!wasSoftDropping && g.movedH < 12 && g.movedV < 12 && dt < 240) {
       tryRotate();
     }
   };
 
-  const onPointerCancel = () => {
+  const onPointerCancel = (e: React.PointerEvent) => {
+    if (gestureRef.current.primaryId !== e.pointerId) return;
+    cancelHoldTimer();
     gestureRef.current.active = false;
+    gestureRef.current.primaryId = -1;
+    gestureRef.current.softDropArmed = false;
     softDropRef.current = false;
   };
 
@@ -806,7 +841,7 @@ export default function MoltenBlocksPage() {
           </Panel>
           <div style={{ flex: 1 }} />
           <div style={{ fontSize: 9, lineHeight: 1.4, color: "#7a5530", textAlign: "center", letterSpacing: "0.08em" }}>
-            TAP rotate<br/>SWIPE move<br/>HOLD ↓ drop<br/>FLICK ↓ slam
+            TAP rotate<br/>SWIPE move<br/>HOLD soft drop<br/>FLICK ↓ slam
           </div>
         </div>
       </div>
@@ -833,7 +868,8 @@ export default function MoltenBlocksPage() {
             <TutoLine icon="♥" text="You have 3 lives — top out and lose one." />
             <TutoLine icon="↺" text="TAP to rotate the falling piece." />
             <TutoLine icon="↔" text="SWIPE left or right to move." />
-            <TutoLine icon="↓" text="HOLD down for soft drop, FLICK down to slam." />
+            <TutoLine icon="●" text="HOLD your finger still to soft drop." />
+            <TutoLine icon="↓" text="FLICK down hard to slam the piece." />
           </div>
 
           <button
