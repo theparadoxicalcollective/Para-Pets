@@ -160,9 +160,9 @@ function clearLines(board: Cell[][]): { board: Cell[][]; cleared: number } {
 //     coin balance at the end of the run, batched in a single API call)
 //   - 3 lives — each top-out costs one life; the board resets but score
 //     and coins-earned carry over until all lives are gone
-const POINTS_PER_ROW = 3;
+const POINTS_PER_ROW = 10;
 const POINTS_PER_COIN_TIER = 100;   // every 100 score points → COINS_PER_TIER coins
-const COINS_PER_TIER = 2;
+const COINS_PER_TIER = 3;
 const TETRIS_BONUS_COINS = 5;       // +5 coins for clearing 4+ rows in one drop
 const STARTING_LIVES = 1;
 
