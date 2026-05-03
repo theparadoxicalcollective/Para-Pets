@@ -5215,6 +5215,48 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/fishing/fish-by-world", isAuthenticated, async (_req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT DISTINCT ON (w.id, si.id)
+          w.id   AS world_id,
+          w.name AS world_name,
+          si.id  AS fish_id,
+          si.name AS fish_name,
+          si.image_url AS image_url,
+          si.star_rarity AS star_rarity
+        FROM pond_fish pf
+        JOIN world_locations wl ON wl.id = pf.location_id
+        JOIN worlds w ON w.id = wl.world_id
+        JOIN shop_items si ON si.id = pf.shop_item_id
+        WHERE si.type = 'fishing' AND si.fishing_type = 'fish'
+        ORDER BY w.id, si.id, w.name
+      `);
+      const rows = (result as any).rows as any[];
+      const grouped = new Map<string, { worldId: string; worldName: string; fish: any[] }>();
+      for (const r of rows) {
+        let g = grouped.get(r.world_id);
+        if (!g) {
+          g = { worldId: r.world_id, worldName: r.world_name, fish: [] };
+          grouped.set(r.world_id, g);
+        }
+        g.fish.push({
+          id: r.fish_id,
+          name: r.fish_name,
+          imageUrl: r.image_url,
+          starRarity: r.star_rarity,
+        });
+      }
+      const out = Array.from(grouped.values()).map(g => ({
+        ...g,
+        fish: g.fish.sort((a, b) => (a.starRarity ?? 1) - (b.starRarity ?? 1) || a.name.localeCompare(b.name)),
+      })).sort((a, b) => a.worldName.localeCompare(b.worldName));
+      return res.json(out);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   app.get("/api/fishing/caught-fish-ids", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;

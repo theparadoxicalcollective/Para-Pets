@@ -1336,6 +1336,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
 
       {showFishBook && (
         <FishBookPanel
+          currentWorldId={worldId}
           onClose={() => setShowFishBook(false)}
           accent={accent}
         />
@@ -1620,19 +1621,32 @@ function FishInventoryPanel({
   );
 }
 
+interface FishByWorld {
+  worldId: string;
+  worldName: string;
+  fish: ShopItem[];
+}
+
 function FishBookPanel({
   onClose,
   accent,
+  currentWorldId,
 }: {
   onClose: () => void;
   accent: string;
+  currentWorldId?: string;
 }) {
-  const [filter, setFilter] = useState<"all" | "caught" | "uncaught">("all");
-
-  const { data: allFish = [], isLoading: fishLoading } = useQuery<ShopItem[]>({
-    queryKey: ["/api/fishing/all-fish"],
+  const { data: worldGroups = [], isLoading: fishLoading } = useQuery<FishByWorld[]>({
+    queryKey: ["/api/fishing/fish-by-world"],
     staleTime: 60000,
   });
+
+  const [activeWorld, setActiveWorld] = useState<string | null>(null);
+  const effectiveWorld =
+    activeWorld ??
+    (worldGroups.find(g => g.worldId === currentWorldId)?.worldId ?? worldGroups[0]?.worldId ?? null);
+
+  const allFish = (worldGroups.find(g => g.worldId === effectiveWorld)?.fish ?? []);
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -1676,13 +1690,7 @@ function FishBookPanel({
     catchLog.filter(e => !e.rewardClaimed).map(e => e.shopItemId)
   );
 
-  const sorted = [...allFish].sort((a, b) => (a.starRarity ?? 1) - (b.starRarity ?? 1));
-  const filtered = sorted.filter(f => {
-    if (filter === "caught") return caughtSet.has(f.id);
-    if (filter === "uncaught") return !caughtSet.has(f.id);
-    return true;
-  });
-
+  const filtered = [...allFish].sort((a, b) => (a.starRarity ?? 1) - (b.starRarity ?? 1));
   const caughtCount = allFish.filter(f => caughtSet.has(f.id)).length;
 
   return (
@@ -1708,23 +1716,30 @@ function FishBookPanel({
         </button>
       </div>
 
-      <div className="flex gap-2 px-4 py-2" style={{ borderBottom: `1px solid ${accent}20` }}>
-        {(["all", "caught", "uncaught"] as const).map(f => (
-          <button
-            key={f}
-            data-testid={`button-fishbook-filter-${f}`}
-            onClick={() => setFilter(f)}
-            className="font-fantasy text-[9px] tracking-wider px-3 py-1 rounded-full transition-all"
-            style={{
-              background: filter === f ? accent : "rgba(0,0,0,0.4)",
-              color: filter === f ? "#0a1a14" : `${accent}70`,
-              border: `1px solid ${filter === f ? accent : `${accent}30`}`,
-              cursor: "pointer",
-            }}
-          >
-            {f === "all" ? "All" : f === "caught" ? "Caught" : "Undiscovered"}
-          </button>
-        ))}
+      <div className="flex gap-2 px-4 py-2 overflow-x-auto" style={{ borderBottom: `1px solid ${accent}20`, scrollbarWidth: "none" }}>
+        {worldGroups.length === 0 && !fishLoading ? (
+          <span className="font-fantasy text-[9px]" style={{ color: `${accent}50` }}>No worlds stocked yet.</span>
+        ) : (
+          worldGroups.map(g => {
+            const isActive = g.worldId === effectiveWorld;
+            return (
+              <button
+                key={g.worldId}
+                data-testid={`button-fishbook-world-${g.worldId}`}
+                onClick={() => setActiveWorld(g.worldId)}
+                className="font-fantasy text-[9px] tracking-wider px-3 py-1 rounded-full transition-all whitespace-nowrap"
+                style={{
+                  background: isActive ? accent : "rgba(0,0,0,0.4)",
+                  color: isActive ? "#0a1a14" : `${accent}70`,
+                  border: `1px solid ${isActive ? accent : `${accent}30`}`,
+                  cursor: "pointer",
+                }}
+              >
+                {g.worldName}
+              </button>
+            );
+          })
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-3" style={{ scrollbarWidth: "thin" }}>
