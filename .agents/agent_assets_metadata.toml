@@ -1727,3 +1727,9 @@ id = "FdcTFf77Z3qRehIhc-jzm"
 uri = "file://attached_assets/generated_images/dessert_world_background.png"
 type = "image"
 title = "Dessert World Background"
+
+[[outputs]]
+id = "cqBiw7-dP0OGvso7504mo"
+uri = "file://para-pets-ads.zip"
+type = "unspecified"
+title = "Para Pets Ad Creatives (3 ads + images)"
