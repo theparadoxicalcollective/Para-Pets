@@ -902,8 +902,29 @@ export default function MoltenBlocksPage() {
         >{paused ? "▶" : "II"}</button>
       </div>
 
-      {/* Main playfield + side panel */}
-      <div style={{ flex: 1, minHeight: 0, position: "relative", zIndex: 1, display: "flex", padding: "6px 6px 8px", gap: 6 }}>
+      {/* Main playfield + top strip (NEXT/BEST/COINS) + bottom strip (HOLD) */}
+      <div style={{ flex: 1, minHeight: 0, position: "relative", zIndex: 1, display: "flex", flexDirection: "column", padding: "4px 8px 8px", gap: 6 }}>
+
+        {/* TOP STRIP — NEXT preview · BEST · COINS, sitting just above the playfield */}
+        <div style={{ flexShrink: 0, display: "flex", alignItems: "stretch", gap: 6, height: 42 }}>
+          <div style={{
+            flex: "0 0 auto", display: "flex", alignItems: "center", gap: 6,
+            background: "rgba(20,8,4,0.85)", border: "1px solid rgba(251,191,36,0.35)",
+            borderRadius: 8, padding: "2px 8px 2px 6px",
+            boxShadow: "0 0 12px rgba(217,119,6,0.15) inset",
+          }}>
+            <div style={{ fontSize: 9, letterSpacing: "0.22em", color: "#a06a30" }}>NEXT</div>
+            <canvas
+              ref={sideCanvasRef}
+              data-testid="canvas-next"
+              style={{ width: 56, height: 36, display: "block" }}
+            />
+          </div>
+          <MiniStat label="BEST" value={hiScore.toLocaleString()} color={accent} testId="text-hi-score" />
+          <MiniStat label="COINS" value={coinsEarned.toLocaleString()} color="#ffd166" testId="text-coins-earned" />
+        </div>
+
+        {/* PLAYFIELD — full width, fills remaining vertical space */}
         <div
           style={{ flex: 1, minHeight: 0, position: "relative" }}
           onPointerDown={onPointerDown}
@@ -918,53 +939,35 @@ export default function MoltenBlocksPage() {
           />
         </div>
 
-        {/* Side panel — Next + best (compact to give the playfield more room) */}
-        <div style={{ width: 76, flexShrink: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-          <Panel label="NEXT">
-            <canvas
-              ref={sideCanvasRef}
-              data-testid="canvas-next"
-              style={{ width: "100%", height: 70, display: "block" }}
-            />
-          </Panel>
-          <Panel label="BEST">
-            <div data-testid="text-hi-score" style={{ textAlign: "center", padding: "3px 0", fontSize: 15, color: accent, fontWeight: 600 }}>
-              {hiScore.toLocaleString()}
-            </div>
-          </Panel>
-          <Panel label="COINS">
-            <div data-testid="text-coins-earned" style={{ textAlign: "center", padding: "3px 0", fontSize: 15, color: "#ffd166", fontWeight: 600 }}>
-              {coinsEarned.toLocaleString()}
-            </div>
-          </Panel>
-          {/* HOLD slot — tap to stash the falling piece (or swap with the held one) */}
+        {/* BOTTOM STRIP — gesture hint on the left, HOLD slot pinned bottom-right */}
+        <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <div style={{ fontSize: 9, lineHeight: 1.4, color: "#7a5530", letterSpacing: "0.06em", flex: 1 }}>
+            TAP rotate · SWIPE move · HOLD soft drop · FLICK ↓ slam
+          </div>
           <button
             data-testid="button-hold"
             onClick={tryHold}
             disabled={paused || showIntro || gameOver}
             style={{
-              background: "rgba(20,8,4,0.65)",
+              background: "rgba(20,8,4,0.85)",
               border: `1px solid ${holdPiece ? "rgba(251,191,36,0.55)" : "rgba(251,191,36,0.25)"}`,
               borderRadius: 8,
-              padding: "3px 3px 5px",
+              padding: "3px 8px 4px 6px",
               cursor: "pointer",
-              opacity: 1,
               outline: "none",
               fontFamily: "inherit",
               color: "inherit",
+              display: "flex", alignItems: "center", gap: 6,
+              boxShadow: "0 0 12px rgba(217,119,6,0.15) inset",
             }}
           >
-            <div style={{ fontSize: 9, letterSpacing: "0.22em", color: "#a06a30", textAlign: "center", marginBottom: 2 }}>HOLD</div>
+            <div style={{ fontSize: 9, letterSpacing: "0.22em", color: "#a06a30" }}>HOLD</div>
             <canvas
               ref={holdCanvasRef}
               data-testid="canvas-hold"
-              style={{ width: "100%", height: 54, display: "block" }}
+              style={{ width: 56, height: 34, display: "block" }}
             />
           </button>
-          <div style={{ flex: 1 }} />
-          <div style={{ fontSize: 9, lineHeight: 1.4, color: "#7a5530", textAlign: "center", letterSpacing: "0.06em" }}>
-            TAP rotate<br/>SWIPE move<br/>HOLD soft drop<br/>FLICK ↓ slam
-          </div>
         </div>
       </div>
 
@@ -1114,6 +1117,22 @@ function Stat({ label, value, testId }: { label: string; value: number; testId?:
       <div style={{ fontSize: 11, letterSpacing: "0.18em", color: "#7a5530" }}>{label}</div>
       <div data-testid={testId} style={{ fontSize: 20, color: "#fbbf24", fontWeight: 600, lineHeight: 1.1 }}>
         {value.toLocaleString()}
+      </div>
+    </div>
+  );
+}
+
+function MiniStat({ label, value, color, testId }: { label: string; value: string; color: string; testId?: string }) {
+  return (
+    <div style={{
+      flex: 1, display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+      background: "rgba(20,8,4,0.85)", border: "1px solid rgba(251,191,36,0.35)",
+      borderRadius: 8, padding: "2px 8px",
+      boxShadow: "0 0 12px rgba(217,119,6,0.15) inset",
+    }}>
+      <div style={{ fontSize: 9, letterSpacing: "0.22em", color: "#a06a30" }}>{label}</div>
+      <div data-testid={testId} style={{ fontSize: 15, color, fontWeight: 600, lineHeight: 1.1 }}>
+        {value}
       </div>
     </div>
   );
