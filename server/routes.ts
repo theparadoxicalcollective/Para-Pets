@@ -1827,7 +1827,8 @@ export async function registerRoutes(
       const accShopItem = await storage.getShopItem(accInv.shopItemId);
       if (!accShopItem || accShopItem.type !== "accessory") return res.status(400).json({ message: "Item is not an accessory" });
       const currentEquipped = await storage.getPetEquippedAccessories(inventoryId);
-      if (currentEquipped.length >= 3) return res.status(400).json({ message: "All 3 accessory slots are full" });
+      const maxSlots = 3 + (user.accessoryExtraSlots ?? 0);
+      if (currentEquipped.length >= maxSlots) return res.status(400).json({ message: `All ${maxSlots} accessory slots are full` });
       if (currentEquipped.find(e => e.accessoryInventoryId === accessoryInventoryId)) return res.status(400).json({ message: "Accessory already equipped" });
       const equipped = await storage.equipAccessory(inventoryId, accessoryInventoryId);
       const atkGain    = accShopItem.atkBoost    || 0;
@@ -1874,6 +1875,25 @@ export async function registerRoutes(
     }
   });
 
+
+  app.post("/api/user/unlock-accessory-slot", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const currentExtra = user.accessoryExtraSlots ?? 0;
+      if (currentExtra >= 2) return res.status(400).json({ message: "Maximum accessory slots already unlocked" });
+      const SLOT_COST = 3000;
+      const updated = await storage.atomicDeductCoins(user.id, SLOT_COST);
+      if (!updated) return res.status(400).json({ message: "Not enough coins" });
+      const [withSlot] = await db
+        .update(usersTable)
+        .set({ accessoryExtraSlots: currentExtra + 1 })
+        .where(eq(usersTable.id, user.id))
+        .returning();
+      return res.json({ accessoryExtraSlots: withSlot.accessoryExtraSlots, coins: withSlot.coins });
+    } catch (err: any) {
+      return res.status(500).json({ message: err?.message || "Failed to unlock slot" });
+    }
+  });
 
   app.post("/api/pet/:inventoryId/power-up", isAuthenticated, async (req, res) => {
     try {

@@ -28,6 +28,7 @@ export const users = pgTable("users", {
   emailVerificationToken: text("email_verification_token"),
   emailVerificationExpires: timestamp("email_verification_expires"),
   marketExtraSlots: integer("market_extra_slots").notNull().default(0),
+  accessoryExtraSlots: integer("accessory_extra_slots").notNull().default(0),
   welcomeV2Sent: boolean("welcome_v2_sent").notNull().default(false),
   totalCoinsEarned: integer("total_coins_earned").notNull().default(0),
   watcherShoutoutsEnabled: boolean("watcher_shoutouts_enabled").notNull().default(true),
