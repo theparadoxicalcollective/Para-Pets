@@ -768,6 +768,12 @@ uri = "file://attached_assets/world_swamp_v5.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "z2ixpVDusexkhAUA-mi-v"
+uri = "file://attached_assets/generated_images/dessert_world_background.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
@@ -1715,3 +1721,9 @@ id = "Irg1lnYKPh2a5BpyEn8z1"
 uri = "file://backups/para_pets_full_backup_20260503.zip"
 type = "unspecified"
 title = "Para Pets — Full Backup (May 3 2026)"
+
+[[outputs]]
+id = "FdcTFf77Z3qRehIhc-jzm"
+uri = "file://attached_assets/generated_images/dessert_world_background.png"
+type = "image"
+title = "Dessert World Background"
