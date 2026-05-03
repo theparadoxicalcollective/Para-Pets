@@ -666,6 +666,12 @@ uri = "file://attached_assets/generated_images/nav_icon_map_v2.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "Z9CJwlXPFC4tuC-l3Nsl7"
+uri = "file://attached_assets/generated_images/nav_icon_map_v3.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

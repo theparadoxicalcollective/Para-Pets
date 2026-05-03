@@ -10,7 +10,7 @@ import marketIcon from "@assets/generated_images/nav_icon_market.png";
 import fishbowlIcon from "@assets/icon_fishbowl.png";
 import globeIcon from "@assets/icon_globe_world.webp";
 import bagIcon from "@assets/icon_bag.png";
-import mapIcon from "@assets/generated_images/nav_icon_map_v2.png";
+import mapIcon from "@assets/generated_images/nav_icon_map_v3.png";
 import questIcon from "@assets/generated_images/nav_icon_map.png";
 import questScrollBg from "@assets/IMG_6427_1774545779530.png";
 import pvpIcon from "@assets/generated_images/nav_icon_pvp.png";
