@@ -480,6 +480,96 @@ uri = "file://attached_assets/edible_phoenix_feast_platter.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "LBG1cT3Ny_zLdPY1-CSjU"
+uri = "file://attached_assets/fish_magma_minnow.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "xGEZ0vh3G6exqZ47YbHBl"
+uri = "file://attached_assets/fish_cinder_guppy.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "aUV7hGS6Zuj9CGlXBPHYm"
+uri = "file://attached_assets/fish_brimstone_tetra.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "HlMnYYTEWAmnO_3j01xHt"
+uri = "file://attached_assets/fish_ash_bream.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "75qoD2LsqhAVEWlW4qYoR"
+uri = "file://attached_assets/fish_sulfur_eel.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "vGYWWUXFAUGIbXao6iAGS"
+uri = "file://attached_assets/fish_obsidian_pike.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "U2HYkZxagdH7R4Ee5c4Z-"
+uri = "file://attached_assets/fish_ember_carp.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Fielhvcl5K4H2Df_daQbU"
+uri = "file://attached_assets/fish_smoldering_catfish.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "fziVOIuXNWIjcdKNXOoIT"
+uri = "file://attached_assets/fish_lavafin_koi.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "1vPcU1vaGs4nPB0pegsGa"
+uri = "file://attached_assets/fish_pyroclast_piranha.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "eMC7gdbQ13aQMBlSJURTW"
+uri = "file://attached_assets/fish_ironscale_trench.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "00YNOJUgP0rNP_9PUStZ6"
+uri = "file://attached_assets/fish_volcanic_anglerfish.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "0vNz1B6h_Oha4E0D6iGNY"
+uri = "file://attached_assets/fish_caldera_crusher.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "ZNm-KodMOI2cd8-yqufRX"
+uri = "file://attached_assets/fish_phoenix_lungfish.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Yxp3gmxn76Npg3EnMQLn_"
+uri = "file://attached_assets/fish_lord_inferno.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

@@ -2048,6 +2048,73 @@ app.use((req, res, next) => {
     console.error("Volcanic edibles seed error (non-fatal):", err);
   }
 
+  // Seed 15 volcanic-themed fish (one-shot). Stored as type='fishing'
+  // fishing_type='fish' with world_id='volcanic' so admins can place them
+  // into any volcanic fishing spot from the fish pool. Price is 0 (caught,
+  // not bought). Star ratings are pre-rolled 1-5 so they're stable across
+  // restarts. Image URLs use the static /world-assets/ route with mtime
+  // cache-busting, and are re-bumped every boot below so re-exported PNGs
+  // (background-stripped, etc.) show up without a manual DB edit.
+  try {
+    const volcanicFishDone = await storage.getGameSetting("volcanic_fish_v1");
+    const volcanicFish = [
+      { name: "Magma Minnow",          stars: 2, file: "fish_magma_minnow.png" },
+      { name: "Cinder Guppy",          stars: 3, file: "fish_cinder_guppy.png" },
+      { name: "Brimstone Tetra",       stars: 1, file: "fish_brimstone_tetra.png" },
+      { name: "Ash Bream",             stars: 2, file: "fish_ash_bream.png" },
+      { name: "Sulfur Eel",            stars: 4, file: "fish_sulfur_eel.png" },
+      { name: "Obsidian Pike",         stars: 4, file: "fish_obsidian_pike.png" },
+      { name: "Ember Carp",            stars: 3, file: "fish_ember_carp.png" },
+      { name: "Smoldering Catfish",    stars: 2, file: "fish_smoldering_catfish.png" },
+      { name: "Lavafin Koi",           stars: 5, file: "fish_lavafin_koi.png" },
+      { name: "Pyroclast Piranha",     stars: 4, file: "fish_pyroclast_piranha.png" },
+      { name: "Ironscale Trench Fish", stars: 3, file: "fish_ironscale_trench.png" },
+      { name: "Volcanic Anglerfish",   stars: 5, file: "fish_volcanic_anglerfish.png" },
+      { name: "Caldera Crusher",       stars: 4, file: "fish_caldera_crusher.png" },
+      { name: "Phoenix Lungfish",      stars: 5, file: "fish_phoenix_lungfish.png" },
+      { name: "Lord Inferno",          stars: 5, file: "fish_lord_inferno.png" },
+    ];
+    if (!volcanicFishDone) {
+      let inserted = 0;
+      for (const f of volcanicFish) {
+        const assetPath = path.join(process.cwd(), "attached_assets", f.file);
+        if (!fs.existsSync(assetPath)) {
+          console.warn(`Volcanic fish asset missing, skipping: ${f.file}`);
+          continue;
+        }
+        const v = Math.floor(fs.statSync(assetPath).mtimeMs / 1000);
+        const imageUrl = `/world-assets/${f.file}?v=${v}`;
+        const existing = await db.execute(
+          sql`SELECT id FROM shop_items WHERE name = ${f.name} AND type = 'fishing' AND fishing_type = 'fish' LIMIT 1`
+        );
+        if ((existing as any).rows?.length) continue;
+        await db.execute(sql`
+          INSERT INTO shop_items (name, price, type, world_id, image_url, fishing_type, star_rarity, facing_direction, fish_swim_zone)
+          VALUES (${f.name}, 0, 'fishing', 'volcanic', ${imageUrl}, 'fish', ${f.stars}, 'left', 'middle')
+        `);
+        inserted++;
+      }
+      await storage.setGameSetting("volcanic_fish_v1", "done");
+      console.log(`Volcanic fish seeded (${inserted} new).`);
+    }
+
+    for (const f of volcanicFish) {
+      const assetPath = path.join(process.cwd(), "attached_assets", f.file);
+      if (!fs.existsSync(assetPath)) continue;
+      const v = Math.floor(fs.statSync(assetPath).mtimeMs / 1000);
+      const url = `/world-assets/${f.file}?v=${v}`;
+      await db.execute(sql`
+        UPDATE shop_items
+        SET image_url = ${url},
+            facing_direction = COALESCE(facing_direction, 'left'),
+            fish_swim_zone   = COALESCE(fish_swim_zone, 'middle')
+        WHERE name = ${f.name} AND type = 'fishing' AND fishing_type = 'fish'
+      `);
+    }
+  } catch (err) {
+    console.error("Volcanic fish seed error (non-fatal):", err);
+  }
+
   // Seed volcanic food shop — uses the same one-shot game_settings flag pattern
   // as the other volcanic shops so it inserts once, then becomes admin-movable
   // (position/size persisted via the standard world_locations PATCH route).
