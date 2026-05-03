@@ -288,6 +288,11 @@ export default function MoltenBlocksPage() {
   useEffect(() => { coinsEarnedRef.current = coinsEarned; }, [coinsEarned]);
 
   // ── Submit earned coins to the server, persist hi-score ─────────────────
+  // `finalizedAmountRef` tracks how many coins we've already submitted this
+  // run so subsequent finalize calls (pause-cashout AND the eventual
+  // game-over auto-finalize, or a stray unmount-cleanup) only POST the
+  // delta — no double-crediting, no silent dropping of earnings.
+  const finalizedAmountRef = useRef(0);
   const finalizeRun = useCallback(async () => {
     // Save high score locally
     setHiScore(prev => {
@@ -295,25 +300,54 @@ export default function MoltenBlocksPage() {
       try { localStorage.setItem("molten_blocks_hi", String(next)); } catch {}
       return next;
     });
-    // Credit coins to the player's balance (single batched call). Skip the
-    // round-trip if there's nothing to award.
-    const earned = coinsEarnedRef.current;
-    if (earned <= 0) {
-      setCoinAward({ amount: 0, status: "done" });
+    const totalEarned = coinsEarnedRef.current;
+    const delta = totalEarned - finalizedAmountRef.current;
+    if (delta <= 0) {
+      // Nothing new to award — leave coinAward state as-is so the previous
+      // success message stays visible.
+      if (totalEarned <= 0) setCoinAward({ amount: 0, status: "done" });
       return;
     }
-    setCoinAward({ amount: earned, status: "submitting" });
+    // Optimistically mark this delta as submitted so a rapid second call
+    // (e.g. pause-cashout immediately followed by game-over) doesn't fire
+    // a duplicate POST. We roll it back on error.
+    finalizedAmountRef.current = totalEarned;
+    setCoinAward({ amount: totalEarned, status: "submitting" });
+    // Retry once on transient failure / cooldown (429) so leaving the
+    // game early always credits the player.
+    const submit = async () => {
+      const res = await apiRequest("POST", "/api/games/molten-blocks/reward", { coins: delta });
+      return await res.json();
+    };
     try {
-      const res = await apiRequest("POST", "/api/games/molten-blocks/reward", { coins: earned });
-      const data = await res.json();
-      // Refresh the cached user so the coin counter elsewhere in the app
-      // updates immediately without a manual reload.
+      let data: any;
+      try {
+        data = await submit();
+      } catch (_first) {
+        await new Promise(r => setTimeout(r, 1600));
+        data = await submit();
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      setCoinAward({ amount: data?.awarded ?? earned, status: "done" });
+      setCoinAward({ amount: data?.awarded ?? delta, status: "done" });
     } catch (_err) {
-      setCoinAward({ amount: earned, status: "error" });
+      // Roll back the optimistic mark so a later finalize attempt can retry.
+      finalizedAmountRef.current = totalEarned - delta;
+      setCoinAward({ amount: delta, status: "error" });
     }
   }, []);
+
+  // Safety-net: if the player navigates away (back button, route change,
+  // closes the tab via SPA nav) without using "Return & Keep Earnings",
+  // still try to credit any unsubmitted coins on unmount.
+  useEffect(() => {
+    return () => {
+      if (coinsEarnedRef.current > finalizedAmountRef.current) {
+        // Fire-and-forget; the component is gone but the request will
+        // resolve on the server and credit the player's balance.
+        finalizeRun();
+      }
+    };
+  }, [finalizeRun]);
 
   // ── Spawn next piece; on top-out, lose a life or end the game ───────────
   const spawnNext = useCallback(() => {
@@ -523,25 +557,33 @@ export default function MoltenBlocksPage() {
     if (img && img.complete && img.naturalWidth > 0) {
       // 1) Solid base fill — last-line defence against any transparent
       //    pixel ever revealing the playfield background through the cell.
+      //    Overdraw by 1px on the right/bottom so adjacent cells visually
+      //    seal together with no subpixel hairline gaps.
       if (!ghost) {
         ctx.fillStyle = PIECE_BASE[type];
-        ctx.fillRect(x, y, size, size);
+        ctx.fillRect(x, y, size + 1, size + 1);
       }
-      // 2) Source-crop the PNG: the artwork has a rounded transparent
-      //    margin around a solid interior, so we sample ONLY the inner
-      //    opaque region (skipping ~16% from each edge) and stretch it
-      //    to fill the entire cell. This guarantees the cell looks fully
-      //    textured with no transparent corners or rounded edges showing.
+      // 2) Source-crop the PNG deep inside the artwork: these textures
+      //    fade from solid in the centre to a soft alpha edge, so we
+      //    sample only the dense inner ~52% of each axis (24% inset on
+      //    every edge) to grab the most opaque, saturated region and
+      //    stretch it across the entire cell — no transparent corners,
+      //    no rounded edges, no fade-to-background halos.
       ctx.save();
       if (ghost) ctx.globalAlpha = 0.22;
+      // Crisp pixel sampling — bilinear smoothing was washing out the
+      //    inner texture and re-introducing semi-transparent edges.
+      const prevSmoothing = ctx.imageSmoothingEnabled;
+      ctx.imageSmoothingEnabled = false;
       const nW = img.naturalWidth, nH = img.naturalHeight;
-      const sInsetX = nW * 0.16;
-      const sInsetY = nH * 0.16;
+      const sInsetX = nW * 0.24;
+      const sInsetY = nH * 0.24;
       ctx.drawImage(
         img,
         sInsetX, sInsetY, nW - sInsetX * 2, nH - sInsetY * 2,
-        x, y, size, size,
+        x, y, size + 1, size + 1,
       );
+      ctx.imageSmoothingEnabled = prevSmoothing;
       ctx.restore();
       // 3) Coloured glow rim so each piece is identifiable at a glance.
       if (!ghost) {
