@@ -5123,7 +5123,10 @@ function CauldronOverlay({
         transform: "translateX(-50%)",
         width: `${cur.size}%`,
         maxWidth: 320,
-        zIndex: 6,
+        // Must sit above the location view's `relative z-10` content layer
+        // (which spans the full screen with h-full and would otherwise eat
+        // every pointerdown — that's why admin drag/resize wasn't firing).
+        zIndex: 20,
         cursor: isAdmin ? "move" : "pointer",
         touchAction: "none",
       }}
