@@ -29,6 +29,7 @@ import bgShopVolcanicPets from "@assets/bg_shop_volcanic_pets.png";
 import bgShopForgeFang from "@assets/bg_shop_forge_fang_volcanic.png";
 import bgShopBookshopVolcanic from "@assets/bg_shop_bookshop_volcanic.png";
 import bgShopFoodVolcanic from "@assets/bg_shop_food_volcanic.png";
+import bgShopFoodSwamp from "@assets/bg_shop_food_swamp.png";
 import shopVolcanicFishing from "@assets/icon_fishing_shop_volcanic.png";
 import npcLavaHook from "@assets/npc_lava_hook_shopkeeper.png";
 import shopFrostpeak from "@assets/shop_frostpeak.png";
@@ -2856,8 +2857,9 @@ export default function WorldPage({ user }: WorldPageProps) {
           ? (isVolcanicFishing ? bgShopVolcanic : bgShopFishing)
           : isCentralMarket ? bgShopCentralMarket
           : isVolcanicShop ? volcanicShopBg
-          : worldId === "swamp" ? bgShopBayou
-          : bgShopMystical;
+          : worldId === "swamp"
+            ? (activeLoc?.id === "a1b2c3d4-0010-4000-8000-000000000010" ? bgShopFoodSwamp : bgShopBayou)
+            : bgShopMystical;
         return (
         <div className="fixed inset-0 z-40 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0, background: isCentralMarket ? "#08060a" : (isVolcanicFishing || isVolcanicShop) ? "#0d0502" : "#080510", overflow: "hidden" }}>
           {/* Themed background image — fixed, not admin-uploaded */}

@@ -885,6 +885,7 @@ app.use((req, res, next) => {
     "c3d4e5f6-0003-4000-8000-000000000003": "bg_shop_forge_fang_volcanic.png",
     "c3d4e5f6-0004-4000-8000-000000000004": "bg_shop_bookshop_volcanic.png",
     "c3d4e5f6-0006-4000-8000-000000000006": "bg_shop_food_volcanic.png",
+    "a1b2c3d4-0010-4000-8000-000000000010": "bg_shop_food_swamp.png",
   };
   for (const [locId, bgFile] of Object.entries(LOC_BG_ALWAYS_REFRESH)) {
     try {
@@ -2206,6 +2207,33 @@ app.use((req, res, next) => {
     console.error("Volcanic food shop seed error (non-fatal):", err);
   }
 
+  // Seed swamp food shop (Elysian Bayou) — same one-shot pattern.
+  try {
+    const SWAMP_FOOD_SHOP_ID = "a1b2c3d4-0010-4000-8000-000000000010";
+    const swampFoodShopDone = await storage.getGameSetting("swamp_food_shop_v1");
+    if (!swampFoodShopDone) {
+      const existing = await db.execute(sql`SELECT id FROM world_locations WHERE id = ${SWAMP_FOOD_SHOP_ID}`);
+      if ((existing as any).rows?.length === 0) {
+        const assetPath = path.join(process.cwd(), "attached_assets", "icon_food_shop_swamp.png");
+        const mtime = fs.existsSync(assetPath) ? fs.statSync(assetPath).mtimeMs : Date.now();
+        const iconUrl = `/world-assets/icon_food_shop_swamp.png?v=${Math.floor(mtime / 1000)}`;
+        const shopName = "Mama Crawdad's Cauldron";
+        const shopDesc = "A bayou food stall serving spicy gumbo, fire-roasted crawfish, and willow-wisp brews steaming on the cypress counter.";
+        await db.execute(sql`
+          INSERT INTO world_locations (id, world_id, name, type, description, pos_x, pos_y, glow_color, icon_size, sort_order, is_shop, icon_url)
+          VALUES (
+            ${SWAMP_FOOD_SHOP_ID}, 'swamp', ${shopName}, 'shop',
+            ${shopDesc}, 50, 70, '#7fbf6f', 350, 13, true, ${iconUrl}
+          )
+        `);
+        console.log("Swamp Food Shop seeded.");
+      }
+      await storage.setGameSetting("swamp_food_shop_v1", "done");
+    }
+  } catch (err) {
+    console.error("Swamp food shop seed error (non-fatal):", err);
+  }
+
   // Seed volcanic bookshop
   try {
     const VOLCANIC_BOOKSHOP_ID = "c3d4e5f6-0004-4000-8000-000000000004";
@@ -2282,6 +2310,7 @@ app.use((req, res, next) => {
     "c3d4e5f6-0004-4000-8000-000000000004": "icon_bookshop_volcanic.png",
     "c3d4e5f6-0005-4000-8000-000000000005": "icon_lava_fortress_volcanic.png",
     "c3d4e5f6-0006-4000-8000-000000000006": "icon_food_shop_volcanic.png",
+    "a1b2c3d4-0010-4000-8000-000000000010": "icon_food_shop_swamp.png",
   };
   for (const [locId, iconFile] of Object.entries(LOC_ICON_ALWAYS_REFRESH)) {
     try {
