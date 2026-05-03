@@ -408,6 +408,12 @@ uri = "file://attached_assets/generated_images/nav_icon_badges.png"
 type = "image"
 title = "isolated badges medallion"
 
+[[generated]]
+id = "07FM7Ox5-y4qSk7oCmw8v"
+uri = "file://attached_assets/icon_food_shop_volcanic.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
