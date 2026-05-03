@@ -1863,8 +1863,11 @@ export default function WorldPage({ user }: WorldPageProps) {
                                     : "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1.5px rgba(186,230,253,0.9)) drop-shadow(0 0 5px rgba(56,189,248,0.5))"
                                 // Non-fishing location icons (shops, NPCs, etc.) get a subtle
                                 // rim using the location's own glow colour so each icon has
-                                // a hint of its own identity without a large bloom.
-                                : `drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px ${glow}cc) drop-shadow(0 0 4px ${glow}55)`,
+                                // a hint of its own identity without a large bloom. Bayou
+                                // (swamp) world keeps a plain drop-shadow only — no glow.
+                                : worldId === "swamp"
+                                  ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55))"
+                                  : `drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px ${glow}cc) drop-shadow(0 0 4px ${glow}55)`,
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
                               transition: "filter 0.15s ease, transform 0.15s ease",
                             }}
