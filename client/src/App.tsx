@@ -154,11 +154,12 @@ const THEMED_WORLDS = new Set(["volcanic", "swamp"]);
 function WorldLoadingGate({ location, user }: { location: string; user: any }) {
   const worldId = location.replace("/world/", "").split("/")[0];
   const [screenDone, setScreenDone] = useState(!THEMED_WORLDS.has(worldId));
+  const [worldReady, setWorldReady] = useState(false);
   return (
     <>
-      <WorldPage user={user} />
+      <WorldPage user={user} onContentReady={() => setWorldReady(true)} />
       {!screenDone && (
-        <WorldLoadingScreen worldId={worldId} onReady={() => setScreenDone(true)} />
+        <WorldLoadingScreen worldId={worldId} pageReady={worldReady} onReady={() => setScreenDone(true)} />
       )}
     </>
   );

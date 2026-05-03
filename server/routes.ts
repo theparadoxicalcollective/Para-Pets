@@ -1800,6 +1800,18 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/pet/:inventoryId/accessories/public", isAuthenticated, async (req, res) => {
+    try {
+      const { inventoryId } = req.params as Record<string, string>;
+      const petInv = await storage.getInventoryItemById(inventoryId);
+      if (!petInv) return res.status(404).json({ message: "Pet not found" });
+      const equipped = await storage.getPetEquippedAccessories(inventoryId);
+      return res.json(equipped);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to get accessories" });
+    }
+  });
+
   app.get("/api/pet/:inventoryId/accessories", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;

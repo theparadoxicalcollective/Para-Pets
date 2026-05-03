@@ -124,6 +124,7 @@ interface WorldPageProps {
     lastUsernameChange: string | null;
     lastProfilePicChange: string | null;
   };
+  onContentReady?: () => void;
 }
 
 interface InventoryItem {
@@ -210,7 +211,7 @@ const WORLD_FIXED_MAP_H: Record<string, number> = {
 // isMobilePhone kept as true to always enable pinch/scroll controls.
 const isMobilePhone = () => true;
 
-export default function WorldPage({ user }: WorldPageProps) {
+export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const params = useParams<{ worldId: string }>();
   const [rawLocation] = useLocation();
   const worldId = params.worldId || rawLocation.replace(/^\/world\//, "").split("/")[0] || "";
@@ -239,6 +240,14 @@ export default function WorldPage({ user }: WorldPageProps) {
     accent: worldApiData.glowColor || "#ffd700",
     bgGradient: "linear-gradient(180deg, rgba(20,15,10,0.7) 0%, rgba(40,30,15,0.3) 50%, rgba(10,8,5,0.7) 100%)",
   } : null);
+
+  const contentReadyFiredRef = useRef(false);
+  useEffect(() => {
+    if (worldApiData && !contentReadyFiredRef.current) {
+      contentReadyFiredRef.current = true;
+      onContentReady?.();
+    }
+  }, [!!worldApiData]);
 
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);

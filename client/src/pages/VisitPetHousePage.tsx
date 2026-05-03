@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { X } from "lucide-react";
+import { X, Heart, Sword, Shield, Star } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import SendGiftModal from "@/components/SendGiftModal";
@@ -21,10 +21,17 @@ interface PlacedDecorItem {
   id: string; decorItemId: string; xPct: number; yPct: number; size: number; flipped: boolean;
   item: { id: string; name: string; imageUrl: string | null };
 }
+interface EquippedAccessory {
+  id: string; name: string; imageUrl: string | null;
+  atkBoost: number | null; defBoost: number | null; healthBoost: number | null;
+}
 
 const DEFAULT_BG_RATIO = 1920 / 2400;
 const BUILDING_REF_H = 900;
 const INTERIOR_PET_SIZE = 110;
+
+const RARITY_LABEL: Record<number, string> = { 1: "Common", 2: "Uncommon", 3: "Rare", 4: "Epic", 5: "Legendary" };
+const RARITY_COLOR: Record<number, string> = { 1: "#a89878", 2: "#6dbf6d", 3: "#5ba3e0", 4: "#c373f5", 5: "#ffd700" };
 
 function parsePetPct(s: string | null): number | null {
   if (!s) return null;
@@ -44,15 +51,151 @@ function randomGroundConfig(index: number) {
   return { size, centerX, centerY };
 }
 
+// ── Pet Stat Popup ────────────────────────────────────────────────────────────
+function PetStatPopup({ pet, onClose }: { pet: VisitedPet; onClose: () => void }) {
+  const { data: accessories = [], isLoading: accsLoading } = useQuery<EquippedAccessory[]>({
+    queryKey: ["/api/pet", pet.inventoryId, "accessories/public"],
+    queryFn: async () => {
+      const res = await fetch(`/api/pet/${pet.inventoryId}/accessories/public`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 30000,
+  });
+
+  const rarityColor = RARITY_COLOR[pet.rarity ?? 1] ?? "#a89878";
+  const rarityLabel = RARITY_LABEL[pet.rarity ?? 1] ?? "Common";
+  const displayName = pet.nickname ?? pet.name;
+
+  return (
+    <div
+      data-testid="overlay-pet-stat-popup"
+      className="fixed inset-0 flex items-end justify-center"
+      style={{ zIndex: 120, background: "rgba(0,0,0,0.55)" }}
+      onClick={onClose}
+    >
+      <div
+        data-testid="panel-pet-stat"
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: "100%", maxWidth: 480,
+          background: "linear-gradient(180deg, #0f0a18 0%, #130c1e 100%)",
+          border: "1px solid rgba(180,140,255,0.22)",
+          borderBottom: "none",
+          borderRadius: "20px 20px 0 0",
+          padding: "20px 20px 32px",
+          boxShadow: "0 -8px 40px rgba(0,0,0,0.7)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 16 }}>
+          <div style={{
+            width: 72, height: 72, flexShrink: 0,
+            borderRadius: 14,
+            background: "rgba(255,255,255,0.04)",
+            border: `1.5px solid ${rarityColor}55`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            overflow: "hidden",
+          }}>
+            {pet.petTemplateId ? (
+              <PetAnimator petTemplateId={pet.petTemplateId} mode="static" size={68} fillContainer />
+            ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
+              <img src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""} alt={displayName} draggable={false} style={{ width: 68, height: 68, objectFit: "contain" }} />
+            ) : (
+              <span style={{ fontSize: 32 }}>🐾</span>
+            )}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontFamily: "Lora, serif", fontSize: 15, fontWeight: 700, color: "#f0e8ff", margin: "0 0 2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              data-testid="text-pet-stat-name">{displayName}</p>
+            {pet.nickname && (
+              <p style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#9070c0", margin: "0 0 6px" }}>{pet.name}</p>
+            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontFamily: "Lora, serif", fontSize: 10, letterSpacing: "0.1em", color: rarityColor, background: `${rarityColor}18`, border: `1px solid ${rarityColor}45`, borderRadius: 99, padding: "2px 8px" }}>{rarityLabel}</span>
+              <span style={{ fontFamily: "Lora, serif", fontSize: 10, color: "#d4a017", display: "flex", alignItems: "center", gap: 3 }}>
+                <Star size={10} style={{ color: "#d4a017" }} />Lv.{pet.petLevel}
+              </span>
+            </div>
+          </div>
+
+          <button
+            data-testid="button-close-pet-stat"
+            onClick={onClose}
+            style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        <div style={{ height: 1, background: "rgba(180,140,255,0.12)", marginBottom: 14 }} />
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16 }}>
+          <div style={{ background: "rgba(255,100,100,0.08)", border: "1px solid rgba(255,100,100,0.2)", borderRadius: 12, padding: "10px 8px", textAlign: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, marginBottom: 4 }}>
+              <Heart size={11} style={{ color: "#ff7070" }} />
+              <span style={{ fontFamily: "Lora, serif", fontSize: 9, letterSpacing: "0.12em", color: "#ff7070", textTransform: "uppercase" }}>HP</span>
+            </div>
+            <p data-testid="text-pet-stat-hp" style={{ fontFamily: "Lora, serif", fontSize: 17, fontWeight: 700, color: "#ffaaaa", margin: 0 }}>{pet.petHealth}</p>
+          </div>
+          <div style={{ background: "rgba(255,170,50,0.08)", border: "1px solid rgba(255,170,50,0.2)", borderRadius: 12, padding: "10px 8px", textAlign: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, marginBottom: 4 }}>
+              <Sword size={11} style={{ color: "#ffaa33" }} />
+              <span style={{ fontFamily: "Lora, serif", fontSize: 9, letterSpacing: "0.12em", color: "#ffaa33", textTransform: "uppercase" }}>ATK</span>
+            </div>
+            <p data-testid="text-pet-stat-atk" style={{ fontFamily: "Lora, serif", fontSize: 17, fontWeight: 700, color: "#ffd080", margin: 0 }}>{pet.petAtk}</p>
+          </div>
+          <div style={{ background: "rgba(80,160,255,0.08)", border: "1px solid rgba(80,160,255,0.2)", borderRadius: 12, padding: "10px 8px", textAlign: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, marginBottom: 4 }}>
+              <Shield size={11} style={{ color: "#60a8ff" }} />
+              <span style={{ fontFamily: "Lora, serif", fontSize: 9, letterSpacing: "0.12em", color: "#60a8ff", textTransform: "uppercase" }}>DEF</span>
+            </div>
+            <p data-testid="text-pet-stat-def" style={{ fontFamily: "Lora, serif", fontSize: 17, fontWeight: 700, color: "#a0c8ff", margin: 0 }}>{pet.petDef}</p>
+          </div>
+        </div>
+
+        <div>
+          <p style={{ fontFamily: "Lora, serif", fontSize: 9, letterSpacing: "0.2em", color: "#7060a0", textTransform: "uppercase", margin: "0 0 8px" }}>Equipped Accessories</p>
+          {accsLoading ? (
+            <p style={{ fontFamily: "Lora, serif", fontSize: 11, color: "rgba(200,180,255,0.3)", margin: 0 }}>Loading…</p>
+          ) : accessories.length === 0 ? (
+            <p style={{ fontFamily: "Lora, serif", fontSize: 11, color: "rgba(200,180,255,0.3)", margin: 0 }}>No accessories equipped</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {accessories.map(acc => (
+                <div
+                  key={acc.id}
+                  data-testid={`row-accessory-${acc.id}`}
+                  style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(180,140,255,0.15)", borderRadius: 10, padding: "7px 10px" }}
+                >
+                  {acc.imageUrl && (
+                    <img src={acc.imageUrl} alt={acc.name} style={{ width: 28, height: 28, objectFit: "contain", flexShrink: 0 }} />
+                  )}
+                  <span style={{ fontFamily: "Lora, serif", fontSize: 12, color: "#d4c0f0", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{acc.name}</span>
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    {(acc.healthBoost ?? 0) > 0 && <span style={{ fontFamily: "Lora, serif", fontSize: 10, color: "#ffaaaa" }}>+{acc.healthBoost} HP</span>}
+                    {(acc.atkBoost ?? 0) > 0 && <span style={{ fontFamily: "Lora, serif", fontSize: 10, color: "#ffd080" }}>+{acc.atkBoost} ATK</span>}
+                    {(acc.defBoost ?? 0) > 0 && <span style={{ fontFamily: "Lora, serif", fontSize: 10, color: "#a0c8ff" }}>+{acc.defBoost} DEF</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Read-only Interior Viewer ─────────────────────────────────────────────────
-// MEMORY SAFETY: the background image is NOT rendered while this is mounted.
-function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose }: {
+function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92, leaveButtonY = 0.06, onClose, onPetClick }: {
   url: string;
   placedItems: PlacedDecorItem[];
   placedPets: VisitedPet[];
   leaveButtonX?: number;
   leaveButtonY?: number;
   onClose: () => void;
+  onPetClick: (pet: VisitedPet) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const aspectRef = useRef(16 / 9);
@@ -62,7 +205,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
   const [imgWidth, setImgWidth] = useState(0);
   const [containerH, setContainerH] = useState(0);
   const [aspect, setAspect] = useState(16 / 9);
-  const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
+  const panStartRef = useRef<{ startX: number; startPanX: number; pid: number; moved: boolean } | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -89,7 +232,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
   const onDown = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
+    panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId, moved: false };
   }, [panX]);
 
   const onMove = useCallback((e: React.PointerEvent) => {
@@ -103,6 +246,7 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
     const imgW = h * aspectRef.current;
     const min = Math.min(0, w - imgW);
     const newPanX = Math.min(0, Math.max(min, drag.startPanX + (e.clientX - drag.startX)));
+    if (Math.abs(e.clientX - drag.startX) > 4) drag.moved = true;
     setPanX(newPanX);
   }, []);
 
@@ -136,7 +280,6 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
         style={{ position: "absolute", top: 0, left: `${panX}px`, height: "100%", width: "auto", maxWidth: "none", userSelect: "none" }}
       />
 
-      {/* Decor items (read-only) */}
       {imgWidth > 0 && placedItems.map((item) => (
         <div
           key={item.id}
@@ -152,15 +295,17 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
         </div>
       ))}
 
-      {/* Pets inside building (read-only) — use static image to save GPU memory */}
       {imgWidth > 0 && placedPets.map((pet) => {
         const xPct = parsePetPct(pet.posLeft) ?? 0.5;
         const yPct = parsePetPct(pet.posTop) ?? 0.5;
         return (
           <div
             key={pet.inventoryId}
-            className="absolute pointer-events-none pet-idle-squish"
-            style={{ zIndex: 7, left: panX + xPct * imgWidth, top: yPct * containerH, width: INTERIOR_PET_SIZE, height: INTERIOR_PET_SIZE, transform: "translate(-50%, -50%)" }}
+            data-testid={`visit-pet-interior-${pet.inventoryId}`}
+            className="absolute pet-idle-squish"
+            style={{ zIndex: 7, left: panX + xPct * imgWidth, top: yPct * containerH, width: INTERIOR_PET_SIZE, height: INTERIOR_PET_SIZE, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
+            onPointerDown={e => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onPetClick(pet); }}
           >
             {(pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
@@ -199,9 +344,10 @@ export default function VisitPetHousePage() {
   const params = useParams<{ userId: string }>();
   const userId = params.userId;
   const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number } | null>(null);
+  const [selectedPet, setSelectedPet] = useState<VisitedPet | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
+  const panStartRef = useRef<{ startX: number; startPanX: number; pid: number; moved: boolean } | null>(null);
   const [panX, setPanX] = useState(0);
   const [imgWidth, setImgWidth] = useState(0);
   const [containerH, setContainerH] = useState(0);
@@ -257,17 +403,10 @@ export default function VisitPetHousePage() {
 
   const pets = petsData?.pets ?? [];
 
-  // Logged-in viewer — only used to know how many coins are available
-  // when sending a gift through the visited player's mailbox.
   const { data: me } = useQuery<{ id: string; coins: number } | null>({
     queryKey: ["/api/auth/me"],
   });
 
-  // Mailbox interaction — clicking the visited player's mailbox opens the
-  // shared SendGiftModal targeted at that player. The modal already lets
-  // a sender attach a written message *and* either coins or an item, so
-  // the mailbox naturally covers both of the two interactions that used
-  // to live on the player popup.
   const [showGiftModal, setShowGiftModal] = useState(false);
   const outdoorPets = pets.filter(p => p.posLeft !== null && (p.location === "outside" || p.location === null));
   const interiorPets = openInterior ? pets.filter(p => p.location === openInterior.buildingId && p.posLeft !== null) : [];
@@ -295,7 +434,7 @@ export default function VisitPetHousePage() {
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
+    panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId, moved: false };
   }, [panX]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -305,6 +444,7 @@ export default function VisitPetHousePage() {
     if (!container) return;
     const w = container.offsetWidth;
     const imgW = container.offsetHeight * bgAspect;
+    if (Math.abs(e.clientX - drag.startX) > 4) drag.moved = true;
     setPanX(Math.min(0, Math.max(Math.min(0, w - imgW), drag.startPanX + (e.clientX - drag.startX))));
   }, [bgAspect]);
 
@@ -320,9 +460,6 @@ export default function VisitPetHousePage() {
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
     >
-      {/* ── CRITICAL MEMORY FIX ─────────────────────────────────────────────
-          Background image is removed from DOM when interior is open,
-          freeing its GPU texture so the interior image can load safely. */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {bgUrl && !openInterior ? (
           <img
@@ -346,9 +483,6 @@ export default function VisitPetHousePage() {
         <div className="absolute" style={{ zIndex: 4, top: 0, left: `${panX}px`, width: imgWidth, height: "100%", pointerEvents: "none" }}>
           {activeBundle.buildings.map((b) => {
             const hasInterior = !!b.interiorImageUrl;
-            // Mailboxes are matched by name so the owner can place any
-            // mailbox decor anywhere in their world without us having to
-            // wire a per-building flag through the schema.
             const isMailbox = (b.name ?? "").toLowerCase().includes("mailbox");
             const isClickable = hasInterior || isMailbox;
             const displayW = Math.round((b.width ?? 120) * (containerH || BUILDING_REF_H) / BUILDING_REF_H);
@@ -358,11 +492,9 @@ export default function VisitPetHousePage() {
                 data-testid={isMailbox ? `building-mailbox-${b.id}` : `building-${b.id}`}
                 className="absolute flex flex-col items-center"
                 style={{ left: `${b.posX}%`, top: `${b.posY}%`, transform: "translate(-50%, -100%)", minWidth: displayW, pointerEvents: isClickable ? "auto" : "none", cursor: isClickable ? "pointer" : "default" }}
+                onPointerDown={e => { if (isClickable) e.stopPropagation(); }}
                 onClick={() => {
-                  if (isMailbox) {
-                    setShowGiftModal(true);
-                    return;
-                  }
+                  if (isMailbox) { setShowGiftModal(true); return; }
                   if (hasInterior) {
                     setOpenInterior({ url: b.interiorImageUrl!, buildingId: b.id, leaveButtonX: b.leaveButtonX ?? 0.92, leaveButtonY: b.leaveButtonY ?? 0.06 });
                   }
@@ -383,7 +515,7 @@ export default function VisitPetHousePage() {
         </div>
       )}
 
-      {/* Outdoor pets (read-only) */}
+      {/* Outdoor pets — tappable */}
       {imgWidth > 0 && outdoorPets.map((pet, i) => {
         const cfg = randomGroundConfig(i);
         const xPct = parsePetPct(pet.posLeft) ?? cfg.centerX / 100;
@@ -392,8 +524,10 @@ export default function VisitPetHousePage() {
           <div
             key={pet.inventoryId}
             data-testid={`visit-pet-outdoor-${pet.inventoryId}`}
-            className="absolute pointer-events-none"
-            style={{ zIndex: 5, left: panX + xPct * imgWidth, top: yPct * containerH, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)" }}
+            className="absolute"
+            style={{ zIndex: 5, left: panX + xPct * imgWidth, top: yPct * containerH, width: cfg.size, height: cfg.size, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
+            onPointerDown={e => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); setSelectedPet(pet); }}
           >
             {pet.petTemplateId ? (
               <PetAnimator petTemplateId={pet.petTemplateId} mode="static" size={cfg.size} fillContainer className="pet-idle-squish" style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }} />
@@ -410,7 +544,7 @@ export default function VisitPetHousePage() {
         );
       })}
 
-      {/* Outdoor decor (read-only) */}
+      {/* Outdoor decor */}
       {imgWidth > 0 && outdoorDecor.map((item) => (
         <div key={item.id} className="absolute pointer-events-none" style={{ zIndex: 6, left: panX + item.xPct * imgWidth, top: item.yPct * containerH, transform: "translate(-50%, -50%)" }}>
           <img
@@ -461,8 +595,6 @@ export default function VisitPetHousePage() {
         </div>
       )}
 
-      {/* Mailbox → send a written message and/or a gift to the visited
-          player. The modal closes itself on success. */}
       {showGiftModal && userId && petsData && (
         <SendGiftModal
           friendId={userId}
@@ -472,7 +604,6 @@ export default function VisitPetHousePage() {
         />
       )}
 
-      {/* Read-only interior */}
       {openInterior && (
         <ErrorBoundary fallback={
           <div className="fixed inset-0 flex flex-col items-center justify-center gap-4" style={{ zIndex: 60, background: "#07090f", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
@@ -487,8 +618,13 @@ export default function VisitPetHousePage() {
             leaveButtonX={openInterior.leaveButtonX}
             leaveButtonY={openInterior.leaveButtonY}
             onClose={() => setOpenInterior(null)}
+            onPetClick={(pet) => setSelectedPet(pet)}
           />
         </ErrorBoundary>
+      )}
+
+      {selectedPet && (
+        <PetStatPopup pet={selectedPet} onClose={() => setSelectedPet(null)} />
       )}
     </div>
   );

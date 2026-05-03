@@ -65,19 +65,23 @@ const FIREFLIES = Array.from({ length: 20 }, (_, i) => ({
 }));
 
 const MIN_MS = 1800;
+const MAX_WAIT_MS = 8000;
 
 interface Props {
   worldId: string;
+  pageReady: boolean;
   onReady: () => void;
 }
 
-export default function WorldLoadingScreen({ worldId, onReady }: Props) {
+export default function WorldLoadingScreen({ worldId, pageReady, onReady }: Props) {
   const theme = WORLD_THEMES[worldId as keyof typeof WORLD_THEMES];
   const [progress, setProgress] = useState(0);
   const [fadeOut, setFadeOut] = useState(false);
   const doneRef = useRef(false);
   const startRef = useRef(Date.now());
   const rafRef = useRef<number>(0);
+  const pageReadyRef = useRef(pageReady);
+  useEffect(() => { pageReadyRef.current = pageReady; }, [pageReady]);
 
   useEffect(() => {
     if (!theme) {
@@ -90,19 +94,36 @@ export default function WorldLoadingScreen({ worldId, onReady }: Props) {
 
     const tick = () => {
       const elapsed = Date.now() - startRef.current;
+      const minDone = elapsed >= MIN_MS;
+      const hardTimeout = elapsed >= MAX_WAIT_MS;
       const prog = Math.min(elapsed / MIN_MS, 1);
       setProgress(prog);
-      if (prog < 1) {
+
+      if (!minDone) {
         rafRef.current = requestAnimationFrame(tick);
-      } else if (!doneRef.current) {
+      } else if ((pageReadyRef.current || hardTimeout) && !doneRef.current) {
         doneRef.current = true;
         setFadeOut(true);
         setTimeout(onReady, 560);
+      } else if (!doneRef.current) {
+        rafRef.current = requestAnimationFrame(tick);
       }
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
   }, []);
+
+  useEffect(() => {
+    if (pageReady && doneRef.current === false) {
+      const elapsed = Date.now() - startRef.current;
+      if (elapsed >= MIN_MS) {
+        cancelAnimationFrame(rafRef.current);
+        doneRef.current = true;
+        setFadeOut(true);
+        setTimeout(onReady, 560);
+      }
+    }
+  }, [pageReady]);
 
   if (!theme) return null;
 
