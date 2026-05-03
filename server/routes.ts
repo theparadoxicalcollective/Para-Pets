@@ -1451,7 +1451,7 @@ export async function registerRoutes(
   // Hunger drains at HUNGER_DECAY_PER_MIN points per minute while the pet is
   // placed in the pet house (inside or outside). When hunger hits 0, mood
   // starts draining at MOOD_DECAY_PER_MIN. Both are clamped on each tick.
-  const HUNGER_DECAY_PER_MIN = 0.5;   // 0.5 hunger pt / minute while placed/active
+  const HUNGER_DECAY_PER_MIN = 0.25;  // 0.25 hunger pt / minute while placed/active
   // Mood drains while the pet is "hungry" (below 50% of its max hunger). Below
   // that threshold mood drops at MOOD_STARVE_DECAY_PER_MIN. On top of that,
   // pets that have not been fed OR petted in a while suffer a slow neglect
@@ -2018,19 +2018,31 @@ export async function registerRoutes(
       if (pettedPet && pettedPet.userId === user.id) {
         const maxH = Math.max(1, pettedPet.petHealth ?? 1000);
         const curH = pettedPet.petHunger == null || pettedPet.petHunger < 0 ? maxH : pettedPet.petHunger;
-        const moodGain = (curH / maxH) >= 0.5 ? 1 : 0;
+        const nowMs = Date.now();
+        const MOOD_PETTING_WINDOW_MS = 60 * 60 * 1000;
+        const MOOD_PETTING_MAX_PER_WINDOW = 3;
+        const MOOD_PETTING_GAIN = 3;
+        const wsRaw = (pettedPet as any).moodPettingWindowStart;
+        const ws = wsRaw ? new Date(wsRaw).getTime() : 0;
+        const cnt = (pettedPet as any).moodPettingCount ?? 0;
+        const windowExpired = !ws || (nowMs - ws) > MOOD_PETTING_WINDOW_MS;
+        const newWs = windowExpired ? nowMs : ws;
+        const newCnt = windowExpired ? 1 : cnt + 1;
+        const allowMoodGain = (curH / maxH) >= 0.5 && newCnt <= MOOD_PETTING_MAX_PER_WINDOW;
+        const moodGain = allowMoodGain ? MOOD_PETTING_GAIN : 0;
         let newMood = Math.min(100, (pettedPet.petMood ?? 100) + moodGain);
-        // Recent battle defeats cap how high mood can rise.
         if (pettedPet.lastBattleDefeatAt) {
-          const sinceDefeatMin = (Date.now() - new Date(pettedPet.lastBattleDefeatAt).getTime()) / 60000;
+          const sinceDefeatMin = (nowMs - new Date(pettedPet.lastBattleDefeatAt).getTime()) / 60000;
           if (sinceDefeatMin < BATTLE_DEFEAT_RECENT_MINUTES) {
             newMood = Math.min(newMood, BATTLE_DEFEAT_MOOD_CAP);
           }
         }
         await storage.updateInventoryItem(inventoryId, {
           petMood: newMood,
-          lastPettedAt: new Date(),
-          petStatsUpdatedAt: new Date(),
+          lastPettedAt: new Date(nowMs),
+          petStatsUpdatedAt: new Date(nowMs),
+          moodPettingWindowStart: new Date(newWs),
+          moodPettingCount: Math.min(newCnt, MOOD_PETTING_MAX_PER_WINDOW),
         } as any);
       }
 

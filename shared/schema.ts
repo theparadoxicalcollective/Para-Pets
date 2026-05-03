@@ -142,6 +142,10 @@ export const userInventory = pgTable("user_inventory", {
   // Care timestamps used by the mood-decay algorithm to penalise neglect.
   lastFedAt: timestamp("last_fed_at"),
   lastPettedAt: timestamp("last_petted_at"),
+  // Sliding 1-hour window for mood-boosting pets. Up to 3 mood bumps per
+  // window; once it expires the next petting opens a fresh window.
+  moodPettingWindowStart: timestamp("mood_petting_window_start"),
+  moodPettingCount: integer("mood_petting_count").notNull().default(0),
   // Set whenever this pet (as the active pet) is defeated in a world battle
   // or its player loses a PvP battle. While this is recent, mood is capped.
   lastBattleDefeatAt: timestamp("last_battle_defeat_at"),
