@@ -1919,6 +1919,33 @@ app.use((req, res, next) => {
     console.error("Volcanic fishing shack seed error (non-fatal):", err);
   }
 
+  // Seed volcanic accessory shop
+  try {
+    const VOLCANIC_ACCESSORY_SHOP_ID = "c3d4e5f6-0003-4000-8000-000000000003";
+    const volcanicAccessoryShopDone = await storage.getGameSetting("volcanic_accessory_shop_v1");
+    if (!volcanicAccessoryShopDone) {
+      const existing = await db.execute(sql`SELECT id FROM world_locations WHERE id = ${VOLCANIC_ACCESSORY_SHOP_ID}`);
+      if ((existing as any).rows?.length === 0) {
+        const assetPath = path.join(process.cwd(), "attached_assets", "icon_accessory_shop_volcanic.png");
+        const mtime = fs.existsSync(assetPath) ? fs.statSync(assetPath).mtimeMs : Date.now();
+        const iconUrl = `/world-assets/icon_accessory_shop_volcanic.png?v=${Math.floor(mtime / 1000)}`;
+        const shopName = "The Forge & Fang";
+        const shopDesc = "A volcanic blacksmith shop selling fiery accessories, lava-forged gear, and volcanic adornments.";
+        await db.execute(sql`
+          INSERT INTO world_locations (id, world_id, name, type, description, pos_x, pos_y, glow_color, icon_size, sort_order, is_shop, icon_url)
+          VALUES (
+            ${VOLCANIC_ACCESSORY_SHOP_ID}, 'volcanic', ${shopName}, 'shop',
+            ${shopDesc}, 50, 60, '#ff4500', 350, 12, true, ${iconUrl}
+          )
+        `);
+        console.log("Volcanic Accessory Shop seeded.");
+      }
+      await storage.setGameSetting("volcanic_accessory_shop_v1", "done");
+    }
+  } catch (err) {
+    console.error("Volcanic accessory shop seed error (non-fatal):", err);
+  }
+
   // Always refresh known location icons as versioned static URLs — runs AFTER all seeding code
   // so it overrides any loadAssetBase64 calls that re-set base64 icons during startup.
   const LOC_ICON_ALWAYS_REFRESH: Record<string, string> = {
@@ -1937,6 +1964,7 @@ app.use((req, res, next) => {
     "707d872b-0a93-4369-ba8d-3d8b4b4bd09a": "icon_kc_well_of_fortune.png",
     "c3d4e5f6-0001-4000-8000-000000000001": "icon_pet_shop_volcanic.png",
     "c3d4e5f6-0002-4000-8000-000000000002": "icon_fishing_shop_volcanic.png",
+    "c3d4e5f6-0003-4000-8000-000000000003": "icon_accessory_shop_volcanic.png",
   };
   for (const [locId, iconFile] of Object.entries(LOC_ICON_ALWAYS_REFRESH)) {
     try {
