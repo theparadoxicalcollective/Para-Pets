@@ -573,9 +573,9 @@ function SlotCell({ slot, maxSlots, acc, isOver, draggingId, rc, onClick, onDrag
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
-      className="rounded-2xl flex flex-col items-center gap-1.5 p-3 transition-all cursor-pointer"
+      className="rounded-xl flex flex-col items-center gap-1 p-1.5 transition-all cursor-pointer"
       style={{
-        minHeight: 108,
+        minHeight: 82,
         background: bg,
         border: `2px solid ${borderColor}`,
         boxShadow,
@@ -585,48 +585,48 @@ function SlotCell({ slot, maxSlots, acc, isOver, draggingId, rc, onClick, onDrag
       }}
     >
       {locked ? (
-        <div className="flex flex-col items-center justify-center h-full gap-2 py-1">
+        <div className="flex flex-col items-center justify-center h-full gap-1.5 py-1">
           <div
-            className="w-10 h-10 rounded-full flex items-center justify-center"
-            style={{ background: "rgba(10,26,16,0.8)", border: "1.5px solid rgba(34,120,70,0.35)", boxShadow: "inset 0 0 10px rgba(0,0,0,0.5)" }}
+            className="w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ background: "rgba(10,26,16,0.8)", border: "1.5px solid rgba(34,120,70,0.35)", boxShadow: "inset 0 0 8px rgba(0,0,0,0.5)" }}
           >
-            <Lock size={18} style={{ color: "rgba(34,197,94,0.7)" }} />
+            <Lock size={14} style={{ color: "rgba(34,197,94,0.7)" }} />
           </div>
           <div className="text-center">
-            <p className="font-fantasy text-[7px] tracking-wider" style={{ color: "rgba(34,197,94,0.6)" }}>LOCKED</p>
-            <p className="font-fantasy text-[7px]" style={{ color: "rgba(251,191,36,0.6)" }}>3,000 coins</p>
+            <p className="font-fantasy text-[6px] tracking-wider" style={{ color: "rgba(34,197,94,0.6)" }}>LOCKED</p>
+            <p className="font-fantasy text-[6px]" style={{ color: "rgba(251,191,36,0.6)" }}>3,000</p>
           </div>
         </div>
       ) : acc ? (
         <>
           <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
-            style={{ background: "rgba(0,0,0,0.45)", border: `1px solid ${rc}44`, boxShadow: `0 0 10px ${rc}22` }}
+            className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden"
+            style={{ background: "rgba(0,0,0,0.45)", border: `1px solid ${rc}44`, boxShadow: `0 0 8px ${rc}22` }}
           >
             {acc.imageUrl
               ? <img src={acc.imageUrl} alt={acc.name} className="w-full h-full object-contain" />
-              : <img src={gemCrystalIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />}
+              : <img src={gemCrystalIcon} alt="" style={{ width: 26, height: 26, objectFit: "contain" }} />}
           </div>
-          <span className="font-fantasy text-[8px] tracking-wider text-center w-full truncate" style={{ color: rc }}>{acc.name}</span>
+          <span className="font-fantasy text-[6px] tracking-wider text-center w-full truncate" style={{ color: rc }}>{acc.name}</span>
           <div className="flex flex-col items-center gap-0.5">
-            {(acc.atkBoost ?? 0) > 0 && <span className="font-fantasy text-[7px]" style={{ color: "#f87171" }}>+{acc.atkBoost} ATK</span>}
-            {(acc.defBoost ?? 0) > 0 && <span className="font-fantasy text-[7px]" style={{ color: "#60a5fa" }}>+{acc.defBoost} DEF</span>}
-            {(acc.healthBoost ?? 0) > 0 && <span className="font-fantasy text-[7px]" style={{ color: "#4ade80" }}>+{acc.healthBoost} HP</span>}
+            {(acc.atkBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#f87171" }}>+{acc.atkBoost} ATK</span>}
+            {(acc.defBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#60a5fa" }}>+{acc.defBoost} DEF</span>}
+            {(acc.healthBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#4ade80" }}>+{acc.healthBoost} HP</span>}
           </div>
         </>
       ) : (
-        <div className="flex flex-col items-center justify-center h-full gap-2 py-1">
+        <div className="flex flex-col items-center justify-center h-full gap-1.5 py-1">
           <div
-            className="w-11 h-11 rounded-full flex items-center justify-center"
+            className="w-8 h-8 rounded-full flex items-center justify-center"
             style={{
               background: "radial-gradient(circle at center, rgba(22,163,74,0.12) 0%, rgba(10,80,35,0.06) 60%, transparent 100%)",
               border: `1.5px solid rgba(34,197,94,0.2)`,
-              boxShadow: "inset 0 0 12px rgba(0,0,0,0.5), 0 0 8px rgba(22,163,74,0.1)",
+              boxShadow: "inset 0 0 10px rgba(0,0,0,0.5), 0 0 6px rgba(22,163,74,0.1)",
             }}
           >
-            <span style={{ fontSize: 18, color: "rgba(34,197,94,0.35)", lineHeight: 1 }}>✦</span>
+            <span style={{ fontSize: 14, color: "rgba(34,197,94,0.35)", lineHeight: 1 }}>✦</span>
           </div>
-          <span className="font-fantasy text-[7px] tracking-wider" style={{ color: "rgba(34,197,94,0.3)" }}>EMPTY</span>
+          <span className="font-fantasy text-[6px] tracking-wider" style={{ color: "rgba(34,197,94,0.3)" }}>EMPTY</span>
         </div>
       )}
     </div>
