@@ -2871,8 +2871,8 @@ export default function WorldPage({ user }: WorldPageProps) {
           {/* ── Volcanic Fishing Shop NPC ─────────────────────── */}
           {isVolcanicFishing && (
             <div className="relative flex-shrink-0 flex flex-col items-center px-4 pb-1" style={{ zIndex: 10 }}>
-              {/* Container sized to show top half of the 3:4 NPC image (aspectRatio 3:2 = top 50% of 3:4) */}
-              <div className="relative overflow-hidden" style={{ width: "min(240px, 64vw)", aspectRatio: "3/2" }}>
+              {/* aspectRatio 1/1 = shows top 75% of the 3:4 NPC (container height = width, image is taller) */}
+              <div className="relative overflow-hidden" style={{ width: "min(240px, 64vw)", aspectRatio: "1/1" }}>
                 {/* warm lava glow behind NPC */}
                 <div style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "130%", height: "70%", borderRadius: "50%", background: "radial-gradient(ellipse, rgba(255,80,10,0.30) 0%, rgba(180,40,5,0.10) 55%, transparent 75%)", filter: "blur(16px)" }} />
                 <img
@@ -4680,6 +4680,7 @@ export default function WorldPage({ user }: WorldPageProps) {
             locationId={activeLocationId}
             locationName={fishLoc.name}
             bgUrl={activeLocDetail?.bgUrl ?? null}
+            worldId={worldId}
             user={currentUser}
             onClose={() => {
               setShowFishing(false);

@@ -18,6 +18,7 @@ interface FishingPageProps {
   locationId: string;
   locationName: string;
   bgUrl: string | null;
+  worldId?: string;
   user: {
     id: string;
     username: string;
@@ -81,12 +82,13 @@ interface CaughtFish {
 type FishingPhase = "idle" | "casting" | "waiting" | "nibble" | "reeling" | "caught" | "missed";
 type FishBehaviorState = "calm" | "resist" | "tired" | "surge";
 
-const ACCENT = "#5eead4";
 // Per-rarity nibble config — windows are long enough for human reaction on mobile
 const NIBBLE_MAX_BY_RARITY     = [3, 3, 2, 2, 1];             // 5★ gets 1 chance; 3★/4★ get 2; commons get 3
 const NIBBLE_TIMEOUT_BY_RARITY = [2500, 2200, 1800, 1400, 1100]; // ms per window — all humanly achievable
 
-export default function FishingPage({ locationId, locationName, bgUrl, user, onClose }: FishingPageProps) {
+export default function FishingPage({ locationId, locationName, bgUrl, worldId, user, onClose }: FishingPageProps) {
+  const isVolcanic = worldId === "volcanic";
+  const ACCENT = isVolcanic ? "#ff6520" : "#5eead4";
   const [phase, setPhase] = useState<FishingPhase>("idle");
   const [showPolePanel, setShowPolePanel] = useState(false);
   const [showBaitPanel, setShowBaitPanel] = useState(false);
@@ -700,10 +702,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
           position: "absolute",
           inset: "-12px",
           borderRadius: "50%",
-          background: "radial-gradient(ellipse at center, rgba(94,234,212,0.12) 0%, rgba(56,189,248,0.06) 50%, transparent 75%)",
+          background: isVolcanic
+            ? "radial-gradient(ellipse at center, rgba(255,100,20,0.18) 0%, rgba(200,60,10,0.08) 50%, transparent 75%)"
+            : "radial-gradient(ellipse at center, rgba(94,234,212,0.12) 0%, rgba(56,189,248,0.06) 50%, transparent 75%)",
           animation: "pondGlow 4s ease-in-out infinite",
         }} />
-        {/* Water surface oval — clickable cast target */}
+        {/* Pool surface oval — clickable cast target */}
         <div
           data-testid="button-cast-pond"
           onClick={() => {
@@ -714,11 +718,15 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             width: "100%",
             paddingBottom: "38%",
             borderRadius: "50%",
-            background: "radial-gradient(ellipse at 40% 38%, rgba(147,210,210,0.18) 0%, rgba(56,180,180,0.10) 40%, rgba(14,90,110,0.08) 70%, transparent 100%)",
-            border: phase === "idle" && hasPole ? "1.5px solid rgba(94,234,212,0.55)" : "1.5px solid rgba(94,234,212,0.22)",
+            background: isVolcanic
+              ? "radial-gradient(ellipse at 40% 38%, rgba(255,140,30,0.22) 0%, rgba(200,80,10,0.14) 40%, rgba(100,30,5,0.10) 70%, transparent 100%)"
+              : "radial-gradient(ellipse at 40% 38%, rgba(147,210,210,0.18) 0%, rgba(56,180,180,0.10) 40%, rgba(14,90,110,0.08) 70%, transparent 100%)",
+            border: phase === "idle" && hasPole
+              ? `1.5px solid ${ACCENT}88`
+              : `1.5px solid ${ACCENT}38`,
             boxShadow: phase === "idle" && hasPole
-              ? "0 0 40px rgba(94,234,212,0.22), inset 0 0 24px rgba(94,234,212,0.10)"
-              : "0 0 32px rgba(94,234,212,0.10), inset 0 0 24px rgba(94,234,212,0.05)",
+              ? `0 0 40px ${ACCENT}38, inset 0 0 24px ${ACCENT}18`
+              : `0 0 32px ${ACCENT}18, inset 0 0 24px ${ACCENT}0d`,
             animation: "pondDrift 8s ease-in-out infinite",
             position: "relative",
             overflow: "hidden",
@@ -726,15 +734,15 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
             cursor: (phase === "idle" && hasPole) || phase === "nibble" ? "pointer" : "default",
           }}
         >
-          {/* shimmer streaks */}
+          {/* shimmer / lava streaks */}
           <div style={{
             position: "absolute", top: "28%", left: "20%", width: "22%", height: "2px",
-            background: "rgba(200,240,240,0.25)", borderRadius: 4,
+            background: isVolcanic ? "rgba(255,180,80,0.28)" : "rgba(200,240,240,0.25)", borderRadius: 4,
             animation: "shimmer1 5s ease-in-out infinite",
           }} />
           <div style={{
             position: "absolute", top: "52%", left: "55%", width: "14%", height: "1.5px",
-            background: "rgba(200,240,240,0.18)", borderRadius: 4,
+            background: isVolcanic ? "rgba(255,160,60,0.20)" : "rgba(200,240,240,0.18)", borderRadius: 4,
             animation: "shimmer2 7s ease-in-out infinite",
           }} />
           {phase === "idle" && hasPole && (
@@ -743,39 +751,52 @@ export default function FishingPage({ locationId, locationName, bgUrl, user, onC
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4,
             }}>
               <span className="font-fantasy text-[10px] tracking-widest animate-pulse" style={{
-                color: isPondError ? "rgba(239,68,68,0.8)" : isPondLoading ? "rgba(94,234,212,0.45)" : "rgba(94,234,212,0.75)",
-                textShadow: "0 0 8px rgba(94,234,212,0.5)",
+                color: isPondError ? "rgba(239,68,68,0.8)" : `${ACCENT}bf`,
+                textShadow: `0 0 8px ${ACCENT}80`,
                 userSelect: "none",
               }}>
                 {isPondError ? "POND ERROR — CLOSE & REOPEN" : isPondLoading ? "LOADING POND…" : "TAP TO CAST"}
               </span>
               {!isPondLoading && !isPondError && pondFish.length > 0 && (
-                <span className="font-fantasy text-[8px] tracking-wider" style={{ color: "rgba(94,234,212,0.45)", userSelect: "none" }}>
+                <span className="font-fantasy text-[8px] tracking-wider" style={{ color: `${ACCENT}73`, userSelect: "none" }}>
                   {pondFish.length} fish in pond
                 </span>
               )}
             </div>
           )}
         </div>
-        {/* Lily pad icon (decorative) */}
-        <div style={{
-          position: "absolute",
-          top: "10%", left: "62%",
-          width: 22, height: 22,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(74,200,130,0.55), rgba(34,140,80,0.30))",
-          border: "1px solid rgba(100,220,140,0.35)",
-          animation: "lilyFloat 6s ease-in-out infinite",
-        }} />
-        <div style={{
-          position: "absolute",
-          top: "38%", left: "15%",
-          width: 14, height: 14,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(74,200,130,0.45), rgba(34,140,80,0.20))",
-          border: "1px solid rgba(100,220,140,0.25)",
-          animation: "lilyFloat 8s ease-in-out infinite 1s",
-        }} />
+        {/* Decorative floats — lily pads for water worlds, lava bubbles for volcanic */}
+        {isVolcanic ? (<>
+          <div style={{
+            position: "absolute", top: "10%", left: "62%",
+            width: 10, height: 10, borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(255,160,40,0.80), rgba(200,80,10,0.50))",
+            border: "1px solid rgba(255,120,30,0.60)",
+            animation: "lilyFloat 3s ease-in-out infinite",
+          }} />
+          <div style={{
+            position: "absolute", top: "38%", left: "15%",
+            width: 7, height: 7, borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(255,140,30,0.70), rgba(180,60,5,0.40))",
+            border: "1px solid rgba(255,100,20,0.50)",
+            animation: "lilyFloat 4.5s ease-in-out infinite 1s",
+          }} />
+        </>) : (<>
+          <div style={{
+            position: "absolute", top: "10%", left: "62%",
+            width: 22, height: 22, borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(74,200,130,0.55), rgba(34,140,80,0.30))",
+            border: "1px solid rgba(100,220,140,0.35)",
+            animation: "lilyFloat 6s ease-in-out infinite",
+          }} />
+          <div style={{
+            position: "absolute", top: "38%", left: "15%",
+            width: 14, height: 14, borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(74,200,130,0.45), rgba(34,140,80,0.20))",
+            border: "1px solid rgba(100,220,140,0.25)",
+            animation: "lilyFloat 8s ease-in-out infinite 1s",
+          }} />
+        </>)}
       </div>
 
       {!bgLoaded && (
