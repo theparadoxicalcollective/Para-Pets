@@ -164,7 +164,7 @@ function clearLines(board: Cell[][]): { board: Cell[][]; cleared: number } {
 //     and coins-earned carry over until all lives are gone
 const POINTS_PER_ROW = 10;
 const POINTS_PER_COIN_TIER = 100;   // every 100 score points → COINS_PER_TIER coins
-const COINS_PER_TIER = 5;
+const COINS_PER_TIER = 6;
 const TETRIS_BONUS_COINS = 5;       // +5 coins for clearing 4+ rows in one drop
 const STARTING_LIVES = 1;
 
@@ -1015,11 +1015,25 @@ export default function MoltenBlocksPage() {
       {paused && !gameOver && !showIntro && (
         <Overlay>
           <h2 style={{ margin: 0, fontSize: 28, color: accent, letterSpacing: "0.18em" }}>PAUSED</h2>
+          {coinsEarned > 0 && (
+            <div style={{ fontSize: 12, color: "#ffd166", letterSpacing: "0.06em", marginTop: 4 }}>
+              {coinsEarned.toLocaleString()} coin{coinsEarned === 1 ? "" : "s"} earned this run
+            </div>
+          )}
           <button
             data-testid="button-resume"
             onClick={() => setPaused(false)}
             style={overlayBtnStyle(accent)}
           >Resume</button>
+          <button
+            data-testid="button-return-cashout"
+            onClick={async () => {
+              // Cash out whatever the player has earned, then leave the game.
+              await finalizeRun();
+              navigate("/world/volcanic");
+            }}
+            style={{ ...overlayBtnStyle(accent), background: "rgba(20,8,4,0.85)" }}
+          >Return &amp; Keep Earnings</button>
         </Overlay>
       )}
 
