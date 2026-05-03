@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import blockI from "@assets/molten_block_I.png";
 import blockO from "@assets/molten_block_O.png";
 import blockT from "@assets/molten_block_T.png";
@@ -139,7 +140,16 @@ function clearLines(board: Cell[][]): { board: Cell[][]; cleared: number } {
   return { board: [...newRows, ...remaining], cleared };
 }
 
-const SCORE_BY_LINES = [0, 100, 300, 500, 800];
+// Scoring rules per spec:
+//   - 3 points awarded per cleared row (multi-row clears = n × 3)
+//   - Every 35 points crossed grants 5 coins (credited to the player's
+//     coin balance at the end of the run, batched in a single API call)
+//   - 3 lives — each top-out costs one life; the board resets but score
+//     and coins-earned carry over until all lives are gone
+const POINTS_PER_ROW = 3;
+const POINTS_PER_COIN_TIER = 35;
+const COINS_PER_TIER = 5;
+const STARTING_LIVES = 3;
 
 export default function MoltenBlocksPage() {
   const [, navigate] = useLocation();
@@ -163,12 +173,22 @@ export default function MoltenBlocksPage() {
   const [score, setScore] = useState(0);
   const [lines, setLines] = useState(0);
   const [level, setLevel] = useState(1);
+  const [lives, setLives] = useState(STARTING_LIVES);
+  const [coinsEarned, setCoinsEarned] = useState(0);
+  // Previous best, captured at mount, so the end-of-run screen can show
+  // "NEW HIGH SCORE!" by comparing against the value before this run started.
+  const [prevHi, setPrevHi] = useState<number>(() => {
+    try { return parseInt(localStorage.getItem("molten_blocks_hi") || "0", 10) || 0; } catch { return 0; }
+  });
   const [hiScore, setHiScore] = useState<number>(() => {
     try { return parseInt(localStorage.getItem("molten_blocks_hi") || "0", 10) || 0; } catch { return 0; }
   });
   const [paused, setPaused] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [imagesReady, setImagesReady] = useState(false);
+  const [coinAward, setCoinAward] = useState<{ amount: number; status: "idle" | "submitting" | "done" | "error" }>({ amount: 0, status: "idle" });
+  // Brief floating "+5 coins!" toast inside the game when a tier is hit
+  const [coinFlash, setCoinFlash] = useState<{ amount: number; ts: number } | null>(null);
 
   // ── Preload block textures into HTMLImageElement refs ───────────────────
   const imgsRef = useRef<Record<Piece, HTMLImageElement>>({} as any);
@@ -190,46 +210,107 @@ export default function MoltenBlocksPage() {
     return bagRef.current.shift()!;
   }, []);
 
-  const startNewGame = useCallback(() => {
+  // Reset just the playfield (used both at the start of a brand-new game
+  // and after losing a life). Score / coins / lives are NOT touched here.
+  const resetBoard = useCallback(() => {
     boardRef.current = emptyBoard();
     bagRef.current = makeBag();
     activeRef.current = spawn(pullPiece());
     nextRef.current = pullPiece();
     flashRef.current = null;
     lastDropRef.current = performance.now();
-    dropIntervalRef.current = 800;
     softDropRef.current = false;
     gameOverRef.current = false;
     runningRef.current = true;
-    setScore(0); setLines(0); setLevel(1); setGameOver(false); setPaused(false);
   }, [pullPiece]);
+
+  const startNewGame = useCallback(() => {
+    // Snapshot the current persisted high score so the end screen can tell
+    // the player whether THIS run beat it.
+    try { setPrevHi(parseInt(localStorage.getItem("molten_blocks_hi") || "0", 10) || 0); } catch {}
+    resetBoard();
+    dropIntervalRef.current = 800;
+    // Reset refs SYNCHRONOUSLY so the loop and finalize logic don't see
+    // leftover values from a previous run before useEffect mirrors them.
+    scoreRef.current = 0;
+    livesRef.current = STARTING_LIVES;
+    coinsEarnedRef.current = 0;
+    setScore(0); setLines(0); setLevel(1);
+    setLives(STARTING_LIVES); setCoinsEarned(0);
+    setGameOver(false); setPaused(false);
+    setCoinAward({ amount: 0, status: "idle" });
+    setCoinFlash(null);
+  }, [resetBoard]);
 
   // Initialize on mount
   useEffect(() => { startNewGame(); /* eslint-disable-next-line */ }, []);
 
-  // ── Spawn next piece, detect game over ──────────────────────────────────
+  // Refs are the AUTHORITATIVE source for score / lives / coins inside the
+  // imperative game loop. We write them synchronously alongside React state
+  // setters so that finalize-on-topout (which can fire in the same tick as
+  // the line clear that completed the run) sees up-to-date totals — React
+  // state setters batch and don't help here. The mirroring effects below
+  // are belt-and-braces only.
+  const scoreRef = useRef(0);
+  const livesRef = useRef(STARTING_LIVES);
+  const coinsEarnedRef = useRef(0);
+  useEffect(() => { scoreRef.current = score; }, [score]);
+  useEffect(() => { livesRef.current = lives; }, [lives]);
+  useEffect(() => { coinsEarnedRef.current = coinsEarned; }, [coinsEarned]);
+
+  // ── Submit earned coins to the server, persist hi-score ─────────────────
+  const finalizeRun = useCallback(async () => {
+    // Save high score locally
+    setHiScore(prev => {
+      const next = Math.max(prev, scoreRef.current);
+      try { localStorage.setItem("molten_blocks_hi", String(next)); } catch {}
+      return next;
+    });
+    // Credit coins to the player's balance (single batched call). Skip the
+    // round-trip if there's nothing to award.
+    const earned = coinsEarnedRef.current;
+    if (earned <= 0) {
+      setCoinAward({ amount: 0, status: "done" });
+      return;
+    }
+    setCoinAward({ amount: earned, status: "submitting" });
+    try {
+      const res = await apiRequest("POST", "/api/games/molten-blocks/reward", { coins: earned });
+      const data = await res.json();
+      // Refresh the cached user so the coin counter elsewhere in the app
+      // updates immediately without a manual reload.
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      setCoinAward({ amount: data?.awarded ?? earned, status: "done" });
+    } catch (_err) {
+      setCoinAward({ amount: earned, status: "error" });
+    }
+  }, []);
+
+  // ── Spawn next piece; on top-out, lose a life or end the game ───────────
   const spawnNext = useCallback(() => {
     const t = nextRef.current!;
     const p = spawn(t);
     nextRef.current = pullPiece();
     if (collides(boardRef.current, p)) {
-      gameOverRef.current = true;
-      runningRef.current = false;
-      setGameOver(true);
-      setHiScore(prev => {
-        const next = Math.max(prev, scoreRef.current);
-        try { localStorage.setItem("molten_blocks_hi", String(next)); } catch {}
-        return next;
-      });
-      activeRef.current = null;
+      // Topped out — costs a life. Reset the board if any lives remain;
+      // otherwise the run is over and we settle up coins / hi-score.
+      // Update the ref synchronously so any same-tick re-entry sees it.
+      const remaining = livesRef.current - 1;
+      livesRef.current = remaining;
+      setLives(remaining);
+      if (remaining > 0) {
+        resetBoard();
+      } else {
+        gameOverRef.current = true;
+        runningRef.current = false;
+        activeRef.current = null;
+        setGameOver(true);
+        finalizeRun();
+      }
     } else {
       activeRef.current = p;
     }
-  }, [pullPiece]);
-
-  // Keep a ref of score for the game-over hi-score callback above
-  const scoreRef = useRef(0);
-  useEffect(() => { scoreRef.current = score; }, [score]);
+  }, [pullPiece, resetBoard, finalizeRun]);
 
   // ── Lock current piece, clear lines, update score / level ───────────────
   const lockAndClear = useCallback(() => {
@@ -248,13 +329,29 @@ export default function MoltenBlocksPage() {
         const { board: cleared, cleared: n } = clearLines(boardRef.current);
         boardRef.current = cleared;
         flashRef.current = null;
-        setScore(s => s + SCORE_BY_LINES[n] * level);
+        // Compute new totals SYNCHRONOUSLY against the refs so that if
+        // spawnNext() immediately tops the player out, finalizeRun() reads
+        // the values that include this final clear (React state setters
+        // batch and would leave the refs stale).
+        const prevScore = scoreRef.current;
+        const nextScore = prevScore + n * POINTS_PER_ROW;
+        const tiersBefore = Math.floor(prevScore / POINTS_PER_COIN_TIER);
+        const tiersAfter  = Math.floor(nextScore / POINTS_PER_COIN_TIER);
+        const newTiers = tiersAfter - tiersBefore;
+        const coinsAdded = newTiers > 0 ? newTiers * COINS_PER_TIER : 0;
+        scoreRef.current = nextScore;
+        coinsEarnedRef.current = coinsEarnedRef.current + coinsAdded;
+        setScore(nextScore);
+        if (coinsAdded > 0) {
+          setCoinsEarned(coinsEarnedRef.current);
+          setCoinFlash({ amount: coinsAdded, ts: performance.now() });
+        }
         setLines(prevLines => {
           const totalLines = prevLines + n;
           const newLevel = Math.floor(totalLines / 10) + 1;
           if (newLevel !== level) {
             setLevel(newLevel);
-            // Speed curve: each level shaves ~12% off the drop interval.
+            // Speed curve: each level shaves ~15% off the drop interval.
             dropIntervalRef.current = Math.max(80, 800 * Math.pow(0.85, newLevel - 1));
           }
           return totalLines;
@@ -615,10 +712,17 @@ export default function MoltenBlocksPage() {
           }}
         >← Exit</button>
 
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <Stat label="SCORE" value={score} testId="text-score" />
-          <Stat label="LINES" value={lines} testId="text-lines" />
           <Stat label="LVL" value={level} testId="text-level" />
+          <div style={{ textAlign: "center", minWidth: 56 }} data-testid="text-lives">
+            <div style={{ fontSize: 9, letterSpacing: "0.18em", color: "#7a5530" }}>LIVES</div>
+            <div style={{ fontSize: 14, lineHeight: 1.1, letterSpacing: "0.1em" }}>
+              {Array.from({ length: STARTING_LIVES }).map((_, i) => (
+                <span key={i} style={{ color: i < lives ? "#ff5a1f" : "#3a1a0a", textShadow: i < lives ? "0 0 6px rgba(255,90,30,0.7)" : "none" }}>♥</span>
+              ))}
+            </div>
+          </div>
         </div>
 
         <button
@@ -670,6 +774,11 @@ export default function MoltenBlocksPage() {
               {hiScore.toLocaleString()}
             </div>
           </Panel>
+          <Panel label="COINS">
+            <div data-testid="text-coins-earned" style={{ textAlign: "center", padding: "6px 0", fontSize: 16, color: "#ffd166", fontWeight: 600 }}>
+              {coinsEarned.toLocaleString()}
+            </div>
+          </Panel>
           <div style={{ flex: 1 }} />
           <div style={{ fontSize: 9, lineHeight: 1.4, color: "#7a5530", textAlign: "center", letterSpacing: "0.08em" }}>
             TAP rotate<br/>SWIPE move<br/>HOLD ↓ drop<br/>FLICK ↓ slam
@@ -689,16 +798,85 @@ export default function MoltenBlocksPage() {
         </Overlay>
       )}
 
-      {/* Game over overlay */}
+      {/* Coin-tier flash inside the game */}
+      {coinFlash && performance.now() - coinFlash.ts < 1400 && !gameOver && (
+        <div
+          data-testid="text-coin-flash"
+          style={{
+            position: "absolute", top: "30%", left: "50%",
+            transform: "translate(-50%, -50%)", zIndex: 5,
+            pointerEvents: "none",
+            fontSize: 28, fontFamily: "Lora, serif",
+            color: "#ffd166", letterSpacing: "0.1em",
+            textShadow: "0 0 18px rgba(255,200,40,0.8), 0 0 6px rgba(255,140,30,0.9)",
+            animation: "moltenCoinPop 1.4s ease-out forwards",
+          }}
+        >+{coinFlash.amount} coins!</div>
+      )}
+      <style>{`
+        @keyframes moltenCoinPop {
+          0%   { opacity: 0; transform: translate(-50%, -30%) scale(0.7); }
+          18%  { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+          70%  { opacity: 1; transform: translate(-50%, -60%) scale(1.0); }
+          100% { opacity: 0; transform: translate(-50%, -90%) scale(0.95); }
+        }
+      `}</style>
+
+      {/* Game over overlay — "You didn't make it" + run summary */}
       {gameOver && (
         <Overlay>
           <div style={{ fontSize: 11, letterSpacing: "0.3em", color: "#a06a30" }}>THE FLAMES CONSUME ALL</div>
-          <h2 style={{ margin: "8px 0 4px", fontSize: 32, color: accent, letterSpacing: "0.18em" }}>GAME OVER</h2>
-          <div data-testid="text-final-score" style={{ fontSize: 18, color: "#f5d589", marginBottom: 4 }}>Score: <span style={{ color: accent, fontWeight: 600 }}>{score.toLocaleString()}</span></div>
-          <div style={{ fontSize: 13, color: "#a06a30", marginBottom: 18 }}>Best: {hiScore.toLocaleString()}</div>
+          <h2 style={{ margin: "8px 0 2px", fontSize: 28, color: accent, letterSpacing: "0.16em" }}>YOU DIDN'T MAKE IT</h2>
+          <div style={{ fontSize: 12, color: "#7a5530", marginBottom: 14, letterSpacing: "0.05em" }}>
+            All three lives lost in the bastion's fire.
+          </div>
+
+          {/* New high-score badge — only when this run beat the prior best */}
+          {score > prevHi && score > 0 && (
+            <div
+              data-testid="text-new-high-score"
+              style={{
+                fontSize: 13, letterSpacing: "0.22em", color: "#fff5a0",
+                background: "linear-gradient(90deg, rgba(217,119,6,0.0), rgba(251,191,36,0.25), rgba(217,119,6,0.0))",
+                padding: "6px 14px", borderRadius: 9999, marginBottom: 12,
+                textShadow: "0 0 14px rgba(255,220,80,0.8)",
+                border: "1px solid rgba(251,191,36,0.5)",
+              }}
+            >
+              ✦ NEW HIGH SCORE ✦
+            </div>
+          )}
+
+          {/* Run summary card */}
+          <div style={{
+            background: "rgba(20,8,4,0.85)", border: "1px solid rgba(251,191,36,0.35)",
+            borderRadius: 10, padding: "12px 18px", marginBottom: 14, minWidth: 220,
+          }}>
+            <SummaryRow label="Score"         value={score.toLocaleString()}        testId="text-final-score" highlight />
+            <SummaryRow label="Lines cleared" value={lines.toLocaleString()}        testId="text-final-lines" />
+            <SummaryRow label="Coins earned"  value={`+${coinsEarned.toLocaleString()}`} testId="text-final-coins" coinColor />
+            <SummaryRow label="Best"          value={hiScore.toLocaleString()}      testId="text-final-best" muted />
+          </div>
+
+          {/* Coin-credit status note (so the player sees the deposit happen) */}
+          <div data-testid="text-coin-status" style={{ fontSize: 11, color: "#a06a30", marginBottom: 14, letterSpacing: "0.06em", minHeight: 14 }}>
+            {coinAward.status === "submitting" && "Adding coins to your purse…"}
+            {coinAward.status === "done" && coinAward.amount > 0 && `${coinAward.amount} coins added to your balance.`}
+            {coinAward.status === "done" && coinAward.amount === 0 && "No coins this run — try clearing more rows!"}
+            {coinAward.status === "error" && (
+              <span style={{ color: "#ff8a5a" }}>
+                Couldn't credit coins — they'll be saved next time.
+              </span>
+            )}
+          </div>
+
           <div style={{ display: "flex", gap: 10 }}>
             <button data-testid="button-play-again" onClick={startNewGame} style={overlayBtnStyle(accent)}>Play Again</button>
-            <button data-testid="button-back-to-bastion" onClick={() => navigate("/world/volcanic")} style={overlayBtnStyle("#a06a30")}>Leave</button>
+            <button
+              data-testid="button-back-to-bastion"
+              onClick={() => navigate("/world/volcanic")}
+              style={overlayBtnStyle("#a06a30")}
+            >Back to World</button>
           </div>
         </Overlay>
       )}
@@ -741,6 +919,16 @@ function Overlay({ children }: { children: React.ReactNode }) {
       gap: 8, padding: 20, textAlign: "center",
     }}>
       {children}
+    </div>
+  );
+}
+
+function SummaryRow({ label, value, testId, highlight, muted, coinColor }: { label: string; value: string; testId?: string; highlight?: boolean; muted?: boolean; coinColor?: boolean }) {
+  const valColor = coinColor ? "#ffd166" : highlight ? "#fbbf24" : muted ? "#a06a30" : "#f5d589";
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "3px 0", gap: 18 }}>
+      <span style={{ fontSize: 11, letterSpacing: "0.18em", color: "#7a5530", textTransform: "uppercase" }}>{label}</span>
+      <span data-testid={testId} style={{ fontSize: highlight ? 18 : 14, color: valColor, fontWeight: highlight ? 600 : 500 }}>{value}</span>
     </div>
   );
 }

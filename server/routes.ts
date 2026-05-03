@@ -2078,6 +2078,76 @@ export async function registerRoutes(
     }
   });
 
+  // ── Molten Blocks mini-game reward ────────────────────────────────────
+  // Players earn 5 coins per 35 points scored in the volcanic-world Tetris
+  // game (Molten Blocks). The client tallies how many coins were earned
+  // during a single run and submits the total when the run ends.
+  //
+  // Anti-abuse (defense in depth — these don't need a DB migration):
+  //   1. Per-call cap: 200 coins (an excellent ~70-line run is ~50 coins;
+  //      this leaves headroom for legitimate marathon sessions).
+  //   2. Per-user cooldown: must wait MIN_COOLDOWN_MS between submissions
+  //      (a real game can't end faster than a few seconds).
+  //   3. Per-user daily cap: at most DAILY_CAP coins from this game per
+  //      UTC day. Prevents farming via repeated refresh-and-submit.
+  // Caps are tracked in-memory; on a server restart the daily counter
+  // resets, but the cap itself is small enough that the worst case is
+  // bounded to ~one extra cap window per restart.
+  const moltenRewardState = new Map<string, { dayKey: string; total: number; lastAt: number }>();
+  const MB_PER_CALL_CAP = 200;
+  const MB_DAILY_CAP = 300;
+  const MB_MIN_COOLDOWN_MS = 4_000;
+
+  app.post("/api/games/molten-blocks/reward", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const raw = Number((req.body ?? {}).coins);
+      if (!Number.isFinite(raw) || raw <= 0) {
+        const u = await storage.getUser(user.id);
+        return res.json({ awarded: 0, coins: u?.coins ?? 0 });
+      }
+
+      const now = Date.now();
+      const dayKey = new Date(now).toISOString().slice(0, 10); // YYYY-MM-DD UTC
+      const entry = moltenRewardState.get(user.id);
+      const fresh = !entry || entry.dayKey !== dayKey
+        ? { dayKey, total: 0, lastAt: 0 }
+        : entry;
+
+      if (now - fresh.lastAt < MB_MIN_COOLDOWN_MS) {
+        const u = await storage.getUser(user.id);
+        return res.status(429).json({
+          awarded: 0,
+          coins: u?.coins ?? 0,
+          message: "Please slow down — try again in a few seconds.",
+        });
+      }
+
+      // Apply per-call cap, then clamp by remaining daily allowance.
+      const callAmount = Math.min(MB_PER_CALL_CAP, Math.floor(raw));
+      const dailyRemaining = Math.max(0, MB_DAILY_CAP - fresh.total);
+      const amount = Math.min(callAmount, dailyRemaining);
+
+      if (amount <= 0) {
+        moltenRewardState.set(user.id, { ...fresh, lastAt: now });
+        const u = await storage.getUser(user.id);
+        return res.json({
+          awarded: 0,
+          coins: u?.coins ?? 0,
+          dailyCapReached: true,
+          message: "Daily Molten Blocks coin cap reached. Resets tomorrow!",
+        });
+      }
+
+      const updated = await storage.addCoins(user.id, amount);
+      moltenRewardState.set(user.id, { dayKey, total: fresh.total + amount, lastAt: now });
+      return res.json({ awarded: amount, coins: updated.coins });
+    } catch (err) {
+      console.error("Molten Blocks reward error:", err);
+      return res.status(500).json({ message: "Failed to grant reward" });
+    }
+  });
+
   app.post("/api/pet/:inventoryId/feed-edible", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
