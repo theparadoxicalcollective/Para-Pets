@@ -190,14 +190,16 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     case "right_ear_2":
       return { op: 1, rot:  sinWave(sec, 3.1) * 2 * D2R };
 
-    // Front-facing arms — symmetric ±2° pendulum centered on 0°
-    // (period 4.5 s, matches the body's breath rhythm). Mirrors the
-    // img-renderer's petIdleLeftArm / petIdleRightArm keyframes
-    // (-2° → +2° / +2° → -2°).
+    // Front-facing arms now breathe with the body (bodyBreath) so the
+    // shoulder stays glued to the chest during inhale/exhale. Previously
+    // they used an independent ±2° rotation which left the arm stationary
+    // while the body scaled upward — creating a visible gap at the
+    // shoulder. Mirrors the img-renderer's IDLE_ANIMATIONS change where
+    // left_arm/right_arm now map to petIdleBody instead of
+    // petIdleLeftArm/petIdleRightArm.
     case "left_arm":
-      return { op: 1, rot: -sinWave(sec, 4.5) * 2 * D2R };
     case "right_arm":
-      return { op: 1, rot:  sinWave(sec, 4.5) * 2 * D2R };
+      return bodyBreath(sec);
 
     // Side-facing limbs — ALL ride the body breath so the side-
     // profile pet inflates and deflates as ONE silhouette. Earlier
@@ -787,7 +789,15 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         // async alpha scan finishes.
         const ab = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
         const pxPct = (part.pivotX ?? 50) / 100;
-        const pyPct = (part.pivotY ?? 50) / 100;
+        // Tails must rotate from their BASE (body-connection point), not
+        // their tip. Force pyPct to 1.0 so the pivot sits at the BOTTOM
+        // of the visible alpha area — the tail swings from the top and
+        // the base stays planted. Mirrors the img-renderer's tailOrigin
+        // override (forced 100% Y). Admin-set pivotY is intentionally
+        // ignored for tails since incorrect values are a common source of
+        // the "tail pivots from wrong end" visual bug.
+        const isTailPart = part.partType === "tail" || part.partType === "tail_2" || part.partType === "tail_3";
+        const pyPct = isTailPart ? 1.0 : (part.pivotY ?? 50) / 100;
         const px = left + w * (ab.left + ab.width  * pxPct);
         const py = top  + h * (ab.top  + ab.height * pyPct);
 

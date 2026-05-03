@@ -91,8 +91,15 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   // on the body while the head lifts and falls — the visual
   // effect is "head bobs on top of a breathing neck".
   neck: "petIdleBody",
-  left_arm: "petIdleLeftArm",
-  right_arm: "petIdleRightArm",
+  // Front-facing arms breathe with the body so the shoulder connection
+  // stays visually glued to the chest during inhale/exhale. Previously
+  // on petIdleLeftArm/RightArm (rotation-only), the arms stayed at their
+  // original absolute position while the body scaled upward — creating a
+  // visible gap between the arm and the rising shoulder area. On
+  // petIdleBody they share the body-anchor transform-origin (feet for
+  // ground pets) so they inflate in the same direction as the chest.
+  left_arm: "petIdleBody",
+  right_arm: "petIdleBody",
   body: "petIdleBody",
   left_wing: "petIdleLeftWing",
   right_wing: "petIdleRightWing",
@@ -902,8 +909,15 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       // back_arm (which rides the body's 4.5 s breath) so the
       // forward arm still reads as visibly swinging in front of the
       // back arm rather than locked to it.
-      front_arm: "4s", back_arm: "4.5s",
-      front_leg: "4s", back_leg: "4s",
+      // All four side-view limbs now share the body's 4.5 s period.
+      // Previously front_arm and front_leg used 4 s — even though they
+      // share petIdleBody with the body (4.5 s), a different period
+      // means they drift out of phase within a few seconds, which made
+      // them visibly breathe on a different beat from the torso. Matching
+      // the period to body/back_arm keeps the entire side silhouette
+      // locked to one breath rhythm.
+      front_arm: "4.5s", back_arm: "4.5s",
+      front_leg: "4.5s", back_leg: "4.5s",
       front_wing: "4s", back_wing: "4s",
       // Every part that's mapped to `petIdleBody` MUST share the body's
       // 4.5 s period — otherwise even with a shared bodyBreathDelay the
@@ -1783,6 +1797,20 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           // and petting modes (all of which scale the body).
           const bodyOrigin = (part.partType === "body" && !canFly) ? "50% 100%" : undefined;
 
+          // Tails must rotate from their BASE (where they connect to the body),
+          // not their tip. Regardless of which pivotY the admin set, we force
+          // the Y origin to the BOTTOM of the visible alpha area (100% of the
+          // alpha-bbox height from the top). This keeps the body-attachment
+          // point stationary while the tip swings. The pivotX is still
+          // respected so left/right centering follows the artist's intent.
+          const tailOrigin = (() => {
+            if (part.partType !== "tail" && part.partType !== "tail_2" && part.partType !== "tail_3") return undefined;
+            const tabAlpha = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
+            const tpxPct = (part.pivotX ?? 50) / 100;
+            const originX = (tabAlpha.left + tabAlpha.width * tpxPct) * 100;
+            return `${originX.toFixed(2)}% 100%`;
+          })();
+
           if (mode === "static") {
             const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
             if (isAnimOnly) return null;
@@ -1804,21 +1832,22 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
             if (isAnimOnly) return null;
             const animName = lookupAnim(SLEEP_ANIMATIONS, part.partType);
-            return renderPartImg(part, animName ?? null, undefined, wingDelay, bodyOrigin, partZ);
+            return renderPartImg(part, animName ?? null, undefined, wingDelay, tailOrigin ?? bodyOrigin, partZ);
           }
           if (mode === "petting") {
             // Bouncy "happy being petted" body / limb motion.
             const isAnimOnly = ANIM_ONLY_PARTS.has(part.partType);
             if (isAnimOnly) return null;
             const animName = lookupAnim(PETTING_ANIMATIONS, part.partType);
-            return renderPartImg(part, animName ?? null, undefined, wingDelay, bodyOrigin, partZ);
+            return renderPartImg(part, animName ?? null, undefined, wingDelay, tailOrigin ?? bodyOrigin, partZ);
           }
           const anims = mode === "idle" ? idleAnimMap : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
           const animName = lookupAnim(anims, part.partType) || anims.body;
           if (!animName) return null;
           // Only the idle body keyframe scales — walk/zoom body uses
           // translateY only, so the anchor override is harmless either way.
-          return renderPartImg(part, animName, undefined, wingDelay, bodyOrigin, partZ);
+          // tailOrigin takes precedence over bodyOrigin (tails are never "body").
+          return renderPartImg(part, animName, undefined, wingDelay, tailOrigin ?? bodyOrigin, partZ);
         })}
 
         {/* Head groups — each head gets its own wrapper with associated face parts */}
