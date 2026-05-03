@@ -1032,7 +1032,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         </div>
 
         {activePet && (
-          <div className="relative z-10 flex-shrink-0 flex flex-col items-center gap-1 px-4" style={{ position: "fixed", bottom: "22vh", left: "50%", transform: "translateX(-50%)", zIndex: 20 }}>
+          <div className="relative z-10 flex-shrink-0 flex flex-col items-center gap-1 px-4" style={{ position: "fixed", bottom: "17vh", left: "50%", transform: "translateX(-50%)", zIndex: 20 }}>
             <div
               className="px-5 py-1.5 rounded-lg"
               style={{ background: "rgba(0,0,0,0.65)", border: "1px solid rgba(212,160,23,0.4)", backdropFilter: "blur(6px)", boxShadow: "0 2px 12px rgba(0,0,0,0.4)" }}
