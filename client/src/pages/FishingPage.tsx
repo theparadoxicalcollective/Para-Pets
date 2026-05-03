@@ -10,6 +10,7 @@ import baitIcon from "@assets/icon_fishing_bait.png";
 import fishInvIcon from "@assets/icon_fish_inventory.png";
 import brokenRodIcon from "@assets/broken_rod.svg";
 import bobberIcon from "@assets/Photoroom_20260317_35839_PM_1773781228635.png";
+import volcanicBobberIcon from "@assets/bobber_volcanic.png";
 import fishBookIcon from "@assets/Photoroom_20260324_65241_AM_1774353229077.png";
 import coinIconImg from "@assets/icon_coin.png";
 import { playPlop, playCatch, playReelTick } from "@/lib/sounds";
@@ -97,6 +98,8 @@ interface FishingWorldTheme {
   shimmer1: string;
   shimmer2: string;
   floatStyle: FloatStyle;
+  pondBottom?: string;
+  bobberSrc?: string;
 }
 const FISHING_WORLD_THEMES: Record<string, FishingWorldTheme> = {
   swamp: {
@@ -114,6 +117,8 @@ const FISHING_WORLD_THEMES: Record<string, FishingWorldTheme> = {
     shimmer1: "rgba(255,180,80,0.28)",
     shimmer2: "rgba(255,160,60,0.20)",
     floatStyle: "lava",
+    pondBottom: "26%",
+    bobberSrc: volcanicBobberIcon,
   },
   snowy_mountain: {
     accent: "#88ccff",
@@ -168,8 +173,16 @@ const DEFAULT_FISHING_THEME = FISHING_WORLD_THEMES.swamp;
 
 function PondFloats({ floatStyle }: { floatStyle: FloatStyle }) {
   if (floatStyle === "lava") return (<>
+    {/* Static lava globs floating on the surface */}
     <div style={{ position: "absolute", top: "10%", left: "62%", width: 10, height: 10, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,160,40,0.80), rgba(200,80,10,0.50))", border: "1px solid rgba(255,120,30,0.60)", animation: "lilyFloat 3s ease-in-out infinite" }} />
     <div style={{ position: "absolute", top: "38%", left: "15%", width: 7, height: 7, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,140,30,0.70), rgba(180,60,5,0.40))", border: "1px solid rgba(255,100,20,0.50)", animation: "lilyFloat 4.5s ease-in-out infinite 1s" }} />
+    {/* Rising lava bubbles — staggered sizes and timings */}
+    <div style={{ position: "absolute", bottom: "8%", left: "28%", width: 9, height: 9, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,190,60,0.95), rgba(255,100,20,0.75))", boxShadow: "0 0 8px rgba(255,150,40,0.85)", animation: "lavaBubble 2.4s ease-out infinite" }} />
+    <div style={{ position: "absolute", bottom: "5%", left: "50%", width: 6, height: 6, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,170,50,0.90), rgba(220,80,10,0.70))", boxShadow: "0 0 6px rgba(255,130,30,0.75)", animation: "lavaBubble 3.0s ease-out infinite 0.7s" }} />
+    <div style={{ position: "absolute", bottom: "6%", left: "72%", width: 7, height: 7, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,150,30,0.90), rgba(200,70,10,0.65))", boxShadow: "0 0 7px rgba(255,120,20,0.80)", animation: "lavaBubble 2.7s ease-out infinite 1.4s" }} />
+    <div style={{ position: "absolute", bottom: "10%", left: "14%", width: 5, height: 5, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,210,70,0.95), rgba(255,150,40,0.75))", boxShadow: "0 0 5px rgba(255,190,60,0.85)", animation: "lavaBubble 2.1s ease-out infinite 0.3s" }} />
+    <div style={{ position: "absolute", bottom: "4%", left: "40%", width: 4, height: 4, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,200,60,0.90), rgba(255,120,20,0.70))", boxShadow: "0 0 4px rgba(255,170,40,0.80)", animation: "lavaBubble 1.9s ease-out infinite 1.9s" }} />
+    <div style={{ position: "absolute", bottom: "7%", left: "62%", width: 5, height: 5, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,160,40,0.88), rgba(230,90,15,0.68))", boxShadow: "0 0 5px rgba(255,140,30,0.78)", animation: "lavaBubble 3.3s ease-out infinite 2.2s" }} />
   </>);
   if (floatStyle === "ice") return (<>
     <div style={{ position: "absolute", top: "10%", left: "62%", width: 20, height: 20, borderRadius: "3px", background: "radial-gradient(circle, rgba(200,230,255,0.60), rgba(136,204,255,0.30))", border: "1px solid rgba(200,230,255,0.50)", transform: "rotate(45deg)", animation: "lilyFloat 6s ease-in-out infinite" }} />
@@ -201,6 +214,9 @@ function PondFloats({ floatStyle }: { floatStyle: FloatStyle }) {
 export default function FishingPage({ locationId, locationName, bgUrl, worldId, user, onClose }: FishingPageProps) {
   const theme = FISHING_WORLD_THEMES[worldId ?? ""] ?? DEFAULT_FISHING_THEME;
   const accent = theme.accent;
+  const pondBottom = theme.pondBottom ?? "18%";
+  const bobberBottom = `${parseFloat(pondBottom) + 2}%`;
+  const activeBobberSrc = theme.bobberSrc ?? bobberIcon;
   const [phase, setPhase] = useState<FishingPhase>("idle");
   const [showPolePanel, setShowPolePanel] = useState(false);
   const [showBaitPanel, setShowBaitPanel] = useState(false);
@@ -801,7 +817,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
       <div
         className="absolute"
         style={{
-          bottom: "18%",
+          bottom: pondBottom,
           left: "50%",
           transform: "translateX(-50%)",
           width: "72%",
@@ -1045,7 +1061,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
       <div className="absolute inset-0 z-10 pointer-events-none">
         {phase === "waiting" && (
           <div className="absolute" style={{
-            bottom: "20%", left: "50%", transform: "translate(-50%, 50%)",
+            bottom: bobberBottom, left: "50%", transform: "translate(-50%, 50%)",
             width: 72, height: 36,
             borderRadius: "50%",
             border: `2px solid ${accent}60`,
@@ -1057,7 +1073,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
       {/* Bobber — single persistent element for waiting + nibble to avoid flash on transition */}
       {(phase === "waiting" || phase === "nibble") && (
         <div className="absolute pointer-events-none z-[15]" style={{
-          bottom: "20%", left: "50%", background: "transparent",
+          bottom: bobberBottom, left: "50%", background: "transparent",
         }}>
           {/* Ripple rings — only visible during nibble */}
           {phase === "nibble" && (
@@ -1079,7 +1095,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
             </>
           )}
           {/* Bobber — switches animation based on phase without unmounting */}
-          <img src={bobberIcon} alt="" style={{
+          <img src={activeBobberSrc} alt="" style={{
             width: 70, height: 70,
             display: "block",
             background: "transparent",
@@ -1096,7 +1112,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
 
       {phase === "casting" && equipData?.poleItem?.imageUrl && (
         <div className="absolute pointer-events-none z-[15]" style={{
-          bottom: "20%", left: "0%",
+          bottom: bobberBottom, left: "0%",
           width: 210, height: 210,
           animation: "poleCast 1s ease-in-out forwards",
           transformOrigin: "bottom left",
@@ -1120,7 +1136,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
 
       {(phase === "waiting" || phase === "nibble") && equipData?.poleItem?.imageUrl && (
         <div className="absolute pointer-events-none z-[15]" style={{
-          bottom: "20%", left: "0%",
+          bottom: bobberBottom, left: "0%",
           width: 210, height: 210,
           transform: "rotate(-52deg)",
           transformOrigin: "bottom left",
@@ -2382,6 +2398,12 @@ const FISHING_ANIMATIONS = `
     0%, 100% { transform: translateX(0); }
     30% { transform: translateX(-4px); }
     70% { transform: translateX(2px); }
+  }
+  @keyframes lavaBubble {
+    0%   { transform: translateY(0) scale(1); opacity: 0; }
+    8%   { opacity: 0.95; }
+    75%  { opacity: 0.55; }
+    100% { transform: translateY(-64px) scale(0.25); opacity: 0; }
   }
   @keyframes buttonIdlePulse {
     0%, 100% { box-shadow: 0 4px 18px rgba(0,0,0,0.75), inset 0 1px 3px rgba(255,200,100,0.1); }

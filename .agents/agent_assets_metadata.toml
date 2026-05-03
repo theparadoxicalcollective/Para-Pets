@@ -342,6 +342,12 @@ uri = "file://attached_assets/bg_shop_bookshop_volcanic.png"
 type = "image"
 title = "volcanic bookshop interior background"
 
+[[generated]]
+id = "C9yPv6yU64h__tJwzhX4J"
+uri = "file://attached_assets/bobber_volcanic.png"
+type = "image"
+title = "volcanic bobber"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
