@@ -2291,16 +2291,25 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
       return await res.json();
     },
     onSuccess: (data: any) => {
+      qc.invalidateQueries({ queryKey: ["/api/inventory"] });
       if (data?.rewarded && data?.amount > 0) {
         spawnRewardCoins(data.amount);
       } else {
-        // No coins this time — sprinkle a few extra hearts so the gesture
-        // still feels rewarding.
         const box = petBoxRef.current?.getBoundingClientRect();
         if (box) {
           const cx = box.left + box.width / 2;
           const cy = box.top + box.height / 2;
           burstHearts(cx, cy + 30, 6);
+        }
+      }
+      if (data?.moodGained > 0) {
+        const box = petBoxRef.current?.getBoundingClientRect();
+        if (box) {
+          const cx = box.left + box.width / 2;
+          const cy = box.top + box.height * 0.2;
+          const id = ++floatIdRef.current;
+          setFloatTexts((arr) => [...arr, { id, x: cx, y: cy, text: `+${data.moodGained} Mood` }]);
+          setTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
         }
       }
     },

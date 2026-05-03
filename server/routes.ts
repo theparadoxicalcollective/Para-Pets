@@ -2011,13 +2011,13 @@ export async function registerRoutes(
       const state = await storage.getPetPettingState(user.id, inventoryId);
       if (!state) return res.status(404).json({ message: "Pet not found" });
 
-      // Petting nudges mood up only when the pet isn't too hungry (>= 50%
-      // of max hunger). The petting timestamp is always recorded so the
-      // neglect-decay clock resets even when the mood gain is gated out.
+      // First 3 pettings per hour give a small mood boost (deterministic,
+      // no hunger gate). The timestamp is always recorded so the neglect-decay
+      // clock resets on every pet regardless of whether mood changed.
+      let moodGained = 0;
+      let pettingsThisHour = 0;
       const pettedPet = await storage.getInventoryItemById(inventoryId);
       if (pettedPet && pettedPet.userId === user.id) {
-        const maxH = Math.max(1, pettedPet.petHealth ?? 1000);
-        const curH = pettedPet.petHunger == null || pettedPet.petHunger < 0 ? maxH : pettedPet.petHunger;
         const nowMs = Date.now();
         const MOOD_PETTING_WINDOW_MS = 60 * 60 * 1000;
         const MOOD_PETTING_MAX_PER_WINDOW = 3;
@@ -2028,9 +2028,10 @@ export async function registerRoutes(
         const windowExpired = !ws || (nowMs - ws) > MOOD_PETTING_WINDOW_MS;
         const newWs = windowExpired ? nowMs : ws;
         const newCnt = windowExpired ? 1 : cnt + 1;
-        const allowMoodGain = (curH / maxH) >= 0.5 && newCnt <= MOOD_PETTING_MAX_PER_WINDOW;
-        const moodGain = allowMoodGain ? MOOD_PETTING_GAIN : 0;
-        let newMood = Math.min(100, (pettedPet.petMood ?? 100) + moodGain);
+        const allowMoodGain = newCnt <= MOOD_PETTING_MAX_PER_WINDOW;
+        moodGained = allowMoodGain ? MOOD_PETTING_GAIN : 0;
+        pettingsThisHour = Math.min(newCnt, MOOD_PETTING_MAX_PER_WINDOW);
+        let newMood = Math.min(100, (pettedPet.petMood ?? 100) + moodGained);
         if (pettedPet.lastBattleDefeatAt) {
           const sinceDefeatMin = (nowMs - new Date(pettedPet.lastBattleDefeatAt).getTime()) / 60000;
           if (sinceDefeatMin < BATTLE_DEFEAT_RECENT_MINUTES) {
@@ -2063,27 +2064,25 @@ export async function registerRoutes(
       if (countSoFar === 0) {
         const updated = await storage.addCoins(user.id, 10);
         await storage.setPetPettingState(user.id, inventoryId, now, 1);
-        return res.json({ rewarded: true, coins: updated.coins, amount: 10 });
+        return res.json({ rewarded: true, coins: updated.coins, amount: 10, moodGained, pettingsThisHour });
       }
 
       // Pet has already given its daily max → animation only.
       if (countSoFar >= MAX_REWARDS_PER_DAY) {
         const u = await storage.getUser(user.id);
-        return res.json({ rewarded: false, coins: u?.coins ?? 0 });
+        return res.json({ rewarded: false, coins: u?.coins ?? 0, moodGained, pettingsThisHour });
       }
 
       // Random chance for each extra reward beyond the first.
       if (Math.random() > EXTRA_REWARD_CHANCE) {
-        // Persist that we made an attempt? Intentionally no — keep extra
-        // attempts cheap so a determined player can still hit the cap of 5.
         const u = await storage.getUser(user.id);
-        return res.json({ rewarded: false, coins: u?.coins ?? 0 });
+        return res.json({ rewarded: false, coins: u?.coins ?? 0, moodGained, pettingsThisHour });
       }
 
       const amount = 3 + Math.floor(Math.random() * 3); // 3, 4, or 5
       const updated = await storage.addCoins(user.id, amount);
       await storage.setPetPettingState(user.id, inventoryId, now, countSoFar + 1);
-      return res.json({ rewarded: true, coins: updated.coins, amount });
+      return res.json({ rewarded: true, coins: updated.coins, amount, moodGained, pettingsThisHour });
     } catch (err) {
       console.error("Petting reward error:", err);
       return res.status(500).json({ message: "Failed to grant petting reward" });
