@@ -958,6 +958,54 @@ export default function ParaPetsHubPage() {
           {/* ── Egg showcase ─────────────────────────────────────────────── */}
           <EggShowcase />
 
+          {/* ── Founders gateway ──────────────────────────────────────────── */}
+          <RuneDivider />
+          <Link
+            href="/founders"
+            data-testid="link-founders"
+            className="rounded-3xl px-6 py-7 flex flex-col items-center text-center transition-all active:scale-[0.98] cursor-pointer"
+            style={{
+              background: "linear-gradient(135deg,rgba(12,20,12,0.92) 0%,rgba(20,28,14,0.88) 100%)",
+              border: "1px solid rgba(232,200,88,0.28)",
+              boxShadow:
+                "0 0 40px rgba(232,200,88,0.12), inset 0 1px 0 rgba(232,200,88,0.10), 0 12px 30px rgba(0,0,0,0.45)",
+              textDecoration: "none",
+            }}
+          >
+            <div
+              className="flex items-center justify-center rounded-full mb-3"
+              style={{
+                width: 52, height: 52,
+                background: "radial-gradient(circle at 30% 25%, #f6dc8a 0%, #c8a93a 50%, #6e561a 100%)",
+                boxShadow:
+                  "0 0 24px rgba(232,200,88,0.45), 0 0 50px rgba(127,191,176,0.15), inset 0 -2px 5px rgba(0,0,0,0.35)",
+                border: "1px solid rgba(255,235,160,0.55)",
+              }}
+            >
+              <Heart size={22} fill="#3a2a08" stroke="#3a2a08" strokeWidth={1.5} />
+            </div>
+            <h2
+              className="font-fantasy text-base tracking-widest mb-1"
+              style={{ color: "#f0d770", textShadow: "0 0 14px rgba(232,200,88,0.45)", letterSpacing: "0.18em" }}
+            >
+              Our Founders
+            </h2>
+            <p className="font-fantasy text-[10px] mb-4" style={{ color: "#8a7a3a", letterSpacing: "0.2em" }}>
+              The lantern bearers who made this world possible
+            </p>
+            <span
+              className="font-fantasy text-xs tracking-widest rounded-2xl px-6 py-2.5"
+              style={{
+                background: "linear-gradient(135deg,#f6dc8a 0%,#c8a93a 100%)",
+                color: "#3a2a08",
+                boxShadow: "0 0 16px rgba(232,200,88,0.32)",
+                letterSpacing: "0.14em",
+              }}
+            >
+              Visit the Wall
+            </span>
+          </Link>
+
           {/* ── Meet the Team ─────────────────────────────────────────────── */}
           {team && team.length > 0 && (
             <>
@@ -1053,54 +1101,6 @@ export default function ParaPetsHubPage() {
               </div>
             </>
           )}
-
-          {/* ── Founders gateway ──────────────────────────────────────────── */}
-          <RuneDivider />
-          <Link
-            href="/founders"
-            data-testid="link-founders"
-            className="rounded-3xl px-6 py-7 flex flex-col items-center text-center transition-all active:scale-[0.98] cursor-pointer"
-            style={{
-              background: "linear-gradient(135deg,rgba(12,20,12,0.92) 0%,rgba(20,28,14,0.88) 100%)",
-              border: "1px solid rgba(232,200,88,0.28)",
-              boxShadow:
-                "0 0 40px rgba(232,200,88,0.12), inset 0 1px 0 rgba(232,200,88,0.10), 0 12px 30px rgba(0,0,0,0.45)",
-              textDecoration: "none",
-            }}
-          >
-            <div
-              className="flex items-center justify-center rounded-full mb-3"
-              style={{
-                width: 52, height: 52,
-                background: "radial-gradient(circle at 30% 25%, #f6dc8a 0%, #c8a93a 50%, #6e561a 100%)",
-                boxShadow:
-                  "0 0 24px rgba(232,200,88,0.45), 0 0 50px rgba(127,191,176,0.15), inset 0 -2px 5px rgba(0,0,0,0.35)",
-                border: "1px solid rgba(255,235,160,0.55)",
-              }}
-            >
-              <Heart size={22} fill="#3a2a08" stroke="#3a2a08" strokeWidth={1.5} />
-            </div>
-            <h2
-              className="font-fantasy text-base tracking-widest mb-1"
-              style={{ color: "#f0d770", textShadow: "0 0 14px rgba(232,200,88,0.45)", letterSpacing: "0.18em" }}
-            >
-              Our Founders
-            </h2>
-            <p className="font-fantasy text-[10px] mb-4" style={{ color: "#8a7a3a", letterSpacing: "0.2em" }}>
-              The lantern bearers who made this world possible
-            </p>
-            <span
-              className="font-fantasy text-xs tracking-widest rounded-2xl px-6 py-2.5"
-              style={{
-                background: "linear-gradient(135deg,#f6dc8a 0%,#c8a93a 100%)",
-                color: "#3a2a08",
-                boxShadow: "0 0 16px rgba(232,200,88,0.32)",
-                letterSpacing: "0.14em",
-              }}
-            >
-              Visit the Wall
-            </span>
-          </Link>
 
           {/* ── Add to Home Screen footer CTA ──────────────────────────────── */}
           <RuneDivider />

@@ -328,58 +328,51 @@ export default function FoundersPage() {
             </p>
           </div>
         ) : (
-          <ul className="flex flex-col gap-1 max-w-md mx-auto" data-testid="founders-list">
-            {founders.map(f => (
-              <li
-                key={f.id}
-                data-testid={`founder-row-${f.id}`}
-                className="px-2 py-2 flex items-center justify-between gap-3"
-              >
-                <div className="flex-1 min-w-0 text-center">
+          <div className="flex flex-wrap items-center justify-center gap-y-2 max-w-2xl mx-auto" data-testid="founders-list">
+            {founders.map((f, idx) => (
+              <span key={f.id} className="flex items-center">
+                {idx > 0 && (
+                  <span style={{ color: "#1a0e00", fontSize: 13, margin: "0 8px", userSelect: "none", fontWeight: 900 }}>★</span>
+                )}
+                <span className="flex items-center gap-1" data-testid={`founder-row-${f.id}`}>
                   <span
-                    className="block truncate"
                     data-testid={`text-founder-name-${f.id}`}
                     style={{
                       fontFamily: "'Great Vibes', cursive",
-                      fontWeight: 700,
-                      fontSize: 36,
-                      lineHeight: 1.1,
-                      letterSpacing: "0.01em",
-                      color: "#f4e3a8",
-                      backgroundImage: "linear-gradient(180deg, #fff4c8 0%, #f0d278 45%, #b8902e 100%)",
+                      fontSize: 24,
+                      lineHeight: 1.4,
+                      backgroundImage: "linear-gradient(180deg, #fff4c8 0%, #f0d278 50%, #c8a030 100%)",
                       WebkitBackgroundClip: "text",
                       backgroundClip: "text",
                       WebkitTextFillColor: "transparent",
-                      textShadow:
-                        "0 1px 0 rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.55), 0 0 14px rgba(232,200,88,0.18)",
-                      filter: "drop-shadow(0 1px 0 rgba(60,40,10,0.6))",
+                      filter: "drop-shadow(0 1px 2px rgba(30,18,0,0.8))",
                     }}
                   >
                     {f.name}
                   </span>
-                </div>
-                {isAdmin && (
-                  <button
-                    data-testid={`button-remove-founder-${f.id}`}
-                    onClick={() => {
-                      if (confirm(`Remove "${f.name}" from the founders list?`)) {
-                        deleteMutation.mutate(f.id);
-                      }
-                    }}
-                    aria-label={`Remove ${f.name}`}
-                    className="rounded-full p-1.5 transition-all active:scale-90 flex-shrink-0"
-                    style={{
-                      color: "#a06060",
-                      background: "rgba(160,80,80,0.07)",
-                      border: "1px solid rgba(160,80,80,0.20)",
-                    }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                )}
-              </li>
+                  {isAdmin && (
+                    <button
+                      data-testid={`button-remove-founder-${f.id}`}
+                      onClick={() => {
+                        if (confirm(`Remove "${f.name}" from the founders list?`)) {
+                          deleteMutation.mutate(f.id);
+                        }
+                      }}
+                      aria-label={`Remove ${f.name}`}
+                      className="rounded-full p-1 transition-all active:scale-90 flex-shrink-0"
+                      style={{
+                        color: "#a06060",
+                        background: "rgba(160,80,80,0.07)",
+                        border: "1px solid rgba(160,80,80,0.20)",
+                      }}
+                    >
+                      <Trash2 size={10} />
+                    </button>
+                  )}
+                </span>
+              </span>
             ))}
-          </ul>
+          </div>
         )}
 
         {/* Footer keepsake */}
