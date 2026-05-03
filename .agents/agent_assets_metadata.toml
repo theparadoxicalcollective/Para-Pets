@@ -684,6 +684,42 @@ uri = "file://attached_assets/bg_shop_food_swamp.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "LAu_w9MKDn9Nx_2qWIG6_"
+uri = "file://attached_assets/accessory_swamp_sword.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "az5OSXyf21wE95G4bcVty"
+uri = "file://attached_assets/accessory_swamp_bow.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "KkjqTDfqkUlSoNOtM8QBS"
+uri = "file://attached_assets/accessory_swamp_staff.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "iTvNEjr8u2Mz8V7RmT7Sx"
+uri = "file://attached_assets/accessory_swamp_armor.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Vc9qOxshkLnelZOtkD0xP"
+uri = "file://attached_assets/accessory_swamp_shield.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "7TYyJZZ2iXUFaI4n0kuAM"
+uri = "file://attached_assets/accessory_swamp_amulet.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

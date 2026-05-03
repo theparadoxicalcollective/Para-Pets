@@ -2234,6 +2234,54 @@ app.use((req, res, next) => {
     console.error("Swamp food shop seed error (non-fatal):", err);
   }
 
+  // Seed 6 bayou-themed accessory items (one-shot). Pricing: 12 coins per
+  // stat point (accessories don't break). Visible to admins to place.
+  try {
+    const swampAccessoriesDone = await storage.getGameSetting("swamp_accessories_v1");
+    const swampAccessories = [
+      { name: "Cypress Fang Sword",   file: "accessory_swamp_sword.png",  atk: 150, def: 0,   hp: 0,   price: 1800 },
+      { name: "Mosswood Longbow",     file: "accessory_swamp_bow.png",    atk: 150, def: 0,   hp: 0,   price: 1800 },
+      { name: "Wisp-Root Staff",      file: "accessory_swamp_staff.png",  atk: 150, def: 0,   hp: 0,   price: 1800 },
+      { name: "Gatorhide Cuirass",    file: "accessory_swamp_armor.png",  atk: 0,   def: 100, hp: 0,   price: 1200 },
+      { name: "Cypress Bulwark",      file: "accessory_swamp_shield.png", atk: 0,   def: 100, hp: 0,   price: 1200 },
+      { name: "Wisplight Amulet",     file: "accessory_swamp_amulet.png", atk: 0,   def: 0,   hp: 150, price: 1800 },
+    ];
+    if (!swampAccessoriesDone) {
+      let inserted = 0;
+      for (const it of swampAccessories) {
+        const assetPath = path.join(process.cwd(), "attached_assets", it.file);
+        if (!fs.existsSync(assetPath)) { console.warn(`Swamp accessory missing, skipping: ${it.file}`); continue; }
+        const v = Math.floor(fs.statSync(assetPath).mtimeMs / 1000);
+        const imageUrl = `/world-assets/${it.file}?v=${v}`;
+        const existing = await db.execute(
+          sql`SELECT id FROM shop_items WHERE name = ${it.name} AND type = 'accessory' LIMIT 1`
+        );
+        if ((existing as any).rows?.length) continue;
+        await db.execute(sql`
+          INSERT INTO shop_items (name, price, type, world_id, image_url, atk_boost, def_boost, health_boost)
+          VALUES (${it.name}, ${it.price}, 'accessory', 'swamp', ${imageUrl},
+                  ${it.atk || null}, ${it.def || null}, ${it.hp || null})
+        `);
+        inserted++;
+      }
+      await storage.setGameSetting("swamp_accessories_v1", "done");
+      console.log(`Swamp accessories seeded (${inserted} new).`);
+    }
+    // Always refresh image_url so re-exported (background-stripped) PNGs
+    // show up without a manual DB edit.
+    for (const it of swampAccessories) {
+      const assetPath = path.join(process.cwd(), "attached_assets", it.file);
+      if (!fs.existsSync(assetPath)) continue;
+      const v = Math.floor(fs.statSync(assetPath).mtimeMs / 1000);
+      const url = `/world-assets/${it.file}?v=${v}`;
+      await db.execute(
+        sql`UPDATE shop_items SET image_url = ${url} WHERE name = ${it.name} AND type = 'accessory'`
+      );
+    }
+  } catch (err) {
+    console.error("Swamp accessories seed error (non-fatal):", err);
+  }
+
   // Seed volcanic bookshop
   try {
     const VOLCANIC_BOOKSHOP_ID = "c3d4e5f6-0004-4000-8000-000000000004";
