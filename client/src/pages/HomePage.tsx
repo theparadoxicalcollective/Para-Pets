@@ -888,10 +888,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                           // fills the stage nicely. transformOrigin center-bottom
                           // keeps the pet grounded — it grows upward only.
                           transform: petCircling
-                            ? "scale(1.155, 1.092)"
+                            ? "scale(1.155, 1.092) translateY(10%)"
                             : petPressed
-                              ? "scale(1.108, 1.132)"
-                              : "scale(1.12)",
+                              ? "scale(1.108, 1.132) translateY(10%)"
+                              : "scale(1.12) translateY(10%)",
                           transition: "transform 320ms cubic-bezier(0.34, 1.2, 0.5, 1)",
                           transformOrigin: "center bottom",
                           // Sit above heart/sparkle bursts and surrounding chrome
