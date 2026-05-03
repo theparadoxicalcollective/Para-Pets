@@ -1261,6 +1261,21 @@ app.use((req, res, next) => {
       await storage.setGameSetting("bayous_heart_icon_v3", "done");
     }
 
+    // Migration: swap The Mixing Tree icon to the new bayou-themed cauldron
+    // artwork (vine-wrapped, mossy, teal wisps). Bumped to v2 to refresh the
+    // stored asset whenever the source PNG is regenerated. Position is
+    // preserved (admins may have moved it).
+    const mixingTreeCauldronDone = await storage.getGameSetting("mixing_tree_cauldron_icon_v2");
+    if (!mixingTreeCauldronDone) {
+      const MIXING_TREE_ID = "8e211716-0448-496e-8582-6ce1025ac4e4";
+      const cauldronIcon = loadAssetBase64("icon_mixing_tree_cauldron.png");
+      if (cauldronIcon) {
+        await storage.updateWorldLocation(MIXING_TREE_ID, { iconUrl: cauldronIcon } as any);
+        console.log("The Mixing Tree icon updated to the bayou-themed cauldron artwork.");
+      }
+      await storage.setGameSetting("mixing_tree_cauldron_icon_v2", "done");
+    }
+
     // Migration: restore world positions and glow colors from pre-migration production backup
     const worldPositionsDone = await storage.getGameSetting("world_positions_restore_v1");
     if (!worldPositionsDone) {

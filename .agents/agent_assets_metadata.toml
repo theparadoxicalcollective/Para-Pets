@@ -390,6 +390,12 @@ uri = "file://attached_assets/molten_block_J.png"
 type = "image"
 title = "flat molten J tile"
 
+[[generated]]
+id = "AvNWfAeN_7fDcemcoNzyZ"
+uri = "file://attached_assets/icon_mixing_tree_cauldron.png"
+type = "image"
+title = "bayou themed cauldron icon"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
