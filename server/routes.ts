@@ -3177,11 +3177,12 @@ export async function registerRoutes(
 
   app.patch("/api/world/pet_world/pet-position", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const { ownerUserId, posX, posY } = req.body;
-      if (typeof posX !== "number" || typeof posY !== "number" || !ownerUserId) {
-        return res.status(400).json({ message: "ownerUserId, posX, posY required" });
+      const user = req.user as any;
+      const { ownerUserId: _spoofable, posX, posY } = req.body;
+      if (typeof posX !== "number" || typeof posY !== "number") {
+        return res.status(400).json({ message: "posX, posY required" });
       }
-      // Update in-memory position immediately
+      const ownerUserId = user.id;
       const client = _worldClients.get(ownerUserId);
       if (client) { client.posX = posX; client.posY = posY; }
       // Persist to DB (fire-and-forget — positional data, not critical)
@@ -4831,7 +4832,7 @@ export async function registerRoutes(
   // payloads. This endpoint returns { [userId]: dataUrl|null } for the requested
   // ids only. Frontends should cache the result with a long staleTime since
   // avatars change rarely.
-  app.post("/api/users/avatars", async (req, res) => {
+  app.post("/api/users/avatars", isAuthenticated, async (req, res) => {
     try {
       const ids = Array.isArray(req.body?.userIds) ? req.body.userIds.filter((x: any) => typeof x === "string") : [];
       if (ids.length === 0) return res.json({});

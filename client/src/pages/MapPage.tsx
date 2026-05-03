@@ -24,7 +24,7 @@ interface MapPageProps {
     profileImage: string | null;
     coins: number;
     isAdmin: boolean;
-    isModerator: boolean;
+    isModerator?: boolean;
     activePetId: string | null;
     lastUsernameChange: string | null;
     lastProfilePicChange: string | null;
