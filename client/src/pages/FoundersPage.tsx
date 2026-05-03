@@ -328,40 +328,31 @@ export default function FoundersPage() {
             </p>
           </div>
         ) : (
-          <ul className="flex flex-col gap-2 max-w-md mx-auto" data-testid="founders-list">
+          <ul className="flex flex-col gap-1 max-w-md mx-auto" data-testid="founders-list">
             {founders.map(f => (
               <li
                 key={f.id}
                 data-testid={`founder-row-${f.id}`}
-                className="rounded-2xl px-5 py-3 flex items-center justify-between gap-3"
-                style={{
-                  background: "linear-gradient(135deg, rgba(12,20,12,0.78) 0%, rgba(20,28,14,0.74) 100%)",
-                  border: "1px solid rgba(232,200,88,0.18)",
-                  boxShadow: "inset 0 1px 0 rgba(232,200,88,0.06), 0 4px 14px rgba(0,0,0,0.45)",
-                }}
+                className="px-2 py-2 flex items-center justify-between gap-3"
               >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="flex-1 min-w-0 text-center">
                   <span
-                    aria-hidden
-                    className="flex items-center justify-center rounded-full flex-shrink-0"
-                    style={{
-                      width: 26, height: 26,
-                      background: "radial-gradient(circle at 30% 25%, #f6dc8a 0%, #c8a93a 70%)",
-                      boxShadow: "0 0 10px rgba(232,200,88,0.35)",
-                      color: "#3a2a08",
-                      fontSize: 12,
-                    }}
-                  >
-                    ✦
-                  </span>
-                  <span
-                    className="font-fantasy truncate"
+                    className="block truncate"
                     data-testid={`text-founder-name-${f.id}`}
                     style={{
-                      color: "#f0e3a3",
-                      fontSize: 15,
-                      letterSpacing: "0.04em",
-                      textShadow: "0 1px 4px rgba(0,0,0,0.55)",
+                      fontFamily: "'Great Vibes', cursive",
+                      fontWeight: 700,
+                      fontSize: 36,
+                      lineHeight: 1.1,
+                      letterSpacing: "0.01em",
+                      color: "#f4e3a8",
+                      backgroundImage: "linear-gradient(180deg, #fff4c8 0%, #f0d278 45%, #b8902e 100%)",
+                      WebkitBackgroundClip: "text",
+                      backgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      textShadow:
+                        "0 1px 0 rgba(0,0,0,0.55), 0 2px 6px rgba(0,0,0,0.55), 0 0 14px rgba(232,200,88,0.18)",
+                      filter: "drop-shadow(0 1px 0 rgba(60,40,10,0.6))",
                     }}
                   >
                     {f.name}
