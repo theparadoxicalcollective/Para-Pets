@@ -606,6 +606,60 @@ uri = "file://attached_assets/book_phoenix_apex_compendium.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "nIcz7Z89M_2CPdRnDIU-A"
+uri = "file://attached_assets/fish_cinder_sprat.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "GI3_AQuRhr-Baz8JBM0Qm"
+uri = "file://attached_assets/fish_soot_tadpole.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "wZ82wFRcDHaRmzbrvnlWr"
+uri = "file://attached_assets/fish_pumice_loach.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Hdj3ej0O2Qf3Vr8cxqGes"
+uri = "file://attached_assets/fish_glowtail_sardine.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "m3OC7e1CLQyp8mHbyMQwI"
+uri = "file://attached_assets/fish_magma_bass.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "pJumHNLBPzFtFtPIUEsV-"
+uri = "file://attached_assets/fish_basalt_char.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "mOEtv_kSyqCcYVmB4SDxb"
+uri = "file://attached_assets/book_bulwark_of_the_mountain.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "S1sClfp2aCo6wRVRYvvVD"
+uri = "file://attached_assets/book_heart_of_magma_tome.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "KgRJhfArnD1sPCoBfYQTU"
+uri = "file://attached_assets/book_titans_volcanic_aegis.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

@@ -2056,7 +2056,7 @@ app.use((req, res, next) => {
   // cache-busting, and are re-bumped every boot below so re-exported PNGs
   // (background-stripped, etc.) show up without a manual DB edit.
   try {
-    const volcanicFishDone = await storage.getGameSetting("volcanic_fish_v1");
+    const volcanicFishDone = await storage.getGameSetting("volcanic_fish_v2");
     const volcanicFish = [
       { name: "Magma Minnow",          stars: 2, file: "fish_magma_minnow.png" },
       { name: "Cinder Guppy",          stars: 3, file: "fish_cinder_guppy.png" },
@@ -2073,6 +2073,12 @@ app.use((req, res, next) => {
       { name: "Caldera Crusher",       stars: 4, file: "fish_caldera_crusher.png" },
       { name: "Phoenix Lungfish",      stars: 5, file: "fish_phoenix_lungfish.png" },
       { name: "Lord Inferno",          stars: 5, file: "fish_lord_inferno.png" },
+      { name: "Cinder Sprat",          stars: 1, file: "fish_cinder_sprat.png" },
+      { name: "Soot Tadpole",          stars: 1, file: "fish_soot_tadpole.png" },
+      { name: "Pumice Loach",          stars: 2, file: "fish_pumice_loach.png" },
+      { name: "Glowtail Sardine",      stars: 2, file: "fish_glowtail_sardine.png" },
+      { name: "Magma Bass",            stars: 3, file: "fish_magma_bass.png" },
+      { name: "Basalt Char",           stars: 3, file: "fish_basalt_char.png" },
     ];
     if (!volcanicFishDone) {
       let inserted = 0;
@@ -2094,7 +2100,7 @@ app.use((req, res, next) => {
         `);
         inserted++;
       }
-      await storage.setGameSetting("volcanic_fish_v1", "done");
+      await storage.setGameSetting("volcanic_fish_v2", "done");
       console.log(`Volcanic fish seeded (${inserted} new).`);
     }
 
@@ -2122,8 +2128,11 @@ app.use((req, res, next) => {
       { name: "Tome of Lava Hide",            stat: "def",    amount: 6,  file: "book_tome_of_lava_hide.png" },
       { name: "Magma Heart Manuscript",       stat: "health", amount: 10, file: "book_magma_heart_manuscript.png" },
       { name: "Pyromancer's Battle Grimoire", stat: "atk",    amount: 10, file: "book_pyromancer_battle_grimoire.png" },
-      { name: "Obsidian Bulwark Codex",       stat: "def",    amount: 16, file: "book_obsidian_bulwark_codex.png" },
-      { name: "Phoenix Apex Compendium",      stat: "health", amount: 30, file: "book_phoenix_apex_compendium.png" },
+      { name: "Obsidian Bulwark Codex",       stat: "def",    amount: 16,  file: "book_obsidian_bulwark_codex.png" },
+      { name: "Phoenix Apex Compendium",      stat: "health", amount: 30,  file: "book_phoenix_apex_compendium.png" },
+      { name: "Bulwark of the Mountain",      stat: "def",    amount: 100, file: "book_bulwark_of_the_mountain.png" },
+      { name: "Heart of Magma Tome",          stat: "health", amount: 100, file: "book_heart_of_magma_tome.png" },
+      { name: "Titan's Volcanic Aegis",       stat: "def",    amount: 300, file: "book_titans_volcanic_aegis.png" },
     ];
     let inserted = 0;
     let updated = 0;
