@@ -161,8 +161,9 @@ function clearLines(board: Cell[][]): { board: Cell[][]; cleared: number } {
 //   - 3 lives — each top-out costs one life; the board resets but score
 //     and coins-earned carry over until all lives are gone
 const POINTS_PER_ROW = 3;
-const POINTS_PER_COIN_TIER = 35;
-const COINS_PER_TIER = 5;
+const POINTS_PER_COIN_TIER = 100;   // every 100 score points → COINS_PER_TIER coins
+const COINS_PER_TIER = 2;
+const TETRIS_BONUS_COINS = 5;       // +5 coins for clearing 4+ rows in one drop
 const STARTING_LIVES = 1;
 
 export default function MoltenBlocksPage() {
@@ -428,10 +429,14 @@ export default function MoltenBlocksPage() {
         // batch and would leave the refs stale).
         const prevScore = scoreRef.current;
         const nextScore = prevScore + n * POINTS_PER_ROW;
+        // Tier coins — every full POINTS_PER_COIN_TIER points crossed grants COINS_PER_TIER.
         const tiersBefore = Math.floor(prevScore / POINTS_PER_COIN_TIER);
         const tiersAfter  = Math.floor(nextScore / POINTS_PER_COIN_TIER);
         const newTiers = tiersAfter - tiersBefore;
-        const coinsAdded = newTiers > 0 ? newTiers * COINS_PER_TIER : 0;
+        const tierCoins = newTiers > 0 ? newTiers * COINS_PER_TIER : 0;
+        // Tetris bonus — 4 or more rows cleared in a single lock awards a flat bonus.
+        const bonusCoins = n >= 4 ? TETRIS_BONUS_COINS : 0;
+        const coinsAdded = tierCoins + bonusCoins;
         scoreRef.current = nextScore;
         coinsEarnedRef.current = coinsEarnedRef.current + coinsAdded;
         setScore(nextScore);
@@ -488,7 +493,7 @@ export default function MoltenBlocksPage() {
     while (!collides(boardRef.current, activeRef.current, 0, dy + 1, 0)) dy++;
     if (dy > 0) {
       activeRef.current = { ...activeRef.current, y: activeRef.current.y + dy };
-      setScore(s => s + dy * 2);
+      // Score is awarded ONLY on line clears — no per-cell hard-drop bonus.
     }
     lockAndClear();
   }, [lockAndClear]);
@@ -502,8 +507,8 @@ export default function MoltenBlocksPage() {
         const interval = softDropRef.current ? Math.min(60, dropIntervalRef.current) : dropIntervalRef.current;
         if (t - lastDropRef.current >= interval) {
           lastDropRef.current = t;
+          // Score is awarded ONLY on line clears — soft drop just falls faster.
           if (!tryMove(0, 1)) lockAndClear();
-          else if (softDropRef.current) setScore(s => s + 1);
         }
       }
       drawBoard();
@@ -864,9 +869,9 @@ export default function MoltenBlocksPage() {
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <Stat label="SCORE" value={score} testId="text-score" />
           <Stat label="LVL" value={level} testId="text-level" />
-          <div style={{ textAlign: "center", minWidth: 56 }} data-testid="text-lives">
-            <div style={{ fontSize: 9, letterSpacing: "0.18em", color: "#7a5530" }}>LIVES</div>
-            <div style={{ fontSize: 14, lineHeight: 1.1, letterSpacing: "0.1em" }}>
+          <div style={{ textAlign: "center", minWidth: 64 }} data-testid="text-lives">
+            <div style={{ fontSize: 11, letterSpacing: "0.18em", color: "#7a5530" }}>LIVES</div>
+            <div style={{ fontSize: 18, lineHeight: 1.1, letterSpacing: "0.1em" }}>
               {Array.from({ length: STARTING_LIVES }).map((_, i) => (
                 <span key={i} style={{ color: i < lives ? "#ff5a1f" : "#3a1a0a", textShadow: i < lives ? "0 0 6px rgba(255,90,30,0.7)" : "none" }}>♥</span>
               ))}
@@ -885,16 +890,8 @@ export default function MoltenBlocksPage() {
         >{paused ? "▶" : "II"}</button>
       </div>
 
-      {/* Title strip */}
-      <div style={{ flexShrink: 0, textAlign: "center", padding: "0 12px 6px" }}>
-        <div style={{ fontSize: 11, letterSpacing: "0.3em", color: "#a06a30", textTransform: "uppercase" }}>The Molten Bastion</div>
-        <h1 style={{ margin: "2px 0 0", fontSize: 22, color: accent, letterSpacing: "0.1em", textShadow: "0 0 18px rgba(251,191,36,0.4)" }}>
-          MOLTEN BLOCKS
-        </h1>
-      </div>
-
       {/* Main playfield + side panel */}
-      <div style={{ flex: 1, minHeight: 0, display: "flex", padding: "4px 8px 8px", gap: 8 }}>
+      <div style={{ flex: 1, minHeight: 0, display: "flex", padding: "6px 8px 8px", gap: 8 }}>
         <div
           style={{ flex: 1, minHeight: 0, position: "relative" }}
           onPointerDown={onPointerDown}
@@ -910,21 +907,21 @@ export default function MoltenBlocksPage() {
         </div>
 
         {/* Side panel — Next + best */}
-        <div style={{ width: 86, flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ width: 100, flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
           <Panel label="NEXT">
             <canvas
               ref={sideCanvasRef}
               data-testid="canvas-next"
-              style={{ width: "100%", height: 78, display: "block" }}
+              style={{ width: "100%", height: 92, display: "block" }}
             />
           </Panel>
           <Panel label="BEST">
-            <div data-testid="text-hi-score" style={{ textAlign: "center", padding: "6px 0", fontSize: 16, color: accent, fontWeight: 600 }}>
+            <div data-testid="text-hi-score" style={{ textAlign: "center", padding: "6px 0", fontSize: 19, color: accent, fontWeight: 600 }}>
               {hiScore.toLocaleString()}
             </div>
           </Panel>
           <Panel label="COINS">
-            <div data-testid="text-coins-earned" style={{ textAlign: "center", padding: "6px 0", fontSize: 16, color: "#ffd166", fontWeight: 600 }}>
+            <div data-testid="text-coins-earned" style={{ textAlign: "center", padding: "6px 0", fontSize: 19, color: "#ffd166", fontWeight: 600 }}>
               {coinsEarned.toLocaleString()}
             </div>
           </Panel>
@@ -945,15 +942,15 @@ export default function MoltenBlocksPage() {
               color: "inherit",
             }}
           >
-            <div style={{ fontSize: 9, letterSpacing: "0.22em", color: "#a06a30", textAlign: "center", marginBottom: 2 }}>HOLD</div>
+            <div style={{ fontSize: 11, letterSpacing: "0.22em", color: "#a06a30", textAlign: "center", marginBottom: 2 }}>HOLD</div>
             <canvas
               ref={holdCanvasRef}
               data-testid="canvas-hold"
-              style={{ width: "100%", height: 60, display: "block" }}
+              style={{ width: "100%", height: 72, display: "block" }}
             />
           </button>
           <div style={{ flex: 1 }} />
-          <div style={{ fontSize: 9, lineHeight: 1.4, color: "#7a5530", textAlign: "center", letterSpacing: "0.08em" }}>
+          <div style={{ fontSize: 10, lineHeight: 1.45, color: "#7a5530", textAlign: "center", letterSpacing: "0.08em" }}>
             TAP rotate<br/>SWIPE move<br/>HOLD soft drop<br/>FLICK ↓ slam
           </div>
         </div>
@@ -1101,9 +1098,9 @@ export default function MoltenBlocksPage() {
 // ── Small layout helpers ───────────────────────────────────────────────────
 function Stat({ label, value, testId }: { label: string; value: number; testId?: string }) {
   return (
-    <div style={{ textAlign: "center", minWidth: 50 }}>
-      <div style={{ fontSize: 9, letterSpacing: "0.18em", color: "#7a5530" }}>{label}</div>
-      <div data-testid={testId} style={{ fontSize: 16, color: "#fbbf24", fontWeight: 600, lineHeight: 1.1 }}>
+    <div style={{ textAlign: "center", minWidth: 58 }}>
+      <div style={{ fontSize: 11, letterSpacing: "0.18em", color: "#7a5530" }}>{label}</div>
+      <div data-testid={testId} style={{ fontSize: 20, color: "#fbbf24", fontWeight: 600, lineHeight: 1.1 }}>
         {value.toLocaleString()}
       </div>
     </div>
@@ -1118,7 +1115,7 @@ function Panel({ label, children }: { label: string; children: React.ReactNode }
       borderRadius: 8, padding: "6px",
       boxShadow: "0 0 12px rgba(217,119,6,0.15) inset",
     }}>
-      <div style={{ fontSize: 9, letterSpacing: "0.2em", color: "#a06a30", textAlign: "center", marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "#a06a30", textAlign: "center", marginBottom: 3 }}>{label}</div>
       {children}
     </div>
   );
