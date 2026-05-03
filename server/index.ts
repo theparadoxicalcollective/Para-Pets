@@ -1978,23 +1978,6 @@ app.use((req, res, next) => {
     console.error("Volcanic bookshop seed error (non-fatal):", err);
   }
 
-  // Always refresh the volcanic fishing spot background — runs AFTER all location seeding
-  // so the row is guaranteed to exist. Uses storage.updateWorldLocation (ORM layer) to
-  // avoid UUID parameterization mismatches that affect raw db.execute() calls.
-  try {
-    const VOLCANIC_FISHING_SPOT_ID = "3b3bb453-e012-4ba3-9308-71c1376d84a8";
-    const volcFishBgFile = "bg_fishing_volcanic.png";
-    const volcFishBgPath = path.join(process.cwd(), "attached_assets", volcFishBgFile);
-    if (fs.existsSync(volcFishBgPath)) {
-      const v = Math.floor(fs.statSync(volcFishBgPath).mtimeMs / 1000);
-      const bgUrl = `/world-assets/${volcFishBgFile}?v=${v}`;
-      await storage.updateWorldLocation(VOLCANIC_FISHING_SPOT_ID, { bgUrl } as any);
-      console.log(`Volcanic fishing spot background refreshed (${bgUrl}).`);
-    }
-  } catch (err) {
-    console.error("Volcanic fishing spot bg refresh error (non-fatal):", err);
-  }
-
   // Always refresh known location icons as versioned static URLs — runs AFTER all seeding code
   // so it overrides any loadAssetBase64 calls that re-set base64 icons during startup.
   const LOC_ICON_ALWAYS_REFRESH: Record<string, string> = {
@@ -2029,6 +2012,28 @@ app.use((req, res, next) => {
     }
   }
   console.log("Location icons refreshed with versioned static URLs.");
+
+  // Always refresh the volcanic fishing spot background using raw SQL (runs AFTER all seeding,
+  // so the row is guaranteed to exist). Uses sql.raw() to embed the UUID directly — Drizzle's
+  // parameterized sql`` template silently returns 0 rows for this auto-generated UUID against
+  // the varchar PK column, while raw SQL UPDATE works correctly (confirmed via executeSql).
+  try {
+    const volcFishBgFile = "bg_fishing_volcanic.png";
+    const volcFishBgPath = path.join(process.cwd(), "attached_assets", volcFishBgFile);
+    if (fs.existsSync(volcFishBgPath)) {
+      const v = Math.floor(fs.statSync(volcFishBgPath).mtimeMs / 1000);
+      const volcBgUrl = `/world-assets/${volcFishBgFile}?v=${v}`;
+      // Update by world_id+type instead of UUID — avoids parameterization quirks
+      // with auto-generated UUIDs that cause db.execute(sql`...`) to silently match 0 rows.
+      const result = await db.execute(
+        sql`UPDATE world_locations SET bg_url = ${volcBgUrl} WHERE world_id = 'volcanic' AND type = 'fishing' AND is_shop = false`
+      );
+      const affected = (result as any).count ?? (result as any).rowCount ?? "?";
+      console.log(`Volcanic fishing spot bg refreshed (${volcBgUrl}) — ${affected} row(s).`);
+    }
+  } catch (err) {
+    console.error("Volcanic fishing spot bg refresh error (non-fatal):", err);
+  }
 
   // One-time: rename Bayou's Heart → The Mixing Tree
   try {
