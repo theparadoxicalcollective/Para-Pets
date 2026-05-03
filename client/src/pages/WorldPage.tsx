@@ -2863,13 +2863,14 @@ export default function WorldPage({ user }: WorldPageProps) {
           {/* ── Volcanic Fishing Shop NPC ─────────────────────── */}
           {isVolcanicFishing && (
             <div className="relative flex-shrink-0 flex flex-col items-center px-4 pb-1" style={{ zIndex: 10 }}>
-              <div className="relative" style={{ width: "min(160px, 42vw)", aspectRatio: "3/4" }}>
+              {/* Container sized to show top half of the 3:4 NPC image (aspectRatio 3:2 = top 50% of 3:4) */}
+              <div className="relative overflow-hidden" style={{ width: "min(240px, 64vw)", aspectRatio: "3/2" }}>
                 {/* warm lava glow behind NPC */}
-                <div style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "120%", height: "60%", borderRadius: "50%", background: "radial-gradient(ellipse, rgba(255,80,10,0.28) 0%, rgba(180,40,5,0.10) 50%, transparent 75%)", filter: "blur(14px)", animation: "lavaGlow 4s ease-in-out infinite" }} />
+                <div style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "130%", height: "70%", borderRadius: "50%", background: "radial-gradient(ellipse, rgba(255,80,10,0.30) 0%, rgba(180,40,5,0.10) 55%, transparent 75%)", filter: "blur(16px)" }} />
                 <img
                   src={npcLavaHook}
                   alt="Shopkeeper"
-                  style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 4px 18px rgba(255,80,10,0.6)) drop-shadow(0 0 36px rgba(255,60,5,0.25))", animation: "breathe 3.5s ease-in-out infinite" }}
+                  style={{ position: "absolute", top: 0, left: 0, width: "100%", filter: "drop-shadow(0 4px 18px rgba(255,80,10,0.6)) drop-shadow(0 0 36px rgba(255,60,5,0.25))" }}
                   draggable={false}
                 />
               </div>
