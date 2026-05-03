@@ -420,6 +420,66 @@ uri = "file://attached_assets/bg_shop_food_volcanic.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "HN8i2llhlD-vr1pJEZFVr"
+uri = "file://attached_assets/edible_brimstone_pepper.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "usd6BQAdgvTTS2orAHePE"
+uri = "file://attached_assets/edible_lava_egg.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "_3PFvPDiiswwZqUQrEbau"
+uri = "file://attached_assets/edible_cinder_crisps.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "J_4SiWEXa8D6_Csvko9Ev"
+uri = "file://attached_assets/edible_magma_skewer.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "fWq8mlJCVuBVPIKTPS6Ef"
+uri = "file://attached_assets/edible_ember_berry_tart.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "4qE3hBdt2QrmFnswwjOa3"
+uri = "file://attached_assets/edible_sulfur_mushroom_stew.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "YPpxkOu7fBrbZUlfuEHI7"
+uri = "file://attached_assets/edible_roasted_drake_wing.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "SFUZWUL_IiRIZYR37LxTI"
+uri = "file://attached_assets/edible_volcanic_bone_broth.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "bjKzKtLOZ2uKsC3a4rCHz"
+uri = "file://attached_assets/edible_obsidian_glazed_ham.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "9NRSzFLsgxCGZKjDVmGi0"
+uri = "file://attached_assets/edible_phoenix_feast_platter.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

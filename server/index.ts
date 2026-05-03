@@ -1967,6 +1967,54 @@ app.use((req, res, next) => {
     console.error("Volcanic accessory shop seed error (non-fatal):", err);
   }
 
+  // Seed volcanic edibles (one-shot). Price === feed points (1 coin per 1 feed
+  // point). Stored as type='edibles' with stat_boost_amount = feed points so
+  // they appear in the admin Item Database edibles tab and are assignable to
+  // shops/quests like every other edible. Image URLs use the static
+  // /world-assets/ route with mtime-based cache busting.
+  try {
+    const volcanicEdiblesDone = await storage.getGameSetting("volcanic_edibles_v1");
+    if (!volcanicEdiblesDone) {
+      const edibles = [
+        { name: "Brimstone Pepper",      feed: 3,  file: "edible_brimstone_pepper.png" },
+        { name: "Lava Egg",              feed: 6,  file: "edible_lava_egg.png" },
+        { name: "Cinder Crisps",         feed: 8,  file: "edible_cinder_crisps.png" },
+        { name: "Magma Skewer",          feed: 12, file: "edible_magma_skewer.png" },
+        { name: "Ember Berry Tart",      feed: 15, file: "edible_ember_berry_tart.png" },
+        { name: "Sulfur Mushroom Stew",  feed: 20, file: "edible_sulfur_mushroom_stew.png" },
+        { name: "Roasted Drake Wing",    feed: 28, file: "edible_roasted_drake_wing.png" },
+        { name: "Volcanic Bone Broth",   feed: 35, file: "edible_volcanic_bone_broth.png" },
+        { name: "Obsidian Glazed Ham",   feed: 45, file: "edible_obsidian_glazed_ham.png" },
+        { name: "Phoenix Feast Platter", feed: 60, file: "edible_phoenix_feast_platter.png" },
+      ];
+      let inserted = 0;
+      for (const it of edibles) {
+        const assetPath = path.join(process.cwd(), "attached_assets", it.file);
+        if (!fs.existsSync(assetPath)) {
+          console.warn(`Volcanic edible asset missing, skipping: ${it.file}`);
+          continue;
+        }
+        const v = Math.floor(fs.statSync(assetPath).mtimeMs / 1000);
+        const imageUrl = `/world-assets/${it.file}?v=${v}`;
+        // Skip if an item with the same name already exists, so manual
+        // edits / re-runs are safe.
+        const existing = await db.execute(
+          sql`SELECT id FROM shop_items WHERE name = ${it.name} AND type = 'edibles' LIMIT 1`
+        );
+        if ((existing as any).rows?.length) continue;
+        await db.execute(sql`
+          INSERT INTO shop_items (name, price, type, world_id, image_url, stat_boost_amount)
+          VALUES (${it.name}, ${it.feed}, 'edibles', 'volcanic', ${imageUrl}, ${it.feed})
+        `);
+        inserted++;
+      }
+      await storage.setGameSetting("volcanic_edibles_v1", "done");
+      console.log(`Volcanic edibles seeded (${inserted} new).`);
+    }
+  } catch (err) {
+    console.error("Volcanic edibles seed error (non-fatal):", err);
+  }
+
   // Seed volcanic food shop — uses the same one-shot game_settings flag pattern
   // as the other volcanic shops so it inserts once, then becomes admin-movable
   // (position/size persisted via the standard world_locations PATCH route).
