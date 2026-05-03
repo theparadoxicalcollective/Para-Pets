@@ -1180,6 +1180,12 @@ export default function WorldPage({ user }: WorldPageProps) {
 
   const openLocation = useCallback((loc: WorldLocationData) => {
     setActiveLocationId(loc.id);
+    // The Molten Bastion launches the Molten Blocks mini-game instead of a
+    // generic scenic view. Detect by stable seeded ID so renames don't break it.
+    if (loc.id === "c3d4e5f6-0005-4000-8000-000000000005") {
+      navigate("/games/molten-blocks");
+      return;
+    }
     if (loc.type === "fishing" && !loc.isShop) {
       setShowLocationView(false);
       setShowShop(false);
@@ -1195,7 +1201,7 @@ export default function WorldPage({ user }: WorldPageProps) {
       setShowShop(false);
       setShowLocationView(true);
     }
-  }, [currentUser.isAdmin]);
+  }, [currentUser.isAdmin, navigate]);
 
   const handleLocationClick = useCallback((loc: WorldLocationData) => {
     if (didDrag.current || mapJustPannedRef.current) return;

@@ -130,3 +130,10 @@ The application is built as a monolithic web app with a clear separation of conc
 - **Authentication**: Passport.js, express-session, connect-pg-simple
 - **Payment Processing**: Stripe (stripe, stripe-replit-sync packages)
 - **Image Manipulation**: Sharp library
+- **Molten Blocks Mini-Game** (MoltenBlocksPage.tsx — completed):
+  - Tetris-style mini-game launched from The Molten Bastion (volcanic world). Routed at `/games/molten-blocks`; lazy-loaded as an overlay in `App.tsx`. Entry is wired in `WorldPage.openLocation` by stable seed ID `c3d4e5f6-0005-4000-8000-000000000005`.
+  - Single canvas-based game loop using `requestAnimationFrame`. Game state held in refs (board, active piece, bag, drop interval, soft-drop flag) so the loop is stable; React state mirrors UI bits (score, lines, level, paused, gameOver).
+  - Standard 7-bag randomizer, 4-rotation matrices for I/O/T/S/Z/L/J, simple wall-kicks (0, ±1, ±2 horizontal offsets), ghost piece, line flash on clear, level speed curve `800 * 0.85^(level-1)` floored at 80ms.
+  - Mobile gesture model: tap → rotate, horizontal swipe steps once per 28px of travel, downward hold → soft drop, fast downward flick (>120px in <300ms) → hard drop. `touchAction: none` on game container prevents browser scroll. Keyboard arrows + space + P also wired for desktop.
+  - Hi-score persisted via `localStorage` only (no DB writes) so it Just Works on Railway with no migrations.
+  - Block art: 7 AI-generated volcanic block textures in `attached_assets/molten_block_{I,O,T,S,Z,L,J}.png` (molten gold, amber crystal, violet obsidian, sulfur crystal, lava ruby, ember coal, cooled lava sapphire). Imported via `@assets/...`.
