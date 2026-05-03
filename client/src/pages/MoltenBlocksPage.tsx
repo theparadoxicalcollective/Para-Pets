@@ -163,7 +163,7 @@ function clearLines(board: Cell[][]): { board: Cell[][]; cleared: number } {
 const POINTS_PER_ROW = 3;
 const POINTS_PER_COIN_TIER = 35;
 const COINS_PER_TIER = 5;
-const STARTING_LIVES = 3;
+const STARTING_LIVES = 1;
 
 export default function MoltenBlocksPage() {
   const [, navigate] = useLocation();
@@ -927,7 +927,7 @@ export default function MoltenBlocksPage() {
           <div style={{ fontSize: 11, letterSpacing: "0.3em", color: "#a06a30" }}>THE FLAMES CONSUME ALL</div>
           <h2 style={{ margin: "8px 0 2px", fontSize: 28, color: accent, letterSpacing: "0.16em" }}>YOU DIDN'T MAKE IT</h2>
           <div style={{ fontSize: 12, color: "#7a5530", marginBottom: 14, letterSpacing: "0.05em" }}>
-            All three lives lost in the bastion's fire.
+            The bastion's fire has claimed your stack.
           </div>
 
           {/* New high-score badge — only when this run beat the prior best */}
@@ -970,12 +970,16 @@ export default function MoltenBlocksPage() {
           </div>
 
           <div style={{ display: "flex", gap: 10 }}>
-            <button data-testid="button-play-again" onClick={startNewGame} style={overlayBtnStyle(accent)}>Play Again</button>
             <button
-              data-testid="button-back-to-bastion"
+              data-testid="button-restart"
+              onClick={startNewGame}
+              style={overlayBtnStyle(accent)}
+            >Restart</button>
+            <button
+              data-testid="button-return"
               onClick={() => navigate("/world/volcanic")}
               style={overlayBtnStyle("#a06a30")}
-            >Back to World</button>
+            >Return</button>
           </div>
         </Overlay>
       )}
