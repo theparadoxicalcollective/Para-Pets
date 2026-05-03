@@ -1709,3 +1709,9 @@ id = "qFszGaNmeFYwlsfZx8cg5"
 uri = "file://attached_assets/generated_images/npc_lava_hook_shopkeeper.png"
 type = "image"
 title = "Volcanic Fisherman NPC (preview)"
+
+[[outputs]]
+id = "Irg1lnYKPh2a5BpyEn8z1"
+uri = "file://backups/para_pets_full_backup_20260503.zip"
+type = "unspecified"
+title = "Para Pets — Full Backup (May 3 2026)"
