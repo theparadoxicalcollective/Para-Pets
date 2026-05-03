@@ -1785,6 +1785,21 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/user/equipped-accessory-ids", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const rows = await db.execute(sql`
+        SELECT pea.accessory_inventory_id AS id
+        FROM pet_equipped_accessories pea
+        JOIN user_inventory ui ON ui.id = pea.pet_inventory_id
+        WHERE ui.user_id = ${user.id}
+      `);
+      return res.json((rows.rows as any[]).map(r => r.id));
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to get equipped accessory ids" });
+    }
+  });
+
   app.get("/api/pet/:inventoryId/accessories", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
