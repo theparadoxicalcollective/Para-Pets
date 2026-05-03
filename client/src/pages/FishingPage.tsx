@@ -85,10 +85,11 @@ type FishBehaviorState = "calm" | "resist" | "tired" | "surge";
 // Per-rarity nibble config — windows are long enough for human reaction on mobile
 const NIBBLE_MAX_BY_RARITY     = [3, 3, 2, 2, 1];             // 5★ gets 1 chance; 3★/4★ get 2; commons get 3
 const NIBBLE_TIMEOUT_BY_RARITY = [2500, 2200, 1800, 1400, 1100]; // ms per window — all humanly achievable
+const ACCENT = "#5eead4"; // module-level default (used by sub-components)
 
 export default function FishingPage({ locationId, locationName, bgUrl, worldId, user, onClose }: FishingPageProps) {
   const isVolcanic = worldId === "volcanic";
-  const ACCENT = isVolcanic ? "#ff6520" : "#5eead4";
+  const accent = isVolcanic ? "#ff6520" : ACCENT;
   const [phase, setPhase] = useState<FishingPhase>("idle");
   const [showPolePanel, setShowPolePanel] = useState(false);
   const [showBaitPanel, setShowBaitPanel] = useState(false);
@@ -722,11 +723,11 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
               ? "radial-gradient(ellipse at 40% 38%, rgba(255,140,30,0.22) 0%, rgba(200,80,10,0.14) 40%, rgba(100,30,5,0.10) 70%, transparent 100%)"
               : "radial-gradient(ellipse at 40% 38%, rgba(147,210,210,0.18) 0%, rgba(56,180,180,0.10) 40%, rgba(14,90,110,0.08) 70%, transparent 100%)",
             border: phase === "idle" && hasPole
-              ? `1.5px solid ${ACCENT}88`
-              : `1.5px solid ${ACCENT}38`,
+              ? `1.5px solid ${accent}88`
+              : `1.5px solid ${accent}38`,
             boxShadow: phase === "idle" && hasPole
-              ? `0 0 40px ${ACCENT}38, inset 0 0 24px ${ACCENT}18`
-              : `0 0 32px ${ACCENT}18, inset 0 0 24px ${ACCENT}0d`,
+              ? `0 0 40px ${accent}38, inset 0 0 24px ${accent}18`
+              : `0 0 32px ${accent}18, inset 0 0 24px ${accent}0d`,
             animation: "pondDrift 8s ease-in-out infinite",
             position: "relative",
             overflow: "hidden",
@@ -751,14 +752,14 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
               display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4,
             }}>
               <span className="font-fantasy text-[10px] tracking-widest animate-pulse" style={{
-                color: isPondError ? "rgba(239,68,68,0.8)" : `${ACCENT}bf`,
-                textShadow: `0 0 8px ${ACCENT}80`,
+                color: isPondError ? "rgba(239,68,68,0.8)" : `${accent}bf`,
+                textShadow: `0 0 8px ${accent}80`,
                 userSelect: "none",
               }}>
                 {isPondError ? "POND ERROR — CLOSE & REOPEN" : isPondLoading ? "LOADING POND…" : "TAP TO CAST"}
               </span>
               {!isPondLoading && !isPondError && pondFish.length > 0 && (
-                <span className="font-fantasy text-[8px] tracking-wider" style={{ color: `${ACCENT}73`, userSelect: "none" }}>
+                <span className="font-fantasy text-[8px] tracking-wider" style={{ color: `${accent}73`, userSelect: "none" }}>
                   {pondFish.length} fish in pond
                 </span>
               )}
@@ -801,7 +802,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
 
       {!bgLoaded && (
         <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 70, background: "rgba(8,5,20,1)" }}>
-          <div className="animate-spin rounded-full" style={{ width: 48, height: 48, border: `3px solid ${ACCENT}25`, borderTopColor: ACCENT }} />
+          <div className="animate-spin rounded-full" style={{ width: 48, height: 48, border: `3px solid ${accent}25`, borderTopColor: accent }} />
         </div>
       )}
 
@@ -812,17 +813,17 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
             className="flex flex-col items-center gap-5 rounded-2xl px-8 py-8 mx-6 text-center"
             style={{
               background: "linear-gradient(145deg, rgba(10,5,20,0.97) 0%, rgba(18,8,35,0.97) 100%)",
-              border: `1.5px solid ${ACCENT}40`,
-              boxShadow: `0 8px 40px rgba(0,0,0,0.8), 0 0 30px ${ACCENT}15`,
+              border: `1.5px solid ${accent}40`,
+              boxShadow: `0 8px 40px rgba(0,0,0,0.8), 0 0 30px ${accent}15`,
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <img src={poleIcon} alt="Fishing Pole" className="w-16 h-16 object-contain opacity-80" />
             <div>
-              <p className="font-fantasy text-lg tracking-widest font-semibold mb-1" style={{ color: ACCENT, textShadow: `0 0 12px ${ACCENT}50` }}>
+              <p className="font-fantasy text-lg tracking-widest font-semibold mb-1" style={{ color: accent, textShadow: `0 0 12px ${accent}50` }}>
                 {poleIsBroken ? "Pole is Broken" : "No Pole Equipped"}
               </p>
-              <p className="font-fantasy text-sm tracking-wide" style={{ color: `${ACCENT}99` }}>
+              <p className="font-fantasy text-sm tracking-wide" style={{ color: `${accent}99` }}>
                 {poleIsBroken ? "Remove your broken pole and equip a new one" : "Equip a fishing pole to start fishing"}
               </p>
             </div>
@@ -832,9 +833,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
               className="font-fantasy text-sm tracking-[0.15em] px-6 py-2.5 rounded-xl transition-transform active:scale-95"
               style={{
                 background: `linear-gradient(135deg, rgba(10,5,20,0.9) 0%, rgba(20,10,40,0.9) 100%)`,
-                border: `1.5px solid ${ACCENT}60`,
-                color: ACCENT,
-                boxShadow: `0 4px 16px rgba(0,0,0,0.5), 0 0 16px ${ACCENT}20`,
+                border: `1.5px solid ${accent}60`,
+                color: accent,
+                boxShadow: `0 4px 16px rgba(0,0,0,0.5), 0 0 16px ${accent}20`,
               }}
             >
               Got it
@@ -850,14 +851,14 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
             className="flex flex-col gap-5 rounded-2xl px-7 py-7 mx-5"
             style={{
               background: "linear-gradient(145deg, rgba(10,5,22,0.98) 0%, rgba(18,8,38,0.98) 100%)",
-              border: `1.5px solid ${ACCENT}45`,
-              boxShadow: `0 8px 48px rgba(0,0,0,0.85), 0 0 32px ${ACCENT}12`,
+              border: `1.5px solid ${accent}45`,
+              boxShadow: `0 8px 48px rgba(0,0,0,0.85), 0 0 32px ${accent}12`,
               maxWidth: 340,
             }}
           >
             <div className="flex items-center gap-3">
-              <img src={bobberIcon} alt="" className="w-10 h-10 object-contain" style={{ filter: `drop-shadow(0 0 8px ${ACCENT}70)` }} />
-              <p className="font-fantasy text-lg tracking-widest font-semibold" style={{ color: ACCENT, textShadow: `0 0 14px ${ACCENT}55` }}>
+              <img src={bobberIcon} alt="" className="w-10 h-10 object-contain" style={{ filter: `drop-shadow(0 0 8px ${accent}70)` }} />
+              <p className="font-fantasy text-lg tracking-widest font-semibold" style={{ color: accent, textShadow: `0 0 14px ${accent}55` }}>
                 How to Fish
               </p>
             </div>
@@ -870,12 +871,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
               ].map(({ num, title, desc }) => (
                 <div key={num} className="flex gap-3 items-start">
                   <div className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold font-fantasy mt-0.5"
-                    style={{ background: `${ACCENT}22`, border: `1px solid ${ACCENT}55`, color: ACCENT }}>
+                    style={{ background: `${accent}22`, border: `1px solid ${accent}55`, color: accent }}>
                     {num}
                   </div>
                   <div>
-                    <p className="font-fantasy text-sm font-semibold tracking-wide mb-0.5" style={{ color: ACCENT }}>{title}</p>
-                    <p className="font-fantasy text-xs tracking-wide leading-relaxed" style={{ color: `${ACCENT}99` }}>{desc}</p>
+                    <p className="font-fantasy text-sm font-semibold tracking-wide mb-0.5" style={{ color: accent }}>{title}</p>
+                    <p className="font-fantasy text-xs tracking-wide leading-relaxed" style={{ color: `${accent}99` }}>{desc}</p>
                   </div>
                 </div>
               ))}
@@ -889,9 +890,9 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
               className="font-fantasy text-sm tracking-[0.15em] px-6 py-2.5 rounded-xl transition-transform active:scale-95 self-center mt-1"
               style={{
                 background: `linear-gradient(135deg, rgba(10,5,20,0.9) 0%, rgba(20,10,40,0.9) 100%)`,
-                border: `1.5px solid ${ACCENT}60`,
-                color: ACCENT,
-                boxShadow: `0 4px 16px rgba(0,0,0,0.5), 0 0 16px ${ACCENT}20`,
+                border: `1.5px solid ${accent}60`,
+                color: accent,
+                boxShadow: `0 4px 16px rgba(0,0,0,0.5), 0 0 16px ${accent}20`,
               }}
             >
               Got it — let's fish!
@@ -919,7 +920,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
                 width: 52, height: 52,
                 objectFit: "contain",
                 filter: showFishBook
-                  ? `drop-shadow(0 0 8px ${ACCENT}) drop-shadow(0 4px 12px rgba(0,0,0,0.55))`
+                  ? `drop-shadow(0 0 8px ${accent}) drop-shadow(0 4px 12px rgba(0,0,0,0.55))`
                   : "drop-shadow(0 4px 12px rgba(0,0,0,0.55))",
                 opacity: showFishBook ? 1 : 0.88,
               }}
@@ -934,7 +935,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
               data-testid="button-fishing-help"
               onClick={() => setShowTutorial(true)}
               className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-              style={{ background: "rgba(0,0,0,0.45)", border: `1px solid ${ACCENT}40`, color: `${ACCENT}cc`, cursor: "pointer" }}
+              style={{ background: "rgba(0,0,0,0.45)", border: `1px solid ${accent}40`, color: `${accent}cc`, cursor: "pointer" }}
             >
               <HelpCircle className="w-5 h-5" />
             </button>
@@ -943,7 +944,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
                 data-testid="button-pond-admin"
                 onClick={() => setShowPondAdmin(true)}
                 className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                style={{ background: `${ACCENT}30`, border: `2px solid ${ACCENT}60`, color: ACCENT, cursor: "pointer" }}
+                style={{ background: `${accent}30`, border: `2px solid ${accent}60`, color: accent, cursor: "pointer" }}
               >
                 <Plus className="w-5 h-5" />
               </button>
@@ -952,12 +953,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
               data-testid="button-close-fishing"
               onClick={onClose}
               className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-              style={{ background: "rgba(0,0,0,0.55)", border: `1px solid ${ACCENT}40`, color: ACCENT, cursor: "pointer" }}
+              style={{ background: "rgba(0,0,0,0.55)", border: `1px solid ${accent}40`, color: accent, cursor: "pointer" }}
             >
               <X className="w-5 h-5" />
             </button>
           </div>
-          <h3 className="font-fantasy text-sm tracking-widest font-semibold" style={{ color: ACCENT, textShadow: `0 0 10px ${ACCENT}40` }} data-testid="text-fishing-location-name">
+          <h3 className="font-fantasy text-sm tracking-widest font-semibold" style={{ color: accent, textShadow: `0 0 10px ${accent}40` }} data-testid="text-fishing-location-name">
             {locationName}
           </h3>
         </div>
@@ -970,7 +971,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
             bottom: "20%", left: "50%", transform: "translate(-50%, 50%)",
             width: 72, height: 36,
             borderRadius: "50%",
-            border: `2px solid ${ACCENT}60`,
+            border: `2px solid ${accent}60`,
             animation: "rippleRing 2s ease-out infinite",
           }} />
         )}
@@ -987,14 +988,14 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
               <div style={{
                 position: "absolute", width: 40, height: 20,
                 borderRadius: "50%",
-                border: `2px solid ${ACCENT}80`,
+                border: `2px solid ${accent}80`,
                 animation: "nibbleRippleOut 0.7s ease-out infinite",
                 left: "50%", top: "50%", marginLeft: -20, marginTop: -10,
               }} />
               <div style={{
                 position: "absolute", width: 40, height: 20,
                 borderRadius: "50%",
-                border: `2px solid ${ACCENT}50`,
+                border: `2px solid ${accent}50`,
                 animation: "nibbleRippleOut 0.7s ease-out infinite 0.35s",
                 left: "50%", top: "50%", marginLeft: -20, marginTop: -10,
               }} />
@@ -1035,7 +1036,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
             src={equipData.poleItem.hooklessImageUrl || equipData.poleItem.imageUrl}
             alt=""
             className="w-full h-full object-contain"
-            style={{ filter: `drop-shadow(0 0 10px ${ACCENT}80)` }}
+            style={{ filter: `drop-shadow(0 0 10px ${accent}80)` }}
           />
         </div>
       )}
@@ -1052,7 +1053,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
             src={equipData.poleItem.hooklessImageUrl || equipData.poleItem.imageUrl}
             alt=""
             className="w-full h-full object-contain"
-            style={{ filter: `drop-shadow(0 0 10px ${ACCENT}70)` }}
+            style={{ filter: `drop-shadow(0 0 10px ${accent}70)` }}
           />
         </div>
       )}
@@ -1093,12 +1094,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
           <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.6)" }} />
           <div className="relative z-10 flex flex-col items-center gap-4 p-6 rounded-2xl" style={{
             background: "linear-gradient(135deg, rgba(8,40,30,0.95), rgba(5,25,20,0.95))",
-            border: `2px solid ${ACCENT}80`,
-            boxShadow: `0 0 60px ${ACCENT}30`,
+            border: `2px solid ${accent}80`,
+            boxShadow: `0 0 60px ${accent}30`,
             animation: "catchPop 0.4s ease-out",
           }}>
             <div className="w-24 h-24 rounded-full flex items-center justify-center" style={{
-              background: `radial-gradient(circle, ${ACCENT}20, transparent)`,
+              background: `radial-gradient(circle, ${accent}20, transparent)`,
               animation: "catchGlow 1.5s ease-in-out infinite",
             }}>
               {caughtItem.imageUrl ? (
@@ -1107,7 +1108,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
                 <img src={fishIconImg} alt="" className="w-16 h-16 object-contain" />
               )}
             </div>
-            <h3 className="font-fantasy text-lg tracking-widest" style={{ color: ACCENT, textShadow: `0 0 12px ${ACCENT}60` }} data-testid="text-caught-fish-name">
+            <h3 className="font-fantasy text-lg tracking-widest" style={{ color: accent, textShadow: `0 0 12px ${accent}60` }} data-testid="text-caught-fish-name">
               {caughtItem.name}
             </h3>
             {caughtItem.starRarity && (
@@ -1117,7 +1118,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
                 ))}
               </div>
             )}
-            <p className="font-fantasy text-[10px] tracking-wider" style={{ color: `${ACCENT}88` }}>Tap to continue</p>
+            <p className="font-fantasy text-[10px] tracking-wider" style={{ color: `${accent}88` }}>Tap to continue</p>
           </div>
         </div>
       )}
@@ -1161,6 +1162,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
                 setShowFishInv(false);
               }}
               testId="button-pole-slot"
+              accent={accent}
             />
           </div>
           <div ref={baitSlotRef}>
@@ -1185,6 +1187,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
                     }
                   }}
                   testId="button-bait-slot"
+                  accent={accent}
                 />
               );
             })()}
@@ -1197,6 +1200,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
             noDim
             onClick={() => { setShowFishInv(!showFishInv); setShowPolePanel(false); setShowBaitPanel(false); }}
             testId="button-fish-inventory"
+            accent={accent}
           />
         </div>
       </div>
@@ -1212,6 +1216,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
           onClose={() => setShowPolePanel(false)}
           onDeleteItem={(invId) => deleteInventoryItemMutation.mutate(invId)}
           onItemPointerDown={startItemDrag}
+          accent={accent}
         />
       )}
       {showBaitPanel && (
@@ -1224,12 +1229,14 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
           onUnequip={() => unequipMutation.mutate({ slot: "bait" })}
           onClose={() => setShowBaitPanel(false)}
           onItemPointerDown={startItemDrag}
+          accent={accent}
         />
       )}
       {showFishInv && (
         <FishInventoryPanel
           fishInventory={fishInventory}
           onClose={() => setShowFishInv(false)}
+          accent={accent}
         />
       )}
 
@@ -1247,6 +1254,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
           onAdd={(shopItemId) => addPondFishMutation.mutate(shopItemId)}
           onRemove={(shopItemId) => removePondFishMutation.mutate(shopItemId)}
           onClose={() => setShowPondAdmin(false)}
+          accent={accent}
         />
       )}
 
@@ -1259,8 +1267,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
             width: 56,
             height: 56,
             background: "rgba(5,20,15,0.92)",
-            border: `2px solid ${ACCENT}`,
-            boxShadow: `0 0 18px ${ACCENT}60`,
+            border: `2px solid ${accent}`,
+            boxShadow: `0 0 18px ${accent}60`,
             opacity: 0.9,
           }}
         >
@@ -1276,7 +1284,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
 }
 
 function EquipSlot({
-  label, defaultIcon, equippedItem, isActive, onClick, badgeCount, testId, noDim, broken, usesLeft, maxUses, isDropTarget,
+  label, defaultIcon, equippedItem, isActive, onClick, badgeCount, testId, noDim, broken, usesLeft, maxUses, isDropTarget, accent,
 }: {
   label: string;
   defaultIcon: string;
@@ -1290,6 +1298,7 @@ function EquipSlot({
   usesLeft?: number | null;
   maxUses?: number | null;
   isDropTarget?: boolean;
+  accent: string;
 }) {
   const imgSrc = broken ? brokenRodIcon : (equippedItem?.imageUrl || defaultIcon);
   const bright = noDim || !!equippedItem;
@@ -1301,9 +1310,9 @@ function EquipSlot({
       style={{ cursor: "pointer" }}
     >
       <div className="relative w-16 h-16 rounded-xl flex items-center justify-center overflow-hidden" style={{
-        background: broken ? "rgba(60,10,10,0.85)" : isDropTarget ? `${ACCENT}35` : isActive ? `${ACCENT}20` : "rgba(5,20,15,0.85)",
-        border: `2px solid ${broken ? "rgba(220,50,50,0.6)" : isDropTarget ? "#ffffff" : isActive ? ACCENT : `${ACCENT}40`}`,
-        boxShadow: broken ? "0 0 12px rgba(200,30,30,0.25)" : isDropTarget ? `0 0 24px ${ACCENT}80, 0 0 8px #fff4` : isActive ? `0 0 16px ${ACCENT}30` : "0 2px 8px rgba(0,0,0,0.4)",
+        background: broken ? "rgba(60,10,10,0.85)" : isDropTarget ? `${accent}35` : isActive ? `${accent}20` : "rgba(5,20,15,0.85)",
+        border: `2px solid ${broken ? "rgba(220,50,50,0.6)" : isDropTarget ? "#ffffff" : isActive ? accent : `${accent}40`}`,
+        boxShadow: broken ? "0 0 12px rgba(200,30,30,0.25)" : isDropTarget ? `0 0 24px ${accent}80, 0 0 8px #fff4` : isActive ? `0 0 16px ${accent}30` : "0 2px 8px rgba(0,0,0,0.4)",
         transition: "all 0.12s ease",
         transform: isDropTarget ? "scale(1.1)" : "scale(1)",
       }}>
@@ -1312,7 +1321,7 @@ function EquipSlot({
         }} />
         {badgeCount !== undefined && badgeCount > 0 && (
           <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold"
-            style={{ background: ACCENT, color: "#0a1a14" }}>
+            style={{ background: accent, color: "#0a1a14" }}>
             {badgeCount}
           </div>
         )}
@@ -1328,7 +1337,7 @@ function EquipSlot({
           );
         })()}
       </div>
-      <span className="font-fantasy text-[9px] tracking-wider" style={{ color: broken ? "rgba(220,80,80,0.9)" : bright ? ACCENT : `${ACCENT}60` }}>
+      <span className="font-fantasy text-[9px] tracking-wider" style={{ color: broken ? "rgba(220,80,80,0.9)" : bright ? accent : `${accent}60` }}>
         {broken ? "BROKEN" : equippedItem ? equippedItem.name : label}
       </span>
     </button>
@@ -1336,7 +1345,7 @@ function EquipSlot({
 }
 
 function EquipPanel({
-  title, items, equippedInventoryId, slot, onEquip, onUnequip, onClose, onDeleteItem, onItemPointerDown,
+  title, items, equippedInventoryId, slot, onEquip, onUnequip, onClose, onDeleteItem, onItemPointerDown, accent,
 }: {
   title: string;
   items: InventoryItem[];
@@ -1347,24 +1356,25 @@ function EquipPanel({
   onClose: () => void;
   onDeleteItem?: (inventoryId: string) => void;
   onItemPointerDown?: (item: InventoryItem, slot: "pole" | "bait", x: number, y: number) => void;
+  accent: string;
 }) {
   return (
     <div className="absolute bottom-[140px] left-4 right-4 z-[35] rounded-xl overflow-hidden" style={{
       background: "rgba(5,20,15,0.95)",
-      border: `1px solid ${ACCENT}40`,
+      border: `1px solid ${accent}40`,
       backdropFilter: "blur(8px)",
       maxHeight: 200,
       animation: "slideUp 0.2s ease-out",
     }}>
-      <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: `1px solid ${ACCENT}20` }}>
-        <h4 className="font-fantasy text-xs tracking-widest" style={{ color: ACCENT }}>{title}</h4>
-        <button onClick={onClose} className="w-6 h-6 flex items-center justify-center" style={{ color: `${ACCENT}80`, cursor: "pointer" }}>
+      <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: `1px solid ${accent}20` }}>
+        <h4 className="font-fantasy text-xs tracking-widest" style={{ color: accent }}>{title}</h4>
+        <button onClick={onClose} className="w-6 h-6 flex items-center justify-center" style={{ color: `${accent}80`, cursor: "pointer" }}>
           <X className="w-4 h-4" />
         </button>
       </div>
       <div className="overflow-y-auto p-2" style={{ maxHeight: 150, scrollbarWidth: "thin" }}>
         {items.length === 0 ? (
-          <p className="font-fantasy text-[10px] text-center py-4" style={{ color: `${ACCENT}50` }}>
+          <p className="font-fantasy text-[10px] text-center py-4" style={{ color: `${accent}50` }}>
             No {slot}s in inventory. Buy some from a shop!
           </p>
         ) : (
@@ -1387,8 +1397,8 @@ function EquipPanel({
                     }}
                     className="w-full flex flex-col items-center gap-1 p-1.5 rounded-lg transition-all"
                     style={{
-                      background: isBroken ? "rgba(50,10,10,0.6)" : isEquipped ? `${ACCENT}25` : "rgba(0,0,0,0.3)",
-                      border: `1.5px solid ${isBroken ? "rgba(200,50,50,0.5)" : isEquipped ? ACCENT : `${ACCENT}20`}`,
+                      background: isBroken ? "rgba(50,10,10,0.6)" : isEquipped ? `${accent}25` : "rgba(0,0,0,0.3)",
+                      border: `1.5px solid ${isBroken ? "rgba(200,50,50,0.5)" : isEquipped ? accent : `${accent}20`}`,
                       cursor: isBroken ? "default" : "grab",
                       touchAction: "none",
                     }}
@@ -1414,11 +1424,11 @@ function EquipPanel({
                       );
                     })()}
                     {slot === "bait" && item.quantity != null && item.quantity > 0 && (
-                      <span className="font-fantasy text-[8px] font-bold" style={{ color: ACCENT }}>
+                      <span className="font-fantasy text-[8px] font-bold" style={{ color: accent }}>
                         ×{item.quantity}
                       </span>
                     )}
-                    <span className="font-fantasy text-[7px] text-center truncate w-full" style={{ color: isBroken ? "rgba(220,80,80,0.9)" : isEquipped ? ACCENT : `${ACCENT}80` }}>
+                    <span className="font-fantasy text-[7px] text-center truncate w-full" style={{ color: isBroken ? "rgba(220,80,80,0.9)" : isEquipped ? accent : `${accent}80` }}>
                       {isBroken ? "BROKEN" : item.name}
                     </span>
                     {isEquipped && !isBroken && (
@@ -1446,10 +1456,11 @@ function EquipPanel({
 }
 
 function FishInventoryPanel({
-  fishInventory, onClose,
+  fishInventory, onClose, accent,
 }: {
   fishInventory: CaughtFish[];
   onClose: () => void;
+  accent: string;
 }) {
   const grouped = new Map<string, { item: ShopItem | null; count: number }>();
   for (const cf of fishInventory) {
@@ -1464,20 +1475,20 @@ function FishInventoryPanel({
   return (
     <div className="absolute bottom-[140px] left-4 right-4 z-[35] rounded-xl overflow-hidden" style={{
       background: "rgba(5,20,15,0.95)",
-      border: `1px solid ${ACCENT}40`,
+      border: `1px solid ${accent}40`,
       backdropFilter: "blur(8px)",
       maxHeight: 240,
       animation: "slideUp 0.2s ease-out",
     }}>
-      <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: `1px solid ${ACCENT}20` }}>
-        <h4 className="font-fantasy text-xs tracking-widest" style={{ color: ACCENT }}>Fish Collection</h4>
-        <button onClick={onClose} className="w-6 h-6 flex items-center justify-center" style={{ color: `${ACCENT}80`, cursor: "pointer" }}>
+      <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: `1px solid ${accent}20` }}>
+        <h4 className="font-fantasy text-xs tracking-widest" style={{ color: accent }}>Fish Collection</h4>
+        <button onClick={onClose} className="w-6 h-6 flex items-center justify-center" style={{ color: `${accent}80`, cursor: "pointer" }}>
           <X className="w-4 h-4" />
         </button>
       </div>
       <div className="overflow-y-auto p-2" style={{ maxHeight: 190, scrollbarWidth: "thin" }}>
         {fishInventory.length === 0 ? (
-          <p className="font-fantasy text-[10px] text-center py-4" style={{ color: `${ACCENT}50` }}>
+          <p className="font-fantasy text-[10px] text-center py-4" style={{ color: `${accent}50` }}>
             No fish caught yet. Cast your line!
           </p>
         ) : (
@@ -1485,7 +1496,7 @@ function FishInventoryPanel({
             {Array.from(grouped.entries()).map(([shopItemId, { item, count }]) => (
               <div key={shopItemId} className="flex flex-col items-center gap-1 p-2 rounded-lg" style={{
                 background: "rgba(0,0,0,0.3)",
-                border: `1px solid ${ACCENT}20`,
+                border: `1px solid ${accent}20`,
               }}>
                 <div className="w-12 h-12 flex items-center justify-center">
                   {item?.imageUrl ? (
@@ -1494,7 +1505,7 @@ function FishInventoryPanel({
                     <img src={fishIconImg} alt="" className="w-full h-full object-contain opacity-60" />
                   )}
                 </div>
-                <span className="font-fantasy text-[8px] text-center truncate w-full" style={{ color: `${ACCENT}cc` }}>
+                <span className="font-fantasy text-[8px] text-center truncate w-full" style={{ color: `${accent}cc` }}>
                   {item?.name || "Unknown"}
                 </span>
                 {item?.starRarity && (
@@ -1504,7 +1515,7 @@ function FishInventoryPanel({
                     ))}
                   </div>
                 )}
-                <span className="font-fantasy text-[7px]" style={{ color: `${ACCENT}70` }}>x{count}</span>
+                <span className="font-fantasy text-[7px]" style={{ color: `${accent}70` }}>x{count}</span>
               </div>
             ))}
           </div>
@@ -1583,24 +1594,24 @@ function FishBookPanel({
       borderRadius: "20px 20px 0 0",
       background: "rgba(3,12,10,0.97)",
       backdropFilter: "blur(12px)",
-      border: `1px solid ${ACCENT}30`,
+      border: `1px solid ${accent}30`,
       borderBottom: "none",
       animation: "slideUp 0.2s ease-out",
     }}>
-      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${ACCENT}30` }}>
+      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${accent}30` }}>
         <div className="flex items-center gap-2">
           <img src={fishBookIcon} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />
           <div>
-            <h3 className="font-fantasy text-sm tracking-widest" style={{ color: ACCENT }}>FISH BOOK</h3>
-            <p className="font-fantasy text-[9px]" style={{ color: `${ACCENT}60` }}>{caughtCount} / {allFish.length} discovered</p>
+            <h3 className="font-fantasy text-sm tracking-widest" style={{ color: accent }}>FISH BOOK</h3>
+            <p className="font-fantasy text-[9px]" style={{ color: `${accent}60` }}>{caughtCount} / {allFish.length} discovered</p>
           </div>
         </div>
-        <button data-testid="button-fish-book-close" onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full" style={{ background: "rgba(0,0,0,0.4)", color: `${ACCENT}80`, cursor: "pointer" }}>
+        <button data-testid="button-fish-book-close" onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full" style={{ background: "rgba(0,0,0,0.4)", color: `${accent}80`, cursor: "pointer" }}>
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="flex gap-2 px-4 py-2" style={{ borderBottom: `1px solid ${ACCENT}20` }}>
+      <div className="flex gap-2 px-4 py-2" style={{ borderBottom: `1px solid ${accent}20` }}>
         {(["all", "caught", "uncaught"] as const).map(f => (
           <button
             key={f}
@@ -1608,9 +1619,9 @@ function FishBookPanel({
             onClick={() => setFilter(f)}
             className="font-fantasy text-[9px] tracking-wider px-3 py-1 rounded-full transition-all"
             style={{
-              background: filter === f ? ACCENT : "rgba(0,0,0,0.4)",
-              color: filter === f ? "#0a1a14" : `${ACCENT}70`,
-              border: `1px solid ${filter === f ? ACCENT : `${ACCENT}30`}`,
+              background: filter === f ? accent : "rgba(0,0,0,0.4)",
+              color: filter === f ? "#0a1a14" : `${accent}70`,
+              border: `1px solid ${filter === f ? accent : `${accent}30`}`,
               cursor: "pointer",
             }}
           >
@@ -1622,11 +1633,11 @@ function FishBookPanel({
       <div className="flex-1 overflow-y-auto p-3" style={{ scrollbarWidth: "thin" }}>
         {isLoading ? (
           <div className="flex items-center justify-center h-32">
-            <p className="font-fantasy text-xs" style={{ color: `${ACCENT}50` }}>Loading…</p>
+            <p className="font-fantasy text-xs" style={{ color: `${accent}50` }}>Loading…</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex items-center justify-center h-32">
-            <p className="font-fantasy text-xs" style={{ color: `${ACCENT}50` }}>No fish found.</p>
+            <p className="font-fantasy text-xs" style={{ color: `${accent}50` }}>No fish found.</p>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-2">
@@ -1646,12 +1657,12 @@ function FishBookPanel({
                       : isClaiming
                         ? "rgba(40,35,0,0.95)"
                         : canClaim ? "rgba(20,50,30,0.9)" : caught ? "rgba(10,40,30,0.8)" : "rgba(5,15,12,0.6)",
-                    border: `1px solid ${isJustClaimed ? "#facc15" : isClaiming ? "#facc1560" : canClaim ? "#facc1580" : caught ? `${ACCENT}40` : "rgba(255,255,255,0.06)"}`,
+                    border: `1px solid ${isJustClaimed ? "#facc15" : isClaiming ? "#facc1560" : canClaim ? "#facc1580" : caught ? `${accent}40` : "rgba(255,255,255,0.06)"}`,
                     boxShadow: isJustClaimed
                       ? "0 0 24px rgba(250,204,21,0.55), 0 0 8px rgba(250,204,21,0.3)"
                       : isClaiming
                         ? "0 0 16px rgba(250,204,21,0.35)"
-                        : canClaim ? "0 0 14px rgba(250,204,21,0.25)" : caught ? `0 0 8px ${ACCENT}15` : "none",
+                        : canClaim ? "0 0 14px rgba(250,204,21,0.25)" : caught ? `0 0 8px ${accent}15` : "none",
                     animation: isJustClaimed ? "claimFlash 0.4s ease-out" : undefined,
                     transition: "background 0.2s, border 0.2s, box-shadow 0.2s",
                   }}
@@ -1726,7 +1737,7 @@ function FishBookPanel({
                     )}
                   </div>
                   <span className="font-fantasy text-[8px] text-center leading-tight" style={{
-                    color: caught ? `${ACCENT}cc` : "rgba(255,255,255,0.2)",
+                    color: caught ? `${accent}cc` : "rgba(255,255,255,0.2)",
                     maxWidth: "100%",
                     overflow: "hidden",
                     display: "-webkit-box",
@@ -1756,7 +1767,7 @@ function FishBookPanel({
                   ) : isJustClaimed ? (
                     <span className="font-fantasy text-[7px]" style={{ color: "#facc15", textShadow: "0 0 6px rgba(250,204,21,0.6)" }}>Claimed!</span>
                   ) : caught ? (
-                    <span className="font-fantasy text-[7px]" style={{ color: `${ACCENT}60` }}>Caught</span>
+                    <span className="font-fantasy text-[7px]" style={{ color: `${accent}60` }}>Caught</span>
                   ) : null}
                 </div>
               );
@@ -1769,7 +1780,7 @@ function FishBookPanel({
 }
 
 function PondAdminPanel({
-  locationId, pondFish, allFishItems, onAdd, onRemove, onClose,
+  locationId, pondFish, allFishItems, onAdd, onRemove, onClose, accent,
 }: {
   locationId: string;
   pondFish: PondFishEntry[];
@@ -1777,6 +1788,7 @@ function PondAdminPanel({
   onAdd: (shopItemId: string) => void;
   onRemove: (shopItemId: string) => void;
   onClose: () => void;
+  accent: string;
 }) {
   const stockedIds = new Set(pondFish.map(pf => pf.shopItemId));
   const availableToAdd = allFishItems.filter(fi => !stockedIds.has(fi.id));
@@ -1786,30 +1798,30 @@ function PondAdminPanel({
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 w-[90%] max-w-sm rounded-xl overflow-hidden" style={{
         background: "linear-gradient(135deg, rgba(8,25,18,0.98), rgba(5,15,10,0.98))",
-        border: `1px solid ${ACCENT}50`,
+        border: `1px solid ${accent}50`,
         maxHeight: "80vh",
       }}>
-        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${ACCENT}20` }}>
+        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${accent}20` }}>
           <div className="flex flex-col">
-            <h4 className="font-fantasy text-sm tracking-widest" style={{ color: ACCENT }}>Pond Stock</h4>
-            <p className="font-fantasy text-[9px] tracking-wider mt-0.5" style={{ color: `${ACCENT}70` }}>
+            <h4 className="font-fantasy text-sm tracking-widest" style={{ color: accent }}>Pond Stock</h4>
+            <p className="font-fantasy text-[9px] tracking-wider mt-0.5" style={{ color: `${accent}70` }}>
               Applies to every fishing spot in this world
             </p>
           </div>
-          <button onClick={onClose} style={{ color: `${ACCENT}80`, cursor: "pointer" }}>
+          <button onClick={onClose} style={{ color: `${accent}80`, cursor: "pointer" }}>
             <X className="w-5 h-5" />
           </button>
         </div>
         <div className="overflow-y-auto p-3" style={{ maxHeight: "65vh" }}>
           {pondFish.length > 0 && (
             <div className="mb-3">
-              <p className="font-fantasy text-[9px] tracking-wider mb-2" style={{ color: `${ACCENT}70` }}>CURRENT STOCK</p>
+              <p className="font-fantasy text-[9px] tracking-wider mb-2" style={{ color: `${accent}70` }}>CURRENT STOCK</p>
               {pondFish.map(pf => (
                 <div key={pf.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg mb-1" style={{ background: "rgba(0,0,0,0.3)" }}>
                   <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
                     {pf.item?.imageUrl ? <img src={pf.item.imageUrl} alt="" className="w-full h-full object-contain" /> : <img src={fishIconImg} alt="" className="w-full h-full object-contain opacity-60" />}
                   </div>
-                  <span className="font-fantasy text-[10px] flex-1 truncate" style={{ color: `${ACCENT}cc` }}>{pf.item?.name || "Unknown"}</span>
+                  <span className="font-fantasy text-[10px] flex-1 truncate" style={{ color: `${accent}cc` }}>{pf.item?.name || "Unknown"}</span>
                   {pf.item?.starRarity && (
                     <div className="flex gap-px">
                       {Array.from({ length: pf.item.starRarity }).map((_, i) => (
@@ -1831,19 +1843,19 @@ function PondAdminPanel({
           )}
           {availableToAdd.length > 0 && (
             <div>
-              <p className="font-fantasy text-[9px] tracking-wider mb-2" style={{ color: `${ACCENT}70` }}>ADD FISH</p>
+              <p className="font-fantasy text-[9px] tracking-wider mb-2" style={{ color: `${accent}70` }}>ADD FISH</p>
               {availableToAdd.map(fi => (
                 <button
                   key={fi.id}
                   data-testid={`button-add-pond-fish-${fi.id}`}
                   onClick={() => onAdd(fi.id)}
                   className="flex items-center gap-2 px-2 py-1.5 rounded-lg mb-1 w-full transition-colors"
-                  style={{ background: "rgba(0,0,0,0.2)", border: `1px solid ${ACCENT}15`, cursor: "pointer" }}
+                  style={{ background: "rgba(0,0,0,0.2)", border: `1px solid ${accent}15`, cursor: "pointer" }}
                 >
                   <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
                     {fi.imageUrl ? <img src={fi.imageUrl} alt="" className="w-full h-full object-contain" /> : <img src={fishIconImg} alt="" className="w-full h-full object-contain opacity-60" />}
                   </div>
-                  <span className="font-fantasy text-[10px] flex-1 text-left truncate" style={{ color: `${ACCENT}aa` }}>{fi.name}</span>
+                  <span className="font-fantasy text-[10px] flex-1 text-left truncate" style={{ color: `${accent}aa` }}>{fi.name}</span>
                   {fi.starRarity && (
                     <div className="flex gap-px">
                       {Array.from({ length: fi.starRarity }).map((_, i) => (
@@ -1851,13 +1863,13 @@ function PondAdminPanel({
                       ))}
                     </div>
                   )}
-                  <Plus className="w-4 h-4" style={{ color: ACCENT }} />
+                  <Plus className="w-4 h-4" style={{ color: accent }} />
                 </button>
               ))}
             </div>
           )}
           {allFishItems.length === 0 && pondFish.length === 0 && (
-            <p className="font-fantasy text-[10px] text-center py-4" style={{ color: `${ACCENT}50` }}>
+            <p className="font-fantasy text-[10px] text-center py-4" style={{ color: `${accent}50` }}>
               No fish items yet. Create some in Admin &gt; Fishing.
             </p>
           )}
@@ -2043,7 +2055,7 @@ function TensionReel({
                   transition: "transform 0.15s ease",
                   filter: fishPulling
                     ? "drop-shadow(0 0 6px rgba(249,115,22,0.95)) hue-rotate(30deg)"
-                    : held ? `drop-shadow(0 0 8px ${ACCENT})` : "drop-shadow(0 0 4px rgba(94,234,212,0.4))",
+                    : held ? `drop-shadow(0 0 8px ${accent})` : "drop-shadow(0 0 4px rgba(94,234,212,0.4))",
                   animation: fishPulling ? "fishFightWiggle 0.4s ease-in-out infinite" : undefined,
                 }}
               />
