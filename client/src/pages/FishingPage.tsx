@@ -1269,7 +1269,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
                   equippedItem={equipData?.baitItem || null}
                   isActive={showBaitPanel}
                   isDropTarget={dropTarget === "bait"}
-                  badgeCount={equippedBait?.quantity ?? undefined}
+                  badgeCount={undefined}
                   onClick={() => {
                     if (equipData?.baitItem) {
                       unequipMutation.mutate({ slot: "bait" });
