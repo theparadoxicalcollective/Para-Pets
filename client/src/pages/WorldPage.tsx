@@ -24,6 +24,7 @@ import bgShopBayou from "@assets/bg_shop_bayou.png";
 import bgShopFishing from "@assets/bg_shop_fishing.png";
 import bgShopCentralMarket from "@assets/bg_central_market.png";
 import bgShopVolcanic from "@assets/bg_shop_volcanic.png";
+import mixingTreeCauldronImg from "@assets/icon_mixing_tree_cauldron.png";
 import bgShopVolcanicPets from "@assets/bg_shop_volcanic_pets.png";
 import bgShopForgeFang from "@assets/bg_shop_forge_fang_volcanic.png";
 import bgShopBookshopVolcanic from "@assets/bg_shop_bookshop_volcanic.png";
@@ -3801,6 +3802,45 @@ export default function WorldPage({ user }: WorldPageProps) {
                 <div style={{ position: "absolute", left: "82%", top: "28%", width: 16, height: 16, borderRadius: "50%", background: "radial-gradient(circle, rgba(215,235,255,0.8) 0%, rgba(175,215,255,0.18) 50%, transparent 72%)", filter: "blur(4px)", animation: "bayouOrb3 12s ease-in-out infinite 7s" }} />
                 {/* Large slow pulse — lower left */}
                 <div style={{ position: "absolute", left: "22%", top: "60%", width: 60, height: 60, borderRadius: "50%", background: "radial-gradient(circle, rgba(120,185,255,0.4) 0%, rgba(80,150,255,0.08) 55%, transparent 75%)", filter: "blur(14px)", animation: "bayouOrbPulse 7s ease-in-out infinite 4s" }} />
+              </div>
+              {/* Bayou-themed cauldron — sits as a decorative scene element
+                  on the Mixing Tree interior background. Lower-centre, with
+                  a soft teal under-glow puddle so it feels grounded in the
+                  scene rather than pasted on. Pointer-events disabled so
+                  it never blocks the existing interactive layers. */}
+              <div
+                className="absolute pointer-events-none"
+                style={{
+                  left: "50%",
+                  bottom: "8%",
+                  transform: "translateX(-50%)",
+                  width: "min(38%, 220px)",
+                  zIndex: 6,
+                }}
+              >
+                {/* under-cauldron glow puddle */}
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "50%",
+                    bottom: "-6%",
+                    transform: "translateX(-50%)",
+                    width: "92%",
+                    height: 28,
+                    borderRadius: "50%",
+                    background: "radial-gradient(ellipse at center, rgba(45,212,191,0.45) 0%, rgba(20,83,75,0.22) 45%, transparent 75%)",
+                    filter: "blur(7px)",
+                  }}
+                />
+                <img
+                  src={mixingTreeCauldronImg}
+                  alt=""
+                  className="w-full h-auto block select-none"
+                  draggable={false}
+                  style={{
+                    filter: "drop-shadow(0 8px 14px rgba(0,0,0,0.65)) drop-shadow(0 0 12px rgba(45,138,120,0.45))",
+                  }}
+                />
               </div>
             </>
           )}
