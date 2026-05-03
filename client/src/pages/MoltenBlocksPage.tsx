@@ -760,8 +760,10 @@ export default function MoltenBlocksPage() {
       {/* Top accent line */}
       <div style={{ height: 2, flexShrink: 0, background: "linear-gradient(90deg,transparent,#d97706,#fbbf24,#d97706,transparent)" }} />
 
-      {/* Header — score / level / next */}
-      <div style={{ flexShrink: 0, padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+      {/* Header — score / level / next.
+          Top padding honours the device safe-area (iOS notch / Android status bar)
+          so the score and lives are never clipped on mobile. */}
+      <div style={{ flexShrink: 0, padding: "calc(env(safe-area-inset-top, 0px) + 12px) 12px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <button
           data-testid="button-exit-molten-blocks"
           onClick={() => navigate("/world/volcanic")}
@@ -863,9 +865,6 @@ export default function MoltenBlocksPage() {
             borderRadius: 10, padding: "14px 18px", marginBottom: 16, maxWidth: 320,
             textAlign: "left", lineHeight: 1.55, fontSize: 12, color: "#f5d589",
           }}>
-            <TutoLine icon="✦" text="Clear rows to score 3 points each." />
-            <TutoLine icon="✦" text="Every 35 points earns 5 coins for your purse." />
-            <TutoLine icon="♥" text="You have 3 lives — top out and lose one." />
             <TutoLine icon="↺" text="TAP to rotate the falling piece." />
             <TutoLine icon="↔" text="SWIPE left or right to move." />
             <TutoLine icon="●" text="HOLD your finger still to soft drop." />
