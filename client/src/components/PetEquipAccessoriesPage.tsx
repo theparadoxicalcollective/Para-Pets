@@ -349,26 +349,8 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
             ACCESSORY SLOTS — {equippedAccessories.length}/{maxSlots} EQUIPPED
           </p>
 
-          <div className="grid grid-cols-3 gap-3 mb-3">
-            {slots.slice(0, 3).map(slot => (
-              <SlotCell
-                key={slot}
-                slot={slot}
-                maxSlots={maxSlots}
-                acc={equippedAccessories.find(e => e.slot === slot) ?? null}
-                isOver={dragOverSlot === slot}
-                draggingId={draggingId}
-                rc={rc}
-                onClick={() => handleSlotClick(slot)}
-                onDragOver={e => { e.preventDefault(); setDragOverSlot(slot); }}
-                onDragLeave={() => setDragOverSlot(null)}
-                onDrop={e => handleDrop(e, slot)}
-              />
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 px-8">
-            {slots.slice(3, 5).map(slot => (
+          <div className="grid grid-cols-5 gap-1.5">
+            {slots.map(slot => (
               <SlotCell
                 key={slot}
                 slot={slot}
