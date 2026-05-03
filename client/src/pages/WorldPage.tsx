@@ -2853,8 +2853,9 @@ export default function WorldPage({ user }: WorldPageProps) {
           if (id === "c3d4e5f6-0006-4000-8000-000000000006") return bgShopFoodVolcanic;
           return bgShopVolcanicPets;
         })();
+        const isSwampFishing = isFishingShop && worldId === "swamp";
         const shopBg = isFishingShop
-          ? (isVolcanicFishing ? bgShopVolcanic : bgShopFishing)
+          ? (isVolcanicFishing ? bgShopVolcanic : isSwampFishing ? bgShopBayou : bgShopFishing)
           : isCentralMarket ? bgShopCentralMarket
           : isVolcanicShop ? volcanicShopBg
           : worldId === "swamp"
