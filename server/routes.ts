@@ -5517,8 +5517,10 @@ export async function registerRoutes(
       }
 
       // If the player completed the reel mini-game (score 100) they always catch.
+      // Floor is 20% (not 0%) so a terrible reel still has a slim chance, but
+      // the curve now meaningfully rewards good play: score 50 → ~52%, 80 → ~72%, 99 → ~84%.
       if (score < 100) {
-        const catchChance = 0.4 + (score / 100) * 0.5;
+        const catchChance = 0.20 + (score / 100) * 0.65;
         if (Math.random() > catchChance) return res.json({ caught: null, reason: "miss" });
       }
 

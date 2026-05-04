@@ -1250,6 +1250,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
               usesLeft={equipData?.poleUsesLeft}
               maxUses={equipData?.poleItem?.poleMaxUses}
               isDropTarget={dropTarget === "pole"}
+              isDeployed={["casting", "waiting", "nibble", "reeling"].includes(phase)}
+              hooklessImageUrl={equipData?.poleItem?.hooklessImageUrl}
               onClick={() => {
                 setShowPolePanel(p => !p);
                 setShowBaitPanel(false);
@@ -1380,7 +1382,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
 }
 
 function EquipSlot({
-  label, defaultIcon, equippedItem, isActive, onClick, badgeCount, testId, noDim, broken, usesLeft, maxUses, isDropTarget, accent,
+  label, defaultIcon, equippedItem, isActive, onClick, badgeCount, testId, noDim, broken, usesLeft, maxUses, isDropTarget, accent, isDeployed, hooklessImageUrl,
 }: {
   label: string;
   defaultIcon: string;
@@ -1395,8 +1397,14 @@ function EquipSlot({
   maxUses?: number | null;
   isDropTarget?: boolean;
   accent: string;
+  isDeployed?: boolean;
+  hooklessImageUrl?: string | null;
 }) {
-  const imgSrc = broken ? brokenRodIcon : (equippedItem?.imageUrl || defaultIcon);
+  const imgSrc = broken
+    ? brokenRodIcon
+    : (isDeployed && hooklessImageUrl)
+      ? hooklessImageUrl
+      : (equippedItem?.imageUrl || defaultIcon);
   const bright = noDim || !!equippedItem;
   return (
     <button
