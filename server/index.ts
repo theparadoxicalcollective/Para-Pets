@@ -830,6 +830,42 @@ app.use((req, res, next) => {
     console.error("PvP Ticket seed error (non-fatal):", err);
   }
 
+  // ── Seed: Gift Items ──────────────────────────────────────────────────────
+  try {
+    const giftDefs = [
+      { id: "gift-0001-0000-0000-000000000001", name: "Swamp Wisp Lantern",   file: "gift_swamp_wisp_lantern.png",  price: 50,  giftPoints: 5  },
+      { id: "gift-0001-0000-0000-000000000002", name: "Gator Tooth Charm",    file: "gift_gator_tooth_charm.png",   price: 75,  giftPoints: 10 },
+      { id: "gift-0001-0000-0000-000000000003", name: "Murky Marsh Pearl",    file: "gift_murky_marsh_pearl.png",   price: 100, giftPoints: 20 },
+      { id: "gift-0001-0000-0000-000000000004", name: "Voodoo Moss Locket",   file: "gift_voodoo_moss_locket.png",  price: 150, giftPoints: 35 },
+      { id: "gift-0001-0000-0000-000000000005", name: "Bayou Moon Crystal",   file: "gift_bayou_moon_crystal.png",  price: 200, giftPoints: 50 },
+      { id: "gift-0001-0000-0000-000000000006", name: "Witch's Cursed Bloom", file: "gift_witchs_cursed_bloom.png", price: 300, giftPoints: 75 },
+    ];
+    for (const g of giftDefs) {
+      const assetPath = path.join(process.cwd(), "attached_assets", g.file);
+      const v = fs.existsSync(assetPath) ? Math.floor(fs.statSync(assetPath).mtimeMs / 1000) : 0;
+      const imgUrl = `/world-assets/${g.file}?v=${v}`;
+      await db.execute(sql`
+        INSERT INTO shop_items (
+          id, name, price, type, world_id, location_id,
+          image_url, gift_points, is_sea_animal,
+          shop_pos_x, shop_pos_y, shop_width
+        ) VALUES (
+          ${g.id}, ${g.name}, ${g.price}, 'gift', 'all', NULL,
+          ${imgUrl}, ${g.giftPoints}, false,
+          50, 50, 72
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          name       = ${g.name},
+          price      = ${g.price},
+          image_url  = ${imgUrl},
+          gift_points = ${g.giftPoints}
+      `);
+    }
+    console.log("Gift items seeded.");
+  } catch (err) {
+    console.error("Gift items seed error (non-fatal):", err);
+  }
+
   try {
     console.log('Initializing Stripe...');
     const databaseUrl = process.env.DATABASE_URL;

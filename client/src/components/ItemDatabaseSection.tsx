@@ -381,7 +381,8 @@ export default function ItemDatabaseSection({
                 );
               }
 
-              const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
+              const primaryImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
+              const fallbackImg = item.type === "pet" && item.eggImageUrl ? (item.imageUrl ?? undefined) : undefined;
               elements.push(
                 <div
                   key={item.id}
@@ -399,8 +400,13 @@ export default function ItemDatabaseSection({
                       className="w-12 h-12 rounded-md flex items-center justify-center overflow-hidden flex-shrink-0"
                       style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
                     >
-                      {displayImg ? (
-                        <img src={displayImg} alt="" className="w-full h-full object-contain" />
+                      {primaryImg ? (
+                        <img
+                          src={primaryImg}
+                          alt=""
+                          className="w-full h-full object-contain"
+                          onError={fallbackImg ? (e) => { (e.target as HTMLImageElement).src = fallbackImg; } : undefined}
+                        />
                       ) : (
                         <span className="font-fantasy text-[#5a4a3a] text-lg">?</span>
                       )}
@@ -1553,6 +1559,7 @@ export function ItemPickerModal({
                 );
               }
               const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
+              const displayFallback = item.type === "pet" && item.eggImageUrl ? (item.imageUrl ?? undefined) : undefined;
               const catColor = catMeta?.color ?? "#f0c040";
               const effectText = getItemEffectText(item);
               elements.push(
@@ -1569,7 +1576,7 @@ export function ItemPickerModal({
                 >
                   <div className="w-8 h-8 rounded flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: "rgba(0,0,0,0.3)" }}>
                     {displayImg
-                      ? <img src={displayImg} alt="" className="w-full h-full object-contain" />
+                      ? <img src={displayImg} alt="" className="w-full h-full object-contain" onError={displayFallback ? (e) => { (e.target as HTMLImageElement).src = displayFallback; } : undefined} />
                       : <span className="text-lg">{item.type === "pet" ? "🥚" : "📦"}</span>
                     }
                   </div>
