@@ -5,6 +5,7 @@ import { getNextZ } from "@/lib/layerManager";
 import { useLocation } from "wouter";
 import { useNavHidden } from "@/lib/navVisibility";
 import { useToast } from "@/hooks/use-toast";
+import coinIconImg from "@assets/icon_coin.png";
 import mainNavIcon from "@assets/generated_images/icon_main_nav.png";
 import petHouseIcon from "@assets/generated_images/nav_icon_home.png";
 import activePetIcon from "@assets/generated_images/nav_icon_active_pet_new.png";
@@ -370,7 +371,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                             {quest.progress}/{quest.target_count}
                             {hasReward && (
                               <span style={{ color: "#6b4820" }}>
-                                {quest.coin_reward > 0 && ` · ${quest.coin_reward}🪙`}
+                                {quest.coin_reward > 0 && <> · {quest.coin_reward}<img src={coinIconImg} alt="coins" style={{ width: 10, height: 10, objectFit: "contain", display: "inline-block", verticalAlign: "middle", marginLeft: 2 }} /></>}
                                 {quest.reward_item_name && ` · ${quest.reward_item_name}`}
                               </span>
                             )}
