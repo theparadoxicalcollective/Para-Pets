@@ -482,6 +482,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         fireLevelUp(data.petLevel, activePetForModal.petNickname || activePetForModal.name, activePetForModal.petTemplateId);
       }
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quests/daily"] });
     },
     onError: (err: any) => {
       toast({ title: "Failed", description: err?.message || "Could not use item", variant: "destructive" });

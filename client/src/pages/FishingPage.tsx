@@ -352,6 +352,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
         setPhase("caught");
         queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
         queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/quests/daily"] });
       } else {
         setPhase("missed");
       }

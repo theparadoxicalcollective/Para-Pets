@@ -2585,6 +2585,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["/api/inventory"] });
+      qc.invalidateQueries({ queryKey: ["/api/quests/daily"] });
       // Glow + bounce + sparkles + floating text on successful feed.
       setPetGlow(true);
       setPetBounce(true);

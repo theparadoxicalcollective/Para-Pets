@@ -111,7 +111,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   // ── Quest data ────────────────────────────────────────────────────────────
   const { data: questData } = useQuery<QuestResponse>({
     queryKey: ["/api/quests/daily"],
-    staleTime: 30000,
+    staleTime: 5000,
     refetchOnWindowFocus: true,
   });
 
