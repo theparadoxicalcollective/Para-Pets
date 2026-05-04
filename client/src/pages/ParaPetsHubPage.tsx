@@ -11,9 +11,17 @@ import runeCircle        from "@assets/hub_rune_circle.png";
 import eggsImg           from "@assets/hub_eggs.png";
 import iconGlobeWorld    from "@assets/icon_globe_world.png";
 import iconCrossedSwords from "@assets/icon_battle_crossed_swords.png";
+import iconPets          from "@assets/icon_pets.png";
+import iconMarket        from "@assets/icon_market.png";
+import iconFriends       from "@assets/icon_friends_inventory.png";
+import iconPetHouse      from "@assets/icon_pet_house.png";
+import iconPvp           from "@assets/icon_pvp_new.png";
+import iconFishingPole   from "@assets/icon_fishing_pole.png";
+import iconQuest         from "@assets/icon_quest_v5.png";
+import iconBadges        from "@assets/icon_badges_new.png";
+import iconBag           from "@assets/icon_bag.png";
 import podiumImg         from "@assets/hub_podium.png";
 import rankCrowns        from "@assets/hub_rank_crowns.png";
-import iconBadges        from "@assets/admin_icon_badges.png";
 import iconMap           from "@assets/nav_icon_map_nobg.png";
 import hsPhone           from "@assets/hs_icon_phone.png";
 import hsBrowser         from "@assets/hs_icon_browser.png";
@@ -628,8 +636,7 @@ function AboutSection() {
           className="font-fantasy text-[11px] tracking-wider leading-relaxed"
           style={{ color: "rgba(200,220,180,0.75)", maxWidth: 340, margin: "0 auto" }}
         >
-          A living, breathing magical rainforest realm where rare creatures hatch from ancient eggs,
-          hidden worlds hold untold secrets, and every player writes their own legend.
+          Hatch rare creatures from ancient eggs, explore hidden worlds, and forge your own legend across realms beyond imagination.
         </p>
       </div>
 
@@ -675,70 +682,70 @@ function AboutSection() {
 // ─────────────────────────────────────────────────────────────────────────────
 const ACTIVITIES = [
   {
-    icon: "🌿",
+    img: iconPets,
     color: "#4ade80",
     glow: "rgba(74,222,128,0.22)",
     title: "Collect",
     desc: "Hatch & collect over 100 rare fantasy pets from magical eggs found across every world.",
   },
   {
-    icon: "🗺️",
+    img: iconGlobeWorld,
     color: "#60a5fa",
     glow: "rgba(96,165,250,0.22)",
     title: "Explore",
     desc: "Roam 8 living worlds — enchanted groves, haunted woods, volcanic craters & more — each packed with hidden shops and secrets.",
   },
   {
-    icon: "💰",
+    img: iconMarket,
     color: "#fbbf24",
     glow: "rgba(251,191,36,0.22)",
     title: "Buy & Sell",
     desc: "Haggle in player-run marketplaces, equip accessories, and trade rare finds to build your fortune.",
   },
   {
-    icon: "👥",
+    img: iconFriends,
     color: "#c084fc",
     glow: "rgba(192,132,252,0.22)",
     title: "Add & Visit Friends",
     desc: "Connect with other tamers, visit their worlds, leave gifts, and see their legendary pets up close.",
   },
   {
-    icon: "🐾",
+    img: iconPetHouse,
     color: "#34d399",
     glow: "rgba(52,211,153,0.22)",
     title: "Care for Pets",
     desc: "Feed, train, and level your companions. Give them gifts to earn loyalty and unlock their true potential.",
   },
   {
-    icon: "⚔️",
+    img: iconPvp,
     color: "#f87171",
     glow: "rgba(248,113,113,0.22)",
     title: "PvP Battles",
     desc: "Enter the Veridia Arena and pit your pets against other tamers in turn-based combat for glory and rewards.",
   },
   {
-    icon: "🎮",
+    img: iconFishingPole,
     color: "#38bdf8",
     glow: "rgba(56,189,248,0.22)",
     title: "Mini Games & Fishing",
     desc: "Cast a line in magical fishing spots, reel in rare sea creatures, and top the leaderboards to earn extra coins.",
   },
   {
-    icon: "📜",
+    img: iconQuest,
     color: "#fb923c",
     glow: "rgba(251,146,60,0.22)",
     title: "Quests",
     desc: "Take on daily and seasonal quests that send you across the realm, earning exclusive items and bragging rights.",
   },
   {
-    icon: "🎉",
+    img: iconBadges,
     color: "#f472b6",
     glow: "rgba(244,114,182,0.22)",
     title: "Events",
     desc: "Limited-time world events, holiday celebrations, and surprise drops keep the realm alive and ever-changing.",
   },
   {
-    icon: "✨",
+    img: iconBag,
     color: "#f0d770",
     glow: "rgba(240,215,112,0.22)",
     title: "And So Much More…",
@@ -784,10 +791,16 @@ function ActivityBulletin() {
                 background: `radial-gradient(circle at 35% 30%, ${a.color}28 0%, ${a.color}0a 100%)`,
                 border: `1px solid ${a.color}40`,
                 boxShadow: `0 0 10px ${a.glow}`,
-                fontSize: 20,
               }}
             >
-              {a.icon}
+              <img
+                src={a.img}
+                alt={a.title}
+                style={{
+                  width: 26, height: 26, objectFit: "contain",
+                  filter: `drop-shadow(0 0 5px ${a.glow})`,
+                }}
+              />
             </div>
 
             {/* Text */}
