@@ -2173,8 +2173,12 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
   const hungerVal = hungerRaw == null || hungerRaw < 0 ? maxHunger : hungerRaw;
   const hungerPct = Math.max(0, Math.min(100, (hungerVal / maxHunger) * 100));
   const moodVal = Math.max(0, Math.min(100, livePet.petMood ?? 100));
-  const loyaltyVal = Math.max(0, Math.min(1000, (livePet as any).petLoyalty ?? 0));
-  const loyaltyPct = (loyaltyVal / 1000) * 100;
+  const petStarRarity: number = (livePet as any).starRarity ?? 1;
+  const loyaltyMaxByRarity: Record<number, number> = { 1: 1000, 2: 2000, 3: 3000, 4: 4000, 5: 5000 };
+  const loyaltyMax = loyaltyMaxByRarity[petStarRarity] ?? 1000;
+  const loyaltyVal = Math.max(0, Math.min(loyaltyMax, (livePet as any).petLoyalty ?? 0));
+  const loyaltyPct = (loyaltyVal / loyaltyMax) * 100;
+  const loyaltyFull = loyaltyVal >= loyaltyMax;
 
   // Drag state.
   const dragRef = useRef<{ inventoryId: string; imageUrl: string | null; pid: number } | null>(null);
@@ -2543,6 +2547,38 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
     },
   });
 
+  const claimLoyaltyMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/pet/${pet.inventoryId}/claim-loyalty-reward`, {});
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      qc.invalidateQueries({ queryKey: ["/api/inventory"] });
+      qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      const box = petBoxRef.current?.getBoundingClientRect();
+      const cx = box ? box.left + box.width / 2 : window.innerWidth / 2;
+      const cy = box ? box.top + box.height * 0.3 : window.innerHeight / 2;
+      const coinsText = data?.coinsAwarded ? `+${data.coinsAwarded} Coins!` : "Reward Claimed!";
+      const id1 = ++floatIdRef.current;
+      setFloatTexts((arr) => [...arr, { id: id1, x: cx, y: cy - 20, text: coinsText }]);
+      setTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id1)), 1800);
+      if (data?.levelsAdded > 0) {
+        const id2 = ++floatIdRef.current;
+        setFloatTexts((arr) => [...arr, { id: id2, x: cx, y: cy + 20, text: `All pets +${data.levelsAdded} Level!` }]);
+        setTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id2)), 2400);
+      }
+      if (box) {
+        burstHearts(cx, cy + 30, 14);
+        burstSparkles(cx, cy, 20);
+      }
+      onUserUpdate({ ...(user ?? {}), coins: data?.userCoins ?? (user?.coins ?? 0) });
+      setDisplayCoins(data?.userCoins ?? (user?.coins ?? 0));
+    },
+    onError: (err: any) => {
+      toast({ title: "Couldn't claim reward", description: err?.message || "Try again in a moment." });
+    },
+  });
+
   const feedMutation = useMutation({
     mutationFn: async ({ itemInventoryId }: { itemInventoryId: string }) => {
       return await apiRequest("POST", `/api/pet/${pet.inventoryId}/feed-edible`, { itemInventoryId });
@@ -2806,7 +2842,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
       />
 
       {/* Vertical Loyalty bar — sits along the left edge of the page. Fills
-          0 → 1000 only when the player gives this pet a gift. */}
+          from 0 to a rarity-based cap when the player gives gifts. Glows
+          green and shows a (!) claim button once the bar is full. */}
       <div
         className="absolute"
         style={{
@@ -2818,7 +2855,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
           flexDirection: "column",
           alignItems: "center",
           gap: 4,
-          pointerEvents: "none",
+          pointerEvents: loyaltyFull ? "auto" : "none",
           zIndex: 510,
         }}
         data-testid="loyalty-meter"
@@ -2826,10 +2863,13 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
         <span
           style={{
             fontFamily: "Lora, serif",
-            color: "#fff5fa",
+            color: loyaltyFull ? "#86efac" : "#fff5fa",
             fontSize: 10,
             fontWeight: 800,
-            textShadow: "0 1px 4px rgba(0,0,0,0.7)",
+            textShadow: loyaltyFull
+              ? "0 0 8px rgba(74,222,128,0.9), 0 1px 4px rgba(0,0,0,0.7)"
+              : "0 1px 4px rgba(0,0,0,0.7)",
+            transition: "color 0.4s, text-shadow 0.4s",
           }}
           data-testid="text-loyalty-value"
         >
@@ -2841,12 +2881,15 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
             width: 12,
             borderRadius: 999,
             background: "rgba(20,8,18,0.75)",
-            border: "1px solid rgba(255,180,220,0.45)",
-            boxShadow: "inset 0 1px 3px rgba(0,0,0,0.6), 0 1px 4px rgba(0,0,0,0.4)",
+            border: loyaltyFull ? "1px solid rgba(74,222,128,0.8)" : "1px solid rgba(255,180,220,0.45)",
+            boxShadow: loyaltyFull
+              ? "inset 0 1px 3px rgba(0,0,0,0.6), 0 0 12px rgba(74,222,128,0.7), 0 0 24px rgba(74,222,128,0.4)"
+              : "inset 0 1px 3px rgba(0,0,0,0.6), 0 1px 4px rgba(0,0,0,0.4)",
             overflow: "hidden",
             position: "relative",
             display: "flex",
             alignItems: "flex-end",
+            transition: "border 0.4s, box-shadow 0.4s",
           }}
           data-testid="bar-loyalty"
         >
@@ -2854,25 +2897,65 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
             style={{
               width: "100%",
               height: `${loyaltyPct}%`,
-              background: "linear-gradient(0deg, #ec4899 0%, #fbcfe8 100%)",
-              transition: "height 0.5s ease",
-              boxShadow: "0 0 10px rgba(236,72,153,0.4)",
+              background: loyaltyFull
+                ? "linear-gradient(0deg, #16a34a 0%, #86efac 100%)"
+                : "linear-gradient(0deg, #ec4899 0%, #fbcfe8 100%)",
+              transition: "height 0.5s ease, background 0.4s ease",
+              boxShadow: loyaltyFull
+                ? "0 0 14px rgba(74,222,128,0.8)"
+                : "0 0 10px rgba(236,72,153,0.4)",
             }}
           />
         </div>
         <span
           style={{
             fontFamily: "Lora, serif",
-            color: "#ffd1ec",
+            color: loyaltyFull ? "#86efac" : "#ffd1ec",
             fontSize: 8,
             fontWeight: 800,
             letterSpacing: "0.18em",
-            textShadow: "0 1px 4px rgba(0,0,0,0.7)",
+            textShadow: loyaltyFull
+              ? "0 0 8px rgba(74,222,128,0.9), 0 1px 4px rgba(0,0,0,0.7)"
+              : "0 1px 4px rgba(0,0,0,0.7)",
             marginTop: 2,
+            transition: "color 0.4s, text-shadow 0.4s",
           }}
         >
           LOYALTY
         </span>
+
+        {/* Glowing (!) claim button — only visible when bar is full */}
+        {loyaltyFull && (
+          <button
+            data-testid="button-claim-loyalty"
+            onClick={() => claimLoyaltyMutation.mutate()}
+            disabled={claimLoyaltyMutation.isPending}
+            style={{
+              marginTop: 4,
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              border: "2px solid #4ade80",
+              background: "rgba(22,163,74,0.25)",
+              color: "#4ade80",
+              fontFamily: "Lora, serif",
+              fontWeight: 900,
+              fontSize: 16,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              boxShadow: "0 0 10px rgba(74,222,128,0.8), 0 0 22px rgba(74,222,128,0.5)",
+              animation: "loyalty-claim-pulse 1.4s ease-in-out infinite",
+              opacity: claimLoyaltyMutation.isPending ? 0.5 : 1,
+              transition: "opacity 0.2s",
+              pointerEvents: "auto",
+            }}
+            title="Claim Loyalty Reward!"
+          >
+            !
+          </button>
+        )}
       </div>
 
       {/* Floating heart layer — appears when the pet is clicked or fed */}

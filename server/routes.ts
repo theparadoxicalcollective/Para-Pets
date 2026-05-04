@@ -2322,8 +2322,9 @@ export async function registerRoutes(
   });
 
   // Give a "gift" item to a pet on the Pet Care page. Each gift adds the
-  // item's giftPoints to the pet's loyalty meter (cap 1000) and is removed
-  // from inventory. Loyalty is the only stat gifts affect.
+  // item's giftPoints to the pet's loyalty meter (cap is rarity-based:
+  // 1★=1000, 2★=2000, 3★=3000, 4★=4000, 5★=5000) and is removed from
+  // inventory. Loyalty is the only stat gifts affect.
   app.post("/api/pet/:inventoryId/give-gift", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
@@ -2347,8 +2348,13 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Not a gift item" });
       }
 
+      const petShopItem = await storage.getShopItem(petInv.shopItemId);
+      const starRarity = petShopItem?.starRarity ?? 1;
+      const loyaltyMaxMap: Record<number, number> = { 1: 1000, 2: 2000, 3: 3000, 4: 4000, 5: 5000 };
+      const loyaltyMax = loyaltyMaxMap[starRarity] ?? 1000;
+
       const points = Math.max(0, itemShopItem.giftPoints || 0);
-      const newLoyalty = Math.min(1000, (petInv.petLoyalty ?? 0) + points);
+      const newLoyalty = Math.min(loyaltyMax, (petInv.petLoyalty ?? 0) + points);
       const updated = await storage.updateInventoryItem(petInv.id, {
         petLoyalty: newLoyalty,
       } as any);
@@ -2357,6 +2363,70 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Give gift error:", err);
       return res.status(500).json({ message: "Failed to give gift" });
+    }
+  });
+
+  // Claim the loyalty reward once the bar is full. Awards coins based on the
+  // pet's star rarity, optionally levels up all of the player's hatched pets,
+  // restores hunger + mood to max, and resets petLoyalty to 0.
+  app.post("/api/pet/:inventoryId/claim-loyalty-reward", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const petInv = await storage.getInventoryItemById(req.params.inventoryId as string);
+      if (!petInv || petInv.userId !== user.id) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+      if (!petInv.isHatched) {
+        return res.status(400).json({ message: "Pet has not hatched yet" });
+      }
+
+      const petShopItem = await storage.getShopItem(petInv.shopItemId);
+      const starRarity = petShopItem?.starRarity ?? 1;
+      const loyaltyMaxMap: Record<number, number> = { 1: 1000, 2: 2000, 3: 3000, 4: 4000, 5: 5000 };
+      const loyaltyMax = loyaltyMaxMap[starRarity] ?? 1000;
+
+      if ((petInv.petLoyalty ?? 0) < loyaltyMax) {
+        return res.status(400).json({ message: "Loyalty bar is not full yet" });
+      }
+
+      // Coin rewards by star rarity
+      const coinRewardMap: Record<number, number> = { 1: 1000, 2: 1000, 3: 1500, 4: 2500, 5: 3500 };
+      const coinsToAward = coinRewardMap[starRarity] ?? 1000;
+
+      // Bonus levels added to all hatched pets (0 for 1-2 star)
+      const levelBonusMap: Record<number, number> = { 1: 0, 2: 0, 3: 1, 4: 3, 5: 5 };
+      const levelsToAdd = levelBonusMap[starRarity] ?? 0;
+
+      // Award coins to the user
+      const updatedUser = await storage.addCoins(user.id, coinsToAward);
+
+      // Level up all of this user's hatched pets (capped at 100)
+      if (levelsToAdd > 0) {
+        await db
+          .update(userInventory)
+          .set({ petLevel: sql`LEAST(100, ${userInventory.petLevel} + ${levelsToAdd})` })
+          .where(and(eq(userInventory.userId, user.id), eq(userInventory.isHatched, true)));
+      }
+
+      // Fill hunger + mood and reset loyalty to 0
+      const maxHunger = petInv.petHealth ?? 1000;
+      const updatedPet = await storage.updateInventoryItem(petInv.id, {
+        petLoyalty: 0,
+        petHunger: maxHunger,
+        petMood: 100,
+        petStatsUpdatedAt: new Date(),
+        lastFedAt: new Date(),
+      } as any);
+
+      return res.json({
+        pet: updatedPet,
+        coinsAwarded: coinsToAward,
+        levelsAdded: levelsToAdd,
+        userCoins: updatedUser.coins,
+      });
+    } catch (err) {
+      console.error("Claim loyalty reward error:", err);
+      return res.status(500).json({ message: "Failed to claim loyalty reward" });
     }
   });
 

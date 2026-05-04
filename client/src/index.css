@@ -720,6 +720,12 @@
   100% { transform: translate(-50%, -50%) scale(2.8); opacity: 0; }
 }
 
+@keyframes loyalty-claim-pulse {
+  0%   { box-shadow: 0 0 10px rgba(74,222,128,0.8), 0 0 22px rgba(74,222,128,0.5); transform: scale(1); }
+  50%  { box-shadow: 0 0 18px rgba(74,222,128,1.0), 0 0 38px rgba(74,222,128,0.7); transform: scale(1.12); }
+  100% { box-shadow: 0 0 10px rgba(74,222,128,0.8), 0 0 22px rgba(74,222,128,0.5); transform: scale(1); }
+}
+
 @keyframes powerUpFlash {
   0%   { opacity: 0; }
   10%  { opacity: 1; }
