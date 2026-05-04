@@ -591,16 +591,16 @@ const ANIMATION_STYLES = `
      so they continuously drift in and out of phase with body and with
      each other — same trick the wings use. */
   @keyframes petIdleTail {
-    from { transform: rotate(-1.4deg); }
-    to   { transform: rotate( 1.4deg); }
+    from { transform: rotate(-12deg); }
+    to   { transform: rotate( 12deg); }
   }
   @keyframes petIdleTail2 {
-    from { transform: translate(0px,   0px)   rotate(-2.5deg); }
-    to   { transform: translate(-1px, -3px) rotate( 2.5deg); }
+    from { transform: rotate(-10deg); }
+    to   { transform: rotate( 10deg); }
   }
   @keyframes petIdleTail3 {
-    from { transform: translate(0px,  0px)   rotate( 2.5deg); }
-    to   { transform: translate(1px, -3px) rotate(-2.5deg); }
+    from { transform: rotate( 10deg); }
+    to   { transform: rotate(-10deg); }
   }
   /* Ground head: small left/right tilt instead of upward bob. Reduced
      from ±0.6deg → ±0.4deg so the head reads as a barely-there sway
@@ -1803,15 +1803,19 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           // and petting modes (all of which scale the body).
           const bodyOrigin = (part.partType === "body" && !canFly) ? "50% 100%" : undefined;
 
-          // Tails swivel from their BASE at the bottom-left corner — the point
-          // where the tail connects to the body. We force Y to 100% (bottom of
-          // the visible alpha area) so the base stays planted while the tip
-          // swings, and X to the alpha-bbox left edge so the pivot is at the
-          // left side of the visible tail artwork rather than its centre.
+          // Tails swivel from their BASE — the point where the tail connects
+          // to the pet body. For side-facing pets the body attachment is at
+          // the RIGHT end of the tail image (the tail extends away to the
+          // left/tip from there), so we anchor X to the RIGHT edge of the
+          // alpha bbox. Y stays at 100% (bottom) so the base sits planted
+          // at the lower attachment corner while the tip arcs up and down.
+          // Using the LEFT edge as pivot (previous approach) caused the
+          // attachment point to slide horizontally — the complaint that the
+          // tail "moves in and out from the body" instead of swivelling.
           const tailOrigin = (() => {
             if (part.partType !== "tail" && part.partType !== "tail_2" && part.partType !== "tail_3") return undefined;
             const tabAlpha = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
-            const originX = tabAlpha.left * 100; // left edge of visible pixels
+            const originX = (tabAlpha.left + tabAlpha.width) * 100; // right edge of visible pixels
             return `${originX.toFixed(2)}% 100%`;
           })();
 

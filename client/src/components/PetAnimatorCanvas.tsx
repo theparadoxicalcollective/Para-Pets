@@ -259,35 +259,28 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     case "head_wing_right":
       return { op: 1, rot:  sinWave(sec, 4) * 3 * D2R, ty: -sinWave(sec, 4) * 0.6 };
 
-    // Tails — every slot now also picks up a small swivel rotation
-    // (similar in spirit to the wing swivel) plus a gentle upward
-    // lift. Per-slot durations and amplitudes deliberately differ
-    // so multi-tailed pets don't read as moving in lockstep. Mirrors
-    // the img-renderer's petIdleTail / petIdleTail2 / petIdleTail3:
-    //   • tail   (slot 1): 4.5 s (body breath), ±0.5° swivel — barely
-    //     a whisper, single-tail pets stay calm.
-    //   • tail_2 (slot 2): 3.7 s, ±2.5° swivel — visible swing.
-    //   • tail_3 (slot 3): 4.1 s, ∓2.5° swivel (mirrored) — visible
-    //     swing in the opposite direction so a 3-tail fan looks lively
-    //     rather than synchronized.
+    // Tails — angular swivel from the body-attachment end (right edge
+    // of the alpha bbox). Pivot is now the RIGHT edge so the base stays
+    // planted while the tip arcs up and down. Amplitudes are large
+    // enough (±10-12°) to read as a clear swivel, not horizontal shimmer.
+    // Per-slot durations and directions deliberately differ so multi-
+    // tailed pets don't move in lockstep. Mirrors petIdleTail/2/3:
+    //   • tail   (slot 1): 4.5 s, ±12° — primary visible wag.
+    //   • tail_2 (slot 2): 3.7 s, ±10° — drifts out of phase.
+    //   • tail_3 (slot 3): 4.1 s, ∓10° (mirrored) — fan open/closed.
     case "tail":
-      // Pure swivel from the base — no vertical bob. The ty was causing
-      // the tail to read as bobbing horizontally; removing it means the
-      // base stays planted and only the tip swings. Matches the CSS renderer's
-      // updated petIdleTail keyframe (rotation only, no translateY).
-      return { op: 1, rot: sinWave(sec, 4.5) * 0.5 * D2R };
+      // Swivel from the right-edge base (body attachment). Large angle
+      // (±12°) so the motion reads clearly as an angular tail swivel
+      // rather than subtle horizontal shimmer. Matches the CSS renderer's
+      // petIdleTail keyframe (rotation only, right-edge pivot).
+      return { op: 1, rot: sinWave(sec, 4.5) * 12 * D2R };
     case "tail_2":
-      return {
-        op: 1,
-        rot: sinWave(sec, 3.7) * 2.5 * D2R,
-        ty: -((1 + sinWave(sec, 3.7)) * 0.5) * 1.5,
-      };
+      // Slot 2: slightly smaller arc (±10°), different period so
+      // multi-tailed pets drift in and out of phase.
+      return { op: 1, rot: sinWave(sec, 3.7) * 10 * D2R };
     case "tail_3":
-      return {
-        op: 1,
-        rot: -sinWave(sec, 4.1) * 2.5 * D2R,
-        ty: -((1 + sinWave(sec, 4.1)) * 0.5) * 1.5,
-      };
+      // Slot 3: mirrored direction so a three-tail fan fans open/closed.
+      return { op: 1, rot: -sinWave(sec, 4.1) * 10 * D2R };
 
     // Body — breathing. Vertical scale grows / shrinks ~3.8 % at peak,
     // horizontal ~2.0 %. Pivots from part center so the breath reads as
@@ -792,13 +785,15 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         // async alpha scan finishes.
         const ab = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
         const isTailPart = part.partType === "tail" || part.partType === "tail_2" || part.partType === "tail_3";
-        // Tails swivel from their BASE at the bottom-left corner. Force Y to
-        // 1.0 (bottom of alpha-bbox) so the base stays planted. Force X to 0
-        // (left edge of alpha-bbox) so the pivot is the bottom-left of the
-        // visible artwork, matching the CSS renderer's `${left}% 100%` origin.
-        // Admin-set pivotX/Y are intentionally ignored for tails — incorrect
-        // values are a common source of the "tail pivots from wrong end" bug.
-        const pxPct = isTailPart ? 0 : (part.pivotX ?? 50) / 100;
+        // Tails swivel from their BASE — the right edge of the alpha bbox
+        // where the tail connects to the pet body (for side-facing pets the
+        // body is to the right of the tail image, so the attachment is at
+        // the rightmost visible pixel). Y stays at 1.0 (bottom) so the
+        // base corner stays planted while the tip arcs up and down.
+        // Previous approach (X=0, left edge) was pivoting from the TIP,
+        // which caused the body-attachment end to slide horizontally — the
+        // user saw the tail "moving in and out" instead of swivelling.
+        const pxPct = isTailPart ? 1.0 : (part.pivotX ?? 50) / 100;
         const pyPct = isTailPart ? 1.0 : (part.pivotY ?? 50) / 100;
         const px = left + w * (ab.left + ab.width  * pxPct);
         const py = top  + h * (ab.top  + ab.height * pyPct);
