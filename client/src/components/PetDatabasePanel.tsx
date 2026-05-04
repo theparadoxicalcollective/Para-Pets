@@ -633,12 +633,25 @@ export default function PetDatabasePanel({
 
   // Move every part in the current view by the same delta. This shifts the
   // entire pet composition without changing relative part positions.
-  const nudgeAll = useCallback((dx: number, dy: number) => {
+  // All PATCH requests fire in parallel; a single invalidation fires only
+  // after every request has settled, avoiding the race condition that occurs
+  // when multiple sequential `mutate()` calls each trigger their own
+  // invalidation+refetch mid-flight and cause viewParts to show partial state.
+  const nudgeAll = useCallback(async (dx: number, dy: number) => {
     if (viewParts.length === 0) return;
-    viewParts.forEach(part => {
-      updatePartMutation.mutate({ partId: part.id, posX: part.posX + dx, posY: part.posY + dy });
-    });
-  }, [viewParts, updatePartMutation]);
+    const snapshot = viewParts;
+    await Promise.all(
+      snapshot.map(part =>
+        apiRequest("PATCH", `/api/admin/pet-template-parts/${part.id}`, {
+          posX: part.posX + dx,
+          posY: part.posY + dy,
+        })
+      )
+    );
+    queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+    queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts", selectedTemplateId] });
+    queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts"] });
+  }, [viewParts, queryClient, selectedTemplateId]);
 
   const resizePart = useCallback((delta: number) => {
     const part = viewParts.find(p => p.id === selectedPartId);
