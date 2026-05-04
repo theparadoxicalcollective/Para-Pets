@@ -591,16 +591,16 @@ const ANIMATION_STYLES = `
      so they continuously drift in and out of phase with body and with
      each other — same trick the wings use. */
   @keyframes petIdleTail {
-    from { transform: rotate(-12deg); }
-    to   { transform: rotate( 12deg); }
+    from { transform: rotate(-5deg); }
+    to   { transform: rotate( 5deg); }
   }
   @keyframes petIdleTail2 {
-    from { transform: rotate(-10deg); }
-    to   { transform: rotate( 10deg); }
+    from { transform: rotate(-4deg); }
+    to   { transform: rotate( 4deg); }
   }
   @keyframes petIdleTail3 {
-    from { transform: rotate( 10deg); }
-    to   { transform: rotate(-10deg); }
+    from { transform: rotate( 4deg); }
+    to   { transform: rotate(-4deg); }
   }
   /* Ground head: small left/right tilt instead of upward bob. Reduced
      from ±0.6deg → ±0.4deg so the head reads as a barely-there sway
@@ -1819,7 +1819,10 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             const originX = resolvedView === "back"
               ? tabAlpha.left * 100                          // left edge — pet faces left
               : (tabAlpha.left + tabAlpha.width) * 100;     // right edge — pet faces right
-            return `${originX.toFixed(2)}% 100%`;
+            // Y: bottom of the visible alpha region (not the full element),
+            // so the pivot lands at the actual root pixel, not in empty space.
+            const originY = (tabAlpha.top + tabAlpha.height) * 100;
+            return `${originX.toFixed(2)}% ${originY.toFixed(2)}%`;
           })();
 
           if (mode === "static") {

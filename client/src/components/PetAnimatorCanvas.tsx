@@ -259,28 +259,21 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     case "head_wing_right":
       return { op: 1, rot:  sinWave(sec, 4) * 3 * D2R, ty: -sinWave(sec, 4) * 0.6 };
 
-    // Tails — angular swivel from the body-attachment end (right edge
-    // of the alpha bbox). Pivot is now the RIGHT edge so the base stays
-    // planted while the tip arcs up and down. Amplitudes are large
-    // enough (±10-12°) to read as a clear swivel, not horizontal shimmer.
-    // Per-slot durations and directions deliberately differ so multi-
-    // tailed pets don't move in lockstep. Mirrors petIdleTail/2/3:
-    //   • tail   (slot 1): 4.5 s, ±12° — primary visible wag.
-    //   • tail_2 (slot 2): 3.7 s, ±10° — drifts out of phase.
-    //   • tail_3 (slot 3): 4.1 s, ∓10° (mirrored) — fan open/closed.
+    // Tails — angular swivel from the body-attachment end. The pivot X
+    // is direction-aware (right edge for front-facing, left for back-facing)
+    // so the root stays planted against the body while only the tip arcs.
+    // Amplitudes kept gentle (±5°/±4°) so the motion reads as a relaxed
+    // wag without detaching from or clipping into the body.
+    // Mirrors petIdleTail/2/3 CSS keyframes:
+    //   • tail   (slot 1): 4.5 s, ±5° — primary wag.
+    //   • tail_2 (slot 2): 3.7 s, ±4° — drifts out of phase.
+    //   • tail_3 (slot 3): 4.1 s, ∓4° (mirrored) — fan open/closed.
     case "tail":
-      // Swivel from the right-edge base (body attachment). Large angle
-      // (±12°) so the motion reads clearly as an angular tail swivel
-      // rather than subtle horizontal shimmer. Matches the CSS renderer's
-      // petIdleTail keyframe (rotation only, right-edge pivot).
-      return { op: 1, rot: sinWave(sec, 4.5) * 12 * D2R };
+      return { op: 1, rot: sinWave(sec, 4.5) * 5 * D2R };
     case "tail_2":
-      // Slot 2: slightly smaller arc (±10°), different period so
-      // multi-tailed pets drift in and out of phase.
-      return { op: 1, rot: sinWave(sec, 3.7) * 10 * D2R };
+      return { op: 1, rot: sinWave(sec, 3.7) * 4 * D2R };
     case "tail_3":
-      // Slot 3: mirrored direction so a three-tail fan fans open/closed.
-      return { op: 1, rot: -sinWave(sec, 4.1) * 10 * D2R };
+      return { op: 1, rot: -sinWave(sec, 4.1) * 4 * D2R };
 
     // Body — breathing. Vertical scale grows / shrinks ~3.8 % at peak,
     // horizontal ~2.0 %. Pivots from part center so the breath reads as
