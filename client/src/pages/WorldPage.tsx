@@ -108,6 +108,7 @@ interface ShopItem {
   baitRarityBoostStar: number | null;
   poleMaxUses: number | null;
   catchEasePercent: number | null;
+  giftPoints: number | null;
   locationId: string | null;
   createdAt: string;
 }
@@ -3539,7 +3540,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                 if (isAllShopItemsLoading) {
                   return <p className="font-fantasy text-[#a89878] text-xs text-center py-6 animate-pulse">Loading items...</p>;
                 }
-                const pickable = allShopItems.filter(si => {
+                const pickable = (allShopItems ?? []).filter(si => {
                   if (si.fishingType === "fish") return false;
                   if (si.fishingType === "bait" && si.locationId != null) return false;
                   if (pickerFilter === "all") return true;
@@ -3577,6 +3578,9 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                             <p className="font-fantasy text-[9px]" style={{ color: `${accent}70` }}>
                               {si.price} coins · {si.fishingType ?? si.type}
                             </p>
+                            {si.type === "gift" && si.giftPoints != null && (
+                              <p className="font-fantasy text-[8px]" style={{ color: "#ec4899" }}>+{si.giftPoints} loyalty pts</p>
+                            )}
                           </div>
                           {alreadyAssigned ? (
                             <span className="font-fantasy text-[9px] px-2 py-1 rounded-full" style={{ background: `${accent}20`, color: accent }}>In Shop</span>

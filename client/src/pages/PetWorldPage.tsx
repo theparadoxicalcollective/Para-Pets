@@ -60,7 +60,7 @@ type KcDoor         = { id: string; worldId: string; name: string; posX: number;
 type KcDoorDecorP   = { id: string; doorId: string; name: string; imageUrl: string; posX: number; posY: number; size: number; flipped: boolean; createdAt: string };
 type DecorPlacement = { id: string; worldId: string; decorItemId: string; name: string; imageUrl: string; posX: number; posY: number; size: number; flipped: boolean; message: string | null; createdAt: string };
 type KCLocation     = { id: string; worldId: string; name: string; type: string; iconUrl: string | null; bgUrl: string | null; description: string | null; posX: number; posY: number; isShop: boolean; glowColor: string | null; iconSize: number; flipped: boolean; sortOrder: number; ownerImageUrl: string | null };
-type KCShopItem     = { id: string; name: string; price: number; type: string; imageUrl: string | null; rarity: number | null; hatchTime: number | null; eggImageUrl: string | null; hatchedImageUrl: string | null; worldId: string; description?: string | null };
+type KCShopItem     = { id: string; name: string; price: number; type: string; imageUrl: string | null; rarity: number | null; hatchTime: number | null; eggImageUrl: string | null; hatchedImageUrl: string | null; worldId: string; description?: string | null; giftPoints?: number | null };
 type WorldActivePet = {
   userId: string;
   username: string;
@@ -3098,7 +3098,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
       {showDoorItemPicker && user?.isAdmin && activeDoorId && (() => {
         const door = kcDoors.find(d => d.id === activeDoorId);
         if (!door?.isShop) return null;
-        const pickable = allDoorShopItems.filter(si => {
+        const pickable = (allDoorShopItems ?? []).filter(si => {
           if (si.fishingType === "fish") return false;
           if (si.fishingType === "bait" && si.locationId != null) return false;
           if (doorPickerFilter === "all") return true;
@@ -3217,6 +3217,9 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                               <p className="font-fantasy text-[9px]" style={{ color: `${ACCENT}70` }}>
                                 {si.price} coins · {si.fishingType ?? si.type}
                               </p>
+                              {si.type === "gift" && si.giftPoints != null && (
+                                <p className="font-fantasy text-[8px]" style={{ color: "#ec4899" }}>+{si.giftPoints} loyalty pts</p>
+                              )}
                             </div>
                             {alreadyAssigned ? (
                               <button

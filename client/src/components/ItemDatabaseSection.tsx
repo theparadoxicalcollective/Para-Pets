@@ -434,6 +434,11 @@ export default function ItemDatabaseSection({
                       {item.type === "edibles" && item.statBoostAmount && (
                         <span className="font-fantasy text-[#86efac] text-[7px]">+{item.statBoostAmount} Feed pts when fed</span>
                       )}
+                      {item.type === "gift" && (
+                        <span className="font-fantasy text-[#ec4899] text-[7px]">
+                          {item.giftPoints ? `+${item.giftPoints} Loyalty pts` : "Gift"}
+                        </span>
+                      )}
                       {item.type === "potion" && (
                         <span className="font-fantasy text-[#a89878] text-[7px]">
                           {item.healthRestored ? `+${item.healthRestored} HP` : ""}{item.manaRestored ? ` +${item.manaRestored} MP` : ""}{item.petsRevived ? ` Revive ${item.petsRevived}` : ""}
