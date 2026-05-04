@@ -215,15 +215,12 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     // typically the shoulder/hip, giving the same visual "rises with
     // the chest" effect.
     case "front_arm": case "back_arm":
-    case "front_leg":
       return bodyBreath(sec);
+    case "front_leg":
     case "back_leg":
-      // 0.4 s phase lag — back_leg peaks slightly after front_leg so the
-      // two side-view legs don't inflate on the exact same beat. The -0.4
-      // shifts the sine argument left (the wave peaks 0.4 s later in real
-      // time) producing a natural rolling-breath sway between the legs.
-      // Mirrors PetAnimator.tsx where back_leg gets bodyBreathDelay + 0.4 s.
-      return bodyBreath(sec - 0.4);
+      // Side-facing legs are kept static — they do not scale with the body
+      // so feet stay planted on the ground during idle breathing.
+      return { op: 1, rot: 0 };
 
     // Shoulders breathe with the body so the whole torso group expands
     // and contracts together. Mirrors the img-renderer's IDLE_ANIMATIONS
@@ -278,11 +275,11 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     //     swing in the opposite direction so a 3-tail fan looks lively
     //     rather than synchronized.
     case "tail":
-      return {
-        op: 1,
-        rot: sinWave(sec, 4.5) * 0.5 * D2R,
-        ty: -((1 + sinWave(sec, 4.5)) * 0.5) * 1.5,
-      };
+      // Pure swivel from the base — no vertical bob. The ty was causing
+      // the tail to read as bobbing horizontally; removing it means the
+      // base stays planted and only the tip swings. Matches the CSS renderer's
+      // updated petIdleTail keyframe (rotation only, no translateY).
+      return { op: 1, rot: sinWave(sec, 4.5) * 0.5 * D2R };
     case "tail_2":
       return {
         op: 1,
@@ -798,15 +795,14 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         // around the artwork. Falls back to the full bbox until the
         // async alpha scan finishes.
         const ab = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
-        const pxPct = (part.pivotX ?? 50) / 100;
-        // Tails must rotate from their BASE (body-connection point), not
-        // their tip. Force pyPct to 1.0 so the pivot sits at the BOTTOM
-        // of the visible alpha area — the tail swings from the top and
-        // the base stays planted. Mirrors the img-renderer's tailOrigin
-        // override (forced 100% Y). Admin-set pivotY is intentionally
-        // ignored for tails since incorrect values are a common source of
-        // the "tail pivots from wrong end" visual bug.
         const isTailPart = part.partType === "tail" || part.partType === "tail_2" || part.partType === "tail_3";
+        // Tails swivel from their BASE at the bottom-left corner. Force Y to
+        // 1.0 (bottom of alpha-bbox) so the base stays planted. Force X to 0
+        // (left edge of alpha-bbox) so the pivot is the bottom-left of the
+        // visible artwork, matching the CSS renderer's `${left}% 100%` origin.
+        // Admin-set pivotX/Y are intentionally ignored for tails — incorrect
+        // values are a common source of the "tail pivots from wrong end" bug.
+        const pxPct = isTailPart ? 0 : (part.pivotX ?? 50) / 100;
         const pyPct = isTailPart ? 1.0 : (part.pivotY ?? 50) / 100;
         const px = left + w * (ab.left + ab.width  * pxPct);
         const py = top  + h * (ab.top  + ab.height * pyPct);

@@ -596,8 +596,8 @@ const ANIMATION_STYLES = `
      so they continuously drift in and out of phase with body and with
      each other — same trick the wings use. */
   @keyframes petIdleTail {
-    from { transform: translateY(0px)   rotate(-1.4deg); }
-    to   { transform: translateY(-3.5px) rotate( 1.4deg); }
+    from { transform: rotate(-1.4deg); }
+    to   { transform: rotate( 1.4deg); }
   }
   @keyframes petIdleTail2 {
     from { transform: translate(0px,   0px)   rotate(-2.5deg); }
@@ -1808,17 +1808,15 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           // and petting modes (all of which scale the body).
           const bodyOrigin = (part.partType === "body" && !canFly) ? "50% 100%" : undefined;
 
-          // Tails must rotate from their BASE (where they connect to the body),
-          // not their tip. Regardless of which pivotY the admin set, we force
-          // the Y origin to the BOTTOM of the visible alpha area (100% of the
-          // alpha-bbox height from the top). This keeps the body-attachment
-          // point stationary while the tip swings. The pivotX is still
-          // respected so left/right centering follows the artist's intent.
+          // Tails swivel from their BASE at the bottom-left corner — the point
+          // where the tail connects to the body. We force Y to 100% (bottom of
+          // the visible alpha area) so the base stays planted while the tip
+          // swings, and X to the alpha-bbox left edge so the pivot is at the
+          // left side of the visible tail artwork rather than its centre.
           const tailOrigin = (() => {
             if (part.partType !== "tail" && part.partType !== "tail_2" && part.partType !== "tail_3") return undefined;
             const tabAlpha = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
-            const tpxPct = (part.pivotX ?? 50) / 100;
-            const originX = (tabAlpha.left + tabAlpha.width * tpxPct) * 100;
+            const originX = tabAlpha.left * 100; // left edge of visible pixels
             return `${originX.toFixed(2)}% 100%`;
           })();
 
@@ -1852,28 +1850,16 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             const animName = lookupAnim(PETTING_ANIMATIONS, part.partType);
             return renderPartImg(part, animName ?? null, undefined, wingDelay, tailOrigin ?? bodyOrigin, partZ);
           }
+          // Side-facing legs are static in idle — they must NOT fall through
+          // to the `|| anims.body` body-breath fallback below, which would make
+          // them scale with the torso and visibly grow with every inhale.
+          if (mode === "idle" && (part.partType === "front_leg" || part.partType === "back_leg")) {
+            return renderPartImg(part, null, undefined, undefined, undefined, partZ);
+          }
           const anims = mode === "idle" ? idleAnimMap : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
           const animName = lookupAnim(anims, part.partType) || anims.body;
           if (!animName) return null;
-          // Only the idle body keyframe scales — walk/zoom body uses
-          // translateY only, so the anchor override is harmless either way.
-          // tailOrigin takes precedence over bodyOrigin (tails are never "body").
-          //
-          // In idle mode, stagger the back_leg 0.4 s behind the front_leg so
-          // the two side-view legs breathe on slightly different beats. Both
-          // are still on petIdleBody — only the phase shifts. Mirrors the
-          // canvas renderer's bodyBreath(sec - 0.4) for back_leg.
-          let legDelay: string | undefined = wingDelay;
-          if (
-            mode === "idle" &&
-            part.partType === "back_leg" &&
-            bodyBreathDelay !== undefined &&
-            wingDelay === undefined
-          ) {
-            const baseSec = parseFloat(bodyBreathDelay.replace("s", ""));
-            legDelay = `${(baseSec + 0.4).toFixed(2)}s`;
-          }
-          return renderPartImg(part, animName, undefined, legDelay, tailOrigin ?? bodyOrigin, partZ);
+          return renderPartImg(part, animName, undefined, wingDelay, tailOrigin ?? bodyOrigin, partZ);
         })}
 
         {/* Head groups — each head gets its own wrapper with associated face parts */}
