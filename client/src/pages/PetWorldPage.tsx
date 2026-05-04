@@ -3160,6 +3160,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       { label: "Potions", value: "potion" },
                       { label: "Power-Ups", value: "power_up" },
                       { label: "Special", value: "special" },
+                      { label: "Edibles", value: "edibles" },
+                      { label: "Gifts", value: "gift" },
                       { label: "Accessories", value: "accessory" },
                       { label: "Pets", value: "pet" },
                       { label: "Fishing", value: "fishing" },
