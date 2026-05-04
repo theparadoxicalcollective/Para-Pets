@@ -1803,19 +1803,22 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           // and petting modes (all of which scale the body).
           const bodyOrigin = (part.partType === "body" && !canFly) ? "50% 100%" : undefined;
 
-          // Tails swivel from their BASE — the point where the tail connects
-          // to the pet body. For side-facing pets the body attachment is at
-          // the RIGHT end of the tail image (the tail extends away to the
-          // left/tip from there), so we anchor X to the RIGHT edge of the
-          // alpha bbox. Y stays at 100% (bottom) so the base sits planted
-          // at the lower attachment corner while the tip arcs up and down.
-          // Using the LEFT edge as pivot (previous approach) caused the
-          // attachment point to slide horizontally — the complaint that the
-          // tail "moves in and out from the body" instead of swivelling.
+          // Tails swivel from their BASE — where the tail connects to the
+          // pet body. The correct edge depends on which way the pet faces:
+          //   • "front" view (pet faces RIGHT): the body is to the right of
+          //     the tail image, so the root is at the RIGHT edge → pivot X
+          //     at the rightmost visible pixel.
+          //   • "back" view (pet faces LEFT): the body is to the left, so
+          //     the root is at the LEFT edge → pivot X at the leftmost
+          //     visible pixel.
+          // Y is always 100% (bottom of alpha bbox) so the base corner
+          // stays planted while only the tip arcs up/down.
           const tailOrigin = (() => {
             if (part.partType !== "tail" && part.partType !== "tail_2" && part.partType !== "tail_3") return undefined;
             const tabAlpha = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
-            const originX = (tabAlpha.left + tabAlpha.width) * 100; // right edge of visible pixels
+            const originX = resolvedView === "back"
+              ? tabAlpha.left * 100                          // left edge — pet faces left
+              : (tabAlpha.left + tabAlpha.width) * 100;     // right edge — pet faces right
             return `${originX.toFixed(2)}% 100%`;
           })();
 

@@ -785,15 +785,15 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         // async alpha scan finishes.
         const ab = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
         const isTailPart = part.partType === "tail" || part.partType === "tail_2" || part.partType === "tail_3";
-        // Tails swivel from their BASE — the right edge of the alpha bbox
-        // where the tail connects to the pet body (for side-facing pets the
-        // body is to the right of the tail image, so the attachment is at
-        // the rightmost visible pixel). Y stays at 1.0 (bottom) so the
-        // base corner stays planted while the tip arcs up and down.
-        // Previous approach (X=0, left edge) was pivoting from the TIP,
-        // which caused the body-attachment end to slide horizontally — the
-        // user saw the tail "moving in and out" instead of swivelling.
-        const pxPct = isTailPart ? 1.0 : (part.pivotX ?? 50) / 100;
+        // Tails swivel from their BASE — where the tail connects to the
+        // pet body. The correct X edge depends on the pet's facing direction:
+        //   • "front" (pet faces right): body is to the right of the tail
+        //     image, so root is at the RIGHT edge → pxPct = 1.0.
+        //   • "back"  (pet faces left):  body is to the left of the tail
+        //     image, so root is at the LEFT edge → pxPct = 0.0.
+        // Y stays at 1.0 (bottom of alpha-bbox) so the base stays planted.
+        const tailFacingRight = resolvedViewRef.current !== "back";
+        const pxPct = isTailPart ? (tailFacingRight ? 1.0 : 0.0) : (part.pivotX ?? 50) / 100;
         const pyPct = isTailPart ? 1.0 : (part.pivotY ?? 50) / 100;
         const px = left + w * (ab.left + ab.width  * pxPct);
         const py = top  + h * (ab.top  + ab.height * pyPct);
