@@ -92,6 +92,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [showAquarium, setShowAquarium] = useState(false);
   const [showKeepers, setShowKeepers]   = useState(false);
   const [panelZ, setPanelZ]             = useState(300);
+  const [claimingKey, setClaimingKey]   = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -336,6 +337,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                         data-testid={`quest-card-${quest.quest_key}`}
                         className="rounded-md p-2"
                         style={{
+                          position: "relative",
+                          overflow: "hidden",
                           background: isClaimed
                             ? "rgba(92,58,30,0.06)"
                             : isDone
@@ -348,6 +351,53 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                             : "1px solid rgba(139,90,40,0.35)",
                         }}
                       >
+                        {/* Claim celebration burst */}
+                        {claimingKey === quest.quest_key && (() => {
+                          const PARTICLES = [
+                            { tx: "0px",   ty: "-52px", char: "★", color: "#f0c040" },
+                            { tx: "37px",  ty: "-37px", char: "✦", color: "#ffd700" },
+                            { tx: "52px",  ty: "0px",   char: "★", color: "#f0c040" },
+                            { tx: "37px",  ty: "37px",  char: "✦", color: "#ffd700" },
+                            { tx: "0px",   ty: "52px",  char: "★", color: "#f0c040" },
+                            { tx: "-37px", ty: "37px",  char: "✦", color: "#ffd700" },
+                            { tx: "-52px", ty: "0px",   char: "★", color: "#f0c040" },
+                            { tx: "-37px", ty: "-37px", char: "✦", color: "#ffd700" },
+                          ];
+                          return (
+                            <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 20 }}>
+                              {/* Golden flash overlay */}
+                              <div style={{
+                                position: "absolute", inset: 0, borderRadius: 6,
+                                background: "radial-gradient(ellipse at center, rgba(240,192,64,0.45) 0%, rgba(240,192,64,0) 70%)",
+                                animation: "quest-claim-flash 0.75s ease-out forwards",
+                              }} />
+                              {/* Expanding ring */}
+                              <div style={{
+                                position: "absolute", left: "50%", top: "50%",
+                                width: 48, height: 48, borderRadius: "50%",
+                                border: "2px solid rgba(240,192,64,0.8)",
+                                animation: "quest-claim-ring 0.7s ease-out forwards",
+                              }} />
+                              {/* Particles */}
+                              {PARTICLES.map((p, i) => (
+                                <div
+                                  key={i}
+                                  style={{
+                                    position: "absolute",
+                                    left: "50%", top: "50%",
+                                    fontSize: 11,
+                                    lineHeight: 1,
+                                    color: p.color,
+                                    textShadow: `0 0 6px ${p.color}`,
+                                    ["--tx" as any]: p.tx,
+                                    ["--ty" as any]: p.ty,
+                                    animation: `quest-claim-particle 0.75s cubic-bezier(0.2,0.8,0.4,1) ${i * 30}ms forwards`,
+                                  }}
+                                >{p.char}</div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                         <p className="font-fantasy text-[#2a1000] text-[10px] font-bold mb-0.5 leading-tight">{quest.title}</p>
                         <p className="font-fantasy text-[#5a2e0a] text-[9px] tracking-wide leading-snug mb-1.5">{quest.description}</p>
 
@@ -381,7 +431,11 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                           {isDone && !isClaimed && (
                             <button
                               data-testid={`button-claim-quest-${quest.quest_key}`}
-                              onClick={() => claimMutation.mutate(quest.quest_key)}
+                              onClick={() => {
+                                setClaimingKey(quest.quest_key);
+                                setTimeout(() => setClaimingKey(null), 900);
+                                claimMutation.mutate(quest.quest_key);
+                              }}
                               disabled={claimMutation.isPending}
                               className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold font-fantasy active:scale-95 transition-transform disabled:opacity-60"
                               style={{

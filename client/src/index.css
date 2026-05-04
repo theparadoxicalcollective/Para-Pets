@@ -704,6 +704,22 @@
   }
 }
 
+/* Quest reward claim burst */
+@keyframes quest-claim-particle {
+  0%   { transform: translate(-50%, -50%) translate(0px, 0px) scale(1.2); opacity: 1; }
+  60%  { opacity: 1; }
+  100% { transform: translate(-50%, -50%) translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+}
+@keyframes quest-claim-flash {
+  0%   { opacity: 0; }
+  15%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes quest-claim-ring {
+  0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 0.9; }
+  100% { transform: translate(-50%, -50%) scale(2.8); opacity: 0; }
+}
+
 @keyframes powerUpFlash {
   0%   { opacity: 0; }
   10%  { opacity: 1; }
