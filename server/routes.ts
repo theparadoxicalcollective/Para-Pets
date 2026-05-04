@@ -16,6 +16,52 @@ import { Resend } from "resend";
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Para Pets <noreply@parapets.net>";
 
+// ── Daily Quest helpers ───────────────────────────────────────────────────────
+function getCentralDate(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+}
+
+async function incrementQuestProgress(userId: string, questKey: string): Promise<void> {
+  try {
+    const date = getCentralDate();
+    const questRes = await db.execute(
+      sql`SELECT target_count FROM daily_quests WHERE quest_key = ${questKey} AND is_active = true LIMIT 1`
+    );
+    if (!questRes.rows[0]) return;
+    const targetCount = (questRes.rows[0] as any).target_count as number;
+
+    // Upsert progress row; skip increment if already completed
+    const result = await db.execute(sql`
+      INSERT INTO user_daily_quest_progress (user_id, quest_key, quest_date, progress, completed)
+      VALUES (${userId}, ${questKey}, ${date}, 1, ${1 >= targetCount})
+      ON CONFLICT (user_id, quest_key, quest_date) DO UPDATE
+      SET
+        progress = CASE
+          WHEN user_daily_quest_progress.completed THEN user_daily_quest_progress.progress
+          ELSE LEAST(${targetCount}, user_daily_quest_progress.progress + 1)
+        END,
+        completed = CASE
+          WHEN user_daily_quest_progress.completed THEN true
+          ELSE LEAST(${targetCount}, user_daily_quest_progress.progress + 1) >= ${targetCount}
+        END
+      RETURNING completed
+    `);
+
+    if ((result.rows[0] as any)?.completed) {
+      await db.execute(sql`
+        INSERT INTO user_quest_log_state (user_id, has_unseen_completion)
+        VALUES (${userId}, true)
+        ON CONFLICT (user_id) DO UPDATE SET has_unseen_completion = true
+      `);
+    }
+  } catch (err) {
+    console.error("Quest progress error:", err);
+  }
+}
+
 // ── Pet leveling helper ───────────────────────────────────────────────────────
 // XP needed to advance from `level` to `level + 1`.
 function xpForLevel(level: number): number {
@@ -2263,6 +2309,8 @@ export async function registerRoutes(
 
       const updatedPet = await storage.updateInventoryItem(petInv.id, updates);
       await storage.removeFromInventory(itemInv.id);
+      // Quest progress: feed_pet
+      incrementQuestProgress(user.id, "feed_pet").catch(() => {});
       return res.json(updatedPet);
     } catch (err) {
       console.error("Feed edible error:", err);
@@ -5541,6 +5589,8 @@ export async function registerRoutes(
       // after the pond fish was added), fetch it directly so the client always gets a
       // valid item object and shows the "Caught!" screen instead of "It got away!".
       const fishItem = chosenEntry.item ?? await storage.getShopItem(chosenEntry.shopItemId) ?? null;
+      // Quest progress: catch_fish
+      incrementQuestProgress(user.id, "catch_fish").catch(() => {});
       return res.json({ caught, item: fishItem });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -7496,6 +7546,8 @@ export async function registerRoutes(
       if (!result.ok) {
         return res.status(400).json({ message: "Already claimed. Come back in 24 hours!" });
       }
+      // Quest progress: daily_hub
+      incrementQuestProgress(user.id, "daily_hub").catch(() => {});
       return res.json({
         coinAmount: DAILY_REWARD_COINS,
         pvpTickets: DAILY_REWARD_TICKETS,
@@ -7506,6 +7558,136 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Daily claim error:", err);
       return res.status(500).json({ message: "Failed to claim daily reward" });
+    }
+  });
+
+  // ── Daily Quest API ───────────────────────────────────────────────────────
+
+  app.get("/api/quests/daily", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const date = getCentralDate();
+      const questsRes = await db.execute(sql`
+        SELECT q.id, q.quest_key, q.title, q.description, q.target_count, q.coin_reward, q.reward_item_id,
+               si.name AS reward_item_name, si.image_url AS reward_item_image,
+               COALESCE(p.progress, 0) AS progress,
+               COALESCE(p.completed, false) AS completed,
+               COALESCE(p.reward_claimed, false) AS reward_claimed
+        FROM daily_quests q
+        LEFT JOIN user_daily_quest_progress p
+          ON p.quest_key = q.quest_key AND p.user_id = ${user.id} AND p.quest_date = ${date}
+        LEFT JOIN shop_items si ON si.id = q.reward_item_id
+        WHERE q.is_active = true
+        ORDER BY q.quest_key
+      `);
+      const stateRes = await db.execute(sql`
+        SELECT last_opened_date, has_unseen_completion FROM user_quest_log_state WHERE user_id = ${user.id}
+      `);
+      const stateRow = stateRes.rows[0] as any;
+      return res.json({
+        quests: questsRes.rows,
+        today: date,
+        lastOpenedDate: stateRow?.last_opened_date ?? null,
+        hasUnseenCompletion: stateRow?.has_unseen_completion ?? false,
+      });
+    } catch (err) {
+      console.error("Get daily quests error:", err);
+      return res.status(500).json({ message: "Failed to get quests" });
+    }
+  });
+
+  app.post("/api/quests/daily/seen", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const date = getCentralDate();
+      await db.execute(sql`
+        INSERT INTO user_quest_log_state (user_id, last_opened_date, has_unseen_completion)
+        VALUES (${user.id}, ${date}, false)
+        ON CONFLICT (user_id) DO UPDATE SET last_opened_date = ${date}, has_unseen_completion = false
+      `);
+      return res.json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to mark seen" });
+    }
+  });
+
+  app.post("/api/quests/daily/claim/:questKey", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { questKey } = req.params;
+      const date = getCentralDate();
+      const progRes = await db.execute(sql`
+        SELECT * FROM user_daily_quest_progress
+        WHERE user_id = ${user.id} AND quest_key = ${questKey} AND quest_date = ${date}
+      `);
+      const prog = progRes.rows[0] as any;
+      if (!prog?.completed) return res.status(400).json({ message: "Quest not completed" });
+      if (prog?.reward_claimed) return res.status(400).json({ message: "Reward already claimed" });
+      const questRes = await db.execute(sql`
+        SELECT q.*, si.name AS reward_item_name
+        FROM daily_quests q
+        LEFT JOIN shop_items si ON si.id = q.reward_item_id
+        WHERE q.quest_key = ${questKey} AND q.is_active = true
+      `);
+      const quest = questRes.rows[0] as any;
+      if (!quest) return res.status(404).json({ message: "Quest not found" });
+      if (quest.coin_reward > 0) {
+        await db.execute(sql`
+          UPDATE users SET coins = coins + ${quest.coin_reward},
+            total_coins_earned = total_coins_earned + ${quest.coin_reward}
+          WHERE id = ${user.id}
+        `);
+      }
+      if (quest.reward_item_id) {
+        await storage.addToInventory(user.id, quest.reward_item_id);
+      }
+      await db.execute(sql`
+        UPDATE user_daily_quest_progress SET reward_claimed = true
+        WHERE user_id = ${user.id} AND quest_key = ${questKey} AND quest_date = ${date}
+      `);
+      const updatedUser = await storage.getUser(user.id);
+      return res.json({
+        ok: true,
+        coinsGranted: quest.coin_reward,
+        itemGranted: quest.reward_item_id ? quest.reward_item_name : null,
+        newCoinBalance: updatedUser?.coins,
+      });
+    } catch (err) {
+      console.error("Quest claim error:", err);
+      return res.status(500).json({ message: "Failed to claim quest reward" });
+    }
+  });
+
+  app.get("/api/admin/daily-quests", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
+      const questsRes = await db.execute(sql`
+        SELECT q.*, si.name AS reward_item_name, si.image_url AS reward_item_image
+        FROM daily_quests q
+        LEFT JOIN shop_items si ON si.id = q.reward_item_id
+        ORDER BY q.quest_key
+      `);
+      return res.json(questsRes.rows);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to get quest configs" });
+    }
+  });
+
+  app.patch("/api/admin/daily-quests/:questKey", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
+      const { questKey } = req.params;
+      const { coinReward, rewardItemId } = req.body;
+      await db.execute(sql`
+        UPDATE daily_quests
+        SET coin_reward = ${coinReward ?? 0}, reward_item_id = ${rewardItemId || null}
+        WHERE quest_key = ${questKey}
+      `);
+      return res.json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to update quest" });
     }
   });
 

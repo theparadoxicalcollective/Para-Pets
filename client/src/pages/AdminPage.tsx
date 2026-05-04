@@ -522,24 +522,7 @@ export default function AdminPage({ user }: AdminPageProps) {
               )}
 
               {activeSection === "quest" && (
-                <div
-                  data-testid="panel-quest-placeholder"
-                  style={{
-                    padding: "40px 20px",
-                    textAlign: "center",
-                    background: "rgba(0,0,0,0.35)",
-                    border: "1px dashed rgba(110,231,183,0.3)",
-                    borderRadius: 10,
-                    color: "#a89878",
-                  }}
-                >
-                  <p className="font-fantasy text-[#6ee7b7] text-sm mb-2">
-                    Quests
-                  </p>
-                  <p className="text-[11px]">
-                    Coming soon — created quests will appear here.
-                  </p>
-                </div>
+                <QuestAdminSection />
               )}
 
               {activeSection === "items" && (
@@ -3016,6 +2999,173 @@ interface AdminEmblem {
   description: string | null;
   imageUrl: string;
   createdAt: string;
+}
+
+// ── Quest Admin Section ────────────────────────────────────────────────────────
+interface AdminDailyQuest {
+  id: string;
+  quest_key: string;
+  title: string;
+  description: string;
+  target_count: number;
+  coin_reward: number;
+  reward_item_id: string | null;
+  reward_item_name: string | null;
+  reward_item_image: string | null;
+  is_active: boolean;
+}
+
+function QuestAdminSection() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: quests = [], isLoading } = useQuery<AdminDailyQuest[]>({
+    queryKey: ["/api/admin/daily-quests"],
+  });
+
+  const { data: allItems = [] } = useQuery<ShopItemFull[]>({
+    queryKey: ["/api/admin/shop-items-all"],
+  });
+
+  const [localEdits, setLocalEdits] = useState<Record<string, { coinReward: string; rewardItemId: string }>>({});
+
+  const saveMutation = useMutation({
+    mutationFn: async ({ questKey, coinReward, rewardItemId }: { questKey: string; coinReward: number; rewardItemId: string | null }) => {
+      const res = await apiRequest("PATCH", `/api/admin/daily-quests/${questKey}`, { coinReward, rewardItemId });
+      return res.json();
+    },
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/daily-quests"] });
+      setLocalEdits(prev => { const n = { ...prev }; delete n[vars.questKey]; return n; });
+      toast({ title: "Quest updated!", description: `${vars.questKey} rewards saved.` });
+    },
+    onError: () => {
+      toast({ title: "Failed to save quest", variant: "destructive" });
+    },
+  });
+
+  const getEdit = (q: AdminDailyQuest) => localEdits[q.quest_key] ?? {
+    coinReward: String(q.coin_reward),
+    rewardItemId: q.reward_item_id ?? "",
+  };
+
+  const setField = (questKey: string, field: "coinReward" | "rewardItemId", value: string) => {
+    const orig = quests.find(q => q.quest_key === questKey);
+    setLocalEdits(prev => {
+      const base = prev[questKey] ?? {
+        coinReward: String(orig?.coin_reward ?? 0),
+        rewardItemId: orig?.reward_item_id ?? "",
+      };
+      return { ...prev, [questKey]: { ...base, [field]: value } };
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="w-6 h-6 rounded-full border-2 border-[#6ee7b7] border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="font-fantasy text-[#6ee7b7] text-xs tracking-wider opacity-70 pb-1">
+        Configure coin &amp; item rewards for each daily quest. Progress targets are fixed.
+      </p>
+
+      {quests.map((quest) => {
+        const edit = getEdit(quest);
+        const isDirty = edit.coinReward !== String(quest.coin_reward) || edit.rewardItemId !== (quest.reward_item_id ?? "");
+        return (
+          <div
+            key={quest.quest_key}
+            data-testid={`admin-quest-card-${quest.quest_key}`}
+            className="rounded-lg p-4 space-y-3"
+            style={{
+              background: "rgba(8,50,35,0.6)",
+              border: "1px solid rgba(110,231,183,0.25)",
+            }}
+          >
+            {/* Quest header */}
+            <div>
+              <p className="font-fantasy text-[#6ee7b7] text-sm font-semibold tracking-wide">{quest.title}</p>
+              <p className="text-[#a8c8b0] text-[11px] mt-0.5">{quest.description}</p>
+              <p className="text-[#5a8a6a] text-[10px] mt-0.5 tracking-wider">
+                Target: <span className="text-[#8ac8a0]">{quest.target_count}</span>
+              </p>
+            </div>
+
+            {/* Coin reward */}
+            <div className="flex items-center gap-3">
+              <label className="text-[#8ac8a0] text-[11px] tracking-wider w-24 shrink-0">Coin Reward</label>
+              <input
+                data-testid={`input-quest-coins-${quest.quest_key}`}
+                type="number"
+                min={0}
+                value={edit.coinReward}
+                onChange={e => setField(quest.quest_key, "coinReward", e.target.value)}
+                className="flex-1 rounded px-2 py-1 text-[12px] font-mono"
+                style={{
+                  background: "rgba(0,0,0,0.4)",
+                  border: "1px solid rgba(110,231,183,0.3)",
+                  color: "#e0f8ec",
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            {/* Item reward */}
+            <div className="flex items-center gap-3">
+              <label className="text-[#8ac8a0] text-[11px] tracking-wider w-24 shrink-0">Item Reward</label>
+              <select
+                data-testid={`select-quest-item-${quest.quest_key}`}
+                value={edit.rewardItemId}
+                onChange={e => setField(quest.quest_key, "rewardItemId", e.target.value)}
+                className="flex-1 rounded px-2 py-1 text-[11px]"
+                style={{
+                  background: "rgba(0,0,0,0.4)",
+                  border: "1px solid rgba(110,231,183,0.3)",
+                  color: "#e0f8ec",
+                  outline: "none",
+                }}
+              >
+                <option value="">— None —</option>
+                {allItems.map(item => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Save button */}
+            <div className="flex justify-end">
+              <button
+                data-testid={`button-save-quest-${quest.quest_key}`}
+                onClick={() => saveMutation.mutate({
+                  questKey: quest.quest_key,
+                  coinReward: Number(edit.coinReward) || 0,
+                  rewardItemId: edit.rewardItemId || null,
+                })}
+                disabled={saveMutation.isPending}
+                className="px-4 py-1.5 rounded text-[11px] font-fantasy tracking-wider active:scale-95 transition-transform disabled:opacity-50"
+                style={{
+                  background: isDirty
+                    ? "linear-gradient(135deg, rgba(20,100,60,0.9), rgba(40,180,100,0.8))"
+                    : "rgba(30,70,50,0.5)",
+                  border: isDirty ? "1px solid rgba(110,231,183,0.6)" : "1px solid rgba(110,231,183,0.2)",
+                  color: isDirty ? "#d0fff0" : "#6a9a80",
+                  cursor: isDirty ? "pointer" : "default",
+                  boxShadow: isDirty ? "0 0 8px rgba(110,231,183,0.3)" : "none",
+                }}
+              >
+                {saveMutation.isPending ? "Saving…" : "Save Rewards"}
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function EmblemDatabaseSection() {

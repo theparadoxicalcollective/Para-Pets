@@ -1,7 +1,10 @@
 import { useState, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { getNextZ } from "@/lib/layerManager";
 import { useLocation } from "wouter";
 import { useNavHidden } from "@/lib/navVisibility";
+import { useToast } from "@/hooks/use-toast";
 import mainNavIcon from "@assets/generated_images/icon_main_nav.png";
 import petHouseIcon from "@assets/generated_images/nav_icon_home.png";
 import activePetIcon from "@assets/generated_images/nav_icon_active_pet_new.png";
@@ -34,6 +37,28 @@ interface FloatingNavProps {
   onUserUpdate?: (u: any) => void;
 }
 
+interface DailyQuestRow {
+  id: string;
+  quest_key: string;
+  title: string;
+  description: string;
+  target_count: number;
+  coin_reward: number;
+  reward_item_id: string | null;
+  reward_item_name: string | null;
+  reward_item_image: string | null;
+  progress: number;
+  completed: boolean;
+  reward_claimed: boolean;
+}
+
+interface QuestResponse {
+  quests: DailyQuestRow[];
+  today: string;
+  lastOpenedDate: string | null;
+  hasUnseenCompletion: boolean;
+}
+
 // ── Left arc: Badges, Quest, PvP, Pet Inventory, Map ─────────────────────────
 const LEFT_ITEMS = [
   { id: "badges",    label: "Badges",    icon: badgesIcon },
@@ -54,18 +79,20 @@ const RIGHT_ITEMS = [
 ];
 
 const ICON_SIZE   = 44;
-const BUTTON_SIZE = 58; // main button — larger for easier tap target
-const SPACING     = 60; // center-to-center spacing for icon fan
+const BUTTON_SIZE = 58;
+const SPACING     = 60;
 
 export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [, navigate] = useLocation();
   const navHidden = useNavHidden();
-  const [isOpen, setIsOpen]           = useState(false);
-  const [showQuest, setShowQuest]     = useState(false);
-  const [showPvpNote, setShowPvpNote] = useState(false);
-  const [showAquarium, setShowAquarium]   = useState(false);
-  const [showKeepers, setShowKeepers]     = useState(false);
-  const [panelZ, setPanelZ]           = useState(300);
+  const [isOpen, setIsOpen]             = useState(false);
+  const [showQuest, setShowQuest]       = useState(false);
+  const [showPvpNote, setShowPvpNote]   = useState(false);
+  const [showAquarium, setShowAquarium] = useState(false);
+  const [showKeepers, setShowKeepers]   = useState(false);
+  const [panelZ, setPanelZ]             = useState(300);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const openPanel = (fn: () => void) => { closeAll(); setPanelZ(getNextZ()); fn(); };
 
@@ -77,12 +104,63 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     setShowKeepers(false);
   };
 
-  const NAV_DELAY = 360; // ms — lets the sparkle play before transitioning
+  const NAV_DELAY = 360;
+
+  // ── Quest data ────────────────────────────────────────────────────────────
+  const { data: questData } = useQuery<QuestResponse>({
+    queryKey: ["/api/quests/daily"],
+    staleTime: 30000,
+    refetchOnWindowFocus: true,
+  });
+
+  const seenMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/quests/daily/seen", {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/quests/daily"] });
+    },
+  });
+
+  const claimMutation = useMutation({
+    mutationFn: (questKey: string) => apiRequest("POST", `/api/quests/daily/claim/${questKey}`, {}),
+    onSuccess: async (res) => {
+      const data = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/quests/daily"] });
+      if (onUserUpdate && data.newCoinBalance != null) {
+        onUserUpdate({ ...user, coins: data.newCoinBalance });
+      }
+      toast({
+        title: "Reward Claimed!",
+        description: data.coinsGranted > 0 ? `+${data.coinsGranted} coins earned!` : "Quest complete!",
+      });
+    },
+    onError: () => {
+      toast({ title: "Failed to claim reward", variant: "destructive" });
+    },
+  });
+
+  // Badge logic: green = not opened today, gold = completed since last open
+  const today        = questData?.today ?? "";
+  const lastOpened   = questData?.lastOpenedDate ?? null;
+  const questBadge: "green" | "gold" | null = !questData
+    ? null
+    : lastOpened !== today
+    ? "green"
+    : questData.hasUnseenCompletion
+    ? "gold"
+    : null;
 
   const handleLeft = (id: string) => {
     closeAll();
     if (id === "map")       { setTimeout(() => navigate("/map"), NAV_DELAY); return; }
-    if (id === "quest")     { setTimeout(() => openPanel(() => setShowQuest(true)), NAV_DELAY); return; }
+    if (id === "quest") {
+      setTimeout(() => {
+        openPanel(() => {
+          setShowQuest(true);
+          seenMutation.mutate();
+        });
+      }, NAV_DELAY);
+      return;
+    }
     if (id === "pvp")       { setTimeout(() => navigate("/pvp"), NAV_DELAY); return; }
     if (id === "inventory") { setTimeout(() => navigate("/pets"), NAV_DELAY); return; }
     if (id === "badges")    { setTimeout(() => navigate("/badges"), NAV_DELAY); return; }
@@ -98,18 +176,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     if (id === "bag")      { setTimeout(() => navigate("/bag"), NAV_DELAY); return; }
   };
 
-  // Pages can opt the floating nav out temporarily (e.g. when an inventory
-  // drawer is open on the pet-house page) so its fan-out arc doesn't collide
-  // with page-level UI. See `lib/navVisibility.ts`.
   if (navHidden) return null;
 
-  // When ANY full-page panel managed by this nav is open (Quest scroll,
-  // PvP notice, Aquarium, Keeper's Central) the panel renders at
-  // panelZ (300+) which would otherwise cover the main floating
-  // navigation button — leaving the user stranded inside the panel
-  // with no way back to the rest of the app except hitting the
-  // panel's own close button. Lift the nav container above panelZ
-  // when a panel is open so the user always has navigation access.
   const anyPanelOpen = showQuest || showPvpNote || showAquarium || showKeepers;
 
   return (
@@ -122,15 +190,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
         />
       )}
 
-      {/* ── Nav container ──────────────────────────────────────────────────
-          When the nav is closed we keep the container at a low z-index so
-          page-level popups (pet/decor/home/friends inventory drawers, etc.)
-          can render above the main floating button. When the nav is open we
-          lift it to z-[9999] so the fan-out items appear above everything.
-          When a managed panel (Keeper's Central, Aquarium, etc.) is open
-          we lift to panelZ + 1 so the nav button stays tappable on top of
-          the panel — letting the user navigate elsewhere without first
-          having to close the panel manually. */}
+      {/* ── Nav container ─────────────────────────────────────────────────── */}
       <div
         className="absolute"
         style={{
@@ -152,6 +212,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             translateX={-(SPACING * (i + 1))}
             translateY={0}
             fillIcon={!!(item as any).fill}
+            badge={item.id === "quest" ? questBadge : null}
             onClick={() => handleLeft(item.id)}
           />
         ))}
@@ -197,6 +258,36 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
               filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.6))",
             }}
           />
+          {/* Quest notification badge — visible on main button when nav is closed */}
+          {questBadge && !isOpen && (
+            <span
+              data-testid="badge-quest-notification"
+              style={{
+                position: "absolute",
+                top: 0,
+                right: 0,
+                width: 17,
+                height: 17,
+                borderRadius: "50%",
+                background: questBadge === "green"
+                  ? "linear-gradient(135deg, #16a34a, #22c55e)"
+                  : "linear-gradient(135deg, #b45309, #f0c040)",
+                border: "2px solid rgba(0,0,0,0.85)",
+                fontSize: 10,
+                fontWeight: "bold",
+                color: questBadge === "green" ? "#fff" : "#1a0a00",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: questBadge === "green"
+                  ? "0 0 8px rgba(34,197,94,0.9), 0 0 16px rgba(34,197,94,0.4)"
+                  : "0 0 8px rgba(240,192,64,0.9), 0 0 14px rgba(240,192,64,0.4)",
+                zIndex: 100,
+                pointerEvents: "none",
+                fontFamily: "'Cinzel', serif",
+              }}
+            >!</span>
+          )}
         </button>
       </div>
 
@@ -222,17 +313,104 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             <div className="absolute inset-0 flex flex-col" style={{ paddingTop: "20%", paddingBottom: "20%", paddingLeft: "13%", paddingRight: "13%" }}>
               <div className="flex items-center justify-center gap-2 mb-3">
                 <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(139,90,40,0.4))" }} />
-                <h3 className="font-fantasy text-[#4a2a0e] text-xs tracking-[0.3em] font-bold">QUESTS</h3>
+                <h3 className="font-fantasy text-[#4a2a0e] text-xs tracking-[0.3em] font-bold">DAILY QUESTS</h3>
                 <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, rgba(139,90,40,0.4), transparent)" }} />
               </div>
-              <div className="flex-1 overflow-y-auto space-y-2" style={{ scrollbarWidth: "none" }}>
-                <div className="rounded p-2.5" style={{ background: "rgba(92,58,30,0.07)", border: "1px dashed rgba(139,90,40,0.25)" }}>
-                  <p className="font-fantasy text-[#6b3e1a] text-[10px] tracking-wider leading-relaxed">No active quests. Explore the realm to discover adventures...</p>
-                </div>
-                <div className="rounded p-2.5" style={{ background: "rgba(92,58,30,0.07)", border: "1px dashed rgba(139,90,40,0.25)" }}>
-                  <p className="font-fantasy text-[#6b3e1a] text-[10px] tracking-wider leading-relaxed">No rewards pending. Complete quests to earn coins and items!</p>
-                </div>
+
+              <div className="flex-1 overflow-y-auto space-y-2.5" style={{ scrollbarWidth: "none" }}>
+                {!questData || questData.quests.length === 0 ? (
+                  <div className="rounded p-2.5" style={{ background: "rgba(92,58,30,0.07)", border: "1px dashed rgba(139,90,40,0.25)" }}>
+                    <p className="font-fantasy text-[#6b3e1a] text-[10px] tracking-wider leading-relaxed">No active quests. Explore the realm to discover adventures...</p>
+                  </div>
+                ) : (
+                  questData.quests.map((quest) => {
+                    const pct = Math.min(100, Math.round((quest.progress / quest.target_count) * 100));
+                    const isDone = quest.completed;
+                    const isClaimed = quest.reward_claimed;
+                    const hasReward = quest.coin_reward > 0 || quest.reward_item_name;
+                    return (
+                      <div
+                        key={quest.quest_key}
+                        data-testid={`quest-card-${quest.quest_key}`}
+                        className="rounded-md p-2"
+                        style={{
+                          background: isClaimed
+                            ? "rgba(92,58,30,0.05)"
+                            : isDone
+                            ? "rgba(100,70,20,0.15)"
+                            : "rgba(92,58,30,0.08)",
+                          border: isClaimed
+                            ? "1px dashed rgba(139,90,40,0.2)"
+                            : isDone
+                            ? "1px solid rgba(212,160,23,0.5)"
+                            : "1px dashed rgba(139,90,40,0.3)",
+                        }}
+                      >
+                        <p className="font-fantasy text-[#4a2a0e] text-[10px] font-bold mb-0.5 leading-tight">{quest.title}</p>
+                        <p className="font-fantasy text-[#7a4e28] text-[9px] tracking-wide leading-snug mb-1.5">{quest.description}</p>
+
+                        {/* Progress bar */}
+                        <div
+                          className="rounded-full overflow-hidden mb-1.5"
+                          style={{ height: 5, background: "rgba(139,90,40,0.18)" }}
+                        >
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: `${pct}%`,
+                              background: isDone
+                                ? "linear-gradient(90deg, #8b5a28, #c47a30)"
+                                : "linear-gradient(90deg, #4a7a20, #7ab840)",
+                            }}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-fantasy text-[#8b5a28] text-[8.5px] leading-tight">
+                            {quest.progress}/{quest.target_count}
+                            {hasReward && (
+                              <span style={{ color: "#6b4820" }}>
+                                {quest.coin_reward > 0 && ` · ${quest.coin_reward}🪙`}
+                                {quest.reward_item_name && ` · ${quest.reward_item_name}`}
+                              </span>
+                            )}
+                          </span>
+
+                          {isDone && !isClaimed && (
+                            <button
+                              data-testid={`button-claim-quest-${quest.quest_key}`}
+                              onClick={() => claimMutation.mutate(quest.quest_key)}
+                              disabled={claimMutation.isPending}
+                              className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold font-fantasy active:scale-95 transition-transform disabled:opacity-60"
+                              style={{
+                                background: "linear-gradient(135deg, #8b5a00 0%, #c47a00 100%)",
+                                color: "#fff8e0",
+                                border: "1px solid rgba(212,160,23,0.75)",
+                                boxShadow: "0 0 6px rgba(212,160,23,0.5)",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Claim!
+                            </button>
+                          )}
+                          {isClaimed && (
+                            <span
+                              className="shrink-0 font-fantasy text-[9px]"
+                              style={{ color: "#7a8a50" }}
+                            >
+                              ✓ Done
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
+
+              <p className="font-fantasy text-[#9a7050] text-[8px] tracking-wider text-center mt-2 opacity-70">
+                Resets at midnight · Central Time
+              </p>
             </div>
           </div>
         </div>
@@ -290,7 +468,7 @@ const SPARK_COLORS = ["#f0c040", "#ffd966", "#ffe599", "#f0c040", "#ffcc00", "#f
 
 // ── Individual nav icon button ────────────────────────────────────────────────
 function NavButton({
-  icon, label, isOpen, delay, translateX, translateY, fillIcon = false, onClick,
+  icon, label, isOpen, delay, translateX, translateY, fillIcon = false, badge = null, onClick,
 }: {
   icon: string;
   label: string;
@@ -299,6 +477,7 @@ function NavButton({
   translateX: number;
   translateY: number;
   fillIcon?: boolean;
+  badge?: "green" | "gold" | null;
   onClick: () => void;
 }) {
   const [sparks, setSparks] = useState<number[]>([]);
@@ -346,9 +525,37 @@ function NavButton({
         />
       </span>
 
-      {/* Icon label — sits above the icon so the fanned-out column reads
-          like a labelled menu instead of stacking each label under the
-          next icon up. */}
+      {/* Badge indicator on individual icon (visible when nav is open) */}
+      {badge && (
+        <span
+          style={{
+            position: "absolute",
+            top: -3,
+            right: -3,
+            width: 14,
+            height: 14,
+            borderRadius: "50%",
+            background: badge === "green"
+              ? "linear-gradient(135deg, #16a34a, #22c55e)"
+              : "linear-gradient(135deg, #b45309, #f0c040)",
+            border: "1.5px solid rgba(0,0,0,0.85)",
+            fontSize: 9,
+            fontWeight: "bold",
+            color: badge === "green" ? "#fff" : "#1a0a00",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: badge === "green"
+              ? "0 0 6px rgba(34,197,94,0.9)"
+              : "0 0 6px rgba(240,192,64,0.9)",
+            zIndex: 200,
+            pointerEvents: "none",
+            fontFamily: "'Cinzel', serif",
+          }}
+        >!</span>
+      )}
+
+      {/* Icon label */}
       <span style={{
         position: "absolute",
         top: -12,

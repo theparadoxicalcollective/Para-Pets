@@ -904,3 +904,33 @@ export const playerDailyLoginClaims = pgTable("player_daily_login_claims", {
   dayNumber: integer("day_number").notNull(),
   claimedAt: timestamp("claimed_at").notNull().default(sql`now()`),
 });
+
+export const dailyQuests = pgTable("daily_quests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  questKey: text("quest_key").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  targetCount: integer("target_count").notNull().default(1),
+  coinReward: integer("coin_reward").notNull().default(0),
+  rewardItemId: varchar("reward_item_id"),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+export const userDailyQuestProgress = pgTable("user_daily_quest_progress", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  questKey: text("quest_key").notNull(),
+  questDate: text("quest_date").notNull(),
+  progress: integer("progress").notNull().default(0),
+  completed: boolean("completed").notNull().default(false),
+  rewardClaimed: boolean("reward_claimed").notNull().default(false),
+});
+
+export const userQuestLogState = pgTable("user_quest_log_state", {
+  userId: varchar("user_id").primaryKey(),
+  lastOpenedDate: text("last_opened_date"),
+  hasUnseenCompletion: boolean("has_unseen_completion").notNull().default(false),
+});
+
+export type DailyQuest = typeof dailyQuests.$inferSelect;
+export type UserDailyQuestProgress = typeof userDailyQuestProgress.$inferSelect;

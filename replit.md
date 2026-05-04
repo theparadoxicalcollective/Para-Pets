@@ -67,6 +67,14 @@ The application is built as a monolithic web app with a clear separation of conc
 - **Reward System**: Admin-created bundles with coins and items, delivered to users via an in-game notification system.
 - **Daily Login Rewards**: 7-day rotating reward bar on the Para Pets Hub page. Players claim one reward per day (in order, once every 24 hrs); rewards restart from Day 1 after completing the 7-day cycle. Admin users see an Edit button to configure each day's coin amount and items via a tabbed item-picker modal. Tables: `daily_login_rewards`, `daily_login_reward_items`, `player_daily_login_claims` (Railway-compatible `CREATE TABLE IF NOT EXISTS` in server/index.ts).
 - **Gift System**: Players can send coins or inventory items to friends via a SendGiftModal (opened from FriendProfileModal). Pending gifts appear as a pulsing green `!` button on the recipient's Pet House page at an admin-configurable position (draggable in the BundleBgEditor). Accepting opens GiftClaimModal which credits coins/items to the recipient. Database table: `gifts`; API routes: `POST /api/gifts/send`, `GET /api/gifts/pending`, `POST /api/gifts/:id/accept`.
+- **Daily Quest System** (completed):
+  - Three daily quests auto-seeded on first boot: "Feed Active Pet" (10×), "Gone Fishing" (5×), "Daily Hub Rewards" (1×).
+  - Progress tracked per user per quest per day (Central Time, resets at midnight). Tables: `daily_quests`, `user_daily_quest_progress`, `user_quest_log_state`.
+  - Progress hooks: feeding a pet increments `feed_pet`, catching a fish increments `catch_fish`, claiming daily hub rewards increments `daily_hub`. All hooks are fire-and-forget (`.catch(() => {})`) so quest bugs never break core gameplay.
+  - **FloatingNav badge**: Green `!` on the main nav button when the player hasn't opened the quest scroll today; Gold `!` after completing a quest without re-opening the scroll. Badge also appears on the Quest icon when the nav is fanned open.
+  - **Quest scroll** (parchment overlay): shows each quest's title, description, progress bar, and a "Claim!" button when complete. Rewards (coins + optional item) are granted server-side via `POST /api/quests/daily/claim/:questKey`. Opening the scroll marks all quests as seen (clears both badges).
+  - **Admin quest panel** (AdminPage → Quests section): shows all 3 quest cards with coin-reward input and item-reward dropdown (populated from shop items). Changes saved via `PATCH /api/admin/daily-quests/:questKey`.
+  - API routes: `GET /api/quests/daily`, `POST /api/quests/daily/seen`, `POST /api/quests/daily/claim/:questKey`, `GET /api/admin/daily-quests`, `PATCH /api/admin/daily-quests/:questKey`.
 
 ### Feature Specifications
 - **User Management**: User registration, login, profile updates, and admin-managed banning/unbanning.

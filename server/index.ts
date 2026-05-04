@@ -663,6 +663,56 @@ app.use((req, res, next) => {
 
   try {
     await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS daily_quests (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        quest_key text NOT NULL UNIQUE,
+        title text NOT NULL,
+        description text NOT NULL,
+        target_count integer NOT NULL DEFAULT 1,
+        coin_reward integer NOT NULL DEFAULT 0,
+        reward_item_id varchar,
+        is_active boolean NOT NULL DEFAULT true
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS user_daily_quest_progress (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL,
+        quest_key text NOT NULL,
+        quest_date text NOT NULL,
+        progress integer NOT NULL DEFAULT 0,
+        completed boolean NOT NULL DEFAULT false,
+        reward_claimed boolean NOT NULL DEFAULT false,
+        UNIQUE(user_id, quest_key, quest_date)
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS user_quest_log_state (
+        user_id varchar PRIMARY KEY,
+        last_opened_date text,
+        has_unseen_completion boolean NOT NULL DEFAULT false
+      )
+    `);
+    // Seed default quests
+    const defaultQuests = [
+      { key: "feed_pet",   title: "Feed Active Pet",         desc: "Feed your active pet 10 times",           target: 10 },
+      { key: "catch_fish", title: "Gone Fishing",            desc: "Catch 5 fish",                            target: 5  },
+      { key: "daily_hub",  title: "Daily Hub Rewards",       desc: "Collect your Daily Hub Page rewards",     target: 1  },
+    ];
+    for (const q of defaultQuests) {
+      await db.execute(sql`
+        INSERT INTO daily_quests (quest_key, title, description, target_count)
+        VALUES (${q.key}, ${q.title}, ${q.desc}, ${q.target})
+        ON CONFLICT (quest_key) DO NOTHING
+      `);
+    }
+    console.log("daily_quests tables ready.");
+  } catch (err) {
+    console.error("daily_quests setup error (non-fatal):", err);
+  }
+
+  try {
+    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS world_chat_messages (
         id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id varchar NOT NULL,
