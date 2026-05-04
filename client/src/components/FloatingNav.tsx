@@ -139,14 +139,15 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     },
   });
 
-  // Badge logic: green = not opened today, gold = completed since last open
+  // Badge logic: green = not opened today, gold = any quest complete but unclaimed
   const today        = questData?.today ?? "";
   const lastOpened   = questData?.lastOpenedDate ?? null;
+  const hasCompletedUnclaimed = questData?.quests.some(q => q.completed && !q.reward_claimed) ?? false;
   const questBadge: "green" | "gold" | null = !questData
     ? null
     : lastOpened !== today
     ? "green"
-    : questData.hasUnseenCompletion
+    : hasCompletedUnclaimed
     ? "gold"
     : null;
 
@@ -320,8 +321,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
               <div className="flex-1 overflow-y-auto space-y-2.5" style={{ scrollbarWidth: "none" }}>
                 {!questData || questData.quests.length === 0 ? (
-                  <div className="rounded p-2.5" style={{ background: "rgba(92,58,30,0.07)", border: "1px dashed rgba(139,90,40,0.25)" }}>
-                    <p className="font-fantasy text-[#6b3e1a] text-[10px] tracking-wider leading-relaxed">No active quests. Explore the realm to discover adventures...</p>
+                  <div className="rounded p-2.5" style={{ background: "rgba(92,58,30,0.07)", border: "1px solid rgba(139,90,40,0.3)" }}>
+                    <p className="font-fantasy text-[#3a1800] text-[10px] tracking-wider leading-relaxed">No active quests. Explore the realm to discover adventures...</p>
                   </div>
                 ) : (
                   questData.quests.map((quest) => {
@@ -336,19 +337,19 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                         className="rounded-md p-2"
                         style={{
                           background: isClaimed
-                            ? "rgba(92,58,30,0.05)"
+                            ? "rgba(92,58,30,0.06)"
                             : isDone
-                            ? "rgba(100,70,20,0.15)"
-                            : "rgba(92,58,30,0.08)",
+                            ? "rgba(120,80,10,0.18)"
+                            : "rgba(92,58,30,0.1)",
                           border: isClaimed
-                            ? "1px dashed rgba(139,90,40,0.2)"
+                            ? "1px solid rgba(139,90,40,0.22)"
                             : isDone
-                            ? "1px solid rgba(212,160,23,0.5)"
-                            : "1px dashed rgba(139,90,40,0.3)",
+                            ? "1px solid rgba(212,160,23,0.55)"
+                            : "1px solid rgba(139,90,40,0.35)",
                         }}
                       >
-                        <p className="font-fantasy text-[#4a2a0e] text-[10px] font-bold mb-0.5 leading-tight">{quest.title}</p>
-                        <p className="font-fantasy text-[#7a4e28] text-[9px] tracking-wide leading-snug mb-1.5">{quest.description}</p>
+                        <p className="font-fantasy text-[#2a1000] text-[10px] font-bold mb-0.5 leading-tight">{quest.title}</p>
+                        <p className="font-fantasy text-[#5a2e0a] text-[9px] tracking-wide leading-snug mb-1.5">{quest.description}</p>
 
                         {/* Progress bar */}
                         <div
@@ -367,10 +368,10 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                         </div>
 
                         <div className="flex items-center justify-between gap-1">
-                          <span className="font-fantasy text-[#8b5a28] text-[8.5px] leading-tight">
+                          <span className="font-fantasy text-[#6a3a10] text-[8.5px] leading-tight">
                             {quest.progress}/{quest.target_count}
                             {hasReward && (
-                              <span style={{ color: "#6b4820" }}>
+                              <span style={{ color: "#4a2808" }}>
                                 {quest.coin_reward > 0 && <> · {quest.coin_reward}<img src={coinIconImg} alt="coins" style={{ width: 10, height: 10, objectFit: "contain", display: "inline-block", verticalAlign: "middle", marginLeft: 2 }} /></>}
                                 {quest.reward_item_name && ` · ${quest.reward_item_name}`}
                               </span>
@@ -409,7 +410,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                 )}
               </div>
 
-              <p className="font-fantasy text-[#9a7050] text-[8px] tracking-wider text-center mt-2 opacity-70">
+              <p className="font-fantasy text-[#6a3a10] text-[8px] tracking-wider text-center mt-2 opacity-90">
                 Resets at midnight · Central Time
               </p>
             </div>
