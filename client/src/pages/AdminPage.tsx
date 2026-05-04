@@ -8,7 +8,7 @@ import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
 import PetDatabasePanel from "@/components/PetDatabasePanel";
-import ItemDatabaseSection, { ShopItemFull, ItemPickerModal, getItemEffectText } from "@/components/ItemDatabaseSection";
+import ItemDatabaseSection, { ShopItemFull, ItemPickerModal, getItemEffectText, getItemCategory, ITEM_CATEGORIES } from "@/components/ItemDatabaseSection";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import FishingAdminPanel from "@/components/FishingAdminPanel";
 import EnemyDatabasePanel from "@/components/EnemyDatabasePanel";
@@ -3001,6 +3001,160 @@ interface AdminEmblem {
   createdAt: string;
 }
 
+// ── Quest Item Picker ──────────────────────────────────────────────────────────
+function QuestItemPicker({
+  items, value, isOpen, onToggle, onChange,
+}: {
+  items: ShopItemFull[];
+  value: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  onChange: (id: string) => void;
+}) {
+  const [tab, setTab] = useState<string>("all");
+  const selectedItem = items.find(i => i.id === value) ?? null;
+
+  const activeCats = ITEM_CATEGORIES.filter(cat =>
+    items.some(i => getItemCategory(i) === cat.key)
+  );
+  const filtered = tab === "all" ? items : items.filter(i => getItemCategory(i) === tab);
+
+  return (
+    <div className="relative flex-1">
+      {/* Trigger */}
+      <button
+        data-testid="button-quest-item-picker-toggle"
+        onClick={onToggle}
+        className="w-full flex items-center gap-2 rounded px-2 py-1.5 text-left transition-colors"
+        style={{
+          background: "rgba(0,0,0,0.4)",
+          border: `1px solid ${isOpen ? "rgba(110,231,183,0.6)" : "rgba(110,231,183,0.3)"}`,
+          color: "#e0f8ec",
+          minHeight: 34,
+        }}
+      >
+        {selectedItem ? (
+          <>
+            {selectedItem.imageUrl
+              ? <img src={selectedItem.imageUrl} alt="" style={{ width: 22, height: 22, objectFit: "contain", borderRadius: 3, flexShrink: 0 }} />
+              : <div style={{ width: 22, height: 22, borderRadius: 3, background: "rgba(110,231,183,0.1)", flexShrink: 0 }} />
+            }
+            <span className="text-[11px] truncate flex-1">{selectedItem.name}</span>
+          </>
+        ) : (
+          <span className="text-[11px] opacity-50 flex-1">— None —</span>
+        )}
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, opacity: 0.6, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+          <path d="M2 3.5L5 6.5L8 3.5" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {/* Dropdown */}
+      {isOpen && (
+        <>
+          {/* Click-outside backdrop */}
+          <div className="fixed inset-0 z-40" onClick={onToggle} />
+          <div
+            className="absolute left-0 right-0 z-50 rounded-lg overflow-hidden"
+            style={{
+              top: "calc(100% + 4px)",
+              background: "rgba(5,30,20,0.98)",
+              border: "1px solid rgba(110,231,183,0.35)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+            }}
+          >
+            {/* Type tabs */}
+            <div
+              className="flex gap-1 p-2 overflow-x-auto"
+              style={{ borderBottom: "1px solid rgba(110,231,183,0.15)", scrollbarWidth: "none" }}
+            >
+              <button
+                onClick={() => setTab("all")}
+                className="px-2 py-0.5 rounded text-[9px] font-fantasy tracking-wider shrink-0 transition-colors"
+                style={{
+                  background: tab === "all" ? "rgba(110,231,183,0.25)" : "transparent",
+                  border: `1px solid ${tab === "all" ? "rgba(110,231,183,0.5)" : "rgba(110,231,183,0.15)"}`,
+                  color: tab === "all" ? "#6ee7b7" : "rgba(110,231,183,0.5)",
+                }}
+              >
+                All
+              </button>
+              {activeCats.map(cat => (
+                <button
+                  key={cat.key}
+                  onClick={() => setTab(cat.key)}
+                  className="px-2 py-0.5 rounded text-[9px] font-fantasy tracking-wider shrink-0 transition-colors"
+                  style={{
+                    background: tab === cat.key ? `${cat.color}22` : "transparent",
+                    border: `1px solid ${tab === cat.key ? `${cat.color}66` : "rgba(110,231,183,0.15)"}`,
+                    color: tab === cat.key ? cat.color : "rgba(110,231,183,0.5)",
+                  }}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Item grid */}
+            <div className="overflow-y-auto p-2" style={{ maxHeight: 220, scrollbarWidth: "thin" }}>
+              {/* None option */}
+              <button
+                onClick={() => onChange("")}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded mb-1 text-left transition-colors"
+                style={{
+                  background: !value ? "rgba(110,231,183,0.15)" : "transparent",
+                  border: `1px solid ${!value ? "rgba(110,231,183,0.4)" : "transparent"}`,
+                }}
+              >
+                <div style={{ width: 28, height: 28, borderRadius: 4, background: "rgba(110,231,183,0.08)", border: "1px dashed rgba(110,231,183,0.2)", flexShrink: 0 }} />
+                <span className="text-[10px]" style={{ color: "rgba(110,231,183,0.6)" }}>— None —</span>
+              </button>
+
+              <div className="grid grid-cols-1 gap-0.5">
+                {filtered.map(item => {
+                  const isSelected = item.id === value;
+                  return (
+                    <button
+                      key={item.id}
+                      data-testid={`button-quest-item-option-${item.id}`}
+                      onClick={() => onChange(item.id)}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded text-left transition-colors"
+                      style={{
+                        background: isSelected ? "rgba(110,231,183,0.18)" : "transparent",
+                        border: `1px solid ${isSelected ? "rgba(110,231,183,0.45)" : "transparent"}`,
+                      }}
+                    >
+                      {item.imageUrl
+                        ? <img src={item.imageUrl} alt="" style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 4, flexShrink: 0, background: "rgba(0,0,0,0.3)" }} />
+                        : <div style={{ width: 28, height: 28, borderRadius: 4, background: "rgba(110,231,183,0.08)", flexShrink: 0 }} />
+                      }
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[10px] truncate" style={{ color: isSelected ? "#6ee7b7" : "#c0e8d0" }}>{item.name}</span>
+                        <span className="text-[8.5px] truncate" style={{ color: "rgba(110,231,183,0.45)" }}>
+                          {getItemCategory(item).replace("_", " ")}
+                        </span>
+                      </div>
+                      {isSelected && (
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="ml-auto shrink-0">
+                          <path d="M2 5L4 7L8 3" stroke="#6ee7b7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {filtered.length === 0 && (
+                <p className="text-center text-[10px] py-4" style={{ color: "rgba(110,231,183,0.35)" }}>No items in this category</p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Quest Admin Section ────────────────────────────────────────────────────────
 interface AdminDailyQuest {
   id: string;
@@ -3028,6 +3182,7 @@ function QuestAdminSection() {
   });
 
   const [localEdits, setLocalEdits] = useState<Record<string, { coinReward: string; rewardItemId: string }>>({});
+  const [openPickerKey, setOpenPickerKey] = useState<string | null>(null);
 
   const saveMutation = useMutation({
     mutationFn: async ({ questKey, coinReward, rewardItemId }: { questKey: string; coinReward: number; rewardItemId: string | null }) => {
@@ -3116,25 +3271,18 @@ function QuestAdminSection() {
             </div>
 
             {/* Item reward */}
-            <div className="flex items-center gap-3">
-              <label className="text-[#8ac8a0] text-[11px] tracking-wider w-24 shrink-0">Item Reward</label>
-              <select
-                data-testid={`select-quest-item-${quest.quest_key}`}
+            <div className="flex items-start gap-3">
+              <label className="text-[#8ac8a0] text-[11px] tracking-wider w-24 shrink-0 pt-1.5">Item Reward</label>
+              <QuestItemPicker
+                items={allItems}
                 value={edit.rewardItemId}
-                onChange={e => setField(quest.quest_key, "rewardItemId", e.target.value)}
-                className="flex-1 rounded px-2 py-1 text-[11px]"
-                style={{
-                  background: "rgba(0,0,0,0.4)",
-                  border: "1px solid rgba(110,231,183,0.3)",
-                  color: "#e0f8ec",
-                  outline: "none",
+                isOpen={openPickerKey === quest.quest_key}
+                onToggle={() => setOpenPickerKey(prev => prev === quest.quest_key ? null : quest.quest_key)}
+                onChange={val => {
+                  setField(quest.quest_key, "rewardItemId", val);
+                  setOpenPickerKey(null);
                 }}
-              >
-                <option value="">— None —</option>
-                {allItems.map(item => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
-                ))}
-              </select>
+              />
             </div>
 
             {/* Save button */}
