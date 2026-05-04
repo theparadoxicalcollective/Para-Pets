@@ -523,19 +523,14 @@ const ANIMATION_STYLES = `
     to   { transform: rotate(-2deg); }
   }
   /* Body breathing — alternates between rest and inhale peak.
-     Tuned to scale(1.024, 1.046): just enough Y-stretch that the
-     breath is visible on small-body pets like The Paradox (whose
-     visible body is only ~25% of the canvas, so a too-small scale
-     made the breathing imperceptible) without the torso visibly
-     outgrowing the head bob on big-body pets. This shape pairs
-     with the per-pet head-bob formula below (factor 4.6 = 100×
-     the Y-scale delta of 0.046, no lead): head bob is now ALWAYS
-     ≤ body's actual top rise, guaranteeing the head can't visibly
-     fly above the body silhouette at peak inhale regardless of
-     pet size. */
+     Halved from scale(1.024, 1.046) to scale(1.012, 1.022) so the
+     breath reads as a gentle rise rather than an obvious swell.
+     The head-bob formula factor is updated to match (2.2 = 100×
+     the new Y-scale delta of 0.022) so the head still leads the
+     body top by a consistent ~0 % (no overshoot guarantee holds). */
   @keyframes petIdleBody {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.024, 1.046); }
+    to   { transform: scale(1.012, 1.022); }
   }
   /* Wings — flap motion. The wings travel UP together (matched
      translateY) on the up-stroke and DOWN together on the down-stroke,
@@ -1567,13 +1562,13 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // the body" perception that big front-facing pets (Black Forest Dragon,
   // Seer Rabbit) showed at the previous +0.6 % lead.
   //
-  //   bodyTopRise % = (visibleBodyHeight / CANVAS_SIZE) × 4.6
-  //                   ── because petIdleBody scales scale(1, 1.046) at feet,
-  //                      so the body's top edge rises by 4.6 % × the visible
+  //   bodyTopRise % = (visibleBodyHeight / CANVAS_SIZE) × 2.2
+  //                   ── because petIdleBody scales scale(1, 1.022) at feet,
+  //                      so the body's top edge rises by 2.2 % × the visible
   //                      body's fraction of the canvas
   //   headBobPct    = bodyTopRisePct           (no lead — head matches body)
-  //   clamp         = [1.0 %, 2.4 %]   (lower than body's max rise of
-  //                                     ~4.6 % so head NEVER overshoots
+  //   clamp         = [0.5 %, 1.2 %]   (lower than body's max rise of
+  //                                     ~2.2 % so head NEVER overshoots
   //                                     the body's top; min keeps bob
   //                                     barely visible on tiny-body pets)
   //
@@ -1602,9 +1597,9 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       const originYFrac = bodyAb.top + bodyAb.height * bpyFrac;
       topRiseFraction = Math.max(0, Math.min(1, originYFrac));
     }
-    const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 4.6 * topRiseFraction;
-    const minBob = canFly ? 0.5 : 1.0;
-    const clamped = Math.min(2.4, Math.max(minBob, bodyTopRisePct));
+    const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 2.2 * topRiseFraction;
+    const minBob = canFly ? 0.25 : 0.5;
+    const clamped = Math.min(1.2, Math.max(minBob, bodyTopRisePct));
     headBobCssPct = `-${clamped.toFixed(2)}%`;
   }
 

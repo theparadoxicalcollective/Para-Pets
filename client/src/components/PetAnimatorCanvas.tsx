@@ -138,17 +138,13 @@ interface AnimResult {
 // Body breath helper — used by every part that the img-renderer maps
 // to `petIdleBody`: body itself, all four shoulder variants, back_arm
 // (side-facing), and front/back accessories. Same 4.5 s period and
-// ±2.4 % / ±4.6 % asymmetric scale as the body so the whole "back of
-// the pet" group inhales/exhales as one unit. Mirrors PetAnimator.tsx
-// IDLE_ANIMATIONS where these parts all share petIdleBody.
-//
-// Amplitudes pair with the per-pet head-bob formula (see headBobAmpRef
-// in PetAnimatorCanvasInner) — the head bob is now ALWAYS clamped to
-// be ≤ the body's actual top rise, so the head can only sink slightly
-// into the body silhouette at peak inhale, never fly above it.
+// ±1.2 % / ±2.2 % asymmetric scale as the body so the whole "back of
+// the pet" group inhales/exhales as one unit. Halved from the previous
+// ±2.4 % / ±4.6 % so the torso reads as gentle breathing rather than
+// an obvious swell. Mirrors PetAnimator.tsx IDLE_ANIMATIONS.
 function bodyBreath(sec: number): AnimResult {
   const w = (1 + sinWave(sec, 4.5)) * 0.5; // 0..1 sine
-  return { op: 1, rot: 0, sx: 1 + w * 0.024, sy: 1 + w * 0.046 };
+  return { op: 1, rot: 0, sx: 1 + w * 0.012, sy: 1 + w * 0.022 };
 }
 
 function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
@@ -509,8 +505,8 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
       //   ampLogical    = clamped × 4          (the % → logical-px factor)
       const bodyAb = getAlphaBoundsSync(bodyPart.imageUrl) ?? FULL_BOUNDS;
       const visibleBodyHeight = bodyPart.height * bodyAb.height;
-      const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 4.6;
-      const clamped = Math.min(2.4, Math.max(1.0, bodyTopRisePct));
+      const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 2.2;
+      const clamped = Math.min(1.2, Math.max(0.5, bodyTopRisePct));
       headBobAmpRef.current = clamped * 4;
     };
     recomputeBodyDerived();
