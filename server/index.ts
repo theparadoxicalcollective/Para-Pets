@@ -693,11 +693,15 @@ app.use((req, res, next) => {
         has_unseen_completion boolean NOT NULL DEFAULT false
       )
     `);
+    // Remove deprecated daily_hub quest if it still exists
+    await db.execute(sql`DELETE FROM user_daily_quest_progress WHERE quest_key = 'daily_hub'`);
+    await db.execute(sql`DELETE FROM daily_quests WHERE quest_key = 'daily_hub'`);
+
     // Seed default quests
     const defaultQuests = [
       { key: "feed_pet",   title: "Feed Active Pet",         desc: "Feed your active pet 10 times",           target: 10 },
       { key: "catch_fish", title: "Gone Fishing",            desc: "Catch 5 fish",                            target: 5  },
-      { key: "daily_hub",  title: "Daily Hub Rewards",       desc: "Collect your Daily Hub Page rewards",     target: 1  },
+      { key: "use_powerup", title: "Power Up Your Pet",        desc: "Use a power-up on a pet 3 times",         target: 3  },
     ];
     for (const q of defaultQuests) {
       await db.execute(sql`

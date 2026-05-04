@@ -2021,6 +2021,9 @@ export async function registerRoutes(
       const updatedPet = await storage.updateInventoryItem(petInv.id, updates);
       await storage.removeFromInventory(itemInv.id);
 
+      // Quest progress: use_powerup
+      incrementQuestProgress(user.id, "use_powerup").catch(() => {});
+
       return res.json(updatedPet);
     } catch (err) {
       console.error("Power up error:", err);
@@ -7546,8 +7549,6 @@ export async function registerRoutes(
       if (!result.ok) {
         return res.status(400).json({ message: "Already claimed. Come back in 24 hours!" });
       }
-      // Quest progress: daily_hub
-      incrementQuestProgress(user.id, "daily_hub").catch(() => {});
       return res.json({
         coinAmount: DAILY_REWARD_COINS,
         pvpTickets: DAILY_REWARD_TICKETS,
