@@ -731,25 +731,8 @@ function SignInModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 // Main page
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ParaPetsHubPage() {
-  const [showSignIn, setShowSignIn]               = useState(false);
-  const [showHomescreen, setShowHomescreen]       = useState(false);
-  const { toast }                                 = useToast();
-  const worldsRef                                 = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = worldsRef.current;
-    if (!el) return;
-    const CARD_STEP = 130 + 12;
-    const timer = setInterval(() => {
-      const maxScroll = el.scrollWidth - el.clientWidth;
-      if (el.scrollLeft >= maxScroll - 8) {
-        el.scrollTo({ left: 0, behavior: "smooth" });
-      } else {
-        el.scrollTo({ left: el.scrollLeft + CARD_STEP, behavior: "smooth" });
-      }
-    }, 3000);
-    return () => clearInterval(timer);
-  }, []);
+  const [showSignIn, setShowSignIn] = useState(false);
+  const { toast }                   = useToast();
 
   const { data: user } = useQuery<any>({ queryKey: ["/api/auth/me"], retry: false });
 
@@ -854,109 +837,11 @@ export default function ParaPetsHubPage() {
         {/* ── Main content ─────────────────────────────────────────────────── */}
         <main className="relative max-w-3xl mx-auto px-5 py-8 pb-28" data-testid="hub-main" style={{ zIndex: 1 }}>
 
-          {/* Guest CTA — shown above daily rewards when not logged in */}
-          {!user && (
-            <div className="rounded-3xl p-6 mb-4 text-center"
-              style={{
-                background: "linear-gradient(135deg,rgba(10,20,16,0.9),rgba(6,14,10,0.9))",
-                border: "1px solid rgba(127,191,176,0.15)",
-                boxShadow: "0 0 40px rgba(34,211,238,0.04), inset 0 1px 0 rgba(127,191,176,0.07)",
-              }}
-              data-testid="hub-cta-section">
-              <div className="flex items-center justify-center gap-4 mb-4">
-                <img src={eggsImg} alt="Magical eggs" className="w-20 h-20 object-contain"
-                  style={{ filter: "drop-shadow(0 0 14px rgba(127,191,176,0.4))" }} />
-              </div>
-              <p className="font-fantasy text-sm tracking-wide mb-1" style={{ color: "#7fbfb0" }}>
-                Begin your adventure
-              </p>
-              <p className="font-fantasy text-[11px] mb-5" style={{ color: "#2a5040" }}>
-                Hatch magical pets, explore enchanted worlds, and grow your collection
-              </p>
-              <div className="flex items-center justify-center gap-3 flex-wrap">
-                <Link href="/auth?mode=register" data-testid="link-create-account-cta"
-                  className="font-fantasy text-xs tracking-widest rounded-2xl px-6 py-3 transition-all active:scale-95"
-                  style={{ background: "linear-gradient(135deg,#7fbfb0 0%,#1a9b70 100%)", color: "#060a10",
-                    boxShadow: "0 0 18px rgba(127,191,176,0.28)" }}>
-                  Create Account
-                </Link>
-                <button data-testid="button-cta-signin" onClick={() => setShowSignIn(true)}
-                  className="font-fantasy text-xs tracking-widest rounded-2xl px-6 py-3 transition-all active:scale-95"
-                  style={{ border: "1px solid rgba(127,191,176,0.22)", color: "#7fbfb0", background: "rgba(127,191,176,0.05)" }}>
-                  Sign In
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Daily Reward — below guest CTA when logged out */}
+          {/* Daily Reward */}
           <DailyClaimCard
             user={user}
             onSignInRequest={() => setShowSignIn(true)}
           />
-
-          {/* Feature pills */}
-          <div className="grid grid-cols-3 gap-3 mb-2">
-            {[
-              { img: eggsImg,     label: "Hatch Pets",     desc: "Discover rare creatures" },
-              { img: iconMap,     label: "Explore Worlds", desc: "Enchanted realms await" },
-              { img: iconBadges,  label: "Earn Badges",    desc: "Climb the legend board" },
-            ].map(f => (
-              <div key={f.label} data-testid={`feature-card-${f.label.replace(" ", "-").toLowerCase()}`}
-                className="rounded-2xl p-3 flex flex-col items-center gap-1.5 text-center"
-                style={{ background: "rgba(8,14,10,0.75)", border: "1px solid rgba(127,191,176,0.09)" }}>
-                <img src={f.img} alt={f.label} className="w-10 h-10 object-contain"
-                  style={{ filter: "drop-shadow(0 0 6px rgba(127,191,176,0.35))" }} />
-                <p className="font-fantasy text-[11px] tracking-wide" style={{ color: "#7fbfb0" }}>{f.label}</p>
-                <p className="font-fantasy text-[9px] leading-tight" style={{ color: "#2a4a38" }}>{f.desc}</p>
-              </div>
-            ))}
-          </div>
-
-          <RuneDivider />
-
-          {/* Worlds showcase */}
-          <div className="mb-2">
-            <h2 className="font-fantasy text-center text-sm tracking-widest mb-4"
-              style={{ color: "#7fbfb0", textShadow: "0 0 12px rgba(127,191,176,0.3)" }}>
-              Explore the Realm
-            </h2>
-            <div
-              ref={worldsRef}
-              className="flex gap-3 overflow-x-auto pb-2"
-              style={{ scrollbarWidth: "none", msOverflowStyle: "none", touchAction: "pan-x" }}
-              data-testid="worlds-showcase"
-            >
-              {WORLDS.map(w => (
-                <div key={w.name} className="flex-shrink-0 relative rounded-2xl overflow-hidden"
-                  style={{
-                    width: 130, height: 90,
-                    border: `1px solid ${w.color}44`,
-                    boxShadow: `0 0 16px ${w.color}22`,
-                  }}
-                  data-testid={`world-card-${w.name.replace(" ", "-").toLowerCase()}`}>
-                  <img src={w.img} alt={w.name} className="w-full h-full object-cover"
-                    style={{ filter: "brightness(0.7) saturate(1.2)" }} />
-                  <div className="absolute inset-0"
-                    style={{ background: `linear-gradient(to top,rgba(4,8,6,0.9) 0%,transparent 55%)` }} />
-                  <p className="absolute bottom-2 left-0 right-0 text-center font-fantasy text-[9px] tracking-wide px-1"
-                    style={{ color: "#c8d8b0", textShadow: "0 1px 4px rgba(0,0,0,0.9)" }}>
-                    {w.name}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-          </div>
-
-          <RuneDivider />
-
-          <GameplayShowcase />
-
-          <RuneDivider />
-
-          {/* ── Egg showcase ─────────────────────────────────────────────── */}
-          <EggShowcase />
 
           {/* ── Founders gateway ──────────────────────────────────────────── */}
           <RuneDivider />
@@ -1102,56 +987,10 @@ export default function ParaPetsHubPage() {
             </>
           )}
 
-          {/* ── Add to Home Screen footer CTA ──────────────────────────────── */}
-          <RuneDivider />
-          <div
-            data-testid="hub-homescreen-cta"
-            className="rounded-3xl px-6 py-8 flex flex-col items-center text-center"
-            style={{
-              background: "linear-gradient(135deg,rgba(8,16,12,0.95),rgba(6,12,10,0.95))",
-              border: "1px solid rgba(127,191,176,0.12)",
-              boxShadow: "0 0 50px rgba(127,191,176,0.04), inset 0 1px 0 rgba(127,191,176,0.07)",
-            }}
-          >
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <img src={hsPhone} alt="" className="w-10 h-10 object-contain"
-                style={{ filter: "drop-shadow(0 0 10px rgba(127,191,176,0.55))" }} />
-              <img src={hsBrowser} alt="" className="w-10 h-10 object-contain opacity-40"
-                style={{ filter: "drop-shadow(0 0 6px rgba(127,191,176,0.25))" }} />
-            </div>
-
-            <h2 className="font-fantasy text-base tracking-widest mb-1"
-              style={{ color: "#7fbfb0", textShadow: "0 0 14px rgba(127,191,176,0.35)" }}>
-              Play Anywhere, Anytime
-            </h2>
-            <p className="font-fantasy text-[10px] mb-6" style={{ color: "#2a5040" }}>
-              Add Para Pets to your home screen for instant one-tap access
-            </p>
-
-            <button
-              data-testid="button-add-to-homescreen"
-              onClick={() => setShowHomescreen(true)}
-              className="flex items-center gap-2 rounded-2xl px-6 py-3 font-fantasy text-xs tracking-widest transition-all active:scale-95"
-              style={{
-                background: "linear-gradient(135deg,rgba(127,191,176,0.12),rgba(26,155,112,0.1))",
-                border: "1px solid rgba(127,191,176,0.28)",
-                color: "#7fbfb0",
-                boxShadow: "0 0 20px rgba(127,191,176,0.1)",
-              }}
-            >
-              <img src={hsPhone} alt="" className="w-4 h-4 object-contain"
-                style={{ filter: "drop-shadow(0 0 5px rgba(127,191,176,0.6))" }} />
-              Add to Home Screen
-            </button>
-          </div>
-
         </main>
 
         {showSignIn && (
           <SignInModal onClose={() => setShowSignIn(false)} onSuccess={handleSignInSuccess} />
-        )}
-        {showHomescreen && (
-          <HomeScreenModal onClose={() => setShowHomescreen(false)} />
         )}
       </div>
     </>
