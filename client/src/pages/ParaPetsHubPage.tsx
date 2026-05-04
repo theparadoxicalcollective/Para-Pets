@@ -606,6 +606,210 @@ function EggShowcase() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// About the game section
+// ─────────────────────────────────────────────────────────────────────────────
+function AboutSection() {
+  return (
+    <div className="flex flex-col items-center text-center gap-5" data-testid="section-about">
+      <div>
+        <h2
+          className="font-fantasy text-2xl tracking-widest mb-2"
+          style={{
+            color: "#f0d770",
+            textShadow: "0 0 22px rgba(232,200,88,0.45), 0 2px 10px rgba(0,0,0,0.9)",
+            letterSpacing: "0.18em",
+          }}
+        >
+          Welcome to Para Pets
+        </h2>
+        <p
+          className="font-fantasy text-[11px] tracking-wider leading-relaxed"
+          style={{ color: "rgba(200,220,180,0.75)", maxWidth: 340, margin: "0 auto" }}
+        >
+          A living, breathing magical rainforest realm where rare creatures hatch from ancient eggs,
+          hidden worlds hold untold secrets, and every player writes their own legend.
+        </p>
+      </div>
+
+      {/* Three pillars */}
+      <div className="flex gap-3 w-full">
+        {[
+          { icon: "🥚", label: "Hatch", desc: "Rare eggs from across the realm" },
+          { icon: "🌿", label: "Explore", desc: "8 mystical worlds to discover" },
+          { icon: "⚔️",  label: "Conquer", desc: "Battle, quest & rise to glory" },
+        ].map(p => (
+          <div
+            key={p.label}
+            className="flex-1 flex flex-col items-center gap-1.5 rounded-2xl py-4 px-2"
+            style={{
+              background: "linear-gradient(160deg, rgba(15,35,20,0.88) 0%, rgba(10,28,16,0.92) 100%)",
+              border: "1px solid rgba(127,191,176,0.14)",
+              boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
+            }}
+          >
+            <span style={{ fontSize: 24, lineHeight: 1 }}>{p.icon}</span>
+            <p className="font-fantasy text-[11px] tracking-widest" style={{ color: "#f0d770" }}>
+              {p.label}
+            </p>
+            <p className="font-fantasy text-[9px] leading-relaxed text-center" style={{ color: "rgba(160,200,160,0.6)" }}>
+              {p.desc}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Activity bulletin — what players can do
+// ─────────────────────────────────────────────────────────────────────────────
+const ACTIVITIES = [
+  {
+    icon: "🌿",
+    color: "#4ade80",
+    glow: "rgba(74,222,128,0.22)",
+    title: "Collect",
+    desc: "Hatch & collect over 100 rare fantasy pets from magical eggs found across every world.",
+  },
+  {
+    icon: "🗺️",
+    color: "#60a5fa",
+    glow: "rgba(96,165,250,0.22)",
+    title: "Explore",
+    desc: "Roam 8 living worlds — enchanted groves, haunted woods, volcanic craters & more — each packed with hidden shops and secrets.",
+  },
+  {
+    icon: "💰",
+    color: "#fbbf24",
+    glow: "rgba(251,191,36,0.22)",
+    title: "Buy & Sell",
+    desc: "Haggle in player-run marketplaces, equip accessories, and trade rare finds to build your fortune.",
+  },
+  {
+    icon: "👥",
+    color: "#c084fc",
+    glow: "rgba(192,132,252,0.22)",
+    title: "Add & Visit Friends",
+    desc: "Connect with other tamers, visit their worlds, leave gifts, and see their legendary pets up close.",
+  },
+  {
+    icon: "🐾",
+    color: "#34d399",
+    glow: "rgba(52,211,153,0.22)",
+    title: "Care for Pets",
+    desc: "Feed, train, and level your companions. Give them gifts to earn loyalty and unlock their true potential.",
+  },
+  {
+    icon: "⚔️",
+    color: "#f87171",
+    glow: "rgba(248,113,113,0.22)",
+    title: "PvP Battles",
+    desc: "Enter the Veridia Arena and pit your pets against other tamers in turn-based combat for glory and rewards.",
+  },
+  {
+    icon: "🎮",
+    color: "#38bdf8",
+    glow: "rgba(56,189,248,0.22)",
+    title: "Mini Games & Fishing",
+    desc: "Cast a line in magical fishing spots, reel in rare sea creatures, and top the leaderboards to earn extra coins.",
+  },
+  {
+    icon: "📜",
+    color: "#fb923c",
+    glow: "rgba(251,146,60,0.22)",
+    title: "Quests",
+    desc: "Take on daily and seasonal quests that send you across the realm, earning exclusive items and bragging rights.",
+  },
+  {
+    icon: "🎉",
+    color: "#f472b6",
+    glow: "rgba(244,114,182,0.22)",
+    title: "Events",
+    desc: "Limited-time world events, holiday celebrations, and surprise drops keep the realm alive and ever-changing.",
+  },
+  {
+    icon: "✨",
+    color: "#f0d770",
+    glow: "rgba(240,215,112,0.22)",
+    title: "And So Much More…",
+    desc: "Aquariums, badges, leaderboards, lore, world chat — your adventure is just beginning.",
+  },
+];
+
+function ActivityBulletin() {
+  return (
+    <div data-testid="section-activity-bulletin">
+      <div className="text-center mb-5">
+        <h2
+          className="font-fantasy text-lg tracking-widest mb-1"
+          style={{
+            color: "#7fbfb0",
+            textShadow: "0 0 18px rgba(127,191,176,0.4)",
+            letterSpacing: "0.18em",
+          }}
+        >
+          What Awaits You
+        </h2>
+        <p className="font-fantasy text-[10px]" style={{ color: "rgba(127,191,176,0.45)" }}>
+          A realm full of wonders — dive in
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2.5">
+        {ACTIVITIES.map((a) => (
+          <div
+            key={a.title}
+            className="flex items-start gap-3 rounded-2xl p-3"
+            style={{
+              background: `linear-gradient(135deg, rgba(10,22,14,0.92) 0%, rgba(14,28,18,0.88) 100%)`,
+              border: `1px solid ${a.color}22`,
+              boxShadow: `0 0 12px ${a.glow}, 0 3px 10px rgba(0,0,0,0.35)`,
+            }}
+          >
+            {/* Icon bubble */}
+            <div
+              className="flex-shrink-0 flex items-center justify-center rounded-xl"
+              style={{
+                width: 42, height: 42,
+                background: `radial-gradient(circle at 35% 30%, ${a.color}28 0%, ${a.color}0a 100%)`,
+                border: `1px solid ${a.color}40`,
+                boxShadow: `0 0 10px ${a.glow}`,
+                fontSize: 20,
+              }}
+            >
+              {a.icon}
+            </div>
+
+            {/* Text */}
+            <div className="flex-1 min-w-0 pt-0.5">
+              <p
+                className="font-fantasy text-[12px] tracking-wider mb-0.5"
+                style={{ color: a.color, textShadow: `0 0 8px ${a.glow}` }}
+              >
+                {a.title}
+              </p>
+              <p
+                className="font-fantasy text-[10px] leading-relaxed"
+                style={{ color: "rgba(180,210,190,0.65)" }}
+              >
+                {a.desc}
+              </p>
+            </div>
+
+            {/* Accent line */}
+            <div
+              className="flex-shrink-0 self-stretch w-0.5 rounded-full"
+              style={{ background: `linear-gradient(to bottom, ${a.color}50, transparent)` }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Sign-in modal
 // ─────────────────────────────────────────────────────────────────────────────
 function SignInModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
@@ -837,11 +1041,21 @@ export default function ParaPetsHubPage() {
         {/* ── Main content ─────────────────────────────────────────────────── */}
         <main className="relative max-w-3xl mx-auto px-5 py-8 pb-28" data-testid="hub-main" style={{ zIndex: 1 }}>
 
-          {/* Daily Reward */}
-          <DailyClaimCard
-            user={user}
-            onSignInRequest={() => setShowSignIn(true)}
-          />
+          {/* ── About section ─────────────────────────────────────────────── */}
+          <AboutSection />
+
+          <RuneDivider />
+
+          {/* ── Activity bulletin ─────────────────────────────────────────── */}
+          <ActivityBulletin />
+
+          {/* ── Daily Reward (logged-in only) ─────────────────────────────── */}
+          {user && (
+            <>
+              <RuneDivider />
+              <DailyClaimCard user={user} />
+            </>
+          )}
 
           {/* ── Founders gateway ──────────────────────────────────────────── */}
           <RuneDivider />

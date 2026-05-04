@@ -774,6 +774,12 @@ uri = "file://attached_assets/generated_images/dessert_world_background.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "bJ9ch_D18YhTmDoLkrljz"
+uri = "file://attached_assets/hub_chest_opened.png"
+type = "image"
+title = "opened chest daily reward"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
