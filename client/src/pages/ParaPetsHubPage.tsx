@@ -9,6 +9,8 @@ import heroBanner        from "@assets/hub_hero_banner.png";
 import mascot            from "@assets/Photoroom_20260502_90936_AM_1777731667331.png";
 import runeCircle        from "@assets/hub_rune_circle.png";
 import eggsImg           from "@assets/hub_eggs.png";
+import iconGlobeWorld    from "@assets/icon_globe_world.png";
+import iconCrossedSwords from "@assets/icon_battle_crossed_swords.png";
 import podiumImg         from "@assets/hub_podium.png";
 import rankCrowns        from "@assets/hub_rank_crowns.png";
 import iconBadges        from "@assets/admin_icon_badges.png";
@@ -634,9 +636,9 @@ function AboutSection() {
       {/* Three pillars */}
       <div className="flex gap-3 w-full">
         {[
-          { icon: "🥚", label: "Hatch", desc: "Rare eggs from across the realm" },
-          { icon: "🌿", label: "Explore", desc: "8 mystical worlds to discover" },
-          { icon: "⚔️",  label: "Conquer", desc: "Battle, quest & rise to glory" },
+          { img: eggsImg,           label: "Hatch",   desc: "Rare eggs from across the realm",   glow: "rgba(240,215,112,0.18)" },
+          { img: iconGlobeWorld,    label: "Explore", desc: "8 mystical worlds to discover",     glow: "rgba(127,191,176,0.18)" },
+          { img: iconCrossedSwords, label: "Conquer", desc: "Battle, quest & rise to glory",     glow: "rgba(248,113,113,0.18)" },
         ].map(p => (
           <div
             key={p.label}
@@ -644,10 +646,17 @@ function AboutSection() {
             style={{
               background: "linear-gradient(160deg, rgba(15,35,20,0.88) 0%, rgba(10,28,16,0.92) 100%)",
               border: "1px solid rgba(127,191,176,0.14)",
-              boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
+              boxShadow: `0 4px 14px rgba(0,0,0,0.35), 0 0 10px ${p.glow}`,
             }}
           >
-            <span style={{ fontSize: 24, lineHeight: 1 }}>{p.icon}</span>
+            <img
+              src={p.img}
+              alt={p.label}
+              style={{
+                width: 42, height: 42, objectFit: "contain",
+                filter: `drop-shadow(0 0 6px ${p.glow})`,
+              }}
+            />
             <p className="font-fantasy text-[11px] tracking-widest" style={{ color: "#f0d770" }}>
               {p.label}
             </p>
@@ -1041,6 +1050,14 @@ export default function ParaPetsHubPage() {
         {/* ── Main content ─────────────────────────────────────────────────── */}
         <main className="relative max-w-3xl mx-auto px-5 py-8 pb-28" data-testid="hub-main" style={{ zIndex: 1 }}>
 
+          {/* ── Daily Reward (logged-in only) ─────────────────────────────── */}
+          {user && (
+            <>
+              <DailyClaimCard user={user} />
+              <RuneDivider />
+            </>
+          )}
+
           {/* ── About section ─────────────────────────────────────────────── */}
           <AboutSection />
 
@@ -1048,14 +1065,6 @@ export default function ParaPetsHubPage() {
 
           {/* ── Activity bulletin ─────────────────────────────────────────── */}
           <ActivityBulletin />
-
-          {/* ── Daily Reward (logged-in only) ─────────────────────────────── */}
-          {user && (
-            <>
-              <RuneDivider />
-              <DailyClaimCard user={user} />
-            </>
-          )}
 
           {/* ── Founders gateway ──────────────────────────────────────────── */}
           <RuneDivider />
