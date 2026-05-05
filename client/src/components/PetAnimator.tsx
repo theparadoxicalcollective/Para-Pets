@@ -1049,6 +1049,11 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   // ping-pong smoothly instead of snapping back to the "from" extreme
   // each cycle.
   "petIdleHeadSway", "petIdleHeadSwayAlt",
+  // Arm breath keyframes — scale+rotate from/to motions that MUST alternate
+  // so they ping-pong smoothly instead of snapping back to the "from" extreme.
+  "petIdleLeftArmBreath", "petIdleRightArmBreath", "petIdleFrontArmBreath",
+  // Back hair sway — same 2-keyframe from/to rotation as the tail keyframes.
+  "petIdleBackHair",
 ]);
 
 // Build the CSS `animation` shorthand for a given keyframe name. For the
