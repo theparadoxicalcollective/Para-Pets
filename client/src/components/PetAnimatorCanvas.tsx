@@ -186,16 +186,19 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     case "right_ear_2":
       return { op: 1, rot:  sinWave(sec, 3.1) * 2 * D2R };
 
-    // Front-facing arms now breathe with the body (bodyBreath) so the
-    // shoulder stays glued to the chest during inhale/exhale. Previously
-    // they used an independent ±2° rotation which left the arm stationary
-    // while the body scaled upward — creating a visible gap at the
-    // shoulder. Mirrors the img-renderer's IDLE_ANIMATIONS change where
-    // left_arm/right_arm now map to petIdleBody instead of
-    // petIdleLeftArm/petIdleRightArm.
-    case "left_arm":
-    case "right_arm":
-      return bodyBreath(sec);
+    // Front-facing arms breathe with the body (same scale as bodyBreath)
+    // PLUS a very subtle ±1.5° rotation so the arm reads as alive without
+    // overpowering the calm breathing pose. The rotation peaks exactly when
+    // the body is fully inhaled (shared 4.5 s period). Mirrors the new
+    // petIdleLeftArmBreath / petIdleRightArmBreath CSS keyframes.
+    case "left_arm": {
+      const r = bodyBreath(sec);
+      return { ...r, rot:  sinWave(sec, 4.5) * 1.5 * D2R };
+    }
+    case "right_arm": {
+      const r = bodyBreath(sec);
+      return { ...r, rot: -sinWave(sec, 4.5) * 1.5 * D2R };
+    }
 
     // Side-facing limbs — ALL ride the body breath so the side-
     // profile pet inflates and deflates as ONE silhouette. Earlier
@@ -210,7 +213,14 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     // canvas already scales each part around its own pivot which is
     // typically the shoulder/hip, giving the same visual "rises with
     // the chest" effect.
-    case "front_arm": case "back_arm":
+    // Front arm (side-facing) gets the same subtle rotation as left_arm.
+    // Back arm stays as pure body breath — it reads as the shoulder
+    // tucked behind the body silhouette so rotation would look wrong.
+    case "front_arm": {
+      const r = bodyBreath(sec);
+      return { ...r, rot: sinWave(sec, 4.5) * 1.5 * D2R };
+    }
+    case "back_arm":
       return bodyBreath(sec);
     case "front_leg":
     case "back_leg":
@@ -258,6 +268,15 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     case "wing_set2_right": case "back_wing_2":
     case "head_wing_right":
       return { op: 1, rot:  sinWave(sec, 4) * 3 * D2R, ty: -sinWave(sec, 4) * 0.6 };
+
+    // Back hair — owns a dedicated smaller sway (±2°) so flowing
+    // hair behind the head reads as calm and gentle rather than
+    // reusing the tail's ±5° which felt too animated for hair.
+    // Period matches the primary ear (3.5 s) so hair and ears drift
+    // in and out of phase with each other. Mirrors the new
+    // petIdleBackHair CSS keyframe in PetAnimator.tsx.
+    case "back_hair":
+      return { op: 1, rot: sinWave(sec, 3.5) * 2 * D2R };
 
     // Tails — angular swivel from the body-attachment end. The pivot X
     // is direction-aware (right edge for front-facing, left for back-facing)

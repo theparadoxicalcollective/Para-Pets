@@ -249,8 +249,16 @@ function sampleBodyPartTransform(part: PetPart, animation: GifAnimation, t: numb
   }
   if (pt === "left_ear")   return { ...NEUTRAL, rotate: -2 * sineWave(t) };
   if (pt === "right_ear")  return { ...NEUTRAL, rotate:  2 * sineWave(t) };
-  if (pt === "left_arm")   return { ...NEUTRAL, rotate:  3.5 * sineWave(t) };
-  if (pt === "right_arm")  return { ...NEUTRAL, rotate: -3.0 * sineWave(t) };
+  // Arms: very subtle rotation (±1.5°) synced to body breath scale.
+  // Reduced from ±3.5°/±3.0° to match the calmer CSS keyframe amplitude.
+  if (pt === "left_arm") {
+    const b = sineWave(t);
+    return { tx: 0, ty: 0, rotate: 1.5 * b, scaleX: 1 + 0.006 * (b + 1), scaleY: 1 + 0.011 * (b + 1), opacity: 1 };
+  }
+  if (pt === "right_arm") {
+    const b = sineWave(t);
+    return { tx: 0, ty: 0, rotate: -1.5 * b, scaleX: 1 + 0.006 * (b + 1), scaleY: 1 + 0.011 * (b + 1), opacity: 1 };
+  }
   if (pt === "left_wing")  return { ...NEUTRAL, rotate: -5 * sineWave(t) };
   if (pt === "right_wing") return { ...NEUTRAL, rotate:  5 * sineWave(t) };
   if (pt === "left_leg")   return { ...NEUTRAL, ty:  1.5 * bobCos(t) };

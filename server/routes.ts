@@ -3697,6 +3697,18 @@ export async function registerRoutes(
     }
   });
 
+  // Lightweight meta endpoint — returns only id + assembled image URLs for
+  // every template. Used by PvP battle page to resolve frontAssembled for
+  // each pet without fetching the full parts list.
+  app.get("/api/pet-templates/meta", isAuthenticated, async (req, res) => {
+    try {
+      const templates = await storage.getAllPetTemplates();
+      return res.json(templates.map(t => ({ id: t.id, frontAssembled: t.frontAssembled ?? null, backAssembled: t.backAssembled ?? null })));
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to get template meta" });
+    }
+  });
+
   app.get("/api/pet-template-parts/:templateId", isAuthenticated, async (req, res) => {
     try {
       const { templateId } = req.params as Record<string, string>;

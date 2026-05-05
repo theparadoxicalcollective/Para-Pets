@@ -98,8 +98,8 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   // visible gap between the arm and the rising shoulder area. On
   // petIdleBody they share the body-anchor transform-origin (feet for
   // ground pets) so they inflate in the same direction as the chest.
-  left_arm: "petIdleBody",
-  right_arm: "petIdleBody",
+  left_arm: "petIdleLeftArmBreath",
+  right_arm: "petIdleRightArmBreath",
   body: "petIdleBody",
   left_wing: "petIdleLeftWing",
   right_wing: "petIdleRightWing",
@@ -154,7 +154,7 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   hair_left: "petIdleLeftEar",
   hair_right: "petIdleRightEar",
   hair_center: "petIdleBody",
-  back_hair: "petIdleTail",
+  back_hair: "petIdleBackHair",
   // Above-head accessory (crowns / halos / hats) gets a small extra bounce
   // on top of the head wrapper's bob so it reads as floating / buoyant.
   above_head: "petAboveHeadBounce",
@@ -181,7 +181,7 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   // getPartDuration so the phase locks. Per-pet keyframe-level
   // motion (ear twitches, tail swivels, wing flaps) still runs
   // independently — only the LIMBS were the problem.
-  front_arm: "petIdleBody",
+  front_arm: "petIdleFrontArmBreath",
   back_arm: "petIdleBody",
   front_leg: "petIdleBody",
   back_leg: "petIdleBody",
@@ -602,6 +602,38 @@ const ANIMATION_STYLES = `
     from { transform: rotate( 4deg); }
     to   { transform: rotate(-4deg); }
   }
+  /* Back hair — gentler sway (±2°) than the tail keyframe it previously
+     shared (±5°). Hair behind the head reads as calm flowing motion at
+     this lower amplitude; ±5° was visibly distracting. Period matches
+     the primary ear (3.5 s) via getPartDuration so hair and ears drift
+     in and out of phase with each other. */
+  @keyframes petIdleBackHair {
+    from { transform: rotate(-2deg); }
+    to   { transform: rotate( 2deg); }
+  }
+  /* Arms — body breath scale PLUS a very subtle ±1.5° rotation so the
+     arm reads as alive without overpowering the calm idle pose.
+     Same scale as petIdleBody (scale(1, 1) → scale(1.012, 1.022)) so
+     the shoulder stays glued to the chest on inhale; same 4.5 s period
+     (getPartDuration) so rotation peaks exactly when the body is fully
+     inhaled. Phase-locked via bodyBreathDelay so body + arms always
+     inhale together. */
+  @keyframes petIdleLeftArmBreath {
+    from { transform: scale(1, 1) rotate(-1.5deg); }
+    to   { transform: scale(1.012, 1.022) rotate(1.5deg); }
+  }
+  @keyframes petIdleRightArmBreath {
+    from { transform: scale(1, 1) rotate(1.5deg); }
+    to   { transform: scale(1.012, 1.022) rotate(-1.5deg); }
+  }
+  /* Side-facing front arm — same approach as left_arm above.
+     Back arm keeps pure petIdleBody (no rotation) because it reads
+     as a limb tucked behind the torso silhouette where rotation
+     would look unnatural. */
+  @keyframes petIdleFrontArmBreath {
+    from { transform: scale(1, 1) rotate(-1.5deg); }
+    to   { transform: scale(1.012, 1.022) rotate(1.5deg); }
+  }
   /* Ground head: small left/right tilt instead of upward bob. Reduced
      from ±0.6deg → ±0.4deg so the head reads as a barely-there sway
      instead of an active head-shake — matches the calmer petIdleHead
@@ -909,6 +941,10 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       // continuously drift in and out of phase rather than
       // re-converging on a fixed pattern.
       tail: "4.5s", tail_2: "3.7s", tail_3: "4.1s",
+      // back_hair uses its own petIdleBackHair keyframe (±2°) on a 3.5 s
+      // period — matching the primary ear so hair and ears drift in/out
+      // of phase with each other rather than marching in lockstep.
+      back_hair: "3.5s",
       // Side-view front arm slowed from 3.5 s → 4 s to match the
       // calmer arm cadence (left/right_arm went from 3.5 → 4.5 s).
       // 4 s instead of 4.5 s keeps a slight depth-cue desync from
@@ -1319,7 +1355,10 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // in the head-group render block below). The PRIMARY head
   // ("head" part type) keeps its normal in-front placement and bob.
   const isBodyBreathAnim = (name: string | null | undefined) =>
-    name === "petIdleBody";
+    name === "petIdleBody" ||
+    name === "petIdleLeftArmBreath" ||
+    name === "petIdleRightArmBreath" ||
+    name === "petIdleFrontArmBreath";
   // Tail idle keyframes — petIdleTail / petIdleTail2 / petIdleTail3 — should
   // share the body's STARTING phase (bodyBreathDelay) so all three tails
   // rise on the same beat as the body's inhale and the body never appears

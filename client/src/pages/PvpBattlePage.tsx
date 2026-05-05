@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, Fragment } from "react";
+import { useState, useRef, useCallback, useEffect, Fragment, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -316,6 +316,13 @@ export default function PvpBattlePage({
   const [hoveredAllyUid, setHoveredAllyUid] = useState<string | null>(null);
 
   const { data: myInventory = [] } = useQuery<any[]>({ queryKey: ["/api/inventory"] });
+  const { data: templateMetaList = [] } = useQuery<{ id: string; frontAssembled: string | null; backAssembled: string | null }[]>({
+    queryKey: ["/api/pet-templates/meta"],
+  });
+  const templateAssembled = useMemo(
+    () => Object.fromEntries(templateMetaList.map(t => [t.id, t])),
+    [templateMetaList],
+  );
   const { data: oppPets = [], isLoading: oppLoading } = useQuery<any[]>({
     queryKey: ["/api/pvp/opponent-pets", opponent.userId],
     queryFn: async () => {
@@ -404,7 +411,8 @@ export default function PvpBattlePage({
         uid: nextUid(), invId: e.id,
         name: invItem.petNickname || invItem.name || "Pet",
         // World battle should use the hatched still image, matching Murk Cave.
-        imageUrl: invItem.hatchedImageUrl || invItem.imageUrl || null,
+        imageUrl: (invItem.petTemplateId && templateAssembled[invItem.petTemplateId]?.frontAssembled)
+          || invItem.hatchedImageUrl || invItem.imageUrl || null,
         petTemplateId: invItem.petTemplateId ?? null,
         starRarity: invItem.starRarity ?? 1,
         maxHp: invItem.petHealth || 800, hp: invItem.petHealth || 800,
@@ -430,7 +438,8 @@ export default function PvpBattlePage({
         uid: nextUid(), invId: p.inventoryId || p.id,
         name: p.petNickname || p.name || "Foe",
         // World battle should use the hatched still image, matching Murk Cave.
-        imageUrl: p.hatchedImageUrl || p.imageUrl || null,
+        imageUrl: (p.petTemplateId && templateAssembled[p.petTemplateId]?.frontAssembled)
+          || p.hatchedImageUrl || p.imageUrl || null,
         petTemplateId: p.petTemplateId ?? null,
         starRarity: p.starRarity ?? 1,
         maxHp: p.petHealth || 800, hp: p.petHealth || 800,
@@ -457,7 +466,7 @@ export default function PvpBattlePage({
 
     if (!myPets.length) return null;
     return [...myPets, ...oppBattlePets];
-  }, [myInventory, myPetIds, oppPets]);
+  }, [myInventory, myPetIds, oppPets, templateAssembled]);
 
   useEffect(() => {
     if (phase !== "loading" || oppLoading) return;

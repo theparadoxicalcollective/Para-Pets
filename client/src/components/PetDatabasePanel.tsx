@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readFileAsDataUrl } from "@/lib/utils";
-import { Plus, Trash2, X, ArrowLeft, Save, Layers, Link2, Pencil, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Play, Pause } from "lucide-react";
+import { Plus, Trash2, X, ArrowLeft, Save, Layers, Link2, Pencil, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Play, Pause, Download } from "lucide-react";
+import { renderPetGif, type GifAnimation } from "@/lib/petGif";
 import { getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
 import PetAnimatorCanvas from "@/components/PetAnimatorCanvas";
 
@@ -273,6 +274,9 @@ export default function PetDatabasePanel({
   const [nudgeStep, setNudgeStep] = useState<1 | 5 | 10>(1);
   const [facingMode, setFacingMode] = useState<"front" | "side">("front");
   const [showAnimPreview, setShowAnimPreview] = useState(false);
+  const [gifExporting, setGifExporting] = useState(false);
+  const [gifProgress, setGifProgress] = useState(0);
+  const [gifAnim, setGifAnim] = useState<GifAnimation>("idle");
 
   // Notify parent whenever the facing mode toggles (front ↔ side) so the
   // Test-Animator save preview can match.
@@ -671,6 +675,32 @@ export default function PetDatabasePanel({
     updatePartMutation.mutate({ partId: part.id, width: newW, height: newH });
   }, [selectedPartId, viewParts, updatePartMutation]);
 
+  const handleExportGif = async () => {
+    if (!viewParts.length || !selectedTemplateId) return;
+    setGifExporting(true);
+    setGifProgress(0);
+    try {
+      const result = await renderPetGif({
+        parts: viewParts,
+        view: activeView as "front" | "back",
+        animation: gifAnim,
+        facing: templateDetail?.facing ?? "front",
+        onProgress: (frame, total) => setGifProgress(Math.round((frame / total) * 100)),
+      });
+      const url = URL.createObjectURL(result.blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(templateDetail?.name ?? "pet").replace(/\s+/g, "_")}_${gifAnim}.gif`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast({ title: "GIF export failed", description: err.message ?? "Unknown error", variant: "destructive" });
+    } finally {
+      setGifExporting(false);
+      setGifProgress(0);
+    }
+  };
+
   const selectedPart = viewParts.find(p => p.id === selectedPartId);
 
   // Has parts in the OTHER view (the one not currently active)
@@ -915,6 +945,51 @@ export default function PetDatabasePanel({
                 <div />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* GIF export — downloads an animated GIF of the current view */}
+        {viewParts.length > 0 && selectedTemplateId && (
+          <div
+            className="flex flex-col gap-2 px-3 py-3 rounded-lg"
+            style={{ background: "rgba(127,255,212,0.04)", border: "1px solid rgba(127,255,212,0.2)" }}
+          >
+            <div className="flex items-center justify-between">
+              <span className="font-fantasy text-[9px] tracking-wider" style={{ color: "#7fbfb0" }}>Export GIF</span>
+              <div className="flex items-center gap-1">
+                {(["idle", "petting", "sleep"] as GifAnimation[]).map(a => (
+                  <button
+                    key={a}
+                    data-testid={`button-gif-anim-${a}`}
+                    onClick={() => setGifAnim(a)}
+                    className="rounded font-fantasy text-[8px] tracking-wider transition-all active:scale-95"
+                    style={{
+                      padding: "2px 7px",
+                      background: gifAnim === a ? "rgba(127,255,212,0.2)" : "rgba(0,0,0,0.3)",
+                      border: gifAnim === a ? "1px solid rgba(127,255,212,0.5)" : "1px solid rgba(127,255,212,0.15)",
+                      color: gifAnim === a ? "#7fffd4" : "#6a5840",
+                      cursor: "pointer",
+                    }}
+                  >{a}</button>
+                ))}
+              </div>
+            </div>
+            <button
+              data-testid="button-export-gif"
+              onClick={handleExportGif}
+              disabled={gifExporting}
+              className="flex items-center justify-center gap-1.5 rounded-lg font-fantasy text-[10px] tracking-wider transition-all active:scale-95 disabled:opacity-60"
+              style={{
+                padding: "6px 12px",
+                background: gifExporting ? "rgba(127,255,212,0.08)" : "rgba(127,255,212,0.14)",
+                border: "1px solid rgba(127,255,212,0.35)",
+                color: "#7fffd4",
+                cursor: gifExporting ? "default" : "pointer",
+              }}
+            >
+              <Download className="w-3.5 h-3.5" />
+              {gifExporting ? `Rendering… ${gifProgress}%` : `Download ${gifAnim} GIF`}
+            </button>
           </div>
         )}
 
