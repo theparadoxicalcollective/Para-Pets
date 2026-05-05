@@ -2189,13 +2189,13 @@ export async function registerRoutes(
   });
 
   // ── Molten Blocks mini-game reward ────────────────────────────────────
-  // Players earn 5 coins per 35 points scored in the volcanic-world Tetris
+  // Players earn 10 coins per 100 points scored in the volcanic-world Tetris
   // game (Molten Blocks). The client tallies how many coins were earned
   // during a single run and submits the total when the run ends.
   //
   // Anti-abuse (defense in depth — these don't need a DB migration):
-  //   1. Per-call cap: 200 coins (an excellent ~70-line run is ~50 coins;
-  //      this leaves headroom for legitimate marathon sessions).
+  //   1. Per-call cap: 300 coins (a strong 3000-point run = 300 tier coins;
+  //      plus multi-row bonuses, this leaves room for legitimate sessions).
   //   2. Per-user cooldown: must wait MIN_COOLDOWN_MS between submissions
   //      (a real game can't end faster than a few seconds).
   //   3. Per-user daily cap: at most DAILY_CAP coins from this game per
@@ -2204,8 +2204,8 @@ export async function registerRoutes(
   // resets, but the cap itself is small enough that the worst case is
   // bounded to ~one extra cap window per restart.
   const moltenRewardState = new Map<string, { dayKey: string; total: number; lastAt: number }>();
-  const MB_PER_CALL_CAP = 200;
-  const MB_DAILY_CAP = 300;
+  const MB_PER_CALL_CAP = 300;
+  const MB_DAILY_CAP = 500;
   const MB_MIN_COOLDOWN_MS = 4_000;
 
   app.post("/api/games/molten-blocks/reward", isAuthenticated, async (req, res) => {

@@ -165,7 +165,7 @@ function clearLines(board: Cell[][]): { board: Cell[][]; cleared: number } {
 //     and coins-earned carry over until all lives are gone
 const POINTS_PER_ROW = 10;
 const POINTS_PER_COIN_TIER = 100;   // every 100 score points → COINS_PER_TIER coins
-const COINS_PER_TIER = 6;
+const COINS_PER_TIER = 10;
 const DOUBLE_BONUS_COINS = 1;       // +1 coin for clearing exactly 2 rows in one drop
 const TRIPLE_BONUS_COINS = 3;       // +3 coins for clearing exactly 3 rows in one drop
 const TETRIS_BONUS_COINS = 5;       // +5 coins for clearing 4+ rows in one drop
