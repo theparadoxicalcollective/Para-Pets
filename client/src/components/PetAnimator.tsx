@@ -608,8 +608,8 @@ const ANIMATION_STYLES = `
      the primary ear (3.5 s) via getPartDuration so hair and ears drift
      in and out of phase with each other. */
   @keyframes petIdleBackHair {
-    from { transform: rotate(-2deg); }
-    to   { transform: rotate( 2deg); }
+    from { transform: rotate(-0.8deg); }
+    to   { transform: rotate( 0.8deg); }
   }
   /* Arms — body breath scale PLUS a very subtle ±1.5° rotation so the
      arm reads as alive without overpowering the calm idle pose.
@@ -619,20 +619,20 @@ const ANIMATION_STYLES = `
      inhaled. Phase-locked via bodyBreathDelay so body + arms always
      inhale together. */
   @keyframes petIdleLeftArmBreath {
-    from { transform: scale(1, 1) rotate(-1.5deg); }
-    to   { transform: scale(1.012, 1.022) rotate(1.5deg); }
+    from { transform: scale(1, 1) rotate(-0.5deg); }
+    to   { transform: scale(1.012, 1.022) rotate(0.5deg); }
   }
   @keyframes petIdleRightArmBreath {
-    from { transform: scale(1, 1) rotate(1.5deg); }
-    to   { transform: scale(1.012, 1.022) rotate(-1.5deg); }
+    from { transform: scale(1, 1) rotate(0.5deg); }
+    to   { transform: scale(1.012, 1.022) rotate(-0.5deg); }
   }
   /* Side-facing front arm — same approach as left_arm above.
      Back arm keeps pure petIdleBody (no rotation) because it reads
      as a limb tucked behind the torso silhouette where rotation
      would look unnatural. */
   @keyframes petIdleFrontArmBreath {
-    from { transform: scale(1, 1) rotate(-1.5deg); }
-    to   { transform: scale(1.012, 1.022) rotate(1.5deg); }
+    from { transform: scale(1, 1) rotate(-0.5deg); }
+    to   { transform: scale(1.012, 1.022) rotate(0.5deg); }
   }
   /* Ground head: small left/right tilt instead of upward bob. Reduced
      from ±0.6deg → ±0.4deg so the head reads as a barely-there sway
