@@ -619,20 +619,18 @@ const ANIMATION_STYLES = `
      inhaled. Phase-locked via bodyBreathDelay so body + arms always
      inhale together. */
   @keyframes petIdleLeftArmBreath {
-    from { transform: scale(1, 1) rotate(-0.5deg); }
-    to   { transform: scale(1.012, 1.022) rotate(0.5deg); }
+    from { transform: scale(1, 1); }
+    to   { transform: scale(1.012, 1.022); }
   }
   @keyframes petIdleRightArmBreath {
-    from { transform: scale(1, 1) rotate(0.5deg); }
-    to   { transform: scale(1.012, 1.022) rotate(-0.5deg); }
+    from { transform: scale(1, 1); }
+    to   { transform: scale(1.012, 1.022); }
   }
-  /* Side-facing front arm — same approach as left_arm above.
-     Back arm keeps pure petIdleBody (no rotation) because it reads
-     as a limb tucked behind the torso silhouette where rotation
-     would look unnatural. */
+  /* Side-facing front arm — pure scale matching petIdleBody so the arm
+     stays glued to the chest silhouette on every inhale/exhale. */
   @keyframes petIdleFrontArmBreath {
-    from { transform: scale(1, 1) rotate(-0.5deg); }
-    to   { transform: scale(1.012, 1.022) rotate(0.5deg); }
+    from { transform: scale(1, 1); }
+    to   { transform: scale(1.012, 1.022); }
   }
   /* Ground head: small left/right tilt instead of upward bob. Reduced
      from ±0.6deg → ±0.4deg so the head reads as a barely-there sway
