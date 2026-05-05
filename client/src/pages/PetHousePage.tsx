@@ -2181,7 +2181,14 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
   const loyaltyFull = loyaltyVal >= loyaltyMax;
 
   // Drag state.
-  const dragRef = useRef<{ inventoryId: string; imageUrl: string | null; pid: number } | null>(null);
+  const dragRef = useRef<{
+    inventoryId: string;
+    imageUrl: string | null;
+    pid: number;
+    startX: number;
+    startY: number;
+    captured: boolean;   // true once vertical-drag intent detected & captured
+  } | null>(null);
   const [dragGhost, setDragGhost] = useState<{ inventoryId: string; imageUrl: string | null; x: number; y: number } | null>(null);
 
   // Pet visual state — drop target, glow, click animation, sparkles.
@@ -2615,16 +2622,41 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
   });
 
   const onItemPointerDown = useCallback((e: React.PointerEvent, item: any) => {
-    e.preventDefault();
+    // Do NOT preventDefault or capture here — we let the browser handle
+    // horizontal scroll normally until we detect upward-drag intent.
     e.stopPropagation();
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    dragRef.current = { inventoryId: item.id, imageUrl: item.imageUrl, pid: e.pointerId };
-    setDragGhost({ inventoryId: item.id, imageUrl: item.imageUrl, x: e.clientX, y: e.clientY });
+    dragRef.current = {
+      inventoryId: item.id,
+      imageUrl: item.imageUrl,
+      pid: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      captured: false,
+    };
+    setDragGhost(null);
   }, []);
 
   const onItemPointerMove = useCallback((e: React.PointerEvent) => {
     const d = dragRef.current;
     if (!d || d.pid !== e.pointerId) return;
+
+    if (!d.captured) {
+      const dx = Math.abs(e.clientX - d.startX);
+      const dy = Math.abs(e.clientY - d.startY);
+      // Wait until the pointer has moved enough to decide intent.
+      if (dx < 6 && dy < 6) return;
+      if (dy > dx) {
+        // Vertical (drag-to-pet) intent — capture the pointer now.
+        try { (e.target as HTMLElement).setPointerCapture?.(e.pointerId); } catch {}
+        d.captured = true;
+        setDragGhost({ inventoryId: d.inventoryId, imageUrl: d.imageUrl, x: e.clientX, y: e.clientY });
+      } else {
+        // Horizontal scroll intent — let the browser handle it, abort drag.
+        dragRef.current = null;
+      }
+      return;
+    }
+
     setDragGhost({ inventoryId: d.inventoryId, imageUrl: d.imageUrl, x: e.clientX, y: e.clientY });
   }, []);
 
@@ -2632,6 +2664,13 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
     const d = dragRef.current;
     if (!d || d.pid !== e.pointerId) return;
     dragRef.current = null;
+
+    if (!d.captured) {
+      // Pointer was released before drag intent was established (tap or scroll).
+      setDragGhost(null);
+      return;
+    }
+
     const ghost = { x: e.clientX, y: e.clientY };
     const box = petBoxRef.current?.getBoundingClientRect();
     setDragGhost(null);
@@ -3171,172 +3210,119 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
         </div>
       )}
 
-      {/* Bottom edible strip */}
+      {/* ── Bottom item strip — edibles + gifts ──────────────────────────── */}
+      {/* Items are compact image-only chips (no card boxes) that scroll
+          horizontally. Swipe left/right to browse; drag upward to feed/gift
+          the pet. The strip is capped so it never overlaps the status bars. */}
       <div
-        className="absolute bottom-0 left-0 right-0 px-3 pb-5 pt-3"
+        className="absolute bottom-0 left-0 right-0"
         style={{
-          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 18px)",
-          background: "linear-gradient(0deg, rgba(8,18,8,0.92) 0%, rgba(8,18,8,0.78) 60%, rgba(8,18,8,0) 100%)",
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 10px)",
+          background: "linear-gradient(0deg, rgba(6,14,6,0.97) 0%, rgba(6,14,6,0.88) 65%, rgba(6,14,6,0) 100%)",
+          paddingTop: 12,
+          paddingLeft: 10,
+          paddingRight: 10,
         }}
       >
-        <div
-          className="mb-2 px-1"
-          style={{
-            fontFamily: "Lora, serif",
-            color: "#cfe9b4",
-            fontSize: 11,
-            letterSpacing: "0.18em",
-            fontWeight: 700,
-          }}
-        >
-          EDIBLES • {edibles.length}
+        {/* ── Edibles ─────────────────────────────────────────────────── */}
+        <div className="flex items-center gap-2 mb-1 px-1">
+          <span style={{ fontFamily: "Lora, serif", color: "#9fd690", fontSize: 10, fontWeight: 800, letterSpacing: "0.18em" }}>
+            EDIBLES
+          </span>
+          <span style={{ fontFamily: "Lora, serif", color: "rgba(159,214,144,0.5)", fontSize: 10, fontWeight: 700 }}>
+            {edibles.length}
+          </span>
         </div>
+
         {edibles.length === 0 ? (
-          <div
-            className="rounded-2xl px-4 py-5 text-center"
-            style={{
-              background: "rgba(20,30,18,0.55)",
-              border: "1px dashed rgba(180,255,160,0.25)",
-              fontFamily: "Lora, serif",
-              color: "rgba(220,240,200,0.7)",
-              fontSize: 12,
-            }}
+          <p
+            style={{ fontFamily: "Lora, serif", color: "rgba(180,220,160,0.55)", fontSize: 11, paddingLeft: 4, marginBottom: 8 }}
             data-testid="text-no-edibles"
           >
-            You have no edibles yet. Find some in shops to feed your pets.
-          </div>
+            No edibles — find some in world shops.
+          </p>
         ) : (
           <div
-            className="flex gap-3 overflow-x-auto pb-2 px-1"
+            className="flex gap-2 overflow-x-auto pb-1 px-1"
             style={{
               touchAction: "pan-x",
               WebkitOverflowScrolling: "touch",
-              scrollSnapType: "x proximity",
               overscrollBehaviorX: "contain",
               scrollbarWidth: "none",
               msOverflowStyle: "none",
+              marginBottom: 6,
             }}
           >
             {edibles.map((item) => (
               <div
                 key={item.id}
-                className="flex-shrink-0 rounded-2xl flex flex-col items-center justify-center relative"
-                style={{
-                  width: 92,
-                  height: 108,
-                  background: "linear-gradient(160deg, rgba(40,60,30,0.85) 0%, rgba(20,35,15,0.9) 100%)",
-                  border: "1px solid rgba(180,255,160,0.35)",
-                  boxShadow: "0 2px 10px rgba(0,0,0,0.5), inset 0 0 16px rgba(150,220,120,0.07)",
-                  cursor: "grab",
-                  touchAction: "none",
-                }}
+                className="flex-shrink-0 flex flex-col items-center relative"
+                style={{ width: 56, touchAction: "pan-x", cursor: "grab", userSelect: "none" }}
                 onPointerDown={(e) => onItemPointerDown(e, item)}
                 data-testid={`edible-item-${item.id}`}
               >
-                {item.imageUrl ? (
-                  <img
-                    src={item.imageUrl}
-                    alt={item.name}
-                    draggable={false}
-                    style={{ width: 56, height: 56, objectFit: "contain", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}
-                  />
-                ) : (
-                  <div style={{ width: 56, height: 56, background: "rgba(255,255,255,0.05)", borderRadius: 12 }} />
-                )}
-                <div
-                  className="mt-1 px-1 text-center"
-                  style={{
-                    fontFamily: "Lora, serif",
-                    color: "#e6f5d0",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    lineHeight: 1.15,
-                    maxWidth: 86,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {item.name}
+                <div className="relative" style={{ width: 44, height: 44 }}>
+                  {item.imageUrl ? (
+                    <img
+                      src={item.imageUrl}
+                      alt={item.name}
+                      draggable={false}
+                      style={{ width: 44, height: 44, objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))", pointerEvents: "none" }}
+                    />
+                  ) : (
+                    <div style={{ width: 44, height: 44, background: "rgba(255,255,255,0.06)", borderRadius: 8 }} />
+                  )}
+                  {item.quantity > 1 && (
+                    <div className="absolute" style={{
+                      top: -2, right: -4,
+                      background: "rgba(30,55,22,0.95)",
+                      border: "1px solid rgba(150,220,120,0.55)",
+                      borderRadius: 8, padding: "0px 4px",
+                      fontFamily: "Lora, serif", color: "#dfffd0", fontSize: 9, fontWeight: 800, lineHeight: "14px",
+                    }}>×{item.quantity}</div>
+                  )}
+                  {item.statBoostAmount != null && (
+                    <div className="absolute" style={{
+                      bottom: -4, left: "50%", transform: "translateX(-50%)",
+                      background: "rgba(100,185,75,0.97)",
+                      borderRadius: 6, padding: "0px 4px",
+                      fontFamily: "Lora, serif", color: "#071a02", fontSize: 8, fontWeight: 800, whiteSpace: "nowrap", lineHeight: "13px",
+                    }}>+{item.statBoostAmount}</div>
+                  )}
                 </div>
-                {item.quantity > 1 && (
-                  <div
-                    className="absolute"
-                    style={{
-                      top: 4, right: 4,
-                      background: "rgba(60,90,40,0.95)",
-                      border: "1px solid rgba(180,255,160,0.5)",
-                      borderRadius: 10,
-                      padding: "1px 6px",
-                      fontFamily: "Lora, serif",
-                      color: "#dfffd0",
-                      fontSize: 10,
-                      fontWeight: 800,
-                    }}
-                  >
-                    ×{item.quantity}
-                  </div>
-                )}
-                {item.statBoostAmount && (
-                  <div
-                    className="absolute"
-                    style={{
-                      bottom: -6, left: "50%", transform: "translateX(-50%)",
-                      background: "rgba(120,200,90,0.95)",
-                      borderRadius: 8,
-                      padding: "1px 6px",
-                      fontFamily: "Lora, serif",
-                      color: "#0a1505",
-                      fontSize: 9,
-                      fontWeight: 800,
-                      letterSpacing: "0.05em",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    +{item.statBoostAmount} Feed
-                  </div>
-                )}
+                <span style={{
+                  fontFamily: "Lora, serif", color: "#c8e8b0", fontSize: 8, fontWeight: 600,
+                  lineHeight: 1.2, maxWidth: 54, overflow: "hidden", textOverflow: "ellipsis",
+                  whiteSpace: "nowrap", textAlign: "center", marginTop: 4,
+                }}>{item.name}</span>
               </div>
             ))}
           </div>
         )}
 
-        {/* GIFTS strip — drag onto the pet to add Loyalty points (cap 1000).
-            Mirrors the Edibles strip styling but with a pink palette so
-            players can tell them apart at a glance. */}
-        <div
-          className="mt-3 mb-2 px-1"
-          style={{
-            fontFamily: "Lora, serif",
-            color: "#ffd1ec",
-            fontSize: 11,
-            letterSpacing: "0.18em",
-            fontWeight: 700,
-          }}
-        >
-          GIFTS • {gifts.length}
+        {/* ── Gifts ───────────────────────────────────────────────────── */}
+        <div className="flex items-center gap-2 mb-1 px-1">
+          <span style={{ fontFamily: "Lora, serif", color: "#f9b8d8", fontSize: 10, fontWeight: 800, letterSpacing: "0.18em" }}>
+            GIFTS
+          </span>
+          <span style={{ fontFamily: "Lora, serif", color: "rgba(249,184,216,0.5)", fontSize: 10, fontWeight: 700 }}>
+            {gifts.length}
+          </span>
         </div>
+
         {gifts.length === 0 ? (
-          <div
-            className="rounded-2xl px-4 py-4 text-center"
-            style={{
-              background: "rgba(40,18,32,0.55)",
-              border: "1px dashed rgba(255,180,220,0.3)",
-              fontFamily: "Lora, serif",
-              color: "rgba(255,220,235,0.75)",
-              fontSize: 12,
-            }}
+          <p
+            style={{ fontFamily: "Lora, serif", color: "rgba(255,200,225,0.5)", fontSize: 11, paddingLeft: 4 }}
             data-testid="text-no-gifts"
           >
-            No gifts yet. Drag a gift onto your pet to fill the Loyalty bar.
-          </div>
+            No gifts — buy some to fill the Loyalty bar.
+          </p>
         ) : (
           <div
-            className="flex gap-3 overflow-x-auto pb-2 px-1"
+            className="flex gap-2 overflow-x-auto pb-1 px-1"
             style={{
               touchAction: "pan-x",
               WebkitOverflowScrolling: "touch",
-              scrollSnapType: "x proximity",
               overscrollBehaviorX: "contain",
               scrollbarWidth: "none",
               msOverflowStyle: "none",
@@ -3345,82 +3331,45 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
             {gifts.map((item) => (
               <div
                 key={item.id}
-                className="flex-shrink-0 rounded-2xl flex flex-col items-center justify-center relative"
-                style={{
-                  width: 92,
-                  height: 108,
-                  background: "linear-gradient(160deg, rgba(70,30,55,0.85) 0%, rgba(40,15,30,0.9) 100%)",
-                  border: "1px solid rgba(255,180,220,0.45)",
-                  boxShadow: "0 2px 10px rgba(0,0,0,0.5), inset 0 0 16px rgba(236,72,153,0.1)",
-                  cursor: "grab",
-                  touchAction: "none",
-                }}
+                className="flex-shrink-0 flex flex-col items-center relative"
+                style={{ width: 56, touchAction: "pan-x", cursor: "grab", userSelect: "none" }}
                 onPointerDown={(e) => onItemPointerDown(e, item)}
                 data-testid={`gift-item-${item.id}`}
               >
-                {item.imageUrl ? (
-                  <img
-                    src={item.imageUrl}
-                    alt={item.name}
-                    draggable={false}
-                    style={{ width: 56, height: 56, objectFit: "contain", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5))" }}
-                  />
-                ) : (
-                  <div style={{ width: 56, height: 56, background: "rgba(255,255,255,0.05)", borderRadius: 12 }} />
-                )}
-                <div
-                  className="mt-1 px-1 text-center"
-                  style={{
-                    fontFamily: "Lora, serif",
-                    color: "#ffe6f1",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    lineHeight: 1.15,
-                    maxWidth: 86,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {item.name}
+                <div className="relative" style={{ width: 44, height: 44 }}>
+                  {item.imageUrl ? (
+                    <img
+                      src={item.imageUrl}
+                      alt={item.name}
+                      draggable={false}
+                      style={{ width: 44, height: 44, objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))", pointerEvents: "none" }}
+                    />
+                  ) : (
+                    <div style={{ width: 44, height: 44, background: "rgba(255,255,255,0.06)", borderRadius: 8 }} />
+                  )}
+                  {item.quantity > 1 && (
+                    <div className="absolute" style={{
+                      top: -2, right: -4,
+                      background: "rgba(80,22,55,0.95)",
+                      border: "1px solid rgba(255,170,210,0.55)",
+                      borderRadius: 8, padding: "0px 4px",
+                      fontFamily: "Lora, serif", color: "#ffe6f1", fontSize: 9, fontWeight: 800, lineHeight: "14px",
+                    }}>×{item.quantity}</div>
+                  )}
+                  {item.giftPoints && (
+                    <div className="absolute" style={{
+                      bottom: -4, left: "50%", transform: "translateX(-50%)",
+                      background: "rgba(210,55,130,0.97)",
+                      borderRadius: 6, padding: "0px 4px",
+                      fontFamily: "Lora, serif", color: "#fff0f7", fontSize: 8, fontWeight: 800, whiteSpace: "nowrap", lineHeight: "13px",
+                    }}>+{item.giftPoints}</div>
+                  )}
                 </div>
-                {item.quantity > 1 && (
-                  <div
-                    className="absolute"
-                    style={{
-                      top: 4, right: 4,
-                      background: "rgba(120,40,90,0.95)",
-                      border: "1px solid rgba(255,180,220,0.6)",
-                      borderRadius: 10,
-                      padding: "1px 6px",
-                      fontFamily: "Lora, serif",
-                      color: "#ffe6f1",
-                      fontSize: 10,
-                      fontWeight: 800,
-                    }}
-                  >
-                    ×{item.quantity}
-                  </div>
-                )}
-                {item.giftPoints && (
-                  <div
-                    className="absolute"
-                    style={{
-                      bottom: -6, left: "50%", transform: "translateX(-50%)",
-                      background: "rgba(236,72,153,0.95)",
-                      borderRadius: 8,
-                      padding: "1px 6px",
-                      fontFamily: "Lora, serif",
-                      color: "#fff5fa",
-                      fontSize: 9,
-                      fontWeight: 800,
-                      letterSpacing: "0.05em",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    +{item.giftPoints} Loyalty
-                  </div>
-                )}
+                <span style={{
+                  fontFamily: "Lora, serif", color: "#f9d8eb", fontSize: 8, fontWeight: 600,
+                  lineHeight: 1.2, maxWidth: 54, overflow: "hidden", textOverflow: "ellipsis",
+                  whiteSpace: "nowrap", textAlign: "center", marginTop: 4,
+                }}>{item.name}</span>
               </div>
             ))}
           </div>
