@@ -1132,12 +1132,11 @@ const LAYER_ORDER: Record<string, number> = {
   // tune per-pet stacking via the part's individual zOrder.
   right_ear_2: 9,
   left_ear_2: 9,
-  // Neck — sits one tick below the head (z=10) and at the same band
-  // as the ears (z=9), so the head visibly stacks ON TOP of the neck
-  // while the neck stacks ON TOP of body / arms / shoulders / chest
-  // accessories (all <= 8). Works for both front- and side-facing
-  // views since LAYER_ORDER doesn't distinguish view.
-  neck: 9,
+  // Neck — in front of body (z=5) but BEHIND both arms (right_arm=7,
+  // left_arm=8) so the arms always overlap the neck base. The head
+  // (z=10) still stacks well above the neck. Matches all other
+  // renderers (Canvas, PetDatabasePanel, petGif).
+  neck: 6,
   head: 10,
   // Head-anchored accessories (hats, bows, glasses) sit just above the head
   // but under the mouth / eyes / hair so the face still reads cleanly.

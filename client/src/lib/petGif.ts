@@ -64,9 +64,10 @@ const LAYER_ORDER: Record<string, number> = {
   left_arm: 8, front_arm: 8, right_ear: 9, left_ear: 9,
   // Second ear pair on Head 1 — same z-band as the primary ears.
   right_ear_2: 9, left_ear_2: 9,
-  // Neck — sits one tick below the head, above body / arms / shoulders.
-  // Mirrors PetAnimator's LAYER_ORDER.
-  neck: 9,
+  // Neck — sits in front of body (5) but BEHIND the arms (right_arm=7,
+  // left_arm=8) so the arms always overlap the neck base. Mirrors
+  // PetAnimator's LAYER_ORDER.
+  neck: 6,
   head: 10, mouth: 12, mouth_closed: 13, eyes_closed: 14, eyes: 15,
 };
 

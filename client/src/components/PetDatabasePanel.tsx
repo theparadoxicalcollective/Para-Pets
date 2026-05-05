@@ -375,7 +375,7 @@ export default function PetDatabasePanel({
     front_arm: 8, left_arm: 8, front_shoulder: 8,
     right_ear: 9, left_ear: 9,
     right_ear_2: 9, left_ear_2: 9,
-    neck: 9,
+    neck: 6,
     head: 10,
     accessory_2: 11, accessory_1: 11,
     mouth: 12, mouth_closed: 13,
