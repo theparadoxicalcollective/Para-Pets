@@ -61,6 +61,7 @@ const LAYER_ORDER: Record<string, number> = {
   tail: 1, right_leg: 2, left_leg: 2, back_wing: 2,
   back_leg: 3, right_wing: 3, back_arm: 4, left_wing: 4,
   body: 5, right_arm: 5, left_arm: 5, front_arm: 5,
+  left_shoulder: 5, right_shoulder: 5,
   front_wing: 6, front_leg: 7,
   right_ear: 9, left_ear: 9,
   // Second ear pair on Head 1 — same z-band as the primary ears.
@@ -418,10 +419,11 @@ export async function renderPetGif(opts: RenderPetGifOpts): Promise<CaptureResul
   // Facing-aware over-head arm/leg types (mirrors PetAnimator.tsx).
   const gifFacing = opts.facing ?? "front";
   const gifIsSideFacing = gifFacing === "left" || gifFacing === "right";
-  // Arms use LAYER_ORDER (arms=5, neck=6, head=10) — no z=20 override.
+  // Front-facing: left_arm + right_arm above head (z=20).
+  // Shoulders stay at LAYER_ORDER z=5 (behind neck).
   const overHeadPartTypes: ReadonlySet<string> = gifIsSideFacing
     ? new Set(["front_leg"])
-    : new Set();
+    : new Set(["left_arm", "right_arm"]);
 
   const viewParts = opts.parts
     .filter(p => p.view === resolvedView)

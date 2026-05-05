@@ -1118,12 +1118,16 @@ const LAYER_ORDER: Record<string, number> = {
   front_wing: 6,
   front_accessory_2: 6,
   front_accessory_1: 6,
-  // ── Front/back arms — sit in front of body (5) but BEHIND the neck (6)
-  //    so the neck base always overlaps the shoulder joint. front_leg and
-  //    front_shoulder keep their forward positions for the side view.
+  // ── Front-facing arms — rendered above the head wrapper via the
+  //    overHeadPartTypes override (z=20). Their LAYER_ORDER entry is a
+  //    fallback only (used when the override doesn't apply, e.g. side view).
   right_arm: 5,
   left_arm: 5,
   front_arm: 5,
+  // ── Front-facing shoulders — sit BEHIND the neck (z=5 < neck z=6) so
+  //    the neck base overlaps the shoulder joint for both front-facing pets.
+  left_shoulder: 5,
+  right_shoulder: 5,
   // ── Front-side limbs (side-view legs + shoulders stay in front of neck) ─
   front_leg: 7,
   front_shoulder: 8,
@@ -1394,14 +1398,13 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // • Front-facing pets (no KC facing):  left_arm + right_arm
   // • Side-facing pets (KC left/right):  front_arm + front_leg only
   const isPetSideFacing = facing === "left" || facing === "right";
-  // Arms no longer force above the head — their z-index comes from
-  // LAYER_ORDER (arms=5, neck=6, head=10) so the neck overlaps the
-  // shoulder joint and the head sits above everything.
-  // Side-facing only: front_leg still renders above the head so the
-  // leg visually crosses in front of the body/head silhouette.
+  // Front-facing pets: left_arm + right_arm render above the head (z=20)
+  // so arms cross in front of the face/head. Shoulders stay at their
+  // LAYER_ORDER z=5 (behind neck) so the neck covers the shoulder joint.
+  // Side-facing pets: front_leg crosses the head; front_arm stays at z=5.
   const overHeadPartTypes: ReadonlySet<string> = isPetSideFacing
     ? new Set(["front_leg"])
-    : new Set();
+    : new Set(["left_arm", "right_arm"]);
   // z-index placed above head wrapper (z=9) and all head-internal layers (max 19).
   const OVER_HEAD_Z = 20;
 

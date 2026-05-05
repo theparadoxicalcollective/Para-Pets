@@ -52,8 +52,10 @@ const LAYER_ORDER: Record<string, number> = {
   // ── Front-side accessories / front wings (in front of body) ───────────
   front_wing_2: 6, front_wing: 6,
   front_accessory_2: 6, front_accessory_1: 6,
-  // ── Arms behind neck (5 = same plane as body, drawn before neck at 6) ─
+  // ── Arms (overHeadPartTypes sends them to z=20 for front-facing pets) ─
   right_arm: 5, left_arm: 5, front_arm: 5,
+  // ── Front-facing shoulders behind neck (z=5 < neck z=6) ──────────────
+  left_shoulder: 5, right_shoulder: 5,
   // ── Front-side limbs (side-view legs + shoulders stay in front of neck) ─
   front_leg: 7, front_shoulder: 8,
   // ── Face / head ───────────────────────────────────────────────────────
@@ -435,12 +437,12 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
     // Front-facing: left_arm + right_arm over head.
     // Side-facing:  front_arm + front_leg over head.
     const isPetSideFacing = facing === "left" || facing === "right";
-    // Arms no longer override to z=20 — LAYER_ORDER (arms=5, neck=6,
-    // head=10) handles stacking. Side-facing front_leg still draws above
-    // head for the crossing-limb effect.
+    // Front-facing: left_arm + right_arm draw above head (z=20).
+    // Shoulders stay at LAYER_ORDER z=5 (behind neck).
+    // Side-facing: only front_leg crosses above the head.
     const overHeadPartTypes: ReadonlySet<string> = isPetSideFacing
       ? new Set(["front_leg"])
-      : new Set();
+      : new Set(["left_arm", "right_arm"]);
 
     // SECONDARY head-group parts (h2_/h3_-prefixed) ALWAYS drop into a
     // z slot just below body (z=5 in LAYER_ORDER) so multi-head pets

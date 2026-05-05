@@ -372,6 +372,7 @@ export default function PetDatabasePanel({
     front_wing_2: 6, front_wing: 6,
     front_accessory_2: 6, front_accessory_1: 6,
     right_arm: 5, left_arm: 5, front_arm: 5,
+    left_shoulder: 5, right_shoulder: 5,
     front_leg: 7, front_shoulder: 8,
     right_ear: 9, left_ear: 9,
     right_ear_2: 9, left_ear_2: 9,
@@ -388,11 +389,13 @@ export default function PetDatabasePanel({
   // Side-facing (KC left/right): front_arm + front_leg layer above the head.
   const previewFacing = templateDetail?.facing ?? "front";
   const previewIsSideFacing = previewFacing === "left" || previewFacing === "right";
-  // Arms now use LAYER_ORDER z-values (arms=5, neck=6, head=10) rather
-  // than the z=20 override so the neck sits in front of the shoulders.
+  // Front-facing: left_arm + right_arm render above head (z=20).
+  // Shoulders (left_shoulder / right_shoulder) use LAYER_ORDER z=5
+  // so the neck overlaps the shoulder joint.
+  // Side-facing: only front_leg crosses above the head.
   const overHeadPreviewParts: ReadonlySet<string> = previewIsSideFacing
     ? new Set(["front_leg"])
-    : new Set();
+    : new Set(["left_arm", "right_arm"]);
   const previewIsHeadGroupBase = new Set([
     "eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed",
     "hair_left", "hair_right", "hair_center", "accessory_1", "accessory_2", "above_head",
