@@ -1868,23 +1868,32 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           const bodyOrigin = (part.partType === "body" && !canFly) ? "50% 100%" : undefined;
 
           // Tails swivel from their BASE — where the tail connects to the
-          // pet body. The correct edge depends on which way the pet faces:
-          //   • "front" view (pet faces RIGHT): the body is to the right of
-          //     the tail image, so the root is at the RIGHT edge → pivot X
-          //     at the rightmost visible pixel.
-          //   • "back" view (pet faces LEFT): the body is to the left, so
-          //     the root is at the LEFT edge → pivot X at the leftmost
-          //     visible pixel.
-          // Y is always 100% (bottom of alpha bbox) so the base corner
-          // stays planted while only the tip arcs up/down.
+          // pet body. The correct pivot depends on which way the pet faces:
+          //
+          //   SIDE-FACING pets (KC left / right):
+          //     The tail extends horizontally. The body is beside the tail.
+          //     • resolvedView "back" (pet faces LEFT):  root at LEFT  edge
+          //     • resolvedView "front" (pet faces RIGHT): root at RIGHT edge
+          //     Y = bottom of alpha bbox.
+          //
+          //   FRONT-FACING pets (facing the camera, no KC left/right):
+          //     The tail hangs downward from the pet's spine. The attachment
+          //     point is at the TOP-CENTER of the tail image, so the tail
+          //     swings left-right while the root stays planted at the body.
+          //     X = center of alpha bbox, Y = TOP of alpha bbox.
           const tailOrigin = (() => {
             if (part.partType !== "tail" && part.partType !== "tail_2" && part.partType !== "tail_3") return undefined;
             const tabAlpha = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
+            if (!isPetSideFacing) {
+              // Front-facing: pivot at top-center (where tail meets the spine).
+              const originX = (tabAlpha.left + tabAlpha.width  / 2) * 100;
+              const originY = tabAlpha.top * 100;
+              return `${originX.toFixed(2)}% ${originY.toFixed(2)}%`;
+            }
+            // Side-facing: pivot at the horizontal edge nearest the body.
             const originX = resolvedView === "back"
               ? tabAlpha.left * 100                          // left edge — pet faces left
               : (tabAlpha.left + tabAlpha.width) * 100;     // right edge — pet faces right
-            // Y: bottom of the visible alpha region (not the full element),
-            // so the pivot lands at the actual root pixel, not in empty space.
             const originY = (tabAlpha.top + tabAlpha.height) * 100;
             return `${originX.toFixed(2)}% ${originY.toFixed(2)}%`;
           })();
