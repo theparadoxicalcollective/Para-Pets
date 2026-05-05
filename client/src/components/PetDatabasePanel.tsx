@@ -379,6 +379,14 @@ export default function PetDatabasePanel({
     hair_right: 16, hair_left: 17, hair_center: 18,
     above_head: 19,
   };
+  // Facing-aware over-head parts — mirrors PetAnimator.tsx logic.
+  // Front-facing: left_arm + right_arm layer above the head.
+  // Side-facing (KC left/right): front_arm + front_leg layer above the head.
+  const previewFacing = templateDetail?.facing ?? "front";
+  const previewIsSideFacing = previewFacing === "left" || previewFacing === "right";
+  const overHeadPreviewParts: ReadonlySet<string> = previewIsSideFacing
+    ? new Set(["front_arm", "front_leg"])
+    : new Set(["left_arm", "right_arm"]);
   const previewIsHeadGroupBase = new Set([
     "eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed",
     "hair_left", "hair_right", "hair_center", "accessory_1", "accessory_2", "above_head",
@@ -390,6 +398,8 @@ export default function PetDatabasePanel({
     return base === "head" || previewIsHeadGroupBase.has(base);
   };
   const previewEffectiveZ = (p: { partType: string; zIndex: number }): number => {
+    // Arms/legs that must layer above the head in the editor preview.
+    if (overHeadPreviewParts.has(p.partType)) return 20;
     if (previewIsSecondaryHeadGroupPart(p.partType)) {
       const base = p.partType.replace(/^h[23]_/, "");
       const subZ = PREVIEW_LAYER_ORDER[base] ?? 10;

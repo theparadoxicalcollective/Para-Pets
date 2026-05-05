@@ -1345,10 +1345,21 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     (frontCount === 0 && backCount > 0) ? "back" :
     view;
 
+  // Parts that must render ABOVE the head wrapper (z=9) so arms/legs overlap
+  // the head naturally when the pet moves.
+  // • Front-facing pets (no KC facing):  left_arm + right_arm
+  // • Side-facing pets (KC left/right):  front_arm + front_leg only
+  const isPetSideFacing = facing === "left" || facing === "right";
+  const overHeadPartTypes: ReadonlySet<string> = isPetSideFacing
+    ? new Set(["front_arm", "front_leg"])
+    : new Set(["left_arm", "right_arm"]);
+  // z-index placed above head wrapper (z=9) and all head-internal layers (max 19).
+  const OVER_HEAD_Z = 20;
+
   const viewParts = allParts.filter(p => p.view === resolvedView).sort((a, b) => {
-    const aLayer = LAYER_ORDER[a.partType] ?? a.zIndex;
-    const bLayer = LAYER_ORDER[b.partType] ?? b.zIndex;
-    return aLayer - bLayer;
+    const getZ = (pt: string, fallback: number) =>
+      overHeadPartTypes.has(pt) ? OVER_HEAD_Z : (LAYER_ORDER[pt] ?? fallback);
+    return getZ(a.partType, a.zIndex) - getZ(b.partType, b.zIndex);
   });
 
   if (viewParts.length === 0) return null;
@@ -1773,7 +1784,11 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
 
         {/* Body parts (back_full, limbs, wings, tail, body) */}
         {bodyParts.map((part) => {
-          const partZ = compressedZ.get(part.id);
+          // Over-head arm/leg types use a fixed z above the head wrapper (z=9).
+          // All other body parts use the compressed 1..8 range as before.
+          const partZ = overHeadPartTypes.has(part.partType)
+            ? OVER_HEAD_Z
+            : compressedZ.get(part.id);
           if (part.partType === "back_full") {
             const leftPct = (part.posX / CANVAS_SIZE) * 100;
             const topPct = (part.posY / CANVAS_SIZE) * 100;

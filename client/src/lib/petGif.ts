@@ -37,6 +37,10 @@ export interface RenderPetGifOpts {
   parts: PetPart[];
   view: "front" | "back";
   animation: GifAnimation;
+  /** Template facing — same value as pet_templates.facing.
+   *  "left" or "right" = side-facing KC pet (front_arm + front_leg over head).
+   *  Anything else (including undefined) = front-facing (left_arm + right_arm over head). */
+  facing?: string;
   outputSize?: number;
   durationMs?: number;
   fps?: number;
@@ -402,12 +406,19 @@ export async function renderPetGif(opts: RenderPetGifOpts): Promise<CaptureResul
     (requestedView === "back"  && backCount === 0 && frontCount > 0) ? "front" :
     requestedView;
 
+  // Facing-aware over-head arm/leg types (mirrors PetAnimator.tsx).
+  const gifFacing = opts.facing ?? "front";
+  const gifIsSideFacing = gifFacing === "left" || gifFacing === "right";
+  const overHeadPartTypes: ReadonlySet<string> = gifIsSideFacing
+    ? new Set(["front_arm", "front_leg"])
+    : new Set(["left_arm", "right_arm"]);
+
   const viewParts = opts.parts
     .filter(p => p.view === resolvedView)
     .sort((a, b) => {
-      const aL = LAYER_ORDER[basePartType(a.partType)] ?? a.zIndex;
-      const bL = LAYER_ORDER[basePartType(b.partType)] ?? b.zIndex;
-      return aL - bL;
+      const getZ = (pt: string, fallback: number) =>
+        overHeadPartTypes.has(basePartType(pt)) ? 20 : (LAYER_ORDER[basePartType(pt)] ?? fallback);
+      return getZ(a.partType, a.zIndex) - getZ(b.partType, b.zIndex);
     });
 
   if (viewParts.length === 0) {
@@ -428,7 +439,10 @@ export async function renderPetGif(opts: RenderPetGifOpts): Promise<CaptureResul
 
   const headGroups = buildHeadGroups(viewParts);
   const headGroupPartIds = new Set(headGroups.flatMap(g => [g.head.id, ...g.faceParts.map(p => p.id)]));
-  const bodyParts = viewParts.filter(p => !headGroupPartIds.has(p.id));
+  const allBodyParts = viewParts.filter(p => !headGroupPartIds.has(p.id));
+  // Split into parts that draw under the head and parts that draw over it.
+  const overHeadBodyParts = allBodyParts.filter(p => overHeadPartTypes.has(p.partType));
+  const bodyParts = allBodyParts.filter(p => !overHeadPartTypes.has(p.partType));
 
   const canvas = document.createElement("canvas");
   canvas.width = outputSize;
@@ -511,6 +525,18 @@ export async function renderPetGif(opts: RenderPetGifOpts): Promise<CaptureResul
       }
 
       ctx.restore();
+    }
+
+    // Over-head arm/leg parts — drawn after all head groups so they
+    // layer on top of the head in the final GIF, matching the live renderer.
+    for (const part of overHeadBodyParts) {
+      if (ANIM_ONLY_PARTS.has(part.partType)) continue;
+      const img = partImages.get(part.id);
+      if (!img) continue;
+      const phase = partPhase(part.id);
+      const localT = ((cycleT + phase) % 1 + 1) % 1;
+      const xform = sampleBodyPartTransform(part, opts.animation, localT);
+      drawPart(ctx, img, part, xform, outputSize);
     }
 
     // Particle overlays

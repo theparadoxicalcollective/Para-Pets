@@ -411,6 +411,14 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
       : (frontCount === 0 && backCount > 0) ? "back" : "front";
     resolvedViewRef.current = resolvedView;
 
+    // Which arm/leg types must draw ABOVE the head (canvas draw order = z order).
+    // Front-facing: left_arm + right_arm over head.
+    // Side-facing:  front_arm + front_leg over head.
+    const isPetSideFacing = facing === "left" || facing === "right";
+    const overHeadPartTypes: ReadonlySet<string> = isPetSideFacing
+      ? new Set(["front_arm", "front_leg"])
+      : new Set(["left_arm", "right_arm"]);
+
     // SECONDARY head-group parts (h2_/h3_-prefixed) ALWAYS drop into a
     // z slot just below body (z=5 in LAYER_ORDER) so multi-head pets
     // render their side heads BEHIND the body silhouette. The base
@@ -424,6 +432,8 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
     const isSecondaryHeadGroupPart = (pt: string): boolean =>
       (pt.startsWith("h2_") || pt.startsWith("h3_")) && isHeadGroupPart(pt);
     const effectivePartZ = (part: PetPart): number => {
+      // Arms/legs that must layer over the head draw last (highest z).
+      if (overHeadPartTypes.has(part.partType)) return 20;
       if (isSecondaryHeadGroupPart(part.partType)) {
         const basePt = part.partType.replace(/^h[23]_/, "");
         const subZ = LAYER_ORDER[basePt] ?? 10;
