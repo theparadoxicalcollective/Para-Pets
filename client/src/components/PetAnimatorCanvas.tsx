@@ -52,9 +52,10 @@ const LAYER_ORDER: Record<string, number> = {
   // ── Front-side accessories / front wings (in front of body) ───────────
   front_wing_2: 6, front_wing: 6,
   front_accessory_2: 6, front_accessory_1: 6,
-  // ── Front-side limbs ──────────────────────────────────────────────────
-  front_leg: 7, right_arm: 7,
-  front_arm: 8, left_arm: 8, front_shoulder: 8,
+  // ── Arms behind neck (5 = same plane as body, drawn before neck at 6) ─
+  right_arm: 5, left_arm: 5, front_arm: 5,
+  // ── Front-side limbs (side-view legs + shoulders stay in front of neck) ─
+  front_leg: 7, front_shoulder: 8,
   // ── Face / head ───────────────────────────────────────────────────────
   right_ear: 9, left_ear: 9,
   // Second ear pair on Head 1 — same z-band as the primary ears.

@@ -1118,11 +1118,14 @@ const LAYER_ORDER: Record<string, number> = {
   front_wing: 6,
   front_accessory_2: 6,
   front_accessory_1: 6,
-  // ── Front-side limbs ───────────────────────────────────────────────────
+  // ── Front/back arms — sit in front of body (5) but BEHIND the neck (6)
+  //    so the neck base always overlaps the shoulder joint. front_leg and
+  //    front_shoulder keep their forward positions for the side view.
+  right_arm: 5,
+  left_arm: 5,
+  front_arm: 5,
+  // ── Front-side limbs (side-view legs + shoulders stay in front of neck) ─
   front_leg: 7,
-  right_arm: 7,
-  front_arm: 8,
-  left_arm: 8,
   front_shoulder: 8,
   // ── Face / head (most live inside the head-group wrapper at z=9) ───────
   right_ear: 9,

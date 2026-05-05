@@ -60,13 +60,13 @@ const CANVAS_SIZE = 1000;
 const LAYER_ORDER: Record<string, number> = {
   tail: 1, right_leg: 2, left_leg: 2, back_wing: 2,
   back_leg: 3, right_wing: 3, back_arm: 4, left_wing: 4,
-  body: 5, front_wing: 6, right_arm: 7, front_leg: 7,
-  left_arm: 8, front_arm: 8, right_ear: 9, left_ear: 9,
+  body: 5, right_arm: 5, left_arm: 5, front_arm: 5,
+  front_wing: 6, front_leg: 7,
+  right_ear: 9, left_ear: 9,
   // Second ear pair on Head 1 — same z-band as the primary ears.
   right_ear_2: 9, left_ear_2: 9,
-  // Neck — sits in front of body (5) but BEHIND the arms (right_arm=7,
-  // left_arm=8) so the arms always overlap the neck base. Mirrors
-  // PetAnimator's LAYER_ORDER.
+  // Neck — z=6, in front of arms (z=5) so the neck base overlaps the
+  // shoulder joint. Stays behind the head (z=10). Mirrors PetAnimator.
   neck: 6,
   head: 10, mouth: 12, mouth_closed: 13, eyes_closed: 14, eyes: 15,
 };
