@@ -168,7 +168,11 @@ const POINTS_PER_COIN_TIER = 100;   // every 100 score points → COINS_PER_TIER
 const COINS_PER_TIER = 10;
 const DOUBLE_BONUS_COINS = 1;       // +1 coin for clearing exactly 2 rows in one drop
 const TRIPLE_BONUS_COINS = 3;       // +3 coins for clearing exactly 3 rows in one drop
-const TETRIS_BONUS_COINS = 5;       // +5 coins for clearing 4+ rows in one drop
+const TETRIS_BONUS_COINS = 8;       // +8 coins for clearing 4+ rows in one drop
+// Bonus score points added silently to the score counter on multi-row clears.
+const DOUBLE_BONUS_SCORE = 3;       // +3 bonus score for 2-row clear
+const TRIPLE_BONUS_SCORE = 5;       // +5 bonus score for 3-row clear
+const TETRIS_BONUS_SCORE  = 10;     // +10 bonus score for 4-row clear
 const STARTING_LIVES = 1;
 
 export default function MoltenBlocksPage() {
@@ -465,13 +469,16 @@ export default function MoltenBlocksPage() {
         // the values that include this final clear (React state setters
         // batch and would leave the refs stale).
         const prevScore = scoreRef.current;
-        const nextScore = prevScore + n * POINTS_PER_ROW;
+        // Bonus score points for multi-row clears (added silently, no effect).
+        const bonusScore = n >= 4 ? TETRIS_BONUS_SCORE : n === 3 ? TRIPLE_BONUS_SCORE : n === 2 ? DOUBLE_BONUS_SCORE : 0;
+        const nextScore = prevScore + n * POINTS_PER_ROW + bonusScore;
         // Tier coins — every full POINTS_PER_COIN_TIER points crossed grants COINS_PER_TIER.
+        // Bonus score counts toward tier thresholds too.
         const tiersBefore = Math.floor(prevScore / POINTS_PER_COIN_TIER);
         const tiersAfter  = Math.floor(nextScore / POINTS_PER_COIN_TIER);
         const newTiers = tiersAfter - tiersBefore;
         const tierCoins = newTiers > 0 ? newTiers * COINS_PER_TIER : 0;
-        // Multi-row bonus — 2 rows: +1, 3 rows: +3, 4+ rows: +5.
+        // Multi-row bonus coins — 2 rows: +1, 3 rows: +3, 4+ rows: +8.
         const bonusCoins = n >= 4 ? TETRIS_BONUS_COINS : n === 3 ? TRIPLE_BONUS_COINS : n === 2 ? DOUBLE_BONUS_COINS : 0;
         const coinsAdded = tierCoins + bonusCoins;
         scoreRef.current = nextScore;
