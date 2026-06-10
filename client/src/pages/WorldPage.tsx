@@ -281,6 +281,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [bgUploading, setBgUploading] = useState(false);
   const [showNoPetMessage, setShowNoPetMessage] = useState(false);
   const [showDangerWarning, setShowDangerWarning] = useState(false);
+  const [showCauldronConstruction, setShowCauldronConstruction] = useState(false);
   const [showBattlePrep, setShowBattlePrep] = useState(false);
   const [showBattle, setShowBattle] = useState(false);
   const [battleLocationId, setBattleLocationId] = useState<string | null>(null);
@@ -3885,7 +3886,13 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                 y={cauldronY}
                 size={cauldronSize}
                 onCommit={(layout) => cauldronLayoutMutation.mutate(layout)}
-                onClick={() => setCauldronOpen(true)}
+                onClick={() => {
+                  if (currentUser.isAdmin) {
+                    setCauldronOpen(true);
+                  } else {
+                    setShowCauldronConstruction(true);
+                  }
+                }}
               />
             </>
           )}
@@ -4822,6 +4829,47 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           isAdding={addToCauldronMutation.isPending}
           isClearing={clearCauldronMutation.isPending}
         />
+      )}
+
+      {/* Cauldron "Under Construction" modal for non-admins */}
+      {showCauldronConstruction && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+        >
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowCauldronConstruction(false)} />
+          <div
+            className="relative z-10 flex flex-col items-center justify-center px-6 py-10 rounded-xl text-center"
+            style={{
+              maxWidth: 300,
+              background: "linear-gradient(135deg, rgba(20,10,40,0.97) 0%, rgba(35,15,60,0.97) 100%)",
+              border: "1.5px solid rgba(240,192,64,0.35)",
+              boxShadow: "0 0 30px rgba(240,192,64,0.15), 0 8px 32px rgba(0,0,0,0.7)",
+            }}
+          >
+            <div className="text-4xl mb-3">🛠️</div>
+            <h3 className="font-fantasy text-lg font-semibold tracking-wider mb-2" style={{ color: "#f0c040" }}>
+              Under Construction
+            </h3>
+            <p className="font-fantasy text-sm" style={{ color: "#e8ddd0", lineHeight: 1.5 }}>
+              The Mixing Tree is not yet ready for visitors.
+            </p>
+            <button
+              onClick={() => setShowCauldronConstruction(false)}
+              className="mt-5 font-fantasy text-xs tracking-wider transition-transform active:scale-95"
+              style={{
+                background: "rgba(240,192,64,0.18)",
+                border: "1px solid rgba(240,192,64,0.35)",
+                color: "#f0c040",
+                borderRadius: "8px",
+                padding: "8px 20px",
+                cursor: "pointer",
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Player decor message popup */}

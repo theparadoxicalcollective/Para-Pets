@@ -602,7 +602,7 @@ function NavButton({
           className="absolute inset-0 flex items-center justify-center rounded-full"
           style={{ background: "rgba(0,0,0,0.35)" }}
         >
-          <Lock size={ICON_SIZE * 0.4} color="#888" strokeWidth={2.5} />
+          <Lock size={ICON_SIZE * 0.4} color="#f0c040" strokeWidth={2.5} />
         </div>
       )}
 

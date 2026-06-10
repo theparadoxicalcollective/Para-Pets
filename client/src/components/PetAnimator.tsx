@@ -1906,11 +1906,13 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           // Tails swivel from their BASE — where the tail connects to the
           // pet body. The correct pivot depends on which way the pet faces:
           //
-          //   SIDE-FACING pets (KC left / right):
+          //   SIDE-FACING pets:
           //     The tail extends horizontally. The body is beside the tail.
-          //     • resolvedView "back" (pet faces LEFT):  root at LEFT  edge
-          //     • resolvedView "front" (pet faces RIGHT): root at RIGHT edge
-          //     Y = bottom of alpha bbox.
+          //     • resolvedView "back" (pet faces LEFT):  root at RIGHT edge
+          //       (the edge nearest the body — tail extends leftward)
+          //     • resolvedView "front" (pet faces RIGHT): root at LEFT edge
+          //       (the edge nearest the body — tail extends rightward)
+          //     Y = bottom of alpha bbox (where the tail attaches to the body).
           //
           //   FRONT-FACING pets (facing the camera, no KC left/right):
           //     The tail hangs downward from the pet's spine. The attachment
@@ -1928,8 +1930,8 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             }
             // Side-facing: pivot at the horizontal edge nearest the body.
             const originX = resolvedView === "back"
-              ? tabAlpha.left * 100                          // left edge — pet faces left
-              : (tabAlpha.left + tabAlpha.width) * 100;     // right edge — pet faces right
+              ? (tabAlpha.left + tabAlpha.width) * 100   // right edge — pet faces left, root near body
+              : tabAlpha.left * 100;                     // left edge — pet faces right, root near body
             const originY = (tabAlpha.top + tabAlpha.height) * 100;
             return `${originX.toFixed(2)}% ${originY.toFixed(2)}%`;
           })();
