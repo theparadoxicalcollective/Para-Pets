@@ -223,7 +223,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
         {/* RIGHT items – fan up on the right side */}
         {RIGHT_ITEMS.map((item, i) => {
-          const isLocked = (item.id === "pethouse" || item.id === "keepers") && !user.isAdmin && !user.isModerator;
+          const isLocked = (item.id === "pethouse" || item.id === "keepers") && !user.isAdmin;
           return (
             <NavButton
               key={item.id}
