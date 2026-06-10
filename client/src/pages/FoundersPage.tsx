@@ -338,8 +338,9 @@ export default function FoundersPage() {
                   <span
                     data-testid={`text-founder-name-${f.id}`}
                     style={{
-                      fontFamily: "'Great Vibes', cursive",
-                      fontSize: 24,
+                      fontFamily: "'Merriweather', serif",
+                      fontWeight: 700,
+                      fontSize: 20,
                       lineHeight: 1.4,
                       backgroundImage: "linear-gradient(180deg, #fff4c8 0%, #f0d278 50%, #c8a030 100%)",
                       WebkitBackgroundClip: "text",
