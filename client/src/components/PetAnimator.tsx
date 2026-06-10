@@ -602,6 +602,25 @@ const ANIMATION_STYLES = `
     from { transform: rotate( 4deg); }
     to   { transform: rotate(-4deg); }
   }
+  /* ── Side-facing tail animations ────────────────────────────────
+     Side-facing tails extend horizontally from the body. The same
+     ±5° rotation used for front-facing tails (which hang vertically)
+     makes the tail arc wildly off the body silhouette when the
+     pivot is at the body edge. These side-specific variants keep a
+     much smaller ±2° / ±1.5° so the tail reads as "pinned to the
+     body with a gentle wobble" rather than "swinging off into space". */
+  @keyframes petIdleSideTail {
+    from { transform: rotate(-2deg); }
+    to   { transform: rotate( 2deg); }
+  }
+  @keyframes petIdleSideTail2 {
+    from { transform: rotate(-1.5deg); }
+    to   { transform: rotate( 1.5deg); }
+  }
+  @keyframes petIdleSideTail3 {
+    from { transform: rotate( 1.5deg); }
+    to   { transform: rotate(-1.5deg); }
+  }
   /* Back hair — gentler sway (±2°) than the tail keyframe it previously
      shared (±5°). Hair behind the head reads as calm flowing motion at
      this lower amplitude; ±5° was visibly distracting. Period matches
@@ -1032,6 +1051,7 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   "petIdleLeftWing", "petIdleRightWing",
   "petIdleLeftLeg", "petIdleRightLeg",
   "petIdleTail", "petIdleTail2", "petIdleTail3",
+  "petIdleSideTail", "petIdleSideTail2", "petIdleSideTail3",
   "petAboveHeadBounce",
   // Side-view depth keyframes — also 2-keyframe from/to motions, so they
   // must alternate (ping-pong) instead of snapping back to 0 each cycle.
@@ -1353,7 +1373,19 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // hovering. Ground pets switch to the head-tilt-only variant so they
   // don't read as "floating off the ground".
   const canFly = !!templateData?.canFly;
-  const idleAnimMap = canFly ? IDLE_ANIMATIONS : IDLE_ANIMATIONS_GROUND;
+  const idleAnimMap = (() => {
+    const base = canFly ? IDLE_ANIMATIONS : IDLE_ANIMATIONS_GROUND;
+    const petFacing = templateData?.facing ?? "front";
+    if (petFacing === "left" || petFacing === "right") {
+      return {
+        ...base,
+        tail: "petIdleSideTail",
+        tail_2: "petIdleSideTail2",
+        tail_3: "petIdleSideTail3",
+      };
+    }
+    return base;
+  })();
   // Every pet renders from the same global per-part-type animation map
   // (IDLE_ANIMATIONS, IDLE_ANIMATIONS_GROUND, WALK_ANIMATIONS, etc.) so
   // animation behaviour is tweaked in ONE place and applies to every
@@ -1378,7 +1410,8 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // keep their own pivot-based origin so the swivel still rotates around
   // the tail base (isBodyBreathAnim still gates the origin override).
   const isTailIdleAnim = (name: string | null | undefined) =>
-    name === "petIdleTail" || name === "petIdleTail2" || name === "petIdleTail3";
+    name === "petIdleTail" || name === "petIdleTail2" || name === "petIdleTail3" ||
+    name === "petIdleSideTail" || name === "petIdleSideTail2" || name === "petIdleSideTail3";
 
   // Determine which view to render:
   // 1. If template is explicitly saved as side-facing ("back"), always use "back"
