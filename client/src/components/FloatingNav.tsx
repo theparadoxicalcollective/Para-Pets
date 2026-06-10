@@ -5,6 +5,7 @@ import { getNextZ } from "@/lib/layerManager";
 import { useLocation } from "wouter";
 import { useNavHidden } from "@/lib/navVisibility";
 import { useToast } from "@/hooks/use-toast";
+import { Lock } from "lucide-react";
 import coinIconImg from "@assets/icon_coin.png";
 import mainNavIcon from "@assets/generated_images/icon_main_nav.png";
 import petHouseIcon from "@assets/generated_images/nav_icon_home.png";
@@ -221,18 +222,22 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
         ))}
 
         {/* RIGHT items – fan up on the right side */}
-        {RIGHT_ITEMS.map((item, i) => (
-          <NavButton
-            key={item.id}
-            icon={item.icon}
-            label={item.label}
-            isOpen={isOpen}
-            delay={i * 45}
-            translateX={0}
-            translateY={-(SPACING * (i + 1))}
-            onClick={() => handleRight(item.id)}
-          />
-        ))}
+        {RIGHT_ITEMS.map((item, i) => {
+          const isLocked = (item.id === "pethouse" || item.id === "keepers") && !user.isAdmin && !user.isModerator;
+          return (
+            <NavButton
+              key={item.id}
+              icon={item.icon}
+              label={item.label}
+              isOpen={isOpen}
+              delay={i * 45}
+              translateX={0}
+              translateY={-(SPACING * (i + 1))}
+              locked={isLocked}
+              onClick={() => handleRight(item.id)}
+            />
+          );
+        })}
 
         {/* ── Main circular button ─────────────────────────────────────── */}
         <button
@@ -524,7 +529,7 @@ const SPARK_COLORS = ["#f0c040", "#ffd966", "#ffe599", "#f0c040", "#ffcc00", "#f
 
 // ── Individual nav icon button ────────────────────────────────────────────────
 function NavButton({
-  icon, label, isOpen, delay, translateX, translateY, fillIcon = false, badge = null, onClick,
+  icon, label, isOpen, delay, translateX, translateY, fillIcon = false, badge = null, locked = false, onClick,
 }: {
   icon: string;
   label: string;
@@ -534,30 +539,38 @@ function NavButton({
   translateY: number;
   fillIcon?: boolean;
   badge?: "green" | "gold" | null;
+  locked?: boolean;
   onClick: () => void;
 }) {
   const [sparks, setSparks] = useState<number[]>([]);
 
   const handleClick = useCallback(() => {
+    if (locked) return;
     const id = Date.now();
     setSparks(prev => [...prev, id]);
     setTimeout(() => setSparks(prev => prev.filter(s => s !== id)), 650);
     onClick();
-  }, [onClick]);
+  }, [onClick, locked]);
 
   return (
     <button
       onClick={handleClick}
-      className="absolute flex flex-col items-center justify-center rounded-full active:scale-90"
+      className="absolute flex flex-col items-center justify-center rounded-full"
       style={{
         width: ICON_SIZE,
         height: ICON_SIZE,
         bottom: 0,
         right: 0,
-        background: "radial-gradient(circle at 38% 35%, rgba(60,130,80,0.3) 0%, rgba(12,22,12,0.92) 75%)",
-        border: "1.5px solid rgba(212,160,23,0.55)",
-        boxShadow: "0 2px 12px rgba(0,0,0,0.7), 0 0 10px rgba(212,160,23,0.15)",
-        cursor: "pointer",
+        background: locked
+          ? "radial-gradient(circle at 38% 35%, rgba(40,40,40,0.4) 0%, rgba(12,12,12,0.92) 75%)"
+          : "radial-gradient(circle at 38% 35%, rgba(60,130,80,0.3) 0%, rgba(12,22,12,0.92) 75%)",
+        border: locked
+          ? "1.5px solid rgba(80,80,80,0.55)"
+          : "1.5px solid rgba(212,160,23,0.55)",
+        boxShadow: locked
+          ? "0 2px 12px rgba(0,0,0,0.7), 0 0 10px rgba(0,0,0,0.15)"
+          : "0 2px 12px rgba(0,0,0,0.7), 0 0 10px rgba(212,160,23,0.15)",
+        cursor: locked ? "not-allowed" : "pointer",
         overflow: "visible",
         transform: isOpen ? `translate(${translateX}px, ${translateY}px) scale(1)` : "translate(0,0) scale(0.5)",
         opacity: isOpen ? 1 : 0,
@@ -575,11 +588,23 @@ function NavButton({
             height: fillIcon ? ICON_SIZE : ICON_SIZE - 10,
             objectFit: fillIcon ? "cover" : "contain",
             borderRadius: fillIcon ? 0 : "50%",
-            filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.7))",
+            filter: locked
+              ? "grayscale(0.85) brightness(0.5) drop-shadow(0 2px 4px rgba(0,0,0,0.7))"
+              : "drop-shadow(0 2px 4px rgba(0,0,0,0.7))",
             display: "block",
           }}
         />
       </span>
+
+      {/* Lock overlay */}
+      {locked && (
+        <div
+          className="absolute inset-0 flex items-center justify-center rounded-full"
+          style={{ background: "rgba(0,0,0,0.35)" }}
+        >
+          <Lock size={ICON_SIZE * 0.4} color="#888" strokeWidth={2.5} />
+        </div>
+      )}
 
       {/* Badge indicator on individual icon (visible when nav is open) */}
       {badge && (
