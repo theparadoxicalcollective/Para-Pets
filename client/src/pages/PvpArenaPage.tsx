@@ -489,21 +489,32 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     (i: any) => i.type === "potion" && (((i.healthRestored ?? 0) > 0) || ((i.manaRestored ?? 0) > 0) || ((i.petsRevived ?? 0) > 0))
   );
 
-  // Per-row stacks for the picker UI. Each row in `inventory` is now an
-  // already-merged stack (server caps purchases at 50/row), so we render
-  // one tile per row. Tapping a tile equips that whole row (one slot =
-  // one inventory row = one stack). 137 potions buys would land as 3
-  // rows: 50 / 50 / 37, and the picker shows them as three separate
-  // tiles. The shop-side limit is shared with the server constant.
+  // Per-type stacks for the picker UI. Multiple inventory rows of the
+  // same potion name are merged into one tile so the picker doesn't
+  // overflow with 10 separate "Health Potion" tiles. Total quantity is
+  // summed and capped at 50 per stack (mirrors the shop limit). When
+  // equipping, the first available inventory row of that type is used.
   const POTION_STACK_SIZE = 50;
-  const potionStacks: Array<{
-    key: string; rep: any; inventoryId: string; qty: number;
-  }> = battlePotions.map((p: any) => ({
-    key: p.inventoryId || p.id,
-    rep: p,
-    inventoryId: p.inventoryId || p.id,
-    qty: Math.max(1, p.quantity ?? 1),
-  }));
+  const potionStacks = useMemo(() => {
+    const groups = new Map<string, any[]>();
+    for (const p of battlePotions) {
+      const name = p.name || "Unknown Potion";
+      if (!groups.has(name)) groups.set(name, []);
+      groups.get(name)!.push(p);
+    }
+    return Array.from(groups.entries()).map(([name, items]) => {
+      const rep = items[0];
+      const totalQty = items.reduce((sum, i) => sum + (i.quantity ?? 1), 0);
+      const inventoryIds = items.map((i: any) => i.inventoryId || i.id);
+      return {
+        key: name,
+        rep,
+        inventoryIds,
+        firstInventoryId: inventoryIds[0],
+        qty: Math.min(POTION_STACK_SIZE, totalQty),
+      };
+    });
+  }, [battlePotions]);
 
   // Active pet: the player's currently-equipped pet from the rest of the
   // game. We always seed the first PvP slot with it so the player never
@@ -1404,16 +1415,15 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                     {potionStacks.map((stack) => {
                       const inv = stack.rep;
                       const isMana = (inv.manaRestored ?? 0) > 0;
-                      // Whether this exact inventory row is already
-                      // equipped (each row maps to at most one slot in
-                      // the new model). The tile is disabled once it's
-                      // bound or the loadout is full.
+                      const isRevive = (inv.petsRevived ?? 0) > 0;
+                      // Any inventory row of this potion type already
+                      // equipped blocks re-equipping the same type.
                       const allEquippedIds = new Set(
                         selectedPotionSlots
                           .filter((s): s is BattlePotionSlot => s !== null)
                           .map(s => s.inventoryId),
                       );
-                      const isEquipped = allEquippedIds.has(stack.inventoryId);
+                      const isEquipped = stack.inventoryIds.some((id: string) => allEquippedIds.has(id));
                       const remaining = isEquipped ? 0 : stack.qty;
                       const loadoutFull = selectedPotionSlots.every(s => s !== null);
                       const disabled = isEquipped || loadoutFull;
@@ -1424,20 +1434,20 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                           data-testid={`button-potion-stack-${stack.key}`}
                           disabled={disabled}
                           onClick={() => {
-                            // Equip this whole inventory row (one stack)
-                            // into the lowest-index empty slot and close
-                            // the picker so the player immediately sees
-                            // the slot fill in.
-                            equipPotionStackToNextEmpty(stack.rep, stack.inventoryId, stack.qty);
+                            // Equip the first available inventory row of
+                            // this type into the lowest-index empty slot.
+                            equipPotionStackToNextEmpty(stack.rep, stack.firstInventoryId, stack.qty);
                           }}
                           className="relative rounded-xl p-2 flex flex-col items-center gap-1 transition-all active:scale-95"
                           style={{
                             background: partiallySelected
                               ? (isMana
                                   ? "linear-gradient(135deg, rgba(20,80,40,0.40), rgba(74,222,128,0.12))"
-                                  : "linear-gradient(135deg, rgba(34,197,94,0.32), rgba(74,222,128,0.10))")
+                                  : isRevive
+                                    ? "linear-gradient(135deg, rgba(120,75,8,0.32), rgba(251,191,36,0.10))"
+                                    : "linear-gradient(135deg, rgba(34,197,94,0.32), rgba(74,222,128,0.10))")
                               : "rgba(255,255,255,0.04)",
-                            border: `1px solid ${partiallySelected ? (isMana ? "rgba(74,222,128,0.60)" : "rgba(34,197,94,0.6)") : "rgba(255,255,255,0.08)"}`,
+                            border: `1px solid ${partiallySelected ? (isMana ? "rgba(74,222,128,0.60)" : isRevive ? "rgba(251,191,36,0.6)" : "rgba(34,197,94,0.6)") : "rgba(255,255,255,0.08)"}`,
                             opacity: disabled ? 0.4 : 1,
                           }}
                         >
@@ -1448,8 +1458,8 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                             data-testid={`text-potion-stack-count-${stack.key}`}
                             style={{
                               background: "rgba(0,0,0,0.7)",
-                              border: `1px solid ${isMana ? "rgba(74,222,128,0.50)" : "rgba(34,197,94,0.5)"}`,
-                              color: isMana ? "#86efac" : "#86efac",
+                              border: `1px solid ${isMana ? "rgba(74,222,128,0.50)" : isRevive ? "rgba(251,191,36,0.5)" : "rgba(34,197,94,0.5)"}`,
+                              color: isMana ? "#86efac" : isRevive ? "#fde68a" : "#86efac",
                             }}
                           >
                             ×{remaining}
@@ -1459,7 +1469,9 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                               ? <img src={inv.imageUrl} className="w-12 h-12 object-contain" />
                               : isMana
                                 ? <Droplets className="w-9 h-9" style={{ color: "#4ade80" }} />
-                                : <Heart className="w-9 h-9" style={{ color: "#f87171", fill: "rgba(248,113,113,0.3)" }} />}
+                                : isRevive
+                                  ? <span className="text-2xl">✨</span>
+                                  : <Heart className="w-9 h-9" style={{ color: "#f87171", fill: "rgba(248,113,113,0.3)" }} />}
                           </div>
                           <div className="text-white/85 text-[10px] truncate w-full text-center font-medium">{inv.name}</div>
                         </button>

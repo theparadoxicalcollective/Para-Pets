@@ -120,6 +120,11 @@ const COMBO_WINDOW_MS = 1400;
 // waiting enemy preferred), this addresses the "just sitting there"
 // complaint without needing a full multi-charger refactor.
 const CHARGE_INTERVAL_MS = 700;
+/** How often player allies auto-attack a random enemy. Mirrors enemy charge
+ *  cadence so both sides feel equally active. */
+const ALLY_ATTACK_INTERVAL_MS = 700;
+/** How long the ally "lunge" animation plays before damage resolves. */
+const ALLY_ATTACK_MS = 400;
 /** How fast a charging enemy travels down to its target ally. */
 const CHARGE_DIVE_MS = 720;
 /** How fast it returns to the swarm after impact. */
@@ -307,6 +312,14 @@ export default function PvpBattlePage({
   // enemy, so attacks rotate through the whole lineup instead of
   // clustering on one or two pets.
   const enemyLastChargeMsRef = useRef<Record<string, number>>({});
+  // Ally auto-attack: one ally at a time lunges toward a random enemy,
+  // deals damage, then returns.  Mirrors enemy charger pattern.
+  const allyAttackRef = useRef<{
+    allyUid: string; enemyUid: string; startMs: number; attackMs: number;
+    returning: boolean; returnStartMs: number; returnMs: number;
+  } | null>(null);
+  const lastAllyAttackAttemptRef = useRef(0);
+  const allyLastAttackMsRef = useRef<Record<string, number>>({});
   const [chargerView, setChargerView] = useState<Charger | null>(null);
 
   // Potion drag state — mirrored to a ref so the animate loop / pointer
@@ -870,22 +883,63 @@ export default function PvpBattlePage({
         }
       }
 
-      // ── Allies: gentle bob in place + slow passive mana gain ─
-      // Tiny Y-only sine bob (≈ 0.6 % of arena height) so allies feel
-      // alive without drifting from their formation slot. Replaces the
-      // old `bIdle` CSS keyframe (4 px transform bob on the wrapper):
-      // the keyframe was running ON TOP of the float math and at a
-      // different period from anything else, which made enemies look
-      // jittery and allies look like they were ticking discrete frames.
-      // Driving the bob from this single RAF loop keeps every pet on
-      // the same time-base.
-      // Passive ally mana removed per user feedback. Allies now only
-      // build mana from swiping (SWIPE_MANA_ATTACKER / SWIPE_MANA_PARTY,
-      // see handlePointerMove) or being hit by an enemy charge (+10
-      // above). The bob is purely cosmetic.
+      // ── Ally auto-attack (mirrors enemy charger) ─────────────
+      // One ally at a time lunges toward a random enemy, deals damage,
+      // then returns.  Keeps both sides visually active without requiring
+      // the player to tap enemies for basic attacks.
+      const allyAtk = allyAttackRef.current;
       for (const a of myAlive) {
-        a.x = a.baseX;
-        a.y = a.baseY + Math.sin(t * 1.05 + (a.phase || a.slotIdx)) * 0.6;
+        if (allyAtk && allyAtk.allyUid === a.uid) {
+          const target = ps.find(p => p.uid === allyAtk.enemyUid);
+          if (!target || target.isDead) {
+            allyAttackRef.current = null;
+          } else if (!allyAtk.returning) {
+            const k = Math.min(1, (now - allyAtk.startMs) / allyAtk.attackMs);
+            const eased = k * k * (3 - 2 * k);
+            a.x = a.baseX + (target.x - a.baseX) * eased;
+            a.y = a.baseY + (target.y - a.baseY) * eased;
+            if (k >= 1) {
+              const dmg = Math.max(1, a.atk - Math.floor(target.def * 0.25));
+              target.hp = Math.max(0, target.hp - dmg);
+              spawnFloatNum(target.x, target.y - 10, dmg);
+              spawnSparks(target.x, target.y, ["#ef4444", "#f87171", "#fca5a5"]);
+              flashHit(target.uid);
+              playHit();
+              a.mana = Math.min(MAX_MANA, a.mana + 25);
+              target.mana = Math.min(MAX_MANA, target.mana + 10);
+              if (target.hp <= 0 && !target.isDead) doKo(target);
+              allyAtk.returning = true;
+              allyAtk.returnStartMs = now;
+            }
+          } else {
+            const k = Math.min(1, (now - allyAtk.returnStartMs) / allyAtk.returnMs);
+            a.x = a.x + (a.baseX - a.x) * k;
+            a.y = a.y + (a.baseY + Math.sin(t * 1.05 + (a.phase || a.slotIdx)) * 0.6 - a.y) * k;
+            if (k >= 1) allyAttackRef.current = null;
+          }
+        } else {
+          // Idle bob
+          a.x = a.baseX;
+          a.y = a.baseY + Math.sin(t * 1.05 + (a.phase || a.slotIdx)) * 0.6;
+        }
+      }
+      // Spawn new ally attacker if none active
+      if (!allyAttackRef.current && now - lastAllyAttackAttemptRef.current > ALLY_ATTACK_INTERVAL_MS) {
+        lastAllyAttackAttemptRef.current = now;
+        const candidates = myAlive;
+        if (candidates.length && oppAlive.length) {
+          const sorted = [...candidates].sort(
+            (a, b) => (allyLastAttackMsRef.current[a.uid] ?? 0) - (allyLastAttackMsRef.current[b.uid] ?? 0)
+          );
+          const pickWindow = Math.min(2, sorted.length);
+          const ally = sorted[Math.floor(Math.random() * pickWindow)];
+          allyLastAttackMsRef.current[ally.uid] = now;
+          const target = oppAlive[Math.floor(Math.random() * oppAlive.length)];
+          allyAttackRef.current = {
+            allyUid: ally.uid, enemyUid: target.uid, startMs: now, attackMs: ALLY_ATTACK_MS,
+            returning: false, returnStartMs: 0, returnMs: 300,
+          };
+        }
       }
 
       // ── Per-frame DOM-direct sync (avoids React re-render storm) ──
@@ -1002,60 +1056,11 @@ export default function PvpBattlePage({
       return;
     }
 
-    // ─ Tap a live enemy → land a single hit ─
-    // Closest-to-tap enemy within ~14 arena-% (≈ one pet width) is
-    // the target. Damage / combo / mana distribution / spark colors
-    // mirror the prior swipe-hit pipeline so balance is unchanged —
-    // the only thing that changed is the input gesture (tap vs swipe).
-    const oppAliveTap = ps.filter(p => !p.isPlayer && !p.isDead);
-    let bestTap: { opp: typeof oppAliveTap[number]; dist: number } | null = null;
-    for (const opp of oppAliveTap) {
-      const d = Math.hypot(opp.x - pos.x, opp.y - pos.y);
-      if (d >= 14) continue;
-      if (!bestTap || d < bestTap.dist) bestTap = { opp, dist: d };
-    }
-    if (!bestTap) return;
-    const tapOpp = bestTap.opp;
-
-    // Slot-0 is the lead attacker for damage attribution. If they've
-    // been KO'd, fall back to whoever's alive in the party.
-    const tapAttacker = myAlive.find(p => p.slotIdx === 0) ?? myAlive[0];
-    if (!tapAttacker) return;
-
-    // Combo counter still ticks for the on-screen "Nx COMBO" badge, but
-    // it intentionally does NOT scale the damage. Basic-attack damage is
-    // deterministic: pet ATK minus a flat 25% slice of the target's DEF.
-    // This keeps the card-shown ATK value honest (1,600 ATK = ~1,600
-    // damage per tap, not 3,000+ via combo/crit stacking). Crits are
-    // also removed for the same reason — special skills are the only
-    // multiplier path now.
-    bumpCombo();
-    const tapIsCrit = false;
-    const tapDmg = Math.max(1, tapAttacker.atk - Math.floor(tapOpp.def * 0.25));
-    tapOpp.hp = Math.max(0, tapOpp.hp - tapDmg);
-    // Mana distribution — slot-0 attacker takes the lion's share, all
-    // other live allies bank a smaller amount so backup pets still
-    // charge their specials during a fight.
-    for (const ally of myAlive) {
-      const share = ally.uid === tapAttacker.uid ? SWIPE_MANA_ATTACKER : SWIPE_MANA_PARTY;
-      ally.mana = Math.min(MAX_MANA, ally.mana + share);
-    }
-    // Hit enemy banks a touch of mana too (give-or-take a hit rule).
-    tapOpp.mana = Math.min(MAX_MANA, tapOpp.mana + 8);
-
-    // RED glowing sparks at the tap point (gold on a crit) so the
-    // strike reads clearly without the prior swipe-trail polyline.
-    // We spawn TWO bursts — one at the actual tap location and one
-    // centered on the enemy — so the feedback is unmistakable even
-    // when the player taps slightly off-center.
-    const tapColors = tapIsCrit ? ["#fbbf24", "#f59e0b", "#fde68a"] : ["#ef4444", "#f87171", "#fca5a5"];
-    spawnSparks(pos.x, pos.y, tapColors);
-    spawnSparks(tapOpp.x, tapOpp.y, tapColors);
-    spawnFloatNum(tapOpp.x, tapOpp.y - 8, tapDmg, false, tapIsCrit);
-    flashHit(tapOpp.uid);
-    playHit();
-    if (tapOpp.hp <= 0 && !tapOpp.isDead) doKo(tapOpp);
-  }, [getArenaPos, fireSkill, bumpCombo, spawnSparks, spawnFloatNum, flashHit, doKo]);
+    // Tapping the arena outside of skill-targeting or potion-drag is now
+    // a no-op — basic attacks are fully automatic (ally auto-attack loop
+    // in the RAF).  The player only manually intervenes for potions and
+    // special skills.
+  }, [getArenaPos, fireSkill]);
 
   // Pointer-move / pointer-up are no-ops on the arena now that the
   // swipe-trail mechanic has been replaced with tap-to-hit. The
