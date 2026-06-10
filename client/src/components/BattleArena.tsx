@@ -2171,7 +2171,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     canvas rig is still available app-wide for spots
                     that explicitly need idle animation. */}
                 {pet.imageUrl ? (
-                  <img src={pet.imageUrl} alt={pet.name} className="w-full object-contain drop-shadow-lg" style={{ maxHeight: "144px" }} />
+                  <img src={pet.imageUrl} alt={pet.name} className="w-full object-contain drop-shadow-lg" style={{ maxHeight: "144px", animation: "petBattleFloat 2.4s ease-in-out infinite" }} />
                 ) : (
                   <img src={petPawIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain" }} />
                 )}
@@ -2429,7 +2429,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                       hatched art is the post-hatch full-body portrait;
                       imageUrl is the unhatched egg in some flows. */}
                   {(ep.hatchedImageUrl || ep.imageUrl) ? (
-                    <img src={(ep.hatchedImageUrl || ep.imageUrl)!} alt={ep.name} className="object-contain" style={{ width: PET_SPRITE_SIZE, height: PET_SPRITE_SIZE, ...(epGlowStyle || {}) }} />
+                    <img src={(ep.hatchedImageUrl || ep.imageUrl)!} alt={ep.name} className="object-contain" style={{ width: PET_SPRITE_SIZE, height: PET_SPRITE_SIZE, animation: "petBattleFloat 2.4s ease-in-out infinite", ...(epGlowStyle || {}) }} />
                   ) : (
                     <img src={petPawIcon} alt="" style={{ width: PET_SPRITE_SIZE * 0.5, height: PET_SPRITE_SIZE * 0.5, objectFit: "contain", ...(epGlowStyle || {}) }} />
                   )}
@@ -2514,7 +2514,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   src={pet.imageUrl}
                   alt={pet.name}
                   className="object-contain drop-shadow-lg"
-                  style={{ width: PET_SPRITE_SIZE, height: PET_SPRITE_SIZE, animation: mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill ? "petRarityGlow 1s ease-in-out infinite" : undefined }}
+                  style={{
+                    width: PET_SPRITE_SIZE,
+                    height: PET_SPRITE_SIZE,
+                    animation: mana >= MAX_MANA && !skillCooldown && !!pet.specialSkill
+                      ? "petRarityGlow 1s ease-in-out infinite"
+                      : "petBattleFloat 2.4s ease-in-out infinite",
+                  }}
                 />
               ) : (
                 <img src={petPawIcon} alt="" style={{ width: PET_SPRITE_SIZE * 0.5, height: PET_SPRITE_SIZE * 0.5, objectFit: "contain" }} />

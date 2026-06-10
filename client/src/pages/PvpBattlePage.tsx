@@ -1810,7 +1810,7 @@ export default function PvpBattlePage({
                             ? "pSquish 0.32s ease-out"
                             : isSkillReady
                               ? "skillGlowImg 1.2s ease-in-out infinite"
-                              : undefined,
+                              : "petBattleFloat 2.4s ease-in-out infinite",
                         transformOrigin: "50% 100%",
                         // Base team-color drop-shadow. Overridden by the
                         // skillGlowImg keyframe while the pulse runs;

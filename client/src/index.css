@@ -826,6 +826,14 @@
   50%       { transform: translateY(-3px); }
 }
 
+/* Subtle idle float for battle pet sprites — used by PvP and PvE arenas.
+   Very small amplitude so it reads as "alive" without distracting from
+   the combat UI. Pure vertical float; no rotation or scale. */
+@keyframes petBattleFloat {
+  0%, 100% { transform: translateY(0px); }
+  50%      { transform: translateY(-2px); }
+}
+
 /* Gentle idle drift for non-own pets on the world map — slow, multi-directional roam */
 @keyframes petWorldIdleDrift0 {
   0%,  18% { transform: translate(   0px,   0px); }
