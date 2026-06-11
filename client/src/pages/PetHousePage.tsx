@@ -3249,7 +3249,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
                 <div style={{
                   width: 44, height: 44,
                   borderRadius: 10,
-                  border: "1.5px dashed rgba(159,214,144,0.28)",
+                  border: "1.5px solid rgba(159,214,144,0.28)",
                   background: "rgba(159,214,144,0.04)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
@@ -3345,7 +3345,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
                 <div style={{
                   width: 44, height: 44,
                   borderRadius: 10,
-                  border: "1.5px dashed rgba(249,184,216,0.28)",
+                  border: "1.5px solid rgba(249,184,216,0.28)",
                   background: "rgba(249,184,216,0.04)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
