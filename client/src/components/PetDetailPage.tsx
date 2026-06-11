@@ -440,11 +440,11 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               <button
                 data-testid="button-edit-nickname"
                 onClick={() => { setEditingNickname(true); setNicknameInput(pet.petNickname || ""); }}
-                className="mt-1 px-2.5 py-0.5 rounded-full font-fantasy text-[8px] tracking-wider transition-opacity hover:opacity-80"
+                className="mt-1 px-3 py-1 rounded-full font-fantasy text-[9px] tracking-wider transition-opacity hover:opacity-80"
                 style={{ background: rc.dim, border: `1px solid ${rc.primary}33`, color: rc.primary, cursor: "pointer" }}
               >
                 <span className="flex items-center gap-1">
-                  <Pencil size={8} />
+                  <Pencil size={9} />
                   {pet.petNickname ? "Rename" : "Give a Name"}
                 </span>
               </button>
@@ -456,7 +456,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                 data-testid="button-reset-stats"
                 onClick={() => setShowResetConfirm(true)}
                 disabled={resetStatsMutation.isPending}
-                className="mt-2 px-3 py-1 rounded-full font-fantasy text-[9px] tracking-wider transition-opacity hover:opacity-90 flex items-center gap-1.5"
+                className="mt-2 px-2.5 py-0.5 rounded-full font-fantasy text-[8px] tracking-wider transition-opacity hover:opacity-90 flex items-center gap-1"
                 style={{
                   background: "rgba(60,20,10,0.5)",
                   border: "1px solid rgba(220,90,60,0.45)",
@@ -465,7 +465,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                   opacity: resetStatsMutation.isPending ? 0.6 : 1,
                 }}
               >
-                <RotateCcw size={9} />
+                <RotateCcw size={8} />
                 Reset Stats · 300 coins
               </button>
             )}
