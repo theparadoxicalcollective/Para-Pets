@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Mail } from "lucide-react";
+import { Mail, Wallet } from "lucide-react";
 import coinIconImg from "@assets/icon_coin.png";
 import giftIconImg from "@assets/generated_images/icon_gift_treasure.png";
 import RewardClaimModal from "./RewardClaimModal";
@@ -294,14 +294,12 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
             </div>
 
             <div className="flex items-center gap-1.5 self-start">
-              <button
-                data-testid="button-coin-shop"
-                onClick={() => navigate("/coins")}
-                className="flex items-center gap-1 px-2.5 py-0.5 rounded-md transition-transform active:scale-95"
+              {/* Coin amount display — non-clickable */}
+              <div
+                className="flex items-center gap-1 px-2.5 py-0.5 rounded-md"
                 style={{
                   background: "linear-gradient(135deg, rgba(30,15,5,0.9) 0%, rgba(60,35,10,0.9) 100%)",
                   border: "1px solid rgba(212,160,23,0.4)",
-                  cursor: "pointer",
                 }}
               >
                 <img
@@ -317,7 +315,24 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 >
                   {user.coins}
                 </span>
-                <span className="font-fantasy text-[#d4a017] text-[8px]">+</span>
+              </div>
+              {/* Coin bag button — opens coin shop */}
+              <button
+                data-testid="button-coin-shop"
+                onClick={() => navigate("/coins")}
+                className="flex items-center justify-center transition-transform active:scale-90"
+                style={{
+                  width: 26, height: 26,
+                  background: "linear-gradient(135deg, rgba(50,28,5,0.95) 0%, rgba(80,48,10,0.95) 100%)",
+                  border: "1px solid rgba(212,160,23,0.55)",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  color: "#f0c040",
+                  boxShadow: "0 1px 6px rgba(0,0,0,0.4)",
+                  flexShrink: 0,
+                }}
+              >
+                <Wallet size={14} />
               </button>
             </div>
           </div>
