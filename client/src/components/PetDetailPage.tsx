@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Sparkles, Wind, Pencil } from "lucide-react";
+import { Sparkles, Wind, Pencil, RotateCcw } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -68,6 +68,7 @@ interface PetDetailPageProps {
   userCoins: number;
   onUserUpdate: (user: any) => void;
   readOnly?: boolean;
+  allowReset?: boolean;
 }
 
 // Unified warm gold palette across all rarities — intensity increases with rarity
@@ -79,8 +80,9 @@ const RARITY: Record<number, { label: string; primary: string; glow: string; her
   5: { label: "Legendary", primary: "#ffd700", glow: "rgba(255,215,0,0.68)",   heroBg: "rgba(68,50,5,0.60)",  dim: "rgba(255,215,0,0.22)"   },
 };
 
-export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUserUpdate, readOnly = false }: PetDetailPageProps) {
+export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUserUpdate, readOnly = false, allowReset = false }: PetDetailPageProps) {
   const [editingNickname, setEditingNickname] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [nicknameInput, setNicknameInput] = useState(pet.petNickname || "");
   const [showAccessoryPicker, setShowAccessoryPicker] = useState(false);
   const [accessoryFlash, setAccessoryFlash] = useState<"equip" | "unequip" | null>(null);
@@ -166,6 +168,28 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
     },
     onError: (err: any) => {
       toast({ title: "Failed", description: err?.message || "Could not unequip accessory", variant: "destructive" });
+    },
+  });
+
+  const resetStatsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/pet/${pet.inventoryId}/reset-stats`);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pet", pet.inventoryId, "accessories"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      if (data?.user) onUserUpdate(data.user);
+      setShowResetConfirm(false);
+      onUpdate();
+      toast({ title: "Stats Reset", description: "Pet stats restored to base values" });
+    },
+    onError: (err: any) => {
+      const msg = err?.message?.replace(/^\d+:\s*/, "") || "Could not reset stats";
+      const parsed = (() => { try { return JSON.parse(msg); } catch { return null; } })();
+      toast({ title: "Failed", description: parsed?.message || msg, variant: "destructive" });
+      setShowResetConfirm(false);
     },
   });
 
@@ -423,6 +447,26 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                   <Pencil size={8} />
                   {pet.petNickname ? "Rename" : "Give a Name"}
                 </span>
+              </button>
+            )}
+
+            {allowReset && !readOnly && pet.isHatched && (
+              <button
+                type="button"
+                data-testid="button-reset-stats"
+                onClick={() => setShowResetConfirm(true)}
+                disabled={resetStatsMutation.isPending}
+                className="mt-2 px-3 py-1 rounded-full font-fantasy text-[9px] tracking-wider transition-opacity hover:opacity-90 flex items-center gap-1.5"
+                style={{
+                  background: "rgba(60,20,10,0.5)",
+                  border: "1px solid rgba(220,90,60,0.45)",
+                  color: "#e8a088",
+                  cursor: resetStatsMutation.isPending ? "default" : "pointer",
+                  opacity: resetStatsMutation.isPending ? 0.6 : 1,
+                }}
+              >
+                <RotateCcw size={9} />
+                Reset Stats · 300 coins
               </button>
             )}
           </div>
@@ -940,6 +984,95 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                   }}
                 >
                   {releaseMutation.isPending ? "Releasing..." : "Release Spirit"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reset stats confirm ────────────────────────────────────── */}
+      {showResetConfirm && (
+        <div
+          className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center"
+          style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+        >
+          <div
+            className="absolute inset-0"
+            style={{ background: "rgba(12,4,2,0.82)" }}
+            onClick={() => !resetStatsMutation.isPending && setShowResetConfirm(false)}
+          />
+          <div
+            className="relative w-full sm:w-[92%] sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-6 animate-slide-up"
+            style={{
+              background: "linear-gradient(160deg, #1a0c06 0%, #260f08 50%, #120705 100%)",
+              border: "1px solid rgba(220,90,60,0.4)",
+              boxShadow: "0 -10px 60px rgba(0,0,0,0.85), 0 0 60px rgba(220,90,60,0.18)",
+            }}
+          >
+            <div className="text-center relative">
+              <div
+                className="mx-auto mb-3 flex items-center justify-center"
+                style={{
+                  width: 64, height: 64, borderRadius: "50%",
+                  background: "radial-gradient(circle at 50% 40%, rgba(240,150,110,0.35) 0%, rgba(150,60,30,0.25) 50%, transparent 75%)",
+                  filter: "drop-shadow(0 0 12px rgba(240,150,110,0.6))",
+                }}
+              >
+                <RotateCcw size={28} color="#f0c0a0" />
+              </div>
+              <h3
+                className="font-fantasy tracking-widest text-base mb-2"
+                style={{
+                  background: "linear-gradient(135deg, #ffdcc8 0%, #f0a888 50%, #e07a4a 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                Reset Pet Stats?
+              </h3>
+              <p className="font-fantasy text-[12px] tracking-wider leading-relaxed mb-1" style={{ color: "rgba(255,225,210,0.85)" }}>
+                This restores{" "}
+                <span style={{ color: "#f0a888" }}>{pet.petNickname || "this pet"}</span>'s level and stats to base values for{" "}
+                <span style={{ color: "#ffd700" }}>300 coins</span>.
+              </p>
+              <p className="font-fantasy text-[10px] tracking-wider leading-relaxed mb-5" style={{ color: "rgba(220,180,160,0.65)" }}>
+                All equipped accessories will be unequipped.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  data-testid="button-reset-cancel"
+                  onClick={() => setShowResetConfirm(false)}
+                  disabled={resetStatsMutation.isPending}
+                  className="flex-1 py-2.5 rounded-lg font-fantasy text-[11px] tracking-widest transition-all"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(40,24,18,0.9) 0%, rgba(28,16,10,0.9) 100%)",
+                    border: "1px solid rgba(220,90,60,0.3)",
+                    color: "rgba(230,200,185,0.85)",
+                    cursor: "pointer",
+                  }}
+                >
+                  Keep Stats
+                </button>
+                <button
+                  type="button"
+                  data-testid="button-reset-confirm"
+                  onClick={() => resetStatsMutation.mutate()}
+                  disabled={resetStatsMutation.isPending || userCoins < 300}
+                  className="flex-1 py-2.5 rounded-lg font-fantasy text-[11px] tracking-widest transition-all"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(160,60,35,0.95) 0%, rgba(110,40,22,0.95) 100%)",
+                    border: "1px solid rgba(240,150,110,0.55)",
+                    color: "#ffe0d0",
+                    cursor: resetStatsMutation.isPending ? "wait" : (userCoins < 300 ? "not-allowed" : "pointer"),
+                    opacity: userCoins < 300 ? 0.55 : 1,
+                    boxShadow: "0 0 18px rgba(220,90,60,0.25), inset 0 1px 0 rgba(255,210,190,0.15)",
+                    textShadow: "0 0 8px rgba(240,150,110,0.45)",
+                  }}
+                >
+                  {resetStatsMutation.isPending ? "Resetting..." : (userCoins < 300 ? "Not enough coins" : "Reset Stats")}
                 </button>
               </div>
             </div>

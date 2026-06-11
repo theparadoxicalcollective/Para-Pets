@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation } from "wouter";
 import { X, HelpCircle, Zap, Star, RotateCcw, ShieldPlus } from "lucide-react";
 import WorldChatPanel from "@/components/WorldChatPanel";
+import PetDetailPage from "@/components/PetDetailPage";
 import worldChatIconImg from "@assets/icon_world_chat_new.png";
 import petActionRingImg from "@assets/Photoroom_20260422_14619_PM_1776883671627.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -99,7 +100,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [hatchTimerDone, setHatchTimerDone] = useState(false);
   const [hatchedPetCache, setHatchedPetCache] = useState<{ hatchedImageUrl: string | null; imageUrl: string | null; petTemplateId: string | null; name: string } | null>(null);
   const [showActionMenu, setShowActionMenu] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showPetStats, setShowPetStats] = useState(false);
   // Sparkle bursts for the pet-action ring buttons. Each entry is one floating
   // particle positioned in viewport coords with a colour that matches the
   // rune that was tapped.
@@ -507,23 +508,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     },
     onError: (err: any) => {
       toast({ title: "Failed", description: err?.message || "Could not use item", variant: "destructive" });
-    },
-  });
-
-  const resetMutation = useMutation({
-    mutationFn: async (petInvId: string) => {
-      const res = await apiRequest("POST", `/api/pet/${petInvId}/reset-stats`);
-      return res.json();
-    },
-    onSuccess: (data) => {
-      setShowResetConfirm(false);
-      setShowActionMenu(false);
-      toast({ title: "Stats Reset", description: "Pet stats have been reset to base values" });
-      if (data.user) setCurrentUser(data.user);
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-    },
-    onError: (err: any) => {
-      toast({ title: "Failed", description: err?.message || "Could not reset stats", variant: "destructive" });
     },
   });
 
@@ -1219,7 +1203,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={() => { setShowActionMenu(false); setShowResetConfirm(false); }}
+            onClick={() => setShowActionMenu(false)}
             data-testid="backdrop-action-menu"
           />
           {/* Ring image with invisible hotspots over each rune */}
@@ -1273,11 +1257,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                     () => { setShowActionMenu(false); setActivePetModal("power_up"); },
                   )}
                   {makeBtn(
-                    "Reset Stats",
-                    "button-action-reset-stats",
+                    "Pet Stats",
+                    "button-action-pet-stats",
                     { left: "5%", top: "40%", width: "22%", height: "22%" },
-                    "#f87171",
-                    () => setShowResetConfirm(true),
+                    "#67e8f9",
+                    () => { setShowActionMenu(false); setShowPetStats(true); },
                   )}
                   {makeBtn(
                     "Level Up",
@@ -1313,49 +1297,23 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             })()}
           </div>
 
-          {/* Reset confirm dialog overlays the ring when triggered */}
-          {showResetConfirm && (
-            <div
-              className="absolute z-10 rounded-2xl px-5 py-5 flex flex-col gap-4"
-              style={{
-                width: "min(88vw, 380px)",
-                background: "linear-gradient(180deg, rgba(20,8,8,0.97) 0%, rgba(12,4,4,0.97) 100%)",
-                border: "1.5px solid rgba(248,113,113,0.45)",
-                boxShadow: "0 12px 40px rgba(0,0,0,0.75), 0 0 30px rgba(248,113,113,0.15)",
-              }}
-            >
-              <div>
-                <p className="font-fantasy text-[#f87171] text-sm font-bold tracking-wider mb-1">Confirm Reset?</p>
-                <p className="font-fantasy text-[#a87878] text-[11px] leading-relaxed">
-                  This will restore {activePetForModal.petNickname || activePetForModal.name}'s stats to their base values. This action costs coins and cannot be undone.
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowResetConfirm(false)}
-                  className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-wider"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)", color: "#aaa", cursor: "pointer" }}
-                >
-                  CANCEL
-                </button>
-                <button
-                  data-testid="button-confirm-reset"
-                  onClick={() => resetMutation.mutate(activePetForModal.inventoryId)}
-                  disabled={resetMutation.isPending}
-                  className="flex-1 py-3 rounded-xl font-fantasy text-sm tracking-wider transition-all active:scale-95 disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg, rgba(220,60,60,0.4) 0%, rgba(180,40,40,0.4) 100%)", border: "1.5px solid rgba(248,113,113,0.5)", color: "#f87171", cursor: "pointer", boxShadow: "0 0 14px rgba(248,113,113,0.2)" }}
-                >
-                  {resetMutation.isPending ? "RESETTING..." : "CONFIRM RESET"}
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Hidden legacy panel keeps the original flow working but is never rendered */}
           <div style={{ display: "none" }}>
             {/* original menu intentionally hidden */}
           </div>
         </div>
+      )}
+
+      {/* ── Pet stats page (opened from the ring's left button) ── */}
+      {showPetStats && activePetForModal && (
+        <PetDetailPage
+          pet={activePetForModal as any}
+          onClose={() => setShowPetStats(false)}
+          onUpdate={() => queryClient.invalidateQueries({ queryKey: ["/api/inventory"] })}
+          userCoins={currentUser.coins}
+          onUserUpdate={(u) => setCurrentUser(u)}
+          allowReset
+        />
       )}
 
       {/* ── Ring sparkle bursts (rendered above the action menu) ── */}
@@ -1640,8 +1598,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             style={{
               top: "66px",
               right: "12px",
-              width: "38px",
-              height: "38px",
+              width: "32px",
+              height: "32px",
               background: "rgba(10,5,2,0.82)",
               border: "1.5px solid rgba(212,160,23,0.45)",
               color: "rgba(212,160,23,0.75)",
@@ -1649,7 +1607,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
             }}
           >
-            <HelpCircle className="w-5 h-5" />
+            <HelpCircle className="w-4 h-4" />
           </button>
         </>
       )}

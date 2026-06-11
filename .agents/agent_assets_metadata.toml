@@ -786,6 +786,12 @@ uri = "file://attached_assets/generated_images/icon_coin_bag.png"
 type = "image"
 title = "magical rainforest coin bag icon"
 
+[[generated]]
+id = "vmy9Mp0BgTMDxvlUbpeFO"
+uri = "file://attached_assets/generated_images/pet_action_ring_rainforest.png"
+type = "image"
+title = "magical rainforest radial menu ring clean"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
