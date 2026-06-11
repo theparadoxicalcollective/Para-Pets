@@ -780,6 +780,12 @@ uri = "file://attached_assets/hub_chest_opened.png"
 type = "image"
 title = "opened chest daily reward"
 
+[[generated]]
+id = "jcXlrSBLbkosSUKG4kHTh"
+uri = "file://attached_assets/generated_images/icon_coin_bag.png"
+type = "image"
+title = "coin bag icon"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

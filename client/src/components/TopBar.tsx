@@ -6,17 +6,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Mail } from "lucide-react";
 
 import coinIconImg from "@assets/icon_coin.png";
+import coinBagIconImg from "@assets/generated_images/icon_coin_bag.png";
 import giftIconImg from "@assets/generated_images/icon_gift_treasure.png";
 import RewardClaimModal from "./RewardClaimModal";
-
-const CoinBagIcon = ({ size = 14 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="12" cy="16" r="7" />
-    <path d="M9 10.5 C9 9 10.2 8 12 8 C13.8 8 15 9 15 10.5 Z" />
-    <ellipse cx="12" cy="7.5" rx="2.8" ry="2.2" />
-    <circle cx="12" cy="16" r="3.5" fill="rgba(0,0,0,0.18)" />
-  </svg>
-);
 
 interface TopBarProps {
   user: {
@@ -342,7 +334,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                   flexShrink: 0,
                 }}
               >
-                <CoinBagIcon size={14} />
+                <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 18, height: 18, objectFit: "contain" }} />
               </button>
             </div>
           </div>
