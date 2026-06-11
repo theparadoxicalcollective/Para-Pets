@@ -376,6 +376,9 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [showFishHint, setShowFishHint] = useState(() =>
     worldId === "swamp" && new URLSearchParams(window.location.search).get("fishHint") === "1"
   );
+  const [showShopHint, setShowShopHint] = useState<string | null>(() =>
+    new URLSearchParams(window.location.search).get("shopHint")
+  );
   const autoOpenShopId = useRef(new URLSearchParams(window.location.search).get("openShop"));
   const autoOpenDone = useRef(false);
   const [committedLocBgUrl, setCommittedLocBgUrl] = useState<string | null>(null);
@@ -2162,6 +2165,59 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                         50%       { transform: translateY(12px); }
                       }
                     `}</style>
+                  </>
+                );
+              })()}
+
+              {/* ── Shop hint arrow — shown when ?shopHint=<locationId> is in URL ──
+                  Navigating from the "Buy Edibles" quest hint lands here first so
+                  the player can see WHICH shop to enter before it auto-opens.     */}
+              {showShopHint && (() => {
+                const hintLoc = locations.find(l => l.id === showShopHint);
+                if (!hintLoc) return null;
+                const sz = (hintLoc as any).iconSize || 120;
+                const cx = `calc(${hintLoc.posX}% + ${sz / 2}px)`;
+                const cy = `calc(${hintLoc.posY}% - 10px)`;
+                return (
+                  <>
+                    {/* Dismiss layer */}
+                    <div
+                      className="absolute inset-0"
+                      style={{ zIndex: 498, cursor: "pointer" }}
+                      onClick={() => setShowShopHint(null)}
+                    />
+                    <div
+                      className="absolute pointer-events-none"
+                      style={{
+                        left: cx,
+                        top: cy,
+                        transform: "translate(-50%, -100%)",
+                        zIndex: 499,
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                      }}
+                    >
+                      {/* Shop name label */}
+                      <div style={{
+                        background: "rgba(8,22,8,0.94)",
+                        border: "1.5px solid rgba(74,222,128,0.7)",
+                        borderRadius: 8,
+                        padding: "5px 12px",
+                        marginBottom: 4,
+                        boxShadow: "0 0 14px rgba(34,197,94,0.4), 0 4px 10px rgba(0,0,0,0.7)",
+                        whiteSpace: "nowrap",
+                      }}>
+                        <span style={{ fontFamily: "Lora, serif", color: "#86efac", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em" }}>
+                          {hintLoc.name}
+                        </span>
+                      </div>
+                      {/* Animated arrow pointing down at the shop */}
+                      <div style={{ animation: "fishHintFloat 1.2s ease-in-out infinite", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <div style={{ width: 8, height: 28, background: "linear-gradient(180deg, #4ade80 0%, #16a34a 100%)", borderRadius: "3px 3px 0 0", boxShadow: "0 0 10px rgba(34,197,94,0.9), 0 0 24px rgba(34,197,94,0.5)" }} />
+                        <div style={{ width: 0, height: 0, borderLeft: "18px solid transparent", borderRight: "18px solid transparent", borderTop: "22px solid #22c55e", filter: "drop-shadow(0 0 10px rgba(34,197,94,1)) drop-shadow(0 0 20px rgba(34,197,94,0.7))" }} />
+                      </div>
+                    </div>
                   </>
                 );
               })()}
