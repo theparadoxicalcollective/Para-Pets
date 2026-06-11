@@ -2095,50 +2095,56 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                 if (fishingSpots.length === 0) return null;
                 return (
                   <>
-                    {/* Full-screen dismiss layer (below arrows) */}
+                    {/* Full-screen dismiss layer */}
                     <div
                       className="absolute inset-0"
                       style={{ zIndex: 498, cursor: "pointer" }}
                       onClick={() => setShowFishHint(false)}
                     />
-                    {fishingSpots.map((spot, si) => (
-                      <div
-                        key={`fh-${spot.id}`}
-                        className="absolute pointer-events-none"
-                        style={{
-                          left: `${spot.posX}%`,
-                          top: `${spot.posY}%`,
-                          transform: "translate(-50%, -115%)",
-                          zIndex: 499,
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          animationDelay: `${si * 0.18}s`,
-                        }}
-                      >
-                        <div style={{ animation: `fishHintFloat 1.3s ease-in-out ${si * 0.18}s infinite`, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                          {/* Arrowhead (pointing down) */}
-                          <div style={{
-                            width: 0, height: 0,
-                            borderLeft: "12px solid transparent",
-                            borderRight: "12px solid transparent",
-                            borderTop: "16px solid #22c55e",
-                            filter: "drop-shadow(0 0 8px rgba(34,197,94,1)) drop-shadow(0 0 16px rgba(34,197,94,0.75))",
-                          }} />
-                          {/* Shaft */}
-                          <div style={{
-                            width: 6, height: 22,
-                            background: "linear-gradient(180deg, #22c55e 0%, #15803d 100%)",
-                            borderRadius: "0 0 3px 3px",
-                            boxShadow: "0 0 10px rgba(34,197,94,0.95), 0 0 22px rgba(34,197,94,0.55)",
-                          }} />
+                    {fishingSpots.map((spot, si) => {
+                      const sz = spot.iconSize || 300;
+                      // Centre of the fishing spot icon (top-left anchor + half the icon width)
+                      const cx = `calc(${spot.posX}% + ${sz / 2}px)`;
+                      // Position arrow just above the top of the icon
+                      const cy = `calc(${spot.posY}% - 12px)`;
+                      return (
+                        <div
+                          key={`fh-${spot.id}`}
+                          className="absolute pointer-events-none"
+                          style={{
+                            left: cx,
+                            top: cy,
+                            transform: "translate(-50%, -100%)",
+                            zIndex: 499,
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                          }}
+                        >
+                          <div style={{ animation: `fishHintFloat 1.2s ease-in-out ${si * 0.2}s infinite`, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                            {/* Shaft */}
+                            <div style={{
+                              width: 8, height: 28,
+                              background: "linear-gradient(180deg, #4ade80 0%, #16a34a 100%)",
+                              borderRadius: "3px 3px 0 0",
+                              boxShadow: "0 0 10px rgba(34,197,94,0.9), 0 0 24px rgba(34,197,94,0.5)",
+                            }} />
+                            {/* Arrowhead — wider, chunkier downward triangle */}
+                            <div style={{
+                              width: 0, height: 0,
+                              borderLeft: "18px solid transparent",
+                              borderRight: "18px solid transparent",
+                              borderTop: "22px solid #22c55e",
+                              filter: "drop-shadow(0 0 10px rgba(34,197,94,1)) drop-shadow(0 0 20px rgba(34,197,94,0.7))",
+                            }} />
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <style>{`
                       @keyframes fishHintFloat {
                         0%, 100% { transform: translateY(0px); }
-                        50%       { transform: translateY(10px); }
+                        50%       { transform: translateY(12px); }
                       }
                     `}</style>
                   </>

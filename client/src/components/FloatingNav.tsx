@@ -421,7 +421,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                               <img
                                 src={fishingFishIcon}
                                 alt="Go Fishing"
-                                style={{ width: 20, height: 20, objectFit: "contain", filter: "drop-shadow(0 0 5px rgba(56,189,248,0.9)) drop-shadow(0 0 2px rgba(0,0,0,0.6))" }}
+                                style={{ width: 36, height: 36, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(56,189,248,0.95)) drop-shadow(0 0 3px rgba(0,0,0,0.7))" }}
                               />
                             </button>
                           )}
