@@ -655,6 +655,8 @@ function AdminItemForm({
         payload.petTemplateId = petTemplateId || null;
         payload.facingDirection = facingDirection || null;
         if (eggImageData) payload.eggImageData = eggImageData;
+        // Pets don't have a separate shop image — use the egg image for both.
+        if (eggImageData) payload.imageData = eggImageData;
         if (hatchedImageData) payload.hatchedImageData = hatchedImageData;
         payload.statBoostType = null;
         payload.statBoostAmount = null;
@@ -821,13 +823,15 @@ function AdminItemForm({
         )}
 
         <div className="space-y-3">
-          <ImageUpload
-            label={petOnly ? "Shop Image (PNG)" : "Shop Image (PNG)"}
-            preview={imagePreview}
-            onSelect={(d) => { setImageData(d); setImagePreview(d); }}
-            onRemove={() => { setImageData(null); setImagePreview(null); }}
-            inputId="admin-shop-item-img"
-          />
+          {!petOnly && (
+            <ImageUpload
+              label="Shop Image (PNG)"
+              preview={imagePreview}
+              onSelect={(d) => { setImageData(d); setImagePreview(d); }}
+              onRemove={() => { setImageData(null); setImagePreview(null); }}
+              inputId="admin-shop-item-img"
+            />
+          )}
 
           <div>
             <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">
