@@ -1124,6 +1124,8 @@ const LAYER_ORDER: Record<string, number> = {
   back_shoulder: 4,
   // ── Body ───────────────────────────────────────────────────────────────
   body: 5,
+  // Body 2 — behind body (z=4.5) but shares the body-breath animation.
+  body_2: 4.5,
   // ── Front-facing-only accessories that sit BEHIND the body silhouette
   //    (e.g. capes, satchels mounted on the chest from the back). Z=3
   //    drops them under body (z=5) but keeps them above tails (z=1) and

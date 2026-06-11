@@ -139,6 +139,10 @@ const FRONT_PART_GROUPS: { group: string; parts: PartDef[]; collapsed?: boolean 
     // the chest accessories in the parts list.
     { key: "neck",                 label: "Neck",                  defaultZ: 60, layer: "front" },
     { key: "body",                 label: "Body",                  defaultZ: 50, layer: "body"  },
+    // Body 2 — a second body overlay that sits BEHIND the primary body
+    // silhouette (LAYER_ORDER z=4.5) but shares the same body-breath
+    // animation. Use for underlays, base colours, or pattern layers.
+    { key: "body_2",               label: "Body 2",                defaultZ: 49, layer: "body"  },
     // Front-facing-only LEFT / RIGHT positional accessories that sit
     // BEHIND the body silhouette (capes, satchels, harnesses worn under
     // the body image). LAYER_ORDER z=3, alongside back_accessory_1/2.
@@ -203,6 +207,7 @@ const SIDE_PART_GROUPS: { group: string; parts: PartDef[]; collapsed?: boolean }
     { key: "front_wing",        label: "Front Wing 1",      defaultZ: 53, layer: "front" },
     { key: "front_wing_2",      label: "Front Wing 2",      defaultZ: 52, layer: "front" },
     { key: "body",              label: "Body",              defaultZ: 50, layer: "body"  },
+    { key: "body_2",            label: "Body 2",            defaultZ: 49, layer: "body"  },
     { key: "back_shoulder",     label: "Back Shoulder",     defaultZ: 47, layer: "back"  },
     { key: "back_arm",          label: "Back Arm",          defaultZ: 46, layer: "back"  },
     { key: "back_leg",          label: "Back Leg",          defaultZ: 45, layer: "back"  },
@@ -368,7 +373,7 @@ export default function PetDatabasePanel({
     back_accessory_2: 3, back_accessory_1: 3,
     front_left_accessory: 3, front_right_accessory: 3,
     back_arm: 4, back_shoulder: 4,
-    body: 5,
+    body: 5, body_2: 4.5,
     front_wing_2: 6, front_wing: 6,
     front_accessory_2: 6, front_accessory_1: 6,
     right_arm: 5, left_arm: 5, front_arm: 5,

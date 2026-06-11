@@ -43,7 +43,7 @@ const LAYER_ORDER: Record<string, number> = {
   back_accessory_2: 3, back_accessory_1: 3,
   back_arm: 4, back_shoulder: 4,
   // ── Body ──────────────────────────────────────────────────────────────
-  body: 5,
+  body: 5, body_2: 4.5,
   // ── Front-facing-only accessories that sit BEHIND the body silhouette
   //    (capes, satchels). Same z=3 + role as back_accessory_1/2 — kept
   //    in lockstep with PetAnimator's LAYER_ORDER so the canvas + img
@@ -302,6 +302,7 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     // expansion rather than translation. (Trimmed from 4.6 / 2.8 % so
     // the body and head bob read at parity — see bodyBreath comment.)
     case "body":
+    case "body_2":
       return bodyBreath(sec);
 
     // Neck — rides the body breath alongside shoulders and back_arm so
