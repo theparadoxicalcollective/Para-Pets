@@ -236,16 +236,16 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-      <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-[10000] flex items-end justify-center sm:items-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+      <div className="absolute inset-0 backdrop-blur-sm" style={{ background: "rgba(2,12,5,0.82)" }} onClick={onClose} />
 
       <div
         className="relative w-full sm:w-[92%] sm:max-w-sm rounded-t-3xl sm:rounded-2xl overflow-y-auto animate-slide-up"
         style={{
-          background: "linear-gradient(160deg, rgba(16,8,2,0.99) 0%, rgba(28,16,6,0.99) 100%)",
-          border: "1px solid rgba(255,255,255,0.07)",
+          background: "linear-gradient(160deg, rgba(3,14,7,0.99) 0%, rgba(6,24,12,0.99) 100%)",
+          border: "1px solid rgba(180,150,50,0.30)",
           borderBottom: "none",
-          boxShadow: `0 -4px 60px rgba(0,0,0,0.9), 0 0 80px ${rc.glow.replace("0.55", "0.12")}`,
+          boxShadow: `0 -4px 60px rgba(0,0,0,0.9), 0 0 80px rgba(30,90,45,0.25), 0 0 40px ${rc.glow.replace("0.55", "0.08")}`,
           maxHeight: "90vh",
         }}
       >
@@ -391,7 +391,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               {pet.petNickname || pet.name}
             </h3>
             {pet.petNickname && (
-              <p className="font-fantasy text-[#7a6a50] text-[9px] tracking-wider -mt-0.5" data-testid="text-pet-species">{pet.name}</p>
+              <p className="font-fantasy text-[9px] tracking-wider -mt-0.5" style={{ color: "rgba(100,180,100,0.7)" }} data-testid="text-pet-species">{pet.name}</p>
             )}
             {rarity > 0 && (
               <div className="flex items-center gap-0.5 mt-0.5" data-testid="stars-pet-detail">
@@ -570,7 +570,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                 {pet.petLevel < 100 ? (
                   <>
                     <div className="flex justify-between mb-1">
-                      <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(255,255,255,0.3)" }}>EXPERIENCE</span>
+                      <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(120,200,130,0.6)" }}>EXPERIENCE</span>
                       <span className="font-fantasy text-[9px]" style={{ color: rc.primary + "cc" }} data-testid="text-level-points">
                         {current.toLocaleString()} / {needed.toLocaleString()}
                       </span>
@@ -656,12 +656,12 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           {/* ── Accessories ─────────────────────────────────────── */}
           <div
             className="rounded-2xl p-4"
-            style={{ background: "rgba(0,0,0,0.35)", border: `1px solid ${rc.primary}22` }}
+            style={{ background: "rgba(4,18,8,0.55)", border: `1px solid rgba(100,180,80,0.22)` }}
             data-testid="section-accessories"
           >
             <div className="relative">
               <div className="flex items-center justify-between mb-3">
-                <span className="font-fantasy text-[10px] tracking-widest" style={{ color: "rgba(255,255,255,0.35)" }}>ACCESSORIES</span>
+                <span className="font-fantasy text-[10px] tracking-widest" style={{ color: "rgba(120,200,130,0.65)" }}>ACCESSORIES</span>
                 <span
                   className="font-fantasy text-[9px] tracking-wider px-2 py-0.5 rounded-full"
                   style={{ background: rc.dim, color: rc.primary, border: `1px solid ${rc.primary}33` }}
@@ -760,7 +760,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               {!readOnly && showAccessoryPicker && (
                 <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${rc.primary}18` }}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-fantasy text-[10px] tracking-wider" style={{ color: "rgba(255,255,255,0.35)" }}>SELECT ACCESSORY</span>
+                    <span className="font-fantasy text-[10px] tracking-wider" style={{ color: "rgba(120,200,130,0.6)" }}>SELECT ACCESSORY</span>
                     <button
                       onClick={() => setShowAccessoryPicker(false)}
                       className="font-fantasy text-[9px]"
