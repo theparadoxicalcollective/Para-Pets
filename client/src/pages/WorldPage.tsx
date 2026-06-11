@@ -322,6 +322,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [buyStep, setBuyStep] = useState<0 | 1 | 2>(0);
   const [buyQty, setBuyQty] = useState(1);
   const [buyError, setBuyError] = useState<string | null>(null);
+  const [buyConfirmPending, setBuyConfirmPending] = useState(false);
+  const [buyFlash, setBuyFlash] = useState(0);
   const [selectedLocId, setSelectedLocId] = useState<string | null>(null);
   const [selectedDecorId, setSelectedDecorId] = useState<string | null>(null);
   const [barrelSelected, setBarrelSelected] = useState(false);
@@ -589,6 +591,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       if (data.user) setCurrentUser(data.user);
       setBuyError(null);
+      setBuyConfirmPending(false);
+      setBuyFlash(n => n + 1);
       playChime();
       const qty = data.quantity ?? 1;
       toast({ title: "Purchased!", description: qty > 1 ? `${qty}x added to your inventory` : "Added to your inventory" });
@@ -3176,7 +3180,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                           key={item.id}
                           className="relative flex flex-col items-center rounded-2xl transition-transform active:scale-95"
                           style={{ background: "linear-gradient(160deg,rgba(0,0,0,0.42),rgba(0,0,0,0.58))", border: `1.5px solid ${accent}30`, boxShadow: `0 2px 16px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.05)`, cursor: "pointer", padding: "10px 8px 8px" }}
-                          onClick={() => { if (currentUser.isAdmin) return; playTick(); setSelectedShopItem(item); setBuyError(null); }}
+                          onClick={() => { if (currentUser.isAdmin) return; playTick(); setSelectedShopItem(item); setBuyError(null); setBuyConfirmPending(false); setBuyFlash(0); }}
                         >
                           {currentUser.isAdmin && (
                             <button data-testid={`button-unassign-item-${item.id}`} onClick={e => { e.stopPropagation(); if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id }); }} className="absolute -top-2 -right-2 z-10 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer" }}><X className="w-3 h-3 text-white" /></button>
@@ -3235,7 +3239,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                                 key={item.id}
                                 className="relative flex flex-col items-center rounded-2xl transition-transform active:scale-95"
                                 style={{ background: "linear-gradient(160deg,rgba(0,0,0,0.42),rgba(0,0,0,0.58))", border: `1.5px solid ${accent}30`, boxShadow: `0 2px 16px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.05)`, cursor: "pointer", padding: "10px 8px 8px" }}
-                                onClick={() => { if (currentUser.isAdmin) return; playTick(); setSelectedShopItem(item); setBuyError(null); }}
+                                onClick={() => { if (currentUser.isAdmin) return; playTick(); setSelectedShopItem(item); setBuyError(null); setBuyConfirmPending(false); setBuyFlash(0); }}
                               >
                                 {currentUser.isAdmin && (
                                   <button data-testid={`button-unassign-item-${item.id}`} onClick={e => { e.stopPropagation(); if (activeLocationId) unassignItemMutation.mutate({ locationId: activeLocationId, itemId: item.id }); }} className="absolute -top-2 -right-2 z-10 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(220,38,38,0.95)", border: "1px solid rgba(255,100,100,0.6)", cursor: "pointer" }}><X className="w-3 h-3 text-white" /></button>
@@ -3316,7 +3320,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/75" onClick={() => { setSelectedShopItem(null); setBuyError(null); }} />
+            <div className="absolute inset-0 bg-black/75" onClick={() => { setSelectedShopItem(null); setBuyError(null); setBuyConfirmPending(false); }} />
 
             <div className="relative z-10 flex flex-col items-center" style={{ gap: 12, width: "min(85vw, 300px)" }}>
               {/* ── Styled shop card ── */}
@@ -3326,17 +3330,10 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                   background: `linear-gradient(160deg, ${shopAccent}1a 0%, #080808 100%)`,
                   border: "2px solid #d4af37",
                   borderRadius: 14,
-                  padding: "22px 20px 18px",
+                  padding: "20px 20px 16px",
                   boxShadow: `0 0 50px rgba(0,0,0,0.97), 0 0 28px ${shopAccent}44`,
                 }}
               >
-                {/* Close ×  */}
-                <button
-                  data-testid="button-close-item-detail"
-                  onClick={() => { setSelectedShopItem(null); setBuyError(null); }}
-                  style={{ position: "absolute", top: 8, right: 10, background: "none", border: "none", cursor: "pointer", color: "#d4af37", fontSize: 20, fontWeight: 700, opacity: 0.7, lineHeight: 1 }}
-                >×</button>
-
                 {/* Item image */}
                 <div className="flex justify-center" style={{ marginBottom: 10 }}>
                   {imgSrc ? (
@@ -3383,6 +3380,15 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                     {item.price} coins
                   </span>
                 </div>
+
+                {/* Confirm prompt — shown for pets or items over 500 coins */}
+                {buyConfirmPending && (
+                  <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 8, background: "rgba(212,175,55,0.1)", border: "1px solid rgba(212,175,55,0.35)", textAlign: "center" }}>
+                    <span className="font-fantasy" style={{ fontSize: 11, color: "#fde68a", fontWeight: 700 }}>
+                      Spend {item.price.toLocaleString()} coins on this?
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Error message */}
@@ -3392,32 +3398,107 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                 </div>
               )}
 
-              {/* Buy button */}
-              <button
-                data-testid="button-price-buy"
-                onClick={(e) => {
-                  if (!canAfford || buyMutation.isPending) return;
-                  burstGoldenOrbs(e.clientX, e.clientY);
-                  buyMutation.mutate({ itemId: item.id, quantity: 1 });
-                }}
-                disabled={!canAfford || buyMutation.isPending}
-                className="w-full font-fantasy font-bold tracking-wide transition-transform active:scale-95 disabled:opacity-50"
-                style={{
-                  padding: "12px 40px",
-                  fontSize: 14,
-                  borderRadius: 12,
-                  background: canAfford
-                    ? "linear-gradient(135deg, rgba(115,62,10,0.97) 0%, rgba(78,40,6,0.97) 100%)"
-                    : "rgba(60,42,18,0.55)",
-                  border: `2px solid ${canAfford ? "#d4af37" : "rgba(100,75,40,0.3)"}`,
-                  color: canAfford ? "#ffd04a" : "#7a6040",
-                  cursor: canAfford ? "pointer" : "default",
-                  boxShadow: canAfford ? "0 4px 16px rgba(90,45,0,0.5)" : "none",
-                  letterSpacing: "0.08em",
-                }}
-              >
-                {buyMutation.isPending ? "Buying…" : "Buy"}
-              </button>
+              {/* Button row — with +1 flash */}
+              <div className="relative flex w-full" style={{ gap: 8 }}>
+                {/* Green +1 flash after purchase */}
+                {buyFlash > 0 && (
+                  <div
+                    key={buyFlash}
+                    className="pointer-events-none font-fantasy font-bold"
+                    style={{
+                      position: "absolute",
+                      top: -32,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      animation: "shopBuyFlash 1s ease-out forwards",
+                      fontSize: 20,
+                      color: "#4ade80",
+                      textShadow: "0 0 14px rgba(74,222,128,1), 0 0 28px rgba(74,222,128,0.6)",
+                      zIndex: 10,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    +1
+                  </div>
+                )}
+                <style>{`@keyframes shopBuyFlash { 0%{opacity:1;transform:translateX(-50%) translateY(0) scale(1.2)} 70%{opacity:0.9;transform:translateX(-50%) translateY(-24px) scale(1)} 100%{opacity:0;transform:translateX(-50%) translateY(-38px) scale(0.85)} }`}</style>
+
+                {!buyConfirmPending ? (
+                  <>
+                    {/* Close button (secondary, smaller) */}
+                    <button
+                      data-testid="button-close-item-detail"
+                      onClick={() => { setSelectedShopItem(null); setBuyError(null); setBuyConfirmPending(false); }}
+                      className="font-fantasy font-semibold transition-transform active:scale-95 flex-shrink-0"
+                      style={{ padding: "10px 14px", fontSize: 12, borderRadius: 10, background: "rgba(30,15,5,0.8)", border: "1.5px solid rgba(140,100,40,0.4)", color: "#a07840", cursor: "pointer", letterSpacing: "0.04em" }}
+                    >
+                      Close
+                    </button>
+                    {/* Buy button (primary) */}
+                    <button
+                      data-testid="button-price-buy"
+                      onClick={(e) => {
+                        if (!canAfford || buyMutation.isPending) return;
+                        const requiresConfirm = item.type === "pet" || item.price > 500;
+                        if (requiresConfirm) { setBuyConfirmPending(true); return; }
+                        burstGoldenOrbs(e.clientX, e.clientY);
+                        buyMutation.mutate({ itemId: item.id, quantity: 1 });
+                      }}
+                      disabled={!canAfford || buyMutation.isPending}
+                      className="flex-1 font-fantasy font-bold tracking-wide transition-transform active:scale-95 disabled:opacity-50"
+                      style={{
+                        padding: "11px 0",
+                        fontSize: 14,
+                        borderRadius: 10,
+                        background: canAfford ? "linear-gradient(135deg, rgba(115,62,10,0.97) 0%, rgba(78,40,6,0.97) 100%)" : "rgba(60,42,18,0.55)",
+                        border: `2px solid ${canAfford ? "#d4af37" : "rgba(100,75,40,0.3)"}`,
+                        color: canAfford ? "#ffd04a" : "#7a6040",
+                        cursor: canAfford ? "pointer" : "default",
+                        boxShadow: canAfford ? "0 4px 16px rgba(90,45,0,0.5)" : "none",
+                        letterSpacing: "0.08em",
+                      }}
+                    >
+                      {buyMutation.isPending ? "Buying…" : "Buy"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {/* Cancel (back to normal view) */}
+                    <button
+                      data-testid="button-confirm-cancel"
+                      onClick={() => setBuyConfirmPending(false)}
+                      className="font-fantasy font-semibold transition-transform active:scale-95 flex-shrink-0"
+                      style={{ padding: "10px 14px", fontSize: 12, borderRadius: 10, background: "rgba(30,15,5,0.8)", border: "1.5px solid rgba(140,100,40,0.4)", color: "#a07840", cursor: "pointer", letterSpacing: "0.04em" }}
+                    >
+                      Cancel
+                    </button>
+                    {/* Confirm purchase */}
+                    <button
+                      data-testid="button-confirm-buy"
+                      onClick={(e) => {
+                        if (!canAfford || buyMutation.isPending) return;
+                        burstGoldenOrbs(e.clientX, e.clientY);
+                        buyMutation.mutate({ itemId: item.id, quantity: 1 });
+                      }}
+                      disabled={!canAfford || buyMutation.isPending}
+                      className="flex-1 font-fantasy font-bold tracking-wide transition-transform active:scale-95 disabled:opacity-50"
+                      style={{
+                        padding: "11px 0",
+                        fontSize: 13,
+                        borderRadius: 10,
+                        background: "linear-gradient(135deg, rgba(115,62,10,0.97) 0%, rgba(78,40,6,0.97) 100%)",
+                        border: "2px solid #d4af37",
+                        color: "#ffd04a",
+                        cursor: "pointer",
+                        boxShadow: "0 4px 16px rgba(90,45,0,0.5)",
+                        letterSpacing: "0.06em",
+                      }}
+                    >
+                      {buyMutation.isPending ? "Buying…" : "Confirm!"}
+                    </button>
+                  </>
+                )}
+              </div>
 
               {!canAfford && (
                 <p className="font-fantasy text-center" style={{ fontSize: 10, color: "#e84040", marginTop: -6 }} data-testid="text-not-enough-coins">
