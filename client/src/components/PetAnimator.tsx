@@ -1903,41 +1903,28 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           // and petting modes (all of which scale the body).
           const bodyOrigin = (part.partType === "body" && !canFly) ? "50% 100%" : undefined;
 
-          // Tails swivel from their BASE — where the tail connects to the
-          // pet body. The correct pivot depends on which way the pet faces:
-          //
-          //   SIDE-FACING pets:
-          //     The tail extends horizontally. The body is beside the tail.
-          //     • resolvedView "back" (pet faces LEFT):  root at RIGHT edge
-          //       (the edge nearest the body — tail extends leftward)
-          //     • resolvedView "front" (pet faces RIGHT): root at LEFT edge
-          //       (the edge nearest the body — tail extends rightward)
-          //     Y = bottom of alpha bbox (where the tail attaches to the body).
-          //
-          //   FRONT-FACING pets (facing the camera, no KC left/right):
-          //     The tail hangs downward from the pet's spine. The attachment
-          //     point is at the TOP-CENTER of the tail image, so the tail
-          //     swings left-right while the root stays planted at the body.
-          //     X = center of alpha bbox, Y = TOP of alpha bbox.
+          // Tail pivot anchors — same rule for both front-facing and side-facing:
+          //   tail   (slot 1) → bottom-LEFT   of alpha bounding box
+          //   tail_2 (slot 2) → bottom-CENTER of alpha bounding box
+          //   tail_3 (slot 3) → bottom-RIGHT  of alpha bounding box
+          // Y is always the bottom of the alpha bbox so the tail swings
+          // naturally from where it meets the body.
           const tailOrigin = (() => {
             if (part.partType !== "tail" && part.partType !== "tail_2" && part.partType !== "tail_3") return undefined;
             const tabAlpha = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
-            if (!isPetSideFacing) {
-              // Front-facing: pivot at bottom-left (where tail attaches to the body).
-              const originX = tabAlpha.left * 100;
-              const originY = (tabAlpha.top + tabAlpha.height) * 100;
-              const origin = `${originX.toFixed(2)}% ${originY.toFixed(2)}%`;
-              console.log("[TailOrigin] front", part.partType, part.imageUrl, "bounds:", tabAlpha, "origin:", origin);
-              return origin;
+            const bottomY = (tabAlpha.top + tabAlpha.height) * 100;
+            let originX: number;
+            if (part.partType === "tail_2") {
+              // bottom-center
+              originX = (tabAlpha.left + tabAlpha.width / 2) * 100;
+            } else if (part.partType === "tail_3") {
+              // bottom-right
+              originX = (tabAlpha.left + tabAlpha.width) * 100;
+            } else {
+              // tail (slot 1) — bottom-left
+              originX = tabAlpha.left * 100;
             }
-            // Side-facing: pivot at the horizontal edge nearest the body.
-            const originX = resolvedView === "back"
-              ? (tabAlpha.left + tabAlpha.width) * 100   // right edge — pet faces left, root near body
-              : tabAlpha.left * 100;                     // left edge — pet faces right, root near body
-            const originY = (tabAlpha.top + tabAlpha.height) * 100;
-            const origin = `${originX.toFixed(2)}% ${originY.toFixed(2)}%`;
-            console.log("[TailOrigin] side", part.partType, part.imageUrl, "bounds:", tabAlpha, "origin:", origin);
-            return origin;
+            return `${originX.toFixed(2)}% ${bottomY.toFixed(2)}%`;
           })();
 
           if (mode === "static") {
