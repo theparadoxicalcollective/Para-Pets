@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { X } from "lucide-react";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { playShopBell } from "@/lib/sounds";
 import { useLocation, useSearch } from "wouter";
@@ -300,6 +301,27 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
       <div style={{ position: "relative", zIndex: 3, paddingTop: "env(safe-area-inset-top, 0px)" }}>
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} />
+        {/* Close button */}
+        <button
+          data-testid="button-close-coin-shop"
+          onClick={() => navigate("/")}
+          className="absolute flex items-center justify-center transition-transform active:scale-90"
+          style={{
+            top: 10,
+            right: 12,
+            width: 32,
+            height: 32,
+            background: "rgba(10,5,2,0.75)",
+            border: "1.5px solid rgba(212,160,23,0.4)",
+            borderRadius: "50%",
+            color: "rgba(212,160,23,0.85)",
+            cursor: "pointer",
+            zIndex: 10,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+          }}
+        >
+          <X size={16} />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto pb-6" style={{ position: "relative", zIndex: 3 }}>
