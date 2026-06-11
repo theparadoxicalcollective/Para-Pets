@@ -2072,9 +2072,8 @@ function PetStatusBars({
       className="absolute left-1/2"
       style={{
         top: "calc(42% + 130px)",
-        // Nudge right by 22px to match the pet's visual centre (which
-        // accounts for the loyalty bar occupying the left edge).
-        transform: "translateX(calc(-50% + 22px))",
+        // Nudge right to sit closer to the pet's visual centre.
+        transform: "translateX(calc(-50% + 36px))",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -2891,7 +2890,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
       <div
         className="absolute"
         style={{
-          left: 8,
+          left: 22,
           top: "18%",
           height: "50%",
           width: 36,
