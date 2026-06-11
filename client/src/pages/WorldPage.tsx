@@ -2105,7 +2105,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
       {currentUser.isAdmin && (
         <div className="fixed z-30 flex items-center gap-2"
-          style={{ bottom: "16px", right: 16 }}
+          style={{ bottom: "82px", right: 16 }}
         >
           <button
             data-testid="button-world-decor"
