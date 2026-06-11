@@ -4,7 +4,7 @@ import { X, HelpCircle, Zap, Star, RotateCcw, ShieldPlus } from "lucide-react";
 import WorldChatPanel from "@/components/WorldChatPanel";
 import PetDetailPage from "@/components/PetDetailPage";
 import worldChatIconImg from "@assets/icon_world_chat_new.png";
-import petActionRingImg from "@assets/Photoroom_20260422_14619_PM_1776883671627.png";
+import petActionRingImg from "@assets/Photoroom_20260611_74428_AM_1781181905848.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import bgImg from "@assets/bg_home_v2.png";
@@ -591,7 +591,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         <div className="absolute" style={{ left: "65%", top: "35%", width: "4px", height: "4px", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,240,180,0.7) 0%, rgba(255,240,180,0) 70%)", boxShadow: "0 0 6px rgba(255,240,180,0.3)", animation: "orbFloat1 6s ease-in-out infinite 5s", willChange: "transform" }} />
       </div>
 
-      <div className="relative flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", visibility: isOverlayActive ? "hidden" : "visible" }}>
+      <div className="relative flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", visibility: (isOverlayActive || showPetStats) ? "hidden" : "visible" }}>
         <div style={{ position: "relative", zIndex: 40, visibility: "visible", pointerEvents: "none" }}>
           <div style={{ pointerEvents: "auto" }}>
             <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
@@ -1252,36 +1252,36 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                   {makeBtn(
                     "Power Up",
                     "button-action-power-up",
-                    { left: "38%", top: "5%", width: "24%", height: "20%" },
+                    { left: "36%", top: "1%", width: "26%", height: "23%" },
                     "#4ade80",
                     () => { setShowActionMenu(false); setActivePetModal("power_up"); },
                   )}
                   {makeBtn(
                     "Pet Stats",
                     "button-action-pet-stats",
-                    { left: "5%", top: "40%", width: "22%", height: "22%" },
+                    { left: "0%", top: "36%", width: "22%", height: "22%" },
                     "#67e8f9",
                     () => { setShowActionMenu(false); setShowPetStats(true); },
                   )}
                   {makeBtn(
                     "Level Up",
                     "button-action-level-up",
-                    { left: "73%", top: "40%", width: "22%", height: "22%" },
+                    { left: "78%", top: "36%", width: "22%", height: "22%" },
                     "#fcd34d",
                     () => { setShowActionMenu(false); setActivePetModal("level_up"); },
                   )}
                   {makeBtn(
                     "Equip Accessories",
                     "button-action-equip-accessories",
-                    { left: "38%", top: "68%", width: "24%", height: "22%" },
+                    { left: "36%", top: "73%", width: "26%", height: "21%" },
                     "#c084fc",
                     () => { setShowActionMenu(false); navigate("/equip-accessories"); },
                   )}
-                  {/* Center hotspot — over the pet — opens Care / Feed page */}
+                  {/* Center hotspot — paw print — opens Care / Feed page */}
                   {makeBtn(
                     "Care / Feed",
                     "button-action-care-feed",
-                    { left: "32%", top: "32%", width: "36%", height: "36%" },
+                    { left: "29%", top: "31%", width: "42%", height: "40%" },
                     "#f472b6",
                     () => {
                       setShowActionMenu(false);

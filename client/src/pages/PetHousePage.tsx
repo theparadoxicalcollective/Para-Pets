@@ -17,7 +17,7 @@ import petInventoryIcon from "@assets/icon_pet_inventory.png";
 import friendsInventoryIcon from "@assets/icon_friends_inventory.png";
 import feedButtonIcon from "@assets/generated_images/feed_button_icon.png";
 import feedingPageBg from "@assets/generated_images/feeding_page_bg.png";
-import careWreathImg from "@assets/Photoroom_20260422_24309_PM_1776887015425.png";
+import careWreathImg from "@assets/Photoroom_20260611_74428_AM_1781181905848.png";
 import moodFaceHappy from "@assets/mood_face_happy.png";
 import moodFaceContent from "@assets/mood_face_content.png";
 import moodFaceSad from "@assets/mood_face_sad.png";
@@ -248,42 +248,42 @@ function CarePopup({
             }}
           />
         ))}
-        {/* Care (fruit bowl) hotspot — centered over the bowl artwork */}
+        {/* Care hotspot — centered paw print */}
         <button
           data-testid="button-care-care"
           onPointerDown={(e) => handle(e, fruitColors, onCare)}
           aria-label="Care"
           className="absolute"
           style={{
-            left: "37%", top: "36%", width: "26%", height: "26%",
+            left: "29%", top: "31%", width: "42%", height: "40%",
             background: "transparent", border: "none", cursor: "pointer",
             WebkitTapHighlightColor: "transparent",
           }}
         />
-        {/* Cancel hotspot (left tablet — green moss-trimmed plaque) */}
+        {/* Cancel hotspot — left orb (scroll) */}
         <button
           data-testid="button-care-cancel"
           onPointerDown={(e) => handle(e, cancelColors, onCancel)}
           aria-label="Cancel"
           className="absolute"
           style={{
-            left: "27%", top: "63%", width: "20%", height: "11%",
+            left: "0%", top: "36%", width: "22%", height: "22%",
             background: "transparent", border: "none", cursor: "pointer",
             WebkitTapHighlightColor: "transparent",
-            borderRadius: 14,
+            borderRadius: "50%",
           }}
         />
-        {/* Return-to-inventory hotspot (right tablet — wood-brown plaque) */}
+        {/* Return-to-inventory hotspot — right orb (level-up arrows) */}
         <button
           data-testid="button-care-return"
           onPointerDown={(e) => handle(e, returnColors, onReturn)}
           aria-label="Return to Inventory"
           className="absolute"
           style={{
-            left: "52%", top: "63%", width: "23%", height: "11%",
+            left: "78%", top: "36%", width: "22%", height: "22%",
             background: "transparent", border: "none", cursor: "pointer",
             WebkitTapHighlightColor: "transparent",
-            borderRadius: 14,
+            borderRadius: "50%",
           }}
         />
       </div>
