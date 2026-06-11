@@ -8,6 +8,7 @@ export default function PetCarePage() {
   const [, navigate] = useLocation();
   const [, params] = useRoute<{ inventoryId: string }>("/pet-care/:inventoryId");
   const inventoryId = params?.inventoryId ?? null;
+  const feedHint = new URLSearchParams(window.location.search).get("feedHint") === "1";
 
   const { data: user } = useQuery<any>({ queryKey: ["/api/auth/me"] });
   const { data: inventory = [], isLoading } = useQuery<any[]>({
@@ -30,9 +31,6 @@ export default function PetCarePage() {
     return null;
   }
 
-  // The Feeding overlay was originally fed a `HousePet` shape from the pet-house
-  // page (which derives from inventory). The raw inventory item has the same
-  // fields plus `id` — we re-key it as `inventoryId` to match.
   const housePet = { ...pet, inventoryId: pet.id };
 
   return (
@@ -41,6 +39,7 @@ export default function PetCarePage() {
       user={user}
       onUserUpdate={(u) => queryClient.setQueryData(["/api/auth/me"], u)}
       onClose={close}
+      feedHint={feedHint}
     />
   );
 }

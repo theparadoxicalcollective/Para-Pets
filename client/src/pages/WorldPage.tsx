@@ -375,6 +375,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [showFishHint, setShowFishHint] = useState(() =>
     worldId === "swamp" && new URLSearchParams(window.location.search).get("fishHint") === "1"
   );
+  const autoOpenShopId = useRef(new URLSearchParams(window.location.search).get("openShop"));
+  const autoOpenDone = useRef(false);
   const [committedLocBgUrl, setCommittedLocBgUrl] = useState<string | null>(null);
 
   const { data: locations = [], isLoading: locationsLoading } = useQuery<WorldLocationData[]>({
@@ -387,6 +389,18 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     refetchOnMount: true,
     staleTime: 0,
   });
+
+  // Auto-open a shop when ?openShop=<locationId> is in the URL (e.g. from a
+  // quest hint "Buy Edibles" button).  Runs once after locations load.
+  useEffect(() => {
+    if (!autoOpenShopId.current || autoOpenDone.current || !locations.length) return;
+    const loc = locations.find((l) => l.id === autoOpenShopId.current && l.isShop);
+    if (loc) {
+      autoOpenDone.current = true;
+      setActiveLocationId(loc.id);
+      setShowShop(true);
+    }
+  }, [locations]);
 
   const { data: activeLocDetail } = useQuery<WorldLocationData>({
     queryKey: ["/api/location", activeLocationId],

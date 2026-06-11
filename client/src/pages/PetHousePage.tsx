@@ -2138,15 +2138,18 @@ function PetStatusBars({
   );
 }
 
-export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
+export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = false }: {
   pet: HousePet;
   user: any;
   onUserUpdate: (u: any) => void;
   onClose: () => void;
+  feedHint?: boolean;
 }) {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const overlayRef = useRef<HTMLDivElement>(null);
+  const [showFeedHint, setShowFeedHint] = useState(feedHint);
 
   // Pull the live, full inventory so we can filter to edibles AND look up the
   // canonical, server-decayed hunger/mood for THIS pet (the prop is a stale
@@ -3394,6 +3397,99 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
           </div>
         )}
       </div>
+
+      {/* ── Feed hint overlay ───────────────────────────────────────────────
+          Shown when the player arrives via the "Feed Active Pet" quest GO
+          button. Points to the edibles strip (or offers a Buy Edibles link).
+          Tap anywhere outside the card to dismiss.                         */}
+      {showFeedHint && (
+        <>
+          {/* Dismiss layer */}
+          <div
+            className="absolute inset-0"
+            style={{ zIndex: 598, cursor: "pointer" }}
+            onClick={() => setShowFeedHint(false)}
+          />
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              bottom: 128,
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 599,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            {edibles.length > 0 ? (
+              <>
+                {/* Tooltip bubble */}
+                <div style={{
+                  background: "rgba(8,22,8,0.94)",
+                  border: "1.5px solid rgba(74,222,128,0.7)",
+                  borderRadius: 10,
+                  padding: "8px 18px",
+                  boxShadow: "0 0 20px rgba(34,197,94,0.4), 0 4px 16px rgba(0,0,0,0.6)",
+                }}>
+                  <span style={{ fontFamily: "Lora, serif", color: "#86efac", fontSize: 13, fontWeight: 700, letterSpacing: "0.04em" }}>
+                    Drag edibles onto pet
+                  </span>
+                </div>
+                {/* Arrow shaft + head pointing down */}
+                <div style={{ animation: "feedHintFloat 1.2s ease-in-out infinite", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  <div style={{ width: 6, height: 24, background: "linear-gradient(180deg, #4ade80 0%, #16a34a 100%)", borderRadius: "3px 3px 0 0", boxShadow: "0 0 10px rgba(34,197,94,0.9), 0 0 22px rgba(34,197,94,0.5)" }} />
+                  <div style={{ width: 0, height: 0, borderLeft: "16px solid transparent", borderRight: "16px solid transparent", borderTop: "20px solid #22c55e", filter: "drop-shadow(0 0 10px rgba(34,197,94,1)) drop-shadow(0 0 18px rgba(34,197,94,0.7))" }} />
+                </div>
+              </>
+            ) : (
+              /* No edibles — Buy Edibles card */
+              <div
+                style={{
+                  background: "rgba(8,22,8,0.96)",
+                  border: "1.5px solid rgba(74,222,128,0.6)",
+                  borderRadius: 12,
+                  padding: "16px 22px",
+                  boxShadow: "0 0 24px rgba(34,197,94,0.35), 0 6px 20px rgba(0,0,0,0.65)",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 12,
+                  pointerEvents: "auto",
+                }}
+              >
+                <span style={{ fontFamily: "Lora, serif", color: "#d1fae5", fontSize: 13, fontWeight: 700, letterSpacing: "0.03em" }}>
+                  You have no edibles!
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowFeedHint(false);
+                    navigate("/world/swamp?openShop=a1b2c3d4-0010-4000-8000-000000000010");
+                  }}
+                  style={{
+                    background: "linear-gradient(135deg, #1a5c1a 0%, #2d8c2d 100%)",
+                    border: "1px solid rgba(100,220,100,0.6)",
+                    color: "#dcfce7",
+                    fontFamily: "Lora, serif",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    letterSpacing: "0.08em",
+                    cursor: "pointer",
+                    borderRadius: 8,
+                    padding: "8px 22px",
+                    boxShadow: "0 0 12px rgba(60,180,60,0.4)",
+                  }}
+                >
+                  Buy Edibles
+                </button>
+              </div>
+            )}
+          </div>
+          <style>{`@keyframes feedHintFloat { 0%,100% { transform:translateY(0) } 50% { transform:translateY(10px) } }`}</style>
+        </>
+      )}
 
       {/* Drag ghost */}
       {dragGhost && (

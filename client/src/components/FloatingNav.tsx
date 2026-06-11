@@ -20,7 +20,6 @@ import questIcon from "@assets/generated_images/nav_icon_map.png";
 import questScrollBg from "@assets/IMG_6427_1774545779530.png";
 import pvpIcon from "@assets/generated_images/nav_icon_pvp.png";
 import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
-import fishingPoleIcon from "@assets/icon_fishing_pole.png";
 import PetWorldPage from "@/pages/PetWorldPage";
 import { AquariumPage } from "@/pages/AquariumPage";
 
@@ -406,25 +405,43 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                         })()}
                         <div className="flex items-center justify-between gap-1 mb-0.5">
                           <p className="font-fantasy text-[#2a1000] text-[12px] font-bold leading-tight flex-1 min-w-0">{quest.title}</p>
-                          {quest.quest_key === "catch_fish" && (
-                            <button
-                              data-testid="button-go-fishing-quest"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                closeAll();
-                                setTimeout(() => navigate("/world/swamp?fishHint=1"), NAV_DELAY);
-                              }}
-                              className="flex-shrink-0 transition-transform active:scale-90"
-                              style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}
-                              title="Go to fishing spots"
-                            >
-                              <img
-                                src={fishingPoleIcon}
-                                alt="Go Fishing"
-                                style={{ width: 36, height: 36, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(56,189,248,0.95)) drop-shadow(0 0 3px rgba(0,0,0,0.7))" }}
-                              />
-                            </button>
-                          )}
+                          {(() => {
+                            const goTarget =
+                              quest.quest_key === "catch_fish"  ? "/world/swamp?fishHint=1" :
+                              quest.quest_key === "feed_pet"    ? (user.activePetId ? `/pet-care/${encodeURIComponent(user.activePetId)}?feedHint=1` : "/pet-house") :
+                              null; // use_powerup — coming soon
+                            const isDisabled = goTarget === null;
+                            return (
+                              <button
+                                data-testid={`button-go-quest-${quest.quest_key}`}
+                                onClick={isDisabled ? undefined : (e) => {
+                                  e.stopPropagation();
+                                  closeAll();
+                                  if (goTarget) setTimeout(() => navigate(goTarget), NAV_DELAY);
+                                }}
+                                disabled={isDisabled}
+                                className="flex-shrink-0 transition-transform active:scale-90 rounded"
+                                style={{
+                                  background: isDisabled
+                                    ? "rgba(60,40,10,0.2)"
+                                    : "linear-gradient(135deg, #1a5c1a 0%, #2d8c2d 100%)",
+                                  border: isDisabled
+                                    ? "1px solid rgba(139,90,40,0.18)"
+                                    : "1px solid rgba(100,220,100,0.55)",
+                                  color: isDisabled ? "rgba(200,180,100,0.3)" : "#dcfce7",
+                                  fontFamily: "Lora, serif",
+                                  fontSize: 9,
+                                  fontWeight: 800,
+                                  letterSpacing: "0.12em",
+                                  cursor: isDisabled ? "default" : "pointer",
+                                  padding: "3px 8px",
+                                  boxShadow: isDisabled ? "none" : "0 0 8px rgba(60,180,60,0.3)",
+                                }}
+                              >
+                                GO
+                              </button>
+                            );
+                          })()}
                         </div>
                         <p className="font-fantasy text-[#5a2e0a] text-[10.5px] tracking-wide leading-snug mb-1.5">{quest.description}</p>
 
