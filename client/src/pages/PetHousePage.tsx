@@ -3235,12 +3235,33 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
         </div>
 
         {edibles.length === 0 ? (
-          <p
-            style={{ fontFamily: "Lora, serif", color: "rgba(180,220,160,0.55)", fontSize: 11, paddingLeft: 4, marginBottom: 8 }}
+          <div
+            className="flex gap-2 px-1"
+            style={{ marginBottom: 8 }}
             data-testid="text-no-edibles"
           >
-            No edibles — find some in world shops.
-          </p>
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="flex-shrink-0 flex flex-col items-center gap-1"
+                style={{ width: 56 }}
+              >
+                <div style={{
+                  width: 44, height: 44,
+                  borderRadius: 10,
+                  border: "1.5px dashed rgba(159,214,144,0.28)",
+                  background: "rgba(159,214,144,0.04)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <span style={{ color: "rgba(159,214,144,0.25)", fontSize: 18, lineHeight: 1 }}>+</span>
+                </div>
+                <div style={{
+                  width: 36, height: 6, borderRadius: 4,
+                  background: "rgba(159,214,144,0.1)",
+                }} />
+              </div>
+            ))}
+          </div>
         ) : (
           <div
             className="flex gap-2 overflow-x-auto pb-1 px-1"
@@ -3311,12 +3332,32 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
         </div>
 
         {gifts.length === 0 ? (
-          <p
-            style={{ fontFamily: "Lora, serif", color: "rgba(255,200,225,0.5)", fontSize: 11, paddingLeft: 4 }}
+          <div
+            className="flex gap-2 px-1"
             data-testid="text-no-gifts"
           >
-            No gifts — buy some to fill the Loyalty bar.
-          </p>
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="flex-shrink-0 flex flex-col items-center gap-1"
+                style={{ width: 56 }}
+              >
+                <div style={{
+                  width: 44, height: 44,
+                  borderRadius: 10,
+                  border: "1.5px dashed rgba(249,184,216,0.28)",
+                  background: "rgba(249,184,216,0.04)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <span style={{ color: "rgba(249,184,216,0.25)", fontSize: 18, lineHeight: 1 }}>+</span>
+                </div>
+                <div style={{
+                  width: 36, height: 6, borderRadius: 4,
+                  background: "rgba(249,184,216,0.1)",
+                }} />
+              </div>
+            ))}
+          </div>
         ) : (
           <div
             className="flex gap-2 overflow-x-auto pb-1 px-1"
