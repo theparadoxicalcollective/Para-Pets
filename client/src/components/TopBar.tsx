@@ -331,7 +331,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                   flexShrink: 0,
                 }}
               >
-                <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 28, height: 28, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(212,160,23,0.8)) drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
+                <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 36, height: 36, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(212,160,23,0.8)) drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
               </button>
             </div>
           </div>

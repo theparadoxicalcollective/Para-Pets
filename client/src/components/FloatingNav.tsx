@@ -80,9 +80,9 @@ const RIGHT_ITEMS = [
   { id: "home",     label: "Main",    icon: activePetIcon },
 ];
 
-const ICON_SIZE   = 44;
+const ICON_SIZE   = 50;
 const BUTTON_SIZE = 58;
-const SPACING     = 60;
+const SPACING     = 68;
 
 export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [, navigate] = useLocation();
@@ -639,10 +639,10 @@ function NavButton({
       {/* Icon label */}
       <span style={{
         position: "absolute",
-        top: -12,
+        top: -14,
         left: "50%",
         transform: "translateX(-50%)",
-        fontSize: 8,
+        fontSize: 10,
         fontFamily: "'Cinzel', 'Palatino Linotype', serif",
         fontWeight: 600,
         letterSpacing: "0.05em",
