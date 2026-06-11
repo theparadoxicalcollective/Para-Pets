@@ -20,7 +20,7 @@ import questIcon from "@assets/generated_images/nav_icon_map.png";
 import questScrollBg from "@assets/IMG_6427_1774545779530.png";
 import pvpIcon from "@assets/generated_images/nav_icon_pvp.png";
 import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
-import fishingFishIcon from "@assets/generated_images/fishing_fish_icon.png";
+import fishingPoleIcon from "@assets/icon_fishing_pole.png";
 import PetWorldPage from "@/pages/PetWorldPage";
 import { AquariumPage } from "@/pages/AquariumPage";
 
@@ -307,7 +307,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setShowQuest(false)}
           />
-          <div className="relative w-[78%] max-w-[300px] scroll-unroll" style={{ filter: "drop-shadow(0 12px 40px rgba(0,0,0,0.8))" }}>
+          <div className="relative w-[90%] max-w-[360px] scroll-unroll" style={{ filter: "drop-shadow(0 12px 40px rgba(0,0,0,0.8))" }}>
             {/* Close button */}
             <button
               onClick={() => setShowQuest(false)}
@@ -322,14 +322,14 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             <div className="absolute inset-0 flex flex-col" style={{ paddingTop: "20%", paddingBottom: "20%", paddingLeft: "13%", paddingRight: "13%" }}>
               <div className="flex items-center justify-center gap-2 mb-3">
                 <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(139,90,40,0.4))" }} />
-                <h3 className="font-fantasy text-[#4a2a0e] text-xs tracking-[0.3em] font-bold">DAILY QUESTS</h3>
+                <h3 className="font-fantasy text-[#4a2a0e] text-sm tracking-[0.3em] font-bold">DAILY QUESTS</h3>
                 <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, rgba(139,90,40,0.4), transparent)" }} />
               </div>
 
               <div className="flex-1 overflow-y-auto space-y-2.5" style={{ scrollbarWidth: "none" }}>
                 {!questData || questData.quests.length === 0 ? (
                   <div className="rounded p-2.5" style={{ background: "rgba(92,58,30,0.07)", border: "1px solid rgba(139,90,40,0.3)" }}>
-                    <p className="font-fantasy text-[#3a1800] text-[10px] tracking-wider leading-relaxed">No active quests. Explore the realm to discover adventures...</p>
+                    <p className="font-fantasy text-[#3a1800] text-[11.5px] tracking-wider leading-relaxed">No active quests. Explore the realm to discover adventures...</p>
                   </div>
                 ) : (
                   questData.quests.map((quest) => {
@@ -405,7 +405,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                           );
                         })()}
                         <div className="flex items-center justify-between gap-1 mb-0.5">
-                          <p className="font-fantasy text-[#2a1000] text-[10px] font-bold leading-tight flex-1 min-w-0">{quest.title}</p>
+                          <p className="font-fantasy text-[#2a1000] text-[12px] font-bold leading-tight flex-1 min-w-0">{quest.title}</p>
                           {quest.quest_key === "catch_fish" && (
                             <button
                               data-testid="button-go-fishing-quest"
@@ -419,14 +419,14 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                               title="Go to fishing spots"
                             >
                               <img
-                                src={fishingFishIcon}
+                                src={fishingPoleIcon}
                                 alt="Go Fishing"
                                 style={{ width: 36, height: 36, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(56,189,248,0.95)) drop-shadow(0 0 3px rgba(0,0,0,0.7))" }}
                               />
                             </button>
                           )}
                         </div>
-                        <p className="font-fantasy text-[#5a2e0a] text-[9px] tracking-wide leading-snug mb-1.5">{quest.description}</p>
+                        <p className="font-fantasy text-[#5a2e0a] text-[10.5px] tracking-wide leading-snug mb-1.5">{quest.description}</p>
 
                         {/* Progress bar */}
                         <div
@@ -445,7 +445,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                         </div>
 
                         <div className="flex items-center justify-between gap-1">
-                          <span className="font-fantasy text-[#6a3a10] text-[8.5px] leading-tight">
+                          <span className="font-fantasy text-[#6a3a10] text-[10px] leading-tight">
                             {quest.progress}/{quest.target_count}
                             {hasReward && (
                               <span style={{ color: "#4a2808" }}>
