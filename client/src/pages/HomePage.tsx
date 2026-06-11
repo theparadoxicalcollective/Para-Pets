@@ -1601,10 +1601,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             onClick={() => { setShowWorldChat(v => !v); setChatHasNewMsg(false); }}
             className="absolute z-[50] transition-transform active:scale-90"
             style={{
-              top: "62px",
+              top: "58px",
               right: "54px",
-              width: "38px",
-              height: "38px",
+              width: "48px",
+              height: "48px",
               border: "none",
               cursor: "pointer",
               boxShadow: showWorldChat
@@ -1638,10 +1638,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             onClick={() => setShowHomePageTutorial(true)}
             className="absolute z-[50] flex items-center justify-center rounded-full transition-transform active:scale-90"
             style={{
-              top: "68px",
-              right: "16px",
-              width: "30px",
-              height: "30px",
+              top: "66px",
+              right: "12px",
+              width: "38px",
+              height: "38px",
               background: "rgba(10,5,2,0.82)",
               border: "1.5px solid rgba(212,160,23,0.45)",
               color: "rgba(212,160,23,0.75)",
@@ -1649,7 +1649,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
             }}
           >
-            <HelpCircle className="w-4 h-4" />
+            <HelpCircle className="w-5 h-5" />
           </button>
         </>
       )}

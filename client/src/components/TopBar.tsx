@@ -123,7 +123,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                         className="w-full h-full flex items-center justify-center"
                         style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}
                       >
-                        <span className="font-fantasy text-[#d4a017] font-bold" style={{ fontSize: "clamp(14px, 4vw, 20px)" }}>
+                        <span className="font-fantasy text-[#d4a017] font-bold" style={{ fontSize: "clamp(18px, 5.5vw, 26px)" }}>
                           {(user.username ?? "?").charAt(0).toUpperCase()}
                         </span>
                       </div>
@@ -285,7 +285,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
               >
                 <p
                   className="font-fantasy text-[#f0c040] font-semibold tracking-widest truncate"
-                  style={{ textShadow: "0 0 10px rgba(240,192,64,0.6)", fontSize: "clamp(9px, 2.5vw, 12px)" }}
+                  style={{ textShadow: "0 0 10px rgba(240,192,64,0.6)", fontSize: "clamp(11px, 3.2vw, 15px)" }}
                   data-testid="text-username"
                 >
                   {user.username}
@@ -307,12 +307,12 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 <img
                   src={coinIconImg}
                   alt="Coins"
-                  className="w-3.5 h-3.5 object-contain"
+                  className="w-4 h-4 object-contain"
                   style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }}
                 />
                 <span
                   className="font-fantasy text-[#f0c040] font-semibold"
-                  style={{ fontSize: "clamp(9px, 2.5vw, 12px)" }}
+                  style={{ fontSize: "clamp(11px, 3.2vw, 15px)" }}
                   data-testid="text-coins"
                 >
                   {user.coins}

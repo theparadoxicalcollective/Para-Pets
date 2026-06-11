@@ -623,13 +623,13 @@
 }
 
 .topbar-profile-size-sm {
-  width: 54px;
-  height: 54px;
+  width: 62px;
+  height: 62px;
 }
 
 .topbar-icon-size-sm {
-  width: 46px;
-  height: 46px;
+  width: 52px;
+  height: 52px;
 }
 
 @media (min-width: 480px) {
@@ -658,13 +658,13 @@
   }
 
   .topbar-profile-size-sm {
-    width: 60px;
-    height: 60px;
+    width: 70px;
+    height: 70px;
   }
 
   .topbar-icon-size-sm {
-    width: 52px;
-    height: 52px;
+    width: 58px;
+    height: 58px;
   }
 }
 
@@ -694,13 +694,13 @@
   }
 
   .topbar-profile-size-sm {
-    width: 66px;
-    height: 66px;
+    width: 76px;
+    height: 76px;
   }
 
   .topbar-icon-size-sm {
-    width: 60px;
-    height: 60px;
+    width: 66px;
+    height: 66px;
   }
 }
 
