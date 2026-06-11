@@ -318,23 +318,20 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                   {user.coins}
                 </span>
               </div>
-              {/* Coin bag button — opens coin shop */}
+              {/* Coin bag icon — opens coin shop */}
               <button
                 data-testid="button-coin-shop"
                 onClick={() => navigate("/coins")}
                 className="flex items-center justify-center transition-transform active:scale-90"
                 style={{
-                  width: 26, height: 26,
-                  background: "linear-gradient(135deg, rgba(50,28,5,0.95) 0%, rgba(80,48,10,0.95) 100%)",
-                  border: "1px solid rgba(212,160,23,0.55)",
-                  borderRadius: 8,
+                  background: "transparent",
+                  border: "none",
+                  padding: 0,
                   cursor: "pointer",
-                  color: "#f0c040",
-                  boxShadow: "0 1px 6px rgba(0,0,0,0.4)",
                   flexShrink: 0,
                 }}
               >
-                <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 18, height: 18, objectFit: "contain" }} />
+                <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 22, height: 22, objectFit: "contain", filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.5))" }} />
               </button>
             </div>
           </div>

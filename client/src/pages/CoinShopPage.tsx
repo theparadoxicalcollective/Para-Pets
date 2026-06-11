@@ -301,7 +301,10 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
       <div style={{ position: "relative", zIndex: 3, paddingTop: "env(safe-area-inset-top, 0px)" }}>
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} />
-        {/* Close button */}
+      </div>
+
+      <div className="flex-1 overflow-y-auto pb-6" style={{ position: "relative", zIndex: 3 }}>
+        {/* Close button — sits just below the TopBar */}
         <button
           data-testid="button-close-coin-shop"
           onClick={() => navigate("/")}
@@ -322,9 +325,6 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         >
           <X size={16} />
         </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto pb-6" style={{ position: "relative", zIndex: 3 }}>
         <div className="px-4 pt-5 pb-3 text-center">
           <h1
             className="font-fantasy text-2xl tracking-[0.25em]"
