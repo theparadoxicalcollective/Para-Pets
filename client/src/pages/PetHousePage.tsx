@@ -2811,10 +2811,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
           // header and below for the status-bar block (which anchors at
           // calc(42% + 130px) so the two move together).
           top: "42%",
-          // Nudge right by 22px so the pet and bars share the same
-          // visual centre, accounting for the narrow loyalty bar on the
-          // left edge.
-          transform: "translate(calc(-50% + 22px), -50%)",
+          // Nudge right slightly — sits between page centre and the bars,
+          // closer to the loyalty bar on the left edge.
+          transform: "translate(calc(-50% + 10px), -50%)",
           width: 300,
           height: 300,
           cursor: "pointer",
