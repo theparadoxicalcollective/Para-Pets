@@ -372,6 +372,9 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const mapPanningRef = useRef(false);
   const mapJustPannedRef = useRef(false);
   const [locBgLoaded, setLocBgLoaded] = useState(false);
+  const [showFishHint, setShowFishHint] = useState(() =>
+    worldId === "swamp" && new URLSearchParams(window.location.search).get("fishHint") === "1"
+  );
   const [committedLocBgUrl, setCommittedLocBgUrl] = useState<string | null>(null);
 
   const { data: locations = [], isLoading: locationsLoading } = useQuery<WorldLocationData[]>({
@@ -2082,6 +2085,65 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                   );
                 })}
               </div>
+
+              {/* ── Fish-hint arrows ────────────────────────────────────────
+                  Bright green floating arrows pointing to every fishing spot.
+                  Only shown when the player arrives via the Gone Fishing quest
+                  shortcut (?fishHint=1). Tap anywhere to dismiss.            */}
+              {showFishHint && worldId === "swamp" && (() => {
+                const fishingSpots = locations.filter(l => l.type === "fishing" && !l.isShop);
+                if (fishingSpots.length === 0) return null;
+                return (
+                  <>
+                    {/* Full-screen dismiss layer (below arrows) */}
+                    <div
+                      className="absolute inset-0"
+                      style={{ zIndex: 498, cursor: "pointer" }}
+                      onClick={() => setShowFishHint(false)}
+                    />
+                    {fishingSpots.map((spot, si) => (
+                      <div
+                        key={`fh-${spot.id}`}
+                        className="absolute pointer-events-none"
+                        style={{
+                          left: `${spot.posX}%`,
+                          top: `${spot.posY}%`,
+                          transform: "translate(-50%, -115%)",
+                          zIndex: 499,
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          animationDelay: `${si * 0.18}s`,
+                        }}
+                      >
+                        <div style={{ animation: `fishHintFloat 1.3s ease-in-out ${si * 0.18}s infinite`, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                          {/* Arrowhead (pointing down) */}
+                          <div style={{
+                            width: 0, height: 0,
+                            borderLeft: "12px solid transparent",
+                            borderRight: "12px solid transparent",
+                            borderTop: "16px solid #22c55e",
+                            filter: "drop-shadow(0 0 8px rgba(34,197,94,1)) drop-shadow(0 0 16px rgba(34,197,94,0.75))",
+                          }} />
+                          {/* Shaft */}
+                          <div style={{
+                            width: 6, height: 22,
+                            background: "linear-gradient(180deg, #22c55e 0%, #15803d 100%)",
+                            borderRadius: "0 0 3px 3px",
+                            boxShadow: "0 0 10px rgba(34,197,94,0.95), 0 0 22px rgba(34,197,94,0.55)",
+                          }} />
+                        </div>
+                      </div>
+                    ))}
+                    <style>{`
+                      @keyframes fishHintFloat {
+                        0%, 100% { transform: translateY(0px); }
+                        50%       { transform: translateY(10px); }
+                      }
+                    `}</style>
+                  </>
+                );
+              })()}
             </div>
         </div>
 

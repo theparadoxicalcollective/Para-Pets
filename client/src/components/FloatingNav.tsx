@@ -20,6 +20,7 @@ import questIcon from "@assets/generated_images/nav_icon_map.png";
 import questScrollBg from "@assets/IMG_6427_1774545779530.png";
 import pvpIcon from "@assets/generated_images/nav_icon_pvp.png";
 import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
+import fishingFishIcon from "@assets/generated_images/fishing_fish_icon.png";
 import PetWorldPage from "@/pages/PetWorldPage";
 import { AquariumPage } from "@/pages/AquariumPage";
 
@@ -403,7 +404,28 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                             </div>
                           );
                         })()}
-                        <p className="font-fantasy text-[#2a1000] text-[10px] font-bold mb-0.5 leading-tight">{quest.title}</p>
+                        <div className="flex items-center justify-between gap-1 mb-0.5">
+                          <p className="font-fantasy text-[#2a1000] text-[10px] font-bold leading-tight flex-1 min-w-0">{quest.title}</p>
+                          {quest.quest_key === "catch_fish" && (
+                            <button
+                              data-testid="button-go-fishing-quest"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                closeAll();
+                                setTimeout(() => navigate("/world/swamp?fishHint=1"), NAV_DELAY);
+                              }}
+                              className="flex-shrink-0 transition-transform active:scale-90"
+                              style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}
+                              title="Go to fishing spots"
+                            >
+                              <img
+                                src={fishingFishIcon}
+                                alt="Go Fishing"
+                                style={{ width: 20, height: 20, objectFit: "contain", filter: "drop-shadow(0 0 5px rgba(56,189,248,0.9)) drop-shadow(0 0 2px rgba(0,0,0,0.6))" }}
+                              />
+                            </button>
+                          )}
+                        </div>
                         <p className="font-fantasy text-[#5a2e0a] text-[9px] tracking-wide leading-snug mb-1.5">{quest.description}</p>
 
                         {/* Progress bar */}
