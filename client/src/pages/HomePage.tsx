@@ -101,6 +101,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [hatchedPetCache, setHatchedPetCache] = useState<{ hatchedImageUrl: string | null; imageUrl: string | null; petTemplateId: string | null; name: string } | null>(null);
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [showPetStats, setShowPetStats] = useState(false);
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("petStatsToggle", { detail: { open: showPetStats } }));
+  }, [showPetStats]);
   // Sparkle bursts for the pet-action ring buttons. Each entry is one floating
   // particle positioned in viewport coords with a colour that matches the
   // rune that was tapped.

@@ -243,9 +243,9 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
         className="relative w-full sm:w-[92%] sm:max-w-sm rounded-t-3xl sm:rounded-2xl overflow-y-auto animate-slide-up"
         style={{
           background: "linear-gradient(160deg, rgba(3,14,7,0.99) 0%, rgba(6,24,12,0.99) 100%)",
-          border: "1px solid rgba(180,150,50,0.30)",
-          borderBottom: "none",
-          boxShadow: `0 -4px 60px rgba(0,0,0,0.9), 0 0 80px rgba(30,90,45,0.25), 0 0 40px ${rc.glow.replace("0.55", "0.08")}`,
+          border: "1.5px solid rgba(212,165,30,0.70)",
+          borderBottom: "1.5px solid rgba(212,165,30,0.40)",
+          boxShadow: `0 -4px 60px rgba(0,0,0,0.9), 0 0 80px rgba(30,90,45,0.25), 0 0 24px rgba(212,165,30,0.18), 0 0 40px ${rc.glow.replace("0.55", "0.08")}`,
           maxHeight: "90vh",
         }}
       >

@@ -215,6 +215,13 @@ function AppRouter() {
     localStorage.getItem("para_pets_just_registered") === "true"
   );
 
+  const [petStatsOpen, setPetStatsOpen] = useState(false);
+  useEffect(() => {
+    const handler = (e: Event) => setPetStatsOpen((e as CustomEvent<{ open: boolean }>).detail.open);
+    window.addEventListener("petStatsToggle", handler);
+    return () => window.removeEventListener("petStatsToggle", handler);
+  }, []);
+
   // After auth resolves for a logged-in user, fetch inventory and preload the
   // home page background + active pet image before revealing the app.
   // This prevents any flash of the background loading in or the pet image
@@ -480,7 +487,7 @@ function AppRouter() {
       </Suspense>
 
       {/* FloatingNav sits above all overlays */}
-      {!shouldHideNav(location) && (
+      {!shouldHideNav(location) && !petStatsOpen && (
         <FloatingNav
           user={user}
           onUserUpdate={(u) => queryClient.setQueryData(["/api/auth/me"], u)}
