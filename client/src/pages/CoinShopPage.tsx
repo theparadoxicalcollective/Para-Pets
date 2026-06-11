@@ -304,13 +304,13 @@ export default function CoinShopPage({ user }: CoinShopProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto pb-6" style={{ position: "relative", zIndex: 3 }}>
-        {/* Close button — sits just below the TopBar */}
+        {/* Close button — fixed just below the TopBar, above the title */}
         <button
           data-testid="button-close-coin-shop"
           onClick={() => navigate("/")}
-          className="absolute flex items-center justify-center transition-transform active:scale-90"
+          className="fixed flex items-center justify-center transition-transform active:scale-90"
           style={{
-            top: 10,
+            top: 60,
             right: 12,
             width: 32,
             height: 32,
