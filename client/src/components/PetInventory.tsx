@@ -1241,28 +1241,6 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
                   <p className="font-fantasy text-[#f0c040] text-sm font-semibold text-center truncate w-full" data-testid={`text-bag-item-name-${item.shopItemId}`}>
                     {item.name}
                   </p>
-                  {item.statBoostType && (
-                    <span
-                      className="font-fantasy text-xs tracking-wider px-2 py-0.5 rounded-full font-bold"
-                      style={{
-                        background: item.statBoostType === "health" ? "rgba(74,222,128,0.15)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.15)" : item.statBoostType === "def" ? "rgba(96,165,250,0.15)" : "rgba(192,132,252,0.15)",
-                        color: item.statBoostType === "health" ? "#4ade80" : item.statBoostType === "atk" ? "#f87171" : item.statBoostType === "def" ? "#60a5fa" : "#c084fc",
-                        border: `1px solid ${item.statBoostType === "health" ? "rgba(74,222,128,0.4)" : item.statBoostType === "atk" ? "rgba(248,113,113,0.4)" : item.statBoostType === "def" ? "rgba(96,165,250,0.4)" : "rgba(192,132,252,0.4)"}`,
-                      }}
-                    >
-                      +{item.statBoostAmount || "?"} {item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : item.statBoostType === "lvl" ? "Feed pts" : "Lvl pts"}
-                    </span>
-                  )}
-                  <span
-                    className="font-fantasy text-[10px] tracking-wider px-2 py-0.5 rounded-full capitalize"
-                    style={{
-                      background: `${typeColor}18`,
-                      color: typeColor,
-                      border: `1px solid ${typeColor}45`,
-                    }}
-                  >
-                    {item.type}
-                  </span>
                 </div>
               </div>
             );
@@ -1348,59 +1326,6 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
                 </p>
               </div>
 
-              {selectedItem.statBoostType && (
-                <div className="flex items-center gap-2">
-                  <span
-                    className="font-fantasy text-[10px] tracking-wider px-3 py-1 rounded-full"
-                    style={{
-                      background: selectedItem.statBoostType === "health" ? "rgba(74,222,128,0.15)" : selectedItem.statBoostType === "atk" ? "rgba(248,113,113,0.15)" : selectedItem.statBoostType === "def" ? "rgba(96,165,250,0.15)" : "rgba(192,132,252,0.15)",
-                      color: selectedItem.statBoostType === "health" ? "#4ade80" : selectedItem.statBoostType === "atk" ? "#f87171" : selectedItem.statBoostType === "def" ? "#60a5fa" : "#c084fc",
-                      border: `1px solid ${selectedItem.statBoostType === "health" ? "rgba(74,222,128,0.3)" : selectedItem.statBoostType === "atk" ? "rgba(248,113,113,0.3)" : selectedItem.statBoostType === "def" ? "rgba(96,165,250,0.3)" : "rgba(192,132,252,0.3)"}`,
-                    }}
-                  >
-                    +{selectedItem.statBoostAmount || "?"} {selectedItem.statBoostType === "health" ? "HP" : selectedItem.statBoostType === "atk" ? "ATK" : selectedItem.statBoostType === "def" ? "DEF" : selectedItem.statBoostType === "lvl" ? "Feed pts" : "Lvl pts"}
-                  </span>
-                </div>
-              )}
-
-              {/* ── Usage tutorial hint ─────────────────────────────── */}
-              {(() => {
-                const hint = getItemUsageHint(selectedItem);
-                return (
-                  <div
-                    className="w-full rounded-xl p-3 flex flex-col gap-2"
-                    style={{ background: "linear-gradient(135deg, rgba(30,20,5,0.9), rgba(50,35,10,0.9))", border: "1px solid rgba(240,192,64,0.2)" }}
-                    data-testid="section-item-usage-hint"
-                  >
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <img
-                        src={
-                          selectedItem.type === "potion" ? tabIconPotion
-                          : selectedItem.type === "accessory" ? tabIconAccessory
-                          : selectedItem.type === "special" ? tabIconSpecial
-                          : selectedItem.type === "item" ? tabIconItem
-                          : tabIconAll
-                        }
-                        alt=""
-                        style={{ width: 18, height: 18, objectFit: "contain", opacity: 0.85 }}
-                      />
-                      <span className="font-fantasy text-[10px] tracking-[0.2em] text-[#f0c040] uppercase opacity-70">How to use</span>
-                    </div>
-                    <p className="font-fantasy text-[#e8d4a0] text-xs leading-relaxed">
-                      {hint.how}
-                    </p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="font-fantasy text-[9px] tracking-wider text-[#8a7050]">Find it in:</span>
-                      <span
-                        className="font-fantasy text-[9px] tracking-wider px-2 py-0.5 rounded-full"
-                        style={{ background: "rgba(240,192,64,0.12)", color: "#c8a848", border: "1px solid rgba(240,192,64,0.25)" }}
-                      >
-                        {hint.where}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })()}
 
               <div className="w-full pt-2 border-t" style={{ borderColor: "rgba(212,160,23,0.15)" }}>
                 {!confirmDelete ? (
