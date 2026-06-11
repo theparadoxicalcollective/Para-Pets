@@ -2072,8 +2072,7 @@ function PetStatusBars({
       className="absolute left-1/2"
       style={{
         top: "calc(42% + 130px)",
-        // Nudge right so the vertical Loyalty bar on the left edge has room.
-        transform: "translateX(calc(-50% + 22px))",
+        transform: "translateX(-50%)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
