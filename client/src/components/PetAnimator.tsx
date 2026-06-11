@@ -1923,17 +1923,21 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             if (part.partType !== "tail" && part.partType !== "tail_2" && part.partType !== "tail_3") return undefined;
             const tabAlpha = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
             if (!isPetSideFacing) {
-              // Front-facing: pivot at top-center (where tail meets the spine).
-              const originX = (tabAlpha.left + tabAlpha.width  / 2) * 100;
-              const originY = tabAlpha.top * 100;
-              return `${originX.toFixed(2)}% ${originY.toFixed(2)}%`;
+              // Front-facing: pivot at bottom-left (where tail attaches to the body).
+              const originX = tabAlpha.left * 100;
+              const originY = (tabAlpha.top + tabAlpha.height) * 100;
+              const origin = `${originX.toFixed(2)}% ${originY.toFixed(2)}%`;
+              console.log("[TailOrigin] front", part.partType, part.imageUrl, "bounds:", tabAlpha, "origin:", origin);
+              return origin;
             }
             // Side-facing: pivot at the horizontal edge nearest the body.
             const originX = resolvedView === "back"
               ? (tabAlpha.left + tabAlpha.width) * 100   // right edge — pet faces left, root near body
               : tabAlpha.left * 100;                     // left edge — pet faces right, root near body
             const originY = (tabAlpha.top + tabAlpha.height) * 100;
-            return `${originX.toFixed(2)}% ${originY.toFixed(2)}%`;
+            const origin = `${originX.toFixed(2)}% ${originY.toFixed(2)}%`;
+            console.log("[TailOrigin] side", part.partType, part.imageUrl, "bounds:", tabAlpha, "origin:", origin);
+            return origin;
           })();
 
           if (mode === "static") {
