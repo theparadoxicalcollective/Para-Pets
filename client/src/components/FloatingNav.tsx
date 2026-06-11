@@ -82,7 +82,7 @@ const RIGHT_ITEMS = [
 
 const ICON_SIZE   = 50;
 const BUTTON_SIZE = 58;
-const SPACING     = 68;
+const SPACING     = 62;
 
 export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [, navigate] = useLocation();

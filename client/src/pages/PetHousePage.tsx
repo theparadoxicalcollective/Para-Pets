@@ -2072,7 +2072,9 @@ function PetStatusBars({
       className="absolute left-1/2"
       style={{
         top: "calc(42% + 130px)",
-        transform: "translateX(-50%)",
+        // Nudge right by 22px to match the pet's visual centre (which
+        // accounts for the loyalty bar occupying the left edge).
+        transform: "translateX(calc(-50% + 22px))",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -2810,7 +2812,10 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
           // header and below for the status-bar block (which anchors at
           // calc(42% + 130px) so the two move together).
           top: "42%",
-          transform: "translate(-50%, -50%)",
+          // Nudge right by 22px so the pet and bars share the same
+          // visual centre, accounting for the narrow loyalty bar on the
+          // left edge.
+          transform: "translate(calc(-50% + 22px), -50%)",
           width: 300,
           height: 300,
           cursor: "pointer",
@@ -3236,10 +3241,16 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
         {edibles.length === 0 ? (
           <div
             className="px-1 flex items-center"
-            style={{ height: 52, marginBottom: 8 }}
+            style={{
+              height: 52,
+              marginBottom: 8,
+              borderRadius: 10,
+              border: "1.5px solid rgba(159,214,144,0.22)",
+              background: "rgba(159,214,144,0.04)",
+            }}
             data-testid="text-no-edibles"
           >
-            <span style={{ fontFamily: "Lora, serif", color: "rgba(159,214,144,0.35)", fontSize: 11, fontStyle: "italic", letterSpacing: "0.04em" }}>
+            <span style={{ fontFamily: "Lora, serif", color: "rgba(159,214,144,0.4)", fontSize: 11, fontStyle: "italic", letterSpacing: "0.04em", paddingLeft: 8 }}>
               No edibles
             </span>
           </div>
@@ -3315,10 +3326,15 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
         {gifts.length === 0 ? (
           <div
             className="px-1 flex items-center"
-            style={{ height: 52 }}
+            style={{
+              height: 52,
+              borderRadius: 10,
+              border: "1.5px solid rgba(249,184,216,0.22)",
+              background: "rgba(249,184,216,0.04)",
+            }}
             data-testid="text-no-gifts"
           >
-            <span style={{ fontFamily: "Lora, serif", color: "rgba(249,184,216,0.35)", fontSize: 11, fontStyle: "italic", letterSpacing: "0.04em" }}>
+            <span style={{ fontFamily: "Lora, serif", color: "rgba(249,184,216,0.4)", fontSize: 11, fontStyle: "italic", letterSpacing: "0.04em", paddingLeft: 8 }}>
               No gifts
             </span>
           </div>
