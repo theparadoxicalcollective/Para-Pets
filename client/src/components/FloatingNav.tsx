@@ -410,7 +410,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                               quest.quest_key === "catch_fish"  ? "/world/swamp?fishHint=1" :
                               quest.quest_key === "feed_pet"    ? (user.activePetId ? `/pet-care/${encodeURIComponent(user.activePetId)}?feedHint=1` : "/pet-house") :
                               null; // use_powerup — coming soon
-                            const isDisabled = goTarget === null;
+                            const isDisabled = goTarget === null || isDone;
                             return (
                               <button
                                 data-testid={`button-go-quest-${quest.quest_key}`}

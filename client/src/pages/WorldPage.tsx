@@ -2121,9 +2121,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                     />
                     {fishingSpots.map((spot, si) => {
                       const sz = spot.iconSize || 300;
-                      // Centre of the fishing spot icon (top-left anchor + half the icon width)
                       const cx = `calc(${spot.posX}% + ${sz / 2}px)`;
-                      // Position arrow just above the top of the icon
                       const cy = `calc(${spot.posY}% - 12px)`;
                       return (
                         <div
@@ -2134,11 +2132,16 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                             top: cy,
                             transform: "translate(-50%, -100%)",
                             zIndex: 499,
+                            position: "relative",
                             display: "flex",
                             flexDirection: "column",
                             alignItems: "center",
                           }}
                         >
+                          {/* Glowing orbs drifting around the arrow */}
+                          <span style={{ position: "absolute", width: 7, height: 7, borderRadius: "50%", background: "rgba(74,222,128,0.95)", boxShadow: "0 0 8px rgba(34,197,94,1), 0 0 18px rgba(34,197,94,0.8)", animation: `hintOrb1 2.4s ease-in-out ${si * 0.3}s infinite` }} />
+                          <span style={{ position: "absolute", width: 5, height: 5, borderRadius: "50%", background: "rgba(134,239,172,0.9)", boxShadow: "0 0 6px rgba(74,222,128,1), 0 0 14px rgba(34,197,94,0.7)", animation: `hintOrb2 2.1s ease-in-out ${si * 0.3 + 0.5}s infinite` }} />
+                          <span style={{ position: "absolute", width: 4, height: 4, borderRadius: "50%", background: "rgba(187,247,208,0.85)", boxShadow: "0 0 5px rgba(74,222,128,0.9), 0 0 10px rgba(34,197,94,0.6)", animation: `hintOrb3 1.8s ease-in-out ${si * 0.3 + 1.0}s infinite` }} />
                           <div style={{ animation: `fishHintFloat 1.2s ease-in-out ${si * 0.2}s infinite`, display: "flex", flexDirection: "column", alignItems: "center" }}>
                             {/* Shaft */}
                             <div style={{
@@ -2147,7 +2150,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                               borderRadius: "3px 3px 0 0",
                               boxShadow: "0 0 10px rgba(34,197,94,0.9), 0 0 24px rgba(34,197,94,0.5)",
                             }} />
-                            {/* Arrowhead — wider, chunkier downward triangle */}
+                            {/* Arrowhead */}
                             <div style={{
                               width: 0, height: 0,
                               borderLeft: "18px solid transparent",
@@ -2163,6 +2166,24 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                       @keyframes fishHintFloat {
                         0%, 100% { transform: translateY(0px); }
                         50%       { transform: translateY(12px); }
+                      }
+                      @keyframes hintOrb1 {
+                        0%   { transform: translate(-22px, 10px);  opacity: 0.8; }
+                        33%  { transform: translate(20px, -14px);  opacity: 1;   }
+                        66%  { transform: translate(8px, 22px);    opacity: 0.6; }
+                        100% { transform: translate(-22px, 10px);  opacity: 0.8; }
+                      }
+                      @keyframes hintOrb2 {
+                        0%   { transform: translate(20px, -8px);   opacity: 0.7; }
+                        33%  { transform: translate(-18px, 16px);  opacity: 1;   }
+                        66%  { transform: translate(-8px, -22px);  opacity: 0.8; }
+                        100% { transform: translate(20px, -8px);   opacity: 0.7; }
+                      }
+                      @keyframes hintOrb3 {
+                        0%   { transform: translate(2px, -24px);   opacity: 0.9; }
+                        33%  { transform: translate(-24px, 6px);   opacity: 0.6; }
+                        66%  { transform: translate(20px, 16px);   opacity: 1;   }
+                        100% { transform: translate(2px, -24px);   opacity: 0.9; }
                       }
                     `}</style>
                   </>
@@ -2193,6 +2214,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                         top: cy,
                         transform: "translate(-50%, -100%)",
                         zIndex: 499,
+                        position: "relative",
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
@@ -2212,6 +2234,10 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                           {hintLoc.name}
                         </span>
                       </div>
+                      {/* Glowing orbs drifting around the arrow */}
+                      <span style={{ position: "absolute", top: "60%", width: 7, height: 7, borderRadius: "50%", background: "rgba(74,222,128,0.95)", boxShadow: "0 0 8px rgba(34,197,94,1), 0 0 18px rgba(34,197,94,0.8)", animation: "hintOrb1 2.4s ease-in-out infinite" }} />
+                      <span style={{ position: "absolute", top: "60%", width: 5, height: 5, borderRadius: "50%", background: "rgba(134,239,172,0.9)", boxShadow: "0 0 6px rgba(74,222,128,1), 0 0 14px rgba(34,197,94,0.7)", animation: "hintOrb2 2.1s ease-in-out 0.5s infinite" }} />
+                      <span style={{ position: "absolute", top: "60%", width: 4, height: 4, borderRadius: "50%", background: "rgba(187,247,208,0.85)", boxShadow: "0 0 5px rgba(74,222,128,0.9), 0 0 10px rgba(34,197,94,0.6)", animation: "hintOrb3 1.8s ease-in-out 1.0s infinite" }} />
                       {/* Animated arrow pointing down at the shop */}
                       <div style={{ animation: "fishHintFloat 1.2s ease-in-out infinite", display: "flex", flexDirection: "column", alignItems: "center" }}>
                         <div style={{ width: 8, height: 28, background: "linear-gradient(180deg, #4ade80 0%, #16a34a 100%)", borderRadius: "3px 3px 0 0", boxShadow: "0 0 10px rgba(34,197,94,0.9), 0 0 24px rgba(34,197,94,0.5)" }} />

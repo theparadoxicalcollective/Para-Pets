@@ -40,6 +40,7 @@ export default function PetCarePage() {
       onUserUpdate={(u) => queryClient.setQueryData(["/api/auth/me"], u)}
       onClose={close}
       feedHint={feedHint}
+      hideCoinDisplay={true}
     />
   );
 }

@@ -2138,12 +2138,13 @@ function PetStatusBars({
   );
 }
 
-export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = false }: {
+export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = false, hideCoinDisplay = false }: {
   pet: HousePet;
   user: any;
   onUserUpdate: (u: any) => void;
   onClose: () => void;
   feedHint?: boolean;
+  hideCoinDisplay?: boolean;
 }) {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -2727,23 +2728,25 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           Caring for {pet.nickname ?? pet.name}
         </div>
         <div className="flex items-center gap-2">
-          {/* Coin balance chip — coins fly into this when collected. */}
-          <div
-            ref={coinChipRef}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full"
-            style={{
-              background: "rgba(15,25,12,0.7)",
-              border: "1px solid rgba(255,210,90,0.45)",
-              backdropFilter: "blur(6px)",
-              boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
-            }}
-            data-testid="chip-feeding-coins"
-          >
-            <img src={coinIconImg} alt="coin" style={{ width: 18, height: 18, objectFit: "contain" }} />
-            <span style={{ fontFamily: "Lora, serif", color: "#ffe49a", fontSize: 13, fontWeight: 700, letterSpacing: "0.04em" }} data-testid="text-feeding-coins">
-              {displayCoins.toLocaleString()}
-            </span>
-          </div>
+          {/* Coin balance chip — coins fly into this when collected. Hidden on standalone pet-care page. */}
+          {!hideCoinDisplay && (
+            <div
+              ref={coinChipRef}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full"
+              style={{
+                background: "rgba(15,25,12,0.7)",
+                border: "1px solid rgba(255,210,90,0.45)",
+                backdropFilter: "blur(6px)",
+                boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
+              }}
+              data-testid="chip-feeding-coins"
+            >
+              <img src={coinIconImg} alt="coin" style={{ width: 18, height: 18, objectFit: "contain" }} />
+              <span style={{ fontFamily: "Lora, serif", color: "#ffe49a", fontSize: 13, fontWeight: 700, letterSpacing: "0.04em" }} data-testid="text-feeding-coins">
+                {displayCoins.toLocaleString()}
+              </span>
+            </div>
+          )}
           {/* Help / tutorial button */}
           <button
             onClick={() => setShowCareTutorial(true)}
