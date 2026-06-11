@@ -3236,31 +3236,13 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
 
         {edibles.length === 0 ? (
           <div
-            className="flex gap-2 px-1"
-            style={{ marginBottom: 8 }}
+            className="px-1 flex items-center"
+            style={{ height: 52, marginBottom: 8 }}
             data-testid="text-no-edibles"
           >
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="flex-shrink-0 flex flex-col items-center gap-1"
-                style={{ width: 56 }}
-              >
-                <div style={{
-                  width: 44, height: 44,
-                  borderRadius: 10,
-                  border: "1.5px solid rgba(159,214,144,0.28)",
-                  background: "rgba(159,214,144,0.04)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <span style={{ color: "rgba(159,214,144,0.25)", fontSize: 18, lineHeight: 1 }}>+</span>
-                </div>
-                <div style={{
-                  width: 36, height: 6, borderRadius: 4,
-                  background: "rgba(159,214,144,0.1)",
-                }} />
-              </div>
-            ))}
+            <span style={{ fontFamily: "Lora, serif", color: "rgba(159,214,144,0.35)", fontSize: 11, fontStyle: "italic", letterSpacing: "0.04em" }}>
+              No edibles
+            </span>
           </div>
         ) : (
           <div
@@ -3333,30 +3315,13 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose }: {
 
         {gifts.length === 0 ? (
           <div
-            className="flex gap-2 px-1"
+            className="px-1 flex items-center"
+            style={{ height: 52 }}
             data-testid="text-no-gifts"
           >
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="flex-shrink-0 flex flex-col items-center gap-1"
-                style={{ width: 56 }}
-              >
-                <div style={{
-                  width: 44, height: 44,
-                  borderRadius: 10,
-                  border: "1.5px solid rgba(249,184,216,0.28)",
-                  background: "rgba(249,184,216,0.04)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <span style={{ color: "rgba(249,184,216,0.25)", fontSize: 18, lineHeight: 1 }}>+</span>
-                </div>
-                <div style={{
-                  width: 36, height: 6, borderRadius: 4,
-                  background: "rgba(249,184,216,0.1)",
-                }} />
-              </div>
-            ))}
+            <span style={{ fontFamily: "Lora, serif", color: "rgba(249,184,216,0.35)", fontSize: 11, fontStyle: "italic", letterSpacing: "0.04em" }}>
+              No gifts
+            </span>
           </div>
         ) : (
           <div
