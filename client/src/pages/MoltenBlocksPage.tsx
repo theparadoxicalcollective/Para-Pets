@@ -258,12 +258,10 @@ export default function MoltenBlocksPage() {
   const [coinsEarned, setCoinsEarned] = useState(0);
   // Previous best, captured at mount, so the end-of-run screen can show
   // "NEW HIGH SCORE!" by comparing against the value before this run started.
-  const [prevHi, setPrevHi] = useState<number>(() => {
-    try { return parseInt(localStorage.getItem("molten_blocks_hi") || "0", 10) || 0; } catch { return 0; }
-  });
-  const [hiScore, setHiScore] = useState<number>(() => {
-    try { return parseInt(localStorage.getItem("molten_blocks_hi") || "0", 10) || 0; } catch { return 0; }
-  });
+  // Start at 0 — the user-specific useEffect below will sync from localStorage
+  // once authUser resolves (it's already in the query cache so this is instant).
+  const [prevHi, setPrevHi] = useState<number>(0);
+  const [hiScore, setHiScore] = useState<number>(0);
   const [paused, setPaused] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [returnSummary, setReturnSummary] = useState<{ coins: number; score: number } | null>(null);
@@ -350,7 +348,7 @@ export default function MoltenBlocksPage() {
   const startNewGame = useCallback(() => {
     // Snapshot the current persisted high score so the end screen can tell
     // the player whether THIS run beat it.
-    try { setPrevHi(parseInt(localStorage.getItem("molten_blocks_hi") || "0", 10) || 0); } catch {}
+    try { setPrevHi(parseInt(localStorage.getItem(lsKeyRef.current) || "0", 10) || 0); } catch {}
     resetBoard();
     dropIntervalRef.current = 800;
     // Reset refs SYNCHRONOUSLY so the loop and finalize logic don't see
@@ -366,6 +364,20 @@ export default function MoltenBlocksPage() {
     holdRef.current = null;
     setHoldPiece(null);
   }, [resetBoard]);
+
+  // Sync localStorage key + hi-score from the user-specific key once auth resolves.
+  // authUser is already in the TanStack cache so this fires on the first render.
+  useEffect(() => {
+    if (!authUser?.id) return;
+    lsKeyRef.current = `molten_blocks_hi_${authUser.id}`;
+    try {
+      const saved = parseInt(localStorage.getItem(lsKeyRef.current) || "0", 10) || 0;
+      if (saved > 0) {
+        setHiScore(prev => Math.max(prev, saved));
+        setPrevHi(prev => Math.max(prev, saved));
+      }
+    } catch {}
+  }, [authUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initialize on mount
   useEffect(() => { startNewGame(); /* eslint-disable-next-line */ }, []);
@@ -389,12 +401,17 @@ export default function MoltenBlocksPage() {
   // game-over auto-finalize, or a stray unmount-cleanup) only POST the
   // delta — no double-crediting, no silent dropping of earnings.
   const finalizedAmountRef = useRef(0);
+  // Tracks the last score value we've POSTed to the server this session so
+  // early-exit unmount cleanup can skip redundant submissions.
+  const submittedScoreRef = useRef(0);
   const finalizeRun = useCallback(async () => {
     // Save high score locally and persist to server
+    const currentScore = scoreRef.current;
     setHiScore(prev => {
-      const next = Math.max(prev, scoreRef.current);
-      try { localStorage.setItem("molten_blocks_hi", String(next)); } catch {}
-      if (next > 0) {
+      const next = Math.max(prev, currentScore);
+      try { localStorage.setItem(lsKeyRef.current, String(next)); } catch {}
+      if (next > 0 && next > submittedScoreRef.current) {
+        submittedScoreRef.current = next;
         apiRequest("POST", "/api/games/molten-blocks/score", { score: next })
           .then(() => queryClient.invalidateQueries({ queryKey: ["/api/games/molten-blocks/leaderboard"] }))
           .catch(() => {});
@@ -439,13 +456,24 @@ export default function MoltenBlocksPage() {
 
   // Safety-net: if the player navigates away (back button, route change,
   // closes the tab via SPA nav) without using "Return & Keep Earnings",
-  // still try to credit any unsubmitted coins on unmount.
+  // still try to credit any unsubmitted coins AND save their score.
   useEffect(() => {
     return () => {
-      if (coinsEarnedRef.current > finalizedAmountRef.current) {
-        // Fire-and-forget; the component is gone but the request will
-        // resolve on the server and credit the player's balance.
+      const hasUnsubmittedCoins = coinsEarnedRef.current > finalizedAmountRef.current;
+      const hasUnsubmittedScore = scoreRef.current > 0 && scoreRef.current > submittedScoreRef.current;
+
+      if (hasUnsubmittedCoins) {
+        // finalizeRun handles both coins and score together.
         finalizeRun();
+      } else if (hasUnsubmittedScore) {
+        // Score-only save — no coins outstanding, but we still need to
+        // persist the score the player reached before leaving.
+        const s = scoreRef.current;
+        try { localStorage.setItem(lsKeyRef.current, String(s)); } catch {}
+        submittedScoreRef.current = s;
+        apiRequest("POST", "/api/games/molten-blocks/score", { score: s })
+          .then(() => queryClient.invalidateQueries({ queryKey: ["/api/games/molten-blocks/leaderboard"] }))
+          .catch(() => {});
       }
     };
   }, [finalizeRun]);
