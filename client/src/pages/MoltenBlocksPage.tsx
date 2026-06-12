@@ -1096,6 +1096,19 @@ export default function MoltenBlocksPage() {
 
       {showIntro && !gameOver && introStep === 2 && (
         <Overlay>
+          {/* Close button — exits back to Volcanic World */}
+          <button
+            data-testid="button-close-molten"
+            onClick={() => navigate("/world/volcanic")}
+            style={{
+              position: "absolute", top: 12, right: 14,
+              background: "rgba(20,8,4,0.7)", border: "1px solid rgba(122,85,48,0.4)",
+              borderRadius: 8, color: "#a06a30", fontSize: 18, lineHeight: 1,
+              width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer",
+            }}
+          >✕</button>
+
           <div style={{ fontSize: 11, letterSpacing: "0.32em", color: "#a06a30" }}>THE MOLTEN BASTION</div>
           <h2 style={{
             margin: "6px 0 16px", fontSize: 34, color: accent, letterSpacing: "0.16em",
