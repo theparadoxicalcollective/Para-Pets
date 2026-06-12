@@ -225,6 +225,8 @@ export default function MoltenBlocksPage() {
   // While true, startNewGame has run but we keep the loop paused so the
   // player can read the rules before the first piece begins to fall.
   const [showIntro, setShowIntro] = useState(true);
+  // 1 = "How to Play" slide, 2 = leaderboard + Start slide
+  const [introStep, setIntroStep] = useState(1);
 
   // Leaderboard — fetched once on mount so the intro screen can display it.
   const { data: lbData } = useQuery<{
@@ -1053,27 +1055,52 @@ export default function MoltenBlocksPage() {
       </div>
 
       {/* Pre-game intro: title + tutorial + Start button (mount-only) */}
-      {showIntro && !gameOver && (
+      {showIntro && !gameOver && introStep === 1 && (
         <Overlay>
           <div style={{ fontSize: 11, letterSpacing: "0.32em", color: "#a06a30" }}>THE MOLTEN BASTION</div>
           <h2 style={{
             margin: "6px 0 4px", fontSize: 34, color: accent, letterSpacing: "0.16em",
             textShadow: "0 0 18px rgba(255,140,30,0.6), 0 0 6px rgba(255,200,40,0.5)",
           }}>MOLTEN BLOCKS</h2>
-          <div style={{ fontSize: 12, color: "#7a5530", marginBottom: 16, letterSpacing: "0.06em", fontStyle: "italic" }}>
+          <div style={{ fontSize: 12, color: "#7a5530", marginBottom: 20, letterSpacing: "0.06em", fontStyle: "italic" }}>
             Stack the lava-stone before the bastion fills.
+          </div>
+
+          {/* ── How to Play ─────────────────────────────────────────── */}
+          <div style={{ fontSize: 13, letterSpacing: "0.18em", color: "#fb923c", fontWeight: 700, marginBottom: 12 }}>
+            HOW TO PLAY
           </div>
 
           <div style={{
             background: "rgba(20,8,4,0.85)", border: "1px solid rgba(251,191,36,0.35)",
-            borderRadius: 10, padding: "14px 18px", marginBottom: 14, maxWidth: 320,
-            textAlign: "left", lineHeight: 1.55, fontSize: 12, color: "#f5d589",
+            borderRadius: 10, padding: "18px 20px", marginBottom: 20, width: "100%", maxWidth: 320,
+            textAlign: "left", lineHeight: 1.7, fontSize: 13, color: "#f5d589",
           }}>
             <TutoLine icon="↺" text="TAP to rotate the falling piece." />
             <TutoLine icon="↔" text="SWIPE left or right to move." />
             <TutoLine icon="●" text="HOLD your finger still to soft drop." />
             <TutoLine icon="↓" text="FLICK down hard to slam the piece." />
           </div>
+
+          <div style={{ fontSize: 11, color: "#7a5530", marginBottom: 18, textAlign: "center" }}>
+            Clear lines to score. Fill the top — game over.
+          </div>
+
+          <button
+            data-testid="button-intro-next"
+            onClick={() => setIntroStep(2)}
+            style={{ ...overlayBtnStyle(accent), fontSize: 15, padding: "12px 32px", letterSpacing: "0.18em" }}
+          >NEXT →</button>
+        </Overlay>
+      )}
+
+      {showIntro && !gameOver && introStep === 2 && (
+        <Overlay>
+          <div style={{ fontSize: 11, letterSpacing: "0.32em", color: "#a06a30" }}>THE MOLTEN BASTION</div>
+          <h2 style={{
+            margin: "6px 0 16px", fontSize: 34, color: accent, letterSpacing: "0.16em",
+            textShadow: "0 0 18px rgba(255,140,30,0.6), 0 0 6px rgba(255,200,40,0.5)",
+          }}>MOLTEN BLOCKS</h2>
 
           {/* ── Leaderboard ─────────────────────────────────────────── */}
           <div style={{
@@ -1089,7 +1116,6 @@ export default function MoltenBlocksPage() {
               <span style={{ fontSize: 10, color: "#7a5530" }}>TOP 20</span>
             </div>
 
-            {/* Scrollable list — top 5 visible (~28px each) */}
             <div
               data-testid="leaderboard-scroll"
               style={{
@@ -1132,7 +1158,6 @@ export default function MoltenBlocksPage() {
               )}
             </div>
 
-            {/* Viewer rank footer — only when they're outside top 20 */}
             {lbData?.viewerRank && lbData.viewerRank.rank > 0 && (
               <div style={{
                 borderTop: "1px solid rgba(251,191,36,0.2)", padding: "7px 14px",
@@ -1158,17 +1183,25 @@ export default function MoltenBlocksPage() {
             )}
           </div>
 
-          <button
-            data-testid="button-start-game"
-            onClick={() => {
-              // Reset the drop clock so the first piece doesn't fall the
-              // instant the player taps Start (the loop was paused while
-              // the intro was up, so `lastDropRef` is stale).
-              lastDropRef.current = performance.now();
-              setShowIntro(false);
-            }}
-            style={{ ...overlayBtnStyle(accent), fontSize: 15, padding: "12px 32px", letterSpacing: "0.18em" }}
-          >START</button>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <button
+              data-testid="button-intro-back"
+              onClick={() => setIntroStep(1)}
+              style={{
+                ...overlayBtnStyle("#7a5530"), fontSize: 13, padding: "10px 18px",
+                letterSpacing: "0.12em", background: "rgba(40,16,4,0.9)",
+                border: "1px solid rgba(122,85,48,0.5)", color: "#a06a30",
+              }}
+            >← BACK</button>
+            <button
+              data-testid="button-start-game"
+              onClick={() => {
+                lastDropRef.current = performance.now();
+                setShowIntro(false);
+              }}
+              style={{ ...overlayBtnStyle(accent), fontSize: 15, padding: "12px 28px", letterSpacing: "0.18em" }}
+            >START</button>
+          </div>
         </Overlay>
       )}
 
