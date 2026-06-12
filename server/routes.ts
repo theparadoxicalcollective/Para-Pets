@@ -2258,6 +2258,36 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/games/molten-blocks/leaderboard", async (req, res) => {
+    try {
+      const viewerId = (req.user as any)?.id;
+      const top20 = await storage.getMoltenBlocksLeaderboard(viewerId);
+      let viewerRank: { rank: number; score: number } | null = null;
+      if (viewerId && !top20.some(e => e.isViewer)) {
+        viewerRank = await storage.getMoltenBlocksViewerRank(viewerId);
+      }
+      return res.json({ top20, viewerRank });
+    } catch (err) {
+      console.error("Molten Blocks leaderboard error:", err);
+      return res.status(500).json({ message: "Failed to fetch leaderboard" });
+    }
+  });
+
+  app.post("/api/games/molten-blocks/score", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const score = Number((req.body ?? {}).score);
+      if (!Number.isFinite(score) || score < 0) {
+        return res.status(400).json({ message: "Invalid score" });
+      }
+      const highScore = await storage.submitMoltenBlocksScore(user.id, Math.floor(score));
+      return res.json({ highScore });
+    } catch (err) {
+      console.error("Molten Blocks score error:", err);
+      return res.status(500).json({ message: "Failed to submit score" });
+    }
+  });
+
   app.post("/api/pet/:inventoryId/feed-edible", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;

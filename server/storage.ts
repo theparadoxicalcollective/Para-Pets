@@ -93,6 +93,9 @@ export interface IStorage {
   setLastWatcherGreetedAt(id: string, when: Date): Promise<void>;
   setLastPettingRewardAt(id: string, when: Date): Promise<void>;
   setPettingRewardsToday(id: string, count: number): Promise<void>;
+  getMoltenBlocksLeaderboard(viewerId?: string): Promise<{ rank: number; username: string; score: number; isViewer: boolean }[]>;
+  getMoltenBlocksViewerRank(userId: string): Promise<{ rank: number; score: number }>;
+  submitMoltenBlocksScore(userId: string, score: number): Promise<number>;
   // Per-pet petting reward state. Looks up by inventoryId and verifies the
   // pet belongs to userId (returns null if not). Update sets both timestamp
   // and daily counter atomically.
@@ -3120,6 +3123,44 @@ export class DatabaseStorage implements IStorage {
 
   async getVWQuotes(): Promise<VeridianWatcherQuote[]> {
     return db.select().from(veridianWatcherQuotes).orderBy(asc(veridianWatcherQuotes.createdAt));
+  }
+
+  async getMoltenBlocksLeaderboard(viewerId?: string): Promise<{ rank: number; username: string; score: number; isViewer: boolean }[]> {
+    const rows = await db
+      .select({ id: users.id, username: users.username, score: users.moltenBlocksHighScore })
+      .from(users)
+      .where(and(sql`${users.moltenBlocksHighScore} > 0`, eq(users.isBot, false)))
+      .orderBy(desc(users.moltenBlocksHighScore))
+      .limit(20);
+    return rows.map((r, i) => ({
+      rank: i + 1,
+      username: r.username,
+      score: r.score ?? 0,
+      isViewer: r.id === viewerId,
+    }));
+  }
+
+  async getMoltenBlocksViewerRank(userId: string): Promise<{ rank: number; score: number }> {
+    const [me] = await db
+      .select({ score: users.moltenBlocksHighScore })
+      .from(users)
+      .where(eq(users.id, userId));
+    const myScore = me?.score ?? 0;
+    if (myScore === 0) return { rank: 0, score: 0 };
+    const [countRow] = await db
+      .select({ cnt: sql<number>`count(*)::int` })
+      .from(users)
+      .where(and(sql`${users.moltenBlocksHighScore} > ${myScore}`, eq(users.isBot, false)));
+    return { rank: (countRow?.cnt ?? 0) + 1, score: myScore };
+  }
+
+  async submitMoltenBlocksScore(userId: string, score: number): Promise<number> {
+    const [updated] = await db
+      .update(users)
+      .set({ moltenBlocksHighScore: sql`GREATEST(COALESCE(${users.moltenBlocksHighScore}, 0), ${score})` })
+      .where(eq(users.id, userId))
+      .returning({ s: users.moltenBlocksHighScore });
+    return updated?.s ?? score;
   }
 
   async addVWQuote(message: string, addedBy?: string): Promise<VeridianWatcherQuote> {

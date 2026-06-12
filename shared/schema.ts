@@ -40,6 +40,7 @@ export const users = pgTable("users", {
   // UTC day begins. First petting of the day is always a guaranteed 10-coin
   // grant; up to 4 additional random grants (3-5 coins each) follow.
   pettingRewardsToday: integer("petting_rewards_today").notNull().default(0),
+  moltenBlocksHighScore: integer("molten_blocks_high_score").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

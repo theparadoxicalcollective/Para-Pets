@@ -293,6 +293,12 @@ app.use((req, res, next) => {
     console.error("pvp_battle_groups.attack_power migration error (non-fatal):", err);
   }
 
+  try {
+    await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS molten_blocks_high_score INTEGER NOT NULL DEFAULT 0`);
+  } catch (err) {
+    console.error("users.molten_blocks_high_score migration error (non-fatal):", err);
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
@@ -603,6 +609,10 @@ app.use((req, res, next) => {
     () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_player_daily_login_claims_user ON player_daily_login_claims (user_id)`));
   await runMigration("idx_pvp_battles_user_created",
     () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_pvp_battles_user_created ON pvp_battles (user_id, created_at DESC)`));
+  await runMigration("users.molten_blocks_high_score",
+    () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS molten_blocks_high_score INTEGER NOT NULL DEFAULT 0`));
+  await runMigration("idx_users_molten_blocks_high_score",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_users_molten_blocks_high_score ON users (molten_blocks_high_score DESC)`));
 
   try {
     await db.execute(sql`

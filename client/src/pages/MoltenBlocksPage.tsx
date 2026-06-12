@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { playBlockMove, playBlockRotate, playBlockLock, playBlockHardDrop, playLineClear, playHoldSwap, playDefeat, playShopBell } from "@/lib/sounds";
@@ -225,6 +226,15 @@ export default function MoltenBlocksPage() {
   // player can read the rules before the first piece begins to fall.
   const [showIntro, setShowIntro] = useState(true);
 
+  // Leaderboard — fetched once on mount so the intro screen can display it.
+  const { data: lbData } = useQuery<{
+    top20: { rank: number; username: string; score: number; isViewer: boolean }[];
+    viewerRank: { rank: number; score: number } | null;
+  }>({
+    queryKey: ["/api/games/molten-blocks/leaderboard"],
+    staleTime: 30_000,
+  });
+
   // ── Preload block textures into HTMLImageElement refs ───────────────────
   const imgsRef = useRef<Record<Piece, HTMLImageElement>>({} as any);
   useEffect(() => {
@@ -302,10 +312,15 @@ export default function MoltenBlocksPage() {
   // delta — no double-crediting, no silent dropping of earnings.
   const finalizedAmountRef = useRef(0);
   const finalizeRun = useCallback(async () => {
-    // Save high score locally
+    // Save high score locally and persist to server
     setHiScore(prev => {
       const next = Math.max(prev, scoreRef.current);
       try { localStorage.setItem("molten_blocks_hi", String(next)); } catch {}
+      if (next > 0) {
+        apiRequest("POST", "/api/games/molten-blocks/score", { score: next })
+          .then(() => queryClient.invalidateQueries({ queryKey: ["/api/games/molten-blocks/leaderboard"] }))
+          .catch(() => {});
+      }
       return next;
     });
     const totalEarned = coinsEarnedRef.current;
@@ -1051,13 +1066,96 @@ export default function MoltenBlocksPage() {
 
           <div style={{
             background: "rgba(20,8,4,0.85)", border: "1px solid rgba(251,191,36,0.35)",
-            borderRadius: 10, padding: "14px 18px", marginBottom: 16, maxWidth: 320,
+            borderRadius: 10, padding: "14px 18px", marginBottom: 14, maxWidth: 320,
             textAlign: "left", lineHeight: 1.55, fontSize: 12, color: "#f5d589",
           }}>
             <TutoLine icon="↺" text="TAP to rotate the falling piece." />
             <TutoLine icon="↔" text="SWIPE left or right to move." />
             <TutoLine icon="●" text="HOLD your finger still to soft drop." />
             <TutoLine icon="↓" text="FLICK down hard to slam the piece." />
+          </div>
+
+          {/* ── Leaderboard ─────────────────────────────────────────── */}
+          <div style={{
+            width: "100%", maxWidth: 320,
+            background: "rgba(10,4,2,0.9)", border: "1px solid rgba(251,191,36,0.3)",
+            borderRadius: 10, marginBottom: 16, overflow: "hidden",
+          }}>
+            <div style={{
+              padding: "8px 14px", borderBottom: "1px solid rgba(251,191,36,0.2)",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+            }}>
+              <span style={{ fontSize: 11, letterSpacing: "0.22em", color: "#fb923c", fontWeight: 700 }}>🏆 LEADERBOARD</span>
+              <span style={{ fontSize: 10, color: "#7a5530" }}>TOP 20</span>
+            </div>
+
+            {/* Scrollable list — top 5 visible (~28px each) */}
+            <div
+              data-testid="leaderboard-scroll"
+              style={{
+                maxHeight: 140, overflowY: "auto", padding: "6px 0",
+                scrollbarWidth: "thin", scrollbarColor: "rgba(251,191,36,0.3) transparent",
+              }}
+            >
+              {!lbData || lbData.top20.length === 0 ? (
+                <div style={{ padding: "12px 14px", fontSize: 11, color: "#7a5530", textAlign: "center" }}>
+                  No scores yet — be the first!
+                </div>
+              ) : (
+                lbData.top20.map(entry => (
+                  <div
+                    key={entry.rank}
+                    data-testid={`leaderboard-row-${entry.rank}`}
+                    style={{
+                      display: "flex", alignItems: "center", padding: "4px 14px", gap: 8,
+                      background: entry.isViewer ? "rgba(251,191,36,0.1)" : "transparent",
+                      borderLeft: entry.isViewer ? "2px solid rgba(251,191,36,0.6)" : "2px solid transparent",
+                    }}
+                  >
+                    <span style={{
+                      width: 22, textAlign: "right", fontSize: 11, fontWeight: 700,
+                      color: entry.rank === 1 ? "#fbbf24" : entry.rank === 2 ? "#c0c0c0" : entry.rank === 3 ? "#cd7f32" : "#7a5530",
+                      flexShrink: 0,
+                    }}>
+                      {entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : `#${entry.rank}`}
+                    </span>
+                    <span style={{
+                      flex: 1, fontSize: 12, color: entry.isViewer ? "#fbbf24" : "#f5d589",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                      fontWeight: entry.isViewer ? 700 : 400,
+                    }}>{entry.username}</span>
+                    <span style={{ fontSize: 12, color: accent, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
+                      {entry.score.toLocaleString()}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Viewer rank footer — only when they're outside top 20 */}
+            {lbData?.viewerRank && lbData.viewerRank.rank > 0 && (
+              <div style={{
+                borderTop: "1px solid rgba(251,191,36,0.2)", padding: "7px 14px",
+                display: "flex", alignItems: "center", gap: 8,
+                background: "rgba(251,191,36,0.07)",
+              }}>
+                <span style={{ width: 22, textAlign: "right", fontSize: 11, color: "#7a5530", flexShrink: 0 }}>
+                  #{lbData.viewerRank.rank}
+                </span>
+                <span style={{ flex: 1, fontSize: 12, color: "#fbbf24", fontWeight: 700 }}>You</span>
+                <span style={{ fontSize: 12, color: accent, fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>
+                  {lbData.viewerRank.score.toLocaleString()}
+                </span>
+              </div>
+            )}
+            {lbData && !lbData.viewerRank && lbData.top20.length > 0 && !lbData.top20.some(e => e.isViewer) && (
+              <div style={{
+                borderTop: "1px solid rgba(251,191,36,0.15)", padding: "7px 14px",
+                fontSize: 11, color: "#7a5530", textAlign: "center",
+              }}>
+                Play a game to earn your rank!
+              </div>
+            )}
           </div>
 
           <button
