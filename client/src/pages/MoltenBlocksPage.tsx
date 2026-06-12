@@ -815,12 +815,13 @@ export default function MoltenBlocksPage() {
     ctx.lineWidth = 2;
     ctx.strokeRect(offX - 1, offY - 1, boardW + 2, boardH + 2);
 
-    // Locked cells
+    // Locked cells (skip block draw for cells that have an item — item replaces block)
     const board = boardRef.current;
+    const itemBoardSnap = itemBoardRef.current;
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const cellVal = board[r][c];
-        if (cellVal !== 0) {
+        if (cellVal !== 0 && !itemBoardSnap[r][c]) {
           drawCell(ctx, offX + c * cell, offY + r * cell, cell, cellVal);
         }
       }
@@ -902,29 +903,34 @@ export default function MoltenBlocksPage() {
           if (y >= 0) drawCell(ctx, offX + x * cell, offY + y * cell, cell, active.type, true);
         }
       }
-      // Active piece on top
-      for (let r = 0; r < shape.length; r++) {
-        for (let c = 0; c < shape[r].length; c++) {
-          if (!shape[r][c]) continue;
-          const x = active.x + c;
-          const y = active.y + r;
-          if (y >= 0) drawCell(ctx, offX + x * cell, offY + y * cell, cell, active.type);
-        }
-      }
-      // Item on the falling piece (assigned at spawn; follows the piece as it falls & rotates)
+      // Active piece on top — pre-compute item cell so we can skip drawCell for it
+      let itemCellRow = -1, itemCellCol = -1;
       if (pendingDropItemRef.current) {
-        const { item, cellIdx } = pendingDropItemRef.current;
+        const { cellIdx } = pendingDropItemRef.current;
         const activeCells: [number, number][] = [];
         for (let r = 0; r < shape.length; r++)
           for (let c = 0; c < shape[r].length; c++)
             if (shape[r][c]) activeCells.push([active.y + r, active.x + c]);
         if (activeCells.length > 0) {
-          const [ry, rx] = activeCells[cellIdx % activeCells.length];
-          if (ry >= 0) {
-            const pulse = 0.75 + 0.25 * Math.sin(nt / 320);
-            drawItemOnCell(offX + rx * cell, offY + ry * cell, item, pulse);
-          }
+          [itemCellRow, itemCellCol] = activeCells[cellIdx % activeCells.length];
         }
+      }
+      for (let r = 0; r < shape.length; r++) {
+        for (let c = 0; c < shape[r].length; c++) {
+          if (!shape[r][c]) continue;
+          const x = active.x + c;
+          const y = active.y + r;
+          if (y < 0) continue;
+          // Skip the block draw for the item cell — item rendering replaces it below
+          if (y === itemCellRow && x === itemCellCol) continue;
+          drawCell(ctx, offX + x * cell, offY + y * cell, cell, active.type);
+        }
+      }
+      // Item cell: draw item image replacing the block entirely
+      if (pendingDropItemRef.current && itemCellRow >= 0) {
+        const { item } = pendingDropItemRef.current;
+        const pulse = 0.75 + 0.25 * Math.sin(nt / 320);
+        drawItemOnCell(offX + itemCellCol * cell, offY + itemCellRow * cell, item, pulse);
       }
     }
 
