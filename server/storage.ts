@@ -3133,7 +3133,7 @@ export class DatabaseStorage implements IStorage {
     const rows = await db
       .select({ id: users.id, username: users.username, score: users.moltenBlocksHighScore })
       .from(users)
-      .where(and(sql`${users.moltenBlocksHighScore} > 0`, eq(users.isBot, false)))
+      .where(and(sql`${users.moltenBlocksHighScore} > 0`, eq(users.isBot, false), eq(users.isAdmin, false)))
       .orderBy(desc(users.moltenBlocksHighScore))
       .limit(20);
     return rows.map((r, i) => ({
@@ -3154,7 +3154,7 @@ export class DatabaseStorage implements IStorage {
     const [countRow] = await db
       .select({ cnt: sql<number>`count(*)::int` })
       .from(users)
-      .where(and(sql`${users.moltenBlocksHighScore} > ${myScore}`, eq(users.isBot, false)));
+      .where(and(sql`${users.moltenBlocksHighScore} > ${myScore}`, eq(users.isBot, false), eq(users.isAdmin, false)));
     return { rank: (countRow?.cnt ?? 0) + 1, score: myScore };
   }
 
