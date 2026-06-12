@@ -235,10 +235,12 @@ export default function MoltenBlocksPage() {
   const dropItemsRef = useRef<DropItem[]>([]);
   // Item carried by the currently-falling piece (assigned at spawn time)
   const pendingDropItemRef = useRef<{ item: DropItem; cellIdx: number } | null>(null);
-  // Next block-count threshold at which an item will be assigned (first drop: after 3–5 blocks)
-  const nextDropThresholdRef = useRef<number>(3 + Math.floor(Math.random() * 3));
+  // Next block-count threshold at which an item will be assigned (first drop: after 10–20 blocks)
+  const nextDropThresholdRef = useRef<number>(10 + Math.floor(Math.random() * 11));
   // Image cache keyed by shopItemId for canvas rendering
   const itemImgsRef = useRef<Record<string, HTMLImageElement>>({});
+  // Tracks which shopItemIds have fully loaded images (onload fired)
+  const itemImgReadyRef = useRef<Set<string>>(new Set());
   const lastDropRef = useRef<number>(0);
   const dropIntervalRef = useRef<number>(800);
   const softDropRef = useRef<boolean>(false);
@@ -291,14 +293,17 @@ export default function MoltenBlocksPage() {
     dropItemsRef.current = dropItemsData ?? [];
   }, [dropItemsData]);
 
-  // Preload item images for canvas rendering
+  // Preload item images for canvas rendering; mark ready only after onload fires
   useEffect(() => {
     if (!dropItemsData) return;
     for (const item of dropItemsData) {
       if (!item.imageUrl || itemImgsRef.current[item.shopItemId]) continue;
+      const id = item.shopItemId;
       const img = new Image();
+      img.onload = () => { itemImgReadyRef.current.add(id); };
+      img.onerror = () => { /* leave out of ready set; fallback will render */ };
       img.src = item.imageUrl;
-      itemImgsRef.current[item.shopItemId] = img;
+      itemImgsRef.current[id] = img;
     }
   }, [dropItemsData]);
 
@@ -478,7 +483,7 @@ export default function MoltenBlocksPage() {
               if (shape[r][c]) filledCount++;
           if (filledCount > 0) {
             pendingDropItemRef.current = { item: drop, cellIdx: Math.floor(Math.random() * filledCount) };
-            nextDropThresholdRef.current = blocksLockedRef.current + 5 + Math.floor(Math.random() * 6);
+            nextDropThresholdRef.current = blocksLockedRef.current + 10 + Math.floor(Math.random() * 11);
           }
         }
       }
@@ -824,46 +829,48 @@ export default function MoltenBlocksPage() {
     // Helper: draw an item's image + rarity glow on a single cell
     const drawItemOnCell = (ix: number, iy: number, it: DropItem, pulse: number) => {
       const glow = RARITY_GLOW[it.rarity] ?? RARITY_GLOW.common;
+      const nt2 = performance.now();
+
+      // Solid rarity-coloured background fill so the item is always visible
+      ctx.save();
+      ctx.globalAlpha = 0.55 * pulse;
+      ctx.fillStyle = it.rarity === 'rare' ? "rgba(255,215,0,1)" :
+                      it.rarity === 'uncommon' ? "rgba(74,222,128,1)" : "rgba(180,180,255,1)";
+      const inset = cell * 0.08;
+      ctx.fillRect(ix + inset, iy + inset, cell - inset * 2, cell - inset * 2);
+      ctx.restore();
+
       // Rarity-coloured glow border
       ctx.save();
       ctx.shadowColor = glow;
-      ctx.shadowBlur = cell * (it.rarity === 'rare' ? 0.7 : it.rarity === 'uncommon' ? 0.5 : 0.35) * pulse;
-      ctx.strokeStyle = glow.replace(/[\d.]+\)$/, `${(0.85 * pulse).toFixed(2)})`);
-      ctx.lineWidth = it.rarity === 'rare' ? 2.5 : 1.5;
-      ctx.strokeRect(ix + 1.5, iy + 1.5, cell - 3, cell - 3);
+      ctx.shadowBlur = cell * (it.rarity === 'rare' ? 0.9 : 0.65) * pulse;
+      ctx.strokeStyle = glow;
+      ctx.lineWidth = it.rarity === 'rare' ? 3 : 2;
+      ctx.strokeRect(ix + 2, iy + 2, cell - 4, cell - 4);
       ctx.restore();
-      // Item image (if loaded) drawn over the block
+
+      // Item image (if loaded) drawn over the fill
+      const imgReady = itemImgReadyRef.current.has(it.shopItemId);
       const img = itemImgsRef.current[it.shopItemId];
-      if (img && img.complete && img.naturalWidth > 0) {
-        const pad = cell * 0.08;
+      if (imgReady && img) {
+        const pad = cell * 0.1;
         ctx.save();
-        ctx.globalAlpha = 0.92;
+        ctx.globalAlpha = 0.95;
         ctx.drawImage(img, ix + pad, iy + pad, cell - pad * 2, cell - pad * 2);
         ctx.restore();
-      } else {
-        // Fallback: pulsing glow dot
-        const cx2 = ix + cell / 2, cy2 = iy + cell / 2;
-        const radius = cell * (it.rarity === 'rare' ? 0.26 : it.rarity === 'uncommon' ? 0.21 : 0.17);
-        ctx.save();
-        ctx.shadowColor = glow;
-        ctx.shadowBlur = cell * 0.35 * pulse;
-        ctx.fillStyle = glow.replace(/[\d.]+\)$/, `${(0.55 * pulse).toFixed(2)})`);
-        ctx.beginPath();
-        ctx.arc(cx2, cy2, radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
       }
+
       // Spinning arc for rare items
       if (it.rarity === 'rare') {
-        const spin = performance.now() / 1200;
+        const spin = nt2 / 1000;
         const cx2 = ix + cell / 2, cy2 = iy + cell / 2;
         ctx.save();
-        ctx.strokeStyle = `rgba(255,215,0,${(0.55 * pulse).toFixed(2)})`;
-        ctx.lineWidth = 1.5;
-        ctx.shadowColor = "rgba(255,215,0,0.8)";
-        ctx.shadowBlur = 6;
+        ctx.strokeStyle = `rgba(255,215,0,${(0.8 * pulse).toFixed(2)})`;
+        ctx.lineWidth = 2;
+        ctx.shadowColor = "rgba(255,215,0,0.9)";
+        ctx.shadowBlur = 8;
         ctx.beginPath();
-        ctx.arc(cx2, cy2, cell * 0.38, spin, spin + Math.PI * 1.3);
+        ctx.arc(cx2, cy2, cell * 0.42, spin, spin + Math.PI * 1.4);
         ctx.stroke();
         ctx.restore();
       }
