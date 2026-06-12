@@ -213,6 +213,10 @@ const STARTING_LIVES = 1;
 
 export default function MoltenBlocksPage() {
   const [, navigate] = useLocation();
+  const { data: authUser } = useQuery<any>({ queryKey: ["/api/auth/me"] });
+  // localStorage key namespaced by user ID to prevent cross-player score leakage
+  // on shared devices. Falls back to the legacy generic key until auth resolves.
+  const lsKeyRef = useRef<string>("molten_blocks_hi");
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const sideCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const holdCanvasRef = useRef<HTMLCanvasElement | null>(null);
