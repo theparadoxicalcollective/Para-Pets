@@ -1,0 +1,25 @@
+User-agent: *
+Allow: /hub
+Allow: /auth
+Allow: /founders
+Allow: /privacy
+Allow: /logo_parapets.png
+Allow: /favicon.png
+Disallow: /api/
+Disallow: /admin
+Disallow: /world/
+Disallow: /pet-care/
+Disallow: /games/
+Disallow: /coins
+Disallow: /bag
+Disallow: /market
+Disallow: /pvp
+Disallow: /badges
+Disallow: /pets
+Disallow: /pet-house
+Disallow: /aquarium
+Disallow: /map
+Disallow: /equip-accessories
+Disallow: /fishing
+
+Sitemap: https://www.parapets.net/sitemap.xml

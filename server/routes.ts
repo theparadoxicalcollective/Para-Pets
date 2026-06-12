@@ -680,6 +680,36 @@ export async function registerRoutes(
   await ensureAdminAccount();
   seedWorldBackgrounds();
 
+  // ── SEO: sitemap + robots (no auth required, served before any middleware) ──
+  app.get("/sitemap.xml", (_req, res) => {
+    const base = "https://www.parapets.net";
+    const today = new Date().toISOString().split("T")[0];
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${base}/hub</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${base}/auth</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>${base}/founders</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+</urlset>`;
+    res.set("Content-Type", "application/xml");
+    res.set("Cache-Control", "public, max-age=86400");
+    res.send(xml);
+  });
+
   app.use("/api/admin", (_req, res, next) => {
     res.set("Cache-Control", "no-store");
     next();

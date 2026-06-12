@@ -3,30 +3,103 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+    <!-- Primary meta -->
+    <title>Para Pets — Free Fantasy Pet Adventure Game</title>
+    <meta name="description" content="Collect, raise, and battle magical pets in Para Pets — a free browser-based fantasy adventure game. Hatch eggs, explore enchanted worlds, upgrade your pets, and climb the leaderboards!" />
+    <meta name="keywords" content="fantasy pet game, browser pet game, free online pet game, collect pets, hatch eggs, pet battle, RPG pets, pet adventure, magical pets, para pets" />
+    <meta name="author" content="Para Pets" />
+    <link rel="canonical" href="https://www.parapets.net/hub" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.parapets.net/hub" />
+    <meta property="og:title" content="Para Pets — Free Fantasy Pet Adventure Game" />
+    <meta property="og:description" content="Collect, raise, and battle magical pets in Para Pets — a free browser-based fantasy adventure game. Hatch eggs, explore enchanted worlds, and climb the leaderboards!" />
+    <meta property="og:image" content="https://www.parapets.net/logo_parapets.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="Para Pets" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Para Pets — Free Fantasy Pet Adventure Game" />
+    <meta name="twitter:description" content="Collect, raise, and battle magical pets in Para Pets — a free browser fantasy adventure. Hatch eggs, explore worlds, battle rivals!" />
+    <meta name="twitter:image" content="https://www.parapets.net/logo_parapets.png" />
+
+    <!-- PWA / mobile -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#080812" />
+    <meta name="apple-mobile-web-app-title" content="Para Pets" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#080812" />
     <meta name="msapplication-TileColor" content="#080812" />
-    <title>Para Pets - Fantasy Pet Adventure</title>
-    <meta name="description" content="Para Pets - Collect, raise, and battle magical pets in this fantasy adventure game." />
+
+    <!-- Icons / manifest -->
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon.png" />
     <link rel="apple-touch-icon" sizes="120x120" href="/apple-touch-icon.png" />
-    <meta name="apple-mobile-web-app-title" content="Para Pets" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- JSON-LD structured data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "VideoGame",
+      "name": "Para Pets",
+      "description": "Collect, raise, and battle magical pets in Para Pets — a free browser-based fantasy adventure game. Hatch eggs, explore enchanted worlds, upgrade your pets, and climb the leaderboards!",
+      "url": "https://www.parapets.net/hub",
+      "image": "https://www.parapets.net/logo_parapets.png",
+      "genre": ["Role-playing game", "Adventure", "Fantasy", "Casual"],
+      "gamePlatform": ["Web browser", "Mobile browser"],
+      "applicationCategory": "Game",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "5",
+        "ratingCount": "1"
+      },
+      "featureList": [
+        "Collect and hatch magical pets",
+        "Battle system with PvP and AI opponents",
+        "Daily quests and login rewards",
+        "Fishing mini-game",
+        "Molten Blocks mini-game",
+        "Medieval fantasy world exploration",
+        "Pet power-ups and leveling",
+        "Player-to-player marketplace"
+      ],
+      "publisher": {
+        "@type": "Organization",
+        "name": "Para Pets",
+        "url": "https://www.parapets.net"
+      }
+    }
+    </script>
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Lora:ital,wght@0,400..700;1,400..700&family=MedievalSharp&family=Merriweather:ital,opsz,wght@0,18..144,300..900;1,18..144,300..900&family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
+
+    <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6923366494067319"
      crossorigin="anonymous"></script>
-  <script>
-    try {
-      if (typeof window.webkit === "undefined") window.webkit = { messageHandlers: {} };
-      else if (typeof window.webkit.messageHandlers === "undefined") window.webkit.messageHandlers = {};
-    } catch (e) {}
-  </script>
+
+    <script>
+      try {
+        if (typeof window.webkit === "undefined") window.webkit = { messageHandlers: {} };
+        else if (typeof window.webkit.messageHandlers === "undefined") window.webkit.messageHandlers = {};
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

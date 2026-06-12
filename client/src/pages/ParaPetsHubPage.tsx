@@ -956,7 +956,43 @@ function SignInModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 // ─────────────────────────────────────────────────────────────────────────────
 // Main page
 // ─────────────────────────────────────────────────────────────────────────────
+function useSeoMeta() {
+  useEffect(() => {
+    const prev = document.title;
+    document.title = "Para Pets — Free Fantasy Pet Adventure Game";
+
+    const setMeta = (attr: string, key: string, value: string) => {
+      let el = document.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);
+      if (!el) { el = document.createElement("meta"); el.setAttribute(attr, key); document.head.appendChild(el); }
+      el.setAttribute("content", value);
+    };
+
+    const desc = "Collect, raise, and battle magical pets in Para Pets — a free browser-based fantasy adventure game. Hatch eggs, explore enchanted worlds, upgrade your pets, and climb the leaderboards!";
+    const img  = `${window.location.origin}/logo_parapets.png`;
+    const url  = "https://www.parapets.net/hub";
+
+    setMeta("name",     "description",          desc);
+    setMeta("name",     "robots",               "index, follow");
+    setMeta("property", "og:title",             "Para Pets — Free Fantasy Pet Adventure Game");
+    setMeta("property", "og:description",       desc);
+    setMeta("property", "og:url",               url);
+    setMeta("property", "og:image",             img);
+    setMeta("property", "og:type",              "website");
+    setMeta("name",     "twitter:card",         "summary_large_image");
+    setMeta("name",     "twitter:title",        "Para Pets — Free Fantasy Pet Adventure Game");
+    setMeta("name",     "twitter:description",  desc);
+    setMeta("name",     "twitter:image",        img);
+
+    let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
+    canonical.href = url;
+
+    return () => { document.title = prev; };
+  }, []);
+}
+
 export default function ParaPetsHubPage() {
+  useSeoMeta();
   const [showSignIn, setShowSignIn] = useState(false);
   const [showClaimHint, setShowClaimHint] = useState(() =>
     new URLSearchParams(window.location.search).get("claimHint") === "1"
