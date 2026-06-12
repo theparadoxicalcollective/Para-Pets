@@ -185,6 +185,16 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   back_arm: "petIdleBody",
   front_leg: "petIdleBody",
   back_leg: "petIdleBody",
+  // Paired flippers (e.g. Bayou Turtle) — breathe with body scale AND
+  // add a subtle inward translateX so both flippers arc toward the body on
+  // inhale and release on exhale. Mirrored keyframes so left/right paddle
+  // in opposite directions simultaneously. Phase-locked to bodyBreathDelay
+  // via isBodyBreathAnim so the sway is perfectly synchronised with the
+  // body's breath. body_2 uses a separate keyframe so it can drift slightly
+  // out of phase (its own hash-based delay + a different 4.3 s period).
+  flipper_left: "petIdleFlipperLeft",
+  flipper_right: "petIdleFlipperRight",
+  body_2: "petIdleBody2",
   // Side-facing wings mirror each other like the ears: the front wing flaps
   // one direction and the back wing flaps the opposite direction so the two
   // never sit perfectly in sync. Applies to both wing-set 1 and wing-set 2.
@@ -233,6 +243,8 @@ const WALK_ANIMATIONS: Record<string, string> = {
   tail: "petWalkTail",
   front_arm: "petWalkLeftArm",
   back_arm: "petWalkRightArm",
+  flipper_left: "petWalkLeftArm",
+  flipper_right: "petWalkRightArm",
   front_leg: "petWalkLeftLeg",
   back_leg: "petWalkRightLeg",
   front_wing: "petWalkLeftWing",
@@ -269,6 +281,8 @@ const PETTING_ANIMATIONS: Record<string, string> = {
   // way, back flaps the opposite way) so they don't beat in lockstep.
   front_arm: "petPettingLeftArm",
   back_arm: "petPettingRightArm",
+  flipper_left: "petPettingLeftArm",
+  flipper_right: "petPettingRightArm",
   front_wing: "petPettingLeftWing",
   back_wing: "petPettingRightWing",
   front_wing_2: "petPettingLeftWing",
@@ -322,6 +336,9 @@ const SLEEP_ANIMATIONS: Record<string, string> = {
   tail_2: "petSleepTail",
   tail_3: "petSleepTail",
   back_hair: "petSleepTail",
+  flipper_left: "petSleepBody",
+  flipper_right: "petSleepBody",
+  body_2: "petSleepBody",
   above_head: "petAboveHeadBounce",
   // Accessories on the head should sway with the gentle ear motion so
   // hats, bows, etc. don't appear locked in place during sleep.
@@ -359,6 +376,8 @@ const HOUSE_ANIMATIONS: Record<string, string> = {
   right_wing: "petIdleRightWing",
   front_arm: "petIdleLeftArm",
   back_arm: "petIdleRightArm",
+  flipper_left: "petIdleLeftArm",
+  flipper_right: "petIdleRightArm",
   front_wing: "petIdleLeftWing",
   back_wing: "petIdleRightWing",
   tail: "petHouseTail",
@@ -648,6 +667,30 @@ const ANIMATION_STYLES = `
   /* Side-facing front arm — pure scale matching petIdleBody so the arm
      stays glued to the chest silhouette on every inhale/exhale. */
   @keyframes petIdleFrontArmBreath {
+    from { transform: scale(1, 1); }
+    to   { transform: scale(1.012, 1.022); }
+  }
+  /* Paired flippers (e.g. Bayou Turtle) — body breathing scale PLUS a
+     subtle inward translateX so both flippers paddle toward the body on
+     inhale and release on exhale. Left/right are mirrored so they move
+     symmetrically. Phase-locked to bodyBreathDelay via isBodyBreathAnim.
+     1.5 % on a 1000-unit canvas = ~15 px → ~4.5 px rendered at 0.3 scale,
+     which reads as a gentle sculling motion without leaving the silhouette. */
+  @keyframes petIdleFlipperLeft {
+    from { transform: scale(1, 1) translateX(0%); }
+    to   { transform: scale(1.012, 1.022) translateX(1.5%); }
+  }
+  @keyframes petIdleFlipperRight {
+    from { transform: scale(1, 1) translateX(0%); }
+    to   { transform: scale(1.012, 1.022) translateX(-1.5%); }
+  }
+  /* body_2 layer breathing — identical scale shape to petIdleBody but
+     intentionally NOT in isBodyBreathAnim so it keeps its own per-part
+     hash delay instead of the shared bodyBreathDelay. Combined with its
+     4.3 s period (vs body's 4.5 s) it slowly drifts in and out of sync
+     with the main body, producing the "just a little out of phase" look
+     for shell underlayers, secondary torso pieces, etc. */
+  @keyframes petIdleBody2 {
     from { transform: scale(1, 1); }
     to   { transform: scale(1.012, 1.022); }
   }
@@ -976,6 +1019,13 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       // the period to body/back_arm keeps the entire side silhouette
       // locked to one breath rhythm.
       front_arm: "4.5s", back_arm: "4.5s",
+      flipper_left: "4.5s", flipper_right: "4.5s",
+      // body_2 deliberately uses a slightly different period (4.3 s vs body's
+      // 4.5 s) so it continuously drifts in and out of phase with body 1 —
+      // the "just a little out of sync" feel. Its own hash-based delay (not
+      // bodyBreathDelay, since petIdleBody2 is not in isBodyBreathAnim)
+      // means it also starts at a different point in the cycle.
+      body_2: "4.3s",
       front_leg: "4.5s", back_leg: "4.5s",
       front_wing: "4s", back_wing: "4s",
       // Every part that's mapped to `petIdleBody` MUST share the body's
@@ -1146,6 +1196,9 @@ const LAYER_ORDER: Record<string, number> = {
   right_arm: 5,
   left_arm: 5,
   front_arm: 5,
+  // Paired flippers sit at the same depth as back_arm (behind the body)
+  flipper_left: 4,
+  flipper_right: 4,
   // ── Front-facing shoulders — sit BEHIND the neck (z=5 < neck z=6) so
   //    the neck base overlaps the shoulder joint for both front-facing pets.
   left_shoulder: 5,
@@ -1401,7 +1454,9 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     name === "petIdleBody" ||
     name === "petIdleLeftArmBreath" ||
     name === "petIdleRightArmBreath" ||
-    name === "petIdleFrontArmBreath";
+    name === "petIdleFrontArmBreath" ||
+    name === "petIdleFlipperLeft" ||
+    name === "petIdleFlipperRight";
   // Tail idle keyframes — petIdleTail / petIdleTail2 / petIdleTail3 — should
   // share the body's STARTING phase (bodyBreathDelay) so all three tails
   // rise on the same beat as the body's inhale and the body never appears
