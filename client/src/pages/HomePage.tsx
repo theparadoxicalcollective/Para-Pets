@@ -131,6 +131,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     setTimeout(() => setRingSparkles((s) => s.filter((x) => !ids.has(x.id))), 1200);
   }, []);
   const [activePetModal, setActivePetModal] = useState<"power_up" | "level_up" | null>(null);
+  const [powerUpFromQuest, setPowerUpFromQuest] = useState(false);
   const [petModalSuccess, setPetModalSuccess] = useState<{ type: "stat" | "level" | "hatch"; label: string } | null>(null);
   // Keep last known activePet so modals don't unmount mid-action
   // when inventory refetches and activePetId hasn't been migrated yet.
@@ -177,6 +178,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     const params = new URLSearchParams(searchString);
     if (params.get("action") === "powerup") {
       window.history.replaceState({}, "", "/");
+      setPowerUpFromQuest(true);
       setActivePetModal("power_up");
     }
   }, [searchString]);
@@ -1371,10 +1373,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
           title="POWER UP"
           subtitle={`Drag an item onto ${activePetForModal.petNickname || activePetForModal.name} to boost their stats`}
+          showBuyButton={powerUpFromQuest}
           successEffect={petModalSuccess}
           onUseItem={handleModalUseItem}
           onSuccessAnimEnd={() => setPetModalSuccess(null)}
-          onClose={() => setActivePetModal(null)}
+          onClose={() => { setActivePetModal(null); setPowerUpFromQuest(false); }}
         />
       )}
 

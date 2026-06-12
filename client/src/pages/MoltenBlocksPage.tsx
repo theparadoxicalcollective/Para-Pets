@@ -395,6 +395,10 @@ export default function MoltenBlocksPage() {
   useEffect(() => { livesRef.current = lives; }, [lives]);
   useEffect(() => { coinsEarnedRef.current = coinsEarned; }, [coinsEarned]);
 
+  // ── Molten Blocks daily quest: fire after 20s of actual play ────────────
+  const questTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const questFiredRef   = useRef(false);
+
   // ── Submit earned coins to the server, persist hi-score ─────────────────
   // `finalizedAmountRef` tracks how many coins we've already submitted this
   // run so subsequent finalize calls (pause-cashout AND the eventual
@@ -459,6 +463,7 @@ export default function MoltenBlocksPage() {
   // still try to credit any unsubmitted coins AND save their score.
   useEffect(() => {
     return () => {
+      if (questTimerRef.current) clearTimeout(questTimerRef.current);
       const hasUnsubmittedCoins = coinsEarnedRef.current > finalizedAmountRef.current;
       const hasUnsubmittedScore = scoreRef.current > 0 && scoreRef.current > submittedScoreRef.current;
 
@@ -1460,6 +1465,16 @@ export default function MoltenBlocksPage() {
               onClick={() => {
                 lastDropRef.current = performance.now();
                 setShowIntro(false);
+                // Start 20-second timer for the play_molten_blocks daily quest
+                if (!questFiredRef.current) {
+                  if (questTimerRef.current) clearTimeout(questTimerRef.current);
+                  questTimerRef.current = setTimeout(() => {
+                    if (!questFiredRef.current) {
+                      questFiredRef.current = true;
+                      apiRequest("POST", "/api/daily-quests/progress", { questKey: "play_molten_blocks" }).catch(() => {});
+                    }
+                  }, 20000);
+                }
               }}
               style={{ ...overlayBtnStyle(accent), fontSize: 15, padding: "12px 28px", letterSpacing: "0.18em" }}
             >START</button>

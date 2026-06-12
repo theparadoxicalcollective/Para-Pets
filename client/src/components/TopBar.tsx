@@ -380,7 +380,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
           onClick={() => setShowRewards(true)}
           className="fixed transition-transform active:scale-90 animate-bounce"
           style={{
-            top: 124,
+            top: 134,
             left: 12,
             zIndex: 40,
             background: "none",

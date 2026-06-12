@@ -40,6 +40,7 @@ interface PetPowerUpModalProps {
   isPending: boolean;
   title?: string;
   subtitle?: string;
+  showBuyButton?: boolean;
   successEffect?: { type: "stat" | "level" | "hatch"; label: string } | null;
   onUseItem: (item: PowerUpItem) => void;
   onSuccessAnimEnd: () => void;
@@ -132,6 +133,7 @@ export default function PetPowerUpModal({
   petLevel, petAtk, petDef, petHealth,
   itemsRemaining, items, isPending,
   title = "POWER UP", subtitle,
+  showBuyButton = false,
   successEffect,
   onUseItem, onSuccessAnimEnd, onClose,
 }: PetPowerUpModalProps) {
@@ -559,30 +561,32 @@ export default function PetPowerUpModal({
           <div className="flex flex-col items-center justify-center py-10 gap-4">
             <img src={powerupBagIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain" }} />
             <p className="font-fantasy text-[#86efac] text-sm text-center" style={{ textShadow: "0 0 8px rgba(134,239,172,0.3)" }}>You have no power-up items!</p>
-            <button
-              data-testid="button-buy-powerups"
-              onClick={() => {
-                onClose();
-                setTimeout(() => {
-                  window.location.href = "/world/swamp?shopHint=a1b2c3d4-0004-4000-8000-000000000004";
-                }, 120);
-              }}
-              style={{
-                background: "linear-gradient(135deg, #1a5c1a 0%, #2d8c2d 100%)",
-                border: "1px solid rgba(100,220,100,0.6)",
-                color: "#dcfce7",
-                fontFamily: "Lora, serif",
-                fontSize: 12,
-                fontWeight: 800,
-                letterSpacing: "0.08em",
-                cursor: "pointer",
-                borderRadius: 8,
-                padding: "8px 22px",
-                boxShadow: "0 0 12px rgba(60,180,60,0.4)",
-              }}
-            >
-              Buy Power Ups
-            </button>
+            {showBuyButton && (
+              <button
+                data-testid="button-buy-powerups"
+                onClick={() => {
+                  onClose();
+                  setTimeout(() => {
+                    window.location.href = "/world/swamp?shopHint=a1b2c3d4-0004-4000-8000-000000000004";
+                  }, 120);
+                }}
+                style={{
+                  background: "linear-gradient(135deg, #1a5c1a 0%, #2d8c2d 100%)",
+                  border: "1px solid rgba(100,220,100,0.6)",
+                  color: "#dcfce7",
+                  fontFamily: "Lora, serif",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  letterSpacing: "0.08em",
+                  cursor: "pointer",
+                  borderRadius: 8,
+                  padding: "8px 22px",
+                  boxShadow: "0 0 12px rgba(60,180,60,0.4)",
+                }}
+              >
+                Buy Power Ups
+              </button>
+            )}
           </div>
         ) : (
           <>

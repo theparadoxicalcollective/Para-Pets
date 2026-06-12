@@ -5919,6 +5919,8 @@ export async function registerRoutes(
 
       await storage.deleteFishInventoryItems(toSell.map(f => f.id));
       const updatedUser = await storage.addCoins(user.id, totalCoins);
+      // Increment sell_fish quest progress once per fish sold (fire-and-forget)
+      Promise.all(Array.from({ length: toSell.length }, () => incrementQuestProgress(user.id, "sell_fish"))).catch(() => {});
       return res.json({ sold: toSell.length, coinsEarned: totalCoins, newBalance: updatedUser.coins });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -7816,6 +7818,19 @@ export async function registerRoutes(
     }
   });
 
+  // Generic client-triggered quest progress endpoint (e.g. from MoltenBlocksPage)
+  app.post("/api/daily-quests/progress", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { questKey } = req.body;
+      if (!questKey || typeof questKey !== "string") return res.status(400).json({ message: "questKey required" });
+      await incrementQuestProgress(user.id, questKey);
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   app.post("/api/quests/daily/claim/:questKey", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
@@ -7844,7 +7859,10 @@ export async function registerRoutes(
         `);
       }
       if (quest.reward_item_id) {
-        await storage.addToInventory(user.id, quest.reward_item_id);
+        const qty = (quest.reward_item_quantity as number) ?? 1;
+        for (let i = 0; i < qty; i++) {
+          await storage.addToInventory(user.id, quest.reward_item_id);
+        }
       }
       await db.execute(sql`
         UPDATE user_daily_quest_progress SET reward_claimed = true

@@ -307,7 +307,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setShowQuest(false)}
           />
-          <div className="relative w-[90%] max-w-[360px] scroll-unroll" style={{ filter: "drop-shadow(0 12px 40px rgba(0,0,0,0.8))" }}>
+          <div className="relative w-[92%] max-w-[400px] scroll-unroll" style={{ filter: "drop-shadow(0 12px 40px rgba(0,0,0,0.8))" }}>
             {/* Close button */}
             <button
               onClick={() => setShowQuest(false)}
@@ -322,7 +322,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             <div className="absolute inset-0 flex flex-col" style={{ paddingTop: "20%", paddingBottom: "20%", paddingLeft: "13%", paddingRight: "13%" }}>
               <div className="flex items-center justify-center gap-2 mb-3">
                 <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(139,90,40,0.4))" }} />
-                <h3 className="font-fantasy text-[#4a2a0e] text-sm tracking-[0.3em] font-bold">DAILY QUESTS</h3>
+                <h3 className="font-fantasy text-[#4a2a0e] text-sm tracking-[0.3em] font-bold">QUESTS</h3>
                 <div className="flex-1 h-px" style={{ background: "linear-gradient(90deg, rgba(139,90,40,0.4), transparent)" }} />
               </div>
 
@@ -405,12 +405,18 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                           );
                         })()}
                         <div className="flex items-center justify-between gap-1 mb-0.5">
-                          <p className="font-fantasy text-[#2a1000] text-[12px] font-bold leading-tight flex-1 min-w-0" style={{ paddingLeft: 3 }}>{quest.title}</p>
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                            <span className="font-fantasy text-[8px] font-bold tracking-widest flex-shrink-0 px-1 py-px rounded" style={{ background: "rgba(139,90,40,0.18)", border: "1px solid rgba(139,90,40,0.35)", color: "#7a4a1a", textTransform: "uppercase", letterSpacing: "0.15em" }}>Daily</span>
+                            <p className="font-fantasy text-[#2a1000] text-[12px] font-bold leading-tight min-w-0 truncate" style={{ paddingLeft: 1 }}>{quest.title}</p>
+                          </div>
                           {(() => {
                             const goTarget =
-                              quest.quest_key === "catch_fish"  ? "/world/swamp?fishHint=1" :
-                              quest.quest_key === "feed_pet"    ? (user.activePetId ? `/pet-care/${encodeURIComponent(user.activePetId)}?feedHint=1` : "/pet-house") :
-                              quest.quest_key === "use_powerup" ? "/?action=powerup" :
+                              quest.quest_key === "catch_fish"        ? "/world/swamp?fishHint=1" :
+                              quest.quest_key === "feed_pet"          ? (user.activePetId ? `/pet-care/${encodeURIComponent(user.activePetId)}?feedHint=1` : "/pet-house") :
+                              quest.quest_key === "use_powerup"       ? "/?action=powerup" :
+                              quest.quest_key === "play_molten_blocks" ? null :
+                              quest.quest_key === "claim_hub_reward"  ? null :
+                              quest.quest_key === "sell_fish"         ? null :
                               null;
                             const isDisabled = isDone || goTarget === null;
                             return (
