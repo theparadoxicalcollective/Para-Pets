@@ -828,6 +828,36 @@ uri = "file://attached_assets/coin_pack_7500_v3.png"
 type = "image"
 title = "chibi large chest 7500"
 
+[[generated]]
+id = "DQ88u8eZRnTqXoTIMoKaR"
+uri = "file://attached_assets/generated_images/horizontal_wide_banner_for_f3f1.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "l_FchkrbtNtWJ7isBlrKV"
+uri = "file://attached_assets/generated_images/a_cute_chibi_fantasy_3ecc.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "rRYq0rvrcsI6VhrXAWmO0"
+uri = "file://attached_assets/generated_images/cute_chibi_fluffy_round_a229.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "u8TH3_z4c4BozD_3q8yn_"
+uri = "file://attached_assets/generated_images/wide_horizontal_promotional_banner_3013.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "e3KPKhaPh_9qeAMCRfGwW"
+uri = "file://attached_assets/generated_images/wide_horizontal_game_banner_65f1.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

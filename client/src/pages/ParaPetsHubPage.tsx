@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ChevronDown, ChevronUp, X, Eye, EyeOff, Loader2, Coins, Maximize2, Heart } from "lucide-react";
+import { ChevronDown, X, Eye, EyeOff, Loader2, Maximize2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -48,6 +48,12 @@ import worldVolcanic     from "@assets/bg_volcanic_map.png";
 import worldSnowy        from "@assets/bg_snowy_mountain_map.png";
 import DailyClaimCard from "@/components/DailyClaimCard";
 
+import hubParaPet    from "@assets/generated_images/hub_para_pet_transparent.png";
+import foundersBanner from "@assets/generated_images/wide_horizontal_game_banner_65f1.png";
+import noticeGoFishing from "@assets/E1B71BA1-EAAA-4E62-9596-72A3B30D368B_1781303706759.png";
+import noticeLimited   from "@assets/66A982C2-2B49-4DE0-8EE6-79C542E3351B_1781303706759.png";
+import noticeExplore   from "@assets/49FB9020-1DB5-487E-9B92-EC15E9240ABD_1781303869686.png";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
@@ -66,22 +72,24 @@ const WORLDS = [
 // Star field background
 // ─────────────────────────────────────────────────────────────────────────────
 function StarField() {
-  const stars = Array.from({ length: 70 }, (_, i) => ({
+  const particles = Array.from({ length: 60 }, (_, i) => ({
     id: i,
     x: Math.abs(Math.sin(i * 137.508) * 100),
     y: Math.abs(Math.cos(i * 97.3)    * 100),
-    size: ((i % 3) + 1) * 0.65,
-    opacity: 0.12 + (i % 6) * 0.06,
-    dur: 2.5 + (i % 4) * 0.8,
+    size: ((i % 3) + 1) * 0.7,
+    opacity: 0.1 + (i % 5) * 0.06,
+    dur: 2.5 + (i % 4) * 0.9,
+    gold: i % 3 === 0,
   }));
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-      {stars.map(s => (
+      {particles.map(s => (
         <div key={s.id} className="absolute rounded-full"
           style={{
             left: `${s.x}%`, top: `${s.y}%`,
             width: s.size, height: s.size,
-            background: "#a5f3fc", opacity: s.opacity,
+            background: s.gold ? "#d4a843" : "#7fbfb0",
+            opacity: s.opacity,
             animation: `pp-glow-pulse ${s.dur}s ease-in-out infinite alternate`,
           }} />
       ))}
@@ -95,10 +103,106 @@ function StarField() {
 function RuneDivider() {
   return (
     <div className="flex items-center justify-center gap-4 my-10">
-      <div style={{ height: 1, flex: 1, background: "linear-gradient(90deg,transparent,rgba(127,191,176,0.2))" }} />
-      <img src={runeCircle} alt="" className="w-8 h-8 object-contain opacity-40"
-        style={{ filter: "drop-shadow(0 0 6px rgba(127,191,176,0.5))" }} />
-      <div style={{ height: 1, flex: 1, background: "linear-gradient(90deg,rgba(127,191,176,0.2),transparent)" }} />
+      <div style={{ height: 1, flex: 1, background: "linear-gradient(90deg,transparent,rgba(212,168,67,0.25))" }} />
+      <img src={runeCircle} alt="" className="w-7 h-7 object-contain opacity-35"
+        style={{ filter: "drop-shadow(0 0 6px rgba(212,168,67,0.5))" }} />
+      <div style={{ height: 1, flex: 1, background: "linear-gradient(270deg,transparent,rgba(212,168,67,0.25))" }} />
+    </div>
+  );
+}
+
+function GoldDivider() {
+  return (
+    <div className="flex items-center justify-center gap-3 my-8">
+      <div style={{ height: 1, flex: 1, background: "linear-gradient(90deg,transparent,rgba(212,168,67,0.4))" }} />
+      <span style={{ color: "#d4a843", fontSize: 11, opacity: 0.7, lineHeight: 1 }}>✦</span>
+      <div style={{ height: 1, flex: 1, background: "linear-gradient(270deg,transparent,rgba(212,168,67,0.4))" }} />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notice carousel
+// ─────────────────────────────────────────────────────────────────────────────
+const NOTICES = [
+  { img: noticeGoFishing, label: "Go Fishing" },
+  { img: noticeLimited,   label: "Limited Event" },
+  { img: noticeExplore,   label: "Explore Worlds" },
+];
+
+function NoticeCarousel() {
+  const [idx, setIdx] = useState(0);
+  const ptrRef   = useRef<number | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const restartTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => setIdx(i => (i + 1) % NOTICES.length), 4200);
+  }, []);
+
+  useEffect(() => {
+    restartTimer();
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [restartTimer]);
+
+  const goTo = (i: number) => {
+    setIdx(((i % NOTICES.length) + NOTICES.length) % NOTICES.length);
+    restartTimer();
+  };
+
+  return (
+    <div data-testid="notice-carousel">
+      <h2 className="font-fantasy text-center text-xs tracking-widest mb-4"
+        style={{ color: "rgba(212,168,67,0.7)", letterSpacing: "0.25em" }}>
+        WHAT'S HAPPENING
+      </h2>
+
+      <div
+        style={{ position: "relative", borderRadius: 18, overflow: "hidden", touchAction: "pan-y", cursor: "grab" }}
+        onPointerDown={e => { ptrRef.current = e.clientX; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); }}
+        onPointerUp={e => {
+          if (ptrRef.current === null) return;
+          const dx = e.clientX - ptrRef.current;
+          ptrRef.current = null;
+          if (Math.abs(dx) > 28) goTo(idx + (dx < 0 ? 1 : -1));
+        }}
+        onPointerLeave={() => { ptrRef.current = null; }}
+      >
+        <img
+          src={NOTICES[idx].img}
+          alt={NOTICES[idx].label}
+          data-testid={`notice-img-${idx}`}
+          style={{
+            width: "100%",
+            maxHeight: 370,
+            objectFit: "cover",
+            objectPosition: "top",
+            display: "block",
+            border: "1.5px solid rgba(212,168,67,0.3)",
+            borderRadius: 18,
+            boxShadow: "0 0 28px rgba(212,168,67,0.12), 0 10px 30px rgba(0,0,0,0.65)",
+          }}
+        />
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0, height: 72,
+          background: "linear-gradient(to top,rgba(3,14,5,0.75),transparent)",
+          borderRadius: "0 0 18px 18px",
+          pointerEvents: "none",
+        }} />
+      </div>
+
+      {/* Pill indicators */}
+      <div className="flex justify-center gap-2 mt-3">
+        {NOTICES.map((_, i) => (
+          <button key={i} onClick={() => goTo(i)} data-testid={`notice-dot-${i}`}
+            style={{
+              width: i === idx ? 22 : 7, height: 7, borderRadius: 3.5, border: "none", padding: 0,
+              background: i === idx ? "#d4a843" : "rgba(212,168,67,0.18)",
+              cursor: "pointer",
+              transition: "width 0.32s ease, background 0.32s ease",
+            }} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -1019,11 +1123,11 @@ export default function ParaPetsHubPage() {
         className="fixed inset-0 overflow-y-auto"
         style={{
           zIndex: 9000,
-          background: "#060a10",
+          background: "#030e05",
           backgroundImage: [
-            "radial-gradient(ellipse 90% 55% at 10% 5%,  rgba(48,20,80,0.6) 0%,transparent 55%)",
-            "radial-gradient(ellipse 75% 50% at 90% 85%, rgba(10,65,50,0.5) 0%,transparent 55%)",
-            "radial-gradient(ellipse 55% 40% at 55% 35%, rgba(20,90,75,0.12) 0%,transparent 50%)",
+            "radial-gradient(ellipse 85% 45% at 10% 5%,  rgba(8,50,15,0.7) 0%,transparent 55%)",
+            "radial-gradient(ellipse 70% 45% at 90% 88%, rgba(15,65,12,0.55) 0%,transparent 55%)",
+            "radial-gradient(ellipse 50% 35% at 50% 45%, rgba(180,140,30,0.05) 0%,transparent 55%)",
           ].join(","),
         }}
       >
@@ -1033,29 +1137,29 @@ export default function ParaPetsHubPage() {
         <div className="sticky top-0 w-full" data-testid="hub-action-bar"
           style={{
             zIndex: 50,
-            background: "rgba(6,10,16,0.9)",
+            background: "rgba(3,12,5,0.92)",
             backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
-            borderBottom: "1px solid rgba(127,191,176,0.07)",
+            borderBottom: "1px solid rgba(212,168,67,0.1)",
             paddingTop: "env(safe-area-inset-top)",
           }}>
           <div className="max-w-3xl mx-auto px-5 h-14 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <img src={mascot} alt="Para Pets" className="w-6 h-6 object-contain opacity-80" />
-              <span className="font-fantasy text-xs tracking-widest" style={{ color: "#2a5040", letterSpacing: "0.22em" }}>
+              <span className="font-fantasy text-xs tracking-widest" style={{ color: "#5a8a40", letterSpacing: "0.22em" }}>
                 PARA PETS
               </span>
             </div>
             <div className="flex items-center gap-3">
               {user ? (
-                <span className="font-fantasy text-xs tracking-wide" style={{ color: "#7fbfb0" }}>
+                <span className="font-fantasy text-xs tracking-wide" style={{ color: "#d4a843" }}>
                   {user.username}
                 </span>
               ) : (
                 <button data-testid="button-hub-signin" onClick={() => setShowSignIn(true)}
                   className="font-fantasy text-xs tracking-widest transition-all active:scale-95"
                   style={{
-                    color: "#7fbfb0", border: "1px solid rgba(127,191,176,0.25)",
-                    borderRadius: 9999, padding: "7px 18px", background: "rgba(127,191,176,0.06)",
+                    color: "#d4a843", border: "1px solid rgba(212,168,67,0.3)",
+                    borderRadius: 9999, padding: "7px 18px", background: "rgba(212,168,67,0.06)",
                   }}>
                   Sign In
                 </button>
@@ -1063,10 +1167,11 @@ export default function ParaPetsHubPage() {
               <Link href={user ? "/" : "/auth"} data-testid="button-play-game"
                 className="font-fantasy text-xs tracking-widest transition-all active:scale-95"
                 style={{
-                  color: "#060a10", borderRadius: 9999, padding: "8px 22px",
-                  background: "linear-gradient(135deg,#7fbfb0 0%,#1a9b70 100%)",
-                  boxShadow: "0 0 18px rgba(127,191,176,0.32), 0 2px 8px rgba(0,0,0,0.5)",
+                  color: "#0a1804", borderRadius: 9999, padding: "8px 22px",
+                  background: "linear-gradient(135deg,#d4a843 0%,#8a6010 100%)",
+                  boxShadow: "0 0 16px rgba(212,168,67,0.35), 0 2px 8px rgba(0,0,0,0.5)",
                   letterSpacing: "0.08em",
+                  textDecoration: "none",
                 }}>
                 Play Game
               </Link>
@@ -1074,215 +1179,255 @@ export default function ParaPetsHubPage() {
           </div>
         </div>
 
-        {/* ── Hero ──────────────────────────────────────────────────────────── */}
-        <div className="relative w-full overflow-hidden" style={{ maxHeight: 400 }}>
-          <img src={heroBanner} alt="Para Pets world" className="w-full object-cover"
-            style={{ display: "block", maxHeight: 400, objectPosition: "center 30%",
-              filter: "brightness(0.72) saturate(1.25)" }}
-            data-testid="img-hub-hero" />
-          <div className="absolute inset-0"
-            style={{ background: "linear-gradient(to bottom,rgba(6,10,16,0.5) 0%,transparent 20%,rgba(6,10,16,0.6) 70%,rgba(6,10,16,1) 100%)" }} />
-          <div className="absolute inset-0 flex flex-col items-center justify-end pb-10 px-5">
-            <img src={mascot} alt="mascot" className="w-20 h-20 object-contain mb-3"
-              style={{ filter: "drop-shadow(0 0 20px rgba(127,191,176,0.8)) drop-shadow(0 0 50px rgba(80,180,210,0.4))" }}
-              data-testid="img-hub-mascot" />
-            <h1 className="font-fantasy text-5xl tracking-widest text-center"
-              style={{ color: "#fff", letterSpacing: "0.15em",
-                textShadow: "0 0 40px rgba(127,191,176,0.65), 0 0 80px rgba(127,191,176,0.25), 0 4px 20px rgba(0,0,0,0.9)" }}
-              data-testid="text-hub-title">
-              Para Pets
-            </h1>
-            <p className="font-fantasy text-sm tracking-widest mt-2 text-center"
-              style={{ color: "rgba(200,220,190,0.7)", textShadow: "0 2px 12px rgba(0,0,0,0.8)" }}>
-              Hatch. Explore. Collect. Conquer.
-            </p>
+        {/* ── Hero: Title + Pet + Buttons ───────────────────────────────────── */}
+        <div className="relative flex flex-col items-center px-5 pt-10 pb-4 text-center overflow-hidden">
+          {/* Soft ambient glow behind the pet */}
+          <div style={{
+            position: "absolute", top: "12%", left: "50%", transform: "translateX(-50%)",
+            width: 280, height: 280, borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(212,168,67,0.1) 0%, transparent 70%)",
+            pointerEvents: "none",
+          }} />
+
+          <h1
+            className="font-fantasy tracking-widest select-none relative"
+            style={{
+              fontSize: "clamp(2.4rem, 11vw, 3.6rem)",
+              color: "#f0d060",
+              textShadow: "0 0 28px rgba(212,168,67,0.65), 0 0 56px rgba(212,168,67,0.25), 0 4px 18px rgba(0,0,0,0.9)",
+              letterSpacing: "0.18em",
+              zIndex: 1,
+            }}
+            data-testid="text-hub-title"
+          >
+            Para Pets
+          </h1>
+
+          <p className="font-fantasy text-sm tracking-widest mt-1 mb-1 relative"
+            style={{ color: "rgba(160,200,120,0.65)", textShadow: "0 2px 10px rgba(0,0,0,0.8)", zIndex: 1 }}>
+            Hatch. Explore. Collect. Conquer.
+          </p>
+
+          {/* Para Pet mascot */}
+          <img
+            src={hubParaPet}
+            alt="Para Pet"
+            data-testid="img-hub-mascot"
+            style={{
+              width: 210, height: 210, objectFit: "contain",
+              filter: "drop-shadow(0 0 22px rgba(127,191,176,0.6)) drop-shadow(0 0 48px rgba(212,168,67,0.18))",
+              animation: "float 3.2s ease-in-out infinite",
+              position: "relative", zIndex: 1,
+            }}
+          />
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-3 mt-2 relative" style={{ zIndex: 1 }}>
+            {!user && (
+              <button
+                data-testid="button-hub-hero-signin"
+                onClick={() => setShowSignIn(true)}
+                className="font-fantasy tracking-widest transition-all active:scale-95"
+                style={{
+                  padding: "11px 26px", borderRadius: 14,
+                  background: "rgba(212,168,67,0.08)",
+                  border: "1.5px solid rgba(212,168,67,0.45)",
+                  color: "#d4a843",
+                  textShadow: "0 0 10px rgba(212,168,67,0.4)",
+                  fontSize: "0.82rem", letterSpacing: "0.1em",
+                }}
+              >
+                Sign In
+              </button>
+            )}
+            <Link
+              href={user ? "/" : "/auth"}
+              data-testid="button-hero-play-game"
+              className="font-fantasy tracking-widest transition-all active:scale-95"
+              style={{
+                padding: "12px 32px", borderRadius: 14,
+                background: "linear-gradient(135deg,#3a7a20 0%,#1a5010 60%,#2a6818 100%)",
+                border: "2px solid rgba(212,168,67,0.55)",
+                color: "#f0d060",
+                boxShadow: "0 0 22px rgba(46,160,46,0.28), inset 0 1px 0 rgba(255,220,80,0.12), 0 4px 14px rgba(0,0,0,0.7)",
+                textShadow: "0 0 12px rgba(212,168,67,0.7)",
+                fontSize: "0.92rem", letterSpacing: "0.12em",
+                textDecoration: "none",
+              }}
+            >
+              ✦ Play Game ✦
+            </Link>
           </div>
         </div>
 
         {/* ── Main content ─────────────────────────────────────────────────── */}
-        <main className="relative max-w-3xl mx-auto px-5 py-8 pb-28" data-testid="hub-main" style={{ zIndex: 1 }}>
+        <main className="relative max-w-3xl mx-auto px-5 pb-28" data-testid="hub-main" style={{ zIndex: 1 }}>
+
+          <GoldDivider />
+
+          {/* ── Notice carousel ───────────────────────────────────────────── */}
+          <NoticeCarousel />
+
+          <GoldDivider />
+
+          {/* ── Founders banner ───────────────────────────────────────────── */}
+          <Link
+            href="/founders"
+            data-testid="link-founders"
+            className="block relative transition-all active:scale-[0.98] cursor-pointer"
+            style={{
+              borderRadius: 18, overflow: "hidden",
+              border: "2px solid rgba(212,168,67,0.4)",
+              boxShadow: "0 0 28px rgba(212,168,67,0.14), 0 10px 28px rgba(0,0,0,0.65)",
+              textDecoration: "none",
+            }}
+          >
+            <img
+              src={foundersBanner}
+              alt="Founders Hall"
+              style={{ width: "100%", display: "block", objectFit: "cover", maxHeight: 200 }}
+            />
+            <div style={{
+              position: "absolute", inset: 0,
+              background: "linear-gradient(to top,rgba(3,12,4,0.85) 0%,rgba(3,12,4,0.2) 45%,transparent 70%)",
+            }} />
+            <div style={{
+              position: "absolute", bottom: 0, left: 0, right: 0,
+              display: "flex", flexDirection: "column", alignItems: "center",
+              paddingBottom: 16, gap: 8,
+            }}>
+              <h2 className="font-fantasy tracking-widest"
+                style={{ fontSize: "1.05rem", color: "#f0d060", textShadow: "0 0 14px rgba(212,168,67,0.55)", letterSpacing: "0.18em" }}>
+                Our Founders
+              </h2>
+              <span
+                className="font-fantasy text-xs tracking-widest rounded-full px-5 py-1.5"
+                style={{
+                  background: "linear-gradient(135deg,#d4a843 0%,#7a5808 100%)",
+                  color: "#0a1804",
+                  boxShadow: "0 0 12px rgba(212,168,67,0.4)",
+                  letterSpacing: "0.14em",
+                }}
+              >
+                Visit the Wall →
+              </span>
+            </div>
+          </Link>
+
+          <GoldDivider />
+
+          {/* ── Game Guardians ─────────────────────────────────────────────── */}
+          {team && team.length > 0 && (
+            <div data-testid="team-section" className="flex flex-col items-center gap-4 mb-2">
+              <div className="flex flex-col items-center gap-0.5">
+                <h2 className="font-fantasy text-sm tracking-widest"
+                  style={{ color: "#d4a843", textShadow: "0 0 12px rgba(212,168,67,0.4)", letterSpacing: "0.2em" }}>
+                  Game Guardians
+                </h2>
+                <p className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(212,168,67,0.38)" }}>
+                  The team behind Para Pets
+                </p>
+              </div>
+
+              <div className="flex flex-wrap justify-center gap-5">
+                {[...team].sort((a, b) => (b.isAdmin ? 1 : 0) - (a.isAdmin ? 1 : 0)).map(member => {
+                  const isAdmin   = member.isAdmin;
+                  const roleLabel = isAdmin ? "Realm Admin" : "Moderator";
+                  const roleColor = isAdmin ? "#d4a843" : "#7fbfb0";
+                  const roleBorder = isAdmin ? "rgba(212,168,67,0.48)" : "rgba(127,191,176,0.38)";
+                  const roleGlow   = isAdmin ? "rgba(212,168,67,0.28)" : "rgba(127,191,176,0.22)";
+
+                  return (
+                    <div
+                      key={member.id}
+                      data-testid={`team-card-${member.id}`}
+                      className="flex flex-col items-center gap-1.5"
+                      style={{ minWidth: 72 }}
+                    >
+                      <div
+                        className="relative"
+                        style={{
+                          width: isAdmin ? 58 : 50,
+                          height: isAdmin ? 58 : 50,
+                          borderRadius: "50%",
+                          border: `2px solid ${roleBorder}`,
+                          boxShadow: `0 0 16px ${roleGlow}, 0 3px 10px rgba(0,0,0,0.7)`,
+                          overflow: "hidden",
+                          background: isAdmin
+                            ? "linear-gradient(135deg,#1a1000,#3a2800)"
+                            : "linear-gradient(135deg,#041208,#081e10)",
+                        }}
+                      >
+                        {member.profileImage ? (
+                          <img src={member.profileImage} alt={member.username}
+                            data-testid={`img-team-${member.id}`}
+                            className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center font-fantasy font-bold"
+                            style={{ color: roleColor, fontSize: isAdmin ? 20 : 17 }}>
+                            {member.username[0]?.toUpperCase()}
+                          </div>
+                        )}
+                        <div className="absolute inset-0 rounded-full pointer-events-none"
+                          style={{ boxShadow: `inset 0 0 10px ${roleGlow}` }} />
+                      </div>
+
+                      <p className="font-fantasy text-[10px] text-center tracking-wide"
+                        style={{ color: roleColor, maxWidth: 76 }}
+                        data-testid={`text-team-name-${member.id}`}>
+                        {member.username}
+                      </p>
+                      <span className="font-fantasy text-[8px] tracking-widest px-2 py-0.5 rounded-full"
+                        style={{
+                          background: isAdmin ? "rgba(212,168,67,0.1)" : "rgba(127,191,176,0.07)",
+                          border: `1px solid ${roleBorder}`,
+                          color: roleColor,
+                        }}>
+                        {roleLabel}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <GoldDivider />
 
           {/* ── Daily Reward (logged-in only) ─────────────────────────────── */}
           {user && (
             <>
-              {/* Claim hint arrow — shown when arriving via quest Go button */}
               {showClaimHint && (
                 <>
-                  {/* Invisible full-screen backdrop — tap anywhere to dismiss */}
-                  <div
-                    style={{ position: "fixed", inset: 0, zIndex: 9 }}
-                    onClick={() => setShowClaimHint(false)}
-                  />
-                  <div
-                    style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", marginBottom: -8, zIndex: 10, pointerEvents: "none" }}
-                  >
+                  <div style={{ position: "fixed", inset: 0, zIndex: 9 }} onClick={() => setShowClaimHint(false)} />
+                  <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", marginBottom: -8, zIndex: 10, pointerEvents: "none" }}>
                     <div style={{ background: "rgba(8,22,8,0.94)", border: "1.5px solid rgba(74,222,128,0.7)", borderRadius: 8, padding: "5px 12px", marginBottom: 4, boxShadow: "0 0 14px rgba(34,197,94,0.4), 0 4px 10px rgba(0,0,0,0.7)", whiteSpace: "nowrap" }}>
                       <span style={{ fontFamily: "Lora, serif", color: "#86efac", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em" }}>Claim your daily reward!</span>
                     </div>
                     <div style={{ animation: "claimHintFloat 1.2s ease-in-out infinite", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                      <div style={{ width: 8, height: 24, background: "linear-gradient(180deg, #4ade80 0%, #16a34a 100%)", borderRadius: "3px 3px 0 0", boxShadow: "0 0 10px rgba(34,197,94,0.9), 0 0 24px rgba(34,197,94,0.5)" }} />
-                      <div style={{ width: 0, height: 0, borderLeft: "16px solid transparent", borderRight: "16px solid transparent", borderTop: "20px solid #22c55e", filter: "drop-shadow(0 0 10px rgba(34,197,94,1)) drop-shadow(0 0 20px rgba(34,197,94,0.7))" }} />
+                      <div style={{ width: 8, height: 24, background: "linear-gradient(180deg,#4ade80 0%,#16a34a 100%)", borderRadius: "3px 3px 0 0", boxShadow: "0 0 10px rgba(34,197,94,0.9)" }} />
+                      <div style={{ width: 0, height: 0, borderLeft: "16px solid transparent", borderRight: "16px solid transparent", borderTop: "20px solid #22c55e", filter: "drop-shadow(0 0 10px rgba(34,197,94,1))" }} />
                     </div>
-                    <style>{`@keyframes claimHintFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(8px)} }`}</style>
+                    <style>{`@keyframes claimHintFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}`}</style>
                   </div>
                 </>
               )}
               <DailyClaimCard user={user} />
-              <RuneDivider />
+              <GoldDivider />
             </>
           )}
 
           {/* ── About section ─────────────────────────────────────────────── */}
           <AboutSection />
-
           <RuneDivider />
 
           {/* ── Activity bulletin ─────────────────────────────────────────── */}
           <ActivityBulletin />
-
-          {/* ── Founders gateway ──────────────────────────────────────────── */}
           <RuneDivider />
-          <Link
-            href="/founders"
-            data-testid="link-founders"
-            className="rounded-3xl px-6 py-7 flex flex-col items-center text-center transition-all active:scale-[0.98] cursor-pointer"
-            style={{
-              background: "linear-gradient(135deg,rgba(12,20,12,0.92) 0%,rgba(20,28,14,0.88) 100%)",
-              border: "1px solid rgba(232,200,88,0.28)",
-              boxShadow:
-                "0 0 40px rgba(232,200,88,0.12), inset 0 1px 0 rgba(232,200,88,0.10), 0 12px 30px rgba(0,0,0,0.45)",
-              textDecoration: "none",
-            }}
-          >
-            <div
-              className="flex items-center justify-center rounded-full mb-3"
-              style={{
-                width: 52, height: 52,
-                background: "radial-gradient(circle at 30% 25%, #f6dc8a 0%, #c8a93a 50%, #6e561a 100%)",
-                boxShadow:
-                  "0 0 24px rgba(232,200,88,0.45), 0 0 50px rgba(127,191,176,0.15), inset 0 -2px 5px rgba(0,0,0,0.35)",
-                border: "1px solid rgba(255,235,160,0.55)",
-              }}
-            >
-              <Heart size={22} fill="#3a2a08" stroke="#3a2a08" strokeWidth={1.5} />
-            </div>
-            <h2
-              className="font-fantasy text-base tracking-widest mb-1"
-              style={{ color: "#f0d770", textShadow: "0 0 14px rgba(232,200,88,0.45)", letterSpacing: "0.18em" }}
-            >
-              Our Founders
-            </h2>
-            <p className="font-fantasy text-[10px] mb-4" style={{ color: "#8a7a3a", letterSpacing: "0.2em" }}>
-              The lantern bearers who made this world possible
-            </p>
-            <span
-              className="font-fantasy text-xs tracking-widest rounded-2xl px-6 py-2.5"
-              style={{
-                background: "linear-gradient(135deg,#f6dc8a 0%,#c8a93a 100%)",
-                color: "#3a2a08",
-                boxShadow: "0 0 16px rgba(232,200,88,0.32)",
-                letterSpacing: "0.14em",
-              }}
-            >
-              Visit the Wall
-            </span>
-          </Link>
 
-          {/* ── Meet the Team ─────────────────────────────────────────────── */}
-          {team && team.length > 0 && (
-            <>
-              <RuneDivider />
-              <div data-testid="team-section" className="flex flex-col items-center gap-5 mb-2">
-                <div className="flex flex-col items-center gap-1">
-                  <h2 className="font-fantasy text-lg tracking-widest"
-                    style={{ color: "#c084fc", textShadow: "0 0 18px rgba(192,132,252,0.5), 0 2px 10px rgba(0,0,0,0.9)" }}>
-                    The Guardians
-                  </h2>
-                  <p className="font-fantasy text-[10px] tracking-widest" style={{ color: "rgba(192,132,252,0.45)" }}>
-                    The team behind Para Pets
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap justify-center gap-5">
-                  {[...team].sort((a, b) => (b.isAdmin ? 1 : 0) - (a.isAdmin ? 1 : 0)).map(member => {
-                    const isAdmin = member.isAdmin;
-                    const roleLabel = isAdmin ? "Realm Admin" : "Moderator";
-                    const roleColor = isAdmin ? "#f0c040" : "#c084fc";
-                    const roleBorder = isAdmin ? "rgba(240,192,64,0.5)" : "rgba(192,132,252,0.4)";
-                    const roleGlow  = isAdmin ? "rgba(240,192,64,0.35)" : "rgba(192,132,252,0.3)";
-                    const statusLabel = isAdmin ? "Online & Watching" : "Moderating";
-
-                    return (
-                      <div
-                        key={member.id}
-                        data-testid={`team-card-${member.id}`}
-                        className="flex flex-col items-center gap-2"
-                        style={{ minWidth: 90 }}
-                      >
-                        <div
-                          className="relative"
-                          style={{
-                            width: isAdmin ? 72 : 60,
-                            height: isAdmin ? 72 : 60,
-                            borderRadius: "50%",
-                            border: `2.5px solid ${roleBorder}`,
-                            boxShadow: `0 0 20px ${roleGlow}, 0 4px 12px rgba(0,0,0,0.7)`,
-                            overflow: "hidden",
-                            background: isAdmin
-                              ? "linear-gradient(135deg, #2a1a00, #4a3000)"
-                              : "linear-gradient(135deg, #1a0a2a, #2a1040)",
-                          }}
-                        >
-                          {member.profileImage ? (
-                            <img
-                              src={member.profileImage}
-                              alt={member.username}
-                              data-testid={`img-team-${member.id}`}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center font-fantasy font-bold"
-                              style={{ color: roleColor, fontSize: isAdmin ? 24 : 20 }}>
-                              {member.username[0]?.toUpperCase()}
-                            </div>
-                          )}
-                          <div className="absolute inset-0 rounded-full pointer-events-none"
-                            style={{ boxShadow: `inset 0 0 12px ${roleGlow}` }} />
-                        </div>
-
-                        <p className="font-fantasy text-xs text-center tracking-wide"
-                          style={{ color: roleColor, textShadow: `0 0 8px ${roleGlow}`, maxWidth: 90 }}
-                          data-testid={`text-team-name-${member.id}`}>
-                          {member.username}
-                        </p>
-
-                        <div
-                          className="flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-xl"
-                          style={{
-                            background: isAdmin
-                              ? "linear-gradient(135deg, rgba(40,24,0,0.9), rgba(60,36,0,0.9))"
-                              : "linear-gradient(135deg, rgba(20,8,36,0.9), rgba(30,10,52,0.9))",
-                            border: `1px solid ${roleBorder}`,
-                            boxShadow: `0 2px 8px rgba(0,0,0,0.5)`,
-                          }}
-                        >
-                          <span className="font-fantasy text-[9px] tracking-widest" style={{ color: roleColor }}>
-                            {roleLabel}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#4ade80", boxShadow: "0 0 4px rgba(74,222,128,0.8)" }} />
-                            <span className="font-fantasy text-[8px] tracking-wider" style={{ color: "rgba(180,220,180,0.7)" }}>
-                              {statusLabel}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
-          )}
+          {/* ── Gameplay showcase ─────────────────────────────────────────── */}
+          <EggShowcase />
+          <GameplayShowcase />
 
         </main>
 
