@@ -55,6 +55,12 @@ function imageForCoins(coins: number): string {
   return coinPack10000;
 }
 
+// Limited-offer bonus eggs for $50 and $100 bundles.
+const LIMITED_BONUS: Record<number, { name: string; eggUrl: string }> = {
+  20000: { name: "Violet Succubus Egg", eggUrl: "/api/media/62ecf53c-8bfd-40b2-9f65-ad27884d9b18" },
+  50000: { name: "The Paradox Egg",     eggUrl: "/api/media/e5019d66-d5a1-4f56-a7e6-e4f9bae5baee" },
+};
+
 interface PackStyle { glow: string; border: string; outerGlow: string; }
 function styleForCoins(coins: number): PackStyle {
   if (coins <= 100) return {
@@ -383,6 +389,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
               const packImage = imageForCoins(pack.coins);
               const { glow: glowColor, border: borderColor, outerGlow } = styleForCoins(pack.coins);
 
+              const bonus = LIMITED_BONUS[pack.coins];
               return (
                 <button
                   key={pack.id}
@@ -391,7 +398,9 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                   disabled={isDisabled || isBuying}
                   className="relative rounded-xl p-4 flex flex-col items-center gap-2 transition-all active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100"
                   style={{
-                    background: `linear-gradient(145deg, rgba(5,15,8,0.98) 0%, rgba(10,28,14,0.98) 50%, rgba(5,18,10,0.98) 100%)`,
+                    background: bonus
+                      ? `linear-gradient(145deg, rgba(8,5,20,0.98) 0%, rgba(20,10,40,0.98) 50%, rgba(10,5,22,0.98) 100%)`
+                      : `linear-gradient(145deg, rgba(5,15,8,0.98) 0%, rgba(10,28,14,0.98) 50%, rgba(5,18,10,0.98) 100%)`,
                     border: `1.5px solid ${isDisabled ? 'rgba(50,80,55,0.2)' : borderColor}`,
                     boxShadow: isDisabled ? 'none' : `${outerGlow}, inset 0 1px 0 rgba(127,255,212,0.08)`,
                     cursor: isDisabled ? 'not-allowed' : 'pointer',
@@ -401,12 +410,30 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                     position: "absolute", inset: 0, borderRadius: "inherit", pointerEvents: "none",
                     background: `radial-gradient(ellipse at center 30%, ${glowColor.replace(/[\d.]+\)$/, '0.08)')} 0%, transparent 70%)`,
                   }} />
+
+                  {bonus && (
+                    <div style={{
+                      position: "absolute", top: 0, left: 0, right: 0,
+                      borderRadius: "10px 10px 0 0",
+                      background: "linear-gradient(90deg, rgba(180,60,220,0.9) 0%, rgba(120,40,200,0.95) 50%, rgba(180,60,220,0.9) 100%)",
+                      padding: "3px 6px",
+                      textAlign: "center",
+                    }}>
+                      <span className="font-fantasy text-[9px] tracking-[0.2em]" style={{ color: "#f0d0ff", textShadow: "0 0 6px rgba(220,100,255,0.8)" }}>
+                        ✦ LIMITED OFFER
+                      </span>
+                    </div>
+                  )}
+
                   {packImage && (
                     <img
                       src={packImage}
                       alt={pack.label}
-                      className="w-20 h-20 object-contain relative"
+                      className="object-contain relative"
                       style={{
+                        width: bonus ? 64 : 80,
+                        height: bonus ? 64 : 80,
+                        marginTop: bonus ? 14 : 0,
                         filter: isDisabled ? "grayscale(0.6) brightness(0.5)" : `drop-shadow(0 4px 16px ${glowColor}) drop-shadow(0 0 8px ${glowColor})`,
                       }}
                     />
@@ -417,6 +444,24 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                       {pack.coins.toLocaleString()}
                     </span>
                   </div>
+
+                  {bonus && (
+                    <div className="flex items-center gap-1.5 w-full justify-center rounded-md px-2 py-1" style={{
+                      background: "rgba(160,40,200,0.18)",
+                      border: "1px solid rgba(180,60,220,0.4)",
+                    }}>
+                      <img
+                        src={bonus.eggUrl}
+                        alt={bonus.name}
+                        className="w-6 h-6 object-contain"
+                        style={{ filter: "drop-shadow(0 0 4px rgba(200,100,255,0.7))" }}
+                      />
+                      <span className="font-fantasy text-[9px] tracking-wide" style={{ color: "#d9a0ff", textShadow: "0 0 6px rgba(200,100,255,0.5)" }}>
+                        + {bonus.name}
+                      </span>
+                    </div>
+                  )}
+
                   <div
                     className="w-full py-1.5 rounded-md font-fantasy text-[11px] tracking-wider text-center relative"
                     style={{

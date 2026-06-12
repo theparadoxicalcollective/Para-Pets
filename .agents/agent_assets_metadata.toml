@@ -792,6 +792,42 @@ uri = "file://attached_assets/generated_images/pet_action_ring_rainforest.png"
 type = "image"
 title = "magical rainforest radial menu ring clean"
 
+[[generated]]
+id = "KJ-QEcmupBpn9MbaRAC6_"
+uri = "file://attached_assets/coin_pack_1000_v2.png"
+type = "image"
+title = "coin pouch 1000"
+
+[[generated]]
+id = "tre3fM1D1tzqKb0Ih5qb8"
+uri = "file://attached_assets/coin_pack_2500_v2.png"
+type = "image"
+title = "coin chest 2500"
+
+[[generated]]
+id = "KcyfO0tsOmySIDvqqr29O"
+uri = "file://attached_assets/coin_pack_7500_v2.png"
+type = "image"
+title = "large coin chest 7500"
+
+[[generated]]
+id = "bWRFacdQUKlWu23pAU10n"
+uri = "file://attached_assets/coin_pack_1000_v3.png"
+type = "image"
+title = "chibi coin pouch 1000"
+
+[[generated]]
+id = "zgXw6SN8Ohs_MIXHj2nAl"
+uri = "file://attached_assets/coin_pack_2500_v3.png"
+type = "image"
+title = "chibi coin chest 2500"
+
+[[generated]]
+id = "lHw4QxGyLqTyP04qZzdcy"
+uri = "file://attached_assets/coin_pack_7500_v3.png"
+type = "image"
+title = "chibi large chest 7500"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

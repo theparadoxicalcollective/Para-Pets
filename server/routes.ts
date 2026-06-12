@@ -2704,6 +2704,12 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Payment amount mismatch" });
       }
 
+      // Bonus pet eggs for the two largest bundles ($50 / $100).
+      const EGG_BONUS: Record<number, { shopItemId: string; itemName: string; itemImageUrl: string }> = {
+        50:  { shopItemId: "5ac4de6d-bde6-4fe4-8211-32d5604ffa2a", itemName: "Violet Succubus Egg", itemImageUrl: "/api/media/62ecf53c-8bfd-40b2-9f65-ad27884d9b18" },
+        100: { shopItemId: "670e8ef5-b67d-4be4-b340-3e652327975f", itemName: "The Paradox Egg",     itemImageUrl: "/api/media/e5019d66-d5a1-4f56-a7e6-e4f9bae5baee" },
+      };
+
       let updatedUser;
       try {
         await storage.createCoinPurchase(user.id, amountUsd, coins, sessionId);
@@ -2713,6 +2719,21 @@ export async function registerRoutes(
         // verification overlay closes as fast as possible.
         grantCommunityPurchaseReward(user.id, amountUsd).catch(() => {});
         maybeAwardAcquisitionBadges(user.id, amountUsd).catch(() => {});
+        // Send bonus pet egg gift for $50 / $100 bundles (fire-and-forget).
+        const eggBonus = EGG_BONUS[amountUsd];
+        if (eggBonus) {
+          storage.sendGift({
+            senderId: user.id,
+            receiverId: user.id,
+            coinAmount: 0,
+            itemType: "shop_item",
+            shopItemId: eggBonus.shopItemId,
+            itemName: eggBonus.itemName,
+            itemImageUrl: eggBonus.itemImageUrl,
+            itemQuantity: 1,
+            message: "Bonus gift for your purchase!",
+          }).catch((e) => console.error("Egg bonus gift error:", e));
+        }
       } catch (err: any) {
         if (err.code === '23505') {
           const u = await storage.getUser(user.id);
