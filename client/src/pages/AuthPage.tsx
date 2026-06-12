@@ -351,7 +351,7 @@ export default function AuthPage() {
                     padding: "1px 6px",
                   }}>T</span>
                   <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "rgba(240,232,210,0.7)", letterSpacing: "0.03em" }}>
-                    Recommended for ages 13+
+                    Recommended for ages 16+
                   </span>
                 </div>
               </div>
