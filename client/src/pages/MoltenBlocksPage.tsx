@@ -235,8 +235,8 @@ export default function MoltenBlocksPage() {
   const dropItemsRef = useRef<DropItem[]>([]);
   // Item carried by the currently-falling piece (assigned at spawn time)
   const pendingDropItemRef = useRef<{ item: DropItem; cellIdx: number } | null>(null);
-  // Next block-count threshold at which an item will be assigned
-  const nextDropThresholdRef = useRef<number>(10 + Math.floor(Math.random() * 11));
+  // Next block-count threshold at which an item will be assigned (first drop: after 3–5 blocks)
+  const nextDropThresholdRef = useRef<number>(3 + Math.floor(Math.random() * 3));
   // Image cache keyed by shopItemId for canvas rendering
   const itemImgsRef = useRef<Record<string, HTMLImageElement>>({});
   const lastDropRef = useRef<number>(0);
@@ -478,7 +478,7 @@ export default function MoltenBlocksPage() {
               if (shape[r][c]) filledCount++;
           if (filledCount > 0) {
             pendingDropItemRef.current = { item: drop, cellIdx: Math.floor(Math.random() * filledCount) };
-            nextDropThresholdRef.current = blocksLockedRef.current + 10 + Math.floor(Math.random() * 11);
+            nextDropThresholdRef.current = blocksLockedRef.current + 5 + Math.floor(Math.random() * 6);
           }
         }
       }
@@ -1250,23 +1250,6 @@ export default function MoltenBlocksPage() {
         </div>
       </div>
 
-      {/* ── Return button — fixed at the bottom so it's always reachable ── */}
-      <div style={{
-        flexShrink: 0, position: "relative", zIndex: 1,
-        display: "flex", justifyContent: "center",
-        padding: "6px 12px calc(env(safe-area-inset-bottom, 0px) + 10px)",
-      }}>
-        <button
-          data-testid="button-return-molten-blocks"
-          onClick={() => navigate("/world/volcanic")}
-          style={{
-            background: "rgba(0,0,0,0.55)", border: `1px solid ${accent}55`,
-            color: accent, padding: "7px 24px", borderRadius: 8,
-            fontFamily: "Lora, serif", fontSize: 13, letterSpacing: "0.1em", cursor: "pointer",
-          }}
-        >← Return</button>
-      </div>
-
       {/* Item award floating notifications */}
       {itemAwards.map(award => (
         <div key={award.id} style={{
@@ -1329,20 +1312,6 @@ export default function MoltenBlocksPage() {
 
       {showIntro && !gameOver && introStep === 2 && (
         <Overlay>
-          {/* Close row — in-flow flex row so the button is always visible */}
-          <div style={{ display: "flex", width: "100%", maxWidth: 340, justifyContent: "flex-end", marginBottom: -4 }}>
-            <button
-              data-testid="button-close-molten"
-              onClick={() => navigate("/world/volcanic")}
-              style={{
-                background: "rgba(20,8,4,0.9)", border: "1.5px solid rgba(251,146,60,0.6)",
-                borderRadius: 8, color: "#fb923c", fontSize: 18, lineHeight: 1,
-                width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", fontWeight: 700,
-                boxShadow: "0 0 12px rgba(251,146,60,0.25)",
-              }}
-            >✕</button>
-          </div>
 
           <div style={{ fontSize: 11, letterSpacing: "0.32em", color: "#a06a30" }}>THE MOLTEN BASTION</div>
           <h2 style={{
@@ -1432,6 +1401,15 @@ export default function MoltenBlocksPage() {
           </div>
 
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <button
+              data-testid="button-return-molten-blocks"
+              onClick={() => navigate("/world/volcanic")}
+              style={{
+                ...overlayBtnStyle("#7a5530"), fontSize: 13, padding: "10px 18px",
+                letterSpacing: "0.12em", background: "rgba(40,16,4,0.9)",
+                border: "1px solid rgba(122,85,48,0.5)", color: "#a06a30",
+              }}
+            >← Return</button>
             <button
               data-testid="button-intro-back"
               onClick={() => setIntroStep(1)}
