@@ -588,9 +588,10 @@ function HomeScreenModal({ onClose }: { onClose: () => void }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Egg showcase carousel (public, no names)
 // ─────────────────────────────────────────────────────────────────────────────
-const EGG_SIZE  = 130;
+const EGG_W     = 150;
+const EGG_H     = 220;
 const EGG_GAP   = 18;
-const EGG_STEP  = EGG_SIZE + EGG_GAP;
+const EGG_STEP  = EGG_W + EGG_GAP;
 const EGG_INTERVAL = 2600;
 
 function EggShowcase() {
@@ -633,7 +634,7 @@ function EggShowcase() {
 
   if (eggs.length === 0) return null;
 
-  const stripOffset = containerW / 2 - (activeIdx * EGG_STEP + EGG_SIZE / 2);
+  const stripOffset = containerW / 2 - (activeIdx * EGG_STEP + EGG_W / 2);
 
   return (
     <div className="mb-2" data-testid="egg-showcase">
@@ -673,7 +674,7 @@ function EggShowcase() {
                 onClick={() => !active && goTo(i)}
                 style={{
                   flexShrink: 0,
-                  width: EGG_SIZE, height: EGG_SIZE,
+                  width: EGG_W, height: EGG_H,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   borderRadius: 20,
                   background: active ? "rgba(127,191,176,0.07)" : "rgba(10,18,14,0.5)",
@@ -688,7 +689,7 @@ function EggShowcase() {
                 <img
                   src={egg.eggImageUrl}
                   alt="Mystery Egg"
-                  style={{ width: 92, height: 92, objectFit: "contain",
+                  style={{ width: 120, height: 185, objectFit: "contain",
                     filter: active ? "drop-shadow(0 0 10px rgba(127,191,176,0.5))" : "none",
                     transition: "filter 0.4s" }}
                 />
@@ -1133,52 +1134,6 @@ export default function ParaPetsHubPage() {
       >
         <StarField />
 
-        {/* ── Sticky nav ────────────────────────────────────────────────────── */}
-        <div className="sticky top-0 w-full" data-testid="hub-action-bar"
-          style={{
-            zIndex: 50,
-            background: "rgba(3,12,5,0.92)",
-            backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
-            borderBottom: "1px solid rgba(212,168,67,0.1)",
-            paddingTop: "env(safe-area-inset-top)",
-          }}>
-          <div className="max-w-3xl mx-auto px-5 h-14 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <img src={mascot} alt="Para Pets" className="w-6 h-6 object-contain opacity-80" />
-              <span className="font-fantasy text-xs tracking-widest" style={{ color: "#5a8a40", letterSpacing: "0.22em" }}>
-                PARA PETS
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              {user ? (
-                <span className="font-fantasy text-xs tracking-wide" style={{ color: "#d4a843" }}>
-                  {user.username}
-                </span>
-              ) : (
-                <button data-testid="button-hub-signin" onClick={() => setShowSignIn(true)}
-                  className="font-fantasy text-xs tracking-widest transition-all active:scale-95"
-                  style={{
-                    color: "#d4a843", border: "1px solid rgba(212,168,67,0.3)",
-                    borderRadius: 9999, padding: "7px 18px", background: "rgba(212,168,67,0.06)",
-                  }}>
-                  Sign In
-                </button>
-              )}
-              <Link href={user ? "/" : "/auth"} data-testid="button-play-game"
-                className="font-fantasy text-xs tracking-widest transition-all active:scale-95"
-                style={{
-                  color: "#0a1804", borderRadius: 9999, padding: "8px 22px",
-                  background: "linear-gradient(135deg,#d4a843 0%,#8a6010 100%)",
-                  boxShadow: "0 0 16px rgba(212,168,67,0.35), 0 2px 8px rgba(0,0,0,0.5)",
-                  letterSpacing: "0.08em",
-                  textDecoration: "none",
-                }}>
-                Play Game
-              </Link>
-            </div>
-          </div>
-        </div>
-
         {/* ── Hero: Title + Pet + Buttons ───────────────────────────────────── */}
         <div className="relative flex flex-col items-center px-5 pt-10 pb-4 text-center overflow-hidden">
           {/* Soft ambient glow behind the pet */}
@@ -1214,8 +1169,8 @@ export default function ParaPetsHubPage() {
             alt="Para Pet"
             data-testid="img-hub-mascot"
             style={{
-              width: 210, height: 210, objectFit: "contain",
-              filter: "drop-shadow(0 0 22px rgba(127,191,176,0.6)) drop-shadow(0 0 48px rgba(212,168,67,0.18))",
+              width: 110, height: 110, objectFit: "contain",
+              filter: "drop-shadow(0 0 16px rgba(127,191,176,0.55)) drop-shadow(0 0 32px rgba(212,168,67,0.15))",
               animation: "float 3.2s ease-in-out infinite",
               position: "relative", zIndex: 1,
             }}
