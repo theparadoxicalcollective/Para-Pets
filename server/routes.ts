@@ -7785,8 +7785,6 @@ export async function registerRoutes(
       if (!result.ok) {
         return res.status(400).json({ message: "Already claimed. Come back in 24 hours!" });
       }
-      // Credit the daily quest for claiming the hub reward (fire-and-forget)
-      incrementQuestProgress(user.id, "claim_hub_reward").catch(() => {});
       return res.json({
         coinAmount: DAILY_REWARD_COINS,
         pvpTickets: DAILY_REWARD_TICKETS,

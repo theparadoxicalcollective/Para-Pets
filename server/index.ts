@@ -738,7 +738,6 @@ app.use((req, res, next) => {
       { key: "catch_fish",        title: "Gone Fishing",          desc: "Catch 5 fish",                   target: 5  },
       { key: "use_powerup",       title: "Power Up Your Pet",     desc: "Use a power-up on a pet 3 times",target: 3  },
       { key: "play_molten_blocks",title: "Play Molten Blocks",    desc: "Play a Molten Blocks game",      target: 1,  rewardItemId: "a1b2c3d4-9001-4000-8000-000000000099", rewardItemQty: 5 },
-      { key: "claim_hub_reward",  title: "Claim Hub Reward",      desc: "Claim your Hub page daily reward",target: 1, coinReward: 50 },
       { key: "sell_fish",         title: "Sell Fish",             desc: "Sell 10 fish",                   target: 10, rewardItemId: "7b381092-3b76-4c91-99bc-5a5ba91f52ec" },
     ];
     for (const q of defaultQuests) {
