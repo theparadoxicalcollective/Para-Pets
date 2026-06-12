@@ -1185,9 +1185,8 @@ const LAYER_ORDER: Record<string, number> = {
   front_wing: 6,
   front_accessory_2: 6,
   front_accessory_1: 6,
-  // ── Front-facing arms — rendered above the head wrapper via the
-  //    overHeadPartTypes override (z=20). Their LAYER_ORDER entry is a
-  //    fallback only (used when the override doesn't apply, e.g. side view).
+  // ── Front-facing arms — stay BELOW the head wrapper (compressedZ 1..8).
+  //    They no longer use the overHeadPartTypes override.
   right_arm: 5,
   left_arm: 5,
   front_arm: 5,
@@ -1483,13 +1482,12 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // • Front-facing pets (no KC facing):  left_arm + right_arm
   // • Side-facing pets (KC left/right):  front_arm + front_leg only
   const isPetSideFacing = facing === "left" || facing === "right";
-  // Front-facing pets: left_arm + right_arm render above the head (z=20)
-  // so arms cross in front of the face/head. Shoulders stay at their
-  // LAYER_ORDER z=5 (behind neck) so the neck covers the shoulder joint.
-  // Side-facing pets: front_leg crosses the head; front_arm stays at z=5.
+  // Front-facing pets: arms stay below the head wrapper (compressedZ 1..8).
+  // Side-facing pets: front_leg crosses above the head (z=20) so the front
+  // limb passes in front of the face — the standard side-view silhouette.
   const overHeadPartTypes: ReadonlySet<string> = isPetSideFacing
     ? new Set(["front_leg"])
-    : new Set(["left_arm", "right_arm"]);
+    : new Set();
   // z-index placed above head wrapper (z=9) and all head-internal layers (max 19).
   const OVER_HEAD_Z = 20;
 

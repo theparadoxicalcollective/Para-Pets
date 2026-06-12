@@ -419,11 +419,11 @@ export async function renderPetGif(opts: RenderPetGifOpts): Promise<CaptureResul
   // Facing-aware over-head arm/leg types (mirrors PetAnimator.tsx).
   const gifFacing = opts.facing ?? "front";
   const gifIsSideFacing = gifFacing === "left" || gifFacing === "right";
-  // Front-facing: left_arm + right_arm above head (z=20).
-  // Shoulders stay at LAYER_ORDER z=5 (behind neck).
+  // Front-facing: arms stay below the head wrapper (compressedZ 1..8).
+  // Side-facing: front_leg crosses above the head when admin placed it there.
   const overHeadPartTypes: ReadonlySet<string> = gifIsSideFacing
     ? new Set(["front_leg"])
-    : new Set(["left_arm", "right_arm"]);
+    : new Set();
 
   const viewParts = opts.parts
     .filter(p => p.view === resolvedView)
