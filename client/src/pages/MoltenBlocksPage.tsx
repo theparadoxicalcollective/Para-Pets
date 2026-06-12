@@ -233,6 +233,12 @@ export default function MoltenBlocksPage() {
   const itemBoardRef = useRef<ItemCell[][]>(emptyItemBoard());
   const blocksLockedRef = useRef(0);
   const dropItemsRef = useRef<DropItem[]>([]);
+  // Item carried by the currently-falling piece (assigned at spawn time)
+  const pendingDropItemRef = useRef<{ item: DropItem; cellIdx: number } | null>(null);
+  // Next block-count threshold at which an item will be assigned
+  const nextDropThresholdRef = useRef<number>(10 + Math.floor(Math.random() * 11));
+  // Image cache keyed by shopItemId for canvas rendering
+  const itemImgsRef = useRef<Record<string, HTMLImageElement>>({});
   const lastDropRef = useRef<number>(0);
   const dropIntervalRef = useRef<number>(800);
   const softDropRef = useRef<boolean>(false);
@@ -285,6 +291,17 @@ export default function MoltenBlocksPage() {
     dropItemsRef.current = dropItemsData ?? [];
   }, [dropItemsData]);
 
+  // Preload item images for canvas rendering
+  useEffect(() => {
+    if (!dropItemsData) return;
+    for (const item of dropItemsData) {
+      if (!item.imageUrl || itemImgsRef.current[item.shopItemId]) continue;
+      const img = new Image();
+      img.src = item.imageUrl;
+      itemImgsRef.current[item.shopItemId] = img;
+    }
+  }, [dropItemsData]);
+
   // ── Preload block textures into HTMLImageElement refs ───────────────────
   const imgsRef = useRef<Record<Piece, HTMLImageElement>>({} as any);
   useEffect(() => {
@@ -310,6 +327,7 @@ export default function MoltenBlocksPage() {
   const resetBoard = useCallback(() => {
     boardRef.current = emptyBoard();
     itemBoardRef.current = emptyItemBoard();
+    pendingDropItemRef.current = null;
     bagRef.current = makeBag();
     activeRef.current = spawn(pullPiece());
     nextRef.current = pullPiece();
@@ -435,6 +453,7 @@ export default function MoltenBlocksPage() {
       const remaining = livesRef.current - 1;
       livesRef.current = remaining;
       setLives(remaining);
+      pendingDropItemRef.current = null;
       if (remaining > 0) {
         resetBoard();
       } else {
@@ -447,6 +466,22 @@ export default function MoltenBlocksPage() {
       }
     } else {
       activeRef.current = p;
+      // Assign a drop item to this piece if we've hit the next threshold
+      pendingDropItemRef.current = null;
+      if (dropItemsRef.current.length > 0 && blocksLockedRef.current >= nextDropThresholdRef.current) {
+        const drop = pickDropItem(dropItemsRef.current);
+        if (drop) {
+          const shape = SHAPES[t][0];
+          let filledCount = 0;
+          for (let r = 0; r < shape.length; r++)
+            for (let c = 0; c < shape[r].length; c++)
+              if (shape[r][c]) filledCount++;
+          if (filledCount > 0) {
+            pendingDropItemRef.current = { item: drop, cellIdx: Math.floor(Math.random() * filledCount) };
+            nextDropThresholdRef.current = blocksLockedRef.current + 10 + Math.floor(Math.random() * 11);
+          }
+        }
+      }
     }
   }, [pullPiece, resetBoard, finalizeRun]);
 
@@ -519,27 +554,26 @@ export default function MoltenBlocksPage() {
     const piece = activeRef.current;
     const locked = lockPiece(boardRef.current, piece);
 
-    // ── Item drop: every 20 blocks placed, try to embed a drop item ──────
+    // ── Item drop: transfer the pending item (assigned at spawn) to the locked board ──────
     blocksLockedRef.current++;
-    if (blocksLockedRef.current % 20 === 0 && dropItemsRef.current.length > 0) {
-      const drop = pickDropItem(dropItemsRef.current);
-      if (drop) {
-        const shape = SHAPES[piece.type][piece.rot];
-        const cells: [number, number][] = [];
-        for (let r = 0; r < shape.length; r++) {
-          for (let c = 0; c < shape[r].length; c++) {
-            if (!shape[r][c]) continue;
-            const ny = piece.y + r, nx = piece.x + c;
-            if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS) cells.push([ny, nx]);
-          }
-        }
-        if (cells.length > 0) {
-          const [ry, rx] = cells[Math.floor(Math.random() * cells.length)];
-          const nextIB = itemBoardRef.current.map(row => row.slice()) as ItemCell[][];
-          nextIB[ry][rx] = drop;
-          itemBoardRef.current = nextIB;
+    if (pendingDropItemRef.current) {
+      const { item, cellIdx } = pendingDropItemRef.current;
+      const shape = SHAPES[piece.type][piece.rot];
+      const cells: [number, number][] = [];
+      for (let r = 0; r < shape.length; r++) {
+        for (let c = 0; c < shape[r].length; c++) {
+          if (!shape[r][c]) continue;
+          const ny = piece.y + r, nx = piece.x + c;
+          if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS) cells.push([ny, nx]);
         }
       }
+      if (cells.length > 0) {
+        const [ry, rx] = cells[cellIdx % cells.length];
+        const nextIB = itemBoardRef.current.map(row => row.slice()) as ItemCell[][];
+        nextIB[ry][rx] = item;
+        itemBoardRef.current = nextIB;
+      }
+      pendingDropItemRef.current = null;
     }
 
     // Detect cleared row indices for flash effect
@@ -787,7 +821,55 @@ export default function MoltenBlocksPage() {
       }
     }
 
-    // Item glow overlay — pulsing glow on cells that contain a drop item
+    // Helper: draw an item's image + rarity glow on a single cell
+    const drawItemOnCell = (ix: number, iy: number, it: DropItem, pulse: number) => {
+      const glow = RARITY_GLOW[it.rarity] ?? RARITY_GLOW.common;
+      // Rarity-coloured glow border
+      ctx.save();
+      ctx.shadowColor = glow;
+      ctx.shadowBlur = cell * (it.rarity === 'rare' ? 0.7 : it.rarity === 'uncommon' ? 0.5 : 0.35) * pulse;
+      ctx.strokeStyle = glow.replace(/[\d.]+\)$/, `${(0.85 * pulse).toFixed(2)})`);
+      ctx.lineWidth = it.rarity === 'rare' ? 2.5 : 1.5;
+      ctx.strokeRect(ix + 1.5, iy + 1.5, cell - 3, cell - 3);
+      ctx.restore();
+      // Item image (if loaded) drawn over the block
+      const img = itemImgsRef.current[it.shopItemId];
+      if (img && img.complete && img.naturalWidth > 0) {
+        const pad = cell * 0.08;
+        ctx.save();
+        ctx.globalAlpha = 0.92;
+        ctx.drawImage(img, ix + pad, iy + pad, cell - pad * 2, cell - pad * 2);
+        ctx.restore();
+      } else {
+        // Fallback: pulsing glow dot
+        const cx2 = ix + cell / 2, cy2 = iy + cell / 2;
+        const radius = cell * (it.rarity === 'rare' ? 0.26 : it.rarity === 'uncommon' ? 0.21 : 0.17);
+        ctx.save();
+        ctx.shadowColor = glow;
+        ctx.shadowBlur = cell * 0.35 * pulse;
+        ctx.fillStyle = glow.replace(/[\d.]+\)$/, `${(0.55 * pulse).toFixed(2)})`);
+        ctx.beginPath();
+        ctx.arc(cx2, cy2, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      // Spinning arc for rare items
+      if (it.rarity === 'rare') {
+        const spin = performance.now() / 1200;
+        const cx2 = ix + cell / 2, cy2 = iy + cell / 2;
+        ctx.save();
+        ctx.strokeStyle = `rgba(255,215,0,${(0.55 * pulse).toFixed(2)})`;
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = "rgba(255,215,0,0.8)";
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(cx2, cy2, cell * 0.38, spin, spin + Math.PI * 1.3);
+        ctx.stroke();
+        ctx.restore();
+      }
+    };
+
+    // Item overlay on locked cells
     const nt = performance.now();
     const itemBoard = itemBoardRef.current;
     for (let r = 0; r < ROWS; r++) {
@@ -795,30 +877,7 @@ export default function MoltenBlocksPage() {
         const it = itemBoard[r][c];
         if (!it || board[r][c] === 0) continue;
         const pulse = 0.65 + 0.35 * Math.sin(nt / 380 + r * 0.7 + c * 0.5);
-        const glow = RARITY_GLOW[it.rarity] ?? RARITY_GLOW.common;
-        const cx = offX + c * cell + cell / 2;
-        const cy = offY + r * cell + cell / 2;
-        const radius = cell * (it.rarity === 'rare' ? 0.26 : it.rarity === 'uncommon' ? 0.21 : 0.17);
-        ctx.save();
-        ctx.shadowColor = glow;
-        ctx.shadowBlur = cell * (it.rarity === 'rare' ? 0.65 : it.rarity === 'uncommon' ? 0.45 : 0.3) * pulse;
-        ctx.strokeStyle = glow.replace(/[\d.]+\)$/, `${(0.7 * pulse).toFixed(2)})`);
-        ctx.lineWidth = it.rarity === 'rare' ? 2 : 1.5;
-        ctx.strokeRect(offX + c * cell + 1.5, offY + r * cell + 1.5, cell - 3, cell - 3);
-        ctx.fillStyle = glow.replace(/[\d.]+\)$/, `${(0.5 * pulse).toFixed(2)})`);
-        ctx.beginPath();
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx.fill();
-        if (it.rarity === 'rare') {
-          const spin = nt / 1200;
-          ctx.shadowBlur = 0;
-          ctx.strokeStyle = `rgba(255,215,0,${(0.5 * pulse).toFixed(2)})`;
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.arc(cx, cy, radius * 1.7, spin, spin + Math.PI * 1.3);
-          ctx.stroke();
-        }
-        ctx.restore();
+        drawItemOnCell(offX + c * cell, offY + r * cell, it, pulse);
       }
     }
 
@@ -843,6 +902,21 @@ export default function MoltenBlocksPage() {
           const x = active.x + c;
           const y = active.y + r;
           if (y >= 0) drawCell(ctx, offX + x * cell, offY + y * cell, cell, active.type);
+        }
+      }
+      // Item on the falling piece (assigned at spawn; follows the piece as it falls & rotates)
+      if (pendingDropItemRef.current) {
+        const { item, cellIdx } = pendingDropItemRef.current;
+        const activeCells: [number, number][] = [];
+        for (let r = 0; r < shape.length; r++)
+          for (let c = 0; c < shape[r].length; c++)
+            if (shape[r][c]) activeCells.push([active.y + r, active.x + c]);
+        if (activeCells.length > 0) {
+          const [ry, rx] = activeCells[cellIdx % activeCells.length];
+          if (ry >= 0) {
+            const pulse = 0.75 + 0.25 * Math.sin(nt / 320);
+            drawItemOnCell(offX + rx * cell, offY + ry * cell, item, pulse);
+          }
         }
       }
     }
@@ -1082,17 +1156,7 @@ export default function MoltenBlocksPage() {
       {/* Header — score / level / next.
           Top padding honours the device safe-area (iOS notch / Android status bar)
           so the score and lives are never clipped on mobile. */}
-      <div style={{ flexShrink: 0, position: "relative", zIndex: 1, padding: "calc(env(safe-area-inset-top, 0px) + 12px) 12px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-        <button
-          data-testid="button-exit-molten-blocks"
-          onClick={() => navigate("/world/volcanic")}
-          style={{
-            background: "rgba(0,0,0,0.55)", border: `1px solid ${accent}55`,
-            color: accent, padding: "6px 12px", borderRadius: 8,
-            fontFamily: "Lora, serif", fontSize: 13, letterSpacing: "0.08em", cursor: "pointer",
-          }}
-        >← Exit</button>
-
+      <div style={{ flexShrink: 0, position: "relative", zIndex: 1, padding: "calc(env(safe-area-inset-top, 0px) + 12px) 12px 10px", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <Stat label="SCORE" value={score} testId="text-score" />
           <Stat label="LVL" value={level} testId="text-level" />
@@ -1184,6 +1248,23 @@ export default function MoltenBlocksPage() {
             />
           </button>
         </div>
+      </div>
+
+      {/* ── Return button — fixed at the bottom so it's always reachable ── */}
+      <div style={{
+        flexShrink: 0, position: "relative", zIndex: 1,
+        display: "flex", justifyContent: "center",
+        padding: "6px 12px calc(env(safe-area-inset-bottom, 0px) + 10px)",
+      }}>
+        <button
+          data-testid="button-return-molten-blocks"
+          onClick={() => navigate("/world/volcanic")}
+          style={{
+            background: "rgba(0,0,0,0.55)", border: `1px solid ${accent}55`,
+            color: accent, padding: "7px 24px", borderRadius: 8,
+            fontFamily: "Lora, serif", fontSize: 13, letterSpacing: "0.1em", cursor: "pointer",
+          }}
+        >← Return</button>
       </div>
 
       {/* Item award floating notifications */}
