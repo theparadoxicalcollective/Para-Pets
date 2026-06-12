@@ -270,53 +270,25 @@ export default function AuthPage() {
           /* ══════════════════════ LANDING SCREEN ══════════════════════ */
           <div className="flex flex-col items-center justify-between h-full w-full px-6 pt-10 pb-8 animate-slide-up">
 
-            {/* ── Mature content badge — top of screen ── */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
-              {/* Decorative top rule */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <div style={{ width: 28, height: 1, background: "linear-gradient(90deg, transparent, rgba(180,40,40,0.7))" }} />
-                <span style={{ color: "rgba(200,60,60,0.8)", fontSize: 10 }}>⚔</span>
-                <div style={{ width: 28, height: 1, background: "linear-gradient(270deg, transparent, rgba(180,40,40,0.7))" }} />
-              </div>
-              <div style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                background: "linear-gradient(160deg, rgba(28,4,4,0.88) 0%, rgba(18,4,4,0.92) 100%)",
-                border: "1px solid rgba(180,40,40,0.55)",
-                borderRadius: 10,
-                padding: "8px 18px 7px",
-                backdropFilter: "blur(8px)",
-                boxShadow: "0 0 18px rgba(160,20,20,0.3), inset 0 1px 0 rgba(220,80,80,0.1)",
-                gap: 3,
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ color: "rgba(210,70,70,0.6)", fontSize: 9, letterSpacing: 2 }}>— ✦ —</span>
-                  <span style={{
-                    fontFamily: "Lora, serif",
-                    fontWeight: 700,
-                    fontSize: 15,
-                    color: "#c84040",
-                    letterSpacing: "0.12em",
-                    textShadow: "0 0 12px rgba(200,50,50,0.6)",
-                  }}>AGES 18+</span>
-                  <span style={{ color: "rgba(210,70,70,0.6)", fontSize: 9, letterSpacing: 2 }}>— ✦ —</span>
-                </div>
-                <p style={{
-                  fontFamily: "Lora, serif",
-                  fontSize: 9,
-                  color: "rgba(220,160,160,0.65)",
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  margin: 0,
-                }}>Mature Content Advisory</p>
-              </div>
-              {/* Decorative bottom rule */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                <div style={{ width: 28, height: 1, background: "linear-gradient(90deg, transparent, rgba(180,40,40,0.7))" }} />
-                <span style={{ color: "rgba(200,60,60,0.8)", fontSize: 10 }}>⚔</span>
-                <div style={{ width: 28, height: 1, background: "linear-gradient(270deg, transparent, rgba(180,40,40,0.7))" }} />
-              </div>
+            {/* ── Age recommendation badge — top of screen ── */}
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              background: "rgba(10,6,2,0.6)",
+              border: "1px solid rgba(200,160,50,0.25)",
+              borderRadius: 20,
+              padding: "5px 14px",
+              backdropFilter: "blur(6px)",
+            }}>
+              <span style={{ color: "rgba(200,160,50,0.55)", fontSize: 9 }}>✦</span>
+              <span style={{
+                fontFamily: "Lora, serif",
+                fontSize: 11,
+                color: "rgba(220,195,140,0.8)",
+                letterSpacing: "0.08em",
+              }}>Best enjoyed by players 18+</span>
+              <span style={{ color: "rgba(200,160,50,0.55)", fontSize: 9 }}>✦</span>
             </div>
 
             {/* ── Title + tagline + buttons ── */}
