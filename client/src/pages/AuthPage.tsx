@@ -268,111 +268,132 @@ export default function AuthPage() {
       >
         {mode === "landing" ? (
           /* ══════════════════════ LANDING SCREEN ══════════════════════ */
-          <div className="flex flex-col items-center justify-end h-full w-full px-6 pb-8 animate-slide-up">
+          <div className="flex flex-col items-center justify-between h-full w-full px-6 pt-10 pb-8 animate-slide-up">
 
-            {/* ── Title + tagline, sitting just above buttons ── */}
-            <div className="flex flex-col items-center mb-5">
-              <div className="relative">
-                <span className="title-sparkle absolute -top-5 -left-6 text-2xl select-none" style={{ animationDelay: "0s" }}>✦</span>
-                <span className="title-sparkle absolute -top-5 -right-6 text-2xl select-none" style={{ animationDelay: "1.2s" }}>✦</span>
-                <span className="title-sparkle absolute -bottom-4 -left-9 text-sm select-none" style={{ animationDelay: "0.5s" }}>✦</span>
-                <span className="title-sparkle absolute -bottom-4 -right-9 text-sm select-none" style={{ animationDelay: "1.8s" }}>✦</span>
-                <div
-                  className="px-6 py-2 rounded-xl"
+            {/* ── Mature content badge — top of screen ── */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+              {/* Decorative top rule */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <div style={{ width: 28, height: 1, background: "linear-gradient(90deg, transparent, rgba(180,40,40,0.7))" }} />
+                <span style={{ color: "rgba(200,60,60,0.8)", fontSize: 10 }}>⚔</span>
+                <div style={{ width: 28, height: 1, background: "linear-gradient(270deg, transparent, rgba(180,40,40,0.7))" }} />
+              </div>
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                background: "linear-gradient(160deg, rgba(28,4,4,0.88) 0%, rgba(18,4,4,0.92) 100%)",
+                border: "1px solid rgba(180,40,40,0.55)",
+                borderRadius: 10,
+                padding: "8px 18px 7px",
+                backdropFilter: "blur(8px)",
+                boxShadow: "0 0 18px rgba(160,20,20,0.3), inset 0 1px 0 rgba(220,80,80,0.1)",
+                gap: 3,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ color: "rgba(210,70,70,0.6)", fontSize: 9, letterSpacing: 2 }}>— ✦ —</span>
+                  <span style={{
+                    fontFamily: "Lora, serif",
+                    fontWeight: 700,
+                    fontSize: 15,
+                    color: "#c84040",
+                    letterSpacing: "0.12em",
+                    textShadow: "0 0 12px rgba(200,50,50,0.6)",
+                  }}>AGES 18+</span>
+                  <span style={{ color: "rgba(210,70,70,0.6)", fontSize: 9, letterSpacing: 2 }}>— ✦ —</span>
+                </div>
+                <p style={{
+                  fontFamily: "Lora, serif",
+                  fontSize: 9,
+                  color: "rgba(220,160,160,0.65)",
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  margin: 0,
+                }}>Mature Content Advisory</p>
+              </div>
+              {/* Decorative bottom rule */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                <div style={{ width: 28, height: 1, background: "linear-gradient(90deg, transparent, rgba(180,40,40,0.7))" }} />
+                <span style={{ color: "rgba(200,60,60,0.8)", fontSize: 10 }}>⚔</span>
+                <div style={{ width: 28, height: 1, background: "linear-gradient(270deg, transparent, rgba(180,40,40,0.7))" }} />
+              </div>
+            </div>
+
+            {/* ── Title + tagline + buttons ── */}
+            <div className="flex flex-col items-center w-full">
+              {/* Title */}
+              <div className="flex flex-col items-center mb-4">
+                <div className="relative">
+                  <span className="title-sparkle absolute -top-5 -left-6 text-2xl select-none" style={{ animationDelay: "0s" }}>✦</span>
+                  <span className="title-sparkle absolute -top-5 -right-6 text-2xl select-none" style={{ animationDelay: "1.2s" }}>✦</span>
+                  <span className="title-sparkle absolute -bottom-4 -left-9 text-sm select-none" style={{ animationDelay: "0.5s" }}>✦</span>
+                  <span className="title-sparkle absolute -bottom-4 -right-9 text-sm select-none" style={{ animationDelay: "1.8s" }}>✦</span>
+                  <div
+                    className="px-6 py-2 rounded-xl"
+                    style={{
+                      background: "rgba(4,12,7,0.58)",
+                      backdropFilter: "blur(6px)",
+                      border: "1px solid rgba(200,160,50,0.18)",
+                    }}
+                  >
+                    <h1 className="para-pets-title select-none text-center">Para Pets</h1>
+                  </div>
+                </div>
+                <p
+                  className="font-fantasy text-[#f0e8d4] text-center text-sm tracking-wide mt-6 leading-relaxed px-5 py-2 rounded-xl"
                   style={{
                     background: "rgba(4,12,7,0.58)",
                     backdropFilter: "blur(6px)",
                     border: "1px solid rgba(200,160,50,0.18)",
                   }}
                 >
-                  <h1 className="para-pets-title select-none text-center">Para Pets</h1>
-                </div>
+                  A world of magical companions awaits
+                </p>
               </div>
-              <p
-                className="font-fantasy text-[#f0e8d4] text-center text-sm tracking-wide mt-6 leading-relaxed px-5 py-2 rounded-xl"
-                style={{
-                  background: "rgba(4,12,7,0.58)",
-                  backdropFilter: "blur(6px)",
-                  border: "1px solid rgba(200,160,50,0.18)",
-                }}
-              >
-                A world of magical companions awaits
-              </p>
-            </div>
 
-            {/* ── Action buttons ── */}
-            <div className="flex flex-col items-center w-full">
+              {/* Buttons — slightly smaller */}
               <button
                 data-testid="button-signin"
                 onClick={() => setMode("login")}
-                className="w-[78%] max-w-[310px] mx-auto block transition-transform duration-150 active:scale-95"
+                className="w-[68%] max-w-[270px] mx-auto block transition-transform duration-150 active:scale-95"
                 style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
               >
                 <img
                   src={signInBtn} alt="Sign In"
                   className="w-full h-auto object-contain block"
-                  style={{ filter: "drop-shadow(0 0 16px rgba(240,160,48,0.75)) drop-shadow(0 4px 10px rgba(0,0,0,0.95))" }}
+                  style={{ filter: "drop-shadow(0 0 14px rgba(240,160,48,0.7)) drop-shadow(0 4px 10px rgba(0,0,0,0.95))" }}
                 />
               </button>
               <button
                 data-testid="button-create-account"
                 onClick={() => setMode("register")}
-                className="w-[78%] max-w-[310px] mx-auto block transition-transform duration-150 active:scale-95"
+                className="w-[68%] max-w-[270px] mx-auto block transition-transform duration-150 active:scale-95"
                 style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
               >
                 <img
                   src={createAccountBtn} alt="Create Account"
                   className="w-full h-auto object-contain block"
-                  style={{ filter: "drop-shadow(0 0 16px rgba(240,160,48,0.75)) drop-shadow(0 4px 10px rgba(0,0,0,0.95))" }}
+                  style={{ filter: "drop-shadow(0 0 14px rgba(240,160,48,0.7)) drop-shadow(0 4px 10px rgba(0,0,0,0.95))" }}
                 />
               </button>
-              {/* Content rating notice */}
-              <div className="flex items-center justify-center gap-2 mt-4 mb-1">
-                <div style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 7,
-                  background: "rgba(4,12,7,0.65)",
-                  border: "1px solid rgba(200,160,50,0.22)",
-                  borderRadius: 8,
-                  padding: "5px 12px",
-                  backdropFilter: "blur(4px)",
-                }}>
-                  <span style={{
-                    fontFamily: "Lora, serif",
-                    fontWeight: 700,
-                    fontSize: 11,
-                    color: "#d4a843",
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    background: "rgba(212,168,67,0.15)",
-                    border: "1px solid rgba(212,168,67,0.45)",
-                    borderRadius: 4,
-                    padding: "1px 6px",
-                  }}>T</span>
-                  <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "rgba(240,232,210,0.7)", letterSpacing: "0.03em" }}>
-                    Recommended for ages 16+
-                  </span>
-                </div>
-              </div>
 
+              {/* Para Pets Hub — more prominent */}
               <Link
                 data-testid="link-para-pets-hub"
                 href="/hub"
-                className="w-[78%] max-w-[310px] mx-auto mt-3 flex items-center justify-center gap-2 py-3 rounded-xl font-fantasy text-sm tracking-widest transition-all duration-150 active:scale-95"
+                className="w-[78%] max-w-[310px] mx-auto mt-2 flex items-center justify-center gap-2 py-3 rounded-xl font-fantasy tracking-widest transition-all duration-150 active:scale-95"
                 style={{
-                  background: "linear-gradient(135deg, rgba(0,90,72,0.72) 0%, rgba(0,58,46,0.72) 100%)",
-                  border: "1px solid rgba(0,210,168,0.55)",
-                  color: "#7fffd4",
-                  boxShadow: "0 0 18px rgba(0,200,160,0.28), inset 0 1px 0 rgba(127,255,212,0.12), 0 4px 12px rgba(0,0,0,0.6)",
-                  textShadow: "0 0 14px rgba(0,220,170,0.7)",
+                  fontSize: "0.95rem",
+                  background: "linear-gradient(135deg, rgba(0,100,80,0.85) 0%, rgba(0,68,52,0.88) 100%)",
+                  border: "1.5px solid rgba(0,220,175,0.65)",
+                  color: "#5fffd4",
+                  boxShadow: "0 0 24px rgba(0,210,165,0.35), inset 0 1px 0 rgba(127,255,212,0.18), 0 4px 16px rgba(0,0,0,0.7)",
+                  textShadow: "0 0 16px rgba(0,230,180,0.85)",
                   backdropFilter: "blur(6px)",
                   textDecoration: "none",
                 }}
               >
-                <span style={{ opacity: 0.85, fontSize: "0.9em" }}>✦</span>
-                Para Pets Hub
-                <span style={{ opacity: 0.85, fontSize: "0.9em" }}>✦</span>
+                ✦ Para Pets Hub ✦
               </Link>
             </div>
           </div>
