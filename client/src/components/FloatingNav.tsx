@@ -410,7 +410,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                             const goTarget =
                               quest.quest_key === "catch_fish"  ? "/world/swamp?fishHint=1" :
                               quest.quest_key === "feed_pet"    ? (user.activePetId ? `/pet-care/${encodeURIComponent(user.activePetId)}?feedHint=1` : "/pet-house") :
-                              quest.quest_key === "use_powerup" ? "/" :
+                              quest.quest_key === "use_powerup" ? "/?action=powerup" :
                               null;
                             const isDisabled = isDone || goTarget === null;
                             return (

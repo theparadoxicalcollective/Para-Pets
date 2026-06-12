@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { X, HelpCircle, Zap, Star, RotateCcw, ShieldPlus } from "lucide-react";
 import WorldChatPanel from "@/components/WorldChatPanel";
 import PetDetailPage from "@/components/PetDetailPage";
@@ -169,7 +169,17 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   }, [bgChatData, showWorldChat]);
 
   const [, navigate] = useLocation();
+  const searchString = useSearch();
   const queryClient = useQueryClient();
+
+  // Open Power Up modal when navigated here via "/?action=powerup" (daily quest Go button)
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    if (params.get("action") === "powerup") {
+      window.history.replaceState({}, "", "/");
+      setActivePetModal("power_up");
+    }
+  }, [searchString]);
 
   // ── Active-pet petting gesture (mirrors the Pet Care page) ───────────────
   // Tap = open the action menu (legacy behaviour). A circular swipe over the
