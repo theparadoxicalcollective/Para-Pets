@@ -194,7 +194,7 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   // out of phase (its own hash-based delay + a different 4.3 s period).
   flipper_left: "petIdleFlipperLeft",
   flipper_right: "petIdleFlipperRight",
-  body_2: "petIdleBody2",
+  body_2: "petIdleBody",
   // Side-facing wings mirror each other like the ears: the front wing flaps
   // one direction and the back wing flaps the opposite direction so the two
   // never sit perfectly in sync. Applies to both wing-set 1 and wing-set 2.
@@ -1020,12 +1020,7 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       // locked to one breath rhythm.
       front_arm: "4.5s", back_arm: "4.5s",
       flipper_left: "4.5s", flipper_right: "4.5s",
-      // body_2 deliberately uses a slightly different period (4.3 s vs body's
-      // 4.5 s) so it continuously drifts in and out of phase with body 1 —
-      // the "just a little out of sync" feel. Its own hash-based delay (not
-      // bodyBreathDelay, since petIdleBody2 is not in isBodyBreathAnim)
-      // means it also starts at a different point in the cycle.
-      body_2: "4.3s",
+      body_2: "4.5s",
       front_leg: "4.5s", back_leg: "4.5s",
       front_wing: "4s", back_wing: "4s",
       // Every part that's mapped to `petIdleBody` MUST share the body's
