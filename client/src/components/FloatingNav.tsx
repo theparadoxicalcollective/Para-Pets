@@ -116,6 +116,14 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     refetchOnWindowFocus: true,
   });
 
+  // Inventory — only fetched when quest panel is open; used to detect power-up items
+  const { data: bagItems = [] } = useQuery<any[]>({
+    queryKey: ["/api/inventory"],
+    staleTime: 30_000,
+    enabled: showQuest,
+  });
+  const hasPowerUps = bagItems.some((it: any) => it.statBoostType != null);
+
   const seenMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/quests/daily/seen", {}),
     onSuccess: () => {
@@ -404,13 +412,14 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                           );
                         })()}
                         <div className="flex items-center justify-between gap-1 mb-0.5">
-                          <p className="font-fantasy text-[#2a1000] text-[12px] font-bold leading-tight flex-1 min-w-0">{quest.title}</p>
+                          <p className="font-fantasy text-[#2a1000] text-[12px] font-bold leading-tight flex-1 min-w-0" style={{ paddingLeft: 3 }}>{quest.title}</p>
                           {(() => {
                             const goTarget =
                               quest.quest_key === "catch_fish"  ? "/world/swamp?fishHint=1" :
                               quest.quest_key === "feed_pet"    ? (user.activePetId ? `/pet-care/${encodeURIComponent(user.activePetId)}?feedHint=1` : "/pet-house") :
-                              null; // use_powerup — coming soon
-                            const isDisabled = goTarget === null || isDone;
+                              quest.quest_key === "use_powerup" ? "/" :
+                              null;
+                            const isDisabled = isDone || goTarget === null;
                             return (
                               <button
                                 data-testid={`button-go-quest-${quest.quest_key}`}
@@ -423,18 +432,19 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                                 className="flex-shrink-0 transition-transform active:scale-90 rounded"
                                 style={{
                                   background: isDisabled
-                                    ? "rgba(60,40,10,0.2)"
+                                    ? "rgba(80,60,30,0.35)"
                                     : "linear-gradient(135deg, #1a5c1a 0%, #2d8c2d 100%)",
                                   border: isDisabled
-                                    ? "1px solid rgba(139,90,40,0.18)"
+                                    ? "1px solid rgba(139,90,40,0.3)"
                                     : "1px solid rgba(100,220,100,0.55)",
-                                  color: isDisabled ? "rgba(200,180,100,0.3)" : "#dcfce7",
+                                  color: isDisabled ? "#7a6040" : "#dcfce7",
                                   fontFamily: "Lora, serif",
                                   fontSize: 9,
                                   fontWeight: 800,
                                   letterSpacing: "0.12em",
                                   cursor: isDisabled ? "default" : "pointer",
                                   padding: "3px 8px",
+                                  marginRight: 3,
                                   boxShadow: isDisabled ? "none" : "0 0 8px rgba(60,180,60,0.3)",
                                 }}
                               >
@@ -444,6 +454,30 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                           })()}
                         </div>
                         <p className="font-fantasy text-[#5a2e0a] text-[10.5px] tracking-wide leading-snug mb-1.5">{quest.description}</p>
+                        {quest.quest_key === "use_powerup" && !hasPowerUps && !isDone && (
+                          <button
+                            data-testid="button-buy-powerups"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              closeAll();
+                              setTimeout(() => navigate("/world/swamp?shopHint=a1b2c3d4-0004-4000-8000-000000000004"), NAV_DELAY);
+                            }}
+                            className="flex items-center gap-1 mb-1.5 transition-transform active:scale-95 rounded-md"
+                            style={{
+                              background: "linear-gradient(135deg, rgba(120,60,0,0.25) 0%, rgba(80,40,0,0.2) 100%)",
+                              border: "1px solid rgba(212,160,23,0.4)",
+                              color: "#c47a20",
+                              fontFamily: "Lora, serif",
+                              fontSize: 9,
+                              fontWeight: 700,
+                              letterSpacing: "0.1em",
+                              cursor: "pointer",
+                              padding: "3px 9px",
+                            }}
+                          >
+                            ✦ Buy Power Ups →
+                          </button>
+                        )}
 
                         {/* Progress bar */}
                         <div
