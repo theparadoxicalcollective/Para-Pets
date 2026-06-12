@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { playShopBell } from "@/lib/sounds";
@@ -179,6 +179,9 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
   const [buyingPackId, setBuyingPackId] = useState<string | null>(null);
+  // Guard: prevents the verify effect from running more than once per page load
+  // (wouter v3 patches replaceState so the effect can re-fire after URL cleanup).
+  const verifiedRef = useRef(false);
   // Initialise to true synchronously so the overlay shows on the very first render
   // when the player is redirected back from Stripe — no flash of the coin shop.
   const [verifying, setVerifying] = useState(() => {
@@ -227,6 +230,14 @@ export default function CoinShopPage({ user }: CoinShopProps) {
     }
 
     if (success && sessionId) {
+      // Guard against double-fire caused by wouter patching replaceState
+      if (verifiedRef.current) return;
+      verifiedRef.current = true;
+
+      // Clean the URL FIRST — before any state change — so that if wouter
+      // re-runs this effect it sees no params and exits via the guard above.
+      window.history.replaceState({}, "", "/coins");
+
       // verifying was already set true synchronously via useState initializer
       apiRequest("POST", "/api/coins/verify", { sessionId })
         .then(res => res.json())
@@ -239,27 +250,22 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           }
           // Refresh daily-spent counter in the background (non-blocking)
           queryClient.invalidateQueries({ queryKey: ["/api/coins/packs"] });
-          window.history.replaceState({}, "", "/coins");
           if (data.credited || data.alreadyCredited) {
             setSuccessCoins(data.coins);
+            // Fire celebrations inline — not in a reactive effect — so they
+            // are guaranteed to run exactly once in the same microtask flush.
+            try { playShopBell(); } catch {}
+            try { burstGoldenOrbs(window.innerWidth / 2, window.innerHeight / 2); } catch {}
+            setTimeout(() => { try { burstGoldenOrbs(window.innerWidth / 3, window.innerHeight / 3); } catch {} }, 300);
+            setTimeout(() => { try { burstGoldenOrbs((window.innerWidth * 2) / 3, window.innerHeight / 3); } catch {} }, 500);
           }
         })
         .catch(() => {
-          window.history.replaceState({}, "", "/coins");
           toast({ title: "Hmm, something went wrong", description: "Your coins should arrive shortly. Contact support if they don't appear.", variant: "destructive" });
         })
         .finally(() => setVerifying(false));
     }
   }, [searchString]);
-
-  useEffect(() => {
-    if (successCoins !== null) {
-      playShopBell();
-      burstGoldenOrbs(window.innerWidth / 2, window.innerHeight / 2);
-      setTimeout(() => burstGoldenOrbs(window.innerWidth / 3, window.innerHeight / 3), 300);
-      setTimeout(() => burstGoldenOrbs((window.innerWidth * 2) / 3, window.innerHeight / 3), 500);
-    }
-  }, [successCoins]);
 
   const handleBuy = (packId: string) => {
     setBuyingPackId(packId);
@@ -538,53 +544,6 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         />
       )}
 
-      {/* Checkout loading overlay — shown while the server creates the Stripe session */}
-      {buyingPackId && checkoutMutation.isPending && (() => {
-        const pack = packsData?.packs.find(p => p.id === buyingPackId);
-        const packImg = pack ? imageForCoins(pack.coins) : null;
-        const glowCol = pack ? styleForCoins(pack.coins).glow : "rgba(127,255,212,0.4)";
-        return (
-          <div
-            style={{
-              position: "fixed", inset: 0, zIndex: 9997,
-              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-              background: "rgba(2,8,3,0.985)",
-              animation: "overlayFadeIn 0.2s ease-out",
-              willChange: "opacity",
-            }}
-          >
-            {packImg && (
-              <img
-                src={packImg}
-                alt=""
-                style={{
-                  width: 110, height: 110, objectFit: "contain", marginBottom: 24,
-                  filter: `drop-shadow(0 0 28px ${glowCol}) drop-shadow(0 0 60px ${glowCol})`,
-                  animation: "coinSpin 1.8s ease-in-out infinite",
-                }}
-              />
-            )}
-            <div className="font-fantasy tracking-[0.25em] text-base" style={{ color: "#f0c040", marginBottom: 10 }}>
-              {pack ? `${pack.coins.toLocaleString()} Coins` : "Loading..."}
-            </div>
-            <div className="font-fantasy tracking-widest text-sm" style={{ color: "rgba(127,255,212,0.7)", marginBottom: 6 }}>
-              Opening Secure Checkout
-            </div>
-            <div className="font-fantasy text-[10px] tracking-wider" style={{ color: "rgba(127,255,212,0.35)" }}>
-              Connecting to Stripe...
-            </div>
-            <div style={{ marginTop: 32, display: "flex", gap: 6 }}>
-              {[0, 1, 2].map(i => (
-                <div key={i} style={{
-                  width: 6, height: 6, borderRadius: "50%",
-                  background: "rgba(127,255,212,0.6)",
-                  animation: `fireflyDrift${i + 1} 0.9s ease-in-out ${i * 0.3}s infinite alternate`,
-                }} />
-              ))}
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Verification overlay — shown immediately on return from Stripe, before coins are credited */}
       {verifying && successCoins === null && (
