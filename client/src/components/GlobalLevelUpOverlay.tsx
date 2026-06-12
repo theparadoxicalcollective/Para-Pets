@@ -28,6 +28,10 @@ export default function GlobalLevelUpOverlay() {
     });
   }, []);
 
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("navOverlayToggle", { detail: { open: events.length > 0 } }));
+  }, [events.length]);
+
   if (events.length === 0) return null;
 
   return (

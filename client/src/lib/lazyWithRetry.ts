@@ -29,7 +29,7 @@ export function lazyWithRetry<T extends ComponentType<any>>(
       const msg = String(err?.message ?? err ?? "");
       const looksLikeChunkLoadError =
         err?.name === "ChunkLoadError" ||
-        /Loading chunk|Loading CSS chunk|dynamically imported module|MIME type|Failed to fetch dynamically/i.test(msg);
+        /Loading chunk|Loading CSS chunk|dynamically imported module|MIME type|Failed to fetch dynamically|Importing a module script failed/i.test(msg);
       const alreadyReloaded = sessionStorage.getItem(RELOAD_KEY) === "1";
       if (looksLikeChunkLoadError && !alreadyReloaded) {
         sessionStorage.setItem(RELOAD_KEY, "1");

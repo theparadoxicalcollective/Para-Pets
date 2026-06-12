@@ -57,6 +57,10 @@ export default function PowerUpOverlay({ visible, effectType, label, onDone }: P
     return () => clearTimeout(t);
   }, [visible, onDone]);
 
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("navOverlayToggle", { detail: { open: visible } }));
+  }, [visible]);
+
   if (!visible) return null;
 
   const particles = Array.from({ length: 28 }, (_, i) => {
