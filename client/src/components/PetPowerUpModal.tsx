@@ -556,10 +556,33 @@ export default function PetPowerUpModal({
       {/* ── Item grid ── */}
       <div className="relative z-[10] flex-1 overflow-y-auto px-3 pb-6" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(134,239,172,0.3) transparent" }}>
         {items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 gap-3">
+          <div className="flex flex-col items-center justify-center py-10 gap-4">
             <img src={powerupBagIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain" }} />
-            <p className="font-fantasy text-[#86efac] text-sm text-center" style={{ textShadow: "0 0 8px rgba(134,239,172,0.3)" }}>Your bag is empty</p>
-            <p className="font-fantasy text-[#4a7a50] text-[11px] text-center">Visit the shop to stock up on power-up items!</p>
+            <p className="font-fantasy text-[#86efac] text-sm text-center" style={{ textShadow: "0 0 8px rgba(134,239,172,0.3)" }}>You have no power-up items!</p>
+            <button
+              data-testid="button-buy-powerups"
+              onClick={() => {
+                onClose();
+                setTimeout(() => {
+                  window.location.href = "/world/swamp?shopHint=a1b2c3d4-0004-4000-8000-000000000004";
+                }, 120);
+              }}
+              style={{
+                background: "linear-gradient(135deg, #1a5c1a 0%, #2d8c2d 100%)",
+                border: "1px solid rgba(100,220,100,0.6)",
+                color: "#dcfce7",
+                fontFamily: "Lora, serif",
+                fontSize: 12,
+                fontWeight: 800,
+                letterSpacing: "0.08em",
+                cursor: "pointer",
+                borderRadius: 8,
+                padding: "8px 22px",
+                boxShadow: "0 0 12px rgba(60,180,60,0.4)",
+              }}
+            >
+              Buy Power Ups
+            </button>
           </div>
         ) : (
           <>
