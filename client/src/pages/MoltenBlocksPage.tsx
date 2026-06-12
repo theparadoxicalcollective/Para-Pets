@@ -1445,16 +1445,7 @@ export default function MoltenBlocksPage() {
             )}
           </div>
 
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <button
-              data-testid="button-return-molten-blocks"
-              onClick={() => navigate("/world/volcanic")}
-              style={{
-                ...overlayBtnStyle("#7a5530"), fontSize: 13, padding: "10px 18px",
-                letterSpacing: "0.12em", background: "rgba(40,16,4,0.9)",
-                border: "1px solid rgba(122,85,48,0.5)", color: "#a06a30",
-              }}
-            >← Return</button>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", width: "100%" }}>
             <button
               data-testid="button-intro-back"
               onClick={() => setIntroStep(1)}
@@ -1472,6 +1463,15 @@ export default function MoltenBlocksPage() {
               }}
               style={{ ...overlayBtnStyle(accent), fontSize: 15, padding: "12px 28px", letterSpacing: "0.18em" }}
             >START</button>
+            <button
+              data-testid="button-return-molten-blocks"
+              onClick={() => navigate("/world/volcanic")}
+              style={{
+                ...overlayBtnStyle("#7a5530"), fontSize: 13, padding: "10px 18px",
+                letterSpacing: "0.12em", background: "rgba(40,16,4,0.9)",
+                border: "1px solid rgba(122,85,48,0.5)", color: "#a06a30",
+              }}
+            >EXIT →</button>
           </div>
         </Overlay>
       )}
