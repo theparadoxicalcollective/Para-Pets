@@ -958,50 +958,6 @@ export default function PetDatabasePanel({
           </div>
         )}
 
-        {/* GIF export — downloads an animated GIF of the current view */}
-        {viewParts.length > 0 && selectedTemplateId && (
-          <div
-            className="flex flex-col gap-2 px-3 py-3 rounded-lg"
-            style={{ background: "rgba(127,255,212,0.04)", border: "1px solid rgba(127,255,212,0.2)" }}
-          >
-            <div className="flex items-center justify-between">
-              <span className="font-fantasy text-[9px] tracking-wider" style={{ color: "#7fbfb0" }}>Export GIF</span>
-              <div className="flex items-center gap-1">
-                {(["idle", "petting", "sleep"] as GifAnimation[]).map(a => (
-                  <button
-                    key={a}
-                    data-testid={`button-gif-anim-${a}`}
-                    onClick={() => setGifAnim(a)}
-                    className="rounded font-fantasy text-[8px] tracking-wider transition-all active:scale-95"
-                    style={{
-                      padding: "2px 7px",
-                      background: gifAnim === a ? "rgba(127,255,212,0.2)" : "rgba(0,0,0,0.3)",
-                      border: gifAnim === a ? "1px solid rgba(127,255,212,0.5)" : "1px solid rgba(127,255,212,0.15)",
-                      color: gifAnim === a ? "#7fffd4" : "#6a5840",
-                      cursor: "pointer",
-                    }}
-                  >{a}</button>
-                ))}
-              </div>
-            </div>
-            <button
-              data-testid="button-export-gif"
-              onClick={handleExportGif}
-              disabled={gifExporting}
-              className="flex items-center justify-center gap-1.5 rounded-lg font-fantasy text-[10px] tracking-wider transition-all active:scale-95 disabled:opacity-60"
-              style={{
-                padding: "6px 12px",
-                background: gifExporting ? "rgba(127,255,212,0.08)" : "rgba(127,255,212,0.14)",
-                border: "1px solid rgba(127,255,212,0.35)",
-                color: "#7fffd4",
-                cursor: gifExporting ? "default" : "pointer",
-              }}
-            >
-              <Download className="w-3.5 h-3.5" />
-              {gifExporting ? `Rendering… ${gifProgress}%` : `Download ${gifAnim} GIF`}
-            </button>
-          </div>
-        )}
 
         {/* Selected-part size control — only shown when a part is clicked */}
         {selectedPart && (
