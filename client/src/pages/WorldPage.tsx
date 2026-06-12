@@ -379,6 +379,12 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [showShopHint, setShowShopHint] = useState<string | null>(() =>
     new URLSearchParams(window.location.search).get("shopHint")
   );
+  const [showMoltenHint, setShowMoltenHint] = useState(() =>
+    worldId === "volcanic" && new URLSearchParams(window.location.search).get("moltenHint") === "1"
+  );
+  const [showBarrelHint, setShowBarrelHint] = useState(() =>
+    worldId === "swamp" && new URLSearchParams(window.location.search).get("barrelHint") === "1"
+  );
   const autoOpenShopId = useRef(new URLSearchParams(window.location.search).get("openShop"));
   const autoOpenDone = useRef(false);
   const [committedLocBgUrl, setCommittedLocBgUrl] = useState<string | null>(null);
@@ -2186,6 +2192,56 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                         100% { transform: translate(2px, -24px);   opacity: 0.9; }
                       }
                     `}</style>
+                  </>
+                );
+              })()}
+
+              {/* ── Molten Blocks hint arrow — ?moltenHint=1 from quest Go button ── */}
+              {showMoltenHint && worldId === "volcanic" && (() => {
+                const moltenLoc = locations.find(l => l.id === "c3d4e5f6-0005-4000-8000-000000000005");
+                if (!moltenLoc) return null;
+                const sz = (moltenLoc as any).iconSize || 120;
+                const cx = `calc(${moltenLoc.posX}% + ${sz / 2}px)`;
+                const cy = `calc(${moltenLoc.posY}% - 10px)`;
+                return (
+                  <>
+                    <div className="absolute inset-0" style={{ zIndex: 498, cursor: "pointer" }} onClick={() => setShowMoltenHint(false)} />
+                    <div className="absolute pointer-events-none" style={{ left: cx, top: cy, transform: "translate(-50%, -100%)", zIndex: 499, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                      <span style={{ position: "absolute", width: 7, height: 7, borderRadius: "50%", background: "rgba(251,191,36,0.95)", boxShadow: "0 0 8px rgba(245,158,11,1), 0 0 18px rgba(245,158,11,0.8)", animation: "hintOrb1 2.4s ease-in-out infinite" }} />
+                      <span style={{ position: "absolute", width: 5, height: 5, borderRadius: "50%", background: "rgba(253,230,138,0.9)", boxShadow: "0 0 6px rgba(251,191,36,1), 0 0 14px rgba(245,158,11,0.7)", animation: "hintOrb2 2.1s ease-in-out 0.5s infinite" }} />
+                      <span style={{ position: "absolute", width: 4, height: 4, borderRadius: "50%", background: "rgba(254,243,199,0.85)", boxShadow: "0 0 5px rgba(251,191,36,0.9), 0 0 10px rgba(245,158,11,0.6)", animation: "hintOrb3 1.8s ease-in-out 1s infinite" }} />
+                      <div style={{ animation: "fishHintFloat 1.2s ease-in-out infinite", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <div style={{ background: "rgba(8,4,0,0.88)", border: "1.5px solid rgba(251,191,36,0.7)", borderRadius: 8, padding: "5px 12px", marginBottom: 6, boxShadow: "0 0 14px rgba(245,158,11,0.4), 0 4px 10px rgba(0,0,0,0.7)", whiteSpace: "nowrap" }}>
+                          <span style={{ fontFamily: "Lora, serif", color: "#fde68a", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em" }}>Molten Blocks</span>
+                        </div>
+                        <div style={{ width: 8, height: 28, background: "linear-gradient(180deg, #fbbf24 0%, #d97706 100%)", borderRadius: "3px 3px 0 0", boxShadow: "0 0 10px rgba(245,158,11,0.9), 0 0 24px rgba(245,158,11,0.5)" }} />
+                        <div style={{ width: 0, height: 0, borderLeft: "18px solid transparent", borderRight: "18px solid transparent", borderTop: "22px solid #f59e0b", filter: "drop-shadow(0 0 10px rgba(245,158,11,1)) drop-shadow(0 0 20px rgba(245,158,11,0.7))" }} />
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+
+              {/* ── Barrel hint arrow — ?barrelHint=1 from sell_fish quest Go button ── */}
+              {showBarrelHint && fishBarrel && worldId === "swamp" && (() => {
+                const bpos = barrelDragPos ? barrelDragPos : { x: fishBarrel.posX, y: fishBarrel.posY };
+                const cx = `${bpos.x}%`;
+                const cy = `${bpos.y}%`;
+                return (
+                  <>
+                    <div className="absolute inset-0" style={{ zIndex: 498, cursor: "pointer" }} onClick={() => setShowBarrelHint(false)} />
+                    <div className="absolute pointer-events-none" style={{ left: cx, top: cy, transform: "translate(-50%, -100%) translateY(-16px)", zIndex: 499, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                      <span style={{ position: "absolute", width: 7, height: 7, borderRadius: "50%", background: "rgba(74,222,128,0.95)", boxShadow: "0 0 8px rgba(34,197,94,1), 0 0 18px rgba(34,197,94,0.8)", animation: "hintOrb1 2.4s ease-in-out infinite" }} />
+                      <span style={{ position: "absolute", width: 5, height: 5, borderRadius: "50%", background: "rgba(134,239,172,0.9)", boxShadow: "0 0 6px rgba(74,222,128,1), 0 0 14px rgba(34,197,94,0.7)", animation: "hintOrb2 2.1s ease-in-out 0.5s infinite" }} />
+                      <span style={{ position: "absolute", width: 4, height: 4, borderRadius: "50%", background: "rgba(187,247,208,0.85)", boxShadow: "0 0 5px rgba(74,222,128,0.9), 0 0 10px rgba(34,197,94,0.6)", animation: "hintOrb3 1.8s ease-in-out 1s infinite" }} />
+                      <div style={{ animation: "fishHintFloat 1.2s ease-in-out infinite", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <div style={{ background: "rgba(8,22,8,0.94)", border: "1.5px solid rgba(74,222,128,0.7)", borderRadius: 8, padding: "5px 12px", marginBottom: 6, boxShadow: "0 0 14px rgba(34,197,94,0.4), 0 4px 10px rgba(0,0,0,0.7)", whiteSpace: "nowrap" }}>
+                          <span style={{ fontFamily: "Lora, serif", color: "#86efac", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em" }}>Sell Fish Here</span>
+                        </div>
+                        <div style={{ width: 8, height: 28, background: "linear-gradient(180deg, #4ade80 0%, #16a34a 100%)", borderRadius: "3px 3px 0 0", boxShadow: "0 0 10px rgba(34,197,94,0.9), 0 0 24px rgba(34,197,94,0.5)" }} />
+                        <div style={{ width: 0, height: 0, borderLeft: "18px solid transparent", borderRight: "18px solid transparent", borderTop: "22px solid #22c55e", filter: "drop-shadow(0 0 10px rgba(34,197,94,1)) drop-shadow(0 0 20px rgba(34,197,94,0.7))" }} />
+                      </div>
+                    </div>
                   </>
                 );
               })()}

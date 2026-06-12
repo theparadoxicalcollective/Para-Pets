@@ -958,6 +958,9 @@ function SignInModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ParaPetsHubPage() {
   const [showSignIn, setShowSignIn] = useState(false);
+  const [showClaimHint, setShowClaimHint] = useState(() =>
+    new URLSearchParams(window.location.search).get("claimHint") === "1"
+  );
   const { toast }                   = useToast();
 
   const { data: user } = useQuery<any>({ queryKey: ["/api/auth/me"], retry: false });
@@ -1066,6 +1069,23 @@ export default function ParaPetsHubPage() {
           {/* ── Daily Reward (logged-in only) ─────────────────────────────── */}
           {user && (
             <>
+              {/* Claim hint arrow — shown when arriving via quest Go button */}
+              {showClaimHint && (
+                <div
+                  style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", marginBottom: -8, zIndex: 10 }}
+                  onClick={() => setShowClaimHint(false)}
+                >
+                  <div style={{ background: "rgba(8,22,8,0.94)", border: "1.5px solid rgba(74,222,128,0.7)", borderRadius: 8, padding: "5px 12px", marginBottom: 4, boxShadow: "0 0 14px rgba(34,197,94,0.4), 0 4px 10px rgba(0,0,0,0.7)", whiteSpace: "nowrap" }}>
+                    <span style={{ fontFamily: "Lora, serif", color: "#86efac", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em" }}>Claim your daily reward!</span>
+                  </div>
+                  <div style={{ animation: "claimHintFloat 1.2s ease-in-out infinite", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                    <div style={{ width: 8, height: 24, background: "linear-gradient(180deg, #4ade80 0%, #16a34a 100%)", borderRadius: "3px 3px 0 0", boxShadow: "0 0 10px rgba(34,197,94,0.9), 0 0 24px rgba(34,197,94,0.5)" }} />
+                    <div style={{ width: 0, height: 0, borderLeft: "16px solid transparent", borderRight: "16px solid transparent", borderTop: "20px solid #22c55e", filter: "drop-shadow(0 0 10px rgba(34,197,94,1)) drop-shadow(0 0 20px rgba(34,197,94,0.7))" }} />
+                  </div>
+                  <span style={{ fontFamily: "Lora, serif", color: "rgba(134,239,172,0.5)", fontSize: 9, marginTop: 4 }}>tap to dismiss</span>
+                  <style>{`@keyframes claimHintFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(8px)} }`}</style>
+                </div>
+              )}
               <DailyClaimCard user={user} />
               <RuneDivider />
             </>

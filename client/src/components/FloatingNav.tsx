@@ -346,17 +346,29 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                           position: "relative",
                           overflow: "hidden",
                           background: isClaimed
-                            ? "rgba(92,58,30,0.06)"
+                            ? "rgba(10,6,2,0.58)"
                             : isDone
                             ? "rgba(120,80,10,0.18)"
                             : "rgba(92,58,30,0.1)",
                           border: isClaimed
-                            ? "1px solid rgba(139,90,40,0.22)"
+                            ? "1px solid rgba(100,70,20,0.3)"
                             : isDone
                             ? "1px solid rgba(212,160,23,0.55)"
                             : "1px solid rgba(139,90,40,0.35)",
                         }}
                       >
+                        {/* Gold strikethrough for fully claimed quests */}
+                        {isClaimed && (
+                          <div style={{
+                            position: "absolute", top: "50%", left: "5%", right: "5%",
+                            height: 2,
+                            background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.25) 15%, rgba(240,192,64,0.85) 40%, rgba(255,215,0,0.9) 50%, rgba(240,192,64,0.85) 60%, rgba(212,160,23,0.25) 85%, transparent)",
+                            boxShadow: "0 0 6px rgba(240,192,64,0.5)",
+                            transform: "translateY(-50%)",
+                            zIndex: 25,
+                            pointerEvents: "none",
+                          }} />
+                        )}
                         {/* Claim celebration burst */}
                         {claimingKey === quest.quest_key && (() => {
                           const PARTICLES = [
@@ -414,9 +426,9 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                               quest.quest_key === "catch_fish"        ? "/world/swamp?fishHint=1" :
                               quest.quest_key === "feed_pet"          ? (user.activePetId ? `/pet-care/${encodeURIComponent(user.activePetId)}?feedHint=1` : "/pet-house") :
                               quest.quest_key === "use_powerup"       ? "/?action=powerup" :
-                              quest.quest_key === "play_molten_blocks" ? null :
-                              quest.quest_key === "claim_hub_reward"  ? null :
-                              quest.quest_key === "sell_fish"         ? null :
+                              quest.quest_key === "play_molten_blocks" ? "/world/volcanic?moltenHint=1" :
+                              quest.quest_key === "claim_hub_reward"  ? "/hub?claimHint=1" :
+                              quest.quest_key === "sell_fish"         ? "/world/swamp?barrelHint=1" :
                               null;
                             const isDisabled = isDone || goTarget === null;
                             return (

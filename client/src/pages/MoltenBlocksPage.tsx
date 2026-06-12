@@ -685,8 +685,8 @@ export default function MoltenBlocksPage() {
           const newLevel = Math.floor(totalLines / 10) + 1;
           if (newLevel !== level) {
             setLevel(newLevel);
-            // Speed curve: each level shaves ~15% off the drop interval.
-            dropIntervalRef.current = Math.max(80, 800 * Math.pow(0.85, newLevel - 1));
+            // Speed increases every 10 levels (~15% faster per tier)
+            dropIntervalRef.current = Math.max(80, 800 * Math.pow(0.85, Math.floor((newLevel - 1) / 10)));
           }
           return totalLines;
         });
