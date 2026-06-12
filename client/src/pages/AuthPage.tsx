@@ -268,7 +268,7 @@ export default function AuthPage() {
       >
         {mode === "landing" ? (
           /* ══════════════════════ LANDING SCREEN ══════════════════════ */
-          <div className="flex flex-col items-center justify-between h-full w-full px-6 pt-10 pb-8 animate-slide-up">
+          <div className="flex flex-col items-center h-full w-full px-6 pt-10 pb-8 animate-slide-up">
 
             {/* ── Age recommendation badge — top of screen ── */}
             <div style={{
@@ -291,39 +291,41 @@ export default function AuthPage() {
               <span style={{ color: "rgba(200,160,50,0.55)", fontSize: 9 }}>✦</span>
             </div>
 
-            {/* ── Title + tagline + buttons ── */}
-            <div className="flex flex-col items-center w-full">
-              {/* Title */}
-              <div className="flex flex-col items-center mb-4">
-                <div className="relative">
-                  <span className="title-sparkle absolute -top-5 -left-6 text-2xl select-none" style={{ animationDelay: "0s" }}>✦</span>
-                  <span className="title-sparkle absolute -top-5 -right-6 text-2xl select-none" style={{ animationDelay: "1.2s" }}>✦</span>
-                  <span className="title-sparkle absolute -bottom-4 -left-9 text-sm select-none" style={{ animationDelay: "0.5s" }}>✦</span>
-                  <span className="title-sparkle absolute -bottom-4 -right-9 text-sm select-none" style={{ animationDelay: "1.8s" }}>✦</span>
-                  <div
-                    className="px-6 py-2 rounded-xl"
-                    style={{
-                      background: "rgba(4,12,7,0.58)",
-                      backdropFilter: "blur(6px)",
-                      border: "1px solid rgba(200,160,50,0.18)",
-                    }}
-                  >
-                    <h1 className="para-pets-title select-none text-center">Para Pets</h1>
-                  </div>
-                </div>
-                <p
-                  className="font-fantasy text-[#f0e8d4] text-center text-sm tracking-wide mt-6 leading-relaxed px-5 py-2 rounded-xl"
+            {/* ── Title + tagline — close to top ── */}
+            <div className="flex flex-col items-center mt-8">
+              <div className="relative">
+                <span className="title-sparkle absolute -top-5 -left-6 text-2xl select-none" style={{ animationDelay: "0s" }}>✦</span>
+                <span className="title-sparkle absolute -top-5 -right-6 text-2xl select-none" style={{ animationDelay: "1.2s" }}>✦</span>
+                <span className="title-sparkle absolute -bottom-4 -left-9 text-sm select-none" style={{ animationDelay: "0.5s" }}>✦</span>
+                <span className="title-sparkle absolute -bottom-4 -right-9 text-sm select-none" style={{ animationDelay: "1.8s" }}>✦</span>
+                <div
+                  className="px-6 py-2 rounded-xl"
                   style={{
                     background: "rgba(4,12,7,0.58)",
                     backdropFilter: "blur(6px)",
                     border: "1px solid rgba(200,160,50,0.18)",
                   }}
                 >
-                  A world of magical companions awaits
-                </p>
+                  <h1 className="para-pets-title select-none text-center">Para Pets</h1>
+                </div>
               </div>
+              <p
+                className="font-fantasy text-[#f0e8d4] text-center text-sm tracking-wide mt-6 leading-relaxed px-5 py-2 rounded-xl"
+                style={{
+                  background: "rgba(4,12,7,0.58)",
+                  backdropFilter: "blur(6px)",
+                  border: "1px solid rgba(200,160,50,0.18)",
+                }}
+              >
+                A world of magical companions awaits
+              </p>
+            </div>
 
-              {/* Buttons — slightly smaller */}
+            {/* Spacer pushes buttons toward center */}
+            <div className="flex-1" />
+
+            {/* ── Buttons — centered in lower half ── */}
+            <div className="flex flex-col items-center w-full mb-6">
               <button
                 data-testid="button-signin"
                 onClick={() => setMode("login")}
@@ -339,7 +341,7 @@ export default function AuthPage() {
               <button
                 data-testid="button-create-account"
                 onClick={() => setMode("register")}
-                className="w-[68%] max-w-[270px] mx-auto block transition-transform duration-150 active:scale-95"
+                className="w-[68%] max-w-[270px] mx-auto -mt-3 block transition-transform duration-150 active:scale-95"
                 style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
               >
                 <img
@@ -349,11 +351,11 @@ export default function AuthPage() {
                 />
               </button>
 
-              {/* Para Pets Hub — more prominent */}
+              {/* Para Pets Hub */}
               <Link
                 data-testid="link-para-pets-hub"
                 href="/hub"
-                className="w-[78%] max-w-[310px] mx-auto mt-2 flex items-center justify-center gap-2 py-3 rounded-xl font-fantasy tracking-widest transition-all duration-150 active:scale-95"
+                className="w-[78%] max-w-[310px] mx-auto mt-3 flex items-center justify-center gap-2 py-3 rounded-xl font-fantasy tracking-widest transition-all duration-150 active:scale-95"
                 style={{
                   fontSize: "0.95rem",
                   background: "linear-gradient(135deg, rgba(0,100,80,0.85) 0%, rgba(0,68,52,0.88) 100%)",

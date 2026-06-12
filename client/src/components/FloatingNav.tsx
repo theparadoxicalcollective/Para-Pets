@@ -273,24 +273,24 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
               data-testid="badge-quest-notification"
               style={{
                 position: "absolute",
-                top: 0,
-                right: 0,
-                width: 17,
-                height: 17,
+                top: -4,
+                right: -4,
+                width: 24,
+                height: 24,
                 borderRadius: "50%",
                 background: questBadge === "green"
                   ? "linear-gradient(135deg, #16a34a, #22c55e)"
                   : "linear-gradient(135deg, #b45309, #f0c040)",
-                border: "2px solid rgba(0,0,0,0.85)",
-                fontSize: 10,
+                border: "2.5px solid rgba(0,0,0,0.9)",
+                fontSize: 14,
                 fontWeight: "bold",
                 color: questBadge === "green" ? "#fff" : "#1a0a00",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 boxShadow: questBadge === "green"
-                  ? "0 0 8px rgba(34,197,94,0.9), 0 0 16px rgba(34,197,94,0.4)"
-                  : "0 0 8px rgba(240,192,64,0.9), 0 0 14px rgba(240,192,64,0.4)",
+                  ? "0 0 10px rgba(34,197,94,1), 0 0 20px rgba(34,197,94,0.5)"
+                  : "0 0 10px rgba(240,192,64,1), 0 0 18px rgba(240,192,64,0.5)",
                 zIndex: 100,
                 pointerEvents: "none",
                 fontFamily: "'Cinzel', serif",
