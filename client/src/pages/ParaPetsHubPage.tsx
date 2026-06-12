@@ -174,7 +174,7 @@ function NoticeCarousel() {
           data-testid={`notice-img-${idx}`}
           style={{
             width: "100%",
-            maxHeight: 370,
+            maxHeight: 520,
             objectFit: "cover",
             objectPosition: "top",
             display: "block",
@@ -1270,6 +1270,11 @@ export default function ParaPetsHubPage() {
 
           <GoldDivider />
 
+          {/* ── Eggs of the Realm ─────────────────────────────────────────── */}
+          <EggShowcase />
+
+          <GoldDivider />
+
           {/* ── Founders banner ───────────────────────────────────────────── */}
           <Link
             href="/founders"
@@ -1285,11 +1290,11 @@ export default function ParaPetsHubPage() {
             <img
               src={foundersBanner}
               alt="Founders Hall"
-              style={{ width: "100%", display: "block", objectFit: "cover", maxHeight: 200 }}
+              style={{ width: "100%", display: "block", objectFit: "cover", objectPosition: "bottom", maxHeight: 200 }}
             />
             <div style={{
               position: "absolute", inset: 0,
-              background: "linear-gradient(to top,rgba(3,12,4,0.85) 0%,rgba(3,12,4,0.2) 45%,transparent 70%)",
+              background: "linear-gradient(to top,rgba(2,8,3,0.92) 0%,rgba(2,8,3,0.55) 40%,rgba(2,8,3,0.3) 70%,rgba(2,8,3,0.15) 100%)",
             }} />
             <div style={{
               position: "absolute", bottom: 0, left: 0, right: 0,
@@ -1392,42 +1397,6 @@ export default function ParaPetsHubPage() {
             </div>
           )}
 
-          <GoldDivider />
-
-          {/* ── Daily Reward (logged-in only) ─────────────────────────────── */}
-          {user && (
-            <>
-              {showClaimHint && (
-                <>
-                  <div style={{ position: "fixed", inset: 0, zIndex: 9 }} onClick={() => setShowClaimHint(false)} />
-                  <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", marginBottom: -8, zIndex: 10, pointerEvents: "none" }}>
-                    <div style={{ background: "rgba(8,22,8,0.94)", border: "1.5px solid rgba(74,222,128,0.7)", borderRadius: 8, padding: "5px 12px", marginBottom: 4, boxShadow: "0 0 14px rgba(34,197,94,0.4), 0 4px 10px rgba(0,0,0,0.7)", whiteSpace: "nowrap" }}>
-                      <span style={{ fontFamily: "Lora, serif", color: "#86efac", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em" }}>Claim your daily reward!</span>
-                    </div>
-                    <div style={{ animation: "claimHintFloat 1.2s ease-in-out infinite", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                      <div style={{ width: 8, height: 24, background: "linear-gradient(180deg,#4ade80 0%,#16a34a 100%)", borderRadius: "3px 3px 0 0", boxShadow: "0 0 10px rgba(34,197,94,0.9)" }} />
-                      <div style={{ width: 0, height: 0, borderLeft: "16px solid transparent", borderRight: "16px solid transparent", borderTop: "20px solid #22c55e", filter: "drop-shadow(0 0 10px rgba(34,197,94,1))" }} />
-                    </div>
-                    <style>{`@keyframes claimHintFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}`}</style>
-                  </div>
-                </>
-              )}
-              <DailyClaimCard user={user} />
-              <GoldDivider />
-            </>
-          )}
-
-          {/* ── About section ─────────────────────────────────────────────── */}
-          <AboutSection />
-          <RuneDivider />
-
-          {/* ── Activity bulletin ─────────────────────────────────────────── */}
-          <ActivityBulletin />
-          <RuneDivider />
-
-          {/* ── Gameplay showcase ─────────────────────────────────────────── */}
-          <EggShowcase />
-          <GameplayShowcase />
 
         </main>
 
