@@ -97,6 +97,41 @@ type Cell = 0 | Piece;
 const emptyBoard = (): Cell[][] =>
   Array.from({ length: ROWS }, () => Array<Cell>(COLS).fill(0));
 
+// ── Item drop ─────────────────────────────────────────────────────────────────
+interface DropItem {
+  id: string;
+  shopItemId: string;
+  rarity: 'common' | 'uncommon' | 'rare';
+  itemName: string;
+  imageUrl: string | null;
+}
+type ItemCell = DropItem | null;
+const emptyItemBoard = (): ItemCell[][] =>
+  Array.from({ length: ROWS }, () => Array<ItemCell>(COLS).fill(null));
+
+function clearItemBoardLines(itemBoard: ItemCell[][], lockedBoard: Cell[][]): ItemCell[][] {
+  const remaining = itemBoard.filter((_, i) => lockedBoard[i].some(c => c === 0));
+  const cleared = ROWS - remaining.length;
+  const newRows = Array.from({ length: cleared }, () => Array<ItemCell>(COLS).fill(null));
+  return [...newRows, ...remaining];
+}
+
+const RARITY_WEIGHT: Record<string, number> = { common: 6, uncommon: 3, rare: 1 };
+const RARITY_GLOW: Record<string, string> = {
+  common: "rgba(200,200,230,0.9)",
+  uncommon: "rgba(74,222,128,0.9)",
+  rare: "rgba(255,215,0,0.95)",
+};
+function pickDropItem(items: DropItem[]): DropItem | null {
+  if (!items.length) return null;
+  const pool: DropItem[] = [];
+  for (const item of items) {
+    const w = RARITY_WEIGHT[item.rarity] ?? 1;
+    for (let i = 0; i < w; i++) pool.push(item);
+  }
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 interface ActivePiece {
   type: Piece;
   x: number;       // col of top-left of bounding box
@@ -195,6 +230,9 @@ export default function MoltenBlocksPage() {
   const holdRef = useRef<Piece | null>(null);
   const [holdPiece, setHoldPiece] = useState<Piece | null>(null);
   const flashRef = useRef<{ rows: number[]; until: number } | null>(null);
+  const itemBoardRef = useRef<ItemCell[][]>(emptyItemBoard());
+  const blocksLockedRef = useRef(0);
+  const dropItemsRef = useRef<DropItem[]>([]);
   const lastDropRef = useRef<number>(0);
   const dropIntervalRef = useRef<number>(800);
   const softDropRef = useRef<boolean>(false);
@@ -227,6 +265,7 @@ export default function MoltenBlocksPage() {
   const [showIntro, setShowIntro] = useState(true);
   // 1 = "How to Play" slide, 2 = leaderboard + Start slide
   const [introStep, setIntroStep] = useState(1);
+  const [itemAwards, setItemAwards] = useState<{ id: string; name: string; rarity: string }[]>([]);
 
   // Leaderboard — fetched once on mount so the intro screen can display it.
   const { data: lbData } = useQuery<{
@@ -236,6 +275,15 @@ export default function MoltenBlocksPage() {
     queryKey: ["/api/games/molten-blocks/leaderboard"],
     staleTime: 30_000,
   });
+
+  // Drop items pool — prefetch so the game can use them without a mid-game request
+  const { data: dropItemsData } = useQuery<DropItem[]>({
+    queryKey: ["/api/games/molten-blocks/drop-items"],
+    staleTime: 5 * 60_000,
+  });
+  useEffect(() => {
+    dropItemsRef.current = dropItemsData ?? [];
+  }, [dropItemsData]);
 
   // ── Preload block textures into HTMLImageElement refs ───────────────────
   const imgsRef = useRef<Record<Piece, HTMLImageElement>>({} as any);
@@ -261,6 +309,7 @@ export default function MoltenBlocksPage() {
   // and after losing a life). Score / coins / lives are NOT touched here.
   const resetBoard = useCallback(() => {
     boardRef.current = emptyBoard();
+    itemBoardRef.current = emptyItemBoard();
     bagRef.current = makeBag();
     activeRef.current = spawn(pullPiece());
     nextRef.current = pullPiece();
@@ -467,20 +516,68 @@ export default function MoltenBlocksPage() {
   // ── Lock current piece, clear lines, update score / level ───────────────
   const lockAndClear = useCallback(() => {
     if (!activeRef.current) return;
-    const locked = lockPiece(boardRef.current, activeRef.current);
+    const piece = activeRef.current;
+    const locked = lockPiece(boardRef.current, piece);
+
+    // ── Item drop: every 20 blocks placed, try to embed a drop item ──────
+    blocksLockedRef.current++;
+    if (blocksLockedRef.current % 20 === 0 && dropItemsRef.current.length > 0) {
+      const drop = pickDropItem(dropItemsRef.current);
+      if (drop) {
+        const shape = SHAPES[piece.type][piece.rot];
+        const cells: [number, number][] = [];
+        for (let r = 0; r < shape.length; r++) {
+          for (let c = 0; c < shape[r].length; c++) {
+            if (!shape[r][c]) continue;
+            const ny = piece.y + r, nx = piece.x + c;
+            if (ny >= 0 && ny < ROWS && nx >= 0 && nx < COLS) cells.push([ny, nx]);
+          }
+        }
+        if (cells.length > 0) {
+          const [ry, rx] = cells[Math.floor(Math.random() * cells.length)];
+          const nextIB = itemBoardRef.current.map(row => row.slice()) as ItemCell[][];
+          nextIB[ry][rx] = drop;
+          itemBoardRef.current = nextIB;
+        }
+      }
+    }
+
     // Detect cleared row indices for flash effect
     const clearedIdx: number[] = [];
     for (let r = 0; r < ROWS; r++) if (locked[r].every(c => c !== 0)) clearedIdx.push(r);
+
     if (clearedIdx.length > 0) {
+      // Collect items sitting in the rows that are about to be cleared
+      const pendingAwards: DropItem[] = [];
+      for (const r of clearedIdx) {
+        for (let c = 0; c < COLS; c++) {
+          const it = itemBoardRef.current[r][c];
+          if (it) pendingAwards.push(it);
+        }
+      }
+
       flashRef.current = { rows: clearedIdx, until: performance.now() + 180 };
       // Defer the actual line-clear until after the flash so the player
       // sees the rows light up first.
       boardRef.current = locked;
       activeRef.current = null;
       setTimeout(() => {
-        const { board: cleared, cleared: n } = clearLines(boardRef.current);
+        const lockedSnap = boardRef.current;
+        const { board: cleared, cleared: n } = clearLines(lockedSnap);
+        itemBoardRef.current = clearItemBoardLines(itemBoardRef.current, lockedSnap);
         boardRef.current = cleared;
         flashRef.current = null;
+
+        // Award any items found in the cleared rows
+        for (const drop of pendingAwards) {
+          apiRequest("POST", "/api/games/molten-blocks/award-item", { shopItemId: drop.shopItemId })
+            .then(() => queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }))
+            .catch(() => {});
+          const awardId = `drop_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+          setItemAwards(prev => [...prev, { id: awardId, name: drop.itemName, rarity: drop.rarity }]);
+          setTimeout(() => setItemAwards(prev => prev.filter(a => a.id !== awardId)), 3500);
+        }
+
         // Compute new totals SYNCHRONOUSLY against the refs so that if
         // spawnNext() immediately tops the player out, finalizeRun() reads
         // the values that include this final clear (React state setters
@@ -687,6 +784,41 @@ export default function MoltenBlocksPage() {
         if (cellVal !== 0) {
           drawCell(ctx, offX + c * cell, offY + r * cell, cell, cellVal);
         }
+      }
+    }
+
+    // Item glow overlay — pulsing glow on cells that contain a drop item
+    const nt = performance.now();
+    const itemBoard = itemBoardRef.current;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const it = itemBoard[r][c];
+        if (!it || board[r][c] === 0) continue;
+        const pulse = 0.65 + 0.35 * Math.sin(nt / 380 + r * 0.7 + c * 0.5);
+        const glow = RARITY_GLOW[it.rarity] ?? RARITY_GLOW.common;
+        const cx = offX + c * cell + cell / 2;
+        const cy = offY + r * cell + cell / 2;
+        const radius = cell * (it.rarity === 'rare' ? 0.26 : it.rarity === 'uncommon' ? 0.21 : 0.17);
+        ctx.save();
+        ctx.shadowColor = glow;
+        ctx.shadowBlur = cell * (it.rarity === 'rare' ? 0.65 : it.rarity === 'uncommon' ? 0.45 : 0.3) * pulse;
+        ctx.strokeStyle = glow.replace(/[\d.]+\)$/, `${(0.7 * pulse).toFixed(2)})`);
+        ctx.lineWidth = it.rarity === 'rare' ? 2 : 1.5;
+        ctx.strokeRect(offX + c * cell + 1.5, offY + r * cell + 1.5, cell - 3, cell - 3);
+        ctx.fillStyle = glow.replace(/[\d.]+\)$/, `${(0.5 * pulse).toFixed(2)})`);
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+        ctx.fill();
+        if (it.rarity === 'rare') {
+          const spin = nt / 1200;
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = `rgba(255,215,0,${(0.5 * pulse).toFixed(2)})`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius * 1.7, spin, spin + Math.PI * 1.3);
+          ctx.stroke();
+        }
+        ctx.restore();
       }
     }
 
@@ -1054,6 +1186,26 @@ export default function MoltenBlocksPage() {
         </div>
       </div>
 
+      {/* Item award floating notifications */}
+      {itemAwards.map(award => (
+        <div key={award.id} style={{
+          position: "absolute", left: "50%", top: "35%",
+          pointerEvents: "none", zIndex: 20,
+          textAlign: "center", animation: "itemAwardFloat 3.2s ease-out forwards",
+        }}>
+          <div style={{
+            fontSize: 15, fontWeight: 700, letterSpacing: "0.06em",
+            color: award.rarity === 'rare' ? '#fbbf24' : award.rarity === 'uncommon' ? '#4ade80' : '#e2e8f0',
+            textShadow: `0 0 14px ${award.rarity === 'rare' ? 'rgba(255,215,0,0.9)' : award.rarity === 'uncommon' ? 'rgba(74,222,128,0.9)' : 'rgba(200,200,230,0.7)'}`,
+          }}>✨ +1 {award.name}</div>
+          <div style={{
+            fontSize: 10, marginTop: 2, letterSpacing: "0.12em",
+            color: award.rarity === 'rare' ? '#fbbf24' : award.rarity === 'uncommon' ? '#4ade80' : '#a0a0c0',
+            opacity: 0.8,
+          }}>{award.rarity.toUpperCase()} DROP</div>
+        </div>
+      ))}
+
       {/* Pre-game intro: title + tutorial + Start button (mount-only) */}
       {showIntro && !gameOver && introStep === 1 && (
         <Overlay>
@@ -1096,18 +1248,20 @@ export default function MoltenBlocksPage() {
 
       {showIntro && !gameOver && introStep === 2 && (
         <Overlay>
-          {/* Close button — exits back to Volcanic World */}
-          <button
-            data-testid="button-close-molten"
-            onClick={() => navigate("/world/volcanic")}
-            style={{
-              position: "absolute", top: 12, right: 14,
-              background: "rgba(20,8,4,0.7)", border: "1px solid rgba(122,85,48,0.4)",
-              borderRadius: 8, color: "#a06a30", fontSize: 18, lineHeight: 1,
-              width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer",
-            }}
-          >✕</button>
+          {/* Close row — in-flow flex row so the button is always visible */}
+          <div style={{ display: "flex", width: "100%", maxWidth: 340, justifyContent: "flex-end", marginBottom: -4 }}>
+            <button
+              data-testid="button-close-molten"
+              onClick={() => navigate("/world/volcanic")}
+              style={{
+                background: "rgba(20,8,4,0.9)", border: "1.5px solid rgba(251,146,60,0.6)",
+                borderRadius: 8, color: "#fb923c", fontSize: 18, lineHeight: 1,
+                width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", fontWeight: 700,
+                boxShadow: "0 0 12px rgba(251,146,60,0.25)",
+              }}
+            >✕</button>
+          </div>
 
           <div style={{ fontSize: 11, letterSpacing: "0.32em", color: "#a06a30" }}>THE MOLTEN BASTION</div>
           <h2 style={{

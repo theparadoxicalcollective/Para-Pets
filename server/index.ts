@@ -299,6 +299,18 @@ app.use((req, res, next) => {
     console.error("users.molten_blocks_high_score migration error (non-fatal):", err);
   }
 
+  try {
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS molten_blocks_drop_items (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      shop_item_id VARCHAR NOT NULL,
+      rarity VARCHAR(16) NOT NULL DEFAULT 'common',
+      active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMP NOT NULL DEFAULT now()
+    )`);
+  } catch (err) {
+    console.error("molten_blocks_drop_items migration error (non-fatal):", err);
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
@@ -613,6 +625,14 @@ app.use((req, res, next) => {
     () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS molten_blocks_high_score INTEGER NOT NULL DEFAULT 0`));
   await runMigration("idx_users_molten_blocks_high_score",
     () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_users_molten_blocks_high_score ON users (molten_blocks_high_score DESC)`));
+  await runMigration("molten_blocks_drop_items.table",
+    () => db.execute(sql`CREATE TABLE IF NOT EXISTS molten_blocks_drop_items (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      shop_item_id VARCHAR NOT NULL,
+      rarity VARCHAR(16) NOT NULL DEFAULT 'common',
+      active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMP NOT NULL DEFAULT now()
+    )`));
 
   try {
     await db.execute(sql`

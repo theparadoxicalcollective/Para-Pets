@@ -2288,6 +2288,77 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/molten-blocks/items", isAdmin, async (req, res) => {
+    try {
+      return res.json(await storage.getMoltenBlocksDropItems());
+    } catch (err) {
+      console.error("Admin molten blocks items error:", err);
+      return res.status(500).json({ message: "Failed to fetch items" });
+    }
+  });
+
+  app.post("/api/admin/molten-blocks/items", isAdmin, async (req, res) => {
+    try {
+      const { shopItemId, rarity } = req.body;
+      if (!shopItemId || !["common","uncommon","rare"].includes(rarity)) {
+        return res.status(400).json({ message: "shopItemId and rarity (common|uncommon|rare) required" });
+      }
+      await storage.addMoltenBlocksDropItem(shopItemId, rarity);
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("Admin add molten blocks item error:", err);
+      return res.status(500).json({ message: "Failed to add item" });
+    }
+  });
+
+  app.delete("/api/admin/molten-blocks/items/:id", isAdmin, async (req, res) => {
+    try {
+      await storage.removeMoltenBlocksDropItem(req.params.id);
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("Admin remove molten blocks item error:", err);
+      return res.status(500).json({ message: "Failed to remove item" });
+    }
+  });
+
+  app.patch("/api/admin/molten-blocks/items/:id", isAdmin, async (req, res) => {
+    try {
+      const { active } = req.body;
+      if (typeof active !== "boolean") return res.status(400).json({ message: "active (boolean) required" });
+      await storage.toggleMoltenBlocksDropItem(req.params.id, active);
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("Admin toggle molten blocks item error:", err);
+      return res.status(500).json({ message: "Failed to toggle item" });
+    }
+  });
+
+  app.get("/api/games/molten-blocks/drop-items", async (req, res) => {
+    try {
+      return res.json(await storage.getMoltenBlocksDropItems(true));
+    } catch (err) {
+      console.error("Molten blocks drop items error:", err);
+      return res.status(500).json({ message: "Failed to fetch drop items" });
+    }
+  });
+
+  app.post("/api/games/molten-blocks/award-item", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { shopItemId } = req.body;
+      if (!shopItemId) return res.status(400).json({ message: "shopItemId required" });
+      const dropItems = await storage.getMoltenBlocksDropItems(true);
+      if (!dropItems.some(i => i.shopItemId === shopItemId)) {
+        return res.status(400).json({ message: "Item not in active drop pool" });
+      }
+      await storage.addToInventory(user.id, shopItemId);
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("Molten blocks award item error:", err);
+      return res.status(500).json({ message: "Failed to award item" });
+    }
+  });
+
   app.post("/api/pet/:inventoryId/feed-edible", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;

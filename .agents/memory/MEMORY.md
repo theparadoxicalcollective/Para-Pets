@@ -1,0 +1,1 @@
+- [Molten Blocks drop items](molten-blocks-drop-items.md) — item drop feature: runtime table, every 20 blocks placed, close-button fix approach.

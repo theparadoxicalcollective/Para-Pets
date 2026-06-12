@@ -935,3 +935,13 @@ export const userQuestLogState = pgTable("user_quest_log_state", {
 
 export type DailyQuest = typeof dailyQuests.$inferSelect;
 export type UserDailyQuestProgress = typeof userDailyQuestProgress.$inferSelect;
+
+// Runtime table — managed by raw SQL in server/index.ts.
+// Declared here so drizzle-kit treats it as tracked.
+export const moltenBlocksDropItems = pgTable("molten_blocks_drop_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  shopItemId: varchar("shop_item_id").notNull(),
+  rarity: varchar("rarity", { length: 16 }).notNull().default("common"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});

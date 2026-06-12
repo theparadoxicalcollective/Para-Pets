@@ -96,6 +96,10 @@ export interface IStorage {
   getMoltenBlocksLeaderboard(viewerId?: string): Promise<{ rank: number; username: string; score: number; isViewer: boolean }[]>;
   getMoltenBlocksViewerRank(userId: string): Promise<{ rank: number; score: number }>;
   submitMoltenBlocksScore(userId: string, score: number): Promise<number>;
+  getMoltenBlocksDropItems(activeOnly?: boolean): Promise<{ id: string; shopItemId: string; rarity: string; active: boolean; itemName: string; imageUrl: string | null }[]>;
+  addMoltenBlocksDropItem(shopItemId: string, rarity: string): Promise<void>;
+  removeMoltenBlocksDropItem(id: string): Promise<void>;
+  toggleMoltenBlocksDropItem(id: string, active: boolean): Promise<void>;
   // Per-pet petting reward state. Looks up by inventoryId and verifies the
   // pet belongs to userId (returns null if not). Update sets both timestamp
   // and daily counter atomically.
@@ -3161,6 +3165,36 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId))
       .returning({ s: users.moltenBlocksHighScore });
     return updated?.s ?? score;
+  }
+
+  async getMoltenBlocksDropItems(activeOnly = false): Promise<{ id: string; shopItemId: string; rarity: string; active: boolean; itemName: string; imageUrl: string | null }[]> {
+    const rows = await db.execute(sql`
+      SELECT mb.id, mb.shop_item_id, mb.rarity, mb.active, si.name AS item_name, si.image_url
+      FROM molten_blocks_drop_items mb
+      JOIN shop_items si ON si.id = mb.shop_item_id
+      ${activeOnly ? sql`WHERE mb.active = true` : sql``}
+      ORDER BY mb.created_at DESC
+    `);
+    return (rows.rows as any[]).map(r => ({
+      id: r.id as string,
+      shopItemId: r.shop_item_id as string,
+      rarity: r.rarity as string,
+      active: r.active as boolean,
+      itemName: r.item_name as string,
+      imageUrl: r.image_url as string | null,
+    }));
+  }
+
+  async addMoltenBlocksDropItem(shopItemId: string, rarity: string): Promise<void> {
+    await db.execute(sql`INSERT INTO molten_blocks_drop_items (shop_item_id, rarity) VALUES (${shopItemId}, ${rarity})`);
+  }
+
+  async removeMoltenBlocksDropItem(id: string): Promise<void> {
+    await db.execute(sql`DELETE FROM molten_blocks_drop_items WHERE id = ${id}`);
+  }
+
+  async toggleMoltenBlocksDropItem(id: string, active: boolean): Promise<void> {
+    await db.execute(sql`UPDATE molten_blocks_drop_items SET active = ${active} WHERE id = ${id}`);
   }
 
   async addVWQuote(message: string, addedBy?: string): Promise<VeridianWatcherQuote> {

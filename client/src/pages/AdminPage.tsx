@@ -63,7 +63,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [banModalUserId, setBanModalUserId] = useState<string | null>(null);
   const [banDays, setBanDays] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "emblems" | "maintenance" | "home_bundle" | "purchases" | "veridian_watcher" | "quest" | null>(null);
+  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "emblems" | "maintenance" | "home_bundle" | "purchases" | "veridian_watcher" | "quest" | "molten_blocks" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const [characterTab, setCharacterTab] = useState<"pet" | "enemy" | "npc" | "fish">("pet");
   const [itemsTab, setItemsTab] = useState<"items" | "fishing">("items");
@@ -167,6 +167,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "purchases" as const, label: "Purchases", icon: adminIconPurchases, desc: "Coin shop history", color: "#86efac", glow: "rgba(134,239,172,0.30)", bg: "linear-gradient(145deg, rgba(8,45,18,0.92) 0%, rgba(12,70,28,0.88) 100%)", border: "rgba(134,239,172,0.45)" },
     { key: "maintenance" as const, label: "Maintenance", icon: adminIconMaintenance, desc: "DB cleanup tools", color: "#f9a8d4", glow: "rgba(249,168,212,0.30)", bg: "linear-gradient(145deg, rgba(60,8,40,0.92) 0%, rgba(90,12,60,0.88) 100%)", border: "rgba(249,168,212,0.45)" },
     { key: "veridian_watcher" as const, label: "Veridian Watcher", icon: adminIconVeridianWatcher, desc: "Bot quotes & chat filter", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
+    { key: "molten_blocks" as const, label: "Molten Blocks", icon: adminIconItems, desc: "Item drops in Molten Blocks", color: "#fb923c", glow: "rgba(251,146,60,0.35)", bg: "linear-gradient(145deg, rgba(72,24,4,0.92) 0%, rgba(110,38,8,0.88) 100%)", border: "rgba(251,146,60,0.5)" },
   ];
 
   const activeSectionMeta = activeSection ? sections.find(s => s.key === activeSection) : null;
@@ -523,6 +524,10 @@ export default function AdminPage({ user }: AdminPageProps) {
 
               {activeSection === "quest" && (
                 <QuestAdminSection />
+              )}
+
+              {activeSection === "molten_blocks" && (
+                <MoltenBlocksItemsSection />
               )}
 
               {activeSection === "items" && (
@@ -3559,6 +3564,213 @@ function EmblemDatabaseSection() {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function MoltenBlocksItemsSection() {
+  const [showPicker, setShowPicker] = useState(false);
+  const [pendingItem, setPendingItem] = useState<ShopItemFull | null>(null);
+  const [pendingRarity, setPendingRarity] = useState<'common' | 'uncommon' | 'rare'>('common');
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  type DropItemRow = { id: string; shopItemId: string; rarity: string; active: boolean; itemName: string; imageUrl: string | null };
+
+  const { data: items = [], isLoading } = useQuery<DropItemRow[]>({
+    queryKey: ["/api/admin/molten-blocks/items"],
+  });
+  const { data: allShopItems = [] } = useQuery<ShopItemFull[]>({
+    queryKey: ["/api/admin/shop-items-all"],
+  });
+
+  const addMutation = useMutation({
+    mutationFn: async ({ shopItemId, rarity }: { shopItemId: string; rarity: string }) => {
+      const res = await apiRequest("POST", "/api/admin/molten-blocks/items", { shopItemId, rarity });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/molten-blocks/items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/games/molten-blocks/drop-items"] });
+      setPendingItem(null);
+      toast({ title: "Item Added", description: "Drop item added to pool." });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message || "Failed", variant: "destructive" }),
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("DELETE", `/api/admin/molten-blocks/items/${id}`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/molten-blocks/items"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/games/molten-blocks/drop-items"] });
+      toast({ title: "Removed", description: "Item removed from drop pool." });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message || "Failed", variant: "destructive" }),
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/admin/molten-blocks/items/${id}`, { active });
+      return res.json();
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/molten-blocks/items"] }),
+    onError: (e: any) => toast({ title: "Error", description: e.message || "Failed", variant: "destructive" }),
+  });
+
+  const RARITY_COLOR: Record<string, string> = { common: "#94a3b8", uncommon: "#4ade80", rare: "#fbbf24" };
+  const RARITY_BG: Record<string, string> = { common: "rgba(148,163,184,0.15)", uncommon: "rgba(74,222,128,0.15)", rare: "rgba(251,191,36,0.15)" };
+
+  return (
+    <div style={{ paddingBottom: 32 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#fb923c", letterSpacing: "0.12em" }}>MOLTEN BLOCKS DROPS</div>
+          <div style={{ fontSize: 11, color: "#7a5530", marginTop: 2 }}>Items that can drop as glowing blocks during gameplay</div>
+        </div>
+        <button
+          data-testid="button-add-drop-item"
+          onClick={() => setShowPicker(true)}
+          style={{
+            background: "linear-gradient(135deg, rgba(251,146,60,0.25) 0%, rgba(217,119,6,0.2) 100%)",
+            border: "1px solid rgba(251,146,60,0.5)", color: "#fb923c",
+            padding: "8px 14px", borderRadius: 8, fontSize: 12, cursor: "pointer", fontWeight: 600,
+          }}
+        >+ Add Item</button>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
+        {(['common', 'uncommon', 'rare'] as const).map(r => (
+          <div key={r} style={{
+            display: "flex", alignItems: "center", gap: 5, padding: "3px 10px",
+            borderRadius: 20, background: RARITY_BG[r], border: `1px solid ${RARITY_COLOR[r]}44`,
+          }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: RARITY_COLOR[r], boxShadow: `0 0 6px ${RARITY_COLOR[r]}` }} />
+            <span style={{ fontSize: 10, color: RARITY_COLOR[r], letterSpacing: "0.1em", fontWeight: 600 }}>{r.toUpperCase()}</span>
+          </div>
+        ))}
+        <span style={{ fontSize: 10, color: "#7a5530" }}>· spawns every ~20 blocks placed</span>
+      </div>
+
+      {isLoading ? (
+        <div style={{ textAlign: "center", padding: "24px 0", color: "#7a5530", fontSize: 12 }}>Loading...</div>
+      ) : items.length === 0 ? (
+        <div style={{
+          textAlign: "center", padding: "32px 16px",
+          background: "rgba(20,8,4,0.6)", border: "1px dashed rgba(251,146,60,0.3)", borderRadius: 12, color: "#7a5530", fontSize: 12,
+        }}>
+          No drop items yet. Add items and they'll appear as glowing blocks during Molten Blocks games.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {items.map(item => (
+            <div
+              key={item.id}
+              data-testid={`drop-item-row-${item.id}`}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                background: item.active ? "rgba(20,8,4,0.75)" : "rgba(10,4,2,0.5)",
+                border: `1px solid ${item.active ? RARITY_COLOR[item.rarity] + "55" : "rgba(80,40,20,0.3)"}`,
+                borderRadius: 10, padding: "10px 12px", opacity: item.active ? 1 : 0.55,
+              }}
+            >
+              {item.imageUrl && (
+                <img src={item.imageUrl} alt={item.itemName} style={{ width: 36, height: 36, objectFit: "contain", borderRadius: 6, flexShrink: 0 }} />
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, color: "#f5d589", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.itemName}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
+                  <span style={{
+                    fontSize: 9, letterSpacing: "0.1em", fontWeight: 700, color: RARITY_COLOR[item.rarity],
+                    padding: "1px 7px", background: RARITY_BG[item.rarity], border: `1px solid ${RARITY_COLOR[item.rarity]}44`, borderRadius: 10,
+                  }}>{item.rarity.toUpperCase()}</span>
+                  <span style={{ fontSize: 10, color: item.active ? "#6ee7b7" : "#7a5530" }}>{item.active ? "● active" : "○ inactive"}</span>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                <button
+                  data-testid={`toggle-drop-item-${item.id}`}
+                  onClick={() => toggleMutation.mutate({ id: item.id, active: !item.active })}
+                  style={{
+                    padding: "5px 10px", borderRadius: 6, fontSize: 10, cursor: "pointer", fontWeight: 600,
+                    background: item.active ? "rgba(251,146,60,0.15)" : "rgba(74,222,128,0.15)",
+                    border: `1px solid ${item.active ? "rgba(251,146,60,0.4)" : "rgba(74,222,128,0.4)"}`,
+                    color: item.active ? "#fb923c" : "#4ade80",
+                  }}
+                >{item.active ? "Disable" : "Enable"}</button>
+                <button
+                  data-testid={`remove-drop-item-${item.id}`}
+                  onClick={() => removeMutation.mutate(item.id)}
+                  style={{
+                    padding: "5px 10px", borderRadius: 6, fontSize: 10, cursor: "pointer",
+                    background: "rgba(252,165,165,0.1)", border: "1px solid rgba(252,165,165,0.3)", color: "#fca5a5",
+                  }}
+                >Remove</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {pendingItem && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/70" onClick={() => setPendingItem(null)} />
+          <div className="relative rounded-xl p-5 w-[80%] max-w-xs" style={{
+            background: "linear-gradient(135deg, rgba(30,12,4,0.98) 0%, rgba(60,28,8,0.98) 100%)",
+            border: "1px solid rgba(251,146,60,0.5)",
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#fb923c", marginBottom: 10 }}>Set Rarity</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              {pendingItem.imageUrl && <img src={pendingItem.imageUrl} alt={pendingItem.name} style={{ width: 32, height: 32, objectFit: "contain" }} />}
+              <span style={{ fontSize: 12, color: "#f5d589" }}>{pendingItem.name}</span>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              {(['common', 'uncommon', 'rare'] as const).map(r => (
+                <button
+                  key={r}
+                  onClick={() => setPendingRarity(r)}
+                  style={{
+                    flex: 1, padding: "8px 4px", borderRadius: 8, cursor: "pointer", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
+                    background: pendingRarity === r ? RARITY_BG[r] : "rgba(0,0,0,0.3)",
+                    border: `1px solid ${pendingRarity === r ? RARITY_COLOR[r] : "rgba(100,60,20,0.3)"}`,
+                    color: pendingRarity === r ? RARITY_COLOR[r] : "#7a5530",
+                    boxShadow: pendingRarity === r ? `0 0 10px ${RARITY_COLOR[r]}44` : "none",
+                  }}
+                >{r.toUpperCase()}</button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => setPendingItem(null)}
+                style={{ flex: 1, padding: "8px", borderRadius: 8, background: "rgba(0,0,0,0.3)", border: "1px solid rgba(100,60,20,0.3)", color: "#7a5530", fontSize: 12, cursor: "pointer" }}
+              >Cancel</button>
+              <button
+                onClick={() => addMutation.mutate({ shopItemId: pendingItem.id, rarity: pendingRarity })}
+                disabled={addMutation.isPending}
+                style={{
+                  flex: 1, padding: "8px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 700,
+                  background: "linear-gradient(135deg, rgba(251,146,60,0.3) 0%, rgba(217,119,6,0.25) 100%)",
+                  border: "1px solid rgba(251,146,60,0.55)", color: "#fb923c",
+                }}
+              >{addMutation.isPending ? "Adding..." : "Add to Pool"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPicker && (
+        <ItemPickerModal
+          items={allShopItems}
+          onSelect={(item) => {
+            setShowPicker(false);
+            setPendingItem(item);
+            setPendingRarity("common");
+          }}
+          onClose={() => setShowPicker(false)}
+        />
       )}
     </div>
   );
