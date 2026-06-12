@@ -326,6 +326,36 @@ export default function AuthPage() {
                   style={{ filter: "drop-shadow(0 0 16px rgba(240,160,48,0.75)) drop-shadow(0 4px 10px rgba(0,0,0,0.95))" }}
                 />
               </button>
+              {/* Content rating notice */}
+              <div className="flex items-center justify-center gap-2 mt-4 mb-1">
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 7,
+                  background: "rgba(4,12,7,0.65)",
+                  border: "1px solid rgba(200,160,50,0.22)",
+                  borderRadius: 8,
+                  padding: "5px 12px",
+                  backdropFilter: "blur(4px)",
+                }}>
+                  <span style={{
+                    fontFamily: "Lora, serif",
+                    fontWeight: 700,
+                    fontSize: 11,
+                    color: "#d4a843",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    background: "rgba(212,168,67,0.15)",
+                    border: "1px solid rgba(212,168,67,0.45)",
+                    borderRadius: 4,
+                    padding: "1px 6px",
+                  }}>T</span>
+                  <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "rgba(240,232,210,0.7)", letterSpacing: "0.03em" }}>
+                    Recommended for ages 13+
+                  </span>
+                </div>
+              </div>
+
               <Link
                 data-testid="link-para-pets-hub"
                 href="/hub"

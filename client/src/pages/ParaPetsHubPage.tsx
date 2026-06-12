@@ -967,7 +967,7 @@ function useSeoMeta() {
       el.setAttribute("content", value);
     };
 
-    const desc = "Collect, raise, and battle magical pets in Para Pets — a free browser-based fantasy adventure game. Hatch eggs, explore enchanted worlds, upgrade your pets, and climb the leaderboards!";
+    const desc = "Para Pets is a free browser-based fantasy pet game for older teens and up. Collect and name magical companions, level them up, and battle rivals in PvP arenas. Trade on the player marketplace, fish magical ponds, play Molten Blocks, explore enchanted worlds, add friends, and climb the leaderboards.";
     const img  = `${window.location.origin}/logo_parapets.png`;
     const url  = "https://www.parapets.net/hub";
 
