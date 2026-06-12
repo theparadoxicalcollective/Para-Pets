@@ -31,12 +31,10 @@ const TICKET_BUNDLES: Array<{
   cost: number;
   tier: "bronze" | "silver" | "gold" | "purple" | "amber" | "magenta";
 }> = [
-  { id: "1",   tickets: 1,   cost: 50,   tier: "bronze"  },
-  { id: "5",   tickets: 5,   cost: 250,  tier: "silver"  },
-  { id: "10",  tickets: 10,  cost: 500,  tier: "gold"    },
-  { id: "25",  tickets: 25,  cost: 1250, tier: "purple"  },
-  { id: "50",  tickets: 50,  cost: 2500, tier: "amber"   },
-  { id: "100", tickets: 100, cost: 5000, tier: "magenta" },
+  { id: "1",  tickets: 1,  cost: 50,   tier: "bronze" },
+  { id: "3",  tickets: 3,  cost: 250,  tier: "silver" },
+  { id: "6",  tickets: 6,  cost: 500,  tier: "gold"   },
+  { id: "15", tickets: 15, cost: 1250, tier: "purple" },
 ];
 
 // Per-tier visual treatment. Borders/glows escalate so the 100-pack

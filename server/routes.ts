@@ -6170,12 +6170,10 @@ export async function registerRoutes(
   // pattern as the regular shop buy endpoint) so a race with another
   // request can never overdraw the player's balance.
   const PVP_TICKET_BUNDLES: Record<string, { tickets: number; cost: number }> = {
-    "1":   { tickets: 1,   cost: 50 },
-    "5":   { tickets: 5,   cost: 250 },
-    "10":  { tickets: 10,  cost: 500 },
-    "25":  { tickets: 25,  cost: 1250 },
-    "50":  { tickets: 50,  cost: 2500 },
-    "100": { tickets: 100, cost: 5000 },
+    "1":  { tickets: 1,  cost: 50 },
+    "3":  { tickets: 3,  cost: 250 },
+    "6":  { tickets: 6,  cost: 500 },
+    "15": { tickets: 15, cost: 1250 },
   };
 
   app.get("/api/pvp/tickets/bundles", isAuthenticated, async (_req: Request, res: Response) => {
