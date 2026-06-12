@@ -291,8 +291,8 @@ export default function AuthPage() {
               <span style={{ color: "rgba(200,160,50,0.55)", fontSize: 9 }}>✦</span>
             </div>
 
-            {/* ── Title + tagline — close to top ── */}
-            <div className="flex flex-col items-center mt-8">
+            {/* ── Title + tagline + buttons — one connected block ── */}
+            <div className="flex flex-col items-center w-full mt-6">
               <div className="relative">
                 <span className="title-sparkle absolute -top-5 -left-6 text-2xl select-none" style={{ animationDelay: "0s" }}>✦</span>
                 <span className="title-sparkle absolute -top-5 -right-6 text-2xl select-none" style={{ animationDelay: "1.2s" }}>✦</span>
@@ -319,17 +319,12 @@ export default function AuthPage() {
               >
                 A world of magical companions awaits
               </p>
-            </div>
 
-            {/* Spacer pushes buttons toward center */}
-            <div className="flex-1" />
-
-            {/* ── Buttons — centered in lower half ── */}
-            <div className="flex flex-col items-center w-full mb-6">
+              {/* Buttons — directly below tagline */}
               <button
                 data-testid="button-signin"
                 onClick={() => setMode("login")}
-                className="w-[68%] max-w-[270px] mx-auto block transition-transform duration-150 active:scale-95"
+                className="w-[68%] max-w-[270px] mx-auto mt-8 block transition-transform duration-150 active:scale-95"
                 style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
               >
                 <img
@@ -351,23 +346,26 @@ export default function AuthPage() {
                 />
               </button>
 
-              {/* Para Pets Hub */}
+              {/* Para Pets Hub — pulsing gold-teal excitement */}
               <Link
                 data-testid="link-para-pets-hub"
                 href="/hub"
-                className="w-[78%] max-w-[310px] mx-auto mt-3 flex items-center justify-center gap-2 py-3 rounded-xl font-fantasy tracking-widest transition-all duration-150 active:scale-95"
+                className="w-[82%] max-w-[320px] mx-auto mt-4 flex items-center justify-center gap-3 py-3.5 rounded-2xl font-fantasy tracking-widest transition-all duration-150 active:scale-95"
                 style={{
-                  fontSize: "0.95rem",
-                  background: "linear-gradient(135deg, rgba(0,100,80,0.85) 0%, rgba(0,68,52,0.88) 100%)",
-                  border: "1.5px solid rgba(0,220,175,0.65)",
-                  color: "#5fffd4",
-                  boxShadow: "0 0 24px rgba(0,210,165,0.35), inset 0 1px 0 rgba(127,255,212,0.18), 0 4px 16px rgba(0,0,0,0.7)",
-                  textShadow: "0 0 16px rgba(0,230,180,0.85)",
-                  backdropFilter: "blur(6px)",
+                  fontSize: "1rem",
+                  background: "linear-gradient(135deg, rgba(0,130,100,0.9) 0%, rgba(0,80,60,0.92) 50%, rgba(0,110,85,0.9) 100%)",
+                  border: "2px solid rgba(0,235,185,0.75)",
+                  color: "#afffea",
+                  boxShadow: "0 0 28px rgba(0,220,170,0.55), 0 0 10px rgba(0,220,170,0.3), inset 0 1px 0 rgba(180,255,230,0.2), 0 4px 20px rgba(0,0,0,0.75)",
+                  textShadow: "0 0 18px rgba(0,240,190,0.95), 0 0 6px rgba(0,240,190,0.6)",
+                  backdropFilter: "blur(8px)",
                   textDecoration: "none",
+                  animation: "hub-pulse 2.6s ease-in-out infinite",
                 }}
               >
-                ✦ Para Pets Hub ✦
+                <span style={{ fontSize: "1em", opacity: 0.9, animation: "title-sparkle 2s ease-in-out infinite" }}>✦</span>
+                Para Pets Hub
+                <span style={{ fontSize: "1em", opacity: 0.9, animation: "title-sparkle 2s ease-in-out infinite", animationDelay: "1s" }}>✦</span>
               </Link>
             </div>
           </div>
