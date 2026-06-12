@@ -254,6 +254,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
   useEffect(() => {
     if (successCoins !== null) {
+      playShopBell();
       burstGoldenOrbs(window.innerWidth / 2, window.innerHeight / 2);
       setTimeout(() => burstGoldenOrbs(window.innerWidth / 3, window.innerHeight / 3), 300);
       setTimeout(() => burstGoldenOrbs((window.innerWidth * 2) / 3, window.innerHeight / 3), 500);
@@ -261,7 +262,6 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   }, [successCoins]);
 
   const handleBuy = (packId: string) => {
-    playShopBell();
     setBuyingPackId(packId);
     checkoutMutation.mutate(packId);
   };
@@ -394,7 +394,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                 <button
                   key={pack.id}
                   data-testid={`button-buy-pack-${pack.id}`}
-                  onClick={(e) => { if (!isDisabled && !isBuying) { burstGoldenOrbs(e.clientX, e.clientY); handleBuy(pack.id); } }}
+                  onClick={() => { if (!isDisabled && !isBuying) { handleBuy(pack.id); } }}
                   disabled={isDisabled || isBuying}
                   className="relative rounded-xl p-4 flex flex-col items-center gap-2 transition-all active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100"
                   style={{
