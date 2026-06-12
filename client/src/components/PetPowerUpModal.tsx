@@ -560,7 +560,9 @@ export default function PetPowerUpModal({
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 gap-4">
             <img src={powerupBagIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain" }} />
-            <p className="font-fantasy text-[#86efac] text-sm text-center" style={{ textShadow: "0 0 8px rgba(134,239,172,0.3)" }}>You have no power-up items!</p>
+            {showBuyButton && (
+              <p className="font-fantasy text-[#86efac] text-sm text-center" style={{ textShadow: "0 0 8px rgba(134,239,172,0.3)" }}>You have no power-up items!</p>
+            )}
             {showBuyButton && (
               <button
                 data-testid="button-buy-powerups"
