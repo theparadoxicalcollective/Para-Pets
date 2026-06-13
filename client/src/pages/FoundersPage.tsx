@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { ChevronLeft, Plus, X, Trash2, Heart } from "lucide-react";
+import { ChevronLeft, Plus, X, Pencil, Heart } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import foundersBg from "@assets/generated_images/founders_bg.png";
@@ -11,6 +11,7 @@ interface Founder {
   id: string;
   name: string;
   addedBy: string | null;
+  tier: string | null;
   createdAt: string;
 }
 
@@ -20,13 +21,27 @@ interface MeUser {
   isAdmin?: boolean;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Founders page — public thank-you wall.
-// Header: heartfelt message thanking supporters of the artist.
-// Body: scrollable list of curated founder names (admin-managed via /api/founders).
-// Admin only: a small (+) at the top-right opens an inline modal to add names,
-// and a trash icon appears next to each name when an admin is signed in.
-// ─────────────────────────────────────────────────────────────────────────────
+const TIER_CONFIG = {
+  bronze: {
+    label: "Bronze",
+    gradient: "linear-gradient(135deg, #cd7f32 0%, #a0522d 100%)",
+    glow: "rgba(205,127,50,0.50)",
+    nameGrad: "linear-gradient(180deg, #f5cfa0 0%, #cd7f32 50%, #8b4513 100%)",
+  },
+  silver: {
+    label: "Silver",
+    gradient: "linear-gradient(135deg, #e8e8e8 0%, #9e9e9e 100%)",
+    glow: "rgba(200,200,200,0.50)",
+    nameGrad: "linear-gradient(180deg, #ffffff 0%, #c0c0c0 50%, #808080 100%)",
+  },
+  gold: {
+    label: "Gold",
+    gradient: "linear-gradient(135deg, #f6dc8a 0%, #c8a93a 100%)",
+    glow: "rgba(232,200,88,0.55)",
+    nameGrad: "linear-gradient(180deg, #fff4c8 0%, #f0d278 50%, #c8a030 100%)",
+  },
+};
+
 export default function FoundersPage() {
   const { toast } = useToast();
 
@@ -45,6 +60,7 @@ export default function FoundersPage() {
 
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
+  const [editTarget, setEditTarget] = useState<Founder | null>(null);
 
   const addMutation = useMutation({
     mutationFn: async (name: string) => {
@@ -62,6 +78,21 @@ export default function FoundersPage() {
     },
   });
 
+  const tierMutation = useMutation({
+    mutationFn: async ({ id, tier }: { id: string; tier: string | null }) => {
+      const res = await apiRequest("PATCH", `/api/founders/${id}`, { tier });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/founders"] });
+      setEditTarget(null);
+      toast({ title: "Tier updated" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Could not update", description: err?.message ?? "Try again", variant: "destructive" });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await apiRequest("DELETE", `/api/founders/${id}`);
@@ -69,19 +100,47 @@ export default function FoundersPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/founders"] });
+      setEditTarget(null);
     },
     onError: (err: any) => {
       toast({ title: "Could not remove", description: err?.message ?? "Try again", variant: "destructive" });
     },
   });
 
-  // Close modal on Escape key
   useEffect(() => {
-    if (!showAdd) return;
-    const h = (e: KeyboardEvent) => { if (e.key === "Escape") setShowAdd(false); };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [showAdd]);
+    const closeOnEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setShowAdd(false); setEditTarget(null); }
+    };
+    window.addEventListener("keydown", closeOnEsc);
+    return () => window.removeEventListener("keydown", closeOnEsc);
+  }, []);
+
+  const getNameStyle = (tier: string | null) => {
+    if (tier && TIER_CONFIG[tier as keyof typeof TIER_CONFIG]) {
+      return {
+        fontFamily: "'Merriweather', serif",
+        fontWeight: 700,
+        fontSize: tier === "gold" ? 22 : tier === "silver" ? 21 : 20,
+        lineHeight: 1.4,
+        backgroundImage: TIER_CONFIG[tier as keyof typeof TIER_CONFIG].nameGrad,
+        WebkitBackgroundClip: "text",
+        backgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        filter: `drop-shadow(0 1px 4px ${TIER_CONFIG[tier as keyof typeof TIER_CONFIG].glow})`,
+      };
+    }
+    return {
+      fontFamily: "'Merriweather', serif",
+      fontWeight: 700,
+      fontSize: 20,
+      lineHeight: 1.4,
+      backgroundImage: "linear-gradient(180deg, #fff4c8 0%, #f0d278 50%, #c8a030 100%)",
+      WebkitBackgroundClip: "text",
+      backgroundClip: "text",
+      WebkitTextFillColor: "transparent",
+      filter: "drop-shadow(0 1px 2px rgba(30,18,0,0.8))",
+    };
+  };
 
   return (
     <div
@@ -97,7 +156,6 @@ export default function FoundersPage() {
       }}
       data-testid="founders-page"
     >
-      {/* ── Background art — magical rainforest, gold + green ─────────────── */}
       <div
         aria-hidden
         className="fixed inset-0 pointer-events-none"
@@ -109,8 +167,6 @@ export default function FoundersPage() {
           opacity: 0.85,
         }}
       />
-      {/* Top + bottom darkening gradient so the heading and list stay
-          readable over the brightest part of the painting. */}
       <div
         aria-hidden
         className="fixed inset-0 pointer-events-none"
@@ -124,7 +180,6 @@ export default function FoundersPage() {
             "rgba(4,10,6,0.96) 100%)",
         }}
       />
-      {/* Subtle warm gold vignette */}
       <div
         aria-hidden
         className="fixed inset-0 pointer-events-none"
@@ -134,7 +189,7 @@ export default function FoundersPage() {
         }}
       />
 
-      {/* ── Sticky top bar — back link + admin (+) ────────────────────────── */}
+      {/* ── Top bar ─────────────────────────────────────────────────────────── */}
       <div
         className="sticky top-0 z-30 w-full"
         style={{
@@ -185,9 +240,8 @@ export default function FoundersPage() {
         </div>
       </div>
 
-      {/* ── Main content ──────────────────────────────────────────────────── */}
+      {/* ── Main content ──────────────────────────────────────────────────────── */}
       <main className="relative max-w-2xl mx-auto px-5 pt-8 pb-24" style={{ zIndex: 1 }}>
-        {/* Heart medallion */}
         <div className="flex justify-center mb-5">
           <div
             className="flex items-center justify-center rounded-full"
@@ -231,7 +285,6 @@ export default function FoundersPage() {
           The hands that lit the lanterns
         </p>
 
-        {/* Heartfelt thank-you */}
         <div
           className="rounded-3xl mx-auto px-6 py-6 mb-10 text-center"
           style={{
@@ -290,7 +343,6 @@ export default function FoundersPage() {
           </div>
         </div>
 
-        {/* Section heading */}
         <div className="flex items-center gap-3 mb-5 max-w-md mx-auto">
           <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, rgba(232,200,88,0.35))" }} />
           <span
@@ -302,7 +354,6 @@ export default function FoundersPage() {
           <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, rgba(232,200,88,0.35), transparent)" }} />
         </div>
 
-        {/* Names list */}
         {isLoading ? (
           <div className="flex flex-col gap-2 max-w-md mx-auto" data-testid="founders-loading">
             {[1, 2, 3, 4].map(i => (
@@ -334,40 +385,44 @@ export default function FoundersPage() {
                 {idx > 0 && (
                   <span style={{ color: "#1a0e00", fontSize: 13, margin: "0 8px", userSelect: "none", fontWeight: 900 }}>★</span>
                 )}
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }} data-testid={`founder-row-${f.id}`}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }} data-testid={`founder-row-${f.id}`}>
+                  {f.tier && TIER_CONFIG[f.tier as keyof typeof TIER_CONFIG] && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: "0.08em",
+                        padding: "1px 5px",
+                        borderRadius: 4,
+                        background: TIER_CONFIG[f.tier as keyof typeof TIER_CONFIG].gradient,
+                        color: f.tier === "silver" ? "#3a3a3a" : "#3a2a08",
+                        boxShadow: `0 0 6px ${TIER_CONFIG[f.tier as keyof typeof TIER_CONFIG].glow}`,
+                        verticalAlign: "middle",
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      {TIER_CONFIG[f.tier as keyof typeof TIER_CONFIG].label.toUpperCase()}
+                    </span>
+                  )}
                   <span
                     data-testid={`text-founder-name-${f.id}`}
-                    style={{
-                      fontFamily: "'Merriweather', serif",
-                      fontWeight: 700,
-                      fontSize: 20,
-                      lineHeight: 1.4,
-                      backgroundImage: "linear-gradient(180deg, #fff4c8 0%, #f0d278 50%, #c8a030 100%)",
-                      WebkitBackgroundClip: "text",
-                      backgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                      filter: "drop-shadow(0 1px 2px rgba(30,18,0,0.8))",
-                    }}
+                    style={getNameStyle(f.tier)}
                   >
                     {f.name}
                   </span>
                   {isAdmin && (
                     <button
-                      data-testid={`button-remove-founder-${f.id}`}
-                      onClick={() => {
-                        if (confirm(`Remove "${f.name}" from the founders list?`)) {
-                          deleteMutation.mutate(f.id);
-                        }
-                      }}
-                      aria-label={`Remove ${f.name}`}
+                      data-testid={`button-edit-founder-${f.id}`}
+                      onClick={() => setEditTarget(f)}
+                      aria-label={`Edit ${f.name}`}
                       className="rounded-full p-1 transition-all active:scale-90 flex-shrink-0"
                       style={{
-                        color: "#a06060",
-                        background: "rgba(160,80,80,0.07)",
-                        border: "1px solid rgba(160,80,80,0.20)",
+                        color: "#c8a93a",
+                        background: "rgba(200,169,58,0.08)",
+                        border: "1px solid rgba(200,169,58,0.22)",
                       }}
                     >
-                      <Trash2 size={10} />
+                      <Pencil size={10} />
                     </button>
                   )}
                 </span>
@@ -376,7 +431,6 @@ export default function FoundersPage() {
           </div>
         )}
 
-        {/* Footer keepsake */}
         <p
           className="font-fantasy text-center mt-12"
           style={{ color: "rgba(232,200,88,0.45)", fontSize: 11, letterSpacing: "0.2em" }}
@@ -385,7 +439,7 @@ export default function FoundersPage() {
         </p>
       </main>
 
-      {/* ── Admin add modal ────────────────────────────────────────────────── */}
+      {/* ── Add founder modal ────────────────────────────────────────────────── */}
       {showAdd && isAdmin && (
         <div
           className="fixed inset-0 flex items-center justify-center px-5"
@@ -427,10 +481,7 @@ export default function FoundersPage() {
             </div>
             <div className="px-6 py-5 flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label
-                  className="font-fantasy text-[10px] tracking-widest uppercase"
-                  style={{ color: "#7a6a30" }}
-                >
+                <label className="font-fantasy text-[10px] tracking-widest uppercase" style={{ color: "#7a6a30" }}>
                   Name
                 </label>
                 <input
@@ -465,6 +516,123 @@ export default function FoundersPage() {
                 }}
               >
                 {addMutation.isPending ? "Adding…" : "Add to Wall"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit founder modal ───────────────────────────────────────────────── */}
+      {editTarget && isAdmin && (
+        <div
+          className="fixed inset-0 flex items-center justify-center px-5"
+          style={{ zIndex: 99999, background: "rgba(4,10,6,0.85)", backdropFilter: "blur(10px)" }}
+          onClick={e => { if (e.target === e.currentTarget) setEditTarget(null); }}
+          data-testid="edit-founder-modal-backdrop"
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl overflow-hidden"
+            style={{
+              background: "linear-gradient(160deg, rgba(12,20,12,0.97) 0%, rgba(8,14,8,0.97) 100%)",
+              border: "1px solid rgba(232,200,88,0.30)",
+              boxShadow: "0 0 50px rgba(232,200,88,0.15), 0 24px 60px rgba(0,0,0,0.75)",
+            }}
+            data-testid="edit-founder-modal"
+          >
+            <div
+              className="relative flex flex-col items-center pt-6 pb-4 px-6"
+              style={{ borderBottom: "1px solid rgba(232,200,88,0.10)" }}
+            >
+              <h2
+                className="font-fantasy text-base tracking-widest"
+                style={{ color: "#e8c858", textShadow: "0 0 16px rgba(232,200,88,0.4)" }}
+              >
+                {editTarget.name}
+              </h2>
+              <p className="font-fantasy text-[10px] tracking-widest mt-1" style={{ color: "#7a6a30" }}>
+                Set tier or remove from wall
+              </p>
+              <button
+                data-testid="button-close-edit-founder"
+                onClick={() => setEditTarget(null)}
+                className="absolute top-4 right-4 rounded-full p-1.5"
+                style={{ background: "rgba(232,200,88,0.10)", color: "#7a6a30" }}
+                aria-label="Close"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 flex flex-col gap-3">
+              <p className="font-fantasy text-[10px] tracking-widest uppercase text-center" style={{ color: "#7a6a30" }}>
+                Tier
+              </p>
+
+              {/* Tier buttons */}
+              <div className="grid grid-cols-3 gap-2">
+                {(["bronze", "silver", "gold"] as const).map(tier => {
+                  const cfg = TIER_CONFIG[tier];
+                  const isActive = editTarget.tier === tier;
+                  return (
+                    <button
+                      key={tier}
+                      data-testid={`button-tier-${tier}`}
+                      disabled={tierMutation.isPending}
+                      onClick={() => tierMutation.mutate({ id: editTarget.id, tier })}
+                      className="rounded-xl py-3 font-fantasy text-xs tracking-widest transition-all active:scale-95 disabled:opacity-50"
+                      style={{
+                        background: isActive ? cfg.gradient : "rgba(232,200,88,0.06)",
+                        border: isActive
+                          ? `1px solid ${cfg.glow.replace("0.50", "0.80").replace("0.55", "0.80")}`
+                          : "1px solid rgba(232,200,88,0.18)",
+                        color: isActive ? (tier === "silver" ? "#3a3a3a" : "#3a2a08") : "#c8a93a",
+                        boxShadow: isActive ? `0 0 14px ${cfg.glow}` : "none",
+                        fontWeight: isActive ? 700 : 400,
+                      }}
+                    >
+                      {cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Clear tier */}
+              {editTarget.tier && (
+                <button
+                  data-testid="button-tier-clear"
+                  disabled={tierMutation.isPending}
+                  onClick={() => tierMutation.mutate({ id: editTarget.id, tier: null })}
+                  className="font-fantasy text-[10px] tracking-widest rounded-xl py-2 transition-all active:scale-95 disabled:opacity-50"
+                  style={{
+                    background: "rgba(232,200,88,0.04)",
+                    border: "1px dashed rgba(232,200,88,0.18)",
+                    color: "#7a6a30",
+                  }}
+                >
+                  Clear tier
+                </button>
+              )}
+
+              {/* Divider */}
+              <div style={{ height: 1, background: "rgba(232,200,88,0.10)", margin: "4px 0" }} />
+
+              {/* Delete */}
+              <button
+                data-testid={`button-delete-founder-${editTarget.id}`}
+                disabled={deleteMutation.isPending}
+                onClick={() => {
+                  if (confirm(`Remove "${editTarget.name}" from the founders wall?`)) {
+                    deleteMutation.mutate(editTarget.id);
+                  }
+                }}
+                className="font-fantasy text-xs tracking-widest rounded-2xl py-3 transition-all active:scale-95 disabled:opacity-50"
+                style={{
+                  background: "rgba(160,60,60,0.10)",
+                  border: "1px solid rgba(160,60,60,0.30)",
+                  color: "#c07070",
+                }}
+              >
+                {deleteMutation.isPending ? "Removing…" : "Remove from Wall"}
               </button>
             </div>
           </div>

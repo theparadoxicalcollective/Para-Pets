@@ -326,6 +326,7 @@ export interface IStorage {
   // Founders — public list of supporter names, admin-managed.
   getFounders(): Promise<Founder[]>;
   addFounder(name: string, addedBy?: string): Promise<Founder>;
+  updateFounderTier(id: string, tier: string | null): Promise<Founder>;
   deleteFounder(id: string): Promise<void>;
   getVWQuotes(): Promise<VeridianWatcherQuote[]>;
   addVWQuote(message: string, addedBy?: string): Promise<VeridianWatcherQuote>;
@@ -3118,6 +3119,11 @@ export class DatabaseStorage implements IStorage {
 
   async addFounder(name: string, addedBy?: string): Promise<Founder> {
     const [row] = await db.insert(founders).values({ name: name.trim(), addedBy }).returning();
+    return row;
+  }
+
+  async updateFounderTier(id: string, tier: string | null): Promise<Founder> {
+    const [row] = await db.update(founders).set({ tier }).where(eq(founders.id, id)).returning();
     return row;
   }
 

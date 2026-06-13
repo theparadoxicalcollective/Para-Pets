@@ -50,7 +50,7 @@ import DailyClaimCard from "@/components/DailyClaimCard";
 
 import hubParaPet    from "@assets/generated_images/hub_para_pet_transparent.png";
 import foundersBanner from "@assets/generated_images/wide_horizontal_kawaii_fantasy_afc1.png";
-import noticeGoFishing from "@assets/E1B71BA1-EAAA-4E62-9596-72A3B30D368B_1781303706759.png";
+import noticeGoFishing from "@assets/64255BCE-2B6A-4A95-8654-145262B126FA_1781352994250.png";
 import noticeLimited   from "@assets/66A982C2-2B49-4DE0-8EE6-79C542E3351B_1781303706759.png";
 import noticeExplore   from "@assets/49FB9020-1DB5-487E-9B92-EC15E9240ABD_1781303869686.png";
 

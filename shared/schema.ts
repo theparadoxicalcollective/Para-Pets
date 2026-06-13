@@ -845,6 +845,7 @@ export const founders = pgTable("founders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name", { length: 120 }).notNull(),
   addedBy: varchar("added_by"),
+  tier: varchar("tier", { length: 10 }),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

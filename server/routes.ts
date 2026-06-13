@@ -7621,6 +7621,22 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/founders/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+      const { tier } = req.body;
+      const validTiers = ["bronze", "silver", "gold", null];
+      if (!validTiers.includes(tier)) {
+        return res.status(400).json({ message: "tier must be bronze, silver, gold, or null" });
+      }
+      const row = await storage.updateFounderTier(String(req.params.id), tier ?? null);
+      return res.json(row);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   app.delete("/api/founders/:id", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;

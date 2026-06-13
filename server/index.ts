@@ -692,6 +692,13 @@ app.use((req, res, next) => {
   }
 
   try {
+    await db.execute(sql`ALTER TABLE founders ADD COLUMN IF NOT EXISTS tier varchar(10)`);
+    console.log("founders.tier column ready.");
+  } catch (err) {
+    console.error("founders tier migration (non-fatal):", err);
+  }
+
+  try {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS daily_quests (
         id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
