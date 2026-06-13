@@ -366,28 +366,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto pb-6" style={{ position: "relative", zIndex: 3 }}>
-        {/* Close button — fixed just below the TopBar, above the title */}
-        <button
-          data-testid="button-close-coin-shop"
-          onClick={() => navigate("/")}
-          className="fixed flex items-center justify-center transition-transform active:scale-90"
-          style={{
-            top: 60,
-            right: 12,
-            width: 32,
-            height: 32,
-            background: "rgba(10,5,2,0.75)",
-            border: "1.5px solid rgba(212,160,23,0.4)",
-            borderRadius: "50%",
-            color: "rgba(212,160,23,0.85)",
-            cursor: "pointer",
-            zIndex: 10,
-            boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
-          }}
-        >
-          <X size={16} />
-        </button>
-        <div className="px-4 pt-5 pb-3 text-center">
+        <div className="px-4 pt-5 pb-3" style={{ position: "relative", textAlign: "center" }}>
           <h1
             className="font-fantasy text-2xl tracking-[0.25em]"
             data-testid="text-coin-shop-title"
@@ -403,6 +382,22 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           <p className="font-fantasy text-[10px] tracking-[0.2em] mt-2" style={{ color: "rgba(127,255,212,0.45)" }}>
             Fuel your adventure with mystical currency
           </p>
+          <button
+            data-testid="button-close-coin-shop"
+            onClick={() => navigate("/")}
+            className="flex items-center justify-center transition-transform active:scale-90"
+            style={{
+              position: "absolute", top: 0, right: 0,
+              width: 32, height: 32,
+              background: "rgba(10,5,2,0.65)",
+              border: "1.5px solid rgba(212,160,23,0.35)",
+              borderRadius: "50%",
+              color: "rgba(212,160,23,0.85)",
+              cursor: "pointer",
+            }}
+          >
+            <X size={15} />
+          </button>
         </div>
 
         {/* ── Contribution Rewards Progress Bar ───────────────────────────── */}
@@ -470,7 +465,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
               </div>
 
               {/* ── Item reward slots positioned above the bar ── */}
-              <div style={{ position: "relative", height: 80, marginBottom: 8 }}>
+              <div style={{ position: "relative", height: 60, marginBottom: 4 }}>
                 {MILESTONES.map((m, i) => {
                   const isDone = claimed.includes(m.end);
                   const isReachable = pts >= m.end && !isDone;
@@ -479,7 +474,6 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                   const isFirst = i === 0;
                   const isLast = i === MILESTONES.length - 1;
                   const tx = isFirst ? "translateX(-8%)" : isLast ? "translateX(-92%)" : "translateX(-50%)";
-                  const statLine = getStatLine(rewardCfg);
 
                   return (
                     <div key={m.end} style={{
@@ -546,59 +540,56 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                           />
                         )}
                       </div>
-                      {/* Item name + stat line */}
-                      {hasItem && (
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, width: "100%" }}>
-                          <span style={{
-                            fontSize: 7.5, lineHeight: 1.2, textAlign: "center",
-                            color: isDone ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.75)",
-                            width: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                            fontFamily: "Lora, serif",
-                          }}>{rewardCfg.reward_item_name}</span>
-                          {statLine && (
-                            <span style={{
-                              fontSize: 7, lineHeight: 1.1, textAlign: "center",
-                              color: isDone ? "rgba(127,255,212,0.25)" : "#7fffd4",
-                              whiteSpace: "nowrap",
-                            }}>{statLine}</span>
-                          )}
-                        </div>
-                      )}
+                      {/* Pet egg star rarity only */}
+                      {hasItem && rewardCfg.item_type === "pet" && rewardCfg.star_rarity ? (
+                        <span style={{
+                          fontSize: 8, lineHeight: 1, whiteSpace: "nowrap",
+                          color: isDone ? "rgba(255,215,0,0.3)" : "rgba(255,215,0,0.85)",
+                        }}>{"⭐".repeat(Math.max(1, rewardCfg.star_rarity))}</span>
+                      ) : null}
                     </div>
                   );
                 })}
               </div>
 
               {/* ── Single XP-style fill bar ── */}
-              <div style={{ height: 12, borderRadius: 6, background: "rgba(255,255,255,0.07)", overflow: "hidden", position: "relative" }}>
-                {/* Milestone tick marks */}
-                {MILESTONES.map((m, i) => (
-                  <div key={m.end} style={{
-                    position: "absolute", top: 0, bottom: 0,
-                    left: `${m.pct}%`,
-                    width: i === MILESTONES.length - 1 ? 0 : 2,
-                    marginLeft: -1,
-                    background: "rgba(0,0,0,0.5)",
-                    zIndex: 2,
+              <div style={{ position: "relative" }}>
+                {/* Bar track */}
+                <div style={{ height: 10, borderRadius: 5, background: "rgba(255,255,255,0.07)", overflow: "hidden", position: "relative" }}>
+                  {/* Teal fill */}
+                  <div style={{
+                    position: "absolute", left: 0, top: 0, bottom: 0,
+                    width: `${fillPct}%`,
+                    background: "linear-gradient(90deg, #1a9e7a 0%, #2dd4bf 60%, #7fffd4 100%)",
+                    boxShadow: fillPct > 0 ? "0 0 10px rgba(127,255,212,0.5)" : "none",
+                    transition: "width 0.9s cubic-bezier(0.4,0,0.2,1)",
                   }} />
-                ))}
-                {/* Teal fill */}
-                <div style={{
-                  position: "absolute", left: 0, top: 0, bottom: 0,
-                  width: `${fillPct}%`,
-                  background: "linear-gradient(90deg, #1a9e7a 0%, #2dd4bf 60%, #7fffd4 100%)",
-                  boxShadow: fillPct > 0 ? "0 0 12px rgba(127,255,212,0.55)" : "none",
-                  transition: "width 0.9s cubic-bezier(0.4,0,0.2,1)",
-                }} />
+                </div>
+                {/* Milestone bullet markers sitting on the bar */}
+                {MILESTONES.map(m => {
+                  const passed = pts >= m.end;
+                  return (
+                    <div key={m.end} style={{
+                      position: "absolute",
+                      left: m.pct === 100 ? undefined : `${m.pct}%`,
+                      right: m.pct === 100 ? 0 : undefined,
+                      top: "50%",
+                      transform: "translate(-50%, -50%)",
+                      width: 10, height: 10,
+                      borderRadius: "50%",
+                      background: passed ? m.color : "rgba(255,255,255,0.12)",
+                      border: `1.5px solid ${passed ? m.color : "rgba(255,255,255,0.08)"}`,
+                      boxShadow: passed ? `0 0 6px ${m.color}` : "none",
+                      zIndex: 3,
+                    }} />
+                  );
+                })}
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between mt-2">
+              <div className="flex items-center mt-2">
                 <span className="font-fantasy text-[9px]" style={{ color: "rgba(127,255,212,0.38)" }}>
                   {ptsUntilNext > 0 ? `${ptsUntilNext.toLocaleString()} pts to ${nextMs?.label}` : "🎉 All milestones reached!"}
-                </span>
-                <span className="font-fantasy text-[9px]" data-testid="text-daily-limit" style={{ color: "rgba(127,255,212,0.28)" }}>
-                  Daily: ${packsData?.dailySpent || 0}/${packsData?.dailyLimit || 500}
                 </span>
               </div>
 
@@ -807,10 +798,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         )}
 
         <div className="mx-4 mt-5 rounded-lg p-3" style={{ background: "rgba(5,18,8,0.7)", border: "1px solid rgba(74,222,128,0.15)" }}>
-          <p className="font-fantasy text-[9px] tracking-wider text-center leading-relaxed" style={{ color: "rgba(127,255,212,0.35)" }}>
-            $1 = 100 Coins &bull; Max $100 per purchase &bull; $500 daily limit
-          </p>
-          <p className="font-fantasy text-[8px] tracking-wider text-center mt-1" style={{ color: "rgba(127,255,212,0.2)" }}>
+          <p className="font-fantasy text-[8px] tracking-wider text-center" style={{ color: "rgba(127,255,212,0.2)" }}>
             All purchases are processed securely via Stripe
           </p>
         </div>
