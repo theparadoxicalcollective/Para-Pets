@@ -692,10 +692,64 @@ app.use((req, res, next) => {
   }
 
   try {
-    await db.execute(sql`ALTER TABLE founders ADD COLUMN IF NOT EXISTS tier varchar(10)`);
+    await db.execute(sql`ALTER TABLE founders ADD COLUMN IF NOT EXISTS tier varchar(12)`);
     console.log("founders.tier column ready.");
   } catch (err) {
     console.error("founders tier migration (non-fatal):", err);
+  }
+
+  try {
+    await db.execute(sql`ALTER TABLE founders ADD COLUMN IF NOT EXISTS user_id varchar`);
+    console.log("founders.user_id column ready.");
+  } catch (err) {
+    console.error("founders user_id migration (non-fatal):", err);
+  }
+
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS purchase_monthly_progress (
+        user_id varchar NOT NULL,
+        month_year varchar(7) NOT NULL,
+        points int NOT NULL DEFAULT 0,
+        PRIMARY KEY (user_id, month_year)
+      )
+    `);
+    console.log("purchase_monthly_progress table ready.");
+  } catch (err) {
+    console.error("purchase_monthly_progress setup error (non-fatal):", err);
+  }
+
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS purchase_milestone_claims (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL,
+        milestone_points int NOT NULL,
+        month_year varchar(7) NOT NULL,
+        claimed_at timestamp NOT NULL DEFAULT now(),
+        UNIQUE (user_id, milestone_points, month_year)
+      )
+    `);
+    console.log("purchase_milestone_claims table ready.");
+  } catch (err) {
+    console.error("purchase_milestone_claims setup error (non-fatal):", err);
+  }
+
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS purchase_milestone_rewards (
+        milestone_points int PRIMARY KEY,
+        reward_coins int DEFAULT 0,
+        reward_item_id varchar,
+        reward_item_name varchar,
+        reward_item_image_url varchar,
+        reward_label varchar(120),
+        updated_at timestamp NOT NULL DEFAULT now()
+      )
+    `);
+    console.log("purchase_milestone_rewards table ready.");
+  } catch (err) {
+    console.error("purchase_milestone_rewards setup error (non-fatal):", err);
   }
 
   try {

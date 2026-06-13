@@ -845,11 +845,39 @@ export const founders = pgTable("founders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name", { length: 120 }).notNull(),
   addedBy: varchar("added_by"),
-  tier: varchar("tier", { length: 10 }),
+  tier: varchar("tier", { length: 12 }),
+  userId: varchar("user_id"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
 export type Founder = typeof founders.$inferSelect;
+
+// ── Purchase Monthly Progress ─────────────────────────────────────────────────
+export const purchaseMonthlyProgress = pgTable("purchase_monthly_progress", {
+  userId: varchar("user_id").notNull(),
+  monthYear: varchar("month_year", { length: 7 }).notNull(),
+  points: integer("points").notNull().default(0),
+});
+
+// ── Purchase Milestone Claims ─────────────────────────────────────────────────
+export const purchaseMilestoneClaims = pgTable("purchase_milestone_claims", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  milestonePoints: integer("milestone_points").notNull(),
+  monthYear: varchar("month_year", { length: 7 }).notNull(),
+  claimedAt: timestamp("claimed_at").notNull().default(sql`now()`),
+});
+
+// ── Purchase Milestone Rewards (admin-configured) ─────────────────────────────
+export const purchaseMilestoneRewards = pgTable("purchase_milestone_rewards", {
+  milestonePoints: integer("milestone_points").primaryKey(),
+  rewardCoins: integer("reward_coins").default(0),
+  rewardItemId: varchar("reward_item_id"),
+  rewardItemName: varchar("reward_item_name"),
+  rewardItemImageUrl: varchar("reward_item_image_url"),
+  rewardLabel: varchar("reward_label", { length: 120 }),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
 
 // ── Chat Filter Words ─────────────────────────────────────────────────────────
 export const chatFilterWords = pgTable("chat_filter_words", {

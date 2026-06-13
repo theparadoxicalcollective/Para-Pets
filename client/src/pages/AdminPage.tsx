@@ -69,6 +69,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [itemsTab, setItemsTab] = useState<"items" | "fishing">("items");
   const [rewardsTab, setRewardsTab] = useState<"rewards" | "welcome">("rewards");
   const [watcherTab, setWatcherTab] = useState<"watcher" | "chat_filter">("watcher");
+  const [purchasesTab, setPurchasesTab] = useState<"history" | "milestones">("history");
   const [partsOverlayTemplateId, setPartsOverlayTemplateId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -673,7 +674,29 @@ export default function AdminPage({ user }: AdminPageProps) {
               )}
 
               {activeSection === "purchases" && (
-                <CoinPurchasesSection />
+                <div>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+                    {(["history", "milestones"] as const).map(t => (
+                      <button
+                        key={t}
+                        data-testid={`tab-purchases-${t}`}
+                        onClick={() => setPurchasesTab(t)}
+                        style={{
+                          padding: "6px 16px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                          cursor: "pointer", textTransform: "capitalize",
+                          background: purchasesTab === t
+                            ? "linear-gradient(135deg, rgba(251,146,60,0.3) 0%, rgba(217,119,6,0.25) 100%)"
+                            : "rgba(255,255,255,0.04)",
+                          border: purchasesTab === t ? "1px solid rgba(251,146,60,0.55)" : "1px solid rgba(255,255,255,0.1)",
+                          color: purchasesTab === t ? "#fb923c" : "rgba(255,255,255,0.45)",
+                        }}
+                      >
+                        {t === "history" ? "Purchase History" : "Milestone Rewards"}
+                      </button>
+                    ))}
+                  </div>
+                  {purchasesTab === "history" ? <CoinPurchasesSection /> : <MilestoneRewardsSection />}
+                </div>
               )}
 
               {activeSection === "maintenance" && (
@@ -3772,6 +3795,139 @@ function MoltenBlocksItemsSection() {
           onClose={() => setShowPicker(false)}
         />
       )}
+    </div>
+  );
+}
+
+// ── Milestone Rewards Config ────────────────────────────────────────────────
+const MILESTONE_DEFS = [
+  { pts: 500,   label: "Bronze (500 pts)",       color: "#cd7f32", icon: "🥉" },
+  { pts: 2500,  label: "Silver (2,500 pts)",     color: "#c0c0c0", icon: "🥈" },
+  { pts: 5000,  label: "Gold (5,000 pts)",       color: "#f6dc8a", icon: "🥇" },
+  { pts: 10000, label: "Legendary (10,000 pts)", color: "#d946ef", icon: "✨" },
+];
+
+interface MilestoneReward {
+  milestone_points: number;
+  reward_coins: number | null;
+  reward_item_id: string | null;
+  reward_item_name: string | null;
+  reward_item_image_url: string | null;
+  reward_label: string | null;
+}
+
+function MilestoneRewardsSection() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { data: rewards = [] } = useQuery<MilestoneReward[]>({
+    queryKey: ["/api/admin/milestone-rewards"],
+  });
+
+  const [drafts, setDrafts] = useState<Record<number, { rewardCoins: string; rewardLabel: string }>>({});
+
+  const setDraft = (pts: number, field: "rewardCoins" | "rewardLabel", value: string) => {
+    setDrafts(prev => ({
+      ...prev,
+      [pts]: { rewardCoins: "", rewardLabel: "", ...(prev[pts] || {}), [field]: value },
+    }));
+  };
+
+  const getDraft = (pts: number, field: "rewardCoins" | "rewardLabel"): string => {
+    const d = drafts[pts];
+    if (d && d[field] !== undefined && d[field] !== "") return d[field];
+    const saved = rewards.find(r => Number(r.milestone_points) === pts);
+    if (field === "rewardCoins") return String(saved?.reward_coins ?? 0);
+    return saved?.reward_label ?? "";
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async ({ pts }: { pts: number }) => {
+      const res = await apiRequest("PATCH", `/api/admin/milestone-rewards/${pts}`, {
+        rewardCoins: Number(getDraft(pts, "rewardCoins")) || 0,
+        rewardLabel: getDraft(pts, "rewardLabel") || null,
+      });
+      return res.json();
+    },
+    onSuccess: (_data, { pts }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/milestone-rewards"] });
+      setDrafts(prev => { const d = { ...prev }; delete d[pts]; return d; });
+      toast({ title: "Saved", description: "Milestone reward updated." });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to save.", variant: "destructive" }),
+  });
+
+  const panelSty: React.CSSProperties = {
+    background: "rgba(255,255,255,0.03)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 10, padding: "14px 16px", marginBottom: 12,
+  };
+  const labelSty: React.CSSProperties = { fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4, display: "block" };
+  const inputSty: React.CSSProperties = {
+    width: "100%", padding: "6px 10px", borderRadius: 7, fontSize: 12,
+    background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+    color: "#fff", outline: "none",
+  };
+
+  return (
+    <div>
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 18, lineHeight: 1.5 }}>
+        Configure rewards given when a player hits each monthly purchase milestone.
+        Founder tier upgrades are automatic. Bonus coins and a custom label can be set per milestone.
+      </p>
+      {MILESTONE_DEFS.map(({ pts, label, color, icon }) => {
+        const saved = rewards.find(r => Number(r.milestone_points) === pts);
+        return (
+          <div key={pts} style={panelSty} data-testid={`milestone-card-${pts}`}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <span style={{ fontSize: 18 }}>{icon}</span>
+              <span style={{ fontWeight: 700, fontSize: 13, color }}>{label}</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              <div>
+                <label style={labelSty}>Bonus Coins</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={getDraft(pts, "rewardCoins")}
+                  onChange={e => setDraft(pts, "rewardCoins", e.target.value)}
+                  style={inputSty}
+                  data-testid={`input-milestone-coins-${pts}`}
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label style={labelSty}>Label (on progress bar)</label>
+                <input
+                  type="text"
+                  value={getDraft(pts, "rewardLabel")}
+                  onChange={e => setDraft(pts, "rewardLabel", e.target.value)}
+                  style={inputSty}
+                  data-testid={`input-milestone-label-${pts}`}
+                  placeholder="e.g. Pet Egg 🥚"
+                />
+              </div>
+            </div>
+            {saved?.reward_item_name && (
+              <p style={{ fontSize: 10, color: "rgba(255,255,255,0.28)", marginBottom: 10 }}>
+                Gift item: {saved.reward_item_name}
+              </p>
+            )}
+            <button
+              data-testid={`button-save-milestone-${pts}`}
+              onClick={() => saveMutation.mutate({ pts })}
+              disabled={saveMutation.isPending}
+              style={{
+                padding: "6px 18px", borderRadius: 8, fontSize: 12, fontWeight: 700,
+                cursor: "pointer",
+                background: "linear-gradient(135deg, rgba(251,146,60,0.3) 0%, rgba(217,119,6,0.25) 100%)",
+                border: "1px solid rgba(251,146,60,0.55)", color: "#fb923c",
+              }}
+            >
+              {saveMutation.isPending ? "Saving…" : "Save"}
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -56,6 +56,7 @@ import {
   type VeridianWatcherQuote, veridianWatcherQuotes,
   type Founder, founders,
 } from "@shared/schema";
+
 import { db } from "./db";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray } from "drizzle-orm";
 
@@ -328,6 +329,14 @@ export interface IStorage {
   addFounder(name: string, addedBy?: string): Promise<Founder>;
   updateFounderTier(id: string, tier: string | null): Promise<Founder>;
   deleteFounder(id: string): Promise<void>;
+  upsertFounderByUserId(userId: string, username: string, tier: string): Promise<void>;
+  // Purchase progress & milestones
+  getMonthlyProgress(userId: string, monthYear: string): Promise<number>;
+  addPurchaseProgress(userId: string, points: number, monthYear: string): Promise<number>;
+  getClaimedMilestones(userId: string, monthYear: string): Promise<number[]>;
+  claimMilestone(userId: string, milestonePoints: number, monthYear: string): Promise<boolean>;
+  getMilestoneRewards(): Promise<any[]>;
+  setMilestoneReward(milestonePoints: number, data: { rewardCoins?: number; rewardItemId?: string | null; rewardItemName?: string | null; rewardItemImageUrl?: string | null; rewardLabel?: string | null }): Promise<void>;
   getVWQuotes(): Promise<VeridianWatcherQuote[]>;
   addVWQuote(message: string, addedBy?: string): Promise<VeridianWatcherQuote>;
   deleteVWQuote(id: string): Promise<void>;
@@ -3129,6 +3138,89 @@ export class DatabaseStorage implements IStorage {
 
   async deleteFounder(id: string): Promise<void> {
     await db.delete(founders).where(eq(founders.id, id));
+  }
+
+  async upsertFounderByUserId(userId: string, username: string, tier: string): Promise<void> {
+    const PRIORITY: Record<string, number> = { bronze: 1, silver: 2, gold: 3, legendary: 4 };
+    const newP = PRIORITY[tier] ?? 0;
+    const result = await db.execute(sql`SELECT id, tier FROM founders WHERE user_id = ${userId}`);
+    if (result.rows.length > 0) {
+      const row = result.rows[0] as any;
+      const curP = PRIORITY[row.tier] ?? 0;
+      if (newP > curP) {
+        await db.execute(sql`UPDATE founders SET tier = ${tier} WHERE id = ${row.id}`);
+      }
+    } else {
+      await db.execute(sql`
+        INSERT INTO founders (id, name, user_id, tier, added_by)
+        VALUES (gen_random_uuid(), ${username}, ${userId}, ${tier}, 'system')
+        ON CONFLICT DO NOTHING
+      `);
+    }
+  }
+
+  async getMonthlyProgress(userId: string, monthYear: string): Promise<number> {
+    const result = await db.execute(sql`
+      SELECT points FROM purchase_monthly_progress
+      WHERE user_id = ${userId} AND month_year = ${monthYear}
+    `);
+    return (result.rows[0] as any)?.points ?? 0;
+  }
+
+  async addPurchaseProgress(userId: string, points: number, monthYear: string): Promise<number> {
+    const result = await db.execute(sql`
+      INSERT INTO purchase_monthly_progress (user_id, month_year, points)
+      VALUES (${userId}, ${monthYear}, ${points})
+      ON CONFLICT (user_id, month_year)
+      DO UPDATE SET points = purchase_monthly_progress.points + EXCLUDED.points
+      RETURNING points
+    `);
+    return (result.rows[0] as any)?.points ?? points;
+  }
+
+  async getClaimedMilestones(userId: string, monthYear: string): Promise<number[]> {
+    const result = await db.execute(sql`
+      SELECT milestone_points FROM purchase_milestone_claims
+      WHERE user_id = ${userId} AND month_year = ${monthYear}
+    `);
+    return result.rows.map((r: any) => Number(r.milestone_points));
+  }
+
+  async claimMilestone(userId: string, milestonePoints: number, monthYear: string): Promise<boolean> {
+    try {
+      await db.execute(sql`
+        INSERT INTO purchase_milestone_claims (user_id, milestone_points, month_year)
+        VALUES (${userId}, ${milestonePoints}, ${monthYear})
+      `);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async getMilestoneRewards(): Promise<any[]> {
+    const result = await db.execute(sql`
+      SELECT milestone_points, reward_coins, reward_item_id, reward_item_name, reward_item_image_url, reward_label
+      FROM purchase_milestone_rewards ORDER BY milestone_points
+    `);
+    return result.rows;
+  }
+
+  async setMilestoneReward(milestonePoints: number, data: { rewardCoins?: number; rewardItemId?: string | null; rewardItemName?: string | null; rewardItemImageUrl?: string | null; rewardLabel?: string | null }): Promise<void> {
+    await db.execute(sql`
+      INSERT INTO purchase_milestone_rewards
+        (milestone_points, reward_coins, reward_item_id, reward_item_name, reward_item_image_url, reward_label, updated_at)
+      VALUES
+        (${milestonePoints}, ${data.rewardCoins ?? 0}, ${data.rewardItemId ?? null},
+         ${data.rewardItemName ?? null}, ${data.rewardItemImageUrl ?? null}, ${data.rewardLabel ?? null}, now())
+      ON CONFLICT (milestone_points) DO UPDATE SET
+        reward_coins         = EXCLUDED.reward_coins,
+        reward_item_id       = EXCLUDED.reward_item_id,
+        reward_item_name     = EXCLUDED.reward_item_name,
+        reward_item_image_url = EXCLUDED.reward_item_image_url,
+        reward_label         = EXCLUDED.reward_label,
+        updated_at           = now()
+    `);
   }
 
   async getVWQuotes(): Promise<VeridianWatcherQuote[]> {

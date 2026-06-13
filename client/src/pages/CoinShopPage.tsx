@@ -198,6 +198,17 @@ export default function CoinShopPage({ user }: CoinShopProps) {
     queryKey: ["/api/coins/packs"],
   });
 
+  interface ProgressData {
+    monthYear: string;
+    points: number;
+    claimedMilestones: number[];
+    milestoneRewards: { milestone_points: number; reward_coins: number | null; reward_item_id: string | null; reward_item_name: string | null; reward_item_image_url: string | null; reward_label: string | null }[];
+  }
+  const { data: progressData } = useQuery<ProgressData>({
+    queryKey: ["/api/coins/progress"],
+    staleTime: 30_000,
+  });
+
   const checkoutMutation = useMutation({
     mutationFn: async (packId: string) => {
       const res = await apiRequest("POST", "/api/coins/checkout", { packId });
@@ -355,23 +366,94 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           </p>
         </div>
 
-        <div className="mx-4 mb-4 rounded-lg p-3 flex items-center justify-between gap-2" style={{
-          background: "linear-gradient(135deg, rgba(5,20,8,0.95) 0%, rgba(12,35,18,0.95) 100%)",
-          border: "1px solid rgba(127,255,212,0.3)",
-          boxShadow: "0 0 20px rgba(127,255,212,0.08), inset 0 1px 0 rgba(127,255,212,0.05)"
-        }}>
-          <div className="flex items-center gap-2">
-            <img src={coinIconImg} alt="" className="w-6 h-6" style={{ filter: "drop-shadow(0 0 6px rgba(240,192,64,0.5))" }} />
-            <span className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-current-coins">
-              {currentUser.coins.toLocaleString()} Coins
-            </span>
-          </div>
-          <div className="text-right">
-            <span className="font-fantasy text-[9px] tracking-wider block" data-testid="text-daily-limit" style={{ color: "rgba(127,255,212,0.35)" }}>
-              Daily: ${packsData?.dailySpent || 0}/${packsData?.dailyLimit || 500}
-            </span>
-          </div>
-        </div>
+        {/* ── Adventure Rewards Progress Bar ──────────────────────────────── */}
+        {(() => {
+          const pts = progressData?.points ?? 0;
+          const claimed = progressData?.claimedMilestones ?? [];
+          const rewards = progressData?.milestoneRewards ?? [];
+          const SEGS = [
+            { start: 0,    end: 500,   icon: "🥉", label: "Bronze",    color: "#cd7f32", glow: "rgba(205,127,50,0.8)"  },
+            { start: 500,  end: 2500,  icon: "🥈", label: "Silver",    color: "#d4d4d4", glow: "rgba(212,212,212,0.8)" },
+            { start: 2500, end: 5000,  icon: "🥇", label: "Gold",      color: "#f6dc8a", glow: "rgba(246,220,138,0.8)" },
+            { start: 5000, end: 10000, icon: "✨", label: "Legendary", color: "#d946ef", glow: "rgba(217,70,239,0.8)"  },
+          ];
+          const nextSeg = SEGS.find(s => pts < s.end);
+          const ptsUntilNext = nextSeg ? nextSeg.end - pts : 0;
+          const monthLabel = progressData?.monthYear
+            ? new Date(progressData.monthYear + "-02").toLocaleDateString("en-US", { month: "long", year: "numeric" })
+            : "";
+          return (
+            <div className="mx-4 mb-4 rounded-xl p-4" style={{
+              background: "linear-gradient(160deg, rgba(4,14,6,0.97) 0%, rgba(8,24,12,0.97) 100%)",
+              border: "1px solid rgba(127,255,212,0.22)",
+              boxShadow: "0 0 20px rgba(127,255,212,0.06), inset 0 1px 0 rgba(127,255,212,0.04)",
+            }} data-testid="progress-bar-container">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-fantasy text-[10px] tracking-[0.2em] uppercase" style={{ color: "rgba(127,255,212,0.55)" }}>
+                  ✦ Adventure Rewards
+                </span>
+                {monthLabel && (
+                  <span className="font-fantasy text-[9px]" style={{ color: "rgba(127,255,212,0.28)" }}>
+                    Resets {monthLabel}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-baseline gap-1.5 mb-3">
+                <span className="font-fantasy text-base tracking-wider" data-testid="text-progress-points" style={{ color: "#7fffd4", textShadow: "0 0 10px rgba(127,255,212,0.4)" }}>
+                  {pts.toLocaleString()}
+                </span>
+                <span className="font-fantasy text-[10px]" style={{ color: "rgba(127,255,212,0.4)" }}>pts this month</span>
+              </div>
+
+              <div className="flex gap-1 mb-3">
+                {SEGS.map((seg, i) => {
+                  const fillPct = Math.min(Math.max(pts - seg.start, 0), seg.end - seg.start) / (seg.end - seg.start) * 100;
+                  const isDone = claimed.includes(seg.end);
+                  const rewardCfg = rewards.find((r: any) => Number(r.milestone_points) === seg.end);
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                      <div className="w-full relative" style={{ height: 9, borderRadius: 6, background: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
+                        <div style={{
+                          position: "absolute", left: 0, top: 0, bottom: 0,
+                          width: `${fillPct}%`,
+                          background: `linear-gradient(90deg, ${seg.color}99, ${seg.color})`,
+                          boxShadow: fillPct > 0 ? `0 0 8px ${seg.glow}` : "none",
+                          borderRadius: 6,
+                          transition: "width 0.7s ease",
+                        }} />
+                      </div>
+                      <span style={{
+                        fontSize: 18, lineHeight: 1,
+                        filter: isDone ? `drop-shadow(0 0 6px ${seg.glow})` : "grayscale(0.8) opacity(0.4)",
+                      }}>
+                        {isDone ? "✅" : seg.icon}
+                      </span>
+                      {rewardCfg?.reward_label ? (
+                        <span className="font-fantasy text-center" style={{ fontSize: 8, color: isDone ? seg.color : "rgba(255,255,255,0.25)", lineHeight: 1.2, maxWidth: 56 }}>
+                          {rewardCfg.reward_label}
+                        </span>
+                      ) : (
+                        <span className="font-fantasy text-center" style={{ fontSize: 8, color: "rgba(255,255,255,0.15)", lineHeight: 1.2 }}>
+                          {seg.label}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="font-fantasy text-[9px]" style={{ color: "rgba(127,255,212,0.38)" }}>
+                  {ptsUntilNext > 0 ? `${ptsUntilNext.toLocaleString()} pts to ${nextSeg?.label}` : "🎉 All milestones reached!"}
+                </span>
+                <span className="font-fantasy text-[9px]" data-testid="text-daily-limit" style={{ color: "rgba(127,255,212,0.28)" }}>
+                  Daily: ${packsData?.dailySpent || 0}/${packsData?.dailyLimit || 500}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
 
         {showCanceled && (
           <div className="mx-4 mb-3 rounded-xl px-4 py-3 flex items-center justify-between gap-3" style={{ background: "rgba(40,15,5,0.85)", border: "1px solid rgba(200,100,50,0.45)" }}>

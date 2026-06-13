@@ -2764,6 +2764,42 @@ export async function registerRoutes(
             message: "Bonus gift for your purchase!",
           }).catch((e) => console.error("Egg bonus gift error:", e));
         }
+        // Track purchase progress and handle milestone rewards (fire-and-forget).
+        const capturedUser = updatedUser;
+        ;(async () => {
+          try {
+            const monthYear = new Date().toISOString().slice(0, 7);
+            const progressPts = amountUsd * 100;
+            const newTotal = await storage.addPurchaseProgress(user.id, progressPts, monthYear);
+            const MILESTONES: [number, string][] = [[500, 'bronze'], [2500, 'silver'], [5000, 'gold'], [10000, 'legendary']];
+            const allRewards = await storage.getMilestoneRewards();
+            for (const [ms, founderTier] of MILESTONES) {
+              if (newTotal >= ms) {
+                const claimed = await storage.claimMilestone(user.id, ms, monthYear);
+                if (claimed) {
+                  storage.upsertFounderByUserId(user.id, (capturedUser as any).username, founderTier).catch(() => {});
+                  const rewardCfg = allRewards.find((r: any) => Number(r.milestone_points) === ms);
+                  if (rewardCfg) {
+                    if (Number(rewardCfg.reward_coins) > 0) {
+                      storage.addCoins(user.id, Number(rewardCfg.reward_coins)).catch(() => {});
+                    }
+                    if (rewardCfg.reward_item_id) {
+                      storage.sendGift({
+                        senderId: user.id, receiverId: user.id,
+                        coinAmount: 0, itemType: 'shop_item',
+                        shopItemId: rewardCfg.reward_item_id,
+                        itemName: rewardCfg.reward_item_name || 'Milestone Reward',
+                        itemImageUrl: rewardCfg.reward_item_image_url || '',
+                        itemQuantity: 1,
+                        message: `🎉 Milestone reward: ${rewardCfg.reward_label || ms + ' pts milestone'}!`,
+                      }).catch(() => {});
+                    }
+                  }
+                }
+              }
+            }
+          } catch (e) { console.error('[milestone progress]', e); }
+        })();
       } catch (err: any) {
         if (err.code === '23505') {
           const u = await storage.getUser(user.id);
@@ -2778,6 +2814,49 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Verify purchase error:", err);
       return res.status(500).json({ message: "Failed to verify purchase" });
+    }
+  });
+
+  // ── Purchase progress bar ───────────────────────────────────────────────────
+  app.get("/api/coins/progress", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const monthYear = new Date().toISOString().slice(0, 7);
+      const points = await storage.getMonthlyProgress(user.id, monthYear);
+      const claimedMilestones = await storage.getClaimedMilestones(user.id, monthYear);
+      const milestoneRewards = await storage.getMilestoneRewards();
+      return res.json({ monthYear, points, claimedMilestones, milestoneRewards });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/admin/milestone-rewards", isAdmin, async (_req, res) => {
+    try {
+      const rewards = await storage.getMilestoneRewards();
+      return res.json(rewards);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/admin/milestone-rewards/:milestone", isAdmin, async (req, res) => {
+    try {
+      const milestonePoints = parseInt(req.params.milestone);
+      if (![500, 2500, 5000, 10000].includes(milestonePoints)) {
+        return res.status(400).json({ message: "Invalid milestone. Must be 500, 2500, 5000, or 10000" });
+      }
+      const { rewardCoins, rewardItemId, rewardItemName, rewardItemImageUrl, rewardLabel } = req.body;
+      await storage.setMilestoneReward(milestonePoints, {
+        rewardCoins: rewardCoins !== undefined ? Number(rewardCoins) : 0,
+        rewardItemId: rewardItemId || null,
+        rewardItemName: rewardItemName || null,
+        rewardItemImageUrl: rewardItemImageUrl || null,
+        rewardLabel: rewardLabel || null,
+      });
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
     }
   });
 

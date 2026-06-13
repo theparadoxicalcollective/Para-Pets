@@ -40,7 +40,25 @@ const TIER_CONFIG = {
     glow: "rgba(232,200,88,0.55)",
     nameGrad: "linear-gradient(180deg, #fff4c8 0%, #f0d278 50%, #c8a030 100%)",
   },
+  legendary: {
+    label: "Legendary",
+    gradient: "linear-gradient(135deg, #f6dc8a 0%, #d946ef 50%, #c8a93a 100%)",
+    glow: "rgba(217,70,239,0.65)",
+    nameGrad: "linear-gradient(90deg, #f6dc8a 0%, #f0a0ff 40%, #f6dc8a 70%, #e879f9 100%)",
+  },
 };
+
+const sparkleStyle = `
+@keyframes orb-pulse {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.85; filter: drop-shadow(0 0 5px rgba(217,70,239,0.8)); }
+  33%       { transform: scale(1.25) rotate(120deg); opacity: 1;    filter: drop-shadow(0 0 10px rgba(217,70,239,1)); }
+  66%       { transform: scale(0.9)  rotate(240deg); opacity: 0.75; filter: drop-shadow(0 0 4px rgba(246,220,138,0.9)); }
+}
+@keyframes legendary-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+`;
 
 export default function FoundersPage() {
   const { toast } = useToast();
@@ -115,7 +133,22 @@ export default function FoundersPage() {
     return () => window.removeEventListener("keydown", closeOnEsc);
   }, []);
 
-  const getNameStyle = (tier: string | null) => {
+  const getNameStyle = (tier: string | null): React.CSSProperties => {
+    if (tier === "legendary") {
+      return {
+        fontFamily: "'Merriweather', serif",
+        fontWeight: 700,
+        fontSize: 22,
+        lineHeight: 1.4,
+        backgroundImage: "linear-gradient(90deg, #f6dc8a 0%, #f0a0ff 40%, #f6dc8a 70%, #e879f9 100%)",
+        backgroundSize: "200% auto",
+        WebkitBackgroundClip: "text",
+        backgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        animation: "legendary-shimmer 3s linear infinite",
+        filter: "drop-shadow(0 1px 4px rgba(217,70,239,0.6))",
+      };
+    }
     if (tier && TIER_CONFIG[tier as keyof typeof TIER_CONFIG]) {
       return {
         fontFamily: "'Merriweather', serif",
@@ -156,6 +189,7 @@ export default function FoundersPage() {
       }}
       data-testid="founders-page"
     >
+      <style>{sparkleStyle}</style>
       <div
         aria-hidden
         className="fixed inset-0 pointer-events-none"
@@ -410,6 +444,18 @@ export default function FoundersPage() {
                   >
                     {f.name}
                   </span>
+                  {f.tier === "legendary" && (
+                    <span
+                      aria-hidden
+                      style={{
+                        display: "inline-block",
+                        fontSize: 14,
+                        animation: "orb-pulse 2.4s ease-in-out infinite",
+                        marginLeft: 3,
+                        flexShrink: 0,
+                      }}
+                    >✨</span>
+                  )}
                   {isAdmin && (
                     <button
                       data-testid={`button-edit-founder-${f.id}`}
