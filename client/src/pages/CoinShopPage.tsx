@@ -209,6 +209,21 @@ export default function CoinShopPage({ user }: CoinShopProps) {
     staleTime: 30_000,
   });
 
+  const [adminEditMs, setAdminEditMs] = useState<number | null>(null);
+  const [adminEditLabel, setAdminEditLabel] = useState("");
+  const saveMilestoneMutation = useMutation({
+    mutationFn: async ({ ms, label }: { ms: number; label: string }) => {
+      const res = await apiRequest("PATCH", `/api/admin/milestone-rewards/${ms}`, { rewardLabel: label.trim() || null });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/coins/progress"] });
+      setAdminEditMs(null);
+      toast({ title: "Reward label saved!" });
+    },
+    onError: () => toast({ title: "Save failed", variant: "destructive" }),
+  });
+
   const checkoutMutation = useMutation({
     mutationFn: async (packId: string) => {
       const res = await apiRequest("POST", "/api/coins/checkout", { packId });
@@ -366,31 +381,36 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           </p>
         </div>
 
-        {/* ── Adventure Rewards Progress Bar ──────────────────────────────── */}
+        {/* ── Contribution Rewards Progress Bar ───────────────────────────── */}
         {(() => {
           const pts = progressData?.points ?? 0;
           const claimed = progressData?.claimedMilestones ?? [];
           const rewards = progressData?.milestoneRewards ?? [];
-          const SEGS = [
-            { start: 0,    end: 500,   icon: "🥉", label: "Bronze",    color: "#cd7f32", glow: "rgba(205,127,50,0.8)"  },
-            { start: 500,  end: 2500,  icon: "🥈", label: "Silver",    color: "#d4d4d4", glow: "rgba(212,212,212,0.8)" },
-            { start: 2500, end: 5000,  icon: "🥇", label: "Gold",      color: "#f6dc8a", glow: "rgba(246,220,138,0.8)" },
-            { start: 5000, end: 10000, icon: "✨", label: "Legendary", color: "#d946ef", glow: "rgba(217,70,239,0.8)"  },
+          const TOTAL = 10000;
+          const MILESTONES = [
+            { end: 500,   icon: "🥉", label: "Bronze",    color: "#cd7f32", glow: "rgba(205,127,50,0.9)",   pct: 5  },
+            { end: 2500,  icon: "🥈", label: "Silver",    color: "#d4d4d4", glow: "rgba(212,212,212,0.9)",  pct: 25 },
+            { end: 5000,  icon: "🥇", label: "Gold",      color: "#f6dc8a", glow: "rgba(246,220,138,0.9)",  pct: 50 },
+            { end: 10000, icon: "✨", label: "Legendary", color: "#d946ef", glow: "rgba(217,70,239,0.9)",   pct: 100 },
           ];
-          const nextSeg = SEGS.find(s => pts < s.end);
-          const ptsUntilNext = nextSeg ? nextSeg.end - pts : 0;
+          const fillPct = Math.min(pts / TOTAL * 100, 100);
+          const nextMs = MILESTONES.find(m => pts < m.end);
+          const ptsUntilNext = nextMs ? nextMs.end - pts : 0;
           const monthLabel = progressData?.monthYear
             ? new Date(progressData.monthYear + "-02").toLocaleDateString("en-US", { month: "long", year: "numeric" })
             : "";
+
           return (
             <div className="mx-4 mb-4 rounded-xl p-4" style={{
               background: "linear-gradient(160deg, rgba(4,14,6,0.97) 0%, rgba(8,24,12,0.97) 100%)",
               border: "1px solid rgba(127,255,212,0.22)",
               boxShadow: "0 0 20px rgba(127,255,212,0.06), inset 0 1px 0 rgba(127,255,212,0.04)",
             }} data-testid="progress-bar-container">
+
+              {/* Header */}
               <div className="flex items-center justify-between mb-2">
                 <span className="font-fantasy text-[10px] tracking-[0.2em] uppercase" style={{ color: "rgba(127,255,212,0.55)" }}>
-                  ✦ Adventure Rewards
+                  ✦ Contribution Rewards
                 </span>
                 {monthLabel && (
                   <span className="font-fantasy text-[9px]" style={{ color: "rgba(127,255,212,0.28)" }}>
@@ -399,6 +419,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                 )}
               </div>
 
+              {/* Points */}
               <div className="flex items-baseline gap-1.5 mb-3">
                 <span className="font-fantasy text-base tracking-wider" data-testid="text-progress-points" style={{ color: "#7fffd4", textShadow: "0 0 10px rgba(127,255,212,0.4)" }}>
                   {pts.toLocaleString()}
@@ -406,46 +427,119 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                 <span className="font-fantasy text-[10px]" style={{ color: "rgba(127,255,212,0.4)" }}>pts this month</span>
               </div>
 
-              <div className="flex gap-1 mb-3">
-                {SEGS.map((seg, i) => {
-                  const fillPct = Math.min(Math.max(pts - seg.start, 0), seg.end - seg.start) / (seg.end - seg.start) * 100;
-                  const isDone = claimed.includes(seg.end);
-                  const rewardCfg = rewards.find((r: any) => Number(r.milestone_points) === seg.end);
-                  return (
-                    <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                      <div className="w-full relative" style={{ height: 9, borderRadius: 6, background: "rgba(255,255,255,0.05)", overflow: "hidden" }}>
-                        <div style={{
-                          position: "absolute", left: 0, top: 0, bottom: 0,
-                          width: `${fillPct}%`,
-                          background: `linear-gradient(90deg, ${seg.color}99, ${seg.color})`,
-                          boxShadow: fillPct > 0 ? `0 0 8px ${seg.glow}` : "none",
-                          borderRadius: 6,
-                          transition: "width 0.7s ease",
-                        }} />
-                      </div>
-                      <span style={{
-                        fontSize: 18, lineHeight: 1,
-                        filter: isDone ? `drop-shadow(0 0 6px ${seg.glow})` : "grayscale(0.8) opacity(0.4)",
+              {/* ── Continuous bar with milestone ticks ── */}
+              <div style={{ position: "relative" }}>
+                {/* Track */}
+                <div style={{ height: 10, borderRadius: 5, background: "rgba(255,255,255,0.07)", overflow: "hidden", position: "relative" }}>
+                  {/* Fill */}
+                  <div style={{
+                    position: "absolute", left: 0, top: 0, bottom: 0,
+                    width: `${fillPct}%`,
+                    background: "linear-gradient(90deg, #cd7f32 0%, #cd7f32 5%, #c8c8c8 5%, #c8c8c8 25%, #f6dc8a 25%, #f6dc8a 50%, #d946ef 50%)",
+                    backgroundSize: "100% 100%",
+                    boxShadow: fillPct > 0 ? "0 0 10px rgba(127,255,212,0.3)" : "none",
+                    transition: "width 0.8s ease",
+                  }} />
+                  {/* Tick marks at each milestone */}
+                  {MILESTONES.map((m, i) => (
+                    <div key={m.end} style={{
+                      position: "absolute", top: 0, bottom: 0,
+                      left: `${m.pct}%`,
+                      width: i === MILESTONES.length - 1 ? 0 : 2,
+                      marginLeft: -1,
+                      background: "rgba(0,0,0,0.45)",
+                      zIndex: 2,
+                    }} />
+                  ))}
+                </div>
+
+                {/* Milestone icons + labels + admin buttons */}
+                <div style={{ position: "relative", height: currentUser.isAdmin ? 78 : 56, marginTop: 6 }}>
+                  {MILESTONES.map((m, i) => {
+                    const isDone = claimed.includes(m.end);
+                    const rewardCfg = rewards.find((r: any) => Number(r.milestone_points) === m.end);
+                    const isFirst = i === 0;
+                    const isLast = i === MILESTONES.length - 1;
+                    const leftStyle = isLast ? undefined : `${m.pct}%`;
+                    const rightStyle = isLast ? "0" : undefined;
+                    const tx = isFirst ? "-5%" : isLast ? "0%" : "-50%";
+                    const isEditing = adminEditMs === m.end;
+
+                    return (
+                      <div key={m.end} style={{
+                        position: "absolute",
+                        left: leftStyle,
+                        right: rightStyle,
+                        top: 0,
+                        transform: `translateX(${tx})`,
+                        display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+                        minWidth: 40,
                       }}>
-                        {isDone ? "✅" : seg.icon}
-                      </span>
-                      {rewardCfg?.reward_label ? (
-                        <span className="font-fantasy text-center" style={{ fontSize: 8, color: isDone ? seg.color : "rgba(255,255,255,0.25)", lineHeight: 1.2, maxWidth: 56 }}>
-                          {rewardCfg.reward_label}
+                        <span style={{
+                          fontSize: 17, lineHeight: 1,
+                          filter: isDone ? `drop-shadow(0 0 6px ${m.glow})` : "grayscale(0.7) opacity(0.45)",
+                        }}>
+                          {isDone ? "✅" : m.icon}
                         </span>
-                      ) : (
-                        <span className="font-fantasy text-center" style={{ fontSize: 8, color: "rgba(255,255,255,0.15)", lineHeight: 1.2 }}>
-                          {seg.label}
+                        <span className="font-fantasy text-center" style={{
+                          fontSize: 8, lineHeight: 1.2,
+                          color: isDone ? m.color : "rgba(255,255,255,0.22)",
+                          maxWidth: 48,
+                        }}>
+                          {rewardCfg?.reward_label || m.label}
                         </span>
-                      )}
-                    </div>
-                  );
-                })}
+                        {/* Admin + button */}
+                        {currentUser.isAdmin && !isEditing && (
+                          <button
+                            data-testid={`button-admin-edit-milestone-${m.end}`}
+                            onClick={() => { setAdminEditMs(m.end); setAdminEditLabel(rewardCfg?.reward_label ?? ""); }}
+                            style={{
+                              width: 18, height: 18, borderRadius: 4, border: "1px solid rgba(251,146,60,0.5)",
+                              background: "rgba(251,146,60,0.12)", color: "#fb923c",
+                              fontSize: 13, lineHeight: 1, cursor: "pointer",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              fontWeight: 700,
+                            }}
+                          >+</button>
+                        )}
+                        {/* Inline edit form */}
+                        {currentUser.isAdmin && isEditing && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "center", minWidth: 64 }}>
+                            <input
+                              autoFocus
+                              value={adminEditLabel}
+                              onChange={e => setAdminEditLabel(e.target.value)}
+                              placeholder="Label…"
+                              style={{
+                                width: 64, padding: "2px 5px", borderRadius: 4, fontSize: 9,
+                                background: "rgba(255,255,255,0.1)", border: "1px solid rgba(251,146,60,0.5)",
+                                color: "#fff", outline: "none",
+                              }}
+                              data-testid={`input-milestone-label-inline-${m.end}`}
+                            />
+                            <div style={{ display: "flex", gap: 3 }}>
+                              <button
+                                onClick={() => saveMilestoneMutation.mutate({ ms: m.end, label: adminEditLabel })}
+                                disabled={saveMilestoneMutation.isPending}
+                                style={{ padding: "2px 6px", borderRadius: 4, fontSize: 9, cursor: "pointer", fontWeight: 700, background: "rgba(251,146,60,0.25)", border: "1px solid rgba(251,146,60,0.55)", color: "#fb923c" }}
+                              >✓</button>
+                              <button
+                                onClick={() => setAdminEditMs(null)}
+                                style={{ padding: "2px 6px", borderRadius: 4, fontSize: 9, cursor: "pointer", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.4)" }}
+                              >✕</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div className="flex items-center justify-between">
+              {/* Footer */}
+              <div className="flex items-center justify-between mt-1">
                 <span className="font-fantasy text-[9px]" style={{ color: "rgba(127,255,212,0.38)" }}>
-                  {ptsUntilNext > 0 ? `${ptsUntilNext.toLocaleString()} pts to ${nextSeg?.label}` : "🎉 All milestones reached!"}
+                  {ptsUntilNext > 0 ? `${ptsUntilNext.toLocaleString()} pts to ${nextMs?.label}` : "🎉 All milestones reached!"}
                 </span>
                 <span className="font-fantasy text-[9px]" data-testid="text-daily-limit" style={{ color: "rgba(127,255,212,0.28)" }}>
                   Daily: ${packsData?.dailySpent || 0}/${packsData?.dailyLimit || 500}
