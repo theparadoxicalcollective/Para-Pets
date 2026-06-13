@@ -784,9 +784,9 @@ app.use((req, res, next) => {
         has_unseen_completion boolean NOT NULL DEFAULT false
       )
     `);
-    // Remove deprecated daily_hub quest if it still exists
-    await db.execute(sql`DELETE FROM user_daily_quest_progress WHERE quest_key = 'daily_hub'`);
-    await db.execute(sql`DELETE FROM daily_quests WHERE quest_key = 'daily_hub'`);
+    // Remove deprecated hub-related quests if they still exist
+    await db.execute(sql`DELETE FROM user_daily_quest_progress WHERE quest_key IN ('daily_hub', 'visit_hub', 'claim_hub', 'hub_reward', 'claim_hub_reward')`);
+    await db.execute(sql`DELETE FROM daily_quests WHERE quest_key IN ('daily_hub', 'visit_hub', 'claim_hub', 'hub_reward', 'claim_hub_reward') OR title ILIKE '%hub page%'`);
 
     // Add reward_item_quantity column if not present (non-destructive)
     await db.execute(sql`

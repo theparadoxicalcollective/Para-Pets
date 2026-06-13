@@ -670,24 +670,24 @@ function NavButton({
         <span
           style={{
             position: "absolute",
-            top: -3,
-            right: -3,
-            width: 14,
-            height: 14,
+            top: -4,
+            right: -4,
+            width: 24,
+            height: 24,
             borderRadius: "50%",
             background: badge === "green"
               ? "linear-gradient(135deg, #16a34a, #22c55e)"
               : "linear-gradient(135deg, #b45309, #f0c040)",
-            border: "1.5px solid rgba(0,0,0,0.85)",
-            fontSize: 9,
+            border: "2.5px solid rgba(0,0,0,0.9)",
+            fontSize: 14,
             fontWeight: "bold",
             color: badge === "green" ? "#fff" : "#1a0a00",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             boxShadow: badge === "green"
-              ? "0 0 6px rgba(34,197,94,0.9)"
-              : "0 0 6px rgba(240,192,64,0.9)",
+              ? "0 0 10px rgba(34,197,94,1), 0 0 20px rgba(34,197,94,0.5)"
+              : "0 0 10px rgba(240,192,64,1), 0 0 18px rgba(240,192,64,0.5)",
             zIndex: 200,
             pointerEvents: "none",
             fontFamily: "'Cinzel', serif",
