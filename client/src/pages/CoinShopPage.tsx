@@ -209,17 +209,28 @@ export default function CoinShopPage({ user }: CoinShopProps) {
     staleTime: 30_000,
   });
 
-  const [adminEditMs, setAdminEditMs] = useState<number | null>(null);
-  const [adminEditLabel, setAdminEditLabel] = useState("");
+  const [adminPickerMs, setAdminPickerMs] = useState<number | null>(null);
+  const [pickerSearch, setPickerSearch] = useState("");
+  const { data: allShopItems = [] } = useQuery<any[]>({
+    queryKey: ["/api/admin/shop-items-all"],
+    enabled: adminPickerMs !== null && currentUser.isAdmin,
+    staleTime: 60_000,
+  });
   const saveMilestoneMutation = useMutation({
-    mutationFn: async ({ ms, label }: { ms: number; label: string }) => {
-      const res = await apiRequest("PATCH", `/api/admin/milestone-rewards/${ms}`, { rewardLabel: label.trim() || null });
+    mutationFn: async ({ ms, itemId, itemName, itemImageUrl }: { ms: number; itemId: string | null; itemName: string | null; itemImageUrl: string | null }) => {
+      const res = await apiRequest("PATCH", `/api/admin/milestone-rewards/${ms}`, {
+        rewardItemId: itemId,
+        rewardItemName: itemName,
+        rewardItemImageUrl: itemImageUrl,
+        rewardLabel: itemName,
+      });
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/coins/progress"] });
-      setAdminEditMs(null);
-      toast({ title: "Reward label saved!" });
+      setAdminPickerMs(null);
+      setPickerSearch("");
+      toast({ title: "Milestone reward saved!" });
     },
     onError: () => toast({ title: "Save failed", variant: "destructive" }),
   });
@@ -388,10 +399,10 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           const rewards = progressData?.milestoneRewards ?? [];
           const TOTAL = 10000;
           const MILESTONES = [
-            { end: 500,   icon: "🥉", label: "Bronze",    color: "#cd7f32", glow: "rgba(205,127,50,0.9)",   pct: 5  },
-            { end: 2500,  icon: "🥈", label: "Silver",    color: "#d4d4d4", glow: "rgba(212,212,212,0.9)",  pct: 25 },
-            { end: 5000,  icon: "🥇", label: "Gold",      color: "#f6dc8a", glow: "rgba(246,220,138,0.9)",  pct: 50 },
-            { end: 10000, icon: "✨", label: "Legendary", color: "#d946ef", glow: "rgba(217,70,239,0.9)",   pct: 100 },
+            { end: 500,   label: "Bronze",    color: "#cd7f32", pct: 5   },
+            { end: 2500,  label: "Silver",    color: "#c0c0c0", pct: 25  },
+            { end: 5000,  label: "Gold",      color: "#f6dc8a", pct: 50  },
+            { end: 10000, label: "Legendary", color: "#d946ef", pct: 100 },
           ];
           const fillPct = Math.min(pts / TOTAL * 100, 100);
           const nextMs = MILESTONES.find(m => pts < m.end);
@@ -399,6 +410,9 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           const monthLabel = progressData?.monthYear
             ? new Date(progressData.monthYear + "-02").toLocaleDateString("en-US", { month: "long", year: "numeric" })
             : "";
+          const filteredItems = allShopItems.filter((it: any) =>
+            !pickerSearch || it.name?.toLowerCase().includes(pickerSearch.toLowerCase())
+          );
 
           return (
             <div className="mx-4 mb-4 rounded-xl p-4" style={{
@@ -427,117 +441,102 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                 <span className="font-fantasy text-[10px]" style={{ color: "rgba(127,255,212,0.4)" }}>pts this month</span>
               </div>
 
-              {/* ── Continuous bar with milestone ticks ── */}
-              <div style={{ position: "relative" }}>
-                {/* Track */}
-                <div style={{ height: 10, borderRadius: 5, background: "rgba(255,255,255,0.07)", overflow: "hidden", position: "relative" }}>
-                  {/* Fill */}
-                  <div style={{
-                    position: "absolute", left: 0, top: 0, bottom: 0,
-                    width: `${fillPct}%`,
-                    background: "linear-gradient(90deg, #cd7f32 0%, #cd7f32 5%, #c8c8c8 5%, #c8c8c8 25%, #f6dc8a 25%, #f6dc8a 50%, #d946ef 50%)",
-                    backgroundSize: "100% 100%",
-                    boxShadow: fillPct > 0 ? "0 0 10px rgba(127,255,212,0.3)" : "none",
-                    transition: "width 0.8s ease",
-                  }} />
-                  {/* Tick marks at each milestone */}
-                  {MILESTONES.map((m, i) => (
+              {/* ── Item reward slots positioned above the bar ── */}
+              <div style={{ position: "relative", height: 52, marginBottom: 6 }}>
+                {MILESTONES.map((m, i) => {
+                  const isDone = claimed.includes(m.end);
+                  const rewardCfg = rewards.find((r: any) => Number(r.milestone_points) === m.end);
+                  const hasItem = !!rewardCfg?.reward_item_image_url;
+                  const isFirst = i === 0;
+                  const isLast = i === MILESTONES.length - 1;
+                  const tx = isFirst ? "translateX(-8%)" : isLast ? "translateX(-92%)" : "translateX(-50%)";
+
+                  return (
                     <div key={m.end} style={{
-                      position: "absolute", top: 0, bottom: 0,
-                      left: `${m.pct}%`,
-                      width: i === MILESTONES.length - 1 ? 0 : 2,
-                      marginLeft: -1,
-                      background: "rgba(0,0,0,0.45)",
-                      zIndex: 2,
-                    }} />
-                  ))}
-                </div>
-
-                {/* Milestone icons + labels + admin buttons */}
-                <div style={{ position: "relative", height: currentUser.isAdmin ? 78 : 56, marginTop: 6 }}>
-                  {MILESTONES.map((m, i) => {
-                    const isDone = claimed.includes(m.end);
-                    const rewardCfg = rewards.find((r: any) => Number(r.milestone_points) === m.end);
-                    const isFirst = i === 0;
-                    const isLast = i === MILESTONES.length - 1;
-                    const leftStyle = isLast ? undefined : `${m.pct}%`;
-                    const rightStyle = isLast ? "0" : undefined;
-                    const tx = isFirst ? "-5%" : isLast ? "0%" : "-50%";
-                    const isEditing = adminEditMs === m.end;
-
-                    return (
-                      <div key={m.end} style={{
-                        position: "absolute",
-                        left: leftStyle,
-                        right: rightStyle,
-                        top: 0,
-                        transform: `translateX(${tx})`,
-                        display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-                        minWidth: 40,
-                      }}>
-                        <span style={{
-                          fontSize: 17, lineHeight: 1,
-                          filter: isDone ? `drop-shadow(0 0 6px ${m.glow})` : "grayscale(0.7) opacity(0.45)",
-                        }}>
-                          {isDone ? "✅" : m.icon}
-                        </span>
-                        <span className="font-fantasy text-center" style={{
-                          fontSize: 8, lineHeight: 1.2,
-                          color: isDone ? m.color : "rgba(255,255,255,0.22)",
-                          maxWidth: 48,
-                        }}>
-                          {rewardCfg?.reward_label || m.label}
-                        </span>
-                        {/* Admin + button */}
-                        {currentUser.isAdmin && !isEditing && (
-                          <button
-                            data-testid={`button-admin-edit-milestone-${m.end}`}
-                            onClick={() => { setAdminEditMs(m.end); setAdminEditLabel(rewardCfg?.reward_label ?? ""); }}
+                      position: "absolute",
+                      left: isLast ? undefined : `${m.pct}%`,
+                      right: isLast ? "0" : undefined,
+                      top: 0,
+                      transform: tx,
+                      display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+                    }}>
+                      {/* Item image or empty slot */}
+                      <div style={{ position: "relative" }}>
+                        {hasItem ? (
+                          <img
+                            src={rewardCfg.reward_item_image_url}
+                            alt={rewardCfg.reward_item_name ?? ""}
                             style={{
-                              width: 18, height: 18, borderRadius: 4, border: "1px solid rgba(251,146,60,0.5)",
-                              background: "rgba(251,146,60,0.12)", color: "#fb923c",
-                              fontSize: 13, lineHeight: 1, cursor: "pointer",
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                              fontWeight: 700,
+                              width: 34, height: 34, objectFit: "contain", borderRadius: 6,
+                              opacity: isDone ? 1 : 0.55,
+                              filter: isDone ? `drop-shadow(0 0 7px ${m.color})` : "grayscale(0.3)",
                             }}
-                          >+</button>
-                        )}
-                        {/* Inline edit form */}
-                        {currentUser.isAdmin && isEditing && (
-                          <div style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "center", minWidth: 64 }}>
-                            <input
-                              autoFocus
-                              value={adminEditLabel}
-                              onChange={e => setAdminEditLabel(e.target.value)}
-                              placeholder="Label…"
-                              style={{
-                                width: 64, padding: "2px 5px", borderRadius: 4, fontSize: 9,
-                                background: "rgba(255,255,255,0.1)", border: "1px solid rgba(251,146,60,0.5)",
-                                color: "#fff", outline: "none",
-                              }}
-                              data-testid={`input-milestone-label-inline-${m.end}`}
-                            />
-                            <div style={{ display: "flex", gap: 3 }}>
-                              <button
-                                onClick={() => saveMilestoneMutation.mutate({ ms: m.end, label: adminEditLabel })}
-                                disabled={saveMilestoneMutation.isPending}
-                                style={{ padding: "2px 6px", borderRadius: 4, fontSize: 9, cursor: "pointer", fontWeight: 700, background: "rgba(251,146,60,0.25)", border: "1px solid rgba(251,146,60,0.55)", color: "#fb923c" }}
-                              >✓</button>
-                              <button
-                                onClick={() => setAdminEditMs(null)}
-                                style={{ padding: "2px 6px", borderRadius: 4, fontSize: 9, cursor: "pointer", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.4)" }}
-                              >✕</button>
-                            </div>
+                          />
+                        ) : (
+                          <div style={{
+                            width: 34, height: 34, borderRadius: 6,
+                            border: `1.5px dashed ${currentUser.isAdmin ? "rgba(251,146,60,0.4)" : "rgba(127,255,212,0.14)"}`,
+                            background: currentUser.isAdmin ? "rgba(251,146,60,0.05)" : "rgba(255,255,255,0.02)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}>
+                            {currentUser.isAdmin && (
+                              <span style={{ fontSize: 16, color: "rgba(251,146,60,0.6)", lineHeight: 1, pointerEvents: "none" }}>+</span>
+                            )}
                           </div>
                         )}
+                        {/* Claimed checkmark */}
+                        {isDone && (
+                          <div style={{ position: "absolute", top: -5, right: -5, fontSize: 11, lineHeight: 1 }}>✅</div>
+                        )}
+                        {/* Admin clickable overlay */}
+                        {currentUser.isAdmin && (
+                          <button
+                            data-testid={`button-admin-edit-milestone-${m.end}`}
+                            onClick={() => { setAdminPickerMs(m.end); setPickerSearch(""); }}
+                            title={hasItem ? "Change reward" : "Set reward"}
+                            style={{
+                              position: "absolute", inset: 0, borderRadius: 6,
+                              background: "transparent", border: "none", cursor: "pointer",
+                              zIndex: 1,
+                            }}
+                          />
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
+                      {/* Tier label */}
+                      <span className="font-fantasy" style={{
+                        fontSize: 8, lineHeight: 1, whiteSpace: "nowrap",
+                        color: isDone ? m.color : "rgba(255,255,255,0.28)",
+                      }}>{m.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ── Single XP-style fill bar ── */}
+              <div style={{ height: 12, borderRadius: 6, background: "rgba(255,255,255,0.07)", overflow: "hidden", position: "relative" }}>
+                {/* Milestone tick marks */}
+                {MILESTONES.map((m, i) => (
+                  <div key={m.end} style={{
+                    position: "absolute", top: 0, bottom: 0,
+                    left: `${m.pct}%`,
+                    width: i === MILESTONES.length - 1 ? 0 : 2,
+                    marginLeft: -1,
+                    background: "rgba(0,0,0,0.5)",
+                    zIndex: 2,
+                  }} />
+                ))}
+                {/* Teal fill */}
+                <div style={{
+                  position: "absolute", left: 0, top: 0, bottom: 0,
+                  width: `${fillPct}%`,
+                  background: "linear-gradient(90deg, #1a9e7a 0%, #2dd4bf 60%, #7fffd4 100%)",
+                  boxShadow: fillPct > 0 ? "0 0 12px rgba(127,255,212,0.55)" : "none",
+                  transition: "width 0.9s cubic-bezier(0.4,0,0.2,1)",
+                }} />
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between mt-1">
+              <div className="flex items-center justify-between mt-2">
                 <span className="font-fantasy text-[9px]" style={{ color: "rgba(127,255,212,0.38)" }}>
                   {ptsUntilNext > 0 ? `${ptsUntilNext.toLocaleString()} pts to ${nextMs?.label}` : "🎉 All milestones reached!"}
                 </span>
@@ -545,6 +544,74 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                   Daily: ${packsData?.dailySpent || 0}/${packsData?.dailyLimit || 500}
                 </span>
               </div>
+
+              {/* ── Admin item picker ── */}
+              {currentUser.isAdmin && adminPickerMs !== null && (
+                <div style={{ marginTop: 10, borderRadius: 8, border: "1px solid rgba(251,146,60,0.4)", background: "rgba(28,10,4,0.97)", padding: 8 }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-fantasy text-[10px]" style={{ color: "#fb923c" }}>
+                      Set reward — {MILESTONES.find(m => m.end === adminPickerMs)?.label}
+                    </span>
+                    <button
+                      onClick={() => { setAdminPickerMs(null); setPickerSearch(""); }}
+                      style={{ background: "none", border: "none", color: "rgba(251,146,60,0.55)", fontSize: 15, cursor: "pointer", lineHeight: 1 }}
+                    >✕</button>
+                  </div>
+                  <input
+                    autoFocus
+                    value={pickerSearch}
+                    onChange={e => setPickerSearch(e.target.value)}
+                    placeholder="Search items…"
+                    style={{
+                      width: "100%", padding: "4px 8px", borderRadius: 5, fontSize: 10,
+                      background: "rgba(255,255,255,0.07)", border: "1px solid rgba(251,146,60,0.28)",
+                      color: "#fff", outline: "none", marginBottom: 6, boxSizing: "border-box" as const,
+                    }}
+                  />
+                  <button
+                    onClick={() => saveMilestoneMutation.mutate({ ms: adminPickerMs, itemId: null, itemName: null, itemImageUrl: null })}
+                    disabled={saveMilestoneMutation.isPending}
+                    style={{
+                      width: "100%", padding: "3px 0", borderRadius: 5, marginBottom: 6,
+                      border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)",
+                      color: "rgba(255,255,255,0.4)", fontSize: 9, cursor: "pointer", fontFamily: "Lora, serif",
+                    }}
+                  >✕ Clear reward</button>
+                  <div style={{ maxHeight: 160, overflowY: "auto" as const, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4 }}>
+                    {filteredItems.length === 0 && (
+                      <div style={{ gridColumn: "1/-1", color: "rgba(255,255,255,0.3)", fontSize: 10, textAlign: "center" as const, padding: 8 }}>
+                        {allShopItems.length === 0 ? "Loading…" : "No items match"}
+                      </div>
+                    )}
+                    {filteredItems.map((it: any) => (
+                      <button
+                        key={it.id}
+                        onClick={() => saveMilestoneMutation.mutate({
+                          ms: adminPickerMs,
+                          itemId: it.id,
+                          itemName: it.name,
+                          itemImageUrl: it.imageUrl || null,
+                        })}
+                        disabled={saveMilestoneMutation.isPending}
+                        title={it.name}
+                        style={{
+                          display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+                          padding: "4px 2px", borderRadius: 6, cursor: "pointer",
+                          border: "1px solid rgba(251,146,60,0.2)",
+                          background: "rgba(251,146,60,0.06)",
+                        }}
+                      >
+                        {it.imageUrl ? (
+                          <img src={it.imageUrl} alt={it.name} style={{ width: 32, height: 32, objectFit: "contain" as const }} />
+                        ) : (
+                          <div style={{ width: 32, height: 32, background: "rgba(255,255,255,0.05)", borderRadius: 4 }} />
+                        )}
+                        <span style={{ fontSize: 7, color: "rgba(255,255,255,0.55)", lineHeight: 1.2, textAlign: "center" as const, maxWidth: 52, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{it.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })()}
