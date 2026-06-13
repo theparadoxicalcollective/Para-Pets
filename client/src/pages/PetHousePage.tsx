@@ -3233,172 +3233,184 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         }}
       >
         {/* ── Edibles ─────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-2 mb-1 px-1">
-          <span style={{ fontFamily: "Lora, serif", color: "#9fd690", fontSize: 10, fontWeight: 800, letterSpacing: "0.18em" }}>
-            EDIBLES
-          </span>
-          <span style={{ fontFamily: "Lora, serif", color: "rgba(159,214,144,0.5)", fontSize: 10, fontWeight: 700 }}>
-            {edibles.length}
-          </span>
-        </div>
-
-        {edibles.length === 0 ? (
-          <div
-            className="px-1 flex items-center"
-            style={{
-              height: 52,
-              marginBottom: 8,
-              borderRadius: 10,
-              border: "1.5px solid rgba(159,214,144,0.22)",
-              background: "rgba(159,214,144,0.04)",
-            }}
-            data-testid="text-no-edibles"
-          >
-            <span style={{ fontFamily: "Lora, serif", color: "rgba(159,214,144,0.4)", fontSize: 11, fontStyle: "italic", letterSpacing: "0.04em", paddingLeft: 8 }}>
-              No edibles
+        <div
+          style={{
+            borderRadius: 12,
+            border: "1.5px solid rgba(120,210,90,0.38)",
+            background: "rgba(20,50,15,0.55)",
+            boxShadow: "0 0 14px rgba(100,200,70,0.08), inset 0 1px 0 rgba(140,230,100,0.06)",
+            padding: "8px 8px 6px",
+            marginBottom: 8,
+          }}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span style={{ fontFamily: "Lora, serif", color: "#9fd690", fontSize: 10, fontWeight: 800, letterSpacing: "0.18em" }}>
+              🌿 EDIBLES
+            </span>
+            <span style={{ fontFamily: "Lora, serif", color: "rgba(159,214,144,0.5)", fontSize: 10, fontWeight: 700 }}>
+              {edibles.length}
+            </span>
+            <span style={{ fontFamily: "Lora, serif", color: "rgba(159,214,144,0.3)", fontSize: 8, marginLeft: "auto" }}>
+              stacks up to 30
             </span>
           </div>
-        ) : (
-          <div
-            className="flex gap-2 overflow-x-auto pb-1 px-1"
-            style={{
-              touchAction: "pan-x",
-              WebkitOverflowScrolling: "touch",
-              overscrollBehaviorX: "contain",
-              scrollbarWidth: "none",
-              msOverflowStyle: "none",
-              marginBottom: 6,
-            }}
-          >
-            {edibles.map((item) => (
-              <div
-                key={item.id}
-                className="flex-shrink-0 flex flex-col items-center relative"
-                style={{ width: 56, touchAction: "pan-x", cursor: "grab", userSelect: "none" }}
-                onPointerDown={(e) => onItemPointerDown(e, item)}
-                data-testid={`edible-item-${item.id}`}
-              >
-                <div className="relative" style={{ width: 44, height: 44 }}>
-                  {item.imageUrl ? (
-                    <img
-                      src={item.imageUrl}
-                      alt={item.name}
-                      draggable={false}
-                      style={{ width: 44, height: 44, objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))", pointerEvents: "none" }}
-                    />
-                  ) : (
-                    <div style={{ width: 44, height: 44, background: "rgba(255,255,255,0.06)", borderRadius: 8 }} />
-                  )}
-                  {item.quantity > 1 && (
-                    <div className="absolute" style={{
-                      top: -2, right: -4,
-                      background: "rgba(30,55,22,0.95)",
-                      border: "1px solid rgba(150,220,120,0.55)",
-                      borderRadius: 8, padding: "0px 4px",
-                      fontFamily: "Lora, serif", color: "#dfffd0", fontSize: 9, fontWeight: 800, lineHeight: "14px",
-                    }}>×{item.quantity}</div>
-                  )}
-                  {item.statBoostAmount != null && (
-                    <div className="absolute" style={{
-                      bottom: -4, left: "50%", transform: "translateX(-50%)",
-                      background: "rgba(100,185,75,0.97)",
-                      borderRadius: 6, padding: "0px 4px",
-                      fontFamily: "Lora, serif", color: "#071a02", fontSize: 8, fontWeight: 800, whiteSpace: "nowrap", lineHeight: "13px",
-                    }}>+{item.statBoostAmount}</div>
-                  )}
+
+          {edibles.length === 0 ? (
+            <div
+              className="flex items-center"
+              style={{ height: 44 }}
+              data-testid="text-no-edibles"
+            >
+              <span style={{ fontFamily: "Lora, serif", color: "rgba(159,214,144,0.35)", fontSize: 11, fontStyle: "italic", letterSpacing: "0.04em", paddingLeft: 4 }}>
+                No edibles
+              </span>
+            </div>
+          ) : (
+            <div
+              className="flex gap-2 overflow-x-auto pb-1"
+              style={{
+                touchAction: "pan-x",
+                WebkitOverflowScrolling: "touch",
+                overscrollBehaviorX: "contain",
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+              }}
+            >
+              {edibles.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex-shrink-0 flex flex-col items-center relative"
+                  style={{ width: 56, touchAction: "pan-x", cursor: "grab", userSelect: "none" }}
+                  onPointerDown={(e) => onItemPointerDown(e, item)}
+                  data-testid={`edible-item-${item.id}`}
+                >
+                  <div className="relative" style={{ width: 44, height: 44 }}>
+                    {item.imageUrl ? (
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        draggable={false}
+                        style={{ width: 44, height: 44, objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))", pointerEvents: "none" }}
+                      />
+                    ) : (
+                      <div style={{ width: 44, height: 44, background: "rgba(255,255,255,0.06)", borderRadius: 8 }} />
+                    )}
+                    {item.quantity > 1 && (
+                      <div className="absolute" style={{
+                        top: -2, right: -4,
+                        background: "rgba(30,55,22,0.95)",
+                        border: "1px solid rgba(150,220,120,0.55)",
+                        borderRadius: 8, padding: "0px 4px",
+                        fontFamily: "Lora, serif", color: "#dfffd0", fontSize: 9, fontWeight: 800, lineHeight: "14px",
+                      }}>×{item.quantity}</div>
+                    )}
+                    {item.statBoostAmount != null && (
+                      <div className="absolute" style={{
+                        bottom: -4, left: "50%", transform: "translateX(-50%)",
+                        background: "rgba(100,185,75,0.97)",
+                        borderRadius: 6, padding: "0px 4px",
+                        fontFamily: "Lora, serif", color: "#071a02", fontSize: 8, fontWeight: 800, whiteSpace: "nowrap", lineHeight: "13px",
+                      }}>+{item.statBoostAmount}</div>
+                    )}
+                  </div>
+                  <span style={{
+                    fontFamily: "Lora, serif", color: "#c8e8b0", fontSize: 8, fontWeight: 600,
+                    lineHeight: 1.2, maxWidth: 54, overflow: "hidden", textOverflow: "ellipsis",
+                    whiteSpace: "nowrap", textAlign: "center", marginTop: 4,
+                  }}>{item.name}</span>
                 </div>
-                <span style={{
-                  fontFamily: "Lora, serif", color: "#c8e8b0", fontSize: 8, fontWeight: 600,
-                  lineHeight: 1.2, maxWidth: 54, overflow: "hidden", textOverflow: "ellipsis",
-                  whiteSpace: "nowrap", textAlign: "center", marginTop: 4,
-                }}>{item.name}</span>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* ── Gifts ───────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-2 mb-1 px-1">
-          <span style={{ fontFamily: "Lora, serif", color: "#f9b8d8", fontSize: 10, fontWeight: 800, letterSpacing: "0.18em" }}>
-            GIFTS
-          </span>
-          <span style={{ fontFamily: "Lora, serif", color: "rgba(249,184,216,0.5)", fontSize: 10, fontWeight: 700 }}>
-            {gifts.length}
-          </span>
-        </div>
-
-        {gifts.length === 0 ? (
-          <div
-            className="px-1 flex items-center"
-            style={{
-              height: 52,
-              borderRadius: 10,
-              border: "1.5px solid rgba(249,184,216,0.22)",
-              background: "rgba(249,184,216,0.04)",
-            }}
-            data-testid="text-no-gifts"
-          >
-            <span style={{ fontFamily: "Lora, serif", color: "rgba(249,184,216,0.4)", fontSize: 11, fontStyle: "italic", letterSpacing: "0.04em", paddingLeft: 8 }}>
-              No gifts
+        <div
+          style={{
+            borderRadius: 12,
+            border: "1.5px solid rgba(240,140,200,0.38)",
+            background: "rgba(50,15,35,0.55)",
+            boxShadow: "0 0 14px rgba(220,80,160,0.08), inset 0 1px 0 rgba(255,180,220,0.06)",
+            padding: "8px 8px 6px",
+          }}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span style={{ fontFamily: "Lora, serif", color: "#f9b8d8", fontSize: 10, fontWeight: 800, letterSpacing: "0.18em" }}>
+              🎁 GIFTS
+            </span>
+            <span style={{ fontFamily: "Lora, serif", color: "rgba(249,184,216,0.5)", fontSize: 10, fontWeight: 700 }}>
+              {gifts.length}
             </span>
           </div>
-        ) : (
-          <div
-            className="flex gap-2 overflow-x-auto pb-1 px-1"
-            style={{
-              touchAction: "pan-x",
-              WebkitOverflowScrolling: "touch",
-              overscrollBehaviorX: "contain",
-              scrollbarWidth: "none",
-              msOverflowStyle: "none",
-            }}
-          >
-            {gifts.map((item) => (
-              <div
-                key={item.id}
-                className="flex-shrink-0 flex flex-col items-center relative"
-                style={{ width: 56, touchAction: "pan-x", cursor: "grab", userSelect: "none" }}
-                onPointerDown={(e) => onItemPointerDown(e, item)}
-                data-testid={`gift-item-${item.id}`}
-              >
-                <div className="relative" style={{ width: 44, height: 44 }}>
-                  {item.imageUrl ? (
-                    <img
-                      src={item.imageUrl}
-                      alt={item.name}
-                      draggable={false}
-                      style={{ width: 44, height: 44, objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))", pointerEvents: "none" }}
-                    />
-                  ) : (
-                    <div style={{ width: 44, height: 44, background: "rgba(255,255,255,0.06)", borderRadius: 8 }} />
-                  )}
-                  {item.quantity > 1 && (
-                    <div className="absolute" style={{
-                      top: -2, right: -4,
-                      background: "rgba(80,22,55,0.95)",
-                      border: "1px solid rgba(255,170,210,0.55)",
-                      borderRadius: 8, padding: "0px 4px",
-                      fontFamily: "Lora, serif", color: "#ffe6f1", fontSize: 9, fontWeight: 800, lineHeight: "14px",
-                    }}>×{item.quantity}</div>
-                  )}
-                  {item.giftPoints && (
-                    <div className="absolute" style={{
-                      bottom: -4, left: "50%", transform: "translateX(-50%)",
-                      background: "rgba(210,55,130,0.97)",
-                      borderRadius: 6, padding: "0px 4px",
-                      fontFamily: "Lora, serif", color: "#fff0f7", fontSize: 8, fontWeight: 800, whiteSpace: "nowrap", lineHeight: "13px",
-                    }}>+{item.giftPoints}</div>
-                  )}
+
+          {gifts.length === 0 ? (
+            <div
+              className="flex items-center"
+              style={{ height: 44 }}
+              data-testid="text-no-gifts"
+            >
+              <span style={{ fontFamily: "Lora, serif", color: "rgba(249,184,216,0.35)", fontSize: 11, fontStyle: "italic", letterSpacing: "0.04em", paddingLeft: 4 }}>
+                No gifts
+              </span>
+            </div>
+          ) : (
+            <div
+              className="flex gap-2 overflow-x-auto pb-1"
+              style={{
+                touchAction: "pan-x",
+                WebkitOverflowScrolling: "touch",
+                overscrollBehaviorX: "contain",
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+              }}
+            >
+              {gifts.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex-shrink-0 flex flex-col items-center relative"
+                  style={{ width: 56, touchAction: "pan-x", cursor: "grab", userSelect: "none" }}
+                  onPointerDown={(e) => onItemPointerDown(e, item)}
+                  data-testid={`gift-item-${item.id}`}
+                >
+                  <div className="relative" style={{ width: 44, height: 44 }}>
+                    {item.imageUrl ? (
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        draggable={false}
+                        style={{ width: 44, height: 44, objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))", pointerEvents: "none" }}
+                      />
+                    ) : (
+                      <div style={{ width: 44, height: 44, background: "rgba(255,255,255,0.06)", borderRadius: 8 }} />
+                    )}
+                    {item.quantity > 1 && (
+                      <div className="absolute" style={{
+                        top: -2, right: -4,
+                        background: "rgba(80,22,55,0.95)",
+                        border: "1px solid rgba(255,170,210,0.55)",
+                        borderRadius: 8, padding: "0px 4px",
+                        fontFamily: "Lora, serif", color: "#ffe6f1", fontSize: 9, fontWeight: 800, lineHeight: "14px",
+                      }}>×{item.quantity}</div>
+                    )}
+                    {item.giftPoints && (
+                      <div className="absolute" style={{
+                        bottom: -4, left: "50%", transform: "translateX(-50%)",
+                        background: "rgba(210,55,130,0.97)",
+                        borderRadius: 6, padding: "0px 4px",
+                        fontFamily: "Lora, serif", color: "#fff0f7", fontSize: 8, fontWeight: 800, whiteSpace: "nowrap", lineHeight: "13px",
+                      }}>+{item.giftPoints}</div>
+                    )}
+                  </div>
+                  <span style={{
+                    fontFamily: "Lora, serif", color: "#f9d8eb", fontSize: 8, fontWeight: 600,
+                    lineHeight: 1.2, maxWidth: 54, overflow: "hidden", textOverflow: "ellipsis",
+                    whiteSpace: "nowrap", textAlign: "center", marginTop: 4,
+                  }}>{item.name}</span>
                 </div>
-                <span style={{
-                  fontFamily: "Lora, serif", color: "#f9d8eb", fontSize: 8, fontWeight: 600,
-                  lineHeight: 1.2, maxWidth: 54, overflow: "hidden", textOverflow: "ellipsis",
-                  whiteSpace: "nowrap", textAlign: "center", marginTop: 4,
-                }}>{item.name}</span>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Feed hint overlay ───────────────────────────────────────────────

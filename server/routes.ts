@@ -1798,6 +1798,11 @@ export async function registerRoutes(
         const POTION_STACK_LIMIT = 50;
         const touched = await storage.addStackingItem(user.id, itemId, purchaseCount, POTION_STACK_LIMIT);
         invItem = touched[touched.length - 1] ?? null;
+      } else if (shopItem.type === "edibles") {
+        // Edibles stack up to 30 per row.
+        const EDIBLE_STACK_LIMIT = 30;
+        const touched = await storage.addStackingItem(user.id, itemId, purchaseCount, EDIBLE_STACK_LIMIT);
+        invItem = touched[touched.length - 1] ?? null;
       } else {
         for (let i = 0; i < purchaseCount; i++) {
           const extraFields: any = {};
@@ -2442,7 +2447,7 @@ export async function registerRoutes(
       };
 
       const updatedPet = await storage.updateInventoryItem(petInv.id, updates);
-      await storage.removeFromInventory(itemInv.id);
+      await storage.decrementInventoryQuantity(itemInv.id);
       // Quest progress: feed_pet
       incrementQuestProgress(user.id, "feed_pet").catch(() => {});
       return res.json(updatedPet);
