@@ -3200,8 +3200,13 @@ export class DatabaseStorage implements IStorage {
 
   async getMilestoneRewards(): Promise<any[]> {
     const result = await db.execute(sql`
-      SELECT milestone_points, reward_coins, reward_item_id, reward_item_name, reward_item_image_url, reward_label
-      FROM purchase_milestone_rewards ORDER BY milestone_points
+      SELECT pmr.milestone_points, pmr.reward_coins, pmr.reward_item_id, pmr.reward_item_name,
+             pmr.reward_item_image_url, pmr.reward_label,
+             si.type AS item_type, si.stat_boost_amount, si.stat_boost_type,
+             si.star_rarity, si.gift_points
+      FROM purchase_milestone_rewards pmr
+      LEFT JOIN shop_items si ON si.id = pmr.reward_item_id
+      ORDER BY pmr.milestone_points
     `);
     return result.rows;
   }

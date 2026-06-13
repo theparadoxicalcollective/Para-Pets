@@ -202,7 +202,19 @@ export default function CoinShopPage({ user }: CoinShopProps) {
     monthYear: string;
     points: number;
     claimedMilestones: number[];
-    milestoneRewards: { milestone_points: number; reward_coins: number | null; reward_item_id: string | null; reward_item_name: string | null; reward_item_image_url: string | null; reward_label: string | null }[];
+    milestoneRewards: {
+      milestone_points: number;
+      reward_coins: number | null;
+      reward_item_id: string | null;
+      reward_item_name: string | null;
+      reward_item_image_url: string | null;
+      reward_label: string | null;
+      item_type: string | null;
+      stat_boost_amount: number | null;
+      stat_boost_type: string | null;
+      star_rarity: number | null;
+      gift_points: number | null;
+    }[];
   }
   const { data: progressData } = useQuery<ProgressData>({
     queryKey: ["/api/coins/progress"],
@@ -211,6 +223,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
   const [adminPickerMs, setAdminPickerMs] = useState<number | null>(null);
   const [pickerSearch, setPickerSearch] = useState("");
+  const [pickerTab, setPickerTab] = useState<string>("all");
   const { data: allShopItems = [] } = useQuery<any[]>({
     queryKey: ["/api/admin/shop-items-all"],
     enabled: adminPickerMs !== null && currentUser.isAdmin,
@@ -410,9 +423,24 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           const monthLabel = progressData?.monthYear
             ? new Date(progressData.monthYear + "-02").toLocaleDateString("en-US", { month: "long", year: "numeric" })
             : "";
-          const filteredItems = allShopItems.filter((it: any) =>
-            !pickerSearch || it.name?.toLowerCase().includes(pickerSearch.toLowerCase())
-          );
+          const ITEM_TYPES = ["all", "pet", "edibles", "gift", "potion", "other"] as const;
+          const filteredItems = allShopItems.filter((it: any) => {
+            const matchesTab = pickerTab === "all"
+              || (pickerTab === "other" ? !["pet","edibles","gift","potion"].includes(it.type) : it.type === pickerTab);
+            const matchesSearch = !pickerSearch || it.name?.toLowerCase().includes(pickerSearch.toLowerCase());
+            return matchesTab && matchesSearch;
+          });
+          const getStatLine = (cfg: any): string => {
+            if (!cfg?.reward_item_id) return "";
+            if (cfg.item_type === "pet") return "⭐".repeat(Math.max(1, cfg.star_rarity ?? 1));
+            if (cfg.item_type === "edibles" && cfg.stat_boost_amount) return `+${cfg.stat_boost_amount} Feed pts`;
+            if (cfg.item_type === "potion" && cfg.stat_boost_amount) {
+              const lbl = cfg.stat_boost_type === "mana" ? "Mana" : cfg.stat_boost_type === "revive" ? "Revive" : "HP";
+              return `+${cfg.stat_boost_amount} ${lbl}`;
+            }
+            if (cfg.item_type === "gift" && cfg.gift_points) return `+${cfg.gift_points} Loyalty`;
+            return "";
+          };
 
           return (
             <div className="mx-4 mb-4 rounded-xl p-4" style={{
@@ -442,14 +470,16 @@ export default function CoinShopPage({ user }: CoinShopProps) {
               </div>
 
               {/* ── Item reward slots positioned above the bar ── */}
-              <div style={{ position: "relative", height: 52, marginBottom: 6 }}>
+              <div style={{ position: "relative", height: 80, marginBottom: 8 }}>
                 {MILESTONES.map((m, i) => {
                   const isDone = claimed.includes(m.end);
+                  const isReachable = pts >= m.end && !isDone;
                   const rewardCfg = rewards.find((r: any) => Number(r.milestone_points) === m.end);
                   const hasItem = !!rewardCfg?.reward_item_image_url;
                   const isFirst = i === 0;
                   const isLast = i === MILESTONES.length - 1;
                   const tx = isFirst ? "translateX(-8%)" : isLast ? "translateX(-92%)" : "translateX(-50%)";
+                  const statLine = getStatLine(rewardCfg);
 
                   return (
                     <div key={m.end} style={{
@@ -458,55 +488,82 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                       right: isLast ? "0" : undefined,
                       top: 0,
                       transform: tx,
-                      display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+                      display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                      width: 56,
                     }}>
                       {/* Item image or empty slot */}
-                      <div style={{ position: "relative" }}>
+                      <div style={{ position: "relative", flexShrink: 0 }}>
                         {hasItem ? (
-                          <img
-                            src={rewardCfg.reward_item_image_url}
-                            alt={rewardCfg.reward_item_name ?? ""}
-                            style={{
-                              width: 34, height: 34, objectFit: "contain", borderRadius: 6,
-                              opacity: isDone ? 1 : 0.55,
-                              filter: isDone ? `drop-shadow(0 0 7px ${m.color})` : "grayscale(0.3)",
-                            }}
-                          />
+                          <>
+                            <img
+                              src={rewardCfg.reward_item_image_url}
+                              alt={rewardCfg.reward_item_name ?? ""}
+                              style={{
+                                width: 44, height: 44, objectFit: "contain", borderRadius: 8,
+                                display: "block",
+                                filter: isDone
+                                  ? "brightness(0.45) grayscale(0.6)"
+                                  : isReachable
+                                  ? `drop-shadow(0 0 8px ${m.color})`
+                                  : "none",
+                                border: isReachable ? `1.5px solid ${m.color}` : isDone ? "1.5px solid rgba(255,255,255,0.1)" : "1.5px solid rgba(255,255,255,0.08)",
+                                borderRadius: 8,
+                              }}
+                            />
+                            {isDone && (
+                              <div style={{
+                                position: "absolute", inset: 0, borderRadius: 8,
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                background: "rgba(0,0,0,0.15)",
+                              }}>
+                                <span style={{ fontSize: 18, lineHeight: 1, filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.8))" }}>✅</span>
+                              </div>
+                            )}
+                          </>
                         ) : (
                           <div style={{
-                            width: 34, height: 34, borderRadius: 6,
-                            border: `1.5px dashed ${currentUser.isAdmin ? "rgba(251,146,60,0.4)" : "rgba(127,255,212,0.14)"}`,
-                            background: currentUser.isAdmin ? "rgba(251,146,60,0.05)" : "rgba(255,255,255,0.02)",
+                            width: 44, height: 44, borderRadius: 8,
+                            border: `1.5px dashed ${currentUser.isAdmin ? "rgba(251,146,60,0.45)" : "rgba(127,255,212,0.15)"}`,
+                            background: currentUser.isAdmin ? "rgba(251,146,60,0.06)" : "rgba(255,255,255,0.02)",
                             display: "flex", alignItems: "center", justifyContent: "center",
                           }}>
                             {currentUser.isAdmin && (
-                              <span style={{ fontSize: 16, color: "rgba(251,146,60,0.6)", lineHeight: 1, pointerEvents: "none" }}>+</span>
+                              <span style={{ fontSize: 20, color: "rgba(251,146,60,0.65)", lineHeight: 1, pointerEvents: "none" }}>+</span>
                             )}
                           </div>
-                        )}
-                        {/* Claimed checkmark */}
-                        {isDone && (
-                          <div style={{ position: "absolute", top: -5, right: -5, fontSize: 11, lineHeight: 1 }}>✅</div>
                         )}
                         {/* Admin clickable overlay */}
                         {currentUser.isAdmin && (
                           <button
                             data-testid={`button-admin-edit-milestone-${m.end}`}
-                            onClick={() => { setAdminPickerMs(m.end); setPickerSearch(""); }}
+                            onClick={() => { setAdminPickerMs(m.end); setPickerSearch(""); setPickerTab("all"); }}
                             title={hasItem ? "Change reward" : "Set reward"}
                             style={{
-                              position: "absolute", inset: 0, borderRadius: 6,
+                              position: "absolute", inset: 0, borderRadius: 8,
                               background: "transparent", border: "none", cursor: "pointer",
                               zIndex: 1,
                             }}
                           />
                         )}
                       </div>
-                      {/* Tier label */}
-                      <span className="font-fantasy" style={{
-                        fontSize: 8, lineHeight: 1, whiteSpace: "nowrap",
-                        color: isDone ? m.color : "rgba(255,255,255,0.28)",
-                      }}>{m.label}</span>
+                      {/* Item name + stat line */}
+                      {hasItem && (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, width: "100%" }}>
+                          <span style={{
+                            fontSize: 7.5, lineHeight: 1.2, textAlign: "center",
+                            color: isDone ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.75)",
+                            width: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                            fontFamily: "Lora, serif",
+                          }}>{rewardCfg.reward_item_name}</span>
+                          {statLine && (
+                            <span style={{
+                              fontSize: 7, lineHeight: 1.1, textAlign: "center",
+                              color: isDone ? "rgba(127,255,212,0.25)" : "#7fffd4",
+                              whiteSpace: "nowrap",
+                            }}>{statLine}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -553,9 +610,25 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                       Set reward — {MILESTONES.find(m => m.end === adminPickerMs)?.label}
                     </span>
                     <button
-                      onClick={() => { setAdminPickerMs(null); setPickerSearch(""); }}
+                      onClick={() => { setAdminPickerMs(null); setPickerSearch(""); setPickerTab("all"); }}
                       style={{ background: "none", border: "none", color: "rgba(251,146,60,0.55)", fontSize: 15, cursor: "pointer", lineHeight: 1 }}
                     >✕</button>
+                  </div>
+                  {/* Type filter tabs */}
+                  <div style={{ display: "flex", gap: 3, marginBottom: 6, flexWrap: "wrap" as const }}>
+                    {ITEM_TYPES.map(tab => (
+                      <button
+                        key={tab}
+                        onClick={() => setPickerTab(tab)}
+                        style={{
+                          padding: "2px 7px", borderRadius: 4, fontSize: 8, cursor: "pointer",
+                          fontFamily: "Lora, serif", textTransform: "capitalize" as const,
+                          border: pickerTab === tab ? "1px solid rgba(251,146,60,0.8)" : "1px solid rgba(251,146,60,0.2)",
+                          background: pickerTab === tab ? "rgba(251,146,60,0.2)" : "rgba(251,146,60,0.04)",
+                          color: pickerTab === tab ? "#fb923c" : "rgba(255,255,255,0.4)",
+                        }}
+                      >{tab}</button>
+                    ))}
                   </div>
                   <input
                     autoFocus
