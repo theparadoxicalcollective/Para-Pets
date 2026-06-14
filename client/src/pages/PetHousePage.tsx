@@ -3245,7 +3245,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         >
           <div className="flex items-center gap-2 mb-2">
             <span style={{ fontFamily: "Lora, serif", color: "#9fd690", fontSize: 10, fontWeight: 800, letterSpacing: "0.18em" }}>
-              🌿 EDIBLES
+              EDIBLES
             </span>
             <span style={{ fontFamily: "Lora, serif", color: "rgba(159,214,144,0.5)", fontSize: 10, fontWeight: 700 }}>
               {edibles.length}
@@ -3280,27 +3280,27 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
                 <div
                   key={item.id}
                   className="flex-shrink-0 flex flex-col items-center relative"
-                  style={{ width: 56, touchAction: "pan-x", cursor: "grab", userSelect: "none" }}
+                  style={{ width: 52, touchAction: "none", cursor: "grab", userSelect: "none" }}
                   onPointerDown={(e) => onItemPointerDown(e, item)}
                   data-testid={`edible-item-${item.id}`}
                 >
-                  <div className="relative" style={{ width: 44, height: 44 }}>
+                  <div className="relative" style={{ width: 46, height: 46 }}>
                     {item.imageUrl ? (
                       <img
                         src={item.imageUrl}
                         alt={item.name}
                         draggable={false}
-                        style={{ width: 44, height: 44, objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))", pointerEvents: "none" }}
+                        style={{ width: 46, height: 46, objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))", pointerEvents: "none" }}
                       />
                     ) : (
-                      <div style={{ width: 44, height: 44, background: "rgba(255,255,255,0.06)", borderRadius: 8 }} />
+                      <div style={{ width: 46, height: 46, background: "rgba(255,255,255,0.06)", borderRadius: 8 }} />
                     )}
                     {item.quantity > 1 && (
                       <div className="absolute" style={{
-                        top: -2, right: -4,
-                        background: "rgba(30,55,22,0.95)",
-                        border: "1px solid rgba(150,220,120,0.55)",
-                        borderRadius: 8, padding: "0px 4px",
+                        top: -3, right: -5,
+                        background: "rgba(30,55,22,0.97)",
+                        border: "1.5px solid rgba(150,220,120,0.7)",
+                        borderRadius: 8, padding: "1px 5px",
                         fontFamily: "Lora, serif", color: "#dfffd0", fontSize: 9, fontWeight: 800, lineHeight: "14px",
                       }}>×{item.quantity}</div>
                     )}
@@ -3315,7 +3315,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
                   </div>
                   <span style={{
                     fontFamily: "Lora, serif", color: "#c8e8b0", fontSize: 8, fontWeight: 600,
-                    lineHeight: 1.2, maxWidth: 54, overflow: "hidden", textOverflow: "ellipsis",
+                    lineHeight: 1.2, maxWidth: 50, overflow: "hidden", textOverflow: "ellipsis",
                     whiteSpace: "nowrap", textAlign: "center", marginTop: 4,
                   }}>{item.name}</span>
                 </div>
@@ -3336,7 +3336,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         >
           <div className="flex items-center gap-2 mb-2">
             <span style={{ fontFamily: "Lora, serif", color: "#f9b8d8", fontSize: 10, fontWeight: 800, letterSpacing: "0.18em" }}>
-              🎁 GIFTS
+              GIFTS
             </span>
             <span style={{ fontFamily: "Lora, serif", color: "rgba(249,184,216,0.5)", fontSize: 10, fontWeight: 700 }}>
               {gifts.length}
@@ -3368,7 +3368,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
                 <div
                   key={item.id}
                   className="flex-shrink-0 flex flex-col items-center relative"
-                  style={{ width: 56, touchAction: "pan-x", cursor: "grab", userSelect: "none" }}
+                  style={{ width: 52, touchAction: "none", cursor: "grab", userSelect: "none" }}
                   onPointerDown={(e) => onItemPointerDown(e, item)}
                   data-testid={`gift-item-${item.id}`}
                 >

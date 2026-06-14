@@ -1379,7 +1379,7 @@ export default function MoltenBlocksPage() {
               padding: "8px 14px", borderBottom: "1px solid rgba(251,191,36,0.2)",
               display: "flex", alignItems: "center", justifyContent: "space-between",
             }}>
-              <span style={{ fontSize: 11, letterSpacing: "0.22em", color: "#fb923c", fontWeight: 700 }}>🏆 LEADERBOARD</span>
+              <span style={{ fontSize: 11, letterSpacing: "0.22em", color: "#fb923c", fontWeight: 700 }}>🌋 LEADERBOARD</span>
               <span style={{ fontSize: 10, color: "#7a5530" }}>TOP 20</span>
             </div>
 
@@ -1410,7 +1410,7 @@ export default function MoltenBlocksPage() {
                       color: entry.rank === 1 ? "#fbbf24" : entry.rank === 2 ? "#c0c0c0" : entry.rank === 3 ? "#cd7f32" : "#7a5530",
                       flexShrink: 0,
                     }}>
-                      {entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : `#${entry.rank}`}
+                      {entry.rank === 1 ? "🌋" : entry.rank === 2 ? "🔥" : entry.rank === 3 ? "♨️" : `#${entry.rank}`}
                     </span>
                     <span style={{
                       flex: 1, fontSize: 12, color: entry.isViewer ? "#fbbf24" : "#f5d589",

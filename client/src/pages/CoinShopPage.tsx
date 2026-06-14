@@ -465,25 +465,21 @@ export default function CoinShopPage({ user }: CoinShopProps) {
               </div>
 
               {/* ── Item reward slots positioned above the bar ── */}
-              <div style={{ position: "relative", height: 60, marginBottom: 4 }}>
-                {MILESTONES.map((m, i) => {
+              <div style={{ position: "relative", height: 60, marginBottom: 4, overflow: "visible" }}>
+                {MILESTONES.map((m, _i) => {
                   const isDone = claimed.includes(m.end);
                   const isReachable = pts >= m.end && !isDone;
                   const rewardCfg = rewards.find((r: any) => Number(r.milestone_points) === m.end);
                   const hasItem = !!rewardCfg?.reward_item_image_url;
-                  const isFirst = i === 0;
-                  const isLast = i === MILESTONES.length - 1;
-                  const tx = isFirst ? "translateX(-8%)" : isLast ? "translateX(-92%)" : "translateX(-50%)";
 
                   return (
                     <div key={m.end} style={{
                       position: "absolute",
-                      left: isLast ? undefined : `${m.pct}%`,
-                      right: isLast ? "0" : undefined,
+                      left: `${m.pct}%`,
                       top: 0,
-                      transform: tx,
+                      transform: "translateX(-50%)",
                       display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
-                      width: 56,
+                      width: 46,
                     }}>
                       {/* Item image or empty slot */}
                       <div style={{ position: "relative", flexShrink: 0 }}>
@@ -493,7 +489,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                               src={rewardCfg.reward_item_image_url}
                               alt={rewardCfg.reward_item_name ?? ""}
                               style={{
-                                width: 44, height: 44, objectFit: "contain", borderRadius: 8,
+                                width: 40, height: 40, objectFit: "contain",
                                 display: "block",
                                 filter: isDone
                                   ? "brightness(0.45) grayscale(0.6)"
@@ -501,28 +497,28 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                                   ? `drop-shadow(0 0 8px ${m.color})`
                                   : "none",
                                 border: isReachable ? `1.5px solid ${m.color}` : isDone ? "1.5px solid rgba(255,255,255,0.1)" : "1.5px solid rgba(255,255,255,0.08)",
-                                borderRadius: 8,
+                                borderRadius: 7,
                               }}
                             />
                             {isDone && (
                               <div style={{
-                                position: "absolute", inset: 0, borderRadius: 8,
+                                position: "absolute", inset: 0, borderRadius: 7,
                                 display: "flex", alignItems: "center", justifyContent: "center",
                                 background: "rgba(0,0,0,0.15)",
                               }}>
-                                <span style={{ fontSize: 18, lineHeight: 1, filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.8))" }}>✅</span>
+                                <span style={{ fontSize: 16, lineHeight: 1, filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.8))" }}>✅</span>
                               </div>
                             )}
                           </>
                         ) : (
                           <div style={{
-                            width: 44, height: 44, borderRadius: 8,
+                            width: 40, height: 40, borderRadius: 7,
                             border: `1.5px dashed ${currentUser.isAdmin ? "rgba(251,146,60,0.45)" : "rgba(127,255,212,0.15)"}`,
                             background: currentUser.isAdmin ? "rgba(251,146,60,0.06)" : "rgba(255,255,255,0.02)",
                             display: "flex", alignItems: "center", justifyContent: "center",
                           }}>
                             {currentUser.isAdmin && (
-                              <span style={{ fontSize: 20, color: "rgba(251,146,60,0.65)", lineHeight: 1, pointerEvents: "none" }}>+</span>
+                              <span style={{ fontSize: 18, color: "rgba(251,146,60,0.65)", lineHeight: 1, pointerEvents: "none" }}>+</span>
                             )}
                           </div>
                         )}
@@ -533,7 +529,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                             onClick={() => { setAdminPickerMs(m.end); setPickerSearch(""); setPickerTab("all"); }}
                             title={hasItem ? "Change reward" : "Set reward"}
                             style={{
-                              position: "absolute", inset: 0, borderRadius: 8,
+                              position: "absolute", inset: 0, borderRadius: 7,
                               background: "transparent", border: "none", cursor: "pointer",
                               zIndex: 1,
                             }}
@@ -571,8 +567,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                   return (
                     <div key={m.end} style={{
                       position: "absolute",
-                      left: m.pct === 100 ? undefined : `${m.pct}%`,
-                      right: m.pct === 100 ? 0 : undefined,
+                      left: `${m.pct}%`,
                       top: "50%",
                       transform: "translate(-50%, -50%)",
                       width: 10, height: 10,
