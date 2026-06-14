@@ -133,13 +133,18 @@ export default function FoundersPage() {
     return () => window.removeEventListener("keydown", closeOnEsc);
   }, []);
 
+  const OUTLINE = "-1px -1px 0 rgba(0,0,0,0.95), 1px -1px 0 rgba(0,0,0,0.95), -1px 1px 0 rgba(0,0,0,0.95), 1px 1px 0 rgba(0,0,0,0.95), 0 2px 4px rgba(0,0,0,0.8)";
+
   const getNameStyle = (tier: string | null): React.CSSProperties => {
+    const base: React.CSSProperties = {
+      fontFamily: "'Merriweather', serif",
+      fontWeight: 500,
+      lineHeight: 1.4,
+    };
     if (tier === "legendary") {
       return {
-        fontFamily: "'Merriweather', serif",
-        fontWeight: 700,
+        ...base,
         fontSize: 22,
-        lineHeight: 1.4,
         backgroundImage: "linear-gradient(90deg, #f6dc8a 0%, #f0a0ff 40%, #f6dc8a 70%, #e879f9 100%)",
         backgroundSize: "200% auto",
         WebkitBackgroundClip: "text",
@@ -149,31 +154,18 @@ export default function FoundersPage() {
         filter: "drop-shadow(0 1px 4px rgba(217,70,239,0.6))",
       };
     }
-    if (tier && TIER_CONFIG[tier as keyof typeof TIER_CONFIG]) {
-      return {
-        fontFamily: "'Merriweather', serif",
-        fontWeight: 700,
-        fontSize: tier === "gold" ? 22 : tier === "silver" ? 21 : 20,
-        lineHeight: 1.4,
-        backgroundImage: TIER_CONFIG[tier as keyof typeof TIER_CONFIG].nameGrad,
-        WebkitBackgroundClip: "text",
-        backgroundClip: "text",
-        WebkitTextFillColor: "transparent",
-        filter: `drop-shadow(0 1px 4px ${TIER_CONFIG[tier as keyof typeof TIER_CONFIG].glow})`,
-      };
-    }
-    return {
-      fontFamily: "'Merriweather', serif",
-      fontWeight: 700,
-      fontSize: 20,
-      lineHeight: 1.4,
-      backgroundImage: "linear-gradient(180deg, #fff4c8 0%, #f0d278 50%, #c8a030 100%)",
-      WebkitBackgroundClip: "text",
-      backgroundClip: "text",
-      WebkitTextFillColor: "transparent",
-      filter: "drop-shadow(0 1px 2px rgba(30,18,0,0.8))",
-    };
+    if (tier === "gold")   return { ...base, fontSize: 22, color: "#f0d060", textShadow: OUTLINE };
+    if (tier === "silver") return { ...base, fontSize: 21, color: "#c8c8c8", textShadow: OUTLINE };
+    if (tier === "bronze") return { ...base, fontSize: 20, color: "#d4904a", textShadow: OUTLINE };
+    return { ...base, fontSize: 20, color: "#f0d060", textShadow: OUTLINE };
   };
+
+  const TIER_ORDER: Record<string, number> = { legendary: 0, gold: 1, silver: 2, bronze: 3 };
+  const sortedFounders = [...founders].sort((a, b) => {
+    const ao = TIER_ORDER[a.tier ?? ""] ?? 4;
+    const bo = TIER_ORDER[b.tier ?? ""] ?? 4;
+    return ao - bo;
+  });
 
   return (
     <div
@@ -414,30 +406,12 @@ export default function FoundersPage() {
           </div>
         ) : (
           <div className="max-w-2xl mx-auto text-center leading-relaxed" style={{ wordSpacing: 4 }} data-testid="founders-list">
-            {founders.map((f, idx) => (
+            {sortedFounders.map((f, idx) => (
               <span key={f.id} style={{ display: "inline-flex", alignItems: "center" }}>
                 {idx > 0 && (
                   <span style={{ color: "#1a0e00", fontSize: 13, margin: "0 8px", userSelect: "none", fontWeight: 900 }}>★</span>
                 )}
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }} data-testid={`founder-row-${f.id}`}>
-                  {f.tier && TIER_CONFIG[f.tier as keyof typeof TIER_CONFIG] && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        letterSpacing: "0.08em",
-                        padding: "1px 5px",
-                        borderRadius: 4,
-                        background: TIER_CONFIG[f.tier as keyof typeof TIER_CONFIG].gradient,
-                        color: f.tier === "silver" ? "#3a3a3a" : "#3a2a08",
-                        boxShadow: `0 0 6px ${TIER_CONFIG[f.tier as keyof typeof TIER_CONFIG].glow}`,
-                        verticalAlign: "middle",
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      {TIER_CONFIG[f.tier as keyof typeof TIER_CONFIG].label.toUpperCase()}
-                    </span>
-                  )}
                   <span
                     data-testid={`text-founder-name-${f.id}`}
                     style={getNameStyle(f.tier)}
