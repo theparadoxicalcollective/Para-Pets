@@ -63,6 +63,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const [showReward, setShowReward]        = useState(false);
   const [showPotionModal, setShowPotionModal] = useState(false);
   const [potionsGranted, setPotionsGranted]   = useState(false);
+  const [showRescue, setShowRescue]           = useState(false);
   const [location, navigate] = useLocation();
   const queryClient = useQueryClient();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -107,7 +108,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
     const handler = () => {
       const s = bjGetStep();
       setStep(s);
-      if (s === 0) { setShowGrantModal(false); setShowPotionModal(false); setPotionsGranted(false); }
+      if (s === 0) { setShowGrantModal(false); setShowPotionModal(false); setPotionsGranted(false); setShowRescue(false); }
     };
     window.addEventListener(BJ_EVENT, handler);
     return () => window.removeEventListener(BJ_EVENT, handler);
@@ -211,6 +212,15 @@ export default function BeginJourneyOverlay({ user }: Props) {
       setShowPotionModal(false);
     }
   }, [step, location, invHatch, potionsGranted]);
+
+  // ── Step 4 rescue: show "Select Egg" if player has no active egg ──────────
+  useEffect(() => {
+    if (step !== 4 || location !== "/") { setShowRescue(false); return; }
+    if (targetRect !== null) { setShowRescue(false); return; }
+    // No egg-tap target found — show rescue button after 1s
+    const t = setTimeout(() => setShowRescue(true), 1000);
+    return () => clearTimeout(t);
+  }, [step, location, targetRect]);
 
   // ── Grant starter egg ─────────────────────────────────────────────────────
   const handleGrantEgg = async () => {
@@ -395,6 +405,38 @@ export default function BeginJourneyOverlay({ user }: Props) {
       ) : (
         <div style={{ position: "fixed", inset: 0, background: OVERLAY_BG, zIndex: 99000, pointerEvents: "all" }} />
       ))}
+
+      {/* Step 4 rescue: "Select Egg" button when no active egg is found */}
+      {showRescue && (
+        <div style={{
+          position: "fixed", bottom: "28%", left: "50%", transform: "translateX(-50%)",
+          zIndex: 99005, pointerEvents: "all",
+        }}>
+          <button
+            onClick={() => {
+              setShowRescue(false);
+              navigate("/pets");
+              bjSetStep(2);
+              setStep(2);
+            }}
+            style={{
+              background: "linear-gradient(135deg, #1a3d1a 0%, #2a6e2a 100%)",
+              border: "2px solid rgba(100,210,100,0.55)",
+              color: "#dcfce7",
+              fontFamily: "Lora, Georgia, serif",
+              fontSize: 15, fontWeight: 700,
+              letterSpacing: "0.06em",
+              cursor: "pointer",
+              padding: "14px 32px",
+              borderRadius: 16,
+              boxShadow: "0 0 22px rgba(60,180,60,0.45), 0 6px 24px rgba(0,0,0,0.7)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            🥚 Select Egg
+          </button>
+        </div>
+      )}
 
       {/* Circular click forwarder over spotlight — skip for free mode */}
       {!isFree && pr && (
