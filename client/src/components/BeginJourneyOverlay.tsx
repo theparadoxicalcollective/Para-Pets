@@ -42,7 +42,7 @@ const STEP_SELECTORS: (string | null)[] = [
   null,                                      // 6 – dynamic (nav btn or quest btn)
 ];
 
-const FREE_STEP = -99; // step 5 now uses full-screen blocking overlay
+const FREE_STEP = 5; // step 5 is free (no blocking overlay) — speed-up sheet must remain interactive
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface TargetRect {
