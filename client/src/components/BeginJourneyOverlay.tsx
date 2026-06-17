@@ -507,23 +507,24 @@ export default function BeginJourneyOverlay({ user }: Props) {
         const fromCy = potionRect.top  + potionRect.height / 2;
         const dy = (eggOnHomeRect.top + eggOnHomeRect.height / 2) - fromCy;
         return (
-          <img
-            src={tutorialArrow}
-            alt=""
-            style={{
-              position: "fixed",
-              left: fromCx - 28,
-              top:  fromCy - 35,
-              width: 56, height: 70,
+          <div style={{
+            position: "fixed",
+            left: fromCx - 28,
+            top:  fromCy - 35,
+            width: 56, height: 70,
+            zIndex: 99006,
+            pointerEvents: "none",
+            animation: "bj-drag-ghost 2.3s ease-in-out infinite",
+            ["--bj-drag-dy" as string]: `${dy}px`,
+          } as React.CSSProperties}>
+            <img src={tutorialArrow} alt="" style={{
+              width: "100%", height: "100%",
               objectFit: "contain",
-              zIndex: 99006,
-              pointerEvents: "none",
               filter: arrowFilter,
               transform: "rotate(90deg)",
-              animation: "bj-drag-ghost 2.3s ease-in-out infinite",
-              ["--bj-drag-dy" as string]: `${dy}px`,
-            } as React.CSSProperties}
-          />
+              display: "block",
+            }} />
+          </div>
         );
       })()}
 
@@ -533,23 +534,24 @@ export default function BeginJourneyOverlay({ user }: Props) {
         const fromY = Math.min(window.innerHeight * 0.82, window.innerHeight - 80);
         const dy    = (eggOnHomeRect.top + eggOnHomeRect.height / 2) - fromY;
         return (
-          <img
-            src={tutorialArrow}
-            alt=""
-            style={{
-              position: "fixed",
-              left: toCx - 28,
-              top:  fromY - 35,
-              width: 56, height: 70,
+          <div style={{
+            position: "fixed",
+            left: toCx - 28,
+            top:  fromY - 35,
+            width: 56, height: 70,
+            zIndex: 99006,
+            pointerEvents: "none",
+            animation: "bj-drag-ghost 2.3s ease-in-out infinite",
+            ["--bj-drag-dy" as string]: `${dy}px`,
+          } as React.CSSProperties}>
+            <img src={tutorialArrow} alt="" style={{
+              width: "100%", height: "100%",
               objectFit: "contain",
-              zIndex: 99006,
-              pointerEvents: "none",
               filter: arrowFilter,
               transform: "rotate(90deg)",
-              animation: "bj-drag-ghost 2.3s ease-in-out infinite",
-              ["--bj-drag-dy" as string]: `${dy}px`,
-            } as React.CSSProperties}
-          />
+              display: "block",
+            }} />
+          </div>
         );
       })()}
 
