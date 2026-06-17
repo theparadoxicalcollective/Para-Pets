@@ -1,9 +1,9 @@
 ---
 name: Tutorial step-5 drag blockers
-description: Three distinct bugs that silently blocked potion drag/tap in the speed-up tutorial step.
+description: Four distinct bugs that silently blocked potion drag/tap in the speed-up tutorial step.
 ---
 
-## Bug 1 — Modal outer-div swallows all touches (most critical)
+## Bug 1 — Modal outer-div swallows all touches
 
 `showPotionModal` and `showGrantModal` in `BeginJourneyOverlay.tsx` render a `fixed inset-0` wrapper at z-99010 with **default `pointer-events: auto`**.  This invisible full-screen div sits above the speed-up sheet (z-99002) and captures every touch, making potions appear "darkened out and unable to be dragged."
 
@@ -13,12 +13,20 @@ description: Three distinct bugs that silently blocked potion drag/tap in the sp
 
 `homeEggDropRef` points to the small egg thumbnail *inside* the sheet, not the large spotlit egg in the center of the screen.  The drag `onUp` check against `homeEggDropRef.getBoundingClientRect()` always misses when the player drags toward the real egg.
 
-**Fix:** During tutorial step 5, bypass the rect check entirely in `handleHomeSheetItemPointerDown`.  Accept **any** `pointerup` on a potion (tap or drag in any direction) as "used on egg."
+**Fix:** During tutorial step 5, bypass the rect check entirely.  Accept **any** `pointerup` on a potion as "used on egg."
 
 ## Bug 3 — Players deplete potions and get permanently stuck
 
-The grant endpoint (`POST /api/tutorial/grant-hatch-potions`) returned 409 when `tutorial_hatch_potions_claimed = true`, even when the player had 0 potions remaining.  Broken drag code consumed potions without advancing the step, leaving players stuck with no way forward.
+The grant endpoint returned 409 when `tutorial_hatch_potions_claimed = true`, even with 0 potions remaining.  Broken drag code consumed potions without advancing the step.
 
-**Fix:** Server now checks `user_inventory` count.  If the player has `> 0` potions → still returns 409.  If they have `0` → grants 3 more regardless of claim flag.  Client auto-calls grant silently (no modal delay) whenever step 5 detects no potions; only shows the "No More Free Potions" modal on failure.
+**Fix:** Server checks inventory count.  0 potions → re-grant regardless of claim flag.
 
-**Why:** Three independent bugs had to ALL be present to see the symptom.  Never diagnose "drag broken" without also checking modal z-index stacking and server grant logic.
+## Bug 4 — `hatch_started_at` is NULL on tutorial eggs (confirmed on Railway)
+
+The `use-special` route returned 400 "Egg has not started hatching" when `hatchStartedAt` is null.  Tutorial eggs granted at step 4 never had the hatch timer started, so **every** speed-up potion attempt silently failed at the server — confirmed by querying Railway directly.
+
+**Fix (server/routes.ts, use-special handler):** When `hatchStartedAt` is null, treat current time as the start and apply the speed-up offset from there, instead of returning 400.  One user confirmed on Railway with NULL hatch_started_at + 3 potions + correct IDs.
+
+**Why:** The egg grant flow at step 4 never calls `hatchStartedAt = now()`.  Any potion-on-egg action against an un-started egg hit this 400 silently.  This was the definitive blocker once all the z-index / touch-event issues were resolved.
+
+**How to detect:** Query Railway: `SELECT hatch_started_at FROM user_inventory WHERE id = $activePetId`.  If NULL with `is_hatched = false`, this bug is the cause.

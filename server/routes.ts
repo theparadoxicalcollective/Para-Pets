@@ -2153,10 +2153,11 @@ export async function registerRoutes(
         if (petInv.isHatched) {
           return res.status(400).json({ message: "Pet is already hatched" });
         }
-        if (!petInv.hatchStartedAt) {
-          return res.status(400).json({ message: "Egg has not started hatching" });
-        }
-        const currentStart = new Date(petInv.hatchStartedAt);
+        // If hatching hasn't been started yet (hatchStartedAt is null), auto-start it now.
+        // This handles tutorial players whose egg was granted before the timer began.
+        const currentStart = petInv.hatchStartedAt
+          ? new Date(petInv.hatchStartedAt)
+          : new Date();
         const minutesInMs = specialAmount * 60 * 1000;
         const newStart = new Date(currentStart.getTime() - minutesInMs);
         await storage.updateInventoryItem(petInv.id, { hatchStartedAt: newStart });

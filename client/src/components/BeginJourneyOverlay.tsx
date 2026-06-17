@@ -533,30 +533,11 @@ export default function BeginJourneyOverlay({ user }: Props) {
         />
       )}
 
-      {/* Step 5 bouncing arrow above the first potion item in the sheet */}
-      {stepNum === 5 && potionRect && !step5TapMode && (
-        <div style={{
-          position: "fixed",
-          top:  Math.max(8, potionRect.top - 54),
-          left: potionRect.left + potionRect.width / 2 - 17,
-          width: 34, height: 44,
-          zIndex: 99003, pointerEvents: "none",
-          animation: "bj-bounce 0.7s ease-in-out infinite",
-        }}>
-          <div style={{
-            position: "absolute", top: "50%", left: "50%",
-            transform: "translate(-50%,-50%)",
-            width: 44, height: 44, borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(212,168,67,0.6) 0%, rgba(212,168,67,0.15) 55%, transparent 75%)",
-            pointerEvents: "none",
-          }} />
-          <img src={tutorialArrow} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", position: "relative" }} />
-        </div>
-      )}
-
-      {/* Step 5 drag-ghost animation: arrow sweeps from potion up to egg */}
+      {/* Step 5 drag-ghost animation: arrow sweeps from LEFT of potion card up to egg.
+          No static bounce-arrow on top of the potion — just this sweeping ghost to the left. */}
       {stepNum === 5 && potionRect && eggOnHomeRect && !step5TapMode && (() => {
-        const fromCx = potionRect.left + potionRect.width  / 2;
+        // Start the ghost 54px to the LEFT of the potion card's left edge, vertically centered
+        const fromCx = potionRect.left - 54;
         const fromCy = potionRect.top  + potionRect.height / 2;
         const dy = (eggOnHomeRect.top + eggOnHomeRect.height / 2) - fromCy;
         return (
@@ -570,7 +551,6 @@ export default function BeginJourneyOverlay({ user }: Props) {
             animation: "bj-drag-ghost 2.3s ease-in-out infinite",
             ["--bj-drag-dy" as string]: `${dy}px`,
           } as React.CSSProperties}>
-            {/* Circular glow — no rectangular box-shadow */}
             <div style={{
               position: "absolute", top: "50%", left: "50%",
               transform: "translate(-50%,-50%)",
@@ -599,6 +579,16 @@ export default function BeginJourneyOverlay({ user }: Props) {
         );
         if (!tutPotion) return null;
 
+        // The mutation expects the pet's INVENTORY row ID (inventoryId on the egg row),
+        // NOT user.activePetId (which is the pet template/selection ID).
+        // Find the egg row in invHatch so we get the correct inventoryId.
+        const eggRow = invHatchArr.find(
+          (i: any) =>
+            (i.inventoryId === user?.activePetId || i.id === user?.activePetId) &&
+            i.isHatched === false
+        );
+        const petInvId = eggRow?.inventoryId ?? user?.activePetId;
+
         const onPotionDown = (e: React.PointerEvent<HTMLDivElement>) => {
           e.preventDefault();
           const pid = e.pointerId;
@@ -613,7 +603,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
               // Fire the real speed-up mutation via HomePage's event listener
               window.dispatchEvent(new CustomEvent("bj_step5_use_potion", {
                 detail: {
-                  petInvId:      user?.activePetId,
+                  petInvId,
                   itemInvId:     tutPotion.inventoryId,
                   specialAmount: tutPotion.specialAmount,
                 },
