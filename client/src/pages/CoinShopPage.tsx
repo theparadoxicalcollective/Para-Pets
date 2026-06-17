@@ -401,7 +401,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         </div>
 
         {/* ── Contribution Rewards Progress Bar ───────────────────────────── */}
-        {!currentUser.isAdmin && (() => {
+        {(() => {
           const pts = progressData?.points ?? 0;
           const claimed = progressData?.claimedMilestones ?? [];
           const rewards = progressData?.milestoneRewards ?? [];
