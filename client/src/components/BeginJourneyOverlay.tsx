@@ -16,7 +16,7 @@ const STEP_LABELS = [
   "Select your egg as your companion!",
   "Head back home!",
   "Tap your egg!",
-  "Drag a hatch potion onto your egg to hatch it!",
+  "Drag a hatch potion onto your egg to reduce hatch time!",
   "Tap to finish your journey!",
 ];
 
@@ -241,6 +241,22 @@ export default function BeginJourneyOverlay({ user }: Props) {
     window.dispatchEvent(new CustomEvent("bj_close_speedup"));
   }, [step, eggReadyToHatch]);
 
+  // ── Step 5 → 6: advance when player uses a speed-up potion ───────────────
+  useEffect(() => {
+    const handler = () => {
+      if (bjGetStep() === 5) { bjSetStep(6); setStep(6); }
+    };
+    window.addEventListener("bj_speedup_used", handler);
+    return () => window.removeEventListener("bj_speedup_used", handler);
+  }, []);
+
+  // ── Step 5: if egg is already ready, simulate & auto-advance ─────────────
+  useEffect(() => {
+    if (step !== 5 || !eggReadyToHatch) return;
+    const t = setTimeout(() => { bjSetStep(6); setStep(6); }, 2800);
+    return () => clearTimeout(t);
+  }, [step, eggReadyToHatch]);
+
   // ── Step 5: add body class to hide egg-drop-zone in speed-up sheet ────────
   useEffect(() => {
     if (step === 5) document.body.classList.add("bj-step5");
@@ -368,7 +384,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const stepNum  = step as number;
   const isFree   = stepNum === FREE_STEP;
   const label    = (stepNum === 5 && eggReadyToHatch)
-    ? "Your egg is ready! Tap it to hatch!"
+    ? "Your egg is ready — watch the magic!"
     : STEP_LABELS[stepNum];
 
   // Padded rect for circle spotlight
@@ -485,31 +501,55 @@ export default function BeginJourneyOverlay({ user }: Props) {
         />
       )}
 
-      {/* Step 5 drag-ghost animation: a potion ghost floats from the potion to the egg */}
+      {/* Step 5 drag-ghost animation: quest arrow sweeps from potion up to egg */}
       {stepNum === 5 && potionRect && eggOnHomeRect && !eggReadyToHatch && (() => {
         const fromCx = potionRect.left + potionRect.width  / 2;
         const fromCy = potionRect.top  + potionRect.height / 2;
         const dy = (eggOnHomeRect.top + eggOnHomeRect.height / 2) - fromCy;
         return (
-          <div
+          <img
+            src={tutorialArrow}
+            alt=""
             style={{
               position: "fixed",
-              left: fromCx - 26,
-              top:  fromCy - 26,
-              width: 52, height: 52,
-              borderRadius: 14,
-              background: "rgba(15,8,2,0.93)",
-              border: "2px solid rgba(240,192,64,0.85)",
-              boxShadow: "0 0 20px rgba(240,192,64,0.55)",
-              display: "flex", alignItems: "center", justifyContent: "center",
+              left: fromCx - 28,
+              top:  fromCy - 35,
+              width: 56, height: 70,
+              objectFit: "contain",
               zIndex: 99006,
               pointerEvents: "none",
+              filter: arrowFilter,
+              transform: "rotate(90deg)",
               animation: "bj-drag-ghost 2.3s ease-in-out infinite",
               ["--bj-drag-dy" as string]: `${dy}px`,
             } as React.CSSProperties}
-          >
-            <span style={{ fontSize: 24, lineHeight: 1 }}>⏩</span>
-          </div>
+          />
+        );
+      })()}
+
+      {/* Step 5 egg-ready simulation: arrow sweeps from bottom toward egg, then auto-advances */}
+      {stepNum === 5 && eggReadyToHatch && eggOnHomeRect && (() => {
+        const toCx  = eggOnHomeRect.left + eggOnHomeRect.width  / 2;
+        const fromY = Math.min(window.innerHeight * 0.82, window.innerHeight - 80);
+        const dy    = (eggOnHomeRect.top + eggOnHomeRect.height / 2) - fromY;
+        return (
+          <img
+            src={tutorialArrow}
+            alt=""
+            style={{
+              position: "fixed",
+              left: toCx - 28,
+              top:  fromY - 35,
+              width: 56, height: 70,
+              objectFit: "contain",
+              zIndex: 99006,
+              pointerEvents: "none",
+              filter: arrowFilter,
+              transform: "rotate(90deg)",
+              animation: "bj-drag-ghost 2.3s ease-in-out infinite",
+              ["--bj-drag-dy" as string]: `${dy}px`,
+            } as React.CSSProperties}
+          />
         );
       })()}
 
