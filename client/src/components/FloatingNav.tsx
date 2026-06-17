@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { getNextZ } from "@/lib/layerManager";
@@ -22,6 +22,7 @@ import pvpIcon from "@assets/generated_images/nav_icon_pvp.png";
 import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
 import PetWorldPage from "@/pages/PetWorldPage";
 import { AquariumPage } from "@/pages/AquariumPage";
+import { bjGetStatus, bjStart, BJ_EVENT } from "@/lib/beginJourney";
 
 interface NavUser {
   id: string;
@@ -94,8 +95,15 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [showKeepers, setShowKeepers]   = useState(false);
   const [panelZ, setPanelZ]             = useState(300);
   const [claimingKey, setClaimingKey]   = useState<string | null>(null);
+  const [bjStatus, setBjStatus] = useState(() => bjGetStatus());
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const handler = () => setBjStatus(bjGetStatus());
+    window.addEventListener(BJ_EVENT, handler);
+    return () => window.removeEventListener(BJ_EVENT, handler);
+  }, []);
 
   const openPanel = (fn: () => void) => { closeAll(); setPanelZ(getNextZ()); fn(); };
 
@@ -219,6 +227,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             fillIcon={!!(item as any).fill}
             badge={item.id === "quest" ? questBadge : null}
             onClick={() => handleLeft(item.id)}
+            testId={`nav-item-${item.id}`}
           />
         ))}
 
@@ -236,6 +245,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
               translateY={-(SPACING * (i + 1))}
               locked={isLocked}
               onClick={() => handleRight(item.id)}
+              testId={`nav-item-${item.id}`}
             />
           );
         })}
@@ -327,6 +337,30 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
               </div>
 
               <div className="flex-1 overflow-y-auto space-y-2.5" style={{ scrollbarWidth: "none" }}>
+                {/* ── Begin Journey one-time quest card ── */}
+                {bjStatus !== "done" && (
+                  <div className="rounded-md p-2" style={{ position: "relative", overflow: "hidden", background: bjStatus === "active" ? "rgba(30,80,20,0.15)" : "rgba(92,58,30,0.1)", border: bjStatus === "active" ? "1px solid rgba(100,200,80,0.4)" : "1px solid rgba(139,90,40,0.35)" }}>
+                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        <span className="font-fantasy text-[8px] font-bold tracking-widest flex-shrink-0 px-1 py-px rounded" style={{ background: "rgba(30,80,20,0.25)", border: "1px solid rgba(80,180,60,0.4)", color: "#2a6010", textTransform: "uppercase", letterSpacing: "0.15em" }}>One-Time</span>
+                        <p className="font-fantasy text-[#2a1000] text-[12px] font-bold leading-tight min-w-0 truncate">Begin Journey</p>
+                      </div>
+                      {bjStatus !== "active" ? (
+                        <button
+                          data-testid="button-begin-journey-go"
+                          onClick={() => { bjStart(); setShowQuest(false); }}
+                          className="flex-shrink-0 transition-transform active:scale-90 rounded"
+                          style={{ background: "linear-gradient(135deg, #1a5c1a 0%, #2d8c2d 100%)", border: "1px solid rgba(100,220,100,0.55)", color: "#dcfce7", fontFamily: "Lora, serif", fontSize: 9, fontWeight: 800, letterSpacing: "0.12em", cursor: "pointer", padding: "3px 8px", marginRight: 3, boxShadow: "0 0 8px rgba(60,180,60,0.3)" }}
+                        >GO</button>
+                      ) : (
+                        <span className="font-fantasy text-[9px] flex-shrink-0 px-1.5 py-0.5 rounded" style={{ background: "rgba(30,80,20,0.25)", border: "1px solid rgba(80,180,60,0.35)", color: "#3a8020" }}>Active</span>
+                      )}
+                    </div>
+                    <p className="font-fantasy text-[#5a2e0a] text-[10.5px] tracking-wide leading-snug">
+                      {bjStatus === "active" ? "Follow the golden arrow to complete your journey!" : "Start your adventure as a Para Pet tamer!"}
+                    </p>
+                  </div>
+                )}
                 {!questData || questData.quests.length === 0 ? (
                   <div className="rounded p-2.5" style={{ background: "rgba(92,58,30,0.07)", border: "1px solid rgba(139,90,40,0.3)" }}>
                     <p className="font-fantasy text-[#3a1800] text-[11.5px] tracking-wider leading-relaxed">No active quests. Explore the realm to discover adventures...</p>
@@ -588,7 +622,7 @@ const SPARK_COLORS = ["#f0c040", "#ffd966", "#ffe599", "#f0c040", "#ffcc00", "#f
 
 // ── Individual nav icon button ────────────────────────────────────────────────
 function NavButton({
-  icon, label, isOpen, delay, translateX, translateY, fillIcon = false, badge = null, locked = false, onClick,
+  icon, label, isOpen, delay, translateX, translateY, fillIcon = false, badge = null, locked = false, onClick, testId,
 }: {
   icon: string;
   label: string;
@@ -600,6 +634,7 @@ function NavButton({
   badge?: "green" | "gold" | null;
   locked?: boolean;
   onClick: () => void;
+  testId?: string;
 }) {
   const [sparks, setSparks] = useState<number[]>([]);
 
@@ -613,6 +648,7 @@ function NavButton({
 
   return (
     <button
+      data-testid={testId}
       onClick={handleClick}
       className="absolute flex flex-col items-center justify-center rounded-full"
       style={{

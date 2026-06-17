@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { bjStart } from "@/lib/beginJourney";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { playChime } from "@/lib/sounds";
@@ -70,6 +71,7 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       localStorage.removeItem("para_pets_just_registered");
       setTimeout(() => {
+        bjStart();
         onComplete(data.user ?? null);
       }, 800);
     },

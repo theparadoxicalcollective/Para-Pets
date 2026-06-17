@@ -20,6 +20,7 @@ import WelcomeGiftScreen from "@/components/WelcomeGiftScreen";
 import DevelopmentNoticeScreen from "@/components/DevelopmentNoticeScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
 import FloatingNav from "@/components/FloatingNav";
+import BeginJourneyOverlay from "@/components/BeginJourneyOverlay";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 // ── Lazy-loaded page chunks ────────────────────────────────────────────────
@@ -500,6 +501,9 @@ function AppRouter() {
           onUserUpdate={(u) => queryClient.setQueryData(["/api/auth/me"], u)}
         />
       )}
+
+      {/* Begin Journey tutorial overlay */}
+      <BeginJourneyOverlay user={user} />
     </>
   );
 }

@@ -8121,6 +8121,34 @@ export async function registerRoutes(
     }
   }, 5 * 60 * 1000);
 
+  // ── Tutorial: grant starter egg ──────────────────────────────────────────
+  app.post("/api/tutorial/grant-starter-egg", isAuthenticated, async (req: any, res) => {
+    const userId = req.user!.id;
+    try {
+      const inv = await storage.getUserInventoryWithItems(userId);
+      const hasUnhatchedPet = inv.some(
+        ({ inventory, shopItem }) => inventory.isHatched === false && shopItem?.type === "pet"
+      );
+      if (hasUnhatchedPet) {
+        return res.json({ granted: false, message: "Already has an egg" });
+      }
+      const allItems = await storage.getAllShopItems();
+      const starterEgg = allItems.find(
+        (item) =>
+          item.type === "pet" &&
+          (item.name.toLowerCase().includes("grassland") || item.name.toLowerCase().includes("cow"))
+      );
+      if (!starterEgg) {
+        return res.status(404).json({ message: "Starter egg not found in shop" });
+      }
+      await storage.addToInventory(userId, starterEgg.id);
+      return res.json({ granted: true, itemName: starterEgg.name });
+    } catch (err) {
+      console.error("[tutorial] grant-starter-egg error:", err);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+
   // Pre-warm the Stripe price cache in the background so the first checkout
   // request after server boot doesn't pay the cost of a slow prices.list call.
   (async () => {

@@ -1,4 +1,4 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ChevronDown, X, Eye, EyeOff, Loader2, Maximize2 } from "lucide-react";
@@ -125,13 +125,15 @@ function GoldDivider() {
 // Notice carousel
 // ─────────────────────────────────────────────────────────────────────────────
 const NOTICES = [
-  { img: noticeGoFishing, label: "Go Fishing" },
-  { img: noticeLimited,   label: "Limited Event" },
-  { img: noticeExplore,   label: "Explore Worlds" },
+  { img: noticeGoFishing, label: "Go Fishing",     href: "/world/swamp?fishHint=1" },
+  { img: noticeLimited,   label: "Limited Event",  href: "/coins" },
+  { img: noticeExplore,   label: "Explore Worlds", href: "/map" },
 ];
 
 function NoticeCarousel() {
   const [idx, setIdx] = useState(0);
+  const [, navigate] = useLocation();
+  const { data: user } = useQuery<any>({ queryKey: ["/api/auth/me"], retry: false, staleTime: 30_000 });
   const ptrRef   = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -164,7 +166,11 @@ function NoticeCarousel() {
           if (ptrRef.current === null) return;
           const dx = e.clientX - ptrRef.current;
           ptrRef.current = null;
-          if (Math.abs(dx) > 28) goTo(idx + (dx < 0 ? 1 : -1));
+          if (Math.abs(dx) > 28) {
+            goTo(idx + (dx < 0 ? 1 : -1));
+          } else if (user && NOTICES[idx].href) {
+            navigate(NOTICES[idx].href);
+          }
         }}
         onPointerLeave={() => { ptrRef.current = null; }}
       >
