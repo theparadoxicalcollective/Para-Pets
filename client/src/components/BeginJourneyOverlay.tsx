@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { bjGetStep, bjSetStep, bjGetStatus, BJ_EVENT, bjSetStep5FakeMode } from "@/lib/beginJourney";
+import { bjGetStep, bjSetStep, bjGetStatus, BJ_EVENT, bjSetStep5FakeMode, bjSetStep5TapMode } from "@/lib/beginJourney";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -257,10 +257,11 @@ export default function BeginJourneyOverlay({ user }: Props) {
     if (step !== 5) { setStep5TapMode(false); bjSetStep5FakeMode(false); }
   }, [step]);
 
-  // ── Step 5 fake speedup done → lift overlay, close sheet ─────────────────
+  // ── Step 5 fake speedup done → lift overlay, close sheet, enter tap mode ──
   useEffect(() => {
     const handler = () => {
       bjSetStep5FakeMode(false);
+      bjSetStep5TapMode(true);
       setStep5TapMode(true);
       window.dispatchEvent(new CustomEvent("bj_close_speedup"));
     };
@@ -271,8 +272,8 @@ export default function BeginJourneyOverlay({ user }: Props) {
   // ── Step 5: add body class to hide egg-drop-zone in speed-up sheet ────────
   useEffect(() => {
     if (step === 5) document.body.classList.add("bj-step5");
-    else document.body.classList.remove("bj-step5");
-    return () => document.body.classList.remove("bj-step5");
+    else { document.body.classList.remove("bj-step5"); bjSetStep5TapMode(false); }
+    return () => { document.body.classList.remove("bj-step5"); bjSetStep5TapMode(false); };
   }, [step]);
 
   // ── Step 5: ensure speed-up sheet is open whenever this step is active ────

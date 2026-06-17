@@ -3,6 +3,11 @@
 let _step5FakeMode = false;
 export const bjSetStep5FakeMode = (v: boolean) => { _step5FakeMode = v; };
 export const bjIsStep5FakeMode  = (): boolean  => _step5FakeMode;
+
+// Step-5 tap-mode flag: true after fake potion used — overlay lifts, player taps egg to hatch
+let _step5TapMode = false;
+export const bjSetStep5TapMode = (v: boolean) => { _step5TapMode = v; };
+export const bjIsStep5TapMode  = (): boolean  => _step5TapMode;
 const TOTAL_STEPS = 7; // steps 0–6
 
 export const BJ_LS_KEY = "bj_step";

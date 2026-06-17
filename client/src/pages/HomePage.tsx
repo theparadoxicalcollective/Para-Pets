@@ -17,7 +17,7 @@ import swordsImg from "@assets/generated_images/nav_icon_pvp.png";
 import eggImg from "@assets/generated_images/nav_icon_pets.png";
 import badgeIcon from "@assets/generated_images/nav_icon_badges.png";
 import { playSpeedUp } from "@/lib/sounds";
-import { bjGetStep, bjIsStep5FakeMode } from "@/lib/beginJourney";
+import { bjGetStep, bjIsStep5FakeMode, bjIsStep5TapMode } from "@/lib/beginJourney";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
@@ -560,32 +560,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     // both short taps (< 15 px movement, < 400 ms) and upward drags (≥ 30 px)
     // in the pointerup listener so either gesture fires the mutation.
     if (bjGetStep() === 5) {
-      e.preventDefault();
-      const pid       = e.pointerId;
-      const startY    = e.clientY;
-      const startTime = Date.now();
-      const onUp = (ev: PointerEvent) => {
-        if (ev.pointerId !== pid) return;
-        document.removeEventListener("pointerup",     onUp);
-        document.removeEventListener("pointercancel", onUp);
-        const dy      = startY - ev.clientY;
-        const elapsed = Date.now() - startTime;
-        const isTap   = Math.abs(dy) < 15 && elapsed < 400;
-        const isDrag  = dy >= 30;
-        if (isTap || isDrag) {
-          if (bjIsStep5FakeMode()) {
-            // Egg already ready — pretend to use the potion, then enter tap mode
-            playSpeedUp();
-            setSpeedEffectLabel(`-${item.specialAmount ?? 60} min`);
-            setShowSpeedEffect(true);
-            setTimeout(() => window.dispatchEvent(new CustomEvent("bj_fake_speedup_done")), 350);
-          } else if (!speedUpMutation.isPending) {
-            speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
-          }
-        }
-      };
-      document.addEventListener("pointerup",     onUp);
-      document.addEventListener("pointercancel", onUp);
+      // touch-action:none on the item prevents scroll without needing preventDefault.
+      // Avoid preventDefault here — it suppresses click on iOS Safari.
+      // The onClick handler on the potion item drives all tutorial step-5 logic.
       return;
     }
 
@@ -997,7 +974,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                           className="w-full flex items-center justify-center"
                           data-testid="button-egg-tap"
                           onClick={() => {
-                            if (eggHatchReady && !hatchHomeMutation.isPending) {
+                            if (bjIsStep5TapMode() && !hatchHomeMutation.isPending) {
+                              // Tutorial tap mode: force-hatch regardless of eggHatchReady state
+                              hatchHomeMutation.mutate(activePet.inventoryId);
+                            } else if (eggHatchReady && !hatchHomeMutation.isPending) {
                               hatchHomeMutation.mutate(activePet.inventoryId);
                             } else if (!eggHatchReady) {
                               setShowSpeedUp(true);
@@ -1239,7 +1219,22 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         userSelect: "none",
                         opacity: speedUpMutation.isPending ? 0.4 : 1,
                       }}
-                      onClick={() => !speedUpMutation.isPending && speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount })}
+                      onClick={() => {
+                        if (bjGetStep() === 5) {
+                          if (bjIsStep5FakeMode()) {
+                            playSpeedUp();
+                            setSpeedEffectLabel(`-${item.specialAmount ?? 60} min`);
+                            setShowSpeedEffect(true);
+                            setTimeout(() => window.dispatchEvent(new CustomEvent("bj_fake_speedup_done")), 350);
+                          } else if (!speedUpMutation.isPending) {
+                            speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
+                          }
+                          return;
+                        }
+                        if (!speedUpMutation.isPending) {
+                          speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
+                        }
+                      }}
                       onPointerDown={(e) => handleHomeSheetItemPointerDown(e, item)}
                     >
                       <div className="w-12 h-12 rounded flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
