@@ -70,7 +70,6 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [grantLoading, setGrantLoading]    = useState(false);
   const [showReward, setShowReward]        = useState(false);
-  const [showPotionModal, setShowPotionModal] = useState(false);
   const [potionsGranted, setPotionsGranted]   = useState(false);
   const [showRescue, setShowRescue]           = useState(false);
   const [potionRect, setPotionRect]           = useState<TargetRect | null>(null);
@@ -113,7 +112,6 @@ export default function BeginJourneyOverlay({ user }: Props) {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       setPotionsGranted(true);
-      setShowPotionModal(false);
     },
   });
 
@@ -122,7 +120,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
     const handler = () => {
       const s = bjGetStep();
       setStep(s);
-      if (s === 0) { setShowGrantModal(false); setShowPotionModal(false); setPotionsGranted(false); setShowRescue(false); }
+      if (s === 0) { setShowGrantModal(false); setPotionsGranted(false); setShowRescue(false); }
     };
     window.addEventListener(BJ_EVENT, handler);
     return () => window.removeEventListener(BJ_EVENT, handler);
@@ -240,19 +238,10 @@ export default function BeginJourneyOverlay({ user }: Props) {
   useEffect(() => {
     if (step !== 5 || location !== "/" || !invHatch) return;
     const hasHatchPotions = (invHatch as any[]).some(i => i.type === "special" && i.specialType === "hatch_time");
-    if (hasHatchPotions || potionsGranted) {
-      setShowPotionModal(false);
-      return;
-    }
-    // No potions: silently attempt auto-grant first.
-    // Only show the modal (as fallback) if grant has already been claimed.
+    if (hasHatchPotions || potionsGranted) return;
+    // No potions: silently auto-grant (no modal fallback)
     if (!grantPotionsMutation.isPending && !grantPotionsMutation.isSuccess) {
-      grantPotionsMutation.mutate(undefined, {
-        onError: () => {
-          // Grant already claimed — show modal so player sees "No More Free Potions"
-          setShowPotionModal(true);
-        },
-      });
+      grantPotionsMutation.mutate();
     }
   }, [step, location, invHatch, potionsGranted]);
 
@@ -811,57 +800,6 @@ export default function BeginJourneyOverlay({ user }: Props) {
         </div>
       )}
 
-      {/* Potion modal (step 5, no hatch-time items) */}
-      {showPotionModal && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 99010, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20px", pointerEvents: "none" }}>
-          <div style={{
-            background: "linear-gradient(160deg, rgba(8,18,8,0.99) 0%, rgba(15,30,15,0.99) 100%)",
-            border: "1.5px solid rgba(212,168,67,0.5)", borderRadius: 20,
-            padding: "28px 24px", maxWidth: 320, width: "100%",
-            boxShadow: "0 0 40px rgba(212,168,67,0.15), 0 24px 60px rgba(0,0,0,0.85)",
-            textAlign: "center", pointerEvents: "auto",
-          }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🧪</div>
-            <h3 style={{ fontFamily: "Lora, Georgia, serif", color: "#f0d060", fontSize: 16, fontWeight: 700, marginBottom: 8, letterSpacing: "0.05em" }}>
-              {user?.tutorial_hatch_potions_claimed ? "No More Free Potions" : "You Need a Hatching Potion!"}
-            </h3>
-            <p style={{ fontFamily: "Lora, Georgia, serif", color: "rgba(200,220,180,0.8)", fontSize: 13, lineHeight: 1.55, marginBottom: 20 }}>
-              {user?.tutorial_hatch_potions_claimed
-                ? "You've already received your free hatching potions. Visit the shop to get more speed-up items!"
-                : "Drag a potion onto your egg to speed up hatching. Claim 3 free Small Hatching Potions to get started!"}
-            </p>
-            {!user?.tutorial_hatch_potions_claimed ? (
-              <button
-                onClick={() => grantPotionsMutation.mutate()}
-                disabled={grantPotionsMutation.isPending}
-                style={{
-                  width: "100%", padding: "12px 0", borderRadius: 12,
-                  background: grantPotionsMutation.isPending ? "rgba(30,60,20,0.7)" : "linear-gradient(135deg, #3a7a20 0%, #1a5010 100%)",
-                  border: "2px solid rgba(212,168,67,0.55)", color: "#f0d060",
-                  fontFamily: "Lora, Georgia, serif", fontSize: 14, fontWeight: 700,
-                  letterSpacing: "0.08em", cursor: grantPotionsMutation.isPending ? "wait" : "pointer",
-                  boxShadow: "0 0 16px rgba(46,160,46,0.3), 0 4px 14px rgba(0,0,0,0.6)",
-                }}
-              >
-                {grantPotionsMutation.isPending ? "Claiming…" : "🧪 Claim 3 Free Potions"}
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowPotionModal(false)}
-                style={{
-                  width: "100%", padding: "12px 0", borderRadius: 12,
-                  background: "linear-gradient(135deg, #3a4a50 0%, #2a3a40 100%)",
-                  border: "2px solid rgba(180,140,60,0.4)", color: "#f0d060",
-                  fontFamily: "Lora, Georgia, serif", fontSize: 14, fontWeight: 700,
-                  letterSpacing: "0.08em", cursor: "pointer",
-                }}
-              >
-                Got It
-              </button>
-            )}
-          </div>
-        </div>
-      )}
     </>
   );
 }
