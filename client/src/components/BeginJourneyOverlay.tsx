@@ -56,7 +56,16 @@ interface Props {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function BeginJourneyOverlay({ user }: Props) {
-  const [step, setStep]               = useState<number | "done" | null>(() => bjGetStep());
+  const [step, setStep]               = useState<number | "done" | null>(() => {
+    const s = bjGetStep();
+    // Steps 0–4 are navigation-dependent — reset to 0 if player backed out mid-flow
+    // Step 5+ (potion drag onward) can resume exactly where they left off
+    if (typeof s === "number" && s < 5) {
+      bjSetStep(0);
+      return 0;
+    }
+    return s;
+  });
   const [targetRect, setTargetRect]   = useState<TargetRect | null>(null);
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [grantLoading, setGrantLoading]    = useState(false);
