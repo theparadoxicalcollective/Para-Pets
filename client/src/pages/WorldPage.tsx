@@ -17,6 +17,7 @@ import BattleArena, { BattlePotionSlot } from "@/components/BattleArena";
 import FishingPage from "@/pages/FishingPage";
 import SellFishPage from "@/pages/SellFishPage";
 import fishBarrelImg from "@assets/fish_barrel.png";
+import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 import bgShopMystical from "@assets/bg_shop_mystical.png";
 import bgShopBayou from "@assets/bg_shop_bayou.png";
@@ -2148,23 +2149,15 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                           <span style={{ position: "absolute", width: 7, height: 7, borderRadius: "50%", background: "rgba(74,222,128,0.95)", boxShadow: "0 0 8px rgba(34,197,94,1), 0 0 18px rgba(34,197,94,0.8)", animation: `hintOrb1 2.4s ease-in-out ${si * 0.3}s infinite` }} />
                           <span style={{ position: "absolute", width: 5, height: 5, borderRadius: "50%", background: "rgba(134,239,172,0.9)", boxShadow: "0 0 6px rgba(74,222,128,1), 0 0 14px rgba(34,197,94,0.7)", animation: `hintOrb2 2.1s ease-in-out ${si * 0.3 + 0.5}s infinite` }} />
                           <span style={{ position: "absolute", width: 4, height: 4, borderRadius: "50%", background: "rgba(187,247,208,0.85)", boxShadow: "0 0 5px rgba(74,222,128,0.9), 0 0 10px rgba(34,197,94,0.6)", animation: `hintOrb3 1.8s ease-in-out ${si * 0.3 + 1.0}s infinite` }} />
-                          <div style={{ animation: `fishHintFloat 1.2s ease-in-out ${si * 0.2}s infinite`, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                            {/* Shaft */}
-                            <div style={{
-                              width: 8, height: 28,
-                              background: "linear-gradient(180deg, #4ade80 0%, #16a34a 100%)",
-                              borderRadius: "3px 3px 0 0",
-                              boxShadow: "0 0 10px rgba(34,197,94,0.9), 0 0 24px rgba(34,197,94,0.5)",
-                            }} />
-                            {/* Arrowhead */}
-                            <div style={{
-                              width: 0, height: 0,
-                              borderLeft: "18px solid transparent",
-                              borderRight: "18px solid transparent",
-                              borderTop: "22px solid #22c55e",
-                              filter: "drop-shadow(0 0 10px rgba(34,197,94,1)) drop-shadow(0 0 20px rgba(34,197,94,0.7))",
-                            }} />
-                          </div>
+                          <img
+                            src={tutorialArrow}
+                            alt=""
+                            style={{
+                              width: 44, height: 56, objectFit: "contain",
+                              animation: `fishHintFloat 1.2s ease-in-out ${si * 0.2}s infinite`,
+                              filter: "drop-shadow(0 0 10px rgba(212,168,67,0.95)) drop-shadow(0 0 24px rgba(212,168,67,0.6))",
+                            }}
+                          />
                         </div>
                       );
                     })}
@@ -2214,8 +2207,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                         <div style={{ background: "rgba(8,4,0,0.88)", border: "1.5px solid rgba(251,191,36,0.7)", borderRadius: 8, padding: "5px 12px", marginBottom: 6, boxShadow: "0 0 14px rgba(245,158,11,0.4), 0 4px 10px rgba(0,0,0,0.7)", whiteSpace: "nowrap" }}>
                           <span style={{ fontFamily: "Lora, serif", color: "#fde68a", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em" }}>Molten Blocks</span>
                         </div>
-                        <div style={{ width: 8, height: 28, background: "linear-gradient(180deg, #fbbf24 0%, #d97706 100%)", borderRadius: "3px 3px 0 0", boxShadow: "0 0 10px rgba(245,158,11,0.9), 0 0 24px rgba(245,158,11,0.5)" }} />
-                        <div style={{ width: 0, height: 0, borderLeft: "18px solid transparent", borderRight: "18px solid transparent", borderTop: "22px solid #f59e0b", filter: "drop-shadow(0 0 10px rgba(245,158,11,1)) drop-shadow(0 0 20px rgba(245,158,11,0.7))" }} />
+                        <img src={tutorialArrow} alt="" style={{ width: 44, height: 56, objectFit: "contain", filter: "hue-rotate(-30deg) saturate(1.5) drop-shadow(0 0 10px rgba(240,100,10,0.95)) drop-shadow(0 0 24px rgba(240,100,10,0.6))" }} />
                       </div>
                     </div>
                   </>
@@ -2238,8 +2230,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                         <div style={{ background: "rgba(8,22,8,0.94)", border: "1.5px solid rgba(74,222,128,0.7)", borderRadius: 8, padding: "5px 12px", marginBottom: 6, boxShadow: "0 0 14px rgba(34,197,94,0.4), 0 4px 10px rgba(0,0,0,0.7)", whiteSpace: "nowrap" }}>
                           <span style={{ fontFamily: "Lora, serif", color: "#86efac", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em" }}>Sell Fish Here</span>
                         </div>
-                        <div style={{ width: 8, height: 28, background: "linear-gradient(180deg, #4ade80 0%, #16a34a 100%)", borderRadius: "3px 3px 0 0", boxShadow: "0 0 10px rgba(34,197,94,0.9), 0 0 24px rgba(34,197,94,0.5)" }} />
-                        <div style={{ width: 0, height: 0, borderLeft: "18px solid transparent", borderRight: "18px solid transparent", borderTop: "22px solid #22c55e", filter: "drop-shadow(0 0 10px rgba(34,197,94,1)) drop-shadow(0 0 20px rgba(34,197,94,0.7))" }} />
+                        <img src={tutorialArrow} alt="" style={{ width: 44, height: 56, objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(212,168,67,0.95)) drop-shadow(0 0 24px rgba(212,168,67,0.6))" }} />
                       </div>
                     </div>
                   </>
@@ -2294,8 +2285,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                             {hintLoc.name}
                           </span>
                         </div>
-                        <div style={{ width: 8, height: 28, background: "linear-gradient(180deg, #4ade80 0%, #16a34a 100%)", borderRadius: "3px 3px 0 0", boxShadow: "0 0 10px rgba(34,197,94,0.9), 0 0 24px rgba(34,197,94,0.5)" }} />
-                        <div style={{ width: 0, height: 0, borderLeft: "18px solid transparent", borderRight: "18px solid transparent", borderTop: "22px solid #22c55e", filter: "drop-shadow(0 0 10px rgba(34,197,94,1)) drop-shadow(0 0 20px rgba(34,197,94,0.7))" }} />
+                        <img src={tutorialArrow} alt="" style={{ width: 44, height: 56, objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(212,168,67,0.95)) drop-shadow(0 0 24px rgba(212,168,67,0.6))" }} />
                       </div>
                     </div>
                   </>

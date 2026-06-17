@@ -26,6 +26,7 @@ import coinIconImg from "@assets/icon_coin.png";
 import LoadingScreen from "@/components/LoadingScreen";
 import GiftClaimModal from "@/components/GiftClaimModal";
 import FriendProfileModal from "@/components/FriendProfileModal";
+import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -3452,11 +3453,16 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
                     Drag edibles onto pet
                   </span>
                 </div>
-                {/* Arrow shaft + head — smaller, pointing down toward edibles strip */}
-                <div style={{ animation: "feedHintFloat 1.2s ease-in-out infinite", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <div style={{ width: 4, height: 16, background: "linear-gradient(180deg, #4ade80 0%, #16a34a 100%)", borderRadius: "2px 2px 0 0", boxShadow: "0 0 8px rgba(34,197,94,0.9), 0 0 16px rgba(34,197,94,0.5)" }} />
-                  <div style={{ width: 0, height: 0, borderLeft: "10px solid transparent", borderRight: "10px solid transparent", borderTop: "13px solid #22c55e", filter: "drop-shadow(0 0 8px rgba(34,197,94,1)) drop-shadow(0 0 14px rgba(34,197,94,0.7))" }} />
-                </div>
+                {/* Arrow — pointing down toward edibles strip */}
+                <img
+                  src={tutorialArrow}
+                  alt=""
+                  style={{
+                    width: 40, height: 50, objectFit: "contain",
+                    animation: "feedHintFloat 1.2s ease-in-out infinite",
+                    filter: "drop-shadow(0 0 10px rgba(212,168,67,0.95)) drop-shadow(0 0 24px rgba(212,168,67,0.6))",
+                  }}
+                />
               </>
             ) : (
               /* No edibles — Buy Edibles card */
