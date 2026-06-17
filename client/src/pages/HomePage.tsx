@@ -454,11 +454,19 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       setShowSpeedUp(false);
       setHomeDragging(null);
       setHomeDragOver(false);
+      window.dispatchEvent(new CustomEvent("bj_speedup_used"));
       setSpeedEffectLabel(`-${variables.specialAmount ?? "?"} min`);
       setShowSpeedEffect(true);
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
     },
   });
+
+  // ── Tutorial: close speed-up sheet when tutorial signals egg is ready ────────
+  useEffect(() => {
+    const handler = () => { setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false); };
+    window.addEventListener("bj_close_speedup", handler);
+    return () => window.removeEventListener("bj_close_speedup", handler);
+  }, []);
 
   // ── Active pet action mutations ──────────────────────────────────────────────
   const toModalItem = (i: InventoryItem): PowerUpItem => ({
@@ -1108,7 +1116,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             </div>
 
             {/* Egg drop zone */}
-            <div className="px-5 pb-4">
+            <div className="px-5 pb-4" data-bj="egg-drop-zone">
               <div
                 ref={homeEggDropRef}
                 className="w-full rounded-2xl flex flex-col items-center justify-center gap-3 py-5 transition-all"

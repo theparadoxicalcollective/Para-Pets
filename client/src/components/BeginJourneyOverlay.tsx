@@ -17,7 +17,7 @@ const STEP_LABELS = [
   "Head back home!",
   "Tap your egg!",
   "Drag a hatch potion onto your egg to hatch it!",
-  "Open your Quest log!",
+  "Tap to finish your journey!",
 ];
 
 // Required URL path for each step (null = any)
@@ -64,6 +64,9 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const [showPotionModal, setShowPotionModal] = useState(false);
   const [potionsGranted, setPotionsGranted]   = useState(false);
   const [showRescue, setShowRescue]           = useState(false);
+  const [potionRect, setPotionRect]           = useState<TargetRect | null>(null);
+  const [eggOnHomeRect, setEggOnHomeRect]     = useState<TargetRect | null>(null);
+  const [eggReadyToHatch, setEggReadyToHatch] = useState(false);
   const [location, navigate] = useLocation();
   const queryClient = useQueryClient();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -139,16 +142,22 @@ export default function BeginJourneyOverlay({ user }: Props) {
         setTargetRect(null); return;
       }
 
-      // Step 5 (free): arrow on active egg card on /pets
+      // Step 5 (free): track potion items in the speed-up sheet + egg on home page
       if (stepNum === 5) {
-        if (location !== "/pets") { setTargetRect(null); return; }
-        // Prefer the active egg card
-        if (user?.activePetId) {
-          const activeCard = document.querySelector(`[data-pet-inv-id="${user.activePetId}"]`) as HTMLElement | null;
-          if (activeCard) { const r = activeCard.getBoundingClientRect(); if (r.width > 0) { setTargetRect(r); return; } }
+        const potionEl = document.querySelector('[data-testid^="button-speedup-"]') as HTMLElement | null;
+        const eggEl    = document.querySelector('[data-testid="button-egg-tap"]')    as HTMLElement | null;
+        if (eggEl) {
+          const r = eggEl.getBoundingClientRect();
+          setEggOnHomeRect(r.width > 0 ? r : null);
+        } else {
+          setEggOnHomeRect(null);
         }
-        const card = document.querySelector('[data-testid^="card-pet-"]') as HTMLElement | null;
-        if (card) { const r = card.getBoundingClientRect(); if (r.width > 0) { setTargetRect(r); return; } }
+        if (potionEl) {
+          const r = potionEl.getBoundingClientRect();
+          if (r.width > 0) { setPotionRect(r); setTargetRect(r); return; }
+        }
+        setPotionRect(null);
+        if (eggEl) { const r = eggEl.getBoundingClientRect(); if (r.width > 0) { setTargetRect(r); return; } }
         setTargetRect(null); return;
       }
 
@@ -213,6 +222,32 @@ export default function BeginJourneyOverlay({ user }: Props) {
     }
   }, [step, location, invHatch, potionsGranted]);
 
+  // ── Step 5: detect egg ready to hatch ────────────────────────────────────
+  useEffect(() => {
+    if (step !== 5 || !invHatch || !user?.activePetId) { setEggReadyToHatch(false); return; }
+    const egg = (invHatch as any[]).find(
+      (i: any) => (i.inventoryId === user!.activePetId || i.id === user!.activePetId) && i.isHatched === false
+    );
+    if (!egg) { setEggReadyToHatch(false); return; }
+    const ready = egg.hatchStartedAt && egg.hatchTime
+      ? (Date.now() - new Date(egg.hatchStartedAt).getTime()) >= egg.hatchTime * 3_600_000
+      : !egg.hatchTime;
+    setEggReadyToHatch(!!ready);
+  }, [step, invHatch, user?.activePetId]);
+
+  // ── Step 5: close speed-up sheet when egg is ready to hatch ──────────────
+  useEffect(() => {
+    if (step !== 5 || !eggReadyToHatch) return;
+    window.dispatchEvent(new CustomEvent("bj_close_speedup"));
+  }, [step, eggReadyToHatch]);
+
+  // ── Step 5: add body class to hide egg-drop-zone in speed-up sheet ────────
+  useEffect(() => {
+    if (step === 5) document.body.classList.add("bj-step5");
+    else document.body.classList.remove("bj-step5");
+    return () => document.body.classList.remove("bj-step5");
+  }, [step]);
+
   // ── Step 4 rescue: show "Select Egg" if player has no active egg ──────────
   useEffect(() => {
     if (step !== 4 || location !== "/") { setShowRescue(false); return; }
@@ -261,7 +296,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
         navBtn?.click();
         return;
       }
-      questEl?.click();
+      // Quest icon visible — mark complete; player navigates to quest log themselves
       claimRewardMutation.mutate();
       return;
     }
@@ -332,7 +367,9 @@ export default function BeginJourneyOverlay({ user }: Props) {
 
   const stepNum  = step as number;
   const isFree   = stepNum === FREE_STEP;
-  const label    = STEP_LABELS[stepNum];
+  const label    = (stepNum === 5 && eggReadyToHatch)
+    ? "Your egg is ready! Tap it to hatch!"
+    : STEP_LABELS[stepNum];
 
   // Padded rect for circle spotlight
   const pr = targetRect ? {
@@ -361,6 +398,14 @@ export default function BeginJourneyOverlay({ user }: Props) {
           0%, 100% { transform: translateY(0px); }
           50%       { transform: translateY(-10px); }
         }
+        @keyframes bj-drag-ghost {
+          0%   { opacity: 0;    transform: translate(0, 0) scale(0.7); }
+          12%  { opacity: 1;    transform: translate(0, 0) scale(1); }
+          70%  { opacity: 0.85; transform: translate(0, var(--bj-drag-dy)) scale(1.15); }
+          88%  { opacity: 0;    transform: translate(0, var(--bj-drag-dy)) scale(0.9); }
+          100% { opacity: 0;    transform: translate(0, 0) scale(0.7); }
+        }
+        .bj-step5 [data-bj="egg-drop-zone"] { display: none !important; }
       `}</style>
 
       {/* Hint label — always at top */}
@@ -439,6 +484,34 @@ export default function BeginJourneyOverlay({ user }: Props) {
           }}
         />
       )}
+
+      {/* Step 5 drag-ghost animation: a potion ghost floats from the potion to the egg */}
+      {stepNum === 5 && potionRect && eggOnHomeRect && !eggReadyToHatch && (() => {
+        const fromCx = potionRect.left + potionRect.width  / 2;
+        const fromCy = potionRect.top  + potionRect.height / 2;
+        const dy = (eggOnHomeRect.top + eggOnHomeRect.height / 2) - fromCy;
+        return (
+          <div
+            style={{
+              position: "fixed",
+              left: fromCx - 26,
+              top:  fromCy - 26,
+              width: 52, height: 52,
+              borderRadius: 14,
+              background: "rgba(15,8,2,0.93)",
+              border: "2px solid rgba(240,192,64,0.85)",
+              boxShadow: "0 0 20px rgba(240,192,64,0.55)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              zIndex: 99006,
+              pointerEvents: "none",
+              animation: "bj-drag-ghost 2.3s ease-in-out infinite",
+              ["--bj-drag-dy" as string]: `${dy}px`,
+            } as React.CSSProperties}
+          >
+            <span style={{ fontSize: 24, lineHeight: 1 }}>⏩</span>
+          </div>
+        );
+      })()}
 
       {/* Bouncing arrow above target */}
       {pr && (
