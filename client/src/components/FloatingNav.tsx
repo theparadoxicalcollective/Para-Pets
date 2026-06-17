@@ -165,8 +165,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     onSuccess: async (res) => {
       const data = await res.json();
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      if (onUserUpdate && data.newBalance != null) {
-        onUserUpdate({ ...user, coins: data.newBalance });
+      if (onUserUpdate) {
+        onUserUpdate({ ...user, coins: data.newBalance ?? user.coins, tutorial_reward_claimed: true });
       }
       toast({
         title: "Reward Claimed!",

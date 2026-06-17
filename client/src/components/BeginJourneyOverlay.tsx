@@ -486,7 +486,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
         </div>
       </div>
 
-      {/* Circle spotlight — skip for free mode and step-5 tap mode */}
+      {/* Circle spotlight — skip for free mode */}
       {!isFree && !step5TapMode && (pr ? (
         <div style={{
           position: "fixed", inset: 0,
@@ -496,6 +496,35 @@ export default function BeginJourneyOverlay({ user }: Props) {
       ) : (
         <div style={{ position: "fixed", inset: 0, background: OVERLAY_BG, zIndex: 99000, pointerEvents: "all" }} />
       ))}
+
+      {/* Step-5 tap mode: spotlight egg + bouncing arrow so player knows to tap it */}
+      {stepNum === 5 && step5TapMode && eggOnHomeRect && (() => {
+        const epx = eggOnHomeRect.left + eggOnHomeRect.width / 2;
+        const epy = eggOnHomeRect.top  + eggOnHomeRect.height / 2;
+        const eRad = Math.max(eggOnHomeRect.width, eggOnHomeRect.height) / 2 + 28;
+        return (
+          <>
+            <div style={{
+              position: "fixed", inset: 0,
+              background: `radial-gradient(circle ${eRad}px at ${epx}px ${epy}px, transparent ${eRad}px, rgba(0,0,0,0.62) ${eRad + 1}px)`,
+              zIndex: 99000, pointerEvents: "none",
+            }} />
+            <img
+              src={tutorialArrow}
+              alt=""
+              style={{
+                position: "fixed",
+                top:  Math.max(8, eggOnHomeRect.top - 82),
+                left: epx - 28,
+                width: 56, height: 70,
+                zIndex: 99002, pointerEvents: "none",
+                animation: "bj-bounce 1s ease-in-out infinite",
+                filter: arrowFilter,
+              }}
+            />
+          </>
+        );
+      })()}
 
       {/* Step 4 rescue: "Select Egg" button when no active egg is found */}
       {showRescue && (
