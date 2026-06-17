@@ -79,7 +79,8 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const [step5TapMode,    setStep5TapMode]    = useState(false);
   const [location, navigate] = useLocation();
   const queryClient = useQueryClient();
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollRef     = useRef<ReturnType<typeof setInterval> | null>(null);
+  const invCheckRef = useRef<any[]>([]); // latest invCheck data accessible from poll closure
 
   // ── Mark tutorial quest complete (no coins — player claims from quest log) ──
   const completeTutorialMutation = useMutation({
@@ -169,6 +170,20 @@ export default function BeginJourneyOverlay({ user }: Props) {
         return;
       }
 
+      // Step 2: spotlight the first UNHATCHED egg's select button specifically
+      if (stepNum === 2) {
+        const firstEgg = invCheckRef.current.find(i => i.isHatched === false && i.type === "pet");
+        const eggSel = firstEgg ? `[data-testid="button-select-pet-${firstEgg.shopItemId}"]` : STEP_SELECTORS[2];
+        const el = eggSel ? document.querySelector(eggSel) as HTMLElement | null : null;
+        if (!el) { setTargetRect(null); return; }
+        const cs = window.getComputedStyle(el);
+        if (cs.pointerEvents === "none" || cs.opacity === "0" || cs.display === "none") { setTargetRect(null); return; }
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) { setTargetRect(null); return; }
+        setTargetRect(r);
+        return;
+      }
+
       // All other steps
       const sel = STEP_SELECTORS[stepNum];
       if (!sel) { setTargetRect(null); return; }
@@ -192,6 +207,9 @@ export default function BeginJourneyOverlay({ user }: Props) {
     enabled: step === 2 && location === "/pets",
     staleTime: 10_000,
   });
+
+  // Keep ref synced so the poll closure always sees the latest invCheck
+  useEffect(() => { invCheckRef.current = invCheck ?? []; }, [invCheck]);
 
   useEffect(() => {
     if (step !== 2 || location !== "/pets" || !invCheck) return;
@@ -339,8 +357,12 @@ export default function BeginJourneyOverlay({ user }: Props) {
       const eggAlreadyActive = user?.activePetId && invCheck &&
         (invCheck as any[]).some((i: any) => i.inventoryId === user!.activePetId && i.isHatched === false);
       if (!eggAlreadyActive) {
-        const sel = STEP_SELECTORS[2];
-        if (sel) { (document.querySelector(sel) as HTMLElement | null)?.click(); }
+        // Click the first UNHATCHED egg's select button specifically
+        const firstEgg = (invCheck as any[] | undefined)?.find(i => i.isHatched === false && i.type === "pet");
+        const eggSel = firstEgg
+          ? `[data-testid="button-select-pet-${firstEgg.shopItemId}"]`
+          : STEP_SELECTORS[2];
+        if (eggSel) { (document.querySelector(eggSel) as HTMLElement | null)?.click(); }
       }
       bjSetStep(3);
       setStep(3);
