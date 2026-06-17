@@ -346,7 +346,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
               <div className="flex-1 overflow-y-auto space-y-2.5" style={{ scrollbarWidth: "none" }}>
                 {/* ── Begin Journey one-time quest card ── */}
-                {bjStatus !== "done" && (
+                {/* Visibility is server-driven: stays until tutorial_reward_claimed = true on the server */}
+                {!(user as any).tutorial_reward_claimed && (
                   <div className="rounded-md p-2" style={{ position: "relative", overflow: "hidden", background: bjStatus === "active" ? "rgba(30,80,20,0.15)" : "rgba(92,58,30,0.1)", border: bjStatus === "active" ? "1px solid rgba(100,200,80,0.4)" : "1px solid rgba(139,90,40,0.35)" }}>
                     <div className="flex items-center justify-between gap-1 mb-0.5">
                       <div className="flex items-center gap-1.5 flex-1 min-w-0">
@@ -356,7 +357,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                       {bjStatus !== "active" ? (
                         <button
                           data-testid="button-begin-journey-go"
-                          onClick={() => { bjStart(); setShowQuest(false); }}
+                          onClick={() => { bjSetStep(0); setShowQuest(false); }}
                           className="flex-shrink-0 transition-transform active:scale-90 rounded"
                           style={{ background: "linear-gradient(135deg, #1a5c1a 0%, #2d8c2d 100%)", border: "1px solid rgba(100,220,100,0.55)", color: "#dcfce7", fontFamily: "Lora, serif", fontSize: 9, fontWeight: 800, letterSpacing: "0.12em", cursor: "pointer", padding: "3px 8px", marginRight: 3, boxShadow: "0 0 8px rgba(60,180,60,0.3)" }}
                         >GO</button>
