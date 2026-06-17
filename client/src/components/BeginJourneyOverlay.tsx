@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { bjGetStep, bjSetStep, bjGetStatus, BJ_EVENT, bjSetStep5FakeMode, bjSetStep5TapMode } from "@/lib/beginJourney";
+import { bjGetStep, bjSetStep, bjGetStatus, BJ_EVENT, bjSetStep5FakeMode, bjSetStep5TapMode, bjIsStep5FakeMode } from "@/lib/beginJourney";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -585,6 +585,93 @@ export default function BeginJourneyOverlay({ user }: Props) {
               display: "block",
               position: "relative",
             }} />
+          </div>
+        );
+      })()}
+
+      {/* Step 5 — single tutorial potion card rendered INSIDE the overlay at z-99003.
+          This is the only interactive potion; the speed-up sheet is hidden during step 5.
+          Positioned at the bottom-center so the ghost arrow sweeps straight up to the egg. */}
+      {stepNum === 5 && !step5TapMode && (() => {
+        const invHatchArr = (invHatch as any[] | undefined) ?? [];
+        const tutPotion = invHatchArr.find(
+          (i: any) => i.type === "special" && i.specialType === "hatch_time"
+        );
+        if (!tutPotion) return null;
+
+        const onPotionDown = (e: React.PointerEvent<HTMLDivElement>) => {
+          e.preventDefault();
+          const pid = e.pointerId;
+          const onUp = (ev: PointerEvent) => {
+            if (ev.pointerId !== pid) return;
+            document.removeEventListener("pointerup",     onUp);
+            document.removeEventListener("pointercancel", onUp);
+            if (bjIsStep5FakeMode()) {
+              // Egg already ready — just simulate the use and show tap-egg step
+              window.dispatchEvent(new CustomEvent("bj_fake_speedup_done"));
+            } else {
+              // Fire the real speed-up mutation via HomePage's event listener
+              window.dispatchEvent(new CustomEvent("bj_step5_use_potion", {
+                detail: {
+                  petInvId:      user?.activePetId,
+                  itemInvId:     tutPotion.inventoryId,
+                  specialAmount: tutPotion.specialAmount,
+                },
+              }));
+            }
+          };
+          document.addEventListener("pointerup",     onUp);
+          document.addEventListener("pointercancel", onUp);
+        };
+
+        return (
+          <div
+            key="tutorial-potion"
+            data-testid="button-speedup-tutorial"
+            style={{
+              position:  "fixed",
+              bottom:    48,
+              left:      "50%",
+              transform: "translateX(-50%)",
+              zIndex:    99003,
+              touchAction: "none",
+              userSelect:  "none",
+              cursor:      "grab",
+            }}
+            onPointerDown={onPotionDown}
+          >
+            <div style={{
+              background:   "linear-gradient(135deg,rgba(28,13,3,0.97) 0%,rgba(16,7,1,0.99) 100%)",
+              border:       "2px solid rgba(240,192,64,0.95)",
+              borderRadius: 20,
+              padding:      "20px 28px",
+              display:      "flex",
+              flexDirection:"column",
+              alignItems:   "center",
+              gap:          10,
+              boxShadow:    "0 0 48px rgba(240,192,64,0.5),0 0 90px rgba(240,192,64,0.15),0 14px 40px rgba(0,0,0,0.9)",
+              minWidth:     120,
+            }}>
+              {tutPotion.imageUrl
+                ? <img src={tutPotion.imageUrl} alt={tutPotion.name}
+                    style={{ width: 64, height: 64, objectFit: "contain",
+                             filter: "drop-shadow(0 0 10px rgba(240,192,64,0.7))" }} />
+                : <span style={{ fontSize: 40 }}>🧪</span>
+              }
+              <span style={{
+                fontFamily: "Lora,Georgia,serif", color: "#f0d060",
+                fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textAlign: "center",
+              }}>
+                {tutPotion.name}
+              </span>
+              <span style={{
+                background: "rgba(240,192,64,0.18)", color: "#f0c040",
+                fontFamily: "Lora,Georgia,serif", fontSize: 10, fontWeight: 600,
+                padding: "3px 10px", borderRadius: 99, letterSpacing: "0.06em",
+              }}>
+                -{tutPotion.specialAmount ?? "?"}min
+              </span>
+            </div>
           </div>
         );
       })()}

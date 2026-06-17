@@ -470,10 +470,28 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   }, []);
 
   // ── Tutorial: open speed-up sheet when step 5 starts (works on reload too) ──
+  // NOTE: the sheet itself is hidden during step 5 (bjGetStep() !== 5 guard above).
+  // bj_open_speedup just sets state so the overlay knows potions are "ready".
   useEffect(() => {
     const handler = () => { setShowSpeedUp(true); };
     window.addEventListener("bj_open_speedup", handler);
     return () => window.removeEventListener("bj_open_speedup", handler);
+  }, []);
+
+  // ── Tutorial step 5: overlay's single potion card fires this event on tap ──
+  // We handle the mutation here because speedUpMutation lives in HomePage.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { petInvId, itemInvId, specialAmount } = (e as CustomEvent<{
+        petInvId: string; itemInvId: string; specialAmount: number;
+      }>).detail;
+      if (petInvId && itemInvId) {
+        speedUpMutation.mutate({ petInvId, itemInvId, specialAmount });
+      }
+    };
+    window.addEventListener("bj_step5_use_potion", handler as EventListener);
+    return () => window.removeEventListener("bj_step5_use_potion", handler as EventListener);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Active pet action mutations ──────────────────────────────────────────────
@@ -1153,13 +1171,15 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       </div>
 
 
-      {(!isOverlayActive || bjGetStep() === 5) && showSpeedUp && activePet && !activePet.isHatched && (
+      {/* Speed-up sheet is hidden during tutorial step 5 — the overlay renders its own
+          single-potion card at z-99003 so there is no z-index war. */}
+      {!isOverlayActive && bjGetStep() !== 5 && showSpeedUp && activePet && !activePet.isHatched && (
         <div
           data-bj="speedup-sheet"
           className="fixed inset-0 flex items-end justify-center"
           style={{
             maxWidth: "768px", margin: "0 auto", left: 0, right: 0,
-            zIndex: bjGetStep() === 5 ? 99002 : 55,
+            zIndex: 55,
           }}
         >
           <div
