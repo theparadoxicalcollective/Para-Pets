@@ -17,6 +17,7 @@ import swordsImg from "@assets/generated_images/nav_icon_pvp.png";
 import eggImg from "@assets/generated_images/nav_icon_pets.png";
 import badgeIcon from "@assets/generated_images/nav_icon_badges.png";
 import { playSpeedUp } from "@/lib/sounds";
+import { bjGetStep } from "@/lib/beginJourney";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
@@ -559,7 +560,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       }
       if (dragActive) {
         setHomeDragging(prev => prev ? { ...prev, x: ev.clientX, y: ev.clientY } : null);
-        const dropRect = homeEggDropRef.current?.getBoundingClientRect();
+        // During tutorial step 5, the egg-drop-zone is hidden — use the pet container on the home page instead
+        const isTutStep5 = bjGetStep() === 5;
+        const dropRef = isTutStep5 ? petContainerRef : homeEggDropRef;
+        const dropRect = dropRef.current?.getBoundingClientRect();
         if (dropRect) {
           const over = ev.clientX >= dropRect.left && ev.clientX <= dropRect.right &&
                        ev.clientY >= dropRect.top  && ev.clientY <= dropRect.bottom;
@@ -573,7 +577,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       document.removeEventListener("pointerup", onUp);
       setHomeDragOver(false);
       if (dragActive) {
-        const dropRect = homeEggDropRef.current?.getBoundingClientRect();
+        // During tutorial step 5, the egg-drop-zone is hidden — use the pet container on the home page instead
+        const isTutStep5 = bjGetStep() === 5;
+        const dropRef = isTutStep5 ? petContainerRef : homeEggDropRef;
+        const dropRect = dropRef.current?.getBoundingClientRect();
         const overDrop = dropRect &&
           ev.clientX >= dropRect.left && ev.clientX <= dropRect.right &&
           ev.clientY >= dropRect.top  && ev.clientY <= dropRect.bottom;
