@@ -521,7 +521,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
               width: "100%", height: "100%",
               objectFit: "contain",
               filter: arrowFilter,
-              transform: "rotate(90deg)",
+              transform: "rotate(-90deg)",
               display: "block",
             }} />
           </div>
@@ -536,9 +536,9 @@ export default function BeginJourneyOverlay({ user }: Props) {
         return (
           <div style={{
             position: "fixed",
-            left: toCx - 28,
-            top:  fromY - 35,
-            width: 56, height: 70,
+            left: toCx - 22,
+            top:  fromY - 28,
+            width: 44, height: 55,
             zIndex: 99006,
             pointerEvents: "none",
             animation: "bj-drag-ghost 2.3s ease-in-out infinite",
@@ -548,7 +548,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
               width: "100%", height: "100%",
               objectFit: "contain",
               filter: arrowFilter,
-              transform: "rotate(90deg)",
+              transform: "rotate(-90deg)",
               display: "block",
             }} />
           </div>

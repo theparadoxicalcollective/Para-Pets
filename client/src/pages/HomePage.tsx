@@ -548,6 +548,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const handleHomeSheetItemPointerDown = (e: React.PointerEvent, item: InventoryItem) => {
     if (!activePet) return;
     e.preventDefault();
+    // Capture pointer so pointermove/pointerup always reach this element on mobile
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     const petInvId = activePet.inventoryId;
     const startX = e.clientX, startY = e.clientY;
     let dragActive = false;
@@ -560,14 +562,17 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       }
       if (dragActive) {
         setHomeDragging(prev => prev ? { ...prev, x: ev.clientX, y: ev.clientY } : null);
-        // During tutorial step 5, the egg-drop-zone is hidden — use the pet container on the home page instead
+        // During tutorial step 5, the egg-drop-zone is hidden — check upper portion of screen
         const isTutStep5 = bjGetStep() === 5;
-        const dropRef = isTutStep5 ? petContainerRef : homeEggDropRef;
-        const dropRect = dropRef.current?.getBoundingClientRect();
-        if (dropRect) {
-          const over = ev.clientX >= dropRect.left && ev.clientX <= dropRect.right &&
-                       ev.clientY >= dropRect.top  && ev.clientY <= dropRect.bottom;
-          setHomeDragOver(over);
+        if (isTutStep5) {
+          setHomeDragOver(ev.clientY < window.innerHeight * 0.62);
+        } else {
+          const dropRect = homeEggDropRef.current?.getBoundingClientRect();
+          if (dropRect) {
+            const over = ev.clientX >= dropRect.left && ev.clientX <= dropRect.right &&
+                         ev.clientY >= dropRect.top  && ev.clientY <= dropRect.bottom;
+            setHomeDragOver(over);
+          }
         }
       }
     };
@@ -576,19 +581,30 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerup", onUp);
       setHomeDragOver(false);
-      if (dragActive) {
-        // During tutorial step 5, the egg-drop-zone is hidden — use the pet container on the home page instead
-        const isTutStep5 = bjGetStep() === 5;
-        const dropRef = isTutStep5 ? petContainerRef : homeEggDropRef;
-        const dropRect = dropRef.current?.getBoundingClientRect();
-        const overDrop = dropRect &&
-          ev.clientX >= dropRect.left && ev.clientX <= dropRect.right &&
-          ev.clientY >= dropRect.top  && ev.clientY <= dropRect.bottom;
-        if (overDrop) {
+      if (!dragActive) {
+        // Tap (no drag): e.preventDefault() suppresses onClick on mobile, so fire directly
+        if (!speedUpMutation.isPending) {
           speedUpMutation.mutate({ petInvId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
         }
         setHomeDragging(null);
+        return;
       }
+      // Drag: check drop target
+      const isTutStep5 = bjGetStep() === 5;
+      let overDrop = false;
+      if (isTutStep5) {
+        // Tutorial: any release in upper 62% of screen counts as dropping onto egg
+        overDrop = ev.clientY < window.innerHeight * 0.62;
+      } else {
+        const dropRect = homeEggDropRef.current?.getBoundingClientRect();
+        overDrop = !!(dropRect &&
+          ev.clientX >= dropRect.left && ev.clientX <= dropRect.right &&
+          ev.clientY >= dropRect.top  && ev.clientY <= dropRect.bottom);
+      }
+      if (overDrop) {
+        speedUpMutation.mutate({ petInvId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
+      }
+      setHomeDragging(null);
     };
     document.addEventListener("pointermove", onMove);
     document.addEventListener("pointerup", onUp);
