@@ -136,7 +136,7 @@ export default function AuthPage() {
 
   const registerMutation = useMutation({
     mutationFn: async () => {
-      const apiPromise = apiRequest("POST", "/api/auth/register", { username, email, password, profileImageData });
+      const apiPromise = apiRequest("POST", "/api/auth/register", { username, email, password, profileImageData, referrer: typeof document !== "undefined" ? document.referrer : "" });
       await animateProgress();
       const res = await apiPromise;
       return res.json();

@@ -635,6 +635,21 @@ app.use((req, res, next) => {
       active BOOLEAN NOT NULL DEFAULT true,
       created_at TIMESTAMP NOT NULL DEFAULT now()
     )`));
+  await runMigration("users.signup_referrer",
+    () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS signup_referrer text`));
+  await runMigration("player_login_events.table",
+    () => db.execute(sql`CREATE TABLE IF NOT EXISTS player_login_events (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id VARCHAR NOT NULL,
+      ip_address VARCHAR(100),
+      country VARCHAR(100),
+      city VARCHAR(100),
+      created_at TIMESTAMP NOT NULL DEFAULT now()
+    )`));
+  await runMigration("idx_player_login_events_created",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_player_login_events_created ON player_login_events (created_at DESC)`));
+  await runMigration("idx_player_login_events_user",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_player_login_events_user ON player_login_events (user_id, created_at DESC)`));;
 
   try {
     await db.execute(sql`

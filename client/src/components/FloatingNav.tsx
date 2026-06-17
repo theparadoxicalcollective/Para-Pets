@@ -22,7 +22,7 @@ import pvpIcon from "@assets/generated_images/nav_icon_pvp.png";
 import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
 import PetWorldPage from "@/pages/PetWorldPage";
 import { AquariumPage } from "@/pages/AquariumPage";
-import { bjGetStatus, bjStart, BJ_EVENT } from "@/lib/beginJourney";
+import { bjGetStatus, bjStart, bjSetStep, BJ_EVENT } from "@/lib/beginJourney";
 
 interface NavUser {
   id: string;
@@ -33,6 +33,7 @@ interface NavUser {
   isAdmin: boolean;
   isModerator?: boolean;
   activePetId: string | null;
+  tutorial_reward_claimed?: boolean;
 }
 
 interface FloatingNavProps {
@@ -104,6 +105,13 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     window.addEventListener(BJ_EVENT, handler);
     return () => window.removeEventListener(BJ_EVENT, handler);
   }, []);
+
+  // Sync localStorage from server-side flag — fixes older players seeing tutorial again on new device/browser
+  useEffect(() => {
+    if ((user as any).tutorial_reward_claimed && bjGetStatus() !== "done") {
+      bjSetStep("done");
+    }
+  }, [(user as any).tutorial_reward_claimed]);
 
   const openPanel = (fn: () => void) => { closeAll(); setPanelZ(getNextZ()); fn(); };
 

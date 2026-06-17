@@ -715,9 +715,22 @@ export async function registerRoutes(
     next();
   });
 
+  function categorizeReferrer(ref: string | null | undefined): string {
+    if (!ref) return "Direct";
+    const r = ref.toLowerCase();
+    if (r.includes("google")) return "Google";
+    if (r.includes("facebook") || r.includes("fb.com")) return "Facebook";
+    if (r.includes("twitter") || r.includes("x.com")) return "Twitter/X";
+    if (r.includes("instagram")) return "Instagram";
+    if (r.includes("tiktok")) return "TikTok";
+    if (r.includes("youtube")) return "YouTube";
+    if (r.includes("reddit")) return "Reddit";
+    return "Other";
+  }
+
   app.post("/api/auth/register", async (req, res) => {
     try {
-      const { username, email, password, profileImageData } = req.body;
+      const { username, email, password, profileImageData, referrer } = req.body;
 
       if (!username || !email || !password) {
         return res.status(400).json({ message: "Username, email, and password are required" });
@@ -809,6 +822,10 @@ export async function registerRoutes(
       } catch (bundleErr) {
         console.error("Failed to auto-grant free house bundle:", bundleErr);
       }
+
+      // Store categorized signup source
+      const refSource = categorizeReferrer(referrer);
+      db.execute(sql`UPDATE users SET signup_referrer = ${refSource} WHERE id = ${user.id}`).catch(() => {});
 
       req.login(user, (err) => {
         if (err) return res.status(500).json({ message: "Login failed after registration" });
@@ -909,6 +926,24 @@ export async function registerRoutes(
         } catch (e) { console.error("[VW] Login greeting failed:", e); }
         const freshUser = await storage.getUser(user.id);
         const { password: _, ...safeUser } = freshUser ?? user;
+        // Log login event for metrics (fire-and-forget)
+        setImmediate(async () => {
+          try {
+            const ip = ((req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()) || (req as any).ip || "";
+            const safeIp = ip.replace(/^::ffff:/, "");
+            const result = await db.execute(sql`INSERT INTO player_login_events (user_id, ip_address) VALUES (${user.id}, ${safeIp || null}) RETURNING id`);
+            const rowId = (result as any).rows?.[0]?.id ?? (result as any)?.[0]?.id;
+            if (rowId && safeIp && safeIp !== "::1" && !safeIp.startsWith("127.") && safeIp !== "") {
+              try {
+                const geoRes = await fetch(`http://ip-api.com/json/${safeIp}?fields=country,city`);
+                const geo = await geoRes.json() as any;
+                if (geo?.country) {
+                  await db.execute(sql`UPDATE player_login_events SET country = ${geo.country}, city = ${geo.city ?? null} WHERE id = ${rowId}`);
+                }
+              } catch {}
+            }
+          } catch {}
+        });
         return res.json(safeUser);
       });
     })(req, res, next);
@@ -2843,6 +2878,48 @@ export async function registerRoutes(
       const rewards = await storage.getMilestoneRewards();
       return res.json(rewards);
     } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Admin Metrics ─────────────────────────────────────────────────────────
+  app.get("/api/admin/metrics", isAdmin, async (req, res) => {
+    try {
+      const days = Math.min(90, Math.max(1, parseInt(req.query.days as string) || 30));
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+      const [dailyRows, countryRows, sourceRows] = await Promise.all([
+        db.execute(sql`
+          SELECT (date_trunc('day', created_at AT TIME ZONE 'UTC'))::date::text AS date,
+                 count(*)::int AS count
+          FROM player_login_events
+          WHERE created_at >= ${cutoff}
+          GROUP BY 1 ORDER BY 1
+        `),
+        db.execute(sql`
+          SELECT coalesce(nullif(trim(country), ''), 'Unknown') AS country,
+                 count(*)::int AS count
+          FROM player_login_events
+          WHERE created_at >= ${cutoff}
+          GROUP BY 1 ORDER BY 2 DESC LIMIT 15
+        `),
+        db.execute(sql`
+          SELECT coalesce(nullif(trim(signup_referrer), ''), 'Direct') AS source,
+                 count(*)::int AS count
+          FROM users
+          GROUP BY 1 ORDER BY 2 DESC
+        `),
+      ]);
+
+      const toArr = (r: any) => Array.isArray(r) ? r : ((r as any).rows ?? []);
+
+      return res.json({
+        dailyLogins: toArr(dailyRows),
+        loginsByCountry: toArr(countryRows),
+        signupsBySource: toArr(sourceRows),
+      });
+    } catch (err: any) {
+      console.error("[admin/metrics]", err);
       return res.status(500).json({ message: err.message });
     }
   });

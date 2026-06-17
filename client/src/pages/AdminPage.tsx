@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Search, X, Upload, Trash2, ChevronLeft, Pencil } from "lucide-react";
@@ -63,7 +64,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [banModalUserId, setBanModalUserId] = useState<string | null>(null);
   const [banDays, setBanDays] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "emblems" | "maintenance" | "home_bundle" | "purchases" | "veridian_watcher" | "quest" | "molten_blocks" | null>(null);
+  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "emblems" | "maintenance" | "home_bundle" | "purchases" | "veridian_watcher" | "quest" | "molten_blocks" | "metrics" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const [characterTab, setCharacterTab] = useState<"pet" | "enemy" | "npc" | "fish">("pet");
   const [itemsTab, setItemsTab] = useState<"items" | "fishing">("items");
@@ -169,6 +170,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "maintenance" as const, label: "Maintenance", icon: adminIconMaintenance, desc: "DB cleanup tools", color: "#f9a8d4", glow: "rgba(249,168,212,0.30)", bg: "linear-gradient(145deg, rgba(60,8,40,0.92) 0%, rgba(90,12,60,0.88) 100%)", border: "rgba(249,168,212,0.45)" },
     { key: "veridian_watcher" as const, label: "Veridian Watcher", icon: adminIconVeridianWatcher, desc: "Bot quotes & chat filter", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
     { key: "molten_blocks" as const, label: "Molten Blocks", icon: adminIconItems, desc: "Item drops in Molten Blocks", color: "#fb923c", glow: "rgba(251,146,60,0.35)", bg: "linear-gradient(145deg, rgba(72,24,4,0.92) 0%, rgba(110,38,8,0.88) 100%)", border: "rgba(251,146,60,0.5)" },
+    { key: "metrics" as const, label: "Metrics", icon: adminIconPurchases, desc: "Player login analytics", color: "#a5f3fc", glow: "rgba(165,243,252,0.30)", bg: "linear-gradient(145deg, rgba(8,40,55,0.92) 0%, rgba(12,65,85,0.88) 100%)", border: "rgba(165,243,252,0.45)" },
   ];
 
   const activeSectionMeta = activeSection ? sections.find(s => s.key === activeSection) : null;
@@ -529,6 +531,10 @@ export default function AdminPage({ user }: AdminPageProps) {
 
               {activeSection === "molten_blocks" && (
                 <MoltenBlocksItemsSection />
+              )}
+
+              {activeSection === "metrics" && (
+                <MetricsSection />
               )}
 
               {activeSection === "items" && (
@@ -3906,6 +3912,179 @@ function MilestoneRewardsSection() {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── Metrics Section ────────────────────────────────────────────────────────────
+const DAYS_OPTIONS = [7, 14, 30, 60, 90] as const;
+type DaysOption = typeof DAYS_OPTIONS[number];
+
+interface MetricsData {
+  dailyLogins: { date: string; count: number }[];
+  loginsByCountry: { country: string; count: number }[];
+  signupsBySource: { source: string; count: number }[];
+}
+
+const CHART_COLORS = ["#a5f3fc", "#7dd3fc", "#6ee7b7", "#fde68a", "#fca5a5", "#c4b5fd", "#fdba74", "#86efac", "#f9a8d4", "#d4d4d8"];
+
+const metricCardSty: React.CSSProperties = {
+  background: "linear-gradient(145deg, rgba(8,30,45,0.92) 0%, rgba(12,50,70,0.88) 100%)",
+  border: "1px solid rgba(165,243,252,0.25)",
+  borderRadius: 14,
+  padding: "16px 14px",
+  marginBottom: 18,
+};
+
+const metricTitleSty: React.CSSProperties = {
+  fontFamily: "Lora, Georgia, serif",
+  fontSize: 13,
+  fontWeight: 700,
+  color: "#a5f3fc",
+  letterSpacing: "0.06em",
+  marginBottom: 4,
+};
+
+const metricSubSty: React.CSSProperties = {
+  fontFamily: "Lora, Georgia, serif",
+  fontSize: 10,
+  color: "rgba(165,243,252,0.55)",
+  marginBottom: 14,
+};
+
+const emptyMsgSty: React.CSSProperties = {
+  fontFamily: "Lora, serif",
+  fontSize: 11,
+  color: "rgba(255,255,255,0.3)",
+  textAlign: "center",
+  padding: "24px 0",
+};
+
+const tooltipSty = {
+  contentStyle: { background: "rgba(8,30,45,0.97)", border: "1px solid rgba(165,243,252,0.3)", borderRadius: 8, fontFamily: "Lora, serif", fontSize: 11 },
+  labelStyle: { color: "#a5f3fc" },
+  itemStyle: { color: "#a5f3fc" },
+  cursor: { fill: "rgba(165,243,252,0.06)" },
+};
+
+function MetricsSection() {
+  const [days, setDays] = useState<DaysOption>(30);
+
+  const { data, isLoading, refetch, dataUpdatedAt } = useQuery<MetricsData>({
+    queryKey: ["/api/admin/metrics", days],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/metrics?days=${days}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load metrics");
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : "—";
+
+  return (
+    <div>
+      {/* Filter bar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {DAYS_OPTIONS.map(d => (
+            <button
+              key={d}
+              onClick={() => setDays(d)}
+              style={{
+                padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer",
+                background: days === d ? "rgba(165,243,252,0.18)" : "rgba(0,0,0,0.35)",
+                border: days === d ? "1px solid rgba(165,243,252,0.6)" : "1px solid rgba(165,243,252,0.2)",
+                color: days === d ? "#a5f3fc" : "rgba(165,243,252,0.5)",
+                fontFamily: "Lora, serif",
+              }}
+            >{d}d</button>
+          ))}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontFamily: "Lora, serif", fontSize: 10, color: "rgba(165,243,252,0.45)" }}>Updated: {lastUpdated}</span>
+          <button
+            onClick={() => refetch()}
+            style={{ padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", background: "rgba(165,243,252,0.1)", border: "1px solid rgba(165,243,252,0.35)", color: "#a5f3fc", fontFamily: "Lora, serif" }}
+          >↻ Refresh</button>
+        </div>
+      </div>
+
+      {isLoading && (
+        <div style={{ textAlign: "center", padding: "40px 0", fontFamily: "Lora, serif", fontSize: 13, color: "rgba(165,243,252,0.5)" }}>
+          Loading metrics…
+        </div>
+      )}
+
+      {data && (
+        <>
+          {/* Daily Logins */}
+          <div style={metricCardSty}>
+            <p style={metricTitleSty}>Daily Logins</p>
+            <p style={metricSubSty}>Total login events per day — last {days} days</p>
+            {data.dailyLogins.length === 0 ? (
+              <p style={emptyMsgSty}>No data yet — logins will appear here after players sign in.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={data.dailyLogins} margin={{ top: 4, right: 4, left: -20, bottom: 28 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(165,243,252,0.08)" />
+                  <XAxis dataKey="date" tick={{ fill: "rgba(165,243,252,0.5)", fontSize: 8, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} angle={-35} textAnchor="end" interval="preserveStartEnd" />
+                  <YAxis tick={{ fill: "rgba(165,243,252,0.4)", fontSize: 9, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip {...tooltipSty} />
+                  <Bar dataKey="count" name="Logins" radius={[4, 4, 0, 0]} fill="#a5f3fc" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Logins by Country */}
+          <div style={metricCardSty}>
+            <p style={metricTitleSty}>Logins by Country</p>
+            <p style={metricSubSty}>Where players are logging in from — last {days} days, top 15</p>
+            {data.loginsByCountry.length === 0 ? (
+              <p style={emptyMsgSty}>No location data yet. Country info is collected from new logins going forward.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={Math.max(160, data.loginsByCountry.length * 28)}>
+                <BarChart data={data.loginsByCountry} layout="vertical" margin={{ top: 4, right: 30, left: 4, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(165,243,252,0.08)" horizontal={false} />
+                  <XAxis type="number" tick={{ fill: "rgba(165,243,252,0.4)", fontSize: 9, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <YAxis type="category" dataKey="country" tick={{ fill: "rgba(165,243,252,0.6)", fontSize: 9, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} width={90} />
+                  <Tooltip {...tooltipSty} />
+                  <Bar dataKey="count" name="Logins" radius={[0, 4, 4, 0]}>
+                    {data.loginsByCountry.map((_, i) => (
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Signups by Source */}
+          <div style={metricCardSty}>
+            <p style={metricTitleSty}>Signups by Source</p>
+            <p style={metricSubSty}>Where new players came from when registering — all time</p>
+            {data.signupsBySource.length === 0 ? (
+              <p style={emptyMsgSty}>No signup source data yet.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={data.signupsBySource} margin={{ top: 4, right: 4, left: -20, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(165,243,252,0.08)" />
+                  <XAxis dataKey="source" tick={{ fill: "rgba(165,243,252,0.55)", fontSize: 9, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fill: "rgba(165,243,252,0.4)", fontSize: 9, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip {...tooltipSty} />
+                  <Bar dataKey="count" name="Signups" radius={[4, 4, 0, 0]}>
+                    {data.signupsBySource.map((_, i) => (
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
