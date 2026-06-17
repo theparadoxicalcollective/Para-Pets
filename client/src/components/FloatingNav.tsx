@@ -34,6 +34,7 @@ interface NavUser {
   isModerator?: boolean;
   activePetId: string | null;
   tutorial_reward_claimed?: boolean;
+  tutorial_quest_completed?: boolean;
 }
 
 interface FloatingNavProps {
@@ -106,12 +107,13 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     return () => window.removeEventListener(BJ_EVENT, handler);
   }, []);
 
-  // Sync localStorage from server-side flag — fixes older players seeing tutorial again on new device/browser
+  // Sync localStorage from server-side flags — fixes older players seeing tutorial again on new device/browser
   useEffect(() => {
-    if ((user as any).tutorial_reward_claimed && bjGetStatus() !== "done") {
+    const isComplete = (user as any).tutorial_reward_claimed || (user as any).tutorial_quest_completed;
+    if (isComplete && bjGetStatus() !== "done") {
       bjSetStep("done");
     }
-  }, [(user as any).tutorial_reward_claimed]);
+  }, [(user as any).tutorial_reward_claimed, (user as any).tutorial_quest_completed]);
 
   const openPanel = (fn: () => void) => { closeAll(); setPanelZ(getNextZ()); fn(); };
 
@@ -158,15 +160,34 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     },
   });
 
+  const tutorialClaimMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/tutorial/claim-reward", {}),
+    onSuccess: async (res) => {
+      const data = await res.json();
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      if (onUserUpdate && data.newBalance != null) {
+        onUserUpdate({ ...user, coins: data.newBalance });
+      }
+      toast({
+        title: "Reward Claimed!",
+        description: "+1,500 coins earned!",
+      });
+    },
+    onError: () => {
+      toast({ title: "Failed to claim reward", variant: "destructive" });
+    },
+  });
+
   // Badge logic: green = not opened today, gold = any quest complete but unclaimed
   const today        = questData?.today ?? "";
   const lastOpened   = questData?.lastOpenedDate ?? null;
   const hasCompletedUnclaimed = questData?.quests.some(q => q.completed && !q.reward_claimed) ?? false;
+  const tutorialClaimable = !!(user as any).tutorial_quest_completed && !(user as any).tutorial_reward_claimed;
   const questBadge: "green" | "gold" | null = !questData
     ? null
     : lastOpened !== today
     ? "green"
-    : hasCompletedUnclaimed
+    : (hasCompletedUnclaimed || tutorialClaimable)
     ? "gold"
     : null;
 
@@ -348,13 +369,21 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                 {/* ── Begin Journey one-time quest card ── */}
                 {/* Visibility is server-driven: stays until tutorial_reward_claimed = true on the server */}
                 {!(user as any).tutorial_reward_claimed && (
-                  <div className="rounded-md p-2" style={{ position: "relative", overflow: "hidden", background: bjStatus === "active" ? "rgba(30,80,20,0.15)" : "rgba(92,58,30,0.1)", border: bjStatus === "active" ? "1px solid rgba(100,200,80,0.4)" : "1px solid rgba(139,90,40,0.35)" }}>
+                  <div className="rounded-md p-2" style={{ position: "relative", overflow: "hidden", background: tutorialClaimable ? "rgba(120,80,10,0.18)" : bjStatus === "active" ? "rgba(30,80,20,0.15)" : "rgba(92,58,30,0.1)", border: tutorialClaimable ? "1px solid rgba(212,160,23,0.55)" : bjStatus === "active" ? "1px solid rgba(100,200,80,0.4)" : "1px solid rgba(139,90,40,0.35)" }}>
                     <div className="flex items-center justify-between gap-1 mb-0.5">
                       <div className="flex items-center gap-1.5 flex-1 min-w-0">
                         <span className="font-fantasy text-[8px] font-bold tracking-widest flex-shrink-0 px-1 py-px rounded" style={{ background: "rgba(30,80,20,0.25)", border: "1px solid rgba(80,180,60,0.4)", color: "#2a6010", textTransform: "uppercase", letterSpacing: "0.15em" }}>One-Time</span>
                         <p className="font-fantasy text-[#2a1000] text-[12px] font-bold leading-tight min-w-0 truncate">Begin Journey</p>
                       </div>
-                      {bjStatus !== "active" ? (
+                      {tutorialClaimable ? (
+                        <button
+                          data-testid="button-begin-journey-claim"
+                          onClick={() => tutorialClaimMutation.mutate()}
+                          disabled={tutorialClaimMutation.isPending}
+                          className="flex-shrink-0 transition-transform active:scale-90 rounded"
+                          style={{ background: "linear-gradient(135deg, #7a5000 0%, #c48000 100%)", border: "1px solid rgba(240,192,64,0.7)", color: "#fff8e1", fontFamily: "Lora, serif", fontSize: 9, fontWeight: 800, letterSpacing: "0.12em", cursor: "pointer", padding: "3px 8px", marginRight: 3, boxShadow: "0 0 10px rgba(212,160,23,0.5)" }}
+                        >CLAIM</button>
+                      ) : bjStatus !== "active" ? (
                         <button
                           data-testid="button-begin-journey-go"
                           onClick={() => { bjSetStep(0); setShowQuest(false); }}
@@ -366,7 +395,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                       )}
                     </div>
                     <p className="font-fantasy text-[#5a2e0a] text-[10.5px] tracking-wide leading-snug">
-                      {bjStatus === "active" ? "Follow the golden arrow to complete your journey!" : "Start your adventure as a Para Pet tamer!"}
+                      {tutorialClaimable ? "Your journey is complete! Claim your 1,500 coin reward." : bjStatus === "active" ? "Follow the golden arrow to complete your journey!" : "Start your adventure as a Para Pet tamer!"}
                     </p>
                   </div>
                 )}

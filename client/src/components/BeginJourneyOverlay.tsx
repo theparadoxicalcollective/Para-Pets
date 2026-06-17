@@ -72,10 +72,10 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const queryClient = useQueryClient();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── Claim 1500-coin completion reward ─────────────────────────────────────
-  const claimRewardMutation = useMutation({
+  // ── Mark tutorial quest complete (no coins — player claims from quest log) ──
+  const completeTutorialMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/tutorial/claim-reward", {});
+      const res = await apiRequest("POST", "/api/tutorial/complete", {});
       return res.json();
     },
     onSuccess: () => {
@@ -85,7 +85,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
         setShowReward(false);
         bjSetStep("done");
         setStep("done");
-      }, 2200);
+      }, 3500);
     },
     onError: () => {
       bjSetStep("done");
@@ -243,10 +243,15 @@ export default function BeginJourneyOverlay({ user }: Props) {
     setEggReadyToHatch(ready);
   }, [step, invHatch, user?.activePetId]);
 
-  // ── Step 5 → 6: advance when player uses a real speed-up potion ─────────
+  // ── Step 5: real potion used → lift overlay so player taps egg to hatch ──
   useEffect(() => {
     const handler = () => {
-      if (bjGetStep() === 5) { bjSetStep(6); setStep(6); }
+      if (bjGetStep() === 5) {
+        bjSetStep5FakeMode(false);
+        bjSetStep5TapMode(true);
+        setStep5TapMode(true);
+        window.dispatchEvent(new CustomEvent("bj_close_speedup"));
+      }
     };
     window.addEventListener("bj_speedup_used", handler);
     return () => window.removeEventListener("bj_speedup_used", handler);
@@ -342,8 +347,9 @@ export default function BeginJourneyOverlay({ user }: Props) {
         navBtn?.click();
         return;
       }
-      // Quest icon visible — mark complete; player navigates to quest log themselves
-      claimRewardMutation.mutate();
+      // Quest icon visible — open quest panel and mark tutorial quest complete
+      questEl?.click();
+      completeTutorialMutation.mutate();
       return;
     }
 
@@ -356,55 +362,60 @@ export default function BeginJourneyOverlay({ user }: Props) {
 
     const next = stepNum + 1;
     if (next >= TOTAL_STEPS) {
-      claimRewardMutation.mutate();
+      completeTutorialMutation.mutate();
     } else {
       bjSetStep(next);
       setStep(next);
     }
-  }, [step, navigate]);
+  }, [step, navigate, completeTutorialMutation]);
 
   // ── Render guard ──────────────────────────────────────────────────────────
   // Keep mounted during reward flash even after step → "done"
   if ((step === null || step === "done") && !showReward) return null;
 
-  // ── Reward flash (shown for 2.2 s after tutorial completes) ─────────────
+  // ── Quest-complete flash (shown for 3.5 s after tutorial finishes) ────────
   if (showReward) {
     return (
       <>
         <style>{`
           @keyframes bj-reward-rise {
             0%   { opacity: 0; transform: translateX(-50%) translateY(20px) scale(0.85); }
-            15%  { opacity: 1; transform: translateX(-50%) translateY(0px)  scale(1.08); }
-            75%  { opacity: 1; transform: translateX(-50%) translateY(0px)  scale(1); }
+            12%  { opacity: 1; transform: translateX(-50%) translateY(0px)  scale(1.06); }
+            70%  { opacity: 1; transform: translateX(-50%) translateY(0px)  scale(1); }
             100% { opacity: 0; transform: translateX(-50%) translateY(-30px) scale(0.9); }
           }
-          @keyframes bj-coin-spin {
-            0%   { transform: rotateY(0deg); }
-            100% { transform: rotateY(360deg); }
+          @keyframes bj-star-spin {
+            0%   { transform: rotate(0deg) scale(1); }
+            50%  { transform: rotate(180deg) scale(1.2); }
+            100% { transform: rotate(360deg) scale(1); }
           }
         `}</style>
         <div style={{
           position: "fixed", inset: 0,
-          background: "rgba(0,0,0,0.55)",
+          background: "rgba(0,0,0,0.65)",
           zIndex: 99020, pointerEvents: "none",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           <div style={{
-            position: "absolute", top: "38%", left: "50%",
-            animation: "bj-reward-rise 2.2s ease-out forwards",
+            position: "absolute", top: "32%", left: "50%",
+            animation: "bj-reward-rise 3.5s ease-out forwards",
             textAlign: "center", pointerEvents: "none",
+            maxWidth: 280,
           }}>
-            <div style={{ fontSize: 52, display: "inline-block", animation: "bj-coin-spin 0.7s linear infinite" }}>🪙</div>
+            <div style={{ fontSize: 52, display: "inline-block", animation: "bj-star-spin 1.4s linear infinite" }}>⭐</div>
             <div style={{
-              fontFamily: "Lora, Georgia, serif", fontSize: 28, fontWeight: 800,
+              fontFamily: "Lora, Georgia, serif", fontSize: 22, fontWeight: 800,
               color: "#f0d060", letterSpacing: "0.06em",
               textShadow: "0 0 24px rgba(212,168,67,0.9), 0 0 50px rgba(212,168,67,0.5)",
-              marginTop: 6,
-            }}>+1,500</div>
+              marginTop: 8,
+            }}>Journey Complete!</div>
             <div style={{
-              fontFamily: "Lora, Georgia, serif", fontSize: 12, color: "rgba(240,208,96,0.75)",
-              letterSpacing: "0.12em", marginTop: 4,
-            }}>JOURNEY COMPLETE</div>
+              fontFamily: "Lora, Georgia, serif", fontSize: 13, color: "rgba(240,208,96,0.85)",
+              letterSpacing: "0.06em", marginTop: 10, lineHeight: 1.5,
+              background: "rgba(0,0,0,0.4)", borderRadius: 10,
+              padding: "8px 14px",
+              border: "1px solid rgba(212,168,67,0.3)",
+            }}>Claim your reward<br />in the Quest Log! 🎁</div>
           </div>
         </div>
       </>

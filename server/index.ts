@@ -625,6 +625,8 @@ app.use((req, res, next) => {
     () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tutorial_reward_claimed boolean NOT NULL DEFAULT false`));
   await runMigration("users.tutorial_hatch_potions_claimed",
     () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tutorial_hatch_potions_claimed boolean NOT NULL DEFAULT false`));
+  await runMigration("users.tutorial_quest_completed",
+    () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tutorial_quest_completed boolean NOT NULL DEFAULT false`));
   await runMigration("users.molten_blocks_high_score",
     () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS molten_blocks_high_score INTEGER NOT NULL DEFAULT 0`));
   await runMigration("idx_users_molten_blocks_high_score",

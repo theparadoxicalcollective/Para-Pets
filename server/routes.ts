@@ -2153,14 +2153,12 @@ export async function registerRoutes(
         if (petInv.isHatched) {
           return res.status(400).json({ message: "Pet is already hatched" });
         }
-        // If hatching hasn't been started yet (hatchStartedAt is null), auto-start it now.
-        // This handles tutorial players whose egg was granted before the timer began.
-        const currentStart = petInv.hatchStartedAt
-          ? new Date(petInv.hatchStartedAt)
-          : new Date();
-        const minutesInMs = specialAmount * 60 * 1000;
-        const newStart = new Date(currentStart.getTime() - minutesInMs);
-        await storage.updateInventoryItem(petInv.id, { hatchStartedAt: newStart });
+        // Set hatchStartedAt far enough in the past that the egg is immediately
+        // ready to hatch — elapsed >= full hatch time. This fully fills the hatch
+        // timer regardless of how much time has already elapsed.
+        const hatchTimeHours = (petShopItem.hatchTime ?? 24) as number;
+        const readyStart = new Date(Date.now() - (hatchTimeHours * 3600 * 1000 + 1000));
+        await storage.updateInventoryItem(petInv.id, { hatchStartedAt: readyStart });
       } else if (specialType === "level") {
         if (!petInv.isHatched) {
           return res.status(400).json({ message: "Pet has not hatched yet" });
@@ -8306,6 +8304,18 @@ export async function registerRoutes(
       return res.json({ granted: true });
     } catch (err) {
       console.error("[tutorial] grant-hatch-potions error:", err);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // ── Tutorial: mark quest completed (no coins yet — player claims from quest log) ─
+  app.post("/api/tutorial/complete", isAuthenticated, async (req: any, res) => {
+    const userId = req.user!.id;
+    try {
+      await db.execute(sql`UPDATE users SET tutorial_quest_completed = true WHERE id = ${userId}`);
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("[tutorial] complete error:", err);
       return res.status(500).json({ message: "Server error" });
     }
   });
