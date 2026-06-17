@@ -42,7 +42,7 @@ const STEP_SELECTORS: (string | null)[] = [
   null,                                      // 6 – dynamic (nav btn or quest btn)
 ];
 
-const FREE_STEP = 5; // step 5 is free (no blocking overlay) — speed-up sheet must remain interactive
+const FREE_STEP = -1; // no step is "free" — step 5 uses dark overlay with elevated sheet
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface TargetRect {
@@ -142,15 +142,20 @@ export default function BeginJourneyOverlay({ user }: Props) {
         setTargetRect(null); return;
       }
 
-      // Step 5: track potion items + egg for the ghost animation, but keep
-      // targetRect null so the full-screen blocking overlay renders (no spotlight).
-      // Interaction is handled by the elevated speed-up sheet (z-99002).
+      // Step 5: spotlight the egg + track potions for ghost animation.
+      // Sheet is elevated (z-99002) above overlay; backdrop has pointer-events:none
+      // so it can't close the sheet. Potions are directly interactive.
       if (stepNum === 5) {
         const potionEl = document.querySelector('[data-testid^="button-speedup-"]') as HTMLElement | null;
         const eggEl    = document.querySelector('[data-testid="button-egg-tap"]')    as HTMLElement | null;
         setPotionRect(potionEl ? (() => { const r = potionEl.getBoundingClientRect(); return r.width > 0 ? r : null; })() : null);
         setEggOnHomeRect(eggEl  ? (() => { const r = eggEl.getBoundingClientRect();   return r.width > 0 ? r : null; })() : null);
-        setTargetRect(null); // no spotlight — full dim overlay blocks background
+        // Spotlight the egg so it's visible through the dark overlay
+        if (eggEl) {
+          const r = eggEl.getBoundingClientRect();
+          if (r.width > 0) { setTargetRect(r); return; }
+        }
+        setTargetRect(null);
         return;
       }
 
@@ -414,8 +419,9 @@ export default function BeginJourneyOverlay({ user }: Props) {
           88%  { opacity: 0;    transform: translate(0, var(--bj-drag-dy)) scale(0.9); }
           100% { opacity: 0;    transform: translate(0, 0) scale(0.7); }
         }
-        .bj-step5 [data-bj="egg-drop-zone"] { display: none !important; }
-        .bj-step5 [data-bj="speedup-sheet"] { z-index: 99002 !important; }
+        .bj-step5 [data-bj="egg-drop-zone"]   { display: none !important; }
+        .bj-step5 [data-bj="speedup-sheet"]   { z-index: 99002 !important; }
+        .bj-step5 [data-bj="speedup-backdrop"] { pointer-events: none !important; opacity: 0 !important; }
       `}</style>
 
       {/* Hint label — always at top */}
@@ -480,8 +486,8 @@ export default function BeginJourneyOverlay({ user }: Props) {
         </div>
       )}
 
-      {/* Circular click forwarder over spotlight — skip for free mode */}
-      {!isFree && pr && (
+      {/* Circular click forwarder over spotlight — skip for free mode and step 5 (potions are the target) */}
+      {!isFree && stepNum !== 5 && pr && (
         <div
           onClick={handleForwarderClick}
           style={{
@@ -497,20 +503,23 @@ export default function BeginJourneyOverlay({ user }: Props) {
 
       {/* Step 5 bouncing arrow above the first potion item in the sheet */}
       {stepNum === 5 && potionRect && !eggReadyToHatch && (
-        <img
-          src={tutorialArrow}
-          alt=""
-          style={{
-            position: "fixed",
-            top:  Math.max(8, potionRect.top - 50),
-            left: potionRect.left + potionRect.width / 2 - 17,
-            width: 34, height: 44,
-            objectFit: "contain",
-            zIndex: 99003, pointerEvents: "none",
-            filter: arrowFilter,
-            animation: "bj-bounce 0.7s ease-in-out infinite",
-          }}
-        />
+        <div style={{
+          position: "fixed",
+          top:  Math.max(8, potionRect.top - 54),
+          left: potionRect.left + potionRect.width / 2 - 17,
+          width: 34, height: 44,
+          zIndex: 99003, pointerEvents: "none",
+          animation: "bj-bounce 0.7s ease-in-out infinite",
+        }}>
+          <div style={{
+            position: "absolute", top: "50%", left: "50%",
+            transform: "translate(-50%,-50%)",
+            width: 44, height: 44, borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(212,168,67,0.6) 0%, rgba(212,168,67,0.15) 55%, transparent 75%)",
+            pointerEvents: "none",
+          }} />
+          <img src={tutorialArrow} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", position: "relative" }} />
+        </div>
       )}
 
       {/* Step 5 drag-ghost animation: arrow sweeps from potion up to egg */}
@@ -529,12 +538,20 @@ export default function BeginJourneyOverlay({ user }: Props) {
             animation: "bj-drag-ghost 2.3s ease-in-out infinite",
             ["--bj-drag-dy" as string]: `${dy}px`,
           } as React.CSSProperties}>
+            {/* Circular glow — no rectangular box-shadow */}
+            <div style={{
+              position: "absolute", top: "50%", left: "50%",
+              transform: "translate(-50%,-50%)",
+              width: 50, height: 50, borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(212,168,67,0.65) 0%, rgba(212,168,67,0.2) 50%, transparent 72%)",
+              pointerEvents: "none",
+            }} />
             <img src={tutorialArrow} alt="" style={{
               width: "100%", height: "100%",
               objectFit: "contain",
-              filter: arrowFilter,
               transform: "rotate(-90deg)",
               display: "block",
+              position: "relative",
             }} />
           </div>
         );
@@ -556,12 +573,19 @@ export default function BeginJourneyOverlay({ user }: Props) {
             animation: "bj-drag-ghost 2.3s ease-in-out infinite",
             ["--bj-drag-dy" as string]: `${dy}px`,
           } as React.CSSProperties}>
+            <div style={{
+              position: "absolute", top: "50%", left: "50%",
+              transform: "translate(-50%,-50%)",
+              width: 50, height: 50, borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(212,168,67,0.65) 0%, rgba(212,168,67,0.2) 50%, transparent 72%)",
+              pointerEvents: "none",
+            }} />
             <img src={tutorialArrow} alt="" style={{
               width: "100%", height: "100%",
               objectFit: "contain",
-              filter: arrowFilter,
               transform: "rotate(-90deg)",
               display: "block",
+              position: "relative",
             }} />
           </div>
         );

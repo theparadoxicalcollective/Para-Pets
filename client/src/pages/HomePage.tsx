@@ -549,24 +549,29 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     if (!activePet) return;
 
     // ── Tutorial step 5 ────────────────────────────────────────────────────────
-    // Do NOT call e.preventDefault() so the browser fires a normal click event,
-    // which the onClick handler below picks up. We also add a simple drag listener
-    // so dragging upward ≥50px toward the egg also triggers the mutation.
+    // Call preventDefault to stop browser scroll/text-selection, then handle
+    // both short taps (< 15 px movement, < 400 ms) and upward drags (≥ 30 px)
+    // in the pointerup listener so either gesture fires the mutation.
     if (bjGetStep() === 5) {
-      const pid = e.pointerId;
-      const startY = e.clientY;
+      e.preventDefault();
+      const pid       = e.pointerId;
+      const startY    = e.clientY;
+      const startTime = Date.now();
       const onUp = (ev: PointerEvent) => {
         if (ev.pointerId !== pid) return;
         document.removeEventListener("pointerup",     onUp);
         document.removeEventListener("pointercancel", onUp);
-        const draggedUp = startY - ev.clientY >= 50;
-        if (draggedUp && !speedUpMutation.isPending) {
+        const dy      = startY - ev.clientY;
+        const elapsed = Date.now() - startTime;
+        const isTap   = Math.abs(dy) < 15 && elapsed < 400;
+        const isDrag  = dy >= 30;
+        if ((isTap || isDrag) && !speedUpMutation.isPending) {
           speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
         }
       };
       document.addEventListener("pointerup",     onUp);
       document.addEventListener("pointercancel", onUp);
-      return; // let onClick handle taps
+      return;
     }
 
     // ── Normal (non-tutorial) drag logic ──────────────────────────────────────
@@ -1120,7 +1125,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
       {(!isOverlayActive || bjGetStep() === 5) && showSpeedUp && activePet && !activePet.isHatched && (
         <div data-bj="speedup-sheet" className="fixed inset-0 z-[55] flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-          <div className="absolute inset-0 bg-black/60" onClick={() => { setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false); }} />
+          <div data-bj="speedup-backdrop" className="absolute inset-0 bg-black/60" onClick={() => { setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false); }} />
           <div
             className="relative w-full rounded-t-2xl animate-slide-up"
             style={{
