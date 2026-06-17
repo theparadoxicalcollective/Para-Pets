@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { bjGetStep, bjSetStep, bjGetStatus, BJ_EVENT } from "@/lib/beginJourney";
+import { bjGetStep, bjSetStep, bjGetStatus, BJ_EVENT, bjSetStep5FakeMode } from "@/lib/beginJourney";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -67,6 +67,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const [potionRect, setPotionRect]           = useState<TargetRect | null>(null);
   const [eggOnHomeRect, setEggOnHomeRect]     = useState<TargetRect | null>(null);
   const [eggReadyToHatch, setEggReadyToHatch] = useState(false);
+  const [step5TapMode,    setStep5TapMode]    = useState(false);
   const [location, navigate] = useLocation();
   const queryClient = useQueryClient();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -234,13 +235,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
     setEggReadyToHatch(ready);
   }, [step, invHatch, user?.activePetId]);
 
-  // ── Step 5: close speed-up sheet when egg is ready to hatch ──────────────
-  useEffect(() => {
-    if (step !== 5 || !eggReadyToHatch) return;
-    window.dispatchEvent(new CustomEvent("bj_close_speedup"));
-  }, [step, eggReadyToHatch]);
-
-  // ── Step 5 → 6: advance when player uses a speed-up potion ───────────────
+  // ── Step 5 → 6: advance when player uses a real speed-up potion ─────────
   useEffect(() => {
     const handler = () => {
       if (bjGetStep() === 5) { bjSetStep(6); setStep(6); }
@@ -249,12 +244,29 @@ export default function BeginJourneyOverlay({ user }: Props) {
     return () => window.removeEventListener("bj_speedup_used", handler);
   }, []);
 
-  // ── Step 5: if egg is already ready, simulate & auto-advance ─────────────
+  // ── Step 5: if egg already ready, mark fake mode (keep sheet open) ────────
   useEffect(() => {
-    if (step !== 5 || !eggReadyToHatch) return;
-    const t = setTimeout(() => { bjSetStep(6); setStep(6); }, 2800);
-    return () => clearTimeout(t);
+    if (step === 5 && eggReadyToHatch) {
+      bjSetStep5FakeMode(true);
+    }
+    return () => { bjSetStep5FakeMode(false); };
   }, [step, eggReadyToHatch]);
+
+  // ── Step 5: reset tap-mode when leaving step 5 ───────────────────────────
+  useEffect(() => {
+    if (step !== 5) { setStep5TapMode(false); bjSetStep5FakeMode(false); }
+  }, [step]);
+
+  // ── Step 5 fake speedup done → lift overlay, close sheet ─────────────────
+  useEffect(() => {
+    const handler = () => {
+      bjSetStep5FakeMode(false);
+      setStep5TapMode(true);
+      window.dispatchEvent(new CustomEvent("bj_close_speedup"));
+    };
+    window.addEventListener("bj_fake_speedup_done", handler);
+    return () => window.removeEventListener("bj_fake_speedup_done", handler);
+  }, []);
 
   // ── Step 5: add body class to hide egg-drop-zone in speed-up sheet ────────
   useEffect(() => {
@@ -392,8 +404,8 @@ export default function BeginJourneyOverlay({ user }: Props) {
 
   const stepNum  = step as number;
   const isFree   = stepNum === FREE_STEP;
-  const label    = (stepNum === 5 && eggReadyToHatch)
-    ? "Your egg is ready — watch the magic!"
+  const label    = step5TapMode
+    ? "Your egg is ready — tap it to hatch!"
     : STEP_LABELS[stepNum];
 
   // Padded rect for circle spotlight
@@ -454,8 +466,8 @@ export default function BeginJourneyOverlay({ user }: Props) {
         </div>
       </div>
 
-      {/* Circle spotlight — skip for free mode */}
-      {!isFree && (pr ? (
+      {/* Circle spotlight — skip for free mode and step-5 tap mode */}
+      {!isFree && !step5TapMode && (pr ? (
         <div style={{
           position: "fixed", inset: 0,
           background: `radial-gradient(circle ${radius}px at ${cx}px ${cy}px, transparent ${radius}px, ${OVERLAY_BG} ${radius + 1}px)`,
@@ -513,7 +525,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
       )}
 
       {/* Step 5 bouncing arrow above the first potion item in the sheet */}
-      {stepNum === 5 && potionRect && !eggReadyToHatch && (
+      {stepNum === 5 && potionRect && !step5TapMode && (
         <div style={{
           position: "fixed",
           top:  Math.max(8, potionRect.top - 54),
@@ -534,7 +546,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
       )}
 
       {/* Step 5 drag-ghost animation: arrow sweeps from potion up to egg */}
-      {stepNum === 5 && potionRect && eggOnHomeRect && !eggReadyToHatch && (() => {
+      {stepNum === 5 && potionRect && eggOnHomeRect && !step5TapMode && (() => {
         const fromCx = potionRect.left + potionRect.width  / 2;
         const fromCy = potionRect.top  + potionRect.height / 2;
         const dy = (eggOnHomeRect.top + eggOnHomeRect.height / 2) - fromCy;
@@ -568,39 +580,26 @@ export default function BeginJourneyOverlay({ user }: Props) {
         );
       })()}
 
-      {/* Step 5 egg-ready simulation: arrow sweeps from bottom to egg, then auto-advances */}
-      {stepNum === 5 && eggReadyToHatch && eggOnHomeRect && (() => {
-        const toCx  = eggOnHomeRect.left + eggOnHomeRect.width  / 2;
-        const fromY = Math.min(window.innerHeight * 0.82, window.innerHeight - 80);
-        const dy    = (eggOnHomeRect.top + eggOnHomeRect.height / 2) - fromY;
-        return (
+      {/* Step 5 tap-mode: bouncing arrow above the egg guides the player to hatch */}
+      {stepNum === 5 && step5TapMode && pr && (
+        <div style={{
+          position: "fixed",
+          top:  Math.max(8, cy - radius - 80),
+          left: cx - 17,
+          width: 34, height: 44,
+          zIndex: 99003, pointerEvents: "none",
+          animation: "bj-bounce 0.7s ease-in-out infinite",
+        }}>
           <div style={{
-            position: "fixed",
-            left: toCx - 17,
-            top:  fromY - 22,
-            width: 34, height: 44,
-            zIndex: 99006,
+            position: "absolute", top: "50%", left: "50%",
+            transform: "translate(-50%,-50%)",
+            width: 44, height: 44, borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(212,168,67,0.6) 0%, rgba(212,168,67,0.15) 55%, transparent 75%)",
             pointerEvents: "none",
-            animation: "bj-drag-ghost 2.3s ease-in-out infinite",
-            ["--bj-drag-dy" as string]: `${dy}px`,
-          } as React.CSSProperties}>
-            <div style={{
-              position: "absolute", top: "50%", left: "50%",
-              transform: "translate(-50%,-50%)",
-              width: 50, height: 50, borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(212,168,67,0.65) 0%, rgba(212,168,67,0.2) 50%, transparent 72%)",
-              pointerEvents: "none",
-            }} />
-            <img src={tutorialArrow} alt="" style={{
-              width: "100%", height: "100%",
-              objectFit: "contain",
-              transform: "rotate(-90deg)",
-              display: "block",
-              position: "relative",
-            }} />
-          </div>
-        );
-      })()}
+          }} />
+          <img src={tutorialArrow} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", position: "relative" }} />
+        </div>
+      )}
 
       {/* Bouncing arrow above target */}
       {pr && (

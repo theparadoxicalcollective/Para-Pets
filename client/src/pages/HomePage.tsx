@@ -17,7 +17,7 @@ import swordsImg from "@assets/generated_images/nav_icon_pvp.png";
 import eggImg from "@assets/generated_images/nav_icon_pets.png";
 import badgeIcon from "@assets/generated_images/nav_icon_badges.png";
 import { playSpeedUp } from "@/lib/sounds";
-import { bjGetStep } from "@/lib/beginJourney";
+import { bjGetStep, bjIsStep5FakeMode } from "@/lib/beginJourney";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
@@ -572,8 +572,16 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         const elapsed = Date.now() - startTime;
         const isTap   = Math.abs(dy) < 15 && elapsed < 400;
         const isDrag  = dy >= 30;
-        if ((isTap || isDrag) && !speedUpMutation.isPending) {
-          speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
+        if (isTap || isDrag) {
+          if (bjIsStep5FakeMode()) {
+            // Egg already ready — pretend to use the potion, then enter tap mode
+            playSpeedUp();
+            setSpeedEffectLabel(`-${item.specialAmount ?? 60} min`);
+            setShowSpeedEffect(true);
+            setTimeout(() => window.dispatchEvent(new CustomEvent("bj_fake_speedup_done")), 350);
+          } else if (!speedUpMutation.isPending) {
+            speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
+          }
         }
       };
       document.addEventListener("pointerup",     onUp);

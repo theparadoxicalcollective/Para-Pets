@@ -1,4 +1,8 @@
 // Begin Journey — tutorial quest state management (localStorage-backed)
+// Step-5 fake-mode flag: true when egg is already hatch-ready so drag uses a pretend animation
+let _step5FakeMode = false;
+export const bjSetStep5FakeMode = (v: boolean) => { _step5FakeMode = v; };
+export const bjIsStep5FakeMode  = (): boolean  => _step5FakeMode;
 const TOTAL_STEPS = 7; // steps 0–6
 
 export const BJ_LS_KEY = "bj_step";
