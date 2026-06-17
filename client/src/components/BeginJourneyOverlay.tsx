@@ -27,7 +27,7 @@ const STEP_REQUIRED_PATH: (string | null)[] = [
   "/pets", // 2
   "/pets", // 3
   "/",     // 4
-  "/pets", // 5
+  "/",     // 5 – drag potion onto egg on home page
   null,    // 6 – any (after hatch, quest icon)
 ];
 
@@ -203,7 +203,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
 
   // ── Step 5: check for hatching potions, show modal if none ────────────────
   useEffect(() => {
-    if (step !== 5 || location !== "/pets" || !invHatch) return;
+    if (step !== 5 || location !== "/" || !invHatch) return;
     const hasHatchPotions = (invHatch as any[]).some(i => i.type === "special" && i.specialType === "hatch_time");
     if (!hasHatchPotions && !potionsGranted) {
       const t = setTimeout(() => setShowPotionModal(true), 700);
@@ -249,19 +249,6 @@ export default function BeginJourneyOverlay({ user }: Props) {
       }
       bjSetStep(3);
       setStep(3);
-      return;
-    }
-
-    if (stepNum === 4) {
-      // Egg on main page: navigate to /pets and open the speed-up sheet for active egg
-      navigate("/pets");
-      bjSetStep(5);
-      setStep(5);
-      if (user?.activePetId) {
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent("bj_open_speedup", { detail: { inventoryId: user!.activePetId } }));
-        }, 400);
-      }
       return;
     }
 
