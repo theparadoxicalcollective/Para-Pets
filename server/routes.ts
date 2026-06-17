@@ -8149,6 +8149,24 @@ export async function registerRoutes(
     }
   });
 
+  // ── Tutorial: claim completion reward (1500 coins, one-time) ────────────────
+  app.post("/api/tutorial/claim-reward", isAuthenticated, async (req: any, res) => {
+    const userId = req.user!.id;
+    try {
+      const rows = await db.execute(sql`SELECT tutorial_reward_claimed FROM users WHERE id = ${userId}`);
+      const row = (rows as any).rows?.[0] ?? (rows as any)?.[0];
+      if (row?.tutorial_reward_claimed) {
+        return res.json({ alreadyClaimed: true, coins: 0 });
+      }
+      await db.execute(sql`UPDATE users SET tutorial_reward_claimed = true WHERE id = ${userId}`);
+      const updated = await storage.addCoins(userId, 1500);
+      return res.json({ alreadyClaimed: false, coins: 1500, newBalance: updated.coins });
+    } catch (err) {
+      console.error("[tutorial] claim-reward error:", err);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+
   // Pre-warm the Stripe price cache in the background so the first checkout
   // request after server boot doesn't pay the cost of a slow prices.list call.
   (async () => {

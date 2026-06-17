@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { bjGetStep, bjSetStep, bjGetStatus, BJ_EVENT } from "@/lib/beginJourney";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
@@ -60,9 +60,31 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const [targetRect, setTargetRect]   = useState<TargetRect | null>(null);
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [grantLoading, setGrantLoading]    = useState(false);
+  const [showReward, setShowReward]        = useState(false);
   const [location, navigate] = useLocation();
   const queryClient = useQueryClient();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Claim 1500-coin completion reward ─────────────────────────────────────
+  const claimRewardMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/tutorial/claim-reward", {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      setShowReward(true);
+      setTimeout(() => {
+        setShowReward(false);
+        bjSetStep("done");
+        setStep("done");
+      }, 2200);
+    },
+    onError: () => {
+      bjSetStep("done");
+      setStep("done");
+    },
+  });
 
   // Sync step when changed externally (FloatingNav GO button, WelcomeGift, etc.)
   useEffect(() => {
@@ -191,8 +213,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
         return;
       }
       questEl?.click();
-      bjSetStep("done");
-      setStep("done");
+      claimRewardMutation.mutate();
       return;
     }
 
@@ -205,8 +226,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
 
     const next = stepNum + 1;
     if (next >= TOTAL_STEPS) {
-      bjSetStep("done");
-      setStep("done");
+      claimRewardMutation.mutate();
     } else {
       bjSetStep(next);
       setStep(next);
@@ -214,13 +234,58 @@ export default function BeginJourneyOverlay({ user }: Props) {
   }, [step, navigate]);
 
   // ── Render guard ──────────────────────────────────────────────────────────
-  if (step === null || step === "done") return null;
+  // Keep mounted during reward flash even after step → "done"
+  if ((step === null || step === "done") && !showReward) return null;
+
+  // ── Reward flash (shown for 2.2 s after tutorial completes) ─────────────
+  if (showReward) {
+    return (
+      <>
+        <style>{`
+          @keyframes bj-reward-rise {
+            0%   { opacity: 0; transform: translateX(-50%) translateY(20px) scale(0.85); }
+            15%  { opacity: 1; transform: translateX(-50%) translateY(0px)  scale(1.08); }
+            75%  { opacity: 1; transform: translateX(-50%) translateY(0px)  scale(1); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-30px) scale(0.9); }
+          }
+          @keyframes bj-coin-spin {
+            0%   { transform: rotateY(0deg); }
+            100% { transform: rotateY(360deg); }
+          }
+        `}</style>
+        <div style={{
+          position: "fixed", inset: 0,
+          background: "rgba(0,0,0,0.55)",
+          zIndex: 99020, pointerEvents: "none",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <div style={{
+            position: "absolute", top: "38%", left: "50%",
+            animation: "bj-reward-rise 2.2s ease-out forwards",
+            textAlign: "center", pointerEvents: "none",
+          }}>
+            <div style={{ fontSize: 52, display: "inline-block", animation: "bj-coin-spin 0.7s linear infinite" }}>🪙</div>
+            <div style={{
+              fontFamily: "Lora, Georgia, serif", fontSize: 28, fontWeight: 800,
+              color: "#f0d060", letterSpacing: "0.06em",
+              textShadow: "0 0 24px rgba(212,168,67,0.9), 0 0 50px rgba(212,168,67,0.5)",
+              marginTop: 6,
+            }}>+1,500</div>
+            <div style={{
+              fontFamily: "Lora, Georgia, serif", fontSize: 12, color: "rgba(240,208,96,0.75)",
+              letterSpacing: "0.12em", marginTop: 4,
+            }}>JOURNEY COMPLETE</div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   const stepNum  = step as number;
   const isFree   = stepNum === FREE_STEP;
   const label    = STEP_LABELS[stepNum];
 
-  // Padded rect for spotlight
+  // Padded rect for circle spotlight
   const pr = targetRect ? {
     top:    Math.max(0, targetRect.top    - PAD),
     left:   Math.max(0, targetRect.left   - PAD),
@@ -230,9 +295,14 @@ export default function BeginJourneyOverlay({ user }: Props) {
     get height() { return this.bottom - this.top; },
   } : null;
 
+  // Circle geometry
+  const cx      = pr ? pr.left + pr.width  / 2 : 0;
+  const cy      = pr ? pr.top  + pr.height / 2 : 0;
+  const radius  = pr ? Math.max(pr.width, pr.height) / 2 : 0;
+
   const arrowW = 56, arrowH = 70;
-  const arrowTop  = pr ? Math.max(8, pr.top - arrowH - 4) : undefined;
-  const arrowLeft = pr ? pr.left + pr.width / 2 - arrowW / 2 : undefined;
+  const arrowTop  = pr ? Math.max(8, cy - radius - arrowH - 4) : undefined;
+  const arrowLeft = pr ? cx - arrowW / 2 : undefined;
   const arrowFilter = "drop-shadow(0 0 10px rgba(212,168,67,0.95)) drop-shadow(0 0 24px rgba(212,168,67,0.6))";
 
   return (
@@ -263,33 +333,26 @@ export default function BeginJourneyOverlay({ user }: Props) {
         </div>
       </div>
 
-      {/* Spotlight blocking divs — skip for free mode */}
+      {/* Circle spotlight — skip for free mode */}
       {!isFree && (pr ? (
-        <>
-          {pr.top > 0 && (
-            <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: pr.top, background: OVERLAY_BG, zIndex: 99000, pointerEvents: "all" }} />
-          )}
-          {pr.bottom < window.innerHeight && (
-            <div style={{ position: "fixed", top: pr.bottom, left: 0, right: 0, bottom: 0, background: OVERLAY_BG, zIndex: 99000, pointerEvents: "all" }} />
-          )}
-          {pr.left > 0 && (
-            <div style={{ position: "fixed", top: pr.top, left: 0, width: pr.left, height: pr.height, background: OVERLAY_BG, zIndex: 99000, pointerEvents: "all" }} />
-          )}
-          {pr.right < window.innerWidth && (
-            <div style={{ position: "fixed", top: pr.top, left: pr.right, right: 0, height: pr.height, background: OVERLAY_BG, zIndex: 99000, pointerEvents: "all" }} />
-          )}
-        </>
+        <div style={{
+          position: "fixed", inset: 0,
+          background: `radial-gradient(circle ${radius}px at ${cx}px ${cy}px, transparent ${radius}px, ${OVERLAY_BG} ${radius + 1}px)`,
+          zIndex: 99000, pointerEvents: "all",
+        }} />
       ) : (
         <div style={{ position: "fixed", inset: 0, background: OVERLAY_BG, zIndex: 99000, pointerEvents: "all" }} />
       ))}
 
-      {/* Transparent click forwarder over spotlight — skip for free mode */}
+      {/* Circular click forwarder over spotlight — skip for free mode */}
       {!isFree && pr && (
         <div
           onClick={handleForwarderClick}
           style={{
-            position: "fixed", top: pr.top, left: pr.left,
-            width: pr.width, height: pr.height,
+            position: "fixed",
+            top: cy - radius, left: cx - radius,
+            width: radius * 2, height: radius * 2,
+            borderRadius: "50%",
             zIndex: 99001, cursor: "pointer", pointerEvents: "all",
             background: "transparent",
           }}
