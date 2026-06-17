@@ -228,6 +228,20 @@ export default function BeginJourneyOverlay({ user }: Props) {
     if (step === null || step === "done") return;
     const stepNum = step as number;
 
+    if (stepNum === 2) {
+      // If the active pet is already an unhatched egg, don't click the toggle
+      // (clicking would deactivate it and break the rest of the flow).
+      const eggAlreadyActive = user?.activePetId && invCheck &&
+        (invCheck as any[]).some((i: any) => i.inventoryId === user!.activePetId && i.isHatched === false);
+      if (!eggAlreadyActive) {
+        const sel = STEP_SELECTORS[2];
+        if (sel) { (document.querySelector(sel) as HTMLElement | null)?.click(); }
+      }
+      bjSetStep(3);
+      setStep(3);
+      return;
+    }
+
     if (stepNum === 4) {
       // Egg on main page: navigate to /pets and open the speed-up sheet for active egg
       navigate("/pets");
