@@ -547,9 +547,30 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
   const handleHomeSheetItemPointerDown = (e: React.PointerEvent, item: InventoryItem) => {
     if (!activePet) return;
+
+    // ── Tutorial step 5 ────────────────────────────────────────────────────────
+    // Do NOT call e.preventDefault() so the browser fires a normal click event,
+    // which the onClick handler below picks up. We also add a simple drag listener
+    // so dragging upward ≥50px toward the egg also triggers the mutation.
+    if (bjGetStep() === 5) {
+      const pid = e.pointerId;
+      const startY = e.clientY;
+      const onUp = (ev: PointerEvent) => {
+        if (ev.pointerId !== pid) return;
+        document.removeEventListener("pointerup",     onUp);
+        document.removeEventListener("pointercancel", onUp);
+        const draggedUp = startY - ev.clientY >= 50;
+        if (draggedUp && !speedUpMutation.isPending) {
+          speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
+        }
+      };
+      document.addEventListener("pointerup",     onUp);
+      document.addEventListener("pointercancel", onUp);
+      return; // let onClick handle taps
+    }
+
+    // ── Normal (non-tutorial) drag logic ──────────────────────────────────────
     e.preventDefault();
-    // Capture pointer so pointermove/pointerup always reach this element on mobile
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     const petInvId = activePet.inventoryId;
     const startX = e.clientX, startY = e.clientY;
     let dragActive = false;
@@ -562,52 +583,38 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       }
       if (dragActive) {
         setHomeDragging(prev => prev ? { ...prev, x: ev.clientX, y: ev.clientY } : null);
-        // During tutorial step 5, the egg-drop-zone is hidden — check upper portion of screen
-        const isTutStep5 = bjGetStep() === 5;
-        if (isTutStep5) {
-          setHomeDragOver(ev.clientY < window.innerHeight * 0.62);
-        } else {
-          const dropRect = homeEggDropRef.current?.getBoundingClientRect();
-          if (dropRect) {
-            const over = ev.clientX >= dropRect.left && ev.clientX <= dropRect.right &&
-                         ev.clientY >= dropRect.top  && ev.clientY <= dropRect.bottom;
-            setHomeDragOver(over);
-          }
+        const dropRect = homeEggDropRef.current?.getBoundingClientRect();
+        if (dropRect) {
+          const over = ev.clientX >= dropRect.left && ev.clientX <= dropRect.right &&
+                       ev.clientY >= dropRect.top  && ev.clientY <= dropRect.bottom;
+          setHomeDragOver(over);
         }
       }
     };
     const onUp = (ev: PointerEvent) => {
       if (ev.pointerId !== e.pointerId) return;
       document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointerup",   onUp);
       setHomeDragOver(false);
       if (!dragActive) {
-        // Tap (no drag): e.preventDefault() suppresses onClick on mobile, so fire directly
+        // Tap: e.preventDefault() suppresses onClick on mobile — fire directly
         if (!speedUpMutation.isPending) {
           speedUpMutation.mutate({ petInvId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
         }
         setHomeDragging(null);
         return;
       }
-      // Drag: check drop target
-      const isTutStep5 = bjGetStep() === 5;
-      let overDrop = false;
-      if (isTutStep5) {
-        // Tutorial: any release in upper 62% of screen counts as dropping onto egg
-        overDrop = ev.clientY < window.innerHeight * 0.62;
-      } else {
-        const dropRect = homeEggDropRef.current?.getBoundingClientRect();
-        overDrop = !!(dropRect &&
-          ev.clientX >= dropRect.left && ev.clientX <= dropRect.right &&
-          ev.clientY >= dropRect.top  && ev.clientY <= dropRect.bottom);
-      }
+      const dropRect = homeEggDropRef.current?.getBoundingClientRect();
+      const overDrop = !!(dropRect &&
+        ev.clientX >= dropRect.left && ev.clientX <= dropRect.right &&
+        ev.clientY >= dropRect.top  && ev.clientY <= dropRect.bottom);
       if (overDrop) {
         speedUpMutation.mutate({ petInvId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
       }
       setHomeDragging(null);
     };
     document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointerup",   onUp);
   };
 
   const petLoading = currentUser.activePetId && inventoryLoading;
@@ -1111,8 +1118,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       </div>
 
 
-      {!isOverlayActive && showSpeedUp && activePet && !activePet.isHatched && (
-        <div className="fixed inset-0 z-[55] flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+      {(!isOverlayActive || bjGetStep() === 5) && showSpeedUp && activePet && !activePet.isHatched && (
+        <div data-bj="speedup-sheet" className="fixed inset-0 z-[55] flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div className="absolute inset-0 bg-black/60" onClick={() => { setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false); }} />
           <div
             className="relative w-full rounded-t-2xl animate-slide-up"

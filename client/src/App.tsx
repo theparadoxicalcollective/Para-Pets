@@ -562,10 +562,104 @@ function CrashReporter() {
   );
 }
 
+// ── Desktop-only "game is mobile optimized" notice ────────────────────────────
+function DesktopNotice() {
+  const [dismissed, setDismissed] = useState<boolean>(() => {
+    try { return localStorage.getItem("para_desktop_notice_v1") === "1"; } catch { return false; }
+  });
+
+  // Only show on large non-touch non-mobile-UA screens
+  const [isDesktop] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 1;
+      const isMobileUA = /Mobi|Android|iPhone|iPad|iPod|Tablet/i.test(navigator.userAgent);
+      return window.innerWidth >= 1024 && !hasTouch && !isMobileUA;
+    } catch { return false; }
+  });
+
+  if (!isDesktop || dismissed) return null;
+
+  const dismiss = () => {
+    try { localStorage.setItem("para_desktop_notice_v1", "1"); } catch {}
+    setDismissed(true);
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 99997,
+        background: "linear-gradient(90deg, rgba(8,5,1,0.97) 0%, rgba(18,11,3,0.97) 50%, rgba(8,5,1,0.97) 100%)",
+        borderBottom: "1.5px solid rgba(212,160,23,0.35)",
+        padding: "10px 20px",
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
+        boxShadow: "0 4px 28px rgba(0,0,0,0.75)",
+      }}
+    >
+      <span style={{ fontSize: 20, flexShrink: 0 }}>📱</span>
+      <p style={{
+        fontFamily: "Lora, serif", fontSize: 12, color: "#c9952a",
+        letterSpacing: "0.06em", margin: 0, lineHeight: 1.5,
+      }}>
+        Para Pets is optimized for mobile. For the best experience, open it on your phone!
+      </p>
+      <button
+        onClick={dismiss}
+        style={{
+          fontFamily: "Lora, serif", fontSize: 11, letterSpacing: "0.1em",
+          color: "rgba(212,160,23,0.75)", background: "transparent",
+          border: "1px solid rgba(212,160,23,0.3)", borderRadius: 6,
+          padding: "5px 14px", cursor: "pointer", flexShrink: 0,
+          transition: "all 0.15s",
+        }}
+      >
+        Got it
+      </button>
+    </div>
+  );
+}
+
 function App() {
   useEffect(() => {
     initTabSync();
     return () => teardownTabSync();
+  }, []);
+
+  // Forward global window errors to the server crash log
+  useEffect(() => {
+    const onError = (e: ErrorEvent) => {
+      fetch("/api/client-error", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "error",
+          msg: e.message,
+          source: `${e.filename}:${e.lineno}:${e.colno}`,
+          url: window.location.pathname,
+          ua: navigator.userAgent,
+        }),
+      }).catch(() => {});
+    };
+    const onUnhandled = (e: PromiseRejectionEvent) => {
+      const msg = e.reason instanceof Error ? e.reason.message : String(e.reason ?? "Unhandled rejection");
+      fetch("/api/client-error", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "unhandled",
+          msg,
+          source: "",
+          url: window.location.pathname,
+          ua: navigator.userAgent,
+        }),
+      }).catch(() => {});
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onUnhandled);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onUnhandled);
+    };
   }, []);
 
   // Reset the lazy-chunk reload guard once the app has successfully mounted.
@@ -643,6 +737,7 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <CrashReporter />
+        <DesktopNotice />
         {/* Full-screen on every device — no phone-frame overlay */}
         <div className="w-full h-[100dvh] overflow-hidden">
           <div

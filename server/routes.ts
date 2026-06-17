@@ -16,6 +16,26 @@ import { Resend } from "resend";
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Para Pets <noreply@parapets.net>";
 
+// ── In-memory client error log (max 100 entries; resets on server restart) ────
+interface ClientErrorEntry {
+  id: number;
+  type: "crash" | "unhandled" | "error";
+  msg: string;
+  source: string;
+  url: string;
+  ua: string;
+  ts: string;
+  userId?: string;
+}
+let _ceSeq = 0;
+const _clientErrorLog: ClientErrorEntry[] = [];
+const CE_MAX = 100;
+function pushClientError(entry: Omit<ClientErrorEntry, "id" | "ts">): void {
+  _ceSeq++;
+  _clientErrorLog.unshift({ ...entry, id: _ceSeq, ts: new Date().toISOString() });
+  if (_clientErrorLog.length > CE_MAX) _clientErrorLog.pop();
+}
+
 // ── Daily Quest helpers ───────────────────────────────────────────────────────
 function getCentralDate(): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -7434,6 +7454,35 @@ export async function registerRoutes(
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
+  });
+
+  // ── Client-side crash / error reporting ──────────────────────────────────────
+  // Public — no auth required so crashed/logged-out clients can still report.
+  app.post("/api/client-error", (req, res) => {
+    try {
+      const { type, msg, source, url, ua } = req.body as any;
+      const userId = (req.user as any)?.id;
+      const safeType = (["crash", "unhandled", "error"] as const).includes(type) ? type as ClientErrorEntry["type"] : "error";
+      pushClientError({
+        type: safeType,
+        msg: String(msg ?? "").slice(0, 800),
+        source: String(source ?? "").slice(0, 600),
+        url: String(url ?? "").slice(0, 300),
+        ua: String(ua ?? "").slice(0, 200),
+        userId,
+      });
+      return res.json({ ok: true });
+    } catch { return res.json({ ok: false }); }
+  });
+
+  app.get("/api/admin/client-errors", isAdmin, (_req, res) => {
+    return res.json({ entries: _clientErrorLog, total: _clientErrorLog.length });
+  });
+
+  app.delete("/api/admin/client-errors", isAdmin, (_req, res) => {
+    _clientErrorLog.length = 0;
+    _ceSeq = 0;
+    return res.json({ ok: true });
   });
 
   // ── Player Home Decor Inventory & Placement ───────────────────────────────────

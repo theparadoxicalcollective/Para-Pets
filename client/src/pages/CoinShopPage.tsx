@@ -686,7 +686,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             <p className="font-fantasy text-sm animate-pulse" style={{ color: "rgba(127,255,212,0.4)" }}>Loading treasury...</p>
           </div>
         ) : (
-          <div className="px-4 grid grid-cols-2 gap-3">
+          <div className="px-4 grid grid-cols-2 gap-3" style={{ overflow: "visible" }}>
             {packsData?.packs.map((pack) => {
               const isDisabled = pack.priceUsd > dailyRemaining;
               const isBuying = buyingPackId === pack.id && checkoutMutation.isPending;
@@ -702,7 +702,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                   disabled={isDisabled || isBuying}
                   className="relative rounded-xl flex flex-col items-center gap-2 transition-all active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100"
                   style={{
-                    padding: bonus ? "30px 16px 16px" : "16px",
+                    padding: bonus ? "30px 16px 32px" : "16px",
                     background: bonus
                       ? `linear-gradient(145deg, rgba(8,5,20,0.98) 0%, rgba(20,10,40,0.98) 50%, rgba(10,5,22,0.98) 100%)`
                       : `linear-gradient(145deg, rgba(5,15,8,0.98) 0%, rgba(10,28,14,0.98) 50%, rgba(5,18,10,0.98) 100%)`,
@@ -764,25 +764,35 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                     </span>
                   </div>
 
+                  {/* Egg pop-piece: floating outside the card at bottom-right */}
                   {bonus && (
-                    <div className="flex flex-col items-center gap-1 w-full rounded-lg px-2 py-2" style={{
-                      background: "linear-gradient(135deg, rgba(80,10,140,0.35) 0%, rgba(140,30,200,0.22) 100%)",
-                      border: "1px solid rgba(200,80,255,0.45)",
-                      boxShadow: "0 0 14px rgba(180,50,255,0.18) inset",
-                    }}>
+                    <>
                       <img
                         src={bonus.eggUrl}
                         alt={bonus.name}
                         className="object-contain"
                         style={{
-                          width: 56, height: 56,
-                          filter: "drop-shadow(0 0 10px rgba(200,80,255,1)) drop-shadow(0 0 22px rgba(160,40,220,0.7))",
+                          position: "absolute",
+                          bottom: -18,
+                          right: -14,
+                          width: 72, height: 72,
+                          transform: "rotate(14deg) scale(1.05)",
+                          pointerEvents: "none",
+                          zIndex: 4,
+                          filter: "drop-shadow(0 0 12px rgba(200,80,255,1)) drop-shadow(0 0 28px rgba(160,40,220,0.85)) drop-shadow(0 2px 8px rgba(0,0,0,0.6))",
                         }}
                       />
-                      <span className="font-fantasy text-[9px] tracking-wide text-center" style={{ color: "#e8b8ff", textShadow: "0 0 8px rgba(200,100,255,0.7)" }}>
+                      <span
+                        className="font-fantasy text-[8px] tracking-wide text-center w-full"
+                        style={{
+                          color: "#e8b8ff",
+                          textShadow: "0 0 8px rgba(200,100,255,0.7)",
+                          paddingBottom: 2,
+                        }}
+                      >
                         + {bonus.name}
                       </span>
-                    </div>
+                    </>
                   )}
 
                   <div

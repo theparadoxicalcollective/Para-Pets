@@ -44,6 +44,21 @@ export default class ErrorBoundary extends Component<Props, State> {
       localStorage.setItem("__para_last_error", entry);
     } catch (_) {}
 
+    // Report to server crash log
+    try {
+      fetch("/api/client-error", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "crash",
+          msg: String(error?.message ?? error).slice(0, 800),
+          source: String(info?.componentStack ?? "").slice(0, 600),
+          url: window.location.pathname,
+          ua: navigator.userAgent,
+        }),
+      }).catch(() => {});
+    } catch (_) {}
+
     // Backup recovery for stale-deploy chunk-load errors. lazyWithRetry
     // already handles this, but if anything else swallowed the original
     // ChunkLoadError and we still ended up here, force one reload before

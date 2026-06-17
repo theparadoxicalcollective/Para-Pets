@@ -2396,11 +2396,57 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
   );
 }
 
+interface CrashEntry {
+  id: number;
+  type: "crash" | "unhandled" | "error";
+  msg: string;
+  source: string;
+  url: string;
+  ua: string;
+  ts: string;
+  userId?: string;
+}
+
 function MaintenanceSection() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [result, setResult] = useState<{ summary: string; cleaned: number; totalRows: number; ranAt: string } | null>(null);
   const [running, setRunning] = useState(false);
+  const [crashLog, setCrashLog] = useState<CrashEntry[] | null>(null);
+  const [crashTotal, setCrashTotal] = useState(0);
+  const [loadingCrash, setLoadingCrash] = useState(false);
+  const [clearingCrash, setClearingCrash] = useState(false);
+  const [crashExpanded, setCrashExpanded] = useState<number | null>(null);
+
+  const fetchCrashLog = async () => {
+    setLoadingCrash(true);
+    try {
+      const res = await apiRequest("GET", "/api/admin/client-errors");
+      const data = await res.json();
+      setCrashLog(data.entries ?? []);
+      setCrashTotal(data.total ?? 0);
+    } catch (err: any) {
+      toast({ title: "Failed to load crash log", description: err.message, variant: "destructive" });
+    } finally {
+      setLoadingCrash(false);
+    }
+  };
+
+  const clearCrashLog = async () => {
+    setClearingCrash(true);
+    try {
+      await apiRequest("DELETE", "/api/admin/client-errors");
+      setCrashLog([]);
+      setCrashTotal(0);
+      toast({ title: "Crash log cleared" });
+    } catch (err: any) {
+      toast({ title: "Clear failed", description: err.message, variant: "destructive" });
+    } finally {
+      setClearingCrash(false);
+    }
+  };
+
+  useEffect(() => { fetchCrashLog(); }, []);
 
   const { data: maintenanceData, isLoading: maintenanceLoading } = useQuery<{ maintenance: boolean }>({
     queryKey: ["/api/maintenance-status"],
@@ -2519,6 +2565,198 @@ function MaintenanceSection() {
           >
             Admins can still access the realm normally.
           </p>
+        )}
+      </div>
+
+      {/* ── Divider ── */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px" style={{ background: "rgba(168,152,120,0.15)" }} />
+        <p className="font-fantasy text-[10px] text-[#4a3a28] tracking-wider">Database Tools</p>
+        <div className="flex-1 h-px" style={{ background: "rgba(168,152,120,0.15)" }} />
+      </div>
+
+      {/* ── Crash & Error Log ── */}
+      <div className="rounded-2xl overflow-hidden" style={{
+        background: "linear-gradient(145deg, rgba(10,4,20,0.97) 0%, rgba(18,6,30,0.97) 100%)",
+        border: "1px solid rgba(248,113,113,0.2)",
+      }}>
+        {/* Header row */}
+        <div className="px-4 pt-4 pb-2 flex items-start justify-between gap-2">
+          <div className="flex flex-col gap-0.5">
+            <p className="font-fantasy text-sm tracking-wide" style={{ color: "#fca5a5" }}>
+              Crash &amp; Debug Log
+            </p>
+            <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#4a2a2a" }}>
+              Client-side errors, unhandled rejections, and crashes — since last server restart
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              data-testid="button-refresh-crash-log"
+              onClick={fetchCrashLog}
+              disabled={loadingCrash}
+              className="rounded-lg px-2.5 py-1 font-fantasy text-[9px] tracking-wider"
+              style={{
+                background: "rgba(248,113,113,0.08)",
+                border: "1px solid rgba(248,113,113,0.25)",
+                color: loadingCrash ? "#5a2a2a" : "#fca5a5",
+                cursor: loadingCrash ? "not-allowed" : "pointer",
+              }}
+            >
+              {loadingCrash ? "Loading…" : "Refresh"}
+            </button>
+            {crashLog && crashLog.length > 0 && (
+              <button
+                data-testid="button-clear-crash-log"
+                onClick={clearCrashLog}
+                disabled={clearingCrash}
+                className="rounded-lg px-2.5 py-1 font-fantasy text-[9px] tracking-wider"
+                style={{
+                  background: "rgba(248,113,113,0.12)",
+                  border: "1px solid rgba(248,113,113,0.3)",
+                  color: clearingCrash ? "#5a2a2a" : "#f87171",
+                  cursor: clearingCrash ? "not-allowed" : "pointer",
+                }}
+              >
+                {clearingCrash ? "Clearing…" : "Clear All"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Summary count */}
+        {crashLog !== null && (
+          <div className="px-4 pb-2 flex items-center gap-2">
+            <span className="font-fantasy text-lg leading-none" style={{ color: crashTotal > 0 ? "#f87171" : "#6ee7b7" }}>
+              {crashTotal}
+            </span>
+            <span className="font-fantasy text-[10px] tracking-wider" style={{ color: crashTotal > 0 ? "#6a2a2a" : "#2a6a44" }}>
+              {crashTotal === 0 ? "no errors recorded — all clear" : crashTotal === 1 ? "error recorded" : "errors recorded"}
+            </span>
+            {crashTotal > 0 && (() => {
+              const crashes   = crashLog?.filter(e => e.type === "crash").length ?? 0;
+              const unhandled = crashLog?.filter(e => e.type === "unhandled").length ?? 0;
+              const errors    = crashLog?.filter(e => e.type === "error").length ?? 0;
+              return (
+                <div className="flex items-center gap-1.5 ml-1">
+                  {crashes   > 0 && <span className="font-fantasy text-[8px] rounded-full px-1.5 py-0.5" style={{ background: "rgba(248,113,113,0.18)", color: "#fca5a5", border: "1px solid rgba(248,113,113,0.3)" }}>{crashes} crash</span>}
+                  {unhandled > 0 && <span className="font-fantasy text-[8px] rounded-full px-1.5 py-0.5" style={{ background: "rgba(251,191,36,0.18)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.3)" }}>{unhandled} unhandled</span>}
+                  {errors    > 0 && <span className="font-fantasy text-[8px] rounded-full px-1.5 py-0.5" style={{ background: "rgba(253,224,71,0.18)", color: "#fde047", border: "1px solid rgba(253,224,71,0.3)" }}>{errors} window error</span>}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* Entry list */}
+        {loadingCrash && (
+          <div className="mx-3 mb-3 rounded-xl p-3 flex items-center gap-3"
+            style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(248,113,113,0.12)" }}
+          >
+            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: "rgba(248,113,113,0.3)", animation: "pp-glow-pulse 1s ease-in-out infinite" }} />
+            <span className="font-fantasy text-[10px] tracking-wider" style={{ color: "#5a2a2a" }}>Loading error log…</span>
+          </div>
+        )}
+
+        {!loadingCrash && crashLog !== null && crashLog.length > 0 && (
+          <div className="mx-3 mb-3 rounded-xl overflow-hidden" style={{ border: "1px solid rgba(248,113,113,0.12)", maxHeight: 320, overflowY: "auto" }}>
+            {crashLog.map((entry, idx) => {
+              const typeColor = entry.type === "crash" ? { bg: "rgba(248,113,113,0.12)", badge: "#fca5a5", badgeBg: "rgba(248,113,113,0.2)", label: "CRASH" }
+                : entry.type === "unhandled" ? { bg: "rgba(251,191,36,0.08)", badge: "#fbbf24", badgeBg: "rgba(251,191,36,0.18)", label: "UNHANDLED" }
+                : { bg: "rgba(253,224,71,0.06)", badge: "#fde047", badgeBg: "rgba(253,224,71,0.14)", label: "ERROR" };
+              const isExpanded = crashExpanded === entry.id;
+              const ago = (() => {
+                const diff = Date.now() - new Date(entry.ts).getTime();
+                const s = Math.floor(diff / 1000);
+                if (s < 60)  return `${s}s ago`;
+                if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+                if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+                return new Date(entry.ts).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+              })();
+              const browser = (() => {
+                const ua = entry.ua;
+                if (/Chrome\//.test(ua) && !/Edg\//.test(ua)) return "Chrome";
+                if (/Edg\//.test(ua)) return "Edge";
+                if (/Firefox\//.test(ua)) return "Firefox";
+                if (/Safari\//.test(ua)) return "Safari";
+                return "Unknown";
+              })();
+              return (
+                <div
+                  key={entry.id}
+                  style={{
+                    background: typeColor.bg,
+                    borderBottom: idx < crashLog.length - 1 ? "1px solid rgba(248,113,113,0.08)" : "none",
+                  }}
+                >
+                  {/* Collapsed row */}
+                  <button
+                    className="w-full px-3 py-2 flex items-start gap-2 text-left"
+                    style={{ background: "transparent", border: "none", cursor: "pointer" }}
+                    onClick={() => setCrashExpanded(isExpanded ? null : entry.id)}
+                  >
+                    <span className="font-fantasy text-[8px] tracking-wider rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5"
+                      style={{ background: typeColor.badgeBg, color: typeColor.badge }}>
+                      {typeColor.label}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-fantasy text-[10px] tracking-wide truncate" style={{ color: typeColor.badge }}>
+                        {entry.msg || "(no message)"}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="font-fantasy text-[8px]" style={{ color: "#3a1a1a" }}>{ago}</span>
+                        {entry.url && <span className="font-fantasy text-[8px] truncate" style={{ color: "#3a1a1a" }}>{entry.url}</span>}
+                        <span className="font-fantasy text-[8px]" style={{ color: "#3a1a1a" }}>{browser}</span>
+                        {entry.userId && <span className="font-fantasy text-[8px]" style={{ color: "#5a2a2a" }}>uid:{entry.userId.slice(0,8)}</span>}
+                      </div>
+                    </div>
+                    <span style={{ color: "#3a1a1a", fontSize: 10, flexShrink: 0, marginTop: 2 }}>{isExpanded ? "▲" : "▼"}</span>
+                  </button>
+
+                  {/* Expanded detail */}
+                  {isExpanded && (
+                    <div className="px-3 pb-3 flex flex-col gap-2">
+                      <div className="rounded-lg p-2" style={{ background: "rgba(0,0,0,0.4)" }}>
+                        <p className="font-fantasy text-[8px] tracking-wider mb-1" style={{ color: "#5a2a2a" }}>MESSAGE</p>
+                        <p className="text-[10px] leading-relaxed break-words" style={{ color: typeColor.badge, fontFamily: "monospace" }}>{entry.msg}</p>
+                      </div>
+                      {entry.source && (
+                        <div className="rounded-lg p-2" style={{ background: "rgba(0,0,0,0.4)" }}>
+                          <p className="font-fantasy text-[8px] tracking-wider mb-1" style={{ color: "#5a2a2a" }}>SOURCE</p>
+                          <p className="text-[9px] leading-relaxed break-words" style={{ color: "rgba(252,165,165,0.5)", fontFamily: "monospace" }}>{entry.source}</p>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="rounded-lg p-2" style={{ background: "rgba(0,0,0,0.3)" }}>
+                          <p className="font-fantasy text-[8px] tracking-wider mb-0.5" style={{ color: "#5a2a2a" }}>TIME</p>
+                          <p className="font-fantasy text-[9px]" style={{ color: "#7a3a3a" }}>{new Date(entry.ts).toLocaleString()}</p>
+                        </div>
+                        <div className="rounded-lg p-2" style={{ background: "rgba(0,0,0,0.3)" }}>
+                          <p className="font-fantasy text-[8px] tracking-wider mb-0.5" style={{ color: "#5a2a2a" }}>BROWSER</p>
+                          <p className="font-fantasy text-[9px]" style={{ color: "#7a3a3a" }}>{browser}</p>
+                        </div>
+                      </div>
+                      {entry.ua && (
+                        <div className="rounded-lg p-2" style={{ background: "rgba(0,0,0,0.3)" }}>
+                          <p className="font-fantasy text-[8px] tracking-wider mb-0.5" style={{ color: "#5a2a2a" }}>USER AGENT</p>
+                          <p className="text-[8px] break-all leading-relaxed" style={{ color: "#3a1a1a", fontFamily: "monospace" }}>{entry.ua}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {!loadingCrash && crashLog !== null && crashLog.length === 0 && (
+          <div className="mx-3 mb-3 rounded-xl p-3 flex items-center gap-2"
+            style={{ background: "rgba(8,40,24,0.6)", border: "1px solid rgba(110,231,183,0.2)" }}
+          >
+            <span style={{ fontSize: 14 }}>✓</span>
+            <span className="font-fantasy text-[10px] tracking-wider" style={{ color: "#2a6a44" }}>No errors recorded since last server restart</span>
+          </div>
         )}
       </div>
 

@@ -42,7 +42,7 @@ const STEP_SELECTORS: (string | null)[] = [
   null,                                      // 6 – dynamic (nav btn or quest btn)
 ];
 
-const FREE_STEP = 5;
+const FREE_STEP = -99; // step 5 now uses full-screen blocking overlay
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface TargetRect {
@@ -142,23 +142,16 @@ export default function BeginJourneyOverlay({ user }: Props) {
         setTargetRect(null); return;
       }
 
-      // Step 5 (free): track potion items in the speed-up sheet + egg on home page
+      // Step 5: track potion items + egg for the ghost animation, but keep
+      // targetRect null so the full-screen blocking overlay renders (no spotlight).
+      // Interaction is handled by the elevated speed-up sheet (z-99002).
       if (stepNum === 5) {
         const potionEl = document.querySelector('[data-testid^="button-speedup-"]') as HTMLElement | null;
         const eggEl    = document.querySelector('[data-testid="button-egg-tap"]')    as HTMLElement | null;
-        if (eggEl) {
-          const r = eggEl.getBoundingClientRect();
-          setEggOnHomeRect(r.width > 0 ? r : null);
-        } else {
-          setEggOnHomeRect(null);
-        }
-        if (potionEl) {
-          const r = potionEl.getBoundingClientRect();
-          if (r.width > 0) { setPotionRect(r); setTargetRect(r); return; }
-        }
-        setPotionRect(null);
-        if (eggEl) { const r = eggEl.getBoundingClientRect(); if (r.width > 0) { setTargetRect(r); return; } }
-        setTargetRect(null); return;
+        setPotionRect(potionEl ? (() => { const r = potionEl.getBoundingClientRect(); return r.width > 0 ? r : null; })() : null);
+        setEggOnHomeRect(eggEl  ? (() => { const r = eggEl.getBoundingClientRect();   return r.width > 0 ? r : null; })() : null);
+        setTargetRect(null); // no spotlight — full dim overlay blocks background
+        return;
       }
 
       // All other steps
@@ -422,6 +415,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
           100% { opacity: 0;    transform: translate(0, 0) scale(0.7); }
         }
         .bj-step5 [data-bj="egg-drop-zone"] { display: none !important; }
+        .bj-step5 [data-bj="speedup-sheet"] { z-index: 99002 !important; }
       `}</style>
 
       {/* Hint label — always at top */}
@@ -501,7 +495,25 @@ export default function BeginJourneyOverlay({ user }: Props) {
         />
       )}
 
-      {/* Step 5 drag-ghost animation: quest arrow sweeps from potion up to egg */}
+      {/* Step 5 bouncing arrow above the first potion item in the sheet */}
+      {stepNum === 5 && potionRect && !eggReadyToHatch && (
+        <img
+          src={tutorialArrow}
+          alt=""
+          style={{
+            position: "fixed",
+            top:  Math.max(8, potionRect.top - 50),
+            left: potionRect.left + potionRect.width / 2 - 17,
+            width: 34, height: 44,
+            objectFit: "contain",
+            zIndex: 99003, pointerEvents: "none",
+            filter: arrowFilter,
+            animation: "bj-bounce 0.7s ease-in-out infinite",
+          }}
+        />
+      )}
+
+      {/* Step 5 drag-ghost animation: arrow sweeps from potion up to egg */}
       {stepNum === 5 && potionRect && eggOnHomeRect && !eggReadyToHatch && (() => {
         const fromCx = potionRect.left + potionRect.width  / 2;
         const fromCy = potionRect.top  + potionRect.height / 2;
@@ -509,9 +521,9 @@ export default function BeginJourneyOverlay({ user }: Props) {
         return (
           <div style={{
             position: "fixed",
-            left: fromCx - 28,
-            top:  fromCy - 35,
-            width: 56, height: 70,
+            left: fromCx - 17,
+            top:  fromCy - 22,
+            width: 34, height: 44,
             zIndex: 99006,
             pointerEvents: "none",
             animation: "bj-drag-ghost 2.3s ease-in-out infinite",
@@ -528,7 +540,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
         );
       })()}
 
-      {/* Step 5 egg-ready simulation: arrow sweeps from bottom toward egg, then auto-advances */}
+      {/* Step 5 egg-ready simulation: arrow sweeps from bottom to egg, then auto-advances */}
       {stepNum === 5 && eggReadyToHatch && eggOnHomeRect && (() => {
         const toCx  = eggOnHomeRect.left + eggOnHomeRect.width  / 2;
         const fromY = Math.min(window.innerHeight * 0.82, window.innerHeight - 80);
@@ -536,9 +548,9 @@ export default function BeginJourneyOverlay({ user }: Props) {
         return (
           <div style={{
             position: "fixed",
-            left: toCx - 22,
-            top:  fromY - 28,
-            width: 44, height: 55,
+            left: toCx - 17,
+            top:  fromY - 22,
+            width: 34, height: 44,
             zIndex: 99006,
             pointerEvents: "none",
             animation: "bj-drag-ghost 2.3s ease-in-out infinite",
