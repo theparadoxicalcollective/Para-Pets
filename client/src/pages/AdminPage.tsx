@@ -674,29 +674,7 @@ export default function AdminPage({ user }: AdminPageProps) {
               )}
 
               {activeSection === "purchases" && (
-                <div>
-                  <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-                    {(["history", "milestones"] as const).map(t => (
-                      <button
-                        key={t}
-                        data-testid={`tab-purchases-${t}`}
-                        onClick={() => setPurchasesTab(t)}
-                        style={{
-                          padding: "6px 16px", borderRadius: 8, fontSize: 12, fontWeight: 700,
-                          cursor: "pointer", textTransform: "capitalize",
-                          background: purchasesTab === t
-                            ? "linear-gradient(135deg, rgba(251,146,60,0.3) 0%, rgba(217,119,6,0.25) 100%)"
-                            : "rgba(255,255,255,0.04)",
-                          border: purchasesTab === t ? "1px solid rgba(251,146,60,0.55)" : "1px solid rgba(255,255,255,0.1)",
-                          color: purchasesTab === t ? "#fb923c" : "rgba(255,255,255,0.45)",
-                        }}
-                      >
-                        {t === "history" ? "Purchase History" : "Milestone Rewards"}
-                      </button>
-                    ))}
-                  </div>
-                  {purchasesTab === "history" ? <CoinPurchasesSection /> : <MilestoneRewardsSection />}
-                </div>
+                <CoinPurchasesSection />
               )}
 
               {activeSection === "maintenance" && (
