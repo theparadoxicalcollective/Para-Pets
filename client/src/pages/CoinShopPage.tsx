@@ -15,6 +15,7 @@ import coinPack1000 from "@assets/coin_pack_1000.png";
 import coinPack2500 from "@assets/coin_pack_2500.png";
 import coinPack5000 from "@assets/coin_pack_5000.png";
 import coinPack10000 from "@assets/coin_pack_10000.png";
+import limitedBannerImg from "@assets/Photoroom_20260617_64201_AM_1781696551801.png";
 
 interface CoinShopProps {
   user: {
@@ -699,8 +700,9 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                   data-testid={`button-buy-pack-${pack.id}`}
                   onClick={() => { if (!isDisabled && !isBuying) { handleBuy(pack.id); } }}
                   disabled={isDisabled || isBuying}
-                  className="relative rounded-xl p-4 flex flex-col items-center gap-2 transition-all active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100"
+                  className="relative rounded-xl flex flex-col items-center gap-2 transition-all active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100"
                   style={{
+                    padding: bonus ? "30px 16px 16px" : "16px",
                     background: bonus
                       ? `linear-gradient(145deg, rgba(8,5,20,0.98) 0%, rgba(20,10,40,0.98) 50%, rgba(10,5,22,0.98) 100%)`
                       : `linear-gradient(145deg, rgba(5,15,8,0.98) 0%, rgba(10,28,14,0.98) 50%, rgba(5,18,10,0.98) 100%)`,
@@ -715,16 +717,20 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                   }} />
 
                   {bonus && (
-                    <div style={{
-                      position: "absolute", bottom: 0, left: 0,
-                      borderRadius: "0 8px 0 10px",
-                      background: "linear-gradient(135deg, rgba(120,40,200,0.95) 0%, rgba(180,60,220,0.9) 100%)",
-                      padding: "3px 7px",
-                    }}>
-                      <span className="font-fantasy text-[8px] tracking-[0.15em]" style={{ color: "#f0d0ff", textShadow: "0 0 6px rgba(220,100,255,0.8)" }}>
-                        ✦ LIMITED
-                      </span>
-                    </div>
+                    <img
+                      src={limitedBannerImg}
+                      alt="Limited"
+                      style={{
+                        position: "absolute",
+                        top: -22,
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        width: 140,
+                        pointerEvents: "none",
+                        zIndex: 2,
+                        filter: "drop-shadow(0 2px 8px rgba(160,40,220,0.6))",
+                      }}
+                    />
                   )}
 
                   {packImage && (
@@ -759,17 +765,21 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                   </div>
 
                   {bonus && (
-                    <div className="flex items-center gap-1.5 w-full justify-center rounded-md px-2 py-1" style={{
-                      background: "rgba(160,40,200,0.18)",
-                      border: "1px solid rgba(180,60,220,0.4)",
+                    <div className="flex flex-col items-center gap-1 w-full rounded-lg px-2 py-2" style={{
+                      background: "linear-gradient(135deg, rgba(80,10,140,0.35) 0%, rgba(140,30,200,0.22) 100%)",
+                      border: "1px solid rgba(200,80,255,0.45)",
+                      boxShadow: "0 0 14px rgba(180,50,255,0.18) inset",
                     }}>
                       <img
                         src={bonus.eggUrl}
                         alt={bonus.name}
-                        className="w-6 h-6 object-contain"
-                        style={{ filter: "drop-shadow(0 0 4px rgba(200,100,255,0.7))" }}
+                        className="object-contain"
+                        style={{
+                          width: 56, height: 56,
+                          filter: "drop-shadow(0 0 10px rgba(200,80,255,1)) drop-shadow(0 0 22px rgba(160,40,220,0.7))",
+                        }}
                       />
-                      <span className="font-fantasy text-[9px] tracking-wide" style={{ color: "#d9a0ff", textShadow: "0 0 6px rgba(200,100,255,0.5)" }}>
+                      <span className="font-fantasy text-[9px] tracking-wide text-center" style={{ color: "#e8b8ff", textShadow: "0 0 8px rgba(200,100,255,0.7)" }}>
                         + {bonus.name}
                       </span>
                     </div>
