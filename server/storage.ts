@@ -672,7 +672,13 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(userInventory)
       .leftJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
-      .where(eq(userInventory.userId, userId));
+      .where(eq(userInventory.userId, userId))
+      .orderBy(
+        // Unhatched pet eggs first
+        sql`CASE WHEN ${userInventory.isHatched} = false AND ${shopItems.type} = 'pet' THEN 0 ELSE 1 END`,
+        // Within each group: newest acquired first
+        desc(userInventory.acquiredAt)
+      );
     return rows.map(r => ({ inventory: r.user_inventory, shopItem: r.shop_items }));
   }
 
