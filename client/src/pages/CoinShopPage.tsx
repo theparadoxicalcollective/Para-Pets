@@ -401,7 +401,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         </div>
 
         {/* ── Contribution Rewards Progress Bar ───────────────────────────── */}
-        {(() => {
+        {!currentUser.isAdmin && (() => {
           const pts = progressData?.points ?? 0;
           const claimed = progressData?.claimedMilestones ?? [];
           const rewards = progressData?.milestoneRewards ?? [];
@@ -439,18 +439,18 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
           return (
             <div className="mx-4 mb-4 rounded-xl p-4" style={{
-              background: "linear-gradient(160deg, rgba(4,14,6,0.97) 0%, rgba(8,24,12,0.97) 100%)",
-              border: "1px solid rgba(127,255,212,0.22)",
-              boxShadow: "0 0 20px rgba(127,255,212,0.06), inset 0 1px 0 rgba(127,255,212,0.04)",
+              background: "linear-gradient(160deg, rgba(14,10,2,0.97) 0%, rgba(28,20,4,0.97) 100%)",
+              border: "1px solid rgba(212,160,23,0.35)",
+              boxShadow: "0 0 20px rgba(212,160,23,0.08), inset 0 1px 0 rgba(246,220,138,0.06)",
             }} data-testid="progress-bar-container">
 
               {/* Header */}
               <div className="flex items-center justify-between mb-2">
-                <span className="font-fantasy text-[10px] tracking-[0.2em] uppercase" style={{ color: "rgba(127,255,212,0.55)" }}>
+                <span className="font-fantasy text-[10px] tracking-[0.2em] uppercase" style={{ color: "rgba(246,220,138,0.7)" }}>
                   ✦ Contribution Rewards
                 </span>
                 {monthLabel && (
-                  <span className="font-fantasy text-[9px]" style={{ color: "rgba(127,255,212,0.28)" }}>
+                  <span className="font-fantasy text-[9px]" style={{ color: "rgba(212,160,23,0.4)" }}>
                     Resets {monthLabel}
                   </span>
                 )}
@@ -458,11 +458,14 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
               {/* Points */}
               <div className="flex items-baseline gap-1.5 mb-3">
-                <span className="font-fantasy text-base tracking-wider" data-testid="text-progress-points" style={{ color: "#7fffd4", textShadow: "0 0 10px rgba(127,255,212,0.4)" }}>
+                <span className="font-fantasy text-base tracking-wider" data-testid="text-progress-points" style={{ color: "#f6dc8a", textShadow: "0 0 10px rgba(212,160,23,0.5)" }}>
                   {pts.toLocaleString()}
                 </span>
-                <span className="font-fantasy text-[10px]" style={{ color: "rgba(127,255,212,0.4)" }}>pts this month</span>
+                <span className="font-fantasy text-[10px]" style={{ color: "rgba(212,160,23,0.5)" }}>pts this month</span>
               </div>
+
+              {/* ── Item reward slots + bar — right-padded so 100% bullet has breathing room ── */}
+              <div style={{ paddingRight: "18px" }}>
 
               {/* ── Item reward slots positioned above the bar ── */}
               <div style={{ position: "relative", height: 60, marginBottom: 4, overflow: "visible" }}>
@@ -494,10 +497,17 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                                 filter: isDone
                                   ? "brightness(0.45) grayscale(0.6)"
                                   : isReachable
-                                  ? `drop-shadow(0 0 8px ${m.color})`
-                                  : "none",
-                                border: isReachable ? `1.5px solid ${m.color}` : isDone ? "1.5px solid rgba(255,255,255,0.1)" : "1.5px solid rgba(255,255,255,0.08)",
+                                  ? "drop-shadow(0 0 10px rgba(246,220,138,0.9)) drop-shadow(0 0 4px rgba(212,160,23,0.7))"
+                                  : "drop-shadow(0 0 4px rgba(212,160,23,0.25))",
+                                border: isDone
+                                  ? "1.5px solid rgba(246,220,138,0.18)"
+                                  : isReachable
+                                  ? "1.5px solid rgba(246,220,138,0.9)"
+                                  : "1.5px solid rgba(212,160,23,0.4)",
                                 borderRadius: 7,
+                                boxShadow: isReachable
+                                  ? "0 0 10px rgba(212,160,23,0.5), inset 0 0 4px rgba(246,220,138,0.1)"
+                                  : isDone ? "none" : "0 0 4px rgba(212,160,23,0.15)",
                               }}
                             />
                             {isDone && (
@@ -513,27 +523,10 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                         ) : (
                           <div style={{
                             width: 40, height: 40, borderRadius: 7,
-                            border: `1.5px dashed ${currentUser.isAdmin ? "rgba(251,146,60,0.45)" : "rgba(127,255,212,0.15)"}`,
-                            background: currentUser.isAdmin ? "rgba(251,146,60,0.06)" : "rgba(255,255,255,0.02)",
+                            border: "1.5px dashed rgba(212,160,23,0.3)",
+                            background: "rgba(212,160,23,0.03)",
                             display: "flex", alignItems: "center", justifyContent: "center",
-                          }}>
-                            {currentUser.isAdmin && (
-                              <span style={{ fontSize: 18, color: "rgba(251,146,60,0.65)", lineHeight: 1, pointerEvents: "none" }}>+</span>
-                            )}
-                          </div>
-                        )}
-                        {/* Admin clickable overlay */}
-                        {currentUser.isAdmin && (
-                          <button
-                            data-testid={`button-admin-edit-milestone-${m.end}`}
-                            onClick={() => { setAdminPickerMs(m.end); setPickerSearch(""); setPickerTab("all"); }}
-                            title={hasItem ? "Change reward" : "Set reward"}
-                            style={{
-                              position: "absolute", inset: 0, borderRadius: 7,
-                              background: "transparent", border: "none", cursor: "pointer",
-                              zIndex: 1,
-                            }}
-                          />
+                          }} />
                         )}
                       </div>
                       {/* Pet egg star rarity only */}
@@ -552,12 +545,12 @@ export default function CoinShopPage({ user }: CoinShopProps) {
               <div style={{ position: "relative" }}>
                 {/* Bar track */}
                 <div style={{ height: 10, borderRadius: 5, background: "rgba(255,255,255,0.07)", overflow: "hidden", position: "relative" }}>
-                  {/* Teal fill */}
+                  {/* Gold fill */}
                   <div style={{
                     position: "absolute", left: 0, top: 0, bottom: 0,
                     width: `${fillPct}%`,
-                    background: "linear-gradient(90deg, #1a9e7a 0%, #2dd4bf 60%, #7fffd4 100%)",
-                    boxShadow: fillPct > 0 ? "0 0 10px rgba(127,255,212,0.5)" : "none",
+                    background: "linear-gradient(90deg, #8a5c08 0%, #c9930a 55%, #f6dc8a 100%)",
+                    boxShadow: fillPct > 0 ? "0 0 10px rgba(212,160,23,0.6)" : "none",
                     transition: "width 0.9s cubic-bezier(0.4,0,0.2,1)",
                   }} />
                 </div>
@@ -581,10 +574,12 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                 })}
               </div>
 
+              </div>{/* end right-padded wrapper */}
+
               {/* Footer */}
               <div className="flex items-center mt-2">
-                <span className="font-fantasy text-[9px]" style={{ color: "rgba(127,255,212,0.38)" }}>
-                  {ptsUntilNext > 0 ? `${ptsUntilNext.toLocaleString()} pts to ${nextMs?.label}` : "🎉 All milestones reached!"}
+                <span className="font-fantasy text-[9px]" style={{ color: "rgba(212,160,23,0.45)" }}>
+                  {ptsUntilNext > 0 ? `${ptsUntilNext.toLocaleString()} pts to ${nextMs?.label}` : "✦ All milestones reached!"}
                 </span>
               </div>
 
@@ -750,6 +745,17 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                     <img src={coinIconImg} alt="" className="w-4 h-4" style={{ filter: "drop-shadow(0 0 4px rgba(240,192,64,0.5))" }} />
                     <span className="font-fantasy text-[#f0c040] text-sm tracking-wider" style={{ textShadow: "0 0 8px rgba(240,192,64,0.3)" }}>
                       {pack.coins.toLocaleString()}
+                    </span>
+                  </div>
+
+                  {/* 10% bonus tag */}
+                  <div className="flex items-center gap-1 justify-center" style={{
+                    background: "rgba(74,222,128,0.1)",
+                    border: "1px solid rgba(74,222,128,0.35)",
+                    borderRadius: 6, padding: "2px 7px",
+                  }}>
+                    <span className="font-fantasy text-[9px] tracking-wide" style={{ color: "#4ade80", textShadow: "0 0 6px rgba(74,222,128,0.4)" }}>
+                      +{Math.round(pack.coins * 0.1).toLocaleString()} bonus coins
                     </span>
                   </div>
 

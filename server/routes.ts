@@ -2745,11 +2745,13 @@ export async function registerRoutes(
         100: { shopItemId: "670e8ef5-b67d-4be4-b340-3e652327975f", itemName: "The Paradox Egg",     itemImageUrl: "/api/media/e5019d66-d5a1-4f56-a7e6-e4f9bae5baee" },
       };
 
+      const awardedCoins = Math.round(coins * 1.1);
       let updatedUser;
       try {
         await storage.createCoinPurchase(user.id, amountUsd, coins, sessionId);
         // addCoins returns the updated user — avoid an extra round-trip
-        updatedUser = await storage.addCoins(user.id, coins);
+        // Award 10% bonus on top of the base pack coins.
+        updatedUser = await storage.addCoins(user.id, awardedCoins);
         // Fire community reward + badge awards in the background so the player's
         // verification overlay closes as fast as possible.
         grantCommunityPurchaseReward(user.id, amountUsd).catch(() => {});
@@ -2815,7 +2817,7 @@ export async function registerRoutes(
       }
 
       const { password: _, ...safeUser } = updatedUser!;
-      return res.json({ credited: true, coins, user: safeUser });
+      return res.json({ credited: true, coins: awardedCoins, user: safeUser });
     } catch (err) {
       console.error("Verify purchase error:", err);
       return res.status(500).json({ message: "Failed to verify purchase" });
