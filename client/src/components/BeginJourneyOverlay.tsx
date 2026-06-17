@@ -209,15 +209,23 @@ export default function BeginJourneyOverlay({ user }: Props) {
     }
   }, [step, invHatch, user?.activePetId]);
 
-  // ── Step 5: check for hatching potions, show modal if none ────────────────
+  // ── Step 5: check for hatching potions; auto-grant if none ───────────────
   useEffect(() => {
     if (step !== 5 || location !== "/" || !invHatch) return;
     const hasHatchPotions = (invHatch as any[]).some(i => i.type === "special" && i.specialType === "hatch_time");
-    if (!hasHatchPotions && !potionsGranted) {
-      const t = setTimeout(() => setShowPotionModal(true), 700);
-      return () => clearTimeout(t);
-    } else {
+    if (hasHatchPotions || potionsGranted) {
       setShowPotionModal(false);
+      return;
+    }
+    // No potions: silently attempt auto-grant first.
+    // Only show the modal (as fallback) if grant has already been claimed.
+    if (!grantPotionsMutation.isPending && !grantPotionsMutation.isSuccess) {
+      grantPotionsMutation.mutate(undefined, {
+        onError: () => {
+          // Grant already claimed — show modal so player sees "No More Free Potions"
+          setShowPotionModal(true);
+        },
+      });
     }
   }, [step, location, invHatch, potionsGranted]);
 
@@ -622,13 +630,13 @@ export default function BeginJourneyOverlay({ user }: Props) {
 
       {/* Grant Egg modal (step 2, no eggs found) */}
       {showGrantModal && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 99010, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20px" }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 99010, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20px", pointerEvents: "none" }}>
           <div style={{
             background: "linear-gradient(160deg, rgba(8,18,8,0.99) 0%, rgba(15,30,15,0.99) 100%)",
             border: "1.5px solid rgba(212,168,67,0.5)", borderRadius: 20,
             padding: "28px 24px", maxWidth: 320, width: "100%",
             boxShadow: "0 0 40px rgba(212,168,67,0.15), 0 24px 60px rgba(0,0,0,0.85)",
-            textAlign: "center",
+            textAlign: "center", pointerEvents: "auto",
           }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🥚</div>
             <h3 style={{ fontFamily: "Lora, Georgia, serif", color: "#f0d060", fontSize: 16, fontWeight: 700, marginBottom: 8, letterSpacing: "0.05em" }}>
@@ -657,13 +665,13 @@ export default function BeginJourneyOverlay({ user }: Props) {
 
       {/* Potion modal (step 5, no hatch-time items) */}
       {showPotionModal && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 99010, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20px" }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 99010, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20px", pointerEvents: "none" }}>
           <div style={{
             background: "linear-gradient(160deg, rgba(8,18,8,0.99) 0%, rgba(15,30,15,0.99) 100%)",
             border: "1.5px solid rgba(212,168,67,0.5)", borderRadius: 20,
             padding: "28px 24px", maxWidth: 320, width: "100%",
             boxShadow: "0 0 40px rgba(212,168,67,0.15), 0 24px 60px rgba(0,0,0,0.85)",
-            textAlign: "center",
+            textAlign: "center", pointerEvents: "auto",
           }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🧪</div>
             <h3 style={{ fontFamily: "Lora, Georgia, serif", color: "#f0d060", fontSize: 16, fontWeight: 700, marginBottom: 8, letterSpacing: "0.05em" }}>

@@ -8283,7 +8283,20 @@ export async function registerRoutes(
       const rows = await db.execute(sql`SELECT tutorial_hatch_potions_claimed FROM users WHERE id = ${userId}`);
       const row = (rows as any).rows?.[0] ?? (rows as any)?.[0];
       if (row?.tutorial_hatch_potions_claimed) {
-        return res.status(409).json({ alreadyClaimed: true });
+        // Already claimed — only block re-grant if the player STILL HAS hatch potions.
+        // If they used them all (0 remaining) let them get 3 more so they can finish the tutorial.
+        const inv = await db.execute(sql`
+          SELECT COUNT(*) AS cnt FROM user_inventory
+          WHERE user_id = ${userId}
+            AND item_id = ${SMALL_HATCH_POTION_ID}
+            AND quantity > 0
+        `);
+        const invRow = (inv as any).rows?.[0] ?? (inv as any)?.[0];
+        const count = parseInt(invRow?.cnt ?? invRow?.count ?? "0", 10);
+        if (count > 0) {
+          return res.status(409).json({ alreadyClaimed: true });
+        }
+        // Player has 0 potions — grant 3 more so they can complete the tutorial
       }
       await storage.addToInventory(userId, SMALL_HATCH_POTION_ID);
       await storage.addToInventory(userId, SMALL_HATCH_POTION_ID);
