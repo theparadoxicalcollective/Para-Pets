@@ -263,6 +263,16 @@ export default function BeginJourneyOverlay({ user }: Props) {
     return () => document.body.classList.remove("bj-step5");
   }, [step]);
 
+  // ── Step 5: ensure speed-up sheet is open whenever this step is active ────
+  useEffect(() => {
+    if (step !== 5) return;
+    // Dispatch after a short delay to let the page finish rendering
+    const t = setTimeout(() => {
+      window.dispatchEvent(new CustomEvent("bj_open_speedup"));
+    }, 150);
+    return () => clearTimeout(t);
+  }, [step]);
+
   // ── Step 4 rescue: show "Select Egg" if player has no active egg ──────────
   useEffect(() => {
     if (step !== 4 || location !== "/") { setShowRescue(false); return; }

@@ -469,6 +469,13 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     return () => window.removeEventListener("bj_close_speedup", handler);
   }, []);
 
+  // ── Tutorial: open speed-up sheet when step 5 starts (works on reload too) ──
+  useEffect(() => {
+    const handler = () => { setShowSpeedUp(true); };
+    window.addEventListener("bj_open_speedup", handler);
+    return () => window.removeEventListener("bj_open_speedup", handler);
+  }, []);
+
   // ── Active pet action mutations ──────────────────────────────────────────────
   const toModalItem = (i: InventoryItem): PowerUpItem => ({
     inventoryId: i.inventoryId,
@@ -1159,9 +1166,12 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             <div className="flex items-center justify-between px-5 pt-5 pb-2">
               <h4 className="font-fantasy text-[#f0c040] text-sm tracking-wider">SPEED UP HATCHING</h4>
               <button
-                onClick={() => { setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false); }}
+                onClick={() => {
+                  if (bjGetStep() === 5) return;
+                  setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false);
+                }}
                 className="font-fantasy text-[#a89878] text-xs tracking-wider"
-                style={{ cursor: "pointer", background: "none", border: "none" }}
+                style={{ cursor: "pointer", background: "none", border: "none", opacity: bjGetStep() === 5 ? 0 : 1 }}
                 data-testid="button-close-speedup"
               >
                 Close
