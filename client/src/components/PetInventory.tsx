@@ -92,6 +92,15 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
   const [sheetDragOver, setSheetDragOver] = useState(false);
   const eggDropRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const invId = (e as CustomEvent).detail?.inventoryId;
+      if (invId) setSpeedUpTargetId(invId);
+    };
+    window.addEventListener("bj_open_speedup", handler);
+    return () => window.removeEventListener("bj_open_speedup", handler);
+  }, []);
   const queryClient = useQueryClient();
 
   const { data: inventory = [], isLoading } = useQuery<InventoryItem[]>({

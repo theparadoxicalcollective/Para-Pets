@@ -51,7 +51,7 @@ interface TargetRect {
 }
 
 interface Props {
-  user?: { activePetId?: string | null } | null;
+  user?: { activePetId?: string | null; tutorial_hatch_potions_claimed?: boolean } | null;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -61,6 +61,8 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [grantLoading, setGrantLoading]    = useState(false);
   const [showReward, setShowReward]        = useState(false);
+  const [showPotionModal, setShowPotionModal] = useState(false);
+  const [potionsGranted, setPotionsGranted]   = useState(false);
   const [location, navigate] = useLocation();
   const queryClient = useQueryClient();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -86,12 +88,26 @@ export default function BeginJourneyOverlay({ user }: Props) {
     },
   });
 
+  // ── Grant 3 free hatching potions (one-time) ──────────────────────────────
+  const grantPotionsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/tutorial/grant-hatch-potions", {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      setPotionsGranted(true);
+      setShowPotionModal(false);
+    },
+  });
+
   // Sync step when changed externally (FloatingNav GO button, WelcomeGift, etc.)
   useEffect(() => {
     const handler = () => {
       const s = bjGetStep();
       setStep(s);
-      if (s === 0) setShowGrantModal(false);
+      if (s === 0) { setShowGrantModal(false); setShowPotionModal(false); setPotionsGranted(false); }
     };
     window.addEventListener(BJ_EVENT, handler);
     return () => window.removeEventListener(BJ_EVENT, handler);
@@ -122,9 +138,14 @@ export default function BeginJourneyOverlay({ user }: Props) {
         setTargetRect(null); return;
       }
 
-      // Step 5 (free): arrow on first pet card on /pets
+      // Step 5 (free): arrow on active egg card on /pets
       if (stepNum === 5) {
         if (location !== "/pets") { setTargetRect(null); return; }
+        // Prefer the active egg card
+        if (user?.activePetId) {
+          const activeCard = document.querySelector(`[data-pet-inv-id="${user.activePetId}"]`) as HTMLElement | null;
+          if (activeCard) { const r = activeCard.getBoundingClientRect(); if (r.width > 0) { setTargetRect(r); return; } }
+        }
         const card = document.querySelector('[data-testid^="card-pet-"]') as HTMLElement | null;
         if (card) { const r = card.getBoundingClientRect(); if (r.width > 0) { setTargetRect(r); return; } }
         setTargetRect(null); return;
@@ -171,13 +192,25 @@ export default function BeginJourneyOverlay({ user }: Props) {
   useEffect(() => {
     if (step !== 5 || !invHatch || !user?.activePetId) return;
     const activePet = invHatch.find(
-      i => i.inventoryId === user!.activePetId || i.id === user!.activePetId
+      (i: any) => i.inventoryId === user!.activePetId || i.id === user!.activePetId
     );
     if (activePet?.isHatched === true) {
       bjSetStep(6);
       setStep(6);
     }
   }, [step, invHatch, user?.activePetId]);
+
+  // ── Step 5: check for hatching potions, show modal if none ────────────────
+  useEffect(() => {
+    if (step !== 5 || location !== "/pets" || !invHatch) return;
+    const hasHatchPotions = (invHatch as any[]).some(i => i.type === "special" && i.specialType === "hatch_time");
+    if (!hasHatchPotions && !potionsGranted) {
+      const t = setTimeout(() => setShowPotionModal(true), 700);
+      return () => clearTimeout(t);
+    } else {
+      setShowPotionModal(false);
+    }
+  }, [step, location, invHatch, potionsGranted]);
 
   // ── Grant starter egg ─────────────────────────────────────────────────────
   const handleGrantEgg = async () => {
@@ -196,10 +229,15 @@ export default function BeginJourneyOverlay({ user }: Props) {
     const stepNum = step as number;
 
     if (stepNum === 4) {
-      // Egg on main page: navigate to /pets (don't call egg's click)
+      // Egg on main page: navigate to /pets and open the speed-up sheet for active egg
       navigate("/pets");
       bjSetStep(5);
       setStep(5);
+      if (user?.activePetId) {
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("bj_open_speedup", { detail: { inventoryId: user!.activePetId } }));
+        }, 400);
+      }
       return;
     }
 
@@ -408,6 +446,58 @@ export default function BeginJourneyOverlay({ user }: Props) {
             >
               {grantLoading ? "Claiming…" : "🌱 Claim Your Egg"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Potion modal (step 5, no hatch-time items) */}
+      {showPotionModal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 99010, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20px" }}>
+          <div style={{
+            background: "linear-gradient(160deg, rgba(8,18,8,0.99) 0%, rgba(15,30,15,0.99) 100%)",
+            border: "1.5px solid rgba(212,168,67,0.5)", borderRadius: 20,
+            padding: "28px 24px", maxWidth: 320, width: "100%",
+            boxShadow: "0 0 40px rgba(212,168,67,0.15), 0 24px 60px rgba(0,0,0,0.85)",
+            textAlign: "center",
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🧪</div>
+            <h3 style={{ fontFamily: "Lora, Georgia, serif", color: "#f0d060", fontSize: 16, fontWeight: 700, marginBottom: 8, letterSpacing: "0.05em" }}>
+              {user?.tutorial_hatch_potions_claimed ? "No More Free Potions" : "You Need a Hatching Potion!"}
+            </h3>
+            <p style={{ fontFamily: "Lora, Georgia, serif", color: "rgba(200,220,180,0.8)", fontSize: 13, lineHeight: 1.55, marginBottom: 20 }}>
+              {user?.tutorial_hatch_potions_claimed
+                ? "You've already received your free hatching potions. Visit the shop to get more speed-up items!"
+                : "Drag a potion onto your egg to speed up hatching. Claim 3 free Small Hatching Potions to get started!"}
+            </p>
+            {!user?.tutorial_hatch_potions_claimed ? (
+              <button
+                onClick={() => grantPotionsMutation.mutate()}
+                disabled={grantPotionsMutation.isPending}
+                style={{
+                  width: "100%", padding: "12px 0", borderRadius: 12,
+                  background: grantPotionsMutation.isPending ? "rgba(30,60,20,0.7)" : "linear-gradient(135deg, #3a7a20 0%, #1a5010 100%)",
+                  border: "2px solid rgba(212,168,67,0.55)", color: "#f0d060",
+                  fontFamily: "Lora, Georgia, serif", fontSize: 14, fontWeight: 700,
+                  letterSpacing: "0.08em", cursor: grantPotionsMutation.isPending ? "wait" : "pointer",
+                  boxShadow: "0 0 16px rgba(46,160,46,0.3), 0 4px 14px rgba(0,0,0,0.6)",
+                }}
+              >
+                {grantPotionsMutation.isPending ? "Claiming…" : "🧪 Claim 3 Free Potions"}
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowPotionModal(false)}
+                style={{
+                  width: "100%", padding: "12px 0", borderRadius: 12,
+                  background: "linear-gradient(135deg, #3a4a50 0%, #2a3a40 100%)",
+                  border: "2px solid rgba(180,140,60,0.4)", color: "#f0d060",
+                  fontFamily: "Lora, Georgia, serif", fontSize: 14, fontWeight: 700,
+                  letterSpacing: "0.08em", cursor: "pointer",
+                }}
+              >
+                Got It
+              </button>
+            )}
           </div>
         </div>
       )}

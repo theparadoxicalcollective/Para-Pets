@@ -8226,6 +8226,27 @@ export async function registerRoutes(
     }
   });
 
+  // ── Tutorial: grant 3 free Small Hatching Potions (one-time) ────────────────
+  app.post("/api/tutorial/grant-hatch-potions", isAuthenticated, async (req: any, res) => {
+    const userId = req.user!.id;
+    const SMALL_HATCH_POTION_ID = "3e6d7b47-b4c5-4a34-bd69-c039a31e1770";
+    try {
+      const rows = await db.execute(sql`SELECT tutorial_hatch_potions_claimed FROM users WHERE id = ${userId}`);
+      const row = (rows as any).rows?.[0] ?? (rows as any)?.[0];
+      if (row?.tutorial_hatch_potions_claimed) {
+        return res.status(409).json({ alreadyClaimed: true });
+      }
+      await storage.addToInventory(userId, SMALL_HATCH_POTION_ID);
+      await storage.addToInventory(userId, SMALL_HATCH_POTION_ID);
+      await storage.addToInventory(userId, SMALL_HATCH_POTION_ID);
+      await db.execute(sql`UPDATE users SET tutorial_hatch_potions_claimed = true WHERE id = ${userId}`);
+      return res.json({ granted: true });
+    } catch (err) {
+      console.error("[tutorial] grant-hatch-potions error:", err);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+
   // ── Tutorial: claim completion reward (1500 coins, one-time) ────────────────
   app.post("/api/tutorial/claim-reward", isAuthenticated, async (req: any, res) => {
     const userId = req.user!.id;
