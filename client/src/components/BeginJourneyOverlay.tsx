@@ -227,10 +227,11 @@ export default function BeginJourneyOverlay({ user }: Props) {
       (i: any) => (i.inventoryId === user!.activePetId || i.id === user!.activePetId) && i.isHatched === false
     );
     if (!egg) { setEggReadyToHatch(false); return; }
-    const ready = egg.hatchStartedAt && egg.hatchTime
-      ? (Date.now() - new Date(egg.hatchStartedAt).getTime()) >= egg.hatchTime * 3_600_000
-      : !egg.hatchTime;
-    setEggReadyToHatch(!!ready);
+    // Only ready when hatch has STARTED and elapsed time has passed.
+    // An egg with no hatchStartedAt / hatchTime has NOT started hatching — not ready.
+    const ready = !!(egg.hatchStartedAt && egg.hatchTime &&
+      (Date.now() - new Date(egg.hatchStartedAt).getTime()) >= egg.hatchTime * 3_600_000);
+    setEggReadyToHatch(ready);
   }, [step, invHatch, user?.activePetId]);
 
   // ── Step 5: close speed-up sheet when egg is ready to hatch ──────────────

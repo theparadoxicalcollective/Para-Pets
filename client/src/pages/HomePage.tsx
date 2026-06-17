@@ -1124,8 +1124,26 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
 
       {(!isOverlayActive || bjGetStep() === 5) && showSpeedUp && activePet && !activePet.isHatched && (
-        <div data-bj="speedup-sheet" className="fixed inset-0 z-[55] flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-          <div data-bj="speedup-backdrop" className="absolute inset-0 bg-black/60" onClick={() => { setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false); }} />
+        <div
+          data-bj="speedup-sheet"
+          className="fixed inset-0 flex items-end justify-center"
+          style={{
+            maxWidth: "768px", margin: "0 auto", left: 0, right: 0,
+            zIndex: bjGetStep() === 5 ? 99002 : 55,
+          }}
+        >
+          <div
+            data-bj="speedup-backdrop"
+            className="absolute inset-0 bg-black/60"
+            style={{
+              opacity:       bjGetStep() === 5 ? 0 : 1,
+              pointerEvents: bjGetStep() === 5 ? "none" : "auto",
+            }}
+            onClick={() => {
+              if (bjGetStep() === 5) return;
+              setShowSpeedUp(false); setHomeDragging(null); setHomeDragOver(false);
+            }}
+          />
           <div
             className="relative w-full rounded-t-2xl animate-slide-up"
             style={{
