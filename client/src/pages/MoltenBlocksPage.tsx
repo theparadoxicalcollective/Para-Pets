@@ -11,6 +11,9 @@ import blockZ from "@assets/Photoroom_20260502_115824_PM_1777784698006.png";
 import blockL from "@assets/Photoroom_20260503_120218_AM_1777784698006.png";
 import blockJ from "@assets/Photoroom_20260503_120311_AM_1777784698006.png";
 import bgMolten from "@assets/shop_volcanic.png";
+import trophy1st from "@assets/Photoroom_20260616_71127_PM_1781655109379.png";
+import trophy2nd from "@assets/Photoroom_20260616_71053_PM_1781655109379.png";
+import trophy3rd from "@assets/Photoroom_20260616_70844_PM_1781655109379.png";
 
 // ── Tetromino shapes (4-rotation matrices, SRS-style) ──────────────────────
 type Piece = "I" | "O" | "T" | "S" | "Z" | "L" | "J";
@@ -1406,11 +1409,17 @@ export default function MoltenBlocksPage() {
                     }}
                   >
                     <span style={{
-                      width: 22, textAlign: "right", fontSize: 11, fontWeight: 700,
-                      color: entry.rank === 1 ? "#fbbf24" : entry.rank === 2 ? "#c0c0c0" : entry.rank === 3 ? "#cd7f32" : "#7a5530",
-                      flexShrink: 0,
+                      width: 26, textAlign: "right", fontSize: 11, fontWeight: 700,
+                      color: "#7a5530",
+                      flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end",
                     }}>
-                      {entry.rank === 1 ? "🌋" : entry.rank === 2 ? "🔥" : entry.rank === 3 ? "♨️" : `#${entry.rank}`}
+                      {entry.rank === 1 ? (
+                        <img src={trophy1st} alt="1st" style={{ width: 24, height: 24, objectFit: "contain" }} />
+                      ) : entry.rank === 2 ? (
+                        <img src={trophy2nd} alt="2nd" style={{ width: 24, height: 24, objectFit: "contain" }} />
+                      ) : entry.rank === 3 ? (
+                        <img src={trophy3rd} alt="3rd" style={{ width: 24, height: 24, objectFit: "contain" }} />
+                      ) : `#${entry.rank}`}
                     </span>
                     <span style={{
                       flex: 1, fontSize: 12, color: entry.isViewer ? "#fbbf24" : "#f5d589",
