@@ -8287,7 +8287,7 @@ export async function registerRoutes(
         const inv = await db.execute(sql`
           SELECT COUNT(*) AS cnt FROM user_inventory
           WHERE user_id = ${userId}
-            AND item_id = ${SMALL_HATCH_POTION_ID}
+            AND shop_item_id = ${SMALL_HATCH_POTION_ID}
             AND quantity > 0
         `);
         const invRow = (inv as any).rows?.[0] ?? (inv as any)?.[0];
