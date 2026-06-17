@@ -2780,12 +2780,12 @@ export async function registerRoutes(
         100: { shopItemId: "670e8ef5-b67d-4be4-b340-3e652327975f", itemName: "The Paradox Egg",     itemImageUrl: "/api/media/e5019d66-d5a1-4f56-a7e6-e4f9bae5baee" },
       };
 
-      const awardedCoins = Math.round(coins * 1.1);
+      const awardedCoins = Math.round(coins * 1.33);
       let updatedUser;
       try {
         await storage.createCoinPurchase(user.id, amountUsd, coins, sessionId);
         // addCoins returns the updated user — avoid an extra round-trip
-        // Award 10% bonus on top of the base pack coins.
+        // Award 33% bonus on top of the base pack coins.
         updatedUser = await storage.addCoins(user.id, awardedCoins);
         // Fire community reward + badge awards in the background so the player's
         // verification overlay closes as fast as possible.

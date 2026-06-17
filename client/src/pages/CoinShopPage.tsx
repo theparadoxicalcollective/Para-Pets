@@ -716,14 +716,13 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
                   {bonus && (
                     <div style={{
-                      position: "absolute", top: 0, left: 0, right: 0,
-                      borderRadius: "10px 10px 0 0",
-                      background: "linear-gradient(90deg, rgba(180,60,220,0.9) 0%, rgba(120,40,200,0.95) 50%, rgba(180,60,220,0.9) 100%)",
-                      padding: "3px 6px",
-                      textAlign: "center",
+                      position: "absolute", bottom: 0, left: 0,
+                      borderRadius: "0 8px 0 10px",
+                      background: "linear-gradient(135deg, rgba(120,40,200,0.95) 0%, rgba(180,60,220,0.9) 100%)",
+                      padding: "3px 7px",
                     }}>
-                      <span className="font-fantasy text-[9px] tracking-[0.2em]" style={{ color: "#f0d0ff", textShadow: "0 0 6px rgba(220,100,255,0.8)" }}>
-                        ✦ LIMITED OFFER
+                      <span className="font-fantasy text-[8px] tracking-[0.15em]" style={{ color: "#f0d0ff", textShadow: "0 0 6px rgba(220,100,255,0.8)" }}>
+                        ✦ LIMITED
                       </span>
                     </div>
                   )}
@@ -734,9 +733,9 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                       alt={pack.label}
                       className="object-contain relative"
                       style={{
-                        width: bonus ? 64 : 80,
-                        height: bonus ? 64 : 80,
-                        marginTop: bonus ? 14 : 0,
+                        width: 80,
+                        height: 80,
+                        marginTop: 0,
                         filter: isDisabled ? "grayscale(0.6) brightness(0.5)" : `drop-shadow(0 4px 16px ${glowColor}) drop-shadow(0 0 8px ${glowColor})`,
                       }}
                     />
@@ -748,14 +747,14 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                     </span>
                   </div>
 
-                  {/* 10% bonus tag */}
+                  {/* 33% bonus tag */}
                   <div className="flex items-center gap-1 justify-center" style={{
                     background: "rgba(74,222,128,0.1)",
                     border: "1px solid rgba(74,222,128,0.35)",
                     borderRadius: 6, padding: "2px 7px",
                   }}>
                     <span className="font-fantasy text-[9px] tracking-wide" style={{ color: "#4ade80", textShadow: "0 0 6px rgba(74,222,128,0.4)" }}>
-                      +{Math.round(pack.coins * 0.1).toLocaleString()} bonus coins
+                      +{Math.round(pack.coins * 0.33).toLocaleString()} bonus coins
                     </span>
                   </div>
 
