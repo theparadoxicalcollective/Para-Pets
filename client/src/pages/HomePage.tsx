@@ -556,13 +556,48 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     if (!activePet) return;
 
     // ── Tutorial step 5 ────────────────────────────────────────────────────────
-    // Call preventDefault to stop browser scroll/text-selection, then handle
-    // both short taps (< 15 px movement, < 400 ms) and upward drags (≥ 30 px)
-    // in the pointerup listener so either gesture fires the mutation.
+    // The normal drop-zone rect check fails during the tutorial because
+    // homeEggDropRef points to the small egg INSIDE the sheet, not the big
+    // spotlit egg in the center of the screen.  Accept ANY gesture (tap or
+    // drag in any direction) on a potion as "used on egg" so the tutorial
+    // always completes.
     if (bjGetStep() === 5) {
-      // touch-action:none on the item prevents scroll without needing preventDefault.
-      // Avoid preventDefault here — it suppresses click on iOS Safari.
-      // The onClick handler on the potion item drives all tutorial step-5 logic.
+      e.preventDefault();
+      const pid = e.pointerId;
+      const startX = e.clientX, startY = e.clientY;
+
+      const onMove = (ev: PointerEvent) => {
+        if (ev.pointerId !== pid) return;
+        const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
+        if (dist > 6) {
+          setHomeDragging({ item, x: ev.clientX, y: ev.clientY });
+          // Light up "over egg" glow when pointer drifts into the upper region
+          setHomeDragOver(ev.clientY < window.innerHeight * 0.65);
+        }
+      };
+
+      const onUp = (ev: PointerEvent) => {
+        if (ev.pointerId !== pid) return;
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup",   onUp);
+        document.removeEventListener("pointercancel", onUp);
+        setHomeDragging(null);
+        setHomeDragOver(false);
+
+        // Fire the tutorial action for any tap or drag gesture
+        if (bjIsStep5FakeMode()) {
+          playSpeedUp();
+          setSpeedEffectLabel(`-${item.specialAmount ?? 60} min`);
+          setShowSpeedEffect(true);
+          setTimeout(() => window.dispatchEvent(new CustomEvent("bj_fake_speedup_done")), 350);
+        } else if (!speedUpMutation.isPending) {
+          speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
+        }
+      };
+
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup",   onUp);
+      document.addEventListener("pointercancel", onUp);
       return;
     }
 
@@ -1220,17 +1255,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         opacity: speedUpMutation.isPending ? 0.4 : 1,
                       }}
                       onClick={() => {
-                        if (bjGetStep() === 5) {
-                          if (bjIsStep5FakeMode()) {
-                            playSpeedUp();
-                            setSpeedEffectLabel(`-${item.specialAmount ?? 60} min`);
-                            setShowSpeedEffect(true);
-                            setTimeout(() => window.dispatchEvent(new CustomEvent("bj_fake_speedup_done")), 350);
-                          } else if (!speedUpMutation.isPending) {
-                            speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
-                          }
-                          return;
-                        }
+                        // Step 5 is handled entirely by onPointerDown → pointerup.
+                        // Bail here to prevent a double-fire on desktop browsers.
+                        if (bjGetStep() === 5) return;
                         if (!speedUpMutation.isPending) {
                           speedUpMutation.mutate({ petInvId: activePet.inventoryId, itemInvId: item.inventoryId, specialAmount: item.specialAmount });
                         }
