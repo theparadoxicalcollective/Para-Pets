@@ -128,10 +128,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Dismiss hint once the quest panel opens
-  useEffect(() => {
-    if (showQuest) setShowLoginHint(false);
-  }, [showQuest]);
+  // Hint only dismisses when the tutorial actually starts (GO is clicked → BJ_EVENT fires)
+  // Opening/closing the quest panel does NOT dismiss it so the hint persists until they begin
 
   const openPanel = (fn: () => void) => { closeAll(); setPanelZ(getNextZ()); fn(); };
 
