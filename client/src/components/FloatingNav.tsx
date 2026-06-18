@@ -23,6 +23,7 @@ import badgesIcon from "@assets/generated_images/nav_icon_badges.png";
 import PetWorldPage from "@/pages/PetWorldPage";
 import { AquariumPage } from "@/pages/AquariumPage";
 import { bjGetStatus, bjStart, bjSetStep, BJ_EVENT } from "@/lib/beginJourney";
+import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 interface NavUser {
   id: string;
@@ -115,9 +116,12 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     }
   }, [(user as any).tutorial_reward_claimed, (user as any).tutorial_quest_completed]);
 
-  // Single source of truth: server's tutorial_reward_claimed field.
-  // Shows for any player who hasn't yet claimed the tutorial reward.
-  const showLoginHint = !(user as any).tutorial_reward_claimed;
+  // Show hint only before the player has started the quest.
+  // Once they're working through it the overlay guides them; the hint
+  // reappears (via bjStatus "not_started" → "active" → reward claimed) only
+  // if they somehow dismiss the overlay mid-flow — but the server's
+  // tutorial_reward_claimed is the final gate so it always disappears after claim.
+  const showLoginHint = !(user as any).tutorial_reward_claimed && bjStatus === "not_started";
 
   const openPanel = (fn: () => void) => { closeAll(); setPanelZ(getNextZ()); fn(); };
 
@@ -231,79 +235,44 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
       {/* ── Login quest hint arrow ────────────────────────────────────────── */}
       {showLoginHint && (
         <>
-          <style>{`
-            @keyframes bj-hint-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
-            @keyframes bj-hint-pulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,0.7)} 50%{opacity:0.85;box-shadow:0 0 0 8px rgba(34,197,94,0)} }
-          `}</style>
+          <style>{`@keyframes bj-hint-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }`}</style>
 
-          {/* Phase 1: nav closed — point at the main nav button */}
+          {/* Phase 1: nav closed — arrow points down at the main nav button */}
           {!isOpen && (
-            <div
+            <img
+              src={tutorialArrow}
+              alt=""
               style={{
                 position: "absolute",
-                bottom: 86,
-                right: 4,
+                bottom: 82,
+                right: 8,
+                width: 44,
+                height: 56,
                 pointerEvents: "none",
-                zIndex: 94,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 3,
+                zIndex: 96,
                 animation: "bj-hint-bob 1.3s ease-in-out infinite",
+                filter: "drop-shadow(0 0 10px rgba(212,168,67,0.95)) drop-shadow(0 0 24px rgba(212,168,67,0.6))",
               }}
-            >
-              <span style={{
-                background: "linear-gradient(135deg, #14532d, #16a34a)",
-                color: "#dcfce7",
-                fontSize: 10,
-                fontWeight: 800,
-                fontFamily: "Lora, serif",
-                letterSpacing: "0.08em",
-                padding: "3px 8px",
-                borderRadius: 6,
-                border: "1.5px solid rgba(134,239,172,0.6)",
-                boxShadow: "0 0 12px rgba(34,197,94,0.6)",
-                whiteSpace: "nowrap",
-              }}>Quest Log</span>
-              <svg width="16" height="20" viewBox="0 0 16 20" fill="none">
-                <path d="M8 0 L8 14 M2 8 L8 16 L14 8" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
+            />
           )}
 
-          {/* Phase 2: nav open — point at the quest icon */}
+          {/* Phase 2: nav open — arrow points down at the quest log icon */}
           {isOpen && (
-            <div
+            <img
+              src={tutorialArrow}
+              alt=""
               style={{
                 position: "absolute",
-                bottom: 84,
-                right: 130,
+                bottom: 80,
+                right: 126,
+                width: 44,
+                height: 56,
                 pointerEvents: "none",
                 zIndex: 10001,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 3,
                 animation: "bj-hint-bob 1.3s ease-in-out infinite",
+                filter: "drop-shadow(0 0 10px rgba(212,168,67,0.95)) drop-shadow(0 0 24px rgba(212,168,67,0.6))",
               }}
-            >
-              <span style={{
-                background: "linear-gradient(135deg, #14532d, #16a34a)",
-                color: "#dcfce7",
-                fontSize: 10,
-                fontWeight: 800,
-                fontFamily: "Lora, serif",
-                letterSpacing: "0.08em",
-                padding: "3px 8px",
-                borderRadius: 6,
-                border: "1.5px solid rgba(134,239,172,0.6)",
-                boxShadow: "0 0 12px rgba(34,197,94,0.6)",
-                whiteSpace: "nowrap",
-              }}>Quest Log</span>
-              <svg width="16" height="20" viewBox="0 0 16 20" fill="none">
-                <path d="M8 0 L8 14 M2 8 L8 16 L14 8" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
+            />
           )}
         </>
       )}
