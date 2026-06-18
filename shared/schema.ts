@@ -41,10 +41,10 @@ export const users = pgTable("users", {
   // grant; up to 4 additional random grants (3-5 coins each) follow.
   pettingRewardsToday: integer("petting_rewards_today").notNull().default(0),
   moltenBlocksHighScore: integer("molten_blocks_high_score").notNull().default(0),
-  tutorialHatchPotionsClaimed: boolean("tutorial_hatch_potions_claimed").notNull().default(false),
-  tutorialRewardClaimed: boolean("tutorial_reward_claimed").notNull().default(false),
-  tutorialQuestCompleted: boolean("tutorial_quest_completed").notNull().default(false),
-  signupReferrer: text("signup_referrer"),
+  tutorial_hatch_potions_claimed: boolean("tutorial_hatch_potions_claimed").notNull().default(false),
+  tutorial_reward_claimed: boolean("tutorial_reward_claimed").notNull().default(false),
+  tutorial_quest_completed: boolean("tutorial_quest_completed").notNull().default(false),
+  signup_referrer: text("signup_referrer"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

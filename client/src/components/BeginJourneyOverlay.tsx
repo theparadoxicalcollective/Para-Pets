@@ -88,6 +88,10 @@ export default function BeginJourneyOverlay({ user }: Props) {
       return res.json();
     },
     onSuccess: () => {
+      // Immediately reflect completion in the cache so FloatingNav shows CLAIM button
+      queryClient.setQueryData(["/api/auth/me"], (old: any) =>
+        old ? { ...old, tutorial_quest_completed: true } : old
+      );
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       setShowReward(true);
       setTimeout(() => {
