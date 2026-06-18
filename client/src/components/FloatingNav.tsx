@@ -98,17 +98,11 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [panelZ, setPanelZ]             = useState(300);
   const [claimingKey, setClaimingKey]   = useState<string | null>(null);
   const [bjStatus, setBjStatus] = useState(() => bjGetStatus());
-  const [showLoginHint, setShowLoginHint] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const handler = () => {
-      const status = bjGetStatus();
-      setBjStatus(status);
-      // Only hide hint when localStorage is fully done (reward claimed)
-      if (status === "done") setShowLoginHint(false);
-    };
+    const handler = () => setBjStatus(bjGetStatus());
     window.addEventListener(BJ_EVENT, handler);
     return () => window.removeEventListener(BJ_EVENT, handler);
   }, []);
@@ -121,18 +115,9 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     }
   }, [(user as any).tutorial_reward_claimed, (user as any).tutorial_quest_completed]);
 
-  // Show login hint arrow — only disappears when the reward is actually claimed.
-  // Stays visible before, during, and after the quest steps so the player can
-  // always find their way back to the quest log to claim the reward.
-  useEffect(() => {
-    const rewardClaimed = !!(user as any).tutorial_reward_claimed;
-    if (!rewardClaimed && bjGetStatus() !== "done") {
-      setShowLoginHint(true);
-    } else {
-      setShowLoginHint(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [(user as any).tutorial_reward_claimed]);
+  // Single source of truth: server's tutorial_reward_claimed field.
+  // Shows for any player who hasn't yet claimed the tutorial reward.
+  const showLoginHint = !(user as any).tutorial_reward_claimed;
 
   const openPanel = (fn: () => void) => { closeAll(); setPanelZ(getNextZ()); fn(); };
 
