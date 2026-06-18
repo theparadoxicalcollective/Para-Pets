@@ -104,8 +104,10 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
   useEffect(() => {
     const handler = () => {
-      setBjStatus(bjGetStatus());
-      if (bjGetStatus() !== "not_started") setShowLoginHint(false);
+      const status = bjGetStatus();
+      setBjStatus(status);
+      // Hide hint as soon as the tutorial becomes active or done
+      if (status !== "not_started") setShowLoginHint(false);
     };
     window.addEventListener(BJ_EVENT, handler);
     return () => window.removeEventListener(BJ_EVENT, handler);
@@ -119,17 +121,18 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     }
   }, [(user as any).tutorial_reward_claimed, (user as any).tutorial_quest_completed]);
 
-  // Show login hint arrow for players who haven't started the Begin Journey quest
+  // Show login hint arrow — driven by server state so stale localStorage can't block it.
+  // Runs whenever the user object changes (including first load after auth resolves).
   useEffect(() => {
     const isComplete = (user as any).tutorial_reward_claimed || (user as any).tutorial_quest_completed;
-    if (!isComplete && bjGetStatus() === "not_started") {
+    // bjStatus "done" means localStorage is also done — no need to hint
+    if (!isComplete && bjGetStatus() !== "done") {
       setShowLoginHint(true);
+    } else {
+      setShowLoginHint(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Hint only dismisses when the tutorial actually starts (GO is clicked → BJ_EVENT fires)
-  // Opening/closing the quest panel does NOT dismiss it so the hint persists until they begin
+  }, [(user as any).tutorial_reward_claimed, (user as any).tutorial_quest_completed]);
 
   const openPanel = (fn: () => void) => { closeAll(); setPanelZ(getNextZ()); fn(); };
 
