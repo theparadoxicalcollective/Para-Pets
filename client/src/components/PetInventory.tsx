@@ -730,6 +730,11 @@ function PetView({
   }
 
   const sortedPets = [...pets].sort((a, b) => {
+    // Unhatched eggs always surface to the top
+    const aEgg = a.isHatched ? 1 : 0;
+    const bEgg = b.isHatched ? 1 : 0;
+    if (aEgg !== bEgg) return aEgg - bEgg;
+    // Within each group: higher rarity first, then higher level
     const rarityDiff = (b.rarity ?? 0) - (a.rarity ?? 0);
     if (rarityDiff !== 0) return rarityDiff;
     return (b.petLevel ?? 0) - (a.petLevel ?? 0);
