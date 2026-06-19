@@ -1260,6 +1260,113 @@ function useSeoMeta() {
   }, []);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Contribution leaderboard — top coin bundle purchasers, no admins/mods
+// ─────────────────────────────────────────────────────────────────────────────
+type LeaderboardEntry = { rank: number; username: string; profileImage: string | null; points: number };
+
+function ContributionLeaderboard() {
+  const { data: entries = [], isLoading } = useQuery<LeaderboardEntry[]>({
+    queryKey: ["/api/public/leaderboard"],
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  if (isLoading) return (
+    <div className="flex justify-center py-8">
+      <div style={{ width: 22, height: 22, borderRadius: "50%", border: "2px solid rgba(212,168,67,0.3)", borderTopColor: "#d4a843", animation: "spin 0.8s linear infinite" }} />
+    </div>
+  );
+  if (entries.length === 0) return null;
+
+  const rankColors: Record<number, string> = { 1: "#ffd700", 2: "#c0c0c0", 3: "#cd7f32" };
+
+  return (
+    <div data-testid="contribution-leaderboard">
+      <div className="flex flex-col items-center gap-0.5 mb-5">
+        <h2 className="font-fantasy text-base tracking-widest"
+          style={{ color: "#d4a843", textShadow: "0 0 18px rgba(212,168,67,0.45)", letterSpacing: "0.2em" }}>
+          Realm Benefactors
+        </h2>
+        <p className="font-fantasy text-[10px] tracking-widest" style={{ color: "rgba(212,168,67,0.4)" }}>
+          Top supporters of Para Pets
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {entries.map((e) => {
+          const isTop3 = e.rank <= 3;
+          const rankColor = rankColors[e.rank] ?? "rgba(212,168,67,0.45)";
+          return (
+            <div
+              key={e.rank}
+              data-testid={`leaderboard-row-${e.rank}`}
+              style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "10px 14px",
+                borderRadius: 14,
+                background: isTop3
+                  ? "linear-gradient(90deg,rgba(212,168,67,0.1) 0%,rgba(10,18,14,0.8) 100%)"
+                  : "rgba(10,18,14,0.55)",
+                border: `1px solid ${isTop3 ? "rgba(212,168,67,0.28)" : "rgba(212,168,67,0.08)"}`,
+                boxShadow: isTop3 ? "0 0 14px rgba(212,168,67,0.1), 0 2px 8px rgba(0,0,0,0.5)" : "none",
+              }}
+            >
+              {/* Rank number */}
+              <span className="font-fantasy"
+                style={{
+                  minWidth: 26, textAlign: "center",
+                  fontSize: isTop3 ? "1rem" : "0.8rem",
+                  color: rankColor,
+                  textShadow: isTop3 ? `0 0 10px ${rankColor}80` : "none",
+                  fontWeight: isTop3 ? 700 : 400,
+                  flexShrink: 0,
+                }}
+              >
+                {e.rank}
+              </span>
+
+              {/* Avatar */}
+              <div style={{
+                width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+                overflow: "hidden",
+                border: `1.5px solid ${isTop3 ? rankColor + "60" : "rgba(212,168,67,0.12)"}`,
+                background: "rgba(10,18,14,0.8)",
+              }}>
+                {e.profileImage ? (
+                  <img src={e.profileImage} alt={e.username}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <div style={{
+                    width: "100%", height: "100%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "0.85rem",
+                    color: "rgba(212,168,67,0.5)", fontFamily: "serif",
+                  }}>
+                    {e.username[0]?.toUpperCase()}
+                  </div>
+                )}
+              </div>
+
+              {/* Username */}
+              <span className="font-fantasy text-sm flex-1 truncate"
+                style={{ color: isTop3 ? "#f0e0a0" : "rgba(240,224,160,0.65)", letterSpacing: "0.04em" }}>
+                {e.username}
+              </span>
+
+              {/* Points */}
+              <span className="font-fantasy text-xs flex-shrink-0"
+                style={{ color: rankColor, textShadow: isTop3 ? `0 0 8px ${rankColor}60` : "none", letterSpacing: "0.06em" }}>
+                {e.points.toLocaleString()} pts
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function ParaPetsHubPage() {
   useSeoMeta();
   const [showSignIn, setShowSignIn] = useState(false);
@@ -1437,6 +1544,11 @@ export default function ParaPetsHubPage() {
               </span>
             </div>
           </Link>
+
+          <GoldDivider />
+
+          {/* ── Realm Benefactors leaderboard ─────────────────────────────── */}
+          <ContributionLeaderboard />
 
           <GoldDivider />
 

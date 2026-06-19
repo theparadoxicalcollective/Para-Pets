@@ -5200,6 +5200,35 @@ export async function registerRoutes(
     }
   });
 
+  // Public contribution leaderboard — top spenders (non-admin/mod), points = $1 = 10 pts.
+  app.get("/api/public/leaderboard", async (_req, res) => {
+    try {
+      const rows = await db
+        .select({
+          userId: coinPurchases.userId,
+          username: usersTable.username,
+          profileImage: usersTable.profileImage,
+          totalUsd: sql<number>`SUM(${coinPurchases.amountUsd})`,
+        })
+        .from(coinPurchases)
+        .innerJoin(usersTable, eq(coinPurchases.userId, usersTable.id))
+        .where(and(eq(usersTable.isAdmin, false), eq(usersTable.isModerator, false)))
+        .groupBy(coinPurchases.userId, usersTable.username, usersTable.profileImage)
+        .orderBy(sql`SUM(${coinPurchases.amountUsd}) DESC`)
+        .limit(20);
+
+      const leaderboard = rows.map((r, i) => ({
+        rank: i + 1,
+        username: r.username,
+        profileImage: r.profileImage ?? null,
+        points: Number(r.totalUsd) * 10,
+      }));
+      return res.json(leaderboard);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Failed to load leaderboard" });
+    }
+  });
+
   // Public pet showcase — hatched pet template images for the hub page.
   // Returns non-test templates that have an assembled front image, shuffled.
   app.get("/api/public/pets", async (_req, res) => {
