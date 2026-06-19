@@ -404,52 +404,75 @@ export default function FoundersPage() {
               The first names will appear here soon.
             </p>
           </div>
-        ) : (
-          <div className="max-w-2xl mx-auto text-center leading-relaxed" style={{ wordSpacing: 4 }} data-testid="founders-list">
-            {sortedFounders.map((f, idx) => (
-              <span key={f.id} style={{ display: "inline-flex", alignItems: "center" }}>
-                {idx > 0 && (
-                  <span style={{ color: "#1a0e00", fontSize: 13, margin: "0 8px", userSelect: "none", fontWeight: 900 }}>★</span>
-                )}
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }} data-testid={`founder-row-${f.id}`}>
-                  <span
-                    data-testid={`text-founder-name-${f.id}`}
-                    style={getNameStyle(f.tier)}
-                  >
-                    {f.name}
-                  </span>
-                  {f.tier === "legendary" && (
-                    <span
-                      aria-hidden
-                      style={{
-                        display: "inline-block",
-                        fontSize: 14,
-                        animation: "orb-pulse 2.4s ease-in-out infinite",
-                        marginLeft: 3,
-                        flexShrink: 0,
-                      }}
-                    >✨</span>
+        ) : (() => {
+          const TIER_GROUPS: { tier: string | null; label: string; dividerColor: string; dotColor: string }[] = [
+            { tier: "legendary", label: "Legendary",  dividerColor: "rgba(217,70,239,0.45)",  dotColor: "#e879f9" },
+            { tier: "gold",      label: "Gold",       dividerColor: "rgba(232,200,88,0.45)",  dotColor: "#f0d060" },
+            { tier: "silver",    label: "Silver",     dividerColor: "rgba(200,200,200,0.40)", dotColor: "#c0c0c0" },
+            { tier: "bronze",    label: "Bronze",     dividerColor: "rgba(205,127,50,0.40)",  dotColor: "#cd7f32" },
+            { tier: null,        label: "Founders",   dividerColor: "rgba(232,200,88,0.25)",  dotColor: "#c8a93a" },
+          ];
+
+          const grouped = TIER_GROUPS
+            .map(g => ({
+              ...g,
+              members: sortedFounders.filter(f =>
+                g.tier === null
+                  ? !f.tier || !["legendary","gold","silver","bronze"].includes(f.tier)
+                  : f.tier === g.tier
+              ),
+            }))
+            .filter(g => g.members.length > 0);
+
+          return (
+            <div className="max-w-2xl mx-auto" data-testid="founders-list">
+              {grouped.map((group, gi) => (
+                <div key={group.tier ?? "none"}>
+                  {/* Tier divider */}
+                  {gi > 0 && (
+                    <div className="flex items-center gap-3 my-6 max-w-md mx-auto">
+                      <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${group.dividerColor})` }} />
+                      <span className="font-fantasy text-[9px] tracking-widest" style={{ color: group.dotColor, letterSpacing: "0.3em", opacity: 0.8 }}>
+                        {group.label.toUpperCase()}
+                      </span>
+                      <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${group.dividerColor}, transparent)` }} />
+                    </div>
                   )}
-                  {isAdmin && (
-                    <button
-                      data-testid={`button-edit-founder-${f.id}`}
-                      onClick={() => setEditTarget(f)}
-                      aria-label={`Edit ${f.name}`}
-                      className="rounded-full p-1 transition-all active:scale-90 flex-shrink-0"
-                      style={{
-                        color: "#c8a93a",
-                        background: "rgba(200,169,58,0.08)",
-                        border: "1px solid rgba(200,169,58,0.22)",
-                      }}
-                    >
-                      <Pencil size={10} />
-                    </button>
-                  )}
-                </span>
-              </span>
-            ))}
-          </div>
-        )}
+
+                  {/* Names for this tier, inline flowing */}
+                  <div className="text-center leading-relaxed" style={{ wordSpacing: 4 }}>
+                    {group.members.map((f, idx) => (
+                      <span key={f.id} style={{ display: "inline-flex", alignItems: "center" }}>
+                        {idx > 0 && (
+                          <span style={{ color: "#1a0e00", fontSize: 13, margin: "0 8px", userSelect: "none", fontWeight: 900 }}>★</span>
+                        )}
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }} data-testid={`founder-row-${f.id}`}>
+                          <span data-testid={`text-founder-name-${f.id}`} style={getNameStyle(f.tier)}>
+                            {f.name}
+                          </span>
+                          {f.tier === "legendary" && (
+                            <span aria-hidden style={{ display: "inline-block", fontSize: 14, animation: "orb-pulse 2.4s ease-in-out infinite", marginLeft: 3, flexShrink: 0 }}>✨</span>
+                          )}
+                          {isAdmin && (
+                            <button
+                              data-testid={`button-edit-founder-${f.id}`}
+                              onClick={() => setEditTarget(f)}
+                              aria-label={`Edit ${f.name}`}
+                              className="rounded-full p-1 transition-all active:scale-90 flex-shrink-0"
+                              style={{ color: "#c8a93a", background: "rgba(200,169,58,0.08)", border: "1px solid rgba(200,169,58,0.22)" }}
+                            >
+                              <Pencil size={10} />
+                            </button>
+                          )}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
 
         <p
           className="font-fantasy text-center mt-12"
