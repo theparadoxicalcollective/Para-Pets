@@ -154,7 +154,15 @@ export default function FoundersPage() {
         filter: "drop-shadow(0 1px 4px rgba(217,70,239,0.6))",
       };
     }
-    if (tier === "gold")   return { ...base, fontSize: 22, color: "#f0d060", textShadow: OUTLINE };
+    if (tier === "gold")   return {
+      ...base,
+      fontSize: 22,
+      backgroundImage: "linear-gradient(180deg, #fff4c8 0%, #f0d060 40%, #c8a030 100%)",
+      WebkitBackgroundClip: "text",
+      backgroundClip: "text",
+      WebkitTextFillColor: "transparent",
+      filter: "drop-shadow(0 1px 5px rgba(240,180,40,0.55))",
+    };
     if (tier === "silver") return { ...base, fontSize: 21, color: "#c8c8c8", textShadow: OUTLINE };
     if (tier === "bronze") return { ...base, fontSize: 20, color: "#d4904a", textShadow: OUTLINE };
     return { ...base, fontSize: 20, color: "#c8b87a", textShadow: OUTLINE };
@@ -427,14 +435,16 @@ export default function FoundersPage() {
 
           return (
             <div className="max-w-2xl mx-auto" data-testid="founders-list">
-              {grouped.map((group, gi) => (
+              {grouped.map((group, gi) => {
+                const prev = gi > 0 ? grouped[gi - 1] : null;
+                return (
                 <div key={group.tier ?? "none"}>
-                  {/* Plain decorative divider between tier groups — no label text */}
-                  {gi > 0 && (
+                  {/* Divider uses the PREVIOUS tier's color so it reads as a closing flourish for that tier */}
+                  {prev && (
                     <div className="flex items-center gap-3 my-5 max-w-xs mx-auto">
-                      <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${group.lineColor})` }} />
-                      <span aria-hidden style={{ color: group.dotColor, fontSize: 10, opacity: 0.7, lineHeight: 1 }}>✦</span>
-                      <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${group.lineColor}, transparent)` }} />
+                      <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${prev.lineColor})` }} />
+                      <span aria-hidden style={{ color: prev.dotColor, fontSize: 10, opacity: 0.75, lineHeight: 1 }}>✦</span>
+                      <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${prev.lineColor}, transparent)` }} />
                     </div>
                   )}
 
@@ -468,7 +478,8 @@ export default function FoundersPage() {
                     ))}
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           );
         })()}
