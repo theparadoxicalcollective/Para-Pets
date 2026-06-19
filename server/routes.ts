@@ -5200,6 +5200,21 @@ export async function registerRoutes(
     }
   });
 
+  // Public pet showcase — hatched pet template images for the hub page.
+  // Returns non-test templates that have an assembled front image, shuffled.
+  app.get("/api/public/pets", async (_req, res) => {
+    try {
+      const templates = await storage.getAllPetTemplates();
+      const pets = templates
+        .filter((t: any) => t.frontAssembled)
+        .map((t: any) => ({ id: t.id, name: t.name, imageUrl: t.frontAssembled }))
+        .sort(() => Math.random() - 0.5);
+      return res.json(pets);
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to load pets" });
+    }
+  });
+
   // Privacy policy — public read, admin write
   app.get("/api/privacy-policy", async (_req, res) => {
     try {

@@ -600,6 +600,12 @@ const EGG_GAP   = 18;
 const EGG_STEP  = EGG_W + EGG_GAP;
 const EGG_INTERVAL = 2600;
 
+const PET_W        = 170;
+const PET_H        = 230;
+const PET_GAP      = 20;
+const PET_STEP     = PET_W + PET_GAP;
+const PET_INTERVAL = 2800;
+
 function EggShowcase() {
   const { data: eggs = [] } = useQuery<{ id: string; eggImageUrl: string }[]>({
     queryKey: ["/api/public/eggs"],
@@ -716,6 +722,158 @@ function EggShowcase() {
               width: i === activeIdx ? 18 : 5, height: 5,
               borderRadius: 3,
               background: i === activeIdx ? "#7fbfb0" : "rgba(127,191,176,0.15)",
+              border: "none", padding: 0, cursor: "pointer",
+              transition: "width 0.35s ease, background 0.35s ease",
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CollectiblePetsShowcase() {
+  const { data: pets = [] } = useQuery<{ id: string; name: string; imageUrl: string }[]>({
+    queryKey: ["/api/public/pets"],
+    staleTime: 300_000,
+    retry: false,
+  });
+
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [containerW, setContainerW] = useState(360);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const intervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const ptrStartX    = useRef<number | null>(null);
+
+  useEffect(() => {
+    const measure = () => { if (containerRef.current) setContainerW(containerRef.current.offsetWidth); };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
+  const restartTimer = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (pets.length < 2) return;
+    intervalRef.current = setInterval(() => {
+      setActiveIdx(i => (i + 1) % pets.length);
+    }, PET_INTERVAL);
+  }, [pets.length]);
+
+  useEffect(() => {
+    restartTimer();
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [restartTimer]);
+
+  const goTo = useCallback((idx: number) => {
+    setActiveIdx(((idx % (pets.length || 1)) + (pets.length || 1)) % (pets.length || 1));
+    restartTimer();
+  }, [pets.length, restartTimer]);
+
+  if (pets.length === 0) return null;
+
+  const stripOffset = containerW / 2 - (activeIdx * PET_STEP + PET_W / 2);
+
+  return (
+    <div className="mb-2" data-testid="pet-showcase">
+      <h2 className="font-fantasy text-center text-base tracking-widest mb-1"
+        style={{ color: "#d4a843", textShadow: "0 0 18px rgba(212,168,67,0.45)" }}>
+        Collectible Pets
+      </h2>
+      <p className="font-fantasy text-center text-[10px] mb-5" style={{ color: "rgba(212,168,67,0.45)" }}>
+        Over 100 magical companions to discover
+      </p>
+
+      <div
+        ref={containerRef}
+        style={{ overflow: "hidden", position: "relative", touchAction: "none" }}
+        onPointerDown={e => { ptrStartX.current = e.clientX; }}
+        onPointerUp={e => {
+          if (ptrStartX.current === null) return;
+          const dx = e.clientX - ptrStartX.current;
+          ptrStartX.current = null;
+          if (Math.abs(dx) > 24) goTo(activeIdx + (dx < 0 ? 1 : -1));
+        }}
+        onPointerLeave={() => { ptrStartX.current = null; }}
+      >
+        <div style={{
+          display: "flex", gap: PET_GAP,
+          transform: `translateX(${stripOffset}px)`,
+          transition: "transform 0.48s cubic-bezier(0.25,0.46,0.45,0.94)",
+          willChange: "transform",
+          paddingTop: 18, paddingBottom: 10,
+        }}>
+          {pets.map((pet, i) => {
+            const active = i === activeIdx;
+            return (
+              <div
+                key={pet.id}
+                data-testid={`pet-card-${i}`}
+                onClick={() => !active && goTo(i)}
+                style={{
+                  flexShrink: 0,
+                  width: PET_W,
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+                  opacity: active ? 1 : 0.32,
+                  transform: `scale(${active ? 1 : 0.84})`,
+                  transition: "opacity 0.4s ease, transform 0.4s ease",
+                  cursor: active ? "default" : "pointer",
+                }}
+              >
+                <div style={{
+                  width: PET_W, height: PET_H,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  borderRadius: 22,
+                  background: active
+                    ? "linear-gradient(160deg,rgba(212,168,67,0.1) 0%,rgba(10,20,12,0.92) 100%)"
+                    : "rgba(10,18,14,0.5)",
+                  border: `1.5px solid ${active ? "rgba(212,168,67,0.45)" : "rgba(212,168,67,0.08)"}`,
+                  boxShadow: active
+                    ? "0 0 28px rgba(212,168,67,0.2), 0 8px 24px rgba(0,0,0,0.7)"
+                    : "0 3px 10px rgba(0,0,0,0.4)",
+                  transition: "border-color 0.4s, box-shadow 0.4s, background 0.4s",
+                  overflow: "hidden",
+                }}>
+                  <img
+                    src={pet.imageUrl}
+                    alt={pet.name}
+                    style={{
+                      width: "90%", height: "90%", objectFit: "contain",
+                      filter: active
+                        ? "drop-shadow(0 0 14px rgba(212,168,67,0.55)) drop-shadow(0 4px 12px rgba(0,0,0,0.7))"
+                        : "none",
+                      transition: "filter 0.4s",
+                    }}
+                  />
+                </div>
+                <span className="font-fantasy text-[10px] tracking-widest text-center"
+                  style={{
+                    color: active ? "#d4a843" : "rgba(212,168,67,0.25)",
+                    textShadow: active ? "0 0 8px rgba(212,168,67,0.5)" : "none",
+                    transition: "color 0.4s, text-shadow 0.4s",
+                    maxWidth: PET_W, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    letterSpacing: "0.14em",
+                  }}
+                >
+                  {pet.name}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Dot indicators */}
+      <div className="flex justify-center gap-1.5 mt-2">
+        {pets.map((_, i) => (
+          <button
+            key={i}
+            data-testid={`pet-dot-${i}`}
+            onClick={() => goTo(i)}
+            style={{
+              width: i === activeIdx ? 20 : 5, height: 5,
+              borderRadius: 3,
+              background: i === activeIdx ? "#d4a843" : "rgba(212,168,67,0.15)",
               border: "none", padding: 0, cursor: "pointer",
               transition: "width 0.35s ease, background 0.35s ease",
             }}
@@ -1231,8 +1389,8 @@ export default function ParaPetsHubPage() {
 
           <GoldDivider />
 
-          {/* ── Eggs of the Realm ─────────────────────────────────────────── */}
-          <EggShowcase />
+          {/* ── Collectible Pets ──────────────────────────────────────────── */}
+          <CollectiblePetsShowcase />
 
           <GoldDivider />
 
