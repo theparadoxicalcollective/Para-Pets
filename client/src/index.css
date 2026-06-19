@@ -1669,3 +1669,28 @@ img[data-interactive], button img, a img {
   70%  { opacity: 1; transform: translateX(-50%) translateY(-36px); }
   100% { opacity: 0; transform: translateX(-50%) translateY(-60px); }
 }
+
+/* ── World hint arrows — fish / molten / barrel / shop ───────────────────── */
+/* Defined globally so any hint can use them even when another hint is hidden */
+@keyframes fishHintFloat {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(12px); }
+}
+@keyframes hintOrb1 {
+  0%   { transform: translate(-22px, 10px);  opacity: 0.8; }
+  33%  { transform: translate(20px, -14px);  opacity: 1;   }
+  66%  { transform: translate(8px, 22px);    opacity: 0.6; }
+  100% { transform: translate(-22px, 10px);  opacity: 0.8; }
+}
+@keyframes hintOrb2 {
+  0%   { transform: translate(20px, -8px);   opacity: 0.7; }
+  33%  { transform: translate(-18px, 16px);  opacity: 1;   }
+  66%  { transform: translate(-8px, -22px);  opacity: 0.8; }
+  100% { transform: translate(20px, -8px);   opacity: 0.7; }
+}
+@keyframes hintOrb3 {
+  0%   { transform: translate(2px, -24px);   opacity: 0.9; }
+  33%  { transform: translate(-24px, 6px);   opacity: 0.6; }
+  66%  { transform: translate(20px, 16px);   opacity: 1;   }
+  100% { transform: translate(2px, -24px);   opacity: 0.9; }
+}

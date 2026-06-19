@@ -5229,14 +5229,15 @@ export async function registerRoutes(
     }
   });
 
-  // Public pet showcase — hatched pet template images for the hub page.
-  // Returns non-test templates that have an assembled front image, shuffled.
+  // Public pet showcase — hatched pet images for the hub page.
+  // Uses hatchedImageUrl from shop items (same source as the egg showcase),
+  // falling back to frontAssembled on the linked pet template if missing.
   app.get("/api/public/pets", async (_req, res) => {
     try {
-      const templates = await storage.getAllPetTemplates();
-      const pets = templates
-        .filter((t: any) => t.frontAssembled)
-        .map((t: any) => ({ id: t.id, name: t.name, imageUrl: t.frontAssembled }))
+      const allItems = await storage.getAllShopItems();
+      const pets = allItems
+        .filter((i: any) => i.type === "pet" && i.hatchedImageUrl)
+        .map((i: any) => ({ id: i.id, name: i.name, imageUrl: i.hatchedImageUrl }))
         .sort(() => Math.random() - 0.5);
       return res.json(pets);
     } catch (err) {

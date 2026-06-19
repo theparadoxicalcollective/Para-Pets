@@ -600,8 +600,8 @@ const EGG_GAP   = 18;
 const EGG_STEP  = EGG_W + EGG_GAP;
 const EGG_INTERVAL = 2600;
 
-const PET_W        = 170;
-const PET_H        = 230;
+const PET_W        = 190;
+const PET_H        = 260;
 const PET_GAP      = 20;
 const PET_STEP     = PET_W + PET_GAP;
 const PET_INTERVAL = 2800;
@@ -1293,7 +1293,14 @@ function ContributionLeaderboard() {
         </p>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <div
+        style={{
+          maxHeight: 560,
+          overflowY: entries.length > 10 ? "auto" : "visible",
+          paddingRight: entries.length > 10 ? 4 : 0,
+        }}
+        className="flex flex-col gap-2"
+      >
         {entries.map((e) => {
           const isTop3 = e.rank <= 3;
           const rankColor = rankColors[e.rank] ?? "rgba(212,168,67,0.45)";
