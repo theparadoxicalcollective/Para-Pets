@@ -436,13 +436,13 @@ export default function PetPowerUpModal({
       </div>
 
       {/* ── Pet zone ── */}
-      <div className="relative z-[10] flex flex-col items-center flex-shrink-0 px-3 pb-1">
+      <div className="relative z-[10] flex flex-col items-center flex-shrink px-3 pb-1" style={{ flexShrink: 1, minHeight: 0 }}>
         <div
           ref={petZoneRef}
           data-testid="zone-pet-drop"
           className="relative flex items-center justify-center transition-all duration-300 w-full overflow-visible"
           style={{
-            height: 340,
+            height: "min(340px, 42svh)",
             borderRadius: 20,
             background: dragOverPet
               ? `radial-gradient(ellipse at center, rgba(134,239,172,0.18) 0%, rgba(0,0,0,0.3) 100%)`
@@ -556,7 +556,7 @@ export default function PetPowerUpModal({
       </div>
 
       {/* ── Item grid ── */}
-      <div className="relative z-[10] flex-1 overflow-y-auto px-3 pb-6" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(134,239,172,0.3) transparent" }}>
+      <div className="relative z-[10] flex-1 min-h-0 overflow-y-auto px-3 pb-6" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(134,239,172,0.3) transparent" }}>
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 gap-4">
             <img src={powerupBagIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain" }} />
