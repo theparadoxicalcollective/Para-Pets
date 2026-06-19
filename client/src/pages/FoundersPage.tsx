@@ -350,64 +350,6 @@ export default function FoundersPage() {
           The hands that lit the lanterns
         </p>
 
-        <div
-          className="rounded-3xl mx-auto px-6 py-6 mb-10 text-center"
-          style={{
-            maxWidth: 540,
-            background: "linear-gradient(160deg, rgba(10,18,12,0.82) 0%, rgba(20,28,14,0.78) 100%)",
-            border: "1px solid rgba(232,200,88,0.22)",
-            boxShadow:
-              "0 0 40px rgba(232,200,88,0.10), inset 0 1px 0 rgba(232,200,88,0.10), 0 12px 30px rgba(0,0,0,0.55)",
-          }}
-          data-testid="founders-message"
-        >
-          <p
-            className="font-fantasy"
-            style={{
-              color: "#efe3a5",
-              fontSize: 15,
-              lineHeight: 1.7,
-              letterSpacing: "0.02em",
-              textShadow: "0 1px 6px rgba(0,0,0,0.7)",
-            }}
-          >
-            From the bottom of our hearts —
-            <br />
-            <span style={{ color: "#f6dc8a", fontStyle: "italic" }}>thank you</span>.
-          </p>
-          <p
-            className="font-fantasy mt-4"
-            style={{
-              color: "#cbd6b4",
-              fontSize: 13,
-              lineHeight: 1.75,
-              letterSpacing: "0.015em",
-            }}
-          >
-            Every name on this page belongs to someone who believed in the artist
-            behind Para Pets and helped this little world come to life. Your
-            kindness paid for the lanterns in the trees, the songs in the wind,
-            and the very first heartbeat of every pet that has hatched here.
-            Because of you, others get to play, dream, and explore — for free.
-          </p>
-          <p
-            className="font-fantasy mt-4"
-            style={{
-              color: "#e8d97a",
-              fontSize: 13,
-              lineHeight: 1.75,
-              fontStyle: "italic",
-            }}
-          >
-            You are seen. You are loved. You will always be a part of this story.
-          </p>
-          <div className="flex items-center justify-center gap-2 mt-5">
-            <span style={{ height: 1, width: 30, background: "rgba(232,200,88,0.35)" }} />
-            <span style={{ color: "#c8a93a", fontSize: 14 }}>✦</span>
-            <span style={{ height: 1, width: 30, background: "rgba(232,200,88,0.35)" }} />
-          </div>
-        </div>
-
         <div className="flex items-center gap-3 mb-5 max-w-md mx-auto">
           <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, rgba(232,200,88,0.35))" }} />
           <span
@@ -513,6 +455,64 @@ export default function FoundersPage() {
             </div>
           );
         })()}
+
+        <div
+          className="rounded-3xl mx-auto px-6 py-6 mt-10 mb-4 text-center"
+          style={{
+            maxWidth: 540,
+            background: "linear-gradient(160deg, rgba(10,18,12,0.82) 0%, rgba(20,28,14,0.78) 100%)",
+            border: "1px solid rgba(232,200,88,0.22)",
+            boxShadow:
+              "0 0 40px rgba(232,200,88,0.10), inset 0 1px 0 rgba(232,200,88,0.10), 0 12px 30px rgba(0,0,0,0.55)",
+          }}
+          data-testid="founders-message"
+        >
+          <p
+            className="font-fantasy"
+            style={{
+              color: "#efe3a5",
+              fontSize: 15,
+              lineHeight: 1.7,
+              letterSpacing: "0.02em",
+              textShadow: "0 1px 6px rgba(0,0,0,0.7)",
+            }}
+          >
+            From the bottom of our hearts —
+            <br />
+            <span style={{ color: "#f6dc8a", fontStyle: "italic" }}>thank you</span>.
+          </p>
+          <p
+            className="font-fantasy mt-4"
+            style={{
+              color: "#cbd6b4",
+              fontSize: 13,
+              lineHeight: 1.75,
+              letterSpacing: "0.015em",
+            }}
+          >
+            Every name on this page belongs to someone who believed in the artist
+            behind Para Pets and helped this little world come to life. Your
+            kindness paid for the lanterns in the trees, the songs in the wind,
+            and the very first heartbeat of every pet that has hatched here.
+            Because of you, others get to play, dream, and explore — for free.
+          </p>
+          <p
+            className="font-fantasy mt-4"
+            style={{
+              color: "#e8d97a",
+              fontSize: 13,
+              lineHeight: 1.75,
+              fontStyle: "italic",
+            }}
+          >
+            You are seen. You are loved. You will always be a part of this story.
+          </p>
+          <div className="flex items-center justify-center gap-2 mt-5">
+            <span style={{ height: 1, width: 30, background: "rgba(232,200,88,0.35)" }} />
+            <span style={{ color: "#c8a93a", fontSize: 14 }}>✦</span>
+            <span style={{ height: 1, width: 30, background: "rgba(232,200,88,0.35)" }} />
+          </div>
+        </div>
 
         <p
           className="font-fantasy text-center mt-12"
