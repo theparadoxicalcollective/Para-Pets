@@ -157,13 +157,14 @@ export default function FoundersPage() {
     if (tier === "gold")   return { ...base, fontSize: 22, color: "#f0d060", textShadow: OUTLINE };
     if (tier === "silver") return { ...base, fontSize: 21, color: "#c8c8c8", textShadow: OUTLINE };
     if (tier === "bronze") return { ...base, fontSize: 20, color: "#d4904a", textShadow: OUTLINE };
-    return { ...base, fontSize: 20, color: "#f0d060", textShadow: OUTLINE };
+    return { ...base, fontSize: 20, color: "#c8b87a", textShadow: OUTLINE };
   };
 
   const TIER_ORDER: Record<string, number> = { legendary: 0, gold: 1, silver: 2, bronze: 3 };
+  const normTier = (t: string | null) => (t ?? "").toLowerCase().trim();
   const sortedFounders = [...founders].sort((a, b) => {
-    const ao = TIER_ORDER[a.tier ?? ""] ?? 4;
-    const bo = TIER_ORDER[b.tier ?? ""] ?? 4;
+    const ao = TIER_ORDER[normTier(a.tier)] ?? 4;
+    const bo = TIER_ORDER[normTier(b.tier)] ?? 4;
     return ao - bo;
   });
 
@@ -405,12 +406,12 @@ export default function FoundersPage() {
             </p>
           </div>
         ) : (() => {
-          const TIER_GROUPS: { tier: string | null; label: string; dividerColor: string; dotColor: string }[] = [
-            { tier: "legendary", label: "Legendary",  dividerColor: "rgba(217,70,239,0.45)",  dotColor: "#e879f9" },
-            { tier: "gold",      label: "Gold",       dividerColor: "rgba(232,200,88,0.45)",  dotColor: "#f0d060" },
-            { tier: "silver",    label: "Silver",     dividerColor: "rgba(200,200,200,0.40)", dotColor: "#c0c0c0" },
-            { tier: "bronze",    label: "Bronze",     dividerColor: "rgba(205,127,50,0.40)",  dotColor: "#cd7f32" },
-            { tier: null,        label: "Founders",   dividerColor: "rgba(232,200,88,0.25)",  dotColor: "#c8a93a" },
+          const TIER_GROUPS: { tier: string | null; lineColor: string; dotColor: string }[] = [
+            { tier: "legendary", lineColor: "rgba(217,70,239,0.40)",  dotColor: "#e879f9" },
+            { tier: "gold",      lineColor: "rgba(232,200,88,0.40)",  dotColor: "#f0d060" },
+            { tier: "silver",    lineColor: "rgba(200,200,200,0.35)", dotColor: "#c0c0c0" },
+            { tier: "bronze",    lineColor: "rgba(205,127,50,0.35)",  dotColor: "#cd7f32" },
+            { tier: null,        lineColor: "rgba(232,200,88,0.20)",  dotColor: "#c8a93a" },
           ];
 
           const grouped = TIER_GROUPS
@@ -418,8 +419,8 @@ export default function FoundersPage() {
               ...g,
               members: sortedFounders.filter(f =>
                 g.tier === null
-                  ? !f.tier || !["legendary","gold","silver","bronze"].includes(f.tier)
-                  : f.tier === g.tier
+                  ? !["legendary","gold","silver","bronze"].includes(normTier(f.tier))
+                  : normTier(f.tier) === g.tier
               ),
             }))
             .filter(g => g.members.length > 0);
@@ -428,14 +429,12 @@ export default function FoundersPage() {
             <div className="max-w-2xl mx-auto" data-testid="founders-list">
               {grouped.map((group, gi) => (
                 <div key={group.tier ?? "none"}>
-                  {/* Tier divider */}
+                  {/* Plain decorative divider between tier groups — no label text */}
                   {gi > 0 && (
-                    <div className="flex items-center gap-3 my-6 max-w-md mx-auto">
-                      <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${group.dividerColor})` }} />
-                      <span className="font-fantasy text-[9px] tracking-widest" style={{ color: group.dotColor, letterSpacing: "0.3em", opacity: 0.8 }}>
-                        {group.label.toUpperCase()}
-                      </span>
-                      <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${group.dividerColor}, transparent)` }} />
+                    <div className="flex items-center gap-3 my-5 max-w-xs mx-auto">
+                      <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${group.lineColor})` }} />
+                      <span aria-hidden style={{ color: group.dotColor, fontSize: 10, opacity: 0.7, lineHeight: 1 }}>✦</span>
+                      <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, ${group.lineColor}, transparent)` }} />
                     </div>
                   )}
 
