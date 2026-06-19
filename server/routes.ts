@@ -7881,12 +7881,22 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      const { tier } = req.body;
+      const id = String(req.params.id);
+      const { tier, name } = req.body;
+
+      if (name !== undefined) {
+        if (typeof name !== "string" || !name.trim()) {
+          return res.status(400).json({ message: "name must be a non-empty string" });
+        }
+        const row = await storage.updateFounderName(id, name.trim());
+        return res.json(row);
+      }
+
       const validTiers = ["bronze", "silver", "gold", null];
       if (!validTiers.includes(tier)) {
         return res.status(400).json({ message: "tier must be bronze, silver, gold, or null" });
       }
-      const row = await storage.updateFounderTier(String(req.params.id), tier ?? null);
+      const row = await storage.updateFounderTier(id, tier ?? null);
       return res.json(row);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });

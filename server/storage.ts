@@ -328,6 +328,7 @@ export interface IStorage {
   getFounders(): Promise<Founder[]>;
   addFounder(name: string, addedBy?: string): Promise<Founder>;
   updateFounderTier(id: string, tier: string | null): Promise<Founder>;
+  updateFounderName(id: string, name: string): Promise<Founder>;
   deleteFounder(id: string): Promise<void>;
   upsertFounderByUserId(userId: string, username: string, tier: string): Promise<void>;
   // Purchase progress & milestones
@@ -3139,6 +3140,11 @@ export class DatabaseStorage implements IStorage {
 
   async updateFounderTier(id: string, tier: string | null): Promise<Founder> {
     const [row] = await db.update(founders).set({ tier }).where(eq(founders.id, id)).returning();
+    return row;
+  }
+
+  async updateFounderName(id: string, name: string): Promise<Founder> {
+    const [row] = await db.update(founders).set({ name }).where(eq(founders.id, id)).returning();
     return row;
   }
 

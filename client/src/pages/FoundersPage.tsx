@@ -79,6 +79,7 @@ export default function FoundersPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
   const [editTarget, setEditTarget] = useState<Founder | null>(null);
+  const [editName, setEditName] = useState("");
 
   const addMutation = useMutation({
     mutationFn: async (name: string) => {
@@ -111,6 +112,21 @@ export default function FoundersPage() {
     },
   });
 
+  const renameMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const res = await apiRequest("PATCH", `/api/founders/${id}`, { name });
+      return res.json();
+    },
+    onSuccess: (updated: Founder) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/founders"] });
+      setEditTarget(updated);
+      toast({ title: "Name updated" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Could not rename", description: err?.message ?? "Try again", variant: "destructive" });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await apiRequest("DELETE", `/api/founders/${id}`);
@@ -132,6 +148,10 @@ export default function FoundersPage() {
     window.addEventListener("keydown", closeOnEsc);
     return () => window.removeEventListener("keydown", closeOnEsc);
   }, []);
+
+  useEffect(() => {
+    if (editTarget) setEditName(editTarget.name);
+  }, [editTarget?.id]);
 
   const OUTLINE = "-1px -1px 0 rgba(0,0,0,0.95), 1px -1px 0 rgba(0,0,0,0.95), -1px 1px 0 rgba(0,0,0,0.95), 1px 1px 0 rgba(0,0,0,0.95), 0 2px 4px rgba(0,0,0,0.8)";
 
@@ -157,15 +177,25 @@ export default function FoundersPage() {
     if (tier === "gold")   return {
       ...base,
       fontSize: 22,
-      backgroundImage: "linear-gradient(180deg, #fff4c8 0%, #f0d060 40%, #c8a030 100%)",
-      WebkitBackgroundClip: "text",
-      backgroundClip: "text",
-      WebkitTextFillColor: "transparent",
-      filter: "drop-shadow(0 1px 5px rgba(240,180,40,0.55))",
+      fontWeight: 700,
+      color: "#f5d060",
+      textShadow: "0 0 12px rgba(240,180,40,0.8), " + OUTLINE,
     };
-    if (tier === "silver") return { ...base, fontSize: 21, color: "#c8c8c8", textShadow: OUTLINE };
-    if (tier === "bronze") return { ...base, fontSize: 20, color: "#d4904a", textShadow: OUTLINE };
-    return { ...base, fontSize: 20, color: "#c8b87a", textShadow: OUTLINE };
+    if (tier === "silver") return {
+      ...base,
+      fontSize: 21,
+      fontWeight: 600,
+      color: "#e0e0e0",
+      textShadow: "0 0 8px rgba(220,220,220,0.6), " + OUTLINE,
+    };
+    if (tier === "bronze") return {
+      ...base,
+      fontSize: 20,
+      fontWeight: 600,
+      color: "#e8a060",
+      textShadow: "0 0 8px rgba(205,127,50,0.5), " + OUTLINE,
+    };
+    return { ...base, fontSize: 19, color: "#d4c898", textShadow: OUTLINE };
   };
 
   const TIER_ORDER: Record<string, number> = { legendary: 0, gold: 1, silver: 2, bronze: 3 };
@@ -600,11 +630,8 @@ export default function FoundersPage() {
                 className="font-fantasy text-base tracking-widest"
                 style={{ color: "#e8c858", textShadow: "0 0 16px rgba(232,200,88,0.4)" }}
               >
-                {editTarget.name}
+                Edit Founder
               </h2>
-              <p className="font-fantasy text-[10px] tracking-widest mt-1" style={{ color: "#7a6a30" }}>
-                Set tier or remove from wall
-              </p>
               <button
                 data-testid="button-close-edit-founder"
                 onClick={() => setEditTarget(null)}
@@ -617,6 +644,48 @@ export default function FoundersPage() {
             </div>
 
             <div className="px-6 py-5 flex flex-col gap-3">
+              {/* Name field */}
+              <div className="flex flex-col gap-1.5">
+                <label className="font-fantasy text-[10px] tracking-widest uppercase" style={{ color: "#7a6a30" }}>
+                  Name
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    data-testid="input-edit-founder-name"
+                    type="text"
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    maxLength={120}
+                    className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
+                    style={{
+                      background: "rgba(232,200,88,0.06)",
+                      border: "1px solid rgba(232,200,88,0.22)",
+                      color: "#efe3a5",
+                      fontFamily: "inherit",
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && editName.trim() && editName.trim() !== editTarget.name)
+                        renameMutation.mutate({ id: editTarget.id, name: editName.trim() });
+                    }}
+                  />
+                  <button
+                    data-testid="button-save-founder-name"
+                    disabled={!editName.trim() || editName.trim() === editTarget.name || renameMutation.isPending}
+                    onClick={() => renameMutation.mutate({ id: editTarget.id, name: editName.trim() })}
+                    className="font-fantasy text-[10px] tracking-widest rounded-xl px-3 py-2 transition-all active:scale-95 disabled:opacity-40"
+                    style={{
+                      background: "linear-gradient(135deg, #f6dc8a 0%, #c8a93a 100%)",
+                      color: "#3a2a08",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {renameMutation.isPending ? "…" : "Save"}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ height: 1, background: "rgba(232,200,88,0.10)" }} />
+
               <p className="font-fantasy text-[10px] tracking-widest uppercase text-center" style={{ color: "#7a6a30" }}>
                 Tier
               </p>
