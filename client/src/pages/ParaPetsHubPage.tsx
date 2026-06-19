@@ -49,7 +49,7 @@ import worldSnowy        from "@assets/bg_snowy_mountain_map.png";
 import DailyClaimCard from "@/components/DailyClaimCard";
 
 import hubParaPet    from "@assets/generated_images/hub_para_pet_transparent.png";
-import foundersBanner from "@assets/generated_images/wide_horizontal_kawaii_fantasy_afc1.png";
+import paradoxStatue from "@assets/Photoroom_20260619_64226_PM_1781913135212.png";
 import noticeGoFishing from "@assets/64255BCE-2B6A-4A95-8654-145262B126FA_1781352994250.png";
 import noticeLimited   from "@assets/66A982C2-2B49-4DE0-8EE6-79C542E3351B_1781303706759.png";
 import noticeExplore   from "@assets/49FB9020-1DB5-487E-9B92-EC15E9240ABD_1781303869686.png";
@@ -1508,48 +1508,34 @@ export default function ParaPetsHubPage() {
 
           <GoldDivider />
 
-          {/* ── Founders banner ───────────────────────────────────────────── */}
+          {/* ── Founders button ───────────────────────────────────────────── */}
           <Link
             href="/founders"
             data-testid="link-founders"
-            className="block relative transition-all active:scale-[0.98] cursor-pointer"
-            style={{
-              borderRadius: 18, overflow: "hidden",
-              border: "2px solid rgba(212,168,67,0.4)",
-              boxShadow: "0 0 28px rgba(212,168,67,0.14), 0 10px 28px rgba(0,0,0,0.65)",
-              textDecoration: "none",
-            }}
+            className="flex flex-col items-center gap-1 transition-all active:scale-[0.97] cursor-pointer"
+            style={{ textDecoration: "none" }}
           >
             <img
-              src={foundersBanner}
-              alt="Founders Hall"
-              style={{ width: "100%", display: "block", objectFit: "cover", objectPosition: "center", maxHeight: 200 }}
+              src={paradoxStatue}
+              alt="Founder's Wall"
+              style={{
+                width: 130,
+                height: "auto",
+                filter: "drop-shadow(0 0 22px rgba(212,168,67,0.55)) drop-shadow(0 6px 18px rgba(0,0,0,0.65))",
+              }}
             />
-            <div style={{
-              position: "absolute", inset: 0,
-              background: "linear-gradient(to top,rgba(2,8,3,0.92) 0%,rgba(2,8,3,0.55) 40%,rgba(2,8,3,0.3) 70%,rgba(2,8,3,0.15) 100%)",
-            }} />
-            <div style={{
-              position: "absolute", bottom: 0, left: 0, right: 0,
-              display: "flex", flexDirection: "column", alignItems: "center",
-              paddingBottom: 16, gap: 8,
-            }}>
-              <h2 className="font-fantasy tracking-widest"
-                style={{ fontSize: "1.05rem", color: "#f0d060", textShadow: "0 0 14px rgba(212,168,67,0.55)", letterSpacing: "0.18em" }}>
-                Our Founders
-              </h2>
-              <span
-                className="font-fantasy text-xs tracking-widest rounded-full px-5 py-1.5"
-                style={{
-                  background: "linear-gradient(135deg,#d4a843 0%,#7a5808 100%)",
-                  color: "#0a1804",
-                  boxShadow: "0 0 12px rgba(212,168,67,0.4)",
-                  letterSpacing: "0.14em",
-                }}
-              >
-                Visit the Wall →
-              </span>
-            </div>
+            <span
+              className="font-fantasy tracking-widest"
+              style={{
+                fontSize: "1.1rem",
+                fontWeight: 700,
+                color: "#f5d560",
+                textShadow: "0 0 18px rgba(212,168,67,0.65), 0 2px 8px rgba(0,0,0,0.9)",
+                letterSpacing: "0.14em",
+              }}
+            >
+              Founder's Wall
+            </span>
           </Link>
 
           <GoldDivider />

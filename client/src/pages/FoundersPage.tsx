@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { ChevronLeft, Plus, X, Pencil, Heart } from "lucide-react";
+import { ChevronLeft, Plus, X, Pencil } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import foundersBg from "@assets/generated_images/founders_bg.png";
 import mascot from "@assets/Photoroom_20260502_90936_AM_1777731667331.png";
+import paradoxStatue from "@assets/Photoroom_20260619_64226_PM_1781913135212.png";
 
 interface Founder {
   id: string;
@@ -307,20 +308,16 @@ export default function FoundersPage() {
 
       {/* ── Main content ──────────────────────────────────────────────────────── */}
       <main className="relative max-w-2xl mx-auto px-5 pt-8 pb-24" style={{ zIndex: 1 }}>
-        <div className="flex justify-center mb-5">
-          <div
-            className="flex items-center justify-center rounded-full"
+        <div className="flex justify-center mb-3" data-testid="founders-medallion">
+          <img
+            src={paradoxStatue}
+            alt="Paradox statue"
             style={{
-              width: 64, height: 64,
-              background: "radial-gradient(circle at 30% 25%, #f6dc8a 0%, #c8a93a 45%, #6e561a 100%)",
-              boxShadow:
-                "0 0 30px rgba(232,200,88,0.45), 0 0 60px rgba(127,191,176,0.18), inset 0 -2px 6px rgba(0,0,0,0.35)",
-              border: "1px solid rgba(255,235,160,0.55)",
+              width: 140,
+              height: "auto",
+              filter: "drop-shadow(0 0 28px rgba(232,200,88,0.55)) drop-shadow(0 8px 24px rgba(0,0,0,0.70))",
             }}
-            data-testid="founders-medallion"
-          >
-            <Heart size={28} fill="#3a2a08" stroke="#3a2a08" strokeWidth={1.5} />
-          </div>
+          />
         </div>
 
         <h1
