@@ -1261,9 +1261,9 @@ function useSeoMeta() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Contribution leaderboard — top coin bundle purchasers, no admins/mods
+// Contribution leaderboard — top coin bundle purchasers (admins excluded, mods shown)
 // ─────────────────────────────────────────────────────────────────────────────
-type LeaderboardEntry = { rank: number; username: string; profileImage: string | null; points: number };
+type LeaderboardEntry = { rank: number; username: string; profileImage: string | null; isModerator?: boolean; points: number };
 
 function ContributionLeaderboard() {
   const { data: entries = [], isLoading } = useQuery<LeaderboardEntry[]>({
@@ -1352,11 +1352,26 @@ function ContributionLeaderboard() {
                 )}
               </div>
 
-              {/* Username */}
-              <span className="font-fantasy text-sm flex-1 truncate"
-                style={{ color: isTop3 ? "#f0e0a0" : "rgba(240,224,160,0.65)", letterSpacing: "0.04em" }}>
-                {e.username}
-              </span>
+              {/* Username + optional mod badge */}
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                <span className="font-fantasy text-sm truncate"
+                  style={{ color: isTop3 ? "#f0e0a0" : "rgba(240,224,160,0.65)", letterSpacing: "0.04em" }}>
+                  {e.username}
+                </span>
+                {e.isModerator && (
+                  <span className="font-fantasy flex-shrink-0"
+                    style={{
+                      fontSize: "8px", letterSpacing: "0.12em",
+                      padding: "1px 5px", borderRadius: 4,
+                      background: "rgba(127,191,176,0.1)",
+                      border: "1px solid rgba(127,191,176,0.38)",
+                      color: "#7fbfb0",
+                      textTransform: "uppercase",
+                    }}>
+                    Mod
+                  </span>
+                )}
+              </div>
 
               {/* Points */}
               <span className="font-fantasy text-xs flex-shrink-0"

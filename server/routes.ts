@@ -5200,7 +5200,7 @@ export async function registerRoutes(
     }
   });
 
-  // Public contribution leaderboard — top spenders (non-admin/mod), points = $1 = 10 pts.
+  // Public contribution leaderboard — top spenders (non-admin), moderators included.
   app.get("/api/public/leaderboard", async (_req, res) => {
     try {
       const rows = await db
@@ -5208,12 +5208,13 @@ export async function registerRoutes(
           userId: coinPurchases.userId,
           username: usersTable.username,
           profileImage: usersTable.profileImage,
+          isModerator: usersTable.isModerator,
           totalUsd: sql<number>`SUM(${coinPurchases.amountUsd})`,
         })
         .from(coinPurchases)
         .innerJoin(usersTable, eq(coinPurchases.userId, usersTable.id))
-        .where(and(eq(usersTable.isAdmin, false), eq(usersTable.isModerator, false)))
-        .groupBy(coinPurchases.userId, usersTable.username, usersTable.profileImage)
+        .where(eq(usersTable.isAdmin, false))
+        .groupBy(coinPurchases.userId, usersTable.username, usersTable.profileImage, usersTable.isModerator)
         .orderBy(sql`SUM(${coinPurchases.amountUsd}) DESC`)
         .limit(20);
 
@@ -5221,6 +5222,7 @@ export async function registerRoutes(
         rank: i + 1,
         username: r.username,
         profileImage: r.profileImage ?? null,
+        isModerator: r.isModerator ?? false,
         points: Number(r.totalUsd) * 10,
       }));
       return res.json(leaderboard);
