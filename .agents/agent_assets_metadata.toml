@@ -894,6 +894,12 @@ uri = "file://attached_assets/bg_haunted_pet_shop.png"
 type = "image"
 title = "haunted pet shop interior bg"
 
+[[generated]]
+id = "aXvg8YyjudymQrWNrPY2Y"
+uri = "file://attached_assets/bg_soul_pond.png"
+type = "image"
+title = "soul pond haunted mystical quest location"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

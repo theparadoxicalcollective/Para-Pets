@@ -2097,7 +2097,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                             <button
                               data-testid={`button-size-up-location-${loc.id}`}
                               onPointerDown={(e) => e.stopPropagation()}
-                              onClick={(e) => { e.stopPropagation(); const next = Math.min(500, (loc.iconSize || 300) + 10); iconSizeMutation.mutate({ locationId: loc.id, iconSize: next }); }}
+                              onClick={(e) => { e.stopPropagation(); const next = Math.min(900, (loc.iconSize || 300) + 10); iconSizeMutation.mutate({ locationId: loc.id, iconSize: next }); }}
                               className="absolute top-1/2 -right-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
                               style={{ transform: "translateY(-50%)", background: "rgba(80,40,0,0.95)", border: "2px solid rgba(255,160,50,0.7)", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}
                             >

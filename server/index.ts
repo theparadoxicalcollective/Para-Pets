@@ -2766,6 +2766,28 @@ app.use((req, res, next) => {
     console.error("Haunted Woods location seed error (non-fatal):", err);
   }
 
+  // ── Soul Pond: rename Phantom Hollow → Soul Pond, change type to quest, update bg ──
+  // Idempotent: runs always but WHERE clause guards against overwriting admin edits
+  try {
+    const PHANTOM_HOLLOW_ID = "e2f3a4b5-0003-4000-8000-000000000003";
+    const bgData = loadAssetBase64("bg_soul_pond.png");
+    const result = await db.execute(sql`
+      UPDATE world_locations
+      SET name        = 'Soul Pond',
+          type        = 'quest',
+          is_shop     = false,
+          description = 'A sacred yet haunted pool deep in the Haunted Woods. Ancient spirits drift across its glowing surface, whispering forgotten secrets to those brave enough to approach.',
+          bg_url      = COALESCE(${bgData ?? null}, bg_url)
+      WHERE id = ${PHANTOM_HOLLOW_ID}
+        AND world_id = 'haunted_woods'
+    `);
+    const affected = (result as any).count ?? (result as any).rowCount ?? 0;
+    if (affected > 0) console.log("Soul Pond: location updated.");
+    else console.log("Soul Pond: already up to date or not found.");
+  } catch (err) {
+    console.error("Soul Pond migration error (non-fatal):", err);
+  }
+
   // Migrate all remaining base64 image URLs to media_blobs (idempotent: skips non-base64 values)
   try {
     async function migrateBase64Column(table: string, idCol: string, imgCol: string): Promise<number> {

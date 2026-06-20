@@ -3843,7 +3843,7 @@ export async function registerRoutes(
       if (glowColor !== undefined) sanitized.glowColor = glowColor || null;
       if (typeof posX === "number") sanitized.posX = Math.max(-10, Math.min(110, posX));
       if (typeof posY === "number") sanitized.posY = Math.max(-10, Math.min(110, posY));
-      if (typeof req.body.iconSize === "number") sanitized.iconSize = Math.max(64, Math.min(500, req.body.iconSize));
+      if (typeof req.body.iconSize === "number") sanitized.iconSize = Math.max(64, Math.min(900, req.body.iconSize));
 
       const updated = await storage.updateWorldLocation((req.params.locationId as string), sanitized);
       return res.json(updated);
