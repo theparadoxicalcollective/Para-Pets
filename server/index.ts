@@ -2684,6 +2684,88 @@ app.use((req, res, next) => {
     console.error("Mixing Tree rename error (non-fatal):", err);
   }
 
+  // ── Seed Haunted Woods locations ──────────────────────────────────────────
+  try {
+    const hauntedWoodsLocsDone = await storage.getGameSetting("haunted_woods_locations_v1");
+    if (!hauntedWoodsLocsDone) {
+      const HAUNTED_LOCS = [
+        {
+          id: "e2f3a4b5-0001-4000-8000-000000000001",
+          name: "The Spectral Grove",
+          description: "A sinister haunted casino lurking in the darkest corner of the woods. Ghostly slots and phantom poker await the brave.",
+          iconFile: "icon_spectral_grove.png",
+          bgFile: null as string | null,
+          type: "landmark",
+          posX: 70, posY: 25,
+          glowColor: "#8b00ff",
+          sortOrder: 1,
+          isShop: false,
+        },
+        {
+          id: "e2f3a4b5-0002-4000-8000-000000000002",
+          name: "The Cauldron's Creep",
+          description: "A mysterious apothecary hidden deep in the haunted forest, bubbling with potions, charms, and dark wares.",
+          iconFile: "icon_cauldrons_creep.png",
+          bgFile: "bg_cauldrons_creep.png" as string | null,
+          type: "shop",
+          posX: 30, posY: 30,
+          glowColor: "#7b2fbe",
+          sortOrder: 2,
+          isShop: true,
+        },
+        {
+          id: "e2f3a4b5-0003-4000-8000-000000000003",
+          name: "Phantom Hollow",
+          description: "A haunted pond shrouded in purple mist, its dark waters teeming with spectral fish and ancient creatures.",
+          iconFile: "icon_haunted_pond.png",
+          bgFile: "bg_haunted_pond.png" as string | null,
+          type: "fishing",
+          posX: 50, posY: 60,
+          glowColor: "#2e8b8b",
+          sortOrder: 3,
+          isShop: false,
+        },
+        {
+          id: "e2f3a4b5-0004-4000-8000-000000000004",
+          name: "The Haunted Menagerie",
+          description: "A spooky pet emporium nestled among twisted trees, selling ghostly companions and cursed creatures.",
+          iconFile: "icon_haunted_pet_shop.png",
+          bgFile: "bg_haunted_pet_shop.png" as string | null,
+          type: "shop",
+          posX: 20, posY: 70,
+          glowColor: "#5c2d91",
+          sortOrder: 4,
+          isShop: true,
+        },
+      ];
+
+      for (const loc of HAUNTED_LOCS) {
+        const existing = await db.execute(sql`SELECT id FROM world_locations WHERE id = ${loc.id}`);
+        if ((existing as any).rows?.length === 0) {
+          const iconData = loadAssetBase64(loc.iconFile);
+          const bgData = loc.bgFile ? loadAssetBase64(loc.bgFile) : null;
+          await db.execute(sql`
+            INSERT INTO world_locations
+              (id, world_id, name, type, description, pos_x, pos_y, glow_color, icon_size, sort_order, is_shop, icon_url, bg_url)
+            VALUES (
+              ${loc.id}, 'haunted_woods', ${loc.name}, ${loc.type},
+              ${loc.description}, ${loc.posX}, ${loc.posY}, ${loc.glowColor},
+              350, ${loc.sortOrder}, ${loc.isShop},
+              ${iconData ?? null}, ${bgData ?? null}
+            )
+          `);
+          console.log(`Haunted Woods: ${loc.name} created.`);
+        } else {
+          console.log(`Haunted Woods: ${loc.name} already exists, skipping.`);
+        }
+      }
+      await storage.setGameSetting("haunted_woods_locations_v1", "done");
+      console.log("Haunted Woods locations seeded.");
+    }
+  } catch (err) {
+    console.error("Haunted Woods location seed error (non-fatal):", err);
+  }
+
   // Migrate all remaining base64 image URLs to media_blobs (idempotent: skips non-base64 values)
   try {
     async function migrateBase64Column(table: string, idCol: string, imgCol: string): Promise<number> {

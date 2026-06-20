@@ -876,6 +876,24 @@ uri = "file://attached_assets/generated_images/wide_horizontal_kawaii_fantasy_af
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "H14KMrYz7BES5472UZf0P"
+uri = "file://attached_assets/bg_cauldrons_creep.png"
+type = "image"
+title = "cauldrons creep shop bg haunted"
+
+[[generated]]
+id = "Goy0gI7_wSUvZeIrUnLpe"
+uri = "file://attached_assets/bg_haunted_pond.png"
+type = "image"
+title = "haunted pond fishing bg dark forest"
+
+[[generated]]
+id = "Jtksyfq27wupn8nDoH_p9"
+uri = "file://attached_assets/bg_haunted_pet_shop.png"
+type = "image"
+title = "haunted pet shop interior bg"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
