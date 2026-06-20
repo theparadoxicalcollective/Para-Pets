@@ -183,6 +183,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   // Guard: prevents the verify effect from running more than once per page load
   // (wouter v3 patches replaceState so the effect can re-fire after URL cleanup).
   const verifiedRef = useRef(false);
+  const orbTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   // Initialise to true synchronously so the overlay shows on the very first render
   // when the player is redirected back from Stripe — no flash of the coin shop.
   const [verifying, setVerifying] = useState(() => {
@@ -194,6 +195,11 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
   // Keep local coin display in sync when parent re-fetches updated user data
   useEffect(() => { setCurrentUser(user); }, [user]);
+
+  // Cancel any pending orb animation timers when the page unmounts
+  useEffect(() => {
+    return () => { orbTimersRef.current.forEach(clearTimeout); };
+  }, []);
 
   const { data: packsData, isLoading } = useQuery<PacksResponse>({
     queryKey: ["/api/coins/packs"],
@@ -302,13 +308,16 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           // Refresh daily-spent counter in the background (non-blocking)
           queryClient.invalidateQueries({ queryKey: ["/api/coins/packs"] });
           if (data.credited || data.alreadyCredited) {
-            setSuccessCoins(data.coins);
+            const coins = typeof data.coins === "number" ? data.coins : parseInt(String(data.coins ?? "0"), 10);
+            setSuccessCoins(isFinite(coins) ? coins : 0);
             // Fire celebrations inline — not in a reactive effect — so they
             // are guaranteed to run exactly once in the same microtask flush.
             try { playShopBell(); } catch {}
             try { burstGoldenOrbs(window.innerWidth / 2, window.innerHeight / 2); } catch {}
-            setTimeout(() => { try { burstGoldenOrbs(window.innerWidth / 3, window.innerHeight / 3); } catch {} }, 300);
-            setTimeout(() => { try { burstGoldenOrbs((window.innerWidth * 2) / 3, window.innerHeight / 3); } catch {} }, 500);
+            const t1 = setTimeout(() => { try { burstGoldenOrbs(window.innerWidth / 3, window.innerHeight / 3); } catch {} }, 300);
+            const t2 = setTimeout(() => { try { burstGoldenOrbs((window.innerWidth * 2) / 3, window.innerHeight / 3); } catch {} }, 500);
+            // Store refs so unmount can cancel them
+            orbTimersRef.current = [t1, t2];
           }
         })
         .catch(() => {
@@ -1002,7 +1011,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
             <button
               data-testid="button-dismiss-success"
-              onClick={() => { playShopBell(); setSuccessCoins(null); }}
+              onClick={() => { setSuccessCoins(null); navigate("/"); }}
               className="font-fantasy tracking-widest"
               style={{
                 width: "100%",
