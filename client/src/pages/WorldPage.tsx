@@ -202,7 +202,7 @@ const WORLD_FIXED_MAP_H: Record<string, number> = {
   snowy_mountain:  1980, // bg_snowy_mountain_map.webp 768×1408
   sky_realm:       1980, // bg_sky_realm_map.webp 768×1408
   volcanic:        1619, // bg_volcanic_map_v2.jpeg 843×1264 — natural at MAP_W=1080
-  haunted_woods:   1980, // bg_haunted_woods_map.webp 768×1408
+  haunted_woods:    760, // bg_haunted_woods_v2.png — landscape: fits mobile height, scrolls left-right
   enchanted_grove: 1980, // bg_enchanted_grove_map.webp 768×1408
   island:          1980, // bg_island_map.webp 768×1408
   desert:          1980, // bg_desert_map.webp 768×1408
@@ -1960,20 +1960,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                             }}
                           />
                         )}
-                        {/* Animated rim glow — pulses dim→bright, staggered per location */}
-                        {(loc.iconUrl || (loc.type === "fishing" && !loc.isShop)) && (
-                          <div
-                            className="absolute pointer-events-none"
-                            style={{
-                              inset: "-10px",
-                              borderRadius: "20%",
-                              boxShadow: `0 0 18px 5px ${glow}cc, 0 0 36px 10px ${glow}44`,
-                              animation: `locGlowRimPulse ${3.0 + (i * 0.41) % 1.6}s ease-in-out infinite`,
-                              animationDelay: `${(i * 0.57) % 2.8}s`,
-                              zIndex: 1,
-                            }}
-                          />
-                        )}
                         {(loc.iconUrl || (loc.type === "fishing" && !loc.isShop && worldId === "volcanic")) ? (
                           <div
                             className="w-full h-full"
@@ -2005,6 +1991,22 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                                   : `drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px ${glow}cc) drop-shadow(0 0 4px ${glow}55)`,
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
                               transition: "filter 0.15s ease, transform 0.15s ease",
+                            }}
+                          />
+                          {/* Glow layer — same img with intense drop-shadow, opacity pulses.
+                              drop-shadow follows PNG transparency so only the icon outline glows. */}
+                          <img
+                            src={loc.type === "fishing" && !loc.isShop && worldId === "volcanic" ? "/world-assets/icon_fishing_volcanic.png" : loc.iconUrl!}
+                            aria-hidden
+                            className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                            draggable={false}
+                            style={{
+                              filter: `drop-shadow(0 0 5px ${glow}) drop-shadow(0 0 12px ${glow}bb) drop-shadow(0 0 20px ${glow}66)`,
+                              opacity: 0.15,
+                              animation: `locGlowRimPulse ${3.0 + (i * 0.41) % 1.6}s ease-in-out infinite`,
+                              animationDelay: `${(i * 0.57) % 2.8}s`,
+                              zIndex: 11,
+                              transform: loc.flipped ? "scaleX(-1)" : undefined,
                             }}
                           />
                           {/* Floating bubbles — fishing spots only (not shop buildings) */}
