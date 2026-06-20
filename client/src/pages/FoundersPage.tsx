@@ -323,40 +323,17 @@ export default function FoundersPage() {
         <h1
           className="font-fantasy text-center tracking-widest"
           style={{
-            fontSize: 32,
-            color: "#f0d770",
+            fontSize: 36,
+            fontWeight: 800,
+            color: "#fae97a",
             letterSpacing: "0.16em",
-            textShadow: "0 0 22px rgba(232,200,88,0.55), 0 4px 18px rgba(0,0,0,0.85)",
-            marginBottom: 8,
+            textShadow: "0 0 28px rgba(232,200,88,0.70), 0 2px 0 rgba(0,0,0,0.95), 0 4px 20px rgba(0,0,0,0.95)",
+            marginBottom: 20,
           }}
           data-testid="text-founders-title"
         >
           Our Founders
         </h1>
-
-        <p
-          className="font-fantasy text-center mx-auto"
-          style={{
-            color: "#a9b495",
-            fontSize: 12,
-            letterSpacing: "0.18em",
-            maxWidth: 380,
-            marginBottom: 28,
-          }}
-        >
-          The hands that lit the lanterns
-        </p>
-
-        <div className="flex items-center gap-3 mb-5 max-w-md mx-auto">
-          <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, rgba(232,200,88,0.35))" }} />
-          <span
-            className="font-fantasy text-[10px] tracking-widest"
-            style={{ color: "#c8a93a", letterSpacing: "0.28em" }}
-          >
-            THE LANTERN BEARERS
-          </span>
-          <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, rgba(232,200,88,0.35), transparent)" }} />
-        </div>
 
         {isLoading ? (
           <div className="flex flex-col gap-2 max-w-md mx-auto" data-testid="founders-loading">
@@ -403,7 +380,16 @@ export default function FoundersPage() {
             .filter(g => g.members.length > 0);
 
           return (
-            <div className="max-w-2xl mx-auto" data-testid="founders-list">
+            <div
+              className="max-w-2xl mx-auto rounded-2xl px-5 py-6"
+              data-testid="founders-list"
+              style={{
+                background: "rgba(4,10,6,0.60)",
+                backdropFilter: "blur(6px)",
+                border: "1px solid rgba(232,200,88,0.12)",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.55)",
+              }}
+            >
               {grouped.map((group, gi) => {
                 const prev = gi > 0 ? grouped[gi - 1] : null;
                 return (

@@ -1288,9 +1288,6 @@ function ContributionLeaderboard() {
           style={{ color: "#d4a843", textShadow: "0 0 18px rgba(212,168,67,0.45)", letterSpacing: "0.2em" }}>
           Realm Benefactors
         </h2>
-        <p className="font-fantasy text-[10px] tracking-widest" style={{ color: "rgba(212,168,67,0.4)" }}>
-          Top supporters of Para Pets
-        </p>
       </div>
 
       <div
