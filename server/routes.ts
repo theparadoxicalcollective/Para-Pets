@@ -2865,7 +2865,7 @@ export async function registerRoutes(
         if (err.code === '23505') {
           const u = await storage.getUser(user.id);
           const { password: _, ...safeU } = u!;
-          return res.json({ alreadyCredited: true, coins, user: safeU });
+          return res.json({ alreadyCredited: true, coins: awardedCoins, user: safeU });
         }
         throw err;
       }

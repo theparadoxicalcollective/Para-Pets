@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { playShopBell } from "@/lib/sounds";
-import { useLocation, useSearch } from "wouter";
+import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -174,31 +174,100 @@ const fireflies = [
 
 export default function CoinShopPage({ user }: CoinShopProps) {
   const [, navigate] = useLocation();
-  const searchString = useSearch();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
   const [buyingPackId, setBuyingPackId] = useState<string | null>(null);
-  // Guard: prevents the verify effect from running more than once per page load
-  // (wouter v3 patches replaceState so the effect can re-fire after URL cleanup).
-  const verifiedRef = useRef(false);
   const orbTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  // Initialise to true synchronously so the overlay shows on the very first render
-  // when the player is redirected back from Stripe — no flash of the coin shop.
-  const [verifying, setVerifying] = useState(() => {
+
+  // Read Stripe return params ONCE from the real URL — before wouter or replaceState
+  // can mutate location. Never use useSearch() here: wouter patches replaceState and
+  // would re-trigger a reactive effect every time we clean the URL.
+  const [stripeSessionId] = useState<string | null>(() => {
     const p = new URLSearchParams(window.location.search);
-    return p.get("success") === "true" && !!p.get("session_id");
+    return p.get("success") === "true" ? p.get("session_id") : null;
   });
+  const [stripeWasCanceled] = useState(() => {
+    return new URLSearchParams(window.location.search).get("canceled") === "true";
+  });
+
+  // Show the blocking overlay immediately if we're returning from a paid Stripe session.
+  const [verifying, setVerifying] = useState(() => !!stripeSessionId);
   const [successCoins, setSuccessCoins] = useState<number | null>(null);
   const [showCanceled, setShowCanceled] = useState(false);
+
+  // Guard: runs once even in React StrictMode (double-invoke)
+  const verifiedRef = useRef(false);
 
   // Keep local coin display in sync when parent re-fetches updated user data
   useEffect(() => { setCurrentUser(user); }, [user]);
 
-  // Cancel any pending orb animation timers when the page unmounts
+  // Cancel orb timers on unmount
   useEffect(() => {
     return () => { orbTimersRef.current.forEach(clearTimeout); };
+  }, []);
+
+  // Handle Stripe cancel — show a brief toast, clean URL
+  useEffect(() => {
+    if (!stripeWasCanceled) return;
+    window.history.replaceState({}, "", "/coins");
+    setShowCanceled(true);
+    const t = setTimeout(() => setShowCanceled(false), 4000);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Verify payment — runs exactly once on mount.
+  // A 12-second timeout unblocks the UI in case of a slow or dropped connection.
+  useEffect(() => {
+    if (!stripeSessionId) return;
+    if (verifiedRef.current) return;
+    verifiedRef.current = true;
+
+    // Clean URL before any async work so re-renders never re-parse it
+    window.history.replaceState({}, "", "/coins");
+
+    const timeoutId = setTimeout(() => {
+      setVerifying(false);
+      toast({
+        title: "Taking longer than expected",
+        description: "Your coins should appear shortly. Refresh if they don't show up.",
+        variant: "destructive",
+      });
+    }, 12_000);
+
+    apiRequest("POST", "/api/coins/verify", { sessionId: stripeSessionId })
+      .then(res => res.json())
+      .then(data => {
+        clearTimeout(timeoutId);
+        if (data.user) {
+          setCurrentUser(data.user);
+          queryClient.setQueryData(["/api/auth/me"], data.user);
+        }
+        queryClient.invalidateQueries({ queryKey: ["/api/coins/packs"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/coins/progress"] });
+        if (data.credited || data.alreadyCredited) {
+          const coins = typeof data.coins === "number"
+            ? data.coins
+            : parseInt(String(data.coins ?? "0"), 10);
+          setSuccessCoins(isFinite(coins) ? coins : 0);
+          try { playShopBell(); } catch {}
+          try { burstGoldenOrbs(window.innerWidth / 2, window.innerHeight / 2); } catch {}
+          const t1 = setTimeout(() => { try { burstGoldenOrbs(window.innerWidth / 3, window.innerHeight / 3); } catch {} }, 300);
+          const t2 = setTimeout(() => { try { burstGoldenOrbs((window.innerWidth * 2) / 3, window.innerHeight / 3); } catch {} }, 500);
+          orbTimersRef.current = [t1, t2];
+        }
+        setVerifying(false);
+      })
+      .catch(() => {
+        clearTimeout(timeoutId);
+        setVerifying(false);
+        toast({
+          title: "Hmm, something went wrong",
+          description: "Your coins should arrive shortly. Contact support if they don't appear.",
+          variant: "destructive",
+        });
+      });
   }, []);
 
   const { data: packsData, isLoading } = useQuery<PacksResponse>({
@@ -273,60 +342,6 @@ export default function CoinShopPage({ user }: CoinShopProps) {
     },
   });
 
-  useEffect(() => {
-    const params = new URLSearchParams(searchString);
-    const success = params.get("success");
-    const sessionId = params.get("session_id");
-    const canceled = params.get("canceled");
-
-    if (canceled) {
-      setShowCanceled(true);
-      window.history.replaceState({}, "", "/coins");
-      setTimeout(() => setShowCanceled(false), 4000);
-      return;
-    }
-
-    if (success && sessionId) {
-      // Guard against double-fire caused by wouter patching replaceState
-      if (verifiedRef.current) return;
-      verifiedRef.current = true;
-
-      // Clean the URL FIRST — before any state change — so that if wouter
-      // re-runs this effect it sees no params and exits via the guard above.
-      window.history.replaceState({}, "", "/coins");
-
-      // verifying was already set true synchronously via useState initializer
-      apiRequest("POST", "/api/coins/verify", { sessionId })
-        .then(res => res.json())
-        .then(data => {
-          if (data.user) {
-            setCurrentUser(data.user);
-            // Optimistically push the fresh user into the cache so other pages
-            // see updated coins instantly — no flicker from a refetch.
-            queryClient.setQueryData(["/api/auth/me"], data.user);
-          }
-          // Refresh daily-spent counter and progress bar after purchase
-          queryClient.invalidateQueries({ queryKey: ["/api/coins/packs"] });
-          queryClient.invalidateQueries({ queryKey: ["/api/coins/progress"] });
-          if (data.credited || data.alreadyCredited) {
-            const coins = typeof data.coins === "number" ? data.coins : parseInt(String(data.coins ?? "0"), 10);
-            setSuccessCoins(isFinite(coins) ? coins : 0);
-            // Fire celebrations inline — not in a reactive effect — so they
-            // are guaranteed to run exactly once in the same microtask flush.
-            try { playShopBell(); } catch {}
-            try { burstGoldenOrbs(window.innerWidth / 2, window.innerHeight / 2); } catch {}
-            const t1 = setTimeout(() => { try { burstGoldenOrbs(window.innerWidth / 3, window.innerHeight / 3); } catch {} }, 300);
-            const t2 = setTimeout(() => { try { burstGoldenOrbs((window.innerWidth * 2) / 3, window.innerHeight / 3); } catch {} }, 500);
-            // Store refs so unmount can cancel them
-            orbTimersRef.current = [t1, t2];
-          }
-        })
-        .catch(() => {
-          toast({ title: "Hmm, something went wrong", description: "Your coins should arrive shortly. Contact support if they don't appear.", variant: "destructive" });
-        })
-        .finally(() => setVerifying(false));
-    }
-  }, [searchString]);
 
   const handleBuy = (packId: string) => {
     setBuyingPackId(packId);
@@ -890,6 +905,26 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             willChange: "opacity",
           }}
         >
+          {/* Escape hatch — always tappable even if the API call hangs */}
+          <button
+            data-testid="button-skip-verify"
+            onClick={() => setVerifying(false)}
+            style={{
+              position: "absolute", top: 20, right: 20,
+              width: 36, height: 36,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: "rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              borderRadius: "50%",
+              color: "rgba(255,255,255,0.4)",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+            }}
+            aria-label="Close"
+          >
+            <X size={14} />
+          </button>
+
           <img
             src={coinIconImg}
             alt=""
