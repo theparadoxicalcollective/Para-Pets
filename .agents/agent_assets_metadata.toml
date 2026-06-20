@@ -900,6 +900,132 @@ uri = "file://attached_assets/bg_soul_pond.png"
 type = "image"
 title = "soul pond haunted mystical quest location"
 
+[[generated]]
+id = "Mjwm7jLk7EPE5LTp240N5"
+uri = "file://attached_assets/gift_haunted_1.png"
+type = "image"
+title = "Phantom Petal"
+
+[[generated]]
+id = "BLQhaFDTa6hujGuieCqMB"
+uri = "file://attached_assets/gift_haunted_2.png"
+type = "image"
+title = "Skull Candy"
+
+[[generated]]
+id = "S2YY6FM8CIHBYR7f14Dwr"
+uri = "file://attached_assets/gift_haunted_3.png"
+type = "image"
+title = "Witch Brew Flask"
+
+[[generated]]
+id = "6k04nXNOi_JFP-N53Zl6w"
+uri = "file://attached_assets/gift_haunted_4.png"
+type = "image"
+title = "Gloom Mushroom"
+
+[[generated]]
+id = "_RTN1qEadJ9YgAh8CtMXK"
+uri = "file://attached_assets/gift_haunted_5.png"
+type = "image"
+title = "Haunted Acorn"
+
+[[generated]]
+id = "vujU48ryKQ6EWxjtU_4ia"
+uri = "file://attached_assets/gift_haunted_6.png"
+type = "image"
+title = "Spirit Candle"
+
+[[generated]]
+id = "HxKIBv17V_I_AKXj6ASVf"
+uri = "file://attached_assets/gift_haunted_7.png"
+type = "image"
+title = "Banshee Tear"
+
+[[generated]]
+id = "cmymcKBNa_kUNrW0CPCxh"
+uri = "file://attached_assets/gift_haunted_8.png"
+type = "image"
+title = "Cursed Berry"
+
+[[generated]]
+id = "oUR3QTfpXdMBzemHrau5i"
+uri = "file://attached_assets/gift_haunted_9.png"
+type = "image"
+title = "Moonshroom Spore"
+
+[[generated]]
+id = "FGcN67ZX-BOV_FTcTmwQy"
+uri = "file://attached_assets/gift_haunted_10.png"
+type = "image"
+title = "Shadow Ribbon"
+
+[[generated]]
+id = "HTlt-nNhh7z4NiTZm8ZZA"
+uri = "file://attached_assets/gift_haunted_11.png"
+type = "image"
+title = "Graveyard Moss"
+
+[[generated]]
+id = "1mAVrkmS6AGpDI4tasY4j"
+uri = "file://attached_assets/gift_haunted_12.png"
+type = "image"
+title = "Raven Feather"
+
+[[generated]]
+id = "L7x-zw1xi2K-pcdCFZ6p8"
+uri = "file://attached_assets/gift_haunted_13.png"
+type = "image"
+title = "Soul Wisp Jar"
+
+[[generated]]
+id = "IsjAyjij3NLlaE7FfJNMv"
+uri = "file://attached_assets/gift_haunted_14.png"
+type = "image"
+title = "Cobweb Treat"
+
+[[generated]]
+id = "IM_erMKGc_veCa0RTdKom"
+uri = "file://attached_assets/gift_haunted_15.png"
+type = "image"
+title = "Spectral Bone"
+
+[[generated]]
+id = "FUCTJyEXEGvTLq4fK6E4L"
+uri = "file://attached_assets/acc_haunted_1.png"
+type = "image"
+title = "acc Crown of Phantoms"
+
+[[generated]]
+id = "AbO0NbH-F3alopr_sOvPP"
+uri = "file://attached_assets/acc_haunted_2.png"
+type = "image"
+title = "acc Veil of Shadows"
+
+[[generated]]
+id = "_ee6-376gCNJ2TV7ESXnS"
+uri = "file://attached_assets/acc_haunted_3.png"
+type = "image"
+title = "acc Cursed Collar"
+
+[[generated]]
+id = "JQ_h8X0dUcM8vDD8cA2W6"
+uri = "file://attached_assets/acc_haunted_4.png"
+type = "image"
+title = "acc Phantom Wing Clips"
+
+[[generated]]
+id = "GK7AGGkjnK9AWZQcXsRcm"
+uri = "file://attached_assets/acc_haunted_5.png"
+type = "image"
+title = "acc Hex Charm Bracelet"
+
+[[generated]]
+id = "Q9Ugh9cD9TTIdaW1QNorP"
+uri = "file://attached_assets/acc_haunted_6.png"
+type = "image"
+title = "Specter's Eyepatch"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

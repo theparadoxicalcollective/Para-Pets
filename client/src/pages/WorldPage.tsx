@@ -1572,6 +1572,10 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           0%, 100% { opacity: 0.5; transform: scale(1); }
           50% { opacity: 1; transform: scale(1.05); }
         }
+        @keyframes locGlowPulse {
+          0%, 100% { opacity: 0.18; transform: scale(0.80); }
+          50% { opacity: 0.62; transform: scale(1.10); }
+        }
         @keyframes ffloat0 {
           0%,100% { transform: translate(0,0) scale(1); opacity: 0.7; }
           25% { transform: translate(5px,-9px) scale(1.15); opacity: 1; }
@@ -1939,6 +1943,19 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                       onPointerDown={(e) => handlePointerDown(e, loc)}
                     >
                       <div className="relative w-full" style={{ aspectRatio: "1", pointerEvents: "none" }}>
+                        {/* Pulsing glow orb behind icon — all location types */}
+                        {(loc.iconUrl || (loc.type === "fishing" && !loc.isShop)) && (
+                          <div
+                            className="absolute inset-0 pointer-events-none"
+                            style={{
+                              background: `radial-gradient(circle, ${glow}45 0%, ${glow}18 45%, transparent 70%)`,
+                              animation: `locGlowPulse ${2.6 + (i * 0.31) % 1.2}s ease-in-out infinite`,
+                              animationDelay: `${(i * 0.38) % 2.2}s`,
+                              borderRadius: "50%",
+                              zIndex: 0,
+                            }}
+                          />
+                        )}
                         {(loc.iconUrl || (loc.type === "fishing" && !loc.isShop && worldId === "volcanic")) ? (
                           <div
                             className="w-full h-full"

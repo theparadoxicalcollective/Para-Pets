@@ -985,6 +985,87 @@ app.use((req, res, next) => {
     console.error("Gift items seed error (non-fatal):", err);
   }
 
+  // ── Seed: Haunted Woods Gift Items ────────────────────────────────────────────
+  try {
+    const hauntedGiftDefs = [
+      { id: "gift-hw01-0000-0000-000000000001", name: "Phantom Petal",     file: "gift_haunted_1.png",  price: 80,  giftPoints: 25 },
+      { id: "gift-hw01-0000-0000-000000000002", name: "Skull Candy",       file: "gift_haunted_2.png",  price: 90,  giftPoints: 30 },
+      { id: "gift-hw01-0000-0000-000000000003", name: "Witch's Brew Flask", file: "gift_haunted_3.png",  price: 120, giftPoints: 40 },
+      { id: "gift-hw01-0000-0000-000000000004", name: "Gloom Mushroom",    file: "gift_haunted_4.png",  price: 60,  giftPoints: 20 },
+      { id: "gift-hw01-0000-0000-000000000005", name: "Haunted Acorn",     file: "gift_haunted_5.png",  price: 50,  giftPoints: 15 },
+      { id: "gift-hw01-0000-0000-000000000006", name: "Spirit Candle",     file: "gift_haunted_6.png",  price: 100, giftPoints: 35 },
+      { id: "gift-hw01-0000-0000-000000000007", name: "Banshee's Tear",    file: "gift_haunted_7.png",  price: 140, giftPoints: 45 },
+      { id: "gift-hw01-0000-0000-000000000008", name: "Cursed Berry",      file: "gift_haunted_8.png",  price: 65,  giftPoints: 20 },
+      { id: "gift-hw01-0000-0000-000000000009", name: "Moonshroom Spore",  file: "gift_haunted_9.png",  price: 75,  giftPoints: 25 },
+      { id: "gift-hw01-0000-0000-000000000010", name: "Shadow Ribbon",     file: "gift_haunted_10.png", price: 95,  giftPoints: 30 },
+      { id: "gift-hw01-0000-0000-000000000011", name: "Graveyard Moss",    file: "gift_haunted_11.png", price: 60,  giftPoints: 20 },
+      { id: "gift-hw01-0000-0000-000000000012", name: "Raven Feather",     file: "gift_haunted_12.png", price: 110, giftPoints: 35 },
+      { id: "gift-hw01-0000-0000-000000000013", name: "Soul Wisp Jar",     file: "gift_haunted_13.png", price: 150, giftPoints: 50 },
+      { id: "gift-hw01-0000-0000-000000000014", name: "Cobweb Treat",      file: "gift_haunted_14.png", price: 80,  giftPoints: 25 },
+      { id: "gift-hw01-0000-0000-000000000015", name: "Spectral Bone",     file: "gift_haunted_15.png", price: 125, giftPoints: 40 },
+    ];
+    for (const g of hauntedGiftDefs) {
+      const assetPath = path.join(process.cwd(), "attached_assets", g.file);
+      const v = fs.existsSync(assetPath) ? Math.floor(fs.statSync(assetPath).mtimeMs / 1000) : 0;
+      const imgUrl = v > 0 ? `/world-assets/${g.file}?v=${v}` : null;
+      await db.execute(sql`
+        INSERT INTO shop_items (
+          id, name, price, type, world_id, location_id,
+          image_url, gift_points, is_sea_animal, shop_pos_x, shop_pos_y, shop_width
+        ) VALUES (
+          ${g.id}, ${g.name}, ${g.price}, 'gift', 'haunted_woods', NULL,
+          ${imgUrl}, ${g.giftPoints}, false, 50, 50, 72
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          name        = ${g.name},
+          price       = ${g.price},
+          image_url   = COALESCE(${imgUrl}, shop_items.image_url),
+          gift_points = ${g.giftPoints}
+      `);
+    }
+    console.log("Haunted Woods gift items seeded (15).");
+  } catch (err) {
+    console.error("Haunted Woods gift items seed error (non-fatal):", err);
+  }
+
+  // ── Seed: Haunted Woods Accessories ──────────────────────────────────────────
+  try {
+    const hauntedAccDefs = [
+      { id: "acc-hw01-0000-0000-000000000001", name: "Crown of Phantoms",    file: "acc_haunted_1.png", price: 650, atkBoost: 15, defBoost: 0,  healthBoost: 40 },
+      { id: "acc-hw01-0000-0000-000000000002", name: "Veil of Shadows",      file: "acc_haunted_2.png", price: 550, atkBoost: 0,  defBoost: 25, healthBoost: 25 },
+      { id: "acc-hw01-0000-0000-000000000003", name: "Cursed Collar",        file: "acc_haunted_3.png", price: 600, atkBoost: 30, defBoost: 10, healthBoost: 0  },
+      { id: "acc-hw01-0000-0000-000000000004", name: "Phantom Wing Clips",   file: "acc_haunted_4.png", price: 700, atkBoost: 20, defBoost: 20, healthBoost: 0  },
+      { id: "acc-hw01-0000-0000-000000000005", name: "Hex Charm Bracelet",   file: "acc_haunted_5.png", price: 750, atkBoost: 15, defBoost: 15, healthBoost: 20 },
+      { id: "acc-hw01-0000-0000-000000000006", name: "Specter's Eyepatch",   file: "acc_haunted_6.png", price: 600, atkBoost: 35, defBoost: 0,  healthBoost: 15 },
+    ];
+    for (const a of hauntedAccDefs) {
+      const assetPath = path.join(process.cwd(), "attached_assets", a.file);
+      const v = fs.existsSync(assetPath) ? Math.floor(fs.statSync(assetPath).mtimeMs / 1000) : 0;
+      const imgUrl = v > 0 ? `/world-assets/${a.file}?v=${v}` : null;
+      await db.execute(sql`
+        INSERT INTO shop_items (
+          id, name, price, type, world_id, location_id,
+          image_url, atk_boost, def_boost, health_boost,
+          is_sea_animal, shop_pos_x, shop_pos_y, shop_width
+        ) VALUES (
+          ${a.id}, ${a.name}, ${a.price}, 'accessory', 'haunted_woods', NULL,
+          ${imgUrl}, ${a.atkBoost}, ${a.defBoost}, ${a.healthBoost},
+          false, 50, 50, 72
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          name         = ${a.name},
+          price        = ${a.price},
+          image_url    = COALESCE(${imgUrl}, shop_items.image_url),
+          atk_boost    = ${a.atkBoost},
+          def_boost    = ${a.defBoost},
+          health_boost = ${a.healthBoost}
+      `);
+    }
+    console.log("Haunted Woods accessories seeded (6).");
+  } catch (err) {
+    console.error("Haunted Woods accessories seed error (non-fatal):", err);
+  }
+
   try {
     console.log('Initializing Stripe...');
     const databaseUrl = process.env.DATABASE_URL;
@@ -1097,6 +1178,11 @@ app.use((req, res, next) => {
     "c3d4e5f6-0004-4000-8000-000000000004": "bg_shop_bookshop_volcanic.png",
     "c3d4e5f6-0006-4000-8000-000000000006": "bg_shop_food_volcanic.png",
     "a1b2c3d4-0010-4000-8000-000000000010": "bg_shop_food_swamp.png",
+    // Haunted Woods locations
+    "e2f3a4b5-0001-4000-8000-000000000001": "bg_spectral_grove.png",
+    "e2f3a4b5-0002-4000-8000-000000000002": "bg_cauldrons_creep_v2.png",
+    "e2f3a4b5-0003-4000-8000-000000000003": "bg_soul_pond_v2.png",
+    "e2f3a4b5-0004-4000-8000-000000000004": "bg_haunted_menagerie_v2.png",
   };
   for (const [locId, bgFile] of Object.entries(LOC_BG_ALWAYS_REFRESH)) {
     try {
@@ -2764,6 +2850,18 @@ app.use((req, res, next) => {
     }
   } catch (err) {
     console.error("Haunted Woods location seed error (non-fatal):", err);
+  }
+
+  // ── Haunted Woods: ensure all 4 locations have the correct purple glow color ──
+  try {
+    await db.execute(sql`
+      UPDATE world_locations
+      SET glow_color = '#8b008b'
+      WHERE world_id = 'haunted_woods'
+        AND (glow_color IS NULL OR glow_color != '#8b008b')
+    `);
+  } catch (err) {
+    console.error("Haunted Woods glow color fix error (non-fatal):", err);
   }
 
   // ── Soul Pond: rename Phantom Hollow → Soul Pond, change type to quest, update bg ──
