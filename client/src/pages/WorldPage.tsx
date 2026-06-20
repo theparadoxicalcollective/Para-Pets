@@ -1260,11 +1260,16 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     const d = dragRef.current;
     dragRef.current = null;
     if (didDrag.current && dragPos) {
-      // Only suppress the click when we actually dragged (otherwise let it fire for double-tap-to-open)
+      // Suppress the click that fires synchronously after pointerup — keep didDrag true
+      // until after click fires, then clear. Also clear the double-tap ref so the next
+      // touch starts a fresh first-tap selection (not an accidental openLocation).
       e.preventDefault();
+      if (adminLocTapRef.current) { clearTimeout(adminLocTapRef.current.timer); adminLocTapRef.current = null; }
       positionMutation.mutate({ locationId: d.locId, posX: dragPos.x, posY: dragPos.y });
+      setTimeout(() => { didDrag.current = false; }, 50);
+    } else {
+      didDrag.current = false;
     }
-    didDrag.current = false;
     setDragPos(null);
   }, [dragPos, positionMutation]);
 
