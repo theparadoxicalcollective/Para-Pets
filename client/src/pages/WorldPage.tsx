@@ -202,7 +202,7 @@ const WORLD_FIXED_MAP_H: Record<string, number> = {
   snowy_mountain:  1980, // bg_snowy_mountain_map.webp 768×1408
   sky_realm:       1980, // bg_sky_realm_map.webp 768×1408
   volcanic:        1619, // bg_volcanic_map_v2.jpeg 843×1264 — natural at MAP_W=1080
-  haunted_woods:    760, // bg_haunted_woods_v2.png — landscape: fits mobile height, scrolls left-right
+  haunted_woods:   1980, // bg_haunted_woods_map.webp 768×1408
   enchanted_grove: 1980, // bg_enchanted_grove_map.webp 768×1408
   island:          1980, // bg_island_map.webp 768×1408
   desert:          1980, // bg_desert_map.webp 768×1408
@@ -2026,12 +2026,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                                     width: b.size,
                                     height: b.size,
                                     borderRadius: "50%",
-                                    background: worldId === "volcanic"
-                                      ? "radial-gradient(circle at 35% 30%, rgba(254,215,170,0.45), rgba(251,146,60,0.18))"
-                                      : "radial-gradient(circle at 35% 30%, rgba(204,251,241,0.35), rgba(45,212,191,0.12))",
-                                    border: worldId === "volcanic"
-                                      ? "0.5px solid rgba(252,165,90,0.35)"
-                                      : "0.5px solid rgba(153,246,228,0.25)",
+                                    background: `radial-gradient(circle at 35% 30%, ${glow}88, ${glow}30)`,
+                                    border: `0.5px solid ${glow}55`,
                                     animation: `fishBubbleRise ${b.dur} ease-in-out ${b.delay} infinite`,
                                     willChange: "transform, opacity",
                                     pointerEvents: "none",

@@ -2864,6 +2864,30 @@ app.use((req, res, next) => {
     console.error("Haunted Woods glow color fix error (non-fatal):", err);
   }
 
+  // ── Volcanic: fishing spots get fire red-orange glow ──
+  try {
+    await db.execute(sql`
+      UPDATE world_locations
+      SET glow_color = '#f97316'
+      WHERE world_id = 'volcanic' AND type = 'fishing' AND is_shop = false
+    `);
+    console.log("Volcanic fishing spots: glow color set to fire orange.");
+  } catch (err) {
+    console.error("Volcanic fishing glow fix error (non-fatal):", err);
+  }
+
+  // ── Swamp/Bayou: unified dark blue-green glow for all locations ──
+  try {
+    await db.execute(sql`
+      UPDATE world_locations
+      SET glow_color = '#0e7490'
+      WHERE world_id = 'swamp'
+    `);
+    console.log("Swamp locations: glow color set to dark blue-green.");
+  } catch (err) {
+    console.error("Swamp glow fix error (non-fatal):", err);
+  }
+
   // ── Soul Pond: rename Phantom Hollow → Soul Pond, change type to quest, update bg ──
   // Idempotent: runs always but WHERE clause guards against overwriting admin edits
   try {
