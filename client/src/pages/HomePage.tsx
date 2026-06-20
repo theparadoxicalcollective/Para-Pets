@@ -25,6 +25,7 @@ import UserProfilePanel from "@/components/UserProfilePanel";
 import PetAnimator from "@/components/PetAnimator";
 import PetPowerUpModal, { PowerUpItem } from "@/components/PetPowerUpModal";
 import PowerUpOverlay from "@/components/PowerUpOverlay";
+import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 interface HomePageProps {
   user: {
@@ -133,6 +134,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   }, []);
   const [activePetModal, setActivePetModal] = useState<"power_up" | "level_up" | null>(null);
   const [powerUpFromQuest, setPowerUpFromQuest] = useState(false);
+  const [questGuideMode, setQuestGuideMode] = useState<"powerup" | "feed" | null>(null);
   const [petModalSuccess, setPetModalSuccess] = useState<{ type: "stat" | "level" | "hatch"; label: string } | null>(null);
   // Keep last known activePet so modals don't unmount mid-action
   // when inventory refetches and activePetId hasn't been migrated yet.
@@ -181,6 +183,16 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       window.history.replaceState({}, "", "/");
       setPowerUpFromQuest(true);
       setActivePetModal("power_up");
+    }
+  }, [searchString]);
+
+  // Quest guided arrow — activated by "Go" on Power Up / Feed Pet quests
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const hint = params.get("questHint");
+    if (hint === "powerup" || hint === "feed") {
+      window.history.replaceState({}, "", "/");
+      setQuestGuideMode(hint as "powerup" | "feed");
     }
   }, [searchString]);
 
@@ -1390,7 +1402,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                     "button-action-power-up",
                     { left: "36%", top: "1%", width: "26%", height: "23%" },
                     "#4ade80",
-                    () => { setShowActionMenu(false); setActivePetModal("power_up"); },
+                    () => { setShowActionMenu(false); setActivePetModal("power_up"); setQuestGuideMode(null); },
                   )}
                   {makeBtn(
                     "Pet Stats",
@@ -1421,12 +1433,47 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                     "#f472b6",
                     () => {
                       setShowActionMenu(false);
+                      setQuestGuideMode(null);
                       const id = activePetForModal?.inventoryId;
-                      // Care/Feed lives at its own real route now so the page
-                      // sits above the FloatingNav's stacking context and can
-                      // be linked/refreshed/back-navigated cleanly.
                       navigate(id ? `/pet-care/${encodeURIComponent(id)}` : "/pet-house");
                     },
+                  )}
+                  {/* Quest guide arrow — Phase 2: ring is open, point at the target button */}
+                  {questGuideMode === "powerup" && (
+                    <img
+                      src={questArrowImg}
+                      alt=""
+                      style={{
+                        position: "absolute",
+                        left: "46%",
+                        top: "-20%",
+                        transform: "translateX(-50%)",
+                        width: 40,
+                        height: 52,
+                        pointerEvents: "none",
+                        zIndex: 300,
+                        animation: "quest-arrow-bob 1.3s ease-in-out infinite",
+                        filter: "drop-shadow(0 0 10px rgba(50,220,50,0.95)) drop-shadow(0 0 24px rgba(50,220,50,0.6))",
+                      }}
+                    />
+                  )}
+                  {questGuideMode === "feed" && (
+                    <img
+                      src={questArrowImg}
+                      alt=""
+                      style={{
+                        position: "absolute",
+                        left: "46%",
+                        top: "22%",
+                        transform: "translateX(-50%)",
+                        width: 40,
+                        height: 52,
+                        pointerEvents: "none",
+                        zIndex: 300,
+                        animation: "quest-arrow-bob 1.3s ease-in-out infinite",
+                        filter: "drop-shadow(0 0 10px rgba(50,220,50,0.95)) drop-shadow(0 0 24px rgba(50,220,50,0.6))",
+                      }}
+                    />
                   )}
                 </>
               );
@@ -1438,6 +1485,28 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             {/* original menu intentionally hidden */}
           </div>
         </div>
+      )}
+
+      {/* ── Quest guide arrow — Phase 1: ring closed, points at the pet ── */}
+      {questGuideMode && !showActionMenu && (
+        <>
+          <style>{`@keyframes quest-arrow-bob { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-8px)} }`}</style>
+          <img
+            src={questArrowImg}
+            alt=""
+            style={{
+              position: "fixed",
+              bottom: "44%",
+              left: "50%",
+              width: 48,
+              height: 60,
+              pointerEvents: "none",
+              zIndex: 600,
+              animation: "quest-arrow-bob 1.3s ease-in-out infinite",
+              filter: "drop-shadow(0 0 10px rgba(50,220,50,0.95)) drop-shadow(0 0 24px rgba(50,220,50,0.6))",
+            }}
+          />
+        </>
       )}
 
       {/* ── Pet stats page (opened from the ring's left button) ── */}

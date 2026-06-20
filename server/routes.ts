@@ -8097,7 +8097,7 @@ export async function registerRoutes(
           ON p.quest_key = q.quest_key AND p.user_id = ${user.id} AND p.quest_date = ${date}
         LEFT JOIN shop_items si ON si.id = q.reward_item_id
         WHERE q.is_active = true
-        ORDER BY q.quest_key
+        ORDER BY CASE q.quest_key WHEN 'use_powerup' THEN 1 WHEN 'feed_pet' THEN 2 WHEN 'catch_fish' THEN 3 WHEN 'play_molten_blocks' THEN 4 WHEN 'sell_fish' THEN 5 ELSE 99 END
       `);
       const stateRes = await db.execute(sql`
         SELECT last_opened_date, has_unseen_completion FROM user_quest_log_state WHERE user_id = ${user.id}
@@ -8201,7 +8201,7 @@ export async function registerRoutes(
         SELECT q.*, si.name AS reward_item_name, si.image_url AS reward_item_image
         FROM daily_quests q
         LEFT JOIN shop_items si ON si.id = q.reward_item_id
-        ORDER BY q.quest_key
+        ORDER BY CASE q.quest_key WHEN 'use_powerup' THEN 1 WHEN 'feed_pet' THEN 2 WHEN 'catch_fish' THEN 3 WHEN 'play_molten_blocks' THEN 4 WHEN 'sell_fish' THEN 5 ELSE 99 END
       `);
       return res.json(questsRes.rows);
     } catch (err) {
