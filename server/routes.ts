@@ -2802,7 +2802,7 @@ export async function registerRoutes(
       const awardedCoins = Math.round(coins * 1.33);
       let updatedUser;
       try {
-        await storage.createCoinPurchase(user.id, amountUsd, coins, sessionId);
+        await storage.createCoinPurchase(user.id, amountUsd, awardedCoins, sessionId);
         // addCoins returns the updated user — avoid an extra round-trip
         // Award 33% bonus on top of the base pack coins.
         updatedUser = await storage.addCoins(user.id, awardedCoins);

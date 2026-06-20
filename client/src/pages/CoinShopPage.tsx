@@ -305,8 +305,9 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             // see updated coins instantly — no flicker from a refetch.
             queryClient.setQueryData(["/api/auth/me"], data.user);
           }
-          // Refresh daily-spent counter in the background (non-blocking)
+          // Refresh daily-spent counter and progress bar after purchase
           queryClient.invalidateQueries({ queryKey: ["/api/coins/packs"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/coins/progress"] });
           if (data.credited || data.alreadyCredited) {
             const coins = typeof data.coins === "number" ? data.coins : parseInt(String(data.coins ?? "0"), 10);
             setSuccessCoins(isFinite(coins) ? coins : 0);
