@@ -2886,6 +2886,29 @@ app.use((req, res, next) => {
     console.error("Soul Pond migration error (non-fatal):", err);
   }
 
+  // ── Haunted Woods bg final pass — must run AFTER Soul Pond migration ──
+  // LOC_BG_ALWAYS_REFRESH runs early (line ~1167), but Soul Pond migration can
+  // overwrite bg_url with base64. This block has the final word every restart.
+  try {
+    const hwBgFinal: Record<string, string> = {
+      "e2f3a4b5-0001-4000-8000-000000000001": "bg_spectral_grove.png",
+      "e2f3a4b5-0002-4000-8000-000000000002": "bg_cauldrons_creep_v2.png",
+      "e2f3a4b5-0003-4000-8000-000000000003": "bg_soul_pond_v2.png",
+      "e2f3a4b5-0004-4000-8000-000000000004": "bg_haunted_menagerie_v2.png",
+    };
+    for (const [locId, bgFile] of Object.entries(hwBgFinal)) {
+      const assetPath = path.join(process.cwd(), "attached_assets", bgFile);
+      if (!fs.existsSync(assetPath)) { console.warn(`HW bg final: ${bgFile} not found, skipping ${locId}`); continue; }
+      const mtime = fs.statSync(assetPath).mtimeMs;
+      const v = Math.floor(mtime / 1000);
+      const bgUrl = `/world-assets/${bgFile}?v=${v}`;
+      await db.execute(sql`UPDATE world_locations SET bg_url = ${bgUrl} WHERE id = ${locId}`);
+      console.log(`HW bg final: set ${bgFile} for ${locId}`);
+    }
+  } catch (err) {
+    console.error("Haunted Woods bg final pass error (non-fatal):", err);
+  }
+
   // Migrate all remaining base64 image URLs to media_blobs (idempotent: skips non-base64 values)
   try {
     async function migrateBase64Column(table: string, idCol: string, imgCol: string): Promise<number> {

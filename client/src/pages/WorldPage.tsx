@@ -1576,6 +1576,10 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           0%, 100% { opacity: 0.18; transform: scale(0.80); }
           50% { opacity: 0.62; transform: scale(1.10); }
         }
+        @keyframes locGlowRimPulse {
+          0%, 100% { opacity: 0.15; }
+          50% { opacity: 0.80; }
+        }
         @keyframes ffloat0 {
           0%,100% { transform: translate(0,0) scale(1); opacity: 0.7; }
           25% { transform: translate(5px,-9px) scale(1.15); opacity: 1; }
@@ -1953,6 +1957,20 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                               animationDelay: `${(i * 0.38) % 2.2}s`,
                               borderRadius: "50%",
                               zIndex: 0,
+                            }}
+                          />
+                        )}
+                        {/* Animated rim glow — pulses dim→bright, staggered per location */}
+                        {(loc.iconUrl || (loc.type === "fishing" && !loc.isShop)) && (
+                          <div
+                            className="absolute pointer-events-none"
+                            style={{
+                              inset: "-10px",
+                              borderRadius: "20%",
+                              boxShadow: `0 0 18px 5px ${glow}cc, 0 0 36px 10px ${glow}44`,
+                              animation: `locGlowRimPulse ${3.0 + (i * 0.41) % 1.6}s ease-in-out infinite`,
+                              animationDelay: `${(i * 0.57) % 2.8}s`,
+                              zIndex: 1,
                             }}
                           />
                         )}
