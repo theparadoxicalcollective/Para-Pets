@@ -904,85 +904,85 @@ title = "soul pond haunted mystical quest location"
 id = "Mjwm7jLk7EPE5LTp240N5"
 uri = "file://attached_assets/gift_haunted_1.png"
 type = "image"
-title = "Phantom Petal"
+title = "gift_haunted_1.png"
 
 [[generated]]
 id = "BLQhaFDTa6hujGuieCqMB"
 uri = "file://attached_assets/gift_haunted_2.png"
 type = "image"
-title = "Skull Candy"
+title = "gift_haunted_2.png"
 
 [[generated]]
 id = "S2YY6FM8CIHBYR7f14Dwr"
 uri = "file://attached_assets/gift_haunted_3.png"
 type = "image"
-title = "Witch Brew Flask"
+title = "gift_haunted_3.png"
 
 [[generated]]
 id = "6k04nXNOi_JFP-N53Zl6w"
 uri = "file://attached_assets/gift_haunted_4.png"
 type = "image"
-title = "Gloom Mushroom"
+title = "gift_haunted_4.png"
 
 [[generated]]
 id = "_RTN1qEadJ9YgAh8CtMXK"
 uri = "file://attached_assets/gift_haunted_5.png"
 type = "image"
-title = "Haunted Acorn"
+title = "gift_haunted_5.png"
 
 [[generated]]
 id = "vujU48ryKQ6EWxjtU_4ia"
 uri = "file://attached_assets/gift_haunted_6.png"
 type = "image"
-title = "Spirit Candle"
+title = "gift_haunted_6.png"
 
 [[generated]]
 id = "HxKIBv17V_I_AKXj6ASVf"
 uri = "file://attached_assets/gift_haunted_7.png"
 type = "image"
-title = "Banshee Tear"
+title = "gift_haunted_7.png"
 
 [[generated]]
 id = "cmymcKBNa_kUNrW0CPCxh"
 uri = "file://attached_assets/gift_haunted_8.png"
 type = "image"
-title = "Cursed Berry"
+title = "gift_haunted_8.png"
 
 [[generated]]
 id = "oUR3QTfpXdMBzemHrau5i"
 uri = "file://attached_assets/gift_haunted_9.png"
 type = "image"
-title = "Moonshroom Spore"
+title = "gift_haunted_9.png"
 
 [[generated]]
 id = "FGcN67ZX-BOV_FTcTmwQy"
 uri = "file://attached_assets/gift_haunted_10.png"
 type = "image"
-title = "Shadow Ribbon"
+title = "gift_haunted_10.png"
 
 [[generated]]
 id = "HTlt-nNhh7z4NiTZm8ZZA"
 uri = "file://attached_assets/gift_haunted_11.png"
 type = "image"
-title = "Graveyard Moss"
+title = "gift_haunted_11.png"
 
 [[generated]]
 id = "1mAVrkmS6AGpDI4tasY4j"
 uri = "file://attached_assets/gift_haunted_12.png"
 type = "image"
-title = "Raven Feather"
+title = "gift_haunted_12.png"
 
 [[generated]]
 id = "L7x-zw1xi2K-pcdCFZ6p8"
 uri = "file://attached_assets/gift_haunted_13.png"
 type = "image"
-title = "Soul Wisp Jar"
+title = "gift_haunted_13.png"
 
 [[generated]]
 id = "IsjAyjij3NLlaE7FfJNMv"
 uri = "file://attached_assets/gift_haunted_14.png"
 type = "image"
-title = "Cobweb Treat"
+title = "gift_haunted_14.png"
 
 [[generated]]
 id = "IM_erMKGc_veCa0RTdKom"
@@ -994,37 +994,37 @@ title = "Spectral Bone"
 id = "FUCTJyEXEGvTLq4fK6E4L"
 uri = "file://attached_assets/acc_haunted_1.png"
 type = "image"
-title = "acc Crown of Phantoms"
+title = "acc_haunted_1.png"
 
 [[generated]]
 id = "AbO0NbH-F3alopr_sOvPP"
 uri = "file://attached_assets/acc_haunted_2.png"
 type = "image"
-title = "acc Veil of Shadows"
+title = "acc_haunted_2.png"
 
 [[generated]]
 id = "_ee6-376gCNJ2TV7ESXnS"
 uri = "file://attached_assets/acc_haunted_3.png"
 type = "image"
-title = "acc Cursed Collar"
+title = "acc_haunted_3.png"
 
 [[generated]]
 id = "JQ_h8X0dUcM8vDD8cA2W6"
 uri = "file://attached_assets/acc_haunted_4.png"
 type = "image"
-title = "acc Phantom Wing Clips"
+title = "acc_haunted_4.png"
 
 [[generated]]
 id = "GK7AGGkjnK9AWZQcXsRcm"
 uri = "file://attached_assets/acc_haunted_5.png"
 type = "image"
-title = "acc Hex Charm Bracelet"
+title = "acc_haunted_5.png"
 
 [[generated]]
 id = "Q9Ugh9cD9TTIdaW1QNorP"
 uri = "file://attached_assets/acc_haunted_6.png"
 type = "image"
-title = "Specter's Eyepatch"
+title = "acc_haunted_6.png"
 
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
