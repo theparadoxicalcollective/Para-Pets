@@ -1397,6 +1397,17 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               );
               return (
                 <>
+                  <style>{`
+                    @keyframes quest-sparkle-rise {
+                      0%   { transform: translateY(0) scale(1.1); opacity: 1; }
+                      100% { transform: translateY(-36px) scale(0.2); opacity: 0; }
+                    }
+                    @keyframes quest-btn-pulse {
+                      0%,100% { box-shadow: 0 0 8px 4px rgba(74,222,128,0.75), 0 0 20px 8px rgba(74,222,128,0.35); }
+                      50%     { box-shadow: 0 0 18px 8px rgba(74,222,128,1),    0 0 48px 16px rgba(74,222,128,0.55); }
+                    }
+                    @keyframes quest-arrow-bob { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-8px)} }
+                  `}</style>
                   {makeBtn(
                     "Power Up",
                     "button-action-power-up",
@@ -1438,42 +1449,96 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                       navigate(id ? `/pet-care/${encodeURIComponent(id)}` : "/pet-house");
                     },
                   )}
-                  {/* Quest guide arrow — Phase 2: ring is open, point at the target button */}
+                  {/* Quest guide sparkles + glow — Phase 2: highlight the target button */}
                   {questGuideMode === "powerup" && (
-                    <img
-                      src={questArrowImg}
-                      alt=""
-                      style={{
+                    <>
+                      {/* Pulsing glow border on Power Up button */}
+                      <div style={{
                         position: "absolute",
-                        left: "46%",
-                        top: "-20%",
-                        transform: "translateX(-50%)",
-                        width: 40,
-                        height: 52,
+                        left: "36%", top: "1%", width: "26%", height: "23%",
+                        borderRadius: 12,
                         pointerEvents: "none",
-                        zIndex: 300,
-                        animation: "quest-arrow-bob 1.3s ease-in-out infinite",
-                        filter: "drop-shadow(0 0 10px rgba(50,220,50,0.95)) drop-shadow(0 0 24px rgba(50,220,50,0.6))",
-                      }}
-                    />
+                        zIndex: 298,
+                        animation: "quest-btn-pulse 1.5s ease-in-out infinite",
+                      }}>
+                        {[0,1,2,3,4,5,6].map(i => (
+                          <span key={i} style={{
+                            position: "absolute",
+                            left: `${8 + i * 13}%`,
+                            bottom: "10%",
+                            width: 7,
+                            height: 7,
+                            borderRadius: "50%",
+                            background: i % 2 === 0 ? "#4ade80" : "#86efac",
+                            animation: `quest-sparkle-rise 1.1s ${i * 0.16}s ease-out infinite`,
+                            opacity: 0,
+                            pointerEvents: "none",
+                          }} />
+                        ))}
+                      </div>
+                      {/* Bouncing arrow */}
+                      <img
+                        src={questArrowImg}
+                        alt=""
+                        style={{
+                          position: "absolute",
+                          left: "46%",
+                          top: "-20%",
+                          transform: "translateX(-50%)",
+                          width: 40,
+                          height: 52,
+                          pointerEvents: "none",
+                          zIndex: 300,
+                          animation: "quest-arrow-bob 1.3s ease-in-out infinite",
+                          filter: "drop-shadow(0 0 10px rgba(50,220,50,0.95)) drop-shadow(0 0 24px rgba(50,220,50,0.6))",
+                        }}
+                      />
+                    </>
                   )}
                   {questGuideMode === "feed" && (
-                    <img
-                      src={questArrowImg}
-                      alt=""
-                      style={{
+                    <>
+                      {/* Pulsing glow border on Care/Feed button */}
+                      <div style={{
                         position: "absolute",
-                        left: "46%",
-                        top: "22%",
-                        transform: "translateX(-50%)",
-                        width: 40,
-                        height: 52,
+                        left: "29%", top: "31%", width: "42%", height: "40%",
+                        borderRadius: "50%",
                         pointerEvents: "none",
-                        zIndex: 300,
-                        animation: "quest-arrow-bob 1.3s ease-in-out infinite",
-                        filter: "drop-shadow(0 0 10px rgba(50,220,50,0.95)) drop-shadow(0 0 24px rgba(50,220,50,0.6))",
-                      }}
-                    />
+                        zIndex: 298,
+                        animation: "quest-btn-pulse 1.5s ease-in-out infinite",
+                      }}>
+                        {[0,1,2,3,4,5,6,7].map(i => (
+                          <span key={i} style={{
+                            position: "absolute",
+                            left: `${5 + i * 12}%`,
+                            bottom: "15%",
+                            width: 7,
+                            height: 7,
+                            borderRadius: "50%",
+                            background: i % 2 === 0 ? "#4ade80" : "#86efac",
+                            animation: `quest-sparkle-rise 1.1s ${i * 0.14}s ease-out infinite`,
+                            opacity: 0,
+                            pointerEvents: "none",
+                          }} />
+                        ))}
+                      </div>
+                      {/* Bouncing arrow */}
+                      <img
+                        src={questArrowImg}
+                        alt=""
+                        style={{
+                          position: "absolute",
+                          left: "46%",
+                          top: "22%",
+                          transform: "translateX(-50%)",
+                          width: 40,
+                          height: 52,
+                          pointerEvents: "none",
+                          zIndex: 300,
+                          animation: "quest-arrow-bob 1.3s ease-in-out infinite",
+                          filter: "drop-shadow(0 0 10px rgba(50,220,50,0.95)) drop-shadow(0 0 24px rgba(50,220,50,0.6))",
+                        }}
+                      />
+                    </>
                   )}
                 </>
               );
