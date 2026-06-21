@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { X, Send, ShieldAlert, BellOff, Bell, Users } from "lucide-react";
+import { X, Send, ShieldAlert, BellOff, Bell, Radio, Globe } from "lucide-react";
 import RoleBadge from "@/components/RoleBadge";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import veridianWatcherAvatar from "@assets/generated_images/veridian_watcher_avatar.png";
@@ -208,7 +208,7 @@ export default function WorldChatPanel({ currentUserId, isAdmin, isModerator, on
           data-testid="div-online-count"
         >
           <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#4ade80", boxShadow: "0 0 4px #4ade80" }} />
+            <Radio size={9} style={{ color: "rgba(74,222,128,0.7)" }} />
             <span style={{ fontSize: 9, color: "rgba(74,222,128,0.9)", fontFamily: "Lora, serif", letterSpacing: "0.12em" }}>
               <span className="font-bold" data-testid="text-online-total">{onlineData.total}</span>
               <span style={{ color: "rgba(74,222,128,0.5)" }}> online</span>
@@ -216,7 +216,7 @@ export default function WorldChatPanel({ currentUserId, isAdmin, isModerator, on
           </div>
           <div style={{ width: 1, height: 10, background: "rgba(74,222,128,0.2)" }} />
           <div className="flex items-center gap-1.5">
-            <Users size={9} style={{ color: "rgba(74,222,128,0.7)" }} />
+            <Globe size={9} style={{ color: "rgba(74,222,128,0.7)" }} />
             <span style={{ fontSize: 9, color: "rgba(74,222,128,0.9)", fontFamily: "Lora, serif", letterSpacing: "0.12em" }}>
               <span className="font-bold" data-testid="text-online-inworld">{onlineData.inWorld}</span>
               <span style={{ color: "rgba(74,222,128,0.5)" }}> in world</span>
