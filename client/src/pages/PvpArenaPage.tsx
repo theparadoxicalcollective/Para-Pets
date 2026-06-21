@@ -551,9 +551,17 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     // Slot 0 is locked to the active pet — taps on it shouldn't remove it.
     if (activePetId && invId === activePetId) return;
     hasUserEdited.current = true;
-    setSelectedPetIds(prev =>
-      prev.includes(invId) ? prev.filter(id => id !== invId) : prev.length < 5 ? [...prev, invId] : prev
-    );
+    setSelectedPetIds(prev => {
+      if (prev.includes(invId)) return prev.filter(id => id !== invId);
+      // Strip any stale IDs (sold / un-hatched pets) before checking the
+      // 5-pet cap.  Stale IDs inflate prev.length but render as empty slots,
+      // so without this the "prev.length < 5" guard would silently block new
+      // picks even when fewer than 5 real pets are equipped.
+      const validSet = new Set(hatchedPets.map((p: any) => p.inventoryId || p.id));
+      const clean = prev.filter(id => id === activePetId || validSet.has(id));
+      if (clean.length >= 5) return prev;
+      return [...clean, invId];
+    });
   };
 
   // Tap a filled slot → clear that slot. Tap an empty slot → open picker.
@@ -638,6 +646,25 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
         return { ...slot, qty: clamped };
       });
       return changed ? next : prev;
+    });
+  }, [inventory, inventoryReady]);
+
+  // Strip stale pet IDs from the battle group whenever inventory refreshes.
+  // Saved groups can contain IDs of pets that were sold, released, or never
+  // hatched.  Those stale IDs are invisible in the slot grid (no matching
+  // hatchedPets entry) but still count against selectedPetIds.length, so the
+  // prev.length < 5 guard in togglePet silently blocks new picks — the root
+  // cause of the "first slot after active pet won't fill" bug.
+  useEffect(() => {
+    if (!inventoryReady || !Array.isArray(inventory)) return;
+    const validIds = new Set(
+      (inventory as any[])
+        .filter((i: any) => i && i.type === "pet" && i.isHatched)
+        .map((i: any) => i.inventoryId || i.id),
+    );
+    setSelectedPetIds(prev => {
+      const next = prev.filter(id => id === activePetId || validIds.has(id));
+      return next.length === prev.length ? prev : next;
     });
   }, [inventory, inventoryReady]);
 
