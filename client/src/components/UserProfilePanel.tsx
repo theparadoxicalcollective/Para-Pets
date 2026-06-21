@@ -534,7 +534,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                   cursor: "pointer",
                 }}
               >
-                {showFeedback ? "Cancel" : "Support / Feedback"}
+                {showFeedback ? "Cancel" : "Contact Support"}
               </button>
 
               {showFeedback && (
@@ -545,10 +545,10 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                   {feedbackSent ? (
                     <div className="text-center py-2 space-y-2">
                       <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-feedback-sent">
-                        Thanks for your feedback!
+                        Message sent!
                       </p>
                       <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
-                        We read every message and appreciate you taking the time.
+                        Our support team will review your message and get back to you.
                       </p>
                       <button
                         onClick={() => { setShowFeedback(false); setFeedbackSent(false); }}

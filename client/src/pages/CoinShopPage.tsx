@@ -180,6 +180,28 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   const [currentUser, setCurrentUser] = useState(user);
   const [buyingPackId, setBuyingPackId] = useState<string | null>(null);
   const orbTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const [showSupport, setShowSupport] = useState(false);
+  const [supportMessage, setSupportMessage] = useState("");
+  const [supportSent, setSupportSent] = useState(false);
+
+  const supportMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/support-message", {
+        username: user.username,
+        email: user.email,
+        subject: "Coin Shop Support",
+        message: supportMessage.trim(),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      setSupportSent(true);
+      setSupportMessage("");
+    },
+    onError: () => {
+      toast({ title: "Failed to send", description: "Please try again.", variant: "destructive" });
+    },
+  });
 
   // Read Stripe return params ONCE from the real URL — before wouter or replaceState
   // can mutate location. Never use useSearch() here: wouter patches replaceState and
@@ -927,7 +949,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           </button>
         </div>
 
-        <div className="flex justify-center mt-4 pb-2">
+        <div className="flex justify-center gap-6 mt-4 pb-2">
           <button
             data-testid="link-privacy-policy"
             onClick={() => navigate("/privacy")}
@@ -940,6 +962,19 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             }}
           >
             Privacy Policy
+          </button>
+          <button
+            data-testid="button-open-support"
+            onClick={() => { setShowSupport(true); setSupportSent(false); setSupportMessage(""); }}
+            className="font-fantasy text-[10px] tracking-wider underline underline-offset-2"
+            style={{
+              background: "none",
+              border: "none",
+              color: "rgba(138,180,248,0.5)",
+              cursor: "pointer",
+            }}
+          >
+            Contact Support
           </button>
         </div>
       </div>
@@ -955,6 +990,94 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         />
       )}
 
+
+      {/* Contact Support Modal */}
+      {showSupport && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 9990,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(2,8,3,0.88)",
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowSupport(false); setSupportSent(false); } }}
+        >
+          <div
+            style={{
+              width: "88%", maxWidth: 360,
+              background: "linear-gradient(160deg, #0e1a2b 0%, #070f1a 100%)",
+              border: "1px solid rgba(100,140,212,0.35)",
+              borderRadius: 12,
+              padding: "20px 18px",
+            }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-fantasy text-xs tracking-widest" style={{ color: "#8ab4f8" }}>
+                CONTACT SUPPORT
+              </span>
+              <button
+                onClick={() => { setShowSupport(false); setSupportSent(false); }}
+                style={{ background: "none", border: "none", color: "rgba(138,180,248,0.5)", fontSize: 18, cursor: "pointer", lineHeight: 1 }}
+              >✕</button>
+            </div>
+
+            {supportSent ? (
+              <div className="text-center py-4 space-y-2">
+                <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider">Message sent!</p>
+                <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
+                  Our support team will review your message and get back to you.
+                </p>
+                <button
+                  onClick={() => { setShowSupport(false); setSupportSent(false); }}
+                  className="font-fantasy text-[#8ab4f8] text-xs tracking-wider hover:text-[#aaccff] transition-colors mt-2"
+                  style={{ background: "none", border: "none", cursor: "pointer" }}
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="font-fantasy text-[#8ab4f8] text-[10px] tracking-wider">
+                  Describe your issue — missing coins, purchase problem, or anything else — and we'll look into it.
+                </p>
+                <textarea
+                  data-testid="input-support-message"
+                  value={supportMessage}
+                  onChange={e => setSupportMessage(e.target.value)}
+                  disabled={supportMutation.isPending}
+                  placeholder="What can we help you with?"
+                  rows={5}
+                  maxLength={2000}
+                  className="w-full px-3 py-2 rounded font-sans text-xs resize-none outline-none disabled:opacity-60"
+                  style={{
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(100,140,212,0.3)",
+                    color: "#e8d8b0",
+                  }}
+                />
+                <div className="flex items-center justify-between">
+                  <span className="font-fantasy text-[#6a5840] text-[9px] tracking-wider">
+                    {supportMessage.length}/2000
+                  </span>
+                  <button
+                    data-testid="button-submit-support"
+                    onClick={() => supportMutation.mutate()}
+                    disabled={supportMutation.isPending || !supportMessage.trim()}
+                    className="px-4 py-1.5 rounded font-fantasy text-xs tracking-wider transition-all disabled:opacity-50"
+                    style={{
+                      background: "linear-gradient(135deg, #1a2d5a 0%, #0d1a3a 100%)",
+                      border: "1px solid rgba(100,140,212,0.5)",
+                      color: "#8ab4f8",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {supportMutation.isPending ? "Sending..." : "Send"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Verification overlay — shown immediately on return from Stripe, before coins are credited */}
       {verifying && successCoins === null && (
