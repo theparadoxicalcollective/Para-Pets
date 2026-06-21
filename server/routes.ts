@@ -931,13 +931,13 @@ export async function registerRoutes(
             if (cooldownPassed) {
               await storage.setLastWatcherGreetedAt(user.id, new Date()).catch(() => {});
               const greetings = [
-                `🌿 Welcome back, ${user.username}! The realm stirs at your return.`,
-                `🌿 Ah, ${user.username} arrives. The wilds have missed you.`,
-                `🌿 ${user.username} steps into the realm once more. Adventure awaits!`,
-                `🌿 The Watcher sees you, ${user.username}. May fortune guide your path.`,
-                `🌿 ${user.username} has returned! The creatures of the realm rejoice.`,
-                `🌿 Greetings, ${user.username}. The enchanted forests are yours to explore.`,
-                `🌿 ${user.username} walks among us again. Good to have you back, traveller.`,
+                `𖢻 Welcome back, ${user.username}! The realm stirs at your return.`,
+                `𖢻 Ah, ${user.username} arrives. The wilds have missed you.`,
+                `𖢻 ${user.username} steps into the realm once more. Adventure awaits!`,
+                `𖢻 The Watcher sees you, ${user.username}. May fortune guide your path.`,
+                `𖢻 ${user.username} has returned! The creatures of the realm rejoice.`,
+                `𖢻 Greetings, ${user.username}. The enchanted forests are yours to explore.`,
+                `𖢻 ${user.username} walks among us again. Good to have you back, traveller.`,
               ];
               const msg = greetings[Math.floor(Math.random() * greetings.length)];
               await postWatcherMessage(msg);
@@ -1248,7 +1248,7 @@ export async function registerRoutes(
       }
       // Veridian Watcher welcome message (fire-and-forget)
       if (user.watcherShoutoutsEnabled !== false) {
-        postWatcherMessage(`🌿 A new soul stirs in the realm — welcome, ${user.username}! May your journey through Para Pets be filled with wonder and discovery. The wilds await you...`).catch(() => {});
+        postWatcherMessage(`𖢻 A new soul stirs in the realm — welcome, ${user.username}! May your journey through Para Pets be filled with wonder and discovery. The wilds await you...`).catch(() => {});
       }
       return res.redirect(`${APP_URL}/?verified=1`);
     } catch (err) {
@@ -8095,7 +8095,7 @@ export async function registerRoutes(
       const quotes = await storage.getVWQuotes();
       if (quotes.length === 0) return;
       const pick = quotes[Math.floor(Math.random() * quotes.length)];
-      await postWatcherMessage(`🌿 ${pick.message}`);
+      await postWatcherMessage(`𖢻 ${pick.message}`);
     } catch (err) {
       console.error("[VW] Quote error:", err);
     }
@@ -8423,10 +8423,10 @@ export async function registerRoutes(
           if (!entry) continue;
           const fullUser = await storage.getUser(entry.userId).catch(() => null);
           if (fullUser?.watcherShoutoutsEnabled === false) continue;
-          const medals = ["🥇", "🥈", "🥉"];
-          const medal = newRank <= 3 ? `${medals[newRank - 1]} ` : "";
+          if (newRank > 10) continue;
+          const star = newRank <= 3 ? "★ " : "";
           await postWatcherMessage(
-            `👁️ The Watcher observes... ${medal}${username} has risen to rank #${newRank} on the PvP leaderboard. A formidable challenger emerges!`
+            `𖤓 The Watcher observes... ${star}${username} has risen to rank #${newRank} on the PvP leaderboard. A formidable challenger emerges!`
           );
         }
       }

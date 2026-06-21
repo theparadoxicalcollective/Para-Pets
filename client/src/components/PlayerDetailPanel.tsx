@@ -107,7 +107,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
       const res = await fetch(`/api/friends/status/${userId}`, { credentials: "include" });
       if (!res.ok) return null;
       const json = await res.json();
-      return json ?? null;
+      return json?.friendship ?? null;
     },
     enabled: !isSelf && !!currentUserId,
   });

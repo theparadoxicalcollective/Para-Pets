@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { MailOpen } from "lucide-react";
-import RoleBadge from "@/components/RoleBadge";
 import { playGrab } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -14,7 +13,6 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
 import petInventoryIcon from "@assets/icon_pet_inventory.png";
-import friendsInventoryIcon from "@assets/icon_friends_inventory.png";
 import feedButtonIcon from "@assets/generated_images/feed_button_icon.png";
 import feedingPageBg from "@assets/generated_images/feeding_page_bg.png";
 import careWreathImg from "@assets/Photoroom_20260611_74428_AM_1781181905848.png";
@@ -25,7 +23,6 @@ import moodFaceHungry from "@assets/mood_face_hungry.png";
 import coinIconImg from "@assets/icon_coin.png";
 import LoadingScreen from "@/components/LoadingScreen";
 import GiftClaimModal from "@/components/GiftClaimModal";
-import FriendProfileModal from "@/components/FriendProfileModal";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
@@ -659,7 +656,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [currentUser, setCurrentUser] = useState(user);
   const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number } | null>(null);
   const interiorPanRef = useRef<{ panX: number; imgWidth: number; containerH: number } | null>(null);
-  const [openInventory, setOpenInventory] = useState<"home" | "decor" | "pets" | "friends" | null>(null);
+  const [openInventory, setOpenInventory] = useState<"home" | "decor" | "pets" | null>(null);
   // Hide the global FloatingNav while an inventory drawer is open so its
   // fan-out arc doesn't collide with the Pets/Home/Decor/Friends bar.
   useEffect(() => {
@@ -669,8 +666,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [pendingActivate, setPendingActivate] = useState<{ bundleId: string; bundle: OwnedBundle["bundle"] } | null>(null);
   const [openGiftModal, setOpenGiftModal] = useState(false);
   const [showNoMailPopup, setShowNoMailPopup] = useState(false);
-  const [selectedFriend, setSelectedFriend] = useState<{ id: string; username: string } | null>(null);
-
   // Canvas panning
   const containerRef = useRef<HTMLDivElement>(null);
   const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
@@ -739,57 +734,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     queryFn: () => fetch("/api/gifts/pending", { credentials: "include" }).then(r => r.json()),
     refetchInterval: 30000,
     staleTime: 0,
-  });
-
-  const { data: friendsList = [], refetch: refetchFriends } = useQuery<any[]>({
-    queryKey: ["/api/friends"],
-    enabled: openInventory === "friends",
-    refetchInterval: openInventory === "friends" ? 20000 : false,
-  });
-
-  const { data: friendRequestsList = [], refetch: refetchFriendRequests } = useQuery<any[]>({
-    queryKey: ["/api/friends/requests"],
-    enabled: openInventory === "friends",
-    refetchInterval: openInventory === "friends" ? 20000 : false,
-  });
-
-  const { data: friendNotifications = [], refetch: refetchFriendNotifs } = useQuery<any[]>({
-    queryKey: ["/api/notifications/unread"],
-    enabled: openInventory === "friends",
-    select: (data: any[]) => data.filter((n: any) => n.type === "friend_accepted"),
-  });
-
-  const dismissFriendNotifsMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/notifications/mark-read", {}),
-    onSuccess: () => { refetchFriendNotifs(); qc.invalidateQueries({ queryKey: ["/api/notifications/unread"] }); },
-  });
-
-  const { data: friendRequestCountData } = useQuery<{ count: number }>({
-    queryKey: ["/api/friends/requests/count"],
-    refetchInterval: 45000,
-  });
-  const friendRequestCount = friendRequestCountData?.count ?? 0;
-
-  const acceptFriendMutation = useMutation({
-    mutationFn: ({ requestId }: { requestId: string; username: string }) =>
-      apiRequest("POST", `/api/friends/accept/${requestId}`, {}),
-    onSuccess: (_, { username }) => {
-      toast({ title: "Friend Added!", description: `You and ${username} are now friends.` });
-      qc.invalidateQueries({ queryKey: ["/api/friends"] });
-      qc.invalidateQueries({ queryKey: ["/api/friends/requests"] });
-      qc.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
-      refetchFriends();
-      refetchFriendRequests();
-    },
-  });
-
-  const declineFriendMutation = useMutation({
-    mutationFn: (requesterId: string) => apiRequest("DELETE", `/api/friends/${requesterId}`, {}),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["/api/friends/requests"] });
-      qc.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
-      refetchFriendRequests();
-    },
   });
 
   const { data: placedDecorRaw = [] } = useQuery<PlacedDecorItem[]>({
@@ -1467,7 +1411,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           { key: "pets" as const, label: "Pets", icon: () => <img src={petInventoryIcon} alt="" className="w-8 h-8 object-contain" />, bg: "rgba(255,180,50,0.35)", border: "rgba(255,200,80,0.8)" },
           { key: "home" as const, label: "Home", icon: () => <img src={homeInventoryIcon} alt="" className="w-8 h-8 object-contain" />, bg: "rgba(120,200,100,0.35)", border: "rgba(120,220,80,0.8)" },
           { key: "decor" as const, label: "Decor", icon: () => <img src={decorInventoryIcon} alt="" className="w-8 h-8 object-contain" />, bg: "rgba(180,120,220,0.35)", border: "rgba(200,120,255,0.8)" },
-          { key: "friends" as const, label: "Friends", icon: () => <img src={friendsInventoryIcon} alt="" className="w-8 h-8 object-contain" />, bg: "rgba(74,222,128,0.3)", border: "rgba(74,222,128,0.8)" },
         ].map(({ key, label, icon, bg, border }) => {
           const active = openInventory === key;
           return (
@@ -1488,20 +1431,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               >
                 {icon()}
               </div>
-              {/* Friend request badge on the Friends button */}
-              {key === "friends" && friendRequestCount > 0 && (
-                <div
-                  className="absolute -top-1 right-1 min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1"
-                  style={{
-                    background: "radial-gradient(circle, #4ade80 0%, #16a34a 100%)",
-                    border: "2px solid rgba(0,0,0,0.6)",
-                    boxShadow: "0 0 6px rgba(74,222,128,0.7)",
-                    zIndex: 10,
-                  }}
-                >
-                  <span className="font-bold text-[9px] text-white leading-none">{friendRequestCount}</span>
-                </div>
-              )}
               <span className="text-white font-semibold drop-shadow-md" style={{ fontSize: 9, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>{label}</span>
             </button>
           );
@@ -1542,16 +1471,16 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             {openInventory !== "pets" && (
               <div className="flex items-center gap-3 mb-5">
                 <img
-                  src={openInventory === "home" ? homeInventoryIcon : openInventory === "decor" ? decorInventoryIcon : friendsInventoryIcon}
+                  src={openInventory === "home" ? homeInventoryIcon : decorInventoryIcon}
                   alt=""
                   className="w-10 h-10 object-contain"
                 />
                 <div>
                   <h2 className="text-white font-bold text-lg leading-tight">
-                    {openInventory === "home" ? "Home Inventory" : openInventory === "decor" ? "Decor Inventory" : "Friends"}
+                    {openInventory === "home" ? "Home Inventory" : "Decor Inventory"}
                   </h2>
                   <p className="text-white/50 text-xs">
-                    {openInventory === "home" ? "House bundles you own" : openInventory === "decor" ? "Home decorations you own" : "Your companions in the realm"}
+                    {openInventory === "home" ? "House bundles you own" : "Home decorations you own"}
                   </p>
                 </div>
               </div>
@@ -1667,114 +1596,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
                     </div>
                   </>
                 )}
-              </div>
-            )}
-
-            {openInventory === "friends" && (
-              <div className="flex flex-col gap-4 pb-4">
-                {/* Pending requests */}
-                {friendNotifications.length > 0 && (
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-[9px] tracking-widest uppercase" style={{ color: "rgba(240,192,64,0.7)", fontFamily: "Lora, serif" }}>
-                        Accepted ({friendNotifications.length})
-                      </p>
-                      <button
-                        data-testid="button-dismiss-friend-notifs"
-                        onClick={() => dismissFriendNotifsMutation.mutate()}
-                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, color: "rgba(240,192,64,0.4)", fontFamily: "Lora, serif" }}
-                      >
-                        dismiss all
-                      </button>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      {friendNotifications.map((notif: any) => (
-                        <div
-                          key={notif.id}
-                          data-testid={`notif-friend-accepted-${notif.id}`}
-                          className="flex items-center gap-2 rounded-xl px-3 py-2.5"
-                          style={{ background: "rgba(240,192,64,0.06)", border: "1px solid rgba(240,192,64,0.18)" }}
-                        >
-                          <span style={{ fontSize: 14, flexShrink: 0 }}>🤝</span>
-                          <span className="flex-1 text-xs leading-snug" style={{ color: "#d4c89a", fontFamily: "Lora, serif" }}>{notif.message}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(240,192,64,0.15), transparent)", margin: "12px 0" }} />
-                  </div>
-                )}
-
-                {friendRequestsList.length > 0 && (
-                  <div>
-                    <p className="text-[9px] tracking-widest uppercase mb-2" style={{ color: "rgba(74,222,128,0.6)", fontFamily: "Lora, serif" }}>
-                      Requests ({friendRequestsList.length})
-                    </p>
-                    <div className="flex flex-col gap-2">
-                      {friendRequestsList.map((req: any) => (
-                        <div
-                          key={req.id}
-                          data-testid={`friend-request-${req.id}`}
-                          className="flex items-center gap-2 rounded-xl px-3 py-2"
-                          style={{ background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}
-                        >
-                          {req.profileImage ? (
-                            <img src={req.profileImage} alt={req.username} style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(74,222,128,0.3)", flexShrink: 0 }} />
-                          ) : (
-                            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                              <span style={{ fontSize: 11, color: "#4ade80", fontWeight: "bold" }}>{(req.username ?? "?").charAt(0).toUpperCase()}</span>
-                            </div>
-                          )}
-                          <span className="flex-1 truncate text-sm" style={{ color: "#d4e8da", fontFamily: "Lora, serif" }}>{req.username}</span>
-                          <button
-                            data-testid={`button-accept-${req.id}`}
-                            onClick={() => acceptFriendMutation.mutate({ requestId: req.id, username: req.username })}
-                            disabled={acceptFriendMutation.isPending}
-                            className="rounded-lg px-3 py-1 text-xs font-bold transition-transform active:scale-90"
-                            style={{ background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.45)", color: "#4ade80", cursor: "pointer" }}
-                          >✓</button>
-                          <button
-                            data-testid={`button-decline-${req.id}`}
-                            onClick={() => declineFriendMutation.mutate(req.requesterId)}
-                            disabled={declineFriendMutation.isPending}
-                            className="rounded-lg px-3 py-1 text-xs font-bold transition-transform active:scale-90"
-                            style={{ background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.35)", color: "#f87171", cursor: "pointer" }}
-                          >✕</button>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(74,222,128,0.2), transparent)", margin: "12px 0" }} />
-                  </div>
-                )}
-
-                {/* Friends list */}
-                <p className="text-[9px] tracking-widest uppercase mb-1" style={{ color: "rgba(127,255,212,0.6)", fontFamily: "Lora, serif" }}>
-                  My Friends ({friendsList.length})
-                </p>
-                {friendsList.length === 0 && friendRequestsList.length === 0 && (
-                  <p className="text-sm text-center py-4" style={{ color: "#5a8070", fontFamily: "Lora, serif" }}>No friends yet — explore and add some!</p>
-                )}
-                <div className="flex flex-col gap-2">
-                  {friendsList.map((f: any) => (
-                    <button
-                      key={f.id}
-                      data-testid={`friend-row-${f.friendId}`}
-                      onClick={() => { setOpenInventory(null); setSelectedFriend({ id: f.friendId, username: f.username }); }}
-                      className="flex items-center gap-3 rounded-xl px-3 py-2 w-full text-left transition-transform active:scale-95"
-                      style={{ background: "rgba(127,255,212,0.04)", border: "1px solid rgba(127,255,212,0.1)", cursor: "pointer" }}
-                    >
-                      {f.profileImage ? (
-                        <img src={f.profileImage} alt={f.username} style={{ width: 30, height: 30, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(212,160,23,0.35)", flexShrink: 0 }} />
-                      ) : (
-                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(212,160,23,0.1)", border: "1px solid rgba(212,160,23,0.35)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <span style={{ fontSize: 11, color: "#d4a017", fontWeight: "bold" }}>{(f.username ?? "?").charAt(0).toUpperCase()}</span>
-                        </div>
-                      )}
-                      <span className="flex-1 truncate text-sm" style={{ color: "#d4e8da", fontFamily: "Lora, serif" }}>{f.username}</span>
-                      <RoleBadge isAdmin={f.isAdmin} isModerator={f.isModerator} />
-                      <span style={{ fontSize: 11, color: "rgba(127,255,212,0.3)" }}>›</span>
-                    </button>
-                  ))}
-                </div>
               </div>
             )}
 
@@ -1997,14 +1818,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         </div>
       )}
 
-      {selectedFriend && (
-        <FriendProfileModal
-          friendId={selectedFriend.id}
-          friendUsername={selectedFriend.username}
-          senderCoins={currentUser.coins}
-          onClose={() => setSelectedFriend(null)}
-        />
-      )}
 
     </div>
   );

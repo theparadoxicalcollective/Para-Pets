@@ -414,6 +414,7 @@ export default function WorldChatPanel({ currentUserId, isAdmin, isModerator, on
         onSubmit={e => { e.preventDefault(); handleSend(); }}
       >
         <div className="flex gap-2 items-end">
+          <span style={{ fontSize: 18, color: "rgba(240,192,64,0.45)", lineHeight: 1, flexShrink: 0, paddingBottom: 10, userSelect: "none" }}>⧽</span>
           <div className="flex-1 relative">
             <textarea
               ref={inputRef}
