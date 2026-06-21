@@ -246,11 +246,17 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         }
         queryClient.invalidateQueries({ queryKey: ["/api/coins/packs"] });
         queryClient.invalidateQueries({ queryKey: ["/api/coins/progress"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
         if (data.credited || data.alreadyCredited) {
           const coins = typeof data.coins === "number"
             ? data.coins
             : parseInt(String(data.coins ?? "0"), 10);
           setSuccessCoins(isFinite(coins) ? coins : 0);
+          if (data.eggBonus?.name) {
+            setTimeout(() => {
+              toast({ title: `🥚 Bonus egg included!`, description: `${data.eggBonus.name} has been added to your inventory.` });
+            }, 1800);
+          }
           try { playShopBell(); } catch {}
           try { burstGoldenOrbs(window.innerWidth / 2, window.innerHeight / 2); } catch {}
           const t1 = setTimeout(() => { try { burstGoldenOrbs(window.innerWidth / 3, window.innerHeight / 3); } catch {} }, 300);
@@ -322,6 +328,37 @@ export default function CoinShopPage({ user }: CoinShopProps) {
       toast({ title: "Milestone reward saved!" });
     },
     onError: () => toast({ title: "Save failed", variant: "destructive" }),
+  });
+
+  const claimMilestoneMutation = useMutation({
+    mutationFn: async (milestone: number) => {
+      const res = await apiRequest("POST", "/api/coins/claim-milestone", { milestone });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/coins/progress"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      const desc = data.itemName
+        ? `${data.itemName} added to your inventory!`
+        : data.coinsGranted > 0
+        ? `${data.coinsGranted} coins added to your account!`
+        : "Reward delivered!";
+      toast({ title: "Milestone reward claimed!", description: desc });
+    },
+    onError: (err: any) => {
+      const raw = err?.message ?? "";
+      let msg = raw;
+      try {
+        const jsonPart = raw.includes(": ") ? raw.slice(raw.indexOf(": ") + 2) : raw;
+        msg = JSON.parse(jsonPart)?.message ?? raw;
+      } catch {}
+      if (msg === "Already claimed") {
+        toast({ title: "Already claimed", description: "This milestone reward was already delivered.", variant: "destructive" });
+      } else {
+        toast({ title: "Claim failed", description: msg || "Please try again.", variant: "destructive" });
+      }
+    },
   });
 
   const checkoutMutation = useMutation({
@@ -562,6 +599,31 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                           color: isDone ? "rgba(255,215,0,0.3)" : "rgba(255,215,0,0.85)",
                         }}>{"⭐".repeat(Math.max(1, rewardCfg.star_rarity))}</span>
                       ) : null}
+                      {/* Claim button — only when milestone is reached but not yet claimed */}
+                      {isReachable && (
+                        <button
+                          data-testid={`button-claim-milestone-${m.end}`}
+                          disabled={claimMilestoneMutation.isPending}
+                          onClick={() => claimMilestoneMutation.mutate(m.end)}
+                          style={{
+                            marginTop: 2,
+                            padding: "2px 4px",
+                            borderRadius: 4,
+                            border: "1.5px solid rgba(246,220,138,0.85)",
+                            background: "linear-gradient(135deg,rgba(120,80,0,0.85),rgba(80,50,0,0.9))",
+                            color: "#f6dc8a",
+                            fontSize: 7,
+                            fontFamily: "Lora, serif",
+                            letterSpacing: "0.08em",
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                            boxShadow: "0 0 6px rgba(246,220,138,0.5)",
+                            animation: "coinGlowPulse 2s ease-in-out infinite",
+                          }}
+                        >
+                          {claimMilestoneMutation.isPending ? "…" : "CLAIM"}
+                        </button>
+                      )}
                     </div>
                   );
                 })}

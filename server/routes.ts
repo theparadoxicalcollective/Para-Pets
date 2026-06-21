@@ -2810,20 +2810,17 @@ export async function registerRoutes(
         // verification overlay closes as fast as possible.
         grantCommunityPurchaseReward(user.id, amountUsd).catch(() => {});
         maybeAwardAcquisitionBadges(user.id, amountUsd).catch(() => {});
-        // Send bonus pet egg gift for $50 / $100 bundles (fire-and-forget).
+        // Bonus pet egg for $50 / $100 bundles — added directly to inventory so
+        // the player sees it immediately without having to claim from a gift inbox.
         const eggBonus = EGG_BONUS[amountUsd];
+        let eggBonusGranted = false;
         if (eggBonus) {
-          storage.sendGift({
-            senderId: user.id,
-            receiverId: user.id,
-            coinAmount: 0,
-            itemType: "shop_item",
-            shopItemId: eggBonus.shopItemId,
-            itemName: eggBonus.itemName,
-            itemImageUrl: eggBonus.itemImageUrl,
-            itemQuantity: 1,
-            message: "Bonus gift for your purchase!",
-          }).catch((e) => console.error("Egg bonus gift error:", e));
+          try {
+            await storage.addToInventory(user.id, eggBonus.shopItemId);
+            eggBonusGranted = true;
+          } catch (e) {
+            console.error("Egg bonus inventory error:", e);
+          }
         }
         // Track purchase progress and handle milestone rewards (fire-and-forget).
         const capturedUser = updatedUser;
@@ -2845,15 +2842,11 @@ export async function registerRoutes(
                       storage.addCoins(user.id, Number(rewardCfg.reward_coins)).catch(() => {});
                     }
                     if (rewardCfg.reward_item_id) {
-                      storage.sendGift({
-                        senderId: user.id, receiverId: user.id,
-                        coinAmount: 0, itemType: 'shop_item',
-                        shopItemId: rewardCfg.reward_item_id,
-                        itemName: rewardCfg.reward_item_name || 'Milestone Reward',
-                        itemImageUrl: rewardCfg.reward_item_image_url || '',
-                        itemQuantity: 1,
-                        message: `🎉 Milestone reward: ${rewardCfg.reward_label || ms + ' pts milestone'}!`,
-                      }).catch(() => {});
+                      // Add directly to inventory so player receives it instantly
+                      // without needing to visit the gift inbox.
+                      storage.addToInventory(user.id, rewardCfg.reward_item_id).catch((e) => {
+                        console.error('[milestone reward inventory]', e);
+                      });
                     }
                   }
                 }
@@ -2871,7 +2864,14 @@ export async function registerRoutes(
       }
 
       const { password: _, ...safeUser } = updatedUser!;
-      return res.json({ credited: true, coins: awardedCoins, user: safeUser });
+      return res.json({
+        credited: true,
+        coins: awardedCoins,
+        user: safeUser,
+        eggBonus: eggBonusGranted && eggBonus
+          ? { name: eggBonus.itemName, imageUrl: eggBonus.itemImageUrl }
+          : null,
+      });
     } catch (err) {
       console.error("Verify purchase error:", err);
       return res.status(500).json({ message: "Failed to verify purchase" });
@@ -2887,6 +2887,49 @@ export async function registerRoutes(
       const claimedMilestones = await storage.getClaimedMilestones(user.id, monthYear);
       const milestoneRewards = await storage.getMilestoneRewards();
       return res.json({ monthYear, points, claimedMilestones, milestoneRewards });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Manual milestone claim — for the edge case where the player reaches a
+  // milestone but the auto-claim (which runs on purchase) hasn't fired yet.
+  // Grants coins/item directly to inventory, no gift inbox involved.
+  app.post("/api/coins/claim-milestone", isAuthenticated, async (req, res) => {
+    const user = req.user as any;
+    const { milestone } = req.body;
+    const VALID_MILESTONES = [500, 2500, 5000, 10000];
+    if (!milestone || !VALID_MILESTONES.includes(Number(milestone))) {
+      return res.status(400).json({ message: "Invalid milestone" });
+    }
+    const ms = Number(milestone);
+    try {
+      const monthYear = new Date().toISOString().slice(0, 7);
+      const points = await storage.getMonthlyProgress(user.id, monthYear);
+      if (points < ms) {
+        return res.status(400).json({ message: "Milestone not yet reached" });
+      }
+      const claimed = await storage.claimMilestone(user.id, ms, monthYear);
+      if (!claimed) {
+        return res.status(400).json({ message: "Already claimed" });
+      }
+      const allRewards = await storage.getMilestoneRewards();
+      const rewardCfg = allRewards.find((r: any) => Number(r.milestone_points) === ms);
+      let coinsGranted = 0;
+      let itemName: string | null = null;
+      let itemImageUrl: string | null = null;
+      if (rewardCfg) {
+        if (Number(rewardCfg.reward_coins) > 0) {
+          coinsGranted = Number(rewardCfg.reward_coins);
+          await storage.addCoins(user.id, coinsGranted);
+        }
+        if (rewardCfg.reward_item_id) {
+          await storage.addToInventory(user.id, rewardCfg.reward_item_id);
+          itemName = rewardCfg.reward_item_name ?? null;
+          itemImageUrl = rewardCfg.reward_item_image_url ?? null;
+        }
+      }
+      return res.json({ success: true, coinsGranted, itemName, itemImageUrl });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
