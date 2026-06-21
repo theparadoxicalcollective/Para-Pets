@@ -288,6 +288,9 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [battleLocationId, setBattleLocationId] = useState<string | null>(null);
   const [battlePotionSlots, setBattlePotionSlots] = useState<(BattlePotionSlot | null)[]>([null, null, null, null, null]);
   const [battlePets, setBattlePets] = useState<(InventoryItem | null)[]>([null, null, null]);
+  // Ref guard: prevents the save effect from writing stale state back to
+  // localStorage on the same render that the load effect runs.
+  const battleTeamReadyRef = useRef(false);
   const [petPickerSlot, setPetPickerSlot] = useState<number | null>(null);
   // World-battle prep now uses the same tap-to-open picker model as the
   // PvP arena: an empty slot opens the inventory picker on tap; a filled
@@ -1337,14 +1340,73 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     openLocation(loc);
   }, [currentUser.activePetId, currentUser.isAdmin, hasHatchedActivePet, openLocation]);
 
+  // LOAD saved team when battle prep opens (or when the location changes).
   useEffect(() => {
-    if (showBattlePrep) {
-      const activePet = inventory.find(
-        (i) => i.inventoryId === currentUser.activePetId && i.type === "pet" && i.isHatched
-      ) || null;
-      setBattlePets([activePet, null, null]);
+    battleTeamReadyRef.current = false;
+    if (!showBattlePrep || !battleLocationId) return;
+
+    const activePet =
+      inventory.find(
+        (i) => i.inventoryId === currentUser.activePetId && i.type === "pet" && i.isHatched,
+      ) ?? null;
+
+    const key = `battle_team_v1_${currentUser.id}_${battleLocationId}`;
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        const { petIds, potionSlots } = JSON.parse(saved) as {
+          petIds: (string | null)[];
+          potionSlots: (BattlePotionSlot | null)[];
+        };
+
+        // Match saved inventoryIds against current inventory (items may have been used/removed)
+        const restoredPets: (InventoryItem | null)[] = (petIds ?? []).map((id) =>
+          id
+            ? (inventory.find((i) => i.inventoryId === id && i.type === "pet" && i.isHatched) ?? null)
+            : null,
+        );
+        // Slot 0 must always have the active pet
+        if (!restoredPets[0]) restoredPets[0] = activePet;
+        while (restoredPets.length < 3) restoredPets.push(null);
+
+        // Validate potions against live inventory (items may have been consumed)
+        const restoredPotions: (BattlePotionSlot | null)[] = (potionSlots ?? []).map((slot) => {
+          if (!slot) return null;
+          const live = inventory.find((i) => i.inventoryId === slot.inventoryId);
+          if (!live || (live.quantity ?? 0) <= 0) return null;
+          return { ...slot, qty: Math.min(slot.qty, live.quantity ?? slot.qty) };
+        });
+        while (restoredPotions.length < 5) restoredPotions.push(null);
+
+        setBattlePets(restoredPets.slice(0, 3));
+        setBattlePotionSlots(restoredPotions.slice(0, 5));
+        return;
+      }
+    } catch {}
+
+    // No saved state — fall back to just the active pet
+    setBattlePets([activePet, null, null]);
+    // potionSlots stay as the [null×5] set by the trigger
+  }, [showBattlePrep, battleLocationId]);
+
+  // SAVE team to localStorage whenever slots change.
+  // The ref guard skips the very first run after the load effect so we don't
+  // overwrite the just-loaded state with the pre-load empty state.
+  useEffect(() => {
+    if (!showBattlePrep || !battleLocationId) return;
+    if (!battleTeamReadyRef.current) {
+      battleTeamReadyRef.current = true;
+      return;
     }
-  }, [showBattlePrep]);
+    const key = `battle_team_v1_${currentUser.id}_${battleLocationId}`;
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        petIds: battlePets.map((p) => p?.inventoryId ?? null),
+        potionSlots: battlePotionSlots,
+      }),
+    );
+  }, [battlePets, battlePotionSlots, showBattlePrep, battleLocationId]);
 
   const handleObjPointerDown = useCallback((e: React.PointerEvent, obj: LocationObjectData) => {
     if (!currentUser.isAdmin) return;
