@@ -68,6 +68,7 @@ interface InventoryItem {
   petLevelPoints: number;
   itemsUsedThisLevel: number;
   fishingType: string | null;
+  quantity: number;
 }
 
 interface PetInventoryProps {
@@ -1134,24 +1135,25 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
     special: "#fb923c",
   };
 
-  // Build stacked display items first (potions stack)
-  const potionStacks: { item: InventoryItem; count: number }[] = [];
-  const nonPotionItems: InventoryItem[] = [];
+  // Build stacked display items — all non-pet items stack by shopItemId
+  const stackMap = new Map<string, { item: InventoryItem; count: number }>();
+  const petItems: { item: InventoryItem; count: number }[] = [];
   for (const item of items) {
-    if (item.type === "potion") {
-      const existing = potionStacks.find(s => s.item.shopItemId === item.shopItemId);
-      if (existing) {
-        if (existing.count < POTION_STACK_MAX) existing.count++;
-      } else {
-        potionStacks.push({ item, count: 1 });
-      }
+    if (item.type === "pet") {
+      petItems.push({ item, count: 1 });
     } else {
-      nonPotionItems.push(item);
+      const itemQty = item.quantity ?? 1;
+      const existing = stackMap.get(item.shopItemId);
+      if (existing) {
+        existing.count += itemQty;
+      } else {
+        stackMap.set(item.shopItemId, { item, count: itemQty });
+      }
     }
   }
   const allDisplayItems: { item: InventoryItem; count: number }[] = [
-    ...potionStacks,
-    ...nonPotionItems.map(i => ({ item: i, count: 1 })),
+    ...petItems,
+    ...Array.from(stackMap.values()),
   ];
 
   // Which tabs actually have items (hide empty tabs)
@@ -1325,7 +1327,7 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
                       style={{ background: "rgba(96,211,148,0.15)", color: "#60d394", border: "1px solid rgba(96,211,148,0.35)" }}
                       data-testid="text-detail-stack-count"
                     >
-                      ×{selectedStackCount} / {POTION_STACK_MAX}
+                      ×{selectedStackCount}{selectedItem?.type === "potion" ? ` / ${POTION_STACK_MAX}` : ""}
                     </span>
                   )}
                 </div>

@@ -183,6 +183,8 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   const [showSupport, setShowSupport] = useState(false);
   const [supportMessage, setSupportMessage] = useState("");
   const [supportSent, setSupportSent] = useState(false);
+  const [milestonePopup, setMilestonePopup] = useState<number | null>(null);
+  const [milestoneClaimSuccess, setMilestoneClaimSuccess] = useState(false);
 
   const supportMutation = useMutation({
     mutationFn: async () => {
@@ -357,16 +359,15 @@ export default function CoinShopPage({ user }: CoinShopProps) {
       const res = await apiRequest("POST", "/api/coins/claim-milestone", { milestone });
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/coins/progress"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      const desc = data.itemName
-        ? `${data.itemName} added to your inventory!`
-        : data.coinsGranted > 0
-        ? `${data.coinsGranted} coins added to your account!`
-        : "Reward delivered!";
-      toast({ title: "Milestone reward claimed!", description: desc });
+      setMilestoneClaimSuccess(true);
+      setTimeout(() => {
+        setMilestonePopup(null);
+        setMilestoneClaimSuccess(false);
+      }, 2400);
     },
     onError: (err: any) => {
       const raw = err?.message ?? "";
@@ -569,42 +570,36 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                       display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
                       width: 46,
                     }}>
-                      {/* Item image or empty slot */}
-                      <div style={{ position: "relative", flexShrink: 0 }}>
+                      {/* Item image or empty slot — clickable for all players */}
+                      <div
+                        style={{ position: "relative", flexShrink: 0, cursor: hasItem ? "pointer" : "default" }}
+                        onClick={() => hasItem && setMilestonePopup(m.end)}
+                        data-testid={hasItem ? `button-milestone-reward-${m.end}` : undefined}
+                      >
                         {hasItem ? (
-                          <>
-                            <img
-                              src={rewardCfg.reward_item_image_url}
-                              alt={rewardCfg.reward_item_name ?? ""}
-                              style={{
-                                width: 40, height: 40, objectFit: "contain",
-                                display: "block",
-                                filter: isDone
-                                  ? "brightness(0.45) grayscale(0.6)"
-                                  : isReachable
-                                  ? "drop-shadow(0 0 10px rgba(246,220,138,0.9)) drop-shadow(0 0 4px rgba(212,160,23,0.7))"
-                                  : "drop-shadow(0 0 4px rgba(212,160,23,0.25))",
-                                border: isDone
-                                  ? "1.5px solid rgba(246,220,138,0.18)"
-                                  : isReachable
-                                  ? "1.5px solid rgba(246,220,138,0.9)"
-                                  : "1.5px solid rgba(212,160,23,0.4)",
-                                borderRadius: 7,
-                                boxShadow: isReachable
-                                  ? "0 0 10px rgba(212,160,23,0.5), inset 0 0 4px rgba(246,220,138,0.1)"
-                                  : isDone ? "none" : "0 0 4px rgba(212,160,23,0.15)",
-                              }}
-                            />
-                            {isDone && (
-                              <div style={{
-                                position: "absolute", inset: 0, borderRadius: 7,
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                                background: "rgba(0,0,0,0.15)",
-                              }}>
-                                <span style={{ fontSize: 16, lineHeight: 1, filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.8))" }}>✅</span>
-                              </div>
-                            )}
-                          </>
+                          <img
+                            src={rewardCfg.reward_item_image_url}
+                            alt={rewardCfg.reward_item_name ?? ""}
+                            style={{
+                              width: 40, height: 40, objectFit: "contain",
+                              display: "block",
+                              filter: isDone
+                                ? "brightness(0.4) grayscale(0.7)"
+                                : isReachable
+                                ? "drop-shadow(0 0 10px rgba(246,220,138,0.9)) drop-shadow(0 0 4px rgba(212,160,23,0.7))"
+                                : "drop-shadow(0 0 4px rgba(212,160,23,0.25))",
+                              border: isDone
+                                ? "1.5px solid rgba(246,220,138,0.15)"
+                                : isReachable
+                                ? "1.5px solid rgba(246,220,138,0.9)"
+                                : "1.5px solid rgba(212,160,23,0.4)",
+                              borderRadius: 7,
+                              boxShadow: isReachable
+                                ? "0 0 10px rgba(212,160,23,0.5), inset 0 0 4px rgba(246,220,138,0.1)"
+                                : isDone ? "none" : "0 0 4px rgba(212,160,23,0.15)",
+                              animation: isReachable ? "coinGlowPulse 2s ease-in-out infinite" : "none",
+                            }}
+                          />
                         ) : (
                           <div style={{
                             width: 40, height: 40, borderRadius: 7,
@@ -621,31 +616,6 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                           color: isDone ? "rgba(255,215,0,0.3)" : "rgba(255,215,0,0.85)",
                         }}>{"⭐".repeat(Math.max(1, rewardCfg.star_rarity))}</span>
                       ) : null}
-                      {/* Claim button — only when milestone is reached but not yet claimed */}
-                      {isReachable && (
-                        <button
-                          data-testid={`button-claim-milestone-${m.end}`}
-                          disabled={claimMilestoneMutation.isPending}
-                          onClick={() => claimMilestoneMutation.mutate(m.end)}
-                          style={{
-                            marginTop: 2,
-                            padding: "2px 4px",
-                            borderRadius: 4,
-                            border: "1.5px solid rgba(246,220,138,0.85)",
-                            background: "linear-gradient(135deg,rgba(120,80,0,0.85),rgba(80,50,0,0.9))",
-                            color: "#f6dc8a",
-                            fontSize: 7,
-                            fontFamily: "Lora, serif",
-                            letterSpacing: "0.08em",
-                            cursor: "pointer",
-                            whiteSpace: "nowrap",
-                            boxShadow: "0 0 6px rgba(246,220,138,0.5)",
-                            animation: "coinGlowPulse 2s ease-in-out infinite",
-                          }}
-                        >
-                          {claimMilestoneMutation.isPending ? "…" : "CLAIM"}
-                        </button>
-                      )}
                     </div>
                   );
                 })}
@@ -776,6 +746,103 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                   </div>
                 </div>
               )}
+
+              {/* ── Milestone reward popup ── */}
+              {milestonePopup !== null && (() => {
+                const popupMs = MILESTONES.find(ms => ms.end === milestonePopup);
+                const popupCfg = rewards.find((r: any) => Number(r.milestone_points) === milestonePopup);
+                const popupIsDone = claimed.includes(milestonePopup);
+                const popupIsReachable = pts >= milestonePopup && !popupIsDone;
+                return (
+                  <div
+                    style={{ position: "fixed", inset: 0, zIndex: 9980, background: "rgba(0,0,0,0.82)", display: "flex", alignItems: "center", justifyContent: "center" }}
+                    onClick={() => { if (!claimMilestoneMutation.isPending) { setMilestonePopup(null); setMilestoneClaimSuccess(false); } }}
+                  >
+                    <div
+                      style={{
+                        width: "82%", maxWidth: 300,
+                        background: "linear-gradient(160deg, #1c1100 0%, #0e0900 100%)",
+                        border: `1.5px solid ${popupIsReachable ? "rgba(246,220,138,0.6)" : "rgba(212,160,23,0.28)"}`,
+                        borderRadius: 16, padding: "28px 22px 22px",
+                        textAlign: "center",
+                        boxShadow: popupIsReachable ? "0 0 40px rgba(212,160,23,0.18)" : "none",
+                      }}
+                      onClick={e => e.stopPropagation()}
+                    >
+                      {milestoneClaimSuccess ? (
+                        <>
+                          <div style={{ fontSize: 64, marginBottom: 8, lineHeight: 1 }}>🎁</div>
+                          <p style={{ color: "#f6dc8a", fontFamily: "Lora, serif", fontSize: 15, fontWeight: 600, marginBottom: 6 }}>
+                            Reward Claimed!
+                          </p>
+                          <p style={{ color: "rgba(212,160,23,0.6)", fontFamily: "Lora, serif", fontSize: 11 }}>
+                            Added to your inventory
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          {/* Item image */}
+                          {popupCfg?.reward_item_image_url ? (
+                            <img
+                              src={popupCfg.reward_item_image_url}
+                              alt={popupCfg.reward_item_name ?? ""}
+                              style={{
+                                width: 88, height: 88, objectFit: "contain",
+                                margin: "0 auto 14px", display: "block",
+                                filter: popupIsReachable
+                                  ? "drop-shadow(0 0 18px rgba(246,220,138,0.9))"
+                                  : popupIsDone ? "brightness(0.45) grayscale(0.6)" : "none",
+                                borderRadius: 10,
+                              }}
+                            />
+                          ) : (
+                            <div style={{ width: 88, height: 88, borderRadius: 12, background: "rgba(212,160,23,0.08)", border: "1.5px dashed rgba(212,160,23,0.3)", margin: "0 auto 14px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36 }}>🎁</div>
+                          )}
+
+                          {/* Item name */}
+                          <p style={{ color: "#f6dc8a", fontFamily: "Lora, serif", fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                            {popupCfg?.reward_item_name ?? (popupMs?.label ? `${popupMs.label} Reward` : "Reward")}
+                          </p>
+
+                          {/* Stat line */}
+                          {getStatLine(popupCfg) && (
+                            <p style={{ color: "rgba(212,160,23,0.75)", fontFamily: "Lora, serif", fontSize: 11, marginBottom: 6 }}>
+                              {getStatLine(popupCfg)}
+                            </p>
+                          )}
+
+                          {/* Points / status */}
+                          <p style={{ color: popupIsDone ? "rgba(74,222,128,0.5)" : "rgba(212,160,23,0.4)", fontFamily: "Lora, serif", fontSize: 10, marginBottom: 18 }}>
+                            {popupIsDone ? "✓ Already claimed" : `Requires ${milestonePopup.toLocaleString()} pts`}
+                          </p>
+
+                          {/* Claim button */}
+                          <button
+                            data-testid={`button-claim-milestone-${milestonePopup}`}
+                            disabled={!popupIsReachable || claimMilestoneMutation.isPending}
+                            onClick={() => popupIsReachable && claimMilestoneMutation.mutate(milestonePopup)}
+                            style={{
+                              width: "100%", padding: "11px 0",
+                              borderRadius: 9,
+                              border: `1.5px solid ${popupIsReachable ? "rgba(74,222,128,0.7)" : "rgba(100,100,100,0.25)"}`,
+                              background: popupIsReachable
+                                ? "linear-gradient(135deg, #1d5e12 0%, #0f3309 100%)"
+                                : "rgba(40,40,40,0.5)",
+                              color: popupIsReachable ? "#4ade80" : "rgba(120,120,120,0.5)",
+                              fontFamily: "Lora, serif", fontSize: 13, letterSpacing: "0.12em",
+                              cursor: popupIsReachable ? "pointer" : "not-allowed",
+                              boxShadow: popupIsReachable ? "0 0 12px rgba(74,222,128,0.2)" : "none",
+                              transition: "opacity 0.15s",
+                            }}
+                          >
+                            {claimMilestoneMutation.isPending ? "Claiming…" : popupIsDone ? "Claimed" : "Claim Reward"}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           );
         })()}
