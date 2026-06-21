@@ -3734,6 +3734,22 @@ export async function registerRoutes(
     return res.json(online);
   });
 
+  // Online player count — admins and moderators only
+  app.get("/api/admin/online-count", isAuthenticated, async (req, res) => {
+    const user = req.user as any;
+    if (!user.isAdmin && !user.isModerator) return res.status(403).json({ message: "Forbidden" });
+    try {
+      const result = await db.execute(
+        sql`SELECT COUNT(*)::int AS count FROM session WHERE expire > NOW() AND sess->'passport'->>'user' IS NOT NULL`
+      );
+      const total = (result.rows[0] as any)?.count ?? 0;
+      const inWorld = _worldClients.size;
+      return res.json({ total, inWorld });
+    } catch {
+      return res.status(500).json({ message: "Failed to get online count" });
+    }
+  });
+
   app.patch("/api/world/pet_world/pet-position", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const user = req.user as any;

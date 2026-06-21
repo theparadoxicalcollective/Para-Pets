@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { X, Send, ShieldAlert, BellOff, Bell } from "lucide-react";
+import { X, Send, ShieldAlert, BellOff, Bell, Users } from "lucide-react";
 import RoleBadge from "@/components/RoleBadge";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import veridianWatcherAvatar from "@assets/generated_images/veridian_watcher_avatar.png";
@@ -20,6 +20,8 @@ interface WorldChatMessage {
 
 interface WorldChatPanelProps {
   currentUserId: string;
+  isAdmin?: boolean;
+  isModerator?: boolean;
   onClose: () => void;
   onNewMessage?: () => void;
 }
@@ -37,7 +39,7 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 3600)}h`;
 }
 
-export default function WorldChatPanel({ currentUserId, onClose, onNewMessage }: WorldChatPanelProps) {
+export default function WorldChatPanel({ currentUserId, isAdmin, isModerator, onClose, onNewMessage }: WorldChatPanelProps) {
   const [input, setInput] = useState("");
   const [cooldown, setCooldown] = useState(0);
   const [popupMsg, setPopupMsg] = useState<string | null>(null);
@@ -49,6 +51,14 @@ export default function WorldChatPanel({ currentUserId, onClose, onNewMessage }:
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const qc = useQueryClient();
+
+  const isStaff = isAdmin || isModerator;
+  const { data: onlineData } = useQuery<{ total: number; inWorld: number }>({
+    queryKey: ["/api/admin/online-count"],
+    refetchInterval: 30_000,
+    enabled: isStaff,
+    staleTime: 25_000,
+  });
 
   const { data: shoutoutPref } = useQuery<{ enabled: boolean }>({
     queryKey: ["/api/user/watcher-shoutouts"],
@@ -190,6 +200,31 @@ export default function WorldChatPanel({ currentUserId, onClose, onNewMessage }:
           </div>
         </div>
       )}
+      {/* Staff-only online counter */}
+      {isStaff && onlineData && (
+        <div
+          className="flex items-center justify-center gap-3 px-3 py-1 flex-shrink-0"
+          style={{ background: "rgba(74,222,128,0.06)", borderBottom: "1px solid rgba(74,222,128,0.12)" }}
+          data-testid="div-online-count"
+        >
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#4ade80", boxShadow: "0 0 4px #4ade80" }} />
+            <span style={{ fontSize: 9, color: "rgba(74,222,128,0.9)", fontFamily: "Lora, serif", letterSpacing: "0.12em" }}>
+              <span className="font-bold" data-testid="text-online-total">{onlineData.total}</span>
+              <span style={{ color: "rgba(74,222,128,0.5)" }}> online</span>
+            </span>
+          </div>
+          <div style={{ width: 1, height: 10, background: "rgba(74,222,128,0.2)" }} />
+          <div className="flex items-center gap-1.5">
+            <Users size={9} style={{ color: "rgba(74,222,128,0.7)" }} />
+            <span style={{ fontSize: 9, color: "rgba(74,222,128,0.9)", fontFamily: "Lora, serif", letterSpacing: "0.12em" }}>
+              <span className="font-bold" data-testid="text-online-inworld">{onlineData.inWorld}</span>
+              <span style={{ color: "rgba(74,222,128,0.5)" }}> in world</span>
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div
         className="flex items-center justify-between px-3 py-2 flex-shrink-0"

@@ -35,6 +35,7 @@ interface HomePageProps {
     profileImage: string | null;
     coins: number;
     isAdmin: boolean;
+    isModerator?: boolean;
     activePetId: string | null;
     lastUsernameChange: string | null;
     lastProfilePicChange: string | null;
@@ -2010,6 +2011,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       {showWorldChat && (
         <WorldChatPanel
           currentUserId={currentUser.id}
+          isAdmin={currentUser.isAdmin}
+          isModerator={currentUser.isModerator}
           onClose={() => setShowWorldChat(false)}
           onNewMessage={() => setChatHasNewMsg(true)}
         />
