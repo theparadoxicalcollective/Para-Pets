@@ -1026,6 +1026,18 @@ uri = "file://attached_assets/acc_haunted_6.png"
 type = "image"
 title = "acc_haunted_6.png"
 
+[[generated]]
+id = "uomMu-qX4BsC-RHUEn4Y_"
+uri = "file://attached_assets/icon_online_orb.png"
+type = "image"
+title = "online orb icon"
+
+[[generated]]
+id = "-yBrYG6RDN_lYyYaKQhAd"
+uri = "file://attached_assets/icon_inworld_paw.png"
+type = "image"
+title = "in world paw icon"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

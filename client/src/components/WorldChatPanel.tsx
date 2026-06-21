@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { X, Send, ShieldAlert, BellOff, Bell, Radio, Globe } from "lucide-react";
+import { X, Send, ShieldAlert, BellOff, Bell } from "lucide-react";
 import RoleBadge from "@/components/RoleBadge";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import veridianWatcherAvatar from "@assets/generated_images/veridian_watcher_avatar.png";
+import iconOnlineOrb from "@assets/icon_online_orb.png";
+import iconInworldPaw from "@assets/icon_inworld_paw.png";
 
 interface WorldChatMessage {
   id: string;
@@ -208,7 +210,7 @@ export default function WorldChatPanel({ currentUserId, isAdmin, isModerator, on
           data-testid="div-online-count"
         >
           <div className="flex items-center gap-1.5">
-            <Radio size={9} style={{ color: "rgba(74,222,128,0.7)" }} />
+            <img src={iconOnlineOrb} alt="" style={{ width: 12, height: 12, objectFit: "contain" }} draggable={false} />
             <span style={{ fontSize: 9, color: "rgba(74,222,128,0.9)", fontFamily: "Lora, serif", letterSpacing: "0.12em" }}>
               <span className="font-bold" data-testid="text-online-total">{onlineData.total}</span>
               <span style={{ color: "rgba(74,222,128,0.5)" }}> online</span>
@@ -216,7 +218,7 @@ export default function WorldChatPanel({ currentUserId, isAdmin, isModerator, on
           </div>
           <div style={{ width: 1, height: 10, background: "rgba(74,222,128,0.2)" }} />
           <div className="flex items-center gap-1.5">
-            <Globe size={9} style={{ color: "rgba(74,222,128,0.7)" }} />
+            <img src={iconInworldPaw} alt="" style={{ width: 12, height: 12, objectFit: "contain" }} draggable={false} />
             <span style={{ fontSize: 9, color: "rgba(74,222,128,0.9)", fontFamily: "Lora, serif", letterSpacing: "0.12em" }}>
               <span className="font-bold" data-testid="text-online-inworld">{onlineData.inWorld}</span>
               <span style={{ color: "rgba(74,222,128,0.5)" }}> in world</span>
