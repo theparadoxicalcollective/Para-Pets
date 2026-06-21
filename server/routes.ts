@@ -5632,6 +5632,42 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/market/list-fish", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { fishInventoryId, price } = req.body;
+      if (!fishInventoryId || price == null) return res.status(400).json({ message: "fishInventoryId and price required" });
+      if (typeof price !== "number" || price < 1 || price > 1000000) return res.status(400).json({ message: "Price must be between 1 and 1,000,000 coins" });
+
+      const fishItem = await storage.getFishInventoryItemById(fishInventoryId, user.id);
+      if (!fishItem) return res.status(404).json({ message: "Fish not found in your inventory" });
+      if (fishItem.inAquarium) return res.status(400).json({ message: "Remove the fish from your aquarium before listing it" });
+
+      const shopItem = await storage.getShopItem(fishItem.shopItemId);
+      if (!shopItem) return res.status(404).json({ message: "Fish item data not found" });
+
+      const myListings = await storage.getMyMarketListings(user.id);
+      const activeOrPending = myListings.filter((l: any) => l.status === "active" || l.status === "sold");
+      const totalSlots = 25 + (user.marketExtraSlots ?? 0);
+      if (activeOrPending.length >= totalSlots) return res.status(400).json({ message: `You've reached your listing limit (${totalSlots} slots). Collect sold coins or buy more slots.` });
+
+      const invItem = await storage.createListedFishInventoryEntry(user.id, fishItem.shopItemId, fishInventoryId);
+      const listing = await storage.createMarketListing({
+        sellerId: user.id,
+        sellerName: user.username,
+        inventoryId: invItem.id,
+        shopItemId: shopItem.id,
+        itemName: shopItem.name,
+        itemImageUrl: shopItem.imageUrl,
+        itemType: "fish",
+        price,
+      });
+      return res.json(listing);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Failed to list fish" });
+    }
+  });
+
   app.post("/api/market/:listingId/buy", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
@@ -5647,6 +5683,18 @@ export async function registerRoutes(
       try {
         // buyMarketListing re-checks status = 'active' atomically; throws if already sold
         const { price } = await storage.buyMarketListing(listing.id, user.id);
+        // Fish listings: move from user_inventory to buyer's player_fish_inventory
+        if (listing.itemType === "fish") {
+          try {
+            const invItem = await storage.getInventoryItemById(listing.inventoryId);
+            if (invItem) {
+              await storage.addFishToPlayerInventory(user.id, invItem.shopItemId);
+              await storage.deleteSingleInventoryItem(listing.inventoryId);
+            }
+          } catch (fishErr) {
+            console.error("Failed to move fish to buyer fish inventory:", fishErr);
+          }
+        }
         return res.json({ ok: true, price });
       } catch (claimErr: any) {
         // Listing was already sold to someone else — refund the deducted coins
@@ -5673,7 +5721,20 @@ export async function registerRoutes(
   app.delete("/api/market/:listingId", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      const listing = await storage.getMarketListing(req.params.listingId as string);
       await storage.cancelMarketListing((req.params.listingId as string), user.id);
+      // Fish listings: return fish to seller's player_fish_inventory
+      if (listing?.itemType === "fish") {
+        try {
+          const invItem = await storage.getInventoryItemById(listing.inventoryId);
+          if (invItem) {
+            await storage.addFishToPlayerInventory(user.id, invItem.shopItemId);
+            await storage.deleteSingleInventoryItem(listing.inventoryId);
+          }
+        } catch (fishErr) {
+          console.error("Failed to return fish to seller fish inventory:", fishErr);
+        }
+      }
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(400).json({ message: err.message || "Failed to cancel listing" });

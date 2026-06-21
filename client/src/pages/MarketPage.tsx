@@ -46,6 +46,13 @@ interface InventoryItem {
   isHatched: boolean;
 }
 
+interface FishItem {
+  id: string;
+  shopItemId: string;
+  inAquarium: boolean;
+  item: { name: string; imageUrl: string | null } | null;
+}
+
 function CoinIcon({ size = 14 }: { size?: number }) {
   return (
     <img src={coinIconImg} alt="coins" style={{ width: size, height: size, objectFit: "contain", display: "inline-block", verticalAlign: "middle" }} />
@@ -212,17 +219,30 @@ function EmptySlot({ onSell }: { onSell: () => void }) {
   );
 }
 
-function SellItemModal({ inventory, onClose, onSubmit, isPending }: {
+function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFish, isPending }: {
   inventory: InventoryItem[];
+  fishInventory: FishItem[];
   onClose: () => void;
   onSubmit: (inventoryId: string, price: number) => void;
+  onSubmitFish: (fishInventoryId: string, price: number) => void;
   isPending: boolean;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIsFish, setSelectedIsFish] = useState(false);
   const [price, setPrice] = useState("");
 
-  const sellable = inventory.filter(i => i.type !== "pet" && !i.isListed);
-  const selected = sellable.find(i => i.id === selectedId);
+  const regularSellable = inventory.filter(i => i.type !== "pet" && !i.isListed);
+  const fishSellable = fishInventory.filter(f => !f.inAquarium);
+  const sellable = regularSellable;
+  const selected = selectedIsFish
+    ? fishSellable.find(f => f.id === selectedId)
+    : regularSellable.find(i => i.id === selectedId);
+  const selectedName = selectedIsFish
+    ? (selected as FishItem | undefined)?.item?.name ?? "Unknown"
+    : (selected as InventoryItem | undefined)?.name ?? "";
+  const selectedImage = selectedIsFish
+    ? (selected as FishItem | undefined)?.item?.imageUrl ?? null
+    : (selected as InventoryItem | undefined)?.imageUrl ?? null;
   const priceNum = parseInt(price.replace(/,/g, ""), 10);
   const priceValid = !isNaN(priceNum) && priceNum >= 1 && priceNum <= 1000000;
 
@@ -255,20 +275,20 @@ function SellItemModal({ inventory, onClose, onSubmit, isPending }: {
           <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(150,200,150,0.7)", fontSize: 20, cursor: "pointer" }}>✕</button>
         </div>
 
-        <p style={{ color: "rgba(150,200,150,0.7)", fontSize: 11, marginBottom: 14 }}>Select an item from your inventory to sell. Pets cannot be listed.</p>
+        <p style={{ color: "rgba(150,200,150,0.7)", fontSize: 11, marginBottom: 14 }}>Select an item or fish to sell. Pets cannot be listed.</p>
 
-        {sellable.length === 0 ? (
+        {regularSellable.length === 0 && fishSellable.length === 0 ? (
           <p style={{ color: "rgba(150,200,150,0.5)", textAlign: "center", fontFamily: "Georgia, serif", fontSize: 13, padding: "20px 0" }}>No sellable items in inventory</p>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16, maxHeight: 260, overflowY: "auto" }}>
-            {sellable.map(item => (
+            {regularSellable.map(item => (
               <button
                 key={item.id}
                 data-testid={`button-select-item-${item.id}`}
-                onClick={() => setSelectedId(item.id)}
+                onClick={() => { setSelectedId(item.id); setSelectedIsFish(false); }}
                 style={{
-                  background: selectedId === item.id ? "rgba(74,222,128,0.2)" : "rgba(20,50,25,0.7)",
-                  border: `2px solid ${selectedId === item.id ? "rgba(74,222,128,0.7)" : "rgba(74,180,100,0.25)"}`,
+                  background: selectedId === item.id && !selectedIsFish ? "rgba(74,222,128,0.2)" : "rgba(20,50,25,0.7)",
+                  border: `2px solid ${selectedId === item.id && !selectedIsFish ? "rgba(74,222,128,0.7)" : "rgba(74,180,100,0.25)"}`,
                   borderRadius: 10,
                   padding: 8,
                   cursor: "pointer",
@@ -288,13 +308,40 @@ function SellItemModal({ inventory, onClose, onSubmit, isPending }: {
                 <span style={{ color: "#c8f0c8", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>{item.name}</span>
               </button>
             ))}
+            {fishSellable.map(fish => (
+              <button
+                key={fish.id}
+                data-testid={`button-select-fish-${fish.id}`}
+                onClick={() => { setSelectedId(fish.id); setSelectedIsFish(true); }}
+                style={{
+                  background: selectedId === fish.id && selectedIsFish ? "rgba(74,222,128,0.2)" : "rgba(10,30,40,0.7)",
+                  border: `2px solid ${selectedId === fish.id && selectedIsFish ? "rgba(74,222,128,0.7)" : "rgba(74,180,200,0.25)"}`,
+                  borderRadius: 10,
+                  padding: 8,
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 4,
+                  position: "relative",
+                }}
+              >
+                {fish.item?.imageUrl ? (
+                  <img src={fish.item.imageUrl} alt={fish.item.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
+                ) : (
+                  <div style={{ width: 44, height: 44, background: "rgba(74,200,222,0.1)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🐟</div>
+                )}
+                <span style={{ color: "#a0e8f0", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>{fish.item?.name ?? "Fish"}</span>
+                <span style={{ position: "absolute", top: 3, right: 3, fontSize: 8, color: "rgba(127,200,255,0.7)" }}>🎣</span>
+              </button>
+            ))}
           </div>
         )}
 
         {selected && (
           <div style={{ marginBottom: 16 }}>
             <p style={{ color: "rgba(150,200,150,0.8)", fontSize: 11, marginBottom: 8 }}>
-              Selling: <span style={{ color: "#4ade80", fontWeight: 700 }}>{selected.name}</span>
+              Selling: <span style={{ color: "#4ade80", fontWeight: 700 }}>{selectedName}</span>
             </p>
             <label style={{ color: "rgba(150,200,150,0.8)", fontSize: 11, display: "block", marginBottom: 6 }}>
               Set Price (max 1,000,000 coins)
@@ -331,7 +378,11 @@ function SellItemModal({ inventory, onClose, onSubmit, isPending }: {
         <button
           data-testid="button-confirm-listing"
           disabled={!selected || !priceValid || isPending}
-          onClick={() => selected && priceValid && onSubmit(selected.id, priceNum)}
+          onClick={() => {
+            if (!selected || !priceValid) return;
+            if (selectedIsFish) onSubmitFish(selected.id, priceNum);
+            else onSubmit(selected.id, priceNum);
+          }}
           style={{
             width: "100%",
             background: selected && priceValid ? "linear-gradient(135deg, rgba(74,222,128,0.4) 0%, rgba(40,160,80,0.4) 100%)" : "rgba(50,80,55,0.4)",
@@ -427,6 +478,11 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
     enabled: showSellModal,
   });
 
+  const fishInventoryQuery = useQuery<FishItem[]>({
+    queryKey: ["/api/fishing/inventory"],
+    enabled: showSellModal,
+  });
+
   const listMutation = useMutation({
     mutationFn: ({ inventoryId, price }: { inventoryId: string; price: number }) =>
       apiRequest("POST", "/api/market/list", { inventoryId, price }),
@@ -439,12 +495,25 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
     onError: (e: any) => toast({ title: "Failed to list", description: e.message, variant: "destructive" }),
   });
 
+  const listFishMutation = useMutation({
+    mutationFn: ({ fishInventoryId, price }: { fishInventoryId: string; price: number }) =>
+      apiRequest("POST", "/api/market/list-fish", { fishInventoryId, price }),
+    onSuccess: () => {
+      setShowSellModal(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
+      toast({ title: "Fish listed!", description: "Your fish is now on the market." });
+    },
+    onError: (e: any) => toast({ title: "Failed to list fish", description: e.message, variant: "destructive" }),
+  });
+
   const buyMutation = useMutation({
     mutationFn: (listingId: string) => apiRequest("POST", `/api/market/${listingId}/buy`, {}),
     onSuccess: async (data: any) => {
       setBuyTarget(null);
       queryClient.invalidateQueries({ queryKey: ["/api/market"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
       const updatedUser = await fetch("/api/auth/me").then(r => r.json());
       onUserUpdate?.(updatedUser);
       playChime();
@@ -679,9 +748,11 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
       {showSellModal && (
         <SellItemModal
           inventory={inventoryQuery.data ?? []}
+          fishInventory={fishInventoryQuery.data ?? []}
           onClose={() => setShowSellModal(false)}
           onSubmit={(inventoryId, price) => listMutation.mutate({ inventoryId, price })}
-          isPending={listMutation.isPending}
+          onSubmitFish={(fishInventoryId, price) => listFishMutation.mutate({ fishInventoryId, price })}
+          isPending={listMutation.isPending || listFishMutation.isPending}
         />
       )}
 

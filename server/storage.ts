@@ -245,6 +245,9 @@ export interface IStorage {
   removeFishFromPond(locationId: string, shopItemId: string): Promise<void>;
   getPlayerFishInventory(userId: string): Promise<(PlayerFishInventory & { item: ShopItem | null })[]>;
   addFishToPlayerInventory(userId: string, shopItemId: string): Promise<PlayerFishInventory>;
+  getFishInventoryItemById(id: string, userId: string): Promise<(PlayerFishInventory & { item: ShopItem | null }) | null>;
+  createListedFishInventoryEntry(userId: string, shopItemId: string, fishInventoryId: string): Promise<UserInventoryItem>;
+  deleteSingleInventoryItem(id: string): Promise<void>;
   logFishCatch(userId: string, shopItemId: string): Promise<void>;
   getPlayerCaughtFishLog(userId: string): Promise<{ shopItemId: string; rewardClaimed: boolean }[]>;
   claimFishCatchReward(userId: string, shopItemId: string): Promise<boolean>;
@@ -1846,6 +1849,24 @@ export class DatabaseStorage implements IStorage {
   async addFishToPlayerInventory(userId: string, shopItemId: string): Promise<PlayerFishInventory> {
     const [row] = await db.insert(playerFishInventory).values({ userId, shopItemId }).returning();
     return row;
+  }
+
+  async getFishInventoryItemById(id: string, userId: string): Promise<(PlayerFishInventory & { item: ShopItem | null }) | null> {
+    const rows = await db.select().from(playerFishInventory)
+      .leftJoin(shopItems, eq(playerFishInventory.shopItemId, shopItems.id))
+      .where(and(eq(playerFishInventory.id, id), eq(playerFishInventory.userId, userId)));
+    if (rows.length === 0) return null;
+    return { ...rows[0].player_fish_inventory, item: rows[0].shop_items };
+  }
+
+  async createListedFishInventoryEntry(userId: string, shopItemId: string, fishInventoryId: string): Promise<UserInventoryItem> {
+    await db.delete(playerFishInventory).where(eq(playerFishInventory.id, fishInventoryId));
+    const [item] = await db.insert(userInventory).values({ userId, shopItemId, isListed: true }).returning();
+    return item;
+  }
+
+  async deleteSingleInventoryItem(id: string): Promise<void> {
+    await db.delete(userInventory).where(eq(userInventory.id, id));
   }
 
   async logFishCatch(userId: string, shopItemId: string): Promise<void> {
