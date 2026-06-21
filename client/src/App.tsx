@@ -48,6 +48,7 @@ const BagInventoryPage   = lazy(() => import("@/pages/BagInventoryPage"));
 const EquipAccessoriesPage = lazy(() => import("@/pages/EquipAccessoriesPage"));
 const PetCarePage          = lazy(() => import("@/pages/PetCarePage"));
 const MoltenBlocksPage     = lazy(() => import("@/pages/MoltenBlocksPage"));
+const FriendsPage          = lazy(() => import("@/pages/FriendsPage"));
 
 // ── Email gate screen — blocks the game until email is verified ───────────────
 function EmailGateScreen({ email }: { email: string }) {
@@ -490,6 +491,11 @@ function AppRouter() {
         {location === "/games/molten-blocks" && (
           <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
             <MoltenBlocksPage />
+          </div>
+        )}
+        {location === "/friends" && (
+          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+            <FriendsPage />
           </div>
         )}
       </Suspense>

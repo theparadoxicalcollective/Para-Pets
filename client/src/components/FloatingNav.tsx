@@ -15,6 +15,7 @@ import marketIcon from "@assets/generated_images/nav_icon_market.png";
 import fishbowlIcon from "@assets/icon_fishbowl.png";
 import globeIcon from "@assets/icon_globe_world.webp";
 import bagIcon from "@assets/icon_bag.png";
+import friendsNavIcon from "@assets/generated_images/nav_icon_friends.png";
 import mapIcon from "@assets/generated_images/nav_icon_map_v3.png";
 import questIcon from "@assets/generated_images/nav_icon_map.png";
 import questScrollBg from "@assets/IMG_6427_1774545779530.png";
@@ -74,14 +75,15 @@ const LEFT_ITEMS = [
   { id: "map",       label: "Map",       icon: mapIcon },
 ];
 
-// ── Right column: Home, Pet House, Market, Aquarium, Keeper's Central, Pet Bag
+// ── Right column: Home, Pet House, Market, Aquarium, Keeper's Central, Pet Bag, Friends
 const RIGHT_ITEMS = [
-  { id: "bag",      label: "Bag",     icon: bagIcon      },
-  { id: "pethouse", label: "House",   icon: petHouseIcon },
-  { id: "market",   label: "Market",  icon: marketIcon   },
-  { id: "aquarium", label: "Aquarium",icon: fishbowlIcon },
-  { id: "keepers",  label: "Central", icon: globeIcon    },
-  { id: "home",     label: "Main",    icon: activePetIcon },
+  { id: "bag",      label: "Bag",     icon: bagIcon        },
+  { id: "friends",  label: "Friends", icon: friendsNavIcon },
+  { id: "pethouse", label: "House",   icon: petHouseIcon   },
+  { id: "market",   label: "Market",  icon: marketIcon     },
+  { id: "aquarium", label: "Aquarium",icon: fishbowlIcon   },
+  { id: "keepers",  label: "Central", icon: globeIcon      },
+  { id: "home",     label: "Main",    icon: activePetIcon  },
 ];
 
 const ICON_SIZE   = 50;
@@ -239,6 +241,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     if (id === "aquarium") { setTimeout(() => openPanel(() => setShowAquarium(true)), NAV_DELAY); return; }
     if (id === "keepers")  { setTimeout(() => openPanel(() => setShowKeepers(true)), NAV_DELAY); return; }
     if (id === "bag")      { setTimeout(() => navigate("/bag"), NAV_DELAY); return; }
+    if (id === "friends")  { setTimeout(() => navigate("/friends"), NAV_DELAY); return; }
   };
 
   if (navHidden) return null;

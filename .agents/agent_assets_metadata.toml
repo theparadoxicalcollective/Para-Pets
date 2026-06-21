@@ -1038,6 +1038,12 @@ uri = "file://attached_assets/icon_inworld_paw.png"
 type = "image"
 title = "in world paw icon"
 
+[[generated]]
+id = "Fm-f7s3M4rxAQAJRMxFHS"
+uri = "file://client/src/assets/generated_images/nav_icon_friends.png"
+type = "image"
+title = "friends nav icon fantasy"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
