@@ -276,12 +276,29 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
 
       {/* Fish inventory */}
       <div className="flex-1 overflow-y-auto px-4 pb-4" style={{ scrollbarWidth: "thin" }}>
-        <p className="font-fantasy text-[10px] mb-2" style={{ color: `${ACCENT}50` }}>
-          Your Fish ({inventoryFish.length})
-          {aquariumCount > 0 && (
-            <span style={{ color: `${ACCENT}35`, marginLeft: 6 }}>· {aquariumCount} in aquarium (not for sale)</span>
+        <div className="flex items-center justify-between mb-2">
+          <p className="font-fantasy text-[10px]" style={{ color: `${ACCENT}50` }}>
+            Your Fish ({inventoryFish.length})
+            {aquariumCount > 0 && (
+              <span style={{ color: `${ACCENT}35`, marginLeft: 6 }}>· {aquariumCount} in aquarium (not for sale)</span>
+            )}
+          </p>
+          {inventoryFish.length > 0 && (
+            <button
+              data-testid="button-sell-all"
+              onClick={() => setCartIds(new Set(inventoryFish.map(f => f.id)))}
+              className="font-fantasy text-[10px] px-3 py-1 rounded-lg transition-all active:scale-95"
+              style={{
+                background: "rgba(94,234,212,0.1)",
+                border: `1px solid ${ACCENT}40`,
+                color: ACCENT,
+                cursor: "pointer",
+              }}
+            >
+              Sell All
+            </button>
           )}
-        </p>
+        </div>
         {isLoading ? (
           <p className="font-fantasy text-xs text-center py-8" style={{ color: `${ACCENT}50` }}>Loading...</p>
         ) : inventoryFish.length === 0 ? (

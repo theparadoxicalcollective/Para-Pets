@@ -58,7 +58,7 @@ import {
 } from "@shared/schema";
 
 import { db } from "./db";
-import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray } from "drizzle-orm";
+import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray, isNull, gt } from "drizzle-orm";
 
 export interface EquippedAccessoryDetail {
   id: string;
@@ -3003,6 +3003,7 @@ export class DatabaseStorage implements IStorage {
       await this.decrementHomeDecorInventory(senderId, decorItemId);
     }
 
+    const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     const [gift] = await db.insert(gifts).values({
       senderId,
       receiverId,
@@ -3016,6 +3017,7 @@ export class DatabaseStorage implements IStorage {
       itemName: itemName ?? null,
       itemImageUrl: itemImageUrl ?? null,
       status: "pending",
+      expiresAt: thirtyDaysFromNow,
     }).returning();
     return gift;
   }
@@ -3029,7 +3031,11 @@ export class DatabaseStorage implements IStorage {
       })
       .from(gifts)
       .leftJoin(users, eq(gifts.senderId, users.id))
-      .where(and(eq(gifts.receiverId, userId), eq(gifts.status, "pending")))
+      .where(and(
+        eq(gifts.receiverId, userId),
+        eq(gifts.status, "pending"),
+        or(isNull(gifts.expiresAt), gt(gifts.expiresAt, new Date())),
+      ))
       .orderBy(desc(gifts.createdAt));
     return rows.map((r) => ({
       ...r.gift,

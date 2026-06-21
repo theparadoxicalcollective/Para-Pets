@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { setNavHidden } from "@/lib/navVisibility";
 import { playChime, playTick, playShopBell, playMapTap } from "@/lib/sounds";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { useParams, useLocation } from "wouter";
@@ -412,6 +413,13 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       setShowShop(true);
     }
   }, [locations]);
+
+  // Hide the floating nav whenever a full-screen overlay (shop, fishing spot,
+  // or fish market) is open so the nav button doesn't float over the UI.
+  useEffect(() => {
+    setNavHidden(showShop || showFishing || showSellFish);
+    return () => { setNavHidden(false); };
+  }, [showShop, showFishing, showSellFish]);
 
   const { data: activeLocDetail } = useQuery<WorldLocationData>({
     queryKey: ["/api/location", activeLocationId],

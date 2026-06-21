@@ -803,6 +803,7 @@ export const gifts = pgTable("gifts", {
   itemImageUrl: text("item_image_url"),
   status: text("status").notNull().default("pending"), // 'pending' | 'accepted'
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  expiresAt: timestamp("expires_at"), // null = never expires; set to 30 days from creation for system gifts
 });
 
 export type Gift = typeof gifts.$inferSelect;
