@@ -1135,7 +1135,7 @@ app.use((req, res, next) => {
     snowy_mountain: "bg_snowy_mountain_map.webp",
     sky_realm: "bg_sky_realm_map.webp",
     volcanic: "bg_volcanic_map_v2.jpeg",
-    haunted_woods: "bg_haunted_woods_v2.png",
+    haunted_woods: "bg_haunted_woods_map.webp",
     enchanted_grove: "bg_enchanted_grove_map.webp",
     island: "bg_island_map.webp",
     desert: "bg_desert_map.webp",
@@ -2896,9 +2896,9 @@ app.use((req, res, next) => {
     const result = await db.execute(sql`
       UPDATE world_locations
       SET name        = 'Soul Pond',
-          type        = 'quest',
+          type        = 'fishing',
           is_shop     = false,
-          description = 'A sacred yet haunted pool deep in the Haunted Woods. Ancient spirits drift across its glowing surface, whispering forgotten secrets to those brave enough to approach.',
+          description = 'A haunting body of still water reflecting the pale moon, whispered to harbor spectral fish of legend. Cast your line and see what the dead left behind.',
           bg_url      = COALESCE(${bgData ?? null}, bg_url)
       WHERE id = ${PHANTOM_HOLLOW_ID}
         AND world_id = 'haunted_woods'
