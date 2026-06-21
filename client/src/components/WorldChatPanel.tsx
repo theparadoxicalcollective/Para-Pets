@@ -306,7 +306,9 @@ export default function WorldChatPanel({ currentUserId, onClose, onNewMessage }:
                       color: isBot ? VW_COLOR : isMe ? GOLD : "#7fffd4",
                       fontSize: 9,
                       letterSpacing: "0.05em",
+                      cursor: (!isMe && !isBot) ? "pointer" : "default",
                     }}
+                    onClick={() => !isMe && !isBot && setViewingPlayerId(msg.userId)}
                   >
                     {msg.username}
                   </span>

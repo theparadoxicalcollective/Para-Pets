@@ -6834,8 +6834,23 @@ export async function registerRoutes(
     try {
       const userId = (req.user as any).id;
       const { requestId } = req.params as Record<string, string>;
+
+      // Enforce 100-friend cap for the receiver before accepting
+      const receiverFriends = await storage.getFriends(userId);
+      if (receiverFriends.length >= 100) {
+        return res.status(400).json({ message: "You have reached the 100-friend limit" });
+      }
+
       const result = await storage.acceptFriendRequest(requestId, userId);
       if (!result) return res.status(404).json({ message: "Request not found" });
+
+      // Also enforce cap for the requester
+      const requesterFriends = await storage.getFriends(result.requesterId);
+      if (requesterFriends.length > 100) {
+        // Undo
+        await storage.removeFriendOrRequest(userId, result.requesterId);
+        return res.status(400).json({ message: "The other player has reached the 100-friend limit" });
+      }
       const accepter = await storage.getUser(userId);
       if (accepter) {
         await storage.createNotification(

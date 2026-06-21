@@ -150,6 +150,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [showWorldChat, setShowWorldChat] = useState(false);
   const [chatHasNewMsg, setChatHasNewMsg] = useState(false);
   const bgChatCountRef = useRef(-1);
+  const [dismissedRequests, setDismissedRequests] = useState<Set<string>>(() => new Set());
 
   // Background poll for world chat — detects new messages even when the panel is closed
   // so the icon can glow when Veridian Watcher or other players post.
@@ -175,6 +176,35 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [, navigate] = useLocation();
   const searchString = useSearch();
   const queryClient = useQueryClient();
+
+  const { data: pendingRequests = [] } = useQuery<any[]>({
+    queryKey: ["/api/friends/requests"],
+    queryFn: async () => {
+      const res = await fetch("/api/friends/requests", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    refetchInterval: 30000,
+    staleTime: 10000,
+    enabled: !!currentUser,
+  });
+
+  const acceptFriendMutation = useMutation({
+    mutationFn: (requestId: string) => apiRequest("POST", `/api/friends/accept/${requestId}`, {}),
+    onSuccess: (_, requestId) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+      setDismissedRequests(s => new Set([...s, requestId]));
+    },
+  });
+
+  const declineFriendMutation = useMutation({
+    mutationFn: (userId: string) => apiRequest("DELETE", `/api/friends/${userId}`, {}),
+    onSuccess: (_, userId) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
+      setDismissedRequests(s => new Set([...s, userId]));
+    },
+  });
 
   // Open Power Up modal when navigated here via "/?action=powerup" (daily quest Go button)
   useEffect(() => {
@@ -712,6 +742,96 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
           </div>
         </div>
+
+        {/* Friend request notifications */}
+        {pendingRequests.filter(r => !dismissedRequests.has(r.id)).length > 0 && (
+          <div
+            style={{ position: "relative", zIndex: 35, pointerEvents: "auto", padding: "4px 12px 0" }}
+            data-testid="section-friend-requests"
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {pendingRequests.filter(r => !dismissedRequests.has(r.id)).map((req: any) => (
+                <div
+                  key={req.id}
+                  className="flex items-center gap-3 px-3 py-2 rounded-xl"
+                  style={{
+                    background: "rgba(10,6,0,0.85)",
+                    border: "1px solid rgba(212,160,23,0.35)",
+                    backdropFilter: "blur(8px)",
+                    boxShadow: "0 2px 16px rgba(0,0,0,0.5)",
+                  }}
+                >
+                  {/* Avatar */}
+                  <div className="flex-shrink-0 rounded-lg overflow-hidden"
+                    style={{ width: 36, height: 36, border: "1.5px solid rgba(212,160,23,0.4)" }}>
+                    {req.profileImage ? (
+                      <img src={req.profileImage} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center"
+                        style={{ background: "linear-gradient(135deg, #2a1a0a, #4a2e18)" }}>
+                        <span className="font-fantasy text-[#d4a017] font-bold text-sm">
+                          {(req.username ?? "?").charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-fantasy text-xs" style={{ color: "#f6dc8a", lineHeight: 1.2 }}>
+                      <span style={{ fontWeight: 600 }}>{req.username}</span>
+                    </p>
+                    <p className="font-fantasy text-[9px]" style={{ color: "rgba(212,160,23,0.55)" }}>
+                      sent you a friend request
+                    </p>
+                  </div>
+
+                  {/* Accept */}
+                  <button
+                    data-testid={`button-accept-friend-${req.id}`}
+                    onClick={() => acceptFriendMutation.mutate(req.id)}
+                    disabled={acceptFriendMutation.isPending || declineFriendMutation.isPending}
+                    style={{
+                      padding: "5px 12px", borderRadius: 7,
+                      background: "rgba(15,60,30,0.8)",
+                      border: "1.5px solid rgba(74,222,128,0.5)",
+                      color: "#4ade80",
+                      fontFamily: "Lora, serif", fontSize: 10, letterSpacing: "0.05em",
+                      cursor: "pointer", flexShrink: 0,
+                    }}
+                  >
+                    Accept
+                  </button>
+
+                  {/* Decline */}
+                  <button
+                    data-testid={`button-decline-friend-${req.id}`}
+                    onClick={() => declineFriendMutation.mutate(req.requesterId)}
+                    disabled={acceptFriendMutation.isPending || declineFriendMutation.isPending}
+                    style={{
+                      padding: "5px 12px", borderRadius: 7,
+                      background: "rgba(60,15,15,0.7)",
+                      border: "1.5px solid rgba(220,60,60,0.4)",
+                      color: "#f87171",
+                      fontFamily: "Lora, serif", fontSize: 10, letterSpacing: "0.05em",
+                      cursor: "pointer", flexShrink: 0,
+                    }}
+                  >
+                    Decline
+                  </button>
+
+                  {/* Dismiss */}
+                  <button
+                    onClick={() => setDismissedRequests(s => new Set([...s, req.id]))}
+                    style={{ color: "rgba(168,152,120,0.4)", fontSize: 14, background: "none", border: "none", cursor: "pointer", flexShrink: 0, lineHeight: 1 }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {activePet && (
           <div

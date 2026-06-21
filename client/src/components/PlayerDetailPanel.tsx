@@ -1,22 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
-import petHouseBg from "@assets/generated_images/pet_world_bg.png";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
-import houseCottageIcon from "@assets/generated_images/nav_icon_home.png";
 import RoleBadge from "@/components/RoleBadge";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PlayerDetailPanel — slim, read-only "tap-on-a-player" card
-//
-// Per game spec the popup that opens whenever a player taps another player's
-// avatar (hub leaderboard, world chat, PvP leaderboard) shows ONLY identity +
-// active pet info, plus optional PvP rank stats when the popup was opened
-// from the PvP leaderboard. There are intentionally NO friend / message /
-// gift buttons here — those interactions now live on the visited player's
-// pet-house mailbox so they always happen "in the world" rather than from
-// an abstract menu. The single Visit Pet World button is what bridges the
-// two places.
-// ─────────────────────────────────────────────────────────────────────────────
 
 interface PvpStats {
   wins: number;
@@ -28,9 +15,6 @@ interface PlayerDetailPanelProps {
   userId: string;
   currentUserId?: string;
   onClose: () => void;
-  /** When provided, the card adds a Rank Stats row (W/L/BP) and shows the
-   *  player's earned emblems (badges). Pass this in from the PvP arena
-   *  leaderboard so PvP-only fields don't leak into hub/world popups. */
   pvpStats?: PvpStats;
 }
 
@@ -59,9 +43,17 @@ interface PublicProfile {
   isAdmin?: boolean;
   isModerator?: boolean;
   activePet: ActivePet | null;
-  // accessories still come back from the API but are intentionally not
-  // rendered here per the trimmed-popup spec.
-  accessories: unknown[];
+}
+
+interface EquippedAcc {
+  id?: string;
+  accessoryInventoryId?: string;
+  slot?: number;
+  name: string;
+  imageUrl: string | null;
+  atkBoost: number | null;
+  defBoost: number | null;
+  healthBoost: number | null;
 }
 
 interface Badge {
@@ -77,7 +69,7 @@ function RarityStars({ rarity }: { rarity: number | null }) {
   return (
     <div className="flex gap-0.5">
       {Array.from({ length: rarity }).map((_, i) => (
-        <span key={i} style={{ color: "#f0c040", fontSize: 10, lineHeight: 1 }}>★</span>
+        <span key={i} style={{ color: "#f0c040", fontSize: 11, lineHeight: 1 }}>★</span>
       ))}
     </div>
   );
@@ -85,10 +77,8 @@ function RarityStars({ rarity }: { rarity: number | null }) {
 
 function StatPill({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div
-      className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-      style={{ background: "rgba(0,0,0,0.35)", border: `1px solid ${color}44` }}
-    >
+    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full"
+      style={{ background: "rgba(0,0,0,0.35)", border: `1px solid ${color}44` }}>
       <span style={{ color, fontSize: 9, fontWeight: 700, letterSpacing: "0.04em" }}>{label}</span>
       <span className="font-fantasy" style={{ color: "#f0e8d0", fontSize: 10 }}>{value}</span>
     </div>
@@ -96,8 +86,9 @@ function StatPill({ label, value, color }: { label: string; value: number; color
 }
 
 export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpStats }: PlayerDetailPanelProps) {
-  const [, navigate] = useLocation();
+  const { toast } = useToast();
   const isSelf = !!currentUserId && currentUserId === userId;
+  const [comingSoon, setComingSoon] = useState(false);
 
   const { data: profile, isLoading, isError } = useQuery<PublicProfile>({
     queryKey: ["/api/users", userId, "profile"],
@@ -108,9 +99,27 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
     },
   });
 
-  // Emblems — only fetched when the card is being shown from the PvP
-  // leaderboard. For other contexts (hub leaderboard, world chat) the
-  // popup intentionally hides badges per the trimmed spec.
+  const { data: friendStatus, refetch: refetchStatus } = useQuery<any>({
+    queryKey: ["/api/friends/status", userId],
+    queryFn: async () => {
+      const res = await fetch(`/api/friends/status/${userId}`, { credentials: "include" });
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json ?? null;
+    },
+    enabled: !isSelf,
+  });
+
+  const { data: equippedAccessories = [] } = useQuery<EquippedAcc[]>({
+    queryKey: ["/api/pet", profile?.activePet?.inventoryId, "accessories/public"],
+    queryFn: async () => {
+      const res = await fetch(`/api/pet/${profile!.activePet!.inventoryId}/accessories/public`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!profile?.activePet?.inventoryId,
+  });
+
   const { data: badges } = useQuery<Badge[]>({
     queryKey: ["/api/users", userId, "badges"],
     queryFn: async () => {
@@ -121,7 +130,62 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
     enabled: !!userId && !!pvpStats,
   });
 
+  const sendRequestMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/friends/request/${userId}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/status", userId] });
+      refetchStatus();
+      toast({ title: "Friend request sent!" });
+    },
+    onError: (err: any) => {
+      let msg = err?.message ?? "Failed to send request";
+      try { msg = JSON.parse(msg.replace(/^\d+:\s*/, ""))?.message ?? msg; } catch {}
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    },
+  });
+
+  const acceptRequestMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/friends/accept/${friendStatus?.id}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/status", userId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
+      refetchStatus();
+      toast({ title: "Friend accepted! 🎉" });
+    },
+  });
+
+  const cancelOrDeclineMutation = useMutation({
+    mutationFn: () => apiRequest("DELETE", `/api/friends/${userId}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/status", userId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+      refetchStatus();
+    },
+  });
+
   const petImg = profile?.activePet?.hatchedImageUrl || profile?.activePet?.imageUrl;
+  const anyMutationPending = sendRequestMutation.isPending || acceptRequestMutation.isPending || cancelOrDeclineMutation.isPending;
+
+  const getFriendBtn = () => {
+    if (!friendStatus) return {
+      label: "+ Add Friend", action: () => sendRequestMutation.mutate(),
+      color: "#4ade80", border: "rgba(74,222,128,0.55)", bg: "rgba(15,60,30,0.7)", disabled: false,
+    };
+    if (friendStatus.status === "accepted") return {
+      label: "✓ Friends", action: () => {},
+      color: "#f0c040", border: "rgba(240,192,64,0.3)", bg: "rgba(40,30,0,0.4)", disabled: true,
+    };
+    if (friendStatus.requesterId === currentUserId) return {
+      label: "Request Sent", action: () => cancelOrDeclineMutation.mutate(),
+      color: "#7fbfb0", border: "rgba(127,191,176,0.3)", bg: "rgba(8,35,30,0.5)", disabled: false,
+    };
+    return {
+      label: "Accept Request", action: () => acceptRequestMutation.mutate(),
+      color: "#4ade80", border: "rgba(74,222,128,0.55)", bg: "rgba(15,60,30,0.7)", disabled: false,
+    };
+  };
+  const fb = getFriendBtn();
 
   return (
     <div
@@ -132,7 +196,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
     >
       <div
         data-testid="panel-player-detail"
-        className="w-full rounded-t-3xl overflow-hidden"
+        className="w-full rounded-t-3xl"
         style={{
           position: "relative",
           maxWidth: 480,
@@ -173,122 +237,69 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
         )}
 
         {profile && (
-          <div className="px-5 pb-8 pt-2 flex flex-col gap-5">
-            {/* Profile header — Name + role badge only */}
+          <div className="px-5 pb-8 pt-2 flex flex-col gap-4">
+
+            {/* Profile picture + name — centered */}
             <div className="flex flex-col items-center gap-2">
-              <div
-                className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0"
-                style={{
-                  border: "2.5px solid #c9a030",
-                  boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5), inset 0 0 3px rgba(201,160,48,0.15)",
-                }}
-              >
+              <div className="rounded-xl overflow-hidden flex-shrink-0"
+                style={{ width: 72, height: 72, border: "2.5px solid #c9a030", boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5)" }}>
                 {profile.profileImage ? (
-                  <img
-                    src={profile.profileImage}
-                    alt=""
-                    className="w-full h-full object-cover"
-                    data-testid="img-player-profile"
-                  />
+                  <img src={profile.profileImage} alt="" className="w-full h-full object-cover" data-testid="img-player-profile" />
                 ) : (
-                  <div
-                    className="w-full h-full flex items-center justify-center"
-                    style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}
-                  >
+                  <div className="w-full h-full flex items-center justify-center"
+                    style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}>
                     <span className="font-fantasy text-[#d4a017] text-xl font-bold">
                       {(profile.username ?? "?").charAt(0).toUpperCase()}
                     </span>
                   </div>
                 )}
               </div>
-
               <div className="flex items-center gap-2 flex-wrap justify-center">
-                <p
-                  className="font-fantasy text-lg font-semibold tracking-wide"
-                  style={{ color: "#f0c040" }}
-                  data-testid="text-player-username"
-                >
+                <p className="font-fantasy text-lg font-semibold tracking-wide" style={{ color: "#f0c040" }} data-testid="text-player-username">
                   {profile.username}
                 </p>
                 <RoleBadge isAdmin={profile.isAdmin} isModerator={profile.isModerator} size="sm" />
               </div>
             </div>
 
-            {/* PvP rank stats — only present when opened from PvP leaderboard. */}
+            {/* PvP rank stats — shown only from PvP leaderboard */}
             {pvpStats && (
-              <div
-                className="rounded-2xl p-3 flex items-stretch justify-around gap-2"
-                style={{
-                  background: "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(40,15,80,0.32))",
-                  border: "1px solid rgba(167,139,250,0.32)",
-                }}
-                data-testid="section-pvp-rank-stats"
-              >
+              <div className="rounded-2xl p-3 flex items-stretch justify-around gap-2"
+                style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(40,15,80,0.32))", border: "1px solid rgba(167,139,250,0.32)" }}
+                data-testid="section-pvp-rank-stats">
                 <div className="flex flex-col items-center justify-center px-2">
                   <span className="font-fantasy text-[8px] tracking-[0.18em] uppercase" style={{ color: "#a78bfa" }}>Wins</span>
-                  <span className="font-fantasy text-base font-bold tabular-nums" style={{ color: "#86efac" }} data-testid="text-pvp-wins">
-                    {pvpStats.wins}
-                  </span>
+                  <span className="font-fantasy text-base font-bold tabular-nums" style={{ color: "#86efac" }} data-testid="text-pvp-wins">{pvpStats.wins}</span>
                 </div>
                 <div className="w-px self-stretch" style={{ background: "rgba(167,139,250,0.22)" }} />
                 <div className="flex flex-col items-center justify-center px-2">
                   <span className="font-fantasy text-[8px] tracking-[0.18em] uppercase" style={{ color: "#a78bfa" }}>Losses</span>
-                  <span className="font-fantasy text-base font-bold tabular-nums" style={{ color: "#fca5a5" }} data-testid="text-pvp-losses">
-                    {pvpStats.losses}
-                  </span>
+                  <span className="font-fantasy text-base font-bold tabular-nums" style={{ color: "#fca5a5" }} data-testid="text-pvp-losses">{pvpStats.losses}</span>
                 </div>
                 <div className="w-px self-stretch" style={{ background: "rgba(167,139,250,0.22)" }} />
                 <div className="flex flex-col items-center justify-center px-2">
                   <span className="font-fantasy text-[8px] tracking-[0.18em] uppercase" style={{ color: "#a78bfa" }}>BP</span>
-                  <span className="font-fantasy text-base font-bold tabular-nums" style={{ color: "#fbbf24" }} data-testid="text-pvp-bp">
-                    {Math.max(0, pvpStats.battlePoints)}
-                  </span>
+                  <span className="font-fantasy text-base font-bold tabular-nums" style={{ color: "#fbbf24" }} data-testid="text-pvp-bp">{Math.max(0, pvpStats.battlePoints)}</span>
                 </div>
               </div>
             )}
 
-            {/* Emblems (badges) — also PvP-only per the spec. */}
+            {/* Badges — PvP leaderboard only */}
             {pvpStats && badges && badges.length > 0 && (
               <div className="flex flex-col gap-2">
-                <p
-                  className="font-fantasy text-xs tracking-widest uppercase"
-                  style={{ color: "rgba(212,160,23,0.6)" }}
-                >
-                  Emblems
-                </p>
+                <p className="font-fantasy text-xs tracking-widest uppercase" style={{ color: "rgba(212,160,23,0.6)" }}>Emblems</p>
                 <div className="flex flex-wrap gap-2">
                   {badges.map(badge => (
-                    <div
-                      key={badge.id}
-                      data-testid={`badge-${badge.id}`}
-                      className="flex flex-col items-center gap-1"
-                      style={{ width: 56 }}
-                      title={badge.description || badge.name}
-                    >
-                      <div
-                        className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
-                        style={{
-                          background: "linear-gradient(135deg, rgba(40,20,5,0.95), rgba(20,8,0,0.95))",
-                          border: "1.5px solid rgba(240,192,64,0.4)",
-                          boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
-                        }}
-                      >
+                    <div key={badge.id} data-testid={`badge-${badge.id}`} className="flex flex-col items-center gap-1" style={{ width: 56 }} title={badge.description || badge.name}>
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
+                        style={{ background: "linear-gradient(135deg, rgba(40,20,5,0.95), rgba(20,8,0,0.95))", border: "1.5px solid rgba(240,192,64,0.4)", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
                         {badge.imageUrl ? (
                           <img src={badge.imageUrl} alt={badge.name} className="w-full h-full object-contain p-1" />
                         ) : (
                           <img src={petPawIcon} alt="" style={{ width: 24, height: 24, objectFit: "contain", opacity: 0.55 }} />
                         )}
                       </div>
-                      <p
-                        className="font-fantasy text-[8px] text-center leading-tight"
-                        style={{
-                          color: "#a89878",
-                          maxWidth: 56,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
+                      <p className="font-fantasy text-[8px] text-center leading-tight" style={{ color: "#a89878", maxWidth: 56, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {badge.name}
                       </p>
                     </div>
@@ -297,140 +308,155 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
               </div>
             )}
 
-            {/* Visit Pet World — kept because all message/gift interactions
-                now route through the visited player's mailbox. Hidden when
-                viewing your own card (the visit button would just take
-                you to your own house). */}
-            {!isSelf && (
-              <button
-                data-testid="button-visit-pethouse"
-                onClick={() => {
-                  onClose();
-                  navigate(`/visit/${profile.id}`);
-                }}
-                className="relative w-full rounded-2xl overflow-hidden flex flex-col items-start justify-end"
-                style={{
-                  height: 100,
-                  border: "1px solid rgba(134,239,172,0.35)",
-                  boxShadow: "0 2px 16px rgba(0,0,0,0.5)",
-                }}
-              >
-                <img
-                  src={petHouseBg}
-                  alt=""
-                  className="absolute inset-0 w-full h-full object-cover"
-                  style={{ objectPosition: "center 30%" }}
-                />
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background: "linear-gradient(to top, rgba(5,18,3,0.82) 0%, rgba(5,18,3,0.25) 60%, transparent 100%)",
-                  }}
-                />
-                <div className="relative z-10 px-4 pb-3 flex items-center gap-2">
-                  <img src={houseCottageIcon} alt="" className="w-7 h-7 object-contain"
-                    style={{ filter: "drop-shadow(0 0 6px rgba(134,239,172,0.5))" }} />
-                  <p
-                    className="font-fantasy text-sm font-semibold tracking-wide"
-                    style={{ color: "#86efac", textShadow: "0 1px 8px rgba(0,0,0,0.9)" }}
-                  >
-                    Visit Pet World
-                  </p>
-                </div>
-              </button>
-            )}
-
-            {/* Active companion — Pet's name, level, rarity, ATK/DEF/HP. */}
+            {/* Active Companion */}
             <div className="flex flex-col gap-3">
-              <p
-                className="font-fantasy text-xs tracking-widest uppercase"
-                style={{ color: "rgba(212,160,23,0.6)" }}
-              >
+              <p className="font-fantasy text-xs tracking-widest uppercase" style={{ color: "rgba(212,160,23,0.6)" }}>
                 Active Companion
               </p>
 
               {profile.activePet ? (
-                <div
-                  className="rounded-2xl p-4 flex gap-4 items-start"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(20,15,5,0.9), rgba(30,20,5,0.8))",
-                    border: "1px solid rgba(212,160,23,0.2)",
-                  }}
-                >
-                  <div
-                    className="flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center"
-                    style={{
-                      width: 76,
-                      height: 76,
-                      background: "rgba(0,0,0,0.5)",
-                      border: "1.5px solid rgba(212,160,23,0.2)",
-                    }}
-                    data-testid="img-active-pet"
-                  >
-                    {petImg ? (
-                      <img src={petImg} alt="" className="w-full h-full object-contain" />
-                    ) : (
-                      <img src={petPawIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p
-                        className="font-fantasy text-sm font-semibold"
-                        style={{ color: "#f0c040" }}
-                        data-testid="text-active-pet-name"
-                      >
-                        {profile.activePet.nickname || profile.activePet.name}
-                      </p>
-                      {profile.activePet.nickname && (
-                        <p className="font-fantasy text-[10px]" style={{ color: "rgba(240,192,64,0.55)" }}>
-                          ({profile.activePet.name})
-                        </p>
+                <>
+                  {/* Pet image (centered, large, no box) + info to the right */}
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 flex items-center justify-center" style={{ width: 100, height: 100 }} data-testid="img-active-pet">
+                      {petImg ? (
+                        <img src={petImg} alt="" className="w-full h-full object-contain"
+                          style={{ filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.75))" }} />
+                      ) : (
+                        <img src={petPawIcon} alt="" style={{ width: 64, height: 64, objectFit: "contain" }} />
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <RarityStars rarity={profile.activePet.rarity} />
-                      <span
-                        className="font-fantasy text-[10px] px-2 py-0.5 rounded-full"
-                        style={{
-                          background: "rgba(127,191,176,0.15)",
-                          border: "1px solid rgba(127,191,176,0.3)",
-                          color: "#7fbfb0",
-                        }}
-                        data-testid="text-active-pet-level"
-                      >
-                        Lv.{profile.activePet.petLevel}
-                      </span>
-                    </div>
-
-                    {profile.activePet.specialSkill && (
-                      <p className="font-fantasy text-[9px]" style={{ color: "#c084fc" }}>
-                        ✦ {profile.activePet.specialSkill}
+                    {/* Pet name + rarity + stats to the right */}
+                    <div className="flex-1 min-w-0 flex flex-col gap-1.5 pt-1">
+                      <p className="font-fantasy text-sm font-semibold" style={{ color: "#f0c040" }} data-testid="text-active-pet-name">
+                        {profile.activePet.nickname || profile.activePet.name}
                       </p>
-                    )}
-
-                    <div className="flex flex-wrap gap-1.5 mt-0.5">
-                      <StatPill label="HP" value={profile.activePet.petHealth} color="#f87171" />
-                      <StatPill label="ATK" value={profile.activePet.petAtk} color="#fb923c" />
-                      <StatPill label="DEF" value={profile.activePet.petDef} color="#60a5fa" />
+                      {profile.activePet.nickname && (
+                        <p className="font-fantasy text-[10px]" style={{ color: "rgba(240,192,64,0.5)" }}>
+                          ({profile.activePet.name})
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <RarityStars rarity={profile.activePet.rarity} />
+                        <span className="font-fantasy text-[10px] px-2 py-0.5 rounded-full"
+                          style={{ background: "rgba(127,191,176,0.15)", border: "1px solid rgba(127,191,176,0.3)", color: "#7fbfb0" }}
+                          data-testid="text-active-pet-level">
+                          Lv.{profile.activePet.petLevel}
+                        </span>
+                      </div>
+                      {profile.activePet.specialSkill && (
+                        <p className="font-fantasy text-[9px]" style={{ color: "#c084fc" }}>
+                          ✦ {profile.activePet.specialSkill}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-1.5 mt-0.5">
+                        <StatPill label="HP" value={profile.activePet.petHealth} color="#f87171" />
+                        <StatPill label="ATK" value={profile.activePet.petAtk} color="#fb923c" />
+                        <StatPill label="DEF" value={profile.activePet.petDef} color="#60a5fa" />
+                      </div>
                     </div>
                   </div>
-                </div>
+
+                  {/* Equipped accessories */}
+                  {equippedAccessories.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      <p className="font-fantasy text-[10px] tracking-widest uppercase" style={{ color: "rgba(192,132,252,0.6)" }}>
+                        Equipped
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {equippedAccessories.map((acc, i) => (
+                          <div key={acc.id ?? acc.accessoryInventoryId ?? i}
+                            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg"
+                            style={{ background: "rgba(192,132,252,0.07)", border: "1px solid rgba(192,132,252,0.22)" }}>
+                            {acc.imageUrl && (
+                              <img src={acc.imageUrl} alt={acc.name} style={{ width: 28, height: 28, objectFit: "contain", flexShrink: 0 }} />
+                            )}
+                            <div>
+                              <p className="font-fantasy text-[10px]" style={{ color: "#ddb4ff" }}>{acc.name}</p>
+                              <div className="flex gap-1 flex-wrap mt-0.5">
+                                {acc.atkBoost ? <span className="font-fantasy text-[8px]" style={{ color: "#fb923c" }}>+{acc.atkBoost} ATK</span> : null}
+                                {acc.defBoost ? <span className="font-fantasy text-[8px]" style={{ color: "#60a5fa" }}>+{acc.defBoost} DEF</span> : null}
+                                {acc.healthBoost ? <span className="font-fantasy text-[8px]" style={{ color: "#f87171" }}>+{acc.healthBoost} HP</span> : null}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : (
-                <div
-                  className="rounded-2xl p-5 flex items-center justify-center"
-                  style={{
-                    background: "rgba(10,6,0,0.6)",
-                    border: "1px dashed rgba(212,160,23,0.15)",
-                  }}
-                >
-                  <p className="font-fantasy text-xs" style={{ color: "rgba(168,152,120,0.5)" }}>
-                    No active companion
-                  </p>
+                <div className="rounded-2xl p-5 flex items-center justify-center"
+                  style={{ background: "rgba(10,6,0,0.6)", border: "1px dashed rgba(212,160,23,0.15)" }}>
+                  <p className="font-fantasy text-xs" style={{ color: "rgba(168,152,120,0.5)" }}>No active companion</p>
                 </div>
               )}
+            </div>
+
+            {/* Action buttons — hidden when viewing own card */}
+            {!isSelf && (
+              <div className="flex flex-col gap-2">
+                {/* Add Friend / Friends status button */}
+                <button
+                  data-testid="button-add-friend"
+                  onClick={fb.action}
+                  disabled={fb.disabled || anyMutationPending}
+                  style={{
+                    width: "100%", padding: "11px 0", borderRadius: 10,
+                    background: fb.bg,
+                    border: `1.5px solid ${fb.border}`,
+                    color: fb.color,
+                    fontFamily: "Lora, serif", fontSize: 12, letterSpacing: "0.1em",
+                    cursor: (fb.disabled || anyMutationPending) ? "default" : "pointer",
+                    opacity: fb.disabled ? 0.75 : 1,
+                    transition: "opacity 0.15s",
+                  }}
+                >
+                  {anyMutationPending ? "…" : fb.label}
+                </button>
+
+                {/* Visit Pet Home — Coming Soon */}
+                <button
+                  data-testid="button-visit-pethouse"
+                  onClick={() => setComingSoon(true)}
+                  style={{
+                    width: "100%", padding: "11px 0", borderRadius: 10,
+                    background: "rgba(15,50,30,0.5)",
+                    border: "1.5px solid rgba(74,222,128,0.35)",
+                    color: "#86efac",
+                    fontFamily: "Lora, serif", fontSize: 12, letterSpacing: "0.1em",
+                    cursor: "pointer",
+                  }}
+                >
+                  🏠 Visit Pet Home
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* "Coming Soon" popup for Visit Pet Home */}
+        {comingSoon && (
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 9990, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center" }}
+            onClick={() => setComingSoon(false)}
+          >
+            <div
+              style={{ padding: "30px 28px", background: "linear-gradient(160deg, #1c1100 0%, #0e0900 100%)", border: "1.5px solid rgba(212,160,23,0.45)", borderRadius: 16, textAlign: "center", maxWidth: 260 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ fontSize: 44, marginBottom: 10, lineHeight: 1 }}>🏠</div>
+              <p style={{ color: "#f6dc8a", fontFamily: "Lora, serif", fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Coming Soon!</p>
+              <p style={{ color: "rgba(212,160,23,0.55)", fontFamily: "Lora, serif", fontSize: 11, marginBottom: 18, lineHeight: 1.5 }}>
+                Pet Home visits are under construction. Check back soon!
+              </p>
+              <button
+                onClick={() => setComingSoon(false)}
+                style={{ padding: "9px 28px", borderRadius: 8, background: "rgba(212,160,23,0.15)", border: "1px solid rgba(212,160,23,0.4)", color: "#f6dc8a", fontFamily: "Lora, serif", fontSize: 11, cursor: "pointer" }}
+              >
+                Got it
+              </button>
             </div>
           </div>
         )}

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 
 interface User {
   id: string;
@@ -77,6 +78,19 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
+
+  const [showFriends, setShowFriends] = useState(false);
+  const [viewingFriendId, setViewingFriendId] = useState<string | null>(null);
+
+  const { data: friends = [] } = useQuery<any[]>({
+    queryKey: ["/api/friends"],
+    queryFn: async () => {
+      const res = await fetch("/api/friends", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: showFriends,
+  });
 
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [cropOffset, setCropOffset] = useState({ x: 50, y: 50 });
@@ -603,6 +617,22 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
               )}
             </div>
 
+            {/* Friends */}
+            <button
+              data-testid="button-friends"
+              onClick={() => setShowFriends(true)}
+              className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-widest transition-all"
+              style={{
+                background: "linear-gradient(135deg, rgba(60,20,100,0.55) 0%, rgba(35,10,65,0.55) 100%)",
+                border: "1px solid rgba(160,100,240,0.45)",
+                color: "#c084fc",
+                cursor: "pointer",
+                boxShadow: "0 0 14px rgba(140,80,220,0.15), 0 2px 8px rgba(0,0,0,0.35)",
+              }}
+            >
+              ✦ Friends ✦
+            </button>
+
             {/* Para Pets Hub */}
             <button
               data-testid="button-para-pets-hub"
@@ -870,6 +900,106 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
             </div>
           </div>
         </div>
+      )}
+
+      {/* Friends list overlay */}
+      {showFriends && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+          onClick={() => setShowFriends(false)}
+        >
+          <div
+            className="w-full rounded-t-3xl overflow-hidden"
+            style={{
+              maxWidth: 480,
+              maxHeight: "80dvh",
+              overflowY: "auto",
+              background: "linear-gradient(180deg, #0d0a04 0%, #1a1000 50%, #0a0600 100%)",
+              border: "1px solid rgba(192,132,252,0.25)",
+              borderBottom: "none",
+              boxShadow: "0 -12px 48px rgba(0,0,0,0.8)",
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(192,132,252,0.3)" }} />
+            </div>
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pb-3 pt-1">
+              <p className="font-fantasy text-base tracking-widest" style={{ color: "#c084fc" }}>
+                Friends ({friends.length})
+              </p>
+              <button
+                onClick={() => setShowFriends(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full"
+                style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(192,132,252,0.2)", color: "#a89878" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Friend list */}
+            <div className="px-4 pb-8 flex flex-col gap-2">
+              {friends.length === 0 ? (
+                <div className="flex items-center justify-center py-10">
+                  <p className="font-fantasy text-sm text-center" style={{ color: "rgba(192,132,252,0.4)" }}>
+                    No friends yet.<br />
+                    <span style={{ fontSize: 11, color: "rgba(168,152,120,0.4)" }}>Find players in World Chat!</span>
+                  </p>
+                </div>
+              ) : (
+                friends.map((friend: any) => (
+                  <button
+                    key={friend.id}
+                    data-testid={`button-friend-${friend.friendId}`}
+                    onClick={() => setViewingFriendId(friend.friendId)}
+                    className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-xl transition-all"
+                    style={{
+                      background: "rgba(192,132,252,0.06)",
+                      border: "1px solid rgba(192,132,252,0.15)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div
+                      className="flex-shrink-0 rounded-lg overflow-hidden"
+                      style={{ width: 44, height: 44, border: "1.5px solid rgba(192,132,252,0.3)" }}
+                    >
+                      {friend.profileImage ? (
+                        <img src={friend.profileImage} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center"
+                          style={{ background: "linear-gradient(135deg, #2a1a0a, #4a2e18)" }}>
+                          <span className="font-fantasy text-[#d4a017] font-bold" style={{ fontSize: 14 }}>
+                            {(friend.username ?? "?").charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <span className="font-fantasy text-sm" style={{ color: "#ddb4ff" }}>{friend.username}</span>
+                    {(friend.isAdmin || friend.isModerator) && (
+                      <span className="font-fantasy text-[9px] px-1.5 py-0.5 rounded ml-auto"
+                        style={{ background: friend.isAdmin ? "rgba(212,160,23,0.2)" : "rgba(127,191,176,0.2)", color: friend.isAdmin ? "#f0c040" : "#7fffd4", border: `1px solid ${friend.isAdmin ? "rgba(212,160,23,0.3)" : "rgba(127,191,176,0.3)"}` }}>
+                        {friend.isAdmin ? "Admin" : "Mod"}
+                      </span>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View a friend's detail panel */}
+      {viewingFriendId && (
+        <PlayerDetailPanel
+          userId={viewingFriendId}
+          currentUserId={user.id}
+          onClose={() => setViewingFriendId(null)}
+        />
       )}
     </>
   );
