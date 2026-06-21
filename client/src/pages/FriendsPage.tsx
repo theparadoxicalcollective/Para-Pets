@@ -130,45 +130,52 @@ export default function FriendsPage() {
     setPositions(updated);
   }, [me?.id, friends.length, containerSize.w]);
 
-  const handlePointerDown = useCallback((e: React.PointerEvent, friendId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    const pos = positions[friendId] ?? { x: 40, y: 80 };
-    dragRef.current = {
-      friendId,
-      startX: e.clientX,
-      startY: e.clientY,
-      startPosX: pos.x,
-      startPosY: pos.y,
-      moved: false,
+  // Drag handlers — onPointerMove lives on each card (not the container) because
+  // setPointerCapture routes all events to the capturing element, bypassing ancestors.
+  const makeDragHandlers = useCallback((friendId: string) => {
+    const pos = () => positions[friendId] ?? { x: 40, y: 80 };
+    return {
+      onPointerDown(e: React.PointerEvent) {
+        e.preventDefault();
+        e.stopPropagation();
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        const p = pos();
+        dragRef.current = {
+          friendId,
+          startX: e.clientX,
+          startY: e.clientY,
+          startPosX: p.x,
+          startPosY: p.y,
+          moved: false,
+        };
+      },
+      onPointerMove(e: React.PointerEvent) {
+        if (!dragRef.current || dragRef.current.friendId !== friendId) return;
+        const dx = e.clientX - dragRef.current.startX;
+        const dy = e.clientY - dragRef.current.startY;
+        if (!dragRef.current.moved && Math.hypot(dx, dy) < 8) return;
+        dragRef.current.moved = true;
+        const newX = Math.max(0, Math.min(containerSize.w - 50, dragRef.current.startPosX + dx));
+        const newY = Math.max(0, Math.min(containerSize.h - 60, dragRef.current.startPosY + dy));
+        const fid = friendId; // captured in closure — safe after dragRef null
+        setPositions(prev => ({ ...prev, [fid]: { x: newX, y: newY } }));
+      },
+      onPointerUp(_e: React.PointerEvent) {
+        if (!dragRef.current || dragRef.current.friendId !== friendId) return;
+        const wasMoved = dragRef.current.moved;
+        dragRef.current = null;
+        if (!wasMoved) {
+          setViewingId(friendId);
+        } else if (me?.id) {
+          setPositions(prev => { savePositions(me!.id, prev); return prev; });
+        }
+      },
+      onPointerCancel(_e: React.PointerEvent) {
+        if (dragRef.current?.friendId === friendId) dragRef.current = null;
+      },
     };
-  }, [positions]);
-
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!dragRef.current) return;
-    const dx = e.clientX - dragRef.current.startX;
-    const dy = e.clientY - dragRef.current.startY;
-    if (!dragRef.current.moved && Math.hypot(dx, dy) < 8) return;
-    dragRef.current.moved = true;
-    const newX = Math.max(0, Math.min(containerSize.w - 80, dragRef.current.startPosX + dx));
-    const newY = Math.max(0, Math.min(containerSize.h - 96, dragRef.current.startPosY + dy));
-    setPositions(prev => ({ ...prev, [dragRef.current!.friendId]: { x: newX, y: newY } }));
-  }, [containerSize]);
-
-  const handlePointerUp = useCallback((friendId: string) => {
-    if (!dragRef.current) return;
-    const wasMoved = dragRef.current.moved;
-    dragRef.current = null;
-    if (!wasMoved) {
-      setViewingId(friendId);
-    } else if (me?.id) {
-      setPositions(prev => {
-        savePositions(me.id, prev);
-        return prev;
-      });
-    }
-  }, [me?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [positions, containerSize, me?.id]);
 
   return (
     <div
@@ -324,12 +331,11 @@ export default function FriendsPage() {
         </div>
       )}
 
-      {/* Companion canvas */}
+      {/* Companion canvas — no onPointerMove here; each card handles its own via pointer capture */}
       <div
         ref={containerRef}
         className="flex-1 relative"
         style={{ touchAction: "none", overflow: "hidden" }}
-        onPointerMove={handlePointerMove}
       >
         {friends.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -345,6 +351,7 @@ export default function FriendsPage() {
           friends.map((friend: any) => {
             const pos = positions[friend.friendId];
             if (!pos) return null;
+            const handlers = makeDragHandlers(friend.friendId);
             return (
               <div
                 key={friend.friendId}
@@ -353,25 +360,23 @@ export default function FriendsPage() {
                   position: "absolute",
                   left: pos.x,
                   top: pos.y,
-                  width: 80,
+                  width: 44,
                   userSelect: "none",
                   touchAction: "none",
                   cursor: "grab",
                   zIndex: dragRef.current?.friendId === friend.friendId ? 10 : 1,
                 }}
-                onPointerDown={e => handlePointerDown(e, friend.friendId)}
-                onPointerUp={() => handlePointerUp(friend.friendId)}
-                onPointerCancel={() => { dragRef.current = null; }}
+                {...handlers}
               >
                 {/* Avatar ring */}
                 <div
-                  className="mx-auto flex items-center justify-center rounded-full"
+                  className="flex items-center justify-center rounded-full"
                   style={{
-                    width: 64,
-                    height: 64,
-                    padding: 3,
+                    width: 44,
+                    height: 44,
+                    padding: 2,
                     background: "linear-gradient(135deg, rgba(212,160,23,0.8) 0%, rgba(180,120,10,0.4) 50%, rgba(212,160,23,0.6) 100%)",
-                    boxShadow: "0 0 16px rgba(212,160,23,0.2), 0 4px 16px rgba(0,0,0,0.7)",
+                    boxShadow: "0 0 10px rgba(212,160,23,0.18), 0 3px 10px rgba(0,0,0,0.7)",
                   }}
                 >
                   <div
@@ -387,7 +392,7 @@ export default function FriendsPage() {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <span className="font-fantasy text-xl font-bold" style={{ color: "#d4a017" }}>
+                        <span className="font-fantasy text-base font-bold" style={{ color: "#d4a017" }}>
                           {(friend.username ?? "?").charAt(0).toUpperCase()}
                         </span>
                       </div>
@@ -395,19 +400,6 @@ export default function FriendsPage() {
                   </div>
                 </div>
 
-                {/* Name */}
-                <p
-                  className="text-center font-fantasy truncate mt-1.5"
-                  style={{
-                    fontSize: 10,
-                    color: "#c8a876",
-                    textShadow: "0 1px 6px rgba(0,0,0,1)",
-                    maxWidth: 80,
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  {friend.username}
-                </p>
               </div>
             );
           })
