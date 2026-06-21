@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import bgVolcanic from "@assets/bg_volcanic_map_v2.jpeg";
 import bgSwamp from "@assets/bg_bayous_heart.webp";
+import bgHauntedWoods from "@assets/bg_desktop_backdrop.webp";
 
 const WORLD_THEMES = {
   volcanic: {
@@ -32,6 +33,21 @@ const WORLD_THEMES = {
     barGradient: "linear-gradient(90deg,#052e1c,#059669,#34d399,#a7f3d0)",
     label: "Elysian Swamplands",
     subtext: "Entering the Elysian Swamplands…",
+  },
+  haunted_woods: {
+    name: "Haunted Woods",
+    bg: bgHauntedWoods,
+    accent: "#a855f7",
+    accentSoft: "#c084fc",
+    accentDim: "rgba(168,85,247,0.28)",
+    overlay:
+      "linear-gradient(to bottom, rgba(8,3,20,0.95) 0%, rgba(20,5,35,0.75) 45%, rgba(8,3,20,0.97) 100%)",
+    particles: "fireflies" as const,
+    particleColor: "#d8b4fe",
+    particleGlow: "rgba(168,85,247,0.80)",
+    barGradient: "linear-gradient(90deg,#2e1065,#6d28d9,#a855f7,#c084fc,#e9d5ff)",
+    label: "Haunted Woods",
+    subtext: "Entering the Haunted Woods…",
   },
 };
 

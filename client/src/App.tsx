@@ -150,7 +150,7 @@ function PvpArenaWrapper() {
   return <PvpArenaPage onClose={() => setLocation("/")} />;
 }
 
-const THEMED_WORLDS = new Set(["volcanic", "swamp"]);
+const THEMED_WORLDS = new Set(["volcanic", "swamp", "haunted_woods"]);
 
 function WorldLoadingGate({ location, user }: { location: string; user: any }) {
   const worldId = location.replace("/world/", "").split("/")[0];

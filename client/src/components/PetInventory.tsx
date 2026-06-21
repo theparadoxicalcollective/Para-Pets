@@ -115,16 +115,11 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
       return res.json();
     },
     onSuccess: (data: any) => {
-      // setQueryData updates the /api/auth/me cache synchronously so every
-      // subscriber (HomePage, FloatingNav, PetInventoryPage) gets the fresh
-      // activePetId in the same render cycle — no round-trip needed.
-      //
-      // Do NOT call invalidateQueries(["/api/auth/me"]) here: the default
-      // queryFn returns null on 401, and forcing an unnecessary re-fetch
-      // risks transiently setting user → null, which causes PetInventoryPage
-      // (guard: `if (!user) return null`) to silently unmount mid-action,
-      // making the inventory appear to "close" on its own.
-      onUserUpdate(data);
+      // Only propagate the field that actually changed — spreading the full
+      // server user into the cache can silently overwrite fields like
+      // emailVerified (if stored as NULL in the DB) and cause the email-gate
+      // or other AppRouter guards to flash for one render cycle.
+      onUserUpdate({ activePetId: data.activePetId ?? null });
       // Suppress toast during tutorial — the overlay guides the player and a
       // "Pet Selected" popup mid-quest is jarring / breaks immersion.
       if (bjGetStatus() !== "active") {

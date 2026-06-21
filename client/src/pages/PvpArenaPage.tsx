@@ -481,6 +481,13 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
       return String(a.petNickname || a.name || "").localeCompare(String(b.petNickname || b.name || ""));
     });
 
+  // Count only IDs whose pet still exists in inventory (hatched). Saved battle
+  // groups can contain stale IDs from pets that were sold or are still eggs —
+  // those should not inflate the displayed count or block new picks.
+  const equippedCount = selectedPetIds.filter(id =>
+    hatchedPets.some((p: any) => (p.inventoryId || p.id) === id)
+  ).length;
+
   // Battle-usable potions: anything in inventory typed as "potion" that
   // actually does something useful in combat (heals HP/mana or revives).
   const battlePotions = (inventory as any[]).filter(
@@ -1119,7 +1126,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                 <Users size={13} className="text-emerald-300" />
                 <span className="text-[10px] tracking-[0.18em] font-bold text-emerald-200">PETS</span>
               </div>
-              <span className="text-[10px] text-white/40" data-testid="text-pets-selected-count">{selectedPetIds.length}/5</span>
+              <span className="text-[10px] text-white/40" data-testid="text-pets-selected-count">{equippedCount}/5</span>
             </div>
             {/*
               Grid layout instead of flex — guarantees each of the 5 slots
@@ -1372,7 +1379,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                     {hatchedPets.map((inv: any) => {
                       const invId = inv.inventoryId || inv.id;
                       const selected = selectedPetIds.includes(invId);
-                      const full = !selected && selectedPetIds.length >= 5;
+                      const full = !selected && equippedCount >= 5;
                       return (
                         <button
                           key={invId}
@@ -1491,7 +1498,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               <ArrowLeft size={18} />
             </button>
             <div className="flex-1 text-sm tracking-[0.2em] text-emerald-300 font-bold">BATTLE GROUP</div>
-            <div className="text-white/30 text-[10px]">{selectedPetIds.length}/5 selected</div>
+            <div className="text-white/30 text-[10px]">{equippedCount}/5 selected</div>
           </div>
           <div className="text-white/30 text-[10px] tracking-wider px-4 py-2 shrink-0">
             Select up to 5 hatched pets to fight for you
