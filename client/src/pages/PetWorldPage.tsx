@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store, DoorOpen, Package } from "lucide-react";
@@ -8,6 +8,7 @@ import { readFileAsDataUrl } from "@/lib/utils";
 import { playShopBell, playChime, playTick } from "@/lib/sounds";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import priceTagImg from "@assets/price_tag.png";
+import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import PetAnimator from "@/components/PetAnimator";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
@@ -97,6 +98,8 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
+  const searchString = useSearch();
+  const shopHintLocId = new URLSearchParams(searchString).get("shopHint");
 
   // ── map pan state ──────────────────────────────────────────────────────────
   const [mapX, setMapX]         = useState(0);
@@ -1369,6 +1372,28 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 onPointerCancel={() => { locDragRef.current = null; locDidDrag.current = false; setLocDragPos(null); }}
               >
                 <div className="relative w-full" style={{ pointerEvents: "none" }}>
+                  {/* Quest arrow — points at this location when shopHint matches */}
+                  {shopHintLocId === loc.id && (
+                    <>
+                      <style>{`@keyframes world-quest-bob { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-9px)} }`}</style>
+                      <img
+                        src={questArrowImg}
+                        alt=""
+                        style={{
+                          position: "absolute",
+                          top: -58,
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          width: 38,
+                          height: 50,
+                          pointerEvents: "none",
+                          zIndex: 310,
+                          animation: "world-quest-bob 1.3s ease-in-out infinite",
+                          filter: "drop-shadow(0 0 10px rgba(50,220,50,0.95)) drop-shadow(0 0 24px rgba(50,220,50,0.6))",
+                        }}
+                      />
+                    </>
+                  )}
                   {loc.iconUrl ? (
                     <img
                       src={loc.iconUrl}

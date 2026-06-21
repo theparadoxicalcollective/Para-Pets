@@ -1533,7 +1533,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                     "button-action-power-up",
                     { left: "36%", top: "1%", width: "26%", height: "23%" },
                     "#4ade80",
-                    () => { setShowActionMenu(false); setActivePetModal("power_up"); setQuestGuideMode(null); },
+                    () => {
+                      if (questGuideMode === "powerup") setPowerUpFromQuest(true);
+                      setShowActionMenu(false); setActivePetModal("power_up"); setQuestGuideMode(null);
+                    },
                   )}
                   {makeBtn(
                     "Pet Stats",
@@ -1572,11 +1575,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                   {/* Quest guide sparkles + glow — Phase 2: highlight the target button */}
                   {questGuideMode === "powerup" && (
                     <>
-                      {/* Pulsing glow border on Power Up button */}
+                      {/* Pulsing glow ring on Power Up button — round to match the rune button */}
                       <div style={{
                         position: "absolute",
                         left: "36%", top: "1%", width: "26%", height: "23%",
-                        borderRadius: 12,
+                        borderRadius: "50%",
                         pointerEvents: "none",
                         zIndex: 298,
                         animation: "quest-btn-pulse 1.5s ease-in-out infinite",
@@ -1596,14 +1599,14 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                           }} />
                         ))}
                       </div>
-                      {/* Bouncing arrow */}
+                      {/* Bouncing arrow — centered above the Power Up button top-center */}
                       <img
                         src={questArrowImg}
                         alt=""
                         style={{
                           position: "absolute",
-                          left: "46%",
-                          top: "-20%",
+                          left: "49%",
+                          top: "-18%",
                           transform: "translateX(-50%)",
                           width: 40,
                           height: 52,
