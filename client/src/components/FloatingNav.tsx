@@ -86,7 +86,15 @@ const RIGHT_ITEMS = [
 
 const ICON_SIZE   = 50;
 const BUTTON_SIZE = 58;
-const SPACING     = 62;
+const NAV_RIGHT   = 12;
+
+function calcSpacing() {
+  // Keep all LEFT_ITEMS on-screen by shrinking spacing on narrow viewports.
+  // Formula: (viewportWidth - right-offset - button-width - 4px-buffer) / n
+  // Capped at 62 (the comfortable desktop/wide-phone spacing).
+  const available = window.innerWidth - NAV_RIGHT - BUTTON_SIZE - 4;
+  return Math.min(62, Math.max(34, Math.floor(available / LEFT_ITEMS.length)));
+}
 
 export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [, navigate] = useLocation();
@@ -99,6 +107,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [panelZ, setPanelZ]             = useState(300);
   const [claimingKey, setClaimingKey]   = useState<string | null>(null);
   const [bjStatus, setBjStatus] = useState(() => bjGetStatus());
+  const [spacing, setSpacing]   = useState(calcSpacing);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -106,6 +115,12 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     const handler = () => setBjStatus(bjGetStatus());
     window.addEventListener(BJ_EVENT, handler);
     return () => window.removeEventListener(BJ_EVENT, handler);
+  }, []);
+
+  useEffect(() => {
+    const onResize = () => setSpacing(calcSpacing());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   // Sync localStorage from server-side flags — fixes older players seeing tutorial again on new device/browser
@@ -264,7 +279,10 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
               style={{
                 position: "absolute",
                 bottom: 80,
-                right: 126,
+                // Quest is the 2nd LEFT_ITEM (index 1), translateX = -(spacing*2).
+                // Arrow center should sit above quest button center:
+                // right = NAV_RIGHT + BUTTON_SIZE/2 + spacing*2 - arrowWidth/2
+                right: NAV_RIGHT + BUTTON_SIZE / 2 + spacing * 2 - 22,
                 width: 44,
                 height: 56,
                 pointerEvents: "none",
@@ -304,7 +322,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             label={item.label}
             isOpen={isOpen}
             delay={i * 45}
-            translateX={-(SPACING * (i + 1))}
+            translateX={-(spacing * (i + 1))}
             translateY={0}
             fillIcon={!!(item as any).fill}
             badge={item.id === "quest" ? questBadge : null}
@@ -324,7 +342,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
               isOpen={isOpen}
               delay={i * 45}
               translateX={0}
-              translateY={-(SPACING * (i + 1))}
+              translateY={-(spacing * (i + 1))}
               locked={isLocked}
               onClick={() => handleRight(item.id)}
               testId={`nav-item-${item.id}`}
