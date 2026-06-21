@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
+import petHouseIcon from "@assets/icon_pet_house.png";
 import RoleBadge from "@/components/RoleBadge";
 
 interface PvpStats {
@@ -89,6 +90,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
   const { toast } = useToast();
   const isSelf = !!currentUserId && currentUserId === userId;
   const [comingSoon, setComingSoon] = useState(false);
+  const [accessoryDetail, setAccessoryDetail] = useState<EquippedAcc | null>(null);
 
   const { data: profile, isLoading, isError } = useQuery<PublicProfile>({
     queryKey: ["/api/users", userId, "profile"],
@@ -107,7 +109,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
       const json = await res.json();
       return json ?? null;
     },
-    enabled: !isSelf,
+    enabled: !isSelf && !!currentUserId,
   });
 
   const { data: equippedAccessories = [] } = useQuery<EquippedAcc[]>({
@@ -167,22 +169,36 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
   const petImg = profile?.activePet?.hatchedImageUrl || profile?.activePet?.imageUrl;
   const anyMutationPending = sendRequestMutation.isPending || acceptRequestMutation.isPending || cancelOrDeclineMutation.isPending;
 
-  const getFriendBtn = () => {
+  type FriendBtnDef = {
+    label: string;
+    action: () => void;
+    color: string;
+    border: string;
+    bg: string;
+    disabled: boolean;
+    pushed: boolean;
+  };
+
+  const getFriendBtn = (): FriendBtnDef => {
     if (!friendStatus) return {
-      label: "+ Add Friend", action: () => sendRequestMutation.mutate(),
-      color: "#4ade80", border: "rgba(74,222,128,0.55)", bg: "rgba(15,60,30,0.7)", disabled: false,
+      label: "Add Friend", action: () => sendRequestMutation.mutate(),
+      color: "#4ade80", border: "rgba(74,222,128,0.55)", bg: "rgba(15,60,30,0.7)",
+      disabled: false, pushed: false,
     };
     if (friendStatus.status === "accepted") return {
-      label: "✓ Friends", action: () => {},
-      color: "#f0c040", border: "rgba(240,192,64,0.3)", bg: "rgba(40,30,0,0.4)", disabled: true,
+      label: "Friends", action: () => {},
+      color: "rgba(240,192,64,0.5)", border: "rgba(240,192,64,0.15)", bg: "rgba(20,14,0,0.4)",
+      disabled: true, pushed: true,
     };
     if (friendStatus.requesterId === currentUserId) return {
-      label: "Request Sent", action: () => cancelOrDeclineMutation.mutate(),
-      color: "#7fbfb0", border: "rgba(127,191,176,0.3)", bg: "rgba(8,35,30,0.5)", disabled: false,
+      label: "Sent", action: () => cancelOrDeclineMutation.mutate(),
+      color: "rgba(127,191,176,0.5)", border: "rgba(127,191,176,0.15)", bg: "rgba(5,20,18,0.4)",
+      disabled: false, pushed: true,
     };
     return {
-      label: "Accept Request", action: () => acceptRequestMutation.mutate(),
-      color: "#4ade80", border: "rgba(74,222,128,0.55)", bg: "rgba(15,60,30,0.7)", disabled: false,
+      label: "Accept", action: () => acceptRequestMutation.mutate(),
+      color: "#4ade80", border: "rgba(74,222,128,0.55)", bg: "rgba(15,60,30,0.7)",
+      disabled: false, pushed: false,
     };
   };
   const fb = getFriendBtn();
@@ -191,7 +207,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
     <div
       data-testid="overlay-player-detail"
       className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ background: "rgba(0,0,0,0.72)", backdropFilter: "blur(4px)" }}
+      style={{ background: "rgba(0,0,0,0.72)" }}
       onClick={onClose}
     >
       <div
@@ -202,6 +218,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
           maxWidth: 480,
           maxHeight: "88dvh",
           overflowY: "auto",
+          WebkitOverflowScrolling: "touch",
           background: "linear-gradient(180deg, #0d0a04 0%, #1a1000 50%, #0a0600 100%)",
           border: "1px solid rgba(212,160,23,0.25)",
           borderBottom: "none",
@@ -316,7 +333,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
 
               {profile.activePet ? (
                 <>
-                  {/* Pet image (centered, large, no box) + info to the right */}
+                  {/* Pet image (large, no box) + info to the right */}
                   <div className="flex items-start gap-4">
                     <div className="flex-shrink-0 flex items-center justify-center" style={{ width: 100, height: 100 }} data-testid="img-active-pet">
                       {petImg ? (
@@ -358,7 +375,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                     </div>
                   </div>
 
-                  {/* Equipped accessories */}
+                  {/* Equipped accessories — image-only thumbnails, tap for detail */}
                   {equippedAccessories.length > 0 && (
                     <div className="flex flex-col gap-2">
                       <p className="font-fantasy text-[10px] tracking-widest uppercase" style={{ color: "rgba(192,132,252,0.6)" }}>
@@ -366,21 +383,27 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {equippedAccessories.map((acc, i) => (
-                          <div key={acc.id ?? acc.accessoryInventoryId ?? i}
-                            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg"
-                            style={{ background: "rgba(192,132,252,0.07)", border: "1px solid rgba(192,132,252,0.22)" }}>
-                            {acc.imageUrl && (
-                              <img src={acc.imageUrl} alt={acc.name} style={{ width: 28, height: 28, objectFit: "contain", flexShrink: 0 }} />
+                          <button
+                            key={acc.id ?? acc.accessoryInventoryId ?? i}
+                            onClick={() => setAccessoryDetail(acc)}
+                            data-testid={`button-acc-${i}`}
+                            style={{
+                              width: 44, height: 44,
+                              padding: 4,
+                              borderRadius: 10,
+                              background: "rgba(192,132,252,0.1)",
+                              border: "1.5px solid rgba(192,132,252,0.3)",
+                              cursor: "pointer",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              WebkitTapHighlightColor: "transparent",
+                            }}
+                          >
+                            {acc.imageUrl ? (
+                              <img src={acc.imageUrl} alt={acc.name} style={{ width: 32, height: 32, objectFit: "contain" }} />
+                            ) : (
+                              <span style={{ fontSize: 18 }}>✦</span>
                             )}
-                            <div>
-                              <p className="font-fantasy text-[10px]" style={{ color: "#ddb4ff" }}>{acc.name}</p>
-                              <div className="flex gap-1 flex-wrap mt-0.5">
-                                {acc.atkBoost ? <span className="font-fantasy text-[8px]" style={{ color: "#fb923c" }}>+{acc.atkBoost} ATK</span> : null}
-                                {acc.defBoost ? <span className="font-fantasy text-[8px]" style={{ color: "#60a5fa" }}>+{acc.defBoost} DEF</span> : null}
-                                {acc.healthBoost ? <span className="font-fantasy text-[8px]" style={{ color: "#f87171" }}>+{acc.healthBoost} HP</span> : null}
-                              </div>
-                            </div>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -397,39 +420,43 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
             {/* Action buttons — hidden when viewing own card */}
             {!isSelf && (
               <div className="flex flex-col gap-2">
-                {/* Add Friend / Friends status button */}
+                {/* Add Friend / Sent / Friends / Accept */}
                 <button
                   data-testid="button-add-friend"
                   onClick={fb.action}
                   disabled={fb.disabled || anyMutationPending}
                   style={{
                     width: "100%", padding: "11px 0", borderRadius: 10,
-                    background: fb.bg,
+                    background: fb.pushed ? "rgba(8,8,8,0.55)" : fb.bg,
                     border: `1.5px solid ${fb.border}`,
                     color: fb.color,
                     fontFamily: "Lora, serif", fontSize: 12, letterSpacing: "0.1em",
                     cursor: (fb.disabled || anyMutationPending) ? "default" : "pointer",
-                    opacity: fb.disabled ? 0.75 : 1,
+                    boxShadow: fb.pushed ? "inset 0 2px 6px rgba(0,0,0,0.6)" : "none",
+                    WebkitTapHighlightColor: "transparent",
                     transition: "opacity 0.15s",
                   }}
                 >
                   {anyMutationPending ? "…" : fb.label}
                 </button>
 
-                {/* Visit Pet Home — Coming Soon */}
+                {/* Visit Pet Home — uses actual game house icon */}
                 <button
                   data-testid="button-visit-pethouse"
                   onClick={() => setComingSoon(true)}
                   style={{
-                    width: "100%", padding: "11px 0", borderRadius: 10,
+                    width: "100%", padding: "10px 0", borderRadius: 10,
                     background: "rgba(15,50,30,0.5)",
                     border: "1.5px solid rgba(74,222,128,0.35)",
                     color: "#86efac",
                     fontFamily: "Lora, serif", fontSize: 12, letterSpacing: "0.1em",
                     cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                    WebkitTapHighlightColor: "transparent",
                   }}
                 >
-                  🏠 Visit Pet Home
+                  <img src={petHouseIcon} alt="" style={{ width: 20, height: 20, objectFit: "contain", opacity: 0.85 }} />
+                  Visit Pet Home
                 </button>
               </div>
             )}
@@ -443,20 +470,68 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
             onClick={() => setComingSoon(false)}
           >
             <div
-              style={{ padding: "30px 28px", background: "linear-gradient(160deg, #1c1100 0%, #0e0900 100%)", border: "1.5px solid rgba(212,160,23,0.45)", borderRadius: 16, textAlign: "center", maxWidth: 260 }}
+              style={{ padding: "28px 28px", background: "linear-gradient(160deg, #1c1100 0%, #0e0900 100%)", border: "1.5px solid rgba(212,160,23,0.45)", borderRadius: 16, textAlign: "center", maxWidth: 260 }}
               onClick={e => e.stopPropagation()}
             >
-              <div style={{ fontSize: 44, marginBottom: 10, lineHeight: 1 }}>🏠</div>
+              <img src={petHouseIcon} alt="" style={{ width: 52, height: 52, objectFit: "contain", margin: "0 auto 10px", display: "block" }} />
               <p style={{ color: "#f6dc8a", fontFamily: "Lora, serif", fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Coming Soon!</p>
               <p style={{ color: "rgba(212,160,23,0.55)", fontFamily: "Lora, serif", fontSize: 11, marginBottom: 18, lineHeight: 1.5 }}>
                 Pet Home visits are under construction. Check back soon!
               </p>
               <button
                 onClick={() => setComingSoon(false)}
-                style={{ padding: "9px 28px", borderRadius: 8, background: "rgba(212,160,23,0.15)", border: "1px solid rgba(212,160,23,0.4)", color: "#f6dc8a", fontFamily: "Lora, serif", fontSize: 11, cursor: "pointer" }}
+                style={{ padding: "9px 28px", borderRadius: 8, background: "rgba(212,160,23,0.15)", border: "1px solid rgba(212,160,23,0.4)", color: "#f6dc8a", fontFamily: "Lora, serif", fontSize: 11, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
               >
                 Got it
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Accessory detail popup — tap outside to close */}
+        {accessoryDetail && (
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 9990, background: "rgba(0,0,0,0.82)", display: "flex", alignItems: "center", justifyContent: "center" }}
+            onClick={() => setAccessoryDetail(null)}
+          >
+            <div
+              style={{ padding: "24px 24px 20px", background: "linear-gradient(160deg, #1a0f1f 0%, #0e0914 100%)", border: "1.5px solid rgba(192,132,252,0.45)", borderRadius: 16, textAlign: "center", maxWidth: 220, width: "80%" }}
+              onClick={e => e.stopPropagation()}
+            >
+              {accessoryDetail.imageUrl ? (
+                <img src={accessoryDetail.imageUrl} alt={accessoryDetail.name}
+                  style={{ width: 72, height: 72, objectFit: "contain", margin: "0 auto 10px", display: "block" }} />
+              ) : (
+                <div style={{ width: 72, height: 72, margin: "0 auto 10px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontSize: 36, color: "rgba(192,132,252,0.5)" }}>✦</span>
+                </div>
+              )}
+              <p style={{ color: "#ddb4ff", fontFamily: "Lora, serif", fontSize: 14, fontWeight: 600, marginBottom: 10 }}>
+                {accessoryDetail.name}
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {accessoryDetail.atkBoost ? (
+                  <div style={{ display: "flex", justifyContent: "space-between", background: "rgba(251,146,60,0.1)", borderRadius: 6, padding: "4px 10px" }}>
+                    <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "rgba(251,146,60,0.7)" }}>ATK</span>
+                    <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#fb923c", fontWeight: 700 }}>+{accessoryDetail.atkBoost}</span>
+                  </div>
+                ) : null}
+                {accessoryDetail.defBoost ? (
+                  <div style={{ display: "flex", justifyContent: "space-between", background: "rgba(96,165,250,0.1)", borderRadius: 6, padding: "4px 10px" }}>
+                    <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "rgba(96,165,250,0.7)" }}>DEF</span>
+                    <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#60a5fa", fontWeight: 700 }}>+{accessoryDetail.defBoost}</span>
+                  </div>
+                ) : null}
+                {accessoryDetail.healthBoost ? (
+                  <div style={{ display: "flex", justifyContent: "space-between", background: "rgba(248,113,113,0.1)", borderRadius: 6, padding: "4px 10px" }}>
+                    <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "rgba(248,113,113,0.7)" }}>HP</span>
+                    <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#f87171", fontWeight: 700 }}>+{accessoryDetail.healthBoost}</span>
+                  </div>
+                ) : null}
+                {!accessoryDetail.atkBoost && !accessoryDetail.defBoost && !accessoryDetail.healthBoost && (
+                  <p style={{ fontFamily: "Lora, serif", fontSize: 11, color: "rgba(192,132,252,0.4)" }}>No stat boosts</p>
+                )}
+              </div>
             </div>
           </div>
         )}
