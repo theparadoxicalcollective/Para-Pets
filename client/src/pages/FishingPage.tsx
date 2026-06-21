@@ -2024,6 +2024,7 @@ function TensionReel({
 
   const startHold = (e: React.PointerEvent) => {
     e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
     setHeld(true);
     onHoldChange(true);
     if (!reelIntervalRef.current) {
@@ -2253,7 +2254,6 @@ function TensionReel({
           data-no-click-sound
           onPointerDown={startHold}
           onPointerUp={endHold}
-          onPointerLeave={endHold}
           onPointerCancel={endHold}
           onContextMenu={(e) => e.preventDefault()}
           draggable={false}

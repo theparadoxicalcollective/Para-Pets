@@ -5075,7 +5075,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           <FishingPage
             locationId={activeLocationId}
             locationName={fishLoc.name}
-            bgUrl={activeLocDetail?.bgUrl ?? null}
+            bgUrl={fishLoc.bgUrl ?? activeLocDetail?.bgUrl ?? null}
             worldId={worldId}
             user={currentUser}
             onClose={() => {

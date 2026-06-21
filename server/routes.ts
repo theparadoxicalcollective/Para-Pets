@@ -3540,8 +3540,7 @@ export async function registerRoutes(
   app.get("/api/world/:worldId/locations", isAuthenticated, async (req, res) => {
     try {
       const locations = await storage.getWorldLocations((req.params.worldId as string));
-      const slim = locations.map(({ bgUrl, ...rest }) => rest);
-      return res.json(slim);
+      return res.json(locations);
     } catch (err) {
       console.error("Get world locations error:", err);
       return res.status(500).json({ message: "Failed to get locations" });
