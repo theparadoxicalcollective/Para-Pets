@@ -40,7 +40,7 @@ import hsGlobe           from "@assets/hs_icon_globe.png";
 import hsMenu            from "@assets/hs_icon_menu.png";
 
 import worldEnchanted    from "@assets/bg_enchanted_grove_map.png";
-import worldHaunted      from "@assets/bg_haunted_woods_map.png";
+import worldHaunted      from "@assets/bg_haunted_woods_v2.png";
 import worldDesert       from "@assets/bg_desert_map.png";
 import worldSky          from "@assets/bg_sky_realm_map.png";
 import worldIsland       from "@assets/bg_island_map.png";

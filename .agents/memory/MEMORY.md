@@ -4,3 +4,4 @@
 - [Hatch-time special gating](tutorial-step5-blockers.md) — instant hatch-fill is tutorial-only (server-gated by tutorial flags); normal play reduces by specialAmount minutes.
 - [setActivePet partial user update](active-pet-partial-user-update.md) — onUserUpdate consumers must MERGE into auth/me cache, never replace, or the email-gate flashes/closes the overlay.
 - [Founder tier vs monthly bar](founder-tier-vs-monthly-bar.md) — tier = lifetime USD spend (upgrade-only); monthly bar = monthly points; mirror any change across BOTH credit paths (routes.ts + webhookHandlers.ts).
+- [World bg overwrite on startup](world-background-overwrite-on-startup.md) — admin-uploaded world backgrounds revert after restart; WORLD_BG_ASSETS loop in server/index.ts force-overwrites bgUrl every boot.
