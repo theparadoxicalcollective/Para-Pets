@@ -179,8 +179,13 @@ export default function FoundersPage() {
       ...base,
       fontSize: 22,
       fontWeight: 700,
-      color: "#f5d060",
-      textShadow: "0 0 12px rgba(240,180,40,0.8), " + OUTLINE,
+      backgroundImage: "linear-gradient(90deg, #e8b73a 0%, #f5d060 30%, #fff6d0 50%, #f5d060 70%, #e8b73a 100%)",
+      backgroundSize: "200% auto",
+      WebkitBackgroundClip: "text",
+      backgroundClip: "text",
+      WebkitTextFillColor: "transparent",
+      animation: "legendary-shimmer 4s linear infinite",
+      filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.9)) drop-shadow(0 0 8px rgba(240,180,40,0.55))",
     };
     if (tier === "silver") return {
       ...base,
