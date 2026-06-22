@@ -231,7 +231,7 @@ export default function MapPage({ user }: MapPageProps) {
 
   const [navigatingWorldId, setNavigatingWorldId] = useState<string | null>(null);
 
-  const isWorldLocked = (w: WorldData) => !currentUser.isAdmin && w.id !== "swamp" && w.id !== "volcanic";
+  const isWorldLocked = (w: WorldData) => !currentUser.isAdmin && !currentUser.isModerator && w.id !== "swamp" && w.id !== "volcanic";
 
   const handleWorldClick = useCallback((w: WorldData) => {
     if (didDrag.current) return;
@@ -242,7 +242,7 @@ export default function MapPage({ user }: MapPageProps) {
     setTimeout(() => {
       navigate(`/world/${w.id}`);
     }, 800);
-  }, [navigate, navigatingWorldId, currentUser.isAdmin]);
+  }, [navigate, navigatingWorldId, currentUser.isAdmin, currentUser.isModerator]);
 
   return (
     <div

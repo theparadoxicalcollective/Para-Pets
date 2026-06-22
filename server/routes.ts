@@ -7721,6 +7721,7 @@ export async function registerRoutes(
         ua: String(ua ?? "").slice(0, 200),
         userId,
       });
+      console.error(`[client-error:${safeType}] ${String(url ?? "")} :: ${String(msg ?? "").slice(0, 400)} @ ${String(source ?? "").slice(0, 200)}`);
       return res.json({ ok: true });
     } catch { return res.json({ ok: false }); }
   });
