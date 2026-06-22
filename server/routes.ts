@@ -2880,13 +2880,13 @@ export async function registerRoutes(
             const monthYear = new Date().toISOString().slice(0, 7);
             const progressPts = amountUsd * 100;
             const newTotal = await storage.addPurchaseProgress(user.id, progressPts, monthYear);
-            const MILESTONES: [number, string][] = [[500, 'bronze'], [2500, 'silver'], [5000, 'gold'], [10000, 'legendary']];
+            // Monthly contribution reward bar — driven by THIS month's points only.
+            const MILESTONES: number[] = [500, 2500, 5000, 10000];
             const allRewards = await storage.getMilestoneRewards();
-            for (const [ms, founderTier] of MILESTONES) {
+            for (const ms of MILESTONES) {
               if (newTotal >= ms) {
                 const claimed = await storage.claimMilestone(user.id, ms, monthYear);
                 if (claimed) {
-                  storage.upsertFounderByUserId(user.id, (capturedUser as any).username, founderTier).catch(() => {});
                   const rewardCfg = allRewards.find((r: any) => Number(r.milestone_points) === ms);
                   if (rewardCfg) {
                     if (Number(rewardCfg.reward_coins) > 0) {
@@ -2904,6 +2904,24 @@ export async function registerRoutes(
               }
             }
           } catch (e) { console.error('[milestone progress]', e); }
+
+          // Founder Tier — based on LIFETIME (overall) coin-purchase spend, in USD.
+          // Entirely separate from the monthly contribution reward bar above.
+          // upsertFounderByUserId only ever upgrades a tier, never downgrades, so
+          // existing founders are left as-is and the new rules apply going forward.
+          try {
+            const lifetimeUsd = await storage.getLifetimePurchaseUsd(user.id);
+            const FOUNDER_TIERS: [number, string][] = [
+              [1000, 'legendary'],
+              [500, 'gold'],
+              [150, 'silver'],
+              [50, 'bronze'],
+            ];
+            const earned = FOUNDER_TIERS.find(([usd]) => lifetimeUsd >= usd);
+            if (earned) {
+              await storage.upsertFounderByUserId(user.id, (capturedUser as any).username, earned[1]);
+            }
+          } catch (e) { console.error('[founder tier]', e); }
         })();
       } catch (err: any) {
         if (err.code === '23505') {

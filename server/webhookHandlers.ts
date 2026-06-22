@@ -41,7 +41,15 @@ const EGG_BONUS: Record<number, { shopItemId: string; itemName: string; itemImag
   100: { shopItemId: "670e8ef5-b67d-4be4-b340-3e652327975f", itemName: "The Paradox Egg",     itemImageUrl: "/api/media/e5019d66-d5a1-4f56-a7e6-e4f9bae5baee" },
 };
 
-const MILESTONES: [number, string][] = [[500, 'bronze'], [2500, 'silver'], [5000, 'gold'], [10000, 'legendary']];
+// Monthly contribution reward bar milestones (points). Founder tier is NOT
+// derived from these — it is based on lifetime USD spend (see FOUNDER_TIERS).
+const MILESTONES: number[] = [500, 2500, 5000, 10000];
+const FOUNDER_TIERS: [number, string][] = [
+  [1000, 'legendary'],
+  [500, 'gold'],
+  [150, 'silver'],
+  [50, 'bronze'],
+];
 
 export class WebhookHandlers {
   static async processWebhook(payload: Buffer, signature: string): Promise<void> {
@@ -104,14 +112,11 @@ export class WebhookHandlers {
           const allRewards = await storage.getMilestoneRewards();
           const user = await storage.getUser(userId);
 
-          for (const [ms, founderTier] of MILESTONES) {
+          for (const ms of MILESTONES) {
             if (newTotal >= ms) {
               const claimed = await storage.claimMilestone(userId, ms, monthYear);
               if (claimed) {
                 console.log(`[Webhook] Milestone ${ms} pts claimed for user ${userId}`);
-                if (user) {
-                  storage.upsertFounderByUserId(userId, (user as any).username ?? '', founderTier).catch(() => {});
-                }
                 const rewardCfg = allRewards.find((r: any) => Number(r.milestone_points) === ms);
                 if (rewardCfg) {
                   if (Number(rewardCfg.reward_coins) > 0) {
@@ -133,6 +138,19 @@ export class WebhookHandlers {
                 }
               }
             }
+          }
+
+          // Founder Tier — based on LIFETIME (overall) coin-purchase spend in USD,
+          // separate from the monthly contribution reward bar above. upsert is
+          // upgrade-only, so existing founders are never downgraded.
+          try {
+            const lifetimeUsd = await storage.getLifetimePurchaseUsd(userId);
+            const earned = FOUNDER_TIERS.find(([usd]) => lifetimeUsd >= usd);
+            if (earned && user) {
+              await storage.upsertFounderByUserId(userId, (user as any).username ?? '', earned[1]);
+            }
+          } catch (e) {
+            console.error('[Webhook] Founder tier error:', e);
           }
 
           // Bonus pet egg for $50 / $100 bundles

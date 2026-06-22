@@ -2,3 +2,4 @@
 - [Tutorial step-5 drag blockers](tutorial-step5-blockers.md) — three distinct bugs that silently blocked potion drag in the tutorial overlay.
 - [Coin purchase + egg delivery](coin-purchase-egg-delivery.md) — dual-path (verify+webhook) credit; deliver limited egg via gift; dedup now enforced by unique index; milestone rewards are separate.
 - [Hatch-time special gating](tutorial-step5-blockers.md) — instant hatch-fill is tutorial-only (server-gated by tutorial flags); normal play reduces by specialAmount minutes.
+- [Founder tier vs monthly bar](founder-tier-vs-monthly-bar.md) — tier = lifetime USD spend (upgrade-only); monthly bar = monthly points; mirror any change across BOTH credit paths (routes.ts + webhookHandlers.ts).

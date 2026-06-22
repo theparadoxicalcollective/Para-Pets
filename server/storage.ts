@@ -142,6 +142,7 @@ export interface IStorage {
   getRewardBundle(id: string): Promise<RewardBundle | undefined>;
   getAllRewardBundles(): Promise<RewardBundle[]>;
   createCoinPurchase(userId: string, amountUsd: number, coinsReceived: number, stripeSessionId: string): Promise<CoinPurchase>;
+  getLifetimePurchaseUsd(userId: string): Promise<number>;
   getCoinPurchaseBySessionId(stripeSessionId: string): Promise<CoinPurchase | undefined>;
   getDailyPurchaseTotal(userId: string): Promise<number>;
   getWorldLocations(worldId: string): Promise<WorldLocation[]>;
@@ -949,6 +950,14 @@ export class DatabaseStorage implements IStorage {
   async getCoinPurchaseBySessionId(stripeSessionId: string): Promise<CoinPurchase | undefined> {
     const [purchase] = await db.select().from(coinPurchases).where(eq(coinPurchases.stripeSessionId, stripeSessionId));
     return purchase;
+  }
+
+  async getLifetimePurchaseUsd(userId: string): Promise<number> {
+    const [row] = await db
+      .select({ total: sql<number>`COALESCE(SUM(${coinPurchases.amountUsd}), 0)` })
+      .from(coinPurchases)
+      .where(eq(coinPurchases.userId, userId));
+    return Number((row as any)?.total ?? 0);
   }
 
   async getDailyPurchaseTotal(userId: string): Promise<number> {
