@@ -489,8 +489,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   );
 
   const speedUpMutation = useMutation({
-    mutationFn: async ({ petInvId, itemInvId, specialAmount }: { petInvId: string; itemInvId: string; specialAmount?: number | null }) => {
-      const res = await apiRequest("POST", `/api/pet/${petInvId}/use-special`, { itemInventoryId: itemInvId });
+    mutationFn: async ({ petInvId, itemInvId, specialAmount, tutorialFill }: { petInvId: string; itemInvId: string; specialAmount?: number | null; tutorialFill?: boolean }) => {
+      const res = await apiRequest("POST", `/api/pet/${petInvId}/use-special`, { itemInventoryId: itemInvId, tutorialFill: tutorialFill ?? false });
       return res.json();
     },
     onSuccess: (_data, variables) => {
@@ -529,7 +529,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         petInvId: string; itemInvId: string; specialAmount: number;
       }>).detail;
       if (petInvId && itemInvId) {
-        speedUpMutation.mutate({ petInvId, itemInvId, specialAmount });
+        // Tutorial step 5: this path is the ONLY one that requests the instant
+        // hatch-ready fill. All normal speed-up paths omit tutorialFill and get
+        // the item's specific minute reduction instead.
+        speedUpMutation.mutate({ petInvId, itemInvId, specialAmount, tutorialFill: true });
       }
     };
     window.addEventListener("bj_step5_use_potion", handler as EventListener);

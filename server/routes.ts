@@ -2135,7 +2135,7 @@ export async function registerRoutes(
   app.post("/api/pet/:inventoryId/use-special", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { itemInventoryId } = req.body;
+      const { itemInventoryId, tutorialFill } = req.body;
 
       const petInv = await storage.getInventoryItemById((req.params.inventoryId as string));
       if (!petInv || petInv.userId !== user.id) {
@@ -2164,12 +2164,35 @@ export async function registerRoutes(
         if (petInv.isHatched) {
           return res.status(400).json({ message: "Pet is already hatched" });
         }
-        // Set hatchStartedAt far enough in the past that the egg is immediately
-        // ready to hatch — elapsed >= full hatch time. This fully fills the hatch
-        // timer regardless of how much time has already elapsed.
-        const hatchTimeHours = (petShopItem.hatchTime ?? 24) as number;
-        const readyStart = new Date(Date.now() - (hatchTimeHours * 3600 * 1000 + 1000));
-        await storage.updateInventoryItem(petInv.id, { hatchStartedAt: readyStart });
+        // Instant hatch-ready fill is RESERVED for the Begin Journey tutorial's
+        // hatch step. It is authorized server-side (never by the client flag
+        // alone): the player must have claimed tutorial potions but not yet
+        // completed the quest. The client's tutorialFill is only an intent hint;
+        // a spoofed flag does nothing outside the genuine tutorial window. Players
+        // who have not started OR have finished the tutorial always get the
+        // item's specific minute reduction below.
+        let allowInstantFill = false;
+        if (tutorialFill === true) {
+          const trows = await db.execute(sql`SELECT tutorial_hatch_potions_claimed, tutorial_quest_completed FROM users WHERE id = ${user.id}`);
+          const trow = (trows as any).rows?.[0] ?? (trows as any)?.[0];
+          allowInstantFill = !!trow?.tutorial_hatch_potions_claimed && !trow?.tutorial_quest_completed;
+        }
+        if (allowInstantFill) {
+          // Tutorial only: set hatchStartedAt far enough in the past that
+          // elapsed >= full hatch time, so the egg is immediately ready to hatch
+          // and the player can finish the tutorial regardless of hatch time.
+          const hatchTimeHours = (petShopItem.hatchTime ?? 24) as number;
+          const readyStart = new Date(Date.now() - (hatchTimeHours * 3600 * 1000 + 1000));
+          await storage.updateInventoryItem(petInv.id, { hatchStartedAt: readyStart });
+        } else {
+          // NORMAL PLAY: reduce the remaining hatch time by the item's specific
+          // amount (specialAmount minutes) by moving hatchStartedAt earlier —
+          // it does NOT instantly finish hatching.
+          const currentStart = petInv.hatchStartedAt ? new Date(petInv.hatchStartedAt) : new Date();
+          const minutesInMs = specialAmount * 60 * 1000;
+          const newStart = new Date(currentStart.getTime() - minutesInMs);
+          await storage.updateInventoryItem(petInv.id, { hatchStartedAt: newStart });
+        }
       } else if (specialType === "level") {
         if (!petInv.isHatched) {
           return res.status(400).json({ message: "Pet has not hatched yet" });
