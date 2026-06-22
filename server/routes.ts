@@ -2812,6 +2812,10 @@ export async function registerRoutes(
 
       const awardedCoins = Math.round(coins * 1.33);
       let updatedUser;
+      // Declared at function scope (not inside the try below) so they remain
+      // in scope when the success response is built after the try/catch.
+      const eggBonus = EGG_BONUS[amountUsd];
+      let eggBonusGranted = false;
       try {
         await storage.createCoinPurchase(user.id, amountUsd, awardedCoins, sessionId);
         // addCoins returns the updated user — avoid an extra round-trip
@@ -2821,16 +2825,29 @@ export async function registerRoutes(
         // verification overlay closes as fast as possible.
         grantCommunityPurchaseReward(user.id, amountUsd).catch(() => {});
         maybeAwardAcquisitionBadges(user.id, amountUsd).catch(() => {});
-        // Bonus pet egg for $50 / $100 bundles — added directly to inventory so
-        // the player sees it immediately without having to claim from a gift inbox.
-        const eggBonus = EGG_BONUS[amountUsd];
-        let eggBonusGranted = false;
+        // Bonus pet egg for the limited $50 / $100 bundles — delivered as a
+        // GIFT (not dropped straight into inventory) so it always flows through
+        // the same claim path the webhook uses. The verify and webhook paths are
+        // mutually exclusive via the coin_purchases session-id dedup above, so
+        // the egg gift is created exactly once per purchase.
+        // NOTE: this is the per-purchase limited-bundle reward — entirely
+        // separate from the monthly Contribution milestone rewards below.
         if (eggBonus) {
           try {
-            await storage.addToInventory(user.id, eggBonus.shopItemId);
+            await storage.sendGift({
+              senderId: user.id,
+              receiverId: user.id,
+              coinAmount: 0,
+              itemType: "shop_item",
+              shopItemId: eggBonus.shopItemId,
+              itemName: eggBonus.itemName,
+              itemImageUrl: eggBonus.itemImageUrl,
+              itemQuantity: 1,
+              message: "Bonus gift for your purchase!",
+            });
             eggBonusGranted = true;
           } catch (e) {
-            console.error("Egg bonus inventory error:", e);
+            console.error("Egg bonus gift error:", e);
           }
         }
         // Track purchase progress and handle milestone rewards (fire-and-forget).
@@ -5289,6 +5306,7 @@ export async function registerRoutes(
 
       const leaderboard = rows.map((r, i) => ({
         rank: i + 1,
+        userId: r.userId,
         username: r.username,
         profileImage: r.profileImage ?? null,
         isModerator: r.isModerator ?? false,

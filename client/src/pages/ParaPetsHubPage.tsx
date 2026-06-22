@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { ChevronDown, X, Eye, EyeOff, Loader2, Maximize2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 
 import heroBanner        from "@assets/hub_hero_banner.png";
 import mascot            from "@assets/Photoroom_20260502_90936_AM_1777731667331.png";
@@ -1189,7 +1190,7 @@ function useSeoMeta() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Contribution leaderboard — top coin bundle purchasers (admins excluded, mods shown)
 // ─────────────────────────────────────────────────────────────────────────────
-type LeaderboardEntry = { rank: number; username: string; profileImage: string | null; isModerator?: boolean; points: number };
+type LeaderboardEntry = { rank: number; userId: string; username: string; profileImage: string | null; isModerator?: boolean; points: number };
 
 function ContributionLeaderboard() {
   const { data: entries = [], isLoading } = useQuery<LeaderboardEntry[]>({
@@ -1197,6 +1198,16 @@ function ContributionLeaderboard() {
     staleTime: 60_000,
     retry: false,
   });
+
+  // Same player card the world chat opens. Only logged-in viewers can open it
+  // (the profile endpoint requires auth), and never your own avatar.
+  const { data: viewer } = useQuery<{ id: string } | null>({
+    queryKey: ["/api/auth/me"],
+    retry: false,
+    staleTime: 30_000,
+  });
+  const currentUserId = viewer?.id;
+  const [viewingPlayerId, setViewingPlayerId] = useState<string | null>(null);
 
   if (isLoading) return (
     <div className="flex justify-center py-8">
@@ -1256,27 +1267,36 @@ function ContributionLeaderboard() {
                 {e.rank}
               </span>
 
-              {/* Avatar */}
-              <div style={{
-                width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
-                overflow: "hidden",
-                border: `1.5px solid ${isTop3 ? rankColor + "60" : "rgba(212,168,67,0.12)"}`,
-                background: "rgba(10,18,14,0.8)",
-              }}>
-                {e.profileImage ? (
-                  <img src={e.profileImage} alt={e.username}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                ) : (
-                  <div style={{
-                    width: "100%", height: "100%",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "0.85rem",
-                    color: "rgba(212,168,67,0.5)", fontFamily: "serif",
-                  }}>
-                    {e.username[0]?.toUpperCase()}
+              {/* Avatar — opens the same player card the world chat does */}
+              {(() => {
+                const canView = !!currentUserId && currentUserId !== e.userId && !!e.userId;
+                return (
+                  <div
+                    data-testid={`button-leaderboard-avatar-${e.rank}`}
+                    onClick={() => canView && setViewingPlayerId(e.userId)}
+                    style={{
+                      width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+                      overflow: "hidden",
+                      border: `1.5px solid ${isTop3 ? rankColor + "60" : "rgba(212,168,67,0.12)"}`,
+                      background: "rgba(10,18,14,0.8)",
+                      cursor: canView ? "pointer" : "default",
+                    }}>
+                    {e.profileImage ? (
+                      <img src={e.profileImage} alt={e.username}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <div style={{
+                        width: "100%", height: "100%",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "0.85rem",
+                        color: "rgba(212,168,67,0.5)", fontFamily: "serif",
+                      }}>
+                        {e.username[0]?.toUpperCase()}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                );
+              })()}
 
               {/* Username + optional mod badge */}
               <div className="flex items-center gap-1.5 flex-1 min-w-0">
@@ -1308,6 +1328,14 @@ function ContributionLeaderboard() {
           );
         })}
       </div>
+
+      {viewingPlayerId && (
+        <PlayerDetailPanel
+          userId={viewingPlayerId}
+          currentUserId={currentUserId}
+          onClose={() => setViewingPlayerId(null)}
+        />
+      )}
     </div>
   );
 }

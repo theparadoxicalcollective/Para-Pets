@@ -271,6 +271,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         queryClient.invalidateQueries({ queryKey: ["/api/coins/packs"] });
         queryClient.invalidateQueries({ queryKey: ["/api/coins/progress"] });
         queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/gifts/pending"] });
         if (data.credited || data.alreadyCredited) {
           const coins = typeof data.coins === "number"
             ? data.coins
@@ -278,7 +279,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           setSuccessCoins(isFinite(coins) ? coins : 0);
           if (data.eggBonus?.name) {
             setTimeout(() => {
-              toast({ title: `🥚 Bonus egg included!`, description: `${data.eggBonus.name} has been added to your inventory.` });
+              toast({ title: `🥚 Bonus egg gifted!`, description: `${data.eggBonus.name} is waiting in your gift inbox — open it to claim your egg!` });
             }, 1800);
           }
           try { playShopBell(); } catch {}
