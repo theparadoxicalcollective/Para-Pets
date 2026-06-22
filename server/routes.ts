@@ -763,6 +763,10 @@ export async function registerRoutes(
         return res.status(400).json({ field: "username", message: "Username must be between 3 and 20 characters" });
       }
 
+      if (await containsBadWord(username)) {
+        return res.status(400).json({ field: "username", message: "That username contains a forbidden word. Please choose another." });
+      }
+
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         return res.status(400).json({ field: "email", message: "Please enter a valid email address" });
@@ -1351,6 +1355,10 @@ export async function registerRoutes(
         return res.status(400).json({ message: parse.error.errors[0].message });
       }
 
+      if (await containsBadWord(username)) {
+        return res.status(400).json({ message: "That username contains a forbidden word. Please choose another." });
+      }
+
       const existing = await storage.getUserByUsername(username);
       if (existing && existing.id !== user.id) {
         return res.status(400).json({ message: "Username already taken" });
@@ -1796,6 +1804,9 @@ export async function registerRoutes(
       const { inventoryId } = req.params as Record<string, string>;
       const { nickname } = req.body;
       const trimmed = (nickname || "").trim().slice(0, 20);
+      if (trimmed && await containsBadWord(trimmed)) {
+        return res.status(400).json({ message: "That name contains a forbidden word. Please choose another." });
+      }
       const item = await storage.getInventoryItemById(inventoryId);
       if (!item || item.userId !== user.id) {
         return res.status(404).json({ message: "Item not found" });

@@ -655,35 +655,6 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
               )}
             </div>
 
-            {/* Friends */}
-            <div className="relative">
-              <button
-                data-testid="button-friends"
-                onClick={() => setShowFriends(true)}
-                className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-widest transition-all"
-                style={{
-                  background: "linear-gradient(135deg, rgba(60,20,100,0.55) 0%, rgba(35,10,65,0.55) 100%)",
-                  border: "1px solid rgba(160,100,240,0.45)",
-                  color: "#c084fc",
-                  cursor: "pointer",
-                  boxShadow: "0 0 14px rgba(140,80,220,0.15), 0 2px 8px rgba(0,0,0,0.35)",
-                }}
-              >
-                ✦ Friends ✦
-              </button>
-              {friendRequestCount > 0 && (
-                <div
-                  className="absolute -top-1.5 right-2 min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 pointer-events-none"
-                  style={{
-                    background: "radial-gradient(circle, #a855f7 0%, #7c3aed 100%)",
-                    border: "2px solid rgba(0,0,0,0.5)",
-                    boxShadow: "0 0 6px rgba(168,85,247,0.6)",
-                  }}
-                >
-                  <span className="font-bold text-[9px] text-white leading-none">{friendRequestCount}</span>
-                </div>
-              )}
-            </div>
 
             {/* Para Pets Hub */}
             <button
