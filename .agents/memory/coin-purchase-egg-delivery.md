@@ -27,21 +27,28 @@ are SEPARATE systems — keep them separate.** Milestone rewards
 (`purchase_milestone_*` tables, `/api/coins/claim-milestone`) still grant via
 direct `addToInventory`. Do not merge the two.
 
-## Gotcha: the dedup has NO unique DB constraint
+## Dedup is enforced by a unique index (the 23505 catch is real)
 
-`coin_purchases.stripe_session_id` has **no unique constraint/index** on Railway
-(only PK on `id`, non-unique index on `user_id`) — verified by live inspection.
-So the `23505` (unique-violation) handling in both paths is effectively dead
-code; dedup relies entirely on the check-then-insert SELECT. In practice this
-has worked (0 duplicate rows observed in prod, low purchase volume), but a true
-verify+webhook race could double-credit/double-gift.
+`coin_purchases.stripe_session_id` now has a UNIQUE index
+(`uq_coin_purchases_stripe_session_id`), added as an idempotent raw-SQL
+`runMigration` in `server/index.ts` (same pattern as `idx_coin_purchases_user_id`,
+NOT in the drizzle schema). This makes the `23505` (unique-violation) catch
+blocks in both verify and webhook actually effective: under a true
+verify+webhook race, one path inserts and grants, the loser hits 23505 and bails
+→ at-most-once credit + at-most-once egg. `createCoinPurchase` is a plain insert,
+so the violation surfaces naturally; no app-logic change was needed.
 
-**How to apply:** Don't trust the `23505` catch blocks as a real guarantee. If
-asked to make delivery provably exactly-once, the fix is a unique constraint on
-`stripe_session_id` (or transactional/idempotent egg delivery) — but that is a
-Railway schema change governed by the DB safety rules in `replit.md`; get
-explicit user approval first, and check for pre-existing duplicate rows before
-adding the constraint (it will fail if duplicates exist).
+**What it does NOT cover:** side effects (addCoins, egg `sendGift`) run *after*
+the marker insert and are not in one transaction with it. If the winning path
+crashes/fails after inserting, retries see "already processed" and won't repair
+the missing coins/egg. True exactly-once would need a transaction or a
+processed-status/outbox with retryable side effects — a bigger change, not done.
+
+**How to apply (DB safety):** adding/altering this index is a Railway schema
+change governed by `replit.md`. Before touching it: take a backup, and verify
+there are no duplicate `stripe_session_id` rows (a UNIQUE index fails if dupes
+exist). pg_dump 16 can't dump the PG18 Railway server (version mismatch) — use a
+logical backup via the `pg` driver instead, excluding the huge `media_blobs`.
 
 ## Gotcha: block-scoped response vars
 

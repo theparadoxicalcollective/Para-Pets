@@ -595,6 +595,13 @@ app.use((req, res, next) => {
     () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_user_badges_badge_id ON user_badges (badge_id)`));
   await runMigration("idx_coin_purchases_user_id",
     () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_coin_purchases_user_id ON coin_purchases (user_id)`));
+  // Exactly-once purchase dedup. Both the sync /api/coins/verify route and the
+  // async Stripe webhook insert a coin_purchases row keyed by stripe_session_id
+  // and rely on a 23505 (unique-violation) to detect the loser of a race. That
+  // guard only works if the column is actually unique — this enforces it. Safe
+  // and idempotent: verified zero duplicate stripe_session_id rows before adding.
+  await runMigration("uq_coin_purchases_stripe_session_id",
+    () => db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS uq_coin_purchases_stripe_session_id ON coin_purchases (stripe_session_id)`));
   await runMigration("idx_pet_template_parts_template_id",
     () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_pet_template_parts_template_id ON pet_template_parts (template_id)`));
   await runMigration("idx_world_chat_messages_created_at",

@@ -272,6 +272,10 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         queryClient.invalidateQueries({ queryKey: ["/api/coins/progress"] });
         queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
         queryClient.invalidateQueries({ queryKey: ["/api/gifts/pending"] });
+        // Refetch the authoritative balance: when the webhook wins the dedup
+        // race, this verify response can carry a momentarily stale coin total,
+        // so refetch instead of trusting only the optimistic setQueryData above.
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
         if (data.credited || data.alreadyCredited) {
           const coins = typeof data.coins === "number"
             ? data.coins
