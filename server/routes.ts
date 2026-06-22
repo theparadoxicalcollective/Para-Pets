@@ -283,10 +283,10 @@ const COIN_PACKS = [
 // Roughly 1/10 of the purchaser's coin pack so bigger purchases bless the
 // realm more generously without trivializing smaller ones.
 function communityRewardCoinsForUsd(amountUsd: number): number {
-  const tiered: Record<number, number> = { 1: 10, 5: 50, 10: 100, 25: 500, 50: 1000, 100: 2500 };
-  if (tiered[amountUsd]) return tiered[amountUsd];
-  // Fallback for any non-standard amount: 10 coins per dollar.
-  return Math.max(1, amountUsd * 10);
+  const tiered: Record<number, number> = { 1: 0, 5: 0, 10: 50, 25: 50, 50: 50, 100: 50 };
+  if (amountUsd in tiered) return tiered[amountUsd];
+  // Fallback for any non-standard amount $10+: 50 coins; below $10: 0.
+  return amountUsd >= 10 ? 50 : 0;
 }
 
 const stripePriceCache: Record<string, string> = {};
