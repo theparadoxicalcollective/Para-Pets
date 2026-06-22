@@ -117,8 +117,12 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
       setEditingNickname(false);
       toast({ title: "Named!", description: "Your pet has a new name" });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update name", variant: "destructive" });
+    onError: (err: any) => {
+      const raw = err?.message ?? "";
+      const body = raw.includes(": ") ? raw.split(": ").slice(1).join(": ") : raw;
+      let msg = "Failed to update name";
+      try { msg = JSON.parse(body).message || msg; } catch {}
+      toast({ title: "Name Not Allowed", description: msg, variant: "destructive" });
     },
   });
 
