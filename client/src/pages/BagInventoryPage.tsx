@@ -19,7 +19,7 @@ export default function BagInventoryPage() {
       <PetInventory
         user={resolvedUser}
         onClose={() => navigate("/")}
-        onUserUpdate={(u) => queryClient.setQueryData(["/api/auth/me"], u)}
+        onUserUpdate={(u) => queryClient.setQueryData(["/api/auth/me"], (old: any) => old ? { ...old, ...u } : u)}
         defaultTab="bag"
         pageMode
       />
