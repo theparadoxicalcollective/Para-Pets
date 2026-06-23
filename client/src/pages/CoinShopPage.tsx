@@ -583,7 +583,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                       >
                         {hasItem ? (
                           <img
-                            src={rewardCfg.reward_item_image_url}
+                            src={rewardCfg.reward_item_image_url ?? undefined}
                             alt={rewardCfg.reward_item_name ?? ""}
                             style={{
                               width: 40, height: 40, objectFit: "contain",

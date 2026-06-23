@@ -2436,7 +2436,7 @@ export async function registerRoutes(
 
   app.delete("/api/admin/molten-blocks/items/:id", isAdmin, async (req, res) => {
     try {
-      await storage.removeMoltenBlocksDropItem(req.params.id);
+      await storage.removeMoltenBlocksDropItem(String(req.params.id));
       return res.json({ ok: true });
     } catch (err) {
       console.error("Admin remove molten blocks item error:", err);
@@ -2448,7 +2448,7 @@ export async function registerRoutes(
     try {
       const { active } = req.body;
       if (typeof active !== "boolean") return res.status(400).json({ message: "active (boolean) required" });
-      await storage.toggleMoltenBlocksDropItem(req.params.id, active);
+      await storage.toggleMoltenBlocksDropItem(String(req.params.id), active);
       return res.json({ ok: true });
     } catch (err) {
       console.error("Admin toggle molten blocks item error:", err);
@@ -3057,7 +3057,7 @@ export async function registerRoutes(
 
   app.patch("/api/admin/milestone-rewards/:milestone", isAdmin, async (req, res) => {
     try {
-      const milestonePoints = parseInt(req.params.milestone);
+      const milestonePoints = parseInt(String(req.params.milestone));
       if (![500, 2500, 5000, 10000].includes(milestonePoints)) {
         return res.status(400).json({ message: "Invalid milestone. Must be 500, 2500, 5000, or 10000" });
       }

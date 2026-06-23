@@ -4050,7 +4050,7 @@ function MilestoneRewardsSection() {
   const setDraft = (pts: number, field: "rewardCoins" | "rewardLabel", value: string) => {
     setDrafts(prev => ({
       ...prev,
-      [pts]: { rewardCoins: "", rewardLabel: "", ...(prev[pts] || {}), [field]: value },
+      [pts]: { ...(prev[pts] ?? { rewardCoins: "", rewardLabel: "" }), [field]: value },
     }));
   };
 
