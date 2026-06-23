@@ -3679,20 +3679,28 @@ export async function registerRoutes(
     try {
       const { name, imageUrl } = req.body;
       if (!name || !imageUrl) return res.status(400).json({ message: "name and imageUrl required" });
-      const item = await storage.createWorldDecorItem({ worldId: (req.params.worldId as string), name, imageUrl });
+      let processedUrl = imageUrl;
+      if (typeof imageUrl === "string" && imageUrl.startsWith("data:")) {
+        processedUrl = await processWorldImage(imageUrl, 800);
+      }
+      const item = await storage.createWorldDecorItem({ worldId: (req.params.worldId as string), name, imageUrl: processedUrl });
       return res.status(201).json(item);
-    } catch (err) {
-      return res.status(500).json({ message: "Failed to create decor item" });
+    } catch (err: any) {
+      return res.status(400).json({ message: err.message ?? "Failed to create decor item" });
     }
   });
 
   app.patch("/api/admin/world/decor/items/:itemId", isAdmin, async (req, res) => {
     try {
       const { name, imageUrl, message } = req.body;
-      await storage.updateWorldDecorItem((req.params.itemId as string), { name, imageUrl, message });
+      let processedUrl = imageUrl;
+      if (typeof imageUrl === "string" && imageUrl.startsWith("data:")) {
+        processedUrl = await processWorldImage(imageUrl, 800);
+      }
+      await storage.updateWorldDecorItem((req.params.itemId as string), { name, imageUrl: processedUrl, message });
       return res.json({ ok: true });
-    } catch (err) {
-      return res.status(500).json({ message: "Failed to update decor item" });
+    } catch (err: any) {
+      return res.status(400).json({ message: err.message ?? "Failed to update decor item" });
     }
   });
 
