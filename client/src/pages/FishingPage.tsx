@@ -508,10 +508,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
       toast({ title: "Empty pond", description: "No fish in this pond yet.", variant: "destructive" });
       return;
     }
-    // Close all inventory panels before casting
+    // Close all panels before casting
     setShowPolePanel(false);
     setShowBaitPanel(false);
     setShowFishInv(false);
+    setShowFishBook(false);
+    setShowLeaderboard(false);
     playPlop();
     setPhase("casting");
     castingTimeoutRef.current = setTimeout(() => {
@@ -1021,12 +1023,12 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
       <div className="absolute top-0 left-0 right-0 flex items-start justify-between px-4 pb-3" style={{ zIndex: 60, paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
         {/* Left column — Fish Book */}
         <div className="flex flex-col items-center" style={{ marginTop: 28 }}>
-          {/* Fish Book button */}
+          {/* Fish Book button — locked while fishing is active */}
           <button
             data-testid="button-fish-book-top"
             onClick={() => { setShowFishBook(p => !p); setShowLeaderboard(false); setShowPolePanel(false); setShowBaitPanel(false); setShowFishInv(false); }}
             className="flex items-center justify-center transition-transform active:scale-90"
-            style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            style={{ background: "none", border: "none", cursor: phase === "idle" ? "pointer" : "default", padding: 0, pointerEvents: phase === "idle" ? "auto" : "none" }}
           >
             <img
               src={fishBookIcon}
@@ -1037,16 +1039,17 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
                 filter: showFishBook
                   ? `drop-shadow(0 0 8px ${accent}) drop-shadow(0 4px 12px rgba(0,0,0,0.55))`
                   : "drop-shadow(0 4px 12px rgba(0,0,0,0.55))",
-                opacity: showFishBook ? 1 : 0.88,
+                opacity: phase !== "idle" ? 0.35 : showFishBook ? 1 : 0.88,
+                transition: "opacity 0.2s",
               }}
             />
           </button>
-          {/* Leaderboard button — sits directly under the Fish Book */}
+          {/* Leaderboard button — locked while fishing is active */}
           <button
             data-testid="button-fishing-leaderboard"
             onClick={() => { setShowLeaderboard(p => !p); setShowFishBook(false); setShowPolePanel(false); setShowBaitPanel(false); setShowFishInv(false); }}
             className="flex items-center justify-center transition-transform active:scale-90"
-            style={{ background: "none", border: "none", cursor: "pointer", padding: 0, marginTop: 6 }}
+            style={{ background: "none", border: "none", cursor: phase === "idle" ? "pointer" : "default", padding: 0, marginTop: 6, pointerEvents: phase === "idle" ? "auto" : "none" }}
           >
             <img
               src={leaderboardIcon}
@@ -1057,7 +1060,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
                 filter: showLeaderboard
                   ? `drop-shadow(0 0 8px ${accent}) drop-shadow(0 4px 12px rgba(0,0,0,0.55))`
                   : "drop-shadow(0 4px 12px rgba(0,0,0,0.55))",
-                opacity: showLeaderboard ? 1 : 0.88,
+                opacity: phase !== "idle" ? 0.35 : showLeaderboard ? 1 : 0.88,
+                transition: "opacity 0.2s",
               }}
             />
           </button>
