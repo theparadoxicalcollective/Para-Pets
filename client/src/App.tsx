@@ -10,6 +10,7 @@ import { playClick, unlockAudio } from "@/lib/sounds";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
+import { getDesignW } from "@/lib/stage";
 import homeBg from "@assets/bg_home_v2.png";
 
 // ── Eagerly imported (always or near-always needed at startup) ──────────────
@@ -403,8 +404,10 @@ function AppRouter() {
   // All other game pages render as absolute overlays on top of it.
   return (
     <>
-      {/* Base: always mounted, always visible when no overlay is active */}
-      <div style={{ position: "absolute", inset: 0, isolation: "isolate" }}>
+      {/* Base: always mounted. Hidden (not unmounted) when any overlay is active so
+          navigating home is instant and the home background never bleeds through
+          the brief gap between Suspense's LoadingScreen and an overlay painting. */}
+      <div style={{ position: "absolute", inset: 0, isolation: "isolate", visibility: location !== "/" ? "hidden" : "visible" }}>
         <HomePage user={user} isOverlayActive={location !== "/"} />
       </div>
 
@@ -622,9 +625,35 @@ function DesktopNotice() {
 }
 
 function GameStage({ children }: { children: ReactNode }) {
+  const [designW, setDesignW] = useState(() => getDesignW());
+
+  useEffect(() => {
+    document.documentElement.style.setProperty("--stage-scale", "1");
+    const onResize = () => setDesignW(getDesignW());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   return (
-    <div style={{ position: "fixed", inset: 0, overflow: "hidden", isolation: "isolate" }}>
-      {children}
+    <div
+      style={{
+        position: "fixed", inset: 0,
+        display: "flex", alignItems: "stretch", justifyContent: "center",
+        background: "#050c08",
+      }}
+    >
+      <div
+        id="game-stage"
+        style={{
+          position: "relative",
+          width: "100%",
+          maxWidth: designW,
+          overflow: "hidden",
+          isolation: "isolate",
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }

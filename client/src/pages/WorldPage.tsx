@@ -245,12 +245,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   } : null);
 
   const contentReadyFiredRef = useRef(false);
-  useEffect(() => {
-    if (worldApiData && !contentReadyFiredRef.current) {
-      contentReadyFiredRef.current = true;
-      onContentReady?.();
-    }
-  }, [!!worldApiData]);
 
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
@@ -374,6 +368,13 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [worldBgLoaded, setWorldBgLoaded] = useState(false);
   const [committedWorldBg, setCommittedWorldBg] = useState<string>("");
   const lastLoadedBgRef = useRef("");
+
+  useEffect(() => {
+    if (worldApiData && worldBgLoaded && !contentReadyFiredRef.current) {
+      contentReadyFiredRef.current = true;
+      onContentReady?.();
+    }
+  }, [!!worldApiData, worldBgLoaded]);
 
   const mapTransformRef = useRef({ x: 0, y: 0, scale: 1 });
   const [mapX, setMapX] = useState(0);
