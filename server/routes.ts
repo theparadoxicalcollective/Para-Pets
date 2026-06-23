@@ -3802,10 +3802,10 @@ export async function registerRoutes(
     return res.json(online);
   });
 
-  // Online player count — admins and moderators only
+  // Online player count — admins only
   app.get("/api/admin/online-count", isAuthenticated, async (req, res) => {
     const user = req.user as any;
-    if (!user.isAdmin && !user.isModerator) return res.status(403).json({ message: "Forbidden" });
+    if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
     try {
       const result = await db.execute(
         sql`SELECT COUNT(*)::int AS count FROM session WHERE expire > NOW() AND sess->'passport'->>'user' IS NOT NULL`

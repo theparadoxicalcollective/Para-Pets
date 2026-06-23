@@ -5,8 +5,6 @@ import { X, Send, ShieldAlert, BellOff, Bell } from "lucide-react";
 import RoleBadge from "@/components/RoleBadge";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import veridianWatcherAvatar from "@assets/generated_images/veridian_watcher_avatar.png";
-import iconOnlineOrb from "@assets/icon_online_orb.png";
-import iconInworldPaw from "@assets/icon_inworld_paw.png";
 
 interface WorldChatMessage {
   id: string;
@@ -54,13 +52,6 @@ export default function WorldChatPanel({ currentUserId, isAdmin, isModerator, on
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const qc = useQueryClient();
 
-  const isStaff = isAdmin || isModerator;
-  const { data: onlineData } = useQuery<{ total: number; inWorld: number }>({
-    queryKey: ["/api/admin/online-count"],
-    refetchInterval: 30_000,
-    enabled: isStaff,
-    staleTime: 25_000,
-  });
 
   const { data: shoutoutPref } = useQuery<{ enabled: boolean }>({
     queryKey: ["/api/user/watcher-shoutouts"],
@@ -199,30 +190,6 @@ export default function WorldChatPanel({ currentUserId, isAdmin, isModerator, on
             >
               Cancel
             </button>
-          </div>
-        </div>
-      )}
-      {/* Staff-only online counter */}
-      {isStaff && onlineData && (
-        <div
-          className="flex items-center justify-center gap-3 px-3 py-1 flex-shrink-0"
-          style={{ background: "rgba(74,222,128,0.06)", borderBottom: "1px solid rgba(74,222,128,0.12)" }}
-          data-testid="div-online-count"
-        >
-          <div className="flex items-center gap-1.5">
-            <img src={iconOnlineOrb} alt="" style={{ width: 12, height: 12, objectFit: "contain" }} draggable={false} />
-            <span style={{ fontSize: 9, color: "rgba(74,222,128,0.9)", fontFamily: "Lora, serif", letterSpacing: "0.12em" }}>
-              <span className="font-bold" data-testid="text-online-total">{onlineData.total}</span>
-              <span style={{ color: "rgba(74,222,128,0.5)" }}> online</span>
-            </span>
-          </div>
-          <div style={{ width: 1, height: 10, background: "rgba(74,222,128,0.2)" }} />
-          <div className="flex items-center gap-1.5">
-            <img src={iconInworldPaw} alt="" style={{ width: 12, height: 12, objectFit: "contain" }} draggable={false} />
-            <span style={{ fontSize: 9, color: "rgba(74,222,128,0.9)", fontFamily: "Lora, serif", letterSpacing: "0.12em" }}>
-              <span className="font-bold" data-testid="text-online-inworld">{onlineData.inWorld}</span>
-              <span style={{ color: "rgba(74,222,128,0.5)" }}> in world</span>
-            </span>
           </div>
         </div>
       )}

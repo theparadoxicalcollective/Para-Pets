@@ -4205,8 +4205,73 @@ const tooltipSty = {
   cursor: { fill: "rgba(165,243,252,0.06)" },
 };
 
+function OnlineNowPanel() {
+  const { data: counts, refetch, dataUpdatedAt } = useQuery<{ total: number; inWorld: number }>({
+    queryKey: ["/api/admin/online-count"],
+    refetchInterval: 30_000,
+    staleTime: 25_000,
+  });
+  const { data: inWorldPlayers = [] } = useQuery<any[]>({
+    queryKey: ["/api/world/pet_world/active-pets"],
+    refetchInterval: 30_000,
+    staleTime: 25_000,
+  });
+  const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : "—";
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, marginBottom: 16 }}>
+        <span style={{ fontFamily: "Lora, serif", fontSize: 10, color: "rgba(165,243,252,0.45)" }}>Updated: {lastUpdated}</span>
+        <button
+          onClick={() => { refetch(); }}
+          style={{ padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", background: "rgba(165,243,252,0.1)", border: "1px solid rgba(165,243,252,0.35)", color: "#a5f3fc", fontFamily: "Lora, serif" }}
+        >↻ Refresh</button>
+      </div>
+
+      {/* Count cards */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+        <div style={{ ...metricCardSty, flex: 1, textAlign: "center" }}>
+          <p style={{ fontFamily: "Lora, serif", fontSize: 36, fontWeight: 700, color: "#a5f3fc", margin: 0 }}>
+            {counts?.total ?? "—"}
+          </p>
+          <p style={metricSubSty}>Total online sessions</p>
+        </div>
+        <div style={{ ...metricCardSty, flex: 1, textAlign: "center" }}>
+          <p style={{ fontFamily: "Lora, serif", fontSize: 36, fontWeight: 700, color: "#6ee7b7", margin: 0 }}>
+            {counts?.inWorld ?? "—"}
+          </p>
+          <p style={metricSubSty}>Currently in-world</p>
+        </div>
+      </div>
+
+      {/* In-world player list */}
+      <div style={metricCardSty}>
+        <p style={metricTitleSty}>Players Currently In World</p>
+        <p style={metricSubSty}>Live roster of connected world clients</p>
+        {inWorldPlayers.length === 0 ? (
+          <p style={emptyMsgSty}>No players in-world right now.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 12 }}>
+            {inWorldPlayers.map((p: any, i: number) => (
+              <div key={p.userId ?? i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 8, background: "rgba(165,243,252,0.04)", border: "1px solid rgba(165,243,252,0.1)" }}>
+                <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "rgba(165,243,252,0.45)", minWidth: 20, textAlign: "right" }}>{i + 1}</span>
+                <span style={{ fontFamily: "Lora, serif", fontSize: 12, color: "#a5f3fc", fontWeight: 600 }}>{p.name || p.username || p.userId || "Unknown"}</span>
+                {p.username && p.name && p.name !== p.username && (
+                  <span style={{ fontFamily: "Lora, serif", fontSize: 10, color: "rgba(165,243,252,0.45)" }}>(@{p.username})</span>
+                )}
+                <span style={{ marginLeft: "auto", fontFamily: "Lora, serif", fontSize: 10, color: "rgba(110,231,183,0.7)" }}>● live</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MetricsSection() {
   const [days, setDays] = useState<DaysOption>(30);
+  const [metricsTab, setMetricsTab] = useState<"analytics" | "online">("analytics");
 
   const { data, isLoading, refetch, dataUpdatedAt } = useQuery<MetricsData>({
     queryKey: ["/api/admin/metrics", days],
@@ -4223,6 +4288,20 @@ function MetricsSection() {
 
   return (
     <div>
+      {/* Metrics tab bar */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {([{ key: "analytics" as const, label: "Analytics" }, { key: "online" as const, label: "Online Now" }]).map(t => {
+          const active = metricsTab === t.key;
+          return (
+            <button key={t.key} onClick={() => setMetricsTab(t.key)}
+              className="font-fantasy text-[11px] tracking-wider"
+              style={{ padding: "8px 16px", borderRadius: 8, cursor: "pointer", background: active ? "rgba(165,243,252,0.18)" : "rgba(0,0,0,0.35)", border: active ? "1px solid rgba(165,243,252,0.6)" : "1px solid rgba(165,243,252,0.2)", color: active ? "#a5f3fc" : "rgba(165,243,252,0.5)", fontFamily: "Lora, serif" }}
+            >{t.label}</button>
+          );
+        })}
+      </div>
+      {metricsTab === "online" && <OnlineNowPanel />}
+      {metricsTab === "analytics" && <>
       {/* Filter bar */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -4323,6 +4402,7 @@ function MetricsSection() {
           </div>
         </>
       )}
+      </>}
     </div>
   );
 }
