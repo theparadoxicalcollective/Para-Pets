@@ -10,7 +10,6 @@ import { playClick, unlockAudio } from "@/lib/sounds";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
-import { DESIGN_H, getDesignW } from "@/lib/stage";
 import homeBg from "@assets/bg_home_v2.png";
 
 // ── Eagerly imported (always or near-always needed at startup) ──────────────
@@ -240,8 +239,8 @@ function AppRouter() {
   useEffect(() => {
     if (!user || isPreloaded) return;
 
-    // Hard cap: never block the player for more than 5 seconds total.
-    const timeout = setTimeout(() => setIsPreloaded(true), 5000);
+    // Hard cap: never block the player for more than 4 seconds total.
+    const timeout = setTimeout(() => setIsPreloaded(true), 4000);
 
     const preloadImage = (url: string) =>
       new Promise<void>(resolve => {
@@ -251,53 +250,49 @@ function AppRouter() {
         img.src = url;
       });
 
-    fetch("/api/inventory", { credentials: "include" })
+    const fontReady: Promise<void> = document.fonts
+      ? document.fonts.ready.then(() => undefined)
+      : Promise.resolve();
+
+    // Fetch inventory to seed the TanStack Query cache so HomePage's own
+    // query is instant. Pet parts + their images are kicked off in the
+    // background (non-blocking) so they don't delay the loading screen.
+    const inventoryReady = fetch("/api/inventory", { credentials: "include" })
       .then(res => res.json())
-      .then(async (items: any[]) => {
-        // Seed the TanStack Query cache so HomePage's own query is instant.
+      .then((items: any[]) => {
         queryClient.setQueryData(["/api/inventory"], items);
 
         const activePetItem = items.find(
           (i: any) => i.inventoryId === user.activePetId && i.type === "pet"
         );
-        const petImageUrl = activePetItem?.hatchedImageUrl || activePetItem?.imageUrl;
 
-        // Preload the home page background, the active pet image, and fonts
-        // in parallel. All must be ready before the loading screen is dismissed.
-        // document.fonts.ready ensures Lora/Open Sans are decoded so there
-        // is no FOUT (flash of unstyled text) the moment the game appears.
-        const fontReady: Promise<void> = document.fonts
-          ? document.fonts.ready.then(() => undefined)
-          : Promise.resolve();
+        // Fire pet-parts prefetch in the background — it will seed the cache
+        // for PetAnimator but does not gate the loading screen.
+        if (activePetItem?.petTemplateId) {
+          fetch(`/api/pet-template-parts/${activePetItem.petTemplateId}`, { credentials: "include" })
+            .then(r => r.ok ? r.json() : null)
+            .then((data: any) => {
+              if (!data) return;
+              queryClient.setQueryData(["/api/pet-template-parts", activePetItem.petTemplateId], data);
+              if (Array.isArray(data.parts)) {
+                data.parts.forEach((p: any) => { if (p.imageUrl) preloadImage(p.imageUrl); });
+              }
+            })
+            .catch(() => {});
 
-        // Also prefetch the active pet's template parts so PetAnimator can
-        // render immediately when the home screen appears, instead of waiting
-        // for a second API round-trip after the loading screen disappears.
-        const petPartsReady: Promise<void> = activePetItem?.petTemplateId
-          ? fetch(`/api/pet-template-parts/${activePetItem.petTemplateId}`, { credentials: "include" })
-              .then(r => r.ok ? r.json() : null)
-              .then((data: any) => {
-                if (!data) return;
-                // Seed the cache so PetAnimator's useQuery is instant.
-                queryClient.setQueryData(["/api/pet-template-parts", activePetItem.petTemplateId], data);
-                // Also kick off image loading for each part so they are in
-                // the browser's memory cache by the time the canvas draws.
-                if (Array.isArray(data.parts)) {
-                  data.parts.forEach((p: any) => { if (p.imageUrl) preloadImage(p.imageUrl); });
-                }
-              })
-              .catch(() => undefined)
-          : Promise.resolve();
-
-        const preloads: Promise<void>[] = [preloadImage(homeBg), fontReady, petPartsReady];
-        if (petImageUrl) preloads.push(preloadImage(petImageUrl));
-
-        Promise.all(preloads).then(() => {
-          clearTimeout(timeout);
-          setIsPreloaded(true);
-        });
+          // Also preload the pet display image in the background.
+          const petImageUrl = activePetItem?.hatchedImageUrl || activePetItem?.imageUrl;
+          if (petImageUrl) preloadImage(petImageUrl);
+        }
       })
-      .catch(() => { clearTimeout(timeout); setIsPreloaded(true); });
+      .catch(() => {});
+
+    // Only block on: home background + fonts + inventory cache seed.
+    // Everything else (pet image, part images) loads concurrently in the bg.
+    Promise.all([preloadImage(homeBg), fontReady, inventoryReady]).then(() => {
+      clearTimeout(timeout);
+      setIsPreloaded(true);
+    });
 
     return () => clearTimeout(timeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -626,84 +621,10 @@ function DesktopNotice() {
   );
 }
 
-// ── Cross-device game frame ───────────────────────────────────────────────
-// The whole game is authored at one fixed "phone" design size and uniformly
-// scaled (letterboxed) to fit any screen, so it looks IDENTICAL on every
-// device. iPhone 12 (390×844) renders at scale 1 — pixel-faithful. Larger or
-// differently-shaped screens scale the frame up/down and fill the leftover
-// space with a themed backdrop + gold border. See index.css (#game-stage).
-
-// Marketing / legal pages stay fluid (full-width responsive web pages) and are
-// NOT forced into the phone frame.
-const FLUID_PATHS = ["/hub", "/founders", "/privacy"];
-function isFluidPath(loc: string) {
-  return FLUID_PATHS.includes(loc);
-}
-
 function GameStage({ children }: { children: ReactNode }) {
-  const [location] = useLocation();
-  const fluid = isFluidPath(location);
-  const [stageW, setStageW] = useState(getDesignW());
-
-  useEffect(() => {
-    if (fluid) {
-      document.documentElement.style.removeProperty("--stage-scale");
-      return;
-    }
-    // On iOS Safari the on-screen keyboard fires resize/visualViewport events
-    // and shrinks the viewport. Rescaling the whole frame mid-typing is jarring,
-    // so freeze the scale while an editable element is focused.
-    const isEditing = () => {
-      const el = document.activeElement as HTMLElement | null;
-      if (!el) return false;
-      return el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable;
-    };
-    const update = () => {
-      if (isEditing()) return;
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const dw = getDesignW();
-      setStageW(dw);
-      const s = Math.min(w / dw, h / DESIGN_H);
-      document.documentElement.style.setProperty("--stage-scale", String(s));
-    };
-    update();
-    window.addEventListener("resize", update);
-    window.visualViewport?.addEventListener("resize", update);
-    return () => {
-      window.removeEventListener("resize", update);
-      window.visualViewport?.removeEventListener("resize", update);
-    };
-  }, [fluid]);
-
-  if (fluid) {
-    return (
-      <div className="w-full h-[100dvh] overflow-hidden">
-        <div
-          data-phone-frame="true"
-          className="relative w-full h-full overflow-hidden"
-          style={{ isolation: "isolate", transform: "translateZ(0)" }}
-        >
-          {children}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="game-stage-backdrop">
-      <div
-        id="game-stage"
-        data-phone-frame="true"
-        style={{
-          width: stageW,
-          height: DESIGN_H,
-          transform: "scale(var(--stage-scale, 1))",
-          ["--vw" as any]: `${stageW / 100}px`,
-        }}
-      >
-        {children}
-      </div>
+    <div style={{ position: "fixed", inset: 0, overflow: "hidden", isolation: "isolate" }}>
+      {children}
     </div>
   );
 }

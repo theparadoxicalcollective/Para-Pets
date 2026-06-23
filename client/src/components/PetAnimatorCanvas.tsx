@@ -602,6 +602,9 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
     const FRAME_MS = 1000 / Math.max(15, Math.min(fps, 60));
 
     const draw = (now: number) => {
+      // Pause completely when the tab/app is backgrounded — saves battery and
+      // prevents the canvas from burning CPU/GPU while nothing is visible.
+      if (document.hidden) return;
       rafRef.current = requestAnimationFrame(draw);
       if (!readyRef.current) return;
       if (now - lastDraw < FRAME_MS) return;
@@ -905,7 +908,20 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
     };
 
     rafRef.current = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(rafRef.current);
+
+    // When the tab becomes visible again after being hidden, restart the loop
+    // (since `draw` exits early without rescheduling when document.hidden).
+    const onVisibility = () => {
+      if (!document.hidden) {
+        rafRef.current = requestAnimationFrame(draw);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
     // `fps` is intentionally in the deps so a runtime fps change
     // (e.g. PvE → PvP transition reusing the same canvas instance)
     // tears down the RAF loop and recomputes FRAME_MS instead of
