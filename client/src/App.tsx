@@ -10,7 +10,7 @@ import { playClick, unlockAudio } from "@/lib/sounds";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
-import { DESIGN_W, DESIGN_H } from "@/lib/stage";
+import { DESIGN_H, getDesignW } from "@/lib/stage";
 import homeBg from "@assets/bg_home_v2.png";
 
 // ── Eagerly imported (always or near-always needed at startup) ──────────────
@@ -643,6 +643,7 @@ function isFluidPath(loc: string) {
 function GameStage({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const fluid = isFluidPath(location);
+  const [stageW, setStageW] = useState(getDesignW());
 
   useEffect(() => {
     if (fluid) {
@@ -661,7 +662,9 @@ function GameStage({ children }: { children: ReactNode }) {
       if (isEditing()) return;
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const s = Math.min(w / DESIGN_W, h / DESIGN_H);
+      const dw = getDesignW();
+      setStageW(dw);
+      const s = Math.min(w / dw, h / DESIGN_H);
       document.documentElement.style.setProperty("--stage-scale", String(s));
     };
     update();
@@ -693,9 +696,10 @@ function GameStage({ children }: { children: ReactNode }) {
         id="game-stage"
         data-phone-frame="true"
         style={{
-          width: DESIGN_W,
+          width: stageW,
           height: DESIGN_H,
           transform: "scale(var(--stage-scale, 1))",
+          ["--vw" as any]: `${stageW / 100}px`,
         }}
       >
         {children}

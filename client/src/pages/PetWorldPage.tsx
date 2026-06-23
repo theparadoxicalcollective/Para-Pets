@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store, DoorOpen, Package } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import { playShopBell, playChime, playTick } from "@/lib/sounds";
-import { DESIGN_W, DESIGN_H, getStageScale } from "@/lib/stage";
+import { DESIGN_H, getDesignW, getStageScale } from "@/lib/stage";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import priceTagImg from "@assets/price_tag.png";
 import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
@@ -113,12 +113,25 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   // App.tsx scales the whole frame uniformly to fit the device). The map must
   // be laid out in this design space, NOT the real window, so it fills the
   // frame identically on every device.
-  const FRAME_W = DESIGN_W;
+  const FRAME_W = getDesignW();
   const FRAME_H = DESIGN_H;
   const frameWRef = useRef(FRAME_W);
   const frameHRef = useRef(FRAME_H);
-  const [frameW] = useState(FRAME_W);
+  const [frameW, setFrameW] = useState(FRAME_W);
   const [frameH] = useState(FRAME_H);
+  // The frame width can change if the device crosses the wide breakpoint (e.g. a
+  // phone rotates to landscape). Keep the live ref + state in sync so pan
+  // clamping and centering recompute against the actual stage width.
+  useEffect(() => {
+    const onResize = () => {
+      const dw = getDesignW();
+      frameWRef.current = dw;
+      setFrameW((prev) => (prev !== dw ? dw : prev));
+    };
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   const mapTransformRef         = useRef({ x: 0, y: 0, scale: 1 });
   const mapPanPointersRef       = useRef(new Map<number, { x: number; y: number }>());
   const mapPanStartRef          = useRef<{ x: number; y: number; mapX: number; mapY: number } | null>(null);

@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { setNavHidden } from "@/lib/navVisibility";
 import { playChime, playTick, playShopBell, playMapTap } from "@/lib/sounds";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
-import { DESIGN_W, DESIGN_H, getStageScale } from "@/lib/stage";
+import { DESIGN_H, getDesignW, getStageScale } from "@/lib/stage";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -347,12 +347,25 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   // App.tsx scales the whole frame uniformly to fit the device). The map must
   // be laid out in this design space, NOT the real window, so it fills the
   // frame identically on every device.
-  const FRAME_W = DESIGN_W;
+  const FRAME_W = getDesignW();
   const FRAME_H = DESIGN_H;
   const frameWRef = useRef(FRAME_W);
   const frameHRef = useRef(FRAME_H);
-  const [frameW] = useState(FRAME_W);
+  const [frameW, setFrameW] = useState(FRAME_W);
   const [frameH] = useState(FRAME_H);
+  // The frame width can change if the device crosses the wide breakpoint (e.g. a
+  // phone rotates to landscape). Keep the live ref + state in sync so pan
+  // clamping and centering recompute against the actual stage width.
+  useEffect(() => {
+    const onResize = () => {
+      const dw = getDesignW();
+      frameWRef.current = dw;
+      setFrameW((prev) => (prev !== dw ? dw : prev));
+    };
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const dragRef = useRef<{ locId: string; startCanvasX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
