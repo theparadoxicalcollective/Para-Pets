@@ -403,26 +403,21 @@ function AppRouter() {
   }
 
   // ── Game layout ────────────────────────────────────────────────────────────
-  // HomePage is mounted as the base layer for the home screen and lightweight
-  // overlays so navigating back to "/" is instant — no unmount/remount gap, no
-  // blank-screen flash. Those pages render as absolute overlays on top of it.
-  // Worlds are standalone pages: the HomePage base layer (and its live
-  // pet-animation engine) unmounts while a world is open instead of running
-  // underneath the world overlay — a strong suspect for the glitches/crashes
-  // seen on world entry. Trade-off: returning to "/" shows a brief loading
-  // screen instead of being instant. Lightweight overlays (map, bag, shop,
-  // etc.) still keep HomePage mounted for instant back-navigation.
-  const inWorld = location.startsWith("/world/");
-
+  // HomePage is permanently mounted as the base layer so navigating back to "/"
+  // is instant — no unmount/remount gap, no blank-screen flash, no partial
+  // re-render of the home screen. All other game pages (including worlds) render
+  // as absolute overlays on top of it; HomePage's content is hidden behind them
+  // (see isOverlayActive). To stop the heavy pet-animation canvas (a 60fps
+  // requestAnimationFrame loop) from running underneath an open overlay — the
+  // suspected cause of world glitches/crashes, and CPU contention that slowed
+  // every page — HomePage PAUSES that engine while isOverlayActive instead of
+  // tearing down the whole tree.
   return (
     <>
-      {/* Base: mounted for the home screen and lightweight overlays so going
-          back to "/" is instant. Unmounted while inside a world. */}
-      {!inWorld && (
-        <div style={{ position: "absolute", inset: 0, isolation: "isolate" }}>
-          <HomePage user={user} isOverlayActive={location !== "/"} />
-        </div>
-      )}
+      {/* Base: always mounted, always visible when no overlay is active */}
+      <div style={{ position: "absolute", inset: 0, isolation: "isolate" }}>
+        <HomePage user={user} isOverlayActive={location !== "/"} />
+      </div>
 
       {/* Game overlays — each fades in quickly to smooth page-to-page transitions.
           A single <Suspense> wraps every overlay so lazy chunks load without

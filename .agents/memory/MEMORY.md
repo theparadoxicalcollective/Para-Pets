@@ -3,6 +3,7 @@
 - [Coin purchase + egg delivery](coin-purchase-egg-delivery.md) — dual-path (verify+webhook) credit; deliver limited egg via gift; dedup now enforced by unique index; milestone rewards are separate.
 - [Hatch-time special gating](tutorial-step5-blockers.md) — instant hatch-fill is tutorial-only (server-gated by tutorial flags); normal play reduces by specialAmount minutes.
 - [Game frame width](game-frame-width.md) — resize the centered game via WIDE_DESIGN_W in lib/stage.ts; the 768px overlay maxWidths are inert (contained by scaled #game-stage).
+- [HomePage base layer & pet engine](homepage-base-layer-engine.md) — never unmount HomePage under overlays (slow/partial remounts); pause PetAnimator's 60fps rAF via !isOverlayActive instead.
 - [setActivePet partial user update](active-pet-partial-user-update.md) — onUserUpdate consumers must MERGE into auth/me cache, never replace, or the email-gate flashes/closes the overlay.
 - [Founder tier vs monthly bar](founder-tier-vs-monthly-bar.md) — tier = lifetime USD spend (upgrade-only); monthly bar = monthly points; mirror any change across BOTH credit paths (routes.ts + webhookHandlers.ts).
 - [World bg overwrite on startup](world-background-overwrite-on-startup.md) — admin-uploaded world backgrounds revert after restart; WORLD_BG_ASSETS loop in server/index.ts force-overwrites bgUrl every boot.

@@ -107,13 +107,13 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [showPetStats, setShowPetStats] = useState(false);
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("petStatsToggle", { detail: { open: showPetStats } }));
-    // When HomePage unmounts (e.g. entering a world, which is now a standalone
-    // page) make sure the app-level petStatsOpen flag is cleared, otherwise a
-    // stuck `true` would keep FloatingNav hidden inside the world.
-    return () => {
-      window.dispatchEvent(new CustomEvent("petStatsToggle", { detail: { open: false } }));
-    };
   }, [showPetStats]);
+  // Worlds/overlays render on top of the (still-mounted) HomePage. Close the pet
+  // stats panel when an overlay opens so its app-level "open" flag can't get
+  // stuck true and keep FloatingNav hidden inside the overlay.
+  useEffect(() => {
+    if (isOverlayActive && showPetStats) setShowPetStats(false);
+  }, [isOverlayActive, showPetStats]);
   // Sparkle bursts for the pet-action ring buttons. Each entry is one floating
   // particle positioned in viewport coords with a colour that matches the
   // rune that was tapped.
@@ -1151,7 +1151,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                             92%, 96% { opacity: 0.92; }
                           }
                         `}</style>
-                        {activePet.petTemplateId ? (
+                        {activePet.petTemplateId && !isOverlayActive ? (
                           <div className="w-full flex items-center justify-center">
                             <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
                           </div>
