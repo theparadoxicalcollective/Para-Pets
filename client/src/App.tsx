@@ -404,14 +404,8 @@ function AppRouter() {
 
   // ── Game layout ────────────────────────────────────────────────────────────
   // HomePage is permanently mounted as the base layer so navigating back to "/"
-  // is instant — no unmount/remount gap, no blank-screen flash, no partial
-  // re-render of the home screen. All other game pages (including worlds) render
-  // as absolute overlays on top of it; HomePage's content is hidden behind them
-  // (see isOverlayActive). To stop the heavy pet-animation canvas (a 60fps
-  // requestAnimationFrame loop) from running underneath an open overlay — the
-  // suspected cause of world glitches/crashes, and CPU contention that slowed
-  // every page — HomePage PAUSES that engine while isOverlayActive instead of
-  // tearing down the whole tree.
+  // is instant — no unmount/remount gap, no blank-screen flash.
+  // All other game pages render as absolute overlays on top of it.
   return (
     <>
       {/* Base: always mounted, always visible when no overlay is active */}
