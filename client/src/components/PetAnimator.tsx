@@ -1450,7 +1450,19 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     name === "petIdleRightArmBreath" ||
     name === "petIdleFrontArmBreath" ||
     name === "petIdleFlipperLeft" ||
-    name === "petIdleFlipperRight";
+    name === "petIdleFlipperRight" ||
+    // Petting & sleep both scale the body (petPettingBody / petSleepBody)
+    // and bind the body-attached parts — shoulders, neck, hair_center,
+    // flippers, body_2 — to that SAME scale keyframe so they "breathe with
+    // the body". They must share the body's world anchor (feet on ground
+    // pets) and breath phase, exactly like the idle petIdleBody group;
+    // otherwise each part scales around its own bbox center and a chest-
+    // mounted shoulder visibly drifts off the torso during the petting /
+    // sleep breath cycle. The body part itself is excluded from the origin
+    // override (it carries its own "50% 100%" transformOriginOverride), so
+    // adding these here only re-anchors the dependent parts.
+    name === "petPettingBody" ||
+    name === "petSleepBody";
   // Tail idle keyframes — petIdleTail / petIdleTail2 / petIdleTail3 — should
   // share the body's STARTING phase (bodyBreathDelay) so all three tails
   // rise on the same beat as the body's inhale and the body never appears
