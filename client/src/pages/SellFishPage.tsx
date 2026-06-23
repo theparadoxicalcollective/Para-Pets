@@ -88,7 +88,10 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
   // Fish in the aquarium cannot be sold — only show bag fish
   const bagFish = fishInventory.filter(f => !f.inAquarium);
   const cartFish = bagFish.filter(f => cartIds.has(f.id));
-  const inventoryFish = bagFish.filter(f => !cartIds.has(f.id));
+  // Show fish sorted by rarity, lowest first, so players sell off commons first.
+  const inventoryFish = bagFish
+    .filter(f => !cartIds.has(f.id))
+    .sort((a, b) => (a.item?.starRarity ?? 1) - (b.item?.starRarity ?? 1));
   const totalCoins = cartFish.reduce((sum, f) => sum + (SELL_PRICES[f.item?.starRarity ?? 1] ?? 5), 0);
   const aquariumCount = fishInventory.filter(f => f.inAquarium).length;
 
@@ -110,6 +113,11 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
   }, []);
 
   const handleDragStart = useCallback((e: React.PointerEvent, fish: CaughtFish) => {
+    // Touch/pen: don't hijack the gesture — let the list scroll natively and let
+    // a plain tap add the fish to the cart. Drag-to-sell stays a mouse feature.
+    // (Previously every fish set touchAction:none + captured the pointer, which
+    //  blocked vertical scrolling on phones/tablets.)
+    if (e.pointerType !== "mouse") return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     dragFishRef.current = fish;
     setDraggingFish(fish);
@@ -325,7 +333,7 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
                   onPointerMove={handleDragMove}
                   onPointerUp={handleDragEnd}
                   onPointerCancel={handleDragEnd}
-                  style={{ touchAction: "none" }}
+                  style={{ touchAction: "pan-y" }}
                 >
                   <button
                     data-testid={`button-fish-item-${fish.id}`}

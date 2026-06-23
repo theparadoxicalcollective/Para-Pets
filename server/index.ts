@@ -906,6 +906,28 @@ app.use((req, res, next) => {
     console.error("daily_login_rewards table setup error (non-fatal):", err);
   }
 
+  // ── fishing_leaderboard: per-(user, world) fishing points ───────────────
+  // New table starts empty so only catches made from now on count — old fish
+  // catching is never retroactively scored. Idempotent; safe on every boot.
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS fishing_leaderboard (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id varchar NOT NULL,
+        world_id varchar NOT NULL,
+        points integer NOT NULL DEFAULT 0,
+        updated_at timestamp NOT NULL DEFAULT now(),
+        UNIQUE (user_id, world_id)
+      )
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS idx_fishing_lb_world_points ON fishing_leaderboard(world_id, points DESC)
+    `);
+    console.log("fishing_leaderboard table ready.");
+  } catch (err) {
+    console.error("fishing_leaderboard table setup error (non-fatal):", err);
+  }
+
   // ── pvp_battle_tokens: one-time tokens issued by /api/pvp/start ──────────
   // Required so /api/pvp/result can't be replayed without first paying a
   // ticket via /start. Idempotent — safe to run on every boot.

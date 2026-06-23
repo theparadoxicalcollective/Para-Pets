@@ -979,3 +979,15 @@ export const moltenBlocksDropItems = pgTable("molten_blocks_drop_items", {
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
+
+// Runtime table — managed by raw SQL in server/index.ts.
+// Declared here so drizzle-kit treats it as tracked.
+// Per-(user, world) fishing points. Starts empty: only catches made after this
+// feature shipped accrue points, so old catches are never counted.
+export const fishingLeaderboard = pgTable("fishing_leaderboard", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  worldId: varchar("world_id").notNull(),
+  points: integer("points").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});

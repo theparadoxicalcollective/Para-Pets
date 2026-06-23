@@ -6248,7 +6248,32 @@ export async function registerRoutes(
       const fishItem = chosenEntry.item ?? await storage.getShopItem(chosenEntry.shopItemId) ?? null;
       // Quest progress: catch_fish
       incrementQuestProgress(user.id, "catch_fish").catch(() => {});
+
+      // Fishing leaderboard — award points by the fish's star rarity to this
+      // world's board. Fire-and-forget so a leaderboard hiccup never blocks the
+      // catch. Only new catches accrue points (the table started empty).
+      const FISH_POINTS: Record<number, number> = { 1: 10, 2: 12, 3: 20, 4: 25, 5: 50 };
+      const star = parseInt(String(fishItem?.starRarity ?? 1), 10) || 1;
+      const pts = FISH_POINTS[star] ?? 10;
+      if (location.worldId) {
+        storage.addFishingPoints(user.id, location.worldId, pts).catch(() => {});
+      }
+
       return res.json({ caught, item: fishItem });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Fishing leaderboard — per-world ranking by fishing points. Only counts
+  // catches made after this feature shipped (the table starts empty).
+  app.get("/api/fishing/leaderboard/:worldId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const worldId = String(req.params.worldId);
+      const top = await storage.getFishingLeaderboard(worldId, 20);
+      const me = await storage.getPlayerFishingRank(user.id, worldId);
+      return res.json({ top, me });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

@@ -250,6 +250,9 @@ export interface IStorage {
   createListedFishInventoryEntry(userId: string, shopItemId: string, fishInventoryId: string): Promise<UserInventoryItem>;
   deleteSingleInventoryItem(id: string): Promise<void>;
   logFishCatch(userId: string, shopItemId: string): Promise<void>;
+  addFishingPoints(userId: string, worldId: string, points: number): Promise<void>;
+  getFishingLeaderboard(worldId: string, limit?: number): Promise<{ userId: string; username: string; profileImage: string | null; points: number }[]>;
+  getPlayerFishingRank(userId: string, worldId: string): Promise<{ points: number; rank: number } | null>;
   getPlayerCaughtFishLog(userId: string): Promise<{ shopItemId: string; rewardClaimed: boolean }[]>;
   claimFishCatchReward(userId: string, shopItemId: string): Promise<boolean>;
   syncAquariumFish(userId: string, counts: { shopItemId: string; count: number }[]): Promise<void>;
@@ -1886,6 +1889,48 @@ export class DatabaseStorage implements IStorage {
     if (existing.length === 0) {
       await db.insert(playerFishCatchLog).values({ userId, shopItemId });
     }
+  }
+
+  async addFishingPoints(userId: string, worldId: string, points: number): Promise<void> {
+    if (!points || points <= 0) return;
+    await db.execute(sql`
+      INSERT INTO fishing_leaderboard (user_id, world_id, points)
+      VALUES (${userId}, ${worldId}, ${points})
+      ON CONFLICT (user_id, world_id)
+      DO UPDATE SET points = fishing_leaderboard.points + ${points}, updated_at = now()
+    `);
+  }
+
+  async getFishingLeaderboard(worldId: string, limit = 20): Promise<{ userId: string; username: string; profileImage: string | null; points: number }[]> {
+    const result: any = await db.execute(sql`
+      SELECT fl.user_id, u.username, u.profile_image, fl.points
+      FROM fishing_leaderboard fl
+      JOIN users u ON u.id = fl.user_id
+      WHERE fl.world_id = ${worldId} AND fl.points > 0
+      ORDER BY fl.points DESC, fl.updated_at ASC
+      LIMIT ${limit}
+    `);
+    const rows = (result.rows ?? result) as any[];
+    return rows.map((r) => ({
+      userId: r.user_id,
+      username: r.username,
+      profileImage: r.profile_image ?? null,
+      points: Number(r.points),
+    }));
+  }
+
+  async getPlayerFishingRank(userId: string, worldId: string): Promise<{ points: number; rank: number } | null> {
+    const result: any = await db.execute(sql`
+      SELECT fl.points, (
+        SELECT COUNT(*) + 1 FROM fishing_leaderboard f2
+        WHERE f2.world_id = ${worldId} AND f2.points > fl.points
+      ) AS rank
+      FROM fishing_leaderboard fl
+      WHERE fl.user_id = ${userId} AND fl.world_id = ${worldId}
+    `);
+    const rows = (result.rows ?? result) as any[];
+    if (!rows || rows.length === 0) return null;
+    return { points: Number(rows[0].points), rank: Number(rows[0].rank) };
   }
 
   async getPlayerCaughtFishLog(userId: string): Promise<{ shopItemId: string; rewardClaimed: boolean }[]> {
