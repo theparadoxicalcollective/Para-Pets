@@ -1143,7 +1143,7 @@ app.use((req, res, next) => {
     swamp: "bg_swamp_map_v6.jpeg",
     snowy_mountain: "bg_snowy_mountain_map.webp",
     sky_realm: "bg_sky_realm_map.webp",
-    volcanic: "bg_volcanic_map_v2.jpeg",
+    volcanic: "bg_volcanic_map_v3.jpeg",
     haunted_woods: "bg_haunted_woods_v2.png",
     enchanted_grove: "bg_enchanted_grove_map.webp",
     island: "bg_island_map.webp",
@@ -2690,6 +2690,36 @@ app.use((req, res, next) => {
     console.error("Volcanic fortress seed error (non-fatal):", err);
   }
 
+  // Seed the volcanic Cooking station ("The Ember Kitchen") — a non-shop place
+  // that will host the upcoming cooking mini-game. type='area' + is_shop=false so
+  // it never opens shop UI; tap behavior is handled in WorldPage.openLocation by
+  // its stable ID.
+  try {
+    const VOLCANIC_COOKING_ID = "c3d4e5f6-0007-4000-8000-000000000007";
+    const volcanicCookingDone = await storage.getGameSetting("volcanic_cooking_v1");
+    if (!volcanicCookingDone) {
+      const existing = await db.execute(sql`SELECT id FROM world_locations WHERE id = ${VOLCANIC_COOKING_ID}`);
+      if ((existing as any).rows?.length === 0) {
+        const assetPath = path.join(process.cwd(), "attached_assets", "icon_cooking_forge_volcanic.png");
+        const mtime = fs.existsSync(assetPath) ? fs.statSync(assetPath).mtimeMs : Date.now();
+        const iconUrl = `/world-assets/icon_cooking_forge_volcanic.png?v=${Math.floor(mtime / 1000)}`;
+        const cookingName = "The Ember Kitchen";
+        const cookingDesc = "A blazing forge-kitchen where molten heat cooks the realm's fiercest feasts.";
+        await db.execute(sql`
+          INSERT INTO world_locations (id, world_id, name, type, description, pos_x, pos_y, glow_color, icon_size, sort_order, is_shop, icon_url)
+          VALUES (
+            ${VOLCANIC_COOKING_ID}, 'volcanic', ${cookingName}, 'area',
+            ${cookingDesc}, 38, 60, '#ff6a00', 320, 15, false, ${iconUrl}
+          )
+        `);
+        console.log("Volcanic Cooking station seeded.");
+      }
+      await storage.setGameSetting("volcanic_cooking_v1", "done");
+    }
+  } catch (err) {
+    console.error("Volcanic cooking seed error (non-fatal):", err);
+  }
+
   // Always refresh known location icons as versioned static URLs — runs AFTER all seeding code
   // so it overrides any loadAssetBase64 calls that re-set base64 icons during startup.
   const LOC_ICON_ALWAYS_REFRESH: Record<string, string> = {
@@ -2712,6 +2742,7 @@ app.use((req, res, next) => {
     "c3d4e5f6-0004-4000-8000-000000000004": "icon_bookshop_volcanic.png",
     "c3d4e5f6-0005-4000-8000-000000000005": "icon_lava_fortress_volcanic.png",
     "c3d4e5f6-0006-4000-8000-000000000006": "icon_food_shop_volcanic.png",
+    "c3d4e5f6-0007-4000-8000-000000000007": "icon_cooking_forge_volcanic.png",
     "a1b2c3d4-0010-4000-8000-000000000010": "icon_food_shop_swamp.png",
   };
   for (const [locId, iconFile] of Object.entries(LOC_ICON_ALWAYS_REFRESH)) {

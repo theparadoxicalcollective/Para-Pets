@@ -203,7 +203,7 @@ const WORLD_FIXED_MAP_H: Record<string, number> = {
   swamp:           1621, // bg_swamp_map_v6.jpeg 2729×4096 — natural at MAP_W=1080
   snowy_mountain:  1980, // bg_snowy_mountain_map.webp 768×1408
   sky_realm:       1980, // bg_sky_realm_map.webp 768×1408
-  volcanic:        1619, // bg_volcanic_map_v2.jpeg 843×1264 — natural at MAP_W=1080
+  volcanic:        1619, // bg_volcanic_map_v3.jpeg 2888×4330 — natural at MAP_W=1080
   haunted_woods:   1619, // bg_haunted_woods_v2.png 1024×1535 — natural at MAP_W=1080
   enchanted_grove: 1980, // bg_enchanted_grove_map.webp 768×1408
   island:          1980, // bg_island_map.webp 768×1408
@@ -1296,6 +1296,12 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       navigate("/games/molten-blocks");
       return;
     }
+    // The Ember Kitchen will host the cooking mini-game (still in development).
+    // Until it ships, tapping shows a "coming soon" notice instead of shop/scenic UI.
+    if (loc.id === "c3d4e5f6-0007-4000-8000-000000000007") {
+      toast({ title: "Coming soon!", description: "The cooking mini-game is being prepared." });
+      return;
+    }
     if (loc.type === "fishing" && !loc.isShop) {
       setShowLocationView(false);
       setShowShop(false);
@@ -1311,7 +1317,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       setShowShop(false);
       setShowLocationView(true);
     }
-  }, [currentUser.isAdmin, navigate]);
+  }, [currentUser.isAdmin, navigate, toast]);
 
   const handleLocationClick = useCallback((loc: WorldLocationData) => {
     if (didDrag.current || mapJustPannedRef.current) return;
