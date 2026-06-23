@@ -1166,7 +1166,7 @@ app.use((req, res, next) => {
     snowy_mountain: "bg_snowy_mountain_map.webp",
     sky_realm: "bg_sky_realm_map.webp",
     volcanic: "bg_volcanic_map_v3.jpeg",
-    haunted_woods: "bg_haunted_woods_v2.png",
+    haunted_woods: "bg_haunted_woods_v2.webp",
     enchanted_grove: "bg_enchanted_grove_map.webp",
     island: "bg_island_map.webp",
     desert: "bg_desert_map.webp",
@@ -1210,10 +1210,10 @@ app.use((req, res, next) => {
     "c3d4e5f6-0006-4000-8000-000000000006": "bg_shop_food_volcanic.png",
     "a1b2c3d4-0010-4000-8000-000000000010": "bg_shop_food_swamp.png",
     // Haunted Woods locations
-    "e2f3a4b5-0001-4000-8000-000000000001": "bg_spectral_grove.png",
-    "e2f3a4b5-0002-4000-8000-000000000002": "bg_cauldrons_creep_v2.png",
-    "e2f3a4b5-0003-4000-8000-000000000003": "bg_soul_pond_v2.png",
-    "e2f3a4b5-0004-4000-8000-000000000004": "bg_haunted_menagerie_v2.png",
+    "e2f3a4b5-0001-4000-8000-000000000001": "bg_spectral_grove.webp",
+    "e2f3a4b5-0002-4000-8000-000000000002": "bg_cauldrons_creep_v2.webp",
+    "e2f3a4b5-0003-4000-8000-000000000003": "bg_soul_pond_v2.webp",
+    "e2f3a4b5-0004-4000-8000-000000000004": "bg_haunted_menagerie_v2.webp",
   };
   for (const [locId, bgFile] of Object.entries(LOC_BG_ALWAYS_REFRESH)) {
     try {

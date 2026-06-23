@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import bgVolcanic from "@assets/bg_volcanic_map_v3.jpeg";
 import bgSwamp from "@assets/bg_bayous_heart.webp";
-import bgHauntedWoods from "@assets/bg_haunted_woods_v2.png";
+import bgHauntedWoods from "@assets/bg_haunted_woods_v2.webp";
 
 const WORLD_THEMES = {
   volcanic: {
