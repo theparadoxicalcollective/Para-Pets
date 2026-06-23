@@ -2766,6 +2766,11 @@ app.use((req, res, next) => {
     "c3d4e5f6-0006-4000-8000-000000000006": "icon_food_shop_volcanic.png",
     "c3d4e5f6-0007-4000-8000-000000000007": "icon_cooking_forge_volcanic.png",
     "a1b2c3d4-0010-4000-8000-000000000010": "icon_food_shop_swamp.png",
+    // Haunted Woods — converted to WebP to avoid 2MB base64 blobs in API responses
+    "e2f3a4b5-0001-4000-8000-000000000001": "icon_spectral_grove.webp",
+    "e2f3a4b5-0002-4000-8000-000000000002": "icon_cauldrons_creep.webp",
+    "e2f3a4b5-0003-4000-8000-000000000003": "icon_haunted_pond.webp",
+    "e2f3a4b5-0004-4000-8000-000000000004": "icon_haunted_pet_shop.webp",
   };
   for (const [locId, iconFile] of Object.entries(LOC_ICON_ALWAYS_REFRESH)) {
     try {
@@ -2780,6 +2785,34 @@ app.use((req, res, next) => {
     }
   }
   console.log("Location icons refreshed with versioned static URLs.");
+
+  // Delete any duplicate haunted_woods locations (admin may have accidentally created extras).
+  // Keep only the 4 canonical location IDs.
+  try {
+    const dupeResult = await db.execute(sql`
+      DELETE FROM world_locations
+      WHERE world_id = 'haunted_woods'
+        AND id NOT IN (
+          'e2f3a4b5-0001-4000-8000-000000000001',
+          'e2f3a4b5-0002-4000-8000-000000000002',
+          'e2f3a4b5-0003-4000-8000-000000000003',
+          'e2f3a4b5-0004-4000-8000-000000000004'
+        )
+    `);
+    const dupeCount = (dupeResult as any).rowCount ?? 0;
+    if (dupeCount > 0) console.log(`Deleted ${dupeCount} duplicate haunted_woods location(s).`);
+    else console.log("No duplicate haunted_woods locations found.");
+  } catch (err) {
+    console.error("Haunted Woods duplicate location cleanup error (non-fatal):", err);
+  }
+
+  // Cap haunted_woods location icon sizes to 200px.
+  try {
+    await db.execute(sql`UPDATE world_locations SET icon_size = 200 WHERE world_id = 'haunted_woods' AND icon_size > 200`);
+    console.log("Haunted Woods icon sizes capped at 200px.");
+  } catch (err) {
+    console.error("Haunted Woods icon size cap error (non-fatal):", err);
+  }
 
   // Always refresh the volcanic fortress background
   try {
