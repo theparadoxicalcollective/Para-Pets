@@ -2806,13 +2806,6 @@ app.use((req, res, next) => {
     console.error("Haunted Woods duplicate location cleanup error (non-fatal):", err);
   }
 
-  // Cap haunted_woods location icon sizes to 200px.
-  try {
-    await db.execute(sql`UPDATE world_locations SET icon_size = 200 WHERE world_id = 'haunted_woods' AND icon_size > 200`);
-    console.log("Haunted Woods icon sizes capped at 200px.");
-  } catch (err) {
-    console.error("Haunted Woods icon size cap error (non-fatal):", err);
-  }
 
   // Always refresh the volcanic fortress background
   try {
