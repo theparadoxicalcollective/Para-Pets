@@ -328,6 +328,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [selectedDecorId, setSelectedDecorId] = useState<string | null>(null);
   const [barrelSelected, setBarrelSelected] = useState(false);
   const draggableLocIdRef = useRef<string | null>(null);
+  const lastDragEndTimeRef = useRef<number>(0);
   const shopJustOpened = useRef<number>(0);
   const shopScrollRef = useRef<HTMLDivElement>(null);
   const [, navigate] = useLocation();
@@ -1282,13 +1283,13 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     const d = dragRef.current;
     dragRef.current = null;
     if (didDrag.current && dragPos) {
-      // Suppress the click that fires synchronously after pointerup — keep didDrag true
-      // until after click fires, then clear. Also clear the double-tap ref so the next
-      // touch starts a fresh first-tap selection (not an accidental openLocation).
+      // Stamp the drag-end time so handleLocationClick can ignore any click that fires
+      // shortly after a drag — 50 ms was not always long enough on mobile/desktop.
+      lastDragEndTimeRef.current = Date.now();
       e.preventDefault();
       if (adminLocTapRef.current) { clearTimeout(adminLocTapRef.current.timer); adminLocTapRef.current = null; }
       positionMutation.mutate({ locationId: d.locId, posX: dragPos.x, posY: dragPos.y });
-      setTimeout(() => { didDrag.current = false; }, 50);
+      setTimeout(() => { didDrag.current = false; }, 300);
     } else {
       didDrag.current = false;
     }
@@ -1335,6 +1336,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
   const handleLocationClick = useCallback((loc: WorldLocationData) => {
     if (didDrag.current || mapJustPannedRef.current) return;
+    if (Date.now() - lastDragEndTimeRef.current < 350) return;
     if (currentUser.isAdmin) {
       if (adminLocTapRef.current?.id === loc.id) {
         clearTimeout(adminLocTapRef.current.timer);
@@ -1671,6 +1673,14 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         @keyframes locGlowRimPulse {
           0%, 100% { opacity: 0.15; }
           50% { opacity: 0.80; }
+        }
+        @keyframes hwGlowOrb {
+          0%, 100% { opacity: 0.10; transform: scale(0.88); }
+          50% { opacity: 0.28; transform: scale(1.04); }
+        }
+        @keyframes hwRimPulse {
+          0%, 100% { opacity: 0.08; }
+          50% { opacity: 0.30; }
         }
         @keyframes ffloat0 {
           0%,100% { transform: translate(0,0) scale(1); opacity: 0.7; }
@@ -2045,10 +2055,12 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                             className="absolute inset-0 pointer-events-none"
                             style={{
                               background: worldId === "haunted_woods"
-                                ? `radial-gradient(circle, ${glow}18 0%, ${glow}08 45%, transparent 70%)`
+                                ? `radial-gradient(circle, ${glow}22 0%, ${glow}0c 45%, transparent 70%)`
                                 : `radial-gradient(circle, ${glow}45 0%, ${glow}18 45%, transparent 70%)`,
-                              animation: worldId === "haunted_woods" ? undefined : `locGlowPulse ${2.6 + (i * 0.31) % 1.2}s ease-in-out infinite`,
-                              animationDelay: worldId === "haunted_woods" ? undefined : `${(i * 0.38) % 2.2}s`,
+                              animation: worldId === "haunted_woods"
+                                ? `hwGlowOrb ${4.0 + (i * 0.5) % 1.5}s ease-in-out infinite`
+                                : `locGlowPulse ${2.6 + (i * 0.31) % 1.2}s ease-in-out infinite`,
+                              animationDelay: `${(i * 0.45) % 2.5}s`,
                               borderRadius: "50%",
                               zIndex: 0,
                             }}
@@ -2096,11 +2108,13 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                             draggable={false}
                             style={{
                               filter: worldId === "haunted_woods"
-                                ? `drop-shadow(0 0 3px ${glow}99) drop-shadow(0 0 7px ${glow}55)`
+                                ? `drop-shadow(0 0 2px ${glow}aa) drop-shadow(0 0 5px ${glow}44)`
                                 : `drop-shadow(0 0 5px ${glow}) drop-shadow(0 0 12px ${glow}bb) drop-shadow(0 0 20px ${glow}66)`,
-                              opacity: worldId === "haunted_woods" ? 0.22 : 0.15,
-                              animation: worldId === "haunted_woods" ? undefined : `locGlowRimPulse ${3.0 + (i * 0.41) % 1.6}s ease-in-out infinite`,
-                              animationDelay: worldId === "haunted_woods" ? undefined : `${(i * 0.57) % 2.8}s`,
+                              opacity: worldId === "haunted_woods" ? 0.08 : 0.15,
+                              animation: worldId === "haunted_woods"
+                                ? `hwRimPulse ${4.5 + (i * 0.6) % 1.8}s ease-in-out infinite`
+                                : `locGlowRimPulse ${3.0 + (i * 0.41) % 1.6}s ease-in-out infinite`,
+                              animationDelay: `${(i * 0.57) % 2.8}s`,
                               zIndex: 11,
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
                             }}
