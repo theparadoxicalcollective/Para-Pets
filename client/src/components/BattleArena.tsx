@@ -3067,7 +3067,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               <div className="text-center">
                 <div className="text-xl font-black mb-1" style={{ color: accent }}>Enemy Defeated!</div>
                 <div className="text-gray-400 text-sm mb-3">{enemy.name} has been vanquished!</div>
-                <div className="bg-black/40 rounded-xl p-3 mb-4">
+                <div className="bg-black/40 rounded-xl p-3 mb-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-gray-400 text-xs">{pet.name}'s HP</span>
                     <span className="text-xs font-bold" style={{ color: hpBarColor(petHp, petMaxHp) }}>{petHp} / {petMaxHp}</span>
@@ -3076,6 +3076,33 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     <div className="h-full rounded-full transition-all" style={{ width: `${(petHp / petMaxHp) * 100}%`, backgroundColor: hpBarColor(petHp, petMaxHp) }} />
                   </div>
                 </div>
+
+                {/* EXP gained this kill */}
+                <div className="bg-black/40 rounded-xl p-3 mb-3">
+                  {defeatMutation.isPending ? (
+                    <div className="text-gray-500 text-xs text-center">Calculating rewards…</div>
+                  ) : victoryData && !victoryData.error ? (
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400 text-xs">XP Earned</span>
+                        <span className="text-xs font-bold text-yellow-300">+{victoryData.lvlPointsEarned} XP</span>
+                      </div>
+                      {(victoryData.coinsAwarded ?? 0) > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400 text-xs">Coins</span>
+                          <span className="text-xs font-bold text-yellow-400">+{victoryData.coinsAwarded}</span>
+                        </div>
+                      )}
+                      {(victoryData.levelsGained ?? 0) > 0 && (
+                        <div className="text-green-400 text-xs text-center font-bold mt-0.5"
+                          style={{ textShadow: "0 0 8px rgba(74,222,128,0.7)" }}>
+                          ✦ Level Up! Now Lv.{victoryData.newLevel} ✦
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+
                 <div className="text-gray-500 text-xs mb-3">
                   {waveIndex + 1 < allEnemies.length
                     ? `${allEnemies.length - waveIndex - 1} more ${allEnemies.length - waveIndex - 1 === 1 ? "enemy" : "enemies"} ahead...`
