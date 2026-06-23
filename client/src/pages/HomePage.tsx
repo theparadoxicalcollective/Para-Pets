@@ -107,6 +107,12 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [showPetStats, setShowPetStats] = useState(false);
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("petStatsToggle", { detail: { open: showPetStats } }));
+    // When HomePage unmounts (e.g. entering a world, which is now a standalone
+    // page) make sure the app-level petStatsOpen flag is cleared, otherwise a
+    // stuck `true` would keep FloatingNav hidden inside the world.
+    return () => {
+      window.dispatchEvent(new CustomEvent("petStatsToggle", { detail: { open: false } }));
+    };
   }, [showPetStats]);
   // Sparkle bursts for the pet-action ring buttons. Each entry is one floating
   // particle positioned in viewport coords with a colour that matches the

@@ -403,15 +403,26 @@ function AppRouter() {
   }
 
   // ── Game layout ────────────────────────────────────────────────────────────
-  // HomePage is permanently mounted as the base layer so navigating back to "/"
-  // is instant — no unmount/remount gap, no blank-screen flash.
-  // All other game pages render as absolute overlays on top of it.
+  // HomePage is mounted as the base layer for the home screen and lightweight
+  // overlays so navigating back to "/" is instant — no unmount/remount gap, no
+  // blank-screen flash. Those pages render as absolute overlays on top of it.
+  // Worlds are standalone pages: the HomePage base layer (and its live
+  // pet-animation engine) unmounts while a world is open instead of running
+  // underneath the world overlay — a strong suspect for the glitches/crashes
+  // seen on world entry. Trade-off: returning to "/" shows a brief loading
+  // screen instead of being instant. Lightweight overlays (map, bag, shop,
+  // etc.) still keep HomePage mounted for instant back-navigation.
+  const inWorld = location.startsWith("/world/");
+
   return (
     <>
-      {/* Base: always mounted, always visible when no overlay is active */}
-      <div style={{ position: "absolute", inset: 0, isolation: "isolate" }}>
-        <HomePage user={user} isOverlayActive={location !== "/"} />
-      </div>
+      {/* Base: mounted for the home screen and lightweight overlays so going
+          back to "/" is instant. Unmounted while inside a world. */}
+      {!inWorld && (
+        <div style={{ position: "absolute", inset: 0, isolation: "isolate" }}>
+          <HomePage user={user} isOverlayActive={location !== "/"} />
+        </div>
+      )}
 
       {/* Game overlays — each fades in quickly to smooth page-to-page transitions.
           A single <Suspense> wraps every overlay so lazy chunks load without
