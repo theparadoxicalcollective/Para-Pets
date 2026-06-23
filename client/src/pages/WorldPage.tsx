@@ -2085,7 +2085,9 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                                   ? "drop-shadow(0 2px 5px rgba(0,0,0,0.65)) drop-shadow(0 0 1.5px rgba(251,191,36,1)) drop-shadow(0 0 5px rgba(251,146,60,0.65))"
                                   : worldId === "swamp"
                                     ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1.5px rgba(167,243,208,0.9)) drop-shadow(0 0 5px rgba(45,212,191,0.5))"
-                                    : "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1.5px rgba(186,230,253,0.9)) drop-shadow(0 0 5px rgba(56,189,248,0.5))"
+                                    : worldId === "haunted_woods"
+                                      ? `drop-shadow(0 2px 5px rgba(0,0,0,0.65)) drop-shadow(0 0 2px ${glow}bb) drop-shadow(0 0 5px ${glow}44)`
+                                      : "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1.5px rgba(186,230,253,0.9)) drop-shadow(0 0 5px rgba(56,189,248,0.5))"
                                 // Non-fishing location icons (shops, NPCs, etc.) get a subtle
                                 // rim using the location's own glow colour so each icon has
                                 // a hint of its own identity without a large bloom. Bayou

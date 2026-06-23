@@ -2940,13 +2940,13 @@ app.use((req, res, next) => {
     console.error("Haunted Woods location seed error (non-fatal):", err);
   }
 
-  // ── Haunted Woods: ensure all 4 locations have the correct purple glow color ──
+  // ── Haunted Woods: ensure all 4 locations have the correct dark purple glow color ──
   try {
     await db.execute(sql`
       UPDATE world_locations
-      SET glow_color = '#8b008b'
+      SET glow_color = '#8800dd'
       WHERE world_id = 'haunted_woods'
-        AND (glow_color IS NULL OR glow_color != '#8b008b')
+        AND (glow_color IS NULL OR glow_color != '#8800dd')
     `);
   } catch (err) {
     console.error("Haunted Woods glow color fix error (non-fatal):", err);
