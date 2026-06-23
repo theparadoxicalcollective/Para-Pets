@@ -5,6 +5,7 @@ import { playGrab } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { clientToStage, getDesignW, DESIGN_H } from "@/lib/stage";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
@@ -2056,15 +2057,18 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     img.src = feedingPageBg;
   }, []);
 
-  // Clamp a viewport-coord point to the phone-frame the overlay actually
-  // occupies, so coins/hearts/sparkles never spill into the desktop margins
-  // outside the visible 768-wide column.
+  // Particles (coins/hearts/sparkles) are `position: fixed` inside the scaled
+  // #game-stage, so their left/top are read in stage-LOCAL design-space, not
+  // viewport px. Convert the incoming viewport point to stage-local and clamp to
+  // the authored frame. Using the overlay's viewport rect (the old approach) put
+  // particles in the wrong coordinate space → they drifted far to the right on
+  // tablets/desktop where the stage is centered with a left margin and scaled.
   const clampToFrame = useCallback((x: number, y: number, pad = 24) => {
-    const f = overlayRef.current?.getBoundingClientRect();
-    if (!f) return { x, y };
+    const p = clientToStage(x, y);
+    const w = getDesignW();
     return {
-      x: Math.min(Math.max(x, f.left + pad), f.right - pad),
-      y: Math.min(Math.max(y, f.top + pad), f.bottom - pad),
+      x: Math.min(Math.max(p.x, pad), w - pad),
+      y: Math.min(Math.max(p.y, pad), DESIGN_H - pad),
     };
   }, []);
 
@@ -2134,8 +2138,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       if (data?.moodGained > 0) {
         const box = petBoxRef.current?.getBoundingClientRect();
         if (box) {
-          const cx = box.left + box.width / 2;
-          const cy = box.top + box.height * 0.2;
+          // floatTexts are `fixed` inside the scaled stage — convert to
+          // stage-local so the "+Mood" text appears over the pet on all devices.
+          const fp = clientToStage(box.left + box.width / 2, box.top + box.height * 0.2);
+          const cx = fp.x;
+          const cy = fp.y;
           const id = ++floatIdRef.current;
           setFloatTexts((arr) => [...arr, { id, x: cx, y: cy, text: `+${data.moodGained} Mood` }]);
           setTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
@@ -2912,11 +2919,15 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       {/* Petting reward — spinning coins. Tap to collect; each one flies into
           the coin chip up top with a +1 bump. */}
       {rewardCoins.map((c) => {
+        // c.cx/c.cy are stage-local (see clampToFrame); convert the chip's
+        // viewport rect to stage-local too so the fly-in delta is correct on
+        // every device.
         const chipBox = coinChipRef.current?.getBoundingClientRect();
-        const targetX = chipBox ? chipBox.left + chipBox.width / 2 : c.cx;
-        const targetY = chipBox ? chipBox.top + chipBox.height / 2 : c.cy - 200;
-        const tx = targetX - c.cx;
-        const ty = targetY - c.cy;
+        const target = chipBox
+          ? clientToStage(chipBox.left + chipBox.width / 2, chipBox.top + chipBox.height / 2)
+          : { x: c.cx, y: c.cy - 200 };
+        const tx = target.x - c.cx;
+        const ty = target.y - c.cy;
         return (
           <button
             key={c.id}

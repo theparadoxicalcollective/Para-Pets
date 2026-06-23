@@ -32,3 +32,21 @@ export function getStageScale(): number {
   );
   return v > 0 ? v : 1;
 }
+
+// Converts a viewport point (e.g. from a pointer event or getBoundingClientRect)
+// into #game-stage LOCAL design-space coordinates. Particles rendered with
+// `position: fixed` inside #game-stage are contained by the stage's transform,
+// so their left/top are interpreted in design-space (pre-scale) px measured from
+// the stage's top-left — NOT in viewport px. On phones (scale 1, stage flush to
+// the left edge) viewport ≈ local so the raw values worked; on tablets/desktop
+// (stage centered with a left margin and scaled) raw viewport coords land the
+// particle too far to the right. Convert at spawn time to fix this everywhere.
+export function clientToStage(clientX: number, clientY: number): { x: number; y: number } {
+  if (typeof document === "undefined") return { x: clientX, y: clientY };
+  const el = document.getElementById("game-stage");
+  if (!el) return { x: clientX, y: clientY };
+  const rect = el.getBoundingClientRect();
+  const scale = getStageScale();
+  const s = scale > 0 ? scale : 1;
+  return { x: (clientX - rect.left) / s, y: (clientY - rect.top) / s };
+}

@@ -119,14 +119,15 @@ const COMBO_WINDOW_MS = 1400;
 // with the round-robin candidate selection further down (longest-
 // waiting enemy preferred), this addresses the "just sitting there"
 // complaint without needing a full multi-charger refactor.
-const CHARGE_INTERVAL_MS = 700;
+const CHARGE_INTERVAL_MS = 1150;
 /** How often player allies auto-attack a random enemy. Mirrors enemy charge
- *  cadence so both sides feel equally active. */
-const ALLY_ATTACK_INTERVAL_MS = 700;
+ *  cadence so both sides feel equally active. Slowed from 700ms so PvP reads
+ *  as a calmer, more readable exchange instead of a frantic blur. */
+const ALLY_ATTACK_INTERVAL_MS = 1150;
 /** How long the ally "lunge" animation plays before damage resolves. */
-const ALLY_ATTACK_MS = 400;
+const ALLY_ATTACK_MS = 520;
 /** How fast a charging enemy travels down to its target ally. */
-const CHARGE_DIVE_MS = 720;
+const CHARGE_DIVE_MS = 820;
 /** How fast it returns to the swarm after impact. */
 const CHARGE_RETURN_MS = 300;
 // Passive mana constants removed per user feedback ("mana shouldn't
@@ -761,6 +762,24 @@ export default function PvpBattlePage({
 
       if (myAlive.length === 0) { endBattle("loss"); return; }
       if (oppAlive.length === 0) { endBattle("win"); return; }
+
+      // ── Clear stale attacker refs ───────────────────────────
+      // The active charger is only advanced inside the `for (const e of
+      // oppAlive)` loop, and the active ally-attacker inside `for (const a of
+      // myAlive)`. If the charging enemy (or lunging ally) DIES mid-action it
+      // drops out of those alive lists, so its handler never runs and the ref
+      // is never cleared. The spawn guards below (`!chargerRef.current` /
+      // `!allyAttackRef.current`) then block every future attack on that side —
+      // both sides idle-bob with pets still alive and the battle never resolves
+      // (the "freeze at the end of some battles"). Clear any ref whose pet is no
+      // longer alive so a fresh attacker spawns next frame.
+      if (chargerRef.current && !oppAlive.some(p => p.uid === chargerRef.current!.enemyUid)) {
+        chargerRef.current = null;
+        setChargerView(null);
+      }
+      if (allyAttackRef.current && !myAlive.some(p => p.uid === allyAttackRef.current!.allyUid)) {
+        allyAttackRef.current = null;
+      }
 
       // ── Enemy floating + charge animation ───────────────────
       const charger = chargerRef.current;

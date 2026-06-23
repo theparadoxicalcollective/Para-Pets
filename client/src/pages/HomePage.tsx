@@ -17,6 +17,7 @@ import swordsImg from "@assets/generated_images/nav_icon_pvp.png";
 import eggImg from "@assets/generated_images/nav_icon_pets.png";
 import badgeIcon from "@assets/generated_images/nav_icon_badges.png";
 import { playSpeedUp } from "@/lib/sounds";
+import { clientToStage, getDesignW } from "@/lib/stage";
 import { bjGetStep, bjIsStep5FakeMode, bjIsStep5TapMode } from "@/lib/beginJourney";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useToast } from "@/hooks/use-toast";
@@ -259,8 +260,12 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   // pet container — is the right reference. Without this the bursts visibly
   // flew off the right edge on iPhone (the touch wrapper centers near 195px
   // but a ±110 spawn jitter + ±160 CSS drift could push particles past 465px).
+  // Hearts/sparkles are positioned in #game-stage LOCAL design-space (they're
+  // `position: fixed` inside the scaled stage), so clamp to the authored frame
+  // width — NOT window.innerWidth, which is the wrong coordinate space on
+  // tablets/desktop and let particles drift outside the visible frame.
   const clampX = useCallback((x: number, size: number, drift: number) => {
-    const w = typeof window !== "undefined" ? window.innerWidth : 390;
+    const w = getDesignW();
     const half = size / 2;
     const min = half + Math.max(0, drift) + 4;
     const max = w - half - Math.max(0, drift) - 4;
@@ -272,10 +277,14 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       const size = 18 + Math.random() * 22;
       const dx = (Math.random() - 0.5) * 220; // tightened from 320
       const spawnX = cx + (Math.random() - 0.5) * 160; // tightened from 220
+      const spawnY = cy + (Math.random() - 0.5) * 80;
+      // cx/cy arrive in viewport coords (from getBoundingClientRect); convert
+      // to stage-local so `fixed` particles land on the pet on every device.
+      const p = clientToStage(spawnX, spawnY);
       return {
         id: ++petHeartIdRef.current,
-        cx: clampX(spawnX, size, Math.abs(dx)),
-        cy: cy + (Math.random() - 0.5) * 80,
+        cx: clampX(p.x, size, Math.abs(dx)),
+        cy: p.y,
         dx,
         size,
         delay: Math.random() * 0.3,
@@ -289,10 +298,13 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     const newOnes = Array.from({ length: count }, () => {
       const size = 6 + Math.random() * 10;
       const dx = (Math.random() - 0.5) * 90;
+      // Convert the viewport spawn point to stage-local design coords (see
+      // burstPetHearts) so sparkles trace the pet on tablets/desktop too.
+      const p = clientToStage(cx, cy);
       return {
         id: ++petSparkleIdRef.current,
-        cx: clampX(cx, size, Math.abs(dx)),
-        cy,
+        cx: clampX(p.x, size, Math.abs(dx)),
+        cy: p.y,
         dx,
         dy: (Math.random() - 0.5) * 90,
         size,
