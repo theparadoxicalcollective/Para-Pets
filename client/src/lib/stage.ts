@@ -11,7 +11,7 @@ export const DESIGN_H = 844;
 // little wider so it doesn't look like a skinny phone stranded in a big window.
 // Narrow phone screens (portrait, < WIDE_BREAKPOINT) keep the original 390-wide
 // design untouched — they stay pixel-faithful exactly as before.
-export const WIDE_DESIGN_W = 430;
+export const WIDE_DESIGN_W = 470;
 export const WIDE_BREAKPOINT = 768;
 
 // The live authored frame width for the current screen. Skinny phones -> 390;
