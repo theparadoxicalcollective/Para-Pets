@@ -1368,7 +1368,7 @@
 .para-pets-title {
   font-family: 'Lora', 'Lora', serif;
   font-weight: 700;
-  font-size: clamp(2.2rem, 9.5vw, 3.8rem);
+  font-size: clamp(2.2rem, calc(9.5 * var(--vw)), 3.8rem);
   letter-spacing: 0.06em;
   text-align: center;
   background: linear-gradient(
@@ -1398,6 +1398,60 @@
   animation: titleSparkle 3s ease-in-out infinite;
   color: #ffd700;
   filter: drop-shadow(0 0 4px rgba(255,215,0,0.9));
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * Cross-device game frame
+ *
+ * The game is authored at a fixed 390×844 "phone" design size (#game-stage) and
+ * uniformly scaled with transform:scale() to fit any device. Leftover space is
+ * filled by a themed backdrop + gold border, so the game looks IDENTICAL on
+ * every screen. iPhone 12 == 390×844 → scale 1 → pixel-faithful, no border.
+ *
+ * Viewport units inside the frame must be FRAME-relative, not window-relative,
+ * or they'd reference the (possibly huge) real window. We map them onto custom
+ * properties: at :root they fall back to real vw/vh (so fluid marketing pages
+ * are unchanged); inside #game-stage they become fixed design pixels that scale
+ * with the transform. Source vw/vh/svh/dvh usages are rewritten to
+ * calc(N * var(--vw|--vh)).
+ * ─────────────────────────────────────────────────────────────────────────── */
+:root {
+  --vw: 1vw;
+  --vh: 1vh;
+}
+
+.game-stage-backdrop {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(40,26,8,0.55) 0%, transparent 60%),
+    radial-gradient(140% 120% at 50% 110%, rgba(10,28,22,0.5) 0%, transparent 55%),
+    linear-gradient(160deg, #0a0905 0%, #0d0b06 45%, #070a08 100%);
+}
+
+#game-stage {
+  position: relative;
+  flex: none;
+  transform-origin: center center;
+  overflow: hidden;
+  isolation: isolate;
+  /* Frame-relative viewport units (390/100, 844/100) */
+  --vw: 3.9px;
+  --vh: 8.44px;
+  /* h-screen-frame fills the frame height, not the window */
+  --fh: 844px;
+  /* Gold border + glow sit OUTSIDE the frame edge, so on an exact-fit phone
+     (frame == viewport) they're off-screen/clipped and invisible; on larger
+     screens they frame the phone over the backdrop. */
+  box-shadow:
+    0 0 0 2px rgba(201,160,48,0.9),
+    0 0 0 4px rgba(10,7,2,0.9),
+    0 0 38px 6px rgba(201,160,48,0.18),
+    0 24px 70px rgba(0,0,0,0.7);
 }
 
 html, body {

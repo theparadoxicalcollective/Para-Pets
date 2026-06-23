@@ -354,7 +354,7 @@ export default function MapPage({ user }: MapPageProps) {
             <h2
               className="font-fantasy text-center font-bold uppercase"
               style={{
-                fontSize: "clamp(26px, 7.5vw, 42px)",
+                fontSize: "clamp(26px, calc(7.5*var(--vw)), 42px)",
                 letterSpacing: "0.25em",
                 lineHeight: 1,
                 color: "#fff6c8",
@@ -448,7 +448,7 @@ export default function MapPage({ user }: MapPageProps) {
                           <div
                             className="absolute inset-0 z-30 flex flex-col items-center justify-center pointer-events-none gap-0.5"
                           >
-                            <span style={{ fontSize: "clamp(14px, 4vw, 20px)", lineHeight: 1 }}>🔒</span>
+                            <span style={{ fontSize: "clamp(14px, calc(4*var(--vw)), 20px)", lineHeight: 1 }}>🔒</span>
                             <div
                               className="font-fantasy text-center leading-tight px-1.5 py-0.5"
                               style={{
@@ -456,7 +456,7 @@ export default function MapPage({ user }: MapPageProps) {
                                 border: "1px solid rgba(160,130,60,0.6)",
                                 borderRadius: "4px",
                                 color: "#e0c060",
-                                fontSize: "clamp(7px, 2vw, 10px)",
+                                fontSize: "clamp(7px, calc(2*var(--vw)), 10px)",
                                 letterSpacing: "0.1em",
                                 textShadow: "0 0 8px rgba(220,180,60,0.5)",
                                 boxShadow: "0 0 12px rgba(0,0,0,0.8)",
@@ -511,7 +511,7 @@ export default function MapPage({ user }: MapPageProps) {
           <div data-testid="overlay-add-world-backdrop" className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddWorld(false)} />
           <div
             data-testid="modal-add-world"
-            className="relative z-10 w-[90%] max-w-sm rounded-xl p-5 max-h-[85vh] overflow-y-auto"
+            className="relative z-10 w-[90%] max-w-sm rounded-xl p-5 max-h-[calc(85*var(--vh))] overflow-y-auto"
             style={{
               background: "linear-gradient(135deg, rgba(16,18,35,0.98) 0%, rgba(22,25,50,0.98) 100%)",
               border: "1px solid rgba(100,80,200,0.3)",
@@ -621,7 +621,7 @@ export default function MapPage({ user }: MapPageProps) {
           <div data-testid="overlay-edit-world-backdrop" className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditingWorld(null)} />
           <div
             data-testid="modal-edit-world"
-            className="relative z-10 w-[90%] max-w-sm rounded-xl p-5 max-h-[85vh] overflow-y-auto"
+            className="relative z-10 w-[90%] max-w-sm rounded-xl p-5 max-h-[calc(85*var(--vh))] overflow-y-auto"
             style={{
               background: "linear-gradient(135deg, rgba(16,18,35,0.98) 0%, rgba(22,25,50,0.98) 100%)",
               border: "1px solid rgba(100,80,200,0.3)",
@@ -737,7 +737,7 @@ export default function MapPage({ user }: MapPageProps) {
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowMapBgEdit(false)} />
           <div
             data-testid="modal-edit-map-bg"
-            className="relative z-10 w-[90%] max-w-sm rounded-xl p-5 max-h-[85vh] overflow-y-auto"
+            className="relative z-10 w-[90%] max-w-sm rounded-xl p-5 max-h-[calc(85*var(--vh))] overflow-y-auto"
             style={{
               background: "linear-gradient(135deg, rgba(16,18,35,0.98) 0%, rgba(22,25,50,0.98) 100%)",
               border: "1px solid rgba(100,80,200,0.3)",

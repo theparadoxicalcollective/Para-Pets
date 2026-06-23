@@ -216,7 +216,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
         style={{
           position: "relative",
           maxWidth: 480,
-          maxHeight: "88dvh",
+          maxHeight: "calc(88*var(--vh))",
           overflowY: "auto",
           WebkitOverflowScrolling: "touch",
           background: "linear-gradient(180deg, #0d0a04 0%, #1a1000 50%, #0a0600 100%)",

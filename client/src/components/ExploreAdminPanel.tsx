@@ -429,7 +429,7 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
                   style={inputStyle}
                 />
               </div>
-              <div className="overflow-y-auto space-y-1" style={{ maxHeight: "32vh" }}>
+              <div className="overflow-y-auto space-y-1" style={{ maxHeight: "calc(32*var(--vh))" }}>
                 {enemyTemplates.length === 0 ? (
                   <p className="font-fantasy text-[10px] tracking-wider text-center py-3" style={{ color: `${accent}66` }}>
                     No enemies in the database yet. Add some in the Enemy Database panel.
@@ -550,7 +550,7 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
               background: "linear-gradient(135deg, rgba(8,5,18,0.98) 0%, rgba(18,12,30,0.98) 100%)",
               border: `1px solid ${accent}55`,
               boxShadow: `0 0 40px ${accent}25`,
-              maxHeight: "70vh",
+              maxHeight: "calc(70*var(--vh))",
             }}
           >
             <div className="flex items-center justify-between mb-3">
@@ -590,7 +590,7 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
                   style={inputStyle}
                 />
               </div>
-              <div className="overflow-y-auto space-y-1" style={{ maxHeight: "30vh" }}>
+              <div className="overflow-y-auto space-y-1" style={{ maxHeight: "calc(30*var(--vh))" }}>
                 {filteredItems.map((item) => (
                   <div
                     key={item.id}
@@ -668,7 +668,7 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
             : "linear-gradient(135deg, rgba(8,5,18,0.98) 0%, rgba(18,12,30,0.98) 100%)",
           border: isBattle ? "1px solid rgba(220,38,38,0.45)" : `1px solid ${accent}55`,
           boxShadow: isBattle ? "0 0 50px rgba(220,38,38,0.2), 0 0 100px rgba(220,38,38,0.08)" : `0 0 40px ${accent}25`,
-          maxHeight: "90vh",
+          maxHeight: "calc(90*var(--vh))",
         }}
       >
         {isBattle && (
@@ -697,7 +697,7 @@ export default function ExploreAdminPanel({ locationId, locationType, accent, on
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="overflow-y-auto pb-4 space-y-4" style={{ maxHeight: "calc(90vh - 64px)", padding: isBattle ? "0 18px 0 18px" : "0 16px 0 16px" }}>
+        <div className="overflow-y-auto pb-4 space-y-4" style={{ maxHeight: "calc(calc(90*var(--vh)) - 64px)", padding: isBattle ? "0 18px 0 18px" : "0 16px 0 16px" }}>
           {bgSection}
           {enemiesSection}
         </div>

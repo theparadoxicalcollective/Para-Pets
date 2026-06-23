@@ -783,7 +783,7 @@ function AdminItemForm({
           background: "linear-gradient(135deg, rgba(30,15,5,0.97) 0%, rgba(60,35,10,0.97) 100%)",
           border: `1px solid ${petOnly ? "rgba(255,179,71,0.5)" : "rgba(212,160,23,0.5)"}`,
           boxShadow: "0 8px 40px rgba(0,0,0,0.7)",
-          maxHeight: "85vh",
+          maxHeight: "calc(85*var(--vh))",
         }}
       >
         <button
@@ -1492,7 +1492,7 @@ export function ItemPickerModal({
           background: "linear-gradient(135deg, rgba(20,10,3,0.98) 0%, rgba(45,25,8,0.98) 100%)",
           border: "1px solid rgba(192,132,252,0.5)",
           boxShadow: "0 8px 40px rgba(0,0,0,0.8)",
-          maxHeight: "80vh",
+          maxHeight: "calc(80*var(--vh))",
           display: "flex",
           flexDirection: "column",
         }}

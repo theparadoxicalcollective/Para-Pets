@@ -330,7 +330,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
             border: "1px solid rgba(212,160,23,0.4)",
             borderBottom: "none",
             boxShadow: "0 -8px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(212,160,23,0.3)",
-            maxHeight: "85vh",
+            maxHeight: "calc(85*var(--vh))",
           }}
         >
           <div className="absolute inset-x-0 top-0 h-1 rounded-t-3xl" style={{ background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.6), transparent)" }} />
@@ -936,7 +936,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
             className="w-full rounded-t-3xl overflow-hidden"
             style={{
               maxWidth: 480,
-              maxHeight: "80dvh",
+              maxHeight: "calc(80*var(--vh))",
               overflowY: "auto",
               background: "linear-gradient(180deg, #0d0a04 0%, #1a1000 50%, #0a0600 100%)",
               border: "1px solid rgba(192,132,252,0.25)",

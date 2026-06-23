@@ -612,7 +612,7 @@ function FishingItemForm({ item, onClose, onSuccess, restrict }: { item: Fishing
           background: "linear-gradient(135deg, rgba(8,18,40,0.97) 0%, rgba(15,30,60,0.97) 100%)",
           border: "1px solid rgba(96,165,250,0.4)",
           boxShadow: "0 8px 40px rgba(0,0,0,0.8)",
-          maxHeight: "85vh",
+          maxHeight: "calc(85*var(--vh))",
         }}
       >
         <button

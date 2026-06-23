@@ -164,7 +164,7 @@ export default function WorldLoadingScreen({ worldId, pageReady, onReady }: Prop
           0%   { transform: translateY(0) translateX(0) scale(1); opacity: 0; }
           8%   { opacity: 1; }
           85%  { opacity: 0.55; }
-          100% { transform: translateY(-75vh) translateX(var(--drift)) scale(0.35); opacity: 0; }
+          100% { transform: translateY(calc(-75*var(--vh))) translateX(var(--drift)) scale(0.35); opacity: 0; }
         }
         @keyframes wls-firefly {
           0%   { transform: translate(0,0); opacity: 0.1; }

@@ -58,7 +58,7 @@ export default function GiftClaimModal({ onClose }: GiftClaimModalProps) {
         style={{
           top: "50%", left: "50%",
           transform: "translate(-50%, -50%)",
-          width: 300, maxHeight: "80vh",
+          width: 300, maxHeight: "calc(80*var(--vh))",
           background: "linear-gradient(160deg, rgba(4,14,8,0.99) 0%, rgba(3,10,6,0.99) 100%)",
           border: "1.5px solid rgba(127,255,212,0.22)",
           borderRadius: 18,
@@ -95,7 +95,7 @@ export default function GiftClaimModal({ onClose }: GiftClaimModalProps) {
         ) : gifts.length === 0 ? (
           <p className="font-fantasy text-center py-8" style={{ fontSize: 11, color: "rgba(127,255,212,0.4)" }}>No pending gifts</p>
         ) : (
-          <div className="flex flex-col gap-3" style={{ overflowY: "auto", maxHeight: "60vh" }}>
+          <div className="flex flex-col gap-3" style={{ overflowY: "auto", maxHeight: "calc(60*var(--vh))" }}>
             {gifts.map((gift) => (
               <div
                 key={gift.id}

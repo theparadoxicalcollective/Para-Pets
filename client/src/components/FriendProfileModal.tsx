@@ -72,7 +72,7 @@ export default function FriendProfileModal({ friendId, friendUsername, senderCoi
           left: "50%",
           transform: "translate(-50%, -50%)",
           width: 280,
-          maxHeight: "78vh",
+          maxHeight: "calc(78*var(--vh))",
           overflowY: "auto",
           background: "linear-gradient(160deg, rgba(4,14,8,0.99) 0%, rgba(3,10,6,0.99) 100%)",
           border: "1.5px solid rgba(127,255,212,0.22)",

@@ -159,7 +159,7 @@ export default function PrivacyPolicyPage({ user }: PrivacyPolicyPageProps) {
           <div
             className="mt-auto rounded-t-3xl flex flex-col"
             style={{
-              maxHeight: "90dvh",
+              maxHeight: "calc(90*var(--vh))",
               background: "linear-gradient(180deg, #0d1a0d 0%, #081208 100%)",
               border: "1px solid rgba(212,160,23,0.25)",
               borderBottom: "none",
@@ -195,7 +195,7 @@ export default function PrivacyPolicyPage({ user }: PrivacyPolicyPageProps) {
               className="flex-1 mx-5 mb-4 rounded-xl p-4 text-sm resize-none outline-none"
               style={{
                 minHeight: 240,
-                maxHeight: "55dvh",
+                maxHeight: "calc(55*var(--vh))",
                 background: "rgba(0,0,0,0.5)",
                 border: "1px solid rgba(127,255,212,0.2)",
                 color: "#f0e8d0",

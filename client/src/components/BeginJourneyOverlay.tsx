@@ -495,7 +495,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
       <div style={{
         position: "fixed", top: 36, left: "50%", transform: "translateX(-50%)",
         zIndex: 99004, pointerEvents: "none", textAlign: "center",
-        maxWidth: 300, width: "90vw",
+        maxWidth: 300, width: "calc(90*var(--vw))",
       }}>
         <div style={{
           background: "linear-gradient(135deg, rgba(8,18,8,0.97) 0%, rgba(15,30,15,0.97) 100%)",

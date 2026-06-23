@@ -91,7 +91,7 @@ export default function LoadingScreen({ label = "Entering the world…" }: { lab
         <div
           style={{
             fontFamily: "'Lora', 'Lora', Georgia, serif",
-            fontSize: "clamp(1.6rem, 7.5vw, 2.1rem)",
+            fontSize: "clamp(1.6rem, calc(7.5*var(--vw)), 2.1rem)",
             color: "#82efce",
             letterSpacing: "0.22em",
             textAlign: "center",

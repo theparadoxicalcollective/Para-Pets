@@ -607,10 +607,10 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         @keyframes aquaBubbleRise {
           0%   { transform: translateY(0)    translateX(0px);   opacity: 0;    }
           8%   { opacity: 0.55; }
-          45%  { transform: translateY(-38vh) translateX(4px);  opacity: 0.45; }
-          55%  { transform: translateY(-46vh) translateX(-3px); opacity: 0.38; }
-          80%  { transform: translateY(-66vh) translateX(2px);  opacity: 0.22; }
-          100% { transform: translateY(-84vh) translateX(0px);  opacity: 0;    }
+          45%  { transform: translateY(calc(-38*var(--vh))) translateX(4px);  opacity: 0.45; }
+          55%  { transform: translateY(calc(-46*var(--vh))) translateX(-3px); opacity: 0.38; }
+          80%  { transform: translateY(calc(-66*var(--vh))) translateX(2px);  opacity: 0.22; }
+          100% { transform: translateY(calc(-84*var(--vh))) translateX(0px);  opacity: 0;    }
         }
         @keyframes fishTailWag   { from { transform: scaleX(0.95); } to { transform: scaleX(1.0); } }
         @keyframes fishFinUp     { from { transform: rotate(-3deg); } to { transform: rotate(2deg);  } }
@@ -768,7 +768,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
             border: "1px solid rgba(94,234,212,0.28)",
             backdropFilter: "blur(14px)",
             animation: "aqPanelUp 0.25s ease-out",
-            maxHeight: "46vh",
+            maxHeight: "calc(46*var(--vh))",
             display: "flex",
             flexDirection: "column",
           }}

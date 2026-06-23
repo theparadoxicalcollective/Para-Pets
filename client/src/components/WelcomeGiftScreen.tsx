@@ -145,7 +145,7 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
           style={{
             width: "90%",
             maxWidth: 360,
-            maxHeight: "72vh",
+            maxHeight: "calc(72*var(--vh))",
             borderRadius: 18,
             background: "linear-gradient(160deg, rgba(26,11,52,0.99) 0%, rgba(16,7,35,0.99) 100%)",
             border: "1.5px solid rgba(212,170,50,0.5)",

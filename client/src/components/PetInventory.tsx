@@ -462,7 +462,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
               border: "1px solid rgba(240,192,64,0.3)",
               borderBottom: "none",
               boxShadow: "0 -10px 50px rgba(0,0,0,0.7)",
-              maxHeight: "82vh",
+              maxHeight: "calc(82*var(--vh))",
               overflowY: "auto",
             }}
           >

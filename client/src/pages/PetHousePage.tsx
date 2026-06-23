@@ -195,7 +195,7 @@ function CarePopup({
       <div
         className="relative"
         style={{
-          width: "min(86vw, 440px)",
+          width: "min(calc(86*var(--vw)), 440px)",
           aspectRatio: "1 / 1",
           backgroundImage: `url(${careWreathImg})`,
           backgroundSize: "contain",
@@ -1452,7 +1452,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
               border: "1px solid rgba(255,255,255,0.1)",
               boxShadow: "0 -8px 32px rgba(0,0,0,0.6)",
               minHeight: openInventory === "pets" ? 110 : 280,
-              maxHeight: openInventory === "pets" ? 160 : "70vh",
+              maxHeight: openInventory === "pets" ? 160 : "calc(70*var(--vh))",
               overflowY: openInventory === "pets" ? "hidden" : "auto",
               overflowX: "hidden",
             }}
@@ -2975,7 +2975,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
               background: "linear-gradient(160deg, rgba(8,18,10,0.98) 0%, rgba(5,12,7,0.98) 100%)",
               border: "1.5px solid rgba(180,255,160,0.45)",
               boxShadow: "0 0 50px rgba(120,200,120,0.15), 0 8px 32px rgba(0,0,0,0.7)",
-              maxHeight: "85vh",
+              maxHeight: "calc(85*var(--vh))",
               overflowY: "auto",
             }}
           >

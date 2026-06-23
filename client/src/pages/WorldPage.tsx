@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { setNavHidden } from "@/lib/navVisibility";
 import { playChime, playTick, playShopBell, playMapTap } from "@/lib/sounds";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
+import { DESIGN_W, DESIGN_H, getStageScale } from "@/lib/stage";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -342,21 +343,16 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const areaRef = useRef<HTMLDivElement>(null);
   const vpRef = useRef<HTMLDivElement>(null);
 
-  // Dynamic frame dimensions — update when the viewport is resized.
-  const frameWRef = useRef(window.innerWidth);
-  const frameHRef = useRef(window.innerHeight);
-  const [frameW, setFrameW] = useState(window.innerWidth);
-  const [frameH, setFrameH] = useState(window.innerHeight);
-  useEffect(() => {
-    const onResize = () => {
-      frameWRef.current = window.innerWidth;
-      frameHRef.current = window.innerHeight;
-      setFrameW(window.innerWidth);
-      setFrameH(window.innerHeight);
-    };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+  // Frame dimensions are the fixed phone-frame design size (#game-stage in
+  // App.tsx scales the whole frame uniformly to fit the device). The map must
+  // be laid out in this design space, NOT the real window, so it fills the
+  // frame identically on every device.
+  const FRAME_W = DESIGN_W;
+  const FRAME_H = DESIGN_H;
+  const frameWRef = useRef(FRAME_W);
+  const frameHRef = useRef(FRAME_H);
+  const [frameW] = useState(FRAME_W);
+  const [frameH] = useState(FRAME_H);
 
   const dragRef = useRef<{ locId: string; startCanvasX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
@@ -1164,8 +1160,9 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const ptrs = Array.from(mapPanPointersRef.current.values());
     if (ptrs.length === 1 && mapPanStartRef.current) {
-      const dx = e.clientX - mapPanStartRef.current.x;
-      const dy = e.clientY - mapPanStartRef.current.y;
+      const s = getStageScale();
+      const dx = (e.clientX - mapPanStartRef.current.x) / s;
+      const dy = (e.clientY - mapPanStartRef.current.y) / s;
       if (!mapPanningRef.current && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) mapPanningRef.current = true;
       if (mapPanningRef.current) applyMapTransform(mapPanStartRef.current.mapX + dx, mapPanStartRef.current.mapY + dy, mapTransformRef.current.scale);
     }
@@ -1763,7 +1760,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               <h2
                 className="font-fantasy font-bold tracking-widest text-center leading-none px-5"
                 style={{
-                  fontSize: "clamp(13px, 3.6vw, 19px)",
+                  fontSize: "clamp(13px, calc(3.6*var(--vw)), 19px)",
                   color: "#fff5b0",
                   textShadow: "0 0 6px #f0c040, 0 0 14px #d4a017, 0 0 28px rgba(212,160,23,0.65), 0 0 50px rgba(240,192,64,0.28), 0 1px 3px rgba(0,0,0,1)",
                   letterSpacing: "0.14em",
@@ -2489,7 +2486,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           <div data-testid="overlay-add-location-backdrop" className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowAddLocation(false)} />
           <div
             data-testid="modal-add-location"
-            className="relative z-10 w-[85%] max-w-sm rounded-lg p-5 max-h-[85vh] overflow-y-auto"
+            className="relative z-10 w-[85%] max-w-sm rounded-lg p-5 max-h-[calc(85*var(--vh))] overflow-y-auto"
             style={{
               background: `linear-gradient(135deg, rgba(8,5,18,0.98) 0%, rgba(18,12,30,0.98) 50%, rgba(8,5,18,0.98) 100%)`,
               border: `1px solid ${accent}55`,
@@ -2697,7 +2694,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
             bottom: 0,
             left: 0,
             right: 0,
-            maxHeight: "60vh",
+            maxHeight: "calc(60*var(--vh))",
             background: "linear-gradient(180deg, rgba(8,5,18,0.97) 0%, rgba(15,8,28,0.99) 100%)",
             borderTop: `1.5px solid ${accent}50`,
             borderLeft: `1.5px solid ${accent}30`,
@@ -3010,7 +3007,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setEditingLocation(null)} />
           <div
-            className="relative z-10 w-[90%] max-w-sm rounded-xl p-5 max-h-[85vh] overflow-y-auto"
+            className="relative z-10 w-[90%] max-w-sm rounded-xl p-5 max-h-[calc(85*var(--vh))] overflow-y-auto"
             style={{
               background: "linear-gradient(135deg, rgba(30,20,10,0.97) 0%, rgba(20,12,5,0.97) 100%)",
               border: `1px solid ${accent}40`,
@@ -3279,7 +3276,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           {isVolcanicFishing && (
             <div className="relative flex-shrink-0 flex flex-col items-center px-4 pb-1" style={{ zIndex: 10 }}>
               {/* aspectRatio 1/1 = shows top 75% of the 3:4 NPC (container height = width, image is taller) */}
-              <div className="relative overflow-hidden" style={{ width: "min(240px, 64vw)", aspectRatio: "1/1" }}>
+              <div className="relative overflow-hidden" style={{ width: "min(240px, calc(64*var(--vw)))", aspectRatio: "1/1" }}>
                 {/* warm lava glow behind NPC */}
                 <div style={{ position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "130%", height: "70%", borderRadius: "50%", background: "radial-gradient(ellipse, rgba(255,80,10,0.30) 0%, rgba(180,40,5,0.10) 55%, transparent 75%)", filter: "blur(16px)" }} />
                 <img
@@ -3556,7 +3553,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
             {/* Backdrop */}
             <div className="absolute inset-0 bg-black/75" onClick={() => { setSelectedShopItem(null); setBuyError(null); setBuyConfirmPending(false); }} />
 
-            <div className="relative z-10 flex flex-col items-center" style={{ gap: 12, width: "min(85vw, 300px)" }}>
+            <div className="relative z-10 flex flex-col items-center" style={{ gap: 12, width: "min(calc(85*var(--vw)), 300px)" }}>
               {/* ── Styled shop card ── */}
               <div
                 className="relative w-full"
@@ -3748,7 +3745,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowItemPicker(false)} />
           <div
-            className="relative z-10 w-[90%] max-w-sm rounded-lg max-h-[82vh] flex flex-col"
+            className="relative z-10 w-[90%] max-w-sm rounded-lg max-h-[calc(82*var(--vh))] flex flex-col"
             style={{
               background: `linear-gradient(135deg, rgba(8,5,18,0.98) 0%, rgba(18,12,30,0.98) 100%)`,
               border: `1px solid ${accent}55`,
@@ -4723,7 +4720,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
             style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(4px)" }}
           >
             <div className="w-full max-w-sm mx-auto rounded-t-3xl"
-              style={{ background: "linear-gradient(180deg, #1a0a2e 0%, #0f0a1a 100%)", border: "1px solid rgba(167,139,250,0.2)", borderBottom: "none", maxHeight: "88vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              style={{ background: "linear-gradient(180deg, #1a0a2e 0%, #0f0a1a 100%)", border: "1px solid rgba(167,139,250,0.2)", borderBottom: "none", maxHeight: "calc(88*var(--vh))", overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
               {/* Header */}
               <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
@@ -4884,7 +4881,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                   onClick={() => setPetPickerSlot(null)}>
                   <div
                     className="w-full max-w-sm rounded-t-3xl overflow-hidden"
-                    style={{ background: "linear-gradient(180deg, #1a0a2e 0%, #0f0a1a 100%)", border: "1px solid rgba(167,139,250,0.25)", borderBottom: "none", maxHeight: "55vh" }}
+                    style={{ background: "linear-gradient(180deg, #1a0a2e 0%, #0f0a1a 100%)", border: "1px solid rgba(167,139,250,0.25)", borderBottom: "none", maxHeight: "calc(55*var(--vh))" }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="flex items-center justify-between px-5 pt-4 pb-3">
@@ -4894,7 +4891,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                         <X className="w-3.5 h-3.5 text-white/60" />
                       </button>
                     </div>
-                    <div className="overflow-y-auto px-5 pb-6" style={{ maxHeight: "44vh" }}>
+                    <div className="overflow-y-auto px-5 pb-6" style={{ maxHeight: "calc(44*var(--vh))" }}>
                       {hatchedPets.length === 0 ? (
                         <div className="text-center py-8">
                           <p className="font-fantasy text-[10px] tracking-wider text-white/30">No other hatched pets available</p>
@@ -4956,7 +4953,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                     background: "linear-gradient(180deg, #15102a 0%, #0a0814 100%)",
                     border: "1px solid rgba(167,139,250,0.25)",
                     borderBottom: "none",
-                    maxHeight: "70vh",
+                    maxHeight: "calc(70*var(--vh))",
                     display: "flex",
                     flexDirection: "column",
                   }}
@@ -5273,7 +5270,7 @@ function PondAdminModal({ locationId, accent, onClose }: { locationId: string; a
           background: "linear-gradient(135deg, rgba(8,18,40,0.98) 0%, rgba(15,30,60,0.98) 100%)",
           border: `1px solid ${accent}55`,
           boxShadow: `0 8px 40px rgba(0,0,0,0.8)`,
-          maxHeight: "75vh",
+          maxHeight: "calc(75*var(--vh))",
           display: "flex",
           flexDirection: "column",
         }}
@@ -5620,7 +5617,7 @@ function CauldronPanel({
           border: "1px solid rgba(94,234,212,0.45)",
           borderBottom: "none",
           boxShadow: "0 -8px 40px rgba(0,0,0,0.7), 0 0 30px rgba(45,212,191,0.18)",
-          maxHeight: "55vh",
+          maxHeight: "calc(55*var(--vh))",
         }}
       >
         <button
@@ -5718,7 +5715,7 @@ function CauldronPanel({
             {isFull ? "cauldron full · clear to add more" : "tap or drag to add"}
           </span>
         </div>
-        <div className="overflow-y-auto" style={{ maxHeight: "28vh" }}>
+        <div className="overflow-y-auto" style={{ maxHeight: "calc(28*var(--vh))" }}>
           {ingredients.length === 0 ? (
             <p className="font-fantasy text-xs text-center py-6" style={{ color: "#5eead466" }}>
               You don't have any ingredients yet.

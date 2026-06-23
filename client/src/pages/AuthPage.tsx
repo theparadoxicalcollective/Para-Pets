@@ -378,7 +378,7 @@ export default function AuthPage() {
             <div className="relative mb-5 text-center">
               <span className="title-sparkle absolute -top-3 -left-4 text-base select-none" style={{ animationDelay: "0s" }}>✦</span>
               <span className="title-sparkle absolute -top-3 -right-4 text-base select-none" style={{ animationDelay: "1s" }}>✦</span>
-              <h1 className="para-pets-title select-none" style={{ fontSize: "clamp(1.9rem, 9vw, 2.9rem)" }}>Para Pets</h1>
+              <h1 className="para-pets-title select-none" style={{ fontSize: "clamp(1.9rem, calc(9*var(--vw)), 2.9rem)" }}>Para Pets</h1>
             </div>
 
           {/* ── LOGIN / REGISTER PANEL ── */}

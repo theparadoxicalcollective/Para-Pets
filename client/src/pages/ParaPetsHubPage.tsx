@@ -421,7 +421,7 @@ function GameplayShowcase() {
           >
             <div
               onClick={e => e.stopPropagation()}
-              style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, maxWidth: "92vw" }}
+              style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, maxWidth: "calc(92*var(--vw))" }}
             >
               <img
                 src={ls.img}
@@ -429,7 +429,7 @@ function GameplayShowcase() {
                 data-testid="lightbox-image"
                 style={{
                   maxWidth: "100%",
-                  maxHeight: "78vh",
+                  maxHeight: "calc(78*var(--vh))",
                   objectFit: "contain",
                   borderRadius: 26,
                   border: `2px solid ${ls.accent}50`,
@@ -1391,7 +1391,7 @@ export default function ParaPetsHubPage() {
           <h1
             className="font-fantasy tracking-widest select-none relative"
             style={{
-              fontSize: "clamp(2.4rem, 11vw, 3.6rem)",
+              fontSize: "clamp(2.4rem, calc(11*var(--vw)), 3.6rem)",
               color: "#f0d060",
               textShadow: "0 0 28px rgba(212,168,67,0.65), 0 0 56px rgba(212,168,67,0.25), 0 4px 18px rgba(0,0,0,0.9)",
               letterSpacing: "0.18em",

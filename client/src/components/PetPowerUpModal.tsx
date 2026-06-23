@@ -442,7 +442,7 @@ export default function PetPowerUpModal({
           data-testid="zone-pet-drop"
           className="relative flex items-center justify-center transition-all duration-300 w-full overflow-visible"
           style={{
-            height: "min(340px, 42svh)",
+            height: "min(340px, calc(42*var(--vh)))",
             borderRadius: 20,
             background: dragOverPet
               ? `radial-gradient(ellipse at center, rgba(134,239,172,0.18) 0%, rgba(0,0,0,0.3) 100%)`

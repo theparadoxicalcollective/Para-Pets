@@ -131,7 +131,7 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
           background: "linear-gradient(135deg, rgba(20,10,3,0.98) 0%, rgba(50,28,8,0.98) 100%)",
           border: "1px solid rgba(212,160,23,0.5)",
           boxShadow: "0 8px 40px rgba(0,0,0,0.8), 0 0 80px rgba(192,132,252,0.1)",
-          maxHeight: "80vh",
+          maxHeight: "calc(80*var(--vh))",
         }}
       >
         <button
@@ -188,7 +188,7 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
             </div>
           )}
 
-          <div className="overflow-y-auto" style={{ maxHeight: "50vh" }}>
+          <div className="overflow-y-auto" style={{ maxHeight: "calc(50*var(--vh))" }}>
             {isLoading ? (
               <div className="text-center py-8">
                 <p className="font-fantasy text-[#c084fc] text-sm animate-pulse">Revealing gifts...</p>

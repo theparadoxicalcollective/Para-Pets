@@ -250,7 +250,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           border: "1.5px solid rgba(212,165,30,0.70)",
           borderBottom: "1.5px solid rgba(212,165,30,0.40)",
           boxShadow: `0 -4px 60px rgba(0,0,0,0.9), 0 0 80px rgba(30,90,45,0.25), 0 0 24px rgba(212,165,30,0.18), 0 0 40px ${rc.glow.replace("0.55", "0.08")}`,
-          maxHeight: "90vh",
+          maxHeight: "calc(90*var(--vh))",
         }}
       >
         {/* ── Portrait + name (open, no box header) ──────────────── */}
@@ -1095,7 +1095,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
               border: `1px solid ${rc.primary}33`,
               borderBottom: "none",
               boxShadow: `0 -4px 60px rgba(0,0,0,0.9), 0 0 40px ${rc.dim}`,
-              maxHeight: "82vh",
+              maxHeight: "calc(82*var(--vh))",
             }}
           >
             {/* Header */}

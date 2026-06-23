@@ -2263,7 +2263,7 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
             style={{
               background: "linear-gradient(180deg, #0d1520 0%, #060c14 100%)",
               border: "1px solid rgba(100,160,210,0.3)",
-              maxHeight: "80dvh",
+              maxHeight: "calc(80*var(--vh))",
             }}
           >
             <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: "1px solid rgba(100,160,210,0.12)" }}>

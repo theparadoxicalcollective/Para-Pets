@@ -1221,7 +1221,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         >
           <div style={{
             position: "relative",
-            width: "min(340px, 90vw)",
+            width: "min(340px, calc(90*var(--vw)))",
             background: "linear-gradient(160deg, #050f07 0%, #0a1f0d 40%, #081808 70%, #040d05 100%)",
             border: "1.5px solid rgba(127,255,212,0.45)",
             borderRadius: "20px",

@@ -890,7 +890,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           <div
             ref={petContainerRef}
             className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]"
-            style={{ marginBottom: activePet ? "26svh" : undefined }}
+            style={{ marginBottom: activePet ? "calc(26*var(--vh))" : undefined }}
           >
 
             {/* Rarity sparkle lights (3/4/5 star) — gated until container has real height */}
@@ -1138,11 +1138,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                             <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
                           </div>
                         ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
-                          <div style={{ paddingTop: "8vh", width: "100%" }}>
+                          <div style={{ paddingTop: "calc(8*var(--vh))", width: "100%" }}>
                             <img
                               src={activePet.hatchedImageUrl || activePet.imageUrl || ""}
                               alt={activePet.name}
-                              className="w-full max-h-[58vh] object-contain"
+                              className="w-full max-h-[calc(58*var(--vh))] object-contain"
                               style={{
                                 animation: "activePetBreath 3.5s ease-in-out infinite, petImgBlink 4s ease-in-out infinite",
                                 transformOrigin: "center bottom",
@@ -1174,11 +1174,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                           }}
                         >
                           {activePet.eggImageUrl ? (
-                            <div style={{ paddingTop: "6vh", width: "100%", display: "flex", justifyContent: "center" }}>
+                            <div style={{ paddingTop: "calc(6*var(--vh))", width: "100%", display: "flex", justifyContent: "center" }}>
                               <img
                                 src={activePet.eggImageUrl}
                                 alt={activePet.name}
-                                className="w-full max-h-[55vh] object-contain"
+                                className="w-full max-h-[calc(55*var(--vh))] object-contain"
                                 style={{
                                   animation: "petImgIdle 3.5s ease-in-out infinite",
                                   transformOrigin: "center bottom",
@@ -1259,7 +1259,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         </div>
 
         {activePet && (
-          <div className="relative z-10 flex-shrink-0 flex flex-col items-center gap-1 px-4" style={{ position: "fixed", bottom: "11vh", left: "50%", transform: "translateX(-50%)", zIndex: 20 }}>
+          <div className="relative z-10 flex-shrink-0 flex flex-col items-center gap-1 px-4" style={{ position: "fixed", bottom: "calc(11*var(--vh))", left: "50%", transform: "translateX(-50%)", zIndex: 20 }}>
             <div
               className="px-5 py-1.5 rounded-lg"
               style={{ background: "rgba(0,0,0,0.65)", border: "1px solid rgba(212,160,23,0.4)", backdropFilter: "blur(6px)", boxShadow: "0 2px 12px rgba(0,0,0,0.4)" }}
@@ -1337,7 +1337,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               border: "1px solid rgba(240,192,64,0.3)",
               borderBottom: "none",
               boxShadow: "0 -10px 50px rgba(0,0,0,0.7)",
-              maxHeight: "82vh",
+              maxHeight: "calc(82*var(--vh))",
               overflowY: "auto",
             }}
           >
@@ -1482,7 +1482,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           <div
             className="relative"
             style={{
-              width: "min(92vw, 520px)",
+              width: "min(calc(92*var(--vw)), 520px)",
               aspectRatio: "1 / 1",
               backgroundImage: `url(${petActionRingImg})`,
               backgroundSize: "contain",
@@ -2033,7 +2033,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               background: "linear-gradient(160deg, rgba(12,8,2,0.99) 0%, rgba(8,5,1,0.99) 100%)",
               border: "1.5px solid rgba(212,160,23,0.45)",
               boxShadow: "0 0 50px rgba(212,160,23,0.1), 0 8px 32px rgba(0,0,0,0.7)",
-              maxHeight: "90vh",
+              maxHeight: "calc(90*var(--vh))",
               overflowY: "auto",
             }}
           >

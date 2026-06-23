@@ -1920,7 +1920,7 @@ function PondAdminPanel({
       <div className="relative z-10 w-[90%] max-w-sm rounded-xl overflow-hidden" style={{
         background: "linear-gradient(135deg, rgba(8,25,18,0.98), rgba(5,15,10,0.98))",
         border: `1px solid ${accent}50`,
-        maxHeight: "80vh",
+        maxHeight: "calc(80*var(--vh))",
       }}>
         <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${accent}20` }}>
           <div className="flex flex-col">
@@ -1933,7 +1933,7 @@ function PondAdminPanel({
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="overflow-y-auto p-3" style={{ maxHeight: "65vh" }}>
+        <div className="overflow-y-auto p-3" style={{ maxHeight: "calc(65*var(--vh))" }}>
           {pondFish.length > 0 && (
             <div className="mb-3">
               <p className="font-fantasy text-[9px] tracking-wider mb-2" style={{ color: `${accent}70` }}>CURRENT STOCK</p>

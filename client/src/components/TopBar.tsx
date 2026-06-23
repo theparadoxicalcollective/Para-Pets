@@ -125,7 +125,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                         className="w-full h-full flex items-center justify-center"
                         style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}
                       >
-                        <span className="font-fantasy text-[#d4a017] font-bold" style={{ fontSize: "clamp(18px, 5.5vw, 26px)" }}>
+                        <span className="font-fantasy text-[#d4a017] font-bold" style={{ fontSize: "clamp(18px, calc(5.5*var(--vw)), 26px)" }}>
                           {(user.username ?? "?").charAt(0).toUpperCase()}
                         </span>
                       </div>
@@ -201,8 +201,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                       position: "absolute",
                       top: "calc(100% + 6px)",
                       left: 0,
-                      width: "min(270px, calc(100vw - 16px))",
-                      maxHeight: "65vh",
+                      width: "min(270px, calc(calc(100*var(--vw)) - 16px))",
+                      maxHeight: "calc(65*var(--vh))",
                       overflowY: "auto",
                       zIndex: 99999,
                       background: "linear-gradient(160deg, rgba(20,10,4,0.98) 0%, rgba(40,22,8,0.98) 100%)",
@@ -287,7 +287,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
               >
                 <p
                   className="font-fantasy text-[#f0c040] font-semibold tracking-widest truncate"
-                  style={{ textShadow: "0 0 10px rgba(240,192,64,0.6)", fontSize: "clamp(11px, 3.2vw, 15px)" }}
+                  style={{ textShadow: "0 0 10px rgba(240,192,64,0.6)", fontSize: "clamp(11px, calc(3.2*var(--vw)), 15px)" }}
                   data-testid="text-username"
                 >
                   {user.username}
@@ -312,7 +312,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 />
                 <span
                   className="font-fantasy text-[#f0c040] font-semibold"
-                  style={{ fontSize: "clamp(11px, 3.2vw, 15px)" }}
+                  style={{ fontSize: "clamp(11px, calc(3.2*var(--vw)), 15px)" }}
                   data-testid="text-coins"
                 >
                   {user.coins}

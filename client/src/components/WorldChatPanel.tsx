@@ -150,8 +150,8 @@ export default function WorldChatPanel({ currentUserId, isAdmin, isModerator, on
       style={{
         top: 56,
         right: 12,
-        width: "min(320px, calc(100vw - 24px))",
-        height: "min(420px, 58vh)",
+        width: "min(320px, calc(calc(100*var(--vw)) - 24px))",
+        height: "min(420px, calc(58*var(--vh)))",
         borderRadius: 16,
         background: "linear-gradient(160deg, rgba(8,4,2,0.97) 0%, rgba(22,12,4,0.97) 100%)",
         border: "1.5px solid rgba(240,192,64,0.35)",

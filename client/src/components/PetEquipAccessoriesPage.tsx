@@ -314,7 +314,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         <div className="w-full flex items-center justify-center pt-6 pb-3">
           <div
             style={{
-              width: "min(65vw, 220px)",
+              width: "min(calc(65*var(--vw)), 220px)",
               aspectRatio: "1 / 1",
               position: "relative",
               display: "flex",

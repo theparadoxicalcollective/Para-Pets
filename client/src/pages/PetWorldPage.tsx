@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, X, Trash2, FlipHorizontal, Palette, MapPin, Minus, Store, DoorOpen, Package } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import { playShopBell, playChime, playTick } from "@/lib/sounds";
+import { DESIGN_W, DESIGN_H, getStageScale } from "@/lib/stage";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import priceTagImg from "@assets/price_tag.png";
 import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
@@ -108,21 +109,16 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const [mapH, setMapH]         = useState(MAP_H_DEFAULT);
   const mapHRef                 = useRef(MAP_H_DEFAULT);
 
-  // Dynamic frame dimensions — update when the viewport is resized.
-  const frameWRef = useRef(window.innerWidth);
-  const frameHRef = useRef(window.innerHeight);
-  const [frameW, setFrameW] = useState(window.innerWidth);
-  const [frameH, setFrameH] = useState(window.innerHeight);
-  useEffect(() => {
-    const onResize = () => {
-      frameWRef.current = window.innerWidth;
-      frameHRef.current = window.innerHeight;
-      setFrameW(window.innerWidth);
-      setFrameH(window.innerHeight);
-    };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+  // Frame dimensions are the fixed phone-frame design size (#game-stage in
+  // App.tsx scales the whole frame uniformly to fit the device). The map must
+  // be laid out in this design space, NOT the real window, so it fills the
+  // frame identically on every device.
+  const FRAME_W = DESIGN_W;
+  const FRAME_H = DESIGN_H;
+  const frameWRef = useRef(FRAME_W);
+  const frameHRef = useRef(FRAME_H);
+  const [frameW] = useState(FRAME_W);
+  const [frameH] = useState(FRAME_H);
   const mapTransformRef         = useRef({ x: 0, y: 0, scale: 1 });
   const mapPanPointersRef       = useRef(new Map<number, { x: number; y: number }>());
   const mapPanStartRef          = useRef<{ x: number; y: number; mapX: number; mapY: number } | null>(null);
@@ -1090,7 +1086,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     if (!mapPanStartRef.current || !mapPanPointersRef.current.has(e.pointerId)) return;
     mapPanPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     // Horizontal drag only — ignore vertical delta
-    const dx = e.clientX - mapPanStartRef.current.x;
+    const dx = (e.clientX - mapPanStartRef.current.x) / getStageScale();
     if (!mapPanningRef.current && Math.abs(dx) > 4) mapPanningRef.current = true;
     if (mapPanningRef.current) applyMapTransform(mapPanStartRef.current.mapX + dx, 0, 1);
   }, [applyMapTransform]);
@@ -1194,10 +1190,10 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     const img = new Image();
     img.onload = () => {
       bgNaturalSizeRef.current = { w: img.naturalWidth, h: img.naturalHeight };
-      // bgRenderedH = window.innerHeight (container fills full viewport height)
+      // bgRenderedH = FRAME_H (container fills the full frame height)
       // bgRenderedW = natural aspect ratio × rendered height
       if (img.naturalHeight > 0) {
-        setBgRenderedW((img.naturalWidth / img.naturalHeight) * window.innerHeight);
+        setBgRenderedW((img.naturalWidth / img.naturalHeight) * FRAME_H);
       }
     };
     img.src = door.bgUrl;
@@ -1224,16 +1220,21 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   }, [user.isAdmin]);
 
   const handleDoorDecorPointerMove = useCallback((e: React.PointerEvent) => {
-    // Background pan (anyone)
+    // Background pan (anyone). bgPanX is applied as CSS px inside the scaled
+    // #game-stage, i.e. design px — so convert the (scaled) rect + pointer delta
+    // back into design px via the stage scale, keeping the pan finger-locked.
     if (bgPanDragRef.current && interiorRef.current) {
+      const s = getStageScale();
       const containerRect = interiorRef.current.getBoundingClientRect();
+      const cw = containerRect.width / s;
+      const ch = containerRect.height / s;
       const nat = bgNaturalSizeRef.current;
       // Compute the image's rendered width at height=100% from natural dimensions
       const renderedW = nat && nat.h > 0
-        ? (nat.w / nat.h) * containerRect.height
-        : containerRect.width;
-      const maxPan = Math.max(0, renderedW - containerRect.width);
-      const dx = bgPanDragRef.current.startX - e.clientX;
+        ? (nat.w / nat.h) * ch
+        : cw;
+      const maxPan = Math.max(0, renderedW - cw);
+      const dx = (bgPanDragRef.current.startX - e.clientX) / s;
       const newPan = Math.max(0, Math.min(maxPan, bgPanDragRef.current.startPan + dx));
       bgPanXRef.current = newPan;
       setBgPanX(newPan);
@@ -1845,7 +1846,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               >
                 <p
                   className="font-fantasy text-[#f0c040] font-semibold tracking-widest truncate"
-                  style={{ textShadow: "0 0 10px rgba(240,192,64,0.6)", fontSize: "clamp(9px, 2.5vw, 11px)" }}
+                  style={{ textShadow: "0 0 10px rgba(240,192,64,0.6)", fontSize: "clamp(9px, calc(2.5*var(--vw)), 11px)" }}
                   data-testid="text-kc-username"
                 >
                   {me?.username ?? ""}
@@ -1864,7 +1865,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                 <img src={coinIconImg} alt="Coins" style={{ width: 14, height: 14, objectFit: "contain", filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }} />
                 <span
                   className="font-fantasy text-[#f0c040] font-semibold"
-                  style={{ fontSize: "clamp(9px, 2.5vw, 11px)" }}
+                  style={{ fontSize: "clamp(9px, calc(2.5*var(--vw)), 11px)" }}
                   data-testid="text-kc-coins"
                 >
                   {me?.coins ?? 0}
@@ -2018,7 +2019,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             border: `1.5px solid ${ACCENT}28`,
             borderRadius: "20px 20px 0 0",
             boxShadow: "0 -4px 40px rgba(0,0,0,0.8), 0 0 30px rgba(127,255,212,0.06)",
-            maxHeight: "72vh",
+            maxHeight: "calc(72*var(--vh))",
             display: "flex", flexDirection: "column",
           }}
         >
@@ -2174,7 +2175,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             bottom: 0,
             left: 0,
             right: 0,
-            maxHeight: "58vh",
+            maxHeight: "calc(58*var(--vh))",
             background: "linear-gradient(180deg, rgba(4,10,6,0.97) 0%, rgba(6,14,7,0.99) 100%)",
             borderTop: `1.5px solid ${ACCENT}50`,
             borderLeft: `1.5px solid ${ACCENT}30`,
@@ -2341,7 +2342,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         <div
           className="fixed z-[10000] flex flex-col"
           style={{
-            bottom: 0, left: 0, right: 0, maxHeight: "58vh",
+            bottom: 0, left: 0, right: 0, maxHeight: "calc(58*var(--vh))",
             background: "linear-gradient(180deg, rgba(8,7,2,0.97) 0%, rgba(12,10,3,0.99) 100%)",
             borderTop: "1.5px solid #d4a01750",
             borderLeft: "1.5px solid #d4a01730",
@@ -2465,7 +2466,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           <div
             className="fixed z-[10000] flex flex-col"
             style={{
-              bottom: 0, left: 0, right: 0, maxHeight: "68vh",
+              bottom: 0, left: 0, right: 0, maxHeight: "calc(68*var(--vh))",
               background: "linear-gradient(180deg, rgba(6,4,1,0.97) 0%, rgba(10,7,2,0.99) 100%)",
               borderTop: `1.5px solid ${glow}50`,
               borderLeft: `1.5px solid ${glow}30`,
@@ -2548,7 +2549,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
         <div
           className="fixed z-[10000] flex flex-col"
           style={{
-            bottom: 0, left: 0, right: 0, maxHeight: "55vh",
+            bottom: 0, left: 0, right: 0, maxHeight: "calc(55*var(--vh))",
             background: `linear-gradient(180deg, rgba(4,10,6,0.97) 0%, rgba(6,14,7,0.99) 100%)`,
             borderTop: `1.5px solid ${ACCENT}50`,
             borderLeft: `1.5px solid ${ACCENT}30`,
@@ -2799,7 +2800,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               return (
                 <div style={{
                   position: "absolute", bottom: 0, left: 0, right: 0,
-                  height: "62vh",
+                  height: "calc(62*var(--vh))",
                   display: "flex", flexDirection: "column",
                   zIndex: 30,
                   pointerEvents: "auto",
@@ -3030,7 +3031,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             <div className="absolute inset-0 bg-black/70" onClick={() => { setSelectedDoorShopItem(null); setDoorBuyStep(0); setDoorBuyError(null); setDoorBuyQty(1); }} />
             <div className="relative z-10 flex flex-col items-center" style={{ gap: 14 }}>
               {/* Price tag */}
-              <div className="relative" style={{ width: "min(115vw, 115vh)", height: "min(115vw, 115vh)" }}>
+              <div className="relative" style={{ width: "min(calc(115*var(--vw)), calc(115*var(--vh)))", height: "min(calc(115*var(--vw)), calc(115*var(--vh)))" }}>
                 <img src={priceTagImg} alt="" className="absolute inset-0 w-full h-full pointer-events-none select-none" style={{ objectFit: "fill", filter: "drop-shadow(0 14px 36px rgba(0,0,0,0.95)) drop-shadow(0 3px 8px rgba(0,0,0,0.7))" }} />
                 {/* Item image */}
                 {doorBuyStep === 1 && (
@@ -3086,7 +3087,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               </div>
               {/* Buy button — step 1 */}
               {doorBuyStep === 1 && (
-                <div className="flex flex-col items-center" style={{ gap: 4, maxWidth: "90vw", width: "100%" }}>
+                <div className="flex flex-col items-center" style={{ gap: 4, maxWidth: "calc(90*var(--vw))", width: "100%" }}>
                   <button
                     data-testid="button-door-price-buy"
                     onClick={() => { setDoorBuyStep(2); setDoorBuyQty(1); }}
@@ -3098,7 +3099,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
               )}
               {/* Confirm / back — step 2 */}
               {doorBuyStep === 2 && (
-                <div className="flex flex-col items-center" style={{ gap: 6, maxWidth: "90vw", width: "100%" }}>
+                <div className="flex flex-col items-center" style={{ gap: 6, maxWidth: "calc(90*var(--vw))", width: "100%" }}>
                   {doorBuyError && (
                     <div className="font-fantasy text-center w-full" style={{ fontSize: 9, padding: "5px 10px", borderRadius: 8, background: "rgba(150,10,10,0.35)", color: "#ffaaaa", border: "1px solid rgba(200,50,50,0.4)" }}>{doorBuyError}</div>
                   )}
@@ -3135,7 +3136,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
             style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowDoorItemPicker(false)} />
             <div
-              className="relative z-10 w-[90%] max-w-sm rounded-lg max-h-[82vh] flex flex-col"
+              className="relative z-10 w-[90%] max-w-sm rounded-lg max-h-[calc(82*var(--vh))] flex flex-col"
               style={{
                 background: "linear-gradient(135deg, rgba(4,10,6,0.98) 0%, rgba(8,18,10,0.98) 100%)",
                 border: `1px solid ${ACCENT}55`,
@@ -3496,7 +3497,7 @@ function PetDetailModal({
           background: "linear-gradient(160deg, #0d1f10 0%, #0a1a0c 50%, #081408 100%)",
           border: "1.5px solid rgba(127,255,212,0.22)",
           boxShadow: "0 8px 48px rgba(0,0,0,0.9), 0 0 60px rgba(127,255,212,0.04), inset 0 1px 0 rgba(127,255,212,0.12)",
-          maxHeight: "86vh",
+          maxHeight: "calc(86*var(--vh))",
         }}
       >
         {/* Top accent line */}

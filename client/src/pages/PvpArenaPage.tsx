@@ -1379,7 +1379,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               background: "linear-gradient(180deg, #0a1810 0%, #040c07 100%)",
               border: "1px solid rgba(74,222,128,0.22)",
               borderBottom: "none",
-              maxHeight: "82vh",
+              maxHeight: "calc(82*var(--vh))",
               display: "flex",
               flexDirection: "column",
             }}
@@ -1781,7 +1781,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-md rounded-t-2xl sm:rounded-2xl flex flex-col"
             style={{
-              maxHeight: "90vh",
+              maxHeight: "calc(90*var(--vh))",
               background: "linear-gradient(180deg, #0a1810 0%, #040c07 100%)",
               border: "1px solid rgba(74,222,128,0.32)",
               boxShadow: "0 18px 50px rgba(0,0,0,0.6), 0 0 28px rgba(74,222,128,0.15)",

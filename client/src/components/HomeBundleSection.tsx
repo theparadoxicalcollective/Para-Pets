@@ -852,7 +852,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           onPointerDown={e => e.stopPropagation()}
         >
           <div className="absolute inset-0 bg-black/70" onClick={() => setShowAddForm(false)} />
-          <div className="relative w-full rounded-t-2xl flex flex-col" style={{ backgroundColor: "#0d0a04", border: `1px solid ${GOLD_BORDER}`, maxHeight: "75dvh" }}>
+          <div className="relative w-full rounded-t-2xl flex flex-col" style={{ backgroundColor: "#0d0a04", border: `1px solid ${GOLD_BORDER}`, maxHeight: "calc(75*var(--vh))" }}>
             <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${GOLD_BORDER}` }}>
               <p className="font-fantasy text-sm tracking-widest" style={{ color: GOLD }}>Add Building</p>
               <button onClick={() => setShowAddForm(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD, cursor: "pointer" }}>
@@ -1034,7 +1034,7 @@ function DecorSubTab() {
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowForm(false)} />
-          <div className="relative w-full rounded-t-2xl flex flex-col" style={{ backgroundColor: "#0d0a04", border: `1px solid ${GOLD_BORDER}`, maxHeight: "85dvh" }}>
+          <div className="relative w-full rounded-t-2xl flex flex-col" style={{ backgroundColor: "#0d0a04", border: `1px solid ${GOLD_BORDER}`, maxHeight: "calc(85*var(--vh))" }}>
             <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${GOLD_BORDER}` }}>
               <p className="font-fantasy text-sm tracking-widest" style={{ color: GOLD }}>Add Decor Item</p>
               <button data-testid="button-close-decor-form" onClick={() => setShowForm(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: GOLD_DIM, border: `1px solid ${GOLD_BORDER}`, color: GOLD, cursor: "pointer" }}><X className="w-4 h-4" /></button>
@@ -1262,7 +1262,7 @@ function BundlesSubTab() {
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
           <div className="absolute inset-0 bg-black/60" onClick={closeForm} />
-          <div className="relative w-full rounded-t-2xl flex flex-col" style={{ backgroundColor: "#0d0a04", border: `1px solid ${GOLD_BORDER}`, maxHeight: "92dvh" }}>
+          <div className="relative w-full rounded-t-2xl flex flex-col" style={{ backgroundColor: "#0d0a04", border: `1px solid ${GOLD_BORDER}`, maxHeight: "calc(92*var(--vh))" }}>
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: `1px solid ${GOLD_BORDER}` }}>
               <p className="font-fantasy text-sm tracking-widest" style={{ color: GOLD }}>{isEditing ? editingBundle!.name : "Add Home Bundle"}</p>

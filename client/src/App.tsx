@@ -10,6 +10,7 @@ import { playClick, unlockAudio } from "@/lib/sounds";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
+import { DESIGN_W, DESIGN_H } from "@/lib/stage";
 import homeBg from "@assets/bg_home_v2.png";
 
 // ── Eagerly imported (always or near-always needed at startup) ──────────────
@@ -625,6 +626,84 @@ function DesktopNotice() {
   );
 }
 
+// ── Cross-device game frame ───────────────────────────────────────────────
+// The whole game is authored at one fixed "phone" design size and uniformly
+// scaled (letterboxed) to fit any screen, so it looks IDENTICAL on every
+// device. iPhone 12 (390×844) renders at scale 1 — pixel-faithful. Larger or
+// differently-shaped screens scale the frame up/down and fill the leftover
+// space with a themed backdrop + gold border. See index.css (#game-stage).
+
+// Marketing / legal pages stay fluid (full-width responsive web pages) and are
+// NOT forced into the phone frame.
+const FLUID_PATHS = ["/hub", "/founders", "/privacy"];
+function isFluidPath(loc: string) {
+  return FLUID_PATHS.includes(loc);
+}
+
+function GameStage({ children }: { children: ReactNode }) {
+  const [location] = useLocation();
+  const fluid = isFluidPath(location);
+
+  useEffect(() => {
+    if (fluid) {
+      document.documentElement.style.removeProperty("--stage-scale");
+      return;
+    }
+    // On iOS Safari the on-screen keyboard fires resize/visualViewport events
+    // and shrinks the viewport. Rescaling the whole frame mid-typing is jarring,
+    // so freeze the scale while an editable element is focused.
+    const isEditing = () => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el) return false;
+      return el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable;
+    };
+    const update = () => {
+      if (isEditing()) return;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const s = Math.min(w / DESIGN_W, h / DESIGN_H);
+      document.documentElement.style.setProperty("--stage-scale", String(s));
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("resize", update);
+    };
+  }, [fluid]);
+
+  if (fluid) {
+    return (
+      <div className="w-full h-[100dvh] overflow-hidden">
+        <div
+          data-phone-frame="true"
+          className="relative w-full h-full overflow-hidden"
+          style={{ isolation: "isolate", transform: "translateZ(0)" }}
+        >
+          {children}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="game-stage-backdrop">
+      <div
+        id="game-stage"
+        data-phone-frame="true"
+        style={{
+          width: DESIGN_W,
+          height: DESIGN_H,
+          transform: "scale(var(--stage-scale, 1))",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function App() {
   useEffect(() => {
     initTabSync();
@@ -744,21 +823,15 @@ function App() {
         <Toaster />
         <CrashReporter />
         <DesktopNotice />
-        {/* Full-screen on every device — no phone-frame overlay */}
-        <div className="w-full h-[100dvh] overflow-hidden">
-          <div
-            data-phone-frame="true"
-            className="relative w-full h-full overflow-hidden"
-            style={{ isolation: "isolate", transform: "translateZ(0)" }}
-          >
-            <RouterErrorBoundary>
-              <AppRouter />
-            </RouterErrorBoundary>
-            <ErrorBoundary fallback={null}>
-              <GlobalLevelUpOverlay />
-            </ErrorBoundary>
-          </div>
-        </div>
+        {/* Fixed phone-frame stage, uniformly scaled to fit any device. */}
+        <GameStage>
+          <RouterErrorBoundary>
+            <AppRouter />
+          </RouterErrorBoundary>
+          <ErrorBoundary fallback={null}>
+            <GlobalLevelUpOverlay />
+          </ErrorBoundary>
+        </GameStage>
       </TooltipProvider>
     </QueryClientProvider>
   );
