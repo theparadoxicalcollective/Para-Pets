@@ -2044,9 +2044,11 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                           <div
                             className="absolute inset-0 pointer-events-none"
                             style={{
-                              background: `radial-gradient(circle, ${glow}45 0%, ${glow}18 45%, transparent 70%)`,
-                              animation: `locGlowPulse ${2.6 + (i * 0.31) % 1.2}s ease-in-out infinite`,
-                              animationDelay: `${(i * 0.38) % 2.2}s`,
+                              background: worldId === "haunted_woods"
+                                ? `radial-gradient(circle, ${glow}18 0%, ${glow}08 45%, transparent 70%)`
+                                : `radial-gradient(circle, ${glow}45 0%, ${glow}18 45%, transparent 70%)`,
+                              animation: worldId === "haunted_woods" ? undefined : `locGlowPulse ${2.6 + (i * 0.31) % 1.2}s ease-in-out infinite`,
+                              animationDelay: worldId === "haunted_woods" ? undefined : `${(i * 0.38) % 2.2}s`,
                               borderRadius: "50%",
                               zIndex: 0,
                             }}
@@ -2055,7 +2057,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                         {(loc.iconUrl || (loc.type === "fishing" && !loc.isShop && worldId === "volcanic")) ? (
                           <div
                             className="w-full h-full"
-                            style={loc.type === "fishing" && !loc.isShop ? { animation: "breathe 3s ease-in-out infinite" } : undefined}
+                            style={loc.type === "fishing" && !loc.isShop && worldId !== "haunted_woods" ? { animation: "breathe 3s ease-in-out infinite" } : undefined}
                           >
                           <img
                             src={loc.type === "fishing" && !loc.isShop && worldId === "volcanic" ? "/world-assets/icon_fishing_volcanic.png" : loc.iconUrl!}
@@ -2093,16 +2095,18 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                             className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                             draggable={false}
                             style={{
-                              filter: `drop-shadow(0 0 5px ${glow}) drop-shadow(0 0 12px ${glow}bb) drop-shadow(0 0 20px ${glow}66)`,
-                              opacity: 0.15,
-                              animation: `locGlowRimPulse ${3.0 + (i * 0.41) % 1.6}s ease-in-out infinite`,
-                              animationDelay: `${(i * 0.57) % 2.8}s`,
+                              filter: worldId === "haunted_woods"
+                                ? `drop-shadow(0 0 3px ${glow}99) drop-shadow(0 0 7px ${glow}55)`
+                                : `drop-shadow(0 0 5px ${glow}) drop-shadow(0 0 12px ${glow}bb) drop-shadow(0 0 20px ${glow}66)`,
+                              opacity: worldId === "haunted_woods" ? 0.22 : 0.15,
+                              animation: worldId === "haunted_woods" ? undefined : `locGlowRimPulse ${3.0 + (i * 0.41) % 1.6}s ease-in-out infinite`,
+                              animationDelay: worldId === "haunted_woods" ? undefined : `${(i * 0.57) % 2.8}s`,
                               zIndex: 11,
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
                             }}
                           />
-                          {/* Floating bubbles — fishing spots only (not shop buildings) */}
-                          {loc.type === "fishing" && !loc.isShop && (
+                          {/* Floating bubbles — fishing spots only (not shop buildings), not in haunted_woods */}
+                          {loc.type === "fishing" && !loc.isShop && worldId !== "haunted_woods" && (
                             <div style={{ position: "absolute", inset: 0, zIndex: 50, pointerEvents: "none", overflow: "visible" }}>
                               {([
                                 { left: "22%", bottom: "26%", size: 5, dur: "5.5s", delay: "0.0s" },
