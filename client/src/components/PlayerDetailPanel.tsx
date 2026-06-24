@@ -17,6 +17,7 @@ interface PlayerDetailPanelProps {
   currentUserId?: string;
   onClose: () => void;
   pvpStats?: PvpStats;
+  onRemoveFriend?: () => void;
 }
 
 interface ActivePet {
@@ -86,7 +87,7 @@ function StatPill({ label, value, color }: { label: string; value: number; color
   );
 }
 
-export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpStats }: PlayerDetailPanelProps) {
+export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpStats, onRemoveFriend }: PlayerDetailPanelProps) {
   const { toast } = useToast();
   const isSelf = !!currentUserId && currentUserId === userId;
   const [comingSoon, setComingSoon] = useState(false);
@@ -162,7 +163,23 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/friends/status", userId] });
       queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
       refetchStatus();
+      if (onRemoveFriend) onRemoveFriend();
+    },
+  });
+
+  const removeFriendMutation = useMutation({
+    mutationFn: () => apiRequest("DELETE", `/api/friends/${userId}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/status", userId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
+      toast({ title: "Friend removed" });
+      if (onRemoveFriend) onRemoveFriend();
+    },
+    onError: () => {
+      toast({ title: "Failed to remove friend", variant: "destructive" });
     },
   });
 
@@ -458,6 +475,27 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                   <img src={petHouseIcon} alt="" style={{ width: 20, height: 20, objectFit: "contain", opacity: 0.85 }} />
                   Visit Pet Home
                 </button>
+
+                {/* Remove Friend — only shown from the Friends page when already friends */}
+                {onRemoveFriend && friendStatus?.status === "accepted" && (
+                  <button
+                    data-testid="button-remove-friend"
+                    onClick={() => removeFriendMutation.mutate()}
+                    disabled={removeFriendMutation.isPending}
+                    style={{
+                      width: "100%", padding: "10px 0", borderRadius: 10,
+                      background: "rgba(60,10,10,0.55)",
+                      border: "1.5px solid rgba(248,113,113,0.35)",
+                      color: "#f87171",
+                      fontFamily: "Lora, serif", fontSize: 12, letterSpacing: "0.1em",
+                      cursor: removeFriendMutation.isPending ? "default" : "pointer",
+                      WebkitTapHighlightColor: "transparent",
+                      opacity: removeFriendMutation.isPending ? 0.5 : 1,
+                    }}
+                  >
+                    {removeFriendMutation.isPending ? "Removing…" : "Remove Friend"}
+                  </button>
+                )}
               </div>
             )}
           </div>
