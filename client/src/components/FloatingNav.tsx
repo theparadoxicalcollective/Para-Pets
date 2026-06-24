@@ -159,6 +159,14 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     refetchOnWindowFocus: true,
   });
 
+  // ── Friend-request count ──────────────────────────────────────────────────
+  const { data: friendReqData } = useQuery<{ count: number }>({
+    queryKey: ["/api/friends/requests/count"],
+    staleTime: 30000,
+    refetchInterval: 60000,
+    refetchOnWindowFocus: true,
+  });
+
 
   const seenMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/quests/daily/seen", {}),
@@ -215,6 +223,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     : (hasCompletedUnclaimed || tutorialClaimable)
     ? "gold"
     : null;
+
+  const friendBadge: "green" | null = (friendReqData?.count ?? 0) > 0 ? "green" : null;
 
   const handleLeft = (id: string) => {
     closeAll();
@@ -347,6 +357,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
               translateX={0}
               translateY={-(spacing * (i + 1))}
               locked={isLocked}
+              badge={item.id === "friends" ? friendBadge : null}
               onClick={() => handleRight(item.id)}
               testId={`nav-item-${item.id}`}
             />
@@ -386,16 +397,16 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
               data-testid="badge-quest-notification"
               style={{
                 position: "absolute",
-                top: -4,
-                right: -4,
-                width: 24,
-                height: 24,
+                top: -5,
+                right: -5,
+                width: 28,
+                height: 28,
                 borderRadius: "50%",
                 background: questBadge === "green"
                   ? "linear-gradient(135deg, #16a34a, #22c55e)"
                   : "linear-gradient(135deg, #b45309, #f0c040)",
                 border: "2.5px solid rgba(0,0,0,0.9)",
-                fontSize: 14,
+                fontSize: 16,
                 fontWeight: "bold",
                 color: questBadge === "green" ? "#fff" : "#1a0a00",
                 display: "flex",
@@ -404,6 +415,32 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                 boxShadow: questBadge === "green"
                   ? "0 0 10px rgba(34,197,94,1), 0 0 20px rgba(34,197,94,0.5)"
                   : "0 0 10px rgba(240,192,64,1), 0 0 18px rgba(240,192,64,0.5)",
+                zIndex: 100,
+                pointerEvents: "none",
+                fontFamily: "'Cinzel', serif",
+              }}
+            >!</span>
+          )}
+          {/* Friend-request badge — green (!) on main button when nav is closed */}
+          {friendBadge && !isOpen && (
+            <span
+              data-testid="badge-friend-request-notification"
+              style={{
+                position: "absolute",
+                top: -5,
+                left: -5,
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #16a34a, #22c55e)",
+                border: "2.5px solid rgba(0,0,0,0.9)",
+                fontSize: 16,
+                fontWeight: "bold",
+                color: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 0 10px rgba(34,197,94,1), 0 0 20px rgba(34,197,94,0.5)",
                 zIndex: 100,
                 pointerEvents: "none",
                 fontFamily: "'Cinzel', serif",
@@ -818,16 +855,16 @@ function NavButton({
         <span
           style={{
             position: "absolute",
-            top: -4,
-            right: -4,
-            width: 24,
-            height: 24,
+            top: -5,
+            right: -5,
+            width: 28,
+            height: 28,
             borderRadius: "50%",
             background: badge === "green"
               ? "linear-gradient(135deg, #16a34a, #22c55e)"
               : "linear-gradient(135deg, #b45309, #f0c040)",
             border: "2.5px solid rgba(0,0,0,0.9)",
-            fontSize: 14,
+            fontSize: 16,
             fontWeight: "bold",
             color: badge === "green" ? "#fff" : "#1a0a00",
             display: "flex",
