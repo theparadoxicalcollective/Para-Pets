@@ -8563,33 +8563,42 @@ export async function registerRoutes(
   // Polls every 5 minutes. Tracks rank per username so position improvements are detected.
   let pvpRankSnapshot = new Map<string, number>();
   let pvpLeaderboardPrimed = false;
+  let pvpMonitorRunning = false;
   setInterval(async () => {
+    if (pvpMonitorRunning) return; // prevent overlapping ticks from duplicating messages
+    pvpMonitorRunning = true;
     try {
       const leaderboard = await storage.getPvpLeaderboard(20);
       const currentSnapshot = new Map<string, number>();
       leaderboard.forEach((entry: any, idx: number) => {
         currentSnapshot.set(entry.username, idx + 1);
       });
+      // Snapshot the previous state and update eagerly so any concurrent
+      // re-entry (shouldn't happen with the lock, but belt-and-suspenders)
+      // sees the latest data.
+      const prevSnapshot = pvpRankSnapshot;
+      pvpRankSnapshot = currentSnapshot;
       if (pvpLeaderboardPrimed) {
         for (const [username, newRank] of currentSnapshot.entries()) {
-          const oldRank = pvpRankSnapshot.get(username);
-          const movedUp = oldRank === undefined ? false : newRank < oldRank;
+          const oldRank = prevSnapshot.get(username);
+          const movedUp = oldRank !== undefined && newRank < oldRank;
           if (!movedUp) continue;
+          if (newRank > 10) continue;
           const entry = leaderboard[newRank - 1] as any;
           if (!entry) continue;
           const fullUser = await storage.getUser(entry.userId).catch(() => null);
           if (fullUser?.watcherShoutoutsEnabled === false) continue;
-          if (newRank > 10) continue;
           const star = newRank <= 3 ? "★ " : "";
           await postWatcherMessage(
             `𖤓 The Watcher observes... ${star}${username} has risen to rank #${newRank} on the PvP leaderboard. A formidable challenger emerges!`
           );
         }
       }
-      pvpRankSnapshot = currentSnapshot;
       pvpLeaderboardPrimed = true;
     } catch (err) {
       console.error("[VW] PvP leaderboard monitor error:", err);
+    } finally {
+      pvpMonitorRunning = false;
     }
   }, 5 * 60 * 1000);
 
