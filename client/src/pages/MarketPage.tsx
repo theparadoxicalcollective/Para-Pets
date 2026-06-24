@@ -205,7 +205,6 @@ function ItemCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
   return (
     <div
       data-testid={`card-market-listing-${listing.id}`}
-      onClick={!isOwn ? () => onDetail?.(listing) : undefined}
       style={{
         background: isPetEgg
           ? "linear-gradient(135deg, rgba(30,10,50,0.95) 0%, rgba(50,20,80,0.95) 100%)"
@@ -219,35 +218,63 @@ function ItemCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
         gap: 6,
         minHeight: 140,
         position: "relative",
-        cursor: !isOwn ? "pointer" : "default",
-        transition: "border-color 0.15s, transform 0.1s",
       }}
     >
       {isPetEgg && (
         <span style={{ position: "absolute", top: 5, left: 6, fontSize: 8, color: "rgba(200,160,255,0.9)", fontFamily: "Georgia, serif", background: "rgba(60,20,100,0.8)", borderRadius: 4, padding: "1px 5px" }}>🥚 Pet Egg</span>
       )}
-      <div style={{ marginTop: isPetEgg ? 10 : 0 }}>
-        {listing.itemImageUrl ? (
-          <img
-            src={listing.itemImageUrl}
-            alt={listing.itemName}
-            style={{ width: 52, height: 52, objectFit: "contain", display: "block" }}
-          />
-        ) : (
-          <div style={{ width: 52, height: 52, background: "rgba(74,222,128,0.07)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <img src={powerupBagIcon} alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
-          </div>
-        )}
-      </div>
-      <span style={{ color: isPetEgg ? "#d4b8ff" : "#c8f0c8", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>{listing.itemName}</span>
-      <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-        <CoinIcon size={11} />
-        <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 11, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
-      </div>
+      <button
+        data-testid={`button-detail-${listing.id}`}
+        onClick={!isOwn ? () => onDetail?.(listing) : undefined}
+        style={{
+          background: "none", border: "none", padding: 0,
+          cursor: !isOwn ? "pointer" : "default",
+          marginTop: isPetEgg ? 10 : 0,
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+          width: "100%",
+        }}
+      >
+        <div>
+          {listing.itemImageUrl ? (
+            <img
+              src={listing.itemImageUrl}
+              alt={listing.itemName}
+              style={{ width: 52, height: 52, objectFit: "contain", display: "block" }}
+            />
+          ) : (
+            <div style={{ width: 52, height: 52, background: "rgba(74,222,128,0.07)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <img src={powerupBagIcon} alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
+            </div>
+          )}
+        </div>
+        <span style={{ color: isPetEgg ? "#d4b8ff" : "#c8f0c8", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>{listing.itemName}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+          <CoinIcon size={11} />
+          <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 11, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
+        </div>
+        <span style={{ color: "rgba(150,200,150,0.4)", fontSize: 8 }}>{listing.sellerName}</span>
+      </button>
       {!isOwn && (
-        <span style={{ color: isPetEgg ? "rgba(200,160,255,0.5)" : "rgba(150,200,150,0.5)", fontSize: 8, textAlign: "center", marginTop: "auto" }}>
-          {isPetEgg ? "Tap to view" : "Tap to buy"}
-        </span>
+        <button
+          data-testid={`button-buy-${listing.id}`}
+          onClick={() => onDetail?.(listing)}
+          style={{
+            marginTop: "auto",
+            width: "100%",
+            background: isPetEgg
+              ? "linear-gradient(135deg, rgba(140,80,220,0.35) 0%, rgba(100,40,180,0.35) 100%)"
+              : "linear-gradient(135deg, rgba(74,222,128,0.3) 0%, rgba(40,160,80,0.3) 100%)",
+            border: `1px solid ${isPetEgg ? "rgba(180,130,255,0.5)" : "rgba(74,222,128,0.5)"}`,
+            borderRadius: 7,
+            padding: "5px 10px",
+            color: isPetEgg ? "#c8a0ff" : "#4ade80",
+            fontFamily: "Georgia, serif",
+            fontSize: 10,
+            cursor: "pointer",
+          }}
+        >
+          {isPetEgg ? "View" : "Buy"}
+        </button>
       )}
     </div>
   );
