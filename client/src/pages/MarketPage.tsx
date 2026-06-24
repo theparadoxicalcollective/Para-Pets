@@ -44,6 +44,7 @@ interface InventoryItem {
   type: string;
   imageUrl: string | null;
   eggImageUrl?: string | null;
+  hatchedImageUrl?: string | null;
   isListed: boolean;
   isHatched: boolean;
   petNickname?: string | null;
@@ -683,10 +684,12 @@ function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFi
               petSellable.length === 0 ? (
                 <p style={{ color: "rgba(150,200,150,0.4)", textAlign: "center", fontFamily: "Georgia, serif", fontSize: 12, padding: "16px 0" }}>No pets to sell</p>
               ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16, maxHeight: 280, overflowY: "auto" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginBottom: 16, maxHeight: 300, overflowY: "auto" }}>
                   {petSellable.map(pet => {
                     const isSelected = selectedId === pet.id && selectedIsPet;
-                    const displayImg = pet.eggImageUrl || pet.imageUrl;
+                    const displayImg = pet.isHatched
+                      ? (pet.hatchedImageUrl || pet.imageUrl)
+                      : (pet.eggImageUrl || pet.imageUrl);
                     return (
                       <button
                         key={pet.id}
@@ -695,20 +698,40 @@ function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFi
                         style={{
                           background: isSelected ? "rgba(140,80,220,0.25)" : "rgba(30,10,50,0.7)",
                           border: `2px solid ${isSelected ? "rgba(180,130,255,0.7)" : "rgba(140,80,200,0.25)"}`,
-                          borderRadius: 10, padding: 8, cursor: "pointer",
-                          display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-                          position: "relative",
+                          borderRadius: 10, padding: "8px 10px", cursor: "pointer",
+                          display: "flex", flexDirection: "row", alignItems: "center", gap: 10,
+                          position: "relative", textAlign: "left",
                         }}
                       >
-                        {displayImg ? (
-                          <img src={displayImg} alt={pet.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
-                        ) : (
-                          <div style={{ width: 44, height: 44, background: "rgba(140,80,220,0.15)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🥚</div>
-                        )}
-                        <span style={{ color: "#d4b8ff", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>
-                          {pet.petNickname || pet.name}
-                        </span>
-                        <span style={{ position: "absolute", top: 3, right: 3, fontSize: 7, color: "rgba(180,130,255,0.8)" }}>🥚</span>
+                        {/* Pet image */}
+                        <div style={{ flexShrink: 0, width: 52, height: 52, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          {displayImg ? (
+                            <img src={displayImg} alt={pet.name} style={{ width: 52, height: 52, objectFit: "contain" }} />
+                          ) : (
+                            <div style={{ width: 52, height: 52, background: "rgba(140,80,220,0.15)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🥚</div>
+                          )}
+                        </div>
+
+                        {/* Name + stats */}
+                        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+                          <span style={{ color: "#d4b8ff", fontSize: 10, fontFamily: "Georgia, serif", lineHeight: 1.2, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {pet.petNickname || pet.name}
+                          </span>
+                          {pet.isHatched ? (
+                            <>
+                              <span style={{ color: "rgba(192,132,252,0.7)", fontSize: 9, fontFamily: "Georgia, serif" }}>
+                                Lv.{pet.petLevel ?? 1}
+                              </span>
+                              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                                <span style={{ fontSize: 8, color: "#f87171", fontFamily: "Georgia, serif" }}>HP {pet.petHealth ?? "—"}</span>
+                                <span style={{ fontSize: 8, color: "#fb923c", fontFamily: "Georgia, serif" }}>ATK {pet.petAtk ?? "—"}</span>
+                                <span style={{ fontSize: 8, color: "#60a5fa", fontFamily: "Georgia, serif" }}>DEF {pet.petDef ?? "—"}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <span style={{ fontSize: 8, color: "rgba(180,130,255,0.55)", fontFamily: "Georgia, serif" }}>🥚 Egg</span>
+                          )}
+                        </div>
                       </button>
                     );
                   })}
@@ -722,10 +745,10 @@ function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFi
           <div style={{ marginBottom: 16 }}>
             <p style={{ color: "rgba(150,200,150,0.8)", fontSize: 11, marginBottom: 8 }}>
               Selling: <span style={{ color: selectedIsPet ? "#c8a0ff" : "#4ade80", fontWeight: 700 }}>
-                {selectedName}{selectedIsPet ? " (Pet Egg)" : ""}
+                {selectedName}{selectedIsPet && !selectedPet?.isHatched ? " (Egg)" : ""}
               </span>
             </p>
-            {selectedIsPet && (
+            {selectedIsPet && selectedPet?.isHatched && (
               <p style={{ color: "rgba(180,140,255,0.6)", fontSize: 10, fontFamily: "Georgia, serif", fontStyle: "italic", marginBottom: 8 }}>
                 Pet will be reverted to egg before listing.
               </p>
