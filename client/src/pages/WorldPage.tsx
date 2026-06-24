@@ -1675,12 +1675,12 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           50% { opacity: 0.80; }
         }
         @keyframes hwGlowOrb {
-          0%, 100% { opacity: 0.10; transform: scale(0.88); }
-          50% { opacity: 0.28; transform: scale(1.04); }
+          0%, 100% { opacity: 0.06; transform: scale(0.88); }
+          50% { opacity: 0.45; transform: scale(1.06); }
         }
         @keyframes hwRimPulse {
-          0%, 100% { opacity: 0.08; }
-          50% { opacity: 0.30; }
+          0%, 100% { opacity: 0.04; }
+          50% { opacity: 0.42; }
         }
         @keyframes ffloat0 {
           0%,100% { transform: translate(0,0) scale(1); opacity: 0.7; }
@@ -2055,7 +2055,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                             className="absolute inset-0 pointer-events-none"
                             style={{
                               background: worldId === "haunted_woods"
-                                ? `radial-gradient(circle, ${glow}22 0%, ${glow}0c 45%, transparent 70%)`
+                                ? `radial-gradient(circle, ${glow}88 0%, ${glow}33 45%, transparent 70%)`
                                 : `radial-gradient(circle, ${glow}45 0%, ${glow}18 45%, transparent 70%)`,
                               animation: worldId === "haunted_woods"
                                 ? `hwGlowOrb ${4.0 + (i * 0.5) % 1.5}s ease-in-out infinite`
