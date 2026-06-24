@@ -2742,6 +2742,59 @@ export async function registerRoutes(
   });
 
   // ── Pet egg details for market info popup ──
+  app.get("/api/market/listing/:listingId/item-details", isAuthenticated, async (req, res) => {
+    try {
+      const listing = await storage.getMarketListing(req.params.listingId as string);
+      if (!listing) return res.status(404).json({ message: "Listing not found" });
+      const invItem = await storage.getInventoryItemById(listing.inventoryId);
+      if (!invItem) return res.status(404).json({ message: "Inventory item not found" });
+      const shopItem = await storage.getShopItem(invItem.shopItemId);
+      if (!shopItem) return res.status(404).json({ message: "Shop item not found" });
+
+      const effects: string[] = [];
+      const type = shopItem.type;
+      if (type === "power_up") {
+        if (shopItem.statBoostType && shopItem.statBoostAmount) {
+          const label = shopItem.statBoostType === "health" ? "HP"
+            : shopItem.statBoostType === "atk" ? "ATK"
+            : shopItem.statBoostType === "def" ? "DEF"
+            : String(shopItem.statBoostType).toUpperCase();
+          effects.push(`+${shopItem.statBoostAmount} ${label}`);
+        }
+      } else if (type === "edibles") {
+        if (shopItem.statBoostAmount) effects.push(`+${shopItem.statBoostAmount} Feed pts`);
+      } else if (type === "potion") {
+        if (shopItem.healthRestored) effects.push(`+${shopItem.healthRestored} HP restored`);
+        if ((shopItem as any).manaRestored) effects.push(`+${(shopItem as any).manaRestored} MP restored`);
+        if (shopItem.petsRevived) effects.push(`Revives ${shopItem.petsRevived} pet${shopItem.petsRevived > 1 ? "s" : ""}`);
+      } else if (type === "special") {
+        if (shopItem.specialType === "hatch_time" && shopItem.specialAmount) {
+          effects.push(`−${shopItem.specialAmount} min hatch time`);
+        } else if (shopItem.specialType === "level" && shopItem.specialAmount) {
+          effects.push(`+${shopItem.specialAmount} Level pts`);
+        } else if (shopItem.specialType) {
+          effects.push(shopItem.specialType);
+        }
+      } else if (type === "accessory") {
+        if ((shopItem as any).atkBoost) effects.push(`+${(shopItem as any).atkBoost} ATK`);
+        if ((shopItem as any).defBoost) effects.push(`+${(shopItem as any).defBoost} DEF`);
+        if ((shopItem as any).healthBoost) effects.push(`+${(shopItem as any).healthBoost} HP`);
+      } else if (type === "fishing" || (shopItem as any).fishingType === "bait") {
+        if ((shopItem as any).rarityBoostPercent) effects.push(`+${(shopItem as any).rarityBoostPercent}% rare catch chance`);
+      }
+
+      return res.json({
+        name: shopItem.name,
+        imageUrl: listing.itemImageUrl,
+        type: listing.itemType,
+        effects,
+        description: (shopItem as any).description ?? null,
+      });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to fetch item details" });
+    }
+  });
+
   app.get("/api/market/listing/:listingId/pet-details", isAuthenticated, async (req, res) => {
     try {
       const listing = await storage.getMarketListing((req.params.listingId as string));

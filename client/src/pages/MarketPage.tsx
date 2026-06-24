@@ -71,6 +71,14 @@ interface PetEggDetails {
   def: number;
 }
 
+interface ItemDetails {
+  name: string;
+  imageUrl: string | null;
+  type: string;
+  effects: string[];
+  description: string | null;
+}
+
 function CoinIcon({ size = 14 }: { size?: number }) {
   return (
     <img src={coinIconImg} alt="coins" style={{ width: size, height: size, objectFit: "contain", display: "inline-block", verticalAlign: "middle" }} />
@@ -81,14 +89,13 @@ function formatCoins(n: number) {
   return n.toLocaleString();
 }
 
-function ItemCard({ listing, isMine, user, onBuy, onCollect, onCancel, onPetEggInfo }: {
+function ItemCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
   listing: Listing;
   isMine: boolean;
   user: any;
-  onBuy?: (listing: Listing) => void;
+  onDetail?: (listing: Listing) => void;
   onCollect?: (listing: Listing) => void;
   onCancel?: (listing: Listing) => void;
-  onPetEggInfo?: (listing: Listing) => void;
 }) {
   if (isMine && listing.status === "sold") {
     return (
@@ -194,9 +201,11 @@ function ItemCard({ listing, isMine, user, onBuy, onCollect, onCancel, onPetEggI
 
   // Browse listing card
   const isPetEgg = listing.itemType === "pet_egg";
+  const isOwn = listing.sellerId === user?.id;
   return (
     <div
       data-testid={`card-market-listing-${listing.id}`}
+      onClick={!isOwn ? () => onDetail?.(listing) : undefined}
       style={{
         background: isPetEgg
           ? "linear-gradient(135deg, rgba(30,10,50,0.95) 0%, rgba(50,20,80,0.95) 100%)"
@@ -210,20 +219,14 @@ function ItemCard({ listing, isMine, user, onBuy, onCollect, onCancel, onPetEggI
         gap: 6,
         minHeight: 140,
         position: "relative",
+        cursor: !isOwn ? "pointer" : "default",
+        transition: "border-color 0.15s, transform 0.1s",
       }}
     >
       {isPetEgg && (
         <span style={{ position: "absolute", top: 5, left: 6, fontSize: 8, color: "rgba(200,160,255,0.9)", fontFamily: "Georgia, serif", background: "rgba(60,20,100,0.8)", borderRadius: 4, padding: "1px 5px" }}>🥚 Pet Egg</span>
       )}
-      <button
-        data-testid={`button-pet-egg-info-${listing.id}`}
-        onClick={isPetEgg ? () => onPetEggInfo?.(listing) : undefined}
-        style={{
-          background: "none", border: "none", padding: 0, cursor: isPetEgg ? "pointer" : "default",
-          marginTop: isPetEgg ? 10 : 0,
-        }}
-        title={isPetEgg ? "View egg details" : undefined}
-      >
+      <div style={{ marginTop: isPetEgg ? 10 : 0 }}>
         {listing.itemImageUrl ? (
           <img
             src={listing.itemImageUrl}
@@ -235,34 +238,16 @@ function ItemCard({ listing, isMine, user, onBuy, onCollect, onCancel, onPetEggI
             <img src={powerupBagIcon} alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
           </div>
         )}
-      </button>
+      </div>
       <span style={{ color: isPetEgg ? "#d4b8ff" : "#c8f0c8", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>{listing.itemName}</span>
       <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
         <CoinIcon size={11} />
         <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 11, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
       </div>
-      <span style={{ color: "rgba(150,200,150,0.5)", fontSize: 8, textAlign: "center" }}>{listing.sellerName}</span>
-      {!isMine && listing.sellerId !== user?.id && (
-        <button
-          data-testid={`button-buy-${listing.id}`}
-          onClick={() => onBuy?.(listing)}
-          style={{
-            background: isPetEgg
-              ? "linear-gradient(135deg, rgba(140,80,220,0.35) 0%, rgba(100,40,180,0.35) 100%)"
-              : "linear-gradient(135deg, rgba(74,222,128,0.3) 0%, rgba(40,160,80,0.3) 100%)",
-            border: `1px solid ${isPetEgg ? "rgba(180,130,255,0.5)" : "rgba(74,222,128,0.5)"}`,
-            borderRadius: 7,
-            padding: "5px 10px",
-            color: isPetEgg ? "#c8a0ff" : "#4ade80",
-            fontFamily: "Georgia, serif",
-            fontSize: 10,
-            cursor: "pointer",
-            width: "100%",
-            marginTop: "auto",
-          }}
-        >
-          Buy
-        </button>
+      {!isOwn && (
+        <span style={{ color: isPetEgg ? "rgba(200,160,255,0.5)" : "rgba(150,200,150,0.5)", fontSize: 8, textAlign: "center", marginTop: "auto" }}>
+          {isPetEgg ? "Tap to view" : "Tap to buy"}
+        </span>
       )}
     </div>
   );
@@ -396,10 +381,13 @@ function RevertToEggModal({ petName, onRevert, onCancel, isPending }: {
   );
 }
 
-// ── Pet Egg Info popup (browse tab) ─────────────────────────────────────────
-function PetEggInfoModal({ listing, onClose }: {
+// ── Pet Egg Detail popup (browse tab) ────────────────────────────────────────
+function PetEggDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }: {
   listing: Listing;
   onClose: () => void;
+  onBuy: () => void;
+  isBuyPending: boolean;
+  userCoins: number;
 }) {
   const detailsQuery = useQuery<PetEggDetails>({
     queryKey: ["/api/market/listing", listing.id, "pet-details"],
@@ -407,12 +395,13 @@ function PetEggInfoModal({ listing, onClose }: {
   });
 
   const d = detailsQuery.data;
+  const canAfford = userCoins >= listing.price;
 
   return (
     <div
       style={{
         position: "fixed", inset: 0, zIndex: 300,
-        background: "rgba(0,0,0,0.82)", backdropFilter: "blur(5px)",
+        background: "rgba(0,0,0,0.85)", backdropFilter: "blur(6px)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: "20px 16px",
       }}
@@ -420,13 +409,13 @@ function PetEggInfoModal({ listing, onClose }: {
     >
       <div
         style={{
-          background: "linear-gradient(160deg, rgba(18,6,35,0.98) 0%, rgba(38,12,65,0.98) 100%)",
-          border: "2px solid rgba(180,130,255,0.55)",
-          borderRadius: 20,
-          padding: "24px 20px",
+          background: "linear-gradient(170deg, rgba(12,4,28,0.99) 0%, rgba(28,8,56,0.99) 55%, rgba(10,28,14,0.99) 100%)",
+          border: "2px solid rgba(212,160,23,0.55)",
+          borderRadius: 22,
+          padding: "28px 22px 22px",
           width: "100%",
           maxWidth: 320,
-          boxShadow: "0 0 50px rgba(120,60,200,0.3)",
+          boxShadow: "0 0 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(212,160,23,0.15)",
           textAlign: "center",
           position: "relative",
         }}
@@ -434,56 +423,113 @@ function PetEggInfoModal({ listing, onClose }: {
       >
         <button
           onClick={onClose}
-          style={{ position: "absolute", top: 12, right: 14, background: "none", border: "none", color: "rgba(180,140,255,0.6)", fontSize: 18, cursor: "pointer" }}
+          style={{ position: "absolute", top: 12, right: 14, background: "none", border: "none", color: "rgba(212,160,23,0.5)", fontSize: 18, cursor: "pointer", lineHeight: 1 }}
         >
           ✕
         </button>
+
+        {/* Header label */}
+        <p style={{ color: "rgba(212,160,23,0.55)", fontFamily: "Georgia, serif", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 14px" }}>
+          Pet Egg
+        </p>
+
         {detailsQuery.isLoading ? (
-          <p style={{ color: "rgba(180,140,255,0.6)", fontFamily: "Georgia, serif", fontSize: 13, padding: "20px 0" }}>Consulting the oracle...</p>
+          <p style={{ color: "rgba(212,160,23,0.5)", fontFamily: "Georgia, serif", fontSize: 13, padding: "30px 0" }}>Consulting the oracle…</p>
         ) : d ? (
           <>
-            {d.eggImageUrl ? (
-              <img src={d.eggImageUrl} alt={d.speciesName} style={{ width: 90, height: 90, objectFit: "contain", marginBottom: 10, filter: "drop-shadow(0 0 12px rgba(160,100,255,0.5))" }} />
-            ) : (
-              <div style={{ fontSize: 60, marginBottom: 10 }}>🥚</div>
-            )}
+            {/* Egg image */}
+            <div style={{ marginBottom: 14 }}>
+              {d.eggImageUrl ? (
+                <img src={d.eggImageUrl} alt={d.speciesName} style={{ width: 96, height: 96, objectFit: "contain", filter: "drop-shadow(0 4px 18px rgba(212,160,23,0.35))" }} />
+              ) : (
+                <div style={{ fontSize: 72, lineHeight: 1 }}>🥚</div>
+              )}
+            </div>
+
+            {/* Name / species */}
             {d.petNickname && (
-              <p style={{ color: "#c8a0ff", fontFamily: "Georgia, serif", fontSize: 16, fontWeight: 700, margin: "0 0 4px", textShadow: "0 0 8px rgba(180,130,255,0.4)" }}>
+              <p style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 17, fontWeight: 700, margin: "0 0 3px", textShadow: "0 0 10px rgba(240,192,64,0.3)" }}>
                 "{d.petNickname}"
               </p>
             )}
-            <p style={{ color: "rgba(200,170,255,0.75)", fontFamily: "Georgia, serif", fontSize: 13, margin: "0 0 14px", fontStyle: "italic" }}>
+            <p style={{ color: "rgba(212,160,23,0.7)", fontFamily: "Georgia, serif", fontSize: 12, margin: "0 0 16px", fontStyle: "italic" }}>
               {d.speciesName}
             </p>
+
+            {/* Divider */}
+            <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.3), transparent)", marginBottom: 14 }} />
+
+            {/* Level */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ color: "rgba(212,160,23,0.5)", fontFamily: "Georgia, serif", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>Level</div>
+              <div style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 26, fontWeight: 700, lineHeight: 1 }}>{d.level}</div>
+            </div>
+
+            {/* Stats row */}
             <div style={{
-              display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginBottom: 14,
-              background: "rgba(40,15,70,0.5)", borderRadius: 12, padding: "12px",
-              border: "1px solid rgba(140,90,220,0.3)",
+              display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16,
+              background: "rgba(0,0,0,0.35)", borderRadius: 14, padding: "12px 8px",
+              border: "1px solid rgba(74,222,128,0.18)",
             }}>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ color: "rgba(180,140,255,0.6)", fontSize: 9, fontFamily: "Georgia, serif", marginBottom: 2 }}>LEVEL</div>
-                <div style={{ color: "#c8a0ff", fontFamily: "Georgia, serif", fontSize: 18, fontWeight: 700 }}>{d.level}</div>
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ color: "rgba(180,140,255,0.6)", fontSize: 9, fontFamily: "Georgia, serif", marginBottom: 2 }}>HP</div>
-                <div style={{ color: "#ff9999", fontFamily: "Georgia, serif", fontSize: 15, fontWeight: 700 }}>{d.health}</div>
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ color: "rgba(180,140,255,0.6)", fontSize: 9, fontFamily: "Georgia, serif", marginBottom: 2 }}>ATK</div>
-                <div style={{ color: "#ffcc66", fontFamily: "Georgia, serif", fontSize: 15, fontWeight: 700 }}>{d.atk}</div>
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ color: "rgba(180,140,255,0.6)", fontSize: 9, fontFamily: "Georgia, serif", marginBottom: 2 }}>DEF</div>
-                <div style={{ color: "#66ccff", fontFamily: "Georgia, serif", fontSize: 15, fontWeight: 700 }}>{d.def}</div>
-              </div>
+              {[
+                { label: "HP", value: d.health, color: "#f87171" },
+                { label: "ATK", value: d.atk, color: "#fbbf24" },
+                { label: "DEF", value: d.def, color: "#60a5fa" },
+              ].map(s => (
+                <div key={s.label} style={{ textAlign: "center" }}>
+                  <div style={{ color: "rgba(150,200,150,0.55)", fontSize: 9, fontFamily: "Georgia, serif", marginBottom: 3, letterSpacing: "0.08em" }}>{s.label}</div>
+                  <div style={{ color: s.color, fontFamily: "Georgia, serif", fontSize: 16, fontWeight: 700 }}>{s.value}</div>
+                </div>
+              ))}
             </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-              <CoinIcon size={14} />
-              <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 16, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
+
+            {/* Divider */}
+            <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(74,222,128,0.25), transparent)", marginBottom: 14 }} />
+
+            {/* Price + seller */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 4 }}>
+              <CoinIcon size={16} />
+              <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 20, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
             </div>
-            <p style={{ color: "rgba(180,140,255,0.5)", fontSize: 10, margin: "6px 0 0", fontFamily: "Georgia, serif" }}>
+            <p style={{ color: "rgba(150,200,150,0.45)", fontSize: 10, margin: "0 0 14px", fontFamily: "Georgia, serif" }}>
               Sold by {listing.sellerName}
             </p>
+
+            {/* Not enough coins warning */}
+            {!canAfford && (
+              <p style={{ color: "#f87171", fontSize: 11, margin: "0 0 10px", fontFamily: "Georgia, serif" }}>
+                Not enough coins (you have {formatCoins(userCoins)})
+              </p>
+            )}
+
+            {/* Buttons */}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={onClose}
+                style={{ flex: 1, background: "rgba(0,0,0,0.35)", border: "1px solid rgba(212,160,23,0.2)", borderRadius: 11, padding: "11px", color: "rgba(212,160,23,0.5)", fontFamily: "Georgia, serif", fontSize: 13, cursor: "pointer" }}
+              >
+                Cancel
+              </button>
+              <button
+                data-testid="button-confirm-buy"
+                disabled={!canAfford || isBuyPending}
+                onClick={(e) => { burstGoldenOrbs(e.clientX, e.clientY); onBuy(); }}
+                style={{
+                  flex: 2,
+                  background: canAfford
+                    ? "linear-gradient(135deg, rgba(74,222,128,0.35) 0%, rgba(40,160,80,0.35) 100%)"
+                    : "rgba(0,0,0,0.25)",
+                  border: `1.5px solid ${canAfford ? "rgba(74,222,128,0.6)" : "rgba(74,180,100,0.15)"}`,
+                  borderRadius: 11, padding: "11px",
+                  color: canAfford ? "#4ade80" : "rgba(74,180,100,0.35)",
+                  fontFamily: "Georgia, serif", fontSize: 14, fontWeight: 700,
+                  cursor: canAfford && !isBuyPending ? "pointer" : "not-allowed",
+                  letterSpacing: "0.04em",
+                }}
+              >
+                {isBuyPending ? "Buying…" : "Buy Egg"}
+              </button>
+            </div>
           </>
         ) : (
           <p style={{ color: "rgba(220,80,80,0.7)", fontFamily: "Georgia, serif", fontSize: 12, padding: "10px 0" }}>Could not load egg details.</p>
@@ -820,73 +866,162 @@ function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFi
   );
 }
 
-function ConfirmBuyModal({ listing, onClose, onConfirm, isPending, userCoins }: {
+// ── Item Detail + Buy popup (browse tab, non-pet-egg items) ──────────────────
+const ITEM_TYPE_LABELS: Record<string, string> = {
+  power_up: "Power-Up",
+  edibles: "Edible",
+  potion: "Potion",
+  special: "Special",
+  accessory: "Accessory",
+  fish: "Fish",
+  bait: "Fishing Bait",
+  pole: "Fishing Rod",
+};
+
+function ItemDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }: {
   listing: Listing;
   onClose: () => void;
-  onConfirm: () => void;
-  isPending: boolean;
+  onBuy: () => void;
+  isBuyPending: boolean;
   userCoins: number;
 }) {
-  const isPetEgg = listing.itemType === "pet_egg";
+  const detailsQuery = useQuery<ItemDetails>({
+    queryKey: ["/api/market/listing", listing.id, "item-details"],
+    queryFn: () => fetch(`/api/market/listing/${listing.id}/item-details`).then(r => r.json()),
+  });
+
+  const d = detailsQuery.data;
   const canAfford = userCoins >= listing.price;
+  const typeLabel = ITEM_TYPE_LABELS[listing.itemType] ?? listing.itemType;
+
   return (
     <div
-      style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px 16px" }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 300,
+        background: "rgba(0,0,0,0.85)", backdropFilter: "blur(6px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "20px 16px",
+      }}
       onClick={onClose}
     >
       <div
         style={{
-          background: isPetEgg
-            ? "linear-gradient(135deg, rgba(18,6,35,0.98) 0%, rgba(38,12,65,0.98) 100%)"
-            : "linear-gradient(135deg, rgba(10,30,15,0.98) 0%, rgba(20,50,25,0.98) 100%)",
-          border: `2px solid ${isPetEgg ? "rgba(180,130,255,0.55)" : "rgba(74,222,128,0.45)"}`,
-          borderRadius: 18, padding: "24px 20px", width: "100%", maxWidth: 340,
-          boxShadow: "0 0 40px rgba(0,0,0,0.8)",
+          background: "linear-gradient(170deg, rgba(6,22,10,0.99) 0%, rgba(10,35,16,0.99) 60%, rgba(8,24,12,0.99) 100%)",
+          border: "2px solid rgba(212,160,23,0.5)",
+          borderRadius: 22,
+          padding: "28px 22px 22px",
+          width: "100%",
+          maxWidth: 320,
+          boxShadow: "0 0 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(212,160,23,0.12)",
+          textAlign: "center",
+          position: "relative",
         }}
         onClick={e => e.stopPropagation()}
       >
-        <h2 style={{ color: isPetEgg ? "#c8a0ff" : "#4ade80", fontFamily: "Georgia, serif", fontSize: 18, margin: "0 0 12px" }}>
-          {isPetEgg ? "Acquire Pet Egg" : "Confirm Purchase"}
-        </h2>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          {listing.itemImageUrl && <img src={listing.itemImageUrl} alt={listing.itemName} style={{ width: 56, height: 56, objectFit: "contain" }} />}
-          <div>
-            <p style={{ color: isPetEgg ? "#d4b8ff" : "#d4f0d4", fontFamily: "Georgia, serif", fontSize: 14, fontWeight: 700, margin: "0 0 4px" }}>{listing.itemName}</p>
-            {isPetEgg && <p style={{ color: "rgba(180,140,255,0.6)", fontSize: 10, fontStyle: "italic", margin: "0 0 4px" }}>Pet Egg · Ready to hatch</p>}
-            <p style={{ color: "rgba(150,200,150,0.7)", fontSize: 11, margin: "0 0 4px" }}>Sold by {listing.sellerName}</p>
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <CoinIcon size={13} />
-              <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 14, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
+        <button
+          onClick={onClose}
+          style={{ position: "absolute", top: 12, right: 14, background: "none", border: "none", color: "rgba(212,160,23,0.5)", fontSize: 18, cursor: "pointer", lineHeight: 1 }}
+        >
+          ✕
+        </button>
+
+        {/* Type badge */}
+        <p style={{ color: "rgba(212,160,23,0.55)", fontFamily: "Georgia, serif", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 14px" }}>
+          {typeLabel}
+        </p>
+
+        {/* Item image */}
+        <div style={{ marginBottom: 14 }}>
+          {listing.itemImageUrl ? (
+            <img src={listing.itemImageUrl} alt={listing.itemName} style={{ width: 88, height: 88, objectFit: "contain", filter: "drop-shadow(0 4px 16px rgba(74,222,128,0.2))" }} />
+          ) : (
+            <img src={powerupBagIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", opacity: 0.7 }} />
+          )}
+        </div>
+
+        {/* Item name */}
+        <p style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 17, fontWeight: 700, margin: "0 0 14px", textShadow: "0 0 10px rgba(240,192,64,0.25)" }}>
+          {listing.itemName}
+        </p>
+
+        {/* Divider */}
+        <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(74,222,128,0.3), transparent)", marginBottom: 14 }} />
+
+        {/* Effects */}
+        {detailsQuery.isLoading ? (
+          <p style={{ color: "rgba(150,200,150,0.4)", fontFamily: "Georgia, serif", fontSize: 12, margin: "0 0 14px" }}>Loading…</p>
+        ) : d && d.effects.length > 0 ? (
+          <div style={{ marginBottom: 14 }}>
+            <p style={{ color: "rgba(150,200,150,0.5)", fontFamily: "Georgia, serif", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>Effect</p>
+            {d.effects.map((effect, i) => (
+              <div key={i} style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)",
+                borderRadius: 10, padding: "8px 14px", marginBottom: i < d.effects.length - 1 ? 6 : 0,
+              }}>
+                <span style={{ color: "#4ade80", fontSize: 13 }}>✦</span>
+                <span style={{ color: "#d4f0d4", fontFamily: "Georgia, serif", fontSize: 14, fontWeight: 700 }}>{effect}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{
+              background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)",
+              borderRadius: 10, padding: "10px 14px",
+            }}>
+              <span style={{ color: "rgba(150,200,150,0.5)", fontFamily: "Georgia, serif", fontSize: 12, fontStyle: "italic" }}>
+                {d?.description ?? "A useful market item."}
+              </span>
             </div>
           </div>
+        )}
+
+        {/* Divider */}
+        <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.25), transparent)", marginBottom: 14 }} />
+
+        {/* Price + seller */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 4 }}>
+          <CoinIcon size={16} />
+          <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 20, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
         </div>
-        {isPetEgg && (
-          <p style={{ color: "rgba(180,140,255,0.6)", fontSize: 11, fontFamily: "Georgia, serif", fontStyle: "italic", textAlign: "center", marginBottom: 12 }}>
-            The egg shall be delivered to your inventory, ready to hatch.
+        <p style={{ color: "rgba(150,200,150,0.4)", fontSize: 10, margin: "0 0 14px", fontFamily: "Georgia, serif" }}>
+          Sold by {listing.sellerName}
+        </p>
+
+        {/* Not enough coins warning */}
+        {!canAfford && (
+          <p style={{ color: "#f87171", fontSize: 11, margin: "0 0 10px", fontFamily: "Georgia, serif" }}>
+            Not enough coins (you have {formatCoins(userCoins)})
           </p>
         )}
-        {!canAfford && <p style={{ color: "#f87171", fontSize: 12, textAlign: "center", marginBottom: 12, fontFamily: "fantasy" }}>Not enough coins! You have {formatCoins(userCoins)}.</p>}
+
+        {/* Buttons */}
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onClose} style={{ flex: 1, background: "rgba(50,80,55,0.4)", border: "1px solid rgba(74,180,100,0.2)", borderRadius: 10, padding: "10px", color: "rgba(150,200,150,0.7)", fontFamily: "Georgia, serif", fontSize: 13, cursor: "pointer" }}>Cancel</button>
+          <button
+            onClick={onClose}
+            style={{ flex: 1, background: "rgba(0,0,0,0.35)", border: "1px solid rgba(212,160,23,0.18)", borderRadius: 11, padding: "11px", color: "rgba(212,160,23,0.5)", fontFamily: "Georgia, serif", fontSize: 13, cursor: "pointer" }}
+          >
+            Cancel
+          </button>
           <button
             data-testid="button-confirm-buy"
-            disabled={!canAfford || isPending}
-            onClick={(e) => { burstGoldenOrbs(e.clientX, e.clientY); onConfirm(); }}
+            disabled={!canAfford || isBuyPending}
+            onClick={(e) => { burstGoldenOrbs(e.clientX, e.clientY); onBuy(); }}
             style={{
-              flex: 1,
+              flex: 2,
               background: canAfford
-                ? isPetEgg
-                  ? "linear-gradient(135deg, rgba(140,80,220,0.45) 0%, rgba(100,40,180,0.45) 100%)"
-                  : "linear-gradient(135deg, rgba(74,222,128,0.4) 0%, rgba(40,160,80,0.4) 100%)"
-                : "rgba(50,80,55,0.3)",
-              border: `1px solid ${canAfford ? (isPetEgg ? "rgba(180,130,255,0.7)" : "rgba(74,222,128,0.6)") : "rgba(74,180,100,0.2)"}`,
-              borderRadius: 10, padding: "10px",
-              color: canAfford ? (isPetEgg ? "#c8a0ff" : "#4ade80") : "rgba(74,180,100,0.4)",
-              fontFamily: "Georgia, serif", fontSize: 13,
-              cursor: canAfford && !isPending ? "pointer" : "not-allowed",
+                ? "linear-gradient(135deg, rgba(74,222,128,0.35) 0%, rgba(40,160,80,0.35) 100%)"
+                : "rgba(0,0,0,0.25)",
+              border: `1.5px solid ${canAfford ? "rgba(74,222,128,0.6)" : "rgba(74,180,100,0.15)"}`,
+              borderRadius: 11, padding: "11px",
+              color: canAfford ? "#4ade80" : "rgba(74,180,100,0.35)",
+              fontFamily: "Georgia, serif", fontSize: 14, fontWeight: 700,
+              cursor: canAfford && !isBuyPending ? "pointer" : "not-allowed",
+              letterSpacing: "0.04em",
             }}
           >
-            {isPending ? "Buying..." : "Confirm Buy"}
+            {isBuyPending ? "Buying…" : "Buy Now"}
           </button>
         </div>
       </div>
@@ -901,8 +1036,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [showSellModal, setShowSellModal] = useState(false);
-  const [buyTarget, setBuyTarget] = useState<Listing | null>(null);
-  const [petEggInfoTarget, setPetEggInfoTarget] = useState<Listing | null>(null);
+  const [detailTarget, setDetailTarget] = useState<Listing | null>(null);
 
   const marketQuery = useQuery<Listing[]>({
     queryKey: ["/api/market", search, categoryFilter],
@@ -972,7 +1106,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
   const buyMutation = useMutation({
     mutationFn: (listingId: string) => apiRequest("POST", `/api/market/${listingId}/buy`, {}),
     onSuccess: async (data: any) => {
-      setBuyTarget(null);
+      setDetailTarget(null);
       queryClient.invalidateQueries({ queryKey: ["/api/market"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
@@ -1151,8 +1285,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
                       listing={listing}
                       isMine={false}
                       user={user}
-                      onBuy={setBuyTarget}
-                      onPetEggInfo={setPetEggInfoTarget}
+                      onDetail={setDetailTarget}
                     />
                   ))}
                 </div>
@@ -1228,20 +1361,23 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
         />
       )}
 
-      {buyTarget && (
-        <ConfirmBuyModal
-          listing={buyTarget}
-          onClose={() => setBuyTarget(null)}
-          onConfirm={() => buyMutation.mutate(buyTarget.id)}
-          isPending={buyMutation.isPending}
+      {detailTarget && detailTarget.itemType === "pet_egg" && (
+        <PetEggDetailModal
+          listing={detailTarget}
+          onClose={() => setDetailTarget(null)}
+          onBuy={() => buyMutation.mutate(detailTarget.id)}
+          isBuyPending={buyMutation.isPending}
           userCoins={user?.coins ?? 0}
         />
       )}
 
-      {petEggInfoTarget && (
-        <PetEggInfoModal
-          listing={petEggInfoTarget}
-          onClose={() => setPetEggInfoTarget(null)}
+      {detailTarget && detailTarget.itemType !== "pet_egg" && (
+        <ItemDetailModal
+          listing={detailTarget}
+          onClose={() => setDetailTarget(null)}
+          onBuy={() => buyMutation.mutate(detailTarget.id)}
+          isBuyPending={buyMutation.isPending}
+          userCoins={user?.coins ?? 0}
         />
       )}
     </div>
