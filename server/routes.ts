@@ -2719,6 +2719,51 @@ export async function registerRoutes(
     }
   });
 
+  // ── Revert a hatched pet back to an egg (unequips accessories, keeps stats) ──
+  app.post("/api/pet/:inventoryId/revert-to-egg", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const petInv = await storage.getInventoryItemById((req.params.inventoryId as string));
+      if (!petInv || petInv.userId !== user.id) return res.status(404).json({ message: "Pet not found" });
+      const petShopItem = await storage.getShopItem(petInv.shopItemId);
+      if (!petShopItem || petShopItem.type !== "pet") return res.status(400).json({ message: "Not a pet" });
+      // Unequip all accessories (they stay in the player's inventory)
+      await storage.unequipAllPetAccessories(petInv.id);
+      // Revert to egg state — stats are preserved
+      const updated = await storage.updateInventoryItem(petInv.id, {
+        isHatched: false,
+        hatchStartedAt: null,
+      });
+      return res.json({ ok: true, pet: updated });
+    } catch (err) {
+      console.error("Revert to egg error:", err);
+      return res.status(500).json({ message: "Failed to revert pet to egg" });
+    }
+  });
+
+  // ── Pet egg details for market info popup ──
+  app.get("/api/market/listing/:listingId/pet-details", isAuthenticated, async (req, res) => {
+    try {
+      const listing = await storage.getMarketListing((req.params.listingId as string));
+      if (!listing) return res.status(404).json({ message: "Listing not found" });
+      if (listing.itemType !== "pet_egg") return res.status(400).json({ message: "Not a pet egg listing" });
+      const invItem = await storage.getInventoryItemById(listing.inventoryId);
+      if (!invItem) return res.status(404).json({ message: "Pet inventory item not found" });
+      const shopItem = await storage.getShopItem(invItem.shopItemId);
+      return res.json({
+        speciesName: shopItem?.name ?? "Unknown",
+        eggImageUrl: shopItem?.eggImageUrl ?? null,
+        petNickname: invItem.petNickname ?? null,
+        level: invItem.petLevel,
+        health: invItem.petHealth,
+        atk: invItem.petAtk,
+        def: invItem.petDef,
+      });
+    } catch (err) {
+      return res.status(500).json({ message: "Failed to fetch pet details" });
+    }
+  });
+
   app.get("/api/coins/packs", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
@@ -5700,23 +5745,30 @@ export async function registerRoutes(
 
       const shopItem = await storage.getShopItem(invItem.shopItemId);
       if (!shopItem) return res.status(404).json({ message: "Item data not found" });
-      if (shopItem.type === "pet") return res.status(400).json({ message: "Pets cannot be sold on the player market" });
+
+      // Pet eggs (unhatched) can be sold; hatched pets cannot
+      if (shopItem.type === "pet") {
+        if (invItem.isHatched) return res.status(400).json({ message: "Hatch your pet into an egg first before listing — use the Revert to Egg option." });
+        if (invItem.isListed) return res.status(400).json({ message: "Pet egg is already listed" });
+      }
 
       const myListings = await storage.getMyMarketListings(user.id);
       const activeOrPending = myListings.filter(l => l.status === "active" || l.status === "sold");
       const totalSlots = 25 + (user.marketExtraSlots ?? 0);
       if (activeOrPending.length >= totalSlots) return res.status(400).json({ message: `You've reached your listing limit (${totalSlots} slots). Collect sold coins or buy more slots.` });
 
+      // For pet eggs, use the egg image; keep pet stats on the inventory item
+      const isPetEgg = shopItem.type === "pet";
       const listing = await storage.createMarketListing({
         sellerId: user.id,
         sellerName: user.username,
         inventoryId,
         shopItemId: shopItem.id,
         itemName: shopItem.name,
-        itemImageUrl: shopItem.imageUrl,
+        itemImageUrl: isPetEgg ? (shopItem.eggImageUrl ?? shopItem.imageUrl) : shopItem.imageUrl,
         // For fishing items, use the more specific fishingType ("fish", "pole", "bait")
-        // so market filters can distinguish fish from poles
-        itemType: (shopItem.type === "fishing" && shopItem.fishingType) ? shopItem.fishingType : shopItem.type,
+        // so market filters can distinguish fish from poles. Pet eggs get their own type.
+        itemType: isPetEgg ? "pet_egg" : (shopItem.type === "fishing" && shopItem.fishingType) ? shopItem.fishingType : shopItem.type,
         price,
       });
       return res.json(listing);
