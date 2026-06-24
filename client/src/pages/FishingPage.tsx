@@ -246,14 +246,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
   const [showPondAdmin, setShowPondAdmin] = useState(false);
   const [showNoPoleModal, setShowNoPoleModal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("fishingTutorialSeen"));
-  const [tensionState, setTensionState] = useState<{
-    catchProgress: number;
-    tension: number;
-    escapeMeter: number;
-    fishState: FishBehaviorState;
-    timeLeft: number;
-    snapEffect: boolean;
-  } | null>(null);
   const [caughtItem, setCaughtItem] = useState<ShopItem | null>(null);
   const [bgLoaded, setBgLoaded] = useState(false);
   const [bgError, setBgError] = useState(false);
@@ -265,8 +257,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
   const nibbleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const castingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phaseRef = useRef<FishingPhase>("idle");
-  const rafRef = useRef<number | null>(null);
-  const isHoldingRef = useRef(false);
   const poleSlotRef = useRef<HTMLDivElement>(null);
   const baitSlotRef = useRef<HTMLDivElement>(null);
   const pendingDragRef = useRef<{ item: InventoryItem; slot: "pole" | "bait"; startX: number; startY: number } | null>(null);
@@ -428,7 +418,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
   const clearAllTimers = useCallback(() => {
     if (nibbleTimeoutRef.current) { clearTimeout(nibbleTimeoutRef.current); nibbleTimeoutRef.current = null; }
     if (castingTimeoutRef.current) { clearTimeout(castingTimeoutRef.current); castingTimeoutRef.current = null; }
-    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
   }, []);
 
   const equipMutateRef = useRef(equipMutation.mutate);
@@ -594,202 +583,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
   }, [equipData, pondFish, isPondLoading, isPondError, toast]);
 
   const startReeling = useCallback(() => {
-    const rarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
-
-    // ── Per-rarity base rates (all per-second, scaled by delta-time each frame) ──────────
-
-    // Starting catch progress — almost empty so the player must earn it
-    const startProgress     = [0.08,  0.06,  0.05,  0.03,  0.02 ];
-
-    // Catch progress gain per second while holding (base, before modifiers)
-    const baseReelRates     = [0.50,  0.42,  0.32,  0.26,  0.19 ];
-
-    // Tension rise per second while holding (base, before modifiers)
-    const baseTensionRise   = [0.55,  0.75,  1.05,  1.20,  1.55 ];
-
-    // Tension fall per second while NOT holding
-    // 4★/5★ fall faster so players can safely alternate hold/release
-    const tensionFalls      = [2.80,  2.30,  1.80,  1.55,  1.15 ];
-
-    // Catch progress drain per second while NOT holding (base)
-    // 4★/5★ reduced so progress isn't lost faster than it's gained
-    const baseProgressDrags = [0.030, 0.060, 0.100, 0.105, 0.140];
-
-    // Escape meter fill rate per second while NOT holding (base)
-    // 4★/5★ reduced so the escape meter doesn't outrace catch progress
-    const baseEscapeRate    = [0.040, 0.070, 0.110, 0.140, 0.185];
-
-    // Escape meter drain per second while holding inside sweet spot
-    // 4★/5★ increased so steady holding in the sweet spot meaningfully drains escape
-    const escapeReelRate    = [0.080, 0.060, 0.040, 0.055, 0.035];
-
-    // Tension sweet spot boundaries (fraction 0-1)
-    const sweetLow  = [0.25, 0.28, 0.30, 0.33, 0.35];
-    const sweetHigh = [0.75, 0.72, 0.70, 0.67, 0.65];
-
-    // State machine: probability weights [calm, resist, tired, surge]
-    const stateWeights: [number, number, number, number][] = [
-      [65, 10, 20,  5],  // 1★
-      [55, 20, 15, 10],  // 2★
-      [40, 30, 15, 15],  // 3★
-      [25, 35, 15, 25],  // 4★
-      [15, 40, 12, 33],  // 5★
-    ];
-
-    // Min/max seconds before the fish can switch to a new state
-    const minStateDuration = [3.5, 3.0, 2.5, 2.0, 1.5];
-    const maxStateDuration = [6.0, 5.0, 4.0, 3.0, 2.5];
-
-    const baitCatchBoost = equipDataRef.current?.baitItem?.baitCatchBoost ?? 0;
-    const poleItem = equipDataRef.current?.poleItem;
-
-    // Pole slowdown modifier for 3-5★ fish
-    const slowdownKey = rarity >= 3 ? (`poleSlowdown${rarity}` as "poleSlowdown3" | "poleSlowdown4" | "poleSlowdown5") : null;
-    const poleSlowdownPct = slowdownKey ? (poleItem?.[slowdownKey] ?? 0) : 0;
-    const poleSlowdownMult = 1 + poleSlowdownPct / 100;
-
-    const idx = rarity - 1;
-    // catchEasePercent on the equipped pole reduces fight difficulty for 3★+ fish only
-    const poleEase = rarity >= 3 ? Math.min(100, Math.max(0, equipDataRef.current?.poleItem?.catchEasePercent ?? 0)) : 0;
-    const easeMult = 1 - (poleEase / 100);
-    const baseReelRate  = baseReelRates[idx] * (1 + baitCatchBoost / 100);
-    const baseTRise     = baseTensionRise[idx] * poleSlowdownMult * easeMult;
-    const tFall         = tensionFalls[idx];
-    const basePDrag     = baseProgressDrags[idx] * easeMult;
-    const baseEscRate   = baseEscapeRate[idx] * easeMult;
-    const escReelRate   = escapeReelRate[idx];
-    const sLow          = sweetLow[idx];
-    const sHigh         = sweetHigh[idx];
-    const weights       = stateWeights[idx];
-    const minDur        = minStateDuration[idx];
-    const maxDur        = maxStateDuration[idx];
-
-    // ── State machine helpers ──────────────────────────────────────────────────────────────
-
-    // Pick a random FishBehaviorState weighted by [calm, resist, tired, surge]
-    const pickState = (): FishBehaviorState => {
-      const states: FishBehaviorState[] = ["calm", "resist", "tired", "surge"];
-      const total = weights.reduce((a, b) => a + b, 0);
-      let roll = Math.random() * total;
-      for (let i = 0; i < states.length; i++) {
-        roll -= weights[i];
-        if (roll <= 0) return states[i];
-      }
-      return "calm";
-    };
-
-    // ── Fish state modifiers (multipliers on base rates) ───────────────────────────────────
-    // calm:   no change
-    // resist: tension rises faster, progress slower, escape fills faster
-    // tired:  tension rises slower, progress faster, escape drains faster
-    // surge:  tension spikes, escape spikes — player must release briefly
-    const STATE_MODS: Record<FishBehaviorState, { tRiseMult: number; reelMult: number; escapeMult: number }> = {
-      calm:   { tRiseMult: 1.0,                reelMult: 1.0,  escapeMult: 1.0               },
-      resist: { tRiseMult: 1.5 * easeMult,     reelMult: 0.7,  escapeMult: 1.4 * easeMult    },
-      tired:  { tRiseMult: 0.5,                reelMult: 1.5,  escapeMult: 0.6               },
-      surge:  { tRiseMult: 2.2 * easeMult,     reelMult: 0.5,  escapeMult: 1.3 * easeMult    },
-    };
-
-    const GRACE_MS = 1200; // player has 1.2s to find the hold button after nibble
-
-    isHoldingRef.current = false;
-
-    let catchProgress   = startProgress[idx];
-    let tension         = 0;
-    let escapeMeter     = 0;
-    let fishState: FishBehaviorState = "calm";
-    let stateTimerSec   = minDur + Math.random() * (maxDur - minDur);
-    const startTime     = Date.now();
-    const graceUntilMs  = startTime + GRACE_MS;
-    let lastFrameMs     = Date.now();
-
     phaseRef.current = "reeling";
     setPhase("reeling");
-    setTensionState({ catchProgress, tension, escapeMeter, fishState, timeLeft: 60, snapEffect: false });
-
-    const tick = () => {
-      if (phaseRef.current !== "reeling") return;
-
-      const now = Date.now();
-      const dt  = Math.min((now - lastFrameMs) / 1000, 2 / 60); // cap at 2 frames
-      lastFrameMs = now;
-
-      const inGrace = now < graceUntilMs;
-
-      // ── Fish state machine ───────────────────────────────────────────────────────────────
-      stateTimerSec -= dt;
-      if (stateTimerSec <= 0) {
-        fishState     = pickState();
-        stateTimerSec = minDur + Math.random() * (maxDur - minDur);
-      }
-
-      const mods = STATE_MODS[fishState];
-
-      // ── Sweet spot multiplier on reel rate (only applies while holding) ─────────────────
-      // 0-sLow: too low (slow progress)
-      // sLow-sHigh: sweet spot (full rate)
-      // sHigh-0.90: risky (slightly boosted)
-      // 0.90-1.00: critical (slow — focus on releasing)
-      let sweetMult = 1.0;
-      if (tension < sLow)       sweetMult = 0.5;
-      else if (tension < sHigh) sweetMult = 1.0;
-      else if (tension < 0.90)  sweetMult = 1.2;
-      else                      sweetMult = 0.4;
-
-      const tRise   = baseTRise * mods.tRiseMult;
-      const reelRate = baseReelRate * mods.reelMult * sweetMult;
-      const pDrag   = basePDrag;
-      const escRate  = baseEscRate * mods.escapeMult;
-
-      if (isHoldingRef.current) {
-        // Holding: progress fills (sweet spot matters), tension climbs
-        catchProgress = Math.min(1, catchProgress + reelRate * dt);
-        tension       = Math.min(1, tension + tRise * dt);
-        // Escape drains while holding in sweet spot
-        if (!inGrace) escapeMeter = Math.max(0, escapeMeter - escReelRate * dt);
-      } else {
-        // Released: tension drops; progress and escape only change after grace period
-        tension = Math.max(0, tension - tFall * dt);
-        if (!inGrace) {
-          catchProgress = Math.max(0, catchProgress - pDrag * dt);
-          escapeMeter   = Math.min(1, escapeMeter + escRate * dt);
-        }
-      }
-
-      setTensionState({ catchProgress, tension, escapeMeter, fishState, timeLeft: 0, snapEffect: false });
-
-      // ── Win: catch progress filled — checked FIRST so a full bar always beats escape ───
-      // Threshold is 0.99 so the win fires when the bar visually reads 100% (Math.round).
-      if (catchProgress >= 0.99) {
-        setTensionState(null);
-        playCatch();
-        catchMutateRef.current(100);
-        return;
-      }
-
-      // ── Lose: escape meter full ────────────────────────────────────────────────────────
-      if (escapeMeter >= 1) {
-        setTensionState(null);
-        phaseRef.current = "missed";
-        setPhase("missed");
-        return;
-      }
-
-      // ── Lose: line snapped ─────────────────────────────────────────────────────────────
-      if (tension >= 1) {
-        setTensionState({ catchProgress, tension: 1, escapeMeter, fishState, timeLeft: 0, snapEffect: true });
-        setTimeout(() => {
-          setTensionState(null);
-          phaseRef.current = "missed";
-          setPhase("missed");
-        }, 600);
-        return;
-      }
-
-      rafRef.current = requestAnimationFrame(tick);
-    };
-
-    rafRef.current = requestAnimationFrame(tick);
   }, []);
 
   const handleNibbleTap = useCallback(() => {
@@ -801,7 +596,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
   const resetFishing = useCallback(() => {
     setPhase("idle");
     setCaughtItem(null);
-    setTensionState(null);
     setNibbleCount(0);
     nibbleCountRef.current = 0;
     clearAllTimers();
@@ -1202,30 +996,24 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
           bottom: "20%", left: "0%",
           width: 210, height: 210,
           transformOrigin: "bottom left",
-          animation: tensionState && tensionState.tension > 0.6
-            ? "poleBendHigh 0.3s ease-in-out infinite"
-            : "poleBendLow 1.5s ease-in-out infinite",
+          animation: "poleBendLow 1.5s ease-in-out infinite",
         }}>
           <img
             src={equipData.poleItem.hooklessImageUrl || equipData.poleItem.imageUrl}
             alt=""
             className="w-full h-full object-contain"
-            style={{ filter: `drop-shadow(0 0 ${tensionState && tensionState.tension > 0.6 ? "16px rgba(239,68,68,0.8)" : "10px rgba(94,234,212,0.7)"})` }}
+            style={{ filter: "drop-shadow(0 0 10px rgba(94,234,212,0.7))" }}
           />
         </div>
       )}
 
-      {phase === "reeling" && tensionState && (
+      {phase === "reeling" && (
         <TensionReel
-          catchProgress={tensionState.catchProgress}
-          tension={tensionState.tension}
-          escapeMeter={tensionState.escapeMeter}
-          fishState={tensionState.fishState}
-          snapEffect={tensionState.snapEffect}
-          onHoldChange={(holding) => { isHoldingRef.current = holding; }}
+          rarity={nibbleRarityRef.current}
+          equipData={equipDataRef.current}
+          onCaught={() => { playCatch(); catchMutateRef.current(100); }}
+          onMissed={() => { phaseRef.current = "missed"; setPhase("missed"); }}
           accent={accent}
-          sweetLow={[0.25, 0.28, 0.30, 0.33, 0.35][Math.max(0, Math.min(4, nibbleRarityRef.current - 1))]}
-          sweetHigh={[0.75, 0.72, 0.70, 0.67, 0.65][Math.max(0, Math.min(4, nibbleRarityRef.current - 1))]}
         />
       )}
 
@@ -2198,46 +1986,170 @@ function PondAdminPanel({
 }
 
 function TensionReel({
-  catchProgress, tension, escapeMeter, fishState, snapEffect, onHoldChange, accent, sweetLow, sweetHigh,
+  rarity: rawRarity,
+  equipData,
+  onCaught,
+  onMissed,
+  accent,
 }: {
-  catchProgress: number;
-  tension: number;
-  escapeMeter: number;
-  fishState: FishBehaviorState;
-  snapEffect: boolean;
-  onHoldChange: (holding: boolean) => void;
+  rarity: number;
+  equipData: EquipmentData | undefined;
+  onCaught: () => void;
+  onMissed: () => void;
   accent: string;
-  sweetLow: number;
-  sweetHigh: number;
 }) {
+  const rarity = Math.max(1, Math.min(5, rawRarity));
+  const idx = rarity - 1;
+  const sweetLow  = [0.25, 0.28, 0.30, 0.33, 0.35][idx];
+  const sweetHigh = [0.75, 0.72, 0.70, 0.67, 0.65][idx];
+
   const [held, setHeld] = useState(false);
+  const [display, setDisplay] = useState({
+    catchProgress: [0.08, 0.06, 0.05, 0.03, 0.02][idx],
+    tension: 0,
+    escapeMeter: 0,
+    fishState: "calm" as FishBehaviorState,
+    snapEffect: false,
+  });
+
+  const isHoldingRef    = useRef(false);
   const reelIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rafRef          = useRef<number | null>(null);
+  const onCaughtRef     = useRef(onCaught);
+  const onMissedRef     = useRef(onMissed);
+  useEffect(() => { onCaughtRef.current = onCaught; });
+  useEffect(() => { onMissedRef.current = onMissed; });
 
   useEffect(() => {
-    return () => {
-      if (reelIntervalRef.current) clearInterval(reelIntervalRef.current);
+    const startProgress    = [0.08,  0.06,  0.05,  0.03,  0.02 ][idx];
+    const baseReelRateArr  = [0.50,  0.42,  0.32,  0.26,  0.19 ][idx];
+    const baseTRiseArr     = [0.55,  0.75,  1.05,  1.20,  1.55 ][idx];
+    const tFallArr         = [2.80,  2.30,  1.80,  1.55,  1.15 ][idx];
+    const basePDragArr     = [0.030, 0.060, 0.100, 0.105, 0.140][idx];
+    const baseEscRateArr   = [0.040, 0.070, 0.110, 0.140, 0.185][idx];
+    const escReelRateArr   = [0.080, 0.060, 0.040, 0.055, 0.035][idx];
+    const stateWeightsAll: [number, number, number, number][] = [
+      [65, 10, 20,  5],
+      [55, 20, 15, 10],
+      [40, 30, 15, 15],
+      [25, 35, 15, 25],
+      [15, 40, 12, 33],
+    ];
+    const weights = stateWeightsAll[idx];
+    const minDur  = [3.5, 3.0, 2.5, 2.0, 1.5][idx];
+    const maxDur  = [6.0, 5.0, 4.0, 3.0, 2.5][idx];
+    const sLow    = [0.25, 0.28, 0.30, 0.33, 0.35][idx];
+    const sHigh   = [0.75, 0.72, 0.70, 0.67, 0.65][idx];
+
+    const baitCatchBoost   = equipData?.baitItem?.baitCatchBoost ?? 0;
+    const poleItem         = equipData?.poleItem;
+    const slowdownKey      = rarity >= 3 ? (`poleSlowdown${rarity}` as "poleSlowdown3" | "poleSlowdown4" | "poleSlowdown5") : null;
+    const poleSlowdownPct  = slowdownKey ? (poleItem?.[slowdownKey] ?? 0) : 0;
+    const poleSlowdownMult = 1 + poleSlowdownPct / 100;
+    const poleEase         = rarity >= 3 ? Math.min(100, Math.max(0, poleItem?.catchEasePercent ?? 0)) : 0;
+    const easeMult         = 1 - poleEase / 100;
+
+    const baseReelRate = baseReelRateArr * (1 + baitCatchBoost / 100);
+    const baseTRise    = baseTRiseArr * poleSlowdownMult * easeMult;
+    const tFall        = tFallArr;
+    const basePDrag    = basePDragArr * easeMult;
+    const baseEscRate  = baseEscRateArr * easeMult;
+    const escReelRate  = escReelRateArr;
+
+    const STATE_MODS: Record<FishBehaviorState, { tRiseMult: number; reelMult: number; escapeMult: number }> = {
+      calm:   { tRiseMult: 1.0,                reelMult: 1.0,  escapeMult: 1.0               },
+      resist: { tRiseMult: 1.5 * easeMult,     reelMult: 0.7,  escapeMult: 1.4 * easeMult    },
+      tired:  { tRiseMult: 0.5,                reelMult: 1.5,  escapeMult: 0.6               },
+      surge:  { tRiseMult: 2.2 * easeMult,     reelMult: 0.5,  escapeMult: 1.3 * easeMult    },
     };
-  }, []);
+
+    const pickState = (): FishBehaviorState => {
+      const states: FishBehaviorState[] = ["calm", "resist", "tired", "surge"];
+      const total = weights.reduce((a, b) => a + b, 0);
+      let roll = Math.random() * total;
+      for (let i = 0; i < states.length; i++) { roll -= weights[i]; if (roll <= 0) return states[i]; }
+      return "calm";
+    };
+
+    let cp = startProgress, t = 0, em = 0;
+    let fs: FishBehaviorState = "calm";
+    let stateTimerSec = minDur + Math.random() * (maxDur - minDur);
+    const graceUntilMs = Date.now() + 1200;
+    let lastFrameMs = Date.now();
+    let done = false;
+    let snapTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const tick = () => {
+      if (done) return;
+      const now = Date.now();
+      const dt  = Math.min((now - lastFrameMs) / 1000, 2 / 60);
+      lastFrameMs = now;
+      const inGrace = now < graceUntilMs;
+
+      stateTimerSec -= dt;
+      if (stateTimerSec <= 0) { fs = pickState(); stateTimerSec = minDur + Math.random() * (maxDur - minDur); }
+
+      const mods = STATE_MODS[fs];
+      let sweetMult = 1.0;
+      if      (t < sLow)  sweetMult = 0.5;
+      else if (t < sHigh) sweetMult = 1.0;
+      else if (t < 0.90)  sweetMult = 1.2;
+      else                sweetMult = 0.4;
+
+      const tRise   = baseTRise * mods.tRiseMult;
+      const reelMul = baseReelRate * mods.reelMult * sweetMult;
+      const escRate = baseEscRate * mods.escapeMult;
+
+      if (isHoldingRef.current) {
+        cp = Math.min(1, cp + reelMul * dt);
+        t  = Math.min(1, t  + tRise   * dt);
+        if (!inGrace) em = Math.max(0, em - escReelRate * dt);
+      } else {
+        t = Math.max(0, t - tFall * dt);
+        if (!inGrace) { cp = Math.max(0, cp - basePDrag * dt); em = Math.min(1, em + escRate * dt); }
+      }
+
+      setDisplay({ catchProgress: cp, tension: t, escapeMeter: em, fishState: fs, snapEffect: false });
+
+      if (cp >= 0.99) { done = true; onCaughtRef.current(); return; }
+      if (em >= 1)    { done = true; onMissedRef.current(); return; }
+      if (t  >= 1)    {
+        done = true;
+        setDisplay({ catchProgress: cp, tension: 1, escapeMeter: em, fishState: fs, snapEffect: true });
+        snapTimeoutId = setTimeout(() => { onMissedRef.current(); }, 600);
+        return;
+      }
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      done = true;
+      if (rafRef.current)       { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+      if (reelIntervalRef.current) { clearInterval(reelIntervalRef.current); reelIntervalRef.current = null; }
+      if (snapTimeoutId)        clearTimeout(snapTimeoutId);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startHold = (e: React.PointerEvent) => {
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
+    isHoldingRef.current = true;
     setHeld(true);
-    onHoldChange(true);
     if (!reelIntervalRef.current) {
       playReelTick();
       reelIntervalRef.current = setInterval(playReelTick, 65);
     }
   };
   const endHold = () => {
+    isHoldingRef.current = false;
     setHeld(false);
-    onHoldChange(false);
-    if (reelIntervalRef.current) {
-      clearInterval(reelIntervalRef.current);
-      reelIntervalRef.current = null;
-    }
+    if (reelIntervalRef.current) { clearInterval(reelIntervalRef.current); reelIntervalRef.current = null; }
   };
 
+  const { catchProgress, tension, escapeMeter, fishState, snapEffect } = display;
   const tensionPct  = Math.round(tension * 100);
   const progressPct = Math.round(catchProgress * 100);
   const escapePct   = Math.round(escapeMeter * 100);
