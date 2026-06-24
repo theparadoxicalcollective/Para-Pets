@@ -16,6 +16,7 @@ import forestBgImg from "@assets/generated_images/pvp_ruins_battlefield_bg.png";
 import swordImg from "@assets/generated_images/pvp_battle_sword.png";
 import RoleBadge from "@/components/RoleBadge";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
+import { playClick, playTick } from "@/lib/sounds";
 
 // Ticket Shop bundles. Mirrors the server-authoritative price map in
 // server/routes.ts (POST /api/pvp/tickets/buy). The server rejects any
@@ -742,7 +743,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
              • PvP ticket chip pinned to the right so the player can
                always see how many matches they have left at a glance. */}
       <div className="relative z-10 flex items-center gap-3 pl-4 pr-2 pb-2.5 shrink-0" style={{ background: "rgba(5,8,15,0.7)", borderBottom: "1px solid rgba(74,222,128,0.10)", paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
-        <button onClick={onClose} data-testid="button-close-pvp" className="w-10 h-10 flex items-center justify-center rounded-lg text-white/50 hover:text-white/80 transition-colors shrink-0 active:scale-90" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+        <button onClick={() => { playClick(); onClose(); }} data-testid="button-close-pvp" className="w-10 h-10 flex items-center justify-center rounded-lg text-white/50 hover:text-white/80 transition-colors shrink-0 active:scale-90" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
           <ArrowLeft size={20} />
         </button>
         {/* Profile pic */}
@@ -1309,6 +1310,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
           <button
             data-testid="button-begin-battle"
             onClick={async () => {
+              playClick();
               const hasPets = selectedPetIds.length > 0 || (battleGroup?.petInventoryIds?.length ?? 0) > 0;
               if (!hasPets) {
                 setAlertModal({
@@ -1521,7 +1523,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
       {tab === "group" && (
         <div className="absolute inset-0 z-20 flex flex-col" style={{ background: "rgba(5,8,15,0.97)" }}>
           <div className="flex items-center gap-3 px-4 pb-3 border-b border-white/8 shrink-0" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
-            <button onClick={() => setTab("lobby")} className="w-10 h-10 flex items-center justify-center rounded-lg text-white/50 hover:text-white/80 active:scale-90 shrink-0" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <button onClick={() => { playClick(); setTab("lobby"); }} className="w-10 h-10 flex items-center justify-center rounded-lg text-white/50 hover:text-white/80 active:scale-90 shrink-0" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <ArrowLeft size={18} />
             </button>
             <div className="flex-1 text-sm tracking-[0.2em] text-emerald-300 font-bold">BATTLE GROUP</div>
@@ -1574,7 +1576,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
           <div className="shrink-0 px-4 pb-safe pb-5 pt-3">
             <button
               data-testid="button-save-battle-group"
-              onClick={() => saveBattleGroup.mutate(selectedPetIds)}
+              onClick={() => { playTick(); saveBattleGroup.mutate(selectedPetIds); }}
               disabled={saveBattleGroup.isPending}
               className="w-full py-3 rounded-xl font-bold text-sm tracking-widest transition-all active:scale-95"
               style={{
@@ -2137,7 +2139,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
       {(tab as string) === "opponents" && (
         <div className="absolute inset-0 z-20 flex flex-col" style={{ background: "rgba(5,8,15,0.97)" }}>
           <div className="flex items-center gap-3 px-4 pb-3 border-b border-white/8 shrink-0" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
-            <button onClick={() => setTab("lobby")} className="w-10 h-10 flex items-center justify-center rounded-lg text-white/50 hover:text-white/80 active:scale-90 shrink-0" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <button onClick={() => { playClick(); setTab("lobby"); }} className="w-10 h-10 flex items-center justify-center rounded-lg text-white/50 hover:text-white/80 active:scale-90 shrink-0" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <ArrowLeft size={18} />
             </button>
             <div className="flex-1 text-sm tracking-[0.2em] text-red-300 font-bold">CHOOSE OPPONENT</div>

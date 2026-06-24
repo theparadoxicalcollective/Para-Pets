@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
-import { playChime } from "@/lib/sounds";
+import { playChime, playClick, playTick } from "@/lib/sounds";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { queryClient } from "@/lib/queryClient";
@@ -508,6 +508,7 @@ function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFi
   const [selectedIsPet, setSelectedIsPet] = useState(false);
   const [price, setPrice] = useState("");
   const [showRevert, setShowRevert] = useState(false);
+  const [sellTab, setSellTab] = useState<"items" | "fish" | "pets">("items");
 
   const regularSellable = inventory.filter(i => i.type !== "pet" && !i.isListed);
   const petSellable = inventory.filter(i => i.type === "pet" && !i.isListed);
@@ -567,93 +568,154 @@ function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFi
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h2 style={{ color: "#4ade80", fontFamily: "Georgia, serif", fontSize: 18, margin: 0 }}>List Item for Sale</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(150,200,150,0.7)", fontSize: 20, cursor: "pointer" }}>✕</button>
+          <button onClick={() => { playClick(); onClose(); }} style={{ background: "none", border: "none", color: "rgba(150,200,150,0.7)", fontSize: 20, cursor: "pointer" }}>✕</button>
         </div>
 
-        <p style={{ color: "rgba(150,200,150,0.7)", fontSize: 11, marginBottom: 14 }}>
-          Select an item, fish, or pet egg to sell.
-        </p>
+        {/* Filter tabs */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+          {([
+            { key: "items" as const, label: "🎒 Items", count: regularSellable.length, activeColor: "#4ade80", activeBg: "rgba(74,222,128,0.15)", activeBorder: "rgba(74,222,128,0.55)" },
+            { key: "fish"  as const, label: "🐟 Fish",  count: fishSellable.length,    activeColor: "#67e8f9", activeBg: "rgba(103,232,249,0.12)", activeBorder: "rgba(103,232,249,0.5)" },
+            { key: "pets"  as const, label: "🥚 Pets",  count: petSellable.length,     activeColor: "#c084fc", activeBg: "rgba(192,132,252,0.15)", activeBorder: "rgba(192,132,252,0.55)" },
+          ]).map(tab => {
+            const active = sellTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                data-testid={`button-sell-tab-${tab.key}`}
+                onClick={() => {
+                  if (sellTab !== tab.key) {
+                    setSellTab(tab.key);
+                    playTick();
+                    setSelectedId(null);
+                    setSelectedIsFish(false);
+                    setSelectedIsPet(false);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  background: active ? tab.activeBg : "rgba(0,0,0,0.2)",
+                  border: `1px solid ${active ? tab.activeBorder : "rgba(74,180,100,0.15)"}`,
+                  borderRadius: 8, padding: "6px 4px",
+                  color: active ? tab.activeColor : "rgba(150,200,150,0.45)",
+                  fontFamily: "Georgia, serif", fontSize: 11, cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+                }}
+              >
+                {tab.label}
+                <span style={{
+                  background: "rgba(0,0,0,0.25)", borderRadius: 8, padding: "1px 5px",
+                  fontSize: 10, color: active ? tab.activeColor : "rgba(150,200,150,0.35)",
+                }}>
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
         {regularSellable.length === 0 && fishSellable.length === 0 && petSellable.length === 0 ? (
           <p style={{ color: "rgba(150,200,150,0.5)", textAlign: "center", fontFamily: "Georgia, serif", fontSize: 13, padding: "20px 0" }}>No sellable items in inventory</p>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16, maxHeight: 280, overflowY: "auto" }}>
-            {regularSellable.map(item => (
-              <button
-                key={item.id}
-                data-testid={`button-select-item-${item.id}`}
-                onClick={() => { setSelectedId(item.id); setSelectedIsFish(false); setSelectedIsPet(false); }}
-                style={{
-                  background: selectedId === item.id && !selectedIsFish && !selectedIsPet ? "rgba(74,222,128,0.2)" : "rgba(20,50,25,0.7)",
-                  border: `2px solid ${selectedId === item.id && !selectedIsFish && !selectedIsPet ? "rgba(74,222,128,0.7)" : "rgba(74,180,100,0.25)"}`,
-                  borderRadius: 10, padding: 8, cursor: "pointer",
-                  display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-                }}
-              >
-                {item.imageUrl ? (
-                  <img src={item.imageUrl} alt={item.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
-                ) : (
-                  <div style={{ width: 44, height: 44, background: "rgba(74,222,128,0.1)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <img src={powerupBagIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
-                  </div>
-                )}
-                <span style={{ color: "#c8f0c8", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>{item.name}</span>
-              </button>
-            ))}
+          <>
+            {sellTab === "items" && (
+              regularSellable.length === 0 ? (
+                <p style={{ color: "rgba(150,200,150,0.4)", textAlign: "center", fontFamily: "Georgia, serif", fontSize: 12, padding: "16px 0" }}>No items to sell</p>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16, maxHeight: 280, overflowY: "auto" }}>
+                  {regularSellable.map(item => (
+                    <button
+                      key={item.id}
+                      data-testid={`button-select-item-${item.id}`}
+                      onClick={() => { setSelectedId(item.id); setSelectedIsFish(false); setSelectedIsPet(false); playClick(); }}
+                      style={{
+                        background: selectedId === item.id && !selectedIsFish && !selectedIsPet ? "rgba(74,222,128,0.2)" : "rgba(20,50,25,0.7)",
+                        border: `2px solid ${selectedId === item.id && !selectedIsFish && !selectedIsPet ? "rgba(74,222,128,0.7)" : "rgba(74,180,100,0.25)"}`,
+                        borderRadius: 10, padding: 8, cursor: "pointer",
+                        display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                      }}
+                    >
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
+                      ) : (
+                        <div style={{ width: 44, height: 44, background: "rgba(74,222,128,0.1)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <img src={powerupBagIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
+                        </div>
+                      )}
+                      <span style={{ color: "#c8f0c8", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>{item.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )
+            )}
 
-            {/* Pet eggs / pets */}
-            {petSellable.map(pet => {
-              const isSelected = selectedId === pet.id && selectedIsPet;
-              const displayImg = pet.eggImageUrl || pet.imageUrl;
-              return (
-                <button
-                  key={pet.id}
-                  data-testid={`button-select-pet-${pet.id}`}
-                  onClick={() => { setSelectedId(pet.id); setSelectedIsFish(false); setSelectedIsPet(true); }}
-                  style={{
-                    background: isSelected ? "rgba(140,80,220,0.25)" : "rgba(30,10,50,0.7)",
-                    border: `2px solid ${isSelected ? "rgba(180,130,255,0.7)" : "rgba(140,80,200,0.25)"}`,
-                    borderRadius: 10, padding: 8, cursor: "pointer",
-                    display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-                    position: "relative",
-                  }}
-                >
-                  {displayImg ? (
-                    <img src={displayImg} alt={pet.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
-                  ) : (
-                    <div style={{ width: 44, height: 44, background: "rgba(140,80,220,0.15)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🥚</div>
-                  )}
-                  <span style={{ color: "#d4b8ff", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>
-                    {pet.petNickname || pet.name}
-                  </span>
-                  <span style={{ position: "absolute", top: 3, right: 3, fontSize: 7, color: "rgba(180,130,255,0.8)" }}>🥚</span>
-                </button>
-              );
-            })}
+            {sellTab === "fish" && (
+              fishSellable.length === 0 ? (
+                <p style={{ color: "rgba(150,200,150,0.4)", textAlign: "center", fontFamily: "Georgia, serif", fontSize: 12, padding: "16px 0" }}>No fish to sell</p>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16, maxHeight: 280, overflowY: "auto" }}>
+                  {fishSellable.map(fish => (
+                    <button
+                      key={fish.id}
+                      data-testid={`button-select-fish-${fish.id}`}
+                      onClick={() => { setSelectedId(fish.id); setSelectedIsFish(true); setSelectedIsPet(false); playClick(); }}
+                      style={{
+                        background: selectedId === fish.id && selectedIsFish ? "rgba(103,232,249,0.15)" : "rgba(10,30,40,0.7)",
+                        border: `2px solid ${selectedId === fish.id && selectedIsFish ? "rgba(103,232,249,0.7)" : "rgba(74,180,200,0.25)"}`,
+                        borderRadius: 10, padding: 8, cursor: "pointer",
+                        display: "flex", flexDirection: "column", alignItems: "center", gap: 4, position: "relative",
+                      }}
+                    >
+                      {fish.item?.imageUrl ? (
+                        <img src={fish.item.imageUrl} alt={fish.item.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
+                      ) : (
+                        <div style={{ width: 44, height: 44, background: "rgba(74,200,222,0.1)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🐟</div>
+                      )}
+                      <span style={{ color: "#a0e8f0", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>{fish.item?.name ?? "Fish"}</span>
+                      <span style={{ position: "absolute", top: 3, right: 3, fontSize: 8, color: "rgba(127,200,255,0.7)" }}>🎣</span>
+                    </button>
+                  ))}
+                </div>
+              )
+            )}
 
-            {/* Fish */}
-            {fishSellable.map(fish => (
-              <button
-                key={fish.id}
-                data-testid={`button-select-fish-${fish.id}`}
-                onClick={() => { setSelectedId(fish.id); setSelectedIsFish(true); setSelectedIsPet(false); }}
-                style={{
-                  background: selectedId === fish.id && selectedIsFish ? "rgba(74,222,128,0.2)" : "rgba(10,30,40,0.7)",
-                  border: `2px solid ${selectedId === fish.id && selectedIsFish ? "rgba(74,222,128,0.7)" : "rgba(74,180,200,0.25)"}`,
-                  borderRadius: 10, padding: 8, cursor: "pointer",
-                  display: "flex", flexDirection: "column", alignItems: "center", gap: 4, position: "relative",
-                }}
-              >
-                {fish.item?.imageUrl ? (
-                  <img src={fish.item.imageUrl} alt={fish.item.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
-                ) : (
-                  <div style={{ width: 44, height: 44, background: "rgba(74,200,222,0.1)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🐟</div>
-                )}
-                <span style={{ color: "#a0e8f0", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>{fish.item?.name ?? "Fish"}</span>
-                <span style={{ position: "absolute", top: 3, right: 3, fontSize: 8, color: "rgba(127,200,255,0.7)" }}>🎣</span>
-              </button>
-            ))}
-          </div>
+            {sellTab === "pets" && (
+              petSellable.length === 0 ? (
+                <p style={{ color: "rgba(150,200,150,0.4)", textAlign: "center", fontFamily: "Georgia, serif", fontSize: 12, padding: "16px 0" }}>No pets to sell</p>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16, maxHeight: 280, overflowY: "auto" }}>
+                  {petSellable.map(pet => {
+                    const isSelected = selectedId === pet.id && selectedIsPet;
+                    const displayImg = pet.eggImageUrl || pet.imageUrl;
+                    return (
+                      <button
+                        key={pet.id}
+                        data-testid={`button-select-pet-${pet.id}`}
+                        onClick={() => { setSelectedId(pet.id); setSelectedIsFish(false); setSelectedIsPet(true); playClick(); }}
+                        style={{
+                          background: isSelected ? "rgba(140,80,220,0.25)" : "rgba(30,10,50,0.7)",
+                          border: `2px solid ${isSelected ? "rgba(180,130,255,0.7)" : "rgba(140,80,200,0.25)"}`,
+                          borderRadius: 10, padding: 8, cursor: "pointer",
+                          display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                          position: "relative",
+                        }}
+                      >
+                        {displayImg ? (
+                          <img src={displayImg} alt={pet.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
+                        ) : (
+                          <div style={{ width: 44, height: 44, background: "rgba(140,80,220,0.15)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🥚</div>
+                        )}
+                        <span style={{ color: "#d4b8ff", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>
+                          {pet.petNickname || pet.name}
+                        </span>
+                        <span style={{ position: "absolute", top: 3, right: 3, fontSize: 7, color: "rgba(180,130,255,0.8)" }}>🥚</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )
+            )}
+          </>
         )}
 
         {selectedItem && (

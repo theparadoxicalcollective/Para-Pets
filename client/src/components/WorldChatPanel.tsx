@@ -5,6 +5,7 @@ import { X, Send, ShieldAlert, BellOff, Bell } from "lucide-react";
 import RoleBadge from "@/components/RoleBadge";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import veridianWatcherAvatar from "@assets/generated_images/veridian_watcher_avatar.png";
+import { playClick, playTick } from "@/lib/sounds";
 
 interface WorldChatMessage {
   id: string;
@@ -124,6 +125,7 @@ export default function WorldChatPanel({ currentUserId, isAdmin, isModerator, on
   function handleSend() {
     const trimmed = input.trim();
     if (!trimmed || cooldown > 0 || sendMutation.isPending) return;
+    playTick();
     sendMutation.mutate(trimmed);
   }
 
@@ -230,7 +232,7 @@ export default function WorldChatPanel({ currentUserId, isAdmin, isModerator, on
           </button>
           <button
             data-testid="button-close-world-chat"
-            onClick={onClose}
+            onClick={() => { playClick(); onClose(); }}
             className="flex items-center justify-center rounded-full transition-transform active:scale-90"
             style={{
               width: 24, height: 24,

@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { setNavHidden } from "@/lib/navVisibility";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
+import { playClick, playTick } from "@/lib/sounds";
 
 const STORAGE_KEY = "para_pets_friends_layout";
 
@@ -213,7 +214,7 @@ export default function FriendsPage() {
       >
         <button
           data-testid="button-back-friends"
-          onClick={() => navigate("/")}
+          onClick={() => { playClick(); navigate("/"); }}
           className="w-9 h-9 flex items-center justify-center rounded-full transition-transform active:scale-90"
           style={{
             background: "rgba(212,160,23,0.1)",
@@ -242,7 +243,7 @@ export default function FriendsPage() {
         {/* Friend requests toggle */}
         <button
           data-testid="button-toggle-requests"
-          onClick={() => setShowRequests(v => !v)}
+          onClick={() => { playTick(); setShowRequests(v => !v); }}
           className="relative w-9 h-9 flex items-center justify-center rounded-full transition-transform active:scale-90"
           style={{
             background: friendRequests.length > 0 ? "rgba(74,222,128,0.15)" : "rgba(255,255,255,0.05)",
@@ -313,7 +314,7 @@ export default function FriendsPage() {
                 <span className="flex-1 truncate font-fantasy text-sm" style={{ color: "#d4e8da" }}>{req.username}</span>
                 <button
                   data-testid={`button-accept-${req.id}`}
-                  onClick={() => acceptMutation.mutate({ requestId: req.id })}
+                  onClick={() => { playTick(); acceptMutation.mutate({ requestId: req.id }); }}
                   disabled={acceptMutation.isPending}
                   className="rounded-lg px-3 py-1 font-fantasy text-xs transition-transform active:scale-90 disabled:opacity-50"
                   style={{ background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.45)", color: "#4ade80", cursor: "pointer" }}
