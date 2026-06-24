@@ -227,8 +227,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
-    refetchOnMount: true,
-    staleTime: 0,
+    staleTime: 2 * 60 * 1000,
   });
 
   const dbName = worldApiData?.name;
@@ -412,9 +411,16 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       if (!res.ok) throw new Error("Failed to fetch locations");
       return res.json();
     },
-    refetchOnMount: true,
-    staleTime: 0,
+    staleTime: 60 * 1000,
   });
+
+  useEffect(() => {
+    if (!locations.length) return;
+    locations.forEach(loc => {
+      if (loc.iconUrl) { const img = new Image(); img.src = loc.iconUrl; }
+      if (loc.bgUrl) { const img = new Image(); img.src = loc.bgUrl; }
+    });
+  }, [locations]);
 
   // Auto-open a shop when ?openShop=<locationId> is in the URL (e.g. from a
   // quest hint "Buy Edibles" button).  Runs once after locations load.

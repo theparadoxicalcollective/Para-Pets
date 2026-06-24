@@ -152,12 +152,38 @@ function PvpArenaWrapper() {
   return <PvpArenaPage onClose={() => setLocation("/")} />;
 }
 
-const THEMED_WORLDS = new Set(["volcanic", "swamp", "haunted_woods"]);
+const THEMED_WORLDS = new Set([
+  "volcanic", "swamp", "haunted_woods",
+  "snowy_mountain", "sky_realm", "island", "desert", "enchanted_grove",
+]);
 
 function WorldLoadingGate({ location, user }: { location: string; user: any }) {
   const worldId = location.replace("/world/", "").split("/")[0];
-  const [screenDone, setScreenDone] = useState(!THEMED_WORLDS.has(worldId));
+  const isThemed = THEMED_WORLDS.has(worldId);
+  const [screenDone, setScreenDone] = useState(!isThemed);
   const [worldReady, setWorldReady] = useState(false);
+
+  useEffect(() => {
+    queryClient.prefetchQuery({
+      queryKey: ["/api/worlds", worldId],
+      queryFn: async () => {
+        const res = await fetch(`/api/worlds/${worldId}`, { credentials: "include" });
+        if (!res.ok) throw new Error("Failed");
+        return res.json();
+      },
+      staleTime: 2 * 60 * 1000,
+    });
+    queryClient.prefetchQuery({
+      queryKey: ["/api/world", worldId, "locations"],
+      queryFn: async () => {
+        const res = await fetch(`/api/world/${worldId}/locations`, { credentials: "include" });
+        if (!res.ok) throw new Error("Failed to fetch locations");
+        return res.json();
+      },
+      staleTime: 60 * 1000,
+    });
+  }, [worldId]);
+
   return (
     <>
       <WorldPage user={user} onContentReady={() => setWorldReady(true)} />
