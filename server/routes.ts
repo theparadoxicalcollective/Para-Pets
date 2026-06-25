@@ -5892,6 +5892,25 @@ export async function registerRoutes(
           } catch (fishErr) {
             console.error("Failed to move fish to buyer fish inventory:", fishErr);
           }
+        } else {
+          // Pet eggs bought from the player market are immediately ready to hatch —
+          // no speed-up potion needed. Backdate hatchStartedAt so the timer is
+          // already expired. This only applies here; tutorial and shop flows are
+          // unaffected.
+          try {
+            const invItem = await storage.getInventoryItemById(listing.inventoryId);
+            if (invItem && !invItem.isHatched) {
+              const shopItem = await storage.getShopItem(invItem.shopItemId);
+              if (shopItem?.type === "pet" && shopItem.hatchTime) {
+                const alreadyElapsed = (shopItem.hatchTime * 3600000) + 2000;
+                await storage.updateInventoryItem(invItem.id, {
+                  hatchStartedAt: new Date(Date.now() - alreadyElapsed),
+                });
+              }
+            }
+          } catch (hatchErr) {
+            console.error("Failed to backdate hatch timer for market purchase:", hatchErr);
+          }
         }
         return res.json({ ok: true, price });
       } catch (claimErr: any) {
