@@ -566,6 +566,22 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     },
   });
 
+  const [brewResult, setBrewResult] = useState<{ name: string; imageUrl: string | null; type: string } | null>(null);
+  const brewMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/cauldron/brew");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cauldron/contents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      setBrewResult(data.result);
+    },
+    onError: (err: any) => {
+      toast({ title: "Can't brew", description: err.message || "Something went wrong", variant: "destructive" });
+    },
+  });
+
   interface RecipeRow {
     id: string; result_type: string;
     recipe_item_id?: string | null; recipe_item_name?: string | null; recipe_item_image?: string | null;
@@ -5297,6 +5313,10 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           onClose={() => setCauldronOpen(false)}
           isAdding={addToCauldronMutation.isPending}
           isClearing={clearCauldronMutation.isPending}
+          onBrew={() => brewMutation.mutate()}
+          isBrewing={brewMutation.isPending}
+          brewResult={brewResult}
+          onClearBrewResult={() => setBrewResult(null)}
           recipes={recipes as RecipeRowProp[]}
           unlockedRecipeIds={unlockedRecipeIds}
           onUnlockRecipe={(inventoryId) => unlockRecipeMutation.mutate(inventoryId)}
@@ -5834,6 +5854,7 @@ interface RecipeRowProp {
 // ─────────────────────────────────────────────────────────────────────────────
 function CauldronPanel({
   inventory, contents, onAdd, onClear, onClose, isAdding, isClearing,
+  onBrew, isBrewing, brewResult, onClearBrewResult,
   recipes, unlockedRecipeIds, onUnlockRecipe, isUnlockingRecipe, hasNewUnlock, onClearNewUnlock, onShowRecipeDetail,
 }: {
   inventory: InventoryItem[];
@@ -5843,6 +5864,10 @@ function CauldronPanel({
   onClose: () => void;
   isAdding: boolean;
   isClearing: boolean;
+  onBrew: () => void;
+  isBrewing: boolean;
+  brewResult: { name: string; imageUrl: string | null; type: string } | null;
+  onClearBrewResult: () => void;
   recipes: RecipeRowProp[];
   unlockedRecipeIds: string[];
   onUnlockRecipe: (inventoryId: string) => void;
@@ -5962,17 +5987,35 @@ function CauldronPanel({
           )}
         </div>
         <p className="font-fantasy text-[10px] mt-1.5 tracking-wide text-center" style={{ color: dragOver ? "#5eead4" : "#5eead455" }}>
-          {dragOver ? "Release to unlock recipe" : "Drop recipe scroll or ingredient"}
+          {dragOver ? "Release to unlock recipe" : isFull ? "Ready to brew!" : "Drop recipe scroll or ingredient"}
         </p>
+        {isFull && (
+          <button
+            data-testid="button-brew-cauldron"
+            onClick={onBrew}
+            disabled={isBrewing}
+            className="font-fantasy text-sm tracking-wider mt-2 px-5 py-2 rounded-full disabled:opacity-50 active:scale-95 transition-transform"
+            style={{
+              background: "linear-gradient(135deg, rgba(94,234,212,0.35) 0%, rgba(45,212,191,0.22) 100%)",
+              border: "1.5px solid rgba(94,234,212,0.75)",
+              color: "#5eead4",
+              cursor: "pointer",
+              boxShadow: "0 0 18px rgba(45,212,191,0.4), 0 0 6px rgba(45,212,191,0.25)",
+              letterSpacing: "0.15em",
+            }}
+          >
+            {isBrewing ? "Brewing…" : "✨ Brew!"}
+          </button>
+        )}
         {totalInCauldron > 0 && (
           <button
             data-testid="button-clear-cauldron"
             onClick={onClear}
             disabled={isClearing}
-            className="font-fantasy text-[10px] tracking-wider mt-0.5 disabled:opacity-50"
-            style={{ background: "none", border: "none", color: "#fca5a5cc", cursor: "pointer" }}
+            className="font-fantasy text-[10px] tracking-wider mt-1 disabled:opacity-50"
+            style={{ background: "none", border: "none", color: "#fca5a5aa", cursor: "pointer" }}
           >
-            Clear brew ({totalInCauldron}/{CAULDRON_CAPACITY})
+            Clear ({totalInCauldron}/{CAULDRON_CAPACITY})
           </button>
         )}
       </div>
@@ -6066,6 +6109,48 @@ function CauldronPanel({
           100% { opacity: 0; }
         }
       `}</style>
+
+      {/* Brew Result Popup */}
+      {brewResult && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center pointer-events-auto" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClearBrewResult} />
+          <div
+            className="relative z-10 flex flex-col items-center gap-3 rounded-2xl px-8 py-7 pointer-events-auto"
+            style={{
+              background: "linear-gradient(160deg, rgba(12,28,22,0.98) 0%, rgba(8,40,32,0.98) 100%)",
+              border: "1.5px solid rgba(94,234,212,0.45)",
+              boxShadow: "0 0 60px rgba(0,0,0,0.85), 0 0 40px rgba(45,212,191,0.18)",
+              minWidth: 220,
+            }}
+          >
+            <p className="font-fantasy text-xs tracking-widest" style={{ color: "#5eead4aa" }}>BREW SUCCESSFUL</p>
+            <div
+              className="w-20 h-20 rounded-xl flex items-center justify-center overflow-hidden"
+              style={{ background: "rgba(94,234,212,0.1)", border: "1.5px solid rgba(94,234,212,0.3)", boxShadow: "0 0 24px rgba(45,212,191,0.25)" }}
+            >
+              {brewResult.imageUrl
+                ? <img src={brewResult.imageUrl} alt={brewResult.name} className="w-full h-full object-contain" />
+                : <span className="text-3xl">✨</span>
+              }
+            </div>
+            <p className="font-fantasy text-base text-center" style={{ color: "#d1faf3" }}>{brewResult.name}</p>
+            <p className="font-fantasy text-[10px] text-center" style={{ color: "#5eead4aa" }}>Added to your bag</p>
+            <button
+              data-testid="button-brew-result-close"
+              onClick={onClearBrewResult}
+              className="mt-1 font-fantasy text-xs tracking-wider px-6 py-2 rounded-full active:scale-95 transition-transform"
+              style={{
+                background: "rgba(94,234,212,0.18)",
+                border: "1px solid rgba(94,234,212,0.5)",
+                color: "#5eead4",
+                cursor: "pointer",
+              }}
+            >
+              Nice!
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Recipe Book Modal */}
       {showRecipeBook && (

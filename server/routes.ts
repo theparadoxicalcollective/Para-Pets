@@ -3630,6 +3630,77 @@ export async function registerRoutes(
     }
   });
 
+  // ── Brew: check recipe unlocked, award result, clear cauldron ───────────
+  app.post("/api/cauldron/brew", isAuthenticated, async (req: any, res) => {
+    const userId = req.user!.id;
+    try {
+      // 1. Load cauldron contents
+      const raw = await storage.getGameSetting(cauldronContentsKey(userId));
+      let contents: Array<{ shopItemId: string; quantity: number }> = [];
+      if (raw) { try { const p = JSON.parse(raw); if (Array.isArray(p)) contents = p; } catch {} }
+
+      const flatIds: string[] = [];
+      for (const c of contents) for (let i = 0; i < (c.quantity || 0); i++) flatIds.push(c.shopItemId);
+      if (flatIds.length !== 2) {
+        return res.status(400).json({ message: "Add exactly 2 ingredients to brew" });
+      }
+      const [id1, id2] = flatIds;
+
+      // 2. Find a matching recipe (ingredient order doesn't matter)
+      const recipeRows = await db.execute(sql`
+        SELECT r.id, r.result_id, r.result_type,
+               ri.name AS result_name, ri.image_url AS result_image
+        FROM mixing_tree_recipes r
+        JOIN shop_items ri ON r.result_id = ri.id
+        WHERE (r.ingredient1_id = ${id1} AND r.ingredient2_id = ${id2})
+           OR (r.ingredient1_id = ${id2} AND r.ingredient2_id = ${id1})
+        LIMIT 1
+      `);
+      if (!recipeRows.rows.length) {
+        return res.status(404).json({ message: "No recipe found for these ingredients" });
+      }
+      const recipe = recipeRows.rows[0] as any;
+
+      // 3. Player must have unlocked this recipe first
+      const unlockedRow = await db.execute(sql`
+        SELECT 1 FROM player_unlocked_recipes
+        WHERE user_id = ${userId} AND recipe_id = ${recipe.id}
+      `);
+      if (!unlockedRow.rows.length) {
+        return res.status(403).json({ message: "You haven't unlocked this recipe yet. Find the recipe scroll first!" });
+      }
+
+      // 4. Award the result item to the player
+      const existing = await db.execute(sql`
+        SELECT id FROM user_inventory
+        WHERE user_id = ${userId} AND shop_item_id = ${recipe.result_id}
+        LIMIT 1
+      `);
+      if (existing.rows.length) {
+        await db.execute(sql`
+          UPDATE user_inventory SET quantity = quantity + 1
+          WHERE id = ${(existing.rows[0] as any).id}
+        `);
+      } else {
+        await db.execute(sql`
+          INSERT INTO user_inventory (user_id, shop_item_id, quantity)
+          VALUES (${userId}, ${recipe.result_id}, 1)
+        `);
+      }
+
+      // 5. Clear the cauldron
+      await storage.setGameSetting(cauldronContentsKey(userId), JSON.stringify([]));
+
+      return res.json({
+        ok: true,
+        result: { name: recipe.result_name, imageUrl: recipe.result_image, type: recipe.result_type },
+      });
+    } catch (err) {
+      console.error("Brew error:", err);
+      return res.status(500).json({ message: "Failed to brew" });
+    }
+  });
+
   app.patch("/api/admin/worlds/:worldId/position", isAdmin, async (req, res) => {
     try {
       const { posX, posY } = req.body;
