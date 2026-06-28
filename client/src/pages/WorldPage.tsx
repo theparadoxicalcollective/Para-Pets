@@ -16,6 +16,7 @@ import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, Flip
 import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena, { BattlePotionSlot } from "@/components/BattleArena";
+import { QuillBadge } from "@/components/QuillBadge";
 import FishingPage from "@/pages/FishingPage";
 import SellFishPage from "@/pages/SellFishPage";
 import fishBarrelImg from "@assets/fish_barrel.png";
@@ -6203,12 +6204,7 @@ function CauldronPanel({
           >
             <img src={recipeBookClosed} alt="Recipes" className="w-5 h-5 object-contain" style={{ filter: "drop-shadow(0 1px 4px rgba(94,234,212,0.5))" }} />
             {hasNewUnlock && (
-              <div
-                className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
-                style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", border: "1.5px solid rgba(255,255,255,0.7)", boxShadow: "0 0 6px rgba(250,200,60,0.8)" }}
-              >
-                <span className="font-fantasy text-[8px] font-bold" style={{ color: "#fff", lineHeight: 1 }}>!</span>
-              </div>
+              <QuillBadge size={13} glow="#4ade80" style={{ position: "absolute", top: -18, right: -6 }} />
             )}
           </button>
 

@@ -17,6 +17,7 @@ import petInventoryIcon from "@assets/icon_pet_inventory.png";
 import feedButtonIcon from "@assets/generated_images/feed_button_icon.png";
 import feedingPageBg from "@assets/generated_images/feeding_page_bg.png";
 import careWreathImg from "@assets/Photoroom_20260611_74428_AM_1781181905848.png";
+import { QuillBadge } from "@/components/QuillBadge";
 import moodFaceHappy from "@assets/mood_face_happy.png";
 import moodFaceContent from "@assets/mood_face_content.png";
 import moodFaceSad from "@assets/mood_face_sad.png";
@@ -1291,8 +1292,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             <span style={{ position: "absolute", top: -6,  right: -10, width: 4, height: 4, borderRadius: "50%", background: "#86efac", animation: "gift-orb-drift-2 1.9s ease-in-out infinite, gift-orb-pulse 1.9s ease-in-out infinite", animationDelay: "0.4s" }} />
             <span style={{ position: "absolute", bottom: -9, left: -6,  width: 4, height: 4, borderRadius: "50%", background: "#4ade80", animation: "gift-orb-drift-3 2.5s ease-in-out infinite, gift-orb-pulse 2.5s ease-in-out infinite", animationDelay: "0.8s" }} />
             <span style={{ position: "absolute", bottom: -7, right: -8,  width: 5, height: 5, borderRadius: "50%", background: "#a7f3d0", animation: "gift-orb-drift-4 2.0s ease-in-out infinite, gift-orb-pulse 2.0s ease-in-out infinite", animationDelay: "1.2s" }} />
-            {/* The ! */}
-            <span style={{ fontSize: 22, fontWeight: "900", color: "#4ade80", lineHeight: 1, display: "inline-block", animation: "pulse-notif 1.8s ease-in-out infinite", WebkitTextStroke: "1px #000" }}>!</span>
+            {/* The quill badge */}
+            <QuillBadge size={18} glow="#4ade80" animate />
           </div>
         </button>
       )}

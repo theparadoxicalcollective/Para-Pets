@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, X, ChevronLeft, Plus, Minus, FlipHorizontal, Image, Copy, Upload } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
+import { QuillBadge } from "@/components/QuillBadge";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface HomeDecorItem {
@@ -671,7 +672,7 @@ function BundleBgEditor({ bundle, onClose, onBgUpdated }: { bundle: HouseBundle;
           onPointerUp={onGiftBtnUp}
           onPointerCancel={onGiftBtnUp}
         >
-          <span style={{ fontSize: 18, fontWeight: "bold", color: "#4ade80", lineHeight: 1, pointerEvents: "none", textShadow: "0 0 8px rgba(74,222,128,0.85), 0 0 16px rgba(74,222,128,0.4)" }}>!</span>
+          <QuillBadge size={18} glow="#4ade80" />
         </button>
       )}
 

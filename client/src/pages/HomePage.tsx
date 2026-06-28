@@ -17,6 +17,7 @@ import swordsImg from "@assets/generated_images/nav_icon_pvp.png";
 import eggImg from "@assets/generated_images/nav_icon_pets.png";
 import badgeIcon from "@assets/generated_images/nav_icon_badges.png";
 import { playSpeedUp } from "@/lib/sounds";
+import { QuillBadge } from "@/components/QuillBadge";
 import { clientToStage, getDesignW } from "@/lib/stage";
 import { bjGetStep, bjIsStep5FakeMode, bjIsStep5TapMode } from "@/lib/beginJourney";
 import { fireLevelUp } from "@/lib/levelUpEvents";
@@ -2213,17 +2214,7 @@ function NavIcon({ src, alt, testId, onClick, round, badge }: { src: string; alt
         />
       </div>
       {badge === "new" && (
-        <div
-          className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center animate-pulse"
-          style={{
-            background: "radial-gradient(circle, #f0c040 0%, #d4a017 100%)",
-            border: "2px solid rgba(30,15,5,0.8)",
-            boxShadow: "0 0 8px rgba(240,192,64,0.8), 0 0 16px rgba(240,192,64,0.4)",
-          }}
-          data-testid="badge-quest-new"
-        >
-          <span className="font-bold text-[10px] leading-none" style={{ color: "#3a2010" }}>!</span>
-        </div>
+        <QuillBadge size={13} glow="#4ade80" animate style={{ position: "absolute", top: -18, right: -6, zIndex: 10 }} data-testid="badge-quest-new" />
       )}
       {badge === "complete" && (
         <div

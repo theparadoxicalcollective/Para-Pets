@@ -16,6 +16,7 @@ import fishbowlIcon from "@assets/icon_fishbowl.png";
 import globeIcon from "@assets/icon_globe_world.webp";
 import bagIcon from "@assets/icon_bag.png";
 import friendsNavIcon from "@assets/Photoroom_20260622_114621_AM_1782146930993.png";
+import { QuillBadge } from "@/components/QuillBadge";
 import mapIcon from "@assets/generated_images/nav_icon_map_v3.png";
 import questIcon from "@assets/generated_images/nav_icon_map.png";
 import questScrollBg from "@assets/IMG_6427_1774545779530.png";
@@ -393,59 +394,20 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
           />
           {/* Quest notification badge — visible on main button when nav is closed */}
           {questBadge && !isOpen && (
-            <span
+            <QuillBadge
               data-testid="badge-quest-notification"
-              style={{
-                position: "absolute",
-                top: -5,
-                right: -5,
-                width: 28,
-                height: 28,
-                borderRadius: "50%",
-                background: questBadge === "green"
-                  ? "linear-gradient(135deg, #16a34a, #22c55e)"
-                  : "linear-gradient(135deg, #b45309, #f0c040)",
-                border: "2.5px solid rgba(0,0,0,0.9)",
-                fontSize: 16,
-                fontWeight: "bold",
-                color: questBadge === "green" ? "#fff" : "#1a0a00",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: questBadge === "green"
-                  ? "0 0 10px rgba(34,197,94,1), 0 0 20px rgba(34,197,94,0.5)"
-                  : "0 0 10px rgba(240,192,64,1), 0 0 18px rgba(240,192,64,0.5)",
-                zIndex: 100,
-                pointerEvents: "none",
-                fontFamily: "'Cinzel', serif",
-              }}
-            >!</span>
+              size={15}
+              glow={questBadge === "green" ? "#4ade80" : "#f0c040"}
+              style={{ position: "absolute", top: -22, right: -6, zIndex: 100 }}
+            />
           )}
           {/* Friend-request badge — green (!) on main button when nav is closed */}
           {friendBadge && !isOpen && (
-            <span
-              data-testid="badge-friend-request-notification"
-              style={{
-                position: "absolute",
-                top: -5,
-                left: -5,
-                width: 28,
-                height: 28,
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #16a34a, #22c55e)",
-                border: "2.5px solid rgba(0,0,0,0.9)",
-                fontSize: 16,
-                fontWeight: "bold",
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 0 10px rgba(34,197,94,1), 0 0 20px rgba(34,197,94,0.5)",
-                zIndex: 100,
-                pointerEvents: "none",
-                fontFamily: "'Cinzel', serif",
-              }}
-            >!</span>
+            <QuillBadge
+              size={15}
+              glow="#4ade80"
+              style={{ position: "absolute", top: -22, left: -6, zIndex: 100 }}
+            />
           )}
         </button>
       </div>
@@ -852,32 +814,11 @@ function NavButton({
 
       {/* Badge indicator on individual icon (visible when nav is open) */}
       {badge && (
-        <span
-          style={{
-            position: "absolute",
-            top: -5,
-            right: -5,
-            width: 28,
-            height: 28,
-            borderRadius: "50%",
-            background: badge === "green"
-              ? "linear-gradient(135deg, #16a34a, #22c55e)"
-              : "linear-gradient(135deg, #b45309, #f0c040)",
-            border: "2.5px solid rgba(0,0,0,0.9)",
-            fontSize: 16,
-            fontWeight: "bold",
-            color: badge === "green" ? "#fff" : "#1a0a00",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: badge === "green"
-              ? "0 0 10px rgba(34,197,94,1), 0 0 20px rgba(34,197,94,0.5)"
-              : "0 0 10px rgba(240,192,64,1), 0 0 18px rgba(240,192,64,0.5)",
-            zIndex: 200,
-            pointerEvents: "none",
-            fontFamily: "'Cinzel', serif",
-          }}
-        >!</span>
+        <QuillBadge
+          size={15}
+          glow={badge === "green" ? "#4ade80" : "#f0c040"}
+          style={{ position: "absolute", top: -22, right: -6, zIndex: 200 }}
+        />
       )}
 
       {/* Icon label */}
