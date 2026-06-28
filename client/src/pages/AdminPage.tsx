@@ -156,22 +156,22 @@ export default function AdminPage({ user }: AdminPageProps) {
   };
 
   const sections = [
-    { key: "members" as const, label: "Members", count: members.length, icon: adminIconMembers, desc: "Manage players", color: "#f0c040", glow: "rgba(240,192,64,0.35)", bg: "linear-gradient(145deg, rgba(60,38,8,0.92) 0%, rgba(92,58,20,0.88) 100%)", border: "rgba(212,160,23,0.5)" },
-    { key: "rewards" as const, label: "Rewards", icon: adminIconRewards, desc: "Send bundles", color: "#c4b5fd", glow: "rgba(192,132,252,0.35)", bg: "linear-gradient(145deg, rgba(50,18,88,0.92) 0%, rgba(80,28,120,0.88) 100%)", border: "rgba(192,132,252,0.5)" },
-    { key: "items" as const, label: "Items", icon: adminIconItems, desc: "Items & fishing supplies", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
-    { key: "pets" as const, label: "Add Character", icon: adminIconPets, desc: "Pets, enemies, NPCs & fish", color: "#fdba74", glow: "rgba(251,146,60,0.30)", bg: "linear-gradient(145deg, rgba(72,32,8,0.92) 0%, rgba(110,52,12,0.88) 100%)", border: "rgba(251,146,60,0.45)" },
-    { key: "messages" as const, label: "Messages", count: unreadSupportCount || undefined, icon: adminIconMessages, desc: "Support inbox", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(80,18,18,0.92) 0%, rgba(110,28,28,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
-    { key: "badges" as const, label: "Badges", icon: adminIconBadges, desc: "Award badges", color: "#fde68a", glow: "rgba(253,230,138,0.30)", bg: "linear-gradient(145deg, rgba(72,54,0,0.92) 0%, rgba(108,80,0,0.88) 100%)", border: "rgba(253,230,138,0.45)" },
-    { key: "emblems" as const, label: "Emblems", icon: adminIconBadges, desc: "PvP rank trophies", color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(80,18,18,0.92) 0%, rgba(110,28,28,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
-    { key: "quest" as const, label: "Quests", icon: adminIconQuest, desc: "Manage quests", color: "#6ee7b7", glow: "rgba(110,231,183,0.35)", bg: "linear-gradient(145deg, rgba(8,50,35,0.92) 0%, rgba(14,80,55,0.88) 100%)", border: "rgba(110,231,183,0.45)" },
-
-    { key: "home_bundle" as const, label: "Home Bundle", icon: adminIconHouseBundle, desc: "Decor & bundles", color: "#fbbf24", glow: "rgba(251,191,36,0.30)", bg: "linear-gradient(145deg, rgba(60,40,4,0.92) 0%, rgba(90,60,8,0.88) 100%)", border: "rgba(251,191,36,0.45)" },
-    { key: "purchases" as const, label: "Purchases", icon: adminIconPurchases, desc: "Coin shop history", color: "#86efac", glow: "rgba(134,239,172,0.30)", bg: "linear-gradient(145deg, rgba(8,45,18,0.92) 0%, rgba(12,70,28,0.88) 100%)", border: "rgba(134,239,172,0.45)" },
-    { key: "maintenance" as const, label: "Maintenance", icon: adminIconMaintenance, desc: "DB cleanup tools", color: "#f9a8d4", glow: "rgba(249,168,212,0.30)", bg: "linear-gradient(145deg, rgba(60,8,40,0.92) 0%, rgba(90,12,60,0.88) 100%)", border: "rgba(249,168,212,0.45)" },
-    { key: "veridian_watcher" as const, label: "Veridian Watcher", icon: adminIconVeridianWatcher, desc: "Bot quotes & chat filter", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
-    { key: "molten_blocks" as const, label: "Molten Blocks", icon: adminIconItems, desc: "Item drops in Molten Blocks", color: "#fb923c", glow: "rgba(251,146,60,0.35)", bg: "linear-gradient(145deg, rgba(72,24,4,0.92) 0%, rgba(110,38,8,0.88) 100%)", border: "rgba(251,146,60,0.5)" },
-    { key: "metrics" as const, label: "Metrics", icon: adminIconPurchases, desc: "Player login analytics", color: "#a5f3fc", glow: "rgba(165,243,252,0.30)", bg: "linear-gradient(145deg, rgba(8,40,55,0.92) 0%, rgba(12,65,85,0.88) 100%)", border: "rgba(165,243,252,0.45)" },
-    { key: "recipe_items" as const, label: "Recipes", icon: adminIconItems, desc: "Mixing Tree brew recipes", color: "#86efac", glow: "rgba(134,239,172,0.35)", bg: "linear-gradient(145deg, rgba(8,45,20,0.92) 0%, rgba(14,70,32,0.88) 100%)", border: "rgba(134,239,172,0.5)" },
+    // ── A–Z alphabetical order, each with a unique colour ────────────────────
+    { key: "pets"          as const, label: "Add Character",   icon: adminIconPets,          desc: "Pets, enemies, NPCs & fish",   color: "#fb923c", glow: "rgba(251,146,60,0.35)",   bg: "linear-gradient(145deg, rgba(72,24,4,0.92) 0%, rgba(110,38,8,0.88) 100%)",    border: "rgba(251,146,60,0.5)"   },
+    { key: "badges"        as const, label: "Badges",          icon: adminIconBadges,        desc: "Award badges",                 color: "#fde68a", glow: "rgba(253,230,138,0.30)",  bg: "linear-gradient(145deg, rgba(72,54,0,0.92) 0%, rgba(108,80,0,0.88) 100%)",    border: "rgba(253,230,138,0.45)" },
+    { key: "emblems"       as const, label: "Emblems",         icon: adminIconBadges,        desc: "PvP rank trophies",            color: "#fda4af", glow: "rgba(253,164,175,0.30)",  bg: "linear-gradient(145deg, rgba(80,12,24,0.92) 0%, rgba(110,20,36,0.88) 100%)",  border: "rgba(253,164,175,0.45)" },
+    { key: "home_bundle"   as const, label: "Home Bundle",     icon: adminIconHouseBundle,   desc: "Decor & bundles",              color: "#fbbf24", glow: "rgba(251,191,36,0.30)",   bg: "linear-gradient(145deg, rgba(60,40,4,0.92) 0%, rgba(90,60,8,0.88) 100%)",    border: "rgba(251,191,36,0.45)" },
+    { key: "items"         as const, label: "Items",           icon: adminIconItems,         desc: "Items & fishing supplies",     color: "#5eead4", glow: "rgba(94,234,212,0.30)",   bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)",   border: "rgba(94,234,212,0.45)"  },
+    { key: "maintenance"   as const, label: "Maintenance",     icon: adminIconMaintenance,   desc: "DB cleanup tools",             color: "#e879f9", glow: "rgba(232,121,249,0.30)",  bg: "linear-gradient(145deg, rgba(60,8,60,0.92) 0%, rgba(90,12,90,0.88) 100%)",   border: "rgba(232,121,249,0.45)" },
+    { key: "members"       as const, label: "Members",         icon: adminIconMembers,       desc: "Manage players", count: members.length, color: "#f0c040", glow: "rgba(240,192,64,0.35)", bg: "linear-gradient(145deg, rgba(60,38,8,0.92) 0%, rgba(92,58,20,0.88) 100%)", border: "rgba(212,160,23,0.5)" },
+    { key: "messages"      as const, label: "Messages",        icon: adminIconMessages,      desc: "Support inbox",  count: unreadSupportCount || undefined, color: "#fca5a5", glow: "rgba(252,165,165,0.30)", bg: "linear-gradient(145deg, rgba(80,18,18,0.92) 0%, rgba(110,28,28,0.88) 100%)", border: "rgba(252,165,165,0.45)" },
+    { key: "metrics"       as const, label: "Metrics",         icon: adminIconPurchases,     desc: "Player login analytics",       color: "#7dd3fc", glow: "rgba(125,211,252,0.30)",  bg: "linear-gradient(145deg, rgba(8,36,60,0.92) 0%, rgba(12,56,90,0.88) 100%)",   border: "rgba(125,211,252,0.45)" },
+    { key: "molten_blocks" as const, label: "Molten Blocks",   icon: adminIconItems,         desc: "Item drops in Molten Blocks",  color: "#fdba74", glow: "rgba(253,186,116,0.35)",  bg: "linear-gradient(145deg, rgba(72,32,4,0.92) 0%, rgba(110,50,10,0.88) 100%)",  border: "rgba(253,186,116,0.5)"  },
+    { key: "purchases"     as const, label: "Purchases",       icon: adminIconPurchases,     desc: "Coin shop history",            color: "#86efac", glow: "rgba(134,239,172,0.30)",  bg: "linear-gradient(145deg, rgba(8,45,18,0.92) 0%, rgba(12,70,28,0.88) 100%)",   border: "rgba(134,239,172,0.45)" },
+    { key: "quest"         as const, label: "Quests",          icon: adminIconQuest,         desc: "Manage quests",                color: "#6ee7b7", glow: "rgba(110,231,183,0.35)",  bg: "linear-gradient(145deg, rgba(8,50,35,0.92) 0%, rgba(14,80,55,0.88) 100%)",   border: "rgba(110,231,183,0.45)" },
+    { key: "recipe_items"  as const, label: "Recipes",         icon: adminIconItems,         desc: "Mixing Tree brew recipes",     color: "#4ade80", glow: "rgba(74,222,128,0.35)",   bg: "linear-gradient(145deg, rgba(4,40,16,0.92) 0%, rgba(8,64,24,0.88) 100%)",   border: "rgba(74,222,128,0.5)"   },
+    { key: "rewards"       as const, label: "Rewards",         icon: adminIconRewards,       desc: "Send bundles",                 color: "#c4b5fd", glow: "rgba(192,132,252,0.35)",  bg: "linear-gradient(145deg, rgba(50,18,88,0.92) 0%, rgba(80,28,120,0.88) 100%)", border: "rgba(192,132,252,0.5)"  },
+    { key: "veridian_watcher" as const, label: "Veridian Watcher", icon: adminIconVeridianWatcher, desc: "Bot quotes & chat filter", color: "#a5f3fc", glow: "rgba(165,243,252,0.30)", bg: "linear-gradient(145deg, rgba(8,40,55,0.92) 0%, rgba(12,65,85,0.88) 100%)", border: "rgba(165,243,252,0.45)" },
   ];
 
   const activeSectionMeta = activeSection ? sections.find(s => s.key === activeSection) : null;
@@ -4425,6 +4425,7 @@ function RecipeItemsSection() {
   const [ing1, setIng1] = useState("");
   const [ing2, setIng2] = useState("");
   const [result, setResult] = useState("");
+  const [resultFilter, setResultFilter] = useState("");
 
   type ShopItemRow = { id: string; name: string; type: string; imageUrl: string | null };
   type RecipeRow = {
@@ -4437,6 +4438,11 @@ function RecipeItemsSection() {
   const { data: allShopItems = [] } = useQuery<ShopItemRow[]>({
     queryKey: ["/api/admin/shop-items-all"],
   });
+
+  const ingredientItems = allShopItems.filter(s => s.type === "ingredient");
+  const filteredResultItems = resultFilter.trim()
+    ? allShopItems.filter(s => s.name.toLowerCase().includes(resultFilter.trim().toLowerCase()))
+    : allShopItems;
 
   const { data: recipes = [], isLoading } = useQuery<RecipeRow[]>({
     queryKey: ["/api/recipes"],
@@ -4522,22 +4528,31 @@ function RecipeItemsSection() {
               <label style={{ fontSize: 10, color: "#86efac88", display: "block", marginBottom: 4, letterSpacing: "0.1em" }}>INGREDIENT 1</label>
               <select data-testid="select-recipe-ing1" value={ing1} onChange={e => setIng1(e.target.value)} style={sel}>
                 <option value="">Choose ingredient…</option>
-                {allShopItems.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {ingredientItems.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
+              {ingredientItems.length === 0 && <div style={{ fontSize: 10, color: "#fca5a599", marginTop: 4 }}>No items with type "ingredient" found — add some in the Items section first.</div>}
             </div>
             <div>
               <label style={{ fontSize: 10, color: "#86efac88", display: "block", marginBottom: 4, letterSpacing: "0.1em" }}>INGREDIENT 2</label>
               <select data-testid="select-recipe-ing2" value={ing2} onChange={e => setIng2(e.target.value)} style={sel}>
                 <option value="">Choose ingredient…</option>
-                {allShopItems.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {ingredientItems.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>
               <label style={{ fontSize: 10, color: "#86efac88", display: "block", marginBottom: 4, letterSpacing: "0.1em" }}>RESULT ITEM</label>
+              <input
+                data-testid="input-result-filter"
+                placeholder="Search items…"
+                value={resultFilter}
+                onChange={e => { setResultFilter(e.target.value); setResult(""); }}
+                style={{ ...sel, marginBottom: 6, appearance: undefined } as React.CSSProperties}
+              />
               <select data-testid="select-recipe-result" value={result} onChange={e => setResult(e.target.value)} style={sel}>
                 <option value="">Choose result…</option>
-                {allShopItems.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {filteredResultItems.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
+              {resultFilter && filteredResultItems.length === 0 && <div style={{ fontSize: 10, color: "#fca5a599", marginTop: 4 }}>No items match "{resultFilter}"</div>}
             </div>
 
             {/* Preview row */}
