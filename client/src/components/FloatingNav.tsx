@@ -398,7 +398,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
               data-testid="badge-quest-notification"
               size={15}
               glow={questBadge === "green" ? "#4ade80" : "#f0c040"}
-              style={{ position: "absolute", top: -22, right: -6, zIndex: 100 }}
+              style={{ position: "absolute", top: -22, zIndex: 100 }}
             />
           )}
           {/* Friend-request badge — green (!) on main button when nav is closed */}
@@ -406,7 +406,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             <QuillBadge
               size={15}
               glow="#4ade80"
-              style={{ position: "absolute", top: -22, left: -6, zIndex: 100 }}
+              style={{ position: "absolute", top: -22, zIndex: 100 }}
             />
           )}
         </button>
@@ -817,7 +817,7 @@ function NavButton({
         <QuillBadge
           size={15}
           glow={badge === "green" ? "#4ade80" : "#f0c040"}
-          style={{ position: "absolute", top: -22, right: -6, zIndex: 200 }}
+          style={{ position: "absolute", top: -22, zIndex: 200 }}
         />
       )}
 

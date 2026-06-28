@@ -2214,7 +2214,7 @@ function NavIcon({ src, alt, testId, onClick, round, badge }: { src: string; alt
         />
       </div>
       {badge === "new" && (
-        <QuillBadge size={13} glow="#4ade80" animate style={{ position: "absolute", top: -18, right: -6, zIndex: 10 }} data-testid="badge-quest-new" />
+        <QuillBadge size={13} glow="#4ade80" style={{ position: "absolute", top: -18, zIndex: 10 }} data-testid="badge-quest-new" />
       )}
       {badge === "complete" && (
         <div

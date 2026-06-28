@@ -6204,7 +6204,7 @@ function CauldronPanel({
           >
             <img src={recipeBookClosed} alt="Recipes" className="w-5 h-5 object-contain" style={{ filter: "drop-shadow(0 1px 4px rgba(94,234,212,0.5))" }} />
             {hasNewUnlock && (
-              <QuillBadge size={13} glow="#4ade80" style={{ position: "absolute", top: -18, right: -6 }} />
+              <QuillBadge size={13} glow="#4ade80" style={{ position: "absolute", top: -18 }} />
             )}
           </button>
 
