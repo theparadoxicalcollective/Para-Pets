@@ -8777,7 +8777,8 @@ export async function registerRoutes(
   app.get("/api/recipes", isAuthenticated, async (_req, res) => {
     try {
       const rows = await db.execute(sql`
-        SELECT r.id, r.result_type,
+        SELECT r.id, r.result_type, r.recipe_item_id,
+          ri.name as recipe_item_name, ri.image_url as recipe_item_image,
           i1.id as ing1_id, i1.name as ing1_name, i1.image_url as ing1_image,
           i2.id as ing2_id, i2.name as ing2_name, i2.image_url as ing2_image,
           rr.id as result_id, rr.name as result_name, rr.image_url as result_image, rr.type as result_item_type
@@ -8785,6 +8786,7 @@ export async function registerRoutes(
         JOIN shop_items i1 ON r.ingredient1_id = i1.id
         JOIN shop_items i2 ON r.ingredient2_id = i2.id
         JOIN shop_items rr ON r.result_id = rr.id
+        LEFT JOIN shop_items ri ON r.recipe_item_id = ri.id
         ORDER BY r.created_at
       `);
       return res.json(rows.rows);
@@ -8794,9 +8796,70 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/recipes/unlocked", isAuthenticated, async (req: any, res) => {
+    const userId = req.user!.id;
+    try {
+      const rows = await db.execute(sql`
+        SELECT recipe_id FROM player_unlocked_recipes WHERE user_id = ${userId}
+      `);
+      return res.json((rows.rows as any[]).map((r) => r.recipe_id));
+    } catch (err) {
+      console.error("Get unlocked recipes error:", err);
+      return res.status(500).json({ message: "Failed to get unlocked recipes" });
+    }
+  });
+
+  app.post("/api/recipes/unlock", isAuthenticated, async (req: any, res) => {
+    const userId = req.user!.id;
+    const { inventoryId } = req.body;
+    if (!inventoryId) return res.status(400).json({ message: "inventoryId required" });
+    try {
+      // Find the inventory item and its shop_item_id
+      const invRow = await db.execute(sql`
+        SELECT ui.id, ui.shop_item_id FROM user_inventory ui
+        WHERE ui.id = ${inventoryId} AND ui.user_id = ${userId}
+      `);
+      if (!invRow.rows.length) return res.status(404).json({ message: "Item not found" });
+      const shopItemId = (invRow.rows[0] as any).shop_item_id;
+      // Find the recipe this scroll unlocks
+      const recipeRow = await db.execute(sql`
+        SELECT r.id, r.result_type,
+          ri.image_url as recipe_item_image,
+          i1.id as ing1_id, i1.name as ing1_name, i1.image_url as ing1_image,
+          i2.id as ing2_id, i2.name as ing2_name, i2.image_url as ing2_image,
+          rr.id as result_id, rr.name as result_name, rr.image_url as result_image
+        FROM mixing_tree_recipes r
+        JOIN shop_items i1 ON r.ingredient1_id = i1.id
+        JOIN shop_items i2 ON r.ingredient2_id = i2.id
+        JOIN shop_items rr ON r.result_id = rr.id
+        LEFT JOIN shop_items ri ON r.recipe_item_id = ri.id
+        WHERE r.recipe_item_id = ${shopItemId}
+        LIMIT 1
+      `);
+      if (!recipeRow.rows.length) return res.status(404).json({ message: "No recipe found for this scroll" });
+      const recipe = recipeRow.rows[0] as any;
+      // Check not already unlocked
+      const alreadyRow = await db.execute(sql`
+        SELECT 1 FROM player_unlocked_recipes WHERE user_id = ${userId} AND recipe_id = ${recipe.id}
+      `);
+      if (alreadyRow.rows.length) return res.status(409).json({ message: "Already unlocked" });
+      // Unlock and consume scroll
+      await db.execute(sql`
+        INSERT INTO player_unlocked_recipes (user_id, recipe_id) VALUES (${userId}, ${recipe.id})
+      `);
+      await db.execute(sql`
+        DELETE FROM user_inventory WHERE id = ${inventoryId} AND user_id = ${userId}
+      `);
+      return res.json({ ok: true, recipe });
+    } catch (err) {
+      console.error("Unlock recipe error:", err);
+      return res.status(500).json({ message: "Failed to unlock recipe" });
+    }
+  });
+
   app.post("/api/admin/recipes", isAdmin, async (req, res) => {
     try {
-      const { ingredient1Id, ingredient2Id, resultId, resultType } = req.body;
+      const { ingredient1Id, ingredient2Id, resultId, resultType, recipeItemId } = req.body;
       if (!ingredient1Id || !ingredient2Id || !resultId || !resultType) {
         return res.status(400).json({ message: "All fields required" });
       }
@@ -8804,8 +8867,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "resultType must be item, fish, or pet" });
       }
       await db.execute(sql`
-        INSERT INTO mixing_tree_recipes (ingredient1_id, ingredient2_id, result_id, result_type)
-        VALUES (${ingredient1Id}, ${ingredient2Id}, ${resultId}, ${resultType})
+        INSERT INTO mixing_tree_recipes (ingredient1_id, ingredient2_id, result_id, result_type, recipe_item_id)
+        VALUES (${ingredient1Id}, ${ingredient2Id}, ${resultId}, ${resultType}, ${recipeItemId || null})
       `);
       return res.json({ ok: true });
     } catch (err) {

@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
+import recipeScrollIcon from "@assets/Photoroom_20260627_85235_PM_1782612638904.png";
 import bagIconImg from "@assets/icon_bag.png";
 import tabIconAll from "@assets/icon_bag.png";
 import tabIconPotion from "@assets/potion_health.png";
@@ -1044,6 +1045,8 @@ function getItemDescription(item: InventoryItem): string {
   if (parts.length === 0) {
     if (item.type === "potion") parts.push("A mystical potion for your pet.");
     else if (item.type === "accessory") parts.push("An accessory for your pet.");
+    else if (item.type === "recipe") parts.push("A recipe scroll. Drag it onto the cauldron in The Bayou to unlock its recipe!");
+    else if (item.type === "ingredient") parts.push("A brewing ingredient. Take it to The Bayou cauldron to brew!");
     else parts.push("A collectible item from Veridia.");
   }
   return parts.join(" ");
@@ -1133,7 +1136,20 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
     accessory: "#c084fc",
     potion: "#60d394",
     special: "#fb923c",
+    recipe: "#fde68a",
+    ingredient: "#94a3b8",
   };
+
+  const { data: allRecipes = [] } = useQuery<Array<{
+    id: string; result_type: string;
+    recipe_item_id?: string | null;
+    ing1_id: string; ing1_name: string; ing1_image: string | null;
+    ing2_id: string; ing2_name: string; ing2_image: string | null;
+    result_id: string; result_name: string; result_image: string | null; result_item_type: string;
+  }>>({
+    queryKey: ["/api/recipes"],
+    staleTime: 60 * 1000,
+  });
 
   // Build stacked display items — all non-pet items stack by shopItemId
   const stackMap = new Map<string, { item: InventoryItem; count: number }>();
@@ -1341,6 +1357,44 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
                   {getItemDescription(selectedItem)}
                 </p>
               </div>
+
+              {/* Recipe scroll detail — show matching recipe if found */}
+              {selectedItem.type === "recipe" && (() => {
+                const matchedRecipe = allRecipes.find((r) => r.recipe_item_id === selectedItem.shopItemId);
+                if (!matchedRecipe) return (
+                  <div className="w-full rounded-lg p-3 flex flex-col items-center gap-2" style={{ background: "rgba(253,230,138,0.06)", border: "1px dashed rgba(253,230,138,0.3)" }}>
+                    <img src={recipeScrollIcon} alt="" className="w-10 h-10 object-contain opacity-40" />
+                    <p className="font-fantasy text-[10px] text-center" style={{ color: "#fde68a88" }}>Head to The Bayou and drop this on the cauldron to reveal the recipe.</p>
+                  </div>
+                );
+                return (
+                  <div className="w-full rounded-lg p-3" style={{ background: "rgba(253,230,138,0.06)", border: "1px solid rgba(253,230,138,0.3)" }}>
+                    <p className="font-fantasy text-[10px] tracking-wider text-center mb-3" style={{ color: "#fde68a" }}>Recipe Preview</p>
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="w-12 h-12 rounded-lg overflow-hidden" style={{ background: "rgba(0,0,0,0.35)" }}>
+                          {matchedRecipe.ing1_image ? <img src={matchedRecipe.ing1_image} alt="" className="w-full h-full object-contain" /> : <div className="w-full h-full" />}
+                        </div>
+                        <p className="font-fantasy text-[9px] text-center" style={{ color: "#c8b090", maxWidth: 52 }}>{matchedRecipe.ing1_name}</p>
+                      </div>
+                      <span className="font-fantasy text-sm" style={{ color: "#fde68a66" }}>+</span>
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="w-12 h-12 rounded-lg overflow-hidden" style={{ background: "rgba(0,0,0,0.35)" }}>
+                          {matchedRecipe.ing2_image ? <img src={matchedRecipe.ing2_image} alt="" className="w-full h-full object-contain" /> : <div className="w-full h-full" />}
+                        </div>
+                        <p className="font-fantasy text-[9px] text-center" style={{ color: "#c8b090", maxWidth: 52 }}>{matchedRecipe.ing2_name}</p>
+                      </div>
+                      <span className="font-fantasy text-sm" style={{ color: "#fde68a66" }}>→</span>
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="w-12 h-12 rounded-lg overflow-hidden" style={{ background: "rgba(0,0,0,0.35)" }}>
+                          {matchedRecipe.result_image ? <img src={matchedRecipe.result_image} alt="" className="w-full h-full object-contain" /> : <div className="w-full h-full" />}
+                        </div>
+                        <p className="font-fantasy text-[9px] text-center" style={{ color: "#c8b090", maxWidth: 52 }}>{matchedRecipe.result_name}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
 
               <div className="w-full pt-2 border-t" style={{ borderColor: "rgba(212,160,23,0.15)" }}>

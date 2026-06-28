@@ -284,6 +284,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [showNoPetMessage, setShowNoPetMessage] = useState(false);
   const [showDangerWarning, setShowDangerWarning] = useState(false);
   const [showCauldronConstruction, setShowCauldronConstruction] = useState(false);
+  const [hasNewUnlock, setHasNewUnlock] = useState(false);
+  const [recipeDetail, setRecipeDetail] = useState<RecipeRowProp | null>(null);
   const [showBattlePrep, setShowBattlePrep] = useState(false);
   const [showBattle, setShowBattle] = useState(false);
   const [battleLocationId, setBattleLocationId] = useState<string | null>(null);
@@ -565,6 +567,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
   interface RecipeRow {
     id: string; result_type: string;
+    recipe_item_id?: string | null; recipe_item_name?: string | null; recipe_item_image?: string | null;
     ing1_id: string; ing1_name: string; ing1_image: string | null;
     ing2_id: string; ing2_name: string; ing2_image: string | null;
     result_id: string; result_name: string; result_image: string | null; result_item_type: string;
@@ -590,6 +593,25 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       return res.json();
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/recipes"] }); },
+  });
+
+  const { data: unlockedRecipeIds = [] } = useQuery<string[]>({
+    queryKey: ["/api/recipes/unlocked"],
+    staleTime: 30 * 1000,
+  });
+
+  const unlockRecipeMutation = useMutation({
+    mutationFn: async (inventoryId: string) => {
+      const res = await apiRequest("POST", "/api/recipes/unlock", { inventoryId });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/recipes/unlocked"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      setHasNewUnlock(true);
+      if (data?.recipe) setRecipeDetail(data.recipe as RecipeRowProp);
+    },
+    onError: () => { toast({ title: "Couldn't unlock recipe", variant: "destructive" }); },
   });
 
   const { data: allShopItems = [], refetch: refetchAllShopItems, isLoading: isAllShopItemsLoading } = useQuery<ShopItem[]>({
@@ -692,7 +714,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       setCurrentUser(prev => ({ ...prev, coins: data.newBalance }));
       setSellSelected({});
       setShowSellPanel(false);
-      burstGoldenOrbs(6);
+      burstGoldenOrbs(window.innerWidth / 2, window.innerHeight / 2, 6);
       toast({ title: `+${data.coinsEarned} coins!`, description: "Items sold successfully" });
     },
     onError: () => {
@@ -4341,13 +4363,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                 y={cauldronY}
                 size={cauldronSize}
                 onCommit={(layout) => cauldronLayoutMutation.mutate(layout)}
-                onClick={() => {
-                  if (currentUser.isAdmin) {
-                    setCauldronOpen(true);
-                  } else {
-                    setShowCauldronConstruction(true);
-                  }
-                }}
+                onClick={() => setCauldronOpen(true)}
               />
             </>
           )}
@@ -5280,13 +5296,82 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           onClose={() => setCauldronOpen(false)}
           isAdding={addToCauldronMutation.isPending}
           isClearing={clearCauldronMutation.isPending}
-          isAdmin={!!currentUser.isAdmin}
-          recipes={recipes}
-          allShopItems={allShopItems}
-          onAddRecipe={(d) => addRecipeMutation.mutate(d)}
-          onDeleteRecipe={(id) => deleteRecipeMutation.mutate(id)}
-          isAddingRecipe={addRecipeMutation.isPending}
+          recipes={recipes as RecipeRowProp[]}
+          unlockedRecipeIds={unlockedRecipeIds}
+          onUnlockRecipe={(inventoryId) => unlockRecipeMutation.mutate(inventoryId)}
+          isUnlockingRecipe={unlockRecipeMutation.isPending}
+          hasNewUnlock={hasNewUnlock}
+          onClearNewUnlock={() => setHasNewUnlock(false)}
+          onShowRecipeDetail={(r) => setRecipeDetail(r)}
         />
+      )}
+
+      {/* Recipe Detail Popup */}
+      {recipeDetail && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center pointer-events-auto"
+          style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+          onClick={() => setRecipeDetail(null)}
+        >
+          <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
+          <div
+            className="relative z-10 w-[85%] max-w-[300px] rounded-2xl overflow-hidden p-6 flex flex-col items-center gap-4"
+            style={{
+              background: "linear-gradient(160deg, rgba(12,28,22,0.99) 0%, rgba(8,40,32,0.99) 100%)",
+              border: "1.5px solid rgba(94,234,212,0.4)",
+              boxShadow: "0 0 60px rgba(0,0,0,0.85), 0 0 30px rgba(45,212,191,0.14)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setRecipeDetail(null)}
+              className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(94,234,212,0.15)", border: "1px solid rgba(94,234,212,0.35)", color: "#5eead4", cursor: "pointer" }}
+            ><X className="w-3.5 h-3.5" /></button>
+            {/* Recipe scroll image centered */}
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-20 h-20 rounded-xl flex items-center justify-center" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(94,234,212,0.2)" }}>
+                {recipeDetail.recipe_item_image ? (
+                  <img src={recipeDetail.recipe_item_image} alt="" className="w-full h-full object-contain" />
+                ) : (
+                  <img src={recipeScrollIcon} alt="" className="w-14 h-14 object-contain opacity-60" />
+                )}
+              </div>
+              <p className="font-fantasy text-sm tracking-wider text-center mt-1" style={{ color: "#5eead4" }}>
+                {recipeDetail.result_name}
+              </p>
+              <p className="font-fantasy text-[10px]" style={{ color: "#5eead455" }}>Recipe</p>
+            </div>
+            {/* Ingredients → Result */}
+            <div className="flex items-center justify-center gap-3 w-full">
+              {/* ing1 */}
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-14 h-14 rounded-xl overflow-hidden" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(94,234,212,0.18)" }}>
+                  {recipeDetail.ing1_image ? <img src={recipeDetail.ing1_image} alt="" className="w-full h-full object-contain" /> : <div className="w-full h-full" />}
+                </div>
+                <p className="font-fantasy text-[9px] text-center leading-tight" style={{ color: "#c8f4ed", maxWidth: 56 }}>{recipeDetail.ing1_name}</p>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <span className="font-fantasy text-base" style={{ color: "#5eead488" }}>+</span>
+              </div>
+              {/* ing2 */}
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-14 h-14 rounded-xl overflow-hidden" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(94,234,212,0.18)" }}>
+                  {recipeDetail.ing2_image ? <img src={recipeDetail.ing2_image} alt="" className="w-full h-full object-contain" /> : <div className="w-full h-full" />}
+                </div>
+                <p className="font-fantasy text-[9px] text-center leading-tight" style={{ color: "#c8f4ed", maxWidth: 56 }}>{recipeDetail.ing2_name}</p>
+              </div>
+              <span className="font-fantasy text-base" style={{ color: "#5eead488" }}>→</span>
+              {/* result */}
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-14 h-14 rounded-xl overflow-hidden" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(94,234,212,0.3)" }}>
+                  {recipeDetail.result_image ? <img src={recipeDetail.result_image} alt="" className="w-full h-full object-contain" /> : <div className="w-full h-full" />}
+                </div>
+                <p className="font-fantasy text-[9px] text-center leading-tight" style={{ color: "#c8f4ed", maxWidth: 56 }}>{recipeDetail.result_name}</p>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Cauldron "Under Construction" modal for non-admins */}
@@ -5730,14 +5815,25 @@ function CauldronOverlay({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CauldronPanel — modal that shows the player's "Ingredients" inventory and
-// the cauldron's current contents. Players tap or drag an ingredient onto
-// the cauldron drop-zone to add one of it (decrements inventory and appends
-// to the per-user cauldron contents).
+// RecipeRowProp — shape returned by /api/recipes (used by CauldronPanel +
+// the recipe detail popup in WorldPage).
+// ─────────────────────────────────────────────────────────────────────────────
+interface RecipeRowProp {
+  id: string; result_type: string;
+  recipe_item_id?: string | null; recipe_item_name?: string | null; recipe_item_image?: string | null;
+  ing1_id: string; ing1_name: string; ing1_image: string | null;
+  ing2_id: string; ing2_name: string; ing2_image: string | null;
+  result_id: string; result_name: string; result_image: string | null; result_item_type: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CauldronPanel — bottom-sheet modal for The Bayou cauldron. Players drag
+// recipe scrolls onto the cauldron image to unlock recipes, and see all
+// their ingredient inventory below for brewing.
 // ─────────────────────────────────────────────────────────────────────────────
 function CauldronPanel({
   inventory, contents, onAdd, onClear, onClose, isAdding, isClearing,
-  isAdmin, recipes, allShopItems, onAddRecipe, onDeleteRecipe, isAddingRecipe,
+  recipes, unlockedRecipeIds, onUnlockRecipe, isUnlockingRecipe, hasNewUnlock, onClearNewUnlock, onShowRecipeDetail,
 }: {
   inventory: InventoryItem[];
   contents: Array<{ shopItemId: string; quantity: number; name: string; imageUrl: string | null }>;
@@ -5746,24 +5842,25 @@ function CauldronPanel({
   onClose: () => void;
   isAdding: boolean;
   isClearing: boolean;
-  isAdmin: boolean;
   recipes: RecipeRowProp[];
-  allShopItems: ShopItem[];
-  onAddRecipe: (d: { ingredient1Id: string; ingredient2Id: string; resultId: string; resultType: string }) => void;
-  onDeleteRecipe: (id: string) => void;
-  isAddingRecipe: boolean;
+  unlockedRecipeIds: string[];
+  onUnlockRecipe: (inventoryId: string) => void;
+  isUnlockingRecipe: boolean;
+  hasNewUnlock: boolean;
+  onClearNewUnlock: () => void;
+  onShowRecipeDetail: (r: RecipeRowProp) => void;
 }) {
+  const recipeItems = useMemo(
+    () => inventory.filter((i) => i.type === "recipe"),
+    [inventory]
+  );
   const ingredients = useMemo(
     () => inventory.filter((i) => i.type === "ingredient"),
     [inventory]
   );
   const [dragOver, setDragOver] = useState(false);
+  const [unlockAnimating, setUnlockAnimating] = useState(false);
   const [showRecipeBook, setShowRecipeBook] = useState(false);
-  const [adminTab, setAdminTab] = useState<"cauldron"|"recipes">("cauldron");
-  const [newIng1, setNewIng1] = useState("");
-  const [newIng2, setNewIng2] = useState("");
-  const [newResult, setNewResult] = useState("");
-  const [newResultType, setNewResultType] = useState("item");
   const { toast } = useToast();
 
   const CAULDRON_CAPACITY = 2;
@@ -5793,208 +5890,182 @@ function CauldronPanel({
     e.preventDefault();
     setDragOver(false);
     const invId = e.dataTransfer.getData("text/plain");
-    if (invId) tryAdd(invId);
-  };
-
-  const handleAddRecipe = () => {
-    if (!newIng1 || !newIng2 || !newResult) {
-      toast({ title: "Fill in all fields", variant: "destructive" });
-      return;
+    if (!invId) return;
+    const dropped = inventory.find((i) => i.inventoryId === invId);
+    if (dropped?.type === "recipe") {
+      setUnlockAnimating(true);
+      setTimeout(() => setUnlockAnimating(false), 1400);
+      onUnlockRecipe(invId);
+    } else {
+      tryAdd(invId);
     }
-    onAddRecipe({ ingredient1Id: newIng1, ingredient2Id: newIng2, resultId: newResult, resultType: newResultType });
-    setNewIng1(""); setNewIng2(""); setNewResult(""); setNewResultType("item");
   };
 
-  const CauldronContent = (
+  const openRecipeBook = () => {
+    onClearNewUnlock();
+    setShowRecipeBook(true);
+  };
+
+  const MainContent = (
     <>
+      {/* Big cauldron drop zone */}
       <div
+        className="flex flex-col items-center mb-3"
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
-        className="rounded-xl p-3 mb-3"
         data-testid="cauldron-drop-zone"
-        style={{
-          background: dragOver
-            ? "radial-gradient(circle at 50% 60%, rgba(94,234,212,0.28) 0%, rgba(15,40,38,0.7) 70%)"
-            : "radial-gradient(circle at 50% 60%, rgba(45,212,191,0.12) 0%, rgba(15,40,38,0.6) 70%)",
-          border: `1px dashed rgba(94,234,212,${dragOver ? 0.85 : 0.45})`,
-          transition: "all 120ms ease",
-          minHeight: 110,
-        }}
       >
-        <div className="flex items-center justify-between mb-2">
-          <span className="font-fantasy text-[10px] tracking-wider" style={{ color: "#5eead4aa" }}>
-            In the cauldron · {totalInCauldron}/{CAULDRON_CAPACITY}
-          </span>
+        <div
+          className="relative flex items-center justify-center rounded-2xl"
+          style={{
+            width: 120, height: 120,
+            background: dragOver
+              ? "radial-gradient(circle at 50% 60%, rgba(94,234,212,0.22) 0%, rgba(15,40,38,0.85) 75%)"
+              : "radial-gradient(circle at 50% 60%, rgba(45,212,191,0.08) 0%, rgba(15,40,38,0.6) 75%)",
+            border: `1.5px ${dragOver ? "solid" : "dashed"} rgba(94,234,212,${dragOver ? 0.9 : 0.4})`,
+            transition: "all 140ms ease",
+            boxShadow: unlockAnimating
+              ? "0 0 0 6px rgba(250,200,60,0.25), 0 0 32px rgba(250,200,60,0.5), 0 0 60px rgba(45,212,191,0.35)"
+              : dragOver
+                ? "0 0 24px rgba(94,234,212,0.35)"
+                : "0 0 14px rgba(0,0,0,0.5)",
+          }}
+        >
+          <img
+            src={mixingTreeCauldronImg}
+            alt="Cauldron"
+            className="object-contain pointer-events-none select-none"
+            style={{
+              width: 90, height: 90,
+              filter: unlockAnimating
+                ? "drop-shadow(0 0 16px rgba(250,200,60,0.95)) brightness(1.35)"
+                : dragOver
+                  ? "drop-shadow(0 0 12px rgba(94,234,212,0.7)) brightness(1.15)"
+                  : "drop-shadow(0 2px 8px rgba(0,0,0,0.7))",
+              transition: "filter 180ms ease",
+            }}
+          />
+          {/* In-cauldron count badge */}
           {totalInCauldron > 0 && (
-            <button
-              data-testid="button-clear-cauldron"
-              onClick={onClear}
-              disabled={isClearing}
-              className="font-fantasy text-[10px] tracking-wider disabled:opacity-50"
-              style={{ background: "none", border: "none", color: "#fca5a5", cursor: "pointer" }}
+            <div
+              className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(45,212,191,0.85)", border: "1px solid rgba(94,234,212,0.7)" }}
             >
-              Clear
-            </button>
+              <span className="font-fantasy text-[9px]" style={{ color: "#0f2422" }}>{totalInCauldron}</span>
+            </div>
+          )}
+          {/* Unlock animation sparkles overlay */}
+          {unlockAnimating && (
+            <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: "radial-gradient(circle, rgba(250,200,60,0.22) 0%, transparent 70%)", animation: "unlockGlow 1.4s ease-out forwards" }} />
           )}
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          {(() => {
-            const slots: Array<{ shopItemId: string; name: string; imageUrl: string | null } | null> = [];
-            for (const c of contents) {
-              for (let i = 0; i < c.quantity; i++) {
-                slots.push({ shopItemId: c.shopItemId, name: c.name, imageUrl: c.imageUrl });
-              }
-            }
-            while (slots.length < CAULDRON_CAPACITY) slots.push(null);
-            return slots.slice(0, CAULDRON_CAPACITY).map((s, idx) => (
-              <div
-                key={idx}
-                data-testid={`cauldron-slot-${idx}`}
-                className="flex flex-col items-center justify-center rounded-lg"
-                style={{
-                  background: s ? "rgba(94,234,212,0.10)" : "rgba(94,234,212,0.04)",
-                  border: `1px ${s ? "solid" : "dashed"} rgba(94,234,212,${s ? 0.30 : 0.25})`,
-                  minHeight: 64, padding: 6,
-                }}
-              >
-                {s ? (
-                  <>
-                    {s.imageUrl ? <img src={s.imageUrl} alt="" className="w-9 h-9 object-contain" /> : <div className="w-9 h-9 rounded bg-black/30" />}
-                    <p className="font-fantasy text-[9px] leading-tight text-center mt-0.5 line-clamp-1" style={{ color: "#d1faf3" }}>{s.name}</p>
-                  </>
-                ) : (
-                  <span className="font-fantasy text-[10px]" style={{ color: "#5eead466" }}>empty slot</span>
-                )}
-              </div>
-            ));
-          })()}
-        </div>
+        <p className="font-fantasy text-[10px] mt-1.5 tracking-wide text-center" style={{ color: dragOver ? "#5eead4" : "#5eead455" }}>
+          {dragOver ? "Release to unlock recipe" : "Drop recipe scroll or ingredient"}
+        </p>
+        {totalInCauldron > 0 && (
+          <button
+            data-testid="button-clear-cauldron"
+            onClick={onClear}
+            disabled={isClearing}
+            className="font-fantasy text-[10px] tracking-wider mt-0.5 disabled:opacity-50"
+            style={{ background: "none", border: "none", color: "#fca5a5cc", cursor: "pointer" }}
+          >
+            Clear brew ({totalInCauldron}/{CAULDRON_CAPACITY})
+          </button>
+        )}
       </div>
 
-      <div className="mb-1 flex items-center justify-between">
-        <h4 className="font-fantasy text-xs tracking-wider" style={{ color: "#d1faf3" }}>Your Ingredients</h4>
-        <span className="font-fantasy text-[10px]" style={{ color: isFull ? "#fca5a5" : "#5eead488" }}>
-          {isFull ? "cauldron full · clear to add more" : "tap or drag to add"}
-        </span>
-      </div>
-      <div className="overflow-y-auto" style={{ maxHeight: "calc(24*var(--vh))" }}>
-        {ingredients.length === 0 ? (
-          <p className="font-fantasy text-xs text-center py-6" style={{ color: "#5eead466" }}>You don't have any ingredients yet.</p>
-        ) : (
-          <div className="grid grid-cols-3 gap-2">
-            {ingredients.map((ing) => (
-              <button
-                key={ing.inventoryId}
-                data-testid={`button-add-ingredient-${ing.inventoryId}`}
-                draggable={!isFull}
-                onDragStart={(e) => { e.dataTransfer.setData("text/plain", ing.inventoryId); }}
-                onClick={() => tryAdd(ing.inventoryId)}
-                disabled={isAdding || isFull}
-                className="flex flex-col items-center gap-1 p-2 rounded-lg disabled:opacity-50"
-                style={{ background: "rgba(94,234,212,0.08)", border: "1px solid rgba(94,234,212,0.22)", cursor: "grab" }}
-              >
-                <div className="w-12 h-12 rounded-md flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
-                  {ing.imageUrl ? <img src={ing.imageUrl} alt="" className="w-full h-full object-contain" /> : <span className="font-fantasy text-[10px]" style={{ color: "#5eead466" }}>?</span>}
-                </div>
-                <p className="font-fantasy text-[10px] text-center leading-tight line-clamp-2" style={{ color: "#d1faf3" }}>{ing.name}</p>
-                {(ing.quantity ?? 1) > 1 && <p className="font-fantasy text-[9px]" style={{ color: "#5eead4aa" }}>×{ing.quantity}</p>}
-              </button>
-            ))}
-          </div>
+      <div className="overflow-y-auto" style={{ maxHeight: "calc(30*var(--vh))" }}>
+        {/* Recipe scrolls */}
+        {recipeItems.length > 0 && (
+          <>
+            <div className="flex items-center gap-2 mb-1.5">
+              <h4 className="font-fantasy text-[10px] tracking-wider" style={{ color: "#d1faf3aa" }}>Recipe Scrolls</h4>
+              <span className="font-fantasy text-[9px]" style={{ color: "#5eead455" }}>drag onto cauldron to unlock</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              {recipeItems.map((item) => (
+                <button
+                  key={item.inventoryId}
+                  data-testid={`button-recipe-scroll-${item.inventoryId}`}
+                  draggable
+                  onDragStart={(e) => { e.dataTransfer.setData("text/plain", item.inventoryId); }}
+                  onClick={() => {
+                    setUnlockAnimating(true);
+                    setTimeout(() => setUnlockAnimating(false), 1400);
+                    onUnlockRecipe(item.inventoryId);
+                  }}
+                  disabled={isUnlockingRecipe}
+                  className="flex flex-col items-center gap-1 p-2 rounded-lg disabled:opacity-50 active:scale-95 transition-transform"
+                  style={{ background: "rgba(250,200,60,0.07)", border: "1px solid rgba(250,200,60,0.28)", cursor: "grab" }}
+                >
+                  <div className="w-12 h-12 rounded-md flex items-center justify-center overflow-hidden relative" style={{ background: "rgba(0,0,0,0.35)" }}>
+                    {item.imageUrl
+                      ? <img src={item.imageUrl} alt="" className="w-full h-full object-contain" />
+                      : <img src={recipeScrollIcon} alt="" className="w-9 h-9 object-contain opacity-50" />
+                    }
+                  </div>
+                  <p className="font-fantasy text-[10px] text-center leading-tight line-clamp-2" style={{ color: "#fde68a" }}>{item.name}</p>
+                  {(item.quantity ?? 1) > 1 && <p className="font-fantasy text-[9px]" style={{ color: "#fde68a88" }}>×{item.quantity}</p>}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Ingredients */}
+        {ingredients.length > 0 && (
+          <>
+            <div className="flex items-center justify-between mb-1.5">
+              <h4 className="font-fantasy text-[10px] tracking-wider" style={{ color: "#d1faf3aa" }}>Ingredients</h4>
+              <span className="font-fantasy text-[9px]" style={{ color: isFull ? "#fca5a5" : "#5eead455" }}>
+                {isFull ? "cauldron full · clear to brew" : "tap or drag to brew"}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {ingredients.map((ing) => (
+                <button
+                  key={ing.inventoryId}
+                  data-testid={`button-add-ingredient-${ing.inventoryId}`}
+                  draggable={!isFull}
+                  onDragStart={(e) => { e.dataTransfer.setData("text/plain", ing.inventoryId); }}
+                  onClick={() => tryAdd(ing.inventoryId)}
+                  disabled={isAdding || isFull}
+                  className="flex flex-col items-center gap-1 p-2 rounded-lg disabled:opacity-50 active:scale-95 transition-transform"
+                  style={{ background: "rgba(94,234,212,0.08)", border: "1px solid rgba(94,234,212,0.22)", cursor: "grab" }}
+                >
+                  <div className="w-12 h-12 rounded-md flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
+                    {ing.imageUrl ? <img src={ing.imageUrl} alt="" className="w-full h-full object-contain" /> : <span className="font-fantasy text-[10px]" style={{ color: "#5eead466" }}>?</span>}
+                  </div>
+                  <p className="font-fantasy text-[10px] text-center leading-tight line-clamp-2" style={{ color: "#d1faf3" }}>{ing.name}</p>
+                  {(ing.quantity ?? 1) > 1 && <p className="font-fantasy text-[9px]" style={{ color: "#5eead4aa" }}>×{ing.quantity}</p>}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {recipeItems.length === 0 && ingredients.length === 0 && (
+          <p className="font-fantasy text-xs text-center py-6" style={{ color: "#5eead444" }}>
+            Your bag is empty. Visit the market to find ingredients and recipe scrolls.
+          </p>
         )}
       </div>
     </>
   );
 
-  const AdminRecipesContent = (
-    <div className="overflow-y-auto" style={{ maxHeight: "calc(46*var(--vh))" }}>
-      <div className="rounded-xl p-3 mb-3" style={{ background: "rgba(94,234,212,0.06)", border: "1px solid rgba(94,234,212,0.2)" }}>
-        <p className="font-fantasy text-[11px] tracking-wider mb-2" style={{ color: "#5eead4" }}>Add Recipe</p>
-        <div className="flex flex-col gap-2">
-          {[
-            { val: newIng1, set: setNewIng1, placeholder: "Ingredient 1…", testid: "select-recipe-ing1" },
-            { val: newIng2, set: setNewIng2, placeholder: "Ingredient 2…", testid: "select-recipe-ing2" },
-            { val: newResult, set: setNewResult, placeholder: "Result item…", testid: "select-recipe-result" },
-          ].map(({ val, set, placeholder, testid }) => (
-            <select
-              key={testid}
-              data-testid={testid}
-              value={val}
-              onChange={(e) => set(e.target.value)}
-              className="font-fantasy text-xs rounded-lg px-2 py-1.5 w-full"
-              style={{ background: "rgba(15,40,38,0.95)", border: "1px solid rgba(94,234,212,0.35)", color: "#d1faf3" }}
-            >
-              <option value="">{placeholder}</option>
-              {allShopItems.map((si) => <option key={si.id} value={si.id}>{si.name}</option>)}
-            </select>
-          ))}
-          <select
-            data-testid="select-recipe-result-type"
-            value={newResultType}
-            onChange={(e) => setNewResultType(e.target.value)}
-            className="font-fantasy text-xs rounded-lg px-2 py-1.5 w-full"
-            style={{ background: "rgba(15,40,38,0.95)", border: "1px solid rgba(94,234,212,0.35)", color: "#d1faf3" }}
-          >
-            <option value="item">Type: item (green)</option>
-            <option value="fish">Type: fish (blue)</option>
-            <option value="pet">Type: pet (purple)</option>
-          </select>
-          <button
-            data-testid="button-add-recipe"
-            onClick={handleAddRecipe}
-            disabled={isAddingRecipe}
-            className="font-fantasy text-xs tracking-wider py-1.5 rounded-lg disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg, rgba(94,234,212,0.22) 0%, rgba(45,212,191,0.12) 100%)", border: "1.5px solid rgba(94,234,212,0.5)", color: "#5eead4", cursor: "pointer" }}
-          >
-            {isAddingRecipe ? "Adding…" : "Add Recipe"}
-          </button>
-        </div>
-      </div>
-      {recipes.length === 0 ? (
-        <p className="font-fantasy text-xs text-center py-4" style={{ color: "#5eead466" }}>No recipes yet.</p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {recipes.map((r) => (
-            <div key={r.id} className="flex items-center gap-2 rounded-xl px-3 py-2"
-              style={{ background: "rgba(15,40,38,0.7)", border: `1px solid ${borderColorByType(r.result_type)}`, boxShadow: `0 0 10px ${glowColorByType(r.result_type)}` }}>
-              <div className="flex flex-col items-center" style={{ minWidth: 40 }}>
-                <div className="w-8 h-8 rounded overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
-                  {r.ing1_image ? <img src={r.ing1_image} alt="" className="w-full h-full object-contain" /> : <div className="w-full h-full" />}
-                </div>
-                <p className="font-fantasy text-[8px] text-center leading-tight mt-0.5 line-clamp-1" style={{ color: "#d1faf3", maxWidth: 40 }}>{r.ing1_name}</p>
-              </div>
-              <span className="font-fantasy text-xs" style={{ color: "#5eead466" }}>+</span>
-              <div className="flex flex-col items-center" style={{ minWidth: 40 }}>
-                <div className="w-8 h-8 rounded overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
-                  {r.ing2_image ? <img src={r.ing2_image} alt="" className="w-full h-full object-contain" /> : <div className="w-full h-full" />}
-                </div>
-                <p className="font-fantasy text-[8px] text-center leading-tight mt-0.5 line-clamp-1" style={{ color: "#d1faf3", maxWidth: 40 }}>{r.ing2_name}</p>
-              </div>
-              <span className="font-fantasy text-xs" style={{ color: "#5eead466" }}>→</span>
-              <div className="flex flex-col items-center flex-1">
-                <div className="w-8 h-8 rounded overflow-hidden" style={{ background: "rgba(0,0,0,0.3)" }}>
-                  {r.result_image ? <img src={r.result_image} alt="" className="w-full h-full object-contain" /> : <div className="w-full h-full" />}
-                </div>
-                <p className="font-fantasy text-[8px] text-center leading-tight mt-0.5 line-clamp-1" style={{ color: "#d1faf3", maxWidth: 60 }}>{r.result_name}</p>
-              </div>
-              <button
-                data-testid={`button-delete-recipe-${r.id}`}
-                onClick={() => onDeleteRecipe(r.id)}
-                className="ml-auto flex-shrink-0 w-6 h-6 rounded flex items-center justify-center"
-                style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.35)", color: "#fca5a5", cursor: "pointer" }}
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
   return (
     <>
+      {/* Unlock glow animation keyframe */}
+      <style>{`
+        @keyframes unlockGlow {
+          0% { opacity: 0; }
+          20% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+      `}</style>
+
       {/* Recipe Book Modal */}
       {showRecipeBook && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center pointer-events-auto" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
@@ -6021,20 +6092,26 @@ function CauldronPanel({
                 style={{ width: 72, height: 72, filter: "drop-shadow(0 2px 12px rgba(94,234,212,0.35))" }} />
               <h3 className="font-fantasy text-sm tracking-[0.2em]" style={{ color: "#5eead4", textShadow: "0 0 12px rgba(94,234,212,0.4)" }}>Recipe Book</h3>
               <p className="font-fantasy text-[10px] mt-0.5" style={{ color: "#5eead466" }}>
-                {recipes.length === 0 ? "No recipes discovered yet." : `${recipes.length} recipe${recipes.length !== 1 ? "s" : ""} known`}
+                {unlockedRecipeIds.length}/{recipes.length} unlocked
               </p>
             </div>
             <div className="px-4 pb-4 overflow-y-auto" style={{ maxHeight: "calc(55*var(--vh))" }}>
               {recipes.length === 0 ? (
                 <div className="flex flex-col items-center py-8 gap-3">
                   <img src={recipeScrollIcon} alt="" className="w-16 h-16 object-contain opacity-30" />
-                  <p className="font-fantasy text-xs text-center" style={{ color: "#5eead455" }}>Combine ingredients in the cauldron to discover recipes!</p>
+                  <p className="font-fantasy text-xs text-center" style={{ color: "#5eead455" }}>Find recipe scrolls in the market and drag them onto the cauldron to unlock recipes!</p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {recipes.map((r) => (
-                    <div key={r.id} className="flex items-center gap-2 rounded-xl px-3 py-2 relative"
-                      style={{ background: "rgba(15,40,38,0.6)", border: `1.5px solid ${borderColorByType(r.result_type)}`, boxShadow: `0 0 12px ${glowColorByType(r.result_type)}` }}>
+                  {/* Unlocked recipes first — clickable */}
+                  {recipes.filter((r) => unlockedRecipeIds.includes(r.id)).map((r) => (
+                    <button
+                      key={r.id}
+                      data-testid={`button-recipe-detail-${r.id}`}
+                      onClick={() => { setShowRecipeBook(false); onShowRecipeDetail(r); }}
+                      className="flex items-center gap-2 rounded-xl px-3 py-2 relative w-full text-left active:scale-[0.98] transition-transform"
+                      style={{ background: "rgba(15,40,38,0.6)", border: `1.5px solid ${borderColorByType(r.result_type)}`, boxShadow: `0 0 12px ${glowColorByType(r.result_type)}`, cursor: "pointer" }}
+                    >
                       <img src={recipeScrollIcon} alt="" className="absolute right-2 bottom-1 w-7 h-7 object-contain pointer-events-none" style={{ opacity: 0.13 }} />
                       <div className="flex flex-col items-center" style={{ minWidth: 38 }}>
                         <div className="w-8 h-8 rounded overflow-hidden" style={{ background: "rgba(0,0,0,0.35)" }}>
@@ -6056,6 +6133,32 @@ function CauldronPanel({
                         </div>
                         <p className="font-fantasy text-[8px] text-center leading-tight mt-0.5 line-clamp-1" style={{ color: "#c8f4ed", maxWidth: 60 }}>{r.result_name}</p>
                       </div>
+                    </button>
+                  ))}
+                  {/* Locked recipes — greyed, not clickable */}
+                  {recipes.filter((r) => !unlockedRecipeIds.includes(r.id)).map((r) => (
+                    <div key={r.id} className="flex items-center gap-2 rounded-xl px-3 py-2 relative opacity-35">
+                      <img src={recipeScrollIcon} alt="" className="absolute right-2 bottom-1 w-7 h-7 object-contain pointer-events-none" style={{ opacity: 0.15 }} />
+                      <div className="flex flex-col items-center" style={{ minWidth: 38 }}>
+                        <div className="w-8 h-8 rounded overflow-hidden" style={{ background: "rgba(0,0,0,0.45)", filter: "grayscale(1)" }}>
+                          {r.ing1_image ? <img src={r.ing1_image} alt="" className="w-full h-full object-contain" /> : <div className="w-full h-full" />}
+                        </div>
+                        <p className="font-fantasy text-[8px] text-center leading-tight mt-0.5 line-clamp-1" style={{ color: "#888", maxWidth: 38 }}>{r.ing1_name}</p>
+                      </div>
+                      <span className="font-fantasy text-xs" style={{ color: "#44444488" }}>+</span>
+                      <div className="flex flex-col items-center" style={{ minWidth: 38 }}>
+                        <div className="w-8 h-8 rounded overflow-hidden" style={{ background: "rgba(0,0,0,0.45)", filter: "grayscale(1)" }}>
+                          {r.ing2_image ? <img src={r.ing2_image} alt="" className="w-full h-full object-contain" /> : <div className="w-full h-full" />}
+                        </div>
+                        <p className="font-fantasy text-[8px] text-center leading-tight mt-0.5 line-clamp-1" style={{ color: "#888", maxWidth: 38 }}>{r.ing2_name}</p>
+                      </div>
+                      <span className="font-fantasy text-xs" style={{ color: "#44444488" }}>→</span>
+                      <div className="flex flex-col items-center flex-1">
+                        <div className="w-8 h-8 rounded overflow-hidden flex items-center justify-center" style={{ background: "rgba(0,0,0,0.55)" }}>
+                          <span style={{ fontSize: 18, color: "#666" }}>?</span>
+                        </div>
+                        <p className="font-fantasy text-[8px] text-center leading-tight mt-0.5" style={{ color: "#666" }}>Locked</p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -6075,7 +6178,7 @@ function CauldronPanel({
             border: "1px solid rgba(94,234,212,0.45)",
             borderBottom: "none",
             boxShadow: "0 -8px 40px rgba(0,0,0,0.7), 0 0 30px rgba(45,212,191,0.18)",
-            maxHeight: "calc(65*var(--vh))",
+            maxHeight: "calc(72*var(--vh))",
           }}
         >
           {/* Close button (top right) */}
@@ -6088,43 +6191,32 @@ function CauldronPanel({
             <X className="w-4 h-4" />
           </button>
 
-          {/* Recipe book button (top left, closed book icon) */}
+          {/* Recipe book button (top left) with ! badge */}
           <button
             data-testid="button-open-recipe-book"
-            onClick={() => setShowRecipeBook(true)}
+            onClick={openRecipeBook}
             className="absolute top-2 left-2 w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-transform"
-            style={{ background: "linear-gradient(135deg, rgba(94,234,212,0.18) 0%, rgba(45,212,191,0.08) 100%)", border: "1.5px solid rgba(94,234,212,0.45)", cursor: "pointer" }}
+            style={{ background: "linear-gradient(135deg, rgba(94,234,212,0.18) 0%, rgba(45,212,191,0.08) 100%)", border: `1.5px solid ${hasNewUnlock ? "rgba(250,200,60,0.9)" : "rgba(94,234,212,0.45)"}`, cursor: "pointer",
+              boxShadow: hasNewUnlock ? "0 0 10px rgba(250,200,60,0.55), 0 0 20px rgba(250,200,60,0.25)" : "none",
+            }}
             title="Recipe Book"
           >
             <img src={recipeBookClosed} alt="Recipes" className="w-5 h-5 object-contain" style={{ filter: "drop-shadow(0 1px 4px rgba(94,234,212,0.5))" }} />
+            {hasNewUnlock && (
+              <div
+                className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
+                style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", border: "1.5px solid rgba(255,255,255,0.7)", boxShadow: "0 0 6px rgba(250,200,60,0.8)" }}
+              >
+                <span className="font-fantasy text-[8px] font-bold" style={{ color: "#fff", lineHeight: 1 }}>!</span>
+              </div>
+            )}
           </button>
 
           <h3 className="font-fantasy text-center text-base tracking-[0.18em] mb-3" style={{ color: "#5eead4", textShadow: "0 0 14px rgba(94,234,212,0.4)" }}>
             The Cauldron
           </h3>
 
-          {isAdmin ? (
-            <>
-              <div className="flex gap-1 mb-3 rounded-lg overflow-hidden" style={{ border: "1px solid rgba(94,234,212,0.25)" }}>
-                {(["cauldron","recipes"] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    data-testid={`button-${tab}-tab`}
-                    onClick={() => setAdminTab(tab)}
-                    className="flex-1 py-1 font-fantasy text-[11px] tracking-wider transition-all"
-                    style={{
-                      background: adminTab === tab ? "rgba(94,234,212,0.18)" : "transparent",
-                      color: adminTab === tab ? "#5eead4" : "#5eead488",
-                      cursor: "pointer", border: "none",
-                    }}
-                  >
-                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                  </button>
-                ))}
-              </div>
-              {adminTab === "cauldron" ? CauldronContent : AdminRecipesContent}
-            </>
-          ) : CauldronContent}
+          {MainContent}
         </div>
       </div>
     </>

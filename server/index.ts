@@ -800,6 +800,30 @@ app.use((req, res, next) => {
 
   try {
     await db.execute(sql`
+      ALTER TABLE mixing_tree_recipes
+        ADD COLUMN IF NOT EXISTS recipe_item_id varchar REFERENCES shop_items(id) ON DELETE SET NULL
+    `);
+    console.log("mixing_tree_recipes.recipe_item_id ready.");
+  } catch (err) {
+    console.error("mixing_tree_recipes.recipe_item_id error (non-fatal):", err);
+  }
+
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS player_unlocked_recipes (
+        user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        recipe_id varchar NOT NULL REFERENCES mixing_tree_recipes(id) ON DELETE CASCADE,
+        unlocked_at timestamp NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (user_id, recipe_id)
+      )
+    `);
+    console.log("player_unlocked_recipes table ready.");
+  } catch (err) {
+    console.error("player_unlocked_recipes setup error (non-fatal):", err);
+  }
+
+  try {
+    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS daily_quests (
         id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
         quest_key text NOT NULL UNIQUE,

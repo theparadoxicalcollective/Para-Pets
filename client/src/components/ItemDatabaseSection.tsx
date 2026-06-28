@@ -74,6 +74,7 @@ export const ITEM_CATEGORIES = [
   { key: "power_ups",   label: "Power Ups",   color: "#fde68a" },
   { key: "decor",       label: "Decor",       color: "#d9f99d" },
   { key: "ingredients", label: "Ingredients", color: "#fbbf24" },
+  { key: "recipes",     label: "Recipes",     color: "#fde68a" },
 ] as const;
 
 export type ItemCategoryKey = typeof ITEM_CATEGORIES[number]["key"];
@@ -142,6 +143,7 @@ export function getItemCategory(item: ShopItemFull): ItemCategoryKey {
   if (item.type === "power_up" || item.type === "item") return "power_ups";
   if (item.type === "decor") return "decor";
   if (item.type === "ingredient") return "ingredients";
+  if (item.type === "recipe") return "recipes";
   return "power_ups";
 }
 
