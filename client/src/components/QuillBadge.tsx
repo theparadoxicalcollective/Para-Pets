@@ -1,4 +1,4 @@
-import quillImg from "@assets/Photoroom_20260627_105408_PM_1782618878541.png";
+const QUILL_URL = "/exclaim-quill-sm.png";
 
 interface QuillBadgeProps {
   size?: number;
@@ -6,12 +6,13 @@ interface QuillBadgeProps {
   animate?: boolean;
   style?: React.CSSProperties;
   className?: string;
+  [key: string]: unknown;
 }
 
 export function QuillBadge({ size = 22, glow = "#4ade80", animate = false, style, className }: QuillBadgeProps) {
   return (
     <img
-      src={quillImg}
+      src={QUILL_URL}
       alt="!"
       className={className}
       style={{
