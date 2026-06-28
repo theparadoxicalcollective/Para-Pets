@@ -2482,21 +2482,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
             <Palette className="w-4 h-4 text-white" />
           </button>
           <button
-            data-testid="button-add-fishing-spot"
-            onClick={() => addFishingSpotMutation.mutate()}
-            disabled={addFishingSpotMutation.isPending}
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-            style={{
-              background: "linear-gradient(135deg, #3dc7c0cc 0%, #3dc7c088 100%)",
-              border: "2px solid #3dc7c0",
-              boxShadow: "0 4px 20px #3dc7c060, 0 0 30px #3dc7c035",
-              cursor: "pointer",
-            }}
-            title="Add fishing spot"
-          >
-            <Waves className="w-4 h-4 text-black" />
-          </button>
-          <button
             data-testid="button-toggle-fish-barrel"
             onClick={() => fishBarrel ? deleteBarrelMutation.mutate() : createBarrelMutation.mutate()}
             disabled={createBarrelMutation.isPending || deleteBarrelMutation.isPending}
@@ -2510,19 +2495,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
             title={fishBarrel ? "Remove Fish Market" : "Add Fish Market"}
           >
             <img src={fishBarrelImg} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
-          </button>
-          <button
-            data-testid="button-add-location"
-            onClick={() => setShowAddLocation(true)}
-            className="w-14 h-14 rounded-full flex items-center justify-center transition-transform active:scale-90"
-            style={{
-              background: `linear-gradient(135deg, ${accent}cc 0%, ${accent}88 100%)`,
-              border: `2px solid ${accent}`,
-              boxShadow: `0 4px 25px ${accent}60, 0 0 40px ${accent}35`,
-              cursor: "pointer",
-            }}
-          >
-            <Plus className="w-7 h-7 text-black" />
           </button>
         </div>
       )}
@@ -2890,76 +2862,11 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
             </div>
           )}
 
-          {showAddDecorForm && (
-            <div className="px-4 py-3 shrink-0" style={{ borderBottom: `1px solid ${accent}20` }}>
-              <p className="font-fantasy text-[10px] tracking-wider mb-2" style={{ color: `${accent}aa` }}>New Decor Item</p>
-              <div className="flex gap-2 mb-2">
-                <input
-                  data-testid="input-decor-item-name"
-                  type="text"
-                  placeholder="Name..."
-                  value={newDecorName}
-                  onChange={(e) => setNewDecorName(e.target.value)}
-                  className="flex-1 px-2.5 py-1.5 rounded-md font-fantasy text-xs"
-                  style={{
-                    background: "rgba(0,0,0,0.5)",
-                    border: `1px solid ${accent}35`,
-                    color: "#e8ddd0",
-                    outline: "none",
-                  }}
-                />
-              </div>
-              <input
-                data-testid="input-decor-item-image"
-                type="file"
-                accept="image/png,image/gif,image/webp"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    const dataUrl = await readFileAsDataUrl(file);
-                    setNewDecorImage(dataUrl);
-                  }
-                }}
-                className="w-full text-xs font-fantasy mb-2"
-                style={{ color: `${accent}cc` }}
-              />
-              {newDecorImage && (
-                <div className="mb-2 flex justify-center">
-                  <img src={newDecorImage} alt="Preview" className="w-14 h-14 object-contain rounded-lg" style={{ border: `1px solid ${accent}30` }} />
-                </div>
-              )}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => { setShowAddDecorForm(false); setNewDecorName(""); setNewDecorImage(""); }}
-                  className="flex-1 py-1.5 rounded-md font-fantasy text-xs"
-                  style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${accent}25`, color: `${accent}88`, cursor: "pointer" }}
-                >Cancel</button>
-                <button
-                  data-testid="button-save-decor-item"
-                  onClick={() => {
-                    if (!newDecorName.trim() || !newDecorImage) return;
-                    addDecorItemMutation.mutate({ name: newDecorName.trim(), imageUrl: newDecorImage });
-                  }}
-                  disabled={!newDecorName.trim() || !newDecorImage || addDecorItemMutation.isPending}
-                  className="flex-1 py-1.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 disabled:opacity-50"
-                  style={{
-                    background: `linear-gradient(135deg, ${accent}40 0%, ${accent}20 100%)`,
-                    border: `1px solid ${accent}60`,
-                    color: accent,
-                    cursor: "pointer",
-                  }}
-                >
-                  {addDecorItemMutation.isPending ? "Saving..." : "Save"}
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Decor item grid */}
           <div className="flex-1 overflow-y-auto p-3">
             {decorItems.length === 0 ? (
               <p className="text-center font-fantasy text-xs py-6" style={{ color: `${accent}55` }}>
-                No decor items yet.<br />Tap + to add one.
+                No decor items in this world yet.
               </p>
             ) : (
               <div className="grid grid-cols-3 gap-3">
