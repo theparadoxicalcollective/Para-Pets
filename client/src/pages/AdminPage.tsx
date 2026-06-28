@@ -4538,7 +4538,8 @@ function RecipeItemsSection() {
   const previewIng2 = allShopItems.find(s => s.id === ing2);
   const previewResult = allShopItems.find(s => s.id === result);
 
-  const RecipeItemBox = ({ item }: { item?: ShopItemRow }) => (
+  // Inlined item preview box (NOT a sub-component — avoids keyboard-close bug)
+  const renderItemBox = (item?: ShopItemRow) => (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
       <div style={{ width: 44, height: 44, background: "rgba(0,0,0,0.4)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(134,239,172,0.25)" }}>
         {item?.imageUrl ? <img src={item.imageUrl} alt="" style={{ width: 36, height: 36, objectFit: "contain" }} /> : <span style={{ color: "#86efac44", fontSize: 18 }}>?</span>}
@@ -4547,10 +4548,12 @@ function RecipeItemsSection() {
     </div>
   );
 
-  const InlineForm = ({ isEdit }: { isEdit: boolean }) => (
-    <div style={{ background: "rgba(8,30,16,0.8)", border: `1px solid ${isEdit ? "rgba(250,204,21,0.4)" : "rgba(134,239,172,0.3)"}`, borderRadius: 12, padding: "16px", marginBottom: 18 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: isEdit ? "#fde68a" : "#86efac", letterSpacing: "0.1em", marginBottom: 12 }}>
-        {isEdit ? "✏️ Edit Recipe" : "+ New Recipe"}
+  // Inlined form JSX (NOT extracted into a sub-component — avoids keyboard-close bug on every keystroke)
+  const formIsEdit = isEditing;
+  const formJsx = (showForm || isEditing) && (
+    <div style={{ background: "rgba(8,30,16,0.8)", border: `1px solid ${formIsEdit ? "rgba(250,204,21,0.4)" : "rgba(134,239,172,0.3)"}`, borderRadius: 12, padding: "16px", marginBottom: 18 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: formIsEdit ? "#fde68a" : "#86efac", letterSpacing: "0.1em", marginBottom: 12 }}>
+        {formIsEdit ? "Edit Recipe" : "+ New Recipe"}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <div>
@@ -4597,11 +4600,11 @@ function RecipeItemsSection() {
         {/* Live preview */}
         {(ing1 || ing2 || result) && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px 12px", background: "rgba(0,0,0,0.3)", borderRadius: 8 }}>
-            <RecipeItemBox item={previewIng1} />
+            {renderItemBox(previewIng1)}
             <span style={{ fontSize: 18, color: "#86efac55" }}>+</span>
-            <RecipeItemBox item={previewIng2} />
+            {renderItemBox(previewIng2)}
             <span style={{ fontSize: 18, color: "#86efac55" }}>→</span>
-            <RecipeItemBox item={previewResult} />
+            {renderItemBox(previewResult)}
           </div>
         )}
 
@@ -4613,17 +4616,17 @@ function RecipeItemsSection() {
           >Cancel</button>
           <button
             data-testid="button-complete-recipe"
-            onClick={() => { if (canSubmit) { isEdit ? editMutation.mutate() : addMutation.mutate(); } }}
+            onClick={() => { if (canSubmit) { formIsEdit ? editMutation.mutate() : addMutation.mutate(); } }}
             disabled={!canSubmit}
             style={{
               flex: 2,
-              background: canSubmit ? (isEdit ? "linear-gradient(135deg, rgba(250,204,21,0.3) 0%, rgba(234,179,8,0.2) 100%)" : "linear-gradient(135deg, rgba(134,239,172,0.3) 0%, rgba(74,222,128,0.2) 100%)") : "rgba(0,0,0,0.3)",
-              border: `1px solid ${canSubmit ? (isEdit ? "rgba(250,204,21,0.6)" : "rgba(134,239,172,0.6)") : "rgba(134,239,172,0.15)"}`,
-              color: canSubmit ? (isEdit ? "#fde68a" : "#86efac") : "#86efac44",
+              background: canSubmit ? (formIsEdit ? "linear-gradient(135deg, rgba(250,204,21,0.3) 0%, rgba(234,179,8,0.2) 100%)" : "linear-gradient(135deg, rgba(134,239,172,0.3) 0%, rgba(74,222,128,0.2) 100%)") : "rgba(0,0,0,0.3)",
+              border: `1px solid ${canSubmit ? (formIsEdit ? "rgba(250,204,21,0.6)" : "rgba(134,239,172,0.6)") : "rgba(134,239,172,0.15)"}`,
+              color: canSubmit ? (formIsEdit ? "#fde68a" : "#86efac") : "#86efac44",
               padding: "10px 0", borderRadius: 8, fontSize: 13, cursor: canSubmit ? "pointer" : "default",
               fontFamily: "Lora, serif", letterSpacing: "0.12em", fontWeight: 600, transition: "all 0.15s ease",
             }}
-          >{(isEdit ? editMutation.isPending : addMutation.isPending) ? "Saving…" : (isEdit ? "Save Changes" : "Create Recipe")}</button>
+          >{(formIsEdit ? editMutation.isPending : addMutation.isPending) ? "Saving…" : (formIsEdit ? "Save Changes" : "Create Recipe")}</button>
         </div>
       </div>
     </div>
@@ -4655,11 +4658,8 @@ function RecipeItemsSection() {
         )}
       </div>
 
-      {/* Add form */}
-      {showForm && !isEditing && <InlineForm isEdit={false} />}
-
-      {/* Edit form */}
-      {isEditing && <InlineForm isEdit={true} />}
+      {/* Shared form (add or edit) — rendered as plain JSX, not a sub-component */}
+      {formJsx}
 
       {/* Recipe list */}
       {isLoading ? (
