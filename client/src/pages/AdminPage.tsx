@@ -171,7 +171,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "veridian_watcher" as const, label: "Veridian Watcher", icon: adminIconVeridianWatcher, desc: "Bot quotes & chat filter", color: "#5eead4", glow: "rgba(94,234,212,0.30)", bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)", border: "rgba(94,234,212,0.45)" },
     { key: "molten_blocks" as const, label: "Molten Blocks", icon: adminIconItems, desc: "Item drops in Molten Blocks", color: "#fb923c", glow: "rgba(251,146,60,0.35)", bg: "linear-gradient(145deg, rgba(72,24,4,0.92) 0%, rgba(110,38,8,0.88) 100%)", border: "rgba(251,146,60,0.5)" },
     { key: "metrics" as const, label: "Metrics", icon: adminIconPurchases, desc: "Player login analytics", color: "#a5f3fc", glow: "rgba(165,243,252,0.30)", bg: "linear-gradient(145deg, rgba(8,40,55,0.92) 0%, rgba(12,65,85,0.88) 100%)", border: "rgba(165,243,252,0.45)" },
-    { key: "recipe_items" as const, label: "Recipe Scrolls", icon: adminIconItems, desc: "Mixing Tree recipe scrolls", color: "#86efac", glow: "rgba(134,239,172,0.35)", bg: "linear-gradient(145deg, rgba(8,45,20,0.92) 0%, rgba(14,70,32,0.88) 100%)", border: "rgba(134,239,172,0.5)" },
+    { key: "recipe_items" as const, label: "Recipes", icon: adminIconItems, desc: "Mixing Tree brew recipes", color: "#86efac", glow: "rgba(134,239,172,0.35)", bg: "linear-gradient(145deg, rgba(8,45,20,0.92) 0%, rgba(14,70,32,0.88) 100%)", border: "rgba(134,239,172,0.5)" },
   ];
 
   const activeSectionMeta = activeSection ? sections.find(s => s.key === activeSection) : null;
@@ -4413,334 +4413,228 @@ function MetricsSection() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Recipe Scrolls admin section
-// Manages: recipe scroll shop items (create/delete) + recipe combinations (add/delete)
+// Recipes admin section
+// Admins create ingredient-combos that appear greyed in every player's recipe
+// book and unlock individually as players collect recipe scrolls in-game.
 // ─────────────────────────────────────────────────────────────────────────────
 function RecipeItemsSection() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // ── tabs ──────────────────────────────────────────────────────────────────
-  const [tab, setTab] = useState<"scrolls" | "recipes">("scrolls");
+  const [showForm, setShowForm] = useState(false);
+  const [ing1, setIng1] = useState("");
+  const [ing2, setIng2] = useState("");
+  const [result, setResult] = useState("");
 
-  // ── scroll shop-item creation ─────────────────────────────────────────────
-  const [scrollName, setScrollName] = useState("");
-  const [scrollPrice, setScrollPrice] = useState("0");
-  const [scrollImageData, setScrollImageData] = useState<string | null>(null);
-  const [scrollPreview, setScrollPreview] = useState<string | null>(null);
-
-  // ── recipe-combination creation ───────────────────────────────────────────
-  const [newIng1, setNewIng1] = useState("");
-  const [newIng2, setNewIng2] = useState("");
-  const [newResult, setNewResult] = useState("");
-  const [newResultType, setNewResultType] = useState("item");
-  const [newRecipeItemId, setNewRecipeItemId] = useState("");
-
-  // ── queries ───────────────────────────────────────────────────────────────
-  type ShopItemRow = { id: string; name: string; type: string; price: number; imageUrl: string | null };
+  type ShopItemRow = { id: string; name: string; type: string; imageUrl: string | null };
   type RecipeRow = {
     id: string;
     ing1_name: string; ing1_image: string | null;
     ing2_name: string; ing2_image: string | null;
     result_name: string; result_image: string | null; result_type: string;
-    recipe_item_name: string | null; recipe_item_image: string | null;
   };
 
-  const { data: allShopItems = [], isLoading: itemsLoading } = useQuery<ShopItemRow[]>({
+  const { data: allShopItems = [] } = useQuery<ShopItemRow[]>({
     queryKey: ["/api/admin/shop-items-all"],
   });
-  const recipeScrolls = allShopItems.filter((i) => i.type === "recipe");
 
-  const { data: recipes = [], isLoading: recipesLoading } = useQuery<RecipeRow[]>({
+  const { data: recipes = [], isLoading } = useQuery<RecipeRow[]>({
     queryKey: ["/api/recipes"],
   });
 
-  // ── scroll shop-item mutations ────────────────────────────────────────────
-  const createScrollMutation = useMutation({
+  const addMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/admin/shop", {
-        name: scrollName.trim(),
-        type: "recipe",
-        price: parseInt(scrollPrice, 10) || 0,
-        ...(scrollImageData ? { imageData: scrollImageData } : {}),
+      const res = await apiRequest("POST", "/api/admin/recipes", {
+        ingredient1Id: ing1,
+        ingredient2Id: ing2,
+        resultId: result,
+        resultType: allShopItems.find(s => s.id === result)?.type || "item",
       });
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/shop-items-all"] });
-      setScrollName(""); setScrollPrice("0"); setScrollImageData(null); setScrollPreview(null);
-      toast({ title: "Scroll Created", description: "Recipe scroll item added." });
-    },
-    onError: (e: any) => toast({ title: "Error", description: e.message || "Failed", variant: "destructive" }),
-  });
-
-  const deleteScrollMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await apiRequest("DELETE", `/api/admin/shop/${id}`, {});
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/shop-items-all"] });
-      toast({ title: "Deleted", description: "Recipe scroll removed." });
-    },
-    onError: (e: any) => toast({ title: "Error", description: e.message || "Failed", variant: "destructive" }),
-  });
-
-  // ── recipe-combination mutations ──────────────────────────────────────────
-  const addRecipeMutation = useMutation({
-    mutationFn: async (data: { ingredient1Id: string; ingredient2Id: string; resultId: string; resultType: string; recipeItemId?: string }) => {
-      const res = await apiRequest("POST", "/api/admin/recipes", data);
-      return res.json();
-    },
-    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/recipes"] });
-      setNewIng1(""); setNewIng2(""); setNewResult(""); setNewResultType("item"); setNewRecipeItemId("");
-      toast({ title: "Recipe Added" });
+      setIng1(""); setIng2(""); setResult("");
+      setShowForm(false);
+      toast({ title: "Recipe added", description: "It now appears (greyed) in all players' recipe books." });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message || "Failed", variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Error", description: e.message || "Failed to add recipe", variant: "destructive" }),
   });
 
-  const deleteRecipeMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const res = await apiRequest("DELETE", `/api/admin/recipes/${id}`, {});
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/recipes"] });
-      toast({ title: "Removed" });
+      toast({ title: "Recipe removed" });
     },
     onError: (e: any) => toast({ title: "Error", description: e.message || "Failed", variant: "destructive" }),
   });
 
-  const handleAddRecipe = () => {
-    if (!newIng1 || !newIng2 || !newResult) {
-      toast({ title: "Fill in all fields", variant: "destructive" });
-      return;
-    }
-    addRecipeMutation.mutate({ ingredient1Id: newIng1, ingredient2Id: newIng2, resultId: newResult, resultType: newResultType, recipeItemId: newRecipeItemId || undefined });
-  };
+  const canSubmit = ing1 && ing2 && result && !addMutation.isPending;
 
-  const readFile = (file: File): Promise<string> => new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result as string);
-    r.onerror = reject;
-    r.readAsDataURL(file);
-  });
-
-  const glowByType = (t: string) => t === "fish" ? "rgba(56,189,248,0.45)" : t === "pet" ? "rgba(192,132,252,0.45)" : "rgba(74,222,128,0.45)";
-
-  const tabStyle = (active: boolean) => ({
-    padding: "8px 20px",
-    borderRadius: 8,
-    cursor: "pointer" as const,
-    background: active ? "linear-gradient(135deg, rgba(134,239,172,0.25) 0%, rgba(74,222,128,0.18) 100%)" : "rgba(0,0,0,0.35)",
-    border: active ? "1px solid rgba(134,239,172,0.6)" : "1px solid rgba(134,239,172,0.2)",
-    color: active ? "#86efac" : "#a89878",
-    boxShadow: active ? "0 0 14px rgba(134,239,172,0.25)" : "none",
-    transition: "all 0.15s ease",
-    fontSize: 11,
-    letterSpacing: "0.1em",
-    fontFamily: "Lora, serif",
-  });
-
-  const inputStyle = {
+  const sel: React.CSSProperties = {
     background: "rgba(8,30,16,0.95)",
-    border: "1px solid rgba(134,239,172,0.3)",
+    border: "1px solid rgba(134,239,172,0.35)",
     color: "#d1fef0",
     borderRadius: 8,
-    padding: "8px 10px",
+    padding: "9px 10px",
     fontSize: 12,
     width: "100%",
     outline: "none",
     fontFamily: "Lora, serif",
-  } as React.CSSProperties;
-
-  const selectStyle = {
-    ...inputStyle,
-    appearance: "none" as const,
+    appearance: "none",
   };
 
   return (
     <div style={{ paddingBottom: 32 }}>
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" as const }}>
-        <button data-testid="tab-recipe-scrolls" onClick={() => setTab("scrolls")} style={tabStyle(tab === "scrolls")}>Recipe Scrolls</button>
-        <button data-testid="tab-recipe-combos" onClick={() => setTab("recipes")} style={tabStyle(tab === "recipes")}>Recipes</button>
+
+      {/* Header row */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#86efac", letterSpacing: "0.12em" }}>RECIPES</div>
+          <div style={{ fontSize: 11, color: "#86efac66", marginTop: 2 }}>
+            Each recipe shows greyed in all players' cauldron recipe books until they unlock it in-game.
+          </div>
+        </div>
+        <button
+          data-testid="button-add-recipe"
+          onClick={() => setShowForm(v => !v)}
+          style={{
+            background: showForm
+              ? "rgba(239,68,68,0.15)"
+              : "linear-gradient(135deg, rgba(134,239,172,0.25) 0%, rgba(74,222,128,0.18) 100%)",
+            border: showForm ? "1px solid rgba(239,68,68,0.4)" : "1px solid rgba(134,239,172,0.5)",
+            color: showForm ? "#fca5a5" : "#86efac",
+            padding: "8px 14px", borderRadius: 8, fontSize: 12, cursor: "pointer",
+            fontFamily: "Lora, serif", letterSpacing: "0.08em", flexShrink: 0,
+          }}
+        >{showForm ? "Cancel" : "+ Add Recipe"}</button>
       </div>
 
-      {/* ── Scroll shop-items tab ───────────────────────────────────────────── */}
-      {tab === "scrolls" && (
-        <div>
-          <div style={{ fontSize: 11, color: "#86efac88", marginBottom: 16, letterSpacing: "0.08em" }}>
-            Create shop items of type "recipe" — these are the scrolls players buy and drag onto the cauldron to unlock a recipe.
-          </div>
+      {/* Inline add form */}
+      {showForm && (
+        <div style={{ background: "rgba(8,30,16,0.8)", border: "1px solid rgba(134,239,172,0.3)", borderRadius: 12, padding: "16px", marginBottom: 18 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div>
+              <label style={{ fontSize: 10, color: "#86efac88", display: "block", marginBottom: 4, letterSpacing: "0.1em" }}>INGREDIENT 1</label>
+              <select data-testid="select-recipe-ing1" value={ing1} onChange={e => setIng1(e.target.value)} style={sel}>
+                <option value="">Choose ingredient…</option>
+                {allShopItems.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 10, color: "#86efac88", display: "block", marginBottom: 4, letterSpacing: "0.1em" }}>INGREDIENT 2</label>
+              <select data-testid="select-recipe-ing2" value={ing2} onChange={e => setIng2(e.target.value)} style={sel}>
+                <option value="">Choose ingredient…</option>
+                {allShopItems.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 10, color: "#86efac88", display: "block", marginBottom: 4, letterSpacing: "0.1em" }}>RESULT ITEM</label>
+              <select data-testid="select-recipe-result" value={result} onChange={e => setResult(e.target.value)} style={sel}>
+                <option value="">Choose result…</option>
+                {allShopItems.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
 
-          {/* Create form */}
-          <div style={{ background: "rgba(8,30,16,0.7)", border: "1px solid rgba(134,239,172,0.25)", borderRadius: 12, padding: "14px 14px", marginBottom: 18 }}>
-            <p style={{ fontSize: 12, color: "#86efac", marginBottom: 12, letterSpacing: "0.1em" }}>New Recipe Scroll</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <input
-                data-testid="input-scroll-name"
-                placeholder="Scroll name…"
-                value={scrollName}
-                onChange={(e) => setScrollName(e.target.value)}
-                style={inputStyle}
-              />
-              <input
-                data-testid="input-scroll-price"
-                type="number"
-                placeholder="Price (coins)"
-                value={scrollPrice}
-                onChange={(e) => setScrollPrice(e.target.value)}
-                style={inputStyle}
-              />
-              <div>
-                <label style={{ fontSize: 10, color: "#86efac88", display: "block", marginBottom: 4 }}>Image (PNG or GIF)</label>
-                <input
-                  data-testid="input-scroll-image"
-                  type="file"
-                  accept="image/png,image/gif"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const data = await readFile(file);
-                      setScrollImageData(data);
-                      setScrollPreview(data);
-                    }
-                  }}
-                  style={{ fontSize: 11, color: "#86efac88", width: "100%" }}
-                />
-                {scrollPreview && (
-                  <img src={scrollPreview} alt="Preview" style={{ width: 56, height: 56, objectFit: "contain", marginTop: 8, borderRadius: 8, border: "1px solid rgba(134,239,172,0.3)" }} />
-                )}
+            {/* Preview row */}
+            {(ing1 || ing2 || result) && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "rgba(0,0,0,0.3)", borderRadius: 8 }}>
+                {[ing1, ing2].map((id, i) => {
+                  const item = allShopItems.find(s => s.id === id);
+                  return (
+                    <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                      <div style={{ width: 36, height: 36, background: "rgba(0,0,0,0.4)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(134,239,172,0.25)" }}>
+                        {item?.imageUrl ? <img src={item.imageUrl} alt="" style={{ width: 30, height: 30, objectFit: "contain" }} /> : <span style={{ color: "#86efac44", fontSize: 16 }}>?</span>}
+                      </div>
+                      <span style={{ fontSize: 8, color: "#86efac88", maxWidth: 40, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item?.name ?? "—"}</span>
+                    </div>
+                  );
+                })}
+                <span style={{ fontSize: 16, color: "#86efac55", margin: "0 2px" }}>→</span>
+                {(() => {
+                  const item = allShopItems.find(s => s.id === result);
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                      <div style={{ width: 36, height: 36, background: "rgba(0,0,0,0.4)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(134,239,172,0.25)" }}>
+                        {item?.imageUrl ? <img src={item.imageUrl} alt="" style={{ width: 30, height: 30, objectFit: "contain" }} /> : <span style={{ color: "#86efac44", fontSize: 16 }}>?</span>}
+                      </div>
+                      <span style={{ fontSize: 8, color: "#86efac88", maxWidth: 40, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item?.name ?? "—"}</span>
+                    </div>
+                  );
+                })()}
               </div>
-              <button
-                data-testid="button-create-scroll"
-                onClick={() => { if (scrollName.trim()) createScrollMutation.mutate(); }}
-                disabled={createScrollMutation.isPending || !scrollName.trim()}
-                style={{
-                  background: "linear-gradient(135deg, rgba(134,239,172,0.25) 0%, rgba(74,222,128,0.15) 100%)",
-                  border: "1px solid rgba(134,239,172,0.5)", color: "#86efac",
-                  padding: "9px 0", borderRadius: 8, fontSize: 12, cursor: "pointer", letterSpacing: "0.1em",
-                  opacity: createScrollMutation.isPending || !scrollName.trim() ? 0.5 : 1,
-                  fontFamily: "Lora, serif",
-                }}
-              >{createScrollMutation.isPending ? "Creating…" : "Create Scroll"}</button>
-            </div>
-          </div>
+            )}
 
-          {/* Existing scrolls */}
-          {itemsLoading ? (
-            <p style={{ textAlign: "center", color: "#86efac55", fontSize: 12 }}>Loading…</p>
-          ) : recipeScrolls.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "28px 16px", background: "rgba(8,30,16,0.5)", border: "1px dashed rgba(134,239,172,0.25)", borderRadius: 12, color: "#86efac55", fontSize: 12 }}>
-              No recipe scrolls yet. Create one above.
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {recipeScrolls.map((scroll) => (
-                <div key={scroll.id} data-testid={`scroll-row-${scroll.id}`} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(8,30,16,0.75)", border: "1px solid rgba(134,239,172,0.3)", borderRadius: 10, padding: "10px 12px" }}>
-                  {scroll.imageUrl && <img src={scroll.imageUrl} alt="" style={{ width: 40, height: 40, objectFit: "contain", borderRadius: 6, flexShrink: 0 }} />}
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, color: "#d1fef0", fontWeight: 600 }}>{scroll.name}</div>
-                    <div style={{ fontSize: 10, color: "#86efac77", marginTop: 2 }}>{scroll.price} coins</div>
-                  </div>
-                  <button
-                    data-testid={`button-delete-scroll-${scroll.id}`}
-                    onClick={() => deleteScrollMutation.mutate(scroll.id)}
-                    disabled={deleteScrollMutation.isPending}
-                    style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.4)", color: "#fca5a5", borderRadius: 6, padding: "5px 8px", fontSize: 11, cursor: "pointer" }}
-                  >Delete</button>
-                </div>
-              ))}
-            </div>
-          )}
+            <button
+              data-testid="button-complete-recipe"
+              onClick={() => canSubmit && addMutation.mutate()}
+              disabled={!canSubmit}
+              style={{
+                background: canSubmit
+                  ? "linear-gradient(135deg, rgba(134,239,172,0.3) 0%, rgba(74,222,128,0.2) 100%)"
+                  : "rgba(0,0,0,0.3)",
+                border: `1px solid ${canSubmit ? "rgba(134,239,172,0.6)" : "rgba(134,239,172,0.15)"}`,
+                color: canSubmit ? "#86efac" : "#86efac44",
+                padding: "10px 0", borderRadius: 8, fontSize: 13, cursor: canSubmit ? "pointer" : "default",
+                fontFamily: "Lora, serif", letterSpacing: "0.12em", fontWeight: 600,
+                transition: "all 0.15s ease",
+              }}
+            >{addMutation.isPending ? "Adding…" : "Complete"}</button>
+          </div>
         </div>
       )}
 
-      {/* ── Recipe combinations tab ─────────────────────────────────────────── */}
-      {tab === "recipes" && (
-        <div>
-          <div style={{ fontSize: 11, color: "#86efac88", marginBottom: 16, letterSpacing: "0.08em" }}>
-            Define which two ingredients combine to brew a result item.
-          </div>
-
-          {/* Add recipe form */}
-          <div style={{ background: "rgba(8,30,16,0.7)", border: "1px solid rgba(134,239,172,0.25)", borderRadius: 12, padding: "14px 14px", marginBottom: 18 }}>
-            <p style={{ fontSize: 12, color: "#86efac", marginBottom: 12, letterSpacing: "0.1em" }}>Add Recipe Combination</p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {[
-                { val: newIng1, set: setNewIng1, placeholder: "Ingredient 1…", testid: "select-recipe-ing1" },
-                { val: newIng2, set: setNewIng2, placeholder: "Ingredient 2…", testid: "select-recipe-ing2" },
-                { val: newResult, set: setNewResult, placeholder: "Result item…", testid: "select-recipe-result" },
-              ].map(({ val, set, placeholder, testid }) => (
-                <select key={testid} data-testid={testid} value={val} onChange={(e) => set(e.target.value)} style={selectStyle}>
-                  <option value="">{placeholder}</option>
-                  {allShopItems.map((si) => <option key={si.id} value={si.id}>{si.name}</option>)}
-                </select>
-              ))}
-              <select data-testid="select-recipe-scroll" value={newRecipeItemId} onChange={(e) => setNewRecipeItemId(e.target.value)} style={{ ...selectStyle, border: "1px solid rgba(250,200,60,0.35)", color: "#fde68a" }}>
-                <option value="">Linked recipe scroll (optional)…</option>
-                {recipeScrolls.map((si) => <option key={si.id} value={si.id}>{si.name}</option>)}
-              </select>
-              <select data-testid="select-recipe-result-type" value={newResultType} onChange={(e) => setNewResultType(e.target.value)} style={selectStyle}>
-                <option value="item">Result type: item (green)</option>
-                <option value="fish">Result type: fish (blue)</option>
-                <option value="pet">Result type: pet (purple)</option>
-              </select>
-              <button
-                data-testid="button-add-recipe"
-                onClick={handleAddRecipe}
-                disabled={addRecipeMutation.isPending}
-                style={{
-                  background: "linear-gradient(135deg, rgba(134,239,172,0.25) 0%, rgba(74,222,128,0.15) 100%)",
-                  border: "1px solid rgba(134,239,172,0.5)", color: "#86efac",
-                  padding: "9px 0", borderRadius: 8, fontSize: 12, cursor: "pointer", letterSpacing: "0.1em",
-                  opacity: addRecipeMutation.isPending ? 0.5 : 1,
-                  fontFamily: "Lora, serif",
-                }}
-              >{addRecipeMutation.isPending ? "Adding…" : "Add Recipe"}</button>
-            </div>
-          </div>
-
-          {/* Existing recipes */}
-          {recipesLoading ? (
-            <p style={{ textAlign: "center", color: "#86efac55", fontSize: 12 }}>Loading…</p>
-          ) : recipes.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "28px 16px", background: "rgba(8,30,16,0.5)", border: "1px dashed rgba(134,239,172,0.25)", borderRadius: 12, color: "#86efac55", fontSize: 12 }}>
-              No recipes yet. Add one above.
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {recipes.map((r) => (
-                <div key={r.id} data-testid={`recipe-row-${r.id}`} style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(8,30,16,0.75)", border: `1px solid ${glowByType(r.result_type)}`, borderRadius: 10, padding: "10px 12px" }}>
-                  {r.recipe_item_image && <img src={r.recipe_item_image} alt="" style={{ width: 28, height: 28, objectFit: "contain", borderRadius: 4, flexShrink: 0, opacity: 0.8 }} />}
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0, overflow: "hidden" }}>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 36 }}>
-                      {r.ing1_image ? <img src={r.ing1_image} alt="" style={{ width: 30, height: 30, objectFit: "contain", borderRadius: 4 }} /> : <div style={{ width: 30, height: 30, background: "rgba(0,0,0,0.3)", borderRadius: 4 }} />}
-                      <span style={{ fontSize: 8, color: "#d1fef0", textAlign: "center", marginTop: 2, maxWidth: 36, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.ing1_name}</span>
-                    </div>
-                    <span style={{ fontSize: 12, color: "#86efac55" }}>+</span>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 36 }}>
-                      {r.ing2_image ? <img src={r.ing2_image} alt="" style={{ width: 30, height: 30, objectFit: "contain", borderRadius: 4 }} /> : <div style={{ width: 30, height: 30, background: "rgba(0,0,0,0.3)", borderRadius: 4 }} />}
-                      <span style={{ fontSize: 8, color: "#d1fef0", textAlign: "center", marginTop: 2, maxWidth: 36, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.ing2_name}</span>
-                    </div>
-                    <span style={{ fontSize: 12, color: "#86efac55" }}>→</span>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 36 }}>
-                      {r.result_image ? <img src={r.result_image} alt="" style={{ width: 30, height: 30, objectFit: "contain", borderRadius: 4 }} /> : <div style={{ width: 30, height: 30, background: "rgba(0,0,0,0.3)", borderRadius: 4 }} />}
-                      <span style={{ fontSize: 8, color: "#d1fef0", textAlign: "center", marginTop: 2, maxWidth: 40, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.result_name}</span>
-                    </div>
+      {/* Recipe list */}
+      {isLoading ? (
+        <p style={{ textAlign: "center", color: "#86efac55", fontSize: 12 }}>Loading…</p>
+      ) : recipes.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "36px 16px", background: "rgba(8,30,16,0.45)", border: "1px dashed rgba(134,239,172,0.2)", borderRadius: 12, color: "#86efac44", fontSize: 12 }}>
+          No recipes yet. Hit "+ Add Recipe" to create one.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {recipes.map((r) => {
+            const borderColor = r.result_type === "fish" ? "rgba(56,189,248,0.4)" : r.result_type === "pet" ? "rgba(192,132,252,0.4)" : "rgba(134,239,172,0.35)";
+            return (
+              <div key={r.id} data-testid={`recipe-row-${r.id}`}
+                style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(8,30,16,0.75)", border: `1px solid ${borderColor}`, borderRadius: 10, padding: "10px 12px" }}
+              >
+                {/* ing1 */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 40 }}>
+                  <div style={{ width: 34, height: 34, background: "rgba(0,0,0,0.35)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {r.ing1_image ? <img src={r.ing1_image} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} /> : <span style={{ color: "#86efac33", fontSize: 14 }}>?</span>}
                   </div>
-                  <button
-                    data-testid={`button-delete-recipe-${r.id}`}
-                    onClick={() => deleteRecipeMutation.mutate(r.id)}
-                    disabled={deleteRecipeMutation.isPending}
-                    style={{ background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.4)", color: "#fca5a5", borderRadius: 6, padding: "5px 8px", fontSize: 11, cursor: "pointer", flexShrink: 0 }}
-                  >Delete</button>
+                  <span style={{ fontSize: 8, color: "#d1fef0aa", textAlign: "center", marginTop: 2, maxWidth: 40, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.ing1_name}</span>
                 </div>
-              ))}
-            </div>
-          )}
+                <span style={{ fontSize: 13, color: "#86efac44" }}>+</span>
+                {/* ing2 */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 40 }}>
+                  <div style={{ width: 34, height: 34, background: "rgba(0,0,0,0.35)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {r.ing2_image ? <img src={r.ing2_image} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} /> : <span style={{ color: "#86efac33", fontSize: 14 }}>?</span>}
+                  </div>
+                  <span style={{ fontSize: 8, color: "#d1fef0aa", textAlign: "center", marginTop: 2, maxWidth: 40, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.ing2_name}</span>
+                </div>
+                <span style={{ fontSize: 13, color: "#86efac44" }}>→</span>
+                {/* result */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, minWidth: 40 }}>
+                  <div style={{ width: 34, height: 34, background: "rgba(0,0,0,0.35)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {r.result_image ? <img src={r.result_image} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} /> : <span style={{ color: "#86efac33", fontSize: 14 }}>?</span>}
+                  </div>
+                  <span style={{ fontSize: 8, color: "#d1fef0aa", textAlign: "center", marginTop: 2, maxWidth: 50, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.result_name}</span>
+                </div>
+                <button
+                  data-testid={`button-delete-recipe-${r.id}`}
+                  onClick={() => deleteMutation.mutate(r.id)}
+                  disabled={deleteMutation.isPending}
+                  style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.35)", color: "#fca5a5", borderRadius: 6, padding: "5px 9px", fontSize: 11, cursor: "pointer", flexShrink: 0, fontFamily: "Lora, serif" }}
+                >Delete</button>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
