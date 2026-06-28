@@ -154,6 +154,7 @@ interface InventoryItem {
   petTemplateId?: string | null;
   specialSkill?: string | null;
   rarity?: number | null;
+  fishingType?: string | null;
 }
 
 interface WorldLocationData {
@@ -267,6 +268,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [activeLocationId, setActiveLocationId] = useState<string | null>(null);
   const [showLocationView, setShowLocationView] = useState(false);
   const [showItemPicker, setShowItemPicker] = useState(false);
+  const [showSellPanel, setShowSellPanel] = useState(false);
+  const [sellSelected, setSellSelected] = useState<Record<string, number>>({}); // inventoryId → qty to sell
   const [pickerFilter, setPickerFilter] = useState("all");
   const [pickerTab, setPickerTab] = useState<"items" | "house" | "decor">("items");
   const [showAddObject, setShowAddObject] = useState(false);
@@ -642,6 +645,25 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         msg = parsed.message || msg;
       } catch {}
       setBuyError(msg);
+    },
+  });
+
+  const sellItemsMutation = useMutation({
+    mutationFn: async (items: Array<{ inventoryId: string; quantity: number }>) => {
+      const res = await apiRequest("POST", "/api/shop/sell-items", { items });
+      return res.json();
+    },
+    onSuccess: (data: { coinsEarned: number; newBalance: number }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      setCurrentUser(prev => ({ ...prev, coins: data.newBalance }));
+      setSellSelected({});
+      setShowSellPanel(false);
+      burstGoldenOrbs(6);
+      toast({ title: `+${data.coinsEarned} coins!`, description: "Items sold successfully" });
+    },
+    onError: () => {
+      toast({ title: "Couldn't sell", description: "Something went wrong", variant: "destructive" });
     },
   });
 
@@ -3215,8 +3237,17 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                 </button>
               )}
               <button
+                data-testid="button-sell-items"
+                onClick={() => { setShowSellPanel(p => !p); setSellSelected({}); }}
+                className="flex items-center gap-1.5 px-3 h-9 rounded-full font-fantasy tracking-wider transition-transform active:scale-90 text-[11px]"
+                style={{ background: showSellPanel ? `${accent}35` : "rgba(0,0,0,0.55)", border: `1.5px solid ${accent}60`, color: accent, cursor: "pointer", boxShadow: showSellPanel ? `0 0 10px ${accent}25` : "none" }}
+              >
+                <Package className="w-3.5 h-3.5" />
+                Sell
+              </button>
+              <button
                 data-testid="button-close-shop"
-                onClick={() => { setShowShop(false); setShowItemPicker(false); setSelectedShopItem(null); }}
+                onClick={() => { setShowShop(false); setShowItemPicker(false); setSelectedShopItem(null); setShowSellPanel(false); setSellSelected({}); }}
                 className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
                 style={{ background: "rgba(0,0,0,0.55)", border: `1px solid ${accent}40`, color: accent, cursor: "pointer" }}
               >
@@ -3689,6 +3720,160 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                   Not enough coins
                 </p>
               )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {showSellPanel && (() => {
+        const sellable = inventory.filter(item =>
+          item.type !== "pet" && item.fishingType !== "fish"
+        );
+        const totalCoins = Object.entries(sellSelected).reduce((sum, [invId, qty]) => {
+          const item = sellable.find(i => i.inventoryId === invId);
+          if (!item) return sum;
+          const maxQty = item.quantity ?? 1;
+          return sum + 2 * Math.min(qty, maxQty);
+        }, 0);
+        const selectedCount = Object.values(sellSelected).reduce((a, b) => a + b, 0);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => { setShowSellPanel(false); setSellSelected({}); }} />
+            <div
+              className="relative z-10 w-[92%] max-w-sm rounded-2xl max-h-[calc(78*var(--vh))] flex flex-col"
+              style={{
+                background: `linear-gradient(160deg, rgba(8,5,18,0.98) 0%, rgba(15,10,28,0.98) 100%)`,
+                border: `1.5px solid ${accent}50`,
+                boxShadow: `0 0 40px ${accent}22, 0 8px 40px rgba(0,0,0,0.8)`,
+              }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 pt-4 pb-3 flex-shrink-0" style={{ borderBottom: `1px solid ${accent}20` }}>
+                <div>
+                  <h3 className="font-fantasy text-sm tracking-widest" style={{ color: accent, textShadow: `0 0 10px ${accent}40` }}>Sell Items</h3>
+                  <p className="font-fantasy text-[10px] mt-0.5" style={{ color: `${accent}88` }}>2 coins each · Pets &amp; fish cannot be sold</p>
+                </div>
+                <button
+                  onClick={() => { setShowSellPanel(false); setSellSelected({}); }}
+                  className="w-7 h-7 rounded-full flex items-center justify-center"
+                  style={{ background: `${accent}20`, border: `1px solid ${accent}40`, cursor: "pointer", color: accent }}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Item list */}
+              <div className="flex-1 overflow-y-auto p-3" style={{ scrollbarWidth: "none" }}>
+                {sellable.length === 0 ? (
+                  <p className="text-center font-fantasy text-xs py-8" style={{ color: `${accent}55` }}>Nothing to sell yet</p>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    {sellable.map(item => {
+                      const maxQty = item.quantity ?? 1;
+                      const selQty = sellSelected[item.inventoryId] ?? 0;
+                      const isSelected = selQty > 0;
+                      return (
+                        <div
+                          key={item.inventoryId}
+                          data-testid={`sell-item-${item.inventoryId}`}
+                          className="flex items-center gap-3 px-3 py-2 rounded-xl transition-colors"
+                          style={{
+                            background: isSelected ? `${accent}18` : "rgba(255,255,255,0.04)",
+                            border: `1px solid ${isSelected ? accent + "55" : accent + "15"}`,
+                            cursor: "pointer",
+                          }}
+                          onClick={() => {
+                            setSellSelected(prev => {
+                              if (prev[item.inventoryId]) {
+                                const next = { ...prev };
+                                delete next[item.inventoryId];
+                                return next;
+                              }
+                              return { ...prev, [item.inventoryId]: maxQty };
+                            });
+                          }}
+                        >
+                          {/* Item image */}
+                          <div className="w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.4)", border: `1px solid ${accent}20` }}>
+                            {item.imageUrl ? (
+                              <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                            ) : (
+                              <Package className="w-5 h-5" style={{ color: `${accent}55` }} />
+                            )}
+                          </div>
+
+                          {/* Name + qty info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-fantasy text-xs truncate" style={{ color: isSelected ? accent : "#e8ddd0" }}>{item.name}</p>
+                            {maxQty > 1 && (
+                              <p className="font-fantasy text-[10px]" style={{ color: `${accent}77` }}>×{maxQty} in bag</p>
+                            )}
+                          </div>
+
+                          {/* Qty controls (only if stackable and selected) */}
+                          {isSelected && maxQty > 1 && (
+                            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                              <button
+                                onClick={() => setSellSelected(prev => {
+                                  const cur = prev[item.inventoryId] ?? 1;
+                                  if (cur <= 1) { const n = { ...prev }; delete n[item.inventoryId]; return n; }
+                                  return { ...prev, [item.inventoryId]: cur - 1 };
+                                })}
+                                className="w-6 h-6 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                                style={{ background: `${accent}25`, border: `1px solid ${accent}40`, color: accent, cursor: "pointer" }}
+                              ><Minus className="w-3 h-3" /></button>
+                              <span className="font-fantasy text-xs w-5 text-center" style={{ color: accent }}>{selQty}</span>
+                              <button
+                                onClick={() => setSellSelected(prev => ({ ...prev, [item.inventoryId]: Math.min((prev[item.inventoryId] ?? 1) + 1, maxQty) }))}
+                                className="w-6 h-6 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                                style={{ background: `${accent}25`, border: `1px solid ${accent}40`, color: accent, cursor: "pointer" }}
+                              ><Plus className="w-3 h-3" /></button>
+                            </div>
+                          )}
+
+                          {/* Per-item coins */}
+                          <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
+                            <img src={coinIconImg} alt="" className="w-3 h-3 object-contain" />
+                            <span className="font-fantasy text-[11px]" style={{ color: isSelected ? accent : `${accent}66` }}>
+                              {isSelected ? 2 * selQty : 2}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-4 py-3 flex-shrink-0" style={{ borderTop: `1px solid ${accent}20` }}>
+                <div className="flex items-center justify-between mb-2.5">
+                  <span className="font-fantasy text-[11px]" style={{ color: `${accent}88` }}>
+                    {selectedCount > 0 ? `${selectedCount} item${selectedCount !== 1 ? "s" : ""} selected` : "Tap items to select"}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <img src={coinIconImg} alt="" className="w-3.5 h-3.5 object-contain" />
+                    <span className="font-fantasy text-sm font-semibold" style={{ color: totalCoins > 0 ? accent : `${accent}44` }}>{totalCoins}</span>
+                  </div>
+                </div>
+                <button
+                  data-testid="button-confirm-sell"
+                  disabled={totalCoins === 0 || sellItemsMutation.isPending}
+                  onClick={() => {
+                    const items = Object.entries(sellSelected).map(([inventoryId, quantity]) => ({ inventoryId, quantity }));
+                    sellItemsMutation.mutate(items);
+                  }}
+                  className="w-full py-2.5 rounded-xl font-fantasy text-xs tracking-widest transition-transform active:scale-95 disabled:opacity-40"
+                  style={{
+                    background: totalCoins > 0 ? `linear-gradient(135deg, ${accent}45 0%, ${accent}25 100%)` : "rgba(255,255,255,0.04)",
+                    border: `1.5px solid ${totalCoins > 0 ? accent + "70" : accent + "20"}`,
+                    color: accent,
+                    cursor: totalCoins > 0 ? "pointer" : "default",
+                  }}
+                >
+                  {sellItemsMutation.isPending ? "Selling..." : totalCoins > 0 ? `Sell for ${totalCoins} coins` : "Select items to sell"}
+                </button>
+              </div>
             </div>
           </div>
         );

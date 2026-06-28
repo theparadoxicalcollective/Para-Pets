@@ -1778,6 +1778,43 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/shop/sell-items", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { items } = req.body;
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: "items array required" });
+      }
+      const COINS_PER_ITEM = 2;
+      let totalCoinsEarned = 0;
+      for (const entry of items) {
+        const { inventoryId, quantity = 1 } = entry;
+        if (!inventoryId || typeof inventoryId !== "string") continue;
+        const invItem = await storage.getInventoryItemById(inventoryId);
+        if (!invItem || invItem.userId !== user.id) continue;
+        const shopItem = invItem.shopItemId ? await storage.getShopItem(invItem.shopItemId) : null;
+        if (shopItem?.type === "pet") continue;
+        if (shopItem?.fishingType === "fish") continue;
+        const currentQty = invItem.quantity ?? 1;
+        const toSell = Math.min(Math.max(1, quantity), currentQty);
+        if (toSell >= currentQty) {
+          await storage.removeFromInventory(inventoryId);
+        } else {
+          await storage.updateInventoryItem(inventoryId, { quantity: currentQty - toSell });
+        }
+        totalCoinsEarned += COINS_PER_ITEM * toSell;
+      }
+      if (totalCoinsEarned === 0) {
+        return res.status(400).json({ message: "No valid items to sell" });
+      }
+      const updated = await storage.addCoins(user.id, totalCoinsEarned);
+      return res.json({ coinsEarned: totalCoinsEarned, newBalance: updated.coins });
+    } catch (err) {
+      console.error("Sell items error:", err);
+      return res.status(500).json({ message: "Failed to sell items" });
+    }
+  });
+
   app.delete("/api/inventory/:inventoryId", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
