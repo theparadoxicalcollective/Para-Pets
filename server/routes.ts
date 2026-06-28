@@ -8857,20 +8857,42 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/recipes", isAdmin, async (req, res) => {
+  app.post("/api/admin/recipes", isAdmin, async (req: any, res) => {
     try {
-      const { ingredient1Id, ingredient2Id, resultId, resultType, recipeItemId } = req.body;
+      const { ingredient1Id, ingredient2Id, resultId, resultType } = req.body;
       if (!ingredient1Id || !ingredient2Id || !resultId || !resultType) {
         return res.status(400).json({ message: "All fields required" });
       }
       if (!["item","fish","pet"].includes(resultType)) {
         return res.status(400).json({ message: "resultType must be item, fish, or pet" });
       }
+      const adminId = req.user!.id;
+
+      // 1. Look up the result item name for the scroll label
+      const resultRows = await db.execute(sql`SELECT name FROM shop_items WHERE id = ${resultId}`);
+      const resultName: string = (resultRows.rows[0] as any)?.name ?? "Unknown";
+
+      // 2. Create a recipe-type shop item (the scroll) linked to this recipe
+      const scrollRows = await db.execute(sql`
+        INSERT INTO shop_items (name, price, type, world_id, image_url)
+        VALUES (${resultName + " Recipe Scroll"}, 0, 'recipe', 'mixing_tree', '/recipe-scroll.png')
+        RETURNING id
+      `);
+      const scrollItemId: string = (scrollRows.rows[0] as any).id;
+
+      // 3. Insert the recipe, linking the scroll as its recipe_item_id
       await db.execute(sql`
         INSERT INTO mixing_tree_recipes (ingredient1_id, ingredient2_id, result_id, result_type, recipe_item_id)
-        VALUES (${ingredient1Id}, ${ingredient2Id}, ${resultId}, ${resultType}, ${recipeItemId || null})
+        VALUES (${ingredient1Id}, ${ingredient2Id}, ${resultId}, ${resultType}, ${scrollItemId})
       `);
-      return res.json({ ok: true });
+
+      // 4. Add one copy of the scroll to the admin's inventory
+      await db.execute(sql`
+        INSERT INTO user_inventory (user_id, shop_item_id, quantity)
+        VALUES (${adminId}, ${scrollItemId}, 1)
+      `);
+
+      return res.json({ ok: true, scrollItemId });
     } catch (err) {
       console.error("Add recipe error:", err);
       return res.status(500).json({ message: "Failed to add recipe" });

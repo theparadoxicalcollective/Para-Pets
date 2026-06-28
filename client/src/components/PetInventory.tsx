@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
-import recipeScrollIcon from "@assets/Photoroom_20260627_85235_PM_1782612638904.png";
+const recipeScrollIcon = "/recipe-scroll-icon.png";
 import bagIconImg from "@assets/icon_bag.png";
 import tabIconAll from "@assets/icon_bag.png";
 import tabIconPotion from "@assets/potion_health.png";
@@ -1097,7 +1097,7 @@ function getItemUsageHint(item: InventoryItem): { where: string; how: string } {
 
 const POTION_STACK_MAX = 50;
 
-type BagTabKey = "all" | "potion" | "item" | "accessory" | "special";
+type BagTabKey = "all" | "potion" | "item" | "accessory" | "special" | "recipe";
 
 const BAG_TABS: { key: BagTabKey; label: string; icon: string }[] = [
   { key: "all",       label: "All",     icon: tabIconAll       },
@@ -1105,6 +1105,7 @@ const BAG_TABS: { key: BagTabKey; label: string; icon: string }[] = [
   { key: "item",      label: "Items",   icon: tabIconItem      },
   { key: "accessory", label: "Gear",    icon: tabIconAccessory },
   { key: "special",   label: "Special", icon: tabIconSpecial   },
+  { key: "recipe",    label: "Recipes", icon: recipeScrollIcon },
 ];
 
 function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemPointerDown?: (e: React.PointerEvent, item: InventoryItem) => void }) {
