@@ -8773,6 +8773,58 @@ export async function registerRoutes(
     }
   });
 
+  // ── Mixing Tree Recipes ─────────────────────────────────────────────────────
+  app.get("/api/recipes", isAuthenticated, async (_req, res) => {
+    try {
+      const rows = await db.execute(sql`
+        SELECT r.id, r.result_type,
+          i1.id as ing1_id, i1.name as ing1_name, i1.image_url as ing1_image,
+          i2.id as ing2_id, i2.name as ing2_name, i2.image_url as ing2_image,
+          rr.id as result_id, rr.name as result_name, rr.image_url as result_image, rr.type as result_item_type
+        FROM mixing_tree_recipes r
+        JOIN shop_items i1 ON r.ingredient1_id = i1.id
+        JOIN shop_items i2 ON r.ingredient2_id = i2.id
+        JOIN shop_items rr ON r.result_id = rr.id
+        ORDER BY r.created_at
+      `);
+      return res.json(rows.rows);
+    } catch (err) {
+      console.error("Get recipes error:", err);
+      return res.status(500).json({ message: "Failed to get recipes" });
+    }
+  });
+
+  app.post("/api/admin/recipes", isAdmin, async (req, res) => {
+    try {
+      const { ingredient1Id, ingredient2Id, resultId, resultType } = req.body;
+      if (!ingredient1Id || !ingredient2Id || !resultId || !resultType) {
+        return res.status(400).json({ message: "All fields required" });
+      }
+      if (!["item","fish","pet"].includes(resultType)) {
+        return res.status(400).json({ message: "resultType must be item, fish, or pet" });
+      }
+      await db.execute(sql`
+        INSERT INTO mixing_tree_recipes (ingredient1_id, ingredient2_id, result_id, result_type)
+        VALUES (${ingredient1Id}, ${ingredient2Id}, ${resultId}, ${resultType})
+      `);
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("Add recipe error:", err);
+      return res.status(500).json({ message: "Failed to add recipe" });
+    }
+  });
+
+  app.delete("/api/admin/recipes/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params as Record<string,string>;
+      await db.execute(sql`DELETE FROM mixing_tree_recipes WHERE id = ${id}`);
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("Delete recipe error:", err);
+      return res.status(500).json({ message: "Failed to delete recipe" });
+    }
+  });
+
   // ── Tutorial: mark quest completed (no coins yet — player claims from quest log) ─
   app.post("/api/tutorial/complete", isAuthenticated, async (req: any, res) => {
     const userId = req.user!.id;

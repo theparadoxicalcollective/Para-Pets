@@ -784,6 +784,22 @@ app.use((req, res, next) => {
 
   try {
     await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS mixing_tree_recipes (
+        id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+        ingredient1_id varchar NOT NULL REFERENCES shop_items(id) ON DELETE CASCADE,
+        ingredient2_id varchar NOT NULL REFERENCES shop_items(id) ON DELETE CASCADE,
+        result_id varchar NOT NULL REFERENCES shop_items(id) ON DELETE CASCADE,
+        result_type text NOT NULL DEFAULT 'item',
+        created_at timestamp NOT NULL DEFAULT NOW()
+      )
+    `);
+    console.log("mixing_tree_recipes table ready.");
+  } catch (err) {
+    console.error("mixing_tree_recipes setup error (non-fatal):", err);
+  }
+
+  try {
+    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS daily_quests (
         id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
         quest_key text NOT NULL UNIQUE,
