@@ -8930,7 +8930,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/recipes", isAdmin, async (req: any, res) => {
     try {
-      const { ingredient1Id, ingredient2Id, resultId, resultType } = req.body;
+      const { ingredient1Id, ingredient2Id, resultId, resultType, name } = req.body;
       if (!ingredient1Id || !ingredient2Id || !resultId || !resultType) {
         return res.status(400).json({ message: "All fields required" });
       }
@@ -8939,14 +8939,15 @@ export async function registerRoutes(
       }
       const adminId = req.user!.id;
 
-      // 1. Look up the result item name for the scroll label
+      // 1. Look up the result item name for the scroll label fallback
       const resultRows = await db.execute(sql`SELECT name FROM shop_items WHERE id = ${resultId}`);
       const resultName: string = (resultRows.rows[0] as any)?.name ?? "Unknown";
+      const scrollName: string = (name && typeof name === "string" && name.trim()) ? name.trim() : (resultName + " Recipe Scroll");
 
       // 2. Create a recipe-type shop item (the scroll) linked to this recipe
       const scrollRows = await db.execute(sql`
         INSERT INTO shop_items (name, price, type, world_id, image_url)
-        VALUES (${resultName + " Recipe Scroll"}, 0, 'recipe', 'mixing_tree', '/recipe-scroll.png')
+        VALUES (${scrollName}, 0, 'recipe', 'mixing_tree', '/recipe-scroll.png')
         RETURNING id
       `);
       const scrollItemId: string = (scrollRows.rows[0] as any).id;
@@ -8967,6 +8968,38 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Add recipe error:", err);
       return res.status(500).json({ message: "Failed to add recipe" });
+    }
+  });
+
+  app.patch("/api/admin/recipes/:id", isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params as Record<string,string>;
+      const { ingredient1Id, ingredient2Id, resultId, resultType, name } = req.body;
+
+      // Get current recipe to find the scroll shop item
+      const curr = await db.execute(sql`SELECT recipe_item_id FROM mixing_tree_recipes WHERE id = ${id}`);
+      if (!curr.rows.length) return res.status(404).json({ message: "Recipe not found" });
+      const scrollItemId: string | null = (curr.rows[0] as any).recipe_item_id ?? null;
+
+      // Update recipe fields (only provided ones)
+      const updates: string[] = [];
+      if (ingredient1Id) updates.push(`ingredient1_id = '${ingredient1Id}'`);
+      if (ingredient2Id) updates.push(`ingredient2_id = '${ingredient2Id}'`);
+      if (resultId)      updates.push(`result_id = '${resultId}'`);
+      if (resultType && ["item","fish","pet"].includes(resultType)) updates.push(`result_type = '${resultType}'`);
+      if (updates.length) {
+        await db.execute(sql`UPDATE mixing_tree_recipes SET ${sql.raw(updates.join(", "))} WHERE id = ${id}`);
+      }
+
+      // Update scroll name if provided
+      if (name && typeof name === "string" && name.trim() && scrollItemId) {
+        await db.execute(sql`UPDATE shop_items SET name = ${name.trim()} WHERE id = ${scrollItemId}`);
+      }
+
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("Update recipe error:", err);
+      return res.status(500).json({ message: "Failed to update recipe" });
     }
   });
 
