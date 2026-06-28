@@ -4454,7 +4454,7 @@ function RecipeItemsSection() {
         ingredient1Id: ing1,
         ingredient2Id: ing2,
         resultId: result,
-        resultType: allShopItems.find(s => s.id === result)?.type || "item",
+        resultType: (() => { const t = allShopItems.find(s => s.id === result)?.type ?? ""; return t === "fish" ? "fish" : t === "pet" ? "pet" : "item"; })(),
       });
       return res.json();
     },
