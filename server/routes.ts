@@ -3622,6 +3622,27 @@ export async function registerRoutes(
   app.delete("/api/cauldron/contents", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      // Return any items in the cauldron back to the player's inventory
+      const raw = await storage.getGameSetting(cauldronContentsKey(user.id));
+      if (raw) {
+        let contents: Array<{ shopItemId: string; quantity: number }> = [];
+        try { const p = JSON.parse(raw); if (Array.isArray(p)) contents = p; } catch {}
+        for (const c of contents) {
+          if (!c.shopItemId || !c.quantity) continue;
+          const existing = await db.execute(sql`
+            SELECT id FROM user_inventory WHERE user_id = ${user.id} AND shop_item_id = ${c.shopItemId} LIMIT 1
+          `);
+          if (existing.rows.length) {
+            await db.execute(sql`
+              UPDATE user_inventory SET quantity = quantity + ${c.quantity} WHERE id = ${(existing.rows[0] as any).id}
+            `);
+          } else {
+            await db.execute(sql`
+              INSERT INTO user_inventory (user_id, shop_item_id, quantity) VALUES (${user.id}, ${c.shopItemId}, ${c.quantity})
+            `);
+          }
+        }
+      }
       await storage.setGameSetting(cauldronContentsKey(user.id), JSON.stringify([]));
       return res.json({ ok: true });
     } catch (err) {
@@ -3657,7 +3678,7 @@ export async function registerRoutes(
         LIMIT 1
       `);
       if (!recipeRows.rows.length) {
-        return res.status(404).json({ message: "No recipe found for these ingredients" });
+        return res.status(404).json({ message: "Incorrect Recipe", errorCode: "INCORRECT_RECIPE" });
       }
       const recipe = recipeRows.rows[0] as any;
 
@@ -3667,7 +3688,7 @@ export async function registerRoutes(
         WHERE user_id = ${userId} AND recipe_id = ${recipe.id}
       `);
       if (!unlockedRow.rows.length) {
-        return res.status(403).json({ message: "You haven't unlocked this recipe yet. Find the recipe scroll first!" });
+        return res.status(403).json({ message: "Find Recipe", errorCode: "RECIPE_LOCKED" });
       }
 
       // 4. Award the result item to the player

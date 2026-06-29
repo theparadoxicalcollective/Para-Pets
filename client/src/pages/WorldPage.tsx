@@ -568,6 +568,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   });
 
   const [brewResult, setBrewResult] = useState<{ name: string; imageUrl: string | null; type: string } | null>(null);
+  const [brewError, setBrewError] = useState<"incorrect" | "locked" | null>(null);
   const brewMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/cauldron/brew");
@@ -579,7 +580,16 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       setBrewResult(data.result);
     },
     onError: (err: any) => {
-      toast({ title: "Can't brew", description: err.message || "Something went wrong", variant: "destructive" });
+      const msg: string = err?.message || "";
+      if (msg.includes("Find Recipe") || msg.includes("RECIPE_LOCKED")) {
+        setBrewError("locked");
+        clearCauldronMutation.mutate();
+      } else if (msg.includes("Incorrect Recipe") || msg.includes("INCORRECT_RECIPE")) {
+        setBrewError("incorrect");
+        clearCauldronMutation.mutate();
+      } else {
+        toast({ title: "Can't brew", description: msg || "Something went wrong", variant: "destructive" });
+      }
     },
   });
 
@@ -4388,54 +4398,58 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
           <div className="relative z-10 flex flex-col h-full">
             {activeLoc.id === BAYOUS_HEART_ID ? (
-              <div className="relative flex items-center justify-center px-4 pb-1" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 8px, 40px)" }}>
-                {/* Recipe book icon — top left, standalone (no bubble) */}
-                <button
-                  data-testid="button-open-recipe-book-scene"
-                  onClick={() => { setHasNewUnlock(false); setShowRecipeBook(true); }}
-                  className="absolute left-3 flex flex-col items-center gap-0.5 active:scale-90 transition-transform"
-                  style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                >
-                  <div className="relative">
-                    <img src={recipeBookClosed} alt="Recipe Book" className="object-contain"
-                      style={{
-                        width: 44, height: 44,
-                        filter: hasNewUnlock
-                          ? "drop-shadow(0 0 10px rgba(250,200,60,0.95)) drop-shadow(0 2px 6px rgba(0,0,0,0.6))"
-                          : "drop-shadow(0 2px 10px rgba(94,234,212,0.45)) drop-shadow(0 2px 5px rgba(0,0,0,0.55))",
-                      }}
-                    />
-                    {hasNewUnlock && (
-                      <QuillBadge size={12} glow="#4ade80" style={{ position: "absolute", top: -12, right: -4 }} />
-                    )}
-                  </div>
-                  <span className="font-fantasy text-[8px] tracking-wide" style={{ color: hasNewUnlock ? "#fde68a" : "#5eead466" }}>Recipes</span>
-                </button>
-
-                <img
-                  src={mixingTreeTitle}
-                  alt="The Mixing Tree"
-                  className="object-contain"
-                  style={{ maxWidth: "min(320px, 80vw)", maxHeight: 90, filter: "drop-shadow(0 2px 14px rgba(100,160,60,0.45))" }}
-                />
-                <button
-                  data-testid="button-close-location-view"
-                  onClick={() => { setShowLocationView(false); setActiveLocationId(null); }}
-                  className="absolute right-4 w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
-                  style={{
-                    background: "linear-gradient(135deg, rgba(212,160,23,0.22) 0%, rgba(212,160,23,0.10) 100%)",
-                    border: "2px solid rgba(212,160,23,0.55)",
-                    color: "#d4a017",
-                    cursor: "pointer",
-                  }}
-                >
-                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M19 12H5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-                    <path d="M10.5 6.5L5 12L10.5 17.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M19 12L16.5 9.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.55"/>
-                    <path d="M19 12L16.5 14.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.55"/>
-                  </svg>
-                </button>
+              <div className="flex flex-col">
+                {/* Title row */}
+                <div className="relative flex items-center justify-center px-4 pb-0" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 8px, 40px)" }}>
+                  <img
+                    src={mixingTreeTitle}
+                    alt="The Mixing Tree"
+                    className="object-contain"
+                    style={{ maxWidth: "min(320px, 80vw)", maxHeight: 90, filter: "drop-shadow(0 2px 14px rgba(100,160,60,0.45))" }}
+                  />
+                  <button
+                    data-testid="button-close-location-view"
+                    onClick={() => { setShowLocationView(false); setActiveLocationId(null); }}
+                    className="absolute right-4 w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(212,160,23,0.22) 0%, rgba(212,160,23,0.10) 100%)",
+                      border: "2px solid rgba(212,160,23,0.55)",
+                      color: "#d4a017",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M19 12H5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                      <path d="M10.5 6.5L5 12L10.5 17.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M19 12L16.5 9.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.55"/>
+                      <path d="M19 12L16.5 14.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.55"/>
+                    </svg>
+                  </button>
+                </div>
+                {/* Recipe book — below the title, left-aligned */}
+                <div className="flex items-center px-4 pt-1 pb-1">
+                  <button
+                    data-testid="button-open-recipe-book-scene"
+                    onClick={() => { setHasNewUnlock(false); setShowRecipeBook(true); }}
+                    className="flex flex-col items-center gap-0.5 active:scale-90 transition-transform"
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                  >
+                    <div className="relative">
+                      <img src={recipeBookClosed} alt="Recipe Book" className="object-contain"
+                        style={{
+                          width: 44, height: 44,
+                          filter: hasNewUnlock
+                            ? "drop-shadow(0 0 10px rgba(250,200,60,0.95)) drop-shadow(0 2px 6px rgba(0,0,0,0.6))"
+                            : "drop-shadow(0 2px 10px rgba(94,234,212,0.45)) drop-shadow(0 2px 5px rgba(0,0,0,0.55))",
+                        }}
+                      />
+                      {hasNewUnlock && (
+                        <QuillBadge size={12} glow="#4ade80" style={{ position: "absolute", top: -12, right: -4 }} />
+                      )}
+                    </div>
+                    <span className="font-fantasy text-[8px] tracking-wide" style={{ color: hasNewUnlock ? "#fde68a" : "#5eead466" }}>Recipes</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="flex items-center justify-between px-4 pb-3" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
@@ -5341,6 +5355,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           isBrewing={brewMutation.isPending}
           brewResult={brewResult}
           onClearBrewResult={() => setBrewResult(null)}
+          brewError={brewError}
+          onClearBrewError={() => setBrewError(null)}
           onUnlockRecipe={(inventoryId) => unlockRecipeMutation.mutate(inventoryId)}
           isUnlockingRecipe={unlockRecipeMutation.isPending}
         />
@@ -5948,6 +5964,7 @@ interface RecipeRowProp {
 function CauldronPanel({
   inventory, contents, onAdd, onClear, onClose, isAdding, isClearing,
   onBrew, isBrewing, brewResult, onClearBrewResult,
+  brewError, onClearBrewError,
   onUnlockRecipe, isUnlockingRecipe,
 }: {
   inventory: InventoryItem[];
@@ -5961,6 +5978,8 @@ function CauldronPanel({
   isBrewing: boolean;
   brewResult: { name: string; imageUrl: string | null; type: string } | null;
   onClearBrewResult: () => void;
+  brewError: "incorrect" | "locked" | null;
+  onClearBrewError: () => void;
   onUnlockRecipe: (inventoryId: string) => void;
   isUnlockingRecipe: boolean;
 }) {
@@ -6009,6 +6028,32 @@ function CauldronPanel({
         @keyframes unlockGlow { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
         @keyframes brewPop { 0% { transform: scale(0.7); opacity: 0; } 70% { transform: scale(1.06); } 100% { transform: scale(1); opacity: 1; } }
       `}</style>
+
+      {/* Brew error popups — Incorrect Recipe / Find Recipe */}
+      {brewError && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center pointer-events-auto" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={onClearBrewError} />
+          <div className="relative z-10 flex flex-col items-center gap-3 rounded-2xl px-8 py-7 pointer-events-auto text-center"
+            style={{ background: "linear-gradient(160deg,rgba(28,12,12,.98) 0%,rgba(40,8,8,.98) 100%)", border: `1.5px solid ${brewError === "locked" ? "rgba(250,200,60,.55)" : "rgba(248,80,80,.45)"}`, boxShadow: "0 0 60px rgba(0,0,0,.85)", minWidth: 220, animation: "brewPop .4s cubic-bezier(.34,1.56,.64,1) both" }}
+          >
+            <div className="text-4xl mb-1">{brewError === "locked" ? "📜" : "💥"}</div>
+            <p className="font-fantasy text-lg tracking-wider" style={{ color: brewError === "locked" ? "#fde68a" : "#fca5a5" }}>
+              {brewError === "locked" ? "Find Recipe" : "Incorrect Recipe"}
+            </p>
+            <p className="font-fantasy text-[11px] leading-snug" style={{ color: "#ffffff66", maxWidth: 200 }}>
+              {brewError === "locked"
+                ? "These ingredients can make something — but you need to find and unlock the recipe scroll first!"
+                : "These ingredients don't create anything together. Try a different combination."}
+            </p>
+            <p className="font-fantasy text-[10px] mt-1" style={{ color: "#ffffff44" }}>Your ingredients were returned.</p>
+            <button data-testid="button-brew-error-close" onClick={onClearBrewError}
+              className="mt-1 font-fantasy text-xs tracking-wider px-6 py-2 rounded-full active:scale-95 transition-transform"
+              style={{ background: brewError === "locked" ? "rgba(250,200,60,.15)" : "rgba(248,80,80,.15)", border: `1px solid ${brewError === "locked" ? "rgba(250,200,60,.45)" : "rgba(248,80,80,.4)"}`, color: brewError === "locked" ? "#fde68a" : "#fca5a5", cursor: "pointer" }}>
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Brew result popup */}
       {brewResult && (
@@ -6081,7 +6126,7 @@ function CauldronPanel({
             )}
 
             <p className="font-fantasy text-[10px] mt-1 tracking-wide text-center" style={{ color: dragOver ? "#5eead4" : "#5eead433" }}>
-              {dragOver ? "Release to add" : isFull ? "Ready to brew!" : "Drag or tap an item below"}
+              {dragOver ? "Release to add" : isFull ? "Ready to brew!" : "Drag an item here"}
             </p>
             <div className="flex items-center gap-3 mt-1">
               {isFull && (
@@ -6111,22 +6156,20 @@ function CauldronPanel({
               <>
                 <div className="flex items-center gap-2 mb-1.5">
                   <h4 className="font-fantasy text-[10px] tracking-wider" style={{ color: "#fde68aaa" }}>Recipe Scrolls</h4>
-                  <span className="font-fantasy text-[9px]" style={{ color: "#fde68a44" }}>drag or tap to unlock</span>
+                  <span className="font-fantasy text-[9px]" style={{ color: "#fde68a44" }}>drag onto cauldron to unlock</span>
                 </div>
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   {recipeItems.map((item) => (
-                    <button key={item.inventoryId} data-testid={`button-recipe-scroll-${item.inventoryId}`}
+                    <div key={item.inventoryId} data-testid={`button-recipe-scroll-${item.inventoryId}`}
                       draggable onDragStart={(e) => { e.dataTransfer.setData("text/plain", item.inventoryId); }}
-                      onClick={() => { setUnlockAnimating(true); setTimeout(() => setUnlockAnimating(false), 1400); onUnlockRecipe(item.inventoryId); }}
-                      disabled={isUnlockingRecipe}
-                      className="flex flex-col items-center gap-1 p-2 rounded-lg disabled:opacity-50 active:scale-95 transition-transform"
-                      style={{ background: "rgba(250,200,60,.07)", border: "1px solid rgba(250,200,60,.25)", cursor: "grab" }}>
-                      <div className="w-12 h-12 rounded-md flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,.35)" }}>
+                      className="flex flex-col items-center gap-1 p-2 rounded-lg select-none"
+                      style={{ background: "rgba(250,200,60,.07)", border: "1px solid rgba(250,200,60,.25)", cursor: "grab", opacity: isUnlockingRecipe ? 0.5 : 1 }}>
+                      <div className="w-12 h-12 rounded-md flex items-center justify-center overflow-hidden pointer-events-none" style={{ background: "rgba(0,0,0,.35)" }}>
                         {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-contain" /> : <img src={recipeScrollIcon} alt="" className="w-9 h-9 object-contain opacity-50" />}
                       </div>
-                      <p className="font-fantasy text-[10px] text-center leading-tight line-clamp-2" style={{ color: "#fde68a" }}>{item.name}</p>
-                      {(item.quantity ?? 1) > 1 && <p className="font-fantasy text-[9px]" style={{ color: "#fde68a77" }}>×{item.quantity}</p>}
-                    </button>
+                      <p className="font-fantasy text-[10px] text-center leading-tight line-clamp-2 pointer-events-none" style={{ color: "#fde68a" }}>{item.name}</p>
+                      {(item.quantity ?? 1) > 1 && <p className="font-fantasy text-[9px] pointer-events-none" style={{ color: "#fde68a77" }}>×{item.quantity}</p>}
+                    </div>
                   ))}
                 </div>
               </>
@@ -6138,22 +6181,21 @@ function CauldronPanel({
                 <div className="flex items-center justify-between mb-1.5">
                   <h4 className="font-fantasy text-[10px] tracking-wider" style={{ color: "#d1faf3aa" }}>Ingredients</h4>
                   <span className="font-fantasy text-[9px]" style={{ color: isFull ? "#fca5a5" : "#5eead444" }}>
-                    {isFull ? "cauldron full · clear to brew" : "drag or tap to add"}
+                    {isFull ? "cauldron full · clear to brew" : "drag onto cauldron"}
                   </span>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   {ingredients.map((ing) => (
-                    <button key={ing.inventoryId} data-testid={`button-add-ingredient-${ing.inventoryId}`}
+                    <div key={ing.inventoryId} data-testid={`div-ingredient-${ing.inventoryId}`}
                       draggable={!isFull} onDragStart={(e) => { e.dataTransfer.setData("text/plain", ing.inventoryId); }}
-                      onClick={() => tryAdd(ing.inventoryId)} disabled={isAdding || isFull}
-                      className="flex flex-col items-center gap-1 p-2 rounded-lg disabled:opacity-50 active:scale-95 transition-transform"
-                      style={{ background: "rgba(94,234,212,.07)", border: "1px solid rgba(94,234,212,.2)", cursor: isFull ? "not-allowed" : "grab" }}>
-                      <div className="w-12 h-12 rounded-md flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,.3)" }}>
+                      className="flex flex-col items-center gap-1 p-2 rounded-lg select-none"
+                      style={{ background: "rgba(94,234,212,.07)", border: "1px solid rgba(94,234,212,.2)", cursor: isFull ? "not-allowed" : "grab", opacity: isFull ? 0.4 : 1 }}>
+                      <div className="w-12 h-12 rounded-md flex items-center justify-center overflow-hidden pointer-events-none" style={{ background: "rgba(0,0,0,.3)" }}>
                         {ing.imageUrl ? <img src={ing.imageUrl} alt="" className="w-full h-full object-contain" /> : <span className="font-fantasy text-[10px]" style={{ color: "#5eead455" }}>?</span>}
                       </div>
-                      <p className="font-fantasy text-[10px] text-center leading-tight line-clamp-2" style={{ color: "#d1faf3" }}>{ing.name}</p>
-                      {(ing.quantity ?? 1) > 1 && <p className="font-fantasy text-[9px]" style={{ color: "#5eead4aa" }}>×{ing.quantity}</p>}
-                    </button>
+                      <p className="font-fantasy text-[10px] text-center leading-tight line-clamp-2 pointer-events-none" style={{ color: "#d1faf3" }}>{ing.name}</p>
+                      {(ing.quantity ?? 1) > 1 && <p className="font-fantasy text-[9px] pointer-events-none" style={{ color: "#5eead4aa" }}>×{ing.quantity}</p>}
+                    </div>
                   ))}
                 </div>
               </>
