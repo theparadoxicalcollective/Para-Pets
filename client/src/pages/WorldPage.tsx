@@ -1764,8 +1764,13 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   return (
     <div
       className="relative w-full h-screen-frame overflow-hidden"
+      style={{ animation: "worldFadeIn 0.35s ease-out" }}
     >
       <style>{`
+        @keyframes worldFadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
         @keyframes locFloat {
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-4px); }
@@ -3299,7 +3304,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           <div className="relative flex items-center justify-between px-4 pb-3 flex-shrink-0" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 72px)", zIndex: 10 }}>
             <div className="flex items-center gap-2.5">
               {activeLoc?.iconUrl && (
-                <img src={activeLoc.iconUrl} alt="" className="w-10 h-10 rounded-xl object-contain" style={{ border: `1.5px solid ${accent}50`, boxShadow: `0 0 12px ${accent}30` }} />
+                <img src={activeLoc.iconUrl} alt="" className="w-10 h-10 object-contain" style={{ filter: `drop-shadow(0 0 8px ${accent}80) drop-shadow(0 2px 4px rgba(0,0,0,0.6))` }} />
               )}
               <div>
                 <h3 className="font-fantasy text-base tracking-widest font-semibold" style={{ color: accent, textShadow: `0 0 14px ${accent}60` }} data-testid="text-shop-name">
@@ -4440,7 +4445,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                     <div className="relative">
                       <img src={recipeBookClosed} alt="Recipe Book" className="object-contain"
                         style={{
-                          width: 44, height: 44,
+                          width: 60, height: 60,
                           filter: hasNewUnlock
                             ? "drop-shadow(0 0 10px rgba(250,200,60,0.95)) drop-shadow(0 2px 6px rgba(0,0,0,0.6))"
                             : "drop-shadow(0 2px 10px rgba(94,234,212,0.45)) drop-shadow(0 2px 5px rgba(0,0,0,0.55))",
@@ -4458,7 +4463,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               <div className="flex items-center justify-between px-4 pb-3" style={{ paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 48px)" }}>
                 <div className="flex items-center gap-3">
                   {activeLoc.iconUrl && (
-                    <img src={activeLoc.iconUrl} alt="" className="w-10 h-10 rounded-lg object-contain" style={{ border: `1px solid ${accent}40`, filter: `drop-shadow(0 0 8px ${accent}30)` }} />
+                    <img src={activeLoc.iconUrl} alt="" className="w-10 h-10 object-contain" style={{ filter: `drop-shadow(0 0 8px ${accent}80) drop-shadow(0 2px 4px rgba(0,0,0,0.6))` }} />
                   )}
                   <div>
                     <h3 className="font-fantasy text-lg tracking-widest font-semibold" style={{ color: accent, textShadow: `0 0 15px ${accent}50` }}>
