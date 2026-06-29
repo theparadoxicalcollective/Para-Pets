@@ -5994,6 +5994,9 @@ function CauldronPanel({
   const [dragOver, setDragOver] = useState(false);
   const [unlockAnimating, setUnlockAnimating] = useState(false);
   const { toast } = useToast();
+  const cauldronZoneRef = useRef<HTMLDivElement>(null);
+  const [touchGhost, setTouchGhost] = useState<{ inventoryId: string; label: string; imageUrl: string | null; x: number; y: number } | null>(null);
+  const touchItemRef = useRef<{ inventoryId: string; itemType: string } | null>(null);
 
   const CAULDRON_CAPACITY = 2;
   const totalInCauldron = contents.reduce((n, c) => n + c.quantity, 0);
@@ -6007,18 +6010,62 @@ function CauldronPanel({
     onAdd(invId);
   };
 
+  const dispatchToCauldron = (invId: string, itemType: string) => {
+    if (itemType === "recipe") {
+      setUnlockAnimating(true);
+      setTimeout(() => setUnlockAnimating(false), 1400);
+      onUnlockRecipe(invId);
+    } else {
+      tryAdd(invId);
+    }
+  };
+
+  // ── HTML5 drag (desktop) ────────────────────────────────────────────────
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const invId = e.dataTransfer.getData("text/plain");
     if (!invId) return;
     const dropped = inventory.find((i) => i.inventoryId === invId);
-    if (dropped?.type === "recipe") {
-      setUnlockAnimating(true);
-      setTimeout(() => setUnlockAnimating(false), 1400);
-      onUnlockRecipe(invId);
-    } else {
-      tryAdd(invId);
+    if (!dropped) return;
+    dispatchToCauldron(invId, dropped.type);
+  };
+
+  // ── Touch drag (mobile) ─────────────────────────────────────────────────
+  const handleItemTouchStart = (e: React.TouchEvent, invId: string, itemType: string) => {
+    const touch = e.touches[0];
+    const item = inventory.find((i) => i.inventoryId === invId);
+    touchItemRef.current = { inventoryId: invId, itemType };
+    setTouchGhost({ inventoryId: invId, label: item?.name ?? "", imageUrl: item?.imageUrl ?? null, x: touch.clientX, y: touch.clientY });
+  };
+
+  const handleItemTouchMove = (e: React.TouchEvent) => {
+    if (!touchItemRef.current) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    setTouchGhost((prev) => prev ? { ...prev, x: touch.clientX, y: touch.clientY } : null);
+    // Highlight cauldron zone when hovering over it
+    const zone = cauldronZoneRef.current;
+    if (zone) {
+      const rect = zone.getBoundingClientRect();
+      const over = touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom;
+      setDragOver(over);
+    }
+  };
+
+  const handleItemTouchEnd = (e: React.TouchEvent) => {
+    const item = touchItemRef.current;
+    touchItemRef.current = null;
+    setTouchGhost(null);
+    setDragOver(false);
+    if (!item) return;
+    const touch = e.changedTouches[0];
+    const zone = cauldronZoneRef.current;
+    if (!zone) return;
+    const rect = zone.getBoundingClientRect();
+    const overCauldron = touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom;
+    if (overCauldron) {
+      dispatchToCauldron(item.inventoryId, item.itemType);
     }
   };
 
@@ -6090,8 +6137,9 @@ function CauldronPanel({
             <X className="w-4 h-4" />
           </button>
 
-          {/* Big cauldron — the drop target */}
+          {/* Big cauldron — the drop target (desktop drag + touch drag) */}
           <div className="flex flex-col items-center pt-3 pb-2 shrink-0"
+            ref={cauldronZoneRef}
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
             onDrop={handleDrop}
@@ -6161,9 +6209,13 @@ function CauldronPanel({
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   {recipeItems.map((item) => (
                     <div key={item.inventoryId} data-testid={`button-recipe-scroll-${item.inventoryId}`}
-                      draggable onDragStart={(e) => { e.dataTransfer.setData("text/plain", item.inventoryId); }}
+                      draggable
+                      onDragStart={(e) => { e.dataTransfer.setData("text/plain", item.inventoryId); }}
+                      onTouchStart={(e) => handleItemTouchStart(e, item.inventoryId, "recipe")}
+                      onTouchMove={handleItemTouchMove}
+                      onTouchEnd={handleItemTouchEnd}
                       className="flex flex-col items-center gap-1 p-2 rounded-lg select-none"
-                      style={{ background: "rgba(250,200,60,.07)", border: "1px solid rgba(250,200,60,.25)", cursor: "grab", opacity: isUnlockingRecipe ? 0.5 : 1 }}>
+                      style={{ background: "rgba(250,200,60,.07)", border: `1px solid ${touchGhost?.inventoryId === item.inventoryId ? "rgba(250,200,60,.7)" : "rgba(250,200,60,.25)"}`, cursor: "grab", opacity: isUnlockingRecipe ? 0.5 : 1, touchAction: "none" }}>
                       <div className="w-12 h-12 rounded-md flex items-center justify-center overflow-hidden pointer-events-none" style={{ background: "rgba(0,0,0,.35)" }}>
                         {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-contain" /> : <img src={recipeScrollIcon} alt="" className="w-9 h-9 object-contain opacity-50" />}
                       </div>
@@ -6187,9 +6239,13 @@ function CauldronPanel({
                 <div className="grid grid-cols-3 gap-2">
                   {ingredients.map((ing) => (
                     <div key={ing.inventoryId} data-testid={`div-ingredient-${ing.inventoryId}`}
-                      draggable={!isFull} onDragStart={(e) => { e.dataTransfer.setData("text/plain", ing.inventoryId); }}
+                      draggable={!isFull}
+                      onDragStart={(e) => { e.dataTransfer.setData("text/plain", ing.inventoryId); }}
+                      onTouchStart={(e) => { if (!isFull) handleItemTouchStart(e, ing.inventoryId, "ingredient"); }}
+                      onTouchMove={handleItemTouchMove}
+                      onTouchEnd={handleItemTouchEnd}
                       className="flex flex-col items-center gap-1 p-2 rounded-lg select-none"
-                      style={{ background: "rgba(94,234,212,.07)", border: "1px solid rgba(94,234,212,.2)", cursor: isFull ? "not-allowed" : "grab", opacity: isFull ? 0.4 : 1 }}>
+                      style={{ background: "rgba(94,234,212,.07)", border: `1px solid ${touchGhost?.inventoryId === ing.inventoryId ? "rgba(94,234,212,.7)" : "rgba(94,234,212,.2)"}`, cursor: isFull ? "not-allowed" : "grab", opacity: isFull ? 0.4 : 1, touchAction: "none" }}>
                       <div className="w-12 h-12 rounded-md flex items-center justify-center overflow-hidden pointer-events-none" style={{ background: "rgba(0,0,0,.3)" }}>
                         {ing.imageUrl ? <img src={ing.imageUrl} alt="" className="w-full h-full object-contain" /> : <span className="font-fantasy text-[10px]" style={{ color: "#5eead455" }}>?</span>}
                       </div>
@@ -6209,6 +6265,18 @@ function CauldronPanel({
           </div>
         </div>
       </div>
+
+      {/* Touch drag ghost — floats under finger */}
+      {touchGhost && (
+        <div className="fixed pointer-events-none z-[100]" style={{ left: touchGhost.x - 35, top: touchGhost.y - 35, width: 70, height: 70, transition: "none" }}>
+          <div className="w-full h-full rounded-xl overflow-hidden flex items-center justify-center"
+            style={{ background: "rgba(8,30,24,.92)", border: "2px solid rgba(94,234,212,.8)", boxShadow: "0 0 24px rgba(45,212,191,.6)", opacity: 0.92 }}>
+            {touchGhost.imageUrl
+              ? <img src={touchGhost.imageUrl} alt="" className="w-full h-full object-contain p-1" />
+              : <span className="font-fantasy text-xs text-center px-1" style={{ color: "#5eead4" }}>{touchGhost.label}</span>}
+          </div>
+        </div>
+      )}
     </>
   );
 }
