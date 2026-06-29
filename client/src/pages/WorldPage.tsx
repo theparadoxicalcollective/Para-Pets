@@ -445,12 +445,12 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     }
   }, [locations]);
 
-  // Hide the floating nav whenever a full-screen overlay (shop, fishing spot,
-  // or fish market) is open so the nav button doesn't float over the UI.
+  // Hide the floating nav whenever a full-screen overlay is open so the nav
+  // button doesn't float over the UI. Add any future mini-game state here.
   useEffect(() => {
-    setNavHidden(showShop || showFishing || showSellFish);
+    setNavHidden(showShop || showFishing || showSellFish || cauldronOpen);
     return () => { setNavHidden(false); };
-  }, [showShop, showFishing, showSellFish]);
+  }, [showShop, showFishing, showSellFish, cauldronOpen]);
 
   const { data: activeLocDetail } = useQuery<WorldLocationData>({
     queryKey: ["/api/location", activeLocationId],

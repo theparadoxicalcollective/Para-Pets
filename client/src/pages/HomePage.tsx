@@ -2025,13 +2025,21 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
       {/* World Chat Panel */}
       {showWorldChat && (
-        <WorldChatPanel
-          currentUserId={currentUser.id}
-          isAdmin={currentUser.isAdmin}
-          isModerator={currentUser.isModerator}
-          onClose={() => setShowWorldChat(false)}
-          onNewMessage={() => setChatHasNewMsg(true)}
-        />
+        <>
+          {/* Transparent backdrop — tap anywhere outside the panel to close */}
+          <div
+            className="absolute inset-0"
+            style={{ zIndex: 10000 }}
+            onClick={() => setShowWorldChat(false)}
+          />
+          <WorldChatPanel
+            currentUserId={currentUser.id}
+            isAdmin={currentUser.isAdmin}
+            isModerator={currentUser.isModerator}
+            onClose={() => setShowWorldChat(false)}
+            onNewMessage={() => setChatHasNewMsg(true)}
+          />
+        </>
       )}
 
       {/* Home page tutorial overlay */}
