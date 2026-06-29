@@ -55,6 +55,12 @@ import noticeGoFishing from "@assets/64255BCE-2B6A-4A95-8654-145262B126FA_178135
 import noticeLimited   from "@assets/66A982C2-2B49-4DE0-8EE6-79C542E3351B_1781303706759.png";
 import noticeExplore   from "@assets/49FB9020-1DB5-487E-9B92-EC15E9240ABD_1781303869686.png";
 
+const SOCIAL_LINKS = [
+  { href: "https://www.facebook.com/share/1aKivHeYYP/?mibextid=wwXIfr", icon: "/social_icon_facebook.png", label: "Facebook" },
+  { href: "https://www.tiktok.com/t/ZP8G2Qa1W/",                        icon: "/social_icon_tiktok.png",   label: "TikTok"   },
+  { href: "https://x.com/parapetsgames?s=11",                            icon: "/social_icon_twitter.png",  label: "X / Twitter" },
+];
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1587,6 +1593,75 @@ export default function ParaPetsHubPage() {
             </div>
           )}
 
+          <GoldDivider />
+
+          {/* ── Social Corner ──────────────────────────────────────────────── */}
+          <div className="flex flex-col items-center gap-5 mb-6" data-testid="social-corner">
+
+            {/* Section heading */}
+            <div className="flex flex-col items-center gap-0.5">
+              <h2 className="font-fantasy text-sm tracking-widest"
+                style={{ color: "#d4a843", textShadow: "0 0 12px rgba(212,168,67,0.4)", letterSpacing: "0.2em" }}>
+                Social Corner
+              </h2>
+              <p className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(212,168,67,0.38)" }}>
+                Join the community
+              </p>
+            </div>
+
+            {/* Wooden sign */}
+            <div className="relative flex flex-col items-center">
+              {/* Post nails */}
+              <div className="flex justify-between w-full absolute" style={{ top: 6, paddingInline: 18, zIndex: 2 }}>
+                <div style={{ width: 9, height: 9, borderRadius: "50%", background: "radial-gradient(circle at 35% 35%, #c89040, #6b3a10)", border: "1px solid rgba(100,50,10,0.7)", boxShadow: "0 1px 3px rgba(0,0,0,0.6)" }} />
+                <div style={{ width: 9, height: 9, borderRadius: "50%", background: "radial-gradient(circle at 35% 35%, #c89040, #6b3a10)", border: "1px solid rgba(100,50,10,0.7)", boxShadow: "0 1px 3px rgba(0,0,0,0.6)" }} />
+              </div>
+              <div className="relative px-7 py-3 rounded-sm overflow-hidden" style={{
+                background: "linear-gradient(170deg, #5c3212 0%, #3e200a 40%, #4a2a0c 70%, #5c3010 100%)",
+                border: "2px solid rgba(160,80,20,0.6)",
+                boxShadow: "0 6px 22px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,180,80,0.07), 0 0 0 1px rgba(0,0,0,0.4)",
+                minWidth: 240,
+              }}>
+                {/* Wood grain lines */}
+                {[18, 38, 58, 78].map(y => (
+                  <div key={y} className="absolute left-0 right-0 pointer-events-none"
+                    style={{ top: `${y}%`, height: 1, background: "rgba(0,0,0,0.13)" }} />
+                ))}
+                {/* Knot detail */}
+                <div className="absolute pointer-events-none" style={{ right: 18, top: "28%", width: 14, height: 9, borderRadius: "50%", border: "1px solid rgba(0,0,0,0.18)", opacity: 0.5 }} />
+                <p className="relative font-fantasy text-center leading-snug"
+                  style={{ fontSize: "0.68rem", letterSpacing: "0.09em", color: "#f5d878", textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 10px rgba(212,168,67,0.2)" }}>
+                  ✦ Follow us for contests &amp; updates ✦
+                </p>
+              </div>
+            </div>
+
+            {/* Social icons row */}
+            <div className="flex items-end justify-center gap-7">
+              {SOCIAL_LINKS.map(s => (
+                <a
+                  key={s.label}
+                  href={s.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid={`link-social-${s.label.toLowerCase().replace(/\s/g, "-")}`}
+                  className="flex flex-col items-center gap-2 group"
+                  style={{ textDecoration: "none" }}
+                >
+                  <div className="rounded-full overflow-hidden transition-transform duration-200 group-active:scale-90"
+                    style={{
+                      width: 62, height: 62,
+                      boxShadow: "0 0 18px rgba(94,234,212,0.28), 0 5px 18px rgba(0,0,0,0.7)",
+                      border: "1.5px solid rgba(94,234,212,0.22)",
+                    }}>
+                    <img src={s.icon} alt={s.label} className="w-full h-full object-cover" />
+                  </div>
+                  <span className="font-fantasy text-[10px] tracking-wide"
+                    style={{ color: "rgba(160,200,120,0.72)" }}>{s.label}</span>
+                </a>
+              ))}
+            </div>
+          </div>
 
         </main>
 

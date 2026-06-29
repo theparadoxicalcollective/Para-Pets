@@ -1044,6 +1044,24 @@ uri = "file://client/src/assets/generated_images/nav_icon_friends.png"
 type = "image"
 title = "friends nav icon fantasy"
 
+[[generated]]
+id = "2ah_nqBKDJKo1Dpbc3l3E"
+uri = "file://client/public/social_icon_facebook.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "dAfqmfJQopuNVoW8l6k1R"
+uri = "file://client/public/social_icon_tiktok.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "L4d8k82Zts_AbH4KJdvq_"
+uri = "file://client/public/social_icon_twitter.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
