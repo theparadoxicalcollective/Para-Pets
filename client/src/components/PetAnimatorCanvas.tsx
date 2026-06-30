@@ -232,19 +232,20 @@ function evalAnim(partType: string, sec: number, blinkOff: number, idleStyle?: s
     case "back_arm":
       return isMarionette ? { op: 1, rot: 0, sx: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.008, sy: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.016 } : bodyBreath(sec);
     case "left_arm": {
-      // Marionette: body scale + tiny CCW angle on inhale so the arm tip
-      // lifts slightly. 0.5° max — any more reads as a sideways swing.
+      // Marionette: rise upward (ty) in sync with body breath + tiny in-place
+      // CCW tilt so the arm tip angles up slightly. Canvas rotates around the
+      // part's own centre by default, so 1° is a gentle pivot, not a sweep.
       if (isMarionette) {
         const w = (1 + sinWave(sec, 4.5)) * 0.5;
-        return { op: 1, rot: -w * 0.5 * D2R, sx: 1 + w * 0.008, sy: 1 + w * 0.016 };
+        return { op: 1, rot: -w * 1 * D2R, ty: -w * 2, sx: 1 + w * 0.008, sy: 1 + w * 0.016 };
       }
       return { op: 1, rot: 0 };
     }
     case "right_arm": {
-      // Marionette: mirrors left_arm — tiny CW angle on inhale.
+      // Marionette: mirrors left_arm — upward rise + tiny CW tilt.
       if (isMarionette) {
         const w = (1 + sinWave(sec, 4.5)) * 0.5;
-        return { op: 1, rot: w * 0.5 * D2R, sx: 1 + w * 0.008, sy: 1 + w * 0.016 };
+        return { op: 1, rot: w * 1 * D2R, ty: -w * 2, sx: 1 + w * 0.008, sy: 1 + w * 0.016 };
       }
       return { op: 1, rot: 0 };
     }

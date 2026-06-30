@@ -947,13 +947,18 @@ const ANIMATION_STYLES = `
     from { transform: scale(1, 1); }
     to   { transform: scale(1.008, 1.016); }
   }
+  /* Marionette arm lift — pure vertical rise with a tiny in-place tilt so
+   * the tip angles up slightly on inhale. Uses translateY so the arm moves
+   * UP (not sideways), and rotate() around the arm's own centre ("50% 50%"
+   * is passed as transformOriginOverride in the render loop) so the ±1° tilt
+   * is a gentle pivot, not a wide sweep around the body's feet anchor. */
   @keyframes petIdleLeftArmBreathMarionette {
-    from { transform: scale(1, 1) skewX(0deg); }
-    to   { transform: scale(1.008, 1.016) skewX(-1.5deg); }
+    from { transform: translateY(0px) rotate(0deg); }
+    to   { transform: translateY(-2px) rotate(-1deg); }
   }
   @keyframes petIdleRightArmBreathMarionette {
-    from { transform: scale(1, 1) skewX(0deg); }
-    to   { transform: scale(1.008, 1.016) skewX(1.5deg); }
+    from { transform: translateY(0px) rotate(0deg); }
+    to   { transform: translateY(-2px) rotate(1deg); }
   }
   /* Accessories: sway with a small upward drift that follows the body breath.
    * Phase is locked to bodyBreathDelay in the render loop so they rise with
@@ -1513,8 +1518,11 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     // Marionette-specific variants — smaller scale keyframes that phase-lock
     // with the body breath group (shared bodyBreathDelay + feet transform-origin).
     name === "petIdleBodyMarionette" ||
-    name === "petIdleLeftArmBreathMarionette" ||
-    name === "petIdleRightArmBreathMarionette" ||
+    // petIdleLeftArmBreathMarionette / petIdleRightArmBreathMarionette are
+    // intentionally NOT listed here. They use translateY + rotate(), and
+    // the rotate() must pivot around the arm's own centre ("50% 50%") —
+    // not the body's feet anchor. Their phase-lock and origin are handled
+    // explicitly in the non-head render loop instead.
     // Petting & sleep both scale the body (petPettingBody / petSleepBody)
     // and bind the body-attached parts — shoulders, neck, hair_center,
     // flippers, body_2 — to that SAME scale keyframe so they "breathe with
@@ -2105,13 +2113,23 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           const isMarionetteAccessory = mode === "idle" && idleStyle === "marionette" && animName === "petIdleAccessoryBodyFollow";
           const isMarionetteLeftLeg   = mode === "idle" && idleStyle === "marionette" && animName === "petIdleLeftLegMarionette";
           const isMarionetteRightLeg  = mode === "idle" && idleStyle === "marionette" && animName === "petIdleRightLegMarionette";
-          // Accessories: phase-lock delay + duration to body breath
-          // so the translateY in petIdleAccessoryBodyFollow rises with the inhale.
-          const accessoryDelay    = isMarionetteAccessory && bodyBreathDelay !== undefined ? bodyBreathDelay : wingDelay;
-          const accessoryDuration = isMarionetteAccessory ? "4.5s" : (isMarionetteLeftLeg || isMarionetteRightLeg) ? "3.7s" : undefined;
+          const isMarionetteLeftArm   = mode === "idle" && idleStyle === "marionette" && animName === "petIdleLeftArmBreathMarionette";
+          const isMarionetteRightArm  = mode === "idle" && idleStyle === "marionette" && animName === "petIdleRightArmBreathMarionette";
+          // Accessories: phase-lock delay + duration to body breath.
+          // Arms: phase-lock delay to body breath; origin set to arm's own centre
+          //   so the small rotate() is an in-place tilt, not a feet-anchor swing.
+          const partDelay =
+            (isMarionetteAccessory || isMarionetteLeftArm || isMarionetteRightArm) && bodyBreathDelay !== undefined
+              ? bodyBreathDelay
+              : wingDelay;
+          const partDuration = isMarionetteAccessory ? "4.5s" : (isMarionetteLeftLeg || isMarionetteRightLeg) ? "3.7s" : undefined;
           // Legs: rotate around their top (attachment point) for a puppet-pendulum look.
-          const legOrigin = (isMarionetteLeftLeg || isMarionetteRightLeg) ? "50% 0%" : undefined;
-          return renderPartImg(part, animName, undefined, accessoryDelay, legOrigin ?? tailOrigin ?? bodyOrigin, partZ, accessoryDuration);
+          // Arms: rotate around own centre so the tilt is in-place, not a sweep.
+          const partOrigin =
+            (isMarionetteLeftLeg || isMarionetteRightLeg) ? "50% 0%" :
+            (isMarionetteLeftArm  || isMarionetteRightArm) ? "50% 50%" :
+            undefined;
+          return renderPartImg(part, animName, undefined, partDelay, partOrigin ?? tailOrigin ?? bodyOrigin, partZ, partDuration);
         })}
 
         {/* Head groups — each head gets its own wrapper with associated face parts */}
