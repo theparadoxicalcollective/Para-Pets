@@ -906,6 +906,13 @@ const ANIMATION_STYLES = `
     from { transform: translateY(0%); }
     to   { transform: translateY(-3%); }
   }
+  /* Marionette above-head: half the standard bounce so the
+     puppet crown/hat reads as hanging from strings rather than
+     floating freely above the head. */
+  @keyframes petAboveHeadBounceMarionette {
+    from { transform: translateY(0%); }
+    to   { transform: translateY(-1.5%); }
+  }
   /* Side-view front shoulder — a small independent rotation so the
      forward shoulder reads with a subtle depth cue instead of just
      scaling with the body. Back shoulders stay on petIdleBody so the
@@ -948,11 +955,13 @@ const ANIMATION_STYLES = `
     from { transform: scale(1, 1); }
     to   { transform: scale(1.008, 1.016); }
   }
-  /* Accessories: sway as normal but also drift up/down at 4.7 s (out of sync
-   * with the 4.5 s body so they "hang" rather than lock-step with the body). */
+  /* Accessories: same rotation sway as petIdleAccessorySway but at a slightly
+   * longer period (4.7 s) so they feel out-of-sync with the 4 s standard sway
+   * on other pets — a subtle puppet "hanging" quality without any vertical
+   * drift that could move in the wrong direction relative to the body. */
   @keyframes petIdleAccessoryBodyFollow {
-    from { transform: rotate(-0.4deg) translateY(0%); }
-    to   { transform: rotate(0.4deg) translateY(-1%); }
+    from { transform: rotate(-0.4deg); }
+    to   { transform: rotate(0.4deg); }
   }
 
 `;
@@ -1145,6 +1154,7 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   "petIdleBodyMarionette",
   "petIdleLeftArmBreathMarionette", "petIdleRightArmBreathMarionette",
   "petIdleAccessoryBodyFollow",
+  "petAboveHeadBounceMarionette",
 ]);
 
 // Build the CSS `animation` shorthand for a given keyframe name. For the
@@ -2272,11 +2282,15 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                 // For all other face parts, look up their own animation.
                 const partAnimName = isWrapperRider ? null : (lookupAnim(anims, part.partType) ?? null);
                 const delay = isEyePart ? groupBlinkOffset : `${groupDelay}s`;
-                // Marionette: above_head uses 4.5 s period (matches body breath)
-                // and phase-locks to bodyBreathDelay so puppet strings feel taut.
+                // Marionette: above_head uses a smaller bounce keyframe at 4.5 s
+                // (phase-locked to bodyBreathDelay) so the hat/crown hangs like
+                // it's on a puppet string rather than floating freely.
                 const isAboveHeadMarionette = mode === "idle" && idleStyle === "marionette" && part.partType === "above_head";
+                const resolvedPartAnimName = isAboveHeadMarionette && partAnimName === "petAboveHeadBounce"
+                  ? "petAboveHeadBounceMarionette"
+                  : partAnimName;
                 const aboveHeadDelay = isAboveHeadMarionette && bodyBreathDelay !== undefined ? bodyBreathDelay : delay;
-                return renderPartImg(part, partAnimName, undefined, aboveHeadDelay, undefined, undefined, isAboveHeadMarionette ? "4.5s" : undefined);
+                return renderPartImg(part, resolvedPartAnimName, undefined, aboveHeadDelay, undefined, undefined, isAboveHeadMarionette ? "4.5s" : undefined);
               })}
             </div>
           );

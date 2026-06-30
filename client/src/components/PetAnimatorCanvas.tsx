@@ -257,9 +257,11 @@ function evalAnim(partType: string, sec: number, blinkOff: number, idleStyle?: s
     case "front_accessory_1": case "front_accessory_2":
     case "back_accessory_1": case "back_accessory_2":
     case "front_left_accessory": case "front_right_accessory":
-      return isMarionette
-        ? { op: 1, rot: sinWave(sec, 4) * 0.4 * D2R, ty: -((1 + sinWave(sec, 4.7)) * 0.5) * 0.8 }
-        : { op: 1, rot: sinWave(sec, 4) * 0.4 * D2R };
+      // Marionette: same rotation sway but at 4.7 s so it drifts out of
+      // phase with the standard 4 s sway — a puppet "hanging" quality.
+      // No vertical drift: it moved in the wrong direction relative to
+      // the body's feet-anchored scale, so rotation-only is correct here.
+      return { op: 1, rot: sinWave(sec, isMarionette ? 4.7 : 4) * 0.4 * D2R };
 
     // Wings — gentle ±3° sine flap at 4 s + a small ty oscillation so the
     // wings read as flapping (lifting through the rotation) instead of
@@ -358,7 +360,9 @@ function evalAnim(partType: string, sec: number, blinkOff: number, idleStyle?: s
     // Marionette: period 4.5 s (phase-locked with body breath via the
     // shared sinWave period) so puppet strings feel taut and in sync.
     case "above_head":
-      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, isMarionette ? 4.5 : 4)) * 0.5) * 2.5 };
+      // Marionette: smaller float (1.5 px vs 2.5 px) so the hat/crown reads
+      // as hanging from a string rather than freely bobbing.
+      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, isMarionette ? 4.5 : 4)) * 0.5) * (isMarionette ? 1.5 : 2.5) };
 
     default: return { op: 1, rot: 0 };
   }
