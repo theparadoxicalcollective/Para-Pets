@@ -351,6 +351,11 @@ app.use((req, res, next) => {
     () => db.execute(sql`ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS facing TEXT DEFAULT 'front'`));
   await runMigration("pet_templates.is_test",
     () => db.execute(sql`ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS is_test boolean NOT NULL DEFAULT false`));
+  await runMigration("pet_templates.idle_style",
+    () => db.execute(sql`ALTER TABLE pet_templates ADD COLUMN IF NOT EXISTS idle_style TEXT`));
+  // One-time seed: tag the Haunted Marionette with its puppet animation style.
+  await runMigration("pet_templates.idle_style.marionette",
+    () => db.execute(sql`UPDATE pet_templates SET idle_style = 'marionette' WHERE name = 'Haunted Marionette' AND idle_style IS NULL`));
   await runMigration("users.watcher_shoutouts_enabled",
     () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS watcher_shoutouts_enabled boolean NOT NULL DEFAULT true`));
   await runMigration("users.last_watcher_greeted_at",

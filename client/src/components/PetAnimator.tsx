@@ -549,7 +549,7 @@ const ANIMATION_STYLES = `
      body top by a consistent ~0 % (no overshoot guarantee holds). */
   @keyframes petIdleBody {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.008, 1.016); }
+    to   { transform: scale(1.012, 1.022); }
   }
   /* Wings — flap motion. The wings travel UP together (matched
      translateY) on the up-stroke and DOWN together on the down-stroke,
@@ -658,17 +658,17 @@ const ANIMATION_STYLES = `
      inhale together. */
   @keyframes petIdleLeftArmBreath {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.008, 1.016); }
+    to   { transform: scale(1.012, 1.022); }
   }
   @keyframes petIdleRightArmBreath {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.008, 1.016); }
+    to   { transform: scale(1.012, 1.022); }
   }
   /* Side-facing front arm — pure scale matching petIdleBody so the arm
      stays glued to the chest silhouette on every inhale/exhale. */
   @keyframes petIdleFrontArmBreath {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.008, 1.016); }
+    to   { transform: scale(1.012, 1.022); }
   }
   /* Paired flippers (e.g. Bayou Turtle) — body breathing scale PLUS a
      subtle inward translateX so both flippers paddle toward the body on
@@ -678,11 +678,11 @@ const ANIMATION_STYLES = `
      which reads as a gentle sculling motion without leaving the silhouette. */
   @keyframes petIdleFlipperLeft {
     from { transform: scale(1, 1) translateX(0%); }
-    to   { transform: scale(1.008, 1.016) translateX(1.5%); }
+    to   { transform: scale(1.012, 1.022) translateX(1.5%); }
   }
   @keyframes petIdleFlipperRight {
     from { transform: scale(1, 1) translateX(0%); }
-    to   { transform: scale(1.008, 1.016) translateX(-1.5%); }
+    to   { transform: scale(1.012, 1.022) translateX(-1.5%); }
   }
   /* body_2 layer breathing — identical scale shape to petIdleBody but
      intentionally NOT in isBodyBreathAnim so it keeps its own per-part
@@ -692,7 +692,7 @@ const ANIMATION_STYLES = `
      for shell underlayers, secondary torso pieces, etc. */
   @keyframes petIdleBody2 {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.008, 1.016); }
+    to   { transform: scale(1.012, 1.022); }
   }
   /* Ground head: small left/right tilt instead of upward bob. Reduced
      from ±0.6deg → ±0.4deg so the head reads as a barely-there sway
@@ -928,6 +928,29 @@ const ANIMATION_STYLES = `
      pongs smoothly between the two extremes instead of snapping back
      to 0deg each cycle. */
   @keyframes petIdleAccessorySway {
+    from { transform: rotate(-0.4deg); }
+    to   { transform: rotate(0.4deg); }
+  }
+
+  /* ── Haunted Marionette idle style overrides ──────────────────────────────
+   * Applied only when idleStyle === "marionette". Smaller body breath gives
+   * a wooden, puppet-like stillness; accessories gain a subtle vertical drift
+   * at a different period so they feel like they hang from strings.        */
+  @keyframes petIdleBodyMarionette {
+    from { transform: scale(1, 1); }
+    to   { transform: scale(1.008, 1.016); }
+  }
+  @keyframes petIdleLeftArmBreathMarionette {
+    from { transform: scale(1, 1); }
+    to   { transform: scale(1.008, 1.016); }
+  }
+  @keyframes petIdleRightArmBreathMarionette {
+    from { transform: scale(1, 1); }
+    to   { transform: scale(1.008, 1.016); }
+  }
+  /* Accessories: sway as normal but also drift up/down at 4.7 s (out of sync
+   * with the 4.5 s body so they "hang" rather than lock-step with the body). */
+  @keyframes petIdleAccessoryBodyFollow {
     from { transform: rotate(-0.4deg) translateY(0%); }
     to   { transform: rotate(0.4deg) translateY(-1%); }
   }
@@ -1047,13 +1070,13 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       // body's 4.5 s period anymore. Keeping all six on the same 4 s
       // cycle so multiple accessories on the same pet sway in unison
       // (looks intentional, not random).
-      back_accessory_1: "4.7s", back_accessory_2: "4.7s",
-      front_accessory_1: "4.7s", front_accessory_2: "4.7s",
-      front_left_accessory: "4.7s", front_right_accessory: "4.7s",
+      back_accessory_1: "4s", back_accessory_2: "4s",
+      front_accessory_1: "4s", front_accessory_2: "4s",
+      front_left_accessory: "4s", front_right_accessory: "4s",
       // Above-head accessory floats on its own slow cycle, deliberately
       // out of phase with the head bob (3 s) so crowns / halos read as
       // a separate floating object rather than rigidly attached.
-      above_head: "4.5s",
+      above_head: "4s",
     };
     return durations[baseType] || "3s";
   }
@@ -1380,7 +1403,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     return () => ro.disconnect();
   }, [fillContainer]);
 
-  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean }>({
+  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean; idleStyle?: string | null }>({
     queryKey: ["/api/pet-template-parts", petTemplateId],
     queryFn: async () => {
       const res = await fetch(`/api/pet-template-parts/${petTemplateId}`, { credentials: "include" });
@@ -1422,6 +1445,9 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // hovering. Ground pets switch to the head-tilt-only variant so they
   // don't read as "floating off the ground".
   const canFly = !!templateData?.canFly;
+  // Per-pet idle style. "marionette" = Haunted Marionette puppet-specific
+  // animation overrides (smaller body breath, synced above_head, accessory drift).
+  const idleStyle = templateData?.idleStyle ?? null;
   const idleAnimMap = (() => {
     const base = canFly ? IDLE_ANIMATIONS : IDLE_ANIMATIONS_GROUND;
     const petFacing = templateData?.facing ?? "front";
@@ -1451,7 +1477,11 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     name === "petIdleFrontArmBreath" ||
     name === "petIdleFlipperLeft" ||
     name === "petIdleFlipperRight" ||
-    name === "petAboveHeadBounce" ||
+    // Marionette-specific variants — smaller scale keyframes that phase-lock
+    // with the body breath group (shared bodyBreathDelay + feet transform-origin).
+    name === "petIdleBodyMarionette" ||
+    name === "petIdleLeftArmBreathMarionette" ||
+    name === "petIdleRightArmBreathMarionette" ||
     // Petting & sleep both scale the body (petPettingBody / petSleepBody)
     // and bind the body-attached parts — shoulders, neck, hair_center,
     // flippers, body_2 — to that SAME scale keyframe so they "breathe with
@@ -1756,7 +1786,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       const originYFrac = bodyAb.top + bodyAb.height * bpyFrac;
       topRiseFraction = Math.max(0, Math.min(1, originYFrac));
     }
-    const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 1.6 * topRiseFraction;
+    const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 2.2 * topRiseFraction;
     const minBob = canFly ? 0.25 : 0.5;
     const clamped = Math.min(1.2, Math.max(minBob, bodyTopRisePct));
     headBobCssPct = `-${clamped.toFixed(2)}%`;
@@ -2027,7 +2057,15 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             return renderPartImg(part, null, undefined, undefined, undefined, partZ);
           }
           const anims = mode === "idle" ? idleAnimMap : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
-          const animName = lookupAnim(anims, part.partType) || anims.body;
+          let animName = lookupAnim(anims, part.partType) || anims.body;
+          // Marionette idle style: swap in smaller-amplitude keyframe variants
+          // so only this pet's body/arms/accessories are affected.
+          if (mode === "idle" && idleStyle === "marionette") {
+            if (animName === "petIdleBody") animName = "petIdleBodyMarionette";
+            else if (animName === "petIdleLeftArmBreath") animName = "petIdleLeftArmBreathMarionette";
+            else if (animName === "petIdleRightArmBreath") animName = "petIdleRightArmBreathMarionette";
+            else if (animName === "petIdleAccessorySway") animName = "petIdleAccessoryBodyFollow";
+          }
           if (!animName) return null;
           return renderPartImg(part, animName, undefined, wingDelay, tailOrigin ?? bodyOrigin, partZ);
         })}
@@ -2229,7 +2267,11 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                 // For all other face parts, look up their own animation.
                 const partAnimName = isWrapperRider ? null : (lookupAnim(anims, part.partType) ?? null);
                 const delay = isEyePart ? groupBlinkOffset : `${groupDelay}s`;
-                return renderPartImg(part, partAnimName, undefined, delay);
+                // Marionette: above_head uses 4.5 s period (matches body breath)
+                // and phase-locks to bodyBreathDelay so puppet strings feel taut.
+                const isAboveHeadMarionette = mode === "idle" && idleStyle === "marionette" && part.partType === "above_head";
+                const aboveHeadDelay = isAboveHeadMarionette && bodyBreathDelay !== undefined ? bodyBreathDelay : delay;
+                return renderPartImg(part, partAnimName, undefined, aboveHeadDelay, undefined, undefined, isAboveHeadMarionette ? "4.5s" : undefined);
               })}
             </div>
           );

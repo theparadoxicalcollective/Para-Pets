@@ -4431,6 +4431,7 @@ export async function registerRoutes(
         parts,
         facing: template?.facing ?? "front",
         canFly: template?.canFly ?? false,
+        idleStyle: template?.idleStyle ?? null,
       };
       setCachedTemplateParts(templateId, result);
       return res.json(result);

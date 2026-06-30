@@ -147,15 +147,19 @@ interface AnimResult {
 // an obvious swell. Mirrors PetAnimator.tsx IDLE_ANIMATIONS.
 function bodyBreath(sec: number): AnimResult {
   const w = (1 + sinWave(sec, 4.5)) * 0.5; // 0..1 sine
-  return { op: 1, rot: 0, sx: 1 + w * 0.008, sy: 1 + w * 0.016 };
+  return { op: 1, rot: 0, sx: 1 + w * 0.012, sy: 1 + w * 0.022 };
 }
 
-function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
+function evalAnim(partType: string, sec: number, blinkOff: number, idleStyle?: string): AnimResult {
   // Strip multi-head prefix so h2_/h3_ duplicates pick up the same
   // animation as the base part (h2_left_wing flaps like left_wing,
   // h3_back_arm breathes like back_arm, etc.). Mirrors lookupAnim()
   // in the img renderer.
   const base = partType.startsWith("h2_") || partType.startsWith("h3_") ? partType.slice(3) : partType;
+  // Per-pet idle style: Haunted Marionette uses a smaller body breath and
+  // phase-synced above_head at 4.5 s. True for any part rendered via this
+  // function when the template carries idleStyle === "marionette".
+  const isMarionette = idleStyle === "marionette";
   switch (base) {
     case "eyes": {
       const t = ((sec + blinkOff) % 4) / 4;
@@ -194,12 +198,13 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     // overpowering the calm breathing pose. The rotation peaks exactly when
     // the body is fully inhaled (shared 4.5 s period). Mirrors the new
     // petIdleLeftArmBreath / petIdleRightArmBreath CSS keyframes.
+    // Marionette: use the reduced-amplitude body breath scale.
     case "left_arm": {
-      const r = bodyBreath(sec);
+      const r = isMarionette ? { op: 1, rot: 0, sx: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.008, sy: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.016 } : bodyBreath(sec);
       return { ...r, rot:  sinWave(sec, 4.5) * 1.5 * D2R };
     }
     case "right_arm": {
-      const r = bodyBreath(sec);
+      const r = isMarionette ? { op: 1, rot: 0, sx: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.008, sy: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.016 } : bodyBreath(sec);
       return { ...r, rot: -sinWave(sec, 4.5) * 1.5 * D2R };
     }
 
@@ -219,12 +224,13 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     // Front arm (side-facing) gets the same subtle rotation as left_arm.
     // Back arm stays as pure body breath — it reads as the shoulder
     // tucked behind the body silhouette so rotation would look wrong.
+    // Marionette: reduced body breath scale on both.
     case "front_arm": {
-      const r = bodyBreath(sec);
+      const r = isMarionette ? { op: 1, rot: 0, sx: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.008, sy: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.016 } : bodyBreath(sec);
       return { ...r, rot: sinWave(sec, 4.5) * 1.5 * D2R };
     }
     case "back_arm":
-      return bodyBreath(sec);
+      return isMarionette ? { op: 1, rot: 0, sx: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.008, sy: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.016 } : bodyBreath(sec);
     case "front_leg":
     case "back_leg":
       // Side-facing legs are kept static — they do not scale with the body
@@ -234,9 +240,10 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     // Shoulders breathe with the body so the whole torso group expands
     // and contracts together. Mirrors the img-renderer's IDLE_ANIMATIONS
     // mapping to petIdleBody.
+    // Marionette: reduced amplitude.
     case "left_shoulder": case "right_shoulder":
     case "front_shoulder": case "back_shoulder":
-      return bodyBreath(sec);
+      return isMarionette ? { op: 1, rot: 0, sx: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.008, sy: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.016 } : bodyBreath(sec);
 
     // All six accessory part types share a tiny independent rotation
     // sway (±0.4° at 4 s, mirrors petIdleAccessorySway in the img
@@ -245,10 +252,14 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     // Amplitude is small enough that even behind-body accessories
     // (back_accessory_*, front_left/right_accessory) don't visibly
     // drift off the body silhouette.
+    // Marionette: accessories follow the body slightly out of sync
+    // with a subtle vertical drift (period 4.7 s) in addition to sway.
     case "front_accessory_1": case "front_accessory_2":
     case "back_accessory_1": case "back_accessory_2":
     case "front_left_accessory": case "front_right_accessory":
-      return { op: 1, rot: sinWave(sec, 4.7) * 0.4 * D2R, ty: -((1 + sinWave(sec, 4.7)) * 0.5) * 0.8 };
+      return isMarionette
+        ? { op: 1, rot: sinWave(sec, 4) * 0.4 * D2R, ty: -((1 + sinWave(sec, 4.7)) * 0.5) * 0.8 }
+        : { op: 1, rot: sinWave(sec, 4) * 0.4 * D2R };
 
     // Wings — gentle ±3° sine flap at 4 s + a small ty oscillation so the
     // wings read as flapping (lifting through the rotation) instead of
@@ -301,15 +312,24 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     // horizontal ~2.0 %. Pivots from part center so the breath reads as
     // expansion rather than translation. (Trimmed from 4.6 / 2.8 % so
     // the body and head bob read at parity — see bodyBreath comment.)
+    // Marionette: smaller amplitude (sx +0.8%, sy +1.6%) for a more
+    // wooden, puppet-like stillness while still visibly breathing.
     case "body":
-    case "body_2":
+    case "body_2": {
+      if (isMarionette) {
+        const w = (1 + sinWave(sec, 4.5)) * 0.5;
+        return { op: 1, rot: 0, sx: 1 + w * 0.008, sy: 1 + w * 0.016 };
+      }
       return bodyBreath(sec);
+    }
 
     // Neck — rides the body breath alongside shoulders and back_arm so
     // the chest-to-head silhouette inflates and exhales as one unit.
     // Mirrors PetAnimator's IDLE_ANIMATIONS where neck → petIdleBody.
     case "neck":
-      return bodyBreath(sec);
+      return isMarionette
+        ? { op: 1, rot: 0, sx: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.008, sy: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.016 }
+        : bodyBreath(sec);
 
     // Head — gentle vertical bob. ty is now ZERO here because the
     // head bob amplitude is PER-PET (computed from the body's
@@ -335,8 +355,10 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     // bob without ever visibly separating from the head. Mirrors the
     // img renderer's matching -15 % → -5 % reduction on
     // petAboveHeadBounce.
+    // Marionette: period 4.5 s (phase-locked with body breath via the
+    // shared sinWave period) so puppet strings feel taut and in sync.
     case "above_head":
-      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, 4.5)) * 0.5) * 2.5 };
+      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, isMarionette ? 4.5 : 4)) * 0.5) * 2.5 };
 
     default: return { op: 1, rot: 0 };
   }
@@ -378,7 +400,8 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef    = useRef(0);
   const t0Ref     = useRef(0);
-  const blinkRef  = useRef(Math.random() * 4);
+  const blinkRef     = useRef(Math.random() * 4);
+  const idleStyleRef = useRef<string | null>(null);
   const partsRef  = useRef<{ part: PetPart; img: HTMLImageElement }[]>([]);
   const readyRef  = useRef(false);
   // World-space (1000-unit) point the body's breathe-scale pivots around.
@@ -409,7 +432,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
   // per pet even at the largest PvP sprite size of 168 px.
   const canvasPx = Math.round(size * dpr * Math.min(Math.max(bufferScale, 1), 1.5));
 
-  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean }>({
+  const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean; idleStyle?: string | null }>({
     queryKey: ["/api/pet-template-parts", petTemplateId],
     queryFn: async () => {
       const res = await fetch(`/api/pet-template-parts/${petTemplateId}`, { credentials: "include" });
@@ -428,6 +451,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
     const allParts = templateData.parts;
     const facing = templateData.facing ?? "front";
     const canFly = !!templateData.canFly;
+    idleStyleRef.current = templateData.idleStyle ?? null;
     const frontCount = allParts.filter(p => p.view === "front").length;
     const backCount  = allParts.filter(p => p.view === "back").length;
     const resolvedView = facing === "back" ? "back"
@@ -790,7 +814,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         // Heads route through evalAnim("head") above; for individual
         // head-group parts we still call evalAnim so eyes blink and
         // ears sway, then layer the shared head bob on top.
-        const anim = evalAnim(part.partType, sec, blinkRef.current);
+        const anim = evalAnim(part.partType, sec, blinkRef.current, idleStyleRef.current ?? undefined);
         const rot = anim.rot;
         const op = anim.op;
         if (ANIM_ONLY_PARTS.has(part.partType) && op <= 0) continue;

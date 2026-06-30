@@ -8,3 +8,4 @@
 - [Founder tier vs monthly bar](founder-tier-vs-monthly-bar.md) — tier = lifetime USD spend (upgrade-only); monthly bar = monthly points; mirror any change across BOTH credit paths (routes.ts + webhookHandlers.ts).
 - [World bg overwrite on startup](world-background-overwrite-on-startup.md) — admin-uploaded world backgrounds revert after restart; WORLD_BG_ASSETS loop in server/index.ts force-overwrites bgUrl every boot.
 - [Body-breath anchor](body-breath-anchor.md) — any NEW scale keyframe for a body-attached part must be added to isBodyBreathAnim or it detaches; covers idle/petting/sleep.
+- [Per-pet idle style](per-pet-idle-style.md) — idleStyle TEXT column on pet_templates; "marionette" drives CSS keyframe swaps + evalAnim branches in both animators; no other pets affected.
