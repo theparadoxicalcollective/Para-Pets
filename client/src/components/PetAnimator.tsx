@@ -1140,6 +1140,11 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   "petIdleLeftArmBreath", "petIdleRightArmBreath", "petIdleFrontArmBreath",
   // Back hair sway — same 2-keyframe from/to rotation as the tail keyframes.
   "petIdleBackHair",
+  // Haunted Marionette idle style variants — all are 2-keyframe from/to
+  // motions that MUST alternate, same as their standard counterparts.
+  "petIdleBodyMarionette",
+  "petIdleLeftArmBreathMarionette", "petIdleRightArmBreathMarionette",
+  "petIdleAccessoryBodyFollow",
 ]);
 
 // Build the CSS `animation` shorthand for a given keyframe name. For the
