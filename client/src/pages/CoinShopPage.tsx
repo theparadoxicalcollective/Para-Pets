@@ -9,12 +9,12 @@ import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
-import coinPack100 from "@assets/coin_pack_100.png";
-import coinPack500 from "@assets/coin_pack_500.png";
-import coinPack1000 from "@assets/coin_pack_1000.png";
-import coinPack2500 from "@assets/coin_pack_2500.png";
-import coinPack5000 from "@assets/coin_pack_5000.png";
-import coinPack10000 from "@assets/coin_pack_10000.png";
+import coinPack100 from "@assets/Photoroom_20260629_101811_PM_1782789946363.png";
+import coinPack500 from "@assets/Photoroom_20260629_102009_PM_1782789946363.png";
+import coinPack1000 from "@assets/Photoroom_20260629_102249_PM_1782789946363.png";
+import coinPack2500 from "@assets/Photoroom_20260629_101901_PM_1782789946363.png";
+import coinPack5000 from "@assets/Photoroom_20260629_102055_PM_1782789968022.png";
+import coinPack10000 from "@assets/Photoroom_20260629_102138_PM_1782789980383.png";
 import limitedBannerImg from "@assets/Photoroom_20260617_64201_AM_1781696551801.png";
 
 interface CoinShopProps {
@@ -45,14 +45,13 @@ interface PacksResponse {
   sessionLimit: number;
 }
 
-// Map by coin amount — robust to server pack IDs changing over time.
-// Available pile artwork: 100, 1000, 2500, 5000, 10000 (500 is unused for current tiers).
+// Map by coin amount — each of the 6 bundles gets a unique artwork in ascending order.
 function imageForCoins(coins: number): string {
   if (coins <= 100)    return coinPack100;
+  if (coins <= 500)    return coinPack500;
   if (coins <= 1000)   return coinPack1000;
   if (coins <= 2500)   return coinPack2500;
   if (coins <= 7500)   return coinPack5000;
-  if (coins <= 20000)  return coinPack10000;
   return coinPack10000;
 }
 
@@ -510,10 +509,11 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           const monthLabel = progressData?.monthYear
             ? new Date(progressData.monthYear + "-02").toLocaleDateString("en-US", { month: "long", year: "numeric" })
             : "";
-          const ITEM_TYPES = ["all", "pet", "edibles", "gift", "potion", "other"] as const;
+          const ITEM_TYPES = ["all", "pet", "potion", "edibles", "gift", "power_up", "special", "accessory", "other"] as const;
+          const KNOWN_TYPES = ["pet","edibles","gift","potion","power_up","special","accessory"];
           const filteredItems = allShopItems.filter((it: any) => {
             const matchesTab = pickerTab === "all"
-              || (pickerTab === "other" ? !["pet","edibles","gift","potion"].includes(it.type) : it.type === pickerTab);
+              || (pickerTab === "other" ? !KNOWN_TYPES.includes(it.type) : it.type === pickerTab);
             const matchesSearch = !pickerSearch || it.name?.toLowerCase().includes(pickerSearch.toLowerCase());
             return matchesTab && matchesSearch;
           });
@@ -571,11 +571,19 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                       display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
                       width: 46,
                     }}>
-                      {/* Item image or empty slot — clickable for all players */}
+                      {/* Item image or empty slot — admin: always opens picker; player: opens popup if item exists */}
                       <div
-                        style={{ position: "relative", flexShrink: 0, cursor: hasItem ? "pointer" : "default" }}
-                        onClick={() => hasItem && setMilestonePopup(m.end)}
-                        data-testid={hasItem ? `button-milestone-reward-${m.end}` : undefined}
+                        style={{ position: "relative", flexShrink: 0, cursor: (currentUser.isAdmin || hasItem) ? "pointer" : "default" }}
+                        onClick={() => {
+                          if (currentUser.isAdmin) {
+                            setAdminPickerMs(m.end);
+                            setPickerSearch("");
+                            setPickerTab("all");
+                          } else if (hasItem) {
+                            setMilestonePopup(m.end);
+                          }
+                        }}
+                        data-testid={`button-milestone-reward-${m.end}`}
                       >
                         {hasItem ? (
                           <img
@@ -664,90 +672,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                 </span>
               </div>
 
-              {/* ── Admin item picker ── */}
-              {currentUser.isAdmin && adminPickerMs !== null && (
-                <div style={{ marginTop: 10, borderRadius: 8, border: "1px solid rgba(251,146,60,0.4)", background: "rgba(28,10,4,0.97)", padding: 8 }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-fantasy text-[10px]" style={{ color: "#fb923c" }}>
-                      Set reward — {MILESTONES.find(m => m.end === adminPickerMs)?.label}
-                    </span>
-                    <button
-                      onClick={() => { setAdminPickerMs(null); setPickerSearch(""); setPickerTab("all"); }}
-                      style={{ background: "none", border: "none", color: "rgba(251,146,60,0.55)", fontSize: 15, cursor: "pointer", lineHeight: 1 }}
-                    >✕</button>
-                  </div>
-                  {/* Type filter tabs */}
-                  <div style={{ display: "flex", gap: 3, marginBottom: 6, flexWrap: "wrap" as const }}>
-                    {ITEM_TYPES.map(tab => (
-                      <button
-                        key={tab}
-                        onClick={() => setPickerTab(tab)}
-                        style={{
-                          padding: "2px 7px", borderRadius: 4, fontSize: 8, cursor: "pointer",
-                          fontFamily: "Lora, serif", textTransform: "capitalize" as const,
-                          border: pickerTab === tab ? "1px solid rgba(251,146,60,0.8)" : "1px solid rgba(251,146,60,0.2)",
-                          background: pickerTab === tab ? "rgba(251,146,60,0.2)" : "rgba(251,146,60,0.04)",
-                          color: pickerTab === tab ? "#fb923c" : "rgba(255,255,255,0.4)",
-                        }}
-                      >{tab}</button>
-                    ))}
-                  </div>
-                  <input
-                    autoFocus
-                    value={pickerSearch}
-                    onChange={e => setPickerSearch(e.target.value)}
-                    placeholder="Search items…"
-                    style={{
-                      width: "100%", padding: "4px 8px", borderRadius: 5, fontSize: 10,
-                      background: "rgba(255,255,255,0.07)", border: "1px solid rgba(251,146,60,0.28)",
-                      color: "#fff", outline: "none", marginBottom: 6, boxSizing: "border-box" as const,
-                    }}
-                  />
-                  <button
-                    onClick={() => saveMilestoneMutation.mutate({ ms: adminPickerMs, itemId: null, itemName: null, itemImageUrl: null })}
-                    disabled={saveMilestoneMutation.isPending}
-                    style={{
-                      width: "100%", padding: "3px 0", borderRadius: 5, marginBottom: 6,
-                      border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)",
-                      color: "rgba(255,255,255,0.4)", fontSize: 9, cursor: "pointer", fontFamily: "Lora, serif",
-                    }}
-                  >✕ Clear reward</button>
-                  <div style={{ maxHeight: 160, overflowY: "auto" as const, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4 }}>
-                    {filteredItems.length === 0 && (
-                      <div style={{ gridColumn: "1/-1", color: "rgba(255,255,255,0.3)", fontSize: 10, textAlign: "center" as const, padding: 8 }}>
-                        {allShopItems.length === 0 ? "Loading…" : "No items match"}
-                      </div>
-                    )}
-                    {filteredItems.map((it: any) => (
-                      <button
-                        key={it.id}
-                        onClick={() => saveMilestoneMutation.mutate({
-                          ms: adminPickerMs,
-                          itemId: it.id,
-                          itemName: it.name,
-                          itemImageUrl: it.imageUrl || null,
-                          starRarity: it.starRarity ?? null,
-                        })}
-                        disabled={saveMilestoneMutation.isPending}
-                        title={it.name}
-                        style={{
-                          display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-                          padding: "4px 2px", borderRadius: 6, cursor: "pointer",
-                          border: "1px solid rgba(251,146,60,0.2)",
-                          background: "rgba(251,146,60,0.06)",
-                        }}
-                      >
-                        {it.imageUrl ? (
-                          <img src={it.imageUrl} alt={it.name} style={{ width: 32, height: 32, objectFit: "contain" as const }} />
-                        ) : (
-                          <div style={{ width: 32, height: 32, background: "rgba(255,255,255,0.05)", borderRadius: 4 }} />
-                        )}
-                        <span style={{ fontSize: 7, color: "rgba(255,255,255,0.55)", lineHeight: 1.2, textAlign: "center" as const, maxWidth: 52, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{it.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* ── Admin item picker — rendered as fixed overlay so it works on any slot ── */}
 
               {/* ── Milestone reward popup ── */}
               {milestonePopup !== null && (() => {
@@ -845,6 +770,130 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                   </div>
                 );
               })()}
+            </div>
+          );
+        })()}
+
+        {/* ── Admin milestone reward picker — fixed overlay modal ── */}
+        {currentUser.isAdmin && adminPickerMs !== null && (() => {
+          const msLabel = [
+            { end: 2500, label: "Bronze" }, { end: 5000, label: "Silver" },
+            { end: 7500, label: "Gold" }, { end: 10000, label: "Diamond" },
+          ].find(m => m.end === adminPickerMs)?.label ?? adminPickerMs;
+          const ITEM_TYPES_MODAL = ["all", "pet", "potion", "edibles", "gift", "power_up", "special", "accessory", "other"] as const;
+          const KNOWN_TYPES_MODAL = ["pet","edibles","gift","potion","power_up","special","accessory"];
+          const filtered = allShopItems.filter((it: any) => {
+            const matchesTab = pickerTab === "all"
+              || (pickerTab === "other" ? !KNOWN_TYPES_MODAL.includes(it.type) : it.type === pickerTab);
+            const matchesSearch = !pickerSearch || it.name?.toLowerCase().includes(pickerSearch.toLowerCase());
+            return matchesTab && matchesSearch;
+          });
+          return (
+            <div
+              style={{ position: "fixed", inset: 0, zIndex: 9990, background: "rgba(0,0,0,0.88)", display: "flex", alignItems: "center", justifyContent: "center" }}
+              onClick={() => { setAdminPickerMs(null); setPickerSearch(""); setPickerTab("all"); }}
+            >
+              <div
+                style={{
+                  width: "90%", maxWidth: 340,
+                  background: "linear-gradient(160deg, #1c0a00 0%, #0e0400 100%)",
+                  border: "1.5px solid rgba(251,146,60,0.55)",
+                  borderRadius: 16, padding: "18px 16px 16px",
+                  boxShadow: "0 0 40px rgba(251,146,60,0.15)",
+                  display: "flex", flexDirection: "column", gap: 8,
+                  maxHeight: "80vh",
+                }}
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <span className="font-fantasy text-[11px]" style={{ color: "#fb923c" }}>
+                    Set reward — {msLabel} milestone
+                  </span>
+                  <button
+                    onClick={() => { setAdminPickerMs(null); setPickerSearch(""); setPickerTab("all"); }}
+                    style={{ background: "none", border: "none", color: "rgba(251,146,60,0.55)", fontSize: 18, cursor: "pointer", lineHeight: 1 }}
+                  >✕</button>
+                </div>
+
+                {/* Type filter tabs */}
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const }}>
+                  {ITEM_TYPES_MODAL.map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setPickerTab(tab)}
+                      style={{
+                        padding: "3px 8px", borderRadius: 5, fontSize: 9, cursor: "pointer",
+                        fontFamily: "Lora, serif", textTransform: "capitalize" as const,
+                        border: pickerTab === tab ? "1px solid rgba(251,146,60,0.9)" : "1px solid rgba(251,146,60,0.22)",
+                        background: pickerTab === tab ? "rgba(251,146,60,0.22)" : "rgba(251,146,60,0.04)",
+                        color: pickerTab === tab ? "#fb923c" : "rgba(255,255,255,0.45)",
+                      }}
+                    >{tab === "power_up" ? "power up" : tab === "pet" ? "🐾 pets" : tab}</button>
+                  ))}
+                </div>
+
+                {/* Search */}
+                <input
+                  autoFocus
+                  value={pickerSearch}
+                  onChange={e => setPickerSearch(e.target.value)}
+                  placeholder="Search items or pets…"
+                  style={{
+                    width: "100%", padding: "6px 10px", borderRadius: 7, fontSize: 11,
+                    background: "rgba(255,255,255,0.07)", border: "1px solid rgba(251,146,60,0.3)",
+                    color: "#fff", outline: "none", boxSizing: "border-box" as const,
+                  }}
+                />
+
+                {/* Clear button */}
+                <button
+                  onClick={() => saveMilestoneMutation.mutate({ ms: adminPickerMs, itemId: null, itemName: null, itemImageUrl: null })}
+                  disabled={saveMilestoneMutation.isPending}
+                  style={{
+                    width: "100%", padding: "5px 0", borderRadius: 6,
+                    border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)",
+                    color: "rgba(255,255,255,0.4)", fontSize: 10, cursor: "pointer", fontFamily: "Lora, serif",
+                  }}
+                >✕ Clear reward</button>
+
+                {/* Item grid */}
+                <div style={{ overflowY: "auto" as const, flex: 1, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+                  {filtered.length === 0 && (
+                    <div style={{ gridColumn: "1/-1", color: "rgba(255,255,255,0.3)", fontSize: 10, textAlign: "center" as const, padding: 12 }}>
+                      {allShopItems.length === 0 ? "Loading…" : "No items match"}
+                    </div>
+                  )}
+                  {filtered.map((it: any) => (
+                    <button
+                      key={it.id}
+                      onClick={() => saveMilestoneMutation.mutate({
+                        ms: adminPickerMs,
+                        itemId: it.id,
+                        itemName: it.name,
+                        itemImageUrl: it.imageUrl || null,
+                        starRarity: it.starRarity ?? null,
+                      })}
+                      disabled={saveMilestoneMutation.isPending}
+                      title={it.name}
+                      style={{
+                        display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                        padding: "6px 4px", borderRadius: 8, cursor: "pointer",
+                        border: "1px solid rgba(251,146,60,0.22)",
+                        background: "rgba(251,146,60,0.06)",
+                        transition: "background 0.12s",
+                      }}
+                    >
+                      {it.imageUrl ? (
+                        <img src={it.imageUrl} alt={it.name} style={{ width: 40, height: 40, objectFit: "contain" as const }} />
+                      ) : (
+                        <div style={{ width: 40, height: 40, background: "rgba(255,255,255,0.05)", borderRadius: 6 }} />
+                      )}
+                      <span style={{ fontSize: 8, color: "rgba(255,255,255,0.6)", lineHeight: 1.2, textAlign: "center" as const, width: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{it.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           );
         })()}
