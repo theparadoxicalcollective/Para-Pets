@@ -212,7 +212,13 @@ function RouterErrorBoundary({ children }: { children: ReactNode }) {
   return (
     <ErrorBoundary
       resetKey={location}
-      onReset={() => { try { navigate("/"); } catch (_) {} }}
+      onReset={() => {
+        try {
+          // World crashes → land on map (not home) so the player doesn't lose context
+          if (location.startsWith("/world/")) navigate("/map");
+          else navigate("/");
+        } catch (_) {}
+      }}
     >
       {children}
     </ErrorBoundary>

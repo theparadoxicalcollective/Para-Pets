@@ -128,12 +128,16 @@ interface WorldPageProps {
     profileImage: string | null;
     coins: number;
     isAdmin: boolean;
+    isModerator?: boolean;
     activePetId: string | null;
     lastUsernameChange: string | null;
     lastProfilePicChange: string | null;
   };
   onContentReady?: () => void;
 }
+
+// Worlds open to all players; everything else is admin/moderator only.
+const OPEN_WORLDS = new Set(["swamp", "volcanic"]);
 
 interface InventoryItem {
   inventoryId: string;
@@ -344,6 +348,14 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Redirect non-admin / non-moderator players away from locked worlds.
+  // Must be a useEffect (not conditional return) because hooks must run unconditionally.
+  useEffect(() => {
+    if (!currentUser.isAdmin && !currentUser.isModerator && !OPEN_WORLDS.has(worldId)) {
+      navigate("/map");
+    }
+  }, [worldId, currentUser.isAdmin, currentUser.isModerator]);
 
   const areaRef = useRef<HTMLDivElement>(null);
   const vpRef = useRef<HTMLDivElement>(null);
@@ -1789,9 +1801,17 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           0%, 100% { opacity: 0.18; transform: scale(0.80); }
           50% { opacity: 0.62; transform: scale(1.10); }
         }
+        @keyframes swampGlowPulse {
+          0%, 100% { opacity: 0.10; transform: scale(0.72); }
+          50% { opacity: 0.28; transform: scale(0.92); }
+        }
         @keyframes locGlowRimPulse {
           0%, 100% { opacity: 0.15; }
           50% { opacity: 0.80; }
+        }
+        @keyframes swampGlowRimPulse {
+          0%, 100% { opacity: 0.06; }
+          50% { opacity: 0.22; }
         }
         @keyframes hwGlowOrb {
           0%, 100% { opacity: 0.06; transform: scale(0.88); }
@@ -2175,10 +2195,14 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                             style={{
                               background: worldId === "haunted_woods"
                                 ? `radial-gradient(circle, ${glow}88 0%, ${glow}33 45%, transparent 70%)`
-                                : `radial-gradient(circle, ${glow}45 0%, ${glow}18 45%, transparent 70%)`,
+                                : worldId === "swamp"
+                                  ? `radial-gradient(circle, ${glow}22 0%, ${glow}0d 40%, transparent 62%)`
+                                  : `radial-gradient(circle, ${glow}45 0%, ${glow}18 45%, transparent 70%)`,
                               animation: worldId === "haunted_woods"
                                 ? `hwGlowOrb ${4.0 + (i * 0.5) % 1.5}s ease-in-out infinite`
-                                : `locGlowPulse ${2.6 + (i * 0.31) % 1.2}s ease-in-out infinite`,
+                                : worldId === "swamp"
+                                  ? `swampGlowPulse ${3.2 + (i * 0.38) % 1.4}s ease-in-out infinite`
+                                  : `locGlowPulse ${2.6 + (i * 0.31) % 1.2}s ease-in-out infinite`,
                               animationDelay: `${(i * 0.45) % 2.5}s`,
                               borderRadius: "50%",
                               zIndex: 0,
@@ -2230,11 +2254,15 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                             style={{
                               filter: worldId === "haunted_woods"
                                 ? `drop-shadow(0 0 2px ${glow}aa) drop-shadow(0 0 5px ${glow}44)`
-                                : `drop-shadow(0 0 5px ${glow}) drop-shadow(0 0 12px ${glow}bb) drop-shadow(0 0 20px ${glow}66)`,
-                              opacity: worldId === "haunted_woods" ? 0.08 : 0.15,
+                                : worldId === "swamp"
+                                  ? `drop-shadow(0 0 3px ${glow}55) drop-shadow(0 0 6px ${glow}22)`
+                                  : `drop-shadow(0 0 5px ${glow}) drop-shadow(0 0 12px ${glow}bb) drop-shadow(0 0 20px ${glow}66)`,
+                              opacity: worldId === "haunted_woods" ? 0.08 : worldId === "swamp" ? 0.10 : 0.15,
                               animation: worldId === "haunted_woods"
                                 ? `hwRimPulse ${4.5 + (i * 0.6) % 1.8}s ease-in-out infinite`
-                                : `locGlowRimPulse ${3.0 + (i * 0.41) % 1.6}s ease-in-out infinite`,
+                                : worldId === "swamp"
+                                  ? `swampGlowRimPulse ${3.5 + (i * 0.5) % 1.5}s ease-in-out infinite`
+                                  : `locGlowRimPulse ${3.0 + (i * 0.41) % 1.6}s ease-in-out infinite`,
                               animationDelay: `${(i * 0.57) % 2.8}s`,
                               zIndex: 11,
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
