@@ -549,7 +549,7 @@ const ANIMATION_STYLES = `
      body top by a consistent ~0 % (no overshoot guarantee holds). */
   @keyframes petIdleBody {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.012, 1.022); }
+    to   { transform: scale(1.008, 1.016); }
   }
   /* Wings — flap motion. The wings travel UP together (matched
      translateY) on the up-stroke and DOWN together on the down-stroke,
@@ -658,17 +658,17 @@ const ANIMATION_STYLES = `
      inhale together. */
   @keyframes petIdleLeftArmBreath {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.012, 1.022); }
+    to   { transform: scale(1.008, 1.016); }
   }
   @keyframes petIdleRightArmBreath {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.012, 1.022); }
+    to   { transform: scale(1.008, 1.016); }
   }
   /* Side-facing front arm — pure scale matching petIdleBody so the arm
      stays glued to the chest silhouette on every inhale/exhale. */
   @keyframes petIdleFrontArmBreath {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.012, 1.022); }
+    to   { transform: scale(1.008, 1.016); }
   }
   /* Paired flippers (e.g. Bayou Turtle) — body breathing scale PLUS a
      subtle inward translateX so both flippers paddle toward the body on
@@ -678,11 +678,11 @@ const ANIMATION_STYLES = `
      which reads as a gentle sculling motion without leaving the silhouette. */
   @keyframes petIdleFlipperLeft {
     from { transform: scale(1, 1) translateX(0%); }
-    to   { transform: scale(1.012, 1.022) translateX(1.5%); }
+    to   { transform: scale(1.008, 1.016) translateX(1.5%); }
   }
   @keyframes petIdleFlipperRight {
     from { transform: scale(1, 1) translateX(0%); }
-    to   { transform: scale(1.012, 1.022) translateX(-1.5%); }
+    to   { transform: scale(1.008, 1.016) translateX(-1.5%); }
   }
   /* body_2 layer breathing — identical scale shape to petIdleBody but
      intentionally NOT in isBodyBreathAnim so it keeps its own per-part
@@ -692,7 +692,7 @@ const ANIMATION_STYLES = `
      for shell underlayers, secondary torso pieces, etc. */
   @keyframes petIdleBody2 {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.012, 1.022); }
+    to   { transform: scale(1.008, 1.016); }
   }
   /* Ground head: small left/right tilt instead of upward bob. Reduced
      from ±0.6deg → ±0.4deg so the head reads as a barely-there sway
@@ -928,8 +928,8 @@ const ANIMATION_STYLES = `
      pongs smoothly between the two extremes instead of snapping back
      to 0deg each cycle. */
   @keyframes petIdleAccessorySway {
-    from { transform: rotate(-0.4deg); }
-    to   { transform: rotate(0.4deg); }
+    from { transform: rotate(-0.4deg) translateY(0%); }
+    to   { transform: rotate(0.4deg) translateY(-1%); }
   }
 
 `;
@@ -1047,13 +1047,13 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
       // body's 4.5 s period anymore. Keeping all six on the same 4 s
       // cycle so multiple accessories on the same pet sway in unison
       // (looks intentional, not random).
-      back_accessory_1: "4s", back_accessory_2: "4s",
-      front_accessory_1: "4s", front_accessory_2: "4s",
-      front_left_accessory: "4s", front_right_accessory: "4s",
+      back_accessory_1: "4.7s", back_accessory_2: "4.7s",
+      front_accessory_1: "4.7s", front_accessory_2: "4.7s",
+      front_left_accessory: "4.7s", front_right_accessory: "4.7s",
       // Above-head accessory floats on its own slow cycle, deliberately
       // out of phase with the head bob (3 s) so crowns / halos read as
       // a separate floating object rather than rigidly attached.
-      above_head: "4s",
+      above_head: "4.5s",
     };
     return durations[baseType] || "3s";
   }
@@ -1451,6 +1451,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     name === "petIdleFrontArmBreath" ||
     name === "petIdleFlipperLeft" ||
     name === "petIdleFlipperRight" ||
+    name === "petAboveHeadBounce" ||
     // Petting & sleep both scale the body (petPettingBody / petSleepBody)
     // and bind the body-attached parts — shoulders, neck, hair_center,
     // flippers, body_2 — to that SAME scale keyframe so they "breathe with
@@ -1755,7 +1756,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       const originYFrac = bodyAb.top + bodyAb.height * bpyFrac;
       topRiseFraction = Math.max(0, Math.min(1, originYFrac));
     }
-    const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 2.2 * topRiseFraction;
+    const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 1.6 * topRiseFraction;
     const minBob = canFly ? 0.25 : 0.5;
     const clamped = Math.min(1.2, Math.max(minBob, bodyTopRisePct));
     headBobCssPct = `-${clamped.toFixed(2)}%`;

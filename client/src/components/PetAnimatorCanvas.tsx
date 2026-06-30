@@ -147,7 +147,7 @@ interface AnimResult {
 // an obvious swell. Mirrors PetAnimator.tsx IDLE_ANIMATIONS.
 function bodyBreath(sec: number): AnimResult {
   const w = (1 + sinWave(sec, 4.5)) * 0.5; // 0..1 sine
-  return { op: 1, rot: 0, sx: 1 + w * 0.012, sy: 1 + w * 0.022 };
+  return { op: 1, rot: 0, sx: 1 + w * 0.008, sy: 1 + w * 0.016 };
 }
 
 function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
@@ -248,7 +248,7 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     case "front_accessory_1": case "front_accessory_2":
     case "back_accessory_1": case "back_accessory_2":
     case "front_left_accessory": case "front_right_accessory":
-      return { op: 1, rot: sinWave(sec, 4) * 0.4 * D2R };
+      return { op: 1, rot: sinWave(sec, 4.7) * 0.4 * D2R, ty: -((1 + sinWave(sec, 4.7)) * 0.5) * 0.8 };
 
     // Wings — gentle ±3° sine flap at 4 s + a small ty oscillation so the
     // wings read as flapping (lifting through the rotation) instead of
@@ -336,7 +336,7 @@ function evalAnim(partType: string, sec: number, blinkOff: number): AnimResult {
     // img renderer's matching -15 % → -5 % reduction on
     // petAboveHeadBounce.
     case "above_head":
-      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, 4)) * 0.5) * 2.5 };
+      return { op: 1, rot: 0, ty: -((1 + sinWave(sec, 4.5)) * 0.5) * 2.5 };
 
     default: return { op: 1, rot: 0 };
   }
