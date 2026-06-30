@@ -8873,10 +8873,12 @@ export async function registerRoutes(
           ri.name as recipe_item_name, ri.image_url as recipe_item_image,
           i1.id as ing1_id, i1.name as ing1_name, i1.image_url as ing1_image,
           i2.id as ing2_id, i2.name as ing2_name, i2.image_url as ing2_image,
+          i3.id as ing3_id, i3.name as ing3_name, i3.image_url as ing3_image,
           rr.id as result_id, rr.name as result_name, rr.image_url as result_image, rr.type as result_item_type
         FROM mixing_tree_recipes r
         JOIN shop_items i1 ON r.ingredient1_id = i1.id
         JOIN shop_items i2 ON r.ingredient2_id = i2.id
+        LEFT JOIN shop_items i3 ON r.ingredient3_id = i3.id
         JOIN shop_items rr ON r.result_id = rr.id
         LEFT JOIN shop_items ri ON r.recipe_item_id = ri.id
         ORDER BY r.created_at
@@ -8951,14 +8953,15 @@ export async function registerRoutes(
 
   app.post("/api/admin/recipes", isAdmin, async (req: any, res) => {
     try {
-      const { ingredient1Id, ingredient2Id, resultId, resultType, name } = req.body;
+      const { ingredient1Id, ingredient2Id, ingredient3Id, resultId, resultType, name } = req.body;
       if (!ingredient1Id || !ingredient2Id || !resultId || !resultType) {
-        return res.status(400).json({ message: "All fields required" });
+        return res.status(400).json({ message: "ingredient1Id, ingredient2Id, resultId and resultType are required" });
       }
       if (!["item","fish","pet"].includes(resultType)) {
         return res.status(400).json({ message: "resultType must be item, fish, or pet" });
       }
       const adminId = req.user!.id;
+      const ing3: string | null = ingredient3Id || null;
 
       // 1. Look up the result item name for the scroll label fallback
       const resultRows = await db.execute(sql`SELECT name FROM shop_items WHERE id = ${resultId}`);
@@ -8975,8 +8978,8 @@ export async function registerRoutes(
 
       // 3. Insert the recipe, linking the scroll as its recipe_item_id
       await db.execute(sql`
-        INSERT INTO mixing_tree_recipes (ingredient1_id, ingredient2_id, result_id, result_type, recipe_item_id)
-        VALUES (${ingredient1Id}, ${ingredient2Id}, ${resultId}, ${resultType}, ${scrollItemId})
+        INSERT INTO mixing_tree_recipes (ingredient1_id, ingredient2_id, ingredient3_id, result_id, result_type, recipe_item_id)
+        VALUES (${ingredient1Id}, ${ingredient2Id}, ${ing3}, ${resultId}, ${resultType}, ${scrollItemId})
       `);
 
       // 4. Add one copy of the scroll to the admin's inventory
@@ -8995,7 +8998,7 @@ export async function registerRoutes(
   app.patch("/api/admin/recipes/:id", isAdmin, async (req, res) => {
     try {
       const { id } = req.params as Record<string,string>;
-      const { ingredient1Id, ingredient2Id, resultId, resultType, name } = req.body;
+      const { ingredient1Id, ingredient2Id, ingredient3Id, resultId, resultType, name } = req.body;
 
       // Get current recipe to find the scroll shop item
       const curr = await db.execute(sql`SELECT recipe_item_id FROM mixing_tree_recipes WHERE id = ${id}`);
@@ -9006,6 +9009,10 @@ export async function registerRoutes(
       const updates: string[] = [];
       if (ingredient1Id) updates.push(`ingredient1_id = '${ingredient1Id}'`);
       if (ingredient2Id) updates.push(`ingredient2_id = '${ingredient2Id}'`);
+      // ingredient3Id can be cleared (pass null/empty string to remove) or set
+      if (ingredient3Id !== undefined) {
+        updates.push(ingredient3Id ? `ingredient3_id = '${ingredient3Id}'` : `ingredient3_id = NULL`);
+      }
       if (resultId)      updates.push(`result_id = '${resultId}'`);
       if (resultType && ["item","fish","pet"].includes(resultType)) updates.push(`result_type = '${resultType}'`);
       if (updates.length) {

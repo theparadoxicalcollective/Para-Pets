@@ -4428,8 +4428,10 @@ function RecipeItemsSection() {
   const [recipeName, setRecipeName] = useState("");
   const [ing1, setIng1] = useState("");
   const [ing2, setIng2] = useState("");
+  const [ing3, setIng3] = useState("");
   const [result, setResult] = useState("");
-  const [resultFilter, setResultFilter] = useState("");
+  // Which field the item picker is open for: "ing1" | "ing2" | "ing3" | "result" | null
+  const [pickerFor, setPickerFor] = useState<"ing1" | "ing2" | "ing3" | "result" | null>(null);
 
   type ShopItemRow = { id: string; name: string; type: string; imageUrl: string | null };
   type RecipeRow = {
@@ -4437,6 +4439,7 @@ function RecipeItemsSection() {
     recipe_item_id: string | null; recipe_item_name: string | null;
     ing1_id: string; ing1_name: string; ing1_image: string | null;
     ing2_id: string; ing2_name: string; ing2_image: string | null;
+    ing3_id: string | null; ing3_name: string | null; ing3_image: string | null;
     result_id: string; result_name: string; result_image: string | null; result_type: string;
   };
 
@@ -4445,16 +4448,13 @@ function RecipeItemsSection() {
   });
 
   const ingredientItems = allShopItems.filter(s => s.type === "ingredient");
-  const filteredResultItems = resultFilter.trim()
-    ? allShopItems.filter(s => s.name.toLowerCase().includes(resultFilter.trim().toLowerCase()))
-    : allShopItems;
 
   const { data: recipes = [], isLoading } = useQuery<RecipeRow[]>({
     queryKey: ["/api/recipes"],
   });
 
   const resetForm = () => {
-    setRecipeName(""); setIng1(""); setIng2(""); setResult(""); setResultFilter("");
+    setRecipeName(""); setIng1(""); setIng2(""); setIng3(""); setResult(""); setPickerFor(null);
     setShowForm(false); setEditingId(null);
   };
 
@@ -4463,16 +4463,22 @@ function RecipeItemsSection() {
     setRecipeName(r.recipe_item_name ?? "");
     setIng1(r.ing1_id);
     setIng2(r.ing2_id);
+    setIng3(r.ing3_id ?? "");
     setResult(r.result_id);
-    setResultFilter("");
+    setPickerFor(null);
     setShowForm(false);
+  };
+
+  const resolveResultType = (id: string) => {
+    const t = allShopItems.find(s => s.id === id)?.type ?? "";
+    return t === "fish" ? "fish" : t === "pet" ? "pet" : "item";
   };
 
   const addMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/admin/recipes", {
-        ingredient1Id: ing1, ingredient2Id: ing2, resultId: result,
-        resultType: (() => { const t = allShopItems.find(s => s.id === result)?.type ?? ""; return t === "fish" ? "fish" : t === "pet" ? "pet" : "item"; })(),
+        ingredient1Id: ing1, ingredient2Id: ing2, ingredient3Id: ing3 || undefined,
+        resultId: result, resultType: resolveResultType(result),
         name: recipeName.trim() || undefined,
       });
       return res.json();
@@ -4490,8 +4496,9 @@ function RecipeItemsSection() {
     mutationFn: async () => {
       const res = await apiRequest("PATCH", `/api/admin/recipes/${editingId}`, {
         ingredient1Id: ing1 || undefined, ingredient2Id: ing2 || undefined,
+        ingredient3Id: ing3, // pass empty string to clear, non-empty to set
         resultId: result || undefined,
-        resultType: result ? (() => { const t = allShopItems.find(s => s.id === result)?.type ?? ""; return t === "fish" ? "fish" : t === "pet" ? "pet" : "item"; })() : undefined,
+        resultType: result ? resolveResultType(result) : undefined,
         name: recipeName.trim() || undefined,
       });
       return res.json();
@@ -4521,32 +4528,29 @@ function RecipeItemsSection() {
   const isEditing = editingId !== null;
   const canSubmit = ing1 && ing2 && result && !(isEditing ? editMutation.isPending : addMutation.isPending);
 
-  const sel: React.CSSProperties = {
-    background: "rgba(8,30,16,0.95)",
-    border: "1px solid rgba(134,239,172,0.35)",
-    color: "#d1fef0",
-    borderRadius: 8,
-    padding: "9px 10px",
-    fontSize: 12,
-    width: "100%",
-    outline: "none",
-    fontFamily: "Lora, serif",
-    appearance: "none",
-  };
-
   const previewIng1 = allShopItems.find(s => s.id === ing1);
   const previewIng2 = allShopItems.find(s => s.id === ing2);
+  const previewIng3 = ing3 ? allShopItems.find(s => s.id === ing3) : undefined;
   const previewResult = allShopItems.find(s => s.id === result);
 
   // Inlined item preview box (NOT a sub-component — avoids keyboard-close bug)
-  const renderItemBox = (item?: ShopItemRow) => (
+  const renderItemBox = (item?: ShopItemRow, dim?: boolean) => (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-      <div style={{ width: 44, height: 44, background: "rgba(0,0,0,0.4)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(134,239,172,0.25)" }}>
+      <div style={{ width: 44, height: 44, background: "rgba(0,0,0,0.4)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${dim ? "rgba(134,239,172,0.12)" : "rgba(134,239,172,0.25)"}`, opacity: dim ? 0.5 : 1 }}>
         {item?.imageUrl ? <img src={item.imageUrl} alt="" style={{ width: 36, height: 36, objectFit: "contain" }} /> : <span style={{ color: "#86efac44", fontSize: 18 }}>?</span>}
       </div>
       <span style={{ fontSize: 8, color: "#86efac88", maxWidth: 50, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item?.name ?? "—"}</span>
     </div>
   );
+
+  // Picker button style — mimics the ItemPickerModal trigger used in shops
+  const pickerBtnStyle = (hasValue: boolean, accent?: string): React.CSSProperties => ({
+    width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px",
+    background: hasValue ? "rgba(8,30,16,0.95)" : "rgba(0,0,0,0.25)",
+    border: `1px solid ${accent ?? "rgba(134,239,172,0.35)"}`,
+    borderRadius: 8, cursor: "pointer", fontFamily: "Lora, serif",
+    color: hasValue ? "#d1fef0" : "#86efac55", fontSize: 12, textAlign: "left",
+  });
 
   // Inlined form JSX (NOT extracted into a sub-component — avoids keyboard-close bug on every keystroke)
   const formIsEdit = isEditing;
@@ -4556,6 +4560,7 @@ function RecipeItemsSection() {
         {formIsEdit ? "Edit Recipe" : "+ New Recipe"}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Recipe name */}
         <div>
           <label style={{ fontSize: 10, color: "#86efac88", display: "block", marginBottom: 4, letterSpacing: "0.1em" }}>RECIPE NAME (shown on the scroll)</label>
           <input
@@ -4563,47 +4568,62 @@ function RecipeItemsSection() {
             placeholder="e.g. Fire Potion Recipe Scroll"
             value={recipeName}
             onChange={e => setRecipeName(e.target.value)}
-            style={{ ...sel, appearance: undefined } as React.CSSProperties}
+            style={{ background: "rgba(8,30,16,0.95)", border: "1px solid rgba(134,239,172,0.35)", color: "#d1fef0", borderRadius: 8, padding: "9px 10px", fontSize: 12, width: "100%", outline: "none", fontFamily: "Lora, serif" }}
           />
         </div>
+
+        {/* Ingredient 1 */}
         <div>
           <label style={{ fontSize: 10, color: "#86efac88", display: "block", marginBottom: 4, letterSpacing: "0.1em" }}>INGREDIENT 1</label>
-          <select data-testid="select-recipe-ing1" value={ing1} onChange={e => setIng1(e.target.value)} style={sel}>
-            <option value="">Choose ingredient…</option>
-            {ingredientItems.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-          {ingredientItems.length === 0 && <div style={{ fontSize: 10, color: "#fca5a599", marginTop: 4 }}>No items with type "ingredient" found — add some in the Items section first.</div>}
+          <button data-testid="button-pick-ing1" onClick={() => setPickerFor("ing1")} style={pickerBtnStyle(!!ing1)}>
+            {previewIng1?.imageUrl && <img src={previewIng1.imageUrl} alt="" style={{ width: 20, height: 20, objectFit: "contain" }} />}
+            <span style={{ flex: 1 }}>{previewIng1?.name ?? "Choose ingredient…"}</span>
+            {ing1 && <span style={{ fontSize: 10, color: "#86efac55" }} onClick={e => { e.stopPropagation(); setIng1(""); }}>✕</span>}
+          </button>
+          {ingredientItems.length === 0 && <div style={{ fontSize: 10, color: "#fca5a599", marginTop: 4 }}>No items with type "ingredient" found — add some in Items first.</div>}
         </div>
+
+        {/* Ingredient 2 */}
         <div>
           <label style={{ fontSize: 10, color: "#86efac88", display: "block", marginBottom: 4, letterSpacing: "0.1em" }}>INGREDIENT 2</label>
-          <select data-testid="select-recipe-ing2" value={ing2} onChange={e => setIng2(e.target.value)} style={sel}>
-            <option value="">Choose ingredient…</option>
-            {ingredientItems.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+          <button data-testid="button-pick-ing2" onClick={() => setPickerFor("ing2")} style={pickerBtnStyle(!!ing2)}>
+            {previewIng2?.imageUrl && <img src={previewIng2.imageUrl} alt="" style={{ width: 20, height: 20, objectFit: "contain" }} />}
+            <span style={{ flex: 1 }}>{previewIng2?.name ?? "Choose ingredient…"}</span>
+            {ing2 && <span style={{ fontSize: 10, color: "#86efac55" }} onClick={e => { e.stopPropagation(); setIng2(""); }}>✕</span>}
+          </button>
         </div>
+
+        {/* Ingredient 3 (optional) */}
+        <div>
+          <label style={{ fontSize: 10, color: "#86efac88", display: "block", marginBottom: 4, letterSpacing: "0.1em" }}>INGREDIENT 3 <span style={{ color: "#86efac44" }}>(optional)</span></label>
+          <button data-testid="button-pick-ing3" onClick={() => setPickerFor("ing3")} style={pickerBtnStyle(!!ing3, ing3 ? "rgba(134,239,172,0.35)" : "rgba(134,239,172,0.18)")}>
+            {previewIng3?.imageUrl && <img src={previewIng3.imageUrl} alt="" style={{ width: 20, height: 20, objectFit: "contain" }} />}
+            <span style={{ flex: 1 }}>{previewIng3?.name ?? "Add a third ingredient (optional)…"}</span>
+            {ing3 && <span style={{ fontSize: 10, color: "#86efac55" }} onClick={e => { e.stopPropagation(); setIng3(""); }}>✕</span>}
+          </button>
+        </div>
+
+        {/* Result item — uses same ItemPickerModal pattern as shops */}
         <div>
           <label style={{ fontSize: 10, color: "#86efac88", display: "block", marginBottom: 4, letterSpacing: "0.1em" }}>RESULT ITEM</label>
-          <input
-            data-testid="input-result-filter"
-            placeholder="Search items…"
-            value={resultFilter}
-            onChange={e => { setResultFilter(e.target.value); setResult(""); }}
-            style={{ ...sel, marginBottom: 6, appearance: undefined } as React.CSSProperties}
-          />
-          <select data-testid="select-recipe-result" value={result} onChange={e => setResult(e.target.value)} style={sel}>
-            <option value="">Choose result…</option>
-            {filteredResultItems.map(s => <option key={s.id} value={s.id}>{s.name} ({s.type})</option>)}
-          </select>
-          {resultFilter && filteredResultItems.length === 0 && <div style={{ fontSize: 10, color: "#fca5a599", marginTop: 4 }}>No items match "{resultFilter}"</div>}
+          <button data-testid="button-pick-result" onClick={() => setPickerFor("result")} style={pickerBtnStyle(!!result, result ? "rgba(134,239,172,0.35)" : "rgba(252,211,77,0.3)")}>
+            {previewResult?.imageUrl && <img src={previewResult.imageUrl} alt="" style={{ width: 20, height: 20, objectFit: "contain" }} />}
+            <span style={{ flex: 1 }}>{previewResult ? `${previewResult.name} (${previewResult.type})` : "Choose result item…"}</span>
+            {result && <span style={{ fontSize: 10, color: "#86efac55" }} onClick={e => { e.stopPropagation(); setResult(""); }}>✕</span>}
+          </button>
         </div>
 
         {/* Live preview */}
-        {(ing1 || ing2 || result) && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px 12px", background: "rgba(0,0,0,0.3)", borderRadius: 8 }}>
+        {(ing1 || ing2 || ing3 || result) && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "10px 12px", background: "rgba(0,0,0,0.3)", borderRadius: 8, flexWrap: "wrap" }}>
             {renderItemBox(previewIng1)}
-            <span style={{ fontSize: 18, color: "#86efac55" }}>+</span>
+            <span style={{ fontSize: 16, color: "#86efac55" }}>+</span>
             {renderItemBox(previewIng2)}
-            <span style={{ fontSize: 18, color: "#86efac55" }}>→</span>
+            {ing3 && <>
+              <span style={{ fontSize: 16, color: "#86efac55" }}>+</span>
+              {renderItemBox(previewIng3)}
+            </>}
+            <span style={{ fontSize: 16, color: "#86efac55" }}>→</span>
             {renderItemBox(previewResult)}
           </div>
         )}
@@ -4630,6 +4650,27 @@ function RecipeItemsSection() {
         </div>
       </div>
     </div>
+  );
+
+  // Item picker modal — filters to ingredient-type items for ing fields, all items for result
+  const pickerItems: ShopItemFull[] = (() => {
+    if (!pickerFor) return [];
+    if (pickerFor === "result") return allShopItems as unknown as ShopItemFull[];
+    return ingredientItems as unknown as ShopItemFull[];
+  })();
+
+  const pickerModal = pickerFor && (
+    <ItemPickerModal
+      items={pickerItems}
+      onSelect={(item) => {
+        if (pickerFor === "ing1") setIng1(item.id);
+        else if (pickerFor === "ing2") setIng2(item.id);
+        else if (pickerFor === "ing3") setIng3(item.id);
+        else if (pickerFor === "result") setResult(item.id);
+        setPickerFor(null);
+      }}
+      onClose={() => setPickerFor(null)}
+    />
   );
 
   return (
@@ -4660,6 +4701,7 @@ function RecipeItemsSection() {
 
       {/* Shared form (add or edit) — rendered as plain JSX, not a sub-component */}
       {formJsx}
+      {pickerModal}
 
       {/* Recipe list */}
       {isLoading ? (
@@ -4689,29 +4731,41 @@ function RecipeItemsSection() {
                 </div>
 
                 {/* Ingredient → Result display */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
                   {/* ing1 */}
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                    <div style={{ width: 44, height: 44, background: "rgba(0,0,0,0.4)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${accentColor}33` }}>
-                      {r.ing1_image ? <img src={r.ing1_image} alt="" style={{ width: 36, height: 36, objectFit: "contain" }} /> : <span style={{ color: "#86efac33", fontSize: 16 }}>?</span>}
+                    <div style={{ width: 40, height: 40, background: "rgba(0,0,0,0.4)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${accentColor}33` }}>
+                      {r.ing1_image ? <img src={r.ing1_image} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} /> : <span style={{ color: "#86efac33", fontSize: 14 }}>?</span>}
                     </div>
-                    <span style={{ fontSize: 8, color: "#d1fef0aa", textAlign: "center", maxWidth: 50, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.ing1_name}</span>
+                    <span style={{ fontSize: 7, color: "#d1fef0aa", textAlign: "center", maxWidth: 44, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.ing1_name}</span>
                   </div>
-                  <span style={{ fontSize: 16, color: accentColor + "66" }}>+</span>
+                  <span style={{ fontSize: 14, color: accentColor + "66" }}>+</span>
                   {/* ing2 */}
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                    <div style={{ width: 44, height: 44, background: "rgba(0,0,0,0.4)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${accentColor}33` }}>
-                      {r.ing2_image ? <img src={r.ing2_image} alt="" style={{ width: 36, height: 36, objectFit: "contain" }} /> : <span style={{ color: "#86efac33", fontSize: 16 }}>?</span>}
+                    <div style={{ width: 40, height: 40, background: "rgba(0,0,0,0.4)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${accentColor}33` }}>
+                      {r.ing2_image ? <img src={r.ing2_image} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} /> : <span style={{ color: "#86efac33", fontSize: 14 }}>?</span>}
                     </div>
-                    <span style={{ fontSize: 8, color: "#d1fef0aa", textAlign: "center", maxWidth: 50, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.ing2_name}</span>
+                    <span style={{ fontSize: 7, color: "#d1fef0aa", textAlign: "center", maxWidth: 44, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.ing2_name}</span>
                   </div>
-                  <span style={{ fontSize: 20, color: accentColor + "88" }}>→</span>
+                  {/* ing3 (optional) */}
+                  {r.ing3_id && (
+                    <>
+                      <span style={{ fontSize: 14, color: accentColor + "66" }}>+</span>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                        <div style={{ width: 40, height: 40, background: "rgba(0,0,0,0.4)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${accentColor}33` }}>
+                          {r.ing3_image ? <img src={r.ing3_image} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} /> : <span style={{ color: "#86efac33", fontSize: 14 }}>?</span>}
+                        </div>
+                        <span style={{ fontSize: 7, color: "#d1fef0aa", textAlign: "center", maxWidth: 44, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.ing3_name}</span>
+                      </div>
+                    </>
+                  )}
+                  <span style={{ fontSize: 18, color: accentColor + "88" }}>→</span>
                   {/* result */}
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                    <div style={{ width: 52, height: 52, background: "rgba(0,0,0,0.4)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", border: `1.5px solid ${accentColor}66`, boxShadow: `0 0 10px ${accentColor}22` }}>
-                      {r.result_image ? <img src={r.result_image} alt="" style={{ width: 42, height: 42, objectFit: "contain" }} /> : <span style={{ color: "#86efac33", fontSize: 20 }}>?</span>}
+                    <div style={{ width: 50, height: 50, background: "rgba(0,0,0,0.4)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", border: `1.5px solid ${accentColor}66`, boxShadow: `0 0 10px ${accentColor}22` }}>
+                      {r.result_image ? <img src={r.result_image} alt="" style={{ width: 40, height: 40, objectFit: "contain" }} /> : <span style={{ color: "#86efac33", fontSize: 18 }}>?</span>}
                     </div>
-                    <span style={{ fontSize: 9, color: accentColor, textAlign: "center", maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}>{r.result_name}</span>
+                    <span style={{ fontSize: 9, color: accentColor, textAlign: "center", maxWidth: 56, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 600 }}>{r.result_name}</span>
                     <span style={{ fontSize: 8, color: accentColor + "88", textTransform: "capitalize" }}>{r.result_type}</span>
                   </div>
                 </div>

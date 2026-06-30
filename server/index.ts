@@ -810,6 +810,16 @@ app.use((req, res, next) => {
 
   try {
     await db.execute(sql`
+      ALTER TABLE mixing_tree_recipes
+        ADD COLUMN IF NOT EXISTS ingredient3_id varchar REFERENCES shop_items(id) ON DELETE SET NULL
+    `);
+    console.log("mixing_tree_recipes.ingredient3_id ready.");
+  } catch (err) {
+    console.error("mixing_tree_recipes.ingredient3_id error (non-fatal):", err);
+  }
+
+  try {
+    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS player_unlocked_recipes (
         user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         recipe_id varchar NOT NULL REFERENCES mixing_tree_recipes(id) ON DELETE CASCADE,
