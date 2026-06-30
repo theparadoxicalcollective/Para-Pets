@@ -979,7 +979,7 @@ const ANIMATION_STYLES = `
     to   { transform: rotate(-3deg); }
   }
 
-\`;
+`;
 
 function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "house" | "static" | "sleep" | "petting"): string {
   // Normalize prefixed head variants (h2_back_arm, h3_accessory_1, etc.) to
