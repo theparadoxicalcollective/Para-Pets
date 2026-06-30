@@ -231,6 +231,13 @@ function evalAnim(partType: string, sec: number, blinkOff: number, idleStyle?: s
     }
     case "back_arm":
       return isMarionette ? { op: 1, rot: 0, sx: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.008, sy: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.016 } : bodyBreath(sec);
+    case "left_leg":
+      // Marionette: pendulum sway at 3.7 s, mirrored with right_leg.
+      // Non-marionette: static (same as front/back_leg below).
+      return isMarionette ? { op: 1, rot: sinWave(sec, 3.7) * 3 * D2R } : { op: 1, rot: 0 };
+    case "right_leg":
+      return isMarionette ? { op: 1, rot: -sinWave(sec, 3.7) * 3 * D2R } : { op: 1, rot: 0 };
+
     case "front_leg":
     case "back_leg":
       // Side-facing legs are kept static — they do not scale with the body
@@ -262,7 +269,7 @@ function evalAnim(partType: string, sec: number, blinkOff: number, idleStyle?: s
       // smaller than the above_head (1.5 px) — body accessories are closer
       // to the body's pivot and need less travel to read as "following".
       return isMarionette
-        ? { op: 1, rot: sinWave(sec, 4.5) * 0.4 * D2R, ty: -((1 + sinWave(sec, 4.5)) * 0.5) * 0.6 }
+        ? { op: 1, rot: sinWave(sec, 4.5) * 0.4 * D2R, ty: -((1 + sinWave(sec, 4.5)) * 0.5) * 1.8 }
         : { op: 1, rot: sinWave(sec, 4) * 0.4 * D2R };
 
     // Wings — gentle ±3° sine flap at 4 s + a small ty oscillation so the

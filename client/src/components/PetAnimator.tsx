@@ -961,10 +961,25 @@ const ANIMATION_STYLES = `
    * "follows the body" effect comes mostly from phase sync, not amplitude. */
   @keyframes petIdleAccessoryBodyFollow {
     from { transform: rotate(-0.4deg) translateY(0px); }
-    to   { transform: rotate(0.4deg) translateY(-1.5px); }
+    to   { transform: rotate(0.4deg) translateY(-4px); }
   }
 
-`;
+  /* Marionette legs — gentle pendulum sway mirrored left/right.
+   * Left swings right-to-left, right swings left-to-right (they mirror)
+   * at 3.7 s so the legs drift out of phase with the 4.5 s body breath
+   * and look like independent strings hanging from a puppet frame.
+   * transform-origin: "50% 0%" is passed by the render loop so rotation
+   * pivots at the top of the leg (the attachment point). */
+  @keyframes petIdleLeftLegMarionette {
+    from { transform: rotate(-3deg); }
+    to   { transform: rotate(3deg); }
+  }
+  @keyframes petIdleRightLegMarionette {
+    from { transform: rotate(3deg); }
+    to   { transform: rotate(-3deg); }
+  }
+
+\`;
 
 function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "house" | "static" | "sleep" | "petting"): string {
   // Normalize prefixed head variants (h2_back_arm, h3_accessory_1, etc.) to
@@ -1155,6 +1170,9 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   "petIdleLeftArmBreathMarionette", "petIdleRightArmBreathMarionette",
   "petIdleAccessoryBodyFollow",
   "petAboveHeadBounceMarionette",
+  // Marionette leg pendulum sway — 2-keyframe from/to rotations that MUST
+  // alternate so they ping-pong smoothly instead of snapping back each cycle.
+  "petIdleLeftLegMarionette", "petIdleRightLegMarionette",
 ]);
 
 // Build the CSS `animation` shorthand for a given keyframe name. For the
@@ -2080,15 +2098,20 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             else if (animName === "petIdleLeftArmBreath") animName = "petIdleLeftArmBreathMarionette";
             else if (animName === "petIdleRightArmBreath") animName = "petIdleRightArmBreathMarionette";
             else if (animName === "petIdleAccessorySway") animName = "petIdleAccessoryBodyFollow";
+            else if (animName === "petIdleLeftLeg") animName = "petIdleLeftLegMarionette";
+            else if (animName === "petIdleRightLeg") animName = "petIdleRightLegMarionette";
           }
           if (!animName) return null;
-          // Marionette accessories: phase-lock delay + duration to body breath
-          // so the small translateY in petIdleAccessoryBodyFollow actually rises
-          // with the body's inhale instead of drifting out of phase.
           const isMarionetteAccessory = mode === "idle" && idleStyle === "marionette" && animName === "petIdleAccessoryBodyFollow";
+          const isMarionetteLeftLeg   = mode === "idle" && idleStyle === "marionette" && animName === "petIdleLeftLegMarionette";
+          const isMarionetteRightLeg  = mode === "idle" && idleStyle === "marionette" && animName === "petIdleRightLegMarionette";
+          // Accessories: phase-lock delay + duration to body breath
+          // so the translateY in petIdleAccessoryBodyFollow rises with the inhale.
           const accessoryDelay    = isMarionetteAccessory && bodyBreathDelay !== undefined ? bodyBreathDelay : wingDelay;
-          const accessoryDuration = isMarionetteAccessory ? "4.5s" : undefined;
-          return renderPartImg(part, animName, undefined, accessoryDelay, tailOrigin ?? bodyOrigin, partZ, accessoryDuration);
+          const accessoryDuration = isMarionetteAccessory ? "4.5s" : (isMarionetteLeftLeg || isMarionetteRightLeg) ? "3.7s" : undefined;
+          // Legs: rotate around their top (attachment point) for a puppet-pendulum look.
+          const legOrigin = (isMarionetteLeftLeg || isMarionetteRightLeg) ? "50% 0%" : undefined;
+          return renderPartImg(part, animName, undefined, accessoryDelay, legOrigin ?? tailOrigin ?? bodyOrigin, partZ, accessoryDuration);
         })}
 
         {/* Head groups — each head gets its own wrapper with associated face parts */}
