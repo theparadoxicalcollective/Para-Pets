@@ -577,6 +577,10 @@ function AdminItemForm({
       { value: "enemy",       label: "Enemy (single target)" },
       { value: "enemy_party", label: "Enemy Party (all enemies)" },
     ],
+    stun: [
+      { value: "enemy",       label: "Enemy (single target)" },
+      { value: "enemy_party", label: "Enemy Party (all enemies)" },
+    ],
     heal: [
       { value: "self",  label: "Self (caster only)" },
       { value: "party", label: "Party (all allies)" },
@@ -595,6 +599,7 @@ function AdminItemForm({
     const defaults: Record<string, string> = {
       damage: "enemy",
       poison: "enemy",
+      stun:   "enemy",
       heal:   "self",
       revive: "self",
     };
@@ -944,6 +949,7 @@ function AdminItemForm({
                   <option value="heal">Heal — restore HP to the target</option>
                   <option value="revive">Revive — bring fainted allies back</option>
                   <option value="poison">Poison — damage over time (3/4/5 turns by rarity)</option>
+                  <option value="stun">Stun — enemy can't attack for 5 turns</option>
                 </select>
               </div>
 

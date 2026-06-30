@@ -36,9 +36,11 @@ interface BattlePet {
   /** Generic skill router fields (admin-configurable). When present, these
    *  drive the cast routing instead of the legacy hardcoded skill names —
    *  this matches how PvE BattleArena resolves specials. */
-  skillType: string | null;       // "damage" | "heal" | "revive" | "poison"
+  skillType: string | null;       // "damage" | "heal" | "revive" | "poison" | "stun"
   skillAffects: string | null;    // "self" | "party" | "enemy" | "enemy_party"
   isPlayer: boolean;
+  /** Remaining charge-turns the pet is stunned and cannot attack or use skills. */
+  stunTurnsLeft?: number;
   /** Slot index 0..4 — for allies it pins them to a fixed bottom slot;
    *  for enemies it fixes their float anchor across the top. */
   slotIdx: number;
@@ -57,7 +59,7 @@ interface BattlePet {
   mana: number;
 }
 
-interface FloatNum { id: number; x: number; y: number; value: number; isHeal?: boolean; isCrit?: boolean; }
+interface FloatNum { id: number; x: number; y: number; value: number; isHeal?: boolean; isCrit?: boolean; label?: string; }
 interface SparkParticle { id: number; x: number; y: number; dx: number; dy: number; color: string; }
 
 type SkillMode = "needs-enemy" | "auto";
@@ -164,11 +166,11 @@ function petHasSkill(pet: { specialSkill?: string | null; specialSkillType?: str
  *  generic system (skillType + skillAffects, set in Admin) AND the legacy
  *  hardcoded skill-name system. Returns the same shape used by `fireSkill`
  *  so PvP behaves like PvE for the same configured pet. */
-function resolveSkillRouting(pet: { specialSkill?: string | null; specialSkillType?: string | null; skillType?: string | null; skillAffects?: string | null }): { type: "damage" | "heal" | "revive" | "poison"; affects: "self" | "party" | "enemy" | "enemy_party" } | null {
+function resolveSkillRouting(pet: { specialSkill?: string | null; specialSkillType?: string | null; skillType?: string | null; skillAffects?: string | null }): { type: "damage" | "heal" | "revive" | "poison" | "stun"; affects: "self" | "party" | "enemy" | "enemy_party" } | null {
   if (!petHasSkill(pet)) return null;
   // Generic system wins when admin set it explicitly.
   if (pet.skillType) {
-    const t = pet.skillType as "damage" | "heal" | "revive" | "poison";
+    const t = pet.skillType as "damage" | "heal" | "revive" | "poison" | "stun";
     const fallbackAffects = (t === "heal" || t === "revive") ? "self" : "enemy";
     return {
       type: t,
@@ -506,8 +508,8 @@ export default function PvpBattlePage({
   }, [phase, countdown]);
 
   // ── Shared helpers ────────────────────────────────────────────
-  const spawnFloatNum = useCallback((x: number, y: number, value: number, isHeal = false, isCrit = false) => {
-    const fn: FloatNum = { id: idRef.current++, x, y, value, isHeal, isCrit };
+  const spawnFloatNum = useCallback((x: number, y: number, value: number, isHeal = false, isCrit = false, label?: string) => {
+    const fn: FloatNum = { id: idRef.current++, x, y, value, isHeal, isCrit, label };
     setFloatNums(prev => [...prev, fn]);
     setTimeout(() => setFloatNums(prev => prev.filter(f => f.id !== fn.id)), 950);
   }, []);
@@ -582,6 +584,7 @@ export default function PvpBattlePage({
       heal:   ["#4ade80", "#86efac", "#bbf7d0"],
       revive: ["#fbbf24", "#fde68a", "#fef3c7"],
       poison: ["#a3e635", "#84cc16", "#d9f99d"],
+      stun:   ["#c084fc", "#a855f7", "#e9d5ff"],
     };
     const sparkColors = sparksByStyle[styleName] ?? colorsForType[routing.type] ?? ["#fbbf24", "#f59e0b", "#fde68a"];
 
@@ -713,6 +716,20 @@ export default function PvpBattlePage({
           if (victim.hp <= 0 && !victim.isDead) doKo(victim);
         }
       }, 900);
+      return;
+    }
+
+    if (routing.type === "stun") {
+      // Prevent the target(s) from charging or using skills for 5 turns.
+      const stunColors = ["#c084fc", "#a855f7", "#e9d5ff"];
+      const targets: BattlePet[] = routing.affects === "enemy_party"
+        ? enemiesOf(attacker)
+        : (target && !target.isDead ? [target] : enemiesOf(attacker).slice(0, 1));
+      targets.forEach(victim => {
+        victim.stunTurnsLeft = 5;
+        spawnSparks(victim.x, victim.y, stunColors);
+        spawnFloatNum(victim.x, victim.y - 14, 0, false, false, "⚡ STUN");
+      });
       return;
     }
   }, [spawnFloatNum, spawnSparks, flashHit, doKo]);
@@ -848,9 +865,8 @@ export default function PvpBattlePage({
         // special, AI casts are now a meaningful event rather than a
         // background timer.
 
-        // AI special: auto-fire when mana fills. Keeps the screen
-        // alive even if no charger has landed yet.
-        if (e.mana >= MAX_MANA && (now - (lastAiSkillTime.current[e.uid] || 0)) > 5000) {
+        // AI special: auto-fire when mana fills. Skip if stunned.
+        if (!e.stunTurnsLeft && e.mana >= MAX_MANA && (now - (lastAiSkillTime.current[e.uid] || 0)) > 5000) {
           lastAiSkillTime.current[e.uid] = now;
           if (petHasSkill(e)) {
             const sMode = skillMode(e);
@@ -876,7 +892,12 @@ export default function PvpBattlePage({
       // randomness that the order isn't completely predictable.
       if (!chargerRef.current && now - lastChargeAttemptRef.current > CHARGE_INTERVAL_MS) {
         lastChargeAttemptRef.current = now;
-        const candidates = oppAlive;
+        // Decrement stun for every stunned enemy each charge round,
+        // then only un-stunned enemies are eligible to charge.
+        for (const e of oppAlive) {
+          if (e.stunTurnsLeft && e.stunTurnsLeft > 0) e.stunTurnsLeft--;
+        }
+        const candidates = oppAlive.filter(e => !e.stunTurnsLeft || e.stunTurnsLeft <= 0);
         if (candidates.length && myAlive.length) {
           const sorted = [...candidates].sort(
             (a, b) =>
@@ -1691,6 +1712,12 @@ export default function PvpBattlePage({
                     >
                       <div ref={(el) => { petHpRefs.current.set(pet.uid, el); }} className="h-full rounded-full transition-all duration-200" style={{ width: `${Math.max(0, (pet.hp / pet.maxHp) * 100)}%`, background: hpColor(pet.hp / pet.maxHp) }} />
                     </div>
+                    {!!pet.stunTurnsLeft && pet.stunTurnsLeft > 0 && (
+                      <div className="text-[9px] font-bold leading-none whitespace-nowrap px-1 rounded"
+                        style={{ color: "#e9d5ff", textShadow: "0 0 6px #a855f7", background: "rgba(168,85,247,0.25)" }}>
+                        ⚡ stunned ×{pet.stunTurnsLeft}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -2138,8 +2165,8 @@ export default function PvpBattlePage({
           {/* Float numbers */}
           {floatNums.map(fn => (
             <div key={fn.id} className="absolute pointer-events-none z-40 font-black select-none"
-              style={{ left: `${fn.x}%`, top: `${fn.y}%`, transform: "translate(-50%,-50%)", fontSize: fn.isCrit ? 24 : fn.isHeal ? 20 : 17, color: fn.isHeal ? "#4ade80" : fn.isCrit ? "#fbbf24" : "#f87171", textShadow: fn.isHeal ? "0 0 10px #22c55e" : fn.isCrit ? "0 0 10px #f59e0b" : "0 0 8px rgba(239,68,68,0.8)", animation: "bFloat 0.95s ease-out forwards", fontFamily: "Lora, serif" }}>
-              {fn.isHeal ? "+" : ""}{fn.value}{fn.isCrit ? "!" : ""}
+              style={{ left: `${fn.x}%`, top: `${fn.y}%`, transform: "translate(-50%,-50%)", fontSize: fn.label ? 15 : fn.isCrit ? 24 : fn.isHeal ? 20 : 17, color: fn.label ? "#c084fc" : fn.isHeal ? "#4ade80" : fn.isCrit ? "#fbbf24" : "#f87171", textShadow: fn.label ? "0 0 10px #a855f7" : fn.isHeal ? "0 0 10px #22c55e" : fn.isCrit ? "0 0 10px #f59e0b" : "0 0 8px rgba(239,68,68,0.8)", animation: "bFloat 0.95s ease-out forwards", fontFamily: "Lora, serif" }}>
+              {fn.label ?? `${fn.isHeal ? "+" : ""}${fn.value}${fn.isCrit ? "!" : ""}`}
             </div>
           ))}
 
