@@ -953,12 +953,12 @@ const ANIMATION_STYLES = `
    * is passed as transformOriginOverride in the render loop) so the ±1° tilt
    * is a gentle pivot, not a wide sweep around the body's feet anchor. */
   @keyframes petIdleLeftArmBreathMarionette {
-    from { transform: translateY(0px) rotate(0deg); }
-    to   { transform: translateY(-2px) rotate(-1deg); }
+    from { transform: translateY(0%) rotate(0deg); }
+    to   { transform: translateY(-1.5%) rotate(-1deg); }
   }
   @keyframes petIdleRightArmBreathMarionette {
-    from { transform: translateY(0px) rotate(0deg); }
-    to   { transform: translateY(-2px) rotate(1deg); }
+    from { transform: translateY(0%) rotate(0deg); }
+    to   { transform: translateY(-1.5%) rotate(1deg); }
   }
   /* Accessories: sway with a small upward drift that follows the body breath.
    * Phase is locked to bodyBreathDelay in the render loop so they rise with
@@ -2103,8 +2103,8 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           // so only this pet's body/arms/accessories are affected.
           if (mode === "idle" && idleStyle === "marionette") {
             if (animName === "petIdleBody") animName = "petIdleBodyMarionette";
-            else if (animName === "petIdleLeftArmBreath") animName = "petIdleLeftArmBreathMarionette";
-            else if (animName === "petIdleRightArmBreath") animName = "petIdleRightArmBreathMarionette";
+            else if (animName === "petIdleLeftArmBreath" || animName === "petIdleLeftArm") animName = "petIdleLeftArmBreathMarionette";
+            else if (animName === "petIdleRightArmBreath" || animName === "petIdleRightArm") animName = "petIdleRightArmBreathMarionette";
             else if (animName === "petIdleAccessorySway") animName = "petIdleAccessoryBodyFollow";
             else if (animName === "petIdleLeftLeg") animName = "petIdleLeftLegMarionette";
             else if (animName === "petIdleRightLeg") animName = "petIdleRightLegMarionette";

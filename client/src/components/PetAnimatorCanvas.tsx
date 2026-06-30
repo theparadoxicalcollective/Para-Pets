@@ -237,7 +237,7 @@ function evalAnim(partType: string, sec: number, blinkOff: number, idleStyle?: s
       // part's own centre by default, so 1° is a gentle pivot, not a sweep.
       if (isMarionette) {
         const w = (1 + sinWave(sec, 4.5)) * 0.5;
-        return { op: 1, rot: -w * 1 * D2R, ty: -w * 2, sx: 1 + w * 0.008, sy: 1 + w * 0.016 };
+        return { op: 1, rot: -w * 1 * D2R, ty: -w * 3, sx: 1 + w * 0.008, sy: 1 + w * 0.016 };
       }
       return { op: 1, rot: 0 };
     }
@@ -245,7 +245,7 @@ function evalAnim(partType: string, sec: number, blinkOff: number, idleStyle?: s
       // Marionette: mirrors left_arm — upward rise + tiny CW tilt.
       if (isMarionette) {
         const w = (1 + sinWave(sec, 4.5)) * 0.5;
-        return { op: 1, rot: w * 1 * D2R, ty: -w * 2, sx: 1 + w * 0.008, sy: 1 + w * 0.016 };
+        return { op: 1, rot: w * 1 * D2R, ty: -w * 3, sx: 1 + w * 0.008, sy: 1 + w * 0.016 };
       }
       return { op: 1, rot: 0 };
     }
