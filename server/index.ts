@@ -784,6 +784,28 @@ app.use((req, res, next) => {
 
   try {
     await db.execute(sql`
+      ALTER TABLE IF EXISTS purchase_milestone_rewards
+        ADD COLUMN IF NOT EXISTS star_rarity int
+    `);
+    console.log("purchase_milestone_rewards.star_rarity ready.");
+  } catch (err) {
+    console.error("purchase_milestone_rewards.star_rarity migration error (non-fatal):", err);
+  }
+
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS user_contribution_cycles (
+        user_id varchar PRIMARY KEY,
+        cycle int NOT NULL DEFAULT 1
+      )
+    `);
+    console.log("user_contribution_cycles table ready.");
+  } catch (err) {
+    console.error("user_contribution_cycles setup error (non-fatal):", err);
+  }
+
+  try {
+    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS mixing_tree_recipes (
         id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
         ingredient1_id varchar NOT NULL REFERENCES shop_items(id) ON DELETE CASCADE,

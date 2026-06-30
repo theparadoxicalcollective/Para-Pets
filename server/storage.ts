@@ -339,12 +339,14 @@ export interface IStorage {
   deleteFounder(id: string): Promise<void>;
   upsertFounderByUserId(userId: string, username: string, tier: string): Promise<void>;
   // Purchase progress & milestones
+  getContributionCycle(userId: string): Promise<number>;
+  incrementContributionCycle(userId: string): Promise<number>;
   getMonthlyProgress(userId: string, monthYear: string): Promise<number>;
   addPurchaseProgress(userId: string, points: number, monthYear: string): Promise<number>;
   getClaimedMilestones(userId: string, monthYear: string): Promise<number[]>;
   claimMilestone(userId: string, milestonePoints: number, monthYear: string): Promise<boolean>;
   getMilestoneRewards(): Promise<any[]>;
-  setMilestoneReward(milestonePoints: number, data: { rewardCoins?: number; rewardItemId?: string | null; rewardItemName?: string | null; rewardItemImageUrl?: string | null; rewardLabel?: string | null }): Promise<void>;
+  setMilestoneReward(milestonePoints: number, data: { rewardCoins?: number; rewardItemId?: string | null; rewardItemName?: string | null; rewardItemImageUrl?: string | null; rewardLabel?: string | null; starRarity?: number | null }): Promise<void>;
   getVWQuotes(): Promise<VeridianWatcherQuote[]>;
   addVWQuote(message: string, addedBy?: string): Promise<VeridianWatcherQuote>;
   deleteVWQuote(id: string): Promise<void>;
@@ -3252,6 +3254,22 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getContributionCycle(userId: string): Promise<number> {
+    const result = await db.execute(sql`
+      SELECT cycle FROM user_contribution_cycles WHERE user_id = ${userId}
+    `);
+    return (result.rows[0] as any)?.cycle ?? 1;
+  }
+
+  async incrementContributionCycle(userId: string): Promise<number> {
+    const result = await db.execute(sql`
+      INSERT INTO user_contribution_cycles (user_id, cycle) VALUES (${userId}, 2)
+      ON CONFLICT (user_id) DO UPDATE SET cycle = user_contribution_cycles.cycle + 1
+      RETURNING cycle
+    `);
+    return (result.rows[0] as any)?.cycle ?? 2;
+  }
+
   async getMonthlyProgress(userId: string, monthYear: string): Promise<number> {
     const result = await db.execute(sql`
       SELECT points FROM purchase_monthly_progress
@@ -3296,7 +3314,8 @@ export class DatabaseStorage implements IStorage {
       SELECT pmr.milestone_points, pmr.reward_coins, pmr.reward_item_id, pmr.reward_item_name,
              pmr.reward_item_image_url, pmr.reward_label,
              si.type AS item_type, si.stat_boost_amount, si.stat_boost_type,
-             si.star_rarity, si.gift_points
+             COALESCE(pmr.star_rarity, si.star_rarity) AS star_rarity,
+             si.gift_points
       FROM purchase_milestone_rewards pmr
       LEFT JOIN shop_items si ON si.id = pmr.reward_item_id
       ORDER BY pmr.milestone_points
@@ -3304,19 +3323,21 @@ export class DatabaseStorage implements IStorage {
     return result.rows;
   }
 
-  async setMilestoneReward(milestonePoints: number, data: { rewardCoins?: number; rewardItemId?: string | null; rewardItemName?: string | null; rewardItemImageUrl?: string | null; rewardLabel?: string | null }): Promise<void> {
+  async setMilestoneReward(milestonePoints: number, data: { rewardCoins?: number; rewardItemId?: string | null; rewardItemName?: string | null; rewardItemImageUrl?: string | null; rewardLabel?: string | null; starRarity?: number | null }): Promise<void> {
     await db.execute(sql`
       INSERT INTO purchase_milestone_rewards
-        (milestone_points, reward_coins, reward_item_id, reward_item_name, reward_item_image_url, reward_label, updated_at)
+        (milestone_points, reward_coins, reward_item_id, reward_item_name, reward_item_image_url, reward_label, star_rarity, updated_at)
       VALUES
         (${milestonePoints}, ${data.rewardCoins ?? 0}, ${data.rewardItemId ?? null},
-         ${data.rewardItemName ?? null}, ${data.rewardItemImageUrl ?? null}, ${data.rewardLabel ?? null}, now())
+         ${data.rewardItemName ?? null}, ${data.rewardItemImageUrl ?? null}, ${data.rewardLabel ?? null},
+         ${data.starRarity ?? null}, now())
       ON CONFLICT (milestone_points) DO UPDATE SET
         reward_coins         = EXCLUDED.reward_coins,
         reward_item_id       = EXCLUDED.reward_item_id,
         reward_item_name     = EXCLUDED.reward_item_name,
         reward_item_image_url = EXCLUDED.reward_item_image_url,
         reward_label         = EXCLUDED.reward_label,
+        star_rarity          = EXCLUDED.star_rarity,
         updated_at           = now()
     `);
   }

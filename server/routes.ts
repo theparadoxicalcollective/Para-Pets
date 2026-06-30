@@ -3012,15 +3012,16 @@ export async function registerRoutes(
         const capturedUser = updatedUser;
         ;(async () => {
           try {
-            const monthYear = new Date().toISOString().slice(0, 7);
+            const cycle = await storage.getContributionCycle(user.id);
+            const cycleKey = `c-${cycle}`;
             const progressPts = amountUsd * 100;
-            const newTotal = await storage.addPurchaseProgress(user.id, progressPts, monthYear);
-            // Monthly contribution reward bar — driven by THIS month's points only.
+            const newTotal = await storage.addPurchaseProgress(user.id, progressPts, cycleKey);
+            // Contribution reward bar — resets when all milestones are claimed.
             const MILESTONES: number[] = [500, 2500, 5000, 10000];
             const allRewards = await storage.getMilestoneRewards();
             for (const ms of MILESTONES) {
               if (newTotal >= ms) {
-                const claimed = await storage.claimMilestone(user.id, ms, monthYear);
+                const claimed = await storage.claimMilestone(user.id, ms, cycleKey);
                 if (claimed) {
                   const rewardCfg = allRewards.find((r: any) => Number(r.milestone_points) === ms);
                   if (rewardCfg) {
@@ -3034,6 +3035,10 @@ export async function registerRoutes(
                         console.error('[milestone reward inventory]', e);
                       });
                     }
+                  }
+                  // When the final milestone is claimed, start a fresh cycle.
+                  if (ms === 10000) {
+                    storage.incrementContributionCycle(user.id).catch(() => {});
                   }
                 }
               }
@@ -3086,11 +3091,12 @@ export async function registerRoutes(
   app.get("/api/coins/progress", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const monthYear = new Date().toISOString().slice(0, 7);
-      const points = await storage.getMonthlyProgress(user.id, monthYear);
-      const claimedMilestones = await storage.getClaimedMilestones(user.id, monthYear);
+      const cycle = await storage.getContributionCycle(user.id);
+      const cycleKey = `c-${cycle}`;
+      const points = await storage.getMonthlyProgress(user.id, cycleKey);
+      const claimedMilestones = await storage.getClaimedMilestones(user.id, cycleKey);
       const milestoneRewards = await storage.getMilestoneRewards();
-      return res.json({ monthYear, points, claimedMilestones, milestoneRewards });
+      return res.json({ cycleKey, points, claimedMilestones, milestoneRewards });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
@@ -3108,12 +3114,13 @@ export async function registerRoutes(
     }
     const ms = Number(milestone);
     try {
-      const monthYear = new Date().toISOString().slice(0, 7);
-      const points = await storage.getMonthlyProgress(user.id, monthYear);
+      const cycle = await storage.getContributionCycle(user.id);
+      const cycleKey = `c-${cycle}`;
+      const points = await storage.getMonthlyProgress(user.id, cycleKey);
       if (points < ms) {
         return res.status(400).json({ message: "Milestone not yet reached" });
       }
-      const claimed = await storage.claimMilestone(user.id, ms, monthYear);
+      const claimed = await storage.claimMilestone(user.id, ms, cycleKey);
       if (!claimed) {
         return res.status(400).json({ message: "Already claimed" });
       }
@@ -3132,6 +3139,10 @@ export async function registerRoutes(
           itemName = rewardCfg.reward_item_name ?? null;
           itemImageUrl = rewardCfg.reward_item_image_url ?? null;
         }
+      }
+      // If the final milestone was just claimed, start a fresh cycle so the bar resets.
+      if (ms === 10000) {
+        storage.incrementContributionCycle(user.id).catch(() => {});
       }
       return res.json({ success: true, coinsGranted, itemName, itemImageUrl });
     } catch (err: any) {
@@ -3196,13 +3207,14 @@ export async function registerRoutes(
       if (![500, 2500, 5000, 10000].includes(milestonePoints)) {
         return res.status(400).json({ message: "Invalid milestone. Must be 500, 2500, 5000, or 10000" });
       }
-      const { rewardCoins, rewardItemId, rewardItemName, rewardItemImageUrl, rewardLabel } = req.body;
+      const { rewardCoins, rewardItemId, rewardItemName, rewardItemImageUrl, rewardLabel, starRarity } = req.body;
       await storage.setMilestoneReward(milestonePoints, {
         rewardCoins: rewardCoins !== undefined ? Number(rewardCoins) : 0,
         rewardItemId: rewardItemId || null,
         rewardItemName: rewardItemName || null,
         rewardItemImageUrl: rewardItemImageUrl || null,
         rewardLabel: rewardLabel || null,
+        starRarity: starRarity != null ? Number(starRarity) : null,
       });
       return res.json({ ok: true });
     } catch (err: any) {

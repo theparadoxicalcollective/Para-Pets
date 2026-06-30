@@ -104,19 +104,20 @@ export class WebhookHandlers {
       // Progress bar + milestones + egg bonus (fire-and-forget)
       ;(async () => {
         try {
-          const monthYear = new Date().toISOString().slice(0, 7);
+          const cycle = await storage.getContributionCycle(userId);
+          const cycleKey = `c-${cycle}`;
           const progressPts = amountUsd * 100;
-          const newTotal = await storage.addPurchaseProgress(userId, progressPts, monthYear);
-          console.log(`[Webhook] Progress for user ${userId}: +${progressPts} pts → total ${newTotal} this month`);
+          const newTotal = await storage.addPurchaseProgress(userId, progressPts, cycleKey);
+          console.log(`[Webhook] Progress for user ${userId}: +${progressPts} pts → total ${newTotal} (cycle ${cycle})`);
 
           const allRewards = await storage.getMilestoneRewards();
           const user = await storage.getUser(userId);
 
           for (const ms of MILESTONES) {
             if (newTotal >= ms) {
-              const claimed = await storage.claimMilestone(userId, ms, monthYear);
+              const claimed = await storage.claimMilestone(userId, ms, cycleKey);
               if (claimed) {
-                console.log(`[Webhook] Milestone ${ms} pts claimed for user ${userId}`);
+                console.log(`[Webhook] Milestone ${ms} pts claimed for user ${userId} (cycle ${cycle})`);
                 const rewardCfg = allRewards.find((r: any) => Number(r.milestone_points) === ms);
                 if (rewardCfg) {
                   if (Number(rewardCfg.reward_coins) > 0) {
@@ -135,6 +136,10 @@ export class WebhookHandlers {
                       message: `🎉 Milestone reward: ${rewardCfg.reward_label || ms + ' pts milestone'}!`,
                     }).catch(() => {});
                   }
+                }
+                // When the final milestone is claimed, start a fresh cycle.
+                if (ms === 10000) {
+                  storage.incrementContributionCycle(userId).catch(() => {});
                 }
               }
             }

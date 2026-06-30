@@ -341,12 +341,13 @@ export default function CoinShopPage({ user }: CoinShopProps) {
     staleTime: 60_000,
   });
   const saveMilestoneMutation = useMutation({
-    mutationFn: async ({ ms, itemId, itemName, itemImageUrl }: { ms: number; itemId: string | null; itemName: string | null; itemImageUrl: string | null }) => {
+    mutationFn: async ({ ms, itemId, itemName, itemImageUrl, starRarity }: { ms: number; itemId: string | null; itemName: string | null; itemImageUrl: string | null; starRarity?: number | null }) => {
       const res = await apiRequest("PATCH", `/api/admin/milestone-rewards/${ms}`, {
         rewardItemId: itemId,
         rewardItemName: itemName,
         rewardItemImageUrl: itemImageUrl,
         rewardLabel: itemName,
+        starRarity: starRarity ?? null,
       });
       return res.json();
     },
@@ -540,11 +541,6 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                 <span className="font-fantasy text-[10px] tracking-[0.2em] uppercase" style={{ color: "rgba(246,220,138,0.7)" }}>
                   ✦ Contribution Rewards
                 </span>
-                {monthLabel && (
-                  <span className="font-fantasy text-[9px]" style={{ color: "rgba(212,160,23,0.4)" }}>
-                    Resets {monthLabel}
-                  </span>
-                )}
               </div>
 
               {/* Points */}
@@ -552,7 +548,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                 <span className="font-fantasy text-base tracking-wider" data-testid="text-progress-points" style={{ color: "#f6dc8a", textShadow: "0 0 10px rgba(212,160,23,0.5)" }}>
                   {pts.toLocaleString()}
                 </span>
-                <span className="font-fantasy text-[10px]" style={{ color: "rgba(212,160,23,0.5)" }}>pts this month</span>
+                <span className="font-fantasy text-[10px]" style={{ color: "rgba(212,160,23,0.5)" }}>pts</span>
               </div>
 
               {/* ── Item reward slots + bar — right-padded so 100% bullet has breathing room ── */}
@@ -730,6 +726,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                           itemId: it.id,
                           itemName: it.name,
                           itemImageUrl: it.imageUrl || null,
+                          starRarity: it.starRarity ?? null,
                         })}
                         disabled={saveMilestoneMutation.isPending}
                         title={it.name}
