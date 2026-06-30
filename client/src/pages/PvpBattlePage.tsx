@@ -59,7 +59,7 @@ interface BattlePet {
   mana: number;
 }
 
-interface FloatNum { id: number; x: number; y: number; value: number; isHeal?: boolean; isCrit?: boolean; label?: string; }
+interface FloatNum { id: number; x: number; y: number; value: number; isHeal?: boolean; isCrit?: boolean; label?: string; imgSrc?: string; }
 interface SparkParticle { id: number; x: number; y: number; dx: number; dy: number; color: string; }
 
 type SkillMode = "needs-enemy" | "auto";
@@ -508,8 +508,8 @@ export default function PvpBattlePage({
   }, [phase, countdown]);
 
   // ── Shared helpers ────────────────────────────────────────────
-  const spawnFloatNum = useCallback((x: number, y: number, value: number, isHeal = false, isCrit = false, label?: string) => {
-    const fn: FloatNum = { id: idRef.current++, x, y, value, isHeal, isCrit, label };
+  const spawnFloatNum = useCallback((x: number, y: number, value: number, isHeal = false, isCrit = false, label?: string, imgSrc?: string) => {
+    const fn: FloatNum = { id: idRef.current++, x, y, value, isHeal, isCrit, label, imgSrc };
     setFloatNums(prev => [...prev, fn]);
     setTimeout(() => setFloatNums(prev => prev.filter(f => f.id !== fn.id)), 950);
   }, []);
@@ -728,7 +728,7 @@ export default function PvpBattlePage({
       targets.forEach(victim => {
         victim.stunTurnsLeft = 5;
         spawnSparks(victim.x, victim.y, stunColors);
-        spawnFloatNum(victim.x, victim.y - 14, 0, false, false, "⚡ STUN");
+        spawnFloatNum(victim.x, victim.y - 14, 0, false, false, undefined, "/stun-bolt.png");
       });
       return;
     }
@@ -1713,9 +1713,10 @@ export default function PvpBattlePage({
                       <div ref={(el) => { petHpRefs.current.set(pet.uid, el); }} className="h-full rounded-full transition-all duration-200" style={{ width: `${Math.max(0, (pet.hp / pet.maxHp) * 100)}%`, background: hpColor(pet.hp / pet.maxHp) }} />
                     </div>
                     {!!pet.stunTurnsLeft && pet.stunTurnsLeft > 0 && (
-                      <div className="text-[9px] font-bold leading-none whitespace-nowrap px-1 rounded"
-                        style={{ color: "#e9d5ff", textShadow: "0 0 6px #a855f7", background: "rgba(168,85,247,0.25)" }}>
-                        ⚡ stunned ×{pet.stunTurnsLeft}
+                      <div className="flex items-center gap-0.5 px-1 rounded"
+                        style={{ background: "rgba(168,85,247,0.25)", lineHeight: 1 }}>
+                        <img src="/stun-bolt.png" alt="stun" style={{ width: 10, height: 10, objectFit: "contain" }} />
+                        <span className="text-[9px] font-bold" style={{ color: "#e9d5ff", textShadow: "0 0 6px #a855f7" }}>stunned ×{pet.stunTurnsLeft}</span>
                       </div>
                     )}
                   </div>
@@ -2164,9 +2165,14 @@ export default function PvpBattlePage({
 
           {/* Float numbers */}
           {floatNums.map(fn => (
-            <div key={fn.id} className="absolute pointer-events-none z-40 font-black select-none"
-              style={{ left: `${fn.x}%`, top: `${fn.y}%`, transform: "translate(-50%,-50%)", fontSize: fn.label ? 15 : fn.isCrit ? 24 : fn.isHeal ? 20 : 17, color: fn.label ? "#c084fc" : fn.isHeal ? "#4ade80" : fn.isCrit ? "#fbbf24" : "#f87171", textShadow: fn.label ? "0 0 10px #a855f7" : fn.isHeal ? "0 0 10px #22c55e" : fn.isCrit ? "0 0 10px #f59e0b" : "0 0 8px rgba(239,68,68,0.8)", animation: "bFloat 0.95s ease-out forwards", fontFamily: "Lora, serif" }}>
-              {fn.label ?? `${fn.isHeal ? "+" : ""}${fn.value}${fn.isCrit ? "!" : ""}`}
+            <div key={fn.id} className="absolute pointer-events-none z-40 select-none"
+              style={{ left: `${fn.x}%`, top: `${fn.y}%`, transform: "translate(-50%,-50%)", animation: "bFloat 0.95s ease-out forwards" }}>
+              {fn.imgSrc
+                ? <img src={fn.imgSrc} alt="stun" style={{ width: 40, height: 40, objectFit: "contain", filter: "drop-shadow(0 0 8px #a855f7)" }} />
+                : <span className="font-black" style={{ fontSize: fn.isCrit ? 24 : fn.isHeal ? 20 : 17, color: fn.isHeal ? "#4ade80" : fn.isCrit ? "#fbbf24" : "#f87171", textShadow: fn.isHeal ? "0 0 10px #22c55e" : fn.isCrit ? "0 0 10px #f59e0b" : "0 0 8px rgba(239,68,68,0.8)", fontFamily: "Lora, serif" }}>
+                    {fn.label ?? `${fn.isHeal ? "+" : ""}${fn.value}${fn.isCrit ? "!" : ""}`}
+                  </span>
+              }
             </div>
           ))}
 
