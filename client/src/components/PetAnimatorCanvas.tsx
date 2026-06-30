@@ -257,11 +257,13 @@ function evalAnim(partType: string, sec: number, blinkOff: number, idleStyle?: s
     case "front_accessory_1": case "front_accessory_2":
     case "back_accessory_1": case "back_accessory_2":
     case "front_left_accessory": case "front_right_accessory":
-      // Marionette: same rotation sway but at 4.7 s so it drifts out of
-      // phase with the standard 4 s sway — a puppet "hanging" quality.
-      // No vertical drift: it moved in the wrong direction relative to
-      // the body's feet-anchored scale, so rotation-only is correct here.
-      return { op: 1, rot: sinWave(sec, isMarionette ? 4.7 : 4) * 0.4 * D2R };
+      // Marionette: small upward drift using the same 4.5 s period as the
+      // body breath so they're in phase. Amplitude 0.6 px is intentionally
+      // smaller than the above_head (1.5 px) — body accessories are closer
+      // to the body's pivot and need less travel to read as "following".
+      return isMarionette
+        ? { op: 1, rot: sinWave(sec, 4.5) * 0.4 * D2R, ty: -((1 + sinWave(sec, 4.5)) * 0.5) * 0.6 }
+        : { op: 1, rot: sinWave(sec, 4) * 0.4 * D2R };
 
     // Wings — gentle ±3° sine flap at 4 s + a small ty oscillation so the
     // wings read as flapping (lifting through the rotation) instead of

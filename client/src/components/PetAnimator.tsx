@@ -955,13 +955,13 @@ const ANIMATION_STYLES = `
     from { transform: scale(1, 1); }
     to   { transform: scale(1.008, 1.016); }
   }
-  /* Accessories: same rotation sway as petIdleAccessorySway but at a slightly
-   * longer period (4.7 s) so they feel out-of-sync with the 4 s standard sway
-   * on other pets — a subtle puppet "hanging" quality without any vertical
-   * drift that could move in the wrong direction relative to the body. */
+  /* Accessories: sway with a small upward drift that follows the body breath.
+   * Phase is locked to bodyBreathDelay in the render loop so they rise with
+   * the body's inhale. translateY(-1.5px) is intentionally small — the visual
+   * "follows the body" effect comes mostly from phase sync, not amplitude. */
   @keyframes petIdleAccessoryBodyFollow {
-    from { transform: rotate(-0.4deg); }
-    to   { transform: rotate(0.4deg); }
+    from { transform: rotate(-0.4deg) translateY(0px); }
+    to   { transform: rotate(0.4deg) translateY(-1.5px); }
   }
 
 `;
@@ -2082,7 +2082,13 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             else if (animName === "petIdleAccessorySway") animName = "petIdleAccessoryBodyFollow";
           }
           if (!animName) return null;
-          return renderPartImg(part, animName, undefined, wingDelay, tailOrigin ?? bodyOrigin, partZ);
+          // Marionette accessories: phase-lock delay + duration to body breath
+          // so the small translateY in petIdleAccessoryBodyFollow actually rises
+          // with the body's inhale instead of drifting out of phase.
+          const isMarionetteAccessory = mode === "idle" && idleStyle === "marionette" && animName === "petIdleAccessoryBodyFollow";
+          const accessoryDelay    = isMarionetteAccessory && bodyBreathDelay !== undefined ? bodyBreathDelay : wingDelay;
+          const accessoryDuration = isMarionetteAccessory ? "4.5s" : undefined;
+          return renderPartImg(part, animName, undefined, accessoryDelay, tailOrigin ?? bodyOrigin, partZ, accessoryDuration);
         })}
 
         {/* Head groups — each head gets its own wrapper with associated face parts */}

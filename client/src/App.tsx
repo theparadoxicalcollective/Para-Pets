@@ -22,6 +22,7 @@ import DevelopmentNoticeScreen from "@/components/DevelopmentNoticeScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
 import FloatingNav from "@/components/FloatingNav";
 import BeginJourneyOverlay from "@/components/BeginJourneyOverlay";
+import { bjGetStatus, bjStart } from "@/lib/beginJourney";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 // ── Lazy-loaded page chunks ────────────────────────────────────────────────
@@ -263,6 +264,15 @@ function AppRouter() {
     window.addEventListener("navOverlayToggle", handler);
     return () => window.removeEventListener("navOverlayToggle", handler);
   }, []);
+
+  // Auto-start Begin Journey for logged-in players who have never started the
+  // quest. Catches players who created accounts before the tutorial existed, or
+  // who dismissed the welcome screen without clicking "Collect & Begin Journey".
+  // Skip if showWelcome is true — new players will start it from WelcomeGiftScreen.
+  useEffect(() => {
+    if (!user || showWelcome) return;
+    if (bjGetStatus() === "not_started") bjStart();
+  }, [user, showWelcome]);
 
   // After auth resolves for a logged-in user, fetch inventory and preload the
   // home page background + active pet image before revealing the app.
