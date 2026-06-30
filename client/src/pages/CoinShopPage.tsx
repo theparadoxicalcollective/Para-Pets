@@ -45,14 +45,14 @@ interface PacksResponse {
   sessionLimit: number;
 }
 
-// Map by coin amount — each of the 6 bundles gets a unique artwork in ascending order.
+// Packs: 100, 1000, 2500, 7500, 20000, 50000 — one unique artwork each in order.
 function imageForCoins(coins: number): string {
-  if (coins <= 100)    return coinPack100;
-  if (coins <= 500)    return coinPack500;
-  if (coins <= 1000)   return coinPack1000;
-  if (coins <= 2500)   return coinPack2500;
-  if (coins <= 7500)   return coinPack5000;
-  return coinPack10000;
+  if (coins <= 100)    return coinPack100;    // pack 1
+  if (coins <= 1000)   return coinPack500;    // pack 2
+  if (coins <= 2500)   return coinPack1000;   // pack 3
+  if (coins <= 7500)   return coinPack2500;   // pack 4
+  if (coins <= 20000)  return coinPack5000;   // pack 5
+  return coinPack10000;                       // pack 6 (50000)
 }
 
 // Limited-offer bonus eggs for $50 and $100 bundles.
@@ -517,9 +517,10 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             const matchesSearch = !pickerSearch || it.name?.toLowerCase().includes(pickerSearch.toLowerCase());
             return matchesTab && matchesSearch;
           });
+          const isPetType = (t: string | null | undefined) => t === "pet" || t === "pet_egg";
           const getStatLine = (cfg: any): string => {
             if (!cfg?.reward_item_id) return "";
-            if (cfg.item_type === "pet") return "⭐".repeat(Math.max(1, cfg.star_rarity ?? 1));
+            if (isPetType(cfg.item_type)) return cfg.star_rarity ? "⭐".repeat(cfg.star_rarity) : "";
             if (cfg.item_type === "edibles" && cfg.stat_boost_amount) return `+${cfg.stat_boost_amount} Feed pts`;
             if (cfg.item_type === "potion" && cfg.stat_boost_amount) {
               const lbl = cfg.stat_boost_type === "mana" ? "Mana" : cfg.stat_boost_type === "revive" ? "Revive" : "HP";
@@ -618,12 +619,12 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                           }} />
                         )}
                       </div>
-                      {/* Pet egg star rarity only */}
-                      {hasItem && rewardCfg.item_type === "pet" && rewardCfg.star_rarity ? (
+                      {/* Pet / pet egg star rarity only */}
+                      {hasItem && isPetType(rewardCfg.item_type) && rewardCfg.star_rarity ? (
                         <span style={{
                           fontSize: 8, lineHeight: 1, whiteSpace: "nowrap",
                           color: isDone ? "rgba(255,215,0,0.3)" : "rgba(255,215,0,0.85)",
-                        }}>{"⭐".repeat(Math.max(1, rewardCfg.star_rarity))}</span>
+                        }}>{"⭐".repeat(rewardCfg.star_rarity)}</span>
                       ) : null}
                     </div>
                   );
