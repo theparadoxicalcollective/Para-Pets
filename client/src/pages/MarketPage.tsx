@@ -5,6 +5,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { queryClient } from "@/lib/queryClient";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
+import fishInvIcon from "@assets/icon_fish_inventory.png";
+import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.png";
@@ -19,7 +21,7 @@ const ITEM_CATEGORIES = [
   { label: "Accessories", value: "accessory" },
   { label: "Potions", value: "potion" },
   { label: "Fish", value: "fish" },
-  { label: "Pet Eggs", value: "pet_egg" },
+  { label: "Pets", value: "pet_egg" },
 ];
 
 interface Listing {
@@ -648,9 +650,9 @@ function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFi
         {/* Filter tabs */}
         <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
           {([
-            { key: "items" as const, label: "🎒 Items", count: regularSellable.length, activeColor: "#4ade80", activeBg: "rgba(74,222,128,0.15)", activeBorder: "rgba(74,222,128,0.55)" },
-            { key: "fish"  as const, label: "🐟 Fish",  count: fishSellable.length,    activeColor: "#67e8f9", activeBg: "rgba(103,232,249,0.12)", activeBorder: "rgba(103,232,249,0.5)" },
-            { key: "pets"  as const, label: "🥚 Pets",  count: petSellable.length,     activeColor: "#c084fc", activeBg: "rgba(192,132,252,0.15)", activeBorder: "rgba(192,132,252,0.55)" },
+            { key: "items" as const, icon: powerupBagIcon, label: "Items", count: regularSellable.length, activeColor: "#4ade80", activeBg: "rgba(74,222,128,0.15)", activeBorder: "rgba(74,222,128,0.55)" },
+            { key: "fish"  as const, icon: fishInvIcon,    label: "Fish",  count: fishSellable.length,    activeColor: "#67e8f9", activeBg: "rgba(103,232,249,0.12)", activeBorder: "rgba(103,232,249,0.5)" },
+            { key: "pets"  as const, icon: eggMagicIcon,   label: "Pets",  count: petSellable.length,     activeColor: "#c084fc", activeBg: "rgba(192,132,252,0.15)", activeBorder: "rgba(192,132,252,0.55)" },
           ]).map(tab => {
             const active = sellTab === tab.key;
             return (
@@ -676,6 +678,7 @@ function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFi
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
                 }}
               >
+                <img src={tab.icon} alt="" style={{ width: 16, height: 16, objectFit: "contain", opacity: active ? 1 : 0.45 }} />
                 {tab.label}
                 <span style={{
                   background: "rgba(0,0,0,0.25)", borderRadius: 8, padding: "1px 5px",
