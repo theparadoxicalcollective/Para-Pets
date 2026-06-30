@@ -948,12 +948,12 @@ const ANIMATION_STYLES = `
     to   { transform: scale(1.008, 1.016); }
   }
   @keyframes petIdleLeftArmBreathMarionette {
-    from { transform: scale(1, 1); }
-    to   { transform: scale(1.008, 1.016); }
+    from { transform: scale(1, 1) rotate(0deg); }
+    to   { transform: scale(1.008, 1.016) rotate(-2deg); }
   }
   @keyframes petIdleRightArmBreathMarionette {
-    from { transform: scale(1, 1); }
-    to   { transform: scale(1.008, 1.016); }
+    from { transform: scale(1, 1) rotate(0deg); }
+    to   { transform: scale(1.008, 1.016) rotate(2deg); }
   }
   /* Accessories: sway with a small upward drift that follows the body breath.
    * Phase is locked to bodyBreathDelay in the render loop so they rise with
@@ -971,12 +971,12 @@ const ANIMATION_STYLES = `
    * transform-origin: "50% 0%" is passed by the render loop so rotation
    * pivots at the top of the leg (the attachment point). */
   @keyframes petIdleLeftLegMarionette {
-    from { transform: rotate(-3deg); }
-    to   { transform: rotate(3deg); }
+    from { transform: rotate(-1deg); }
+    to   { transform: rotate(1deg); }
   }
   @keyframes petIdleRightLegMarionette {
-    from { transform: rotate(3deg); }
-    to   { transform: rotate(-3deg); }
+    from { transform: rotate(1deg); }
+    to   { transform: rotate(-1deg); }
   }
 
 `;

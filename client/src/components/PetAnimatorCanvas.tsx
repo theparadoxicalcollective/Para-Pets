@@ -231,12 +231,28 @@ function evalAnim(partType: string, sec: number, blinkOff: number, idleStyle?: s
     }
     case "back_arm":
       return isMarionette ? { op: 1, rot: 0, sx: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.008, sy: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.016 } : bodyBreath(sec);
+    case "left_arm": {
+      // Marionette: scale with body + small CCW pivot on inhale (mirrors right_arm).
+      if (isMarionette) {
+        const w = (1 + sinWave(sec, 4.5)) * 0.5;
+        return { op: 1, rot: -w * 2 * D2R, sx: 1 + w * 0.008, sy: 1 + w * 0.016 };
+      }
+      return { op: 1, rot: 0 };
+    }
+    case "right_arm": {
+      // Marionette: scale with body + small CW pivot on inhale (mirrors left_arm).
+      if (isMarionette) {
+        const w = (1 + sinWave(sec, 4.5)) * 0.5;
+        return { op: 1, rot: w * 2 * D2R, sx: 1 + w * 0.008, sy: 1 + w * 0.016 };
+      }
+      return { op: 1, rot: 0 };
+    }
     case "left_leg":
       // Marionette: pendulum sway at 3.7 s, mirrored with right_leg.
       // Non-marionette: static (same as front/back_leg below).
-      return isMarionette ? { op: 1, rot: sinWave(sec, 3.7) * 3 * D2R } : { op: 1, rot: 0 };
+      return isMarionette ? { op: 1, rot: sinWave(sec, 3.7) * 1 * D2R } : { op: 1, rot: 0 };
     case "right_leg":
-      return isMarionette ? { op: 1, rot: -sinWave(sec, 3.7) * 3 * D2R } : { op: 1, rot: 0 };
+      return isMarionette ? { op: 1, rot: -sinWave(sec, 3.7) * 1 * D2R } : { op: 1, rot: 0 };
 
     case "front_leg":
     case "back_leg":
