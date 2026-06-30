@@ -749,8 +749,10 @@ function PetView({
         const isEgg = !pet.isHatched;
         const displayImage = isEgg ? pet.eggImageUrl : (pet.hatchedImageUrl || pet.imageUrl);
 
-        const hatchReady = isEgg && pet.hatchStartedAt && pet.hatchTime
-          ? (Date.now() - new Date(pet.hatchStartedAt).getTime()) >= pet.hatchTime * 3600000
+        // Mirror the server hatch-check logic: an egg is ready if hatchStartedAt
+        // is set and elapsed time >= required time (0 when hatchTime is absent).
+        const hatchReady = isEgg && !!pet.hatchStartedAt
+          ? (Date.now() - new Date(pet.hatchStartedAt).getTime()) >= (pet.hatchTime ? pet.hatchTime * 3600000 : 0)
           : false;
 
         const handleImageClick = () => {

@@ -1951,9 +1951,11 @@ export async function registerRoutes(
       if (invItem.isHatched) {
         return res.json({ isHatched: true });
       }
-      if (invItem.hatchStartedAt && shopItem.hatchTime) {
+      if (invItem.hatchStartedAt) {
+        // Eggs with no hatchTime (or hatchTime=0) are always ready once started.
+        // Market-purchased eggs are backdated past hatchTime so this fires for them too.
         const elapsed = Date.now() - new Date(invItem.hatchStartedAt).getTime();
-        const required = shopItem.hatchTime * 3600000;
+        const required = shopItem.hatchTime ? shopItem.hatchTime * 3600000 : 0;
         if (elapsed >= required) {
           await storage.updateInventoryItem(invItem.id, {
             isHatched: true,
@@ -6043,8 +6045,11 @@ export async function registerRoutes(
             const invItem = await storage.getInventoryItemById(listing.inventoryId);
             if (invItem && !invItem.isHatched) {
               const shopItem = await storage.getShopItem(invItem.shopItemId);
-              if (shopItem?.type === "pet" && shopItem.hatchTime) {
-                const alreadyElapsed = (shopItem.hatchTime * 3600000) + 2000;
+              if (shopItem?.type === "pet") {
+                // Use shopItem.hatchTime if set; fall back to 24h so eggs with
+                // no timer configured are still immediately hatchable after purchase.
+                const hatchHours = shopItem.hatchTime ?? 24;
+                const alreadyElapsed = (hatchHours * 3600000) + 2000;
                 await storage.updateInventoryItem(invItem.id, {
                   hatchStartedAt: new Date(Date.now() - alreadyElapsed),
                 });
