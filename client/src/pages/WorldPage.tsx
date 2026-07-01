@@ -1510,8 +1510,16 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
             ? (inventory.find((i) => i.inventoryId === id && i.type === "pet" && i.isHatched) ?? null)
             : null,
         );
-        // Slot 0 must always have the active pet
-        if (!restoredPets[0]) restoredPets[0] = activePet;
+        // Slot 0 must ALWAYS be the current active pet regardless of what was
+        // saved — the player may have changed their active pet since last time.
+        // Also clear that pet from any extra slot to prevent duplication (e.g.
+        // the new active pet was previously saved as an extra in slot 1 or 2).
+        restoredPets[0] = activePet;
+        for (let i = 1; i < restoredPets.length; i++) {
+          if (activePet && restoredPets[i]?.inventoryId === activePet.inventoryId) {
+            restoredPets[i] = null;
+          }
+        }
         while (restoredPets.length < 3) restoredPets.push(null);
 
         // Validate potions against live inventory (items may have been consumed)
