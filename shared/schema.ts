@@ -68,6 +68,7 @@ export const shopItems = pgTable("shop_items", {
   healthRestored: integer("health_restored"),
   manaRestored: integer("mana_restored"),
   petsRevived: integer("pets_revived"),
+  petsHealed: integer("pets_healed"),
   atkBoost: integer("atk_boost"),
   defBoost: integer("def_boost"),
   healthBoost: integer("health_boost"),

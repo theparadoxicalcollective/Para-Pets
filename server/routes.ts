@@ -1729,6 +1729,7 @@ export async function registerRoutes(
         healthRestored: shopItem?.healthRestored ?? null,
         manaRestored: shopItem?.manaRestored ?? null,
         petsRevived: shopItem?.petsRevived ?? null,
+        petsHealed: shopItem?.petsHealed ?? null,
         petTemplateId: shopItem?.petTemplateId || null,
         canFly: (shopItem as any)?.canFly ?? false,
         petNickname: inv.petNickname || null,
@@ -5550,6 +5551,7 @@ export async function registerRoutes(
       const healAmount = shopItem.healthRestored || 0;
       const manaAmount = shopItem.manaRestored || 0;
       const petsRevived = shopItem.petsRevived || 0;
+      const petsHealed = shopItem.petsHealed || 0;
 
       // Potions stack now — using one decrements the row's quantity, only
       // deleting the row when the stack hits zero. Returning the post-use
@@ -5557,7 +5559,7 @@ export async function registerRoutes(
       const { depleted, item: updatedRow } = await storage.decrementInventoryQuantity(inventoryId);
       const remainingQty = depleted ? 0 : (updatedRow?.quantity ?? 0);
 
-      return res.json({ healAmount, manaAmount, petsRevived, potionName: shopItem.name, remainingQty, depleted });
+      return res.json({ healAmount, manaAmount, petsRevived, petsHealed, potionName: shopItem.name, remainingQty, depleted });
     } catch (err) {
       console.error("Use potion error:", err);
       return res.status(500).json({ message: "Failed to use potion" });

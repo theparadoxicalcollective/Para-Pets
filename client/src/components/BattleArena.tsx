@@ -135,6 +135,7 @@ export interface BattlePotionSlot {
   healthRestored: number | null;
   manaRestored: number | null;
   petsRevived: number | null;
+  petsHealed: number | null;
 }
 
 interface BattleArenaProps {
@@ -569,6 +570,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   // page reconciles the snapshot on the next inventory refresh.
   const [activeSlots, setActiveSlots] = useState<(BattlePotionSlot & { remaining: number })[]>([]);
   const activeSlotsRef = useRef<(BattlePotionSlot & { remaining: number })[]>([]);
+  // When every pet dies and the player has a revive potion equipped, we pause
+  // at the "all dead" moment and ask if they want to consume it. Null = no
+  // prompt; a number = the slotIndex of the revive potion to use.
+  const [revivePromptSlot, setRevivePromptSlot] = useState<number | null>(null);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("battleTutorialSeen"));
 
   // ── Potion drag state ────────────────────────────────────────────────────
@@ -882,7 +887,17 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       const extra2Alive = equippedExtraPetsRef.current[1] !== null && extraPetHpsRef.current[1] > 0;
       if (!activeAlive && !extra1Alive && !extra2Alive) {
         battleActiveRef.current = false;
-        setPhase("defeat");
+        // Before surrendering to defeat, check if a revive potion is equipped.
+        // If one is found, show the revival prompt instead of going straight
+        // to the defeat screen. The player can choose to use it or give up.
+        const reviveIdx = activeSlotsRef.current.findIndex(
+          s => (s.petsRevived ?? 0) > 0 && s.remaining > 0,
+        );
+        if (reviveIdx >= 0) {
+          setRevivePromptSlot(reviveIdx);
+        } else {
+          setPhase("defeat");
+        }
         return true;
       }
       return false;
@@ -1674,21 +1689,35 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
     if (canHeal) {
       const healAmt = slot.healthRestored!;
-      if (liveIdx === 0) {
-        petHpRef.current = Math.min(petStatsRef.current.maxHp, petHpRef.current + healAmt);
-        setPetHp(petHpRef.current);
-      } else {
-        const i = liveIdx! - 1;
-        const next = [...extraPetHpsRef.current] as [number, number];
-        next[i] = Math.min(liveMaxHp, next[i] + healAmt);
-        extraPetHpsRef.current = next;
-        setExtraPetHps(next);
+      // petsHealed controls how many alive pets receive the heal (default 1).
+      const healCount = Math.max(1, slot.petsHealed ?? 1);
+      // Build an ordered list of targets: primary first, then any other alive pets.
+      const healTargets: number[] = [liveIdx!];
+      if (healCount > 1) {
+        for (let i = 0; i < totalPets && healTargets.length < healCount; i++) {
+          if (!healTargets.includes(i) && isAlive(i)) healTargets.push(i);
+        }
       }
+      const newExtraHpsHeal = [...extraPetHpsRef.current] as [number, number];
+      let leadHealed = false;
+      for (const tgtIdx of healTargets) {
+        if (tgtIdx === 0) {
+          petHpRef.current = Math.min(petStatsRef.current.maxHp, petHpRef.current + healAmt);
+          leadHealed = true;
+        } else {
+          const i = tgtIdx - 1;
+          const maxHp = extraPetMaxHps[i] ?? petStatsRef.current.maxHp;
+          newExtraHpsHeal[i] = Math.min(maxHp, newExtraHpsHeal[i] + healAmt);
+        }
+        const tgtPos = getPetPos(tgtIdx, totalPets);
+        const nd: DamageNumber = { id: dmgIdRef.current++, x: tgtPos.x, y: tgtPos.y - 14, value: healAmt, isHeal: true };
+        setDamageNumbers(prev => [...prev, nd]);
+        setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1200);
+      }
+      if (leadHealed) setPetHp(petHpRef.current);
+      extraPetHpsRef.current = newExtraHpsHeal;
+      setExtraPetHps(newExtraHpsHeal);
       playChime();
-      const tgtPos = getPetPos(liveIdx!, totalPets);
-      const nd: DamageNumber = { id: dmgIdRef.current++, x: tgtPos.x, y: tgtPos.y - 14, value: healAmt, isHeal: true };
-      setDamageNumbers(prev => [...prev, nd]);
-      setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== nd.id)), 1200);
     }
     if (canMana) {
       const manaAmt = slot.manaRestored!;
@@ -1858,6 +1887,46 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     onBattleEnd();
     onClose();
   }, [onBattleEnd, onClose]);
+
+  // ── Revive-all handler ────────────────────────────────────────────────────
+  // Called when the player taps "Revive!" in the all-pets-dead prompt.
+  // Consumes one charge of the revive potion and restores every pet to 30% HP.
+  const handleReviveAll = useCallback((slotIndex: number) => {
+    const slot = activeSlotsRef.current[slotIndex];
+    if (!slot || slot.remaining <= 0) return;
+
+    // Restore lead pet to 30% HP
+    petHpRef.current = Math.max(1, Math.floor(petStatsRef.current.maxHp * 0.3));
+    setPetHp(petHpRef.current);
+
+    // Restore extra pets to 30% HP
+    const newExtraHps: [number, number] = [...extraPetHpsRef.current] as [number, number];
+    for (let i = 0; i < 2; i++) {
+      if (equippedExtraPetsRef.current[i] !== null) {
+        const maxHp = extraPetMaxHps[i] ?? petStatsRef.current.maxHp;
+        newExtraHps[i] = Math.max(1, Math.floor(maxHp * 0.3));
+      }
+    }
+    extraPetHpsRef.current = newExtraHps;
+    setExtraPetHps(newExtraHps);
+
+    // Consume one charge from the potion slot
+    const updated = activeSlotsRef.current.map((s, i) =>
+      i === slotIndex ? { ...s, remaining: Math.max(0, s.remaining - 1) } : s,
+    );
+    activeSlotsRef.current = updated;
+    setActiveSlots([...updated]);
+
+    // Tell the server to decrement the inventory row
+    potionMutation.mutate({
+      inventoryId: slot.inventoryId,
+      petInventoryId: pet?.inventoryId ?? "",
+    });
+
+    // Resume the battle
+    battleActiveRef.current = true;
+    setRevivePromptSlot(null);
+  }, [extraPetMaxHps, pet?.inventoryId, potionMutation]);
 
   const hpBarColor = (current: number, max: number) => {
     const pct = max > 0 ? current / max : 0;
@@ -3125,6 +3194,51 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             </div>
           </div>
         )}
+
+        {/* ── Revive-all prompt ────────────────────────────────────────── */}
+        {/* Shown when every pet has been knocked out and the player has a   */}
+        {/* revive potion equipped. Pauses the battle while they decide.     */}
+        {revivePromptSlot !== null && phase === "battle" && (() => {
+          const rSlot = activeSlotsRef.current[revivePromptSlot];
+          return (
+            <div className="absolute inset-0 z-50 flex items-center justify-center"
+              style={{ background: "rgba(0,0,0,0.82)", backdropFilter: "blur(8px)" }}>
+              <div className="flex flex-col items-center gap-5 rounded-2xl px-7 py-7 mx-5 w-full max-w-xs text-center"
+                style={{ background: "linear-gradient(160deg,#2a1f10 0%,#1a1008 100%)", border: "1.5px solid #6b4f2a", boxShadow: "0 8px 40px rgba(0,0,0,0.7)" }}>
+                <div className="text-4xl">💀</div>
+                <div>
+                  <p className="font-bold text-white text-base mb-1">All pets knocked out!</p>
+                  <p className="text-amber-300 text-sm">
+                    You have <span className="font-bold">{rSlot?.name ?? "a revival potion"}</span> equipped.
+                    Revive all pets to 30% HP and continue?
+                  </p>
+                </div>
+                <div className="flex gap-3 w-full">
+                  <button
+                    data-testid="button-revive-give-up"
+                    onClick={() => { setRevivePromptSlot(null); setPhase("defeat"); }}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-sm text-gray-300 bg-gray-700/50 border border-gray-600/50 transition-all active:scale-95"
+                  >
+                    Give up
+                  </button>
+                  <button
+                    data-testid="button-revive-all"
+                    onClick={() => handleReviveAll(revivePromptSlot)}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white transition-all active:scale-95"
+                    style={{ background: "linear-gradient(135deg,#c8952a 0%,#8b5e1a 100%)", border: "1px solid #f0c060" }}
+                  >
+                    ✦ Revive!
+                  </button>
+                </div>
+                {rSlot && (
+                  <p className="text-gray-500 text-xs">
+                    {rSlot.remaining} charge{rSlot.remaining !== 1 ? "s" : ""} remaining
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── End-of-battle summary (victory or defeat) ───────────────── */}
         {(phase === "victory" || phase === "defeat") && (

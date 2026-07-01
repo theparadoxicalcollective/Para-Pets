@@ -613,6 +613,7 @@ function AdminItemForm({
   const [healthRestored, setHealthRestored] = useState(item?.healthRestored?.toString() || "");
   const [manaRestored, setManaRestored] = useState(item?.manaRestored?.toString() || "");
   const [petsRevived, setPetsRevived] = useState(item?.petsRevived?.toString() || "");
+  const [petsHealed, setPetsHealed] = useState((item as any)?.petsHealed?.toString() || "");
   const [atkBoost, setAtkBoost] = useState(item?.atkBoost?.toString() || "");
   const [defBoost, setDefBoost] = useState(item?.defBoost?.toString() || "");
   const [healthBoost, setHealthBoost] = useState(item?.healthBoost?.toString() || "");
@@ -670,6 +671,7 @@ function AdminItemForm({
         payload.healthRestored = null;
         payload.manaRestored = null;
         payload.petsRevived = null;
+        payload.petsHealed = null;
         payload.atkBoost = null;
         payload.defBoost = null;
         payload.specialType = null;
@@ -704,10 +706,12 @@ function AdminItemForm({
           payload.healthRestored = parseInt(healthRestored) || null;
           payload.manaRestored = parseInt(manaRestored) || null;
           payload.petsRevived = parseInt(petsRevived) || null;
+          payload.petsHealed = parseInt(petsHealed) || null;
         } else {
           payload.healthRestored = null;
           payload.manaRestored = null;
           payload.petsRevived = null;
+          payload.petsHealed = null;
         }
 
         if (effectiveType === "accessory") {
@@ -1205,6 +1209,11 @@ function AdminItemForm({
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Pets Revived</label>
                 <input data-testid="input-pets-revived" type="number" value={petsRevived} onChange={(e) => setPetsRevived(e.target.value)} placeholder="0" min="0" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Number of knocked pets revived (highest stats first)</p>
+              </div>
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Pets Healed</label>
+                <input data-testid="input-pets-healed" type="number" value={petsHealed} onChange={(e) => setPetsHealed(e.target.value)} placeholder="1" min="1" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
+                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">How many alive pets receive the heal (default 1)</p>
               </div>
               <p className="font-fantasy text-[#ff9999] text-[8px] tracking-wider text-center">Potions are consumables - battle use only</p>
             </>
