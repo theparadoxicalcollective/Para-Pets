@@ -26,6 +26,7 @@ import coinIconImg from "@assets/icon_coin.png";
 import LoadingScreen from "@/components/LoadingScreen";
 import GiftClaimModal from "@/components/GiftClaimModal";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
+import loyaltyRewardIcon from "@assets/Photoroom_20260703_72612_AM_1783081617614.png";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -2395,9 +2396,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       const id1 = ++floatIdRef.current;
       setFloatTexts((arr) => [...arr, { id: id1, x: cx, y: cy - 20, text: coinsText }]);
       setTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id1)), 1800);
-      if (data?.levelsAdded > 0) {
+      if (data?.xpBoostPct > 0) {
         const id2 = ++floatIdRef.current;
-        setFloatTexts((arr) => [...arr, { id: id2, x: cx, y: cy + 20, text: `All pets +${data.levelsAdded} Level!` }]);
+        setFloatTexts((arr) => [...arr, { id: id2, x: cx, y: cy + 20, text: `+${data.xpBoostPct}% XP for 1 hr!` }]);
         setTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id2)), 2400);
       }
       if (box) {
@@ -2823,7 +2824,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
             }}
             title="Claim Loyalty Reward!"
           >
-            !
+            <img src={loyaltyRewardIcon} alt="Claim!" style={{ width: 26, height: 26, objectFit: "contain" }} />
           </button>
         )}
       </div>

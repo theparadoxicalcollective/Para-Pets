@@ -154,8 +154,11 @@ export const userInventory = pgTable("user_inventory", {
   moodPettingWindowStart: timestamp("mood_petting_window_start"),
   moodPettingCount: integer("mood_petting_count").notNull().default(0),
   // Set whenever this pet (as the active pet) is defeated in a world battle
-  // or its player loses a PvP battle. While this is recent, mood is capped.
+  // or its player loses a PvP battle.
   lastBattleDefeatAt: timestamp("last_battle_defeat_at"),
+  // XP boost granted by the loyalty reward. xpBoostUntil is the expiry time.
+  xpBoostUntil: timestamp("xp_boost_until"),
+  xpBoostPct: integer("xp_boost_pct").notNull().default(0),
 });
 
 export const rewardBundles = pgTable("reward_bundles", {

@@ -1590,74 +1590,41 @@ export async function registerRoutes(
   });
 
   // ── Pet hunger / mood time-decay helper ────────────────────────────────────
-  // Hunger drains at HUNGER_DECAY_PER_MIN points per minute while the pet is
-  // placed in the pet house (inside or outside). When hunger hits 0, mood
-  // starts draining at MOOD_DECAY_PER_MIN. Both are clamped on each tick.
-  const HUNGER_DECAY_PER_MIN = 0.25;  // 0.25 hunger pt / minute while placed/active
-  // Mood drains while the pet is "hungry" (below 50% of its max hunger). Below
-  // that threshold mood drops at MOOD_STARVE_DECAY_PER_MIN. On top of that,
-  // pets that have not been fed OR petted in a while suffer a slow neglect
-  // drain regardless of hunger. Recent battle defeats also push mood down.
+  // Hunger drains at HUNGER_DECAY_PER_MIN regardless of placement.
+  // Max hunger is always 1000 for all pets — a full bar empties in 6 hours.
+  // Mood only drains when hunger falls below 50% (starvation). Battle defeats
+  // drop mood by a flat amount at the defeat site; there is no time-based cap.
+  const HUNGER_DECAY_PER_MIN = 1000 / 360; // 1000 pts over 360 min (6 hours)
   const MOOD_STARVE_DECAY_PER_MIN = 0.5;
-  const MOOD_NEGLECT_DECAY_PER_MIN = 0.25;
-  const NEGLECT_GRACE_MINUTES = 30;            // no neglect drain in first 30 min
-  const HUNGRY_THRESHOLD_PCT = 0.5;            // <50% hunger = "hungry"
-  const BATTLE_DEFEAT_RECENT_MINUTES = 60;     // recent defeat = last 60 min
-  const BATTLE_DEFEAT_MOOD_CAP = 60;           // mood can't recover above 60
-  async function applyPetTimeDecay(inv: any, isPlaced: boolean): Promise<{ petHunger: number; petMood: number }> {
-    const maxHunger = Math.max(1, inv.petHealth ?? 1000);
+  const HUNGRY_THRESHOLD_PCT = 0.5;         // <50% hunger = "hungry"
+  async function applyPetTimeDecay(inv: any): Promise<{ petHunger: number; petMood: number }> {
+    const maxHunger = 1000;
     // First-touch initialization: -1 means "uninitialized" — start full.
     let hunger = inv.petHunger == null || inv.petHunger < 0 ? maxHunger : inv.petHunger;
     let mood = inv.petMood == null ? 100 : inv.petMood;
     const now = Date.now();
     const last = inv.petStatsUpdatedAt ? new Date(inv.petStatsUpdatedAt).getTime() : now;
     const minutes = Math.max(0, (now - last) / 60000);
-    if (isPlaced && minutes > 0) {
+    if (minutes > 0) {
       const newHunger = Math.max(0, hunger - HUNGER_DECAY_PER_MIN * minutes);
       // Starvation drain: applies only for the portion of the elapsed
-      // interval the pet was actually below the 50% hunger threshold. We
-      // figure out when (if ever) hunger crossed the threshold and only
-      // charge mood for the time spent below it.
+      // interval the pet was actually below the 50% hunger threshold.
       const startHungerPct = hunger / maxHunger;
       const endHungerPct = newHunger / maxHunger;
       let starveMinutes = 0;
       if (endHungerPct < HUNGRY_THRESHOLD_PCT) {
         if (startHungerPct < HUNGRY_THRESHOLD_PCT) {
-          // Already hungry the whole interval.
           starveMinutes = minutes;
         } else if (HUNGER_DECAY_PER_MIN > 0) {
-          // Crossed below threshold during this interval — find when.
           const hungerAtThreshold = HUNGRY_THRESHOLD_PCT * maxHunger;
           const minutesToThreshold = (hunger - hungerAtThreshold) / HUNGER_DECAY_PER_MIN;
           starveMinutes = Math.max(0, minutes - minutesToThreshold);
         }
       }
       const starveDrain = MOOD_STARVE_DECAY_PER_MIN * starveMinutes;
-      // Neglect drain: time since the pet was last fed OR petted (or
-      // acquired). Adds a slow drain even for well-fed pets that aren't
-      // interacted with.
-      const careRefMs = Math.max(
-        inv.lastFedAt ? new Date(inv.lastFedAt).getTime() : 0,
-        inv.lastPettedAt ? new Date(inv.lastPettedAt).getTime() : 0,
-        inv.acquiredAt ? new Date(inv.acquiredAt).getTime() : 0,
-      );
-      const careGapMin = careRefMs ? Math.max(0, (now - careRefMs) / 60000) : 0;
-      const neglectActiveMin = Math.max(0, Math.min(minutes, careGapMin - NEGLECT_GRACE_MINUTES));
-      const neglectDrain = neglectActiveMin * MOOD_NEGLECT_DECAY_PER_MIN;
-      let newMood = Math.max(0, mood - starveDrain - neglectDrain);
-      // Cap mood while the pet is still smarting from a recent battle defeat.
-      if (inv.lastBattleDefeatAt) {
-        const sinceDefeatMin = (now - new Date(inv.lastBattleDefeatAt).getTime()) / 60000;
-        if (sinceDefeatMin < BATTLE_DEFEAT_RECENT_MINUTES) {
-          newMood = Math.min(newMood, BATTLE_DEFEAT_MOOD_CAP);
-        }
-      }
+      const newMood = Math.max(0, mood - starveDrain);
       hunger = Math.round(newHunger);
       mood = Math.round(newMood);
-    } else if (!isPlaced && (inv.petHunger == null || inv.petHunger < 0)) {
-      // Not placed and never initialized — just persist a sane starting value
-      // so the bar shows full immediately.
-      hunger = maxHunger;
     }
     // Only persist when something actually changed. The previous version
     // wrote a row for every placed pet on every /api/inventory fetch (because
@@ -1694,16 +1661,11 @@ export async function registerRoutes(
         }
       }));
 
-      // Apply hunger/mood time decay for every hatched pet. Pets that are
-      // placed in the pet house OR set as the user's active pet lose hunger
-      // over time; pets sitting idle in inventory are static.
-      const placedPositions = await storage.getPetHousePositions(user.id);
-      const placedSet = new Set(placedPositions.map((p) => p.inventoryId));
-      const activePetId = user.activePetId ?? null;
+      // Apply hunger/mood time decay for every hatched pet.
+      // Decay runs for all hatched pets regardless of placement status.
       await Promise.all(filteredRows.map(async ({ inventory: inv, shopItem }) => {
         if (shopItem?.type === "pet" && inv.isHatched) {
-          const isActive = activePetId !== null && inv.id === activePetId;
-          await applyPetTimeDecay(inv, placedSet.has(inv.id) || isActive);
+          await applyPetTimeDecay(inv);
         }
       }));
 
@@ -2549,7 +2511,7 @@ export async function registerRoutes(
       // hunger meter by the same amount, capped at the pet's HP. Mood gets a
       // small immediate bump too, since the pet is happy after eating.
       const feedPoints = itemShopItem.statBoostAmount || 5;
-      const maxHunger = Math.max(1, petInv.petHealth ?? 1000);
+      const maxHunger = 1000;
       const currentHunger = petInv.petHunger == null || petInv.petHunger < 0 ? maxHunger : petInv.petHunger;
       const newHunger = Math.min(maxHunger, currentHunger + feedPoints);
       // Mood gain on feed is small overall, and even smaller when the pet was
@@ -2656,35 +2618,28 @@ export async function registerRoutes(
       const coinRewardMap: Record<number, number> = { 1: 1000, 2: 1000, 3: 1500, 4: 2500, 5: 3500 };
       const coinsToAward = coinRewardMap[starRarity] ?? 1000;
 
-      // Bonus levels added to all hatched pets (0 for 1-2 star)
-      const levelBonusMap: Record<number, number> = { 1: 0, 2: 0, 3: 1, 4: 3, 5: 5 };
-      const levelsToAdd = levelBonusMap[starRarity] ?? 0;
+      // XP boost: 1-3 stars → 10%, 4-5 stars → 20%, lasts 1 hour
+      const xpBoostPct = starRarity >= 4 ? 20 : 10;
+      const xpBoostUntil = new Date(Date.now() + 60 * 60 * 1000);
 
       // Award coins to the user
       const updatedUser = await storage.addCoins(user.id, coinsToAward);
 
-      // Level up all of this user's hatched pets (capped at 100)
-      if (levelsToAdd > 0) {
-        await db
-          .update(userInventory)
-          .set({ petLevel: sql`LEAST(100, ${userInventory.petLevel} + ${levelsToAdd})` })
-          .where(and(eq(userInventory.userId, user.id), eq(userInventory.isHatched, true)));
-      }
-
-      // Fill hunger + mood and reset loyalty to 0
-      const maxHunger = petInv.petHealth ?? 1000;
+      // Fill hunger + mood, apply XP boost, and reset loyalty to 0
       const updatedPet = await storage.updateInventoryItem(petInv.id, {
         petLoyalty: 0,
-        petHunger: maxHunger,
+        petHunger: 1000,
         petMood: 100,
         petStatsUpdatedAt: new Date(),
         lastFedAt: new Date(),
+        xpBoostPct,
+        xpBoostUntil,
       } as any);
 
       return res.json({
         pet: updatedPet,
         coinsAwarded: coinsToAward,
-        levelsAdded: levelsToAdd,
+        xpBoostPct,
         userCoins: updatedUser.coins,
       });
     } catch (err) {
@@ -2702,7 +2657,7 @@ export async function registerRoutes(
       if (!petInv || petInv.userId !== user.id) {
         return res.status(404).json({ message: "Pet not found" });
       }
-      const newMood = Math.max(0, (petInv.petMood ?? 100) - 10);
+      const newMood = Math.max(0, (petInv.petMood ?? 100) - 3);
       const updated = await storage.updateInventoryItem(petInv.id, {
         petMood: newMood,
         lastBattleDefeatAt: new Date(),
@@ -5407,10 +5362,15 @@ export async function registerRoutes(
       const bossHpMult = enemy.isBoss ? 4.0 : 1.0;
       const startingHp = Math.max(200, Math.floor(petHp * 2 * bossHpMult));
       const lvlPointsEarned = Math.max(1, Math.floor(startingHp * 0.05));
+      // Apply XP boost if the active pet has one from a loyalty reward
+      const xpNow = Date.now();
+      const activeBoostOn = activePet.xpBoostUntil && new Date(activePet.xpBoostUntil).getTime() > xpNow;
+      const activePetXpMult = activeBoostOn ? (1 + ((activePet.xpBoostPct || 0) / 100)) : 1;
+      const boostedPoints = Math.round(lvlPointsEarned * activePetXpMult);
 
       const prevLevel = activePet.petLevel || 1;
       const prevLevelPoints = activePet.petLevelPoints || 0;
-      let totalPoints = prevLevelPoints + lvlPointsEarned;
+      let totalPoints = prevLevelPoints + boostedPoints;
       let newLevel = activePet.petLevel;
       while (newLevel < 100) {
         const needed = Math.floor(100 + newLevel * 30 + newLevel * newLevel * 5);
@@ -5448,7 +5408,9 @@ export async function registerRoutes(
           if (!extraPet) continue;
           const ePrevLevel = extraPet.petLevel || 1;
           const ePrevLevelPoints = extraPet.petLevelPoints || 0;
-          let eTotalPoints = ePrevLevelPoints + lvlPointsEarned;
+          const extraBoostOn = extraPet.xpBoostUntil && new Date(extraPet.xpBoostUntil).getTime() > xpNow;
+          const extraXpMult = extraBoostOn ? (1 + ((extraPet.xpBoostPct || 0) / 100)) : 1;
+          let eTotalPoints = ePrevLevelPoints + Math.round(lvlPointsEarned * extraXpMult);
           let eNewLevel = ePrevLevel;
           while (eNewLevel < 100) {
             const needed = Math.floor(100 + eNewLevel * 30 + eNewLevel * eNewLevel * 5);
@@ -6846,7 +6808,7 @@ export async function registerRoutes(
           if (activeId) {
             const activePet = await storage.getInventoryItemById(activeId);
             if (activePet && activePet.userId === user.id) {
-              const newMood = Math.max(0, (activePet.petMood ?? 100) - 12);
+              const newMood = Math.max(0, (activePet.petMood ?? 100) - 3);
               await storage.updateInventoryItem(activeId, {
                 petMood: newMood,
                 lastBattleDefeatAt: new Date(),

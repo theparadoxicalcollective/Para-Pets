@@ -410,6 +410,10 @@ app.use((req, res, next) => {
     () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS accessory_extra_slots INTEGER NOT NULL DEFAULT 0`));
   await runMigration("shop_items.pets_healed",
     () => db.execute(sql`ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS pets_healed INTEGER`));
+  await runMigration("user_inventory.xp_boost_until",
+    () => db.execute(sql`ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS xp_boost_until TIMESTAMP`));
+  await runMigration("user_inventory.xp_boost_pct",
+    () => db.execute(sql`ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS xp_boost_pct INTEGER NOT NULL DEFAULT 0`));
   // One-time reset so the next test from any user immediately demonstrates the
   // new per-pet first-pet-of-the-day +10 coin reward.
   await runOnce("reset_pet_petting_counters_2026_04_per_pet",
