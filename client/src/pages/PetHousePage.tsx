@@ -1840,11 +1840,15 @@ function PetStatusBars({
   hungerMax,
   hungerPct,
   moodVal,
+  xpBoostActive = false,
+  xpBoostPct = 0,
 }: {
   hungerVal: number;
   hungerMax: number;
   hungerPct: number;
   moodVal: number;
+  xpBoostActive?: boolean;
+  xpBoostPct?: number;
 }) {
   const hungerColor =
     hungerPct > 66 ? "linear-gradient(90deg, #6dd36b 0%, #b9f0a0 100%)"
@@ -1859,14 +1863,18 @@ function PetStatusBars({
   else if (moodVal <= 50) { moodFace = moodFaceSad; moodColor = "linear-gradient(90deg, #6a6790 0%, #b8b3d8 100%)"; moodLabel = "Sad"; }
   else if (moodVal <= 75) { moodFace = moodFaceContent; moodColor = "linear-gradient(90deg, #6db3a6 0%, #a8d8ce 100%)"; moodLabel = "Content"; }
 
+  const boostGlow = xpBoostActive
+    ? "inset 0 1px 3px rgba(0,0,0,0.6), 0 0 8px rgba(250,200,60,0.45), 0 1px 4px rgba(0,0,0,0.4)"
+    : "inset 0 1px 3px rgba(0,0,0,0.6), 0 1px 4px rgba(0,0,0,0.4)";
   const barWrap: React.CSSProperties = {
     width: 240,
     height: 14,
     borderRadius: 999,
     background: "rgba(10,18,8,0.75)",
-    border: "1px solid rgba(180,255,160,0.35)",
-    boxShadow: "inset 0 1px 3px rgba(0,0,0,0.6), 0 1px 4px rgba(0,0,0,0.4)",
+    border: xpBoostActive ? "1px solid rgba(250,200,60,0.45)" : "1px solid rgba(180,255,160,0.35)",
+    boxShadow: boostGlow,
     overflow: "hidden",
+    transition: "border 0.5s ease, box-shadow 0.5s ease",
   };
   const labelStyle: React.CSSProperties = {
     fontFamily: "Lora, serif",
@@ -1939,9 +1947,7 @@ function PetStatusBars({
         </div>
         <span style={{ ...valStyle, textAlign: "left" }} data-testid="text-mood-value">{moodVal}</span>
 
-        {/* Mood face icon centered beneath the mood bar (column 1 spans the
-            full bar width — second column stays empty so the icon truly sits
-            under the bar, not under the value readout). */}
+        {/* Mood face icon centered beneath the mood bar */}
         <div style={{ gridColumn: "1 / 2", display: "flex", justifyContent: "center", marginTop: 2 }}>
           <img
             src={moodFace}
@@ -1951,6 +1957,45 @@ function PetStatusBars({
           />
         </div>
       </div>
+
+      {/* XP Boost active badge — shown below the bars when a loyalty boost is running */}
+      {xpBoostActive && xpBoostPct > 0 && (
+        <>
+          <style>{`
+            @keyframes xp-boost-shine {
+              0%, 100% { opacity: 0.85; box-shadow: 0 0 8px rgba(250,200,60,0.35), 0 0 18px rgba(250,200,60,0.15); }
+              50% { opacity: 1; box-shadow: 0 0 14px rgba(250,200,60,0.7), 0 0 28px rgba(250,200,60,0.3); }
+            }
+          `}</style>
+          <div
+            data-testid="xp-boost-badge"
+            style={{
+              marginTop: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "4px 12px",
+              borderRadius: 999,
+              background: "linear-gradient(90deg, rgba(40,28,4,0.92) 0%, rgba(60,42,6,0.88) 100%)",
+              border: "1px solid rgba(250,200,60,0.55)",
+              animation: "xp-boost-shine 2.2s ease-in-out infinite",
+            }}
+          >
+            <span style={{ fontSize: 12, lineHeight: 1 }}>⚡</span>
+            <span style={{
+              fontFamily: "Lora, serif",
+              fontSize: 9,
+              fontWeight: 800,
+              letterSpacing: "0.14em",
+              color: "#fde68a",
+              textShadow: "0 0 10px rgba(250,200,60,0.9), 0 1px 3px rgba(0,0,0,0.9)",
+            }}>
+              LOYALTY +{xpBoostPct}% XP
+            </span>
+            <span style={{ fontSize: 12, lineHeight: 1 }}>⚡</span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -2035,6 +2080,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const [floatTexts, setFloatTexts] = useState<{ id: number; x: number; y: number; text: string }[]>([]);
   const [sparkles, setSparkles] = useState<{ id: number; cx: number; cy: number; dx: number; dy: number; rot: number; size: number }[]>([]);
   const [hearts, setHearts] = useState<{ id: number; cx: number; cy: number; dx: number; size: number; delay: number }[]>([]);
+  const [boostActivated, setBoostActivated] = useState(false);
   const floatIdRef = useRef(0);
   const sparkIdRef = useRef(0);
   const heartIdRef = useRef(0);
@@ -2400,6 +2446,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         const id2 = ++floatIdRef.current;
         setFloatTexts((arr) => [...arr, { id: id2, x: cx, y: cy + 20, text: `+${data.xpBoostPct}% XP for 1 hr!` }]);
         setTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id2)), 2400);
+        setBoostActivated(true);
+        setTimeout(() => setBoostActivated(false), 3200);
       }
       if (box) {
         burstHearts(cx, cy + 30, 14);
@@ -2710,6 +2758,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         hungerMax={maxHunger}
         hungerPct={hungerPct}
         moodVal={moodVal}
+        xpBoostActive={!!(livePet as any).xpBoostUntil && new Date((livePet as any).xpBoostUntil).getTime() > Date.now()}
+        xpBoostPct={(livePet as any).xpBoostPct ?? 0}
       />
 
       {/* Vertical Loyalty bar — sits along the left edge of the page. Fills
@@ -2828,6 +2878,66 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           </button>
         )}
       </div>
+
+      {/* XP Boost activated celebration banner */}
+      {boostActivated && (
+        <>
+          <style>{`
+            @keyframes boost-pop-in {
+              0% { transform: translateX(-50%) scale(0.6); opacity: 0; }
+              55% { transform: translateX(-50%) scale(1.08); opacity: 1; }
+              100% { transform: translateX(-50%) scale(1); opacity: 1; }
+            }
+            @keyframes boost-pop-out {
+              0% { opacity: 1; transform: translateX(-50%) scale(1); }
+              100% { opacity: 0; transform: translateX(-50%) scale(0.85) translateY(-12px); }
+            }
+          `}</style>
+          <div
+            className="fixed pointer-events-none"
+            style={{
+              bottom: "38%",
+              left: "50%",
+              zIndex: 520,
+              animation: "boost-pop-in 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards",
+            }}
+          >
+            <div style={{
+              padding: "8px 20px",
+              borderRadius: 999,
+              background: "linear-gradient(135deg, rgba(50,36,4,0.97) 0%, rgba(70,52,6,0.95) 100%)",
+              border: "1.5px solid rgba(250,200,60,0.7)",
+              boxShadow: "0 0 24px rgba(250,200,60,0.5), 0 0 48px rgba(250,200,60,0.2), 0 4px 16px rgba(0,0,0,0.7)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 2,
+            }}>
+              <span style={{ fontSize: 18 }}>⚡✨⚡</span>
+              <span style={{
+                fontFamily: "Lora, serif",
+                fontSize: 11,
+                fontWeight: 900,
+                letterSpacing: "0.18em",
+                color: "#fde68a",
+                textShadow: "0 0 12px rgba(250,200,60,1), 0 1px 4px rgba(0,0,0,0.9)",
+                whiteSpace: "nowrap",
+              }}>
+                XP BOOST ACTIVE!
+              </span>
+              <span style={{
+                fontFamily: "Lora, serif",
+                fontSize: 9,
+                letterSpacing: "0.1em",
+                color: "rgba(253,230,138,0.7)",
+                whiteSpace: "nowrap",
+              }}>
+                +{(livePet as any).xpBoostPct ?? 0}% for 1 hour
+              </span>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Floating heart layer — appears when the pet is clicked or fed */}
       {hearts.map((h) => (
