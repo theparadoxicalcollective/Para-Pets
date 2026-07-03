@@ -2132,9 +2132,8 @@ export async function registerRoutes(
         return res.status(400).json({ message: "This item has no stat boost" });
       }
 
-      const rarity = petShopItem.rarity || 1;
-      // 1-2 star pets: 2 slots/level; 3-5 star pets: 3 slots/level
-      const maxItemsPerLevel = rarity <= 2 ? 2 : 3;
+      // slots per level = star rarity (1★→1, 2★→2, 3★→3, 4★→4, 5★→5)
+      const maxItemsPerLevel = Math.min(5, Math.max(1, petShopItem.starRarity || 1));
       const petLevel = petInv.petLevel || 1;
       const totalUsed = Math.max(0, petInv.itemsUsedThisLevel || 0);
       const totalAllowances = petLevel * maxItemsPerLevel;
