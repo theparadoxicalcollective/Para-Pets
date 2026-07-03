@@ -1182,15 +1182,20 @@ app.use((req, res, next) => {
 
   try {
     console.log('Initializing Stripe...');
-    const databaseUrl = process.env.DATABASE_URL;
+    const databaseUrl = process.env.RAILWAY_DATABASE_URL || process.env.DATABASE_URL;
     if (databaseUrl) {
       await runMigrations({ databaseUrl });
       const stripeSync = await getStripeSync();
-      const replitDomain = process.env.REPLIT_DOMAINS?.split(',')[0];
-      if (replitDomain) {
-        const webhookBaseUrl = `https://${replitDomain}`;
+      // Prefer an explicit PUBLIC_URL (set in Railway env vars to the Railway
+      // public domain), then fall back to the Replit dev domain, then assume
+      // the webhook secret is configured externally in the Stripe dashboard.
+      const publicDomain =
+        process.env.PUBLIC_URL ||
+        (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null) ||
+        (process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : null);
+      if (publicDomain) {
         const webhookResult = await stripeSync.findOrCreateManagedWebhook(
-          `${webhookBaseUrl}/api/stripe/webhook`
+          `${publicDomain}/api/stripe/webhook`
         );
         console.log('Stripe webhook configured:', webhookResult?.webhook?.url || 'ok');
       } else {

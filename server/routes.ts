@@ -1750,6 +1750,8 @@ export async function registerRoutes(
         poleSlowdown5: shopItem?.poleSlowdown5 ?? null,
         fishSwimZone: shopItem?.fishSwimZone ?? null,
         quantity: inv.quantity ?? 1,
+        xpBoostPct: (inv as any).xpBoostPct ?? null,
+        xpBoostUntil: (inv as any).xpBoostUntil ?? null,
       }));
       return res.json(itemsWithDetails);
     } catch (err) {
