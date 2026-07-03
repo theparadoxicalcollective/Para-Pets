@@ -15,7 +15,7 @@ import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
 import petInventoryIcon from "@assets/icon_pet_inventory.png";
 import feedButtonIcon from "@assets/generated_images/feed_button_icon.png";
-import feedingPageBg from "@assets/generated_images/feeding_page_bg.png";
+import feedingPageBg from "@assets/IMG_5734_1783098320823.jpeg";
 import careWreathImg from "@assets/Photoroom_20260611_74428_AM_1781181905848.png";
 import { QuillBadge } from "@/components/QuillBadge";
 import moodFaceHappy from "@assets/mood_face_happy.png";
