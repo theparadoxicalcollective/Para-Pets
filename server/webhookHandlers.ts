@@ -162,7 +162,9 @@ export class WebhookHandlers {
           // inventory so it appears immediately without visiting the gift inbox.
           const eggBonus = EGG_BONUS[amountUsd];
           if (eggBonus) {
-            await storage.addToInventory(userId, eggBonus.shopItemId);
+            const eggInv = await storage.addToInventory(userId, eggBonus.shopItemId);
+            // Start the hatch timer immediately, same as a normal shop purchase.
+            await storage.updateInventoryItem(eggInv.id, { hatchStartedAt: new Date() });
             console.log(`[Webhook] Added egg bonus (${eggBonus.itemName}) directly to inventory for user ${userId}`);
           }
         } catch (e) {

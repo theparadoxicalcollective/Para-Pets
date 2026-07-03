@@ -2994,7 +2994,9 @@ export async function registerRoutes(
         // separate from the monthly Contribution milestone rewards below.
         if (eggBonus) {
           try {
-            await storage.addToInventory(user.id, eggBonus.shopItemId);
+            const eggInv = await storage.addToInventory(user.id, eggBonus.shopItemId);
+            // Start the hatch timer immediately, same as a normal shop purchase.
+            await storage.updateInventoryItem(eggInv.id, { hatchStartedAt: new Date() });
             eggBonusGranted = true;
             console.log(`[Verify] Added egg bonus (${eggBonus.itemName}) directly to inventory for user ${user.id}`);
           } catch (e) {
