@@ -3653,7 +3653,15 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Find Recipe", errorCode: "RECIPE_LOCKED" });
       }
 
-      // 4. Award the result item to the player
+      // 4. Charge the brew fee
+      const BREW_COST = 100;
+      const brewer = await storage.getUser(userId);
+      if (!brewer || (brewer.coins ?? 0) < BREW_COST) {
+        return res.status(402).json({ message: "Not enough coins to brew (costs 100 coins)", errorCode: "INSUFFICIENT_COINS" });
+      }
+      await storage.addCoins(userId, -BREW_COST);
+
+      // 5. Award the result item to the player
       const existing = await db.execute(sql`
         SELECT id FROM user_inventory
         WHERE user_id = ${userId} AND shop_item_id = ${recipe.result_id}

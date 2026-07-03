@@ -592,6 +592,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/cauldron/contents"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      setCurrentUser(prev => ({ ...prev, coins: Math.max(0, (prev.coins ?? 0) - 100) }));
       setBrewResult(data.result);
     },
     onError: (err: any) => {
@@ -602,6 +604,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       } else if (msg.includes("Incorrect Recipe") || msg.includes("INCORRECT_RECIPE")) {
         setBrewError("incorrect");
         clearCauldronMutation.mutate();
+      } else if (msg.includes("INSUFFICIENT_COINS") || msg.includes("enough coins")) {
+        toast({ title: "Not enough coins", description: "Brewing costs 100 coins.", variant: "destructive" });
       } else {
         toast({ title: "Can't brew", description: msg || "Something went wrong", variant: "destructive" });
       }
@@ -5397,6 +5401,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           isClearing={clearCauldronMutation.isPending}
           onBrew={() => brewMutation.mutate()}
           isBrewing={brewMutation.isPending}
+          userCoins={currentUser.coins ?? 0}
           brewResult={brewResult}
           onClearBrewResult={() => setBrewResult(null)}
           brewError={brewError}
@@ -6010,6 +6015,7 @@ function CauldronPanel({
   onBrew, isBrewing, brewResult, onClearBrewResult,
   brewError, onClearBrewError,
   onUnlockRecipe, isUnlockingRecipe,
+  userCoins,
 }: {
   inventory: InventoryItem[];
   contents: Array<{ shopItemId: string; quantity: number; name: string; imageUrl: string | null }>;
@@ -6026,6 +6032,7 @@ function CauldronPanel({
   onClearBrewError: () => void;
   onUnlockRecipe: (inventoryId: string) => void;
   isUnlockingRecipe: boolean;
+  userCoins: number;
 }) {
   const recipeItems = useMemo(
     () => inventory.filter((i) => i.type === "recipe"),
@@ -6222,10 +6229,10 @@ function CauldronPanel({
             </p>
             <div className="flex items-center gap-3 mt-1">
               {isFull && (
-                <button data-testid="button-brew-cauldron" onClick={onBrew} disabled={isBrewing}
+                <button data-testid="button-brew-cauldron" onClick={onBrew} disabled={isBrewing || userCoins < 100}
                   className="font-fantasy text-sm tracking-wider px-5 py-2 rounded-full disabled:opacity-50 active:scale-95 transition-transform"
-                  style={{ background: "linear-gradient(135deg,rgba(94,234,212,.35) 0%,rgba(45,212,191,.22) 100%)", border: "1.5px solid rgba(94,234,212,.75)", color: "#5eead4", cursor: "pointer", boxShadow: "0 0 18px rgba(45,212,191,.4)", letterSpacing: "0.15em" }}>
-                  {isBrewing ? "Brewing…" : "✨ Brew!"}
+                  style={{ background: "linear-gradient(135deg,rgba(94,234,212,.35) 0%,rgba(45,212,191,.22) 100%)", border: "1.5px solid rgba(94,234,212,.75)", color: "#5eead4", cursor: userCoins < 100 ? "not-allowed" : "pointer", boxShadow: "0 0 18px rgba(45,212,191,.4)", letterSpacing: "0.15em" }}>
+                  {isBrewing ? "Brewing…" : <span>✨ Brew! <span style={{ fontSize: "0.75em", opacity: 0.8 }}>(-100 🪙)</span></span>}
                 </button>
               )}
               {totalInCauldron > 0 && (
