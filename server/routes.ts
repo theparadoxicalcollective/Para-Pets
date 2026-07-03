@@ -2986,29 +2986,20 @@ export async function registerRoutes(
         // verification overlay closes as fast as possible.
         grantCommunityPurchaseReward(user.id, amountUsd).catch(() => {});
         maybeAwardAcquisitionBadges(user.id, amountUsd).catch(() => {});
-        // Bonus pet egg for the limited $50 / $100 bundles — delivered as a
-        // GIFT (not dropped straight into inventory) so it always flows through
-        // the same claim path the webhook uses. The verify and webhook paths are
+        // Bonus pet egg for the limited $50 / $100 bundles — delivered directly
+        // to inventory so it appears immediately after purchase without needing
+        // the player to visit the gift inbox. The verify and webhook paths are
         // mutually exclusive via the coin_purchases session-id dedup above, so
-        // the egg gift is created exactly once per purchase.
+        // the egg is added exactly once per purchase.
         // NOTE: this is the per-purchase limited-bundle reward — entirely
         // separate from the monthly Contribution milestone rewards below.
         if (eggBonus) {
           try {
-            await storage.sendGift({
-              senderId: user.id,
-              receiverId: user.id,
-              coinAmount: 0,
-              itemType: "shop_item",
-              shopItemId: eggBonus.shopItemId,
-              itemName: eggBonus.itemName,
-              itemImageUrl: eggBonus.itemImageUrl,
-              itemQuantity: 1,
-              message: "Bonus gift for your purchase!",
-            });
+            await storage.addToInventory(user.id, eggBonus.shopItemId);
             eggBonusGranted = true;
+            console.log(`[Verify] Added egg bonus (${eggBonus.itemName}) directly to inventory for user ${user.id}`);
           } catch (e) {
-            console.error("Egg bonus gift error:", e);
+            console.error("Egg bonus inventory error:", e);
           }
         }
         // Track purchase progress and handle milestone rewards (fire-and-forget).

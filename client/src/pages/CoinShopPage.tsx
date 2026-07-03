@@ -282,7 +282,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           setSuccessCoins(isFinite(coins) ? coins : 0);
           if (data.eggBonus?.name) {
             setTimeout(() => {
-              toast({ title: `🥚 Bonus egg gifted!`, description: `${data.eggBonus.name} is waiting in your gift inbox — open it to claim your egg!` });
+              toast({ title: `🥚 Bonus egg added!`, description: `${data.eggBonus.name} has been added to your pet inventory!` });
             }, 1800);
           }
           try { playShopBell(); } catch {}

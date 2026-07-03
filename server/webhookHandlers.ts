@@ -158,21 +158,12 @@ export class WebhookHandlers {
             console.error('[Webhook] Founder tier error:', e);
           }
 
-          // Bonus pet egg for $50 / $100 bundles
+          // Bonus pet egg for $50 / $100 bundles — delivered directly to
+          // inventory so it appears immediately without visiting the gift inbox.
           const eggBonus = EGG_BONUS[amountUsd];
           if (eggBonus) {
-            await storage.sendGift({
-              senderId: userId,
-              receiverId: userId,
-              coinAmount: 0,
-              itemType: 'shop_item',
-              shopItemId: eggBonus.shopItemId,
-              itemName: eggBonus.itemName,
-              itemImageUrl: eggBonus.itemImageUrl,
-              itemQuantity: 1,
-              message: 'Bonus gift for your purchase!',
-            });
-            console.log(`[Webhook] Sent egg bonus (${eggBonus.itemName}) to user ${userId}`);
+            await storage.addToInventory(userId, eggBonus.shopItemId);
+            console.log(`[Webhook] Added egg bonus (${eggBonus.itemName}) directly to inventory for user ${userId}`);
           }
         } catch (e) {
           console.error('[Webhook] Progress/milestone/egg error:', e);
