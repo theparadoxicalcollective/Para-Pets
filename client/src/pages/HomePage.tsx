@@ -105,6 +105,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [hatchTimerDone, setHatchTimerDone] = useState(false);
   const [hatchedPetCache, setHatchedPetCache] = useState<{ hatchedImageUrl: string | null; imageUrl: string | null; petTemplateId: string | null; name: string } | null>(null);
   const [showActionMenu, setShowActionMenu] = useState(false);
+  // Tracks when the action menu was last opened so hotspot buttons can
+  // ignore ghost clicks that Android fires ~300ms after a touch lifts.
+  const menuOpenedAtRef = useRef<number>(0);
   const [showPetStats, setShowPetStats] = useState(false);
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("petStatsToggle", { detail: { open: showPetStats } }));
@@ -429,7 +432,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       petGestureStateRef.current = null;
       // Treat as a tap (open the action menu) only when the gesture didn't
       // turn into a circular pet AND the finger barely moved.
-      if (!wasPet && !movedFar) setShowActionMenu(true);
+      if (!wasPet && !movedFar) { menuOpenedAtRef.current = Date.now(); setShowActionMenu(true); }
     },
     onPointerCancel: () => { stopCircleEffects(); petGestureStateRef.current = null; },
   }), [homePettingRewardMutation, startCircleEffects, stopCircleEffects]);
@@ -1517,6 +1520,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                   key={key}
                   data-testid={testId}
                   onClick={(e) => {
+                    // Swallow ghost clicks on Android: the OS fires a synthetic
+                    // click ~300ms after touchend at the same screen coordinates.
+                    // If the menu JUST opened (< 400ms ago) this is almost
+                    // certainly that ghost click, not a deliberate tap.
+                    if (Date.now() - menuOpenedAtRef.current < 400) return;
                     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
                     burstRingSparkles(r.left + r.width / 2, r.top + r.height / 2, color, 16);
                     setTimeout(onActivate, 280);
