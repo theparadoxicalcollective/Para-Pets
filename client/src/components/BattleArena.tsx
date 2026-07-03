@@ -5,6 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 import { playHit, playBlock, playPlayerHurt, playDefeat, playBattleVictory, playPowerUp, playChime } from "@/lib/sounds";
 import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart, HelpCircle, Droplets } from "lucide-react";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
+import battlePauseBtn from "@assets/Photoroom_20260702_82333_PM_1783041830710.png";
+import battleCloseBtn from "@assets/Photoroom_20260702_83143_PM_1783042315810.png";
 import blockIconPng from "@assets/icon_battle_block.png";
 import warningRunePng from "@assets/icon_battle_warning.png";
 import rageFlamePng from "@assets/icon_battle_rage.png";
@@ -574,7 +576,21 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   // at the "all dead" moment and ask if they want to consume it. Null = no
   // prompt; a number = the slotIndex of the revive potion to use.
   const [revivePromptSlot, setRevivePromptSlot] = useState<number | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const isPausedRef = useRef(false);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem("battleTutorialSeen"));
+
+  // Pause the battle whenever the tutorial overlay is visible so the
+  // enemy doesn't chip away at pets while the player reads the tips.
+  useEffect(() => {
+    if (showTutorial) {
+      isPausedRef.current = true;
+      setIsPaused(true);
+    } else {
+      isPausedRef.current = false;
+      setIsPaused(false);
+    }
+  }, [showTutorial]);
 
   // ── Potion drag state ────────────────────────────────────────────────────
   // Tracks an in-progress potion drag so we can render a ghost icon at the
@@ -997,6 +1013,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
     const animate = () => {
       if (!battleActiveRef.current) return;
+      // While paused (tutorial open or player paused) keep the rAF alive
+      // but skip all battle logic so time-based attacks don't accumulate.
+      if (isPausedRef.current) {
+        animFrameRef.current = requestAnimationFrame(animate);
+        return;
+      }
       const now = Date.now();
 
       // ── Enemy movement (float or charge) ─────────────────────────────
@@ -1517,6 +1539,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       let ticks = 0;
       const timer = setInterval(() => {
         if (!battleActiveRef.current) { clearInterval(timer); setPoisonActive(false); return; }
+        if (isPausedRef.current) return;
         ticks++;
         applyDamageToEnemy(tickDmg, enemyPosRef.current.x, enemyPosRef.current.y);
         if (ticks >= totalTicks || enemyHpRef.current <= 0) {
@@ -1887,6 +1910,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     onBattleEnd();
     onClose();
   }, [onBattleEnd, onClose]);
+
+  const handlePauseToggle = useCallback(() => {
+    const next = !isPausedRef.current;
+    isPausedRef.current = next;
+    setIsPaused(next);
+  }, []);
 
   // ── Revive-all handler ────────────────────────────────────────────────────
   // Called when the player taps "Revive!" in the all-pets-dead prompt.
@@ -2289,11 +2318,20 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     <HelpCircle className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={handleReturnToWorld}
-                    className="p-1.5 bg-black/50 rounded-full"
-                    data-testid="button-flee-battle"
+                    onClick={handlePauseToggle}
+                    data-testid="button-battle-pause"
+                    className="active:scale-90 transition-transform"
+                    style={{ background: "none", border: "none", padding: 0 }}
                   >
-                    <X className="w-4 h-4 text-white" />
+                    <img src={battlePauseBtn} alt="Pause" style={{ width: 36, height: 36, objectFit: "contain" }} />
+                  </button>
+                  <button
+                    onClick={handleReturnToWorld}
+                    data-testid="button-flee-battle"
+                    className="active:scale-90 transition-transform"
+                    style={{ background: "none", border: "none", padding: 0 }}
+                  >
+                    <img src={battleCloseBtn} alt="Flee" style={{ width: 36, height: 36, objectFit: "contain" }} />
                   </button>
                 </div>
               </div>
@@ -3191,6 +3229,36 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Pause overlay ────────────────────────────────────────────── */}
+        {isPaused && !showTutorial && phase === "battle" && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center"
+            style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(6px)" }}>
+            <div className="flex flex-col items-center gap-6 rounded-2xl px-8 py-8 mx-5 w-full max-w-xs text-center"
+              style={{ background: "linear-gradient(160deg,#0e1a0e 0%,#081208 100%)", border: "1.5px solid #3a6b2a", boxShadow: "0 8px 40px rgba(0,0,0,0.8)" }}>
+              <p className="font-fantasy text-2xl tracking-widest font-bold text-green-300" style={{ textShadow: "0 0 16px rgba(74,222,128,0.6)" }}>
+                Paused
+              </p>
+              <button
+                data-testid="button-battle-resume"
+                onClick={handlePauseToggle}
+                className="active:scale-90 transition-transform"
+                style={{ background: "none", border: "none", padding: 0 }}
+              >
+                <img src={battlePauseBtn} alt="Resume" style={{ width: 72, height: 72, objectFit: "contain" }} />
+              </button>
+              <p className="text-green-400/70 text-xs font-fantasy tracking-wider">Tap to resume</p>
+              <button
+                data-testid="button-pause-flee"
+                onClick={handleReturnToWorld}
+                className="font-fantasy text-xs tracking-widest px-5 py-2 rounded-xl transition-all active:scale-95"
+                style={{ background: "rgba(180,40,40,0.15)", border: "1px solid rgba(220,60,60,0.4)", color: "#f87171" }}
+              >
+                Flee battle
+              </button>
             </div>
           </div>
         )}
