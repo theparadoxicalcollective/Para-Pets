@@ -8918,7 +8918,7 @@ export async function registerRoutes(
       const alreadyRow = await db.execute(sql`
         SELECT 1 FROM player_unlocked_recipes WHERE user_id = ${userId} AND recipe_id = ${recipe.id}
       `);
-      if (alreadyRow.rows.length) return res.status(409).json({ message: "Already unlocked" });
+      if (alreadyRow.rows.length) return res.status(409).json({ message: "Already unlocked", errorCode: "ALREADY_UNLOCKED" });
       // Unlock and consume scroll
       await db.execute(sql`
         INSERT INTO player_unlocked_recipes (user_id, recipe_id) VALUES (${userId}, ${recipe.id})

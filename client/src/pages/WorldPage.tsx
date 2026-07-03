@@ -647,6 +647,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     staleTime: 30 * 1000,
   });
 
+  const [alreadyUnlockedOpen, setAlreadyUnlockedOpen] = useState(false);
   const unlockRecipeMutation = useMutation({
     mutationFn: async (inventoryId: string) => {
       const res = await apiRequest("POST", "/api/recipes/unlock", { inventoryId });
@@ -658,7 +659,14 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       setHasNewUnlock(true);
       if (data?.recipe) setRecipeDetail(data.recipe as RecipeRowProp);
     },
-    onError: () => { toast({ title: "Couldn't unlock recipe", variant: "destructive" }); },
+    onError: (err: any) => {
+      const msg: string = err?.message || "";
+      if (msg.includes("Already unlocked") || msg.includes("ALREADY_UNLOCKED")) {
+        setAlreadyUnlockedOpen(true);
+      } else {
+        toast({ title: "Couldn't unlock recipe", variant: "destructive" });
+      }
+    },
   });
 
   const { data: allShopItems = [], refetch: refetchAllShopItems, isLoading: isAllShopItemsLoading } = useQuery<ShopItem[]>({
@@ -5409,6 +5417,37 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           onUnlockRecipe={(inventoryId) => unlockRecipeMutation.mutate(inventoryId)}
           isUnlockingRecipe={unlockRecipeMutation.isPending}
         />
+      )}
+
+      {/* "Recipe already recorded" popup */}
+      {alreadyUnlockedOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-auto" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0" onClick={() => setAlreadyUnlockedOpen(false)} />
+          <div
+            className="relative z-10 flex flex-col items-center gap-3 rounded-2xl px-7 py-6"
+            style={{
+              background: "linear-gradient(160deg, rgba(12,28,22,0.98) 0%, rgba(8,40,32,0.98) 100%)",
+              border: "1.5px solid rgba(94,234,212,0.35)",
+              boxShadow: "0 8px 40px rgba(0,0,0,0.7)",
+              minWidth: 240,
+            }}
+          >
+            <p className="font-fantasy text-base tracking-widest text-center" style={{ color: "#5eead4", letterSpacing: "0.1em" }}>
+              📜 Recipe already recorded
+            </p>
+            <p className="font-fantasy text-xs text-center" style={{ color: "#5eead488" }}>
+              You already know this recipe!
+            </p>
+            <button
+              data-testid="button-close-already-unlocked"
+              onClick={() => setAlreadyUnlockedOpen(false)}
+              className="mt-1 font-fantasy text-xs tracking-wider px-5 py-2 rounded-full active:scale-95 transition-transform"
+              style={{ background: "rgba(94,234,212,0.12)", border: "1.5px solid rgba(94,234,212,0.4)", color: "#5eead4", cursor: "pointer" }}
+            >
+              ✕ Close
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Recipe Book Modal — shown from the scene-level recipe book button */}
