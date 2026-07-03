@@ -514,6 +514,9 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   // The cauldron panel needs the inventory available too so players can see
   // which ingredients they own and drop them in.
   const [cauldronOpen, setCauldronOpen] = useState(false);
+  const cauldronZoneRef = useRef<HTMLDivElement | null>(null);
+  const [cauldronDragOver, setCauldronDragOver] = useState(false);
+  const [cauldronUnlockAnimating, setCauldronUnlockAnimating] = useState(false);
 
   // Hide the floating nav whenever a full-screen overlay is open so the nav
   // button doesn't float over the UI. Add any future mini-game state here.
@@ -646,6 +649,23 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     queryKey: ["/api/recipes/unlocked"],
     staleTime: 30 * 1000,
   });
+
+  const handleCauldronDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setCauldronDragOver(false);
+    const invId = e.dataTransfer.getData("text/plain");
+    if (!invId) return;
+    const dropped = (inventory as any[]).find((i) => i.inventoryId === invId);
+    if (!dropped) return;
+    if (dropped.type === "recipe") {
+      setCauldronUnlockAnimating(true);
+      setTimeout(() => setCauldronUnlockAnimating(false), 1400);
+      unlockRecipeMutation.mutate(invId);
+    } else {
+      addToCauldronMutation.mutate(invId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inventory, addToCauldronMutation]);
 
   const [alreadyUnlockedOpen, setAlreadyUnlockedOpen] = useState(false);
   const unlockRecipeMutation = useMutation({
@@ -4448,6 +4468,13 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                 size={cauldronSize}
                 onCommit={(layout) => cauldronLayoutMutation.mutate(layout)}
                 onClick={() => setCauldronOpen(true)}
+                isOpen={cauldronOpen}
+                dragOver={cauldronDragOver}
+                onDragOver={() => setCauldronDragOver(true)}
+                onDragLeave={() => setCauldronDragOver(false)}
+                onDrop={handleCauldronDrop}
+                zoneRef={cauldronZoneRef}
+                unlockAnimating={cauldronUnlockAnimating}
               />
             </>
           )}
@@ -5416,6 +5443,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           onClearBrewError={() => setBrewError(null)}
           onUnlockRecipe={(inventoryId) => unlockRecipeMutation.mutate(inventoryId)}
           isUnlockingRecipe={unlockRecipeMutation.isPending}
+          dropZoneRef={cauldronZoneRef}
         />
       )}
 
@@ -5432,9 +5460,10 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               minWidth: 240,
             }}
           >
-            <p className="font-fantasy text-base tracking-widest text-center" style={{ color: "#5eead4", letterSpacing: "0.1em" }}>
-              📜 Recipe already recorded
-            </p>
+            <div className="flex items-center justify-center gap-2">
+              <img src={recipeScrollIcon} alt="" className="w-7 h-7 object-contain" />
+              <p className="font-fantasy text-base tracking-widest text-center" style={{ color: "#5eead4", letterSpacing: "0.1em" }}>Recipe already recorded</p>
+            </div>
             <p className="font-fantasy text-xs text-center" style={{ color: "#5eead488" }}>
               You already know this recipe!
             </p>
@@ -5869,6 +5898,7 @@ function PondAdminModal({ locationId, accent, onClose }: { locationId: string; a
 // ─────────────────────────────────────────────────────────────────────────────
 function CauldronOverlay({
   isAdmin, x, y, size, onCommit, onClick,
+  isOpen, dragOver, onDragOver, onDragLeave, onDrop, zoneRef, unlockAnimating,
 }: {
   isAdmin: boolean;
   x: number;
@@ -5876,6 +5906,13 @@ function CauldronOverlay({
   size: number;
   onCommit: (layout: { x: number; y: number; size: number }) => void;
   onClick: () => void;
+  isOpen?: boolean;
+  dragOver?: boolean;
+  onDragOver?: () => void;
+  onDragLeave?: () => void;
+  onDrop?: (e: React.DragEvent) => void;
+  zoneRef?: React.RefObject<HTMLDivElement | null>;
+  unlockAnimating?: boolean;
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [draft, setDraft] = useState<{ x: number; y: number; size: number } | null>(null);
@@ -5944,18 +5981,19 @@ function CauldronOverlay({
 
   return (
     <div
-      ref={wrapRef}
+      ref={(node) => {
+        (wrapRef as any).current = node;
+        if (zoneRef) (zoneRef as any).current = node;
+      }}
       className="absolute"
       style={{
         left: `${cur.x}%`,
         bottom: `${cur.y}%`,
-        transform: "translateX(-50%)",
+        transform: `translateX(-50%)${isOpen ? " scale(1.2)" : ""}`,
+        transition: "transform 0.28s cubic-bezier(0.34,1.56,0.64,1)",
         width: `${cur.size}%`,
         maxWidth: 320,
-        // Must sit above the location view's `relative z-10` content layer
-        // (which spans the full screen with h-full and would otherwise eat
-        // every pointerdown — that's why admin drag/resize wasn't firing).
-        zIndex: 20,
+        zIndex: isOpen ? 25 : 20,
         cursor: isAdmin ? "move" : "pointer",
         touchAction: "none",
       }}
@@ -5964,12 +6002,13 @@ function CauldronOverlay({
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
       onClick={(e) => {
-        // Suppress click-after-drag for admins so a move gesture doesn't open
-        // the panel. Players just get the open behaviour.
         if (isAdmin && draft) return;
         e.stopPropagation();
         onClick();
       }}
+      onDragOver={isOpen ? (e) => { e.preventDefault(); onDragOver?.(); } : undefined}
+      onDragLeave={isOpen ? () => onDragLeave?.() : undefined}
+      onDrop={isOpen ? onDrop : undefined}
       data-testid="cauldron-mixing-tree"
     >
       {/* under-cauldron glow puddle */}
@@ -5983,8 +6022,13 @@ function CauldronOverlay({
           width: "92%",
           height: 28,
           borderRadius: "50%",
-          background: "radial-gradient(ellipse at center, rgba(45,212,191,0.45) 0%, rgba(20,83,75,0.22) 45%, transparent 75%)",
+          background: unlockAnimating
+            ? "radial-gradient(ellipse at center, rgba(250,200,60,0.6) 0%, rgba(20,83,75,0.22) 45%, transparent 75%)"
+            : dragOver
+            ? "radial-gradient(ellipse at center, rgba(94,234,212,0.65) 0%, rgba(20,83,75,0.22) 45%, transparent 75%)"
+            : "radial-gradient(ellipse at center, rgba(45,212,191,0.45) 0%, rgba(20,83,75,0.22) 45%, transparent 75%)",
           filter: "blur(7px)",
+          transition: "background 150ms ease",
         }}
       />
       <img
@@ -5993,7 +6037,12 @@ function CauldronOverlay({
         className="w-full h-auto block select-none pointer-events-none"
         draggable={false}
         style={{
-          filter: "drop-shadow(0 8px 14px rgba(0,0,0,0.65)) drop-shadow(0 0 12px rgba(45,138,120,0.45))",
+          filter: unlockAnimating
+            ? "drop-shadow(0 0 22px rgba(250,200,60,1)) brightness(1.4)"
+            : dragOver
+            ? "drop-shadow(0 0 24px rgba(94,234,212,1)) brightness(1.3)"
+            : "drop-shadow(0 8px 14px rgba(0,0,0,0.65)) drop-shadow(0 0 12px rgba(45,138,120,0.45))",
+          transition: "filter 200ms ease",
         }}
       />
       {isAdmin && (
@@ -6046,8 +6095,9 @@ interface RecipeRowProp {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CauldronPanel — centered modal for the Mixing Tree cauldron. Players drag
-// or tap recipe scrolls / ingredients onto the large cauldron image.
+// CauldronPanel — compact floating bar for the Mixing Tree cauldron. Players
+// drag recipe scrolls / ingredients onto the enlarged cauldron image in the
+// scene. No modal overlay — the world stays visible.
 // ─────────────────────────────────────────────────────────────────────────────
 function CauldronPanel({
   inventory, contents, onAdd, onClear, onClose, isAdding, isClearing,
@@ -6055,6 +6105,7 @@ function CauldronPanel({
   brewError, onClearBrewError,
   onUnlockRecipe, isUnlockingRecipe,
   userCoins,
+  dropZoneRef,
 }: {
   inventory: InventoryItem[];
   contents: Array<{ shopItemId: string; quantity: number; name: string; imageUrl: string | null }>;
@@ -6072,6 +6123,7 @@ function CauldronPanel({
   onUnlockRecipe: (inventoryId: string) => void;
   isUnlockingRecipe: boolean;
   userCoins: number;
+  dropZoneRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const recipeItems = useMemo(
     () => inventory.filter((i) => i.type === "recipe"),
@@ -6084,7 +6136,6 @@ function CauldronPanel({
   const [dragOver, setDragOver] = useState(false);
   const [unlockAnimating, setUnlockAnimating] = useState(false);
   const { toast } = useToast();
-  const cauldronZoneRef = useRef<HTMLDivElement>(null);
   const [touchGhost, setTouchGhost] = useState<{ inventoryId: string; label: string; imageUrl: string | null; x: number; y: number } | null>(null);
   const touchItemRef = useRef<{ inventoryId: string; itemType: string } | null>(null);
 
@@ -6110,17 +6161,6 @@ function CauldronPanel({
     }
   };
 
-  // ── HTML5 drag (desktop) ────────────────────────────────────────────────
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const invId = e.dataTransfer.getData("text/plain");
-    if (!invId) return;
-    const dropped = inventory.find((i) => i.inventoryId === invId);
-    if (!dropped) return;
-    dispatchToCauldron(invId, dropped.type);
-  };
-
   // ── Touch drag (mobile) ─────────────────────────────────────────────────
   const handleItemTouchStart = (e: React.TouchEvent, invId: string, itemType: string) => {
     const touch = e.touches[0];
@@ -6135,7 +6175,7 @@ function CauldronPanel({
     const touch = e.touches[0];
     setTouchGhost((prev) => prev ? { ...prev, x: touch.clientX, y: touch.clientY } : null);
     // Highlight cauldron zone when hovering over it
-    const zone = cauldronZoneRef.current;
+    const zone = dropZoneRef.current;
     if (zone) {
       const rect = zone.getBoundingClientRect();
       const over = touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom;
@@ -6150,7 +6190,7 @@ function CauldronPanel({
     setDragOver(false);
     if (!item) return;
     const touch = e.changedTouches[0];
-    const zone = cauldronZoneRef.current;
+    const zone = dropZoneRef.current;
     if (!zone) return;
     const rect = zone.getBoundingClientRect();
     const overCauldron = touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom;
@@ -6214,142 +6254,107 @@ function CauldronPanel({
         </div>
       )}
 
-      {/* Main Cauldron panel — bottom sheet */}
-      <div className="fixed inset-0 z-[60] flex items-end justify-center pointer-events-none" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-        <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={onClose} />
-        <div className="relative w-full rounded-t-2xl overflow-hidden pointer-events-auto flex flex-col"
-          style={{ background: "linear-gradient(160deg,rgba(10,26,22,.99) 0%,rgba(8,38,30,.99) 100%)", border: "1px solid rgba(94,234,212,.4)", borderBottom: "none", boxShadow: "0 -8px 40px rgba(0,0,0,.7),0 0 30px rgba(45,212,191,.15)", maxHeight: "calc(78*var(--vh))" }}
-        >
-          {/* Close */}
-          <button data-testid="button-close-cauldron" onClick={onClose}
-            className="absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center z-10"
-            style={{ background: "rgba(15,40,38,.9)", border: "1.5px solid rgba(94,234,212,.45)", color: "#5eead4", cursor: "pointer" }}>
-            <X className="w-4 h-4" />
-          </button>
+      {/* Compact floating items bar — no backdrop, world stays visible */}
+      <div className="fixed z-[60] bottom-0 left-0 right-0 pointer-events-none"
+        style={{ maxWidth: "768px", margin: "0 auto" }}>
+        <div className="pointer-events-auto"
+          style={{
+            background: "linear-gradient(to top, rgba(10,26,22,.98) 0%, rgba(8,38,30,.96) 100%)",
+            borderTop: "1.5px solid rgba(94,234,212,.35)",
+            boxShadow: "0 -6px 32px rgba(0,0,0,.65)",
+            paddingBottom: "max(env(safe-area-inset-bottom, 0px) + 10px, 12px)",
+          }}>
 
-          {/* Big cauldron — the drop target (desktop drag + touch drag) */}
-          <div className="flex flex-col items-center pt-3 pb-2 shrink-0"
-            ref={cauldronZoneRef}
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={handleDrop}
-            data-testid="cauldron-drop-zone"
-          >
-            <div className="relative">
-              {/* Glow puddle */}
-              <div className="pointer-events-none absolute" style={{ bottom: -6, left: "50%", transform: "translateX(-50%)", width: "70%", height: 14, borderRadius: "50%", background: unlockAnimating ? "radial-gradient(ellipse,rgba(250,200,60,.6) 0%,transparent 70%)" : dragOver ? "radial-gradient(ellipse,rgba(94,234,212,.5) 0%,transparent 70%)" : "radial-gradient(ellipse,rgba(45,212,191,.28) 0%,transparent 70%)", filter: "blur(6px)", transition: "background 150ms ease" }} />
-              <img src={mixingTreeCauldronImg} alt="Cauldron" className="object-contain pointer-events-none select-none"
-                style={{ width: 160, height: 160, filter: unlockAnimating ? "drop-shadow(0 0 22px rgba(250,200,60,1)) brightness(1.4)" : dragOver ? "drop-shadow(0 0 18px rgba(94,234,212,.85)) brightness(1.18)" : "drop-shadow(0 8px 18px rgba(0,0,0,.75)) drop-shadow(0 0 14px rgba(45,138,120,.4))", transition: "filter 200ms ease" }} />
-              {/* Ingredient count badge */}
-              {totalInCauldron > 0 && (
-                <div className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center" style={{ background: "rgba(45,212,191,.88)", border: "1px solid rgba(94,234,212,.7)" }}>
-                  <span className="font-fantasy text-[10px]" style={{ color: "#0a1e1a" }}>{totalInCauldron}</span>
-                </div>
-              )}
-              {unlockAnimating && <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(circle,rgba(250,200,60,.22) 0%,transparent 70%)", animation: "unlockGlow 1.4s ease-out forwards", borderRadius: 8 }} />}
-            </div>
-
-            {/* Items currently in cauldron */}
-            {contents.length > 0 && (
-              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap justify-center">
-                {contents.flatMap((c) => Array.from({ length: c.quantity }, (_, i) => (
-                  <div key={`${c.shopItemId}-${i}`} className="flex flex-col items-center gap-0.5">
-                    <div className="w-8 h-8 rounded-md overflow-hidden" style={{ background: "rgba(0,0,0,.4)", border: "1px solid rgba(94,234,212,.3)" }}>
-                      {c.imageUrl ? <img src={c.imageUrl} alt="" className="w-full h-full object-contain" /> : null}
+          {/* Row 1: cauldron status + brew/clear + close */}
+          <div className="flex items-center justify-between px-3 pt-2 pb-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              {contents.length === 0 ? (
+                <span className="font-fantasy text-[9px]" style={{ color: "#5eead444" }}>↑ Drop items on the cauldron above</span>
+              ) : (
+                <>
+                  {contents.flatMap((c) => Array.from({ length: c.quantity }, (_, i) => (
+                    <div key={`${c.shopItemId}-${i}`} title={c.name}
+                      className="w-7 h-7 rounded overflow-hidden shrink-0"
+                      style={{ background: "rgba(0,0,0,.5)", border: "1.5px solid rgba(94,234,212,.5)" }}>
+                      {c.imageUrl && <img src={c.imageUrl} alt="" className="w-full h-full object-contain" />}
                     </div>
-                    <p className="font-fantasy text-[8px] leading-tight text-center line-clamp-1" style={{ color: "#5eead4aa", maxWidth: 36 }}>{c.name}</p>
-                  </div>
-                )))}
-              </div>
-            )}
-
-            <p className="font-fantasy text-[10px] mt-1 tracking-wide text-center" style={{ color: dragOver ? "#5eead4" : "#5eead433" }}>
-              {dragOver ? "Release to add" : isFull ? "Ready to brew!" : "Drag an item here"}
-            </p>
-            <div className="flex items-center gap-3 mt-1">
+                  )))}
+                  {isFull && <span className="font-fantasy text-[9px] ml-1 shrink-0" style={{ color: "#5eead4" }}>Ready!</span>}
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0 ml-2">
               {isFull && (
                 <button data-testid="button-brew-cauldron" onClick={onBrew} disabled={isBrewing || userCoins < 100}
-                  className="font-fantasy text-sm tracking-wider px-5 py-2 rounded-full disabled:opacity-50 active:scale-95 transition-transform"
-                  style={{ background: "linear-gradient(135deg,rgba(94,234,212,.35) 0%,rgba(45,212,191,.22) 100%)", border: "1.5px solid rgba(94,234,212,.75)", color: "#5eead4", cursor: userCoins < 100 ? "not-allowed" : "pointer", boxShadow: "0 0 18px rgba(45,212,191,.4)", letterSpacing: "0.15em" }}>
-                  {isBrewing ? "Brewing…" : <span>✨ Brew! <span style={{ fontSize: "0.75em", opacity: 0.8 }}>(-100 🪙)</span></span>}
+                  className="font-fantasy text-[11px] tracking-wider px-3 py-1 rounded-full disabled:opacity-50 active:scale-95 transition-transform"
+                  style={{ background: "linear-gradient(135deg,rgba(94,234,212,.35) 0%,rgba(45,212,191,.22) 100%)", border: "1.5px solid rgba(94,234,212,.75)", color: "#5eead4", cursor: userCoins < 100 ? "not-allowed" : "pointer", boxShadow: "0 0 14px rgba(45,212,191,.4)", whiteSpace: "nowrap" }}>
+                  {isBrewing ? "Brewing…" : <span>✨ Brew <span style={{ fontSize: "0.75em", opacity: 0.75 }}>(-100 🪙)</span></span>}
                 </button>
               )}
               {totalInCauldron > 0 && (
                 <button data-testid="button-clear-cauldron" onClick={onClear} disabled={isClearing}
-                  className="font-fantasy text-[10px] tracking-wider disabled:opacity-50"
-                  style={{ background: "none", border: "none", color: "#fca5a5aa", cursor: "pointer" }}>
-                  Clear ({totalInCauldron}/{CAULDRON_CAPACITY})
+                  className="font-fantasy text-[9px] tracking-wider disabled:opacity-50"
+                  style={{ background: "none", border: "none", color: "#fca5a5aa", cursor: "pointer", whiteSpace: "nowrap" }}>
+                  Clear
                 </button>
               )}
+              <button data-testid="button-close-cauldron" onClick={onClose}
+                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: "rgba(15,40,38,.9)", border: "1.5px solid rgba(94,234,212,.4)", color: "#5eead4", cursor: "pointer" }}>
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
-          {/* Separator */}
-          <div className="mx-4 mb-2 shrink-0" style={{ height: 1, background: "rgba(94,234,212,.1)" }} />
+          {/* Divider */}
+          <div className="mx-3 mb-2" style={{ height: 1, background: "rgba(94,234,212,.1)" }} />
 
-          {/* Scrollable inventory */}
-          <div className="overflow-y-auto flex-1 px-4 pb-4">
-            {/* Recipe scrolls */}
-            {recipeItems.length > 0 && (
-              <>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <h4 className="font-fantasy text-[10px] tracking-wider" style={{ color: "#fde68aaa" }}>Recipe Scrolls</h4>
-                  <span className="font-fantasy text-[9px]" style={{ color: "#fde68a44" }}>drag onto cauldron to unlock</span>
+          {/* Row 2: horizontal scrollable items */}
+          <div className="flex gap-2 overflow-x-auto px-3 pb-1" style={{ scrollbarWidth: "none" }}>
+            {recipeItems.map((item) => (
+              <div key={item.inventoryId} data-testid={`button-recipe-scroll-${item.inventoryId}`}
+                draggable
+                onDragStart={(e) => { e.dataTransfer.setData("text/plain", item.inventoryId); }}
+                onTouchStart={(e) => handleItemTouchStart(e, item.inventoryId, "recipe")}
+                onTouchMove={handleItemTouchMove}
+                onTouchEnd={handleItemTouchEnd}
+                className="flex flex-col items-center gap-1 p-2 rounded-lg select-none shrink-0"
+                style={{ background: "rgba(250,200,60,.07)", border: `1px solid ${touchGhost?.inventoryId === item.inventoryId ? "rgba(250,200,60,.75)" : "rgba(250,200,60,.25)"}`, cursor: "grab", opacity: isUnlockingRecipe ? 0.5 : 1, touchAction: "none", minWidth: 62 }}>
+                <div className="w-10 h-10 rounded-md flex items-center justify-center overflow-hidden pointer-events-none"
+                  style={{ background: "rgba(0,0,0,.35)" }}>
+                  {item.imageUrl
+                    ? <img src={item.imageUrl} alt="" className="w-full h-full object-contain" />
+                    : <img src={recipeScrollIcon} alt="" className="w-8 h-8 object-contain opacity-50" />}
                 </div>
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  {recipeItems.map((item) => (
-                    <div key={item.inventoryId} data-testid={`button-recipe-scroll-${item.inventoryId}`}
-                      draggable
-                      onDragStart={(e) => { e.dataTransfer.setData("text/plain", item.inventoryId); }}
-                      onTouchStart={(e) => handleItemTouchStart(e, item.inventoryId, "recipe")}
-                      onTouchMove={handleItemTouchMove}
-                      onTouchEnd={handleItemTouchEnd}
-                      className="flex flex-col items-center gap-1 p-2 rounded-lg select-none"
-                      style={{ background: "rgba(250,200,60,.07)", border: `1px solid ${touchGhost?.inventoryId === item.inventoryId ? "rgba(250,200,60,.7)" : "rgba(250,200,60,.25)"}`, cursor: "grab", opacity: isUnlockingRecipe ? 0.5 : 1, touchAction: "none" }}>
-                      <div className="w-12 h-12 rounded-md flex items-center justify-center overflow-hidden pointer-events-none" style={{ background: "rgba(0,0,0,.35)" }}>
-                        {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-contain" /> : <img src={recipeScrollIcon} alt="" className="w-9 h-9 object-contain opacity-50" />}
-                      </div>
-                      <p className="font-fantasy text-[10px] text-center leading-tight line-clamp-2 pointer-events-none" style={{ color: "#fde68a" }}>{item.name}</p>
-                      {(item.quantity ?? 1) > 1 && <p className="font-fantasy text-[9px] pointer-events-none" style={{ color: "#fde68a77" }}>×{item.quantity}</p>}
-                    </div>
-                  ))}
+                <p className="font-fantasy text-[9px] text-center leading-tight pointer-events-none"
+                  style={{ color: "#fde68a", maxWidth: 62 }}>{item.name}</p>
+              </div>
+            ))}
+            {ingredients.map((ing) => (
+              <div key={ing.inventoryId} data-testid={`div-ingredient-${ing.inventoryId}`}
+                draggable={!isFull}
+                onDragStart={(e) => { e.dataTransfer.setData("text/plain", ing.inventoryId); }}
+                onTouchStart={(e) => { if (!isFull) handleItemTouchStart(e, ing.inventoryId, "ingredient"); }}
+                onTouchMove={handleItemTouchMove}
+                onTouchEnd={handleItemTouchEnd}
+                className="flex flex-col items-center gap-1 p-2 rounded-lg select-none shrink-0"
+                style={{ background: "rgba(94,234,212,.07)", border: `1px solid ${touchGhost?.inventoryId === ing.inventoryId ? "rgba(94,234,212,.75)" : "rgba(94,234,212,.2)"}`, cursor: isFull ? "not-allowed" : "grab", opacity: isFull ? 0.45 : 1, touchAction: "none", minWidth: 62 }}>
+                <div className="w-10 h-10 rounded-md flex items-center justify-center overflow-hidden pointer-events-none"
+                  style={{ background: "rgba(0,0,0,.3)" }}>
+                  {ing.imageUrl
+                    ? <img src={ing.imageUrl} alt="" className="w-full h-full object-contain" />
+                    : <span className="text-[10px]" style={{ color: "#5eead455" }}>?</span>}
                 </div>
-              </>
-            )}
-
-            {/* Ingredients */}
-            {ingredients.length > 0 && (
-              <>
-                <div className="flex items-center justify-between mb-1.5">
-                  <h4 className="font-fantasy text-[10px] tracking-wider" style={{ color: "#d1faf3aa" }}>Ingredients</h4>
-                  <span className="font-fantasy text-[9px]" style={{ color: isFull ? "#fca5a5" : "#5eead444" }}>
-                    {isFull ? "cauldron full · clear to brew" : "drag onto cauldron"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {ingredients.map((ing) => (
-                    <div key={ing.inventoryId} data-testid={`div-ingredient-${ing.inventoryId}`}
-                      draggable={!isFull}
-                      onDragStart={(e) => { e.dataTransfer.setData("text/plain", ing.inventoryId); }}
-                      onTouchStart={(e) => { if (!isFull) handleItemTouchStart(e, ing.inventoryId, "ingredient"); }}
-                      onTouchMove={handleItemTouchMove}
-                      onTouchEnd={handleItemTouchEnd}
-                      className="flex flex-col items-center gap-1 p-2 rounded-lg select-none"
-                      style={{ background: "rgba(94,234,212,.07)", border: `1px solid ${touchGhost?.inventoryId === ing.inventoryId ? "rgba(94,234,212,.7)" : "rgba(94,234,212,.2)"}`, cursor: isFull ? "not-allowed" : "grab", opacity: isFull ? 0.4 : 1, touchAction: "none" }}>
-                      <div className="w-12 h-12 rounded-md flex items-center justify-center overflow-hidden pointer-events-none" style={{ background: "rgba(0,0,0,.3)" }}>
-                        {ing.imageUrl ? <img src={ing.imageUrl} alt="" className="w-full h-full object-contain" /> : <span className="font-fantasy text-[10px]" style={{ color: "#5eead455" }}>?</span>}
-                      </div>
-                      <p className="font-fantasy text-[10px] text-center leading-tight line-clamp-2 pointer-events-none" style={{ color: "#d1faf3" }}>{ing.name}</p>
-                      {(ing.quantity ?? 1) > 1 && <p className="font-fantasy text-[9px] pointer-events-none" style={{ color: "#5eead4aa" }}>×{ing.quantity}</p>}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
+                <p className="font-fantasy text-[9px] text-center leading-tight pointer-events-none"
+                  style={{ color: "#d1faf3", maxWidth: 62 }}>{ing.name}</p>
+                {(ing.quantity ?? 1) > 1 && (
+                  <p className="font-fantasy text-[8px] pointer-events-none" style={{ color: "#5eead4aa" }}>×{ing.quantity}</p>
+                )}
+              </div>
+            ))}
             {recipeItems.length === 0 && ingredients.length === 0 && (
-              <p className="font-fantasy text-xs text-center py-4" style={{ color: "#5eead433" }}>
-                Your bag is empty. Visit the market to find ingredients and recipe scrolls.
+              <p className="font-fantasy text-[10px] py-3 px-1" style={{ color: "#5eead433" }}>
+                No items yet. Visit the market to find ingredients!
               </p>
             )}
           </div>
