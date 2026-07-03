@@ -869,10 +869,18 @@ export async function registerRoutes(
   });
 
   // ── Public: check maintenance mode ───────────────────────────────────────
+  // In-memory cache so every client poll doesn't hit Railway Postgres.
+  // Maintenance mode rarely changes, so 60s staleness is fine.
+  let _maintenanceCache: { value: boolean; at: number } | null = null;
   app.get("/api/maintenance-status", async (_req, res) => {
     try {
+      const now = Date.now();
+      if (_maintenanceCache && now - _maintenanceCache.at < 60_000) {
+        return res.json({ maintenance: _maintenanceCache.value });
+      }
       const val = await storage.getGameSetting("maintenance_mode");
-      return res.json({ maintenance: val === "true" });
+      _maintenanceCache = { value: val === "true", at: now };
+      return res.json({ maintenance: _maintenanceCache.value });
     } catch {
       return res.json({ maintenance: false });
     }
@@ -1634,7 +1642,12 @@ export async function registerRoutes(
     // passed AND values changed — small fractional minutes get rolled into
     // the next tick without a DB write.
     const changed = hunger !== inv.petHunger || mood !== inv.petMood;
-    if (changed) {
+    // Only persist to DB if at least 2 minutes have elapsed since the last
+    // write. Rapid successive inventory fetches (e.g. every 30s from the
+    // client) still get correct computed values, but don't each hammer
+    // Railway with a write round-trip. The pet's displayed stats are
+    // always accurate; only the persistence is rate-limited.
+    if (changed && minutes >= 2) {
       await storage.updateInventoryItem(inv.id, {
         petHunger: hunger,
         petMood: mood,
@@ -1643,6 +1656,10 @@ export async function registerRoutes(
       inv.petHunger = hunger;
       inv.petMood = mood;
       inv.petStatsUpdatedAt = new Date();
+    } else if (changed) {
+      // Return updated values without persisting yet.
+      inv.petHunger = hunger;
+      inv.petMood = mood;
     }
     return { petHunger: hunger, petMood: mood };
   }
