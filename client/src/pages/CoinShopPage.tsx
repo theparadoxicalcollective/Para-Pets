@@ -218,6 +218,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   // Show the blocking overlay immediately if we're returning from a paid Stripe session.
   const [verifying, setVerifying] = useState(() => !!stripeSessionId);
   const [successCoins, setSuccessCoins] = useState<number | null>(null);
+  const [successBaseCoins, setSuccessBaseCoins] = useState<number | null>(null);
   const [showCanceled, setShowCanceled] = useState(false);
 
   // Guard: runs once even in React StrictMode (double-invoke)
@@ -280,6 +281,9 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             ? data.coins
             : parseInt(String(data.coins ?? "0"), 10);
           setSuccessCoins(isFinite(coins) ? coins : 0);
+          if (data.baseCoins && data.baseCoins > 0 && data.baseCoins < coins) {
+            setSuccessBaseCoins(typeof data.baseCoins === "number" ? data.baseCoins : parseInt(String(data.baseCoins), 10));
+          }
           if (data.eggBonus?.name) {
             setTimeout(() => {
               toast({ title: `🥚 Bonus egg added!`, description: `${data.eggBonus.name} has been added to your pet inventory!` });
@@ -1342,6 +1346,25 @@ export default function CoinShopPage({ user }: CoinShopProps) {
               Coins
             </div>
 
+            {successBaseCoins !== null && successCoins !== null && successCoins > successBaseCoins && (
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  background: "rgba(74,222,128,0.1)",
+                  border: "1px solid rgba(74,222,128,0.3)",
+                  borderRadius: 6,
+                  padding: "3px 9px",
+                  marginBottom: "8px",
+                }}
+              >
+                <span className="font-fantasy" style={{ fontSize: "9px", color: "#4ade80" }}>
+                  ✦ Includes +{(successCoins - successBaseCoins).toLocaleString()} bonus coins (33% bonus)
+                </span>
+              </div>
+            )}
+
             <p
               className="font-fantasy tracking-wider"
               style={{ fontSize: "11px", color: "rgba(127,255,212,0.45)", marginBottom: "28px" }}
@@ -1351,7 +1374,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
             <button
               data-testid="button-dismiss-success"
-              onClick={() => { setSuccessCoins(null); navigate("/"); }}
+              onClick={() => { setSuccessCoins(null); setSuccessBaseCoins(null); navigate("/"); }}
               className="font-fantasy tracking-widest"
               style={{
                 width: "100%",

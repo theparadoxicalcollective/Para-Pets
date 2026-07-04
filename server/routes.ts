@@ -283,10 +283,9 @@ const COIN_PACKS = [
 // Roughly 1/10 of the purchaser's coin pack so bigger purchases bless the
 // realm more generously without trivializing smaller ones.
 function communityRewardCoinsForUsd(amountUsd: number): number {
-  const tiered: Record<number, number> = { 1: 0, 5: 0, 10: 50, 25: 50, 50: 50, 100: 50 };
-  if (amountUsd in tiered) return tiered[amountUsd];
-  // Fallback for any non-standard amount $10+: 50 coins; below $10: 0.
-  return amountUsd >= 10 ? 50 : 0;
+  const tiered: Record<number, number> = { 5: 50, 10: 100, 25: 500, 50: 1000, 100: 2500 };
+  if (tiered[amountUsd]) return tiered[amountUsd];
+  return Math.max(1, amountUsd * 10);
 }
 
 const stripePriceCache: Record<string, string> = {};
@@ -2955,6 +2954,7 @@ export async function registerRoutes(
         // addCoins returns the updated user — avoid an extra round-trip
         // Award 33% bonus on top of the base pack coins.
         updatedUser = await storage.addCoins(user.id, awardedCoins);
+        console.log(`[Verify] Credited ${awardedCoins} coins (${coins} base + 33% bonus = ${awardedCoins - coins} bonus) to user ${user.id} (session ${sessionId}, $${amountUsd})`);
         // Fire community reward + badge awards in the background so the player's
         // verification overlay closes as fast as possible.
         grantCommunityPurchaseReward(user.id, amountUsd).catch(() => {});
@@ -3045,6 +3045,7 @@ export async function registerRoutes(
       return res.json({
         credited: true,
         coins: awardedCoins,
+        baseCoins: coins,
         user: safeUser,
         eggBonus: eggBonusGranted && eggBonus
           ? { name: eggBonus.itemName, imageUrl: eggBonus.itemImageUrl }
