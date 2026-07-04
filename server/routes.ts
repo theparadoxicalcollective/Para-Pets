@@ -2979,7 +2979,9 @@ export async function registerRoutes(
             console.error("Egg bonus inventory error:", e);
           }
         }
-        // Track purchase progress and handle milestone rewards (fire-and-forget).
+        // Track purchase progress (fire-and-forget). Milestones are claimed
+        // manually by the player via /api/coins/claim-milestone so the bar
+        // never resets before they have a chance to collect their reward.
         const capturedUser = updatedUser;
         ;(async () => {
           try {
@@ -2987,33 +2989,7 @@ export async function registerRoutes(
             const cycleKey = `c-${cycle}`;
             const progressPts = amountUsd * 100;
             const newTotal = await storage.addPurchaseProgress(user.id, progressPts, cycleKey);
-            // Contribution reward bar — resets when all milestones are claimed.
-            const MILESTONES: number[] = [500, 2500, 5000, 10000];
-            const allRewards = await storage.getMilestoneRewards();
-            for (const ms of MILESTONES) {
-              if (newTotal >= ms) {
-                const claimed = await storage.claimMilestone(user.id, ms, cycleKey);
-                if (claimed) {
-                  const rewardCfg = allRewards.find((r: any) => Number(r.milestone_points) === ms);
-                  if (rewardCfg) {
-                    if (Number(rewardCfg.reward_coins) > 0) {
-                      storage.addCoins(user.id, Number(rewardCfg.reward_coins)).catch(() => {});
-                    }
-                    if (rewardCfg.reward_item_id) {
-                      // Add directly to inventory so player receives it instantly
-                      // without needing to visit the gift inbox.
-                      storage.addToInventory(user.id, rewardCfg.reward_item_id).catch((e) => {
-                        console.error('[milestone reward inventory]', e);
-                      });
-                    }
-                  }
-                  // When the final milestone is claimed, start a fresh cycle.
-                  if (ms === 10000) {
-                    storage.incrementContributionCycle(user.id).catch(() => {});
-                  }
-                }
-              }
-            }
+            console.log(`[Verify] Progress for user ${user.id}: +${progressPts} pts → total ${newTotal} (cycle ${cycle})`);
           } catch (e) { console.error('[milestone progress]', e); }
 
           // Founder Tier — based on LIFETIME (overall) coin-purchase spend, in USD.

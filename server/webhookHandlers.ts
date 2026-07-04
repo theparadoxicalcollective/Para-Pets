@@ -42,9 +42,6 @@ const EGG_BONUS: Record<number, { shopItemId: string; itemName: string; itemImag
   100: { shopItemId: "670e8ef5-b67d-4be4-b340-3e652327975f", itemName: "The Paradox Egg",     itemImageUrl: "/api/media/e5019d66-d5a1-4f56-a7e6-e4f9bae5baee" },
 };
 
-// Monthly contribution reward bar milestones (points). Founder tier is NOT
-// derived from these — it is based on lifetime USD spend (see FOUNDER_TIERS).
-const MILESTONES: number[] = [500, 2500, 5000, 10000];
 const FOUNDER_TIERS: [number, string][] = [
   [1000, 'legendary'],
   [500, 'gold'],
@@ -110,41 +107,8 @@ export class WebhookHandlers {
           const progressPts = amountUsd * 100;
           const newTotal = await storage.addPurchaseProgress(userId, progressPts, cycleKey);
           console.log(`[Webhook] Progress for user ${userId}: +${progressPts} pts → total ${newTotal} (cycle ${cycle})`);
-
-          const allRewards = await storage.getMilestoneRewards();
-          const user = await storage.getUser(userId);
-
-          for (const ms of MILESTONES) {
-            if (newTotal >= ms) {
-              const claimed = await storage.claimMilestone(userId, ms, cycleKey);
-              if (claimed) {
-                console.log(`[Webhook] Milestone ${ms} pts claimed for user ${userId} (cycle ${cycle})`);
-                const rewardCfg = allRewards.find((r: any) => Number(r.milestone_points) === ms);
-                if (rewardCfg) {
-                  if (Number(rewardCfg.reward_coins) > 0) {
-                    storage.addCoins(userId, Number(rewardCfg.reward_coins)).catch(() => {});
-                  }
-                  if (rewardCfg.reward_item_id) {
-                    storage.sendGift({
-                      senderId: userId,
-                      receiverId: userId,
-                      coinAmount: 0,
-                      itemType: 'shop_item',
-                      shopItemId: rewardCfg.reward_item_id,
-                      itemName: rewardCfg.reward_item_name || 'Milestone Reward',
-                      itemImageUrl: rewardCfg.reward_item_image_url || '',
-                      itemQuantity: 1,
-                      message: `🎉 Milestone reward: ${rewardCfg.reward_label || ms + ' pts milestone'}!`,
-                    }).catch(() => {});
-                  }
-                }
-                // When the final milestone is claimed, start a fresh cycle.
-                if (ms === 10000) {
-                  storage.incrementContributionCycle(userId).catch(() => {});
-                }
-              }
-            }
-          }
+          // Milestones are claimed manually by the player in the Coins page
+          // so the bar never resets before they can collect their reward.
 
           // Founder Tier — based on LIFETIME (overall) coin-purchase spend in USD,
           // separate from the monthly contribution reward bar above. upsert is
