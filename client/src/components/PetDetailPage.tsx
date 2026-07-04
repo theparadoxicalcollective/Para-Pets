@@ -131,15 +131,18 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
     staleTime: 0,
   });
 
-  const { data: equippedAccessories = [] } = useQuery<EquippedAccessory[]>({
+  const { data: accessoriesData } = useQuery({
     queryKey: ["/api/pet", pet.inventoryId, "accessories"],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/pet/${pet.inventoryId}/accessories`);
       const data = await res.json();
-      return data.equipped ?? data;
+      return { equipped: (data.equipped ?? data) as EquippedAccessory[], extraSlots: (data.extraSlots ?? 0) as number };
     },
     staleTime: 0,
   });
+  const equippedAccessories: EquippedAccessory[] = accessoriesData?.equipped ?? [];
+  const accessoryExtraSlots = accessoriesData?.extraSlots ?? 0;
+  const accessoryMaxSlots = 3 + accessoryExtraSlots;
 
   const equipMutation = useMutation({
     mutationFn: async (accessoryInventoryId: string) => {
@@ -661,19 +664,30 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
           {/* ── Accessories ─────────────────────────────────────── */}
           <div
             className="rounded-2xl p-4"
-            style={{ background: "rgba(4,18,8,0.55)", border: `1px solid rgba(100,180,80,0.22)` }}
+            style={{ background: "linear-gradient(160deg, rgba(4,22,10,0.72) 0%, rgba(2,14,6,0.82) 100%)", border: "1px solid rgba(74,160,60,0.28)", boxShadow: "0 2px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(212,175,55,0.08)" }}
             data-testid="section-accessories"
           >
             <div className="relative">
+              {/* Header row */}
               <div className="flex items-center justify-between mb-3">
-                <span className="font-fantasy text-[10px] tracking-widest" style={{ color: "rgba(120,200,130,0.65)" }}>ACCESSORIES</span>
-                <span
-                  className="font-fantasy text-[9px] tracking-wider px-2 py-0.5 rounded-full"
-                  style={{ background: rc.dim, color: rc.primary, border: `1px solid ${rc.primary}33` }}
-                >
-                  {equippedAccessories.length} / 3
-                </span>
+                <div className="flex items-center gap-2">
+                  <div style={{ width: 3, height: 14, borderRadius: 2, background: "linear-gradient(180deg, #d4af37 0%, #7a5c00 100%)" }} />
+                  <span className="font-fantasy text-[10px] tracking-widest" style={{ color: "#a8c87a", letterSpacing: "0.18em" }}>ACCESSORIES</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-fantasy text-[9px]" style={{ color: "rgba(212,175,55,0.55)" }}>{equippedAccessories.length}</span>
+                  <span className="font-fantasy text-[8px]" style={{ color: "rgba(120,180,90,0.35)" }}>/</span>
+                  <span className="font-fantasy text-[9px]" style={{ color: "rgba(212,175,55,0.55)" }}>{accessoryMaxSlots}</span>
+                  <span
+                    className="font-fantasy text-[7px] tracking-wide px-1.5 py-0.5 rounded-full ml-1"
+                    style={{ background: "rgba(212,175,55,0.1)", color: "rgba(212,175,55,0.7)", border: "1px solid rgba(212,175,55,0.2)" }}
+                  >
+                    {accessoryExtraSlots > 0 ? `+${accessoryExtraSlots} UNLOCKED` : "3 BASE"}
+                  </span>
+                </div>
               </div>
+
+              {/* Flash overlay */}
               {accessoryFlash && (
                 <div
                   className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center"
@@ -684,80 +698,100 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                     : <Wind style={{ width: 32, height: 32, color: "#94a3b8", filter: "drop-shadow(0 0 6px rgba(148,163,184,0.7))" }} />}
                 </div>
               )}
+
+              {/* Slot grid — 3 base slots always on top row, extras wrap below */}
               <div className="grid grid-cols-3 gap-2">
-                {[0, 1, 2].map((slot) => {
+                {Array.from({ length: accessoryMaxSlots }, (_, slot) => {
                   const acc = equippedAccessories.find((e) => e.slot === slot);
+                  const isUnlockedExtra = slot >= 3;
                   return acc ? (
                     readOnly ? (
                       <div
                         key={slot}
                         data-testid={`display-accessory-slot-${slot}`}
                         className="w-full rounded-xl p-2 flex flex-col items-center gap-1"
-                        style={{ background: "rgba(30,15,5,0.8)", border: `1px solid ${rc.primary}55`, minHeight: 82 }}
+                        style={{
+                          background: isUnlockedExtra ? "rgba(20,40,10,0.85)" : "rgba(10,28,8,0.85)",
+                          border: isUnlockedExtra ? "1px solid rgba(212,175,55,0.45)" : `1px solid rgba(74,160,60,0.45)`,
+                          boxShadow: isUnlockedExtra ? "0 0 8px rgba(212,175,55,0.1)" : "none",
+                          minHeight: 86,
+                        }}
                       >
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.35)" }}>
+                        {isUnlockedExtra && (
+                          <span className="font-fantasy text-[5px] tracking-widest self-end" style={{ color: "rgba(212,175,55,0.5)", marginBottom: -2 }}>★ BONUS</span>
+                        )}
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.4)" }}>
                           {acc.imageUrl ? <img src={acc.imageUrl} alt={acc.name} className="w-full h-full object-contain" /> : <img src={gemCrystalIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />}
                         </div>
-                        <span className="font-fantasy text-[7px] tracking-wider text-center truncate w-full" style={{ color: rc.primary }}>{acc.name}</span>
-                        <div className="flex flex-col items-center">
+                        <span className="font-fantasy text-[7px] tracking-wider text-center truncate w-full" style={{ color: isUnlockedExtra ? "#d4af37" : "#a8c87a" }}>{acc.name}</span>
+                        <div className="flex flex-col items-center gap-0.5">
                           {(acc.atkBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#f87171" }}>+{acc.atkBoost} ATK</span>}
                           {(acc.defBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#60a5fa" }}>+{acc.defBoost} DEF</span>}
                           {(acc.healthBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#4ade80" }}>+{acc.healthBoost} HP</span>}
                         </div>
                       </div>
                     ) : (
-                    <button
-                      key={slot}
-                      data-testid={`button-unequip-slot-${slot}`}
-                      onClick={() => unequipMutation.mutate(acc.accessoryInventoryId)}
-                      disabled={unequipMutation.isPending}
-                      className="w-full rounded-xl p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-60"
-                      style={{
-                        background: "rgba(30,15,5,0.8)",
-                        border: `1px solid ${rc.primary}55`,
-                        boxShadow: `0 0 10px ${rc.dim}`,
-                        cursor: "pointer",
-                        minHeight: 82,
-                      }}
-                    >
-                      <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.35)" }}>
-                        {acc.imageUrl ? <img src={acc.imageUrl} alt={acc.name} className="w-full h-full object-contain" /> : <img src={gemCrystalIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />}
-                      </div>
-                      <span className="font-fantasy text-[7px] tracking-wider text-center truncate w-full" style={{ color: rc.primary }}>{acc.name}</span>
-                      <div className="flex flex-col items-center">
-                        {(acc.atkBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#f87171" }}>+{acc.atkBoost} ATK</span>}
-                        {(acc.defBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#60a5fa" }}>+{acc.defBoost} DEF</span>}
-                        {(acc.healthBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#4ade80" }}>+{acc.healthBoost} HP</span>}
-                      </div>
-                      <span className="font-fantasy text-[5px] tracking-wider" style={{ color: "rgba(255,100,100,0.6)" }}>TAP TO REMOVE</span>
-                    </button>
+                      <button
+                        key={slot}
+                        data-testid={`button-unequip-slot-${slot}`}
+                        onClick={() => unequipMutation.mutate(acc.accessoryInventoryId)}
+                        disabled={unequipMutation.isPending}
+                        className="w-full rounded-xl p-2 flex flex-col items-center gap-1 transition-transform active:scale-95 disabled:opacity-60"
+                        style={{
+                          background: isUnlockedExtra ? "rgba(20,40,10,0.85)" : "rgba(10,28,8,0.85)",
+                          border: isUnlockedExtra ? "1px solid rgba(212,175,55,0.5)" : `1px solid rgba(74,160,60,0.5)`,
+                          boxShadow: isUnlockedExtra ? "0 0 10px rgba(212,175,55,0.12)" : `0 0 8px rgba(74,160,60,0.1)`,
+                          cursor: "pointer",
+                          minHeight: 86,
+                        }}
+                      >
+                        {isUnlockedExtra && (
+                          <span className="font-fantasy text-[5px] tracking-widest self-end" style={{ color: "rgba(212,175,55,0.5)", marginBottom: -2 }}>★ BONUS</span>
+                        )}
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: "rgba(0,0,0,0.4)" }}>
+                          {acc.imageUrl ? <img src={acc.imageUrl} alt={acc.name} className="w-full h-full object-contain" /> : <img src={gemCrystalIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />}
+                        </div>
+                        <span className="font-fantasy text-[7px] tracking-wider text-center truncate w-full" style={{ color: isUnlockedExtra ? "#d4af37" : "#a8c87a" }}>{acc.name}</span>
+                        <div className="flex flex-col items-center gap-0.5">
+                          {(acc.atkBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#f87171" }}>+{acc.atkBoost} ATK</span>}
+                          {(acc.defBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#60a5fa" }}>+{acc.defBoost} DEF</span>}
+                          {(acc.healthBoost ?? 0) > 0 && <span className="font-fantasy text-[6px]" style={{ color: "#4ade80" }}>+{acc.healthBoost} HP</span>}
+                        </div>
+                        <span className="font-fantasy text-[5px] tracking-wider" style={{ color: "rgba(255,100,100,0.55)" }}>TAP TO REMOVE</span>
+                      </button>
                     )
                   ) : (
                     readOnly ? (
                       <div
                         key={slot}
                         data-testid={`display-empty-slot-${slot}`}
-                        className="w-full rounded-xl flex flex-col items-center justify-center"
-                        style={{ background: "rgba(0,0,0,0.1)", border: `1px dashed ${rc.primary}18`, minHeight: 82 }}
+                        className="w-full rounded-xl flex flex-col items-center justify-center gap-1"
+                        style={{
+                          background: isUnlockedExtra ? "rgba(12,28,6,0.5)" : "rgba(4,16,4,0.4)",
+                          border: isUnlockedExtra ? "1px dashed rgba(212,175,55,0.2)" : "1px dashed rgba(74,160,60,0.18)",
+                          minHeight: 86,
+                        }}
                       >
-                        <span className="font-fantasy text-[7px] tracking-wider" style={{ color: `${rc.primary}22` }}>EMPTY</span>
+                        {isUnlockedExtra && <span className="font-fantasy text-[5px] tracking-widest" style={{ color: "rgba(212,175,55,0.3)" }}>★ BONUS</span>}
+                        <span className="font-fantasy text-[7px] tracking-wider" style={{ color: isUnlockedExtra ? "rgba(212,175,55,0.25)" : "rgba(120,200,90,0.2)" }}>EMPTY</span>
                       </div>
                     ) : (
-                    <button
-                      key={slot}
-                      data-testid={`button-equip-slot-${slot}`}
-                      onClick={() => setShowAccessoryPicker(true)}
-                      className="w-full rounded-xl flex flex-col items-center justify-center transition-all active:scale-95 hover:border-opacity-40"
-                      style={{
-                        background: "rgba(0,0,0,0.15)",
-                        border: `1px dashed ${rc.primary}22`,
-                        cursor: "pointer",
-                        minHeight: 82,
-                      }}
-                    >
-                      <span className="text-xl" style={{ color: `${rc.primary}33` }}>+</span>
-                      <span className="font-fantasy text-[7px] tracking-wider" style={{ color: `${rc.primary}33` }}>EMPTY</span>
-                    </button>
+                      <button
+                        key={slot}
+                        data-testid={`button-equip-slot-${slot}`}
+                        onClick={() => setShowAccessoryPicker(true)}
+                        className="w-full rounded-xl flex flex-col items-center justify-center gap-1 transition-all active:scale-95"
+                        style={{
+                          background: isUnlockedExtra ? "rgba(12,28,6,0.5)" : "rgba(4,16,4,0.4)",
+                          border: isUnlockedExtra ? "1px dashed rgba(212,175,55,0.25)" : "1px dashed rgba(74,160,60,0.2)",
+                          cursor: "pointer",
+                          minHeight: 86,
+                        }}
+                      >
+                        {isUnlockedExtra && <span className="font-fantasy text-[5px] tracking-widest" style={{ color: "rgba(212,175,55,0.4)" }}>★ BONUS</span>}
+                        <span className="text-lg font-light" style={{ color: isUnlockedExtra ? "rgba(212,175,55,0.35)" : "rgba(120,200,90,0.3)", lineHeight: 1 }}>+</span>
+                        <span className="font-fantasy text-[7px] tracking-wider" style={{ color: isUnlockedExtra ? "rgba(212,175,55,0.35)" : "rgba(120,200,90,0.3)" }}>EMPTY</span>
+                      </button>
                     )
                   );
                 })}
