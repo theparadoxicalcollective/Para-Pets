@@ -135,7 +135,8 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
     queryKey: ["/api/pet", pet.inventoryId, "accessories"],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/pet/${pet.inventoryId}/accessories`);
-      return res.json();
+      const data = await res.json();
+      return data.equipped ?? data;
     },
     staleTime: 0,
   });
