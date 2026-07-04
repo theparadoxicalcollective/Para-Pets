@@ -1771,7 +1771,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           petAtk={activePetForModal.petAtk ?? 50}
           petDef={activePetForModal.petDef ?? 50}
           petHealth={activePetForModal.petHealth ?? 1000}
-          itemsRemaining={Math.max(0, (activePetForModal.petLevel || 1) * ((activePetForModal.rarity || 1) <= 2 ? 2 : 3) - (activePetForModal.itemsUsedThisLevel || 0))}
+          itemsRemaining={(() => { const r = activePetForModal.rarity || 1; const slotsPerLvl = r <= 2 ? 1 : r === 3 ? 2 : 3; return Math.max(0, (activePetForModal.petLevel || 1) * slotsPerLvl - (activePetForModal.itemsUsedThisLevel || 0)); })()}
           items={statBoostItems}
           isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
           title="POWER UP"

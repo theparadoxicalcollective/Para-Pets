@@ -2113,9 +2113,9 @@ export async function registerRoutes(
         return res.status(400).json({ message: "This item has no stat boost" });
       }
 
-      // slots per level: rarity 1-2 → 2/level, rarity 3+ → 3/level (matches client formula)
+      // slots per level: 1★→1/lvl, 2★→1/lvl, 3★→2/lvl, 4-5★→3/lvl
       const rawRarity = petShopItem.rarity || 1;
-      const maxItemsPerLevel = rawRarity <= 2 ? 2 : 3;
+      const maxItemsPerLevel = rawRarity <= 2 ? 1 : rawRarity === 3 ? 2 : 3;
       const petLevel = petInv.petLevel || 1;
       const totalUsed = Math.max(0, petInv.itemsUsedThisLevel || 0);
       const totalAllowances = petLevel * maxItemsPerLevel;
