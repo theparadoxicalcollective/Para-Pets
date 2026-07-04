@@ -6,7 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { playChime } from "@/lib/sounds";
 import coinIconImg from "@assets/icon_coin.png";
-import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
+import giftIconImg from "@assets/generated_images/icon_gift_treasure.png";
 
 interface RewardItem {
   id: string;
