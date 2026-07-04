@@ -4,14 +4,15 @@ import { storage } from './storage';
 const VERIDIAN_WATCHER_ID = "veridian-watcher";
 
 function communityRewardCoinsForUsd(amountUsd: number): number {
-  const tiered: Record<number, number> = { 5: 50, 10: 100, 25: 500, 50: 1000, 100: 2500 };
-  if (tiered[amountUsd]) return tiered[amountUsd];
-  return Math.max(1, amountUsd * 10);
+  const tiered: Record<number, number> = { 1: 0, 5: 0, 10: 0, 25: 50, 50: 100, 100: 500 };
+  if (amountUsd in tiered) return tiered[amountUsd];
+  return 0;
 }
 
 async function grantCommunityRewardFromWebhook(purchaserId: string, amountUsd: number): Promise<void> {
   try {
     const rewardCoins = communityRewardCoinsForUsd(amountUsd);
+    if (rewardCoins <= 0) return;
     const allUsers = await storage.getAllUsers();
     const recipients = allUsers.filter(u => !u.isAdmin);
     if (recipients.length === 0) return;

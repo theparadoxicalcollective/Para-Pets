@@ -283,9 +283,9 @@ const COIN_PACKS = [
 // Roughly 1/10 of the purchaser's coin pack so bigger purchases bless the
 // realm more generously without trivializing smaller ones.
 function communityRewardCoinsForUsd(amountUsd: number): number {
-  const tiered: Record<number, number> = { 5: 50, 10: 100, 25: 500, 50: 1000, 100: 2500 };
-  if (tiered[amountUsd]) return tiered[amountUsd];
-  return Math.max(1, amountUsd * 10);
+  const tiered: Record<number, number> = { 1: 0, 5: 0, 10: 0, 25: 50, 50: 100, 100: 500 };
+  if (amountUsd in tiered) return tiered[amountUsd];
+  return 0;
 }
 
 const stripePriceCache: Record<string, string> = {};
@@ -671,6 +671,7 @@ async function postWatcherMessage(message: string): Promise<void> {
 async function grantCommunityPurchaseReward(purchaserId: string, amountUsd: number): Promise<void> {
   try {
     const rewardCoins = communityRewardCoinsForUsd(amountUsd);
+    if (rewardCoins <= 0) return;
     const allUsers = await storage.getAllUsers();
     // Admins are excluded from the Spirit of Veridia community gift
     const recipients = allUsers.filter(u => !u.isAdmin);
