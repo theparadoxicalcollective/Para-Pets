@@ -33,6 +33,9 @@ interface PetData {
   petLevelPoints: number;
   itemsUsedThisLevel: number;
   isHatched: boolean;
+  specialSkill: string | null;
+  skillType: string | null;
+  skillAffects: string | null;
 }
 
 interface BagItem {
@@ -659,6 +662,30 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
                 <span className="font-fantasy text-[8px] tracking-widest" style={{ color: "rgba(143,196,176,0.6)" }}>DEF</span>
               </div>
             </div>
+
+            {/* ── Special skill ─────────────────────────────────── */}
+            {pet.specialSkill && (() => {
+              const typeLabel: Record<string, string> = { heal: "Heal", poison: "Poison", damage: "Damage", stun: "Stun", revive: "Revive" };
+              const targetLabel: Record<string, string> = { self: "Pet", party: "Party", enemy: "Enemy", enemy_party: "Enemy Party" };
+              const tl = pet.skillType ? (typeLabel[pet.skillType] ?? pet.skillType) : null;
+              const al = pet.skillAffects ? (targetLabel[pet.skillAffects] ?? pet.skillAffects) : null;
+              return (
+                <div
+                  className="mt-2 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5"
+                  style={{ background: "linear-gradient(160deg, rgba(60,44,5,0.45) 0%, rgba(30,20,2,0.55) 100%)", border: "1px solid rgba(200,168,75,0.28)", boxShadow: "0 0 12px rgba(200,168,75,0.06)" }}
+                  data-testid="section-pet-skill"
+                >
+                  <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(200,168,75,0.5)" }}>✦ SKILL</span>
+                  <span className="font-fantasy text-xs font-semibold" style={{ color: "#f0c040" }}>{pet.specialSkill}</span>
+                  {tl && (
+                    <>
+                      <span style={{ color: "rgba(200,168,75,0.35)", fontSize: 10 }}>—</span>
+                      <span className="font-fantasy text-[11px]" style={{ color: "rgba(240,192,64,0.72)" }}>{tl}{al ? ` ${al}` : ""}</span>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* ── Accessories ─────────────────────────────────────── */}

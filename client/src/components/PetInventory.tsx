@@ -59,6 +59,8 @@ interface InventoryItem {
   specialType: string | null;
   specialAmount: number | null;
   specialSkill: string | null;
+  skillType: string | null;
+  skillAffects: string | null;
   healthRestored: number | null;
   hatchStartedAt: string | null;
   isHatched: boolean;
@@ -983,6 +985,19 @@ function PetView({
                       <span className="font-fantasy text-[#8ab4c8]" style={{ fontSize: 10, fontWeight: 700 }}>{pet.petDef}</span>
                     </div>
                   </div>
+                  {pet.specialSkill && (
+                    <div className="mt-1 px-1 text-center" data-testid={`text-pet-skill-${pet.inventoryId}`}>
+                      <span className="font-fantasy" style={{ fontSize: 8, color: "#c8a84b" }}>{pet.specialSkill}</span>
+                      {pet.skillType && (
+                        <span className="font-fantasy" style={{ fontSize: 8, color: "rgba(200,168,75,0.55)" }}>
+                          {" — "}
+                          {({ heal: "Heal", poison: "Poison", damage: "Damage", stun: "Stun", revive: "Revive" } as Record<string, string>)[pet.skillType] ?? pet.skillType}
+                          {" "}
+                          {({ self: "Pet", party: "Party", enemy: "Enemy", enemy_party: "Enemy Party" } as Record<string, string>)[pet.skillAffects ?? ""] ?? ""}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
 
