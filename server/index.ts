@@ -674,6 +674,8 @@ app.use((req, res, next) => {
     () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_player_login_events_user ON player_login_events (user_id, created_at DESC)`));
   await runMigration("gifts.expires_at",
     () => db.execute(sql`ALTER TABLE gifts ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ`));
+  await runMigration("user_inventory.accessory_extra_slots",
+    () => db.execute(sql`ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS accessory_extra_slots INTEGER NOT NULL DEFAULT 0`));
 
   try {
     await db.execute(sql`

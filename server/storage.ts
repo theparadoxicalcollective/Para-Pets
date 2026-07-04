@@ -1730,13 +1730,14 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async equipAccessory(petInventoryId: string, accessoryInventoryId: string): Promise<EquippedAccessoryDetail> {
+  async equipAccessory(petInventoryId: string, accessoryInventoryId: string, maxSlots = 3): Promise<EquippedAccessoryDetail> {
     const equipped = await this.getPetEquippedAccessories(petInventoryId);
-    if (equipped.length >= 3) throw new Error("All 3 accessory slots are full");
+    if (equipped.length >= maxSlots) throw new Error(`All ${maxSlots} accessory slots are full`);
     const alreadyEquipped = equipped.find(e => e.accessoryInventoryId === accessoryInventoryId);
     if (alreadyEquipped) throw new Error("Accessory already equipped");
     const usedSlots = equipped.map(e => e.slot);
-    const slot = [0, 1, 2].find(s => !usedSlots.includes(s)) ?? 0;
+    const allSlots = Array.from({ length: maxSlots }, (_, i) => i);
+    const slot = allSlots.find(s => !usedSlots.includes(s)) ?? 0;
     const [record] = await db.insert(petEquippedAccessories).values({ petInventoryId, accessoryInventoryId, slot }).returning();
     const [invRow] = await db.select().from(userInventory).where(eq(userInventory.id, accessoryInventoryId));
     const [shopRow] = invRow ? await db.select().from(shopItems).where(eq(shopItems.id, invRow.shopItemId)) : [null];

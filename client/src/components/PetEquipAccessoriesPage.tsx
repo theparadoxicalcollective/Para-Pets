@@ -40,7 +40,11 @@ interface BagItem {
 interface AuthUser {
   id: string;
   coins: number;
-  accessoryExtraSlots: number;
+}
+
+interface AccessoriesResponse {
+  equipped: EquippedAccessory[];
+  extraSlots: number;
 }
 
 interface Props {
@@ -77,10 +81,8 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
   const qc = useQueryClient();
 
   const { data: user } = useQuery<AuthUser>({ queryKey: ["/api/auth/me"], staleTime: 0 });
-  const extraSlots = user?.accessoryExtraSlots ?? 0;
-  const maxSlots = 3 + extraSlots;
 
-  const { data: equippedAccessories = [] } = useQuery<EquippedAccessory[]>({
+  const { data: accessoriesData } = useQuery<AccessoriesResponse>({
     queryKey: ["/api/pet", petInventoryId, "accessories"],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/pet/${petInventoryId}/accessories`);
@@ -88,6 +90,9 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
     },
     staleTime: 0,
   });
+  const equippedAccessories: EquippedAccessory[] = accessoriesData?.equipped ?? [];
+  const extraSlots = accessoriesData?.extraSlots ?? 0;
+  const maxSlots = 3 + extraSlots;
 
   const { data: allEquippedIds = [] } = useQuery<string[]>({
     queryKey: ["/api/user/equipped-accessory-ids"],
@@ -136,13 +141,14 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
 
   const unlockMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/user/unlock-accessory-slot", {});
+      const res = await apiRequest("POST", `/api/pet/${petInventoryId}/unlock-accessory-slot`, {});
       return res.json();
     },
     onSuccess: () => {
       setUnlockConfirm(false);
       qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      toast({ title: "Slot unlocked!", description: "A new accessory slot has been added." });
+      qc.invalidateQueries({ queryKey: ["/api/pet", petInventoryId, "accessories"] });
+      toast({ title: "Slot unlocked!", description: "A new accessory slot has been added for this pet." });
     },
     onError: (err: any) => {
       setUnlockConfirm(false);

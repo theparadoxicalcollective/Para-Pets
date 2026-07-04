@@ -159,6 +159,9 @@ export const userInventory = pgTable("user_inventory", {
   // XP boost granted by the loyalty reward. xpBoostUntil is the expiry time.
   xpBoostUntil: timestamp("xp_boost_until"),
   xpBoostPct: integer("xp_boost_pct").notNull().default(0),
+  // Extra accessory slots purchased for THIS pet specifically (max 2).
+  // Base slots = 3, so a pet can have up to 5 total.
+  accessoryExtraSlots: integer("accessory_extra_slots").notNull().default(0),
 });
 
 export const rewardBundles = pgTable("reward_bundles", {
