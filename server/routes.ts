@@ -3050,9 +3050,9 @@ export async function registerRoutes(
     }
   });
 
-  // Manual milestone claim — for the edge case where the player reaches a
-  // milestone but the auto-claim (which runs on purchase) hasn't fired yet.
-  // Grants coins/item directly to inventory, no gift inbox involved.
+  // Player-initiated milestone claim. Points accumulate on purchase; rewards
+  // are only delivered here when the player clicks "Claim Reward" in the UI.
+  // Grants coins/item directly to inventory (no gift inbox).
   app.post("/api/coins/claim-milestone", isAuthenticated, async (req, res) => {
     const user = req.user as any;
     const { milestone } = req.body;
@@ -3090,7 +3090,7 @@ export async function registerRoutes(
       }
       // If the final milestone was just claimed, start a fresh cycle so the bar resets.
       if (ms === 10000) {
-        storage.incrementContributionCycle(user.id).catch(() => {});
+        await storage.incrementContributionCycle(user.id);
       }
       return res.json({ success: true, coinsGranted, itemName, itemImageUrl });
     } catch (err: any) {
