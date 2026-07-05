@@ -680,6 +680,8 @@ app.use((req, res, next) => {
     () => db.execute(sql`ALTER TABLE badges ADD COLUMN IF NOT EXISTS rarity TEXT NOT NULL DEFAULT 'common'`));
   await runMigration("badges.obtain_description",
     () => db.execute(sql`ALTER TABLE badges ADD COLUMN IF NOT EXISTS obtain_description TEXT`));
+  await runMigration("badges.hidden",
+    () => db.execute(sql`ALTER TABLE badges ADD COLUMN IF NOT EXISTS hidden boolean NOT NULL DEFAULT false`));
 
   try {
     await db.execute(sql`

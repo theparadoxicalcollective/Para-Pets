@@ -28,6 +28,7 @@ interface AllBadge {
   badgePoints: number;
   rarity: string;
   obtainDescription: string | null;
+  hidden: boolean;
 }
 
 interface UserBadge {
@@ -199,12 +200,14 @@ function BadgePopup({ badge, userBadge, isAdmin, onClose, onClaimed, onSaved }: 
   const [editMode, setEditMode] = useState(false);
   const [editRarity, setEditRarity] = useState(badge.rarity);
   const [editDesc, setEditDesc] = useState(badge.obtainDescription ?? "");
+  const [editHidden, setEditHidden] = useState(badge.hidden);
 
   const saveMutation = useMutation({
     mutationFn: () =>
       apiRequest("PATCH", `/api/admin/badges/${badge.id}`, {
         rarity: editRarity,
         obtainDescription: editDesc.trim() || null,
+        hidden: editHidden,
       }),
     onSuccess: () => {
       toast({ title: "Badge updated" });
@@ -309,6 +312,17 @@ function BadgePopup({ badge, userBadge, isAdmin, onClose, onClaimed, onSaved }: 
                 style={{ background: "#1a1108", border: "1px solid rgba(240,192,64,0.4)", color: "#e8d5a0" }}
               />
             </div>
+            <button
+              onClick={() => setEditHidden(h => !h)}
+              className="w-full rounded-lg py-1.5 font-fantasy text-[10px] flex items-center justify-center gap-1.5 transition-all"
+              style={{
+                background: editHidden ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.05)",
+                border: `1px solid ${editHidden ? "rgba(239,68,68,0.6)" : "rgba(255,255,255,0.15)"}`,
+                color: editHidden ? "#f87171" : "#888",
+              }}
+            >
+              {editHidden ? "🔴 Hidden from players (click to show)" : "👁 Visible to all players (click to hide)"}
+            </button>
             <div className="flex gap-2">
               <button
                 onClick={() => setEditMode(false)}
@@ -508,6 +522,14 @@ export default function BadgePage({ user }: BadgePageProps) {
                                 style={{ background: "rgba(0,0,0,0.85)", border: "1px solid rgba(100,100,100,0.5)" }}
                               >
                                 <Lock className="w-2.5 h-2.5" style={{ color: "#666" }} />
+                              </div>
+                            )}
+                            {badge.hidden && currentUser.isAdmin && (
+                              <div
+                                className="absolute top-0 left-0 px-1 rounded-full font-fantasy text-[7px] tracking-wider"
+                                style={{ background: "rgba(239,68,68,0.85)", color: "#fff", lineHeight: "16px" }}
+                              >
+                                HIDDEN
                               </div>
                             )}
                           </div>

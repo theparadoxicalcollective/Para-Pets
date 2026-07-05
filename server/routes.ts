@@ -5610,10 +5610,14 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/badges", isAuthenticated, async (_req, res) => {
+  app.get("/api/badges", isAuthenticated, async (req, res) => {
     try {
+      const user = req.user as any;
       const all = await storage.getAllBadges();
-      return res.json(all);
+      if (user?.isAdmin) return res.json(all);
+      // For non-admins: filter out hidden badges unless they own it
+      const earnedIds = new Set((await storage.getUserBadges(user.id)).map((ub: any) => ub.badgeId));
+      return res.json(all.filter((b: any) => !b.hidden || earnedIds.has(b.id)));
     } catch (err) {
       return res.status(500).json({ message: "Failed to fetch badges" });
     }
@@ -5672,6 +5676,9 @@ export async function registerRoutes(
       }
       if (obtainDescription !== undefined) {
         updateData.obtainDescription = obtainDescription ? String(obtainDescription).trim() || null : null;
+      }
+      if (req.body.hidden !== undefined) {
+        (updateData as any).hidden = Boolean(req.body.hidden);
       }
       await storage.updateBadge((req.params.id as string), updateData);
       return res.json({ ok: true });

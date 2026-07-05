@@ -394,6 +394,7 @@ export const badges = pgTable("badges", {
   badgePoints: integer("badge_points").notNull().default(0),
   rarity: text("rarity").notNull().default("common"),
   obtainDescription: text("obtain_description"),
+  hidden: boolean("hidden").notNull().default(false),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
