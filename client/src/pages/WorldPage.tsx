@@ -224,6 +224,84 @@ const WORLD_FIXED_MAP_H: Record<string, number> = {
 // isMobilePhone kept as true to always enable pinch/scroll controls.
 const isMobilePhone = () => true;
 
+const MURK_CAVE_ID = "a1b2c3d4-0001-4000-8000-000000000001";
+
+const CAVE_TIERS = [
+  { tier: 1, name: "Surface Murk",    rec: "Lv. 1–15",  color: "#4ade80" },
+  { tier: 2, name: "Shallow Depths",  rec: "Lv. 10–25", color: "#22d3ee" },
+  { tier: 3, name: "Murk Passage",    rec: "Lv. 20–35", color: "#a78bfa" },
+  { tier: 4, name: "The Dark Abyss",  rec: "Lv. 30–45", color: "#f97316" },
+  { tier: 5, name: "Sovereign's Lair",rec: "Lv. 40–50", color: "#ef4444" },
+] as const;
+
+function CaveEntryOverlay({ activePetId, onEnterTier, onClose }: {
+  activePetId: string | null;
+  onEnterTier: (tier: number) => void;
+  onClose: () => void;
+}) {
+  const { data: progress } = useQuery<{ currentTier: number; completedTiers: number[] }>({
+    queryKey: ["/api/cave/progress", activePetId],
+    enabled: !!activePetId,
+  });
+  const completedTiers: number[] = progress?.completedTiers ?? [];
+  const currentTier = progress?.currentTier ?? 1;
+
+  const isUnlocked = (tier: number) => tier === 1 || completedTiers.includes(tier - 1) || currentTier >= tier;
+  const isCompleted = (tier: number) => completedTiers.includes(tier);
+
+  return (
+    <div className="absolute inset-0 z-50 flex flex-col" style={{ background: "linear-gradient(180deg,#080810 0%,#0f0f1e 100%)" }}>
+      <div className="flex items-center justify-between px-5 pt-8 pb-3 flex-shrink-0">
+        <div>
+          <div className="font-fantasy text-2xl text-white tracking-wide" style={{ textShadow: "0 0 24px rgba(168,85,247,0.9)" }}>
+            ⚔ Murk Cave
+          </div>
+          <div className="text-gray-400 text-xs mt-0.5">Choose a tier · 6 waves per run</div>
+        </div>
+        <button onClick={onClose} data-testid="button-cave-close"
+          className="p-2 rounded-full bg-white/10 active:scale-90 transition-transform">
+          <X className="w-5 h-5 text-gray-300" />
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 pb-8 space-y-3 pt-2">
+        {CAVE_TIERS.map(({ tier, name, rec, color }) => {
+          const unlocked = isUnlocked(tier);
+          const completed = isCompleted(tier);
+          return (
+            <div key={tier} className="rounded-2xl p-4 border" style={{
+              background: unlocked ? `linear-gradient(135deg,${color}18 0%,rgba(0,0,0,0.55) 100%)` : "rgba(0,0,0,0.35)",
+              borderColor: unlocked ? `${color}55` : "rgba(255,255,255,0.06)",
+              opacity: unlocked ? 1 : 0.48,
+            }}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
+                      style={{ background: `${color}28`, color }}>TIER {tier}</span>
+                    {completed && <span className="text-[10px] text-green-400 font-bold">✓ CLEARED</span>}
+                  </div>
+                  <div className="text-white font-bold text-sm mt-0.5">{name}</div>
+                  <div className="text-gray-400 text-[11px]">{rec}</div>
+                </div>
+                {unlocked ? (
+                  <button data-testid={`button-cave-enter-tier-${tier}`}
+                    onClick={() => onEnterTier(tier)}
+                    className="shrink-0 px-4 py-2 rounded-xl font-bold text-sm text-white active:scale-90 transition-transform"
+                    style={{ background: `linear-gradient(135deg,${color}cc,${color}77)`, boxShadow: `0 4px 14px ${color}44` }}>
+                    ENTER
+                  </button>
+                ) : (
+                  <span className="text-2xl shrink-0">🔒</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const params = useParams<{ worldId: string }>();
   const [rawLocation] = useLocation();
@@ -295,6 +373,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [showBattlePrep, setShowBattlePrep] = useState(false);
   const [showBattle, setShowBattle] = useState(false);
   const [battleLocationId, setBattleLocationId] = useState<string | null>(null);
+  const [showCaveEntry, setShowCaveEntry] = useState(false);
+  const [caveBattleTier, setCaveBattleTier] = useState(1);
   const [battlePotionSlots, setBattlePotionSlots] = useState<(BattlePotionSlot | null)[]>([null, null, null, null, null]);
   const [battlePets, setBattlePets] = useState<(InventoryItem | null)[]>([null, null, null]);
   // Ref guard: prevents the save effect from writing stale state back to
@@ -4322,9 +4402,15 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                         data-testid="button-start-battle"
                         onClick={() => {
                           setBattleLocationId(activeLoc.id);
-                          setBattlePotionSlots([null, null, null, null, null]);
-                          setShowBattlePrep(true);
-                          setShowLocationView(false);
+                          if (activeLoc.id === MURK_CAVE_ID) {
+                            setCaveBattleTier(1);
+                            setShowCaveEntry(true);
+                            setShowLocationView(false);
+                          } else {
+                            setBattlePotionSlots([null, null, null, null, null]);
+                            setShowBattlePrep(true);
+                            setShowLocationView(false);
+                          }
                         }}
                         className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90"
                         style={{
@@ -4662,9 +4748,15 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                       data-testid="button-start-battle"
                       onClick={() => {
                         setBattleLocationId(activeLoc.id);
-                        setBattlePotionSlots([null, null, null, null, null]);
-                        setShowBattlePrep(true);
-                        setShowLocationView(false);
+                        if (activeLoc.id === MURK_CAVE_ID) {
+                          setCaveBattleTier(1);
+                          setShowCaveEntry(true);
+                          setShowLocationView(false);
+                        } else {
+                          setBattlePotionSlots([null, null, null, null, null]);
+                          setShowBattlePrep(true);
+                          setShowLocationView(false);
+                        }
                       }}
                       className="w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-90"
                       style={{
@@ -4957,8 +5049,13 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                   onClick={() => {
                     setShowDangerWarning(false);
                     setBattleLocationId(activeLocationId);
-                    setBattlePotionSlots([null, null, null, null, null]);
-                    setShowBattlePrep(true);
+                    if (activeLocationId === MURK_CAVE_ID) {
+                      setCaveBattleTier(1);
+                      setShowCaveEntry(true);
+                    } else {
+                      setBattlePotionSlots([null, null, null, null, null]);
+                      setShowBattlePrep(true);
+                    }
                   }}
                   className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-transform active:scale-95 bg-red-600/80 border border-red-500/70 text-white hover:bg-red-500/80"
                   style={{ boxShadow: "0 0 15px #ff444430" }}
@@ -5361,9 +5458,25 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         );
       })()}
 
+      {showCaveEntry && battleLocationId === MURK_CAVE_ID && (
+        <CaveEntryOverlay
+          activePetId={currentUser?.activePetId ?? null}
+          onEnterTier={(tier) => {
+            setCaveBattleTier(tier);
+            setShowCaveEntry(false);
+            setShowBattle(true);
+          }}
+          onClose={() => {
+            setShowCaveEntry(false);
+            setBattleLocationId(null);
+          }}
+        />
+      )}
+
       {showBattle && battleLocationId && (() => {
         const battleLoc = locations.find(l => l.id === battleLocationId);
         if (!battleLoc) return null;
+        const isCaveBattle = battleLocationId === MURK_CAVE_ID;
         return (
           <div className="absolute inset-0 z-50">
             <BattleArena
@@ -5371,8 +5484,21 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               locationName={battleLoc.name}
               bgUrl={battleLocDetail?.bgUrl ?? null}
               accent={accent}
-              battlePotionSlots={battlePotionSlots}
-              equippedPets={battlePets as any}
+              battlePotionSlots={isCaveBattle ? [null, null, null, null, null] : battlePotionSlots}
+              equippedPets={isCaveBattle ? [battlePets[0] ?? null, null, null] as any : battlePets as any}
+              isCave={isCaveBattle}
+              caveTier={isCaveBattle ? caveBattleTier : undefined}
+              onCaveTierComplete={isCaveBattle ? async () => {
+                try {
+                  await apiRequest("POST", "/api/cave/complete-tier", {
+                    petInventoryId: currentUser?.activePetId,
+                    tier: caveBattleTier,
+                  });
+                  queryClient.invalidateQueries({ queryKey: ["/api/cave/progress", currentUser?.activePetId] });
+                } catch (e) {
+                  console.error("Failed to save cave progress", e);
+                }
+              } : undefined}
               onClose={() => {
                 setShowBattle(false);
                 setBattleLocationId(null);

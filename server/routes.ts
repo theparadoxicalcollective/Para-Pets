@@ -5223,6 +5223,93 @@ export async function registerRoutes(
       }
 
       const { locationId } = req.params as Record<string, string>;
+
+      // ── Cave tier encounter (Murk Cave dungeon system) ──────────────────────
+      const MURK_CAVE_ID = "a1b2c3d4-0001-4000-8000-000000000001";
+      const reqCaveTier = req.body?.caveTier != null ? parseInt(String(req.body.caveTier), 10) : NaN;
+      if (locationId === MURK_CAVE_ID && !isNaN(reqCaveTier) && reqCaveTier >= 1 && reqCaveTier <= 5) {
+        const CAVE_TIER_STATS: Record<number, {
+          normal: { hp: number; atk: number; def: number };
+          miniBoss: { hp: number; atk: number; def: number };
+          boss: { hp: number; atk: number; def: number };
+        }> = {
+          1: { normal:{hp:1500,atk:55,def:25},   miniBoss:{hp:3500,atk:80,def:40},    boss:{hp:8000,atk:110,def:55} },
+          2: { normal:{hp:3000,atk:95,def:45},   miniBoss:{hp:7000,atk:140,def:70},   boss:{hp:16000,atk:185,def:95} },
+          3: { normal:{hp:5500,atk:160,def:80},  miniBoss:{hp:12000,atk:230,def:115}, boss:{hp:28000,atk:290,def:145} },
+          4: { normal:{hp:9000,atk:250,def:125}, miniBoss:{hp:20000,atk:360,def:180}, boss:{hp:48000,atk:440,def:220} },
+          5: { normal:{hp:14000,atk:370,def:185},miniBoss:{hp:31000,atk:520,def:260}, boss:{hp:75000,atk:620,def:310} },
+        };
+        const tierEnemies = await storage.getLocationEnemiesByTier(locationId, reqCaveTier);
+        const tierNormals = tierEnemies.filter((e: any) => !e.is_boss && !e.is_mini_boss);
+        const tierMiniBoss = tierEnemies.find((e: any) => e.is_mini_boss);
+        const tierBoss = tierEnemies.find((e: any) => e.is_boss);
+        if (!tierBoss || !tierMiniBoss || tierNormals.length === 0) {
+          return res.status(503).json({ message: "Cave is being prepared, try again soon" });
+        }
+        const stats = CAVE_TIER_STATS[reqCaveTier];
+        const v = () => 0.95 + Math.random() * 0.10;
+        const shuffled = [...tierNormals].sort(() => Math.random() - 0.5);
+        const buildCaveWave = (enemy: any, type: "normal" | "miniBoss" | "boss") => {
+          const base = stats[type];
+          return {
+            enemyId: enemy.id,
+            name: enemy.name,
+            imageUrl: enemy.image_url,
+            isBoss: type === "boss",
+            isMiniBoss: type === "miniBoss",
+            archetype: "balanced",
+            bossSpecialAttack: type !== "normal" ? (enemy.boss_special_attack ?? null) : null,
+            level: reqCaveTier * 10,
+            hp: Math.max(1, Math.floor(base.hp * v())),
+            atk: Math.max(1, Math.floor(base.atk * v())),
+            def: Math.max(1, Math.floor(base.def * v())),
+            coinReward: enemy.coin_reward,
+            drops: [],
+          };
+        };
+        // 6 waves: normal, normal, miniboss, normal, normal(repeat), boss
+        const caveEncounters = [
+          buildCaveWave(shuffled[0], "normal"),
+          buildCaveWave(shuffled[1 % shuffled.length], "normal"),
+          buildCaveWave(tierMiniBoss, "miniBoss"),
+          buildCaveWave(shuffled[2 % shuffled.length], "normal"),
+          buildCaveWave(shuffled[0], "normal"),
+          buildCaveWave(tierBoss, "boss"),
+        ];
+        let petImageUrl = activePet.hatchedImageUrl || activePet.imageUrl || null;
+        let petBackImageUrl: string | null = null;
+        if (activePet.petTemplateId) {
+          const template = await storage.getPetTemplate(activePet.petTemplateId);
+          if (template?.frontAssembled) petImageUrl = template.frontAssembled;
+          if (template?.backAssembled) petBackImageUrl = template.backAssembled;
+        }
+        return res.json({
+          encounters: caveEncounters,
+          isCaveEncounter: true,
+          caveTier: reqCaveTier,
+          pet: {
+            inventoryId: activePet.id,
+            name: activePet.petNickname || activePet.name || "Pet",
+            level: activePet.petLevel,
+            hp: activePet.petHealth,
+            atk: activePet.petAtk,
+            def: activePet.petDef,
+            petTemplateId: activePet.petTemplateId || null,
+            imageUrl: petImageUrl,
+            backImageUrl: petBackImageUrl,
+            specialSkill: activePet.specialSkill || null,
+            specialSkillType: (activePet as any).specialSkillType || null,
+            skillDamagePercent: activePet.skillDamagePercent ?? null,
+            skillHealPercent: (activePet as any).skillHealPercent ?? null,
+            skillType: (activePet as any).skillType || null,
+            skillAffects: (activePet as any).skillAffects || null,
+            rarity: (activePet as any).rarity ?? null,
+          },
+          extraPetImages: {},
+        });
+      }
+      // ───────────────────────────────────────────────────────────────────────
+
       const enemies = await storage.getLocationEnemies(locationId);
       if (enemies.length === 0) {
         return res.json({ encounter: null });
@@ -9097,6 +9184,46 @@ export async function registerRoutes(
       return res.json({ ok: true });
     } catch (err) {
       console.error("[tutorial] complete error:", err);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // ── Cave: per-pet progress ─────────────────────────────────────────────────
+  app.get("/api/cave/progress/:petInventoryId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { petInventoryId } = req.params;
+      const progress = await storage.getPetCaveProgress(petInventoryId);
+      if (!progress) {
+        return res.json({ currentTier: 1, completedTiers: [] });
+      }
+      return res.json(progress);
+    } catch (err) {
+      console.error("[cave] progress error:", err);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.post("/api/cave/complete-tier", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user!;
+      const { petInventoryId, tier } = req.body as { petInventoryId: string; tier: number };
+      if (!petInventoryId || !tier || tier < 1 || tier > 5) {
+        return res.status(400).json({ message: "Invalid tier" });
+      }
+      // Verify the pet belongs to the user
+      const inventory = await storage.getUserInventory(user.id);
+      const pet = inventory.find((inv: any) => inv.id === petInventoryId);
+      if (!pet) {
+        return res.status(403).json({ message: "Pet not found" });
+      }
+      const current = await storage.getPetCaveProgress(petInventoryId) ?? { currentTier: 1, completedTiers: [] };
+      const completedTiers = Array.from(new Set([...current.completedTiers, tier])).sort((a, b) => a - b);
+      // Unlock next tier (max 5)
+      const nextTier = Math.min(5, Math.max(current.currentTier, tier + 1));
+      await storage.upsertPetCaveProgress(petInventoryId, nextTier, completedTiers);
+      return res.json({ currentTier: nextTier, completedTiers });
+    } catch (err) {
+      console.error("[cave] complete-tier error:", err);
       return res.status(500).json({ message: "Server error" });
     }
   });

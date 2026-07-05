@@ -149,6 +149,9 @@ interface BattleArenaProps {
   onBattleEnd: () => void;
   battlePotionSlots?: (BattlePotionSlot | null)[];
   equippedPets?: (EquippedPet | null)[];
+  isCave?: boolean;
+  caveTier?: number;
+  onCaveTierComplete?: () => void;
 }
 
 interface SlashEffect {
@@ -427,7 +430,7 @@ function BattleEndSummary({ phase, accent, enemyName, allEnemiesCount, petReward
   );
 }
 
-export default function BattleArena({ locationId, locationName, bgUrl, accent, onClose, onBattleEnd, battlePotionSlots = [], equippedPets = [] }: BattleArenaProps) {
+export default function BattleArena({ locationId, locationName, bgUrl, accent, onClose, onBattleEnd, battlePotionSlots = [], equippedPets = [], isCave = false, caveTier = 1, onCaveTierComplete }: BattleArenaProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -635,17 +638,16 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   useEffect(() => {
     const fetchEncounter = async () => {
       try {
-        // Send the extra pets' inventory IDs so the server can resolve
-        // their assembled battle-image URLs (template.frontAssembled) the
-        // same way it does for the active pet. Without this, slots 1–2
-        // fall back to the raw hatched portrait, which has more padding
-        // than the assembled image and looks ~30% smaller in the arena.
-        const extraPetInventoryIds = [equippedPets[1]?.inventoryId, equippedPets[2]?.inventoryId]
+        // Cave mode uses active pet only — skip extra pet image resolution.
+        // Normal mode sends extra pet IDs for server-side image resolution.
+        const extraPetInventoryIds = isCave ? [] : [equippedPets[1]?.inventoryId, equippedPets[2]?.inventoryId]
           .filter((x): x is string => typeof x === "string" && x.length > 0);
+        const encounterBody: Record<string, unknown> = { extraPetInventoryIds };
+        if (isCave) encounterBody.caveTier = caveTier;
         const res = await apiRequest(
           "POST",
           `/api/explore/${locationId}/encounter`,
-          { extraPetInventoryIds },
+          encounterBody,
         );
         const data = await res.json();
         if (!data.encounters || data.encounters.length === 0) {
@@ -2256,7 +2258,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 <span className="text-gray-400 text-sm ml-2">Lv.{enemy.level}</span>
               </div>
               {allEnemies.length > 1 && (
-                <div className="mt-1 text-gray-500 text-xs">Wave {waveIndex + 1} of {allEnemies.length}</div>
+                <div className="mt-1 text-gray-500 text-xs">
+                  {isCave
+                    ? <span className="text-amber-400/80 font-bold">TIER {caveTier} · Wave {waveIndex + 1} / 6</span>
+                    : `Wave ${waveIndex + 1} of ${allEnemies.length}`}
+                </div>
               )}
             </div>
             <div className="text-white text-2xl font-bold animate-pulse">VS</div>
@@ -3320,7 +3326,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             totalItems={totalRewards.items}
             errored={defeatMutation.isError}
             calculating={defeatMutation.isPending && Object.keys(petRewards).length === 0}
-            onClose={handleReturnToWorld}
+            onClose={() => {
+              if (isCave && phase === "victory") onCaveTierComplete?.();
+              handleReturnToWorld();
+            }}
           />
         )}
 

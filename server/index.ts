@@ -435,6 +435,25 @@ app.use((req, res, next) => {
   await runMigration("uq_pond_fish_location_item", () =>
     db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS uq_pond_fish_location_item ON pond_fish (location_id, shop_item_id)`));
 
+  // Cave tier system columns on location_enemies
+  await runMigration("location_enemies.cave_tier",
+    () => db.execute(sql`ALTER TABLE location_enemies ADD COLUMN IF NOT EXISTS cave_tier INTEGER`));
+  await runMigration("location_enemies.is_mini_boss",
+    () => db.execute(sql`ALTER TABLE location_enemies ADD COLUMN IF NOT EXISTS is_mini_boss boolean NOT NULL DEFAULT false`));
+
+  // Per-pet cave progress table (runtime-managed, not drizzle-kit)
+  await runMigration("pet_cave_progress.table", () =>
+    db.execute(sql`
+      CREATE TABLE IF NOT EXISTS pet_cave_progress (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        pet_inventory_id VARCHAR NOT NULL,
+        current_tier INTEGER NOT NULL DEFAULT 1,
+        completed_tiers JSONB NOT NULL DEFAULT '[]'
+      )
+    `));
+  await runMigration("pet_cave_progress.uq_pet", () =>
+    db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS uq_pet_cave_progress_pet ON pet_cave_progress (pet_inventory_id)`));
+
   // One-time consolidation: collapse every user's per-row potion inventory
   // into stacks of up to 50. Older builds inserted one row per potion
   // purchased, so a player who bought 46 small health potions had 46
@@ -1826,6 +1845,59 @@ app.use((req, res, next) => {
         console.log("Cave Wisp added to Murk Cave.");
       }
       await storage.setGameSetting("missing_cave_wisp_v1", "done");
+    }
+
+    // Seed 5-tier cave enemies (25 total) — new dungeon system
+    const cavetiersDone = await storage.getGameSetting("murk_cave_tiers_v1");
+    if (!cavetiersDone) {
+      const MURK_CAVE_ID = "a1b2c3d4-0001-4000-8000-000000000001";
+      const CAVE_ENEMIES: Array<{ name: string; file: string; isBoss: boolean; isMiniBoss: boolean; caveTier: number; coinReward: number; bossSpecialAttack?: string }> = [
+        // Tier 1 — Surface Murk
+        { name: "Puddle Grub",       file: "generated_images/enemy_t1_puddle_grub.png",       isBoss: false, isMiniBoss: false, caveTier: 1, coinReward: 3 },
+        { name: "Boglet",            file: "generated_images/enemy_t1_boglet.png",             isBoss: false, isMiniBoss: false, caveTier: 1, coinReward: 3 },
+        { name: "Murk Newt",         file: "generated_images/enemy_t1_murk_newt.png",         isBoss: false, isMiniBoss: false, caveTier: 1, coinReward: 3 },
+        { name: "Swamp Wraith",      file: "generated_images/enemy_t1_swamp_wraith.png",      isBoss: false, isMiniBoss: true,  caveTier: 1, coinReward: 8 },
+        { name: "Slime Duchess",     file: "generated_images/enemy_t1_slime_duchess.png",     isBoss: true,  isMiniBoss: false, caveTier: 1, coinReward: 15, bossSpecialAttack: "bolt" },
+        // Tier 2 — Shallow Depths
+        { name: "Hex Toad",          file: "generated_images/enemy_t2_hex_toad.png",          isBoss: false, isMiniBoss: false, caveTier: 2, coinReward: 5 },
+        { name: "Mire Moth",         file: "generated_images/enemy_t2_mire_moth.png",         isBoss: false, isMiniBoss: false, caveTier: 2, coinReward: 5 },
+        { name: "Cave Leech",        file: "generated_images/enemy_t2_cave_leech.png",        isBoss: false, isMiniBoss: false, caveTier: 2, coinReward: 5 },
+        { name: "Thornback Salamander", file: "generated_images/enemy_t2_thornback_salamander.png", isBoss: false, isMiniBoss: true, caveTier: 2, coinReward: 12 },
+        { name: "Bog Basilisk",      file: "generated_images/enemy_t2_bog_basilisk.png",      isBoss: true,  isMiniBoss: false, caveTier: 2, coinReward: 25, bossSpecialAttack: "slash" },
+        // Tier 3 — Murk Passage
+        { name: "Wail Eel",          file: "generated_images/enemy_t3_wail_eel.png",          isBoss: false, isMiniBoss: false, caveTier: 3, coinReward: 8 },
+        { name: "Murk Shade",        file: "generated_images/enemy_t3_murk_shade.png",        isBoss: false, isMiniBoss: false, caveTier: 3, coinReward: 8 },
+        { name: "Gloomfin",          file: "generated_images/enemy_t3_gloomfin.png",          isBoss: false, isMiniBoss: false, caveTier: 3, coinReward: 8 },
+        { name: "Rotwood Stalker",   file: "generated_images/enemy_t3_rotwood_stalker.png",   isBoss: false, isMiniBoss: true,  caveTier: 3, coinReward: 20 },
+        { name: "Cavern Hydra",      file: "generated_images/enemy_t3_cavern_hydra.png",      isBoss: true,  isMiniBoss: false, caveTier: 3, coinReward: 45, bossSpecialAttack: "bolt" },
+        // Tier 4 — The Dark Abyss
+        { name: "Venom Crawler",     file: "generated_images/enemy_t4_venom_crawler.png",     isBoss: false, isMiniBoss: false, caveTier: 4, coinReward: 12 },
+        { name: "Abyss Sprite",      file: "generated_images/enemy_t4_abyss_sprite.png",      isBoss: false, isMiniBoss: false, caveTier: 4, coinReward: 12 },
+        { name: "Dread Lamprey",     file: "generated_images/enemy_t4_dread_lamprey.png",     isBoss: false, isMiniBoss: false, caveTier: 4, coinReward: 12 },
+        { name: "Crystal Gorgon",    file: "generated_images/enemy_t4_crystal_gorgon.png",    isBoss: false, isMiniBoss: true,  caveTier: 4, coinReward: 30 },
+        { name: "Murk Titan",        file: "generated_images/enemy_t4_murk_titan.png",        isBoss: true,  isMiniBoss: false, caveTier: 4, coinReward: 75, bossSpecialAttack: "slash" },
+        // Tier 5 — Sovereign's Lair
+        { name: "Soul Drifter",      file: "generated_images/enemy_t5_soul_drifter.png",      isBoss: false, isMiniBoss: false, caveTier: 5, coinReward: 18 },
+        { name: "Void Hatchling",    file: "generated_images/enemy_t5_void_hatchling.png",    isBoss: false, isMiniBoss: false, caveTier: 5, coinReward: 18 },
+        { name: "Umbra Wisp",        file: "generated_images/enemy_t5_umbra_wisp.png",        isBoss: false, isMiniBoss: false, caveTier: 5, coinReward: 18 },
+        { name: "Ancient Lurker",    file: "generated_images/enemy_t5_ancient_lurker.png",    isBoss: false, isMiniBoss: true,  caveTier: 5, coinReward: 50 },
+        { name: "Deep Sovereign",    file: "generated_images/enemy_t5_deep_sovereign.png",    isBoss: true,  isMiniBoss: false, caveTier: 5, coinReward: 120, bossSpecialAttack: "bolt" },
+      ];
+      for (const ed of CAVE_ENEMIES) {
+        const imgData = loadAssetBase64(ed.file);
+        await (storage as any).createCaveEnemy({
+          locationId: MURK_CAVE_ID,
+          name: ed.name,
+          imageUrl: imgData,
+          isBoss: ed.isBoss,
+          isMiniBoss: ed.isMiniBoss,
+          caveTier: ed.caveTier,
+          coinReward: ed.coinReward,
+          bossSpecialAttack: ed.bossSpecialAttack ?? null,
+        });
+      }
+      await storage.setGameSetting("murk_cave_tiers_v1", "done");
+      console.log("Murk Cave tiered enemies seeded (25 enemies, 5 tiers).");
     }
   } catch (err) {
     console.error("Swamp location migration error (non-fatal):", err);

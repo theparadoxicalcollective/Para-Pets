@@ -187,8 +187,12 @@ export interface IStorage {
   getAdminMessagesByUsername(username: string): Promise<AdminMessage[]>;
   deleteAdminMessage(id: string): Promise<void>;
   getLocationEnemies(locationId: string): Promise<LocationEnemy[]>;
+  getLocationEnemiesByTier(locationId: string, tier: number): Promise<any[]>;
   getLocationEnemy(id: string): Promise<LocationEnemy | undefined>;
   createLocationEnemy(data: { locationId: string; name: string; imageUrl?: string | null; isBoss?: boolean; coinReward?: number; bossSpecialAttack?: string | null }): Promise<LocationEnemy>;
+  createCaveEnemy(data: { locationId: string; name: string; imageUrl?: string | null; isBoss?: boolean; isMiniBoss?: boolean; caveTier?: number | null; coinReward?: number; bossSpecialAttack?: string | null }): Promise<any>;
+  getPetCaveProgress(petInventoryId: string): Promise<{ currentTier: number; completedTiers: number[] } | null>;
+  upsertPetCaveProgress(petInventoryId: string, currentTier: number, completedTiers: number[]): Promise<void>;
   updateLocationEnemy(id: string, data: Partial<{ name: string; imageUrl: string | null; isBoss: boolean; coinReward: number; bossSpecialAttack: string | null }>): Promise<LocationEnemy>;
   deleteLocationEnemy(id: string): Promise<void>;
   getEnemyDrops(enemyId: string): Promise<EnemyDrop[]>;
@@ -1261,6 +1265,13 @@ export class DatabaseStorage implements IStorage {
     return enemy;
   }
 
+  async getLocationEnemiesByTier(locationId: string, tier: number): Promise<any[]> {
+    const result: any = await db.execute(
+      sql`SELECT * FROM location_enemies WHERE location_id = ${locationId} AND cave_tier = ${tier} ORDER BY created_at ASC`
+    );
+    return result.rows ?? result;
+  }
+
   async createLocationEnemy(data: { locationId: string; name: string; imageUrl?: string | null; isBoss?: boolean; archetype?: string; coinReward?: number; bossSpecialAttack?: string | null }): Promise<LocationEnemy> {
     const [enemy] = await db.insert(locationEnemies).values({
       locationId: data.locationId,
@@ -1272,6 +1283,50 @@ export class DatabaseStorage implements IStorage {
       coinReward: data.coinReward || 0,
     }).returning();
     return enemy;
+  }
+
+  async createCaveEnemy(data: { locationId: string; name: string; imageUrl?: string | null; isBoss?: boolean; isMiniBoss?: boolean; caveTier?: number | null; coinReward?: number; bossSpecialAttack?: string | null }): Promise<any> {
+    const result: any = await db.execute(sql`
+      INSERT INTO location_enemies (location_id, name, image_url, is_boss, is_mini_boss, cave_tier, coin_reward, boss_special_attack, archetype)
+      VALUES (
+        ${data.locationId},
+        ${data.name},
+        ${data.imageUrl ?? null},
+        ${data.isBoss ?? false},
+        ${data.isMiniBoss ?? false},
+        ${data.caveTier ?? null},
+        ${data.coinReward ?? 0},
+        ${data.bossSpecialAttack ?? null},
+        'balanced'
+      )
+      RETURNING *
+    `);
+    const rows = result.rows ?? result;
+    return Array.isArray(rows) ? rows[0] : rows;
+  }
+
+  async getPetCaveProgress(petInventoryId: string): Promise<{ currentTier: number; completedTiers: number[] } | null> {
+    const result: any = await db.execute(
+      sql`SELECT current_tier, completed_tiers FROM pet_cave_progress WHERE pet_inventory_id = ${petInventoryId}`
+    );
+    const rows = result.rows ?? result;
+    if (!Array.isArray(rows) || rows.length === 0) return null;
+    const row = rows[0];
+    return {
+      currentTier: row.current_tier ?? 1,
+      completedTiers: Array.isArray(row.completed_tiers) ? row.completed_tiers : (JSON.parse(row.completed_tiers || "[]")),
+    };
+  }
+
+  async upsertPetCaveProgress(petInventoryId: string, currentTier: number, completedTiers: number[]): Promise<void> {
+    const tiersJson = JSON.stringify(completedTiers);
+    await db.execute(sql`
+      INSERT INTO pet_cave_progress (pet_inventory_id, current_tier, completed_tiers)
+      VALUES (${petInventoryId}, ${currentTier}, ${tiersJson}::jsonb)
+      ON CONFLICT (pet_inventory_id) DO UPDATE
+        SET current_tier = EXCLUDED.current_tier,
+            completed_tiers = EXCLUDED.completed_tiers
+    `);
   }
 
   async updateLocationEnemy(id: string, data: Partial<{ name: string; imageUrl: string | null; isBoss: boolean; archetype: string; coinReward: number; bossSpecialAttack: string | null }>): Promise<LocationEnemy> {
