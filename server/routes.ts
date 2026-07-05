@@ -643,6 +643,17 @@ async function maybeAwardAcquisitionBadges(userId: string, purchaseAmountUsd: nu
   }
 }
 
+export async function seedBrawlerBadges(): Promise<void> {
+  try {
+    for (const key of (["brawler", "advanced", "legendary"] as const)) {
+      await getOrCreateBrawlerBadge(key);
+    }
+    console.log("Brawler badges seeded.");
+  } catch (err) {
+    console.error("Brawler badge seed error (non-fatal):", err);
+  }
+}
+
 export async function backfillAdvancedAcquisitionBadge(): Promise<void> {
   try {
     const badgeId = await getOrCreateAcquisitionBadge("advanced");

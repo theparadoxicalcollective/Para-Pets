@@ -1303,7 +1303,7 @@ export class DatabaseStorage implements IStorage {
     await db.update(badges).set({ dailyRewardCoins }).where(eq(badges.id, id));
   }
 
-  async updateBadge(id: string, data: { dailyRewardCoins?: number | null; badgePoints?: number; name?: string; imageUrl?: string; claimType?: string }): Promise<void> {
+  async updateBadge(id: string, data: { dailyRewardCoins?: number | null; badgePoints?: number; name?: string; imageUrl?: string; claimType?: string; rarity?: string; obtainDescription?: string | null; hidden?: boolean }): Promise<void> {
     await db.update(badges).set(data).where(eq(badges.id, id));
   }
 
