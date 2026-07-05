@@ -47,7 +47,7 @@ const GOLD_DIM = "#a89878";
 const GOLD_FAINT = "#6a5840";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-const RARITY_ORDER = ["legendary", "epic", "rare", "uncommon", "common"];
+const RARITY_ORDER = ["common", "uncommon", "rare", "epic", "legendary"];
 const RARITY_CFG: Record<string, { label: string; color: string; glow: string; border: string; dimColor: string }> = {
   legendary: { label: "Legendary", color: "#f0c040", glow: "rgba(240,192,64,0.55)", border: "rgba(240,192,64,0.75)", dimColor: "rgba(240,192,64,0.2)" },
   epic:      { label: "Epic",      color: "#c084fc", glow: "rgba(192,132,252,0.45)", border: "rgba(192,132,252,0.65)", dimColor: "rgba(192,132,252,0.15)" },
