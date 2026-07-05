@@ -555,6 +555,63 @@ const ACQUISITION_BADGES = {
   },
 } as const;
 
+// ── Brawler PvP Badges ───────────────────────────────────────────────
+const BRAWLER_BADGES = {
+  brawler: {
+    name: "The Brawler",
+    imageUrl: "/world-assets/Photoroom_20260704_100600_PM_1783220772468.png",
+    winsRequired: 100,
+    points: 1000,
+    rarity: "uncommon",
+    obtainDescription: "Win 100 PvP battles.",
+  },
+  advanced: {
+    name: "Advanced Brawler",
+    imageUrl: "/world-assets/Photoroom_20260704_95312_PM_1783220772468.png",
+    winsRequired: 300,
+    points: 2000,
+    rarity: "rare",
+    obtainDescription: "Win 300 PvP battles.",
+  },
+  legendary: {
+    name: "Legendary Brawler",
+    imageUrl: "/world-assets/Photoroom_20260704_100308_PM_1783220772468.png",
+    winsRequired: 500,
+    points: 3500,
+    rarity: "legendary",
+    obtainDescription: "Win 500 PvP battles.",
+  },
+} as const;
+
+async function getOrCreateBrawlerBadge(key: keyof typeof BRAWLER_BADGES): Promise<string> {
+  const meta = BRAWLER_BADGES[key];
+  const existing = await storage.getBadgeByName(meta.name);
+  if (existing) return existing.id;
+  const badge = await storage.createBadge(meta.name, meta.imageUrl, null, meta.points, "daily");
+  // Set rarity + obtainDescription on new badge
+  await storage.updateBadge(badge.id, { rarity: meta.rarity, obtainDescription: meta.obtainDescription });
+  return badge.id;
+}
+
+async function maybeAwardBrawlerBadges(userId: string, totalWins: number): Promise<void> {
+  try {
+    if (totalWins >= 100) {
+      const id = await getOrCreateBrawlerBadge("brawler");
+      await storage.awardBadge(userId, id);
+    }
+    if (totalWins >= 300) {
+      const id = await getOrCreateBrawlerBadge("advanced");
+      await storage.awardBadge(userId, id);
+    }
+    if (totalWins >= 500) {
+      const id = await getOrCreateBrawlerBadge("legendary");
+      await storage.awardBadge(userId, id);
+    }
+  } catch (err) {
+    console.error("[badges] Error awarding brawler badges:", err);
+  }
+}
+
 async function getOrCreateAcquisitionBadge(key: keyof typeof ACQUISITION_BADGES): Promise<string> {
   const meta = ACQUISITION_BADGES[key];
   const existing = await storage.getBadgeByName(meta.name);
@@ -6851,6 +6908,13 @@ export async function registerRoutes(
         coinsEarned,
         battlePointsDelta,
       });
+
+      // Award brawler badges on PvP wins (fire-and-forget — never block the response)
+      if (result === "win") {
+        storage.countPvpWins(user.id)
+          .then((totalWins) => maybeAwardBrawlerBadges(user.id, totalWins))
+          .catch(() => {});
+      }
 
       return res.json({ battle, coinsEarned, battlePointsDelta });
     } catch (err) {

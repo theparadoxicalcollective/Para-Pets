@@ -275,6 +275,7 @@ export interface IStorage {
   deleteFishInventoryItems(fishIds: string[]): Promise<void>;
   // PvP
   createPvpBattle(data: { userId: string; opponentName: string; opponentImageUrl?: string | null; opponentLevel: number; opponentSkill?: string | null; result: string; coinsEarned: number; battlePointsDelta?: number }): Promise<any>;
+  countPvpWins(userId: string): Promise<number>;
   getPvpBattlesByUser(userId: string, limit?: number): Promise<any[]>;
   getPvpLeaderboard(limit?: number): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number }[]>;
   getPvpLeaderboardFull(): Promise<{ userId: string; username: string; profileImage: string | null; battlePoints: number; wins: number; losses: number; attackPower: number; isAdmin?: boolean; isModerator?: boolean }[]>;
@@ -2113,6 +2114,13 @@ export class DatabaseStorage implements IStorage {
       battlePointsDelta: data.battlePointsDelta ?? 0,
     }).returning();
     return row;
+  }
+
+  async countPvpWins(userId: string): Promise<number> {
+    const [row] = await db.select({ count: sql<number>`count(*)::int` })
+      .from(pvpBattles)
+      .where(and(eq(pvpBattles.userId, userId), eq(pvpBattles.result, "win")));
+    return row?.count ?? 0;
   }
 
   async getPvpBattlesByUser(userId: string, limit = 20): Promise<any[]> {
