@@ -643,6 +643,31 @@ async function maybeAwardAcquisitionBadges(userId: string, purchaseAmountUsd: nu
   }
 }
 
+export async function backfillBrawlerBadges(): Promise<void> {
+  try {
+    // Count wins per user from pvp_battles, award milestone badges to anyone who qualifies
+    const rows = await db.execute(sql`
+      SELECT user_id, COUNT(*)::int AS win_count
+      FROM pvp_battles
+      WHERE result = 'win' AND user_id IS NOT NULL
+      GROUP BY user_id
+      HAVING COUNT(*) >= 100
+    `);
+    let awarded = 0;
+    for (const row of rows.rows as { user_id: string; win_count: number }[]) {
+      const prev = awarded;
+      await maybeAwardBrawlerBadges(row.user_id, row.win_count);
+      // awardBadge is idempotent — just count iterations not actual new awards
+      awarded++;
+    }
+    if (rows.rows.length > 0) {
+      console.log(`Brawler badge backfill: checked ${rows.rows.length} qualifying player(s).`);
+    }
+  } catch (err) {
+    console.error("Brawler badge backfill error (non-fatal):", err);
+  }
+}
+
 export async function seedBrawlerBadges(): Promise<void> {
   try {
     for (const key of (["brawler", "advanced", "legendary"] as const)) {

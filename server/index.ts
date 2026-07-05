@@ -5,7 +5,7 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcryptjs";
 import connectPgSimple from "connect-pg-simple";
-import { registerRoutes, backfillAdvancedAcquisitionBadge, backfillCoinPurchaseEarnings, syncTotalCoinsEarnedFloor, seedBrawlerBadges } from "./routes";
+import { registerRoutes, backfillAdvancedAcquisitionBadge, backfillCoinPurchaseEarnings, syncTotalCoinsEarnedFloor, seedBrawlerBadges, backfillBrawlerBadges } from "./routes";
 import { seedPvpBots } from "./seedPvpBots";
 import { seedSampleTemplates } from "./seedSampleTemplates";
 import { serveStatic } from "./static";
@@ -682,6 +682,32 @@ app.use((req, res, next) => {
     () => db.execute(sql`ALTER TABLE badges ADD COLUMN IF NOT EXISTS obtain_description TEXT`));
   await runMigration("badges.hidden",
     () => db.execute(sql`ALTER TABLE badges ADD COLUMN IF NOT EXISTS hidden boolean NOT NULL DEFAULT false`));
+  await runMigration("founders.uq_user_id", async () => {
+    // Remove duplicate founders rows — keep highest-tier (or earliest) row per user_id
+    await db.execute(sql`
+      DELETE FROM founders f1
+      WHERE user_id IS NOT NULL
+        AND id != (
+          SELECT id FROM founders f2
+          WHERE f2.user_id = f1.user_id
+          ORDER BY
+            CASE f2.tier
+              WHEN 'legendary' THEN 4
+              WHEN 'gold'      THEN 3
+              WHEN 'silver'    THEN 2
+              WHEN 'bronze'    THEN 1
+              ELSE 0
+            END DESC,
+            f2.created_at ASC
+          LIMIT 1
+        )
+    `);
+    await db.execute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_founders_user_id
+      ON founders (user_id)
+      WHERE user_id IS NOT NULL
+    `);
+  });
 
   try {
     await db.execute(sql`
@@ -3180,6 +3206,7 @@ app.use((req, res, next) => {
 
   // Backfill Advanced Acquisition badge for users who previously bought a $100 pack
   await seedBrawlerBadges();
+  await backfillBrawlerBadges();
   await backfillAdvancedAcquisitionBadge();
   await backfillCoinPurchaseEarnings();
   // Ensure totalCoinsEarned >= current balance for all users (seeds legacy in-game earners)

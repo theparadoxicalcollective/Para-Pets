@@ -3245,22 +3245,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertFounderByUserId(userId: string, username: string, tier: string): Promise<void> {
-    const PRIORITY: Record<string, number> = { bronze: 1, silver: 2, gold: 3, legendary: 4 };
-    const newP = PRIORITY[tier] ?? 0;
-    const result = await db.execute(sql`SELECT id, tier FROM founders WHERE user_id = ${userId}`);
-    if (result.rows.length > 0) {
-      const row = result.rows[0] as any;
-      const curP = PRIORITY[row.tier] ?? 0;
-      if (newP > curP) {
-        await db.execute(sql`UPDATE founders SET tier = ${tier} WHERE id = ${row.id}`);
-      }
-    } else {
-      await db.execute(sql`
-        INSERT INTO founders (id, name, user_id, tier, added_by)
-        VALUES (gen_random_uuid(), ${username}, ${userId}, ${tier}, 'system')
-        ON CONFLICT DO NOTHING
-      `);
-    }
+    // Use a true upsert on user_id (unique index uq_founders_user_id).
+    // The DO UPDATE only upgrades tier — never downgrades — by keeping whichever
+    // tier has the higher priority value.
+    await db.execute(sql`
+      INSERT INTO founders (id, name, user_id, tier, added_by)
+      VALUES (gen_random_uuid(), ${username}, ${userId}, ${tier}, 'system')
+      ON CONFLICT (user_id) DO UPDATE
+        SET tier = CASE
+          WHEN (CASE founders.tier
+                  WHEN 'legendary' THEN 4
+                  WHEN 'gold'      THEN 3
+                  WHEN 'silver'    THEN 2
+                  WHEN 'bronze'    THEN 1
+                  ELSE 0
+                END) < (CASE EXCLUDED.tier
+                  WHEN 'legendary' THEN 4
+                  WHEN 'gold'      THEN 3
+                  WHEN 'silver'    THEN 2
+                  WHEN 'bronze'    THEN 1
+                  ELSE 0
+                END)
+          THEN EXCLUDED.tier
+          ELSE founders.tier
+        END
+    `);
   }
 
   async getContributionCycle(userId: string): Promise<number> {
