@@ -639,6 +639,14 @@ app.use((req, res, next) => {
     () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_player_daily_login_claims_user ON player_daily_login_claims (user_id)`));
   await runMigration("idx_pvp_battles_user_created",
     () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_pvp_battles_user_created ON pvp_battles (user_id, created_at DESC)`));
+  await runMigration("idx_pvp_battles_user_result",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_pvp_battles_user_result ON pvp_battles (user_id, result)`));
+  await runMigration("idx_user_inventory_user_shop",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_user_inventory_user_shop ON user_inventory (user_id, shop_item_id)`));
+  await runMigration("idx_badges_name",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_badges_name ON badges (name)`));
+  await runMigration("idx_shop_items_type",
+    () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_shop_items_type ON shop_items (type)`));
   await runMigration("users.tutorial_reward_claimed",
     () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS tutorial_reward_claimed boolean NOT NULL DEFAULT false`));
   await runMigration("users.tutorial_hatch_potions_claimed",
