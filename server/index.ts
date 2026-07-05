@@ -676,6 +676,10 @@ app.use((req, res, next) => {
     () => db.execute(sql`ALTER TABLE gifts ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ`));
   await runMigration("user_inventory.accessory_extra_slots",
     () => db.execute(sql`ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS accessory_extra_slots INTEGER NOT NULL DEFAULT 0`));
+  await runMigration("badges.rarity",
+    () => db.execute(sql`ALTER TABLE badges ADD COLUMN IF NOT EXISTS rarity TEXT NOT NULL DEFAULT 'common'`));
+  await runMigration("badges.obtain_description",
+    () => db.execute(sql`ALTER TABLE badges ADD COLUMN IF NOT EXISTS obtain_description TEXT`));
 
   try {
     await db.execute(sql`

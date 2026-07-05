@@ -5649,8 +5649,8 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-      const { dailyRewardCoins, badgePoints, name, imageData, claimType } = req.body;
-      const updateData: { dailyRewardCoins?: number | null; badgePoints?: number; name?: string; imageUrl?: string; claimType?: string } = {};
+      const { dailyRewardCoins, badgePoints, name, imageData, claimType, rarity, obtainDescription } = req.body;
+      const updateData: { dailyRewardCoins?: number | null; badgePoints?: number; name?: string; imageUrl?: string; claimType?: string; rarity?: string; obtainDescription?: string | null } = {};
       if (dailyRewardCoins !== undefined) {
         updateData.dailyRewardCoins = dailyRewardCoins != null && dailyRewardCoins !== "" ? Number(dailyRewardCoins) : null;
       }
@@ -5665,6 +5665,13 @@ export async function registerRoutes(
       }
       if (claimType !== undefined) {
         updateData.claimType = ["daily", "weekly", "monthly"].includes(claimType) ? claimType : "daily";
+      }
+      if (rarity !== undefined) {
+        const valid = ["common", "uncommon", "rare", "epic", "legendary"];
+        updateData.rarity = valid.includes(rarity) ? rarity : "common";
+      }
+      if (obtainDescription !== undefined) {
+        updateData.obtainDescription = obtainDescription ? String(obtainDescription).trim() || null : null;
       }
       await storage.updateBadge((req.params.id as string), updateData);
       return res.json({ ok: true });

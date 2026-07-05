@@ -392,6 +392,8 @@ export const badges = pgTable("badges", {
   dailyRewardCoins: integer("daily_reward_coins"),
   claimType: text("claim_type").notNull().default("daily"),
   badgePoints: integer("badge_points").notNull().default(0),
+  rarity: text("rarity").notNull().default("common"),
+  obtainDescription: text("obtain_description"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

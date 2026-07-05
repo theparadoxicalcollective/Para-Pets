@@ -199,7 +199,7 @@ export interface IStorage {
   createBadge(name: string, imageUrl: string, dailyRewardCoins?: number | null, badgePoints?: number, claimType?: string): Promise<Badge>;
   deleteBadge(id: string): Promise<void>;
   updateBadgeDailyReward(id: string, dailyRewardCoins: number | null): Promise<void>;
-  updateBadge(id: string, data: { dailyRewardCoins?: number | null; badgePoints?: number; name?: string; imageUrl?: string; claimType?: string }): Promise<void>;
+  updateBadge(id: string, data: { dailyRewardCoins?: number | null; badgePoints?: number; name?: string; imageUrl?: string; claimType?: string; rarity?: string; obtainDescription?: string | null }): Promise<void>;
   getUserBadges(userId: string): Promise<(UserBadge & { name: string; imageUrl: string; dailyRewardCoins: number | null; claimType: string; badgePoints: number; lastClaimedAt: Date | null })[]>;
   getBadgeRecipients(badgeId: string): Promise<{ userId: string; username: string; profileImage: string | null; awardedAt: Date }[]>;
   awardBadge(userId: string, badgeId: string): Promise<UserBadge>;
