@@ -281,37 +281,37 @@ function CaveEntryOverlay({ activePetId, onEnterTier, onClose }: {
           const unlocked = isUnlocked(tier);
           const completed = isCompleted(tier);
           return (
-            <div key={tier} className="flex flex-col gap-1.5">
-              {/* Banner image — dimmed when locked */}
-              <div className="relative w-full rounded-xl overflow-hidden">
-                <img
-                  src={banner}
-                  alt={`Tier ${tier}`}
-                  className="w-full h-auto block"
-                  style={{ filter: unlocked ? "none" : "grayscale(0.6) brightness(0.45)" }}
-                />
-                {/* Lock icon overlay */}
-                {!unlocked && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-4xl drop-shadow-lg">🔒</span>
-                  </div>
-                )}
-                {/* CLEARED badge overlay (top-right of banner) */}
-                {completed && (
-                  <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold"
-                    style={{ background: "rgba(0,0,0,0.7)", color: "#4ade80", border: "1px solid #4ade8070" }}>
-                    ✓ CLEARED
-                  </div>
-                )}
-              </div>
+            <div key={tier} className="relative w-full rounded-xl overflow-hidden">
+              {/* Banner image */}
+              <img
+                src={banner}
+                alt={`Tier ${tier}`}
+                className="w-full h-auto block"
+                style={{ filter: unlocked ? "none" : "grayscale(0.6) brightness(0.4)" }}
+              />
 
-              {/* Enter button — only shown when unlocked */}
+              {/* CLEARED badge — top-center of banner */}
+              {completed && (
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap"
+                  style={{ background: "rgba(0,0,0,0.75)", color: "#4ade80", border: "1px solid #4ade8066" }}>
+                  ✓ CLEARED
+                </div>
+              )}
+
+              {/* Lock overlay */}
+              {!unlocked && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-4xl drop-shadow-lg">🔒</span>
+                </div>
+              )}
+
+              {/* Enter button — overlaid at bottom-center, small */}
               {unlocked && (
                 <button
                   data-testid={`button-cave-enter-tier-${tier}`}
                   onClick={() => onEnterTier(tier)}
-                  className="w-full active:scale-95 transition-transform"
-                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                  className="absolute bottom-1 left-1/2 -translate-x-1/2 active:scale-95 transition-transform"
+                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer", width: "38%" }}
                 >
                   <img src={enterBtn} alt="Enter" className="w-full h-auto block" />
                 </button>

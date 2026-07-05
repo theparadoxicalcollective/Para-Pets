@@ -1899,6 +1899,30 @@ app.use((req, res, next) => {
       await storage.setGameSetting("murk_cave_tiers_v1", "done");
       console.log("Murk Cave tiered enemies seeded (25 enemies, 5 tiers).");
     }
+
+    // Update Tier 1 enemy images to new uploaded artwork (v2)
+    const t1ImagesV2Done = await storage.getGameSetting("murk_cave_t1_images_v2");
+    if (!t1ImagesV2Done) {
+      const T1_IMAGE_MAP = [
+        { name: "Puddle Grub",  file: "Photoroom_20260705_62913_PM_1783294222589.png" },
+        { name: "Boglet",       file: "Photoroom_20260705_62527_PM_1783294222590.png" },
+        { name: "Murk Newt",    file: "Photoroom_20260705_62625_PM_1783294222590.png" },
+        { name: "Swamp Wraith", file: "Photoroom_20260705_62657_PM_1783294222590.png" },
+        { name: "Slime Duchess",file: "Photoroom_20260705_62752_PM_1783294222590.png" },
+      ];
+      for (const { name, file } of T1_IMAGE_MAP) {
+        const imgData = loadAssetBase64(file);
+        if (imgData) {
+          await db.execute(sql`
+            UPDATE location_enemies
+            SET image_url = ${imgData}
+            WHERE name = ${name} AND location_id = ${"a1b2c3d4-0001-4000-8000-000000000001"} AND cave_tier = 1
+          `);
+        }
+      }
+      await storage.setGameSetting("murk_cave_t1_images_v2", "done");
+      console.log("Murk Cave Tier 1 enemy images updated to v2 artwork.");
+    }
   } catch (err) {
     console.error("Swamp location migration error (non-fatal):", err);
   }
