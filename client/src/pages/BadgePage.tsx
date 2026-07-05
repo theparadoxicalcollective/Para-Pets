@@ -350,6 +350,22 @@ function BadgePopup({ badge, userBadge, isAdmin, onClose, onClaimed, onSaved }: 
               <p className="font-fantasy text-[10px] tracking-wider leading-relaxed" style={{ color: "#c8b48a" }}>
                 {badge.obtainDescription ?? "Description coming soon…"}
               </p>
+              {badge.dailyRewardCoins && (
+                <div className="flex items-center justify-center gap-1.5 mt-2 pt-2" style={{ borderTop: "1px solid rgba(240,192,64,0.15)" }}>
+                  <span
+                    className="font-fantasy text-[9px] tracking-widest uppercase px-2 py-0.5 rounded"
+                    style={{ background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.35)", color: GOLD_DIM }}
+                  >
+                    Reward
+                  </span>
+                  <span className="font-fantasy text-[10px]" style={{ color: GOLD }}>
+                    +{badge.dailyRewardCoins.toLocaleString()} coins
+                  </span>
+                  <span className="font-fantasy text-[9px]" style={{ color: GOLD_FAINT }}>
+                    / {claimFrequencyLabel(badge.claimType)}
+                  </span>
+                </div>
+              )}
             </div>
 
             {earned && userBadge && (
