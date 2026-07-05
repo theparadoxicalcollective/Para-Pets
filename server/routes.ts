@@ -565,7 +565,7 @@ async function getOrCreateAcquisitionBadge(key: keyof typeof ACQUISITION_BADGES)
 
 async function maybeAwardAcquisitionBadges(userId: string, purchaseAmountUsd: number): Promise<void> {
   try {
-    if (purchaseAmountUsd >= 10) {
+    if (purchaseAmountUsd === 25) {
       const id = await getOrCreateAcquisitionBadge("minor");
       await storage.awardBadge(userId, id);
       console.log(`[badges] Minor Acquisition awarded to ${userId}`);
