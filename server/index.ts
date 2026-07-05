@@ -6,7 +6,7 @@ import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcryptjs";
 import connectPgSimple from "connect-pg-simple";
 import { registerRoutes, backfillAdvancedAcquisitionBadge, backfillCoinPurchaseEarnings, syncTotalCoinsEarnedFloor, seedBrawlerBadges, backfillBrawlerBadges } from "./routes";
-import { seedPvpBots } from "./seedPvpBots";
+
 import { seedSampleTemplates } from "./seedSampleTemplates";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -3244,9 +3244,5 @@ app.use((req, res, next) => {
   try { await seedSampleTemplates(); }
   catch (err) { console.error("seedSampleTemplates error (non-fatal):", err); }
 
-  // Seed persistent PvP bot opponents so players can battle even when no
-  // human has set a battle group yet. Idempotent — bails fast on reboot.
-  try { await seedPvpBots(); }
-  catch (err) { console.error("seedPvpBots error (non-fatal):", err); }
   })().catch(err => console.error("Background init error:", err));
 })();

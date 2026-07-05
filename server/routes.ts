@@ -7154,33 +7154,16 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       const all = await storage.getAllBattleGroupsWithUsers();
-      // Exclude current user, only keep groups with pets.
-      const others = all.filter((g: any) => g.userId !== user.id && g.petInventoryIds?.length > 0);
+      // Exclude current user, bots, and groups without pets.
+      const others = all.filter((g: any) => g.userId !== user.id && !g.isBot && g.petInventoryIds?.length > 0);
 
-      // Matchmaking model (revised — bots are always part of the pool):
-      //   1. The lobby surfaces a HEALTHY MIX of real players + bots so
-      //      the arena never feels empty during low-traffic hours. The
-      //      previous "bots only when zero humans" model meant a
-      //      lobby with even ONE matched human showed zero bots,
-      //      which the user reported as "not enough players in PvP
-      //      right now."
-      //   2. Real opponents (humans + moderators) are still preferred
-      //      and matched on a tighter ATK band — they appear first
-      //      in the returned list so the client renders them at the
-      //      top of the opponent grid.
-      //   3. Bots are then appended on a wider ±100 % ATK band so the
-      //      bot at least roughly matches the player's strength. If
-      //      that band is empty (very lopsided pool), all bots fall
-      //      through. This gives every player a guaranteed slate of
-      //      sparring partners without making bots feel mandatory.
+      // Matchmaking: match real players by ATK band.
+      // ±35% first; widen to ±60% if empty; fall back to all players.
       const myGroup = await storage.getBattleGroup(user.id);
       const myPower: number = myGroup?.attackPower ?? 0;
 
-      const humans = others.filter((g: any) => !g.isBot);
-      const bots   = others.filter((g: any) =>  g.isBot);
-
       const inBand = (pool: any[], band: number) => {
-        if (myPower <= 0) return pool.slice(); // unranked players can match anyone
+        if (myPower <= 0) return pool.slice();
         const lo = myPower * (1 - band);
         const hi = myPower * (1 + band);
         return pool.filter((g: any) => {
@@ -7189,39 +7172,9 @@ export async function registerRoutes(
         });
       };
 
-      // ── Human / moderator pass (strict-then-loose) ──
-      // ±35 % first; if that's empty widen to ±60 %; finally take every
-      // human if the band still finds nothing. Even one human is great,
-      // but unlike the old model we DON'T stop here — we always
-      // continue to the bot pass below so the lobby stays full.
-      let humansMatched: any[] = inBand(humans, 0.35);
-      if (humansMatched.length === 0) humansMatched = inBand(humans, 0.60);
-      if (humansMatched.length === 0) humansMatched = humans.slice();
-
-      // ── Bot pass (always included) ──
-      // ±100 % ATK band, falling through to all bots if that's empty.
-      // De-duplication isn't needed because bots and humans are
-      // disjoint (different `isBot` flag). We shuffle the in-band pool
-      // before slicing so a player who rerolls the lobby sees a
-      // different subset each time — without the shuffle, the
-      // `updatedAt`-ordered query would surface the same 8 bots
-      // every reroll (the seeder updates rows sequentially every boot,
-      // so `updatedAt` is effectively a fixed order). Cap at 8 so the
-      // lobby grid doesn't get visually dominated by bots when the
-      // human pool is small but still surfaces most of the 10-bot
-      // roster across two rerolls.
-      let botsMatched: any[] = inBand(bots, 1.0);
-      if (botsMatched.length === 0) botsMatched = bots.slice();
-      // Fisher–Yates shuffle (in-place on the local copy).
-      for (let i = botsMatched.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [botsMatched[i], botsMatched[j]] = [botsMatched[j], botsMatched[i]];
-      }
-      if (botsMatched.length > 8) botsMatched = botsMatched.slice(0, 8);
-
-      // Humans first so they render at the top of the grid; bots
-      // immediately after so the lobby always feels full.
-      const matched = [...humansMatched, ...botsMatched];
+      let matched: any[] = inBand(others, 0.35);
+      if (matched.length === 0) matched = inBand(others, 0.60);
+      if (matched.length === 0) matched = others.slice();
       return res.json(matched);
     } catch (err) {
       return res.status(500).json({ message: "Failed to fetch opponents" });
