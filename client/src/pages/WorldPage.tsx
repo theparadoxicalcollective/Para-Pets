@@ -12,6 +12,16 @@ import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
 import fishCommonIconWp from "@assets/generated_images/icon_fish_common.png";
 import fishRodIconWp from "@assets/icon_fishing_pole.png";
+import caveBanner1 from "@assets/Photoroom_20260705_51533_PM_1783290164113.png";
+import caveBanner2 from "@assets/Photoroom_20260705_51608_PM_1783290164113.png";
+import caveBanner3 from "@assets/Photoroom_20260705_51705_PM_1783290164113.png";
+import caveBanner4 from "@assets/Photoroom_20260705_52038_PM_1783290164113.png";
+import caveBanner5 from "@assets/Photoroom_20260705_52123_PM_1783290164113.png";
+import caveEnter1 from "@assets/Photoroom_20260705_50251_PM_1783290164113.png";
+import caveEnter2 from "@assets/Photoroom_20260705_50531_PM_1783290164113.png";
+import caveEnter3 from "@assets/Photoroom_20260705_50328_PM_1783290164113.png";
+import caveEnter4 from "@assets/Photoroom_20260705_50615_PM_1783290164113.png";
+import caveEnter5 from "@assets/Photoroom_20260705_50445_PM_1783290164113.png";
 import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal, Copy, Waves, Palette, Heart, Droplets } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
@@ -227,11 +237,11 @@ const isMobilePhone = () => true;
 const MURK_CAVE_ID = "a1b2c3d4-0001-4000-8000-000000000001";
 
 const CAVE_TIERS = [
-  { tier: 1, name: "Surface Murk",    rec: "Lv. 1–15",  color: "#4ade80" },
-  { tier: 2, name: "Shallow Depths",  rec: "Lv. 10–25", color: "#22d3ee" },
-  { tier: 3, name: "Murk Passage",    rec: "Lv. 20–35", color: "#a78bfa" },
-  { tier: 4, name: "The Dark Abyss",  rec: "Lv. 30–45", color: "#f97316" },
-  { tier: 5, name: "Sovereign's Lair",rec: "Lv. 40–50", color: "#ef4444" },
+  { tier: 1, banner: caveBanner1, enterBtn: caveEnter1 },
+  { tier: 2, banner: caveBanner2, enterBtn: caveEnter2 },
+  { tier: 3, banner: caveBanner3, enterBtn: caveEnter3 },
+  { tier: 4, banner: caveBanner4, enterBtn: caveEnter4 },
+  { tier: 5, banner: caveBanner5, enterBtn: caveEnter5 },
 ] as const;
 
 function CaveEntryOverlay({ activePetId, onEnterTier, onClose }: {
@@ -251,6 +261,7 @@ function CaveEntryOverlay({ activePetId, onEnterTier, onClose }: {
 
   return (
     <div className="absolute inset-0 z-50 flex flex-col" style={{ background: "linear-gradient(180deg,#080810 0%,#0f0f1e 100%)" }}>
+      {/* Header */}
       <div className="flex items-center justify-between px-5 pt-8 pb-3 flex-shrink-0">
         <div>
           <div className="font-fantasy text-2xl text-white tracking-wide" style={{ textShadow: "0 0 24px rgba(168,85,247,0.9)" }}>
@@ -263,37 +274,48 @@ function CaveEntryOverlay({ activePetId, onEnterTier, onClose }: {
           <X className="w-5 h-5 text-gray-300" />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto px-4 pb-8 space-y-3 pt-2">
-        {CAVE_TIERS.map(({ tier, name, rec, color }) => {
+
+      {/* Tier list */}
+      <div className="flex-1 overflow-y-auto px-3 pb-8 space-y-4 pt-1">
+        {CAVE_TIERS.map(({ tier, banner, enterBtn }) => {
           const unlocked = isUnlocked(tier);
           const completed = isCompleted(tier);
           return (
-            <div key={tier} className="rounded-2xl p-4 border" style={{
-              background: unlocked ? `linear-gradient(135deg,${color}18 0%,rgba(0,0,0,0.55) 100%)` : "rgba(0,0,0,0.35)",
-              borderColor: unlocked ? `${color}55` : "rgba(255,255,255,0.06)",
-              opacity: unlocked ? 1 : 0.48,
-            }}>
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
-                      style={{ background: `${color}28`, color }}>TIER {tier}</span>
-                    {completed && <span className="text-[10px] text-green-400 font-bold">✓ CLEARED</span>}
+            <div key={tier} className="flex flex-col gap-1.5">
+              {/* Banner image — dimmed when locked */}
+              <div className="relative w-full rounded-xl overflow-hidden">
+                <img
+                  src={banner}
+                  alt={`Tier ${tier}`}
+                  className="w-full h-auto block"
+                  style={{ filter: unlocked ? "none" : "grayscale(0.6) brightness(0.45)" }}
+                />
+                {/* Lock icon overlay */}
+                {!unlocked && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-4xl drop-shadow-lg">🔒</span>
                   </div>
-                  <div className="text-white font-bold text-sm mt-0.5">{name}</div>
-                  <div className="text-gray-400 text-[11px]">{rec}</div>
-                </div>
-                {unlocked ? (
-                  <button data-testid={`button-cave-enter-tier-${tier}`}
-                    onClick={() => onEnterTier(tier)}
-                    className="shrink-0 px-4 py-2 rounded-xl font-bold text-sm text-white active:scale-90 transition-transform"
-                    style={{ background: `linear-gradient(135deg,${color}cc,${color}77)`, boxShadow: `0 4px 14px ${color}44` }}>
-                    ENTER
-                  </button>
-                ) : (
-                  <span className="text-2xl shrink-0">🔒</span>
+                )}
+                {/* CLEARED badge overlay (top-right of banner) */}
+                {completed && (
+                  <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold"
+                    style={{ background: "rgba(0,0,0,0.7)", color: "#4ade80", border: "1px solid #4ade8070" }}>
+                    ✓ CLEARED
+                  </div>
                 )}
               </div>
+
+              {/* Enter button — only shown when unlocked */}
+              {unlocked && (
+                <button
+                  data-testid={`button-cave-enter-tier-${tier}`}
+                  onClick={() => onEnterTier(tier)}
+                  className="w-full active:scale-95 transition-transform"
+                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                >
+                  <img src={enterBtn} alt="Enter" className="w-full h-auto block" />
+                </button>
+              )}
             </div>
           );
         })}
