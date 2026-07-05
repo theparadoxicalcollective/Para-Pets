@@ -3205,6 +3205,23 @@ app.use((req, res, next) => {
   console.log("Background initialization complete.");
 
   // Backfill Advanced Acquisition badge for users who previously bought a $100 pack
+  // Backfill: start hatch timer for any unhatched pet eggs that have none
+  try {
+    const result = await db.execute(sql`
+      UPDATE user_inventory ui
+      SET hatch_started_at = NOW()
+      FROM shop_items si
+      WHERE ui.shop_item_id = si.id
+        AND si.type = 'pet'
+        AND ui.is_hatched = false
+        AND ui.hatch_started_at IS NULL
+    `);
+    const count = (result as any).rowCount ?? 0;
+    if (count > 0) console.log(`Egg hatch timer backfill: started timer on ${count} egg(s).`);
+  } catch (e) {
+    console.error("Egg hatch timer backfill error (non-fatal):", e);
+  }
+
   await seedBrawlerBadges();
   await backfillBrawlerBadges();
   await backfillAdvancedAcquisitionBadge();

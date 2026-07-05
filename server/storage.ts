@@ -710,6 +710,24 @@ export class DatabaseStorage implements IStorage {
       return item;
     }
     const [item] = await db.insert(userInventory).values({ userId, shopItemId, ...extraFields }).returning();
+    // Auto-start hatch timer for pet eggs if the caller didn't already supply one.
+    // This covers every delivery path (rewards, gifts, quests, milestone drops, etc.)
+    // so callers don't need to remember to set it individually.
+    if (!extraFields?.hatchStartedAt) {
+      try {
+        const shopItem = await this.getShopItem(shopItemId);
+        if (shopItem?.type === "pet") {
+          const [withTimer] = await db
+            .update(userInventory)
+            .set({ hatchStartedAt: new Date() })
+            .where(eq(userInventory.id, item.id))
+            .returning();
+          if (withTimer) return withTimer;
+        }
+      } catch (e) {
+        console.warn("[addToInventory] could not auto-start hatch timer:", e);
+      }
+    }
     return item;
   }
 
