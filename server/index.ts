@@ -1923,18 +1923,18 @@ app.use((req, res, next) => {
         { name: "Cursed Effigy",    file: "generated_images/enemy_t8_cursed_effigy.png",    isBoss: false, isMiniBoss: false, caveTier: 8, coinReward: 58 },
         { name: "Voodoo Shaman",    file: "generated_images/enemy_t8_voodoo_shaman.png",    isBoss: false, isMiniBoss: true,  caveTier: 8, coinReward: 160 },
         { name: "Baron Nightfall",  file: "generated_images/enemy_t8_baron_nightfall.png",  isBoss: true,  isMiniBoss: false, caveTier: 8, coinReward: 390, bossSpecialAttack: "bolt" },
-        // Tier 9 — The Infernal Pit
-        { name: "Lava Wretch",      file: "generated_images/enemy_t9_lava_wretch.png",      isBoss: false, isMiniBoss: false, caveTier: 9, coinReward: 85 },
-        { name: "Ember Drake",      file: "generated_images/enemy_t9_ember_drake.png",      isBoss: false, isMiniBoss: false, caveTier: 9, coinReward: 85 },
-        { name: "Magma Crawler",    file: "generated_images/enemy_t9_magma_crawler.png",    isBoss: false, isMiniBoss: false, caveTier: 9, coinReward: 85 },
-        { name: "Forge Demon",      file: "generated_images/enemy_t9_forge_demon.png",      isBoss: false, isMiniBoss: true,  caveTier: 9, coinReward: 235 },
-        { name: "Infernal Sovereign", file: "generated_images/enemy_t9_infernal_sovereign.png", isBoss: true, isMiniBoss: false, caveTier: 9, coinReward: 570, bossSpecialAttack: "slash" },
-        // Tier 10 — The Dark Throne
-        { name: "Blood Specter",    file: "generated_images/enemy_t10_blood_specter.png",   isBoss: false, isMiniBoss: false, caveTier: 10, coinReward: 125 },
-        { name: "Void Wraith",      file: "generated_images/enemy_t10_void_wraith.png",     isBoss: false, isMiniBoss: false, caveTier: 10, coinReward: 125 },
-        { name: "Crimson Shade",    file: "generated_images/enemy_t10_crimson_shade.png",   isBoss: false, isMiniBoss: false, caveTier: 10, coinReward: 125 },
-        { name: "Soul Reaper",      file: "generated_images/enemy_t10_soul_reaper.png",     isBoss: false, isMiniBoss: true,  caveTier: 10, coinReward: 340 },
-        { name: "The Abyssal King", file: "generated_images/enemy_t10_abyssal_king.png",    isBoss: true,  isMiniBoss: false, caveTier: 10, coinReward: 825, bossSpecialAttack: "bolt" },
+        // Tier 9 — The Deep Murk
+        { name: "Swamp Ravager",    file: "generated_images/enemy_t9_swamp_ravager.png",    isBoss: false, isMiniBoss: false, caveTier: 9, coinReward: 85 },
+        { name: "Bog Devourer",     file: "generated_images/enemy_t9_bog_devourer.png",     isBoss: false, isMiniBoss: false, caveTier: 9, coinReward: 85 },
+        { name: "Murk Crusher",     file: "generated_images/enemy_t9_murk_crusher.png",     isBoss: false, isMiniBoss: false, caveTier: 9, coinReward: 85 },
+        { name: "Bayou Hex Warlord",file: "generated_images/enemy_t9_bayou_hex_warlord.png",isBoss: false, isMiniBoss: true,  caveTier: 9, coinReward: 235 },
+        { name: "The Primordial Murk", file: "generated_images/enemy_t9_primordial_murk.png", isBoss: true, isMiniBoss: false, caveTier: 9, coinReward: 570, bossSpecialAttack: "slash" },
+        // Tier 10 — The Ancient Deep
+        { name: "Swamp Colossus",       file: "generated_images/enemy_t10_swamp_colossus.png",       isBoss: false, isMiniBoss: false, caveTier: 10, coinReward: 125 },
+        { name: "Hex Abomination",      file: "generated_images/enemy_t10_hex_abomination.png",      isBoss: false, isMiniBoss: false, caveTier: 10, coinReward: 125 },
+        { name: "Bayou Nightmare",      file: "generated_images/enemy_t10_bayou_nightmare.png",      isBoss: false, isMiniBoss: false, caveTier: 10, coinReward: 125 },
+        { name: "Grand Voodoo Shaman",  file: "generated_images/enemy_t10_grand_voodoo_shaman.png",  isBoss: false, isMiniBoss: true,  caveTier: 10, coinReward: 340 },
+        { name: "The Ancient Bayou God",file: "generated_images/enemy_t10_ancient_bayou_god.png",    isBoss: true,  isMiniBoss: false, caveTier: 10, coinReward: 825, bossSpecialAttack: "bolt" },
       ];
       for (const ed of CAVE_ENEMIES_T6_10) {
         const imgData = loadAssetBase64(ed.file);
@@ -1951,6 +1951,65 @@ app.use((req, res, next) => {
       }
       await storage.setGameSetting("murk_cave_tiers_t6_10_v1", "done");
       console.log("Murk Cave Tiers 6–10 enemies seeded (25 enemies).");
+    }
+
+    // Replace T10 enemies with bayou-themed versions (removes old crimson-themed entries)
+    const t10BayouDone = await storage.getGameSetting("murk_cave_t10_bayou_v1");
+    if (!t10BayouDone) {
+      const MURK_CAVE_ID_T10 = "a1b2c3d4-0001-4000-8000-000000000001";
+      // Delete old T10 enemies (crimson-named)
+      await db.execute(sql`DELETE FROM location_enemies WHERE location_id = ${MURK_CAVE_ID_T10} AND cave_tier = 10`);
+      const T10_ENEMIES = [
+        { name: "Swamp Colossus",        file: "generated_images/enemy_t10_swamp_colossus.png",      isBoss: false, isMiniBoss: false, coinReward: 125 },
+        { name: "Hex Abomination",       file: "generated_images/enemy_t10_hex_abomination.png",     isBoss: false, isMiniBoss: false, coinReward: 125 },
+        { name: "Bayou Nightmare",       file: "generated_images/enemy_t10_bayou_nightmare.png",     isBoss: false, isMiniBoss: false, coinReward: 125 },
+        { name: "Grand Voodoo Shaman",   file: "generated_images/enemy_t10_grand_voodoo_shaman.png", isBoss: false, isMiniBoss: true,  coinReward: 340 },
+        { name: "The Ancient Bayou God", file: "generated_images/enemy_t10_ancient_bayou_god.png",   isBoss: true,  isMiniBoss: false, coinReward: 825, bossSpecialAttack: "bolt" },
+      ];
+      for (const ed of T10_ENEMIES) {
+        const imgData = loadAssetBase64(ed.file);
+        await (storage as any).createCaveEnemy({
+          locationId: MURK_CAVE_ID_T10,
+          name: ed.name,
+          imageUrl: imgData,
+          isBoss: ed.isBoss,
+          isMiniBoss: ed.isMiniBoss,
+          caveTier: 10,
+          coinReward: ed.coinReward,
+          bossSpecialAttack: (ed as any).bossSpecialAttack ?? null,
+        });
+      }
+      await storage.setGameSetting("murk_cave_t10_bayou_v1", "done");
+      console.log("Murk Cave Tier 10 replaced with bayou-themed enemies.");
+    }
+
+    // Replace T9 enemies with pure bayou-themed versions (removes lava/fire-named entries)
+    const t9BayouDone = await storage.getGameSetting("murk_cave_t9_bayou_v1");
+    if (!t9BayouDone) {
+      const MURK_CAVE_ID_T9 = "a1b2c3d4-0001-4000-8000-000000000001";
+      await db.execute(sql`DELETE FROM location_enemies WHERE location_id = ${MURK_CAVE_ID_T9} AND cave_tier = 9`);
+      const T9_ENEMIES = [
+        { name: "Swamp Ravager",     file: "generated_images/enemy_t9_swamp_ravager.png",     isBoss: false, isMiniBoss: false, coinReward: 85 },
+        { name: "Bog Devourer",      file: "generated_images/enemy_t9_bog_devourer.png",      isBoss: false, isMiniBoss: false, coinReward: 85 },
+        { name: "Murk Crusher",      file: "generated_images/enemy_t9_murk_crusher.png",      isBoss: false, isMiniBoss: false, coinReward: 85 },
+        { name: "Bayou Hex Warlord", file: "generated_images/enemy_t9_bayou_hex_warlord.png", isBoss: false, isMiniBoss: true,  coinReward: 235 },
+        { name: "The Primordial Murk", file: "generated_images/enemy_t9_primordial_murk.png", isBoss: true,  isMiniBoss: false, coinReward: 570, bossSpecialAttack: "slash" },
+      ];
+      for (const ed of T9_ENEMIES) {
+        const imgData = loadAssetBase64(ed.file);
+        await (storage as any).createCaveEnemy({
+          locationId: MURK_CAVE_ID_T9,
+          name: ed.name,
+          imageUrl: imgData,
+          isBoss: ed.isBoss,
+          isMiniBoss: ed.isMiniBoss,
+          caveTier: 9,
+          coinReward: ed.coinReward,
+          bossSpecialAttack: (ed as any).bossSpecialAttack ?? null,
+        });
+      }
+      await storage.setGameSetting("murk_cave_t9_bayou_v1", "done");
+      console.log("Murk Cave Tier 9 replaced with bayou-themed enemies.");
     }
 
     // Update Tier 1 enemy images to new uploaded artwork (v2)

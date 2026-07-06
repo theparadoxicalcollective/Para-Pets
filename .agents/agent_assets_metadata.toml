@@ -1392,6 +1392,66 @@ uri = "file://client/src/assets/cave_enter_t10.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "dfsg4xZRfAkn2uZXOA2IH"
+uri = "file://attached_assets/generated_images/enemy_t10_swamp_colossus.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "AwuWeXobDl4ezxJcZ9FvC"
+uri = "file://attached_assets/generated_images/enemy_t10_hex_abomination.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "L9UAXby5UlP_6TMZfQW_G"
+uri = "file://attached_assets/generated_images/enemy_t10_bayou_nightmare.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "wDgqeqTTto09_11AcC75o"
+uri = "file://attached_assets/generated_images/enemy_t10_grand_voodoo_shaman.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "kLeMFeEOHOindUYQ_JYr-"
+uri = "file://attached_assets/generated_images/enemy_t10_ancient_bayou_god.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "D_jPZ0IYze9H6IzCOFOy6"
+uri = "file://attached_assets/generated_images/enemy_t9_swamp_ravager.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "M-0J579bKL7H5OSjmCctT"
+uri = "file://attached_assets/generated_images/enemy_t9_bog_devourer.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "YjTtmREPwJuqr9ZxtyQ6c"
+uri = "file://attached_assets/generated_images/enemy_t9_murk_crusher.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "T5E8td9r-E0Af3Tn6Q5Bu"
+uri = "file://attached_assets/generated_images/enemy_t9_bayou_hex_warlord.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "m7IKxXffppOC0DaXx9Ety"
+uri = "file://attached_assets/generated_images/enemy_t9_primordial_murk.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"
