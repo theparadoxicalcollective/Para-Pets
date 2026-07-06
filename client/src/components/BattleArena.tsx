@@ -1543,11 +1543,18 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       setTimeout(() => setSparkParticles(prev => prev.filter(s => !cSparkIds.has(s.id))), 480);
       if (c.hp <= 0 && !c.dead) {
         c.dead = true;
+        // Immediately flush hp:0 + dead:true to React state so HP bar depletes and
+        // death animation plays before the phase can change.
+        const deadCi = ci;
+        setCompanions(prev => prev.map((comp, i) =>
+          i === deadCi ? { ...comp, hp: 0, dead: true } : comp
+        ));
         defeatMutation.mutate({ enemyId: c.encounter.enemyId, enemyLevel: c.encounter.level });
         aliveCountRef.current = Math.max(0, aliveCountRef.current - 1);
         if (aliveCountRef.current <= 0) {
           battleActiveRef.current = false;
-          advanceWaveGroup();
+          // Delay wave advance so the death animation (~0.8s) can finish rendering
+          setTimeout(() => advanceWaveGroup(), 750);
         }
       }
       break; // stop at first companion hit — swipe doesn't chain through enemies
@@ -2634,20 +2641,22 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   >
                     <img src={battlePauseBtn} alt="Pause" style={{ width: 36, height: 36, objectFit: "contain" }} />
                   </button>
-                  <button
-                    onClick={handleReturnToWorld}
-                    data-testid="button-flee-battle"
-                    className="active:scale-90 transition-transform"
-                    style={{ background: "none", border: "none", padding: 0 }}
-                  >
-                    <img src={battleCloseBtn} alt="Flee" style={{ width: 36, height: 36, objectFit: "contain" }} />
-                  </button>
+                  {!isCave && (
+                    <button
+                      onClick={handleReturnToWorld}
+                      data-testid="button-flee-battle"
+                      className="active:scale-90 transition-transform"
+                      style={{ background: "none", border: "none", padding: 0 }}
+                    >
+                      <img src={battleCloseBtn} alt="Flee" style={{ width: 36, height: 36, objectFit: "contain" }} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* ── Companion enemy sprites ─────────────────────────────── */}
-            {phase === "battle" && companions.map((comp, ci) => {
+            {(phase === "battle" || (phase === "waveComplete" && companions.some(c => c.dead))) && companions.map((comp, ci) => {
               if (comp.dead) {
                 if (!comp.encounter.imageUrl) return null;
                 return (
