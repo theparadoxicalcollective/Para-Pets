@@ -2288,7 +2288,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 <img
                   src={enemy.imageUrl}
                   alt={enemy.name}
-                  style={{ width: enemy.isBoss ? 156 : enemy.isMiniBoss ? 130 : 108, height: enemy.isBoss ? 156 : enemy.isMiniBoss ? 130 : 108 }}
+                  style={{ width: enemy.isBoss ? 120 : enemy.isMiniBoss ? 100 : 82, height: enemy.isBoss ? 120 : enemy.isMiniBoss ? 100 : 82 }}
                   className={`object-contain ${enemy.isBoss ? "drop-shadow-[0_0_24px_rgba(255,0,0,0.9)]" : enemy.isMiniBoss ? "drop-shadow-[0_0_14px_rgba(255,120,0,0.8)]" : "drop-shadow-lg"}`}
                 />
               )}
@@ -2404,8 +2404,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   <div style={{
                     position: "absolute",
                     left: "50%", top: "50%",
-                    width: enemy.isBoss ? 200 : enemy.isMiniBoss ? 155 : 120,
-                    height: enemy.isBoss ? 200 : enemy.isMiniBoss ? 155 : 120,
+                    width: enemy.isBoss ? 150 : enemy.isMiniBoss ? 112 : 86,
+                    height: enemy.isBoss ? 150 : enemy.isMiniBoss ? 112 : 86,
                     borderRadius: "50%",
                     border: "3px solid rgba(255,60,60,0.85)",
                     boxShadow: "0 0 20px rgba(255,40,40,0.7), 0 0 8px rgba(255,40,40,0.5)",
@@ -2461,7 +2461,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   <div style={{
                     position: "absolute",
                     left: "50%", top: "50%",
-                    width: 180, height: 180,
+                    width: 140, height: 140,
                     borderRadius: "50%",
                     background: "radial-gradient(circle, rgba(255,40,0,0.2) 0%, transparent 70%)",
                     transform: "translate(-50%, -50%)",
@@ -2475,8 +2475,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   <div style={{
                     position: "absolute",
                     left: "50%", top: "50%",
-                    width: enemy.isBoss ? 180 : 110,
-                    height: enemy.isBoss ? 180 : 110,
+                    width: enemy.isBoss ? 138 : 84,
+                    height: enemy.isBoss ? 138 : 84,
                     borderRadius: "50%",
                     border: "2.5px solid rgba(253,230,138,0.8)",
                     boxShadow: "0 0 24px rgba(253,230,138,0.7), 0 0 8px rgba(253,230,138,0.5)",
@@ -2507,8 +2507,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     src={enemy.imageUrl}
                     alt={enemy.name}
                     style={{
-                      width: enemy.isBoss ? 230 : 120,
-                      height: enemy.isBoss ? 230 : 120,
+                      width: enemy.isBoss ? 172 : 90,
+                      height: enemy.isBoss ? 172 : 90,
                       display: "block",
                       filter: bossRage && enemy.isBoss
                         ? "drop-shadow(0 0 18px rgba(255,40,40,0.9))"
@@ -2522,9 +2522,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 ) : (
                   <div
                     className="flex items-center justify-center bg-red-900/50 border-2 border-red-500 rounded-full"
-                    style={{ width: enemy.isBoss ? 230 : enemy.isMiniBoss ? 158 : 120, height: enemy.isBoss ? 230 : enemy.isMiniBoss ? 158 : 120 }}
+                    style={{ width: enemy.isBoss ? 172 : enemy.isMiniBoss ? 118 : 90, height: enemy.isBoss ? 172 : enemy.isMiniBoss ? 118 : 90 }}
                   >
-                    <Swords style={{ width: enemy.isBoss ? 80 : 44, height: enemy.isBoss ? 80 : 44, color: "#f87171" }} />
+                    <Swords style={{ width: enemy.isBoss ? 58 : 34, height: enemy.isBoss ? 58 : 34, color: "#f87171" }} />
                   </div>
                 )}
 
