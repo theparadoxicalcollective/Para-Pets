@@ -739,6 +739,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     setLastHitTime(0);
     setSlashEffects([]);
     setDamageNumbers([]);
+    setSlashTrail([]);
+    setTrailFading(false);
+    setSparkParticles([]);
+    swipePathRef.current = [];
+    isSlashingRef.current = false;
     setBoltProjectiles([]);
     setAutoOrbs([]);
     setBossSlashActive(false);

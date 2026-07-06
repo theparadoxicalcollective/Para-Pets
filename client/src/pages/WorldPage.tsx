@@ -290,9 +290,9 @@ function CaveEntryOverlay({ activePetId, onEnterTier, onClose }: {
                 style={{ filter: unlocked ? "none" : "grayscale(0.6) brightness(0.4)" }}
               />
 
-              {/* CLEARED badge — top-center of banner */}
+              {/* CLEARED badge — top-right of banner */}
               {completed && (
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap"
+                <div className="absolute top-2 right-2 flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap"
                   style={{ background: "rgba(0,0,0,0.75)", color: "#4ade80", border: "1px solid #4ade8066" }}>
                   ✓ CLEARED
                 </div>
