@@ -5,6 +5,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import bgImg from "@assets/bg_login.png";
+import warnRedPng from "@assets/Photoroom_20260705_105636_PM_1783310667789.png";
 import signInBtn from "@assets/btn_signin_v2.png";
 import createAccountBtn from "@assets/btn_create_v2.png";
 import MaintenancePage from "@/pages/MaintenancePage";
@@ -428,7 +429,7 @@ export default function AuthPage() {
                       />
                       {fieldErrors.email && (
                         <p data-testid="error-email" className="font-sans text-[11px] mt-1 ml-1 flex items-center gap-1" style={{ color: "#ff7070" }}>
-                          <span>⚠</span> {fieldErrors.email}
+                          <img src={warnRedPng} alt="!" style={{ width: 13, height: 13, objectFit: "contain" }} /> {fieldErrors.email}
                         </p>
                       )}
                     </div>
@@ -490,7 +491,7 @@ export default function AuthPage() {
                   />
                   {mode === "register" && fieldErrors.username ? (
                     <p data-testid="error-username" className="font-sans text-[11px] mt-1 ml-1 flex items-center gap-1" style={{ color: "#ff7070" }}>
-                      <span>⚠</span> {fieldErrors.username}
+                      <img src={warnRedPng} alt="!" style={{ width: 13, height: 13, objectFit: "contain" }} /> {fieldErrors.username}
                     </p>
                   ) : mode === "register" ? (
                     <p className="font-sans text-[10px] mt-1 ml-1" style={{ color: "#5aafaf" }}>Letters, numbers &amp; underscores, 3–20 chars</p>
@@ -529,7 +530,7 @@ export default function AuthPage() {
                   </div>
                   {mode === "register" && fieldErrors.password ? (
                     <p data-testid="error-password" className="font-sans text-[11px] mt-1 ml-1 flex items-center gap-1" style={{ color: "#ff7070" }}>
-                      <span>⚠</span> {fieldErrors.password}
+                      <img src={warnRedPng} alt="!" style={{ width: 13, height: 13, objectFit: "contain" }} /> {fieldErrors.password}
                     </p>
                   ) : mode === "register" ? (
                     <p className="font-sans text-[10px] mt-1 ml-1" style={{ color: "#5aafaf" }}>Minimum 6 characters</p>

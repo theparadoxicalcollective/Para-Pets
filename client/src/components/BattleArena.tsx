@@ -14,6 +14,8 @@ import counterLightningPng from "@assets/icon_battle_counter.png";
 import crossedSwordsPng from "@assets/icon_battle_crossed_swords.png";
 import hitMarkPng from "@assets/icon_battle_hitmark.png";
 import skullPng from "@assets/Photoroom_20260705_103527_PM_1783308939570.png";
+import bossWarnRedPng from "@assets/Photoroom_20260705_105636_PM_1783310667789.png";
+import miniBossOrangePng from "@assets/Photoroom_20260705_110030_PM_1783310667789.png";
 // Canvas-based renderer — each PetAnimator <img>-per-part allocates its own
 // full-resolution GPU texture on iOS Safari. With 3 pets in battle (1 active +
 // 2 extras) that easily exceeds the per-tab GPU memory budget on iPhone and
@@ -2484,13 +2486,17 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   WAVE {(allEnemies[waveIndex]?.waveGroup ?? waveIndex) + 1} / 6
                 </div>
                 {enemy.isBoss && (
-                  <div className="mt-1 font-fantasy text-sm font-bold tracking-widest" style={{ color: "#f87171", textShadow: "0 0 12px rgba(248,113,113,0.8)", animation: "tensionPulse 0.8s ease-in-out infinite" }}>
-                    ⚠ BOSS WAVE ⚠
+                  <div className="mt-1 flex items-center gap-2" style={{ animation: "tensionPulse 0.8s ease-in-out infinite" }}>
+                    <img src={bossWarnRedPng} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
+                    <span className="font-fantasy text-sm font-bold tracking-widest" style={{ color: "#f87171", textShadow: "0 0 12px rgba(248,113,113,0.8)" }}>BOSS WAVE</span>
+                    <img src={bossWarnRedPng} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
                   </div>
                 )}
                 {enemy.isMiniBoss && !enemy.isBoss && (
-                  <div className="mt-1 font-fantasy text-sm font-bold tracking-widest" style={{ color: "#fb923c", textShadow: "0 0 10px rgba(251,146,60,0.7)", animation: "tensionPulse 0.9s ease-in-out infinite" }}>
-                    ⚔ MINI-BOSS ⚔
+                  <div className="mt-1 flex items-center gap-2" style={{ animation: "tensionPulse 0.9s ease-in-out infinite" }}>
+                    <img src={miniBossOrangePng} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
+                    <span className="font-fantasy text-sm font-bold tracking-widest" style={{ color: "#fb923c", textShadow: "0 0 10px rgba(251,146,60,0.7)" }}>MINI-BOSS</span>
+                    <img src={miniBossOrangePng} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
                   </div>
                 )}
               </div>

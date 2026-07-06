@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import warnRedPng from "@assets/Photoroom_20260705_105636_PM_1783310667789.png";
 import { getNextZ } from "@/lib/layerManager";
 import { setNavHidden } from "@/lib/navVisibility";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -717,7 +718,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                   }}
                 >
                   <div className="flex items-start gap-2">
-                    <span style={{ color: "#ff6b6b", fontSize: "18px", lineHeight: 1, flexShrink: 0 }}>⚠</span>
+                    <img src={warnRedPng} alt="!" style={{ width: 20, height: 20, objectFit: "contain", flexShrink: 0 }} />
                     <div className="space-y-1.5">
                       <p className="font-fantasy text-[#ff6b6b] text-xs tracking-wider">This is irreversible</p>
                       <p className="font-sans text-[#c08080] text-[11px] leading-relaxed">
@@ -744,7 +745,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                     />
                     {deleteError && (
                       <p data-testid="text-delete-error" className="font-sans text-[#ff8888] text-[11px] pt-0.5 flex items-center gap-1">
-                        <span>⚠</span> {deleteError}
+                        <img src={warnRedPng} alt="!" style={{ width: 13, height: 13, objectFit: "contain" }} /> {deleteError}
                       </p>
                     )}
                   </div>
