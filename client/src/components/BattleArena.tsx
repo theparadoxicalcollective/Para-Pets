@@ -3032,7 +3032,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
               style={{ bottom: "9%" }}>
               <div className="flex gap-2 items-center pointer-events-auto rounded-2xl px-3 py-1.5"
                 style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(4px)" }}>
-                {Array.from({ length: 5 }, (_, i) => {
+                {Array.from({ length: isCave ? 3 : 5 }, (_, i) => {
                   const slot = activeSlots[i];
                   const qty = slot?.remaining ?? 0;
                   const isEmpty = !slot || qty === 0;

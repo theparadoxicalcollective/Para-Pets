@@ -5154,18 +5154,25 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                                   onClick={() => {
                                     if (isEquipped) return;
                                     const updated = [...cavePotionSlots] as (BattlePotionSlot | null)[];
-                                    const emptyIdx = updated.findIndex(s => s === null);
-                                    if (emptyIdx === -1) return;
-                                    updated[emptyIdx] = {
-                                      shopItemId: p.shopItemId,
-                                      inventoryId: p.inventoryId,
-                                      qty: Math.max(1, Math.min(50, p.quantity ?? 1)),
-                                      name: p.name,
-                                      imageUrl: p.imageUrl ?? null,
-                                      healthRestored: p.healthRestored ?? null,
-                                      manaRestored: p.manaRestored ?? null,
-                                      petsRevived: p.petsRevived ?? null,
-                                    };
+                                    const sameKindIdx = updated.findIndex(s => s !== null && s.shopItemId === p.shopItemId);
+                                    if (sameKindIdx !== -1) {
+                                      const existing = updated[sameKindIdx]!;
+                                      const addQty = Math.max(1, Math.min(50, p.quantity ?? 1));
+                                      updated[sameKindIdx] = { ...existing, qty: Math.min(50, existing.qty + addQty) };
+                                    } else {
+                                      const emptyIdx = updated.findIndex(s => s === null);
+                                      if (emptyIdx === -1) return;
+                                      updated[emptyIdx] = {
+                                        shopItemId: p.shopItemId,
+                                        inventoryId: p.inventoryId,
+                                        qty: Math.max(1, Math.min(50, p.quantity ?? 1)),
+                                        name: p.name,
+                                        imageUrl: p.imageUrl ?? null,
+                                        healthRestored: p.healthRestored ?? null,
+                                        manaRestored: p.manaRestored ?? null,
+                                        petsRevived: p.petsRevived ?? null,
+                                      };
+                                    }
                                     setCavePotionSlots(updated);
                                     const hasFreeSlot = updated.some(s => s === null);
                                     if (!hasFreeSlot) setCavePotionPickerOpen(false);
