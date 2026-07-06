@@ -741,6 +741,12 @@ const VERIDIAN_WATCHER_ID = "veridian-watcher";
 // Persisted on the user record (users.last_watcher_greeted_at) so it survives restarts.
 const LOGIN_GREETING_COOLDOWN_MS = 3 * 60 * 60 * 1000;
 
+// After a PvP or cave battle defeat, the pet's mood is temporarily capped.
+// Mood cannot rise above BATTLE_DEFEAT_MOOD_CAP for BATTLE_DEFEAT_RECENT_MINUTES
+// minutes following the loss. This makes defeat feel meaningful without being permanent.
+const BATTLE_DEFEAT_RECENT_MINUTES = 60; // cap lasts 1 hour
+const BATTLE_DEFEAT_MOOD_CAP = 70;       // mood ceiling while cap is active
+
 let lastWatcherMessageAt = 0;
 
 async function postWatcherMessage(message: string): Promise<void> {

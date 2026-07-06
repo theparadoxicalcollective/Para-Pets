@@ -1601,6 +1601,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     } else if (loc.isShop) {
       setShowLocationView(false);
       setShowShop(true);
+      setSelectedShopItem(null);
+      setBuyError(null);
       shopJustOpened.current = Date.now();
       playShopBell();
     } else if ((loc.type === "battle" || loc.type === "explore") && !currentUser.isAdmin) {
