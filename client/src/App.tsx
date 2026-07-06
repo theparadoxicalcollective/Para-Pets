@@ -752,8 +752,15 @@ function App() {
   }, []);
 
   // --fh always tracks the real viewport height so every page fills the screen.
+  // --vh is 1/100th of innerHeight so calc(N*var(--vh)) == N% of the real
+  // viewport (accounts for iOS Safari's address bar). Embers, shop modals,
+  // and many other components rely on it — without it they break on iOS.
   useEffect(() => {
-    const update = () => document.documentElement.style.setProperty("--fh", `${window.innerHeight}px`);
+    const update = () => {
+      const h = window.innerHeight;
+      document.documentElement.style.setProperty("--fh", `${h}px`);
+      document.documentElement.style.setProperty("--vh", `${h * 0.01}px`);
+    };
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
