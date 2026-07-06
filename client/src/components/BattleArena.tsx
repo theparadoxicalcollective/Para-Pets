@@ -2398,6 +2398,14 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           0%,100% { filter: drop-shadow(0 0 16px rgba(239,68,68,0.85)) brightness(1);   }
           50%     { filter: drop-shadow(0 0 34px rgba(239,68,68,1.0))  brightness(1.08); }
         }
+        @keyframes blockIconGlow {
+          0%,100% { filter: drop-shadow(0 0 8px rgba(96,165,250,0.7)) drop-shadow(0 0 3px rgba(147,197,253,0.5)) brightness(1); }
+          50%     { filter: drop-shadow(0 0 18px rgba(96,165,250,1.0)) drop-shadow(0 0 8px rgba(147,197,253,0.8)) brightness(1.12); }
+        }
+        @keyframes blockIconHeld {
+          0%,100% { filter: drop-shadow(0 0 14px rgba(96,165,250,0.9)) drop-shadow(0 0 6px rgba(147,197,253,0.7)) brightness(1.05); }
+          50%     { filter: drop-shadow(0 0 28px rgba(96,165,250,1.0)) drop-shadow(0 0 14px rgba(147,197,253,0.9)) brightness(1.18); }
+        }
         @keyframes skillReadyGlow {
           0%,100% { opacity: 0.7; transform: translate(-50%,-50%) scale(1);    }
           50%     { opacity: 1;   transform: translate(-50%,-50%) scale(1.12); }
@@ -3081,27 +3089,21 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                     onPointerDown={(e) => { e.stopPropagation(); startBlock(); }}
                     onPointerUp={() => endBlock()}
                     onPointerLeave={() => endBlock()}
-                    className="relative rounded-2xl flex items-center justify-center transition-all active:scale-90"
+                    className="relative flex items-center justify-center transition-all active:scale-90"
                     style={{
-                      width: 64, height: 64,
-                      background: blockHeld
-                        ? "linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)"
-                        : "linear-gradient(135deg, rgba(30,58,138,0.55) 0%, rgba(37,99,235,0.35) 100%)",
-                      border: blockHeld
-                        ? "2.5px solid rgba(147,197,253,1)"
-                        : "2px solid rgba(96,165,250,0.55)",
-                      boxShadow: blockHeld
-                        ? "0 0 22px rgba(96,165,250,0.85), 0 0 10px rgba(147,197,253,0.6), 0 2px 8px rgba(0,0,0,0.6)"
-                        : "0 0 12px rgba(96,165,250,0.45), 0 2px 8px rgba(0,0,0,0.55)",
-                      opacity: 1,
-                      animation: blockHeld ? "blockReadyPulse 0.55s ease-in-out infinite" : undefined,
+                      width: 72, height: 72,
+                      background: "none",
+                      border: "none",
+                      padding: 0,
                     }}
                   >
-                    <img src={blockIconPng} alt="Block" style={{ width: 40, height: 40, objectFit: "contain" }} />
-                    {blockHeld && (
-                      <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full"
-                        style={{ background: "#60a5fa", boxShadow: "0 0 8px rgba(96,165,250,0.9)" }} />
-                    )}
+                    <img src={blockIconPng} alt="Block" style={{
+                      width: 68, height: 68,
+                      objectFit: "contain",
+                      animation: blockHeld
+                        ? "blockIconHeld 0.55s ease-in-out infinite"
+                        : "blockIconGlow 2s ease-in-out infinite",
+                    }} />
                   </button>
                   <span className="font-fantasy text-[9px] tracking-widest"
                     style={{ color: blockHeld ? "#93c5fd" : "#60a5fa", textShadow: blockHeld ? "0 0 8px rgba(147,197,253,0.9)" : "0 0 6px rgba(96,165,250,0.5)" }}>
