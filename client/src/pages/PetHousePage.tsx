@@ -3217,7 +3217,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
                 <div
                   key={item.id}
                   className="flex-shrink-0 flex flex-col items-center relative"
-                  style={{ width: 52, touchAction: "none", cursor: "grab", userSelect: "none" }}
+                  style={{ width: 52, touchAction: "pan-x", cursor: "grab", userSelect: "none" }}
                   onPointerDown={(e) => onItemPointerDown(e, item)}
                   data-testid={`edible-item-${item.id}`}
                 >
@@ -3305,7 +3305,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
                 <div
                   key={item.id}
                   className="flex-shrink-0 flex flex-col items-center relative"
-                  style={{ width: 52, touchAction: "none", cursor: "grab", userSelect: "none" }}
+                  style={{ width: 52, touchAction: "pan-x", cursor: "grab", userSelect: "none" }}
                   onPointerDown={(e) => onItemPointerDown(e, item)}
                   data-testid={`gift-item-${item.id}`}
                 >
