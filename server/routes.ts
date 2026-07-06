@@ -9217,7 +9217,7 @@ export async function registerRoutes(
     try {
       const user = req.user!;
       const { petInventoryId, tier } = req.body as { petInventoryId: string; tier: number };
-      if (!petInventoryId || !tier || tier < 1 || tier > 5) {
+      if (!petInventoryId || !tier || tier < 1 || tier > 10) {
         return res.status(400).json({ message: "Invalid tier" });
       }
       // Verify the pet belongs to the user
@@ -9228,8 +9228,8 @@ export async function registerRoutes(
       }
       const current = await storage.getPetCaveProgress(petInventoryId) ?? { currentTier: 1, completedTiers: [] };
       const completedTiers = Array.from(new Set([...current.completedTiers, tier])).sort((a, b) => a - b);
-      // Unlock next tier (max 5)
-      const nextTier = Math.min(5, Math.max(current.currentTier, tier + 1));
+      // Unlock next tier (max 10)
+      const nextTier = Math.min(10, Math.max(current.currentTier, tier + 1));
       await storage.upsertPetCaveProgress(petInventoryId, nextTier, completedTiers);
       return res.json({ currentTier: nextTier, completedTiers });
     } catch (err) {
