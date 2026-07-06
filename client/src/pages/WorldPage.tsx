@@ -256,7 +256,7 @@ function CaveEntryOverlay({ activePetId, onEnterTier, onClose }: {
   const completedTiers: number[] = progress?.completedTiers ?? [];
   const currentTier = progress?.currentTier ?? 1;
 
-  const isUnlocked = (tier: number) => tier === 1 || completedTiers.includes(tier - 1) || currentTier >= tier;
+  const isUnlocked = (tier: number) => !completedTiers.includes(tier) && (tier === 1 || completedTiers.includes(tier - 1) || currentTier >= tier);
   const isCompleted = (tier: number) => completedTiers.includes(tier);
 
   return (

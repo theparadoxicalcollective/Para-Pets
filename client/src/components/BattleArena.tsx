@@ -104,6 +104,14 @@ interface EncounterEnemy {
   drops: any[];
 }
 
+interface CompanionEnemy {
+  encounter: EncounterEnemy;
+  hp: number;
+  maxHp: number;
+  dead: boolean;
+  pos: { x: number; y: number };
+}
+
 interface EncounterPet {
   inventoryId: string;
   name: string;
@@ -497,6 +505,21 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const boltIdRef = useRef(0);
   const orbIdRef = useRef(0);
 
+  // ── Companion enemies (simultaneous wave-group) ───────────────────────────
+  const [companions, setCompanions] = useState<CompanionEnemy[]>([]);
+  const companionDataRef = useRef<{
+    encounter: EncounterEnemy;
+    hp: number;
+    pos: { x: number; y: number };
+    bounceBase: { x: number; y: number };
+    vel: { vx: number; vy: number };
+    osc: number;
+    dead: boolean;
+  }[]>([]);
+  const aliveCountRef = useRef(1);
+  const primaryDeadRef = useRef(false);
+  const currentWaveGroupRef = useRef(0);
+
   // ── Hold-block state ──────────────────────────────────────────────────────
   const blockHeldRef = useRef(false);
   const [blockHeld, setBlockHeld] = useState(false);
@@ -711,7 +734,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           .map(s => ({ ...s, remaining: s.qty }));
         activeSlotsRef.current = slots;
         setActiveSlots(slots);
-        startWave(data.encounters[0], 0);
+        startWaveGroup(data.encounters, 0);
       } catch {
         toast({ title: "Error", description: "Failed to start battle", variant: "destructive" });
         onClose();
@@ -721,7 +744,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   }, [locationId]);
 
   // ── startWave ────────────────────────────────────────────────────────────
-  const startWave = useCallback((enc: EncounterEnemy, idx: number) => {
+  const startWave = useCallback((enc: EncounterEnemy, idx: number, spawnX?: number, spawnY?: number) => {
     setEnemy(enc);
     setWaveIndex(idx);
     // Multi-pet party scaling — the server hands us a 1-pet stat block, so when
@@ -773,10 +796,15 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     difficultyRef.current = 0.3 + Math.random() * 0.7;
     chargeDurationRef.current = enc.isBoss ? 1000 : 1300;
     enemyOscRef.current = Math.random() * Math.PI * 2;
+    // Reset companion tracking; startWaveGroup overrides these after calling startWave
+    setCompanions([]);
+    companionDataRef.current = [];
+    aliveCountRef.current = 1;
+    primaryDeadRef.current = false;
     // Bosses anchor dead-center at the top of the arena so they feel massive
     // and dramatic; regular enemies still spawn with a bit of randomness.
-    const startX = enc.isBoss ? 50 : 45 + Math.random() * 20;
-    const startY = enc.isBoss ? 20 : 16 + Math.random() * 6;
+    const startX = spawnX !== undefined ? spawnX : (enc.isBoss ? 50 : 45 + Math.random() * 20);
+    const startY = spawnY !== undefined ? spawnY : (enc.isBoss ? 20 : 16 + Math.random() * 6);
     enemyPosRef.current = { x: startX, y: startY };
     setEnemyPos({ x: startX, y: startY });
     chargeHomePosRef.current = { x: startX, y: startY };
@@ -787,6 +815,61 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     enemyBounceBaseRef.current = { x: startX, y: startY };
     setPhase("intro");
   }, []);
+
+  // ── advanceWaveGroup: move to next group or victory ──────────────────────
+  const advanceWaveGroup = useCallback(() => {
+    const nextGroupIdx = currentWaveGroupRef.current + 1;
+    const hasNextGroup = allEnemies.some(e => (e.waveGroup ?? 0) === nextGroupIdx);
+    setPhase(hasNextGroup ? "waveComplete" : "victory");
+  }, [allEnemies]);
+
+  // ── startWaveGroup: start all enemies in one wave group simultaneously ────
+  const startWaveGroup = useCallback((allEncs: EncounterEnemy[], groupIdx: number) => {
+    const group = allEncs.filter(e => (e.waveGroup ?? 0) === groupIdx);
+    if (!group.length) return;
+    currentWaveGroupRef.current = groupIdx;
+
+    // Boss > mini-boss > first normal as primary (owns the charge system)
+    const primary = group.find(e => e.isBoss) ?? group.find(e => e.isMiniBoss) ?? group[0];
+    const comps = group.filter(e => e !== primary);
+    const total = group.length;
+
+    // Spread positions: primary at centre slot, companions at outer slots
+    const xSlots = total === 1 ? [50] : total === 2 ? [28, 68] : [18, 50, 78];
+    const primarySlot = total <= 2 ? total - 1 : 1;
+    const primaryX = xSlots[primarySlot] ?? 50;
+    const primaryY = 18;
+    const compSlots = xSlots.filter((_, i) => i !== primarySlot);
+
+    const compStartData = comps.map((enc, ci) => {
+      const cx = compSlots[ci] ?? 30 + ci * 25;
+      const cy = 18 + Math.random() * 3;
+      const angle = Math.random() * Math.PI * 2;
+      const speed = enc.isMiniBoss ? 5 + Math.random() * 2 : 8 + Math.random() * 3;
+      return {
+        encounter: enc,
+        hp: enc.hp,
+        pos: { x: cx, y: cy },
+        bounceBase: { x: cx, y: cy },
+        vel: { vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed },
+        osc: Math.random() * Math.PI * 2,
+        dead: false,
+      };
+    });
+
+    const primaryIdx = allEncs.indexOf(primary);
+    startWave(primary, primaryIdx >= 0 ? primaryIdx : 0, primaryX, primaryY);
+    // Override companion refs that startWave just cleared
+    companionDataRef.current = compStartData;
+    aliveCountRef.current = group.length;
+    setCompanions(compStartData.map(c => ({
+      encounter: c.encounter,
+      hp: c.hp,
+      maxHp: c.hp,
+      dead: false,
+      pos: c.pos,
+    })));
+  }, [startWave]);
 
   // ── Intro → battle transition ────────────────────────────────────────────
   useEffect(() => {
@@ -890,18 +973,20 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   useEffect(() => {
     handleEnemyDeathRef.current = () => {
       if (!enemy) return;
-      battleActiveRef.current = false;
+      if (primaryDeadRef.current) return;
+      primaryDeadRef.current = true;
+      enemyChargingRef.current = false;
+      chargeReturningRef.current = false;
+      setEnemyCharging(false);
+      nextChargeTimeRef.current = 0;
       defeatMutation.mutate({ enemyId: enemy.enemyId, enemyLevel: enemy.level });
-      const nextIdx = waveIndex + 1;
-      const currGroup = allEnemies[waveIndex]?.waveGroup ?? waveIndex;
-      const nextGroup = nextIdx < allEnemies.length ? (allEnemies[nextIdx]?.waveGroup ?? nextIdx) : -1;
-      if (nextIdx < allEnemies.length && nextGroup === currGroup) {
-        startWave(allEnemies[nextIdx], nextIdx);
-      } else {
-        setPhase(nextIdx < allEnemies.length ? "waveComplete" : "victory");
+      aliveCountRef.current = Math.max(0, aliveCountRef.current - 1);
+      if (aliveCountRef.current <= 0) {
+        battleActiveRef.current = false;
+        advanceWaveGroup();
       }
     };
-  }, [enemy, waveIndex, allEnemies, defeatMutation, startWave]);
+  }, [enemy, defeatMutation, advanceWaveGroup]);
 
   const potionMutation = useMutation({
     mutationFn: async ({ inventoryId, petInventoryId }: { inventoryId: string; petInventoryId: string }) => {
@@ -1130,7 +1215,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       }
 
       // ── Charge initiation ─────────────────────────────────────────────
-      if (!enemyChargingRef.current && !chargeReturningRef.current && nextChargeTimeRef.current > 0 && now >= nextChargeTimeRef.current) {
+      if (!enemyChargingRef.current && !chargeReturningRef.current && !primaryDeadRef.current && nextChargeTimeRef.current > 0 && now >= nextChargeTimeRef.current) {
         // Pick a random alive pet to target
         const total = equippedPetsCountRef.current;
         const aliveIdxs: number[] = [];
@@ -1210,6 +1295,31 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         setMana(Math.floor(manaRef.current));
       }
 
+      // ── Companion movement ───────────────────────────────────────────────────
+      if (companionDataRef.current.length > 0) {
+        let anyCompAlive = false;
+        for (const c of companionDataRef.current) {
+          if (c.dead) continue;
+          anyCompAlive = true;
+          c.osc += 0.016;
+          const cDt = 1 / 60;
+          let cbx = c.bounceBase.x + c.vel.vx * cDt;
+          let cby = c.bounceBase.y + c.vel.vy * cDt;
+          if (cbx < 12) { cbx = 12; c.vel.vx = Math.abs(c.vel.vx); }
+          if (cbx > 82) { cbx = 82; c.vel.vx = -Math.abs(c.vel.vx); }
+          if (cby < 8)  { cby = 8;  c.vel.vy = Math.abs(c.vel.vy); }
+          if (cby > 44) { cby = 44; c.vel.vy = -Math.abs(c.vel.vy); }
+          c.bounceBase = { x: cbx, y: cby };
+          c.pos = { x: Math.max(10, Math.min(90, cbx + Math.sin(c.osc * 2.2) * 1.2)), y: Math.max(6, Math.min(48, cby + Math.sin(c.osc * 1.7) * 0.8)) };
+        }
+        if (anyCompAlive) {
+          setCompanions(prev => prev.map((c, i) => {
+            const d = companionDataRef.current[i];
+            return d ? { ...c, pos: d.pos, hp: d.hp, dead: d.dead } : c;
+          }));
+        }
+      }
+
       animFrameRef.current = requestAnimationFrame(animate);
     };
 
@@ -1257,7 +1367,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
   const checkSegmentHit = useCallback((ax: number, ay: number, bx: number, by: number) => {
     if (!battleActiveRef.current || !enemy) return;
-    if (hitEnemiesRef.current.has(enemy.enemyId)) return;
 
     const totalPathLen = swipePathRef.current.reduce((acc, p, i) => {
       if (i === 0) return 0;
@@ -1266,11 +1375,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     }, 0);
     if (totalPathLen < 4) return;
 
+    // ── Primary hit check ────────────────────────────────────────────────────
     const ePos = enemyPosRef.current;
-    const dist = segmentPointDist(ax, ay, bx, by, ePos.x, ePos.y);
+    const pDist = segmentPointDist(ax, ay, bx, by, ePos.x, ePos.y);
     const hitRadius = enemy.isBoss ? 24 : 17;
-    if (dist >= hitRadius) return;
-
+    if (!hitEnemiesRef.current.has(enemy.enemyId) && !primaryDeadRef.current && pDist < hitRadius) {
     hitEnemiesRef.current.add(enemy.enemyId);
     playHit();
 
@@ -1342,21 +1451,59 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     setDamageNumbers(prev => [...prev, dmgNum]);
     setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== dmgNum.id)), isCrit ? 1400 : 900);
 
-    if (enemyHpRef.current <= 0) {
-      if (battleActiveRef.current) {
+    if (enemyHpRef.current <= 0 && !primaryDeadRef.current) {
+      primaryDeadRef.current = true;
+      enemyChargingRef.current = false;
+      chargeReturningRef.current = false;
+      setEnemyCharging(false);
+      nextChargeTimeRef.current = 0;
+      defeatMutation.mutate({ enemyId: enemy.enemyId, enemyLevel: enemy.level });
+      aliveCountRef.current = Math.max(0, aliveCountRef.current - 1);
+      if (aliveCountRef.current <= 0) {
         battleActiveRef.current = false;
-        defeatMutation.mutate({ enemyId: enemy.enemyId, enemyLevel: enemy.level });
-        const nextIdx = waveIndex + 1;
-        const currGroup = allEnemies[waveIndex]?.waveGroup ?? waveIndex;
-        const nextGroup = nextIdx < allEnemies.length ? (allEnemies[nextIdx]?.waveGroup ?? nextIdx) : -1;
-        if (nextIdx < allEnemies.length && nextGroup === currGroup) {
-          startWave(allEnemies[nextIdx], nextIdx);
-        } else {
-          setPhase(nextIdx < allEnemies.length ? "waveComplete" : "victory");
+        advanceWaveGroup();
+      }
+    }
+    } // end primary hit block
+
+    // ── Companion hit checks ─────────────────────────────────────────────────
+    for (let ci = 0; ci < companionDataRef.current.length; ci++) {
+      const c = companionDataRef.current[ci];
+      if (c.dead || hitEnemiesRef.current.has(`c${ci}`)) continue;
+      const cDist = segmentPointDist(ax, ay, bx, by, c.pos.x, c.pos.y);
+      const cHitRadius = c.encounter.isMiniBoss ? 20 : 17;
+      if (cDist >= cHitRadius) continue;
+      hitEnemiesRef.current.add(`c${ci}`);
+      playHit();
+      const rawDmg = Math.max(10, petStatsRef.current.atk - (c.encounter.def * 0.55));
+      const cComboMult = 1 + Math.min(comboCount * 0.12, 0.6);
+      const cIsCrit = Math.random() < 0.15;
+      const cDmg = Math.max(1, Math.floor((rawDmg + Math.floor(Math.random() * 8) - 3) * cComboMult * (cIsCrit ? 1.9 : 1)));
+      c.hp = Math.max(0, c.hp - cDmg);
+      const cDmgId = dmgIdRef.current++;
+      setDamageNumbers(prev => [...prev, { id: cDmgId, x: c.pos.x + (Math.random() * 12 - 6), y: c.pos.y - 6, value: cDmg, isCrit: cIsCrit }]);
+      setTimeout(() => setDamageNumbers(prev => prev.filter(d => d.id !== cDmgId)), cIsCrit ? 1400 : 900);
+      const cMarkId = slashIdRef.current++;
+      setSlashEffects(prev => [...prev, { id: cMarkId, x: c.pos.x, y: c.pos.y }]);
+      setTimeout(() => setSlashEffects(prev => prev.filter(s => s.id !== cMarkId)), 500);
+      const cSparks: SparkParticle[] = Array.from({ length: 9 }, (_, i) => {
+        const ang = (i / 9) * Math.PI * 2 + Math.random() * 0.4;
+        return { id: slashIdRef.current++, x: c.pos.x, y: c.pos.y, dx: Math.cos(ang) * (2 + Math.random() * 3), dy: Math.sin(ang) * (2 + Math.random() * 3), color: accent };
+      });
+      setSparkParticles(prev => [...prev, ...cSparks]);
+      const cSparkIds = new Set(cSparks.map(s => s.id));
+      setTimeout(() => setSparkParticles(prev => prev.filter(s => !cSparkIds.has(s.id))), 480);
+      if (c.hp <= 0 && !c.dead) {
+        c.dead = true;
+        defeatMutation.mutate({ enemyId: c.encounter.enemyId, enemyLevel: c.encounter.level });
+        aliveCountRef.current = Math.max(0, aliveCountRef.current - 1);
+        if (aliveCountRef.current <= 0) {
+          battleActiveRef.current = false;
+          advanceWaveGroup();
         }
       }
     }
-  }, [enemy, comboCount, lastHitTime, defeatMutation, waveIndex, allEnemies, accent, startWave]);
+  }, [enemy, comboCount, lastHitTime, defeatMutation, accent, advanceWaveGroup]);
 
   // ── Swipe handlers ───────────────────────────────────────────────────────
   const handleSlashStart = useCallback((e: React.PointerEvent) => {
@@ -1944,9 +2091,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
   // ── Misc ─────────────────────────────────────────────────────────────────
   const handleAdvance = useCallback(() => {
-    const nextIdx = waveIndex + 1;
-    if (nextIdx < allEnemies.length) startWave(allEnemies[nextIdx], nextIdx);
-  }, [waveIndex, allEnemies, startWave]);
+    const nextGroupIdx = currentWaveGroupRef.current + 1;
+    startWaveGroup(allEnemies, nextGroupIdx);
+  }, [allEnemies, startWaveGroup]);
 
   const handleReturnToWorld = useCallback(() => {
     onBattleEnd();
@@ -2383,6 +2530,62 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 </div>
               </div>
             </div>
+
+            {/* ── Companion enemy sprites ─────────────────────────────── */}
+            {phase === "battle" && companions.map((comp, ci) => comp.dead ? null : (
+              <div key={`comp-${ci}`}
+                className="absolute pointer-events-none"
+                style={{
+                  left: `${comp.pos.x}%`,
+                  top: `${comp.pos.y}%`,
+                  transform: "translate(-50%, -50%)",
+                  zIndex: 9,
+                  animation: "enemyBounce 0.7s ease-in-out infinite",
+                }}
+              >
+                {comp.encounter.imageUrl ? (
+                  <img
+                    src={comp.encounter.imageUrl}
+                    alt={comp.encounter.name}
+                    style={{
+                      width: comp.encounter.isMiniBoss ? 118 : 90,
+                      height: comp.encounter.isMiniBoss ? 118 : 90,
+                      display: "block",
+                      filter: comp.encounter.isMiniBoss
+                        ? "drop-shadow(0 0 10px rgba(255,120,0,0.8))"
+                        : "drop-shadow(0 0 6px rgba(255,80,80,0.6))",
+                    }}
+                    className="object-contain"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center bg-red-900/50 border-2 border-red-500 rounded-full"
+                    style={{ width: comp.encounter.isMiniBoss ? 118 : 90, height: comp.encounter.isMiniBoss ? 118 : 90 }}>
+                    <Swords style={{ width: 34, height: 34, color: "#f87171" }} />
+                  </div>
+                )}
+                {/* HP bar */}
+                <div style={{
+                  position: "absolute", bottom: -12, left: "50%", transform: "translateX(-50%)",
+                  width: comp.encounter.isMiniBoss ? 76 : 58, height: 5,
+                  background: "rgba(0,0,0,0.7)", borderRadius: 3, overflow: "hidden",
+                }}>
+                  <div style={{
+                    height: "100%", borderRadius: 3,
+                    background: "linear-gradient(90deg,#ff4444,#ff8800)",
+                    width: `${Math.max(0, (comp.hp / comp.maxHp) * 100)}%`,
+                    transition: "width 0.12s ease-out",
+                  }} />
+                </div>
+                <div style={{
+                  position: "absolute", bottom: -24, left: "50%", transform: "translateX(-50%)",
+                  fontSize: 9, color: comp.encounter.isMiniBoss ? "#fb923c" : "#fca5a5",
+                  whiteSpace: "nowrap", fontWeight: 700,
+                  textShadow: "0 1px 3px rgba(0,0,0,0.9)",
+                }}>
+                  {comp.encounter.name}
+                </div>
+              </div>
+            ))}
 
             {/* ── Enemy sprite ───────────────────────────────────────── */}
             {phase === "battle" && (
