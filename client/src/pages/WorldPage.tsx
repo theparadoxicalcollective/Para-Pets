@@ -5089,7 +5089,15 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                 };
 
                 const cavePotions = inventory.filter((i: any) => i.type === "potion" && ((i.healthRestored ?? 0) > 0 || (i.manaRestored ?? 0) > 0 || (i.petsRevived ?? 0) > 0));
-                const assignedIds = new Set(cavePotionSlots.filter(Boolean).map(s => s!.inventoryId));
+                // Group identical potions into stacks of up to 50
+                const cavePotionStacks: Array<{ shopItemId: string; inventoryId: string; quantity: number; name: string; imageUrl?: string | null; healthRestored?: number | null; manaRestored?: number | null; petsRevived?: number | null; }> = Object.values(
+                  cavePotions.reduce((acc: Record<string, any>, p: any) => {
+                    if (!acc[p.shopItemId]) acc[p.shopItemId] = { ...p, quantity: 0 };
+                    acc[p.shopItemId].quantity = Math.min(50, acc[p.shopItemId].quantity + (p.quantity ?? 1));
+                    return acc;
+                  }, {})
+                );
+                const assignedShopIds = new Set(cavePotionSlots.filter(Boolean).map(s => s!.shopItemId));
 
                 return (
                   <div>
@@ -5157,37 +5165,30 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                             <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                        {cavePotions.length === 0 ? (
+                        {cavePotionStacks.length === 0 ? (
                           <p className="font-fantasy text-[10px] text-white/30 text-center py-3">No potions in bag</p>
                         ) : (
                           <div className="flex flex-wrap gap-2 p-3 max-h-28 overflow-y-auto">
-                            {cavePotions.map((p: any) => {
-                              const isEquipped = assignedIds.has(p.inventoryId);
+                            {cavePotionStacks.map((p) => {
+                              const isEquipped = assignedShopIds.has(p.shopItemId);
                               return (
-                                <button key={p.inventoryId}
+                                <button key={p.shopItemId}
                                   disabled={isEquipped}
                                   onClick={() => {
                                     if (isEquipped) return;
                                     const updated = [...cavePotionSlots] as (BattlePotionSlot | null)[];
-                                    const sameKindIdx = updated.findIndex(s => s !== null && s.shopItemId === p.shopItemId);
-                                    if (sameKindIdx !== -1) {
-                                      const existing = updated[sameKindIdx]!;
-                                      const addQty = Math.max(1, Math.min(50, p.quantity ?? 1));
-                                      updated[sameKindIdx] = { ...existing, qty: Math.min(50, existing.qty + addQty) };
-                                    } else {
-                                      const emptyIdx = updated.findIndex(s => s === null);
-                                      if (emptyIdx === -1) return;
-                                      updated[emptyIdx] = {
-                                        shopItemId: p.shopItemId,
-                                        inventoryId: p.inventoryId,
-                                        qty: Math.max(1, Math.min(50, p.quantity ?? 1)),
-                                        name: p.name,
-                                        imageUrl: p.imageUrl ?? null,
-                                        healthRestored: p.healthRestored ?? null,
-                                        manaRestored: p.manaRestored ?? null,
-                                        petsRevived: p.petsRevived ?? null,
-                                      };
-                                    }
+                                    const emptyIdx = updated.findIndex(s => s === null);
+                                    if (emptyIdx === -1) return;
+                                    updated[emptyIdx] = {
+                                      shopItemId: p.shopItemId,
+                                      inventoryId: p.inventoryId,
+                                      qty: Math.max(1, Math.min(50, p.quantity ?? 1)),
+                                      name: p.name,
+                                      imageUrl: p.imageUrl ?? null,
+                                      healthRestored: p.healthRestored ?? null,
+                                      manaRestored: p.manaRestored ?? null,
+                                      petsRevived: p.petsRevived ?? null,
+                                    };
                                     setCavePotionSlots(updated);
                                     const hasFreeSlot = updated.some(s => s === null);
                                     if (!hasFreeSlot) setCavePotionPickerOpen(false);

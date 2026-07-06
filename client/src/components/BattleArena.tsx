@@ -1490,6 +1490,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     }
     } // end primary hit block
 
+    // Stop the swipe at the first enemy it hits — don't chain through companions
+    if (hitEnemiesRef.current.has(enemy.enemyId)) return;
+
     // ── Companion hit checks ─────────────────────────────────────────────────
     for (let ci = 0; ci < companionDataRef.current.length; ci++) {
       const c = companionDataRef.current[ci];
@@ -1526,6 +1529,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           advanceWaveGroup();
         }
       }
+      break; // stop at first companion hit — swipe doesn't chain through enemies
     }
   }, [enemy, comboCount, lastHitTime, defeatMutation, accent, advanceWaveGroup]);
 
