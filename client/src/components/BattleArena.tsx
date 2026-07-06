@@ -13,6 +13,7 @@ import rageFlamePng from "@assets/icon_battle_rage.png";
 import counterLightningPng from "@assets/icon_battle_counter.png";
 import crossedSwordsPng from "@assets/icon_battle_crossed_swords.png";
 import hitMarkPng from "@assets/icon_battle_hitmark.png";
+import skullPng from "@assets/Photoroom_20260705_103527_PM_1783308939570.png";
 // Canvas-based renderer — each PetAnimator <img>-per-part allocates its own
 // full-resolution GPU texture on iOS Safari. With 3 pets in battle (1 active +
 // 2 extras) that easily exceeds the per-tab GPU memory budget on iPhone and
@@ -1391,6 +1392,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
   const checkSegmentHit = useCallback((ax: number, ay: number, bx: number, by: number) => {
     if (!battleActiveRef.current || !enemy) return;
+    // One hit per swipe gesture — once any enemy is tagged, ignore further segments
+    if (hitEnemiesRef.current.size > 0) return;
 
     const totalPathLen = swipePathRef.current.reduce((acc, p, i) => {
       if (i === 0) return 0;
@@ -1489,9 +1492,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       }
     }
     } // end primary hit block
-
-    // Stop the swipe at the first enemy it hits — don't chain through companions
-    if (hitEnemiesRef.current.has(enemy.enemyId)) return;
 
     // ── Companion hit checks ─────────────────────────────────────────────────
     for (let ci = 0; ci < companionDataRef.current.length; ci++) {
@@ -2297,6 +2297,21 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           0% { transform: translateY(20px); opacity: 0; }
           100% { transform: translateY(0); opacity: 1; }
         }
+        @keyframes skullBubbleFloat {
+          0%   { transform: translateX(-50%) scale(0.5); opacity: 1; }
+          45%  { transform: translateX(-50%) translateY(-22px) scale(1.15); opacity: 0.95; }
+          100% { transform: translateX(-50%) translateY(-55px) scale(0.7); opacity: 0; }
+        }
+        @keyframes enemyDeathSlide {
+          0%   { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+          35%  { transform: translate(-50%,-50%) scale(0.75); opacity: 0.65; }
+          100% { transform: translate(calc(-50% - 28px), calc(-50% + 55px)) scale(0.5); opacity: 0.28; }
+        }
+        @keyframes caveIntroGold {
+          0%   { opacity: 0; transform: scale(0.85); }
+          40%  { opacity: 1; transform: scale(1.04); }
+          100% { opacity: 1; transform: scale(1); }
+        }
         @keyframes xpBarFill {
           from { width: var(--xp-from, 0%); }
           to   { width: var(--xp-to, 0%); }
@@ -2457,51 +2472,68 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
         {/* ── INTRO ───────────────────────────────────────────────────── */}
         {phase === "intro" && enemy && pet && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 z-30">
-            <div style={{ animation: "introSlide 0.7s ease-out" }} className="flex flex-col items-center">
-              {enemy.imageUrl && (
-                <img
-                  src={enemy.imageUrl}
-                  alt={enemy.name}
-                  style={{ width: enemy.isBoss ? 120 : enemy.isMiniBoss ? 100 : 82, height: enemy.isBoss ? 120 : enemy.isMiniBoss ? 100 : 82 }}
-                  className={`object-contain ${enemy.isBoss ? "drop-shadow-[0_0_24px_rgba(255,0,0,0.9)]" : enemy.isMiniBoss ? "drop-shadow-[0_0_14px_rgba(255,120,0,0.8)]" : "drop-shadow-lg"}`}
-                />
-              )}
-              <div className="mt-2 px-4 py-2 bg-black/70 rounded-lg border border-red-500/50">
-                <span className="text-red-400 font-bold text-lg">{enemy.name}</span>
-                {enemy.isBoss && <span className="ml-2 text-xs bg-red-600 text-white px-2 py-0.5 rounded-full">BOSS</span>}
-                {enemy.isMiniBoss && !enemy.isBoss && <span className="ml-2 text-xs bg-orange-600 text-white px-2 py-0.5 rounded-full">MINI-BOSS</span>}
-                <span className="text-gray-400 text-sm ml-2">Lv.{enemy.level}</span>
-              </div>
-              {allEnemies.length > 1 && (
-                <div className="mt-1 text-gray-500 text-xs">
-                  {isCave
-                    ? <span className="text-amber-400/80 font-bold">TIER {caveTier} · Wave {(allEnemies[waveIndex]?.waveGroup ?? waveIndex) + 1} / 6</span>
-                    : `Wave ${waveIndex + 1} of ${allEnemies.length}`}
+          isCave ? (
+            <div className="absolute inset-0 flex items-center justify-center z-30" style={{ background: "rgba(0,0,0,0.55)" }}>
+              <div className="flex flex-col items-center gap-2" style={{ animation: "caveIntroGold 0.6s ease-out both" }}>
+                <div className="font-fantasy font-black tracking-widest"
+                  style={{ fontSize: 52, color: "#fbbf24", textShadow: "0 0 24px rgba(251,191,36,0.95), 0 0 50px rgba(251,191,36,0.6), 0 0 80px rgba(251,191,36,0.25)", lineHeight: 1 }}>
+                  TIER {caveTier}
                 </div>
-              )}
-            </div>
-            <div className="text-white text-2xl font-bold animate-pulse">VS</div>
-            <div style={{ animation: "petIntro 0.7s ease-out 0.25s both" }} className="flex flex-col items-center">
-              <div className="w-36 flex items-center justify-center" style={{ aspectRatio: "1/1" }}>
-                {/* Still pet portrait (was the parts-based PetAnimatorCanvas).
-                    Per user spec the world-battle arena now uses the
-                    full-body PNG instead of the multi-part animated
-                    rig — same image admins upload to shop_items. The
-                    canvas rig is still available app-wide for spots
-                    that explicitly need idle animation. */}
-                {pet.imageUrl ? (
-                  <img src={pet.imageUrl} alt={pet.name} className="w-full object-contain drop-shadow-lg" style={{ maxHeight: "144px", animation: "petBattleFloat 2.4s ease-in-out infinite" }} />
-                ) : (
-                  <img src={petPawIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain" }} />
+                <div className="font-fantasy font-bold tracking-widest"
+                  style={{ fontSize: 26, color: "#fde68a", textShadow: "0 0 18px rgba(253,230,138,0.85), 0 0 36px rgba(253,230,138,0.4)" }}>
+                  WAVE {(allEnemies[waveIndex]?.waveGroup ?? waveIndex) + 1} / 6
+                </div>
+                {enemy.isBoss && (
+                  <div className="mt-1 font-fantasy text-sm font-bold tracking-widest" style={{ color: "#f87171", textShadow: "0 0 12px rgba(248,113,113,0.8)", animation: "tensionPulse 0.8s ease-in-out infinite" }}>
+                    ⚠ BOSS WAVE ⚠
+                  </div>
+                )}
+                {enemy.isMiniBoss && !enemy.isBoss && (
+                  <div className="mt-1 font-fantasy text-sm font-bold tracking-widest" style={{ color: "#fb923c", textShadow: "0 0 10px rgba(251,146,60,0.7)", animation: "tensionPulse 0.9s ease-in-out infinite" }}>
+                    ⚔ MINI-BOSS ⚔
+                  </div>
                 )}
               </div>
-              <div className="mt-2 px-4 py-2 bg-black/70 rounded-lg" style={{ borderColor: accent + "80", borderWidth: 1 }}>
-                <span className="font-bold text-lg" style={{ color: accent }}>{pet.name}</span>
-                <span className="text-gray-400 text-sm ml-2">Lv.{pet.level}</span>
+            </div>
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 z-30">
+              <div style={{ animation: "introSlide 0.7s ease-out" }} className="flex flex-col items-center">
+                {enemy.imageUrl && (
+                  <img
+                    src={enemy.imageUrl}
+                    alt={enemy.name}
+                    style={{ width: enemy.isBoss ? 120 : enemy.isMiniBoss ? 100 : 82, height: enemy.isBoss ? 120 : enemy.isMiniBoss ? 100 : 82 }}
+                    className={`object-contain ${enemy.isBoss ? "drop-shadow-[0_0_24px_rgba(255,0,0,0.9)]" : enemy.isMiniBoss ? "drop-shadow-[0_0_14px_rgba(255,120,0,0.8)]" : "drop-shadow-lg"}`}
+                  />
+                )}
+                <div className="mt-2 px-4 py-2 bg-black/70 rounded-lg border border-red-500/50">
+                  <span className="text-red-400 font-bold text-lg">{enemy.name}</span>
+                  {enemy.isBoss && <span className="ml-2 text-xs bg-red-600 text-white px-2 py-0.5 rounded-full">BOSS</span>}
+                  {enemy.isMiniBoss && !enemy.isBoss && <span className="ml-2 text-xs bg-orange-600 text-white px-2 py-0.5 rounded-full">MINI-BOSS</span>}
+                  <span className="text-gray-400 text-sm ml-2">Lv.{enemy.level}</span>
+                </div>
+                {allEnemies.length > 1 && (
+                  <div className="mt-1 text-gray-500 text-xs">
+                    {`Wave ${waveIndex + 1} of ${allEnemies.length}`}
+                  </div>
+                )}
+              </div>
+              <div className="text-white text-2xl font-bold animate-pulse">VS</div>
+              <div style={{ animation: "petIntro 0.7s ease-out 0.25s both" }} className="flex flex-col items-center">
+                <div className="w-36 flex items-center justify-center" style={{ aspectRatio: "1/1" }}>
+                  {pet.imageUrl ? (
+                    <img src={pet.imageUrl} alt={pet.name} className="w-full object-contain drop-shadow-lg" style={{ maxHeight: "144px", animation: "petBattleFloat 2.4s ease-in-out infinite" }} />
+                  ) : (
+                    <img src={petPawIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain" }} />
+                  )}
+                </div>
+                <div className="mt-2 px-4 py-2 bg-black/70 rounded-lg" style={{ borderColor: accent + "80", borderWidth: 1 }}>
+                  <span className="font-bold text-lg" style={{ color: accent }}>{pet.name}</span>
+                  <span className="text-gray-400 text-sm ml-2">Lv.{pet.level}</span>
+                </div>
               </div>
             </div>
-          </div>
+          )
         )}
 
         {/* ── BATTLE UI ────────────────────────────────────────────────── */}
@@ -2560,60 +2592,74 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             </div>
 
             {/* ── Companion enemy sprites ─────────────────────────────── */}
-            {phase === "battle" && companions.map((comp, ci) => comp.dead ? null : (
-              <div key={`comp-${ci}`}
-                className="absolute pointer-events-none"
-                style={{
-                  left: `${comp.pos.x}%`,
-                  top: `${comp.pos.y}%`,
-                  transform: "translate(-50%, -50%)",
-                  zIndex: 9,
-                  animation: "enemyBounce 0.7s ease-in-out infinite",
-                }}
-              >
-                {comp.encounter.imageUrl ? (
-                  <img
-                    src={comp.encounter.imageUrl}
-                    alt={comp.encounter.name}
-                    style={{
-                      width: comp.encounter.isMiniBoss ? 118 : 90,
-                      height: comp.encounter.isMiniBoss ? 118 : 90,
-                      display: "block",
-                      filter: comp.encounter.isMiniBoss
-                        ? "drop-shadow(0 0 10px rgba(255,120,0,0.8))"
-                        : "drop-shadow(0 0 6px rgba(255,80,80,0.6))",
-                    }}
-                    className="object-contain"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center bg-red-900/50 border-2 border-red-500 rounded-full"
-                    style={{ width: comp.encounter.isMiniBoss ? 118 : 90, height: comp.encounter.isMiniBoss ? 118 : 90 }}>
-                    <Swords style={{ width: 34, height: 34, color: "#f87171" }} />
+            {phase === "battle" && companions.map((comp, ci) => {
+              if (comp.dead) {
+                if (!comp.encounter.imageUrl) return null;
+                return (
+                  <div key={`comp-dead-${ci}`}
+                    className="absolute pointer-events-none"
+                    style={{ left: `${comp.pos.x}%`, top: `${comp.pos.y}%`, zIndex: 8, animation: "enemyDeathSlide 0.8s ease-out forwards" }}
+                  >
+                    <img src={skullPng} alt="" style={{ position: "absolute", top: -44, left: "50%", width: 34, height: 34, animation: "skullBubbleFloat 1.3s ease-out forwards", pointerEvents: "none" }} />
+                    <img src={comp.encounter.imageUrl} alt="" style={{ width: comp.encounter.isMiniBoss ? 118 : 90, height: comp.encounter.isMiniBoss ? 118 : 90, filter: "grayscale(1) opacity(0.32)", display: "block", objectFit: "contain" }} />
                   </div>
-                )}
-                {/* HP bar */}
-                <div style={{
-                  position: "absolute", bottom: -12, left: "50%", transform: "translateX(-50%)",
-                  width: comp.encounter.isMiniBoss ? 76 : 58, height: 5,
-                  background: "rgba(0,0,0,0.7)", borderRadius: 3, overflow: "hidden",
-                }}>
+                );
+              }
+              return (
+                <div key={`comp-${ci}`}
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: `${comp.pos.x}%`,
+                    top: `${comp.pos.y}%`,
+                    transform: "translate(-50%, -50%)",
+                    zIndex: 9,
+                    animation: "enemyBounce 0.7s ease-in-out infinite",
+                  }}
+                >
+                  {comp.encounter.imageUrl ? (
+                    <img
+                      src={comp.encounter.imageUrl}
+                      alt={comp.encounter.name}
+                      style={{
+                        width: comp.encounter.isMiniBoss ? 118 : 90,
+                        height: comp.encounter.isMiniBoss ? 118 : 90,
+                        display: "block",
+                        filter: comp.encounter.isMiniBoss
+                          ? "drop-shadow(0 0 10px rgba(255,120,0,0.8))"
+                          : "drop-shadow(0 0 6px rgba(255,80,80,0.6))",
+                      }}
+                      className="object-contain"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center bg-red-900/50 border-2 border-red-500 rounded-full"
+                      style={{ width: comp.encounter.isMiniBoss ? 118 : 90, height: comp.encounter.isMiniBoss ? 118 : 90 }}>
+                      <Swords style={{ width: 34, height: 34, color: "#f87171" }} />
+                    </div>
+                  )}
+                  {/* HP bar */}
                   <div style={{
-                    height: "100%", borderRadius: 3,
-                    background: "linear-gradient(90deg,#ff4444,#ff8800)",
-                    width: `${Math.max(0, (comp.hp / comp.maxHp) * 100)}%`,
-                    transition: "width 0.12s ease-out",
-                  }} />
+                    position: "absolute", bottom: -12, left: "50%", transform: "translateX(-50%)",
+                    width: comp.encounter.isMiniBoss ? 76 : 58, height: 5,
+                    background: "rgba(0,0,0,0.7)", borderRadius: 3, overflow: "hidden",
+                  }}>
+                    <div style={{
+                      height: "100%", borderRadius: 3,
+                      background: "linear-gradient(90deg,#ff4444,#ff8800)",
+                      width: `${Math.max(0, (comp.hp / comp.maxHp) * 100)}%`,
+                      transition: "width 0.12s ease-out",
+                    }} />
+                  </div>
+                  <div style={{
+                    position: "absolute", bottom: -24, left: "50%", transform: "translateX(-50%)",
+                    fontSize: 9, color: comp.encounter.isMiniBoss ? "#fb923c" : "#fca5a5",
+                    whiteSpace: "nowrap", fontWeight: 700,
+                    textShadow: "0 1px 3px rgba(0,0,0,0.9)",
+                  }}>
+                    {comp.encounter.name}
+                  </div>
                 </div>
-                <div style={{
-                  position: "absolute", bottom: -24, left: "50%", transform: "translateX(-50%)",
-                  fontSize: 9, color: comp.encounter.isMiniBoss ? "#fb923c" : "#fca5a5",
-                  whiteSpace: "nowrap", fontWeight: 700,
-                  textShadow: "0 1px 3px rgba(0,0,0,0.9)",
-                }}>
-                  {comp.encounter.name}
-                </div>
-              </div>
-            ))}
+              );
+            })}
 
             {/* ── Enemy sprite ───────────────────────────────────────── */}
             {phase === "battle" && (
@@ -2733,6 +2779,14 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   }} />
                 )}
 
+                {enemyHp <= 0 && enemy.imageUrl && (
+                  <img src={skullPng} alt="" style={{
+                    position: "absolute", top: enemy.isBoss ? -56 : -44, left: "50%",
+                    width: enemy.isBoss ? 44 : 34, height: enemy.isBoss ? 44 : 34,
+                    animation: "skullBubbleFloat 1.3s ease-out forwards",
+                    pointerEvents: "none",
+                  }} />
+                )}
                 {enemy.imageUrl ? (
                   <img
                     src={enemy.imageUrl}
@@ -2741,12 +2795,16 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                       width: enemy.isBoss ? 172 : 90,
                       height: enemy.isBoss ? 172 : 90,
                       display: "block",
-                      filter: bossRage && enemy.isBoss
-                        ? "drop-shadow(0 0 18px rgba(255,40,40,0.9))"
-                        : enemy.isBoss
-                          ? "drop-shadow(0 0 14px rgba(255,80,80,0.7))"
-                          : undefined,
-                      animation: bossRage && enemy.isBoss ? "ragePulse 1.4s ease-in-out infinite" : undefined,
+                      filter: enemyHp <= 0
+                        ? "grayscale(1) opacity(0.32)"
+                        : bossRage && enemy.isBoss
+                          ? "drop-shadow(0 0 18px rgba(255,40,40,0.9))"
+                          : enemy.isBoss
+                            ? "drop-shadow(0 0 14px rgba(255,80,80,0.7))"
+                            : undefined,
+                      animation: enemyHp <= 0
+                        ? "enemyDeathSlide 0.8s ease-out forwards"
+                        : bossRage && enemy.isBoss ? "ragePulse 1.4s ease-in-out infinite" : undefined,
                     }}
                     className="object-contain"
                   />
