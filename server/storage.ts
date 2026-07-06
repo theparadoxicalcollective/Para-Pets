@@ -1699,30 +1699,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMarketListings(filters?: { search?: string; itemType?: string; orderAsc?: boolean }): Promise<PlayerMarketListing[]> {
-    let query = db.select().from(playerMarketListings).where(eq(playerMarketListings.status, "active")).$dynamic();
+    // Build a type condition for the given filter value
+    const buildTypeCond = (t: string) => {
+      if (t === "fish") return or(eq(playerMarketListings.itemType, "fish"), eq(playerMarketListings.itemType, "fishing"));
+      if (t === "items") return and(
+        ne(playerMarketListings.itemType, "fish"),
+        ne(playerMarketListings.itemType, "fishing"),
+        ne(playerMarketListings.itemType, "pet_egg")
+      );
+      return eq(playerMarketListings.itemType, t);
+    };
 
-    // When filtering by "fish", also match legacy listings stored as "fishing"
-    const buildTypeCond = (t: string) =>
-      t === "fish"
-        ? or(eq(playerMarketListings.itemType, "fish"), eq(playerMarketListings.itemType, "fishing"))
-        : eq(playerMarketListings.itemType, t);
+    const activeOnly = eq(playerMarketListings.status, "active");
+    const hasTypeFilter = !!(filters?.itemType && filters.itemType !== "all");
+    const typeCond = hasTypeFilter ? buildTypeCond(filters!.itemType!) : undefined;
 
-    if (filters?.itemType && filters.itemType !== "all") {
-      query = query.where(and(eq(playerMarketListings.status, "active"), buildTypeCond(filters.itemType)));
-    }
+    let whereCond: any;
     if (filters?.search) {
       const term = `%${filters.search}%`;
-      const cond = eq(playerMarketListings.status, "active");
       const searchCond = or(ilike(playerMarketListings.itemName, term), ilike(playerMarketListings.sellerName, term));
-      if (filters?.itemType && filters.itemType !== "all") {
-        query = query.where(and(cond, buildTypeCond(filters.itemType), searchCond));
-      } else {
-        query = query.where(and(cond, searchCond));
-      }
+      whereCond = typeCond
+        ? and(activeOnly, typeCond, searchCond)
+        : and(activeOnly, searchCond);
+    } else if (typeCond) {
+      whereCond = and(activeOnly, typeCond);
+    } else {
+      whereCond = activeOnly;
     }
-    const rows = await (filters?.orderAsc
-      ? query.orderBy(asc(playerMarketListings.createdAt))
-      : query.orderBy(desc(playerMarketListings.createdAt)));
+
+    const rows = await db.select().from(playerMarketListings)
+      .where(whereCond)
+      .orderBy(filters?.orderAsc ? asc(playerMarketListings.createdAt) : desc(playerMarketListings.createdAt));
     return this.overlayMarketImages(rows);
   }
 

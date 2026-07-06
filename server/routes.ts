@@ -6096,11 +6096,66 @@ export async function registerRoutes(
 
   app.get("/api/market", isAuthenticated, async (req, res) => {
     try {
+      const user = req.user as any;
       const search = req.query.search as string | undefined;
       const itemType = req.query.itemType as string | undefined;
       const orderAsc = !!(itemType && itemType !== "all");
       const listings = await storage.getMarketListings({ search, itemType, orderAsc });
-      return res.json(listings);
+
+      // Batch-fetch shop items to compute effect summaries
+      const uniqueShopItemIds = [...new Set(listings.map(l => l.shopItemId).filter(Boolean))];
+      const shopItems = await Promise.all(uniqueShopItemIds.map(id => storage.getShopItem(id)));
+      const shopItemMap = new Map<string, any>();
+      shopItems.forEach(si => { if (si) shopItemMap.set(si.id, si); });
+
+      function computeEffectSummary(shopItem: any, listingItemType: string): string {
+        if (!shopItem) return "";
+        const type = shopItem.type;
+        const parts: string[] = [];
+        if (type === "power_up") {
+          if (shopItem.statBoostType && shopItem.statBoostAmount) {
+            const label = shopItem.statBoostType === "health" ? "HP"
+              : shopItem.statBoostType === "atk" ? "ATK"
+              : shopItem.statBoostType === "def" ? "DEF"
+              : String(shopItem.statBoostType).toUpperCase();
+            parts.push(`+${shopItem.statBoostAmount} ${label}`);
+          }
+        } else if (type === "edibles") {
+          if (shopItem.statBoostAmount) parts.push(`+${shopItem.statBoostAmount} Feed`);
+        } else if (type === "potion") {
+          if (shopItem.healthRestored) parts.push(`+${shopItem.healthRestored} HP`);
+          if (shopItem.petsRevived) parts.push(`Revives ${shopItem.petsRevived} pet${shopItem.petsRevived > 1 ? "s" : ""}`);
+        } else if (type === "special") {
+          if (shopItem.specialType === "hatch_time" && shopItem.specialAmount) parts.push(`−${shopItem.specialAmount}m hatch`);
+          else if (shopItem.specialType === "level" && shopItem.specialAmount) parts.push(`+${shopItem.specialAmount} Lvl pts`);
+          else if (shopItem.specialType) parts.push(shopItem.specialType);
+        } else if (type === "accessory") {
+          if (shopItem.atkBoost) parts.push(`+${shopItem.atkBoost} ATK`);
+          if (shopItem.defBoost) parts.push(`+${shopItem.defBoost} DEF`);
+          if (shopItem.healthBoost) parts.push(`+${shopItem.healthBoost} HP`);
+        } else if (type === "fishing") {
+          if (shopItem.fishingType === "bait") {
+            if (shopItem.rarityBoostPercent) parts.push(`+${shopItem.rarityBoostPercent}% rare`);
+          } else if (shopItem.fishingType === "pole") {
+            if (shopItem.poleMaxUses) parts.push(`${shopItem.poleMaxUses} uses`);
+          }
+        } else if (listingItemType === "bait") {
+          if (shopItem.rarityBoostPercent) parts.push(`+${shopItem.rarityBoostPercent}% rare`);
+        } else if (listingItemType === "pole") {
+          if (shopItem.poleMaxUses) parts.push(`${shopItem.poleMaxUses} uses`);
+        }
+        return parts.join(" · ");
+      }
+
+      const enriched = listings.map(listing => {
+        const shopItem = shopItemMap.get(listing.shopItemId);
+        const effectSummary = computeEffectSummary(shopItem, listing.itemType);
+        const base: any = { ...listing, effectSummary };
+        if (!user.isAdmin) delete base.sellerName;
+        return base;
+      });
+
+      return res.json(enriched);
     } catch (err) {
       return res.status(500).json({ message: "Failed to fetch market listings" });
     }

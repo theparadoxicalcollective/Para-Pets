@@ -13,21 +13,26 @@ import coinIconImg from "@assets/icon_coin.png";
 import homeIconImg from "@assets/icon_home_new.png";
 import bgHome from "@assets/bg_home_v2.png";
 
-const ITEM_CATEGORIES = [
-  { label: "All", value: "all" },
+// ── Main browse tabs ──────────────────────────────────────────────────────────
+type MainTab = "all" | "pets" | "items" | "fish";
+
+// Sub-filters shown under the "Items" main tab
+const ITEMS_SUB_FILTERS = [
+  { label: "All Items", value: "items" },
   { label: "Power-Ups", value: "power_up" },
   { label: "Edibles", value: "edibles" },
+  { label: "Potions", value: "potion" },
   { label: "Special", value: "special" },
   { label: "Accessories", value: "accessory" },
-  { label: "Potions", value: "potion" },
-  { label: "Fish", value: "fish" },
-  { label: "Pets", value: "pet_egg" },
+  { label: "Ingredients", value: "ingredient" },
+  { label: "Bait", value: "bait" },
+  { label: "Poles", value: "pole" },
 ];
 
 interface Listing {
   id: string;
   sellerId: string;
-  sellerName: string;
+  sellerName?: string;
   inventoryId: string;
   shopItemId: string;
   itemName: string;
@@ -37,6 +42,7 @@ interface Listing {
   status: string;
   buyerId: string | null;
   createdAt: string;
+  effectSummary?: string;
 }
 
 interface InventoryItem {
@@ -204,6 +210,7 @@ function ItemCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
   // Browse listing card
   const isPetEgg = listing.itemType === "pet_egg";
   const isOwn = listing.sellerId === user?.id;
+  const isAdmin = !!user?.isAdmin;
   return (
     <div
       data-testid={`card-market-listing-${listing.id}`}
@@ -217,7 +224,7 @@ function ItemCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 6,
+        gap: 5,
         minHeight: 140,
         position: "relative",
       }}
@@ -232,7 +239,7 @@ function ItemCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
           background: "none", border: "none", padding: 0,
           cursor: !isOwn ? "pointer" : "default",
           marginTop: isPetEgg ? 10 : 0,
-          display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
           width: "100%",
         }}
       >
@@ -250,11 +257,34 @@ function ItemCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
           )}
         </div>
         <span style={{ color: isPetEgg ? "#d4b8ff" : "#c8f0c8", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>{listing.itemName}</span>
+        {/* Effect summary badge */}
+        {listing.effectSummary && !isPetEgg && (
+          <span style={{
+            color: "#a3e635",
+            fontSize: 8,
+            fontFamily: "Georgia, serif",
+            textAlign: "center",
+            lineHeight: 1.2,
+            background: "rgba(74,222,128,0.1)",
+            borderRadius: 4,
+            padding: "2px 5px",
+            border: "1px solid rgba(74,222,128,0.18)",
+            maxWidth: "100%",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}>
+            {listing.effectSummary}
+          </span>
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
           <CoinIcon size={11} />
           <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 11, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
         </div>
-        <span style={{ color: "rgba(150,200,150,0.4)", fontSize: 8 }}>{listing.sellerName}</span>
+        {/* Seller name — only visible to admins */}
+        {isAdmin && listing.sellerName && (
+          <span style={{ color: "rgba(150,200,150,0.4)", fontSize: 8 }}>{listing.sellerName}</span>
+        )}
       </button>
       {!isOwn && (
         <button
@@ -411,12 +441,13 @@ function RevertToEggModal({ petName, onRevert, onCancel, isPending }: {
 }
 
 // ── Pet Egg Detail popup (browse tab) ────────────────────────────────────────
-function PetEggDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }: {
+function PetEggDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins, isAdmin }: {
   listing: Listing;
   onClose: () => void;
   onBuy: () => void;
   isBuyPending: boolean;
   userCoins: number;
+  isAdmin: boolean;
 }) {
   const detailsQuery = useQuery<PetEggDetails>({
     queryKey: ["/api/market/listing", listing.id, "pet-details"],
@@ -457,7 +488,6 @@ function PetEggDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }:
           ✕
         </button>
 
-        {/* Header label */}
         <p style={{ color: "rgba(212,160,23,0.55)", fontFamily: "Georgia, serif", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 14px" }}>
           Pet Egg
         </p>
@@ -466,7 +496,6 @@ function PetEggDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }:
           <p style={{ color: "rgba(212,160,23,0.5)", fontFamily: "Georgia, serif", fontSize: 13, padding: "30px 0" }}>Consulting the oracle…</p>
         ) : d ? (
           <>
-            {/* Egg image */}
             <div style={{ marginBottom: 14 }}>
               {d.eggImageUrl ? (
                 <img src={d.eggImageUrl} alt={d.speciesName} style={{ width: 96, height: 96, objectFit: "contain", filter: "drop-shadow(0 4px 18px rgba(212,160,23,0.35))" }} />
@@ -475,7 +504,6 @@ function PetEggDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }:
               )}
             </div>
 
-            {/* Name / species */}
             {d.petNickname && (
               <p style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 17, fontWeight: 700, margin: "0 0 3px", textShadow: "0 0 10px rgba(240,192,64,0.3)" }}>
                 "{d.petNickname}"
@@ -485,16 +513,13 @@ function PetEggDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }:
               {d.speciesName}
             </p>
 
-            {/* Divider */}
             <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.3), transparent)", marginBottom: 14 }} />
 
-            {/* Level */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ color: "rgba(212,160,23,0.5)", fontFamily: "Georgia, serif", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>Level</div>
               <div style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 26, fontWeight: 700, lineHeight: 1 }}>{d.level}</div>
             </div>
 
-            {/* Stats row */}
             <div style={{
               display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16,
               background: "rgba(0,0,0,0.35)", borderRadius: 14, padding: "12px 8px",
@@ -512,26 +537,25 @@ function PetEggDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }:
               ))}
             </div>
 
-            {/* Divider */}
             <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(74,222,128,0.25), transparent)", marginBottom: 14 }} />
 
-            {/* Price + seller */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 4 }}>
               <CoinIcon size={16} />
               <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 20, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
             </div>
-            <p style={{ color: "rgba(150,200,150,0.45)", fontSize: 10, margin: "0 0 14px", fontFamily: "Georgia, serif" }}>
-              Sold by {listing.sellerName}
-            </p>
+            {isAdmin && listing.sellerName && (
+              <p style={{ color: "rgba(150,200,150,0.45)", fontSize: 10, margin: "0 0 14px", fontFamily: "Georgia, serif" }}>
+                Sold by {listing.sellerName}
+              </p>
+            )}
+            {!isAdmin && <div style={{ marginBottom: 14 }} />}
 
-            {/* Not enough coins warning */}
             {!canAfford && (
               <p style={{ color: "#f87171", fontSize: 11, margin: "0 0 10px", fontFamily: "Georgia, serif" }}>
                 Not enough coins (you have {formatCoins(userCoins)})
               </p>
             )}
 
-            {/* Buttons */}
             <div style={{ display: "flex", gap: 10 }}>
               <button
                 onClick={onClose}
@@ -779,7 +803,6 @@ function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFi
                           position: "relative", textAlign: "left",
                         }}
                       >
-                        {/* Pet image */}
                         <div style={{ flexShrink: 0, width: 52, height: 52, display: "flex", alignItems: "center", justifyContent: "center" }}>
                           {displayImg ? (
                             <img src={displayImg} alt={pet.name} style={{ width: 52, height: 52, objectFit: "contain" }} />
@@ -787,8 +810,6 @@ function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFi
                             <div style={{ width: 52, height: 52, background: "rgba(140,80,220,0.15)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🥚</div>
                           )}
                         </div>
-
-                        {/* Name + stats */}
                         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
                           <span style={{ color: "#d4b8ff", fontSize: 10, fontFamily: "Georgia, serif", lineHeight: 1.2, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {pet.petNickname || pet.name}
@@ -879,7 +900,6 @@ function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFi
         </button>
       </div>
 
-      {/* Revert to Egg modal — rendered inside SellItemModal overlay */}
       {showRevert && selectedPet && (
         <RevertToEggModal
           petName={petDisplayName}
@@ -906,14 +926,16 @@ const ITEM_TYPE_LABELS: Record<string, string> = {
   fish: "Fish",
   bait: "Fishing Bait",
   pole: "Fishing Rod",
+  ingredient: "Ingredient",
 };
 
-function ItemDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }: {
+function ItemDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins, isAdmin }: {
   listing: Listing;
   onClose: () => void;
   onBuy: () => void;
   isBuyPending: boolean;
   userCoins: number;
+  isAdmin: boolean;
 }) {
   const detailsQuery = useQuery<ItemDetails>({
     queryKey: ["/api/market/listing", listing.id, "item-details"],
@@ -955,12 +977,10 @@ function ItemDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }: {
           ✕
         </button>
 
-        {/* Type badge */}
         <p style={{ color: "rgba(212,160,23,0.55)", fontFamily: "Georgia, serif", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 14px" }}>
           {typeLabel}
         </p>
 
-        {/* Item image */}
         <div style={{ marginBottom: 14 }}>
           {listing.itemImageUrl ? (
             <img src={listing.itemImageUrl} alt={listing.itemName} style={{ width: 88, height: 88, objectFit: "contain", filter: "drop-shadow(0 4px 16px rgba(74,222,128,0.2))" }} />
@@ -969,15 +989,12 @@ function ItemDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }: {
           )}
         </div>
 
-        {/* Item name */}
         <p style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 17, fontWeight: 700, margin: "0 0 14px", textShadow: "0 0 10px rgba(240,192,64,0.25)" }}>
           {listing.itemName}
         </p>
 
-        {/* Divider */}
         <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(74,222,128,0.3), transparent)", marginBottom: 14 }} />
 
-        {/* Effects */}
         {detailsQuery.isLoading ? (
           <p style={{ color: "rgba(150,200,150,0.4)", fontFamily: "Georgia, serif", fontSize: 12, margin: "0 0 14px" }}>Loading…</p>
         ) : d && d.effects.length > 0 ? (
@@ -1007,26 +1024,25 @@ function ItemDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }: {
           </div>
         )}
 
-        {/* Divider */}
         <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.25), transparent)", marginBottom: 14 }} />
 
-        {/* Price + seller */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 4 }}>
           <CoinIcon size={16} />
           <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 20, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
         </div>
-        <p style={{ color: "rgba(150,200,150,0.4)", fontSize: 10, margin: "0 0 14px", fontFamily: "Georgia, serif" }}>
-          Sold by {listing.sellerName}
-        </p>
+        {isAdmin && listing.sellerName && (
+          <p style={{ color: "rgba(150,200,150,0.4)", fontSize: 10, margin: "0 0 14px", fontFamily: "Georgia, serif" }}>
+            Sold by {listing.sellerName}
+          </p>
+        )}
+        {!isAdmin && <div style={{ marginBottom: 14 }} />}
 
-        {/* Not enough coins warning */}
         {!canAfford && (
           <p style={{ color: "#f87171", fontSize: 11, margin: "0 0 10px", fontFamily: "Georgia, serif" }}>
             Not enough coins (you have {formatCoins(userCoins)})
           </p>
         )}
 
-        {/* Buttons */}
         <div style={{ display: "flex", gap: 10 }}>
           <button
             onClick={onClose}
@@ -1059,21 +1075,37 @@ function ItemDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }: {
   );
 }
 
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUpdate?: (u: any) => void }) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"browse" | "myshop">("browse");
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
+
+  // Browse filter state: main tab + items sub-filter
+  const [mainTab, setMainTab] = useState<MainTab>("all");
+  const [itemsSubFilter, setItemsSubFilter] = useState("items");
+
   const [showSellModal, setShowSellModal] = useState(false);
   const [detailTarget, setDetailTarget] = useState<Listing | null>(null);
 
+  const isAdmin = !!user?.isAdmin;
+
+  // Compute the itemType to send to the API
+  const effectiveItemType = (() => {
+    if (mainTab === "all") return "all";
+    if (mainTab === "pets") return "pet_egg";
+    if (mainTab === "fish") return "fish";
+    // mainTab === "items"
+    return itemsSubFilter; // "items" or specific sub-type
+  })();
+
   const marketQuery = useQuery<Listing[]>({
-    queryKey: ["/api/market", search, categoryFilter],
+    queryKey: ["/api/market", search, effectiveItemType],
     queryFn: () => {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
-      if (categoryFilter !== "all") params.set("itemType", categoryFilter);
+      if (effectiveItemType !== "all") params.set("itemType", effectiveItemType);
       return fetch(`/api/market?${params}`).then(r => r.json());
     },
     refetchInterval: 15000,
@@ -1101,9 +1133,9 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
       setShowSellModal(false);
       queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      toast({ title: "Item listed!", description: "Your item is now on the market." });
+      toast({ title: "Listed!", description: "Your item is now on the market." });
     },
-    onError: (e: any) => toast({ title: "Failed to list", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Failed to list item", description: e.message, variant: "destructive" }),
   });
 
   const listFishMutation = useMutation({
@@ -1118,7 +1150,6 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
     onError: (e: any) => toast({ title: "Failed to list fish", description: e.message, variant: "destructive" }),
   });
 
-  // Revert pet to egg, then list it
   const revertAndListMutation = useMutation({
     mutationFn: async ({ inventoryId, price }: { inventoryId: string; price: number }) => {
       await apiRequest("POST", `/api/pet/${inventoryId}/revert-to-egg`, {});
@@ -1135,7 +1166,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
 
   const buyMutation = useMutation({
     mutationFn: (listingId: string) => apiRequest("POST", `/api/market/${listingId}/buy`, {}),
-    onSuccess: async (data: any) => {
+    onSuccess: async () => {
       setDetailTarget(null);
       queryClient.invalidateQueries({ queryKey: ["/api/market"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
@@ -1191,6 +1222,14 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
 
   const accentGreen = "#4ade80";
 
+  // Main tab config
+  const MAIN_TABS: { value: MainTab; label: string; color: string; activeBg: string; activeBorder: string }[] = [
+    { value: "all",   label: "All",   color: accentGreen,    activeBg: "rgba(74,222,128,0.18)",  activeBorder: accentGreen },
+    { value: "pets",  label: "Pets",  color: "#c084fc",      activeBg: "rgba(192,132,252,0.18)", activeBorder: "#c084fc" },
+    { value: "items", label: "Items", color: "#fbbf24",      activeBg: "rgba(251,191,36,0.15)",  activeBorder: "#fbbf24" },
+    { value: "fish",  label: "Fish",  color: "#67e8f9",      activeBg: "rgba(103,232,249,0.15)", activeBorder: "#67e8f9" },
+  ];
+
   return (
     <div
       style={{
@@ -1215,6 +1254,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
       <div style={{ position: "absolute", inset: 0, zIndex: 1, background: "linear-gradient(to bottom, rgba(5,20,10,0.7) 0%, rgba(5,15,8,0.4) 40%, rgba(5,15,8,0.85) 100%)" }} />
 
       <div style={{ position: "relative", zIndex: 2, display: "flex", flexDirection: "column", height: "calc(100*var(--vh))" }}>
+        {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px 0", paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 52px)" }}>
           <button
             data-testid="button-back-home"
@@ -1241,6 +1281,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
           </button>
         </div>
 
+        {/* Market / List Items switch */}
         <div style={{ display: "flex", gap: 0, margin: "14px 16px 0", background: "rgba(5,20,10,0.7)", borderRadius: 12, border: "1px solid rgba(74,222,128,0.2)", overflow: "hidden" }}>
           {(["browse", "myshop"] as const).map(tab => (
             <button
@@ -1263,10 +1304,11 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
 
         {activeTab === "browse" && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", padding: "12px 16px 0" }}>
+            {/* Search bar */}
             <input
               data-testid="input-market-search"
               type="text"
-              placeholder="Search items or sellers..."
+              placeholder={isAdmin ? "Search items or sellers..." : "Search items..."}
               value={search}
               onChange={handleSearch}
               style={{
@@ -1275,37 +1317,77 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
                 boxSizing: "border-box",
               }}
             />
-            <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 8, marginBottom: 10, flexShrink: 0 }}>
-              {ITEM_CATEGORIES.map(cat => (
-                <button
-                  key={cat.value}
-                  data-testid={`button-category-${cat.value}`}
-                  onClick={() => setCategoryFilter(cat.value)}
-                  style={{
-                    whiteSpace: "nowrap", padding: "6px 12px",
-                    background: categoryFilter === cat.value
-                      ? cat.value === "pet_egg" ? "rgba(140,80,220,0.3)" : "rgba(74,222,128,0.25)"
-                      : "rgba(10,30,15,0.7)",
-                    border: `1.5px solid ${categoryFilter === cat.value
-                      ? cat.value === "pet_egg" ? "rgba(180,130,255,0.7)" : "rgba(74,222,128,0.7)"
-                      : "rgba(74,180,100,0.25)"}`,
-                    borderRadius: 20,
-                    color: categoryFilter === cat.value
-                      ? cat.value === "pet_egg" ? "#c8a0ff" : accentGreen
-                      : "rgba(150,200,150,0.6)",
-                    fontFamily: "Georgia, serif", fontSize: 11, cursor: "pointer", flexShrink: 0,
-                  }}
-                >
-                  {cat.label}
-                </button>
-              ))}
+
+            {/* Main category tabs: All | Pets | Items | Fish */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 8, flexShrink: 0 }}>
+              {MAIN_TABS.map(tab => {
+                const active = mainTab === tab.value;
+                return (
+                  <button
+                    key={tab.value}
+                    data-testid={`button-main-tab-${tab.value}`}
+                    onClick={() => {
+                      setMainTab(tab.value);
+                      playTick();
+                      if (tab.value !== "items") setItemsSubFilter("items");
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "8px 4px",
+                      background: active ? tab.activeBg : "rgba(10,30,15,0.7)",
+                      border: `1.5px solid ${active ? tab.activeBorder : "rgba(74,180,100,0.2)"}`,
+                      borderRadius: 10,
+                      color: active ? tab.color : "rgba(150,200,150,0.55)",
+                      fontFamily: "Georgia, serif",
+                      fontSize: 12,
+                      fontWeight: active ? 700 : 400,
+                      cursor: "pointer",
+                      transition: "all 0.12s",
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
+
+            {/* Items sub-filter pills — shown only when "Items" tab is active */}
+            {mainTab === "items" && (
+              <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 6, marginBottom: 8, flexShrink: 0 }}>
+                {ITEMS_SUB_FILTERS.map(sf => {
+                  const active = itemsSubFilter === sf.value;
+                  return (
+                    <button
+                      key={sf.value}
+                      data-testid={`button-sub-filter-${sf.value}`}
+                      onClick={() => { setItemsSubFilter(sf.value); playTick(); }}
+                      style={{
+                        whiteSpace: "nowrap",
+                        padding: "5px 10px",
+                        background: active ? "rgba(251,191,36,0.2)" : "rgba(10,30,15,0.7)",
+                        border: `1.5px solid ${active ? "rgba(251,191,36,0.7)" : "rgba(150,140,80,0.2)"}`,
+                        borderRadius: 18,
+                        color: active ? "#fbbf24" : "rgba(180,170,120,0.6)",
+                        fontFamily: "Georgia, serif",
+                        fontSize: 10,
+                        cursor: "pointer",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {sf.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Listings grid */}
             <div style={{ flex: 1, overflowY: "auto", paddingBottom: 16 }}>
               {marketQuery.isLoading ? (
                 <div style={{ textAlign: "center", paddingTop: 40, color: "rgba(150,200,150,0.5)", fontFamily: "Georgia, serif", fontSize: 14 }}>Loading market...</div>
               ) : !marketQuery.data?.length ? (
                 <div style={{ textAlign: "center", paddingTop: 40, color: "rgba(150,200,150,0.4)", fontFamily: "Georgia, serif", fontSize: 14 }}>
-                  {search || categoryFilter !== "all" ? "No listings match your search." : "The market is empty. Be the first to sell!"}
+                  {search || mainTab !== "all" ? "No listings match your search." : "The market is empty. Be the first to sell!"}
                 </div>
               ) : (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
@@ -1398,6 +1480,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
           onBuy={() => buyMutation.mutate(detailTarget.id)}
           isBuyPending={buyMutation.isPending}
           userCoins={user?.coins ?? 0}
+          isAdmin={isAdmin}
         />
       )}
 
@@ -1408,6 +1491,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
           onBuy={() => buyMutation.mutate(detailTarget.id)}
           isBuyPending={buyMutation.isPending}
           userCoins={user?.coins ?? 0}
+          isAdmin={isAdmin}
         />
       )}
     </div>
