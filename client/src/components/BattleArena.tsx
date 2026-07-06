@@ -469,6 +469,9 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const enemyPosRef = useRef({ x: 50, y: 22 });
   const enemyOscRef = useRef(0);
   const isBossRef = useRef(false);
+  // Velocity-bounce refs (% per second)
+  const enemyVelRef = useRef({ vx: 6, vy: 4 });
+  const enemyBounceBaseRef = useRef({ x: 50, y: 22 });
 
   // ── Multi-pet state ───────────────────────────────────────────────────────
   const [extraPetHps, setExtraPetHps] = useState<[number, number]>([0, 0]);
@@ -775,6 +778,11 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     enemyPosRef.current = { x: startX, y: startY };
     setEnemyPos({ x: startX, y: startY });
     chargeHomePosRef.current = { x: startX, y: startY };
+    // Initialise bounce velocity — mini-bosses slower, normal enemies lively
+    const angle = Math.random() * Math.PI * 2;
+    const speed = enc.isBoss ? 0 : enc.isMiniBoss ? 4 + Math.random() * 2 : 7 + Math.random() * 4;
+    enemyVelRef.current = { vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed };
+    enemyBounceBaseRef.current = { x: startX, y: startY };
     setPhase("intro");
   }, []);
 
@@ -1028,23 +1036,33 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       }
       const now = Date.now();
 
-      // ── Enemy movement (float or charge) ─────────────────────────────
+      // ── Enemy movement (bounce or charge) ─────────────────────────────
       if (!enemyChargingRef.current && !chargeReturningRef.current) {
-        // Sinusoidal float
         enemyOscRef.current += 0.016;
         const osc = enemyOscRef.current;
-        let newX: number, newY: number;
+        let ex: number, ey: number;
         if (isBossRef.current) {
-          // Bosses stay anchored dead-center at the top with only a tiny
-          // idle hover so they feel imposing rather than bouncy.
-          newX = 50;
-          newY = chargeHomePosRef.current.y + Math.sin(osc * 0.35) * 1.2;
+          // Bosses stay anchored dead-center with only a tiny idle hover
+          ex = 50;
+          ey = chargeHomePosRef.current.y + Math.sin(osc * 0.35) * 1.2;
         } else {
-          newX = 50 + Math.sin(osc * 0.55) * 18 + Math.sin(osc * 1.1) * 8;
-          newY = 19 + Math.sin(osc * 0.7) * 6 + Math.cos(osc * 0.35) * 3;
+          // Velocity-bounce: advance position by velocity each frame (dt ≈ 1/60 s)
+          const dt = 1 / 60;
+          let bx = enemyBounceBaseRef.current.x + enemyVelRef.current.vx * dt;
+          let by = enemyBounceBaseRef.current.y + enemyVelRef.current.vy * dt;
+          // Bounds for non-boss enemies: wider & taller than the old sinusoidal range
+          const X_MIN = 12, X_MAX = 82, Y_MIN = 8, Y_MAX = 44;
+          if (bx < X_MIN) { bx = X_MIN; enemyVelRef.current.vx = Math.abs(enemyVelRef.current.vx); }
+          if (bx > X_MAX) { bx = X_MAX; enemyVelRef.current.vx = -Math.abs(enemyVelRef.current.vx); }
+          if (by < Y_MIN) { by = Y_MIN; enemyVelRef.current.vy = Math.abs(enemyVelRef.current.vy); }
+          if (by > Y_MAX) { by = Y_MAX; enemyVelRef.current.vy = -Math.abs(enemyVelRef.current.vy); }
+          enemyBounceBaseRef.current = { x: bx, y: by };
+          // Keep charge home in sync so charges always start from the current position
+          chargeHomePosRef.current = { x: bx, y: by };
+          // Subtle wobble layered on top for natural feel
+          ex = Math.max(10, Math.min(90, bx + Math.sin(osc * 2.2) * 1.2));
+          ey = Math.max(6,  Math.min(48, by + Math.sin(osc * 1.7) * 0.8));
         }
-        const ex = Math.max(10, Math.min(90, newX));
-        const ey = Math.max(8, Math.min(28, newY));
         enemyPosRef.current = { x: ex, y: ey };
         setEnemyPos({ x: ex, y: ey });
       } else if (enemyChargingRef.current) {
@@ -1093,10 +1111,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         setEnemyPos({ x: ex, y: ey });
         if (progress >= 1) {
           chargeReturningRef.current = false;
-          // Update home position with small drift
-          const nx = 40 + Math.random() * 25;
-          const ny = 14 + Math.random() * 8;
-          chargeHomePosRef.current = { x: nx, y: ny };
+          // Resume bouncing from wherever the enemy currently is
+          enemyBounceBaseRef.current = { x: ex, y: ey };
+          chargeHomePosRef.current = { x: ex, y: ey };
+          // Kick off in a fresh random direction after the charge
+          const angle = Math.random() * Math.PI * 2;
+          const spd = isBossRef.current ? 0 : 7 + Math.random() * 4;
+          enemyVelRef.current = { vx: Math.cos(angle) * spd, vy: Math.sin(angle) * spd };
         }
       }
 
