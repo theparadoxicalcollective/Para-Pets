@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { playHit, playBlock, playPlayerHurt, playDefeat, playBattleVictory, playPowerUp, playChime } from "@/lib/sounds";
 import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart, HelpCircle, Droplets } from "lucide-react";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
+import coinIconPng from "@assets/icon_coin.png";
 import battlePauseBtn from "@assets/Photoroom_20260702_82333_PM_1783041830710.png";
 import battleCloseBtn from "@assets/Photoroom_20260702_83143_PM_1783042315810.png";
 import blockIconPng from "@assets/icon_battle_block.png";
@@ -372,10 +373,11 @@ interface BattleEndSummaryProps {
   calculating: boolean;
   isCave?: boolean;
   caveTier?: number;
+  tierBonusCoins?: number;
   onClose: () => void;
 }
 
-function BattleEndSummary({ phase, accent, enemyName, allEnemiesCount, petRewards, totalCoins, totalItems, errored, calculating, isCave, caveTier, onClose }: BattleEndSummaryProps) {
+function BattleEndSummary({ phase, accent, enemyName, allEnemiesCount, petRewards, totalCoins, totalItems, errored, calculating, isCave, caveTier, tierBonusCoins, onClose }: BattleEndSummaryProps) {
   const isVictory = phase === "victory";
   const isCaveTierComplete = isCave && isVictory;
   const borderCol = isCaveTierComplete ? "#f59e0b80" : isVictory ? accent + "60" : "rgba(239,68,68,0.5)";
@@ -432,11 +434,17 @@ function BattleEndSummary({ phase, accent, enemyName, allEnemiesCount, petReward
                 ))}
               </div>
 
-              {(totalCoins > 0 || totalItems.length > 0) && (
+              {(totalCoins > 0 || totalItems.length > 0 || (isCaveTierComplete && (tierBonusCoins ?? 0) > 0)) && (
                 <div className="bg-black/40 rounded-xl p-3 mb-3 space-y-2">
                   {totalCoins > 0 && (
                     <div className="flex items-center justify-center gap-2 text-amber-400 text-sm">
                       <Coins className="w-4 h-4" /><span className="font-bold">+{totalCoins} Coins</span>
+                    </div>
+                  )}
+                  {isCaveTierComplete && (tierBonusCoins ?? 0) > 0 && (
+                    <div className="flex items-center justify-center gap-2 text-yellow-300 text-sm border-t border-amber-500/20 pt-2 mt-1">
+                      <img src={coinIconPng} alt="" className="w-4 h-4 object-contain" />
+                      <span className="font-bold">+{tierBonusCoins} Tier Bonus!</span>
                     </div>
                   )}
                   {totalItems.length > 0 && (
@@ -500,6 +508,10 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
     totalXp: number;
   }
   const [petRewards, setPetRewards] = useState<Record<string, PetReward>>({});
+
+  // ── Floating coin popups ─────────────────────────────────────────────────
+  const [coinPopups, setCoinPopups] = useState<{ id: number; x: number; y: number; amount: number }[]>([]);
+  const coinPopupIdRef = useRef(0);
 
   // ── Enemy movement ───────────────────────────────────────────────────────
   const [enemyPos, setEnemyPos] = useState({ x: 50, y: 22 });
@@ -928,6 +940,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
         items: [...prev.items, ...(data.droppedItems || [])],
         levelsGained: prev.levelsGained + (data.levelsGained || 0),
       }));
+      // Floating coin popup on enemy kill
+      if ((data.coinsAwarded || 0) > 0) {
+        const id = ++coinPopupIdRef.current;
+        const { x, y } = enemyPosRef.current;
+        setCoinPopups(prev => [...prev, { id, x, y, amount: data.coinsAwarded }]);
+        setTimeout(() => setCoinPopups(prev => prev.filter(p => p.id !== id)), 1200);
+      }
 
       // Accumulate per-pet rewards. We keep the FIRST snapshot's
       // start state and roll the end state forward on each victory.
@@ -2445,6 +2464,12 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           0%, 100% { transform: translate(-50%,-50%) scaleY(1) scaleX(1); }
           50%       { transform: translate(-50%,-50%) scaleY(0.95) scaleX(1.05); }
         }
+        @keyframes coinFloat {
+          0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+          15%  { opacity: 1; transform: translate(-50%, -80%) scale(1.1); }
+          70%  { opacity: 1; transform: translate(-50%, -170%) scale(1); }
+          100% { opacity: 0; transform: translate(-50%, -220%) scale(0.9); }
+        }
       `}</style>
 
       <div
@@ -2471,6 +2496,22 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
           <div className="absolute inset-0 pointer-events-none z-5"
             style={{ background: "radial-gradient(ellipse at 50% 20%, rgba(255,30,30,0.15) 0%, transparent 65%)", animation: "tensionPulse 1.2s ease-in-out infinite" }} />
         )}
+
+        {/* Floating coin popups on enemy kill */}
+        {coinPopups.map(popup => (
+          <div key={popup.id} className="absolute pointer-events-none z-30 flex items-center gap-1"
+            style={{
+              left: `${popup.x}%`,
+              top: `${popup.y}%`,
+              animation: "coinFloat 1.2s ease-out both",
+            }}>
+            <img src={coinIconPng} alt="" className="w-5 h-5 object-contain drop-shadow-md" />
+            <span className="font-black text-sm text-yellow-300"
+              style={{ textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(251,191,36,0.8)" }}>
+              +{popup.amount}
+            </span>
+          </div>
+        ))}
 
         {/* ── INTRO ───────────────────────────────────────────────────── */}
         {phase === "intro" && enemy && pet && (
@@ -3670,6 +3711,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             calculating={defeatMutation.isPending && Object.keys(petRewards).length === 0}
             isCave={isCave}
             caveTier={caveTier}
+            tierBonusCoins={isCave && phase === "victory" ? (caveTier ?? 1) * 100 : undefined}
             onClose={() => {
               if (isCave && phase === "victory") onCaveTierComplete?.();
               handleReturnToWorld();

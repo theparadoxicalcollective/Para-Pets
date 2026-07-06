@@ -5254,16 +5254,16 @@ export async function registerRoutes(
           miniBoss: { hp: number; atk: number; def: number };
           boss: { hp: number; atk: number; def: number };
         }> = {
-          1:  { normal:{hp:1500, atk:55,  def:25},  miniBoss:{hp:3500,  atk:80,   def:40},   boss:{hp:8000,   atk:110,  def:55}  },
-          2:  { normal:{hp:3000, atk:95,  def:45},  miniBoss:{hp:7000,  atk:140,  def:70},   boss:{hp:16000,  atk:185,  def:95}  },
-          3:  { normal:{hp:5500, atk:160, def:80},  miniBoss:{hp:12000, atk:230,  def:115},  boss:{hp:28000,  atk:290,  def:145} },
-          4:  { normal:{hp:9000, atk:250, def:125}, miniBoss:{hp:20000, atk:360,  def:180},  boss:{hp:48000,  atk:440,  def:220} },
-          5:  { normal:{hp:14000,atk:370, def:185}, miniBoss:{hp:31000, atk:520,  def:260},  boss:{hp:75000,  atk:620,  def:310} },
-          6:  { normal:{hp:21000,atk:530, def:265}, miniBoss:{hp:47000, atk:740,  def:370},  boss:{hp:112000, atk:870,  def:435} },
-          7:  { normal:{hp:30000,atk:750, def:375}, miniBoss:{hp:68000, atk:1020, def:510},  boss:{hp:160000, atk:1150, def:575} },
-          8:  { normal:{hp:43000,atk:1020,def:510}, miniBoss:{hp:96000, atk:1380, def:690},  boss:{hp:225000, atk:1530, def:765} },
-          9:  { normal:{hp:61000,atk:1360,def:680}, miniBoss:{hp:135000,atk:1820, def:910},  boss:{hp:315000, atk:2000, def:1000}},
-          10: { normal:{hp:85000,atk:1800,def:900}, miniBoss:{hp:190000,atk:2400, def:1200}, boss:{hp:440000, atk:2600, def:1300}},
+          1:  { normal:{hp:1500,   atk:55,   def:25},   miniBoss:{hp:3500,   atk:80,   def:40},    boss:{hp:8000,    atk:110,  def:55}   },
+          2:  { normal:{hp:3000,   atk:95,   def:45},   miniBoss:{hp:7000,   atk:140,  def:70},    boss:{hp:16000,   atk:185,  def:95}   },
+          3:  { normal:{hp:5500,   atk:160,  def:80},   miniBoss:{hp:12000,  atk:230,  def:115},   boss:{hp:28000,   atk:290,  def:145}  },
+          4:  { normal:{hp:9000,   atk:250,  def:125},  miniBoss:{hp:20000,  atk:360,  def:180},   boss:{hp:48000,   atk:440,  def:220}  },
+          5:  { normal:{hp:14000,  atk:370,  def:185},  miniBoss:{hp:31000,  atk:520,  def:260},   boss:{hp:75000,   atk:620,  def:310}  },
+          6:  { normal:{hp:35000,  atk:800,  def:400},  miniBoss:{hp:80000,  atk:1150, def:575},   boss:{hp:190000,  atk:1400, def:700}  },
+          7:  { normal:{hp:55000,  atk:1200, def:600},  miniBoss:{hp:125000, atk:1700, def:850},   boss:{hp:300000,  atk:2100, def:1050} },
+          8:  { normal:{hp:85000,  atk:1800, def:900},  miniBoss:{hp:190000, atk:2500, def:1250},  boss:{hp:460000,  atk:3100, def:1550} },
+          9:  { normal:{hp:130000, atk:2700, def:1350}, miniBoss:{hp:290000, atk:3700, def:1850},  boss:{hp:700000,  atk:4500, def:2250} },
+          10: { normal:{hp:200000, atk:4000, def:2000}, miniBoss:{hp:450000, atk:5500, def:2750},  boss:{hp:1100000, atk:7000, def:3500} },
         };
         const tierEnemies = await storage.getLocationEnemiesByTier(locationId, reqCaveTier);
         const tierNormals = tierEnemies.filter((e: any) => !e.is_boss && !e.is_mini_boss);
@@ -5290,7 +5290,11 @@ export async function registerRoutes(
             hp: Math.max(1, Math.floor(base.hp * v())),
             atk: Math.max(1, Math.floor(base.atk * v())),
             def: Math.max(1, Math.floor(base.def * v())),
-            coinReward: enemy.coin_reward,
+            coinReward: type === "boss"
+              ? 30 + Math.floor(Math.random() * 6)
+              : type === "miniBoss"
+                ? 25 + Math.floor(Math.random() * 6)
+                : 15 + Math.floor(Math.random() * 6),
             drops: [],
           };
         };
@@ -9307,7 +9311,10 @@ export async function registerRoutes(
       // Unlock next tier (max 10)
       const nextTier = Math.min(10, Math.max(current.currentTier, tier + 1));
       await storage.upsertPetCaveProgress(petInventoryId, nextTier, completedTiers);
-      return res.json({ currentTier: nextTier, completedTiers });
+      // Award tier-clear bonus coins (100 per tier)
+      const bonusCoins = tier * 100;
+      const updatedUser = await storage.addCoins(user.id, bonusCoins);
+      return res.json({ currentTier: nextTier, completedTiers, bonusCoins, newBalance: updatedUser.coins });
     } catch (err) {
       console.error("[cave] complete-tier error:", err);
       return res.status(500).json({ message: "Server error" });

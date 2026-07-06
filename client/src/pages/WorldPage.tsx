@@ -5467,12 +5467,16 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               caveTier={isCaveBattle ? caveBattleTier : undefined}
               onCaveTierComplete={isCaveBattle ? async () => {
                 try {
-                  await apiRequest("POST", "/api/cave/complete-tier", {
+                  const res = await apiRequest("POST", "/api/cave/complete-tier", {
                     petInventoryId: currentUser?.activePetId,
                     tier: caveBattleTier,
                   });
+                  const data = await res.json();
                   queryClient.invalidateQueries({ queryKey: ["/api/cave/progress", currentUser?.activePetId] });
                   queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+                  if (data.bonusCoins) {
+                    toast({ title: `+${data.bonusCoins} Coins!`, description: `Tier ${caveBattleTier} clear bonus awarded.` });
+                  }
                 } catch (e) {
                   console.error("Failed to save cave progress", e);
                 }
