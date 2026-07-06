@@ -12,3 +12,4 @@
 - [Murk Cave dungeon system](murk-cave-dungeon.md) — 5-tier cave, 6 waves/tier, per-pet progress, active-pet-only; bypass BattlePrep via showCaveEntry; runtime table pet_cave_progress.
 - [Battle defeat mood constants](battle-defeat-mood-constants.md) — BATTLE_DEFEAT_RECENT_MINUTES and BATTLE_DEFEAT_MOOD_CAP must be defined at module scope; missing definition causes ReferenceError → 500 in feed/pet routes for any pet with lastBattleDefeatAt set.
 - [Viewport height CSS variable](viewport-vh.md) — --vh is never set by default; only --fh is. All calc(N*var(--vh)) expressions (shop modals, ember animation) are broken on iOS until --vh is set in App.tsx.
+- [WorldPage inline style injection crash](worldpage-style-injection.md) — 7 inline <style> blocks in WorldPage re-inject @keyframes on every render; iOS Safari accumulates duplicates until WebKit kills the tab. Fix: all keyframes live in index.css.

@@ -1939,83 +1939,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       className="relative w-full h-screen-frame overflow-hidden"
       style={{ animation: "worldFadeIn 0.35s ease-out" }}
     >
-      <style>{`
-        @keyframes worldFadeIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        @keyframes locFloat {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-4px); }
-        }
-        @keyframes worldMote {
-          0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
-          15% { opacity: 0.8; }
-          85% { opacity: 0.6; }
-          100% { transform: translate(var(--mx), var(--my)) scale(0.2); opacity: 0; }
-        }
-        @keyframes emptyPulse {
-          0%, 100% { opacity: 0.5; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.05); }
-        }
-        @keyframes locGlowPulse {
-          0%, 100% { opacity: 0.18; transform: scale(0.80); }
-          50% { opacity: 0.62; transform: scale(1.10); }
-        }
-        @keyframes swampGlowPulse {
-          0%, 100% { opacity: 0.10; transform: scale(0.72); }
-          50% { opacity: 0.28; transform: scale(0.92); }
-        }
-        @keyframes locGlowRimPulse {
-          0%, 100% { opacity: 0.15; }
-          50% { opacity: 0.80; }
-        }
-        @keyframes swampGlowRimPulse {
-          0%, 100% { opacity: 0.06; }
-          50% { opacity: 0.22; }
-        }
-        @keyframes hwGlowOrb {
-          0%, 100% { opacity: 0.06; transform: scale(0.88); }
-          50% { opacity: 0.45; transform: scale(1.06); }
-        }
-        @keyframes hwRimPulse {
-          0%, 100% { opacity: 0.04; }
-          50% { opacity: 0.42; }
-        }
-        @keyframes ffloat0 {
-          0%,100% { transform: translate(0,0) scale(1); opacity: 0.7; }
-          25% { transform: translate(5px,-9px) scale(1.15); opacity: 1; }
-          50% { transform: translate(-4px,-14px) scale(0.85); opacity: 0.75; }
-          75% { transform: translate(-8px,-4px) scale(1.08); opacity: 0.9; }
-        }
-        @keyframes ffloat1 {
-          0%,100% { transform: translate(0,0) scale(0.88); opacity: 0.55; }
-          33% { transform: translate(-8px,-12px) scale(1.18); opacity: 1; }
-          66% { transform: translate(6px,-7px) scale(0.92); opacity: 0.7; }
-        }
-        @keyframes ffloat2 {
-          0%,100% { transform: translate(0,0) scale(1); opacity: 0.65; }
-          40% { transform: translate(10px,-8px) scale(1.2); opacity: 1; }
-          72% { transform: translate(2px,-16px) scale(0.85); opacity: 0.6; }
-        }
-        @keyframes lightOrbPulse {
-          0%, 100% { opacity: 0.72; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.1); }
-        }
-        @keyframes fishBubbleRise {
-          0%   { transform: translate3d(0px,0px,0) scale(0.35); opacity: 0; }
-          10%  { opacity: 0.55; transform: translate3d(1px,-4px,0) scale(1); }
-          40%  { opacity: 0.45; transform: translate3d(-3px,-28px,0) scale(0.92); }
-          75%  { opacity: 0.22; transform: translate3d(3px,-62px,0) scale(0.78); }
-          100% { transform: translate3d(0px,-90px,0) scale(0.5); opacity: 0; }
-        }
-        .loc-node { transition: filter 0.2s ease; touch-action: none; }
-        .loc-node:active { filter: brightness(1.15); }
-        .world-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
-        .world-scroll::-webkit-scrollbar-track { background: transparent; }
-        .world-scroll::-webkit-scrollbar-thumb { background: ${accent}40; border-radius: 4px; }
-        .world-scroll::-webkit-scrollbar-thumb:hover { background: ${accent}70; }
-      `}</style>
+      <style>{`.world-scroll::-webkit-scrollbar-thumb{background:${accent}40;border-radius:4px;}.world-scroll::-webkit-scrollbar-thumb:hover{background:${accent}70;}`}</style>
 
       <div
         className="absolute top-0 left-0 right-0 z-40"
@@ -2614,30 +2538,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                         </div>
                       );
                     })}
-                    <style>{`
-                      @keyframes fishHintFloat {
-                        0%, 100% { transform: translateY(0px); }
-                        50%       { transform: translateY(12px); }
-                      }
-                      @keyframes hintOrb1 {
-                        0%   { transform: translate(-22px, 10px);  opacity: 0.8; }
-                        33%  { transform: translate(20px, -14px);  opacity: 1;   }
-                        66%  { transform: translate(8px, 22px);    opacity: 0.6; }
-                        100% { transform: translate(-22px, 10px);  opacity: 0.8; }
-                      }
-                      @keyframes hintOrb2 {
-                        0%   { transform: translate(20px, -8px);   opacity: 0.7; }
-                        33%  { transform: translate(-18px, 16px);  opacity: 1;   }
-                        66%  { transform: translate(-8px, -22px);  opacity: 0.8; }
-                        100% { transform: translate(20px, -8px);   opacity: 0.7; }
-                      }
-                      @keyframes hintOrb3 {
-                        0%   { transform: translate(2px, -24px);   opacity: 0.9; }
-                        33%  { transform: translate(-24px, 6px);   opacity: 0.6; }
-                        66%  { transform: translate(20px, 16px);   opacity: 1;   }
-                        100% { transform: translate(2px, -24px);   opacity: 0.9; }
-                      }
-                    `}</style>
                   </>
                 );
               })()}
@@ -3453,38 +3353,14 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           {/* Lava ember particles for volcanic fishing shop */}
           {isVolcanicFishing && (
             <>
-              <style>{`
-                @keyframes lavaSpark1 {
-                  0%   { transform: translate(0,0) scale(1); opacity: 0; }
-                  10%  { opacity: 0.9; }
-                  80%  { opacity: 0.4; }
-                  100% { transform: translate(8px,-60px) scale(0.3); opacity: 0; }
-                }
-                @keyframes lavaSpark2 {
-                  0%   { transform: translate(0,0) scale(0.8); opacity: 0; }
-                  15%  { opacity: 0.85; }
-                  75%  { opacity: 0.3; }
-                  100% { transform: translate(-10px,-72px) scale(0.2); opacity: 0; }
-                }
-                @keyframes lavaSpark3 {
-                  0%   { transform: translate(0,0) scale(1.1); opacity: 0; }
-                  12%  { opacity: 0.95; }
-                  85%  { opacity: 0.35; }
-                  100% { transform: translate(5px,-55px) scale(0.25); opacity: 0; }
-                }
-                @keyframes lavaGlow {
-                  0%,100% { opacity: 0.3; transform: scale(1); }
-                  50%     { opacity: 0.7; transform: scale(1.3); }
-                }
-              `}</style>
               <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 5 }}>
                 <div style={{ position: "absolute", left: "15%", bottom: "28%", width: 6, height: 6, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,180,50,0.95) 0%, rgba(255,80,10,0.4) 60%, transparent 80%)", filter: "blur(1px)", animation: "lavaSpark1 4.2s ease-out 0s infinite" }} />
                 <div style={{ position: "absolute", left: "38%", bottom: "22%", width: 4, height: 4, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,200,80,0.9) 0%, rgba(255,100,20,0.35) 60%, transparent 80%)", filter: "blur(0.8px)", animation: "lavaSpark2 5.1s ease-out 1.4s infinite" }} />
                 <div style={{ position: "absolute", left: "62%", bottom: "30%", width: 5, height: 5, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,160,30,0.95) 0%, rgba(240,60,10,0.4) 60%, transparent 80%)", filter: "blur(1px)", animation: "lavaSpark3 3.8s ease-out 2.7s infinite" }} />
                 <div style={{ position: "absolute", left: "80%", bottom: "20%", width: 3, height: 3, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,220,100,0.9) 0%, rgba(255,120,30,0.3) 65%, transparent 80%)", filter: "blur(0.6px)", animation: "lavaSpark1 6.3s ease-out 0.8s infinite" }} />
                 <div style={{ position: "absolute", left: "25%", bottom: "15%", width: 5, height: 5, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,140,20,0.9) 0%, rgba(220,50,5,0.35) 60%, transparent 80%)", filter: "blur(1px)", animation: "lavaSpark2 4.7s ease-out 3.5s infinite" }} />
-                <div style={{ position: "absolute", left: "50%", bottom: "10%", width: 60, height: 60, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,80,10,0.18) 0%, rgba(200,40,5,0.06) 55%, transparent 75%)", filter: "blur(16px)", animation: "lavaGlow 5s ease-in-out infinite 1s" }} />
-                <div style={{ position: "absolute", left: "20%", bottom: "5%", width: 50, height: 50, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,120,20,0.15) 0%, rgba(180,40,5,0.05) 55%, transparent 75%)", filter: "blur(14px)", animation: "lavaGlow 7s ease-in-out infinite 3s" }} />
+                <div style={{ position: "absolute", left: "50%", bottom: "10%", width: 60, height: 60, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,80,10,0.18) 0%, rgba(200,40,5,0.06) 55%, transparent 75%)", animation: "lavaGlow 5s ease-in-out infinite 1s" }} />
+                <div style={{ position: "absolute", left: "20%", bottom: "5%", width: 50, height: 50, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,120,20,0.15) 0%, rgba(180,40,5,0.05) 55%, transparent 75%)", animation: "lavaGlow 7s ease-in-out infinite 3s" }} />
               </div>
             </>
           )}
@@ -3916,7 +3792,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                     +1
                   </div>
                 )}
-                <style>{`@keyframes shopBuyFlash { 0%{opacity:1;transform:translateX(-50%) translateY(0) scale(1.2)} 70%{opacity:0.9;transform:translateX(-50%) translateY(-24px) scale(1)} 100%{opacity:0;transform:translateX(-50%) translateY(-38px) scale(0.85)} }`}</style>
 
                 {!buyConfirmPending ? (
                   <>
@@ -4544,31 +4419,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           {/* Bayou's Heart floating lights */}
           {activeLoc?.id === BAYOUS_HEART_ID && (
             <>
-              <style>{`
-                @keyframes bayouOrb1 {
-                  0%   { transform: translate(0,0) scale(1);    opacity: 0.4; }
-                  25%  { transform: translate(14px,-22px) scale(1.2); opacity: 0.9; }
-                  55%  { transform: translate(-9px,-38px) scale(0.85); opacity: 0.55; }
-                  78%  { transform: translate(18px,-16px) scale(1.1); opacity: 0.75; }
-                  100% { transform: translate(0,0) scale(1);    opacity: 0.4; }
-                }
-                @keyframes bayouOrb2 {
-                  0%   { transform: translate(0,0) scale(0.9);  opacity: 0.3; }
-                  30%  { transform: translate(-16px,-26px) scale(1.25); opacity: 0.8; }
-                  65%  { transform: translate(9px,-42px) scale(0.8); opacity: 0.45; }
-                  100% { transform: translate(0,0) scale(0.9);  opacity: 0.3; }
-                }
-                @keyframes bayouOrb3 {
-                  0%   { transform: translate(0,0) scale(1.1);  opacity: 0.35; }
-                  40%  { transform: translate(22px,-14px) scale(0.75); opacity: 0.75; }
-                  72%  { transform: translate(-11px,-32px) scale(1.2); opacity: 0.4; }
-                  100% { transform: translate(0,0) scale(1.1);  opacity: 0.35; }
-                }
-                @keyframes bayouOrbPulse {
-                  0%,100% { opacity: 0.25; transform: scale(1); }
-                  50%     { opacity: 0.7; transform: scale(1.4); }
-                }
-              `}</style>
               <div
                 className="absolute inset-0 pointer-events-none"
                 style={{ zIndex: 5, opacity: 1 }}
@@ -4979,65 +4829,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
             {/* Bayou's Heart entrance mist — renders over backdrop, under modal */}
             {dangerLoc.id === BAYOUS_HEART_ID && (
               <>
-                <style>{`
-                  @keyframes bayouBase {
-                    0%   { transform: translateX(-6%) scaleX(1); }
-                    50%  { transform: translateX(6%) scaleX(1.14); }
-                    100% { transform: translateX(-6%) scaleX(1); }
-                  }
-                  @keyframes bayouDrift {
-                    0%   { transform: translateX(8%) scaleX(0.95); }
-                    50%  { transform: translateX(-8%) scaleX(1.1); }
-                    100% { transform: translateX(8%) scaleX(0.95); }
-                  }
-                  @keyframes bayouWisp1 {
-                    0%   { transform: translate(0,0) scale(1); opacity: 0; }
-                    12%  { opacity: 1; }
-                    85%  { opacity: 0.55; }
-                    100% { transform: translate(11%,-42%) scale(1.65); opacity: 0; }
-                  }
-                  @keyframes bayouWisp2 {
-                    0%   { transform: translate(0,0) scale(0.85); opacity: 0; }
-                    18%  { opacity: 0.8; }
-                    80%  { opacity: 0.35; }
-                    100% { transform: translate(-13%,-36%) scale(1.55); opacity: 0; }
-                  }
-                  @keyframes bayouWisp3 {
-                    0%   { transform: translate(0,0) scale(1.05); opacity: 0; }
-                    10%  { opacity: 0.65; }
-                    88%  { opacity: 0.2; }
-                    100% { transform: translate(5%,-52%) scale(1.75); opacity: 0; }
-                  }
-                  @keyframes bayouWisp4 {
-                    0%   { transform: translate(0,0) scale(0.9); opacity: 0; }
-                    15%  { opacity: 0.7; }
-                    82%  { opacity: 0.3; }
-                    100% { transform: translate(-8%,-44%) scale(1.6); opacity: 0; }
-                  }
-                  @keyframes bayouOrb1 {
-                    0%   { transform: translate(0,0) scale(1);    opacity: 0.35; }
-                    25%  { transform: translate(14px,-22px) scale(1.25); opacity: 0.85; }
-                    55%  { transform: translate(-9px,-38px) scale(0.88); opacity: 0.5; }
-                    78%  { transform: translate(18px,-16px) scale(1.15); opacity: 0.7; }
-                    100% { transform: translate(0,0) scale(1);    opacity: 0.35; }
-                  }
-                  @keyframes bayouOrb2 {
-                    0%   { transform: translate(0,0) scale(0.9);  opacity: 0.28; }
-                    30%  { transform: translate(-16px,-26px) scale(1.3); opacity: 0.75; }
-                    65%  { transform: translate(9px,-42px) scale(0.82); opacity: 0.4; }
-                    100% { transform: translate(0,0) scale(0.9);  opacity: 0.28; }
-                  }
-                  @keyframes bayouOrb3 {
-                    0%   { transform: translate(0,0) scale(1.1);  opacity: 0.3; }
-                    40%  { transform: translate(22px,-14px) scale(0.78); opacity: 0.7; }
-                    72%  { transform: translate(-11px,-32px) scale(1.22); opacity: 0.38; }
-                    100% { transform: translate(0,0) scale(1.1);  opacity: 0.3; }
-                  }
-                  @keyframes bayouOrbPulse {
-                    0%,100% { opacity: 0.22; transform: scale(1); }
-                    50%     { opacity: 0.65; transform: scale(1.45); }
-                  }
-                `}</style>
                 <div
                   className="absolute inset-0 pointer-events-none"
                   style={{ zIndex: 1, opacity: 1 }}
@@ -6520,10 +6311,6 @@ function CauldronPanel({
 
   return (
     <>
-      <style>{`
-        @keyframes unlockGlow { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
-        @keyframes brewPop { 0% { transform: scale(0.7); opacity: 0; } 70% { transform: scale(1.06); } 100% { transform: scale(1); opacity: 1; } }
-      `}</style>
 
       {/* Brew error popups — Incorrect Recipe / Find Recipe */}
       {brewError && (
