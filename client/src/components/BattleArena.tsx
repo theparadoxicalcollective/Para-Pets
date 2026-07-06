@@ -367,12 +367,15 @@ interface BattleEndSummaryProps {
   totalItems: any[];
   errored: boolean;
   calculating: boolean;
+  isCave?: boolean;
+  caveTier?: number;
   onClose: () => void;
 }
 
-function BattleEndSummary({ phase, accent, enemyName, allEnemiesCount, petRewards, totalCoins, totalItems, errored, calculating, onClose }: BattleEndSummaryProps) {
+function BattleEndSummary({ phase, accent, enemyName, allEnemiesCount, petRewards, totalCoins, totalItems, errored, calculating, isCave, caveTier, onClose }: BattleEndSummaryProps) {
   const isVictory = phase === "victory";
-  const borderCol = isVictory ? accent + "60" : "rgba(239,68,68,0.5)";
+  const isCaveTierComplete = isCave && isVictory;
+  const borderCol = isCaveTierComplete ? "#f59e0b80" : isVictory ? accent + "60" : "rgba(239,68,68,0.5)";
   return (
     <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70 px-4 py-6 overflow-y-auto">
       <div className="bg-gray-900/95 rounded-2xl border p-5 mx-2 w-full max-w-md"
@@ -381,6 +384,27 @@ function BattleEndSummary({ phase, accent, enemyName, allEnemiesCount, petReward
           animation: isVictory ? "victoryPulse 2s ease-in-out infinite" : undefined,
         }}
         data-testid={isVictory ? "modal-victory" : "modal-defeat"}>
+
+        {isCaveTierComplete && (
+          <div className="text-center mb-4 pb-4 border-b border-amber-500/30">
+            <div className="text-xs tracking-[0.25em] uppercase text-amber-400/70 mb-1">Murk Cave</div>
+            <div className="text-4xl font-black mb-1"
+              style={{
+                background: "linear-gradient(135deg, #fbbf24 0%, #f59e0b 40%, #d97706 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                animation: "victoryPulse 1.5s ease-in-out infinite",
+              }}>
+              TIER {caveTier} CLEARED!
+            </div>
+            <div className="flex justify-center gap-1 mt-2">
+              {Array.from({ length: caveTier ?? 1 }).map((_, i) => (
+                <span key={i} className="text-amber-400 text-lg" style={{ animation: `victoryPulse 1.5s ease-in-out ${i * 0.15}s infinite` }}>⭐</span>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="text-center">
           <div className="text-3xl font-black mb-1" style={{ color: isVictory ? accent : "#ef4444" }}>
             {isVictory ? "VICTORY!" : "DEFEATED"}
@@ -430,9 +454,9 @@ function BattleEndSummary({ phase, accent, enemyName, allEnemiesCount, petReward
 
           <button onClick={onClose}
             className="mt-2 w-full py-3 rounded-xl font-bold text-white transition-all hover:scale-105 active:scale-95"
-            style={{ backgroundColor: isVictory ? accent : "#dc2626" }}
+            style={{ backgroundColor: isCaveTierComplete ? "#d97706" : isVictory ? accent : "#dc2626" }}
             data-testid={isVictory ? "button-battle-continue" : "button-battle-retreat"}>
-            {isVictory ? "Continue" : "Retreat"}
+            {isCaveTierComplete ? "Return to Cave" : isVictory ? "Continue" : "Retreat"}
           </button>
         </div>
       </div>
@@ -3576,6 +3600,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             totalItems={totalRewards.items}
             errored={defeatMutation.isError}
             calculating={defeatMutation.isPending && Object.keys(petRewards).length === 0}
+            isCave={isCave}
+            caveTier={caveTier}
             onClose={() => {
               if (isCave && phase === "victory") onCaveTierComplete?.();
               handleReturnToWorld();

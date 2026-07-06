@@ -5484,6 +5484,10 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         <CaveEntryOverlay
           activePetId={currentUser?.activePetId ?? null}
           onEnterTier={(tier) => {
+            const activePet = inventory.find(
+              (i: any) => i.inventoryId === currentUser?.activePetId && i.type === "pet" && i.isHatched
+            ) ?? null;
+            setBattlePets([activePet, null, null]);
             setCaveBattleTier(tier);
             setShowCaveEntry(false);
             setShowBattle(true);
@@ -5517,18 +5521,25 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                     tier: caveBattleTier,
                   });
                   queryClient.invalidateQueries({ queryKey: ["/api/cave/progress", currentUser?.activePetId] });
+                  queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
                 } catch (e) {
                   console.error("Failed to save cave progress", e);
                 }
               } : undefined}
               onClose={() => {
                 setShowBattle(false);
-                setBattleLocationId(null);
                 setActiveLocationId(null);
+                if (isCaveBattle) {
+                  setShowCaveEntry(true);
+                } else {
+                  setBattleLocationId(null);
+                }
               }}
               onBattleEnd={() => {
                 queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-                queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+                if (!isCaveBattle) {
+                  queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+                }
               }}
             />
           </div>
