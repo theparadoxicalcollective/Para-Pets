@@ -5227,17 +5227,22 @@ export async function registerRoutes(
       // ── Cave tier encounter (Murk Cave dungeon system) ──────────────────────
       const MURK_CAVE_ID = "a1b2c3d4-0001-4000-8000-000000000001";
       const reqCaveTier = req.body?.caveTier != null ? parseInt(String(req.body.caveTier), 10) : NaN;
-      if (locationId === MURK_CAVE_ID && !isNaN(reqCaveTier) && reqCaveTier >= 1 && reqCaveTier <= 5) {
+      if (locationId === MURK_CAVE_ID && !isNaN(reqCaveTier) && reqCaveTier >= 1 && reqCaveTier <= 10) {
         const CAVE_TIER_STATS: Record<number, {
           normal: { hp: number; atk: number; def: number };
           miniBoss: { hp: number; atk: number; def: number };
           boss: { hp: number; atk: number; def: number };
         }> = {
-          1: { normal:{hp:1500,atk:55,def:25},   miniBoss:{hp:3500,atk:80,def:40},    boss:{hp:8000,atk:110,def:55} },
-          2: { normal:{hp:3000,atk:95,def:45},   miniBoss:{hp:7000,atk:140,def:70},   boss:{hp:16000,atk:185,def:95} },
-          3: { normal:{hp:5500,atk:160,def:80},  miniBoss:{hp:12000,atk:230,def:115}, boss:{hp:28000,atk:290,def:145} },
-          4: { normal:{hp:9000,atk:250,def:125}, miniBoss:{hp:20000,atk:360,def:180}, boss:{hp:48000,atk:440,def:220} },
-          5: { normal:{hp:14000,atk:370,def:185},miniBoss:{hp:31000,atk:520,def:260}, boss:{hp:75000,atk:620,def:310} },
+          1:  { normal:{hp:1500, atk:55,  def:25},  miniBoss:{hp:3500,  atk:80,   def:40},   boss:{hp:8000,   atk:110,  def:55}  },
+          2:  { normal:{hp:3000, atk:95,  def:45},  miniBoss:{hp:7000,  atk:140,  def:70},   boss:{hp:16000,  atk:185,  def:95}  },
+          3:  { normal:{hp:5500, atk:160, def:80},  miniBoss:{hp:12000, atk:230,  def:115},  boss:{hp:28000,  atk:290,  def:145} },
+          4:  { normal:{hp:9000, atk:250, def:125}, miniBoss:{hp:20000, atk:360,  def:180},  boss:{hp:48000,  atk:440,  def:220} },
+          5:  { normal:{hp:14000,atk:370, def:185}, miniBoss:{hp:31000, atk:520,  def:260},  boss:{hp:75000,  atk:620,  def:310} },
+          6:  { normal:{hp:21000,atk:530, def:265}, miniBoss:{hp:47000, atk:740,  def:370},  boss:{hp:112000, atk:870,  def:435} },
+          7:  { normal:{hp:30000,atk:750, def:375}, miniBoss:{hp:68000, atk:1020, def:510},  boss:{hp:160000, atk:1150, def:575} },
+          8:  { normal:{hp:43000,atk:1020,def:510}, miniBoss:{hp:96000, atk:1380, def:690},  boss:{hp:225000, atk:1530, def:765} },
+          9:  { normal:{hp:61000,atk:1360,def:680}, miniBoss:{hp:135000,atk:1820, def:910},  boss:{hp:315000, atk:2000, def:1000}},
+          10: { normal:{hp:85000,atk:1800,def:900}, miniBoss:{hp:190000,atk:2400, def:1200}, boss:{hp:440000, atk:2600, def:1300}},
         };
         const tierEnemies = await storage.getLocationEnemiesByTier(locationId, reqCaveTier);
         const tierNormals = tierEnemies.filter((e: any) => !e.is_boss && !e.is_mini_boss);

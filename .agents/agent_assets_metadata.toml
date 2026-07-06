@@ -1212,6 +1212,186 @@ uri = "file://attached_assets/generated_images/fantasy_final_boss_the_1eb7.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "gCEgR71FeTCPw1diQ_-b0"
+uri = "file://attached_assets/generated_images/enemy_t6_swamp_specter.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "DDsi39iHB-Yuv4W1HI7RK"
+uri = "file://attached_assets/generated_images/enemy_t6_bog_revenant.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "l5SLcdJhT70ZAa51Vibxd"
+uri = "file://attached_assets/generated_images/enemy_t6_murk_phantom.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "VVCfNycxVEhzFveE8o_NR"
+uri = "file://attached_assets/generated_images/enemy_t6_serpent_warden.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "u-oBnhIQPqOEe8oENEDMC"
+uri = "file://attached_assets/generated_images/enemy_t6_bayou_overlord.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "ER7_-pnQzP-A6_V9gAFH7"
+uri = "file://attached_assets/generated_images/enemy_t7_crystal_wraith.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "zYyDuQkIh6avAxhKbVtzF"
+uri = "file://attached_assets/generated_images/enemy_t7_frost_specter.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Ot0h22YL3T0Ns3b8WpyME"
+uri = "file://attached_assets/generated_images/enemy_t7_shard_imp.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "40KU7ihwmKl22NSYFW3Tb"
+uri = "file://attached_assets/generated_images/enemy_t7_glacier_sentinel.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "B87wJxniazGxSftXqMoqE"
+uri = "file://attached_assets/generated_images/enemy_t7_crystal_colossus.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "JnkcLC56Q9noiNONi6Iue"
+uri = "file://attached_assets/generated_images/enemy_t8_voodoo_husk.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "se7xjPWEiw1OJV-GfMzf9"
+uri = "file://attached_assets/generated_images/enemy_t8_hex_revenant.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "-wJf3QW0tTOqo_34AcXbQ"
+uri = "file://attached_assets/generated_images/enemy_t8_cursed_effigy.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "xNBcsoY4F5Ce8YSW89jwe"
+uri = "file://attached_assets/generated_images/enemy_t8_voodoo_shaman.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "iz7oLOeuYH73qOvDLhVYo"
+uri = "file://attached_assets/generated_images/enemy_t8_baron_nightfall.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "oe1W3Dh-_z92orALmIGsF"
+uri = "file://attached_assets/generated_images/enemy_t9_lava_wretch.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "BG5zvAr7GABg7UcVEl_BA"
+uri = "file://attached_assets/generated_images/enemy_t9_ember_drake.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "2OU-klvLAR2b3Rf7hSrR8"
+uri = "file://attached_assets/generated_images/enemy_t9_magma_crawler.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "UUPji1X92jMx2abmR1QUK"
+uri = "file://attached_assets/generated_images/enemy_t9_forge_demon.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "xoReXQ2qCiUuUeZ6Rq3Ls"
+uri = "file://attached_assets/generated_images/enemy_t9_infernal_sovereign.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "LxnxJmZhjkGfJ2DA2rXPX"
+uri = "file://attached_assets/generated_images/enemy_t10_blood_specter.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "EACzH9AzKNrToJDvX_AOV"
+uri = "file://attached_assets/generated_images/enemy_t10_void_wraith.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "oh2r7YOhK7p9BfJwuf6kx"
+uri = "file://attached_assets/generated_images/enemy_t10_crimson_shade.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "O3YGw4zDvK6WNHihUwHs5"
+uri = "file://attached_assets/generated_images/enemy_t10_soul_reaper.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Y3tIZRBoyU_EKo9V7QFb8"
+uri = "file://attached_assets/generated_images/enemy_t10_abyssal_king.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "O4J6Cqizc27jy4-_bsnWa"
+uri = "file://client/src/assets/cave_enter_t6.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "8ooeorOd5Jk4MrgwWfqoe"
+uri = "file://client/src/assets/cave_enter_t7.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "cNARnmivt2kgFR-6ZNren"
+uri = "file://client/src/assets/cave_enter_t8.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "aCgnp2l18y-vPDQLUXG_J"
+uri = "file://client/src/assets/cave_enter_t9.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "yQHtqX6sJ2RHzzvbWtVVh"
+uri = "file://client/src/assets/cave_enter_t10.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "kWMqur_tocjIqZJdF_rzM"
 uri = "file://attached_assets/pethouse_bg_new.png"

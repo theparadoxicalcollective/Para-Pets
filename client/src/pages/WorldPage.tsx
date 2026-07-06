@@ -17,11 +17,21 @@ import caveBanner2 from "@assets/Photoroom_20260705_51608_PM_1783290164113.png";
 import caveBanner3 from "@assets/Photoroom_20260705_51705_PM_1783290164113.png";
 import caveBanner4 from "@assets/Photoroom_20260705_52038_PM_1783290164113.png";
 import caveBanner5 from "@assets/Photoroom_20260705_52123_PM_1783290164113.png";
+import caveBanner6 from "@assets/Photoroom_20260705_91052_PM_1783304106219.png";
+import caveBanner7 from "@assets/Photoroom_20260705_91130_PM_1783304106219.png";
+import caveBanner8 from "@assets/Photoroom_20260705_91200_PM_1783304106219.png";
+import caveBanner9 from "@assets/Photoroom_20260705_91232_PM_1783304106219.png";
+import caveBanner10 from "@assets/Photoroom_20260705_91357_PM_1783304106219.png";
 import caveEnter1 from "@assets/Photoroom_20260705_50251_PM_1783290164113.png";
 import caveEnter2 from "@assets/Photoroom_20260705_50531_PM_1783290164113.png";
 import caveEnter3 from "@assets/Photoroom_20260705_50328_PM_1783290164113.png";
 import caveEnter4 from "@assets/Photoroom_20260705_50615_PM_1783290164113.png";
 import caveEnter5 from "@assets/Photoroom_20260705_50445_PM_1783290164113.png";
+import caveEnter6 from "@assets/cave_enter_t6.png";
+import caveEnter7 from "@assets/cave_enter_t7.png";
+import caveEnter8 from "@assets/cave_enter_t8.png";
+import caveEnter9 from "@assets/cave_enter_t9.png";
+import caveEnter10 from "@assets/cave_enter_t10.png";
 import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal, Copy, Waves, Palette, Heart, Droplets } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
@@ -237,11 +247,16 @@ const isMobilePhone = () => true;
 const MURK_CAVE_ID = "a1b2c3d4-0001-4000-8000-000000000001";
 
 const CAVE_TIERS = [
-  { tier: 1, banner: caveBanner1, enterBtn: caveEnter1 },
-  { tier: 2, banner: caveBanner2, enterBtn: caveEnter2 },
-  { tier: 3, banner: caveBanner3, enterBtn: caveEnter3 },
-  { tier: 4, banner: caveBanner4, enterBtn: caveEnter4 },
-  { tier: 5, banner: caveBanner5, enterBtn: caveEnter5 },
+  { tier: 1,  banner: caveBanner1,  enterBtn: caveEnter1  },
+  { tier: 2,  banner: caveBanner2,  enterBtn: caveEnter2  },
+  { tier: 3,  banner: caveBanner3,  enterBtn: caveEnter3  },
+  { tier: 4,  banner: caveBanner4,  enterBtn: caveEnter4  },
+  { tier: 5,  banner: caveBanner5,  enterBtn: caveEnter5  },
+  { tier: 6,  banner: caveBanner6,  enterBtn: caveEnter6  },
+  { tier: 7,  banner: caveBanner7,  enterBtn: caveEnter7  },
+  { tier: 8,  banner: caveBanner8,  enterBtn: caveEnter8  },
+  { tier: 9,  banner: caveBanner9,  enterBtn: caveEnter9  },
+  { tier: 10, banner: caveBanner10, enterBtn: caveEnter10 },
 ] as const;
 
 function CaveEntryOverlay({ activePetId, onEnterTier, onClose }: {

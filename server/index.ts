@@ -1900,6 +1900,59 @@ app.use((req, res, next) => {
       console.log("Murk Cave tiered enemies seeded (25 enemies, 5 tiers).");
     }
 
+    // Seed Tiers 6–10 enemies
+    const cavetiersDone2 = await storage.getGameSetting("murk_cave_tiers_t6_10_v1");
+    if (!cavetiersDone2) {
+      const MURK_CAVE_ID2 = "a1b2c3d4-0001-4000-8000-000000000001";
+      const CAVE_ENEMIES_T6_10: Array<{ name: string; file: string; isBoss: boolean; isMiniBoss: boolean; caveTier: number; coinReward: number; bossSpecialAttack?: string }> = [
+        // Tier 6 — The Verdant Deep
+        { name: "Swamp Specter",    file: "generated_images/enemy_t6_swamp_specter.png",    isBoss: false, isMiniBoss: false, caveTier: 6, coinReward: 27 },
+        { name: "Bog Revenant",     file: "generated_images/enemy_t6_bog_revenant.png",     isBoss: false, isMiniBoss: false, caveTier: 6, coinReward: 27 },
+        { name: "Murk Phantom",     file: "generated_images/enemy_t6_murk_phantom.png",     isBoss: false, isMiniBoss: false, caveTier: 6, coinReward: 27 },
+        { name: "Serpent Warden",   file: "generated_images/enemy_t6_serpent_warden.png",   isBoss: false, isMiniBoss: true,  caveTier: 6, coinReward: 75 },
+        { name: "Bayou Overlord",   file: "generated_images/enemy_t6_bayou_overlord.png",   isBoss: true,  isMiniBoss: false, caveTier: 6, coinReward: 180, bossSpecialAttack: "bolt" },
+        // Tier 7 — The Crystal Vault
+        { name: "Crystal Wraith",   file: "generated_images/enemy_t7_crystal_wraith.png",   isBoss: false, isMiniBoss: false, caveTier: 7, coinReward: 40 },
+        { name: "Frost Specter",    file: "generated_images/enemy_t7_frost_specter.png",    isBoss: false, isMiniBoss: false, caveTier: 7, coinReward: 40 },
+        { name: "Shard Imp",        file: "generated_images/enemy_t7_shard_imp.png",        isBoss: false, isMiniBoss: false, caveTier: 7, coinReward: 40 },
+        { name: "Glacier Sentinel", file: "generated_images/enemy_t7_glacier_sentinel.png", isBoss: false, isMiniBoss: true,  caveTier: 7, coinReward: 110 },
+        { name: "Crystal Colossus", file: "generated_images/enemy_t7_crystal_colossus.png", isBoss: true,  isMiniBoss: false, caveTier: 7, coinReward: 265, bossSpecialAttack: "slash" },
+        // Tier 8 — The Voodoo Sanctum
+        { name: "Voodoo Husk",      file: "generated_images/enemy_t8_voodoo_husk.png",      isBoss: false, isMiniBoss: false, caveTier: 8, coinReward: 58 },
+        { name: "Hex Revenant",     file: "generated_images/enemy_t8_hex_revenant.png",     isBoss: false, isMiniBoss: false, caveTier: 8, coinReward: 58 },
+        { name: "Cursed Effigy",    file: "generated_images/enemy_t8_cursed_effigy.png",    isBoss: false, isMiniBoss: false, caveTier: 8, coinReward: 58 },
+        { name: "Voodoo Shaman",    file: "generated_images/enemy_t8_voodoo_shaman.png",    isBoss: false, isMiniBoss: true,  caveTier: 8, coinReward: 160 },
+        { name: "Baron Nightfall",  file: "generated_images/enemy_t8_baron_nightfall.png",  isBoss: true,  isMiniBoss: false, caveTier: 8, coinReward: 390, bossSpecialAttack: "bolt" },
+        // Tier 9 — The Infernal Pit
+        { name: "Lava Wretch",      file: "generated_images/enemy_t9_lava_wretch.png",      isBoss: false, isMiniBoss: false, caveTier: 9, coinReward: 85 },
+        { name: "Ember Drake",      file: "generated_images/enemy_t9_ember_drake.png",      isBoss: false, isMiniBoss: false, caveTier: 9, coinReward: 85 },
+        { name: "Magma Crawler",    file: "generated_images/enemy_t9_magma_crawler.png",    isBoss: false, isMiniBoss: false, caveTier: 9, coinReward: 85 },
+        { name: "Forge Demon",      file: "generated_images/enemy_t9_forge_demon.png",      isBoss: false, isMiniBoss: true,  caveTier: 9, coinReward: 235 },
+        { name: "Infernal Sovereign", file: "generated_images/enemy_t9_infernal_sovereign.png", isBoss: true, isMiniBoss: false, caveTier: 9, coinReward: 570, bossSpecialAttack: "slash" },
+        // Tier 10 — The Dark Throne
+        { name: "Blood Specter",    file: "generated_images/enemy_t10_blood_specter.png",   isBoss: false, isMiniBoss: false, caveTier: 10, coinReward: 125 },
+        { name: "Void Wraith",      file: "generated_images/enemy_t10_void_wraith.png",     isBoss: false, isMiniBoss: false, caveTier: 10, coinReward: 125 },
+        { name: "Crimson Shade",    file: "generated_images/enemy_t10_crimson_shade.png",   isBoss: false, isMiniBoss: false, caveTier: 10, coinReward: 125 },
+        { name: "Soul Reaper",      file: "generated_images/enemy_t10_soul_reaper.png",     isBoss: false, isMiniBoss: true,  caveTier: 10, coinReward: 340 },
+        { name: "The Abyssal King", file: "generated_images/enemy_t10_abyssal_king.png",    isBoss: true,  isMiniBoss: false, caveTier: 10, coinReward: 825, bossSpecialAttack: "bolt" },
+      ];
+      for (const ed of CAVE_ENEMIES_T6_10) {
+        const imgData = loadAssetBase64(ed.file);
+        await (storage as any).createCaveEnemy({
+          locationId: MURK_CAVE_ID2,
+          name: ed.name,
+          imageUrl: imgData,
+          isBoss: ed.isBoss,
+          isMiniBoss: ed.isMiniBoss,
+          caveTier: ed.caveTier,
+          coinReward: ed.coinReward,
+          bossSpecialAttack: ed.bossSpecialAttack ?? null,
+        });
+      }
+      await storage.setGameSetting("murk_cave_tiers_t6_10_v1", "done");
+      console.log("Murk Cave Tiers 6–10 enemies seeded (25 enemies).");
+    }
+
     // Update Tier 1 enemy images to new uploaded artwork (v2)
     const t1ImagesV2Done = await storage.getGameSetting("murk_cave_t1_images_v2");
     if (!t1ImagesV2Done) {
