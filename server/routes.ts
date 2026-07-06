@@ -2599,7 +2599,8 @@ export async function registerRoutes(
   app.post("/api/pet/:inventoryId/feed-edible", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { itemInventoryId } = req.body;
+      const { itemInventoryId, quantity: rawQuantity } = req.body;
+      const quantity = Math.max(1, Math.floor(Number(rawQuantity) || 1));
 
       const petInv = await storage.getInventoryItemById((req.params.inventoryId as string));
       if (!petInv || petInv.userId !== user.id) {
@@ -2608,11 +2609,14 @@ export async function registerRoutes(
       if (!petInv.isHatched) {
         return res.status(400).json({ message: "Pet has not hatched yet" });
       }
-      const ediblePetLevel = petInv.petLevel || 1;
 
       const itemInv = await storage.getInventoryItemById(itemInventoryId);
       if (!itemInv || itemInv.userId !== user.id) {
         return res.status(404).json({ message: "Edible not found in inventory" });
+      }
+      const availableQty = itemInv.quantity ?? 1;
+      if (quantity > availableQty) {
+        return res.status(400).json({ message: "Not enough items in inventory" });
       }
 
       const itemShopItem = await storage.getShopItem(itemInv.shopItemId);
@@ -2623,10 +2627,11 @@ export async function registerRoutes(
       // Edibles grant "feed points" (lifetime tally) AND restore the pet's
       // hunger meter by the same amount, capped at the pet's HP. Mood gets a
       // small immediate bump too, since the pet is happy after eating.
-      const feedPoints = itemShopItem.statBoostAmount || 5;
+      const feedPointsPerUnit = itemShopItem.statBoostAmount || 5;
+      const totalFeedPoints = feedPointsPerUnit * quantity;
       const maxHunger = 1000;
       const currentHunger = petInv.petHunger == null || petInv.petHunger < 0 ? maxHunger : petInv.petHunger;
-      const newHunger = Math.min(maxHunger, currentHunger + feedPoints);
+      const newHunger = Math.min(maxHunger, currentHunger + totalFeedPoints);
       // Mood gain on feed is small overall, and even smaller when the pet was
       // already too hungry to enjoy the meal. This keeps the mood bar harder
       // to fill — feeding alone can't max it out.
@@ -2641,7 +2646,7 @@ export async function registerRoutes(
         }
       }
       const updates: any = {
-        petFeedPoints: (petInv.petFeedPoints || 0) + feedPoints,
+        petFeedPoints: (petInv.petFeedPoints || 0) + totalFeedPoints,
         petHunger: newHunger,
         petMood: newMood,
         petStatsUpdatedAt: new Date(),
@@ -2649,10 +2654,20 @@ export async function registerRoutes(
       };
 
       const updatedPet = await storage.updateInventoryItem(petInv.id, updates);
-      await storage.decrementInventoryQuantity(itemInv.id);
+      // Bulk-decrement the inventory by quantity in one atomic SQL update.
+      await db.transaction(async (tx) => {
+        const newQty = availableQty - quantity;
+        if (newQty <= 0) {
+          await tx.delete(userInventory).where(eq(userInventory.id, itemInv.id));
+        } else {
+          await tx.update(userInventory)
+            .set({ quantity: newQty })
+            .where(eq(userInventory.id, itemInv.id));
+        }
+      });
       // Quest progress: feed_pet
       incrementQuestProgress(user.id, "feed_pet").catch(() => {});
-      return res.json(updatedPet);
+      return res.json({ ...updatedPet, totalFeedPoints });
     } catch (err) {
       console.error("Feed edible error:", err);
       return res.status(500).json({ message: "Failed to feed edible" });

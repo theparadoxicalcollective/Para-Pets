@@ -2057,6 +2057,17 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   } | null>(null);
   const [dragGhost, setDragGhost] = useState<{ inventoryId: string; imageUrl: string | null; x: number; y: number } | null>(null);
 
+  // Feed-stack popup: shown when a stacked edible is dropped on the pet.
+  const [pendingFeed, setPendingFeed] = useState<{
+    inventoryId: string;
+    imageUrl: string | null;
+    name: string;
+    quantity: number;
+    statBoostAmount: number;
+  } | null>(null);
+  const [divideMode, setDivideMode] = useState(false);
+  const [divideInput, setDivideInput] = useState("1");
+
   // Pet visual state — drop target, glow, click animation, sparkles.
   const petBoxRef = useRef<HTMLDivElement>(null);
   const [petGlow, setPetGlow] = useState(false);
@@ -2462,8 +2473,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   });
 
   const feedMutation = useMutation({
-    mutationFn: async ({ itemInventoryId }: { itemInventoryId: string }) => {
-      return await apiRequest("POST", `/api/pet/${pet.inventoryId}/feed-edible`, { itemInventoryId });
+    mutationFn: async ({ itemInventoryId, quantity = 1 }: { itemInventoryId: string; quantity?: number }) => {
+      return await apiRequest("POST", `/api/pet/${pet.inventoryId}/feed-edible`, { itemInventoryId, quantity });
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({ queryKey: ["/api/inventory"] });
@@ -2474,7 +2485,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       setTimeout(() => setPetGlow(false), 700);
       setTimeout(() => setPetBounce(false), 1100);
       const fed = inventory.find((it) => it.id === variables.itemInventoryId);
-      const amount = fed?.statBoostAmount ?? 5;
+      const qty = variables.quantity ?? 1;
+      const amount = (fed?.statBoostAmount ?? 5) * qty;
       const id = ++floatIdRef.current;
       const box = petBoxRef.current?.getBoundingClientRect();
       const cx = box ? box.left + box.width / 2 : window.innerWidth / 2;
@@ -2554,6 +2566,17 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       const draggedItem = inventory.find((it) => it.id === d.inventoryId);
       if (draggedItem?.type === "gift") {
         giftMutation.mutate({ itemInventoryId: d.inventoryId });
+      } else if (draggedItem && (draggedItem.quantity ?? 1) > 1) {
+        // Stacked edible — show popup to choose Feed All or Divide.
+        setPendingFeed({
+          inventoryId: d.inventoryId,
+          imageUrl: d.imageUrl,
+          name: draggedItem.name,
+          quantity: draggedItem.quantity,
+          statBoostAmount: draggedItem.statBoostAmount ?? 5,
+        });
+        setDivideMode(false);
+        setDivideInput("1");
       } else {
         feedMutation.mutate({ itemInventoryId: d.inventoryId });
       }
@@ -3465,6 +3488,193 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           {dragGhost.imageUrl && (
             <img src={dragGhost.imageUrl} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
           )}
+        </div>
+      )}
+
+      {/* Feed-stack popup */}
+      {pendingFeed && (
+        <div
+          className="fixed inset-0"
+          style={{ zIndex: 540, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.7)" }}
+          onPointerDown={(e) => e.stopPropagation()}
+          data-testid="overlay-feed-stack"
+        >
+          <div style={{
+            background: "linear-gradient(160deg, rgba(8,24,8,0.99) 0%, rgba(12,30,12,0.99) 100%)",
+            border: "1.5px solid rgba(74,222,128,0.45)",
+            borderRadius: 18,
+            padding: "24px 22px 20px",
+            width: "82%",
+            maxWidth: 300,
+            boxShadow: "0 0 40px rgba(34,197,94,0.2), 0 12px 40px rgba(0,0,0,0.85)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 14,
+          }}>
+            {/* Item preview */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              {pendingFeed.imageUrl && (
+                <img
+                  src={pendingFeed.imageUrl}
+                  alt=""
+                  style={{ width: 64, height: 64, objectFit: "contain", filter: "drop-shadow(0 3px 10px rgba(0,0,0,0.7))" }}
+                />
+              )}
+              <div style={{ textAlign: "center" }}>
+                <span style={{ fontFamily: "Lora, serif", color: "#d1fae5", fontSize: 14, fontWeight: 700 }}>
+                  {pendingFeed.name}
+                </span>
+                <span style={{ fontFamily: "Lora, serif", color: "rgba(159,214,144,0.55)", fontSize: 12, marginLeft: 6 }}>
+                  ×{pendingFeed.quantity}
+                </span>
+              </div>
+              <span style={{ fontFamily: "Lora, serif", color: "rgba(159,214,144,0.45)", fontSize: 10 }}>
+                +{pendingFeed.statBoostAmount} hunger per item
+              </span>
+            </div>
+
+            {!divideMode ? (
+              <>
+                <span style={{ fontFamily: "Lora, serif", color: "rgba(209,250,229,0.5)", fontSize: 11, textAlign: "center", letterSpacing: "0.02em" }}>
+                  Feed the whole stack or choose an amount?
+                </span>
+                <div style={{ display: "flex", gap: 8, width: "100%" }}>
+                  <button
+                    data-testid="button-feed-all"
+                    onClick={() => {
+                      feedMutation.mutate({ itemInventoryId: pendingFeed.inventoryId, quantity: pendingFeed.quantity });
+                      setPendingFeed(null);
+                    }}
+                    style={{
+                      flex: 1,
+                      background: "linear-gradient(135deg, #1a5c1a 0%, #2d8c2d 100%)",
+                      border: "1px solid rgba(100,220,100,0.55)",
+                      color: "#dcfce7",
+                      fontFamily: "Lora, serif",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      letterSpacing: "0.07em",
+                      cursor: "pointer",
+                      borderRadius: 10,
+                      padding: "11px 6px",
+                      boxShadow: "0 0 12px rgba(50,180,50,0.25)",
+                    }}
+                  >
+                    FEED ALL
+                  </button>
+                  <button
+                    data-testid="button-divide"
+                    onClick={() => { setDivideMode(true); setDivideInput("1"); }}
+                    style={{
+                      flex: 1,
+                      background: "rgba(30,60,30,0.7)",
+                      border: "1px solid rgba(100,200,100,0.3)",
+                      color: "#9fd690",
+                      fontFamily: "Lora, serif",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: "0.07em",
+                      cursor: "pointer",
+                      borderRadius: 10,
+                      padding: "11px 6px",
+                    }}
+                  >
+                    DIVIDE
+                  </button>
+                </div>
+                <button
+                  data-testid="button-cancel-feed"
+                  onClick={() => setPendingFeed(null)}
+                  style={{ background: "none", border: "none", color: "rgba(159,214,144,0.3)", fontFamily: "Lora, serif", fontSize: 10, cursor: "pointer", padding: "4px 0 0", letterSpacing: "0.05em" }}
+                >
+                  cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <span style={{ fontFamily: "Lora, serif", color: "rgba(209,250,229,0.5)", fontSize: 11, textAlign: "center" }}>
+                  How many to feed? (1 – {pendingFeed.quantity})
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  max={pendingFeed.quantity}
+                  value={divideInput}
+                  onChange={(e) => setDivideInput(e.target.value)}
+                  data-testid="input-divide-amount"
+                  style={{
+                    width: "100%",
+                    background: "rgba(15,35,15,0.9)",
+                    border: "1.5px solid rgba(100,200,100,0.45)",
+                    borderRadius: 10,
+                    color: "#d1fae5",
+                    fontFamily: "Lora, serif",
+                    fontSize: 22,
+                    fontWeight: 700,
+                    textAlign: "center",
+                    padding: "10px",
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                  autoFocus
+                />
+                {(() => {
+                  const n = Math.min(pendingFeed.quantity, Math.max(1, Math.floor(Number(divideInput) || 1)));
+                  const pts = pendingFeed.statBoostAmount * n;
+                  return (
+                    <span style={{ fontFamily: "Lora, serif", color: "rgba(159,214,144,0.5)", fontSize: 10 }}>
+                      +{pts} hunger total
+                    </span>
+                  );
+                })()}
+                <div style={{ display: "flex", gap: 8, width: "100%" }}>
+                  <button
+                    data-testid="button-confirm-divide"
+                    onClick={() => {
+                      const n = Math.min(pendingFeed.quantity, Math.max(1, Math.floor(Number(divideInput) || 1)));
+                      feedMutation.mutate({ itemInventoryId: pendingFeed.inventoryId, quantity: n });
+                      setPendingFeed(null);
+                    }}
+                    style={{
+                      flex: 2,
+                      background: "linear-gradient(135deg, #1a5c1a 0%, #2d8c2d 100%)",
+                      border: "1px solid rgba(100,220,100,0.55)",
+                      color: "#dcfce7",
+                      fontFamily: "Lora, serif",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      letterSpacing: "0.07em",
+                      cursor: "pointer",
+                      borderRadius: 10,
+                      padding: "11px 6px",
+                      boxShadow: "0 0 12px rgba(50,180,50,0.25)",
+                    }}
+                  >
+                    FEED {Math.min(pendingFeed.quantity, Math.max(1, Math.floor(Number(divideInput) || 1)))}
+                  </button>
+                  <button
+                    data-testid="button-back-divide"
+                    onClick={() => setDivideMode(false)}
+                    style={{
+                      flex: 1,
+                      background: "rgba(30,60,30,0.7)",
+                      border: "1px solid rgba(100,200,100,0.3)",
+                      color: "#9fd690",
+                      fontFamily: "Lora, serif",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      borderRadius: 10,
+                      padding: "11px 6px",
+                    }}
+                  >
+                    BACK
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
