@@ -397,6 +397,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [battleLocationId, setBattleLocationId] = useState<string | null>(null);
   const [showCaveEntry, setShowCaveEntry] = useState(false);
   const [caveBattleTier, setCaveBattleTier] = useState(1);
+  const [cavePotionSlots, setCavePotionSlots] = useState<(BattlePotionSlot | null)[]>([null, null, null]);
+  const [cavePotionPickerOpen, setCavePotionPickerOpen] = useState(false);
   const [battlePotionSlots, setBattlePotionSlots] = useState<(BattlePotionSlot | null)[]>([null, null, null, null, null]);
   const [battlePets, setBattlePets] = useState<(InventoryItem | null)[]>([null, null, null]);
   // Ref guard: prevents the save effect from writing stale state back to
@@ -5041,11 +5043,12 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               </>
             )}
             <div
-              className="relative z-10 w-[85%] max-w-sm rounded-lg p-5 text-center"
+              className="relative z-10 w-[85%] max-w-sm rounded-lg p-5 text-center overflow-y-auto"
               style={{
                 background: "linear-gradient(135deg, rgba(8,5,18,0.98) 0%, rgba(18,12,30,0.98) 100%)",
                 border: `1px solid #ff444455`,
                 boxShadow: `0 0 40px #ff444425`,
+                maxHeight: "calc(88 * var(--vh, 1vh))",
               }}
               data-testid="modal-danger-warning"
             >
@@ -5055,9 +5058,141 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               <h3 className="font-fantasy text-base tracking-widest mb-2 text-red-400" style={{ textShadow: "0 0 10px #ff444440" }}>
                 Danger Ahead!
               </h3>
-              <p className="font-fantasy text-[11px] tracking-wider leading-relaxed mb-5 text-red-300/80">
+              <p className="font-fantasy text-[11px] tracking-wider leading-relaxed mb-4 text-red-300/80">
                 Wild creatures lurk in {dangerLoc.name}. Prepare for battle!
               </p>
+
+              {/* ── Murk Cave only: active pet + potion prep ── */}
+              {dangerLoc.id === MURK_CAVE_ID && (() => {
+                const petImg = activePetInv?.hatchedImageUrl || activePetInv?.imageUrl || null;
+                const petName = activePetInv?.petNickname || activePetInv?.name || null;
+
+                const removeCavePotion = (idx: number) => {
+                  const updated = [...cavePotionSlots] as (BattlePotionSlot | null)[];
+                  updated[idx] = null;
+                  setCavePotionSlots(updated);
+                };
+
+                const cavePotions = inventory.filter((i: any) => i.type === "potion" && ((i.healthRestored ?? 0) > 0 || (i.manaRestored ?? 0) > 0 || (i.petsRevived ?? 0) > 0));
+                const assignedIds = new Set(cavePotionSlots.filter(Boolean).map(s => s!.inventoryId));
+
+                return (
+                  <div>
+                    {/* Active pet portrait */}
+                    <div className="flex flex-col items-center mb-4">
+                      <div className="relative w-20 h-20 rounded-full flex items-center justify-center mb-1"
+                        style={{ background: "rgba(0,0,0,0.4)", border: "1.5px solid rgba(255,68,68,0.25)", boxShadow: "0 0 18px rgba(255,68,68,0.12)" }}>
+                        {petImg ? (
+                          <img src={petImg} alt={petName || ""} className="w-16 h-16 object-contain" />
+                        ) : (
+                          <span className="text-3xl">🐾</span>
+                        )}
+                      </div>
+                      <span className="font-fantasy text-[10px] tracking-wider text-red-300/60">{petName ?? "Your Pet"}</span>
+                    </div>
+
+                    {/* 3-slot potion bar */}
+                    <div className="mb-4">
+                      <p className="font-fantasy text-[9px] tracking-widest text-white/35 text-center mb-2">BRING POTIONS</p>
+                      <div className="flex gap-3 justify-center mb-1">
+                        {[0, 1, 2].map((i) => {
+                          const slot = cavePotionSlots[i];
+                          const isHeal = slot && (slot.healthRestored ?? 0) > 0;
+                          const isMana = slot && (slot.manaRestored ?? 0) > 0;
+                          return (
+                            <button key={i}
+                              data-testid={`div-cave-potion-slot-${i}`}
+                              onClick={() => slot ? removeCavePotion(i) : setCavePotionPickerOpen(true)}
+                              className="relative flex items-center justify-center rounded-2xl border-2 transition-all active:scale-95"
+                              style={{
+                                width: 54, height: 54, flexShrink: 0,
+                                background: slot ? (isMana ? "rgba(76,29,149,0.5)" : "rgba(20,80,30,0.5)") : "rgba(0,0,0,0.3)",
+                                borderColor: slot ? (isMana ? "rgba(167,139,250,0.6)" : "rgba(34,197,94,0.5)") : "rgba(255,255,255,0.12)",
+                                boxShadow: slot ? (isMana ? "0 0 8px rgba(124,58,237,0.35)" : "0 0 8px rgba(34,197,94,0.25)") : undefined,
+                              }}
+                            >
+                              {slot ? (
+                                <>
+                                  {slot.imageUrl
+                                    ? <img src={slot.imageUrl} alt={slot.name} className="w-8 h-8 object-contain" />
+                                    : isHeal
+                                      ? <Heart className="w-5 h-5" style={{ color: "#f87171", fill: "rgba(248,113,113,0.3)" }} />
+                                      : <Droplets className="w-5 h-5" style={{ color: "#a78bfa" }} />}
+                                  <div className="absolute -bottom-1 -right-1 min-w-[18px] h-[16px] px-1 rounded-full flex items-center justify-center text-[9px] font-black tabular-nums"
+                                    style={{ background: "rgba(0,0,0,0.85)", border: `1px solid ${isMana ? "rgba(167,139,250,0.55)" : "rgba(34,197,94,0.55)"}`, color: isMana ? "#c4b5fd" : "#86efac" }}>
+                                    ×{slot.qty}
+                                  </div>
+                                </>
+                              ) : (
+                                <span className="text-xl font-light" style={{ color: "rgba(255,255,255,0.18)" }}>+</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="font-fantasy text-[8px] tracking-wider text-white/20 text-center">Tap to add · tap to remove</p>
+                    </div>
+
+                    {/* Inline potion picker */}
+                    {cavePotionPickerOpen && (
+                      <div className="mb-4 rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.5)" }}>
+                        <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                          <span className="font-fantasy text-[10px] tracking-widest text-white/50">CHOOSE POTION</span>
+                          <button onClick={() => setCavePotionPickerOpen(false)} className="text-white/40 hover:text-white/70 transition-colors">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        {cavePotions.length === 0 ? (
+                          <p className="font-fantasy text-[10px] text-white/30 text-center py-3">No potions in bag</p>
+                        ) : (
+                          <div className="flex flex-wrap gap-2 p-3 max-h-28 overflow-y-auto">
+                            {cavePotions.map((p: any) => {
+                              const isEquipped = assignedIds.has(p.inventoryId);
+                              return (
+                                <button key={p.inventoryId}
+                                  disabled={isEquipped}
+                                  onClick={() => {
+                                    if (isEquipped) return;
+                                    const updated = [...cavePotionSlots] as (BattlePotionSlot | null)[];
+                                    const emptyIdx = updated.findIndex(s => s === null);
+                                    if (emptyIdx === -1) return;
+                                    updated[emptyIdx] = {
+                                      shopItemId: p.shopItemId,
+                                      inventoryId: p.inventoryId,
+                                      qty: Math.max(1, Math.min(50, p.quantity ?? 1)),
+                                      name: p.name,
+                                      imageUrl: p.imageUrl ?? null,
+                                      healthRestored: p.healthRestored ?? null,
+                                      manaRestored: p.manaRestored ?? null,
+                                      petsRevived: p.petsRevived ?? null,
+                                    };
+                                    setCavePotionSlots(updated);
+                                    const hasFreeSlot = updated.some(s => s === null);
+                                    if (!hasFreeSlot) setCavePotionPickerOpen(false);
+                                  }}
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all active:scale-95"
+                                  style={{
+                                    background: isEquipped ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.08)",
+                                    border: `1px solid ${isEquipped ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.15)"}`,
+                                    opacity: isEquipped ? 0.4 : 1,
+                                  }}
+                                >
+                                  {p.imageUrl && <img src={p.imageUrl} alt={p.name} className="w-5 h-5 object-contain" />}
+                                  <div className="text-left">
+                                    <div className="font-fantasy text-[9px] text-white/80 leading-tight">{p.name}</div>
+                                    <div className="font-fantasy text-[8px] text-white/40">×{p.quantity ?? 1}</div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               <div className="flex gap-3">
                 <button
                   data-testid="button-danger-go-back"
@@ -5510,7 +5645,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               locationName={battleLoc.name}
               bgUrl={battleLocDetail?.bgUrl ?? null}
               accent={accent}
-              battlePotionSlots={isCaveBattle ? [null, null, null, null, null] : battlePotionSlots}
+              battlePotionSlots={isCaveBattle ? cavePotionSlots : battlePotionSlots}
               equippedPets={isCaveBattle ? [battlePets[0] ?? null, null, null] as any : battlePets as any}
               isCave={isCaveBattle}
               caveTier={isCaveBattle ? caveBattleTier : undefined}
