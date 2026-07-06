@@ -93,6 +93,8 @@ interface EncounterEnemy {
   name: string;
   imageUrl: string | null;
   isBoss: boolean;
+  isMiniBoss?: boolean;
+  waveGroup?: number;
   bossSpecialAttack?: string | null;
   level: number;
   hp: number;
@@ -890,10 +892,16 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       if (!enemy) return;
       battleActiveRef.current = false;
       defeatMutation.mutate({ enemyId: enemy.enemyId, enemyLevel: enemy.level });
-      const hasMore = waveIndex + 1 < allEnemies.length;
-      setPhase(hasMore ? "waveComplete" : "victory");
+      const nextIdx = waveIndex + 1;
+      const currGroup = allEnemies[waveIndex]?.waveGroup ?? waveIndex;
+      const nextGroup = nextIdx < allEnemies.length ? (allEnemies[nextIdx]?.waveGroup ?? nextIdx) : -1;
+      if (nextIdx < allEnemies.length && nextGroup === currGroup) {
+        startWave(allEnemies[nextIdx], nextIdx);
+      } else {
+        setPhase(nextIdx < allEnemies.length ? "waveComplete" : "victory");
+      }
     };
-  }, [enemy, waveIndex, allEnemies, defeatMutation]);
+  }, [enemy, waveIndex, allEnemies, defeatMutation, startWave]);
 
   const potionMutation = useMutation({
     mutationFn: async ({ inventoryId, petInventoryId }: { inventoryId: string; petInventoryId: string }) => {
@@ -1338,11 +1346,17 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
       if (battleActiveRef.current) {
         battleActiveRef.current = false;
         defeatMutation.mutate({ enemyId: enemy.enemyId, enemyLevel: enemy.level });
-        const hasMore = waveIndex + 1 < allEnemies.length;
-        setPhase(hasMore ? "waveComplete" : "victory");
+        const nextIdx = waveIndex + 1;
+        const currGroup = allEnemies[waveIndex]?.waveGroup ?? waveIndex;
+        const nextGroup = nextIdx < allEnemies.length ? (allEnemies[nextIdx]?.waveGroup ?? nextIdx) : -1;
+        if (nextIdx < allEnemies.length && nextGroup === currGroup) {
+          startWave(allEnemies[nextIdx], nextIdx);
+        } else {
+          setPhase(nextIdx < allEnemies.length ? "waveComplete" : "victory");
+        }
       }
     }
-  }, [enemy, comboCount, lastHitTime, defeatMutation, waveIndex, allEnemies.length, accent]);
+  }, [enemy, comboCount, lastHitTime, defeatMutation, waveIndex, allEnemies, accent, startWave]);
 
   // ── Swipe handlers ───────────────────────────────────────────────────────
   const handleSlashStart = useCallback((e: React.PointerEvent) => {
@@ -2274,19 +2288,20 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 <img
                   src={enemy.imageUrl}
                   alt={enemy.name}
-                  style={{ width: enemy.isBoss ? 156 : 108, height: enemy.isBoss ? 156 : 108 }}
-                  className={`object-contain ${enemy.isBoss ? "drop-shadow-[0_0_24px_rgba(255,0,0,0.9)]" : "drop-shadow-lg"}`}
+                  style={{ width: enemy.isBoss ? 156 : enemy.isMiniBoss ? 130 : 108, height: enemy.isBoss ? 156 : enemy.isMiniBoss ? 130 : 108 }}
+                  className={`object-contain ${enemy.isBoss ? "drop-shadow-[0_0_24px_rgba(255,0,0,0.9)]" : enemy.isMiniBoss ? "drop-shadow-[0_0_14px_rgba(255,120,0,0.8)]" : "drop-shadow-lg"}`}
                 />
               )}
               <div className="mt-2 px-4 py-2 bg-black/70 rounded-lg border border-red-500/50">
                 <span className="text-red-400 font-bold text-lg">{enemy.name}</span>
                 {enemy.isBoss && <span className="ml-2 text-xs bg-red-600 text-white px-2 py-0.5 rounded-full">BOSS</span>}
+                {enemy.isMiniBoss && !enemy.isBoss && <span className="ml-2 text-xs bg-orange-600 text-white px-2 py-0.5 rounded-full">MINI-BOSS</span>}
                 <span className="text-gray-400 text-sm ml-2">Lv.{enemy.level}</span>
               </div>
               {allEnemies.length > 1 && (
                 <div className="mt-1 text-gray-500 text-xs">
                   {isCave
-                    ? <span className="text-amber-400/80 font-bold">TIER {caveTier} · Wave {waveIndex + 1} / 6</span>
+                    ? <span className="text-amber-400/80 font-bold">TIER {caveTier} · Wave {(allEnemies[waveIndex]?.waveGroup ?? waveIndex) + 1} / 6</span>
                     : `Wave ${waveIndex + 1} of ${allEnemies.length}`}
                 </div>
               )}
@@ -2389,8 +2404,8 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                   <div style={{
                     position: "absolute",
                     left: "50%", top: "50%",
-                    width: enemy.isBoss ? 200 : 120,
-                    height: enemy.isBoss ? 200 : 120,
+                    width: enemy.isBoss ? 200 : enemy.isMiniBoss ? 155 : 120,
+                    height: enemy.isBoss ? 200 : enemy.isMiniBoss ? 155 : 120,
                     borderRadius: "50%",
                     border: "3px solid rgba(255,60,60,0.85)",
                     boxShadow: "0 0 20px rgba(255,40,40,0.7), 0 0 8px rgba(255,40,40,0.5)",
@@ -2507,7 +2522,7 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
                 ) : (
                   <div
                     className="flex items-center justify-center bg-red-900/50 border-2 border-red-500 rounded-full"
-                    style={{ width: enemy.isBoss ? 230 : 120, height: enemy.isBoss ? 230 : 120 }}
+                    style={{ width: enemy.isBoss ? 230 : enemy.isMiniBoss ? 158 : 120, height: enemy.isBoss ? 230 : enemy.isMiniBoss ? 158 : 120 }}
                   >
                     <Swords style={{ width: enemy.isBoss ? 80 : 44, height: enemy.isBoss ? 80 : 44, color: "#f87171" }} />
                   </div>
@@ -3244,7 +3259,13 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
 
                 <div className="text-gray-500 text-xs mb-3">
                   {waveIndex + 1 < allEnemies.length
-                    ? `${allEnemies.length - waveIndex - 1} more ${allEnemies.length - waveIndex - 1 === 1 ? "enemy" : "enemies"} ahead...`
+                    ? (() => {
+                        const currGroup = allEnemies[waveIndex]?.waveGroup ?? waveIndex;
+                        const remaining = isCave ? 5 - currGroup : allEnemies.length - waveIndex - 1;
+                        return remaining > 0
+                          ? `${remaining} more wave${remaining === 1 ? "" : "s"} ahead...`
+                          : "Final wave!";
+                      })()
                     : "All enemies defeated!"}
                 </div>
                 <div className="flex gap-3">

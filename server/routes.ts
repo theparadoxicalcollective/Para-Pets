@@ -5249,7 +5249,7 @@ export async function registerRoutes(
         const stats = CAVE_TIER_STATS[reqCaveTier];
         const v = () => 0.95 + Math.random() * 0.10;
         const shuffled = [...tierNormals].sort(() => Math.random() - 0.5);
-        const buildCaveWave = (enemy: any, type: "normal" | "miniBoss" | "boss") => {
+        const buildCaveWave = (enemy: any, type: "normal" | "miniBoss" | "boss", waveGroup: number) => {
           const base = stats[type];
           return {
             enemyId: enemy.id,
@@ -5257,6 +5257,7 @@ export async function registerRoutes(
             imageUrl: enemy.image_url,
             isBoss: type === "boss",
             isMiniBoss: type === "miniBoss",
+            waveGroup,
             archetype: "balanced",
             bossSpecialAttack: type !== "normal" ? (enemy.boss_special_attack ?? null) : null,
             level: reqCaveTier * 10,
@@ -5267,14 +5268,18 @@ export async function registerRoutes(
             drops: [],
           };
         };
-        // 6 waves: normal, normal, miniboss, normal, normal(repeat), boss
+        // 6 wave groups, enemies fought sequentially within each group:
+        //  0: normal × 2   1: normal × 2   2: normal + mini-boss + normal
+        //  3: normal × 2   4: normal × 3   5: normal × 2 + boss
+        const s = shuffled;
+        const n = s.length;
         const caveEncounters = [
-          buildCaveWave(shuffled[0], "normal"),
-          buildCaveWave(shuffled[1 % shuffled.length], "normal"),
-          buildCaveWave(tierMiniBoss, "miniBoss"),
-          buildCaveWave(shuffled[2 % shuffled.length], "normal"),
-          buildCaveWave(shuffled[0], "normal"),
-          buildCaveWave(tierBoss, "boss"),
+          buildCaveWave(s[0 % n], "normal", 0), buildCaveWave(s[1 % n], "normal", 0),
+          buildCaveWave(s[2 % n], "normal", 1), buildCaveWave(s[3 % n], "normal", 1),
+          buildCaveWave(s[4 % n], "normal", 2), buildCaveWave(tierMiniBoss, "miniBoss", 2), buildCaveWave(s[5 % n], "normal", 2),
+          buildCaveWave(s[6 % n], "normal", 3), buildCaveWave(s[7 % n], "normal", 3),
+          buildCaveWave(s[8 % n], "normal", 4), buildCaveWave(s[9 % n], "normal", 4), buildCaveWave(s[10 % n], "normal", 4),
+          buildCaveWave(s[11 % n], "normal", 5), buildCaveWave(s[12 % n], "normal", 5), buildCaveWave(tierBoss, "boss", 5),
         ];
         let petImageUrl = activePet.hatchedImageUrl || activePet.imageUrl || null;
         let petBackImageUrl: string | null = null;
