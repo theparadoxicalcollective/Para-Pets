@@ -2284,23 +2284,35 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                       onPointerDown={(e) => handlePointerDown(e, loc)}
                     >
                       <div className="relative w-full" style={{ aspectRatio: "1", pointerEvents: "none" }}>
-                        {/* Pulsing glow orb behind icon — all location types */}
-                        {(loc.iconUrl || (loc.type === "fishing" && !loc.isShop)) && (
+                        {/* Pulsing glow orb behind icon — all location types except haunted_woods */}
+                        {(loc.iconUrl || (loc.type === "fishing" && !loc.isShop)) && worldId !== "haunted_woods" && (
                           <div
                             className="absolute inset-0 pointer-events-none"
                             style={{
-                              background: worldId === "haunted_woods"
-                                ? `radial-gradient(circle, ${glow}88 0%, ${glow}33 45%, transparent 70%)`
-                                : worldId === "swamp"
-                                  ? `radial-gradient(circle, ${glow}22 0%, ${glow}0d 40%, transparent 62%)`
-                                  : `radial-gradient(circle, ${glow}45 0%, ${glow}18 45%, transparent 70%)`,
-                              animation: worldId === "haunted_woods"
-                                ? `hwGlowOrb ${4.0 + (i * 0.5) % 1.5}s ease-in-out infinite`
-                                : worldId === "swamp"
-                                  ? `swampGlowPulse ${3.2 + (i * 0.38) % 1.4}s ease-in-out infinite`
-                                  : `locGlowPulse ${2.6 + (i * 0.31) % 1.2}s ease-in-out infinite`,
+                              background: worldId === "swamp"
+                                ? `radial-gradient(circle, ${glow}22 0%, ${glow}0d 40%, transparent 62%)`
+                                : `radial-gradient(circle, ${glow}45 0%, ${glow}18 45%, transparent 70%)`,
+                              animation: worldId === "swamp"
+                                ? `swampGlowPulse ${3.2 + (i * 0.38) % 1.4}s ease-in-out infinite`
+                                : `locGlowPulse ${2.6 + (i * 0.31) % 1.2}s ease-in-out infinite`,
                               animationDelay: `${(i * 0.45) % 2.5}s`,
                               borderRadius: "50%",
+                              zIndex: 0,
+                            }}
+                          />
+                        )}
+                        {/* Haunted Woods — soft royal-purple glow crown at the top of each icon */}
+                        {(loc.iconUrl || (loc.type === "fishing" && !loc.isShop)) && worldId === "haunted_woods" && (
+                          <div
+                            className="absolute pointer-events-none"
+                            style={{
+                              left: "10%",
+                              right: "10%",
+                              top: "-18%",
+                              height: "55%",
+                              background: "radial-gradient(ellipse at 50% 0%, rgba(139,92,246,0.55) 0%, rgba(109,40,217,0.22) 45%, transparent 72%)",
+                              animation: `hwGlowOrb ${4.0 + (i * 0.5) % 1.5}s ease-in-out infinite`,
+                              animationDelay: `${(i * 0.45) % 2.5}s`,
                               zIndex: 0,
                             }}
                           />
@@ -2341,29 +2353,26 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                             }}
                           />
                           {/* Glow layer — same img with intense drop-shadow, opacity pulses.
-                              drop-shadow follows PNG transparency so only the icon outline glows. */}
-                          <img
+                              drop-shadow follows PNG transparency so only the icon outline glows.
+                              Haunted Woods skips this layer (top-crown gradient handles its glow). */}
+                          {worldId !== "haunted_woods" && <img
                             src={loc.type === "fishing" && !loc.isShop && worldId === "volcanic" ? "/world-assets/icon_fishing_volcanic.png" : loc.iconUrl!}
                             aria-hidden
                             className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                             draggable={false}
                             style={{
-                              filter: worldId === "haunted_woods"
-                                ? `drop-shadow(0 0 2px ${glow}aa) drop-shadow(0 0 5px ${glow}44)`
-                                : worldId === "swamp"
-                                  ? `drop-shadow(0 0 3px ${glow}55) drop-shadow(0 0 6px ${glow}22)`
-                                  : `drop-shadow(0 0 5px ${glow}) drop-shadow(0 0 12px ${glow}bb) drop-shadow(0 0 20px ${glow}66)`,
-                              opacity: worldId === "haunted_woods" ? 0.08 : worldId === "swamp" ? 0.10 : 0.15,
-                              animation: worldId === "haunted_woods"
-                                ? `hwRimPulse ${4.5 + (i * 0.6) % 1.8}s ease-in-out infinite`
-                                : worldId === "swamp"
-                                  ? `swampGlowRimPulse ${3.5 + (i * 0.5) % 1.5}s ease-in-out infinite`
-                                  : `locGlowRimPulse ${3.0 + (i * 0.41) % 1.6}s ease-in-out infinite`,
+                              filter: worldId === "swamp"
+                                ? `drop-shadow(0 0 3px ${glow}55) drop-shadow(0 0 6px ${glow}22)`
+                                : `drop-shadow(0 0 5px ${glow}) drop-shadow(0 0 12px ${glow}bb) drop-shadow(0 0 20px ${glow}66)`,
+                              opacity: worldId === "swamp" ? 0.10 : 0.15,
+                              animation: worldId === "swamp"
+                                ? `swampGlowRimPulse ${3.5 + (i * 0.5) % 1.5}s ease-in-out infinite`
+                                : `locGlowRimPulse ${3.0 + (i * 0.41) % 1.6}s ease-in-out infinite`,
                               animationDelay: `${(i * 0.57) % 2.8}s`,
                               zIndex: 11,
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
                             }}
-                          />
+                          />}
                           {/* Floating bubbles — fishing spots only (not shop buildings), not in haunted_woods */}
                           {loc.type === "fishing" && !loc.isShop && worldId !== "haunted_woods" && (
                             <div style={{ position: "absolute", inset: 0, zIndex: 50, pointerEvents: "none", overflow: "visible" }}>
