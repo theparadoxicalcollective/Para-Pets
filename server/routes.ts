@@ -4097,6 +4097,32 @@ export async function registerRoutes(
     return res.json(online);
   });
 
+  // All players with an active session anywhere in the game — admins only.
+  // Reads directly from the session table so it catches players on every page,
+  // not just those connected to the world-map WebSocket.
+  app.get("/api/admin/online-players", isAuthenticated, async (req, res) => {
+    const user = req.user as any;
+    if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+    try {
+      const rows = await db.execute(sql`
+        SELECT
+          u.id,
+          u.username,
+          u.profile_image   AS "profileImage",
+          u.is_admin        AS "isAdmin",
+          u.is_moderator    AS "isModerator"
+        FROM session s
+        JOIN users u ON u.id = (s.sess->'passport'->>'user')
+        WHERE s.expire > NOW()
+          AND s.sess->'passport'->>'user' IS NOT NULL
+        ORDER BY u.username ASC
+      `);
+      return res.json(rows.rows);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
 
   app.patch("/api/world/pet_world/pet-position", isAuthenticated, async (req: Request, res: Response) => {
     try {

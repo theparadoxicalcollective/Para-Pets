@@ -4211,8 +4211,8 @@ const tooltipSty = {
 };
 
 function OnlineNowPanel() {
-  const { data: inWorldPlayers = [], refetch, dataUpdatedAt } = useQuery<any[]>({
-    queryKey: ["/api/world/pet_world/active-pets"],
+  const { data: players = [], refetch, dataUpdatedAt } = useQuery<any[]>({
+    queryKey: ["/api/admin/online-players"],
     refetchInterval: 30_000,
     staleTime: 25_000,
   });
@@ -4223,34 +4223,39 @@ function OnlineNowPanel() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, marginBottom: 16 }}>
         <span style={{ fontFamily: "Lora, serif", fontSize: 10, color: "rgba(165,243,252,0.45)" }}>Updated: {lastUpdated}</span>
         <button
-          onClick={() => { refetch(); }}
+          onClick={() => refetch()}
           style={{ padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", background: "rgba(165,243,252,0.1)", border: "1px solid rgba(165,243,252,0.35)", color: "#a5f3fc", fontFamily: "Lora, serif" }}
         >↻ Refresh</button>
       </div>
 
-      <div style={{ ...metricCardSty, flex: 1, textAlign: "center", marginBottom: 16 }}>
+      <div style={{ ...metricCardSty, textAlign: "center", marginBottom: 16 }}>
         <p style={{ fontFamily: "Lora, serif", fontSize: 36, fontWeight: 700, color: "#6ee7b7", margin: 0 }}>
-          {inWorldPlayers.length}
+          {players.length}
         </p>
-        <p style={metricSubSty}>Currently in-world</p>
+        <p style={metricSubSty}>Players online now</p>
       </div>
 
-      {/* In-world player list */}
       <div style={metricCardSty}>
-        <p style={metricTitleSty}>Players Currently In World</p>
-        <p style={metricSubSty}>Live roster of connected world clients</p>
-        {inWorldPlayers.length === 0 ? (
-          <p style={emptyMsgSty}>No players in-world right now.</p>
+        <p style={metricTitleSty}>Online Players</p>
+        <p style={metricSubSty}>All players with an active session — anywhere in the game</p>
+        {players.length === 0 ? (
+          <p style={emptyMsgSty}>No players online right now.</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 12 }}>
-            {inWorldPlayers.map((p: any, i: number) => (
-              <div key={p.userId ?? i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 8, background: "rgba(165,243,252,0.04)", border: "1px solid rgba(165,243,252,0.1)" }}>
-                <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "rgba(165,243,252,0.45)", minWidth: 20, textAlign: "right" }}>{i + 1}</span>
-                <span style={{ fontFamily: "Lora, serif", fontSize: 12, color: "#a5f3fc", fontWeight: 600 }}>{p.name || p.username || p.userId || "Unknown"}</span>
-                {p.username && p.name && p.name !== p.username && (
-                  <span style={{ fontFamily: "Lora, serif", fontSize: 10, color: "rgba(165,243,252,0.45)" }}>(@{p.username})</span>
+            {players.map((p: any, i: number) => (
+              <div key={p.id ?? i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 8, background: "rgba(165,243,252,0.04)", border: "1px solid rgba(165,243,252,0.1)" }}>
+                <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "rgba(165,243,252,0.35)", minWidth: 20, textAlign: "right" }}>{i + 1}</span>
+                {p.profileImage ? (
+                  <img src={p.profileImage} alt={p.username} style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(165,243,252,0.25)", flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(165,243,252,0.1)", border: "1px solid rgba(165,243,252,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#a5f3fc", fontWeight: 700 }}>{(p.username ?? "?")[0].toUpperCase()}</span>
+                  </div>
                 )}
-                <span style={{ marginLeft: "auto", fontFamily: "Lora, serif", fontSize: 10, color: "rgba(110,231,183,0.7)" }}>● live</span>
+                <span style={{ fontFamily: "Lora, serif", fontSize: 12, color: "#a5f3fc", fontWeight: 600 }}>{p.username ?? "Unknown"}</span>
+                {p.isAdmin && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.4)", color: "#fbbf24", fontFamily: "Lora, serif" }}>ADMIN</span>}
+                {p.isModerator && !p.isAdmin && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "rgba(165,243,252,0.1)", border: "1px solid rgba(165,243,252,0.35)", color: "#a5f3fc", fontFamily: "Lora, serif" }}>MOD</span>}
+                <span style={{ marginLeft: "auto", fontFamily: "Lora, serif", fontSize: 10, color: "rgba(110,231,183,0.7)" }}>● online</span>
               </div>
             ))}
           </div>
