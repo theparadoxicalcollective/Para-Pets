@@ -511,12 +511,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [committedWorldBg, setCommittedWorldBg] = useState<string>("");
   const lastLoadedBgRef = useRef("");
 
-  useEffect(() => {
-    if (worldApiData && worldBgLoaded && !locationsLoading && !contentReadyFiredRef.current) {
-      contentReadyFiredRef.current = true;
-      onContentReady?.();
-    }
-  }, [!!worldApiData, worldBgLoaded, locationsLoading]);
+  // NOTE: onContentReady is fired by a second effect placed AFTER the
+  // locationsLoading declaration (below) so all three conditions are gated together.
 
   const mapTransformRef = useRef({ x: 0, y: 0, scale: 1 });
   const [mapX, setMapX] = useState(0);
@@ -555,6 +551,16 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     },
     staleTime: 60 * 1000,
   });
+
+  // Fire onContentReady once all three conditions are met: world data, bg image,
+  // and locations. Placed here (after locationsLoading declaration) so the dep
+  // array can reference locationsLoading without hitting the temporal dead zone.
+  useEffect(() => {
+    if (worldApiData && worldBgLoaded && !locationsLoading && !contentReadyFiredRef.current) {
+      contentReadyFiredRef.current = true;
+      onContentReady?.();
+    }
+  }, [!!worldApiData, worldBgLoaded, locationsLoading]);
 
   useEffect(() => {
     if (!locations.length) return;
