@@ -1605,6 +1605,13 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       toast({ title: "Coming soon!", description: "The cooking mini-game is being prepared." });
       return;
     }
+    // Soul Pond — future mini-game placeholder: just open the scenic background for now.
+    if (loc.id === "e2f3a4b5-0003-4000-8000-000000000003") {
+      setShowFishing(false);
+      setShowShop(false);
+      setShowLocationView(true);
+      return;
+    }
     if (loc.type === "fishing" && !loc.isShop) {
       setShowLocationView(false);
       setShowShop(false);

@@ -3314,7 +3314,7 @@ app.use((req, res, next) => {
     console.error("Swamp glow fix error (non-fatal):", err);
   }
 
-  // ── Soul Pond: rename Phantom Hollow → Soul Pond, change type to quest, update bg ──
+  // ── Soul Pond: rename Phantom Hollow → Soul Pond, change type to minigame, update bg ──
   // Idempotent: runs always but WHERE clause guards against overwriting admin edits
   try {
     const PHANTOM_HOLLOW_ID = "e2f3a4b5-0003-4000-8000-000000000003";
@@ -3322,9 +3322,9 @@ app.use((req, res, next) => {
     const result = await db.execute(sql`
       UPDATE world_locations
       SET name        = 'Soul Pond',
-          type        = 'fishing',
+          type        = 'minigame',
           is_shop     = false,
-          description = 'A haunting body of still water reflecting the pale moon, whispered to harbor spectral fish of legend. Cast your line and see what the dead left behind.',
+          description = 'A haunting body of still water reflecting the pale moon, whispered to harbor spectral fish of legend.',
           bg_url      = COALESCE(${bgData ?? null}, bg_url)
       WHERE id = ${PHANTOM_HOLLOW_ID}
         AND world_id = 'haunted_woods'
