@@ -2301,22 +2301,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                             }}
                           />
                         )}
-                        {/* Haunted Woods — soft royal-purple glow crown at the top of each icon */}
-                        {(loc.iconUrl || (loc.type === "fishing" && !loc.isShop)) && worldId === "haunted_woods" && (
-                          <div
-                            className="absolute pointer-events-none"
-                            style={{
-                              left: "10%",
-                              right: "10%",
-                              top: "-18%",
-                              height: "55%",
-                              background: "radial-gradient(ellipse at 50% 0%, rgba(139,92,246,0.55) 0%, rgba(109,40,217,0.22) 45%, transparent 72%)",
-                              animation: `hwGlowOrb ${4.0 + (i * 0.5) % 1.5}s ease-in-out infinite`,
-                              animationDelay: `${(i * 0.45) % 2.5}s`,
-                              zIndex: 0,
-                            }}
-                          />
-                        )}
                         {(loc.iconUrl || (loc.type === "fishing" && !loc.isShop && worldId === "volcanic")) ? (
                           <div
                             className="w-full h-full"
@@ -2337,7 +2321,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                                   : worldId === "swamp"
                                     ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1.5px rgba(167,243,208,0.9)) drop-shadow(0 0 5px rgba(45,212,191,0.5))"
                                     : worldId === "haunted_woods"
-                                      ? "drop-shadow(0 2px 5px rgba(0,0,0,0.65)) drop-shadow(0 0 2px rgba(168,85,247,0.73)) drop-shadow(0 0 5px rgba(168,85,247,0.27))"
+                                      ? "drop-shadow(0 2px 5px rgba(0,0,0,0.65))"
                                       : "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1.5px rgba(186,230,253,0.9)) drop-shadow(0 0 5px rgba(56,189,248,0.5))"
                                 // Non-fishing location icons (shops, NPCs, etc.) get a subtle
                                 // rim using the location's own glow colour so each icon has
@@ -2346,7 +2330,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                                 // icons feel of-a-piece with the swamp atmosphere instead
                                 // of each shouting its own colour.
                                 : worldId === "haunted_woods"
-                                  ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px rgba(168,85,247,0.8)) drop-shadow(0 0 4px rgba(168,85,247,0.33))"
+                                  ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55))"
                                   : worldId === "swamp"
                                     ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px rgba(45,138,120,0.85)) drop-shadow(0 0 4px rgba(20,83,75,0.55))"
                                     : `drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px ${glow}cc) drop-shadow(0 0 4px ${glow}55)`,
