@@ -5,7 +5,7 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcryptjs";
 import connectPgSimple from "connect-pg-simple";
-import { registerRoutes, backfillAdvancedAcquisitionBadge, backfillCoinPurchaseEarnings, syncTotalCoinsEarnedFloor, seedBrawlerBadges, backfillBrawlerBadges } from "./routes";
+import { registerRoutes, backfillMinorAcquisitionBadge, backfillAdvancedAcquisitionBadge, backfillCoinPurchaseEarnings, syncTotalCoinsEarnedFloor, seedBrawlerBadges, backfillBrawlerBadges } from "./routes";
 
 import { seedSampleTemplates } from "./seedSampleTemplates";
 import { serveStatic } from "./static";
@@ -3460,6 +3460,7 @@ app.use((req, res, next) => {
 
   await seedBrawlerBadges();
   await backfillBrawlerBadges();
+  await backfillMinorAcquisitionBadge();
   await backfillAdvancedAcquisitionBadge();
   await backfillCoinPurchaseEarnings();
   // Ensure totalCoinsEarned >= current balance for all users (seeds legacy in-game earners)

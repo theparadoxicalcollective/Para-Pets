@@ -620,7 +620,7 @@ async function getOrCreateAcquisitionBadge(key: keyof typeof ACQUISITION_BADGES)
   return badge.id;
 }
 
-async function maybeAwardAcquisitionBadges(userId: string, purchaseAmountUsd: number): Promise<void> {
+export async function maybeAwardAcquisitionBadges(userId: string, purchaseAmountUsd: number): Promise<void> {
   try {
     if (purchaseAmountUsd === 25) {
       const id = await getOrCreateAcquisitionBadge("minor");
@@ -676,6 +676,24 @@ export async function seedBrawlerBadges(): Promise<void> {
     console.log("Brawler badges seeded.");
   } catch (err) {
     console.error("Brawler badge seed error (non-fatal):", err);
+  }
+}
+
+export async function backfillMinorAcquisitionBadge(): Promise<void> {
+  try {
+    const badgeId = await getOrCreateAcquisitionBadge("minor");
+    const allPurchases = await db.select({ userId: coinPurchases.userId, amountUsd: coinPurchases.amountUsd }).from(coinPurchases);
+    const qualifyingUserIds = [...new Set(allPurchases.filter(p => p.amountUsd === 25).map(p => p.userId))];
+    let awarded = 0;
+    for (const userId of qualifyingUserIds) {
+      const result = await storage.awardBadge(userId, badgeId);
+      if (result) awarded++;
+    }
+    if (qualifyingUserIds.length > 0) {
+      console.log(`Minor Acquisition backfill: awarded to ${awarded}/${qualifyingUserIds.length} users.`);
+    }
+  } catch (err) {
+    console.error("Minor Acquisition backfill error (non-fatal):", err);
   }
 }
 

@@ -1,5 +1,6 @@
 import { getStripeSync } from './stripeClient';
 import { storage } from './storage';
+import { maybeAwardAcquisitionBadges } from './routes';
 
 const VERIDIAN_WATCHER_ID = "veridian-watcher";
 
@@ -98,6 +99,8 @@ export class WebhookHandlers {
 
       // Community reward for all other players (fire-and-forget)
       grantCommunityRewardFromWebhook(userId, amountUsd).catch(() => {});
+      // Badge awards (fire-and-forget)
+      maybeAwardAcquisitionBadges(userId, amountUsd).catch(() => {});
 
       // Progress bar + milestones + egg bonus (fire-and-forget)
       ;(async () => {
