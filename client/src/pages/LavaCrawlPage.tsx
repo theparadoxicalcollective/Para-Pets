@@ -2,12 +2,13 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { useLocation as useWouter } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import lavaCrawlTitleImg from "@assets/Photoroom_20260707_55240_PM_1783466979177.png";
-import btnPlayImg from "@assets/Photoroom_20260707_55332_PM_1783466979177.png";
-import btnLeaderboardImg from "@assets/Photoroom_20260707_55415_PM_1783466979177.png";
-import btnBackToWorldImg from "@assets/Photoroom_20260707_55458_PM_1783466979177.png";
-import coinIconImg from "@assets/icon_coin.png";
-const LAVA_CAVE_BG = "/world-assets/AAC47494-B2BD-4B73-B01A-769E2C589AD7_1783461445112.png?w=1080";
+import lavaCrawlTitleImg from "@assets/lava_crawl_title.webp";
+import btnPlayImg from "@assets/lava_crawl_btn_play.webp";
+import btnLeaderboardImg from "@assets/lava_crawl_btn_leaderboard.webp";
+import btnBackToWorldImg from "@assets/lava_crawl_btn_back.webp";
+import coinIconImg from "@assets/icon_coin.webp";
+import lavaCaveBg from "@assets/bg_lava_crawl.webp";
+const LAVA_CAVE_BG = lavaCaveBg;
 
 // Pre-load coin image for canvas HUD
 const _coinImg = new Image();
