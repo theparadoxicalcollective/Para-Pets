@@ -1000,14 +1000,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     enabled: !!worldId,
   });
 
-  const createBarrelMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/admin/world/${worldId}/fish-barrel`, {});
-      return res.json();
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "fish-barrel"] }); },
-  });
-
   const updateBarrelMutation = useMutation({
     mutationFn: async (data: { posX?: number; posY?: number; size?: number }) => {
       if (!fishBarrel) return;
@@ -2710,21 +2702,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
             title="World Decor"
           >
             <Palette className="w-4 h-4 text-white" />
-          </button>
-          <button
-            data-testid="button-toggle-fish-barrel"
-            onClick={() => fishBarrel ? deleteBarrelMutation.mutate() : createBarrelMutation.mutate()}
-            disabled={createBarrelMutation.isPending || deleteBarrelMutation.isPending}
-            className="w-9 h-9 rounded-full flex items-center justify-center transition-transform active:scale-90 text-base"
-            style={{
-              background: fishBarrel ? "linear-gradient(135deg, rgba(180,20,20,0.85), rgba(120,10,10,0.85))" : "linear-gradient(135deg, rgba(180,130,40,0.85), rgba(140,90,20,0.85))",
-              border: fishBarrel ? "2px solid rgba(255,80,80,0.6)" : "2px solid rgba(220,160,50,0.6)",
-              boxShadow: fishBarrel ? "0 4px 12px rgba(200,20,20,0.4)" : "0 4px 12px rgba(200,150,40,0.4)",
-              cursor: "pointer",
-            }}
-            title={fishBarrel ? "Remove Fish Market" : "Add Fish Market"}
-          >
-            <img src={fishBarrelImg} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
           </button>
         </div>
       )}

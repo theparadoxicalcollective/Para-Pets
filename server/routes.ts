@@ -7063,20 +7063,6 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/world/:worldId/fish-barrel", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
-      if ((req.params.worldId as string) === "volcanic") return res.status(400).json({ message: "Fish barrel not allowed in Volcanic world" });
-      const existing = await storage.getFishBarrelByWorld((req.params.worldId as string));
-      if (existing) return res.status(400).json({ message: "Barrel already exists" });
-      const barrel = await storage.createFishBarrel((req.params.worldId as string));
-      return res.status(201).json(barrel);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
-
   app.patch("/api/admin/fish-barrel/:id", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
