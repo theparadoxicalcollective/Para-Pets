@@ -3,7 +3,7 @@ import { useLocation, useSearch } from "wouter";
 import { X, HelpCircle, Zap, Star, RotateCcw, ShieldPlus } from "lucide-react";
 import WorldChatPanel from "@/components/WorldChatPanel";
 import PetDetailPage from "@/components/PetDetailPage";
-import worldChatIconImg from "@assets/admin_icon_veridian_watcher_transparent.png";
+import worldChatIconImg from "@assets/generated_images/veridian_watcher_avatar.png";
 import petActionRingImg from "@assets/Photoroom_20260611_74428_AM_1781181905848.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
