@@ -12,7 +12,12 @@ import { ArrowLeft, Users, Check, Heart, Droplets, Trophy, Plus, X } from "lucid
 import PvpBattlePage from "./PvpBattlePage";
 import type { BattlePotionSlot } from "@/components/BattleArena";
 import PvpMatchmakingOverlay from "@/components/PvpMatchmakingOverlay";
-import forestBgImg from "@assets/generated_images/pvp_ruins_battlefield_bg.png";
+import forestBgImg from "@assets/BFBD86D5-7E52-470D-949E-AC6D2FF39A5D_1783425029013.png";
+import pvpLeaderboardBg from "@assets/Photoroom_20260707_64358_AM_1783425094349.png";
+import rank1Icon from "@assets/Photoroom_20260707_64701_AM_1783425136780.png";
+import rank2Icon from "@assets/Photoroom_20260707_64734_AM_1783425136780.png";
+import rank3Icon from "@assets/Photoroom_20260707_64923_AM_1783425136780.png";
+import beginBattleBtn from "@assets/Photoroom_20260707_64611_AM_1783425205559.png";
 import swordImg from "@assets/generated_images/pvp_battle_sword.png";
 import RoleBadge from "@/components/RoleBadge";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
@@ -837,35 +842,46 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                numbered rows, avatar, username, W/L, BP. The current
                player's row is highlighted in purple. ── */}
           <div
-            className="mx-auto rounded-2xl"
+            className="mx-auto"
             style={{
               maxWidth: 360,
-              background: "linear-gradient(180deg, rgba(8,22,14,0.88) 0%, rgba(4,12,8,0.92) 100%)",
-              border: "1px solid rgba(74,222,128,0.18)",
-              boxShadow: "0 6px 22px rgba(0,0,0,0.45)",
+              position: "relative",
             }}
           >
-            <div className="px-3 pt-3 pb-1 flex items-center justify-between">
-              <div
-                className="text-[14px] font-black tracking-[0.18em] text-white/90"
-                data-testid="text-leaderboard-title"
-              >
-                LEADERBOARD
+            {/* Leaderboard frame — the image already contains the "LEADERBOARD" title */}
+            <img
+              src={pvpLeaderboardBg}
+              alt=""
+              style={{ width: "100%", height: "auto", display: "block", userSelect: "none", pointerEvents: "none" }}
+              draggable={false}
+            />
+            {/* Content sits over the frame, inside its inner bounds */}
+            <div
+              style={{
+                position: "absolute",
+                top: "17%",
+                left: "8%",
+                right: "8%",
+                bottom: "8%",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <div className="flex items-center justify-end mb-1.5">
+                <button
+                  data-testid="button-toggle-leaderboard-size"
+                  onClick={() => setShowFullBoard(v => !v)}
+                  className="text-[9px] tracking-[0.18em] font-bold px-2 py-0.5 rounded-md active:scale-95"
+                  style={{
+                    background: "rgba(74,222,128,0.18)",
+                    border: "1px solid rgba(74,222,128,0.40)",
+                    color: "#86efac",
+                  }}
+                >
+                  {showFullBoard ? "TOP 10" : "TOP 100"}
+                </button>
               </div>
-              <button
-                data-testid="button-toggle-leaderboard-size"
-                onClick={() => setShowFullBoard(v => !v)}
-                className="text-[9px] tracking-[0.18em] font-bold px-2 py-0.5 rounded-md active:scale-95"
-                style={{
-                  background: "rgba(74,222,128,0.14)",
-                  border: "1px solid rgba(74,222,128,0.32)",
-                  color: "#86efac",
-                }}
-              >
-                {showFullBoard ? "TOP 10" : "TOP 100"}
-              </button>
-            </div>
-            <div className="px-3 pb-3">
+            <div style={{ flex: 1, overflowY: "auto" }}>
               {leaderboard.length === 0 ? (
                 <div className="text-center text-white/40 text-[11px] py-4" data-testid="text-leaderboard-empty">
                   No matches played yet
@@ -931,15 +947,15 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                           borderBottom: i === lastIdx ? "none" : "1px solid rgba(255,255,255,0.04)",
                         }}
                       >
-                        <div className="w-6 flex items-center justify-end shrink-0">
-                          {trophy ? (
-                            <Trophy
-                              size={16}
-                              style={{ color: trophy.color, filter: `drop-shadow(0 0 4px ${trophy.glow})` }}
-                              data-testid={`icon-trophy-${rank}`}
-                            />
+                        <div className="w-6 flex items-center justify-center shrink-0">
+                          {rank === 1 ? (
+                            <img src={rank1Icon} alt="1st" style={{ width: 22, height: 22, objectFit: "contain" }} data-testid="icon-trophy-1" draggable={false} />
+                          ) : rank === 2 ? (
+                            <img src={rank2Icon} alt="2nd" style={{ width: 22, height: 22, objectFit: "contain" }} data-testid="icon-trophy-2" draggable={false} />
+                          ) : rank === 3 ? (
+                            <img src={rank3Icon} alt="3rd" style={{ width: 22, height: 22, objectFit: "contain" }} data-testid="icon-trophy-3" draggable={false} />
                           ) : (
-                            <span className="text-white/55 text-[12px] font-bold tabular-nums">{rank}</span>
+                            <span className="text-white/55 text-[11px] font-bold tabular-nums">{rank}</span>
                           )}
                         </div>
                         {entry.profileImage
@@ -1021,8 +1037,9 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
               ) : null}
-            </div>
-          </div>
+            </div>{/* scroll area */}
+            </div>{/* content overlay */}
+          </div>{/* frame wrapper */}
 
           {/* ── Rank panel: shows the player's standing at a glance.
                Sits between the leaderboard and the Prepare-for-Battle
@@ -1307,7 +1324,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* ── Sticky "Begin Battle" button ── */}
-        <div className="shrink-0 px-4 pb-safe pb-5 pt-3" style={{ background: "linear-gradient(0deg, rgba(5,8,15,0.95) 0%, rgba(5,8,15,0.6) 100%)", borderTop: "1px solid rgba(74,222,128,0.07)" }}>
+        <div className="shrink-0 px-4 pb-safe pb-5 pt-2" style={{ background: "linear-gradient(0deg, rgba(5,8,15,0.95) 0%, rgba(5,8,15,0.6) 100%)" }}>
           <button
             data-testid="button-begin-battle"
             onClick={async () => {
@@ -1320,8 +1337,6 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                 });
                 return;
               }
-              // Make sure the server's ticket count is current before promising
-              // the player a battle.
               await refetchTickets().catch(() => {});
               if (ticketCount <= 0) {
                 setAlertModal({
@@ -1330,9 +1345,6 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                 });
                 return;
               }
-              // Pull a fresh opponent list so we don't drop into matchmaking
-              // with a stale (or empty) pool — that's the most common cause
-              // of the matchmaking overlay silently bouncing back to lobby.
               const fresh = await refetchOpponents().catch(() => null);
               const pool = (fresh?.data as Opponent[] | undefined) ?? (opponents as Opponent[]);
               const usable = (pool ?? []).filter(
@@ -1345,25 +1357,19 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                 });
                 return;
               }
-              // Hand the *exact* validated pool to the overlay so the
-              // picker draws from the same list we just confirmed.
               setMatchmakingPool(usable);
-              // Lock in the current team as the player's saved battle group.
               if (selectedPetIds.length > 0) saveBattleGroup.mutate(selectedPetIds);
-              // NOTE: We do NOT spend the ticket here. The ticket is
-              // consumed inside `onMatchConfirmed` once a real opponent has
-              // been locked in — that way cancelling the matchmaking
-              // overlay never burns a ticket the player didn't use.
               setTab("matchmaking");
             }}
-            className="w-full flex items-center justify-center gap-3 rounded-xl py-3.5 transition-all active:scale-95"
-            style={{
-              background: "linear-gradient(180deg, rgba(10,30,18,0.92) 0%, rgba(5,18,10,0.96) 100%)",
-              border: "1px solid rgba(74,222,128,0.35)",
-            }}
+            className="w-full flex items-center justify-center active:scale-95 transition-transform"
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
           >
-            <img src={pvpNavIcon} alt="" className="w-8 h-8 object-contain" />
-            <span className="text-[13px] tracking-[0.22em] font-bold text-amber-100" style={{ textShadow: "0 1px 2px rgba(0,0,0,0.7)" }}>BEGIN BATTLE</span>
+            <img
+              src={beginBattleBtn}
+              alt="Begin Battle"
+              style={{ width: "100%", maxWidth: 340, height: "auto", objectFit: "contain", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.6))" }}
+              draggable={false}
+            />
           </button>
         </div>
       </div>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import swordImg from "@assets/generated_images/pvp_battle_sword.png";
-import forestBgImg from "@assets/generated_images/pvp_ruins_battlefield_bg.png";
+import forestBgImg from "@assets/BFBD86D5-7E52-470D-949E-AC6D2FF39A5D_1783425029013.png";
 import RoleBadge from "@/components/RoleBadge";
 
 export interface MatchmakingOpponent {
