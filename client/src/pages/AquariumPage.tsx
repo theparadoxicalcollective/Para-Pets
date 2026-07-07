@@ -680,6 +680,25 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         <img src={closeIcon} alt="Close" style={{ width: 44, height: 44, objectFit: "contain" }} draggable={false} />
       </button>
 
+      {/* Star button — top-left, sets current aquarium as the default (opens first) */}
+      <button
+        data-testid="button-aquarium-set-default"
+        onClick={() => handleSetDefault(activeAquarium)}
+        className="absolute z-50 transition-transform active:scale-90"
+        style={{ top: "calc(env(safe-area-inset-top, 0px) + 10px)", left: 10, background: "none", border: "none", cursor: "pointer", padding: 4 }}
+        title={activeAquarium === defaultAquarium ? "Default aquarium" : "Set as default"}
+      >
+        <span style={{
+          fontSize: 28,
+          lineHeight: 1,
+          display: "block",
+          color: activeAquarium === defaultAquarium ? "#ffd700" : "rgba(180,180,180,0.45)",
+          textShadow: activeAquarium === defaultAquarium ? "0 0 10px rgba(255,215,0,0.65)" : "none",
+          transition: "color 0.25s ease, text-shadow 0.25s ease",
+          animation: activeAquarium === defaultAquarium ? "none" : undefined,
+        }}>★</span>
+      </button>
+
       {/* Right arrow — navigate to Bayou (shown only on main) */}
       {activeAquarium === "main" && (
         <button
@@ -895,7 +914,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
             <p className="font-fantasy text-sm tracking-widest text-center mb-1" style={{ color: AQ_TEAL }}>Bayou Aquarium</p>
             <p className="font-fantasy text-[9px] tracking-wider text-center mb-4 px-2" style={{ color: "rgba(94,234,212,0.5)" }}>A second tank — 30 fish capacity</p>
             <div className="flex items-center gap-2 mb-1">
-              <span className="font-fantasy text-xl" style={{ color: "#ffd700", textShadow: "0 0 10px rgba(255,215,0,0.6)" }}>🪙</span>
+              <img src={coinIcon} alt="coins" style={{ width: 26, height: 26, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(255,215,0,0.55))" }} draggable={false} />
               <span className="font-fantasy text-lg" style={{ color: "#ffd700" }}>20,000</span>
             </div>
             <p className="font-fantasy text-[9px] mb-5" style={{ color: userCoins >= BAYOU_PRICE ? "rgba(94,234,212,0.55)" : "rgba(220,80,80,0.8)" }}>
@@ -947,7 +966,8 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
               This will spend
             </p>
             <div className="flex items-center gap-2 mb-5">
-              <span className="font-fantasy text-lg" style={{ color: "#ffd700" }}>🪙 20,000 coins</span>
+              <img src={coinIcon} alt="coins" style={{ width: 24, height: 24, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(255,215,0,0.55))" }} draggable={false} />
+              <span className="font-fantasy text-lg" style={{ color: "#ffd700" }}>20,000 coins</span>
             </div>
             {unlockBayouMutation.isError && (
               <p className="font-fantasy text-[9px] text-center mb-3" style={{ color: "rgba(220,80,80,0.9)" }}>
