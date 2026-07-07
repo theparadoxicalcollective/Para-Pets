@@ -2,7 +2,7 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { useLocation as useWouter } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import lavaCaveBg from "@assets/AAC47494-B2BD-4B73-B01A-769E2C589AD7_1783461445112.png";
+const LAVA_CAVE_BG = "/world-assets/AAC47494-B2BD-4B73-B01A-769E2C589AD7_1783461445112.png?w=1080";
 
 // ─── Game constants ─────────────────────────────────────────────────────────
 const LEVEL_W = 6400;
@@ -259,7 +259,7 @@ export default function LavaCrawlPage() {
   // Preload background image
   useEffect(() => {
     const img = new Image();
-    img.src = lavaCaveBg;
+    img.src = LAVA_CAVE_BG;
     img.onload = () => { bgImgRef.current = img; };
   }, []);
 

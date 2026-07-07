@@ -19,6 +19,7 @@ import { WebhookHandlers } from "./webhookHandlers";
 import fs from "fs";
 import path from "path";
 import rateLimit from "express-rate-limit";
+import sharp from "sharp";
 
 const app = express();
 app.set('trust proxy', 1);
@@ -209,6 +210,34 @@ export function log(message: string, source = "express") {
   });
   console.log(`${formattedTime} [${source}] ${message}`);
 }
+
+// Thumbnail middleware — /world-assets/<file>?w=N serves a Sharp-resized WebP.
+// Cached in /tmp/world-thumbs so the resize only runs once per image+width.
+// Falls through to the express.static handler for requests without ?w=.
+app.get("/world-assets/:filename", async (req: Request, res: Response, next: NextFunction) => {
+  const { w } = req.query;
+  if (!w) return next();
+  const width = parseInt(String(w), 10);
+  if (isNaN(width) || width < 10 || width > 3000) return next();
+  const filename = decodeURIComponent(req.params.filename).replace(/\.\./g, "");
+  const srcPath = path.join(process.cwd(), "attached_assets", filename);
+  if (!fs.existsSync(srcPath)) return next();
+  const cacheDir = "/tmp/world-thumbs";
+  const safeBase = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const cacheFile = path.join(cacheDir, `${safeBase}_${width}w.webp`);
+  try {
+    if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
+    if (!fs.existsSync(cacheFile)) {
+      await sharp(srcPath).resize(width, null, { withoutEnlargement: true }).webp({ quality: 82 }).toFile(cacheFile);
+    }
+    res.setHeader("Content-Type", "image/webp");
+    res.setHeader("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400");
+    return res.sendFile(cacheFile);
+  } catch (err) {
+    console.error("world-assets thumb error:", err);
+    return next();
+  }
+});
 
 app.use("/world-assets", express.static(path.join(process.cwd(), "attached_assets"), {
   etag: true,

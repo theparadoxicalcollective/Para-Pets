@@ -159,6 +159,16 @@ interface WorldPageProps {
 // Worlds open to all players; everything else is admin/moderator only.
 const OPEN_WORLDS = new Set(["swamp", "volcanic"]);
 
+// Rewrite /world-assets/ icon URLs to go through the server-side thumbnail
+// middleware (?w=N). This keeps location icon preloads and renders lean on
+// mobile — an 8 MB icon becomes a ~120 KB WebP. Strip any existing query
+// string first so we never double-up on ?v= or ?w= params.
+function thumbUrl(url: string | null | undefined, w: number): string | null {
+  if (!url) return null;
+  if (url.startsWith("/world-assets/")) return url.split("?")[0] + `?w=${w}`;
+  return url;
+}
+
 interface InventoryItem {
   inventoryId: string;
   shopItemId: string;
@@ -565,7 +575,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   useEffect(() => {
     if (!locations.length) return;
     locations.forEach(loc => {
-      if (loc.iconUrl) { const img = new Image(); img.src = loc.iconUrl; }
+      if (loc.iconUrl) { const img = new Image(); img.src = thumbUrl(loc.iconUrl, 600)!; }
       if (loc.bgUrl) { const img = new Image(); img.src = loc.bgUrl; }
     });
   }, [locations]);
@@ -2319,7 +2329,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                             style={loc.type === "fishing" && !loc.isShop && worldId !== "haunted_woods" ? { animation: "breathe 3s ease-in-out infinite" } : undefined}
                           >
                           <img
-                            src={loc.type === "fishing" && !loc.isShop && worldId === "volcanic" ? "/world-assets/icon_fishing_volcanic.png" : loc.iconUrl!}
+                            src={loc.type === "fishing" && !loc.isShop && worldId === "volcanic" ? "/world-assets/icon_fishing_volcanic.png?w=600" : thumbUrl(loc.iconUrl, 600)!}
                             alt={loc.name}
                             className="w-full h-full object-contain relative z-10"
                             draggable={false}
@@ -2354,7 +2364,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                               drop-shadow follows PNG transparency so only the icon outline glows.
                               Haunted Woods skips this layer (top-crown gradient handles its glow). */}
                           {worldId !== "haunted_woods" && <img
-                            src={loc.type === "fishing" && !loc.isShop && worldId === "volcanic" ? "/world-assets/icon_fishing_volcanic.png" : loc.iconUrl!}
+                            src={loc.type === "fishing" && !loc.isShop && worldId === "volcanic" ? "/world-assets/icon_fishing_volcanic.png?w=600" : thumbUrl(loc.iconUrl, 600)!}
                             aria-hidden
                             className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                             draggable={false}
