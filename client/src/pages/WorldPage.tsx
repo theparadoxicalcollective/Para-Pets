@@ -426,7 +426,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [potionPickerOpen, setPotionPickerOpen] = useState(false);
   const [showFishing, setShowFishing] = useState(false);
   const [showSellFish, setShowSellFish] = useState(false);
-  const [fishingShopTab, setFishingShopTab] = useState<"pole" | "bait" | "aquarium">("pole");
+  const [fishingShopTab, setFishingShopTab] = useState<"pole" | "bait">("pole");
   const [barrelDragPos, setBarrelDragPos] = useState<{ x: number; y: number } | null>(null);
   const barrelDragRef = useRef<{ startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const barrelDidDrag = useRef(false);
@@ -3492,15 +3492,14 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           {/* ── Fishing Shop Category Tabs ──────────────────── */}
           {isFishingShop && (
             <div className="relative flex-shrink-0 flex gap-2 px-3 pb-3" style={{ zIndex: 10 }}>
-              {(["pole", "bait", "aquarium"] as const).map(tab => {
-                const labels: Record<string, string> = { pole: "🎣  Fishing Poles", bait: "🪱  Bait", aquarium: "🐟  Aquarium" };
+              {(["pole", "bait"] as const).map(tab => {
+                const labels: Record<string, string> = { pole: "🎣  Fishing Poles", bait: "🪱  Bait" };
                 const isActive = fishingShopTab === tab;
-                const isComingSoon = tab === "aquarium";
                 return (
                   <button
                     key={tab}
                     data-testid={`button-fishing-tab-${tab}`}
-                    onClick={() => !isComingSoon && setFishingShopTab(tab)}
+                    onClick={() => setFishingShopTab(tab)}
                     style={{
                       flex: 1,
                       padding: "7px 4px",
@@ -3511,8 +3510,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                       background: isVolcanicFishing
                         ? isActive ? "linear-gradient(160deg, rgba(120,40,10,0.60) 0%, rgba(80,20,5,0.45) 100%)" : "rgba(30,8,3,0.55)"
                         : isActive ? "linear-gradient(160deg, rgba(40,120,55,0.55) 0%, rgba(20,80,35,0.4) 100%)" : "rgba(10,30,15,0.55)",
-                      cursor: isComingSoon ? "default" : "pointer",
-                      opacity: isComingSoon ? 0.55 : 1,
+                      cursor: "pointer",
                       transition: "all 0.18s ease",
                     }}
                   >
@@ -3533,18 +3531,9 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               </div>
             ) : isFishingShop ? (
               (() => {
-                const displayItems = fishingShopTab !== "aquarium"
-                  ? sortedItems.filter(i => i.fishingType === fishingShopTab)
-                  : [];
+                const displayItems = sortedItems.filter(i => i.fishingType === fishingShopTab);
                 const emptyBorder = isVolcanicFishing ? "1px solid rgba(255,100,30,0.22)" : "1px solid rgba(74,180,100,0.2)";
                 const emptyAdminColor = isVolcanicFishing ? "rgba(255,100,30,0.65)" : "rgba(74,180,100,0.6)";
-                if (fishingShopTab === "aquarium") return (
-                  <div className="flex items-center justify-center py-20">
-                    <div className="text-center px-8 py-6 rounded-2xl" style={{ background: "rgba(0,0,0,0.55)", border: emptyBorder }}>
-                      <p className="font-fantasy text-[#c8b89a] text-sm tracking-wider">No wares yet.</p>
-                    </div>
-                  </div>
-                );
                 if (displayItems.length === 0) return (
                   <div className="flex items-center justify-center py-20">
                     <div className="text-center px-8 py-6 rounded-2xl" style={{ background: "rgba(0,0,0,0.55)", border: emptyBorder }}>

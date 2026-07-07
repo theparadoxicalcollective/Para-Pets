@@ -2099,10 +2099,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAquariumUnlocks(userId: string): Promise<string[]> {
-    const rows = await db.execute(sql`
+    const result: any = await db.execute(sql`
       SELECT aquarium_id FROM player_aquarium_unlocks WHERE user_id = ${userId}
     `);
-    return (rows as any[]).map((r: any) => r.aquarium_id);
+    const rows = (result.rows ?? result) as any[];
+    return rows.map((r: any) => r.aquarium_id);
   }
 
   async unlockAquarium(userId: string, aquariumId: string): Promise<void> {

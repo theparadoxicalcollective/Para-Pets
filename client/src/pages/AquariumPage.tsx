@@ -6,7 +6,8 @@ import bayouAquariumBg from "@assets/C98FF13A-0E53-4BA8-9036-24139DA75818_178339
 import closeIcon from "@assets/Photoroom_20260706_95641_PM_1783394294636.png";
 import arrowIcon from "@assets/Photoroom_20260706_94656_PM_1783394294636.png";
 import lockIcon from "@assets/Photoroom_20260706_104316_PM_1783395823714.png";
-import fishCommonIconPH from "@assets/generated_images/icon_fish_common.png";
+import coinIcon from "@assets/icon_coin.png";
+import fishCommonIconPH from "@assets/icon_fish_common.png";
 import fishInvIconPH from "@assets/icon_fish_inventory.png";
 
 interface AqCaughtFish {
@@ -189,7 +190,12 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
   const containerRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
-  const [activeAquarium, setActiveAquarium] = useState<AquariumSlot>("main");
+  const [activeAquarium, setActiveAquarium] = useState<AquariumSlot>(() => {
+    try { return (localStorage.getItem("aquarium_default") as AquariumSlot) ?? "main"; } catch { return "main"; }
+  });
+  const [defaultAquarium, setDefaultAquarium] = useState<AquariumSlot>(() => {
+    try { return (localStorage.getItem("aquarium_default") as AquariumSlot) ?? "main"; } catch { return "main"; }
+  });
   const [showPanel, setShowPanel] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<AqFishEntry | null>(null);
   const [dragging, setDragging] = useState<{ fish: AqFishEntry; gx: number; gy: number } | null>(null);
@@ -201,6 +207,11 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
   // Purchase modal states
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  const handleSetDefault = useCallback((slot: AquariumSlot) => {
+    try { localStorage.setItem("aquarium_default", slot); } catch {}
+    setDefaultAquarium(slot);
+  }, []);
 
   const { data: fishInventory = [] } = useQuery<AqCaughtFish[]>({
     queryKey: ["/api/fishing/inventory"],
@@ -551,6 +562,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         @keyframes fishTailSegB   { from { transform: rotate(4deg);  } to { transform: rotate(-4deg); } }
         @keyframes fishBlink      { 0%,92%,100% { opacity:1; } 95%,97% { opacity:0; } }
         @keyframes aqLockPulse    { 0%,100% { opacity:0.85; transform:scale(1); } 50% { opacity:1; transform:scale(1.04); } }
+        @keyframes aqStarPop      { 0% { transform:scale(1); } 50% { transform:scale(1.35); } 100% { transform:scale(1); } }
       `}</style>
 
       {/* Background */}
