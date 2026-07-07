@@ -1367,7 +1367,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
             <img
               src={beginBattleBtn}
               alt="Begin Battle"
-              style={{ width: "100%", maxWidth: 340, height: "auto", objectFit: "contain", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.6))" }}
+              style={{ width: "75%", maxWidth: 240, height: "auto", objectFit: "contain", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.6))" }}
               draggable={false}
             />
           </button>
