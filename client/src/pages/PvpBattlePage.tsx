@@ -2295,12 +2295,6 @@ export default function PvpBattlePage({
             </div>
           )}
 
-          {/* Hint */}
-          {phase === "battle" && !pendingSkill && (
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-white/12 text-[9px] tracking-widest pointer-events-none animate-pulse whitespace-nowrap">
-              Tap glowing ally for skill · Drag potion onto ally to use
-            </div>
-          )}
 
           {/* Result overlay (unchanged) */}
           {phase === "result" && resultOutcome === "win" && (

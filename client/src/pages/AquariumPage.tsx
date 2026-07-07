@@ -673,9 +673,6 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
             style={{ width: 200, height: "auto", objectFit: "contain", animation: "aqLockPulse 3s ease-in-out infinite", filter: "drop-shadow(0 0 18px rgba(212,168,67,0.55))" }}
             draggable={false}
           />
-          <p className="font-fantasy text-sm tracking-widest mt-5" style={{ color: "rgba(212,168,67,0.9)", textShadow: "0 0 12px rgba(212,168,67,0.5)" }}>
-            Tap to unlock
-          </p>
         </div>
       )}
 
@@ -760,14 +757,6 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         />
       </button>
 
-      {/* Empty hint */}
-      {aquariumFish.length === 0 && !showPanel && !isLocked && (
-        <div className="absolute left-0 right-0 flex justify-center pointer-events-none" style={{ top: "48%" }}>
-          <p className="font-fantasy text-xs text-center tracking-wider px-8 leading-relaxed" style={{ color: "rgba(94,234,212,0.4)" }}>
-            Open your fish bag and drag or tap a fish to add it to your aquarium
-          </p>
-        </div>
-      )}
 
       {/* Fish count */}
       {aquariumFish.length > 0 && !isLocked && (
@@ -819,7 +808,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
             <div>
               <h4 className="font-fantasy text-xs tracking-widest" style={{ color: AQ_TEAL }}>Fish Collection</h4>
               <p className="font-fantasy text-[9px] mt-0.5" style={{ color: "rgba(94,234,212,0.42)" }}>
-                {aquariumFish.length}/{AQ_MAX} in aquarium · drag or tap to place
+                {aquariumFish.length}/{AQ_MAX} in aquarium
               </p>
             </div>
             <button onClick={() => setShowPanel(false)} style={{ color: "rgba(94,234,212,0.55)", background: "none", border: "none", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: 4 }}>✕</button>
