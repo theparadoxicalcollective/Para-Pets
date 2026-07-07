@@ -6906,7 +6906,7 @@ export async function registerRoutes(
   });
 
   // Purchase an aquarium unlock
-  const AQUARIUM_PRICES: Record<string, number> = { bayou: 20000 };
+  const AQUARIUM_PRICES: Record<string, number> = { bayou: 20000, volcanic: 25000 };
   app.post("/api/aquarium/unlock", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;

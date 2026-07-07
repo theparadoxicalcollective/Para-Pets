@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import aquariumBg from "@assets/bg_aquarium.png";
 import bayouAquariumBg from "@assets/C98FF13A-0E53-4BA8-9036-24139DA75818_1783394294636.png";
+import volcanicAquariumBg from "@assets/731E39C0-FA17-469A-BD4E-7DCAF0456B7A_1783402475912.png";
 import closeIcon from "@assets/Photoroom_20260706_95641_PM_1783394294636.png";
 import arrowIcon from "@assets/Photoroom_20260706_94656_PM_1783394294636.png";
 import lockIcon from "@assets/Photoroom_20260706_104316_PM_1783395823714.png";
@@ -56,8 +57,14 @@ const BOTTOM_HARD_MAX = BOTTOM_FLOOR_MAX;
 const AQ_MAX = 30;
 const AQ_TEAL = "#5eead4";
 const BAYOU_PRICE = 20000;
+const VOLCANIC_PRICE = 25000;
 
-type AquariumSlot = "main" | "bayou";
+type AquariumSlot = "main" | "bayou" | "volcanic";
+
+const AQUARIUM_CONFIG: Record<"bayou" | "volcanic", { label: string; price: number; bg: string; desc: string }> = {
+  bayou:    { label: "Bayou Aquarium",    price: BAYOU_PRICE,    bg: bayouAquariumBg,    desc: "A murky second tank — 30 fish capacity" },
+  volcanic: { label: "Volcanic Aquarium", price: VOLCANIC_PRICE, bg: volcanicAquariumBg, desc: "A smoldering deep-sea tank — 30 fish capacity" },
+};
 
 function makeSwimmer(entry: AqFishEntry, x?: number, y?: number): SwimmingFish {
   const tier = Math.random();
@@ -230,6 +237,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
 
   const unlocks = unlocksData?.unlocks ?? [];
   const bayouUnlocked = unlocks.includes("bayou");
+  const volcanicUnlocked = unlocks.includes("volcanic");
 
   const aquariumFish = React.useMemo<AqFishEntry[]>(() =>
     fishInventory
@@ -310,9 +318,9 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
     },
   });
 
-  const unlockBayouMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/aquarium/unlock", { aquariumId: "bayou" });
+  const unlockAquariumMutation = useMutation({
+    mutationFn: async (aquariumId: string) => {
+      const res = await apiRequest("POST", "/api/aquarium/unlock", { aquariumId });
       if (!res.ok) {
         const body = await res.json();
         throw new Error(body.message ?? "Failed to unlock");
@@ -526,10 +534,11 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
     return Array.from(map.entries());
   }, [fishInventory]);
 
-  const currentBg = activeAquarium === "bayou" ? bayouAquariumBg : aquariumBg;
-  const title = activeAquarium === "bayou" ? "BAYOU AQUARIUM" : "AQUARIUM";
-  const isLocked = activeAquarium === "bayou" && !bayouUnlocked;
+  const currentBg = activeAquarium === "volcanic" ? volcanicAquariumBg : activeAquarium === "bayou" ? bayouAquariumBg : aquariumBg;
+  const title = activeAquarium === "volcanic" ? "VOLCANIC AQUARIUM" : activeAquarium === "bayou" ? "BAYOU AQUARIUM" : "AQUARIUM";
+  const isLocked = (activeAquarium === "bayou" && !bayouUnlocked) || (activeAquarium === "volcanic" && !volcanicUnlocked);
   const userCoins = currentUser?.coins ?? 0;
+  const lockedConfig = activeAquarium !== "main" ? AQUARIUM_CONFIG[activeAquarium] : null;
 
   return (
     <div
@@ -699,11 +708,11 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         }}>★</span>
       </button>
 
-      {/* Right arrow — navigate to Bayou (shown only on main) */}
-      {activeAquarium === "main" && (
+      {/* Right arrow — advance to next aquarium */}
+      {(activeAquarium === "main" || activeAquarium === "bayou") && (
         <button
           data-testid="button-aquarium-next"
-          onClick={() => setActiveAquarium("bayou")}
+          onClick={() => { setActiveAquarium(activeAquarium === "main" ? "bayou" : "volcanic"); setShowPanel(false); }}
           className="absolute z-30 active:scale-90 transition-transform"
           style={{ right: 6, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
         >
@@ -716,11 +725,11 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         </button>
       )}
 
-      {/* Left arrow — navigate back to main (shown only on bayou) */}
-      {activeAquarium === "bayou" && (
+      {/* Left arrow — go back to previous aquarium */}
+      {(activeAquarium === "bayou" || activeAquarium === "volcanic") && (
         <button
           data-testid="button-aquarium-prev"
-          onClick={() => { setActiveAquarium("main"); setShowPanel(false); }}
+          onClick={() => { setActiveAquarium(activeAquarium === "volcanic" ? "bayou" : "main"); setShowPanel(false); }}
           className="absolute z-30 active:scale-90 transition-transform"
           style={{ left: 6, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
         >
@@ -910,30 +919,30 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
             }}
             onClick={e => e.stopPropagation()}
           >
-            <img src={bayouAquariumBg} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 10, marginBottom: 14, filter: "brightness(0.85)" }} draggable={false} />
-            <p className="font-fantasy text-sm tracking-widest text-center mb-1" style={{ color: AQ_TEAL }}>Bayou Aquarium</p>
-            <p className="font-fantasy text-[9px] tracking-wider text-center mb-4 px-2" style={{ color: "rgba(94,234,212,0.5)" }}>A second tank — 30 fish capacity</p>
+            <img src={lockedConfig?.bg} alt="" style={{ width: "100%", height: 120, objectFit: "cover", borderRadius: 10, marginBottom: 14, filter: "brightness(0.85)" }} draggable={false} />
+            <p className="font-fantasy text-sm tracking-widest text-center mb-1" style={{ color: AQ_TEAL }}>{lockedConfig?.label}</p>
+            <p className="font-fantasy text-[9px] tracking-wider text-center mb-4 px-2" style={{ color: "rgba(94,234,212,0.5)" }}>{lockedConfig?.desc}</p>
             <div className="flex items-center gap-2 mb-1">
               <img src={coinIcon} alt="coins" style={{ width: 26, height: 26, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(255,215,0,0.55))" }} draggable={false} />
-              <span className="font-fantasy text-lg" style={{ color: "#ffd700" }}>20,000</span>
+              <span className="font-fantasy text-lg" style={{ color: "#ffd700" }}>{(lockedConfig?.price ?? 0).toLocaleString()}</span>
             </div>
-            <p className="font-fantasy text-[9px] mb-5" style={{ color: userCoins >= BAYOU_PRICE ? "rgba(94,234,212,0.55)" : "rgba(220,80,80,0.8)" }}>
+            <p className="font-fantasy text-[9px] mb-5" style={{ color: userCoins >= (lockedConfig?.price ?? 0) ? "rgba(94,234,212,0.55)" : "rgba(220,80,80,0.8)" }}>
               Your balance: {userCoins.toLocaleString()} coins
             </p>
             <button
-              data-testid="button-buy-bayou-aquarium"
-              disabled={userCoins < BAYOU_PRICE}
+              data-testid="button-buy-aquarium"
+              disabled={userCoins < (lockedConfig?.price ?? 0)}
               onClick={() => { setShowBuyModal(false); setShowConfirmModal(true); }}
               className="w-full rounded-xl py-2.5 font-fantasy text-xs tracking-widest transition-transform active:scale-95 mb-2"
               style={{
-                background: userCoins >= BAYOU_PRICE ? "linear-gradient(135deg, rgba(94,234,212,0.25), rgba(56,189,248,0.2))" : "rgba(40,40,60,0.8)",
-                border: `1.5px solid ${userCoins >= BAYOU_PRICE ? "rgba(94,234,212,0.6)" : "rgba(94,234,212,0.2)"}`,
-                color: userCoins >= BAYOU_PRICE ? AQ_TEAL : "rgba(94,234,212,0.3)",
-                cursor: userCoins >= BAYOU_PRICE ? "pointer" : "not-allowed",
-                boxShadow: userCoins >= BAYOU_PRICE ? "0 0 12px rgba(94,234,212,0.2)" : "none",
+                background: userCoins >= (lockedConfig?.price ?? 0) ? "linear-gradient(135deg, rgba(94,234,212,0.25), rgba(56,189,248,0.2))" : "rgba(40,40,60,0.8)",
+                border: `1.5px solid ${userCoins >= (lockedConfig?.price ?? 0) ? "rgba(94,234,212,0.6)" : "rgba(94,234,212,0.2)"}`,
+                color: userCoins >= (lockedConfig?.price ?? 0) ? AQ_TEAL : "rgba(94,234,212,0.3)",
+                cursor: userCoins >= (lockedConfig?.price ?? 0) ? "pointer" : "not-allowed",
+                boxShadow: userCoins >= (lockedConfig?.price ?? 0) ? "0 0 12px rgba(94,234,212,0.2)" : "none",
               }}
             >
-              {userCoins >= BAYOU_PRICE ? "Buy" : "Not Enough Coins"}
+              {userCoins >= (lockedConfig?.price ?? 0) ? "Buy" : "Not Enough Coins"}
             </button>
             <button
               onClick={() => setShowBuyModal(false)}
@@ -967,31 +976,31 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
             </p>
             <div className="flex items-center gap-2 mb-5">
               <img src={coinIcon} alt="coins" style={{ width: 24, height: 24, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(255,215,0,0.55))" }} draggable={false} />
-              <span className="font-fantasy text-lg" style={{ color: "#ffd700" }}>20,000 coins</span>
+              <span className="font-fantasy text-lg" style={{ color: "#ffd700" }}>{(lockedConfig?.price ?? 0).toLocaleString()} coins</span>
             </div>
-            {unlockBayouMutation.isError && (
+            {unlockAquariumMutation.isError && (
               <p className="font-fantasy text-[9px] text-center mb-3" style={{ color: "rgba(220,80,80,0.9)" }}>
-                {(unlockBayouMutation.error as Error)?.message ?? "Something went wrong"}
+                {(unlockAquariumMutation.error as Error)?.message ?? "Something went wrong"}
               </p>
             )}
             <button
-              data-testid="button-confirm-buy-bayou"
-              disabled={unlockBayouMutation.isPending}
-              onClick={() => unlockBayouMutation.mutate()}
+              data-testid="button-confirm-buy-aquarium"
+              disabled={unlockAquariumMutation.isPending}
+              onClick={() => unlockAquariumMutation.mutate(activeAquarium)}
               className="w-full rounded-xl py-2.5 font-fantasy text-xs tracking-widest transition-transform active:scale-95 mb-2"
               style={{
                 background: "linear-gradient(135deg, rgba(94,234,212,0.25), rgba(56,189,248,0.2))",
                 border: "1.5px solid rgba(94,234,212,0.6)",
-                color: AQ_TEAL, cursor: unlockBayouMutation.isPending ? "wait" : "pointer",
+                color: AQ_TEAL, cursor: unlockAquariumMutation.isPending ? "wait" : "pointer",
                 boxShadow: "0 0 12px rgba(94,234,212,0.2)",
-                opacity: unlockBayouMutation.isPending ? 0.6 : 1,
+                opacity: unlockAquariumMutation.isPending ? 0.6 : 1,
               }}
             >
-              {unlockBayouMutation.isPending ? "Purchasing…" : "Confirm"}
+              {unlockAquariumMutation.isPending ? "Purchasing…" : "Confirm"}
             </button>
             <button
               onClick={() => { setShowConfirmModal(false); setShowBuyModal(true); }}
-              disabled={unlockBayouMutation.isPending}
+              disabled={unlockAquariumMutation.isPending}
               className="w-full rounded-xl py-2 font-fantasy text-xs tracking-widest transition-transform active:scale-95"
               style={{ background: "transparent", border: "1px solid rgba(94,234,212,0.18)", color: "rgba(94,234,212,0.45)", cursor: "pointer" }}
             >
