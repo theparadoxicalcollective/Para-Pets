@@ -50,6 +50,7 @@ const BagInventoryPage   = lazy(() => import("@/pages/BagInventoryPage"));
 const EquipAccessoriesPage = lazy(() => import("@/pages/EquipAccessoriesPage"));
 const PetCarePage          = lazy(() => import("@/pages/PetCarePage"));
 const MoltenBlocksPage     = lazy(() => import("@/pages/MoltenBlocksPage"));
+const LavaCrawlPage        = lazy(() => import("@/pages/LavaCrawlPage"));
 const FriendsPage          = lazy(() => import("@/pages/FriendsPage"));
 
 // ── Email gate screen — blocks the game until email is verified ───────────────
@@ -196,7 +197,7 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
 }
 
 // Paths where FloatingNav should NOT appear
-const NAV_HIDDEN_PATHS = ["/auth", "/hub", "/privacy", "/admin", "/equip-accessories", "/pvp", "/games/molten-blocks", "/coins"];
+const NAV_HIDDEN_PATHS = ["/auth", "/hub", "/privacy", "/admin", "/equip-accessories", "/pvp", "/games/molten-blocks", "/games/lava-crawl", "/coins"];
 function shouldHideNav(path: string) {
   if (NAV_HIDDEN_PATHS.includes(path)) return true;
   if (path.startsWith("/reset-password/")) return true;
@@ -532,6 +533,11 @@ function AppRouter() {
         {location === "/games/molten-blocks" && (
           <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
             <MoltenBlocksPage />
+          </div>
+        )}
+        {location === "/games/lava-crawl" && (
+          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+            <LavaCrawlPage />
           </div>
         )}
         {location === "/friends" && (

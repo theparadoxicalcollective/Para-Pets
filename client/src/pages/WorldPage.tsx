@@ -1599,6 +1599,11 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       navigate("/games/molten-blocks");
       return;
     }
+    // Lava Crawl — launches the side-scrolling platformer mini-game.
+    if (loc.id === "c3d4e5f6-0009-4000-8000-000000000009") {
+      navigate("/games/lava-crawl");
+      return;
+    }
     // The Ember Kitchen will host the cooking mini-game (still in development).
     // Until it ships, tapping shows a "coming soon" notice instead of shop/scenic UI.
     if (loc.id === "c3d4e5f6-0007-4000-8000-000000000007") {

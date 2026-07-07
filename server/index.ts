@@ -2634,6 +2634,33 @@ app.use((req, res, next) => {
     console.error("Volcanic accessory shop seed error (non-fatal):", err);
   }
 
+  // Seed Lava Crawl mini-game entry location in the Volcanic world
+  try {
+    const LAVA_CRAWL_LOC_ID = "c3d4e5f6-0009-4000-8000-000000000009";
+    const lavaCrawlDone = await storage.getGameSetting("lava_crawl_loc_v1");
+    if (!lavaCrawlDone) {
+      const existing = await db.execute(sql`SELECT id FROM world_locations WHERE id = ${LAVA_CRAWL_LOC_ID}`);
+      if ((existing as any).rows?.length === 0) {
+        const assetPath = path.join(process.cwd(), "attached_assets", "Photoroom_20260707_20149_PM_1783461445112.png");
+        const mtime = fs.existsSync(assetPath) ? fs.statSync(assetPath).mtimeMs : Date.now();
+        const iconUrl = `/world-assets/Photoroom_20260707_20149_PM_1783461445112.png?v=${Math.floor(mtime / 1000)}`;
+        const locName = "Lava Crawl";
+        const locDesc = "A scorching lava cavern — run, jump, and dodge your way to the exit for glory and gold!";
+        await db.execute(sql`
+          INSERT INTO world_locations (id, world_id, name, type, description, pos_x, pos_y, glow_color, icon_size, sort_order, is_shop, icon_url)
+          VALUES (
+            ${LAVA_CRAWL_LOC_ID}, 'volcanic', ${locName}, 'explore',
+            ${locDesc}, 20, 60, '#ff6600', 320, 20, false, ${iconUrl}
+          )
+        `);
+        console.log("Lava Crawl location seeded.");
+      }
+      await storage.setGameSetting("lava_crawl_loc_v1", "done");
+    }
+  } catch (err) {
+    console.error("Lava Crawl location seed error (non-fatal):", err);
+  }
+
   // Seed volcanic edibles (one-shot). Price === feed points (1 coin per 1 feed
   // point). Stored as type='edibles' with stat_boost_amount = feed points so
   // they appear in the admin Item Database edibles tab and are assignable to
@@ -3462,6 +3489,20 @@ app.use((req, res, next) => {
   try {
     await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS total_fish_caught INTEGER NOT NULL DEFAULT 0`);
   } catch (err) { console.error("total_fish_caught migration error (non-fatal):", err); }
+
+  // Create lava_crawl_scores table (idempotent)
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS lava_crawl_scores (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        user_id VARCHAR NOT NULL,
+        username TEXT NOT NULL,
+        score INTEGER NOT NULL DEFAULT 0,
+        coins_collected INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP NOT NULL DEFAULT now()
+      )
+    `);
+  } catch (err) { console.error("lava_crawl_scores table error (non-fatal):", err); }
 
   await seedBrawlerBadges();
   await backfillBrawlerBadges();

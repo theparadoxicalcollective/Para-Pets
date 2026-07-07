@@ -1,0 +1,57 @@
+I need you to add a new ParaPets mini game to my existing Replit/Railway web app, not Unity.
+
+Feature: Lava Cave Side-Scrolling Mini Game
+
+When the player clicks the volcano/lava cave icon in ParaPets, open a new mini game screen/page using my uploaded lava cave background art. This should be a simple browser-based side-scrolling platform runner, similar in feel to old Mario-style games.
+
+Please build it as a web mini game using HTML/CSS/JavaScript or the current frontend framework already in my project. Do not rebuild the whole app. Add it into the existing ParaPets structure.
+
+Core gameplay:
+- Player starts with 3 lives
+- Show lives in the UI as hearts or simple icons
+- Player can move left/right and jump
+- Camera/viewport follows the player horizontally
+- Use the lava cave background as the scrolling background
+- Add platforms/ground
+- Add lava gaps or hazards
+- Add collectible coins/gems
+- Add simple walking enemies that patrol platforms
+- If the player jumps on top of an enemy, the enemy is defeated and the player bounces slightly
+- If the player touches an enemy from the side, lava, or a hazard, they lose 1 life
+- When lives reach 0, show a Game Over screen with Restart and Return to ParaPets buttons
+- Add a finish/end point that completes the run
+
+Scoring:
+- Coins/gems increase score
+- Defeating enemies increases score
+- Reaching the finish gives a bonus
+- Display the current score during gameplay
+
+Leaderboard:
+- Save the player’s best score for this mini game
+- Add a lava cave mini game leaderboard with player name, score, and rank
+- Use my existing Railway database/backend if possible
+- If leaderboard tables/endpoints do not already exist, create them safely without breaking existing data
+- If login/user accounts already exist, connect the score to the logged-in player
+- If not logged in, allow a guest/local test score for now
+
+Needed screens/buttons:
+- Start screen
+- Gameplay screen
+- Pause button
+- Game Over screen
+- Victory screen
+- Leaderboard screen
+- Return to main ParaPets button
+
+Important:
+- Use placeholder player/enemy/coin art for now
+- I will replace the artwork later
+- Keep the first version simple and stable
+- Make it mobile-friendly for portrait screens
+- Include touch controls: left, right, and jump buttons
+- Also allow keyboard controls for testing on desktop
+- Do not overwrite my existing ParaPets pages or database
+- Explain what files you changed and how I can replace the artwork later
+
+Please implement this as a clean MVP first.

@@ -6984,6 +6984,75 @@ export async function registerRoutes(
     }
   });
 
+  // ── Lava Crawl mini-game ────────────────────────────────────────────────────
+
+  // Submit a completed run (save score + award coins to balance)
+  app.post("/api/lava-crawl/complete", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { score, coinsCollected } = req.body;
+      if (typeof score !== "number" || typeof coinsCollected !== "number") {
+        return res.status(400).json({ message: "score and coinsCollected required" });
+      }
+      const safeScore = Math.max(0, Math.min(999999, Math.floor(score)));
+      const safeCoins = Math.max(0, Math.min(500, Math.floor(coinsCollected)));
+
+      // Save score record
+      await db.execute(sql`
+        INSERT INTO lava_crawl_scores (user_id, username, score, coins_collected)
+        VALUES (${user.id}, ${user.username}, ${safeScore}, ${safeCoins})
+      `);
+
+      // Check if this is a new personal best
+      const bestRow = await db.execute(sql`
+        SELECT MAX(score) AS best FROM lava_crawl_scores WHERE user_id = ${user.id}
+      `);
+      const prevBest = (bestRow.rows[0] as any)?.best ?? 0;
+      const isNewBest = safeScore >= prevBest;
+
+      // Award real coins to player balance
+      let updatedUser = null;
+      if (safeCoins > 0) {
+        updatedUser = await storage.addCoins(user.id, safeCoins);
+      }
+      return res.json({ ok: true, isNewBest, newCoins: updatedUser?.coins });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Player's personal best score
+  app.get("/api/lava-crawl/my-best", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const row = await db.execute(sql`
+        SELECT MAX(score) AS best, MAX(coins_collected) AS best_coins
+        FROM lava_crawl_scores
+        WHERE user_id = ${user.id}
+      `);
+      const r = (row.rows[0] as any) ?? {};
+      return res.json({ best: r.best ?? 0, bestCoins: r.best_coins ?? 0 });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Global leaderboard — best score per player, top 10
+  app.get("/api/lava-crawl/leaderboard", isAuthenticated, async (req, res) => {
+    try {
+      const rows = await db.execute(sql`
+        SELECT username, MAX(score) AS best_score, MAX(coins_collected) AS best_coins
+        FROM lava_crawl_scores
+        GROUP BY user_id, username
+        ORDER BY best_score DESC
+        LIMIT 10
+      `);
+      return res.json(rows.rows);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   // Fish barrel routes
   app.get("/api/world/:worldId/fish-barrel", isAuthenticated, async (req, res) => {
     try {
