@@ -1980,17 +1980,23 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             style={{
               top: "58px",
               right: "54px",
-              width: "48px",
-              height: "48px",
-              border: "none",
+              width: "44px",
+              height: "44px",
+              borderRadius: "50%",
+              overflow: "hidden",
               cursor: "pointer",
-              boxShadow: showWorldChat
-                ? "0 0 16px rgba(127,255,212,0.35)"
-                : chatHasNewMsg
-                  ? "0 0 18px rgba(94,234,212,0.55)"
-                  : "none",
               padding: 0,
-              background: "transparent",
+              background: "rgba(10,40,34,0.85)",
+              border: showWorldChat
+                ? "2px solid rgba(94,234,212,0.8)"
+                : chatHasNewMsg
+                  ? "2px solid rgba(94,234,212,0.65)"
+                  : "2px solid rgba(94,234,212,0.3)",
+              boxShadow: showWorldChat
+                ? "0 0 14px rgba(94,234,212,0.45)"
+                : chatHasNewMsg
+                  ? "0 0 16px rgba(94,234,212,0.6)"
+                  : "0 2px 8px rgba(0,0,0,0.5)",
             }}
           >
             <img
@@ -1999,12 +2005,12 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               style={{
                 width: "100%",
                 height: "100%",
-                objectFit: "contain",
+                objectFit: "cover",
                 display: "block",
                 filter: showWorldChat
                   ? "brightness(1.15)"
                   : chatHasNewMsg
-                    ? "brightness(1.2) drop-shadow(0 0 6px rgba(94,234,212,0.8))"
+                    ? "brightness(1.2)"
                     : "brightness(0.95)",
               }}
             />
