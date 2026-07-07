@@ -555,6 +555,44 @@ const ACQUISITION_BADGES = {
   },
 } as const;
 
+// ── Fisher Badges (cumulative catch count) ────────────────────────────
+const FISHER_BADGES = {
+  angler: {
+    name: "The Angler", rarity: "common", points: 1000, dailyCoins: 10, catchCount: 300,
+    imageUrl: "/world-assets/Photoroom_20260707_11349_PM_1783458650009.png",
+    obtainDescription: "Catch 300 fish.",
+  },
+  masterAngler: {
+    name: "Master Angler", rarity: "uncommon", points: 2000, dailyCoins: 25, catchCount: 500,
+    imageUrl: "/world-assets/Photoroom_20260707_11428_PM_1783458650009.png",
+    obtainDescription: "Catch 500 fish.",
+  },
+  legendaryAngler: {
+    name: "Legendary Angler", rarity: "rare", points: 3500, dailyCoins: 50, catchCount: 750,
+    imageUrl: "/world-assets/Photoroom_20260707_11506_PM_1783458650009.png",
+    obtainDescription: "Catch 750 fish.",
+  },
+} as const;
+
+// ── Fish Book Completion Badges (catch every species in a biome) ───────
+const FISH_BOOK_BADGES = {
+  volcanic: {
+    name: "Flame Fisher", rarity: "rare", points: 3000, dailyCoins: 50, worldId: "volcanic",
+    imageUrl: "/world-assets/Photoroom_20260707_11649_PM_1783458650009.png",
+    obtainDescription: "Catch every species in the Volcanic Isle Fish Book.",
+  },
+  haunted: {
+    name: "Phantom Fisher", rarity: "rare", points: 3000, dailyCoins: 50, worldId: "haunted_woods",
+    imageUrl: "/world-assets/Photoroom_20260707_11800_PM_1783458650009.png",
+    obtainDescription: "Catch every species in the Haunted Woods Fish Book.",
+  },
+  bayou: {
+    name: "Bayou Sage", rarity: "rare", points: 3000, dailyCoins: 50, worldId: "swamp",
+    imageUrl: "/world-assets/Photoroom_20260707_11559_PM_1783458650009.png",
+    obtainDescription: "Catch every species in the Elysian Bayou Fish Book.",
+  },
+} as const;
+
 // ── Brawler PvP Badges ───────────────────────────────────────────────
 const BRAWLER_BADGES = {
   brawler: {
@@ -609,6 +647,76 @@ async function maybeAwardBrawlerBadges(userId: string, totalWins: number): Promi
     }
   } catch (err) {
     console.error("[badges] Error awarding brawler badges:", err);
+  }
+}
+
+async function getOrCreateFisherBadge(key: keyof typeof FISHER_BADGES): Promise<string> {
+  const meta = FISHER_BADGES[key];
+  const existing = await storage.getBadgeByName(meta.name);
+  if (existing) return existing.id;
+  const badge = await storage.createBadge(meta.name, meta.imageUrl, meta.dailyCoins, meta.points, "daily");
+  await storage.updateBadge(badge.id, { rarity: meta.rarity, obtainDescription: meta.obtainDescription });
+  return badge.id;
+}
+
+async function getOrCreateFishBookBadge(key: keyof typeof FISH_BOOK_BADGES): Promise<string> {
+  const meta = FISH_BOOK_BADGES[key];
+  const existing = await storage.getBadgeByName(meta.name);
+  if (existing) return existing.id;
+  const badge = await storage.createBadge(meta.name, meta.imageUrl, meta.dailyCoins, meta.points, "daily");
+  await storage.updateBadge(badge.id, { rarity: meta.rarity, obtainDescription: meta.obtainDescription });
+  return badge.id;
+}
+
+async function maybeAwardFisherBadges(userId: string, totalCaught: number): Promise<void> {
+  try {
+    if (totalCaught >= 300) {
+      const id = await getOrCreateFisherBadge("angler");
+      await storage.awardBadge(userId, id);
+    }
+    if (totalCaught >= 500) {
+      const id = await getOrCreateFisherBadge("masterAngler");
+      await storage.awardBadge(userId, id);
+    }
+    if (totalCaught >= 750) {
+      const id = await getOrCreateFisherBadge("legendaryAngler");
+      await storage.awardBadge(userId, id);
+    }
+  } catch (err) {
+    console.error("[badges] Error awarding fisher badges:", err);
+  }
+}
+
+async function maybeAwardFishBookBadge(userId: string, biomeWorldId: string): Promise<void> {
+  try {
+    const key = (Object.keys(FISH_BOOK_BADGES) as (keyof typeof FISH_BOOK_BADGES)[])
+      .find(k => FISH_BOOK_BADGES[k].worldId === biomeWorldId);
+    if (!key) return;
+    // Count all fish species in this biome (via their pond placement)
+    const totalRes = await db.execute(sql`
+      SELECT COUNT(DISTINCT pf.shop_item_id)::int AS total
+      FROM pond_fish pf
+      JOIN world_locations wl ON wl.id = pf.location_id
+      WHERE wl.world_id = ${biomeWorldId}
+    `);
+    const total = (totalRes.rows[0] as any)?.total ?? 0;
+    if (total === 0) return;
+    // Count how many of those species this user has caught
+    const caughtRes = await db.execute(sql`
+      SELECT COUNT(DISTINCT pfcl.shop_item_id)::int AS caught
+      FROM player_fish_catch_log pfcl
+      JOIN pond_fish pf ON pf.shop_item_id = pfcl.shop_item_id
+      JOIN world_locations wl ON wl.id = pf.location_id
+      WHERE wl.world_id = ${biomeWorldId} AND pfcl.user_id = ${userId}
+    `);
+    const caught = (caughtRes.rows[0] as any)?.caught ?? 0;
+    if (caught >= total) {
+      const id = await getOrCreateFishBookBadge(key);
+      const awarded = await storage.awardBadge(userId, id);
+      if (awarded) console.log(`[badges] ${FISH_BOOK_BADGES[key].name} awarded to ${userId}`);
+    }
+  } catch (err) {
+    console.error("[badges] Error awarding fish book badge:", err);
   }
 }
 
@@ -676,6 +784,60 @@ export async function seedBrawlerBadges(): Promise<void> {
     console.log("Brawler badges seeded.");
   } catch (err) {
     console.error("Brawler badge seed error (non-fatal):", err);
+  }
+}
+
+export async function backfillFisherBadges(): Promise<void> {
+  try {
+    // Seed the badge DB rows so they appear in the badge list immediately
+    for (const key of (["angler", "masterAngler", "legendaryAngler"] as const)) {
+      await getOrCreateFisherBadge(key);
+    }
+    // Award to any player whose total_fish_caught already qualifies
+    const rows = await db.execute(sql`
+      SELECT id, total_fish_caught FROM users WHERE total_fish_caught >= 300 AND is_bot = false
+    `);
+    for (const row of rows.rows as { id: string; total_fish_caught: number }[]) {
+      await maybeAwardFisherBadges(row.id, row.total_fish_caught);
+    }
+    if (rows.rows.length > 0) {
+      console.log(`Fisher badge backfill: processed ${rows.rows.length} qualifying player(s).`);
+    }
+  } catch (err) {
+    console.error("Fisher badge backfill error (non-fatal):", err);
+  }
+}
+
+export async function backfillFishBookBadges(): Promise<void> {
+  try {
+    for (const key of (["volcanic", "haunted", "bayou"] as const)) {
+      await getOrCreateFishBookBadge(key);
+      const meta = FISH_BOOK_BADGES[key];
+      // Get all users who have caught every species in this biome
+      const res = await db.execute(sql`
+        SELECT pfcl.user_id
+        FROM player_fish_catch_log pfcl
+        JOIN pond_fish pf ON pf.shop_item_id = pfcl.shop_item_id
+        JOIN world_locations wl ON wl.id = pf.location_id
+        WHERE wl.world_id = ${meta.worldId}
+        GROUP BY pfcl.user_id
+        HAVING COUNT(DISTINCT pfcl.shop_item_id) >= (
+          SELECT COUNT(DISTINCT pf2.shop_item_id)
+          FROM pond_fish pf2
+          JOIN world_locations wl2 ON wl2.id = pf2.location_id
+          WHERE wl2.world_id = ${meta.worldId}
+        )
+      `);
+      const badgeId = await getOrCreateFishBookBadge(key);
+      for (const row of res.rows as { user_id: string }[]) {
+        await storage.awardBadge(row.user_id, badgeId);
+      }
+      if (res.rows.length > 0) {
+        console.log(`Fish book backfill (${key}): awarded to ${res.rows.length} player(s).`);
+      }
+    }
+  } catch (err) {
+    console.error("Fish book badge backfill error (non-fatal):", err);
   }
 }
 
@@ -6764,6 +6926,17 @@ export async function registerRoutes(
 
       const caught = await storage.addFishToPlayerInventory(user.id, chosenEntry.shopItemId);
       await storage.logFishCatch(user.id, chosenEntry.shopItemId);
+
+      // Badge awards: fish count milestones + biome book completion (fire-and-forget)
+      ;(async () => {
+        try {
+          const total = await storage.incrementTotalFishCaught(user.id);
+          maybeAwardFisherBadges(user.id, total).catch(() => {});
+          if (location.worldId) {
+            maybeAwardFishBookBadge(user.id, location.worldId).catch(() => {});
+          }
+        } catch (_) {}
+      })();
 
       // Consume 1 bait charge on successful catch
       if (equipment?.baitInventoryId) {

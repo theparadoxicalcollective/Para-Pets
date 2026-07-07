@@ -254,6 +254,7 @@ export interface IStorage {
   createListedFishInventoryEntry(userId: string, shopItemId: string, fishInventoryId: string): Promise<UserInventoryItem>;
   deleteSingleInventoryItem(id: string): Promise<void>;
   logFishCatch(userId: string, shopItemId: string): Promise<void>;
+  incrementTotalFishCaught(userId: string): Promise<number>;
   addFishingPoints(userId: string, worldId: string, points: number): Promise<void>;
   getFishingLeaderboard(worldId: string, limit?: number): Promise<{ userId: string; username: string; profileImage: string | null; points: number }[]>;
   getPlayerFishingRank(userId: string, worldId: string): Promise<{ points: number; rank: number } | null>;
@@ -1975,6 +1976,15 @@ export class DatabaseStorage implements IStorage {
     if (existing.length === 0) {
       await db.insert(playerFishCatchLog).values({ userId, shopItemId });
     }
+  }
+
+  async incrementTotalFishCaught(userId: string): Promise<number> {
+    const result = await db.execute(sql`
+      UPDATE users SET total_fish_caught = total_fish_caught + 1
+      WHERE id = ${userId}
+      RETURNING total_fish_caught
+    `);
+    return (result.rows[0] as any)?.total_fish_caught ?? 0;
   }
 
   async addFishingPoints(userId: string, worldId: string, points: number): Promise<void> {

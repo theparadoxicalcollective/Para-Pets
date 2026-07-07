@@ -31,6 +31,7 @@ export const users = pgTable("users", {
   accessoryExtraSlots: integer("accessory_extra_slots").notNull().default(0),
   welcomeV2Sent: boolean("welcome_v2_sent").notNull().default(false),
   totalCoinsEarned: integer("total_coins_earned").notNull().default(0),
+  totalFishCaught: integer("total_fish_caught").notNull().default(0),
   watcherShoutoutsEnabled: boolean("watcher_shoutouts_enabled").notNull().default(true),
   lastWatcherGreetedAt: timestamp("last_watcher_greeted_at"),
   // Daily pet-petting reward: timestamp of the last time the player claimed

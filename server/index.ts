@@ -5,7 +5,7 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcryptjs";
 import connectPgSimple from "connect-pg-simple";
-import { registerRoutes, backfillMinorAcquisitionBadge, backfillAdvancedAcquisitionBadge, backfillCoinPurchaseEarnings, syncTotalCoinsEarnedFloor, seedBrawlerBadges, backfillBrawlerBadges } from "./routes";
+import { registerRoutes, backfillFisherBadges, backfillFishBookBadges, backfillMinorAcquisitionBadge, backfillAdvancedAcquisitionBadge, backfillCoinPurchaseEarnings, syncTotalCoinsEarnedFloor, seedBrawlerBadges, backfillBrawlerBadges } from "./routes";
 
 import { seedSampleTemplates } from "./seedSampleTemplates";
 import { serveStatic } from "./static";
@@ -3458,8 +3458,15 @@ app.use((req, res, next) => {
     console.log("migration ok: player_aquarium_unlocks table");
   } catch (err) { console.error("player_aquarium_unlocks migration error (non-fatal):", err); }
 
+  // Add total_fish_caught counter column (idempotent — safe to re-run on every boot)
+  try {
+    await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS total_fish_caught INTEGER NOT NULL DEFAULT 0`);
+  } catch (err) { console.error("total_fish_caught migration error (non-fatal):", err); }
+
   await seedBrawlerBadges();
   await backfillBrawlerBadges();
+  await backfillFisherBadges();
+  await backfillFishBookBadges();
   await backfillMinorAcquisitionBadge();
   await backfillAdvancedAcquisitionBadge();
   await backfillCoinPurchaseEarnings();
