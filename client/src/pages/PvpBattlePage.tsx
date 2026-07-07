@@ -8,7 +8,7 @@ import { ArrowLeft, X } from "lucide-react";
 import type { BattlePotionSlot } from "@/components/BattleArena";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
-import skullDefeatIcon from "@assets/generated_images/icon_skull_defeat.png";
+import skullDefeatIcon from "@assets/Photoroom_20260705_103527_PM_1783426783499.png";
 import forestBgImg from "@assets/BFBD86D5-7E52-470D-949E-AC6D2FF39A5D_1783425029013.png";
 
 interface Opponent {
@@ -1385,7 +1385,7 @@ export default function PvpBattlePage({
     // browser's native gesture system here is safe.
     <div className="fixed inset-0 flex flex-col" style={{ zIndex: 10000, fontFamily: "Lora, serif", touchAction: "none" }}>
       <style>{`
-        @keyframes koSpin { 0%{transform:translate(-50%,-50%) scale(1) rotate(0deg);opacity:1} 100%{transform:translate(-50%,-50%) scale(0.3) rotate(720deg);opacity:0} }
+        @keyframes koSpin { 0%{transform:translate(-50%,-50%) scale(1.2) rotate(-8deg);opacity:1;filter:drop-shadow(0 0 10px rgba(255,255,255,0.8))} 40%{transform:translate(-50%,-80%) scale(1.35) rotate(10deg);opacity:1} 100%{transform:translate(-50%,-120%) scale(0.2) rotate(720deg);opacity:0;filter:drop-shadow(0 0 2px rgba(255,255,255,0.2))} }
         @keyframes bSpark { to { transform: translate(calc(var(--dx)*14px), calc(var(--dy)*14px)); opacity:0; } }
         @keyframes bFloat { 0%{opacity:1;transform:translateY(0)} 100%{opacity:0;transform:translateY(-38px)} }
         @keyframes bIdle { 0%,100%{transform:translate(-50%,-50%)} 50%{transform:translate(-50%,calc(-50% - 4px))} }
@@ -1410,7 +1410,7 @@ export default function PvpBattlePage({
         @keyframes koBreathe { 0%,100%{opacity:0.78;filter:grayscale(1) brightness(0.46) contrast(1.08) sepia(0.35) hue-rotate(175deg) saturate(1.6)} 50%{opacity:0.92;filter:grayscale(1) brightness(0.58) contrast(1.08) sepia(0.35) hue-rotate(175deg) saturate(1.6)} }
         /* Skull badge gentle pulse — sits above the fallen pet and
            telegraphs "knocked out" at a glance. */
-        @keyframes koSkullPulse { 0%,100%{transform:translate(-50%,0) scale(0.94);opacity:0.85;filter:drop-shadow(0 0 4px rgba(239,68,68,0.55)) drop-shadow(0 0 10px rgba(239,68,68,0.35))} 50%{transform:translate(-50%,-2px) scale(1.04);opacity:1;filter:drop-shadow(0 0 6px rgba(248,113,113,0.85)) drop-shadow(0 0 14px rgba(239,68,68,0.6))} }
+        @keyframes koSkullPulse { 0%,100%{transform:translate(-50%,-50%) scale(0.94);opacity:0.9;filter:drop-shadow(0 0 4px rgba(0,0,0,0.6)) drop-shadow(0 2px 6px rgba(0,0,0,0.5))} 50%{transform:translate(-50%,calc(-50% - 3px)) scale(1.05);opacity:1;filter:drop-shadow(0 0 8px rgba(0,0,0,0.7)) drop-shadow(0 2px 8px rgba(0,0,0,0.6))} }
         @keyframes bShake { 0%,100%{margin-left:0} 20%{margin-left:-4px} 40%{margin-left:4px} 60%{margin-left:-3px} 80%{margin-left:2px} }
         /* Pet-image glow applied via filter: drop-shadow so it traces
            the actual silhouette of the sprite (rather than a circular
@@ -1916,11 +1916,11 @@ export default function PvpBattlePage({
                     className="absolute pointer-events-none"
                     style={{
                       left: "50%",
-                      top: `${Math.round(size * 0.04)}px`,
-                      width: Math.round(size * 0.34),
-                      height: Math.round(size * 0.34),
+                      top: "50%",
+                      width: Math.round(size * 0.58),
+                      height: Math.round(size * 0.58),
                       objectFit: "contain",
-                      transform: "translateX(-50%)",
+                      transform: "translate(-50%, -50%)",
                       animation: "koSkullPulse 2.4s ease-in-out infinite",
                       zIndex: 5,
                     }}
@@ -1995,21 +1995,18 @@ export default function PvpBattlePage({
             const pet = pets.find(p => p.uid === uid);
             if (!pet) return null;
             return (
-              <div key={uid} className="absolute pointer-events-none z-40" style={{ left: `${pet.x}%`, top: `${pet.y}%`, transform: "translate(-50%,-50%)" }}>
-                <div
+              <div key={uid} className="absolute pointer-events-none z-40" style={{ left: `${pet.x}%`, top: `${pet.y}%` }}>
+                <img
+                  src={skullDefeatIcon}
+                  alt=""
+                  draggable={false}
                   style={{
-                    fontFamily: "Lora, serif",
-                    fontWeight: 900,
-                    fontSize: 30,
-                    letterSpacing: "0.16em",
-                    color: "#fecaca",
-                    textShadow: "0 0 10px rgba(239,68,68,0.95), 0 0 22px rgba(239,68,68,0.6), 0 2px 4px rgba(0,0,0,0.7)",
-                    animation: "koSpin 1s ease-in forwards",
-                    whiteSpace: "nowrap",
+                    width: 52,
+                    height: 52,
+                    objectFit: "contain",
+                    animation: "koSpin 1.1s ease-in forwards",
                   }}
-                >
-                  X_X
-                </div>
+                />
               </div>
             );
           })}
