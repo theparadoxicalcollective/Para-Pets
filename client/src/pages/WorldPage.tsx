@@ -2337,7 +2337,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                                   : worldId === "swamp"
                                     ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1.5px rgba(167,243,208,0.9)) drop-shadow(0 0 5px rgba(45,212,191,0.5))"
                                     : worldId === "haunted_woods"
-                                      ? `drop-shadow(0 2px 5px rgba(0,0,0,0.65)) drop-shadow(0 0 2px ${glow}bb) drop-shadow(0 0 5px ${glow}44)`
+                                      ? "drop-shadow(0 2px 5px rgba(0,0,0,0.65)) drop-shadow(0 0 2px rgba(168,85,247,0.73)) drop-shadow(0 0 5px rgba(168,85,247,0.27))"
                                       : "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1.5px rgba(186,230,253,0.9)) drop-shadow(0 0 5px rgba(56,189,248,0.5))"
                                 // Non-fishing location icons (shops, NPCs, etc.) get a subtle
                                 // rim using the location's own glow colour so each icon has
@@ -2345,9 +2345,11 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                                 // (swamp) world uses a unified deep-forest-teal rim so the
                                 // icons feel of-a-piece with the swamp atmosphere instead
                                 // of each shouting its own colour.
-                                : worldId === "swamp"
-                                  ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px rgba(45,138,120,0.85)) drop-shadow(0 0 4px rgba(20,83,75,0.55))"
-                                  : `drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px ${glow}cc) drop-shadow(0 0 4px ${glow}55)`,
+                                : worldId === "haunted_woods"
+                                  ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px rgba(168,85,247,0.8)) drop-shadow(0 0 4px rgba(168,85,247,0.33))"
+                                  : worldId === "swamp"
+                                    ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px rgba(45,138,120,0.85)) drop-shadow(0 0 4px rgba(20,83,75,0.55))"
+                                    : `drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px ${glow}cc) drop-shadow(0 0 4px ${glow}55)`,
                               transform: loc.flipped ? "scaleX(-1)" : undefined,
                               transition: "filter 0.15s ease, transform 0.15s ease",
                             }}
