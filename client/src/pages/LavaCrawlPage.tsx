@@ -2,7 +2,16 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { useLocation as useWouter } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import lavaCrawlTitleImg from "@assets/Photoroom_20260707_55240_PM_1783466979177.png";
+import btnPlayImg from "@assets/Photoroom_20260707_55332_PM_1783466979177.png";
+import btnLeaderboardImg from "@assets/Photoroom_20260707_55415_PM_1783466979177.png";
+import btnBackToWorldImg from "@assets/Photoroom_20260707_55458_PM_1783466979177.png";
+import coinIconImg from "@assets/icon_coin.png";
 const LAVA_CAVE_BG = "/world-assets/AAC47494-B2BD-4B73-B01A-769E2C589AD7_1783461445112.png?w=1080";
+
+// Pre-load coin image for canvas HUD
+const _coinImg = new Image();
+_coinImg.src = coinIconImg;
 
 // ─── Game constants ─────────────────────────────────────────────────────────
 const LEVEL_W = 6400;
@@ -664,7 +673,12 @@ export default function LavaCrawlPage() {
       ctx.fillStyle = "#ffd700";
       ctx.font = "bold 14px monospace";
       ctx.textAlign = "right";
-      ctx.fillText(`🪙 ${s.coinsCollected}`, VW - 10, 26);
+      const coinCountStr = ` ${s.coinsCollected}`;
+      ctx.fillText(coinCountStr, VW - 10, 26);
+      if (_coinImg.complete && _coinImg.naturalWidth > 0) {
+        const textW = ctx.measureText(coinCountStr).width;
+        ctx.drawImage(_coinImg, VW - 10 - textW - 18, 9, 18, 18);
+      }
 
       // Progress bar
       const prog = Math.min(s.px / (LEVEL_W - 100), 1);
@@ -836,20 +850,26 @@ export default function LavaCrawlPage() {
       {/* ── START screen ────────────────────────────────────────────────────── */}
       {screen === "start" && (
         <div style={panelStyle}>
-          <div style={titleStyle}>🌋 LAVA CRAWL</div>
+          <img src={lavaCrawlTitleImg} alt="Lava Crawl" draggable={false} style={{ width: "min(300px, 85vw)", height: "auto", marginBottom: "4px" }} />
           <div style={subStyle}>
             Run & jump through the volcanic cavern.<br />
             Collect coins, stomp enemies, reach the exit!
           </div>
           {myBest && myBest.best > 0 && (
             <div style={{ color: "#ffd080", fontSize: "13px", marginBottom: "16px", fontFamily: "monospace" }}>
-              Your best: <strong>{myBest.best}</strong> pts · <strong>{myBest.bestCoins}</strong> 🪙
+              Your best: <strong>{myBest.best}</strong> pts · <strong>{myBest.bestCoins}</strong> <img src={coinIconImg} alt="coins" style={{ width: 14, height: 14, objectFit: "contain", verticalAlign: "middle" }} />
             </div>
           )}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <button data-testid="button-lava-start" style={btnStyle("#ff8800")} onClick={startGame}>▶  Play</button>
-            <button data-testid="button-lava-leaderboard-start" style={btnStyle("#ffd080")} onClick={goLeaderboard}>🏆  Leaderboard</button>
-            <button data-testid="button-lava-back-start" style={btnStyle("rgba(255,200,100,0.5)")} onClick={() => navigate("/world/volcanic")}>← Volcanic Isle</button>
+            <button data-testid="button-lava-start" onClick={startGame} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, margin: "6px" }}>
+              <img src={btnPlayImg} alt="Play" draggable={false} style={{ width: "min(220px, 70vw)", height: "auto" }} />
+            </button>
+            <button data-testid="button-lava-leaderboard-start" onClick={goLeaderboard} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, margin: "6px" }}>
+              <img src={btnLeaderboardImg} alt="Leaderboard" draggable={false} style={{ width: "min(220px, 70vw)", height: "auto" }} />
+            </button>
+            <button data-testid="button-lava-back-start" onClick={() => navigate("/world/volcanic")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, margin: "6px" }}>
+              <img src={btnBackToWorldImg} alt="Back to World" draggable={false} style={{ width: "min(220px, 70vw)", height: "auto" }} />
+            </button>
           </div>
           <div style={{ marginTop: "20px", color: "rgba(255,200,100,0.45)", fontSize: "11px", textAlign: "center", fontFamily: "monospace" }}>
             Arrow keys / WASD to move · Space / Up to jump<br />Esc to pause
@@ -872,7 +892,7 @@ export default function LavaCrawlPage() {
         <div style={panelStyle}>
           <div style={{ ...titleStyle, color: "#ff3030", fontSize: "30px" }}>💀 GAME OVER</div>
           <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "15px", marginBottom: "8px" }}>Score: <strong>{endScore}</strong></div>
-          <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "14px", marginBottom: "20px" }}>Coins earned: <strong>{endCoins}</strong> 🪙</div>
+          <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "14px", marginBottom: "20px" }}>Coins earned: <strong>{endCoins}</strong> <img src={coinIconImg} alt="coins" style={{ width: 14, height: 14, objectFit: "contain", verticalAlign: "middle" }} /></div>
           {newBest && <div style={{ color: "#ffd700", fontSize: "14px", marginBottom: "12px", fontFamily: "serif", textShadow: "0 0 10px gold" }}>⭐ New Personal Best!</div>}
           <button data-testid="button-lava-restart-gameover" style={btnStyle("#ff8800")} onClick={startGame}>↺  Try Again</button>
           <button data-testid="button-lava-leaderboard-gameover" style={btnStyle("#ffd080")} onClick={goLeaderboard}>🏆  Leaderboard</button>
@@ -886,7 +906,7 @@ export default function LavaCrawlPage() {
           <div style={{ ...titleStyle, color: "#00ff88", fontSize: "30px" }}>🏆 VICTORY!</div>
           <div style={subStyle}>You escaped the lava cavern!</div>
           <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "15px", marginBottom: "4px" }}>Score: <strong>{endScore}</strong></div>
-          <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "14px", marginBottom: "4px" }}>Coins earned: <strong>{endCoins}</strong> 🪙 added to balance</div>
+          <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "14px", marginBottom: "4px" }}>Coins earned: <strong>{endCoins}</strong> <img src={coinIconImg} alt="coins" style={{ width: 14, height: 14, objectFit: "contain", verticalAlign: "middle" }} /> added to balance</div>
           <div style={{ color: "#aaa", fontFamily: "monospace", fontSize: "12px", marginBottom: "20px" }}>Lives remaining: <strong>{endLives}</strong></div>
           {newBest && <div style={{ color: "#ffd700", fontSize: "14px", marginBottom: "12px", fontFamily: "serif", textShadow: "0 0 10px gold" }}>⭐ New Personal Best!</div>}
           <button data-testid="button-lava-restart-victory" style={btnStyle("#ff8800")} onClick={startGame}>↺  Play Again</button>
@@ -916,7 +936,7 @@ export default function LavaCrawlPage() {
                   </span>
                   <span style={{ flex: 1, color: "#ffd080", fontFamily: "monospace", fontSize: "13px" }}>{row.username}</span>
                   <span style={{ color: "#ff8800", fontFamily: "monospace", fontSize: "13px", fontWeight: "bold" }}>{row.best_score}</span>
-                  <span style={{ color: "#ffd700", fontFamily: "monospace", fontSize: "12px" }}>🪙{row.best_coins}</span>
+                  <span style={{ color: "#ffd700", fontFamily: "monospace", fontSize: "12px", display: "flex", alignItems: "center", gap: "2px" }}><img src={coinIconImg} alt="coins" style={{ width: 12, height: 12, objectFit: "contain" }} />{row.best_coins}</span>
                 </div>
               ))}
             </div>
