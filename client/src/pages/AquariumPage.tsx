@@ -7,7 +7,6 @@ import closeIcon from "@assets/Photoroom_20260706_95641_PM_1783394294636.png";
 import arrowIcon from "@assets/Photoroom_20260706_94656_PM_1783394294636.png";
 import lockIcon from "@assets/Photoroom_20260706_104316_PM_1783395823714.png";
 import coinIcon from "@assets/icon_coin.png";
-import fishCommonIconPH from "@assets/icon_fish_common.png";
 import fishInvIconPH from "@assets/icon_fish_inventory.png";
 
 interface AqCaughtFish {
@@ -639,7 +638,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
               ? <FishPartsView fishItemId={f.shopItemId} size={fishSize} flipped={((f.facingDirection !== "left") !== f.facingRight)} isSeaAnimal={f.isSeaAnimal ?? false} />
               : f.imageUrl
                 ? <img src={f.imageUrl} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", userSelect: "none", transform: ((f.facingDirection !== "left") !== f.facingRight) ? "scaleX(-1)" : undefined }} draggable={false} />
-                : <img src={fishCommonIconPH} alt="" style={{ width: 34, height: 34, objectFit: "contain", opacity: 0.7, pointerEvents: "none", userSelect: "none" }} draggable={false} />}
+                : <img src={fishInvIconPH} alt="" style={{ width: 34, height: 34, objectFit: "contain", opacity: 0.7, pointerEvents: "none", userSelect: "none" }} draggable={false} />}
           </button>
         );
       })}
@@ -824,7 +823,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
                       <div style={{ width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
                         {item?.imageUrl
                           ? <img src={item.imageUrl} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                          : <img src={fishCommonIconPH} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.7 }} />}
+                          : <img src={fishInvIconPH} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.7 }} />}
                       </div>
                       <span className="font-fantasy text-[8px] text-center leading-tight w-full truncate" style={{ color: "rgba(94,234,212,0.82)" }}>{item?.name || "Unknown"}</span>
                       <div className="flex items-center gap-1">
@@ -860,7 +859,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
             <div style={{ width: 60, height: 60, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", filter: "drop-shadow(0 0 10px rgba(94,234,212,0.5))" }}>
               {pendingRemove.imageUrl
                 ? <img src={pendingRemove.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} draggable={false} />
-                : <img src={fishCommonIconPH} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.7 }} draggable={false} />}
+                : <img src={fishInvIconPH} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", opacity: 0.7 }} draggable={false} />}
             </div>
             <p className="font-fantasy text-[11px] tracking-wider text-center mb-1" style={{ color: AQ_TEAL }}>{pendingRemove.name}</p>
             {pendingRemove.starRarity && pendingRemove.starRarity > 0 && (
@@ -1015,7 +1014,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         }}>
           {dragging.fish.imageUrl
             ? <img src={dragging.fish.imageUrl} alt="" style={{ width: 40, height: 40, objectFit: "contain" }} draggable={false} />
-            : <img src={fishCommonIconPH} alt="" style={{ width: 40, height: 40, objectFit: "contain", opacity: 0.7 }} draggable={false} />}
+            : <img src={fishInvIconPH} alt="" style={{ width: 40, height: 40, objectFit: "contain", opacity: 0.7 }} draggable={false} />}
         </div>
       )}
     </div>
