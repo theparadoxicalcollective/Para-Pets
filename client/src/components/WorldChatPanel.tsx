@@ -1,11 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { X, Send, ShieldAlert, BellOff, Bell } from "lucide-react";
-import RoleBadge from "@/components/RoleBadge";
-import PlayerDetailPanel from "@/components/PlayerDetailPanel";
+import { X, Bell, BellOff } from "lucide-react";
 import veridianWatcherAvatar from "@assets/generated_images/veridian_watcher_avatar.png";
-import { playClick, playTick } from "@/lib/sounds";
+import { playClick } from "@/lib/sounds";
 
 interface WorldChatMessage {
   id: string;
@@ -21,8 +19,6 @@ interface WorldChatMessage {
 
 interface WorldChatPanelProps {
   currentUserId: string;
-  isAdmin?: boolean;
-  isModerator?: boolean;
   onClose: () => void;
   onNewMessage?: () => void;
 }
@@ -31,7 +27,6 @@ const GOLD = "#f0c040";
 const VW_COLOR = "#5eead4";
 const VW_BG = "linear-gradient(135deg, rgba(20,80,70,0.55) 0%, rgba(10,50,44,0.55) 100%)";
 const VW_BORDER = "1px solid rgba(94,234,212,0.35)";
-const MAX_LENGTH = 150;
 
 function timeAgo(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -40,19 +35,11 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 3600)}h`;
 }
 
-export default function WorldChatPanel({ currentUserId, isAdmin, isModerator, onClose, onNewMessage }: WorldChatPanelProps) {
-  const [input, setInput] = useState("");
-  const [cooldown, setCooldown] = useState(0);
-  const [popupMsg, setPopupMsg] = useState<string | null>(null);
-  const [popupIsRestricted, setPopupIsRestricted] = useState(false);
-  const [viewingPlayerId, setViewingPlayerId] = useState<string | null>(null);
-  const [inputFocused, setInputFocused] = useState(false);
+export default function WorldChatPanel({ currentUserId: _currentUserId, onClose, onNewMessage }: WorldChatPanelProps) {
   const [showShoutoutConfirm, setShowShoutoutConfirm] = useState(false);
   const lastMsgCountRef = useRef(0);
   const listRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
   const qc = useQueryClient();
-
 
   const { data: shoutoutPref } = useQuery<{ enabled: boolean }>({
     queryKey: ["/api/user/watcher-shoutouts"],
@@ -74,15 +61,15 @@ export default function WorldChatPanel({ currentUserId, isAdmin, isModerator, on
     staleTime: 0,
   });
 
-  const visibleMessages = messages;
+  // Only show Watcher announcements — player messages are no longer posted
+  const announcements = messages.filter(m => !!m.isBot);
 
   useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
-  }, [visibleMessages.length]);
+  }, [announcements.length]);
 
-  // Notify parent when new messages arrive (for glow effect on chat button)
   useEffect(() => {
     if (messages.length > lastMsgCountRef.current) {
       if (lastMsgCountRef.current > 0 && onNewMessage) {
@@ -91,50 +78,6 @@ export default function WorldChatPanel({ currentUserId, isAdmin, isModerator, on
       lastMsgCountRef.current = messages.length;
     }
   }, [messages.length, onNewMessage]);
-
-  useEffect(() => {
-    if (cooldown <= 0) return;
-    const t = setTimeout(() => setCooldown(c => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [cooldown]);
-
-  const sendMutation = useMutation({
-    mutationFn: (msg: string) => apiRequest("POST", "/api/world-chat", { message: msg }),
-    onSuccess: () => {
-      setInput("");
-      qc.invalidateQueries({ queryKey: ["/api/world-chat"] });
-    },
-    onError: (err: any) => {
-      let body: any = {};
-      try {
-        const raw = err?.message ?? "";
-        const jsonStart = raw.indexOf("{");
-        if (jsonStart !== -1) body = JSON.parse(raw.slice(jsonStart));
-      } catch {}
-      if (body?.retryAfter) {
-        setCooldown(body.retryAfter);
-        setPopupIsRestricted(false);
-        setPopupMsg(`Please wait ${body.retryAfter}s before sending again.`);
-      } else {
-        setPopupIsRestricted(!!body?.restricted);
-        setPopupMsg(body?.message ?? "Something went wrong. Please try again.");
-      }
-    },
-  });
-
-  function handleSend() {
-    const trimmed = input.trim();
-    if (!trimmed || cooldown > 0 || sendMutation.isPending) return;
-    playTick();
-    sendMutation.mutate(trimmed);
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  }
 
   return (
     <div
@@ -159,20 +102,16 @@ export default function WorldChatPanel({ currentUserId, isAdmin, isModerator, on
       {showShoutoutConfirm && (
         <div
           className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center"
-          style={{
-            background: "rgba(6,3,1,0.97)",
-            zIndex: 10,
-            borderRadius: 15,
-          }}
+          style={{ background: "rgba(6,3,1,0.97)", zIndex: 10, borderRadius: 15 }}
         >
           <Bell size={28} style={{ color: VW_COLOR }} />
-          <p className="text-sm font-semibold" style={{ color: "#f0c040" }}>
-            {shoutoutsEnabled ? "Turn off world chat shout outs?" : "Turn on world chat shout outs?"}
+          <p className="text-sm font-semibold" style={{ color: GOLD }}>
+            {shoutoutsEnabled ? "Turn off Watcher shout outs?" : "Turn on Watcher shout outs?"}
           </p>
           <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
             {shoutoutsEnabled
-              ? "The Veridian Watcher will no longer mention your name in world chat announcements."
-              : "Allow the Veridian Watcher to mention your name in world chat announcements."}
+              ? "The Veridian Watcher will no longer mention your name in announcements."
+              : "Allow the Veridian Watcher to mention your name in announcements."}
           </p>
           <div className="flex gap-3 mt-1">
             <button
@@ -202,19 +141,19 @@ export default function WorldChatPanel({ currentUserId, isAdmin, isModerator, on
         style={{ borderBottom: "1px solid rgba(240,192,64,0.15)" }}
       >
         <div className="flex items-center gap-2">
-          <div
-            className="w-2 h-2 rounded-full"
-            style={{ background: "#4ade80", boxShadow: "0 0 6px #4ade80" }}
+          <img
+            src={veridianWatcherAvatar}
+            alt="Veridian Watcher"
+            style={{ width: 18, height: 18, objectFit: "cover", borderRadius: "50%", border: "1px solid rgba(94,234,212,0.5)", boxShadow: "0 0 6px rgba(94,234,212,0.3)" }}
           />
           <span
             className="font-fantasy tracking-widest"
-            style={{ color: GOLD, fontSize: 10, letterSpacing: "0.2em" }}
+            style={{ color: VW_COLOR, fontSize: 10, letterSpacing: "0.18em" }}
           >
-            WORLD CHAT
+            THE VERIDIAN WATCHER
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          {/* Shoutout toggle — opens confirmation */}
           <button
             data-testid="button-toggle-shoutouts"
             onClick={() => setShowShoutoutConfirm(true)}
@@ -247,269 +186,87 @@ export default function WorldChatPanel({ currentUserId, isAdmin, isModerator, on
         </div>
       </div>
 
-      {/* Message list */}
+      {/* Announcement list */}
       <div
         ref={listRef}
         className="flex-1 overflow-y-auto px-3 py-2 space-y-2"
-        style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(240,192,64,0.15) transparent" }}
+        style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(94,234,212,0.15) transparent" }}
       >
-        {visibleMessages.length === 0 && (
+        {announcements.length === 0 && (
           <p
             className="font-fantasy text-center"
-            style={{ color: "rgba(200,184,150,0.4)", fontSize: 11, marginTop: 60 }}
+            style={{ color: "rgba(94,234,212,0.35)", fontSize: 11, marginTop: 60 }}
           >
-            No messages yet. Say hello!
+            The Watcher observes in silence…
           </p>
         )}
-        {visibleMessages.map(msg => {
-          const isMe = msg.userId === currentUserId;
-          const isBot = !!msg.isBot;
-          return (
+        {announcements.map(msg => (
+          <div
+            key={msg.id}
+            data-testid={`chat-message-${msg.id}`}
+            className="flex gap-2 items-start"
+          >
+            {/* Avatar */}
             <div
-              key={msg.id}
-              data-testid={`chat-message-${msg.id}`}
-              className="flex gap-2 items-start"
-              style={{ flexDirection: isBot ? "row" : isMe ? "row-reverse" : "row" }}
+              className="flex-shrink-0 rounded-full overflow-hidden flex items-center justify-center"
+              style={{
+                width: 28, height: 28,
+                background: "linear-gradient(135deg, #0a3a32 0%, #1a5a4e 100%)",
+                border: "1.5px solid rgba(94,234,212,0.55)",
+                boxShadow: "0 0 8px rgba(94,234,212,0.3)",
+              }}
             >
-              {/* Avatar */}
-              <div
-                className="flex-shrink-0 rounded-full overflow-hidden flex items-center justify-center"
-                data-testid={`button-chat-avatar-${msg.userId}`}
-                onClick={() => !isMe && !isBot && setViewingPlayerId(msg.userId)}
-                style={{
-                  width: 28, height: 28,
-                  background: isBot
-                    ? "linear-gradient(135deg, #0a3a32 0%, #1a5a4e 100%)"
-                    : "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)",
-                  border: isBot
-                    ? `1.5px solid rgba(94,234,212,0.55)`
-                    : `1.5px solid ${isMe ? "rgba(240,192,64,0.5)" : "rgba(127,255,212,0.3)"}`,
-                  cursor: isMe || isBot ? "default" : "pointer",
-                  boxShadow: isBot ? "0 0 8px rgba(94,234,212,0.3)" : undefined,
-                }}
-              >
-                {isBot ? (
-                  <img
-                    src={veridianWatcherAvatar}
-                    alt="Veridian Watcher"
-                    className="w-full h-full object-cover"
-                    data-testid={`img-watcher-avatar-${msg.id}`}
-                  />
-                ) : msg.profileImage ? (
-                  <img src={msg.profileImage} alt={msg.username} className="w-full h-full object-cover" />
-                ) : (
-                  <span style={{ color: GOLD, fontSize: 10, fontWeight: "bold" }}>
-                    {msg.username.charAt(0).toUpperCase()}
-                  </span>
-                )}
-              </div>
-              {/* Bubble */}
-              <div style={{ maxWidth: "80%", textAlign: isBot ? "left" : isMe ? "right" : "left" }}>
-                <div className="flex items-center gap-1.5 mb-0.5" style={{ flexDirection: isBot ? "row" : isMe ? "row-reverse" : "row" }}>
-                  <span
-                    className="font-fantasy"
-                    style={{
-                      color: isBot ? VW_COLOR : isMe ? GOLD : "#7fffd4",
-                      fontSize: 9,
-                      letterSpacing: "0.05em",
-                      cursor: (!isMe && !isBot) ? "pointer" : "default",
-                    }}
-                    onClick={() => !isMe && !isBot && setViewingPlayerId(msg.userId)}
-                  >
-                    {msg.username}
-                  </span>
-                  {isBot && (
-                    <span
-                      style={{
-                        fontSize: 7,
-                        padding: "1px 4px",
-                        borderRadius: 4,
-                        background: "rgba(94,234,212,0.15)",
-                        border: "1px solid rgba(94,234,212,0.4)",
-                        color: VW_COLOR,
-                        letterSpacing: "0.08em",
-                        fontFamily: "Lora, serif",
-                      }}
-                    >
-                      WATCHER
-                    </span>
-                  )}
-                  {!isBot && <RoleBadge isAdmin={msg.isAdmin} isModerator={msg.isModerator} />}
-                  <span style={{ color: "rgba(200,184,150,0.3)", fontSize: 8 }}>{timeAgo(msg.createdAt)}</span>
-                </div>
-                <div
-                  className="font-sans break-words"
+              <img
+                src={veridianWatcherAvatar}
+                alt="Veridian Watcher"
+                className="w-full h-full object-cover"
+                data-testid={`img-watcher-avatar-${msg.id}`}
+              />
+            </div>
+            {/* Bubble */}
+            <div style={{ maxWidth: "80%" }}>
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="font-fantasy" style={{ color: VW_COLOR, fontSize: 9, letterSpacing: "0.05em" }}>
+                  {msg.username}
+                </span>
+                <span
                   style={{
-                    display: "inline-block",
-                    padding: "5px 9px",
-                    borderRadius: isMe && !isBot ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
-                    background: isBot
-                      ? VW_BG
-                      : isMe
-                        ? "linear-gradient(135deg, rgba(240,192,64,0.18) 0%, rgba(180,130,10,0.15) 100%)"
-                        : "rgba(255,255,255,0.06)",
-                    border: isBot
-                      ? VW_BORDER
-                      : isMe
-                        ? "1px solid rgba(240,192,64,0.25)"
-                        : "1px solid rgba(255,255,255,0.08)",
-                    color: isBot ? "#b2f5e8" : "#e8dcc8",
-                    fontSize: 12,
-                    lineHeight: 1.4,
-                    maxWidth: "100%",
-                    wordBreak: "break-word",
-                    boxShadow: isBot ? "0 0 12px rgba(94,234,212,0.1)" : undefined,
+                    fontSize: 7,
+                    padding: "1px 4px",
+                    borderRadius: 4,
+                    background: "rgba(94,234,212,0.15)",
+                    border: "1px solid rgba(94,234,212,0.4)",
+                    color: VW_COLOR,
+                    letterSpacing: "0.08em",
+                    fontFamily: "Lora, serif",
                   }}
                 >
-                  {msg.message}
-                </div>
+                  WATCHER
+                </span>
+                <span style={{ color: "rgba(200,184,150,0.3)", fontSize: 8 }}>{timeAgo(msg.createdAt)}</span>
+              </div>
+              <div
+                className="font-sans break-words"
+                style={{
+                  display: "inline-block",
+                  padding: "5px 9px",
+                  borderRadius: "12px 12px 12px 4px",
+                  background: VW_BG,
+                  border: VW_BORDER,
+                  color: "#b2f5e8",
+                  fontSize: 12,
+                  lineHeight: 1.4,
+                  maxWidth: "100%",
+                  wordBreak: "break-word",
+                  boxShadow: "0 0 12px rgba(94,234,212,0.1)",
+                }}
+              >
+                {msg.message}
               </div>
             </div>
-          );
-        })}
-        {/* Blinking typing cursor */}
-        {inputFocused && (
-          <div className="px-3 pt-1 pb-0.5 flex items-center gap-1.5">
-            <span className="chat-cursor-blink" style={{ fontSize: 13, color: "rgba(240,192,64,0.55)", lineHeight: 1 }}>𖤓</span>
-            <span style={{ fontSize: 9, color: "rgba(200,184,150,0.35)", fontFamily: "Lora, serif", letterSpacing: "0.05em" }}>composing…</span>
           </div>
-        )}
+        ))}
       </div>
-
-      {/* Input area */}
-      <form
-        className="flex-shrink-0 px-2 pb-2 pt-1.5"
-        style={{ borderTop: "1px solid rgba(240,192,64,0.12)" }}
-        onSubmit={e => { e.preventDefault(); handleSend(); }}
-      >
-        <div className="flex gap-2 items-end">
-          <span style={{ fontSize: 18, color: "rgba(240,192,64,0.45)", lineHeight: 1, flexShrink: 0, paddingBottom: 10, userSelect: "none" }}>⧽</span>
-          <div className="flex-1 relative">
-            <textarea
-              ref={inputRef}
-              data-testid="input-world-chat"
-              value={input}
-              onChange={e => setInput(e.target.value.slice(0, MAX_LENGTH))}
-              onKeyDown={handleKeyDown}
-              onFocus={() => setInputFocused(true)}
-              onBlur={() => setInputFocused(false)}
-              placeholder="Say something... (emojis welcome!)"
-              rows={2}
-              enterKeyHint="send"
-              inputMode="text"
-              className="w-full font-sans resize-none"
-              style={{
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(240,192,64,0.25)",
-                borderRadius: 10,
-                color: "#e8dcc8",
-                fontSize: 12,
-                padding: "7px 10px",
-                outline: "none",
-                lineHeight: 1.4,
-                maxHeight: 72,
-                overflow: "auto",
-                scrollbarWidth: "none",
-              }}
-            />
-            {input.length > 100 && (
-              <span
-                className="absolute bottom-1.5 right-2"
-                style={{ fontSize: 8, color: input.length >= MAX_LENGTH ? "#f87171" : "rgba(200,184,150,0.5)" }}
-              >
-                {MAX_LENGTH - input.length}
-              </span>
-            )}
-          </div>
-          <button
-            type="submit"
-            data-testid="button-send-world-chat"
-            disabled={!input.trim() || cooldown > 0 || sendMutation.isPending}
-            className="flex-shrink-0 flex items-center justify-center rounded-xl transition-transform active:scale-90"
-            style={{
-              width: 36, height: 36,
-              background: cooldown > 0
-                ? "rgba(200,184,150,0.08)"
-                : "linear-gradient(135deg, rgba(240,192,64,0.3) 0%, rgba(180,130,10,0.25) 100%)",
-              border: cooldown > 0
-                ? "1px solid rgba(200,184,150,0.2)"
-                : "1px solid rgba(240,192,64,0.45)",
-              cursor: cooldown > 0 ? "default" : "pointer",
-              color: cooldown > 0 ? "rgba(200,184,150,0.3)" : GOLD,
-            }}
-          >
-            {cooldown > 0 ? (
-              <span style={{ fontSize: 9, fontWeight: "bold" }}>{cooldown}s</span>
-            ) : (
-              <Send size={14} />
-            )}
-          </button>
-        </div>
-      </form>
-
-      {/* In-panel error/restricted popup */}
-      {popupMsg && (
-        <div
-          className="absolute inset-0 flex items-center justify-center px-4"
-          style={{ background: "rgba(4,2,1,0.92)", zIndex: 10 }}
-        >
-          <div
-            className="w-full rounded-2xl px-4 py-5 flex flex-col items-center gap-3"
-            style={{
-              background: popupIsRestricted
-                ? "linear-gradient(160deg, rgba(80,10,10,0.98) 0%, rgba(40,5,5,0.98) 100%)"
-                : "linear-gradient(160deg, rgba(20,12,4,0.98) 0%, rgba(10,6,2,0.98) 100%)",
-              border: `1.5px solid ${popupIsRestricted ? "rgba(248,113,113,0.5)" : "rgba(212,160,23,0.4)"}`,
-              boxShadow: popupIsRestricted
-                ? "0 0 30px rgba(248,113,113,0.15)"
-                : "0 0 30px rgba(212,160,23,0.1)",
-            }}
-          >
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center"
-              style={{
-                background: popupIsRestricted ? "rgba(248,113,113,0.15)" : "rgba(240,192,64,0.12)",
-                border: `1.5px solid ${popupIsRestricted ? "rgba(248,113,113,0.4)" : "rgba(240,192,64,0.3)"}`,
-              }}
-            >
-              <ShieldAlert size={18} style={{ color: popupIsRestricted ? "#f87171" : GOLD }} />
-            </div>
-            <p
-              className="font-fantasy text-center text-xs leading-relaxed"
-              style={{ color: popupIsRestricted ? "#f87171" : GOLD }}
-            >
-              {popupIsRestricted ? "Message Restricted" : "Cannot Send"}
-            </p>
-            <p
-              className="font-sans text-center leading-relaxed"
-              style={{ color: "rgba(200,184,150,0.8)", fontSize: 11 }}
-            >
-              {popupMsg}
-            </p>
-            <button
-              data-testid="button-dismiss-chat-popup"
-              onClick={() => setPopupMsg(null)}
-              className="px-6 py-1.5 rounded-full font-fantasy text-xs tracking-wider transition-transform active:scale-95"
-              style={{
-                background: popupIsRestricted ? "rgba(248,113,113,0.15)" : "rgba(240,192,64,0.12)",
-                border: `1px solid ${popupIsRestricted ? "rgba(248,113,113,0.4)" : "rgba(240,192,64,0.3)"}`,
-                color: popupIsRestricted ? "#f87171" : GOLD,
-                cursor: "pointer",
-              }}
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
-
-      {viewingPlayerId && (
-        <PlayerDetailPanel
-          userId={viewingPlayerId}
-          currentUserId={currentUserId}
-          onClose={() => setViewingPlayerId(null)}
-        />
-      )}
     </div>
   );
 }

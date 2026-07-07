@@ -1033,28 +1033,6 @@ export async function registerRoutes(
         if (!user.welcomeV2Sent) {
           try { await grantWelcomeV2Bundle(user.id); } catch (e) { console.error("Welcome v2 grant failed:", e); }
         }
-        // Veridian Watcher login greeting — strictly once per 3-hour window per user (persisted)
-        try {
-          if (user.watcherShoutoutsEnabled !== false) {
-            const now = Date.now();
-            const lastGreeted = user.lastWatcherGreetedAt ? new Date(user.lastWatcherGreetedAt).getTime() : 0;
-            const cooldownPassed = now - lastGreeted >= LOGIN_GREETING_COOLDOWN_MS;
-            if (cooldownPassed) {
-              await storage.setLastWatcherGreetedAt(user.id, new Date()).catch(() => {});
-              const greetings = [
-                `𖢻 Welcome back, ${user.username}! The realm stirs at your return.`,
-                `𖢻 Ah, ${user.username} arrives. The wilds have missed you.`,
-                `𖢻 ${user.username} steps into the realm once more. Adventure awaits!`,
-                `𖢻 The Watcher sees you, ${user.username}. May fortune guide your path.`,
-                `𖢻 ${user.username} has returned! The creatures of the realm rejoice.`,
-                `𖢻 Greetings, ${user.username}. The enchanted forests are yours to explore.`,
-                `𖢻 ${user.username} walks among us again. Good to have you back, traveller.`,
-              ];
-              const msg = greetings[Math.floor(Math.random() * greetings.length)];
-              await postWatcherMessage(msg);
-            }
-          }
-        } catch (e) { console.error("[VW] Login greeting failed:", e); }
         const freshUser = await storage.getUser(user.id);
         const { password: _, ...safeUser } = freshUser ?? user;
         // Log login event for metrics (fire-and-forget)
@@ -4119,21 +4097,6 @@ export async function registerRoutes(
     return res.json(online);
   });
 
-  // Online player count — admins only
-  app.get("/api/admin/online-count", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
-    if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-    try {
-      const result = await db.execute(
-        sql`SELECT COUNT(*)::int AS count FROM session WHERE expire > NOW() AND sess->'passport'->>'user' IS NOT NULL`
-      );
-      const total = (result.rows[0] as any)?.count ?? 0;
-      const inWorld = _worldClients.size;
-      return res.json({ total, inWorld });
-    } catch {
-      return res.status(500).json({ message: "Failed to get online count" });
-    }
-  });
 
   app.patch("/api/world/pet_world/pet-position", isAuthenticated, async (req: Request, res: Response) => {
     try {
@@ -8530,40 +8493,6 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/world-chat", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const { message } = req.body;
-      if (!message || typeof message !== "string") return res.status(400).json({ message: "Message required" });
-      const trimmed = message.trim();
-      if (!trimmed || trimmed.length > CHAT_MAX_LENGTH) {
-        return res.status(400).json({ message: `Message must be 1–${CHAT_MAX_LENGTH} characters` });
-      }
-      if (await containsBadWord(trimmed)) {
-        return res.status(400).json({ message: "Your message contains restricted content and could not be sent.", restricted: true });
-      }
-      const last = await storage.getLastWorldChatByUser(user.id);
-      if (last) {
-        const elapsed = Date.now() - new Date(last.createdAt).getTime();
-        if (elapsed < CHAT_COOLDOWN_MS) {
-          const wait = Math.ceil((CHAT_COOLDOWN_MS - elapsed) / 1000);
-          return res.status(429).json({ message: `Please wait ${wait}s before sending another message`, retryAfter: wait });
-        }
-      }
-      const fullUser = await storage.getUser(user.id);
-      const msg = await storage.addWorldChatMessage({
-        userId: user.id,
-        username: fullUser?.username ?? user.username,
-        profileImage: fullUser?.profileImage ?? null,
-        message: trimmed,
-      });
-      // Count-based purge: wipe ALL messages once 50 have accumulated
-      storage.purgeOldWorldChatMessages().catch(() => {});
-      return res.json(msg);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
 
   // ── Admin: Chat Filter Word Management ──────────────────────────────────────
   app.get("/api/admin/chat-filter", isAuthenticated, async (req, res) => {

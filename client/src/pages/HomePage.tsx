@@ -3,7 +3,7 @@ import { useLocation, useSearch } from "wouter";
 import { X, HelpCircle, Zap, Star, RotateCcw, ShieldPlus } from "lucide-react";
 import WorldChatPanel from "@/components/WorldChatPanel";
 import PetDetailPage from "@/components/PetDetailPage";
-import worldChatIconImg from "@assets/icon_world_chat_new.png";
+import worldChatIconImg from "@assets/admin_icon_veridian_watcher_transparent.png";
 import petActionRingImg from "@assets/Photoroom_20260611_74428_AM_1781181905848.png";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -1995,7 +1995,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           >
             <img
               src={worldChatIconImg}
-              alt="World Chat"
+              alt="The Veridian Watcher"
               style={{
                 width: "100%",
                 height: "100%",
@@ -2042,8 +2042,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           />
           <WorldChatPanel
             currentUserId={currentUser.id}
-            isAdmin={currentUser.isAdmin}
-            isModerator={currentUser.isModerator}
             onClose={() => setShowWorldChat(false)}
             onNewMessage={() => setChatHasNewMsg(true)}
           />
@@ -2154,13 +2152,13 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                 </div>
               </div>
 
-              {/* World Chat */}
+              {/* Veridian Watcher */}
               <div className="flex items-start gap-3">
-                <img src={worldChatIconImg} alt="World Chat" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1, borderRadius: "6px" }} />
+                <img src={worldChatIconImg} alt="The Veridian Watcher" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1, borderRadius: "6px" }} />
                 <div>
-                  <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">World Chat  <span style={{ color: "#6a5840", fontSize: "9px" }}>— top right</span></p>
+                  <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">The Veridian Watcher  <span style={{ color: "#6a5840", fontSize: "9px" }}>— top right</span></p>
                   <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
-                    Tap the glowing chat orb to talk with all keepers across the world in real time.
+                    Tap the Watcher icon to read announcements from the realm's all-seeing guardian.
                   </p>
                 </div>
               </div>

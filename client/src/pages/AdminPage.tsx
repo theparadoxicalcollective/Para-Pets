@@ -4211,12 +4211,7 @@ const tooltipSty = {
 };
 
 function OnlineNowPanel() {
-  const { data: counts, refetch, dataUpdatedAt } = useQuery<{ total: number; inWorld: number }>({
-    queryKey: ["/api/admin/online-count"],
-    refetchInterval: 30_000,
-    staleTime: 25_000,
-  });
-  const { data: inWorldPlayers = [] } = useQuery<any[]>({
+  const { data: inWorldPlayers = [], refetch, dataUpdatedAt } = useQuery<any[]>({
     queryKey: ["/api/world/pet_world/active-pets"],
     refetchInterval: 30_000,
     staleTime: 25_000,
@@ -4233,20 +4228,11 @@ function OnlineNowPanel() {
         >↻ Refresh</button>
       </div>
 
-      {/* Count cards */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-        <div style={{ ...metricCardSty, flex: 1, textAlign: "center" }}>
-          <p style={{ fontFamily: "Lora, serif", fontSize: 36, fontWeight: 700, color: "#a5f3fc", margin: 0 }}>
-            {counts?.total ?? "—"}
-          </p>
-          <p style={metricSubSty}>Total online sessions</p>
-        </div>
-        <div style={{ ...metricCardSty, flex: 1, textAlign: "center" }}>
-          <p style={{ fontFamily: "Lora, serif", fontSize: 36, fontWeight: 700, color: "#6ee7b7", margin: 0 }}>
-            {counts?.inWorld ?? "—"}
-          </p>
-          <p style={metricSubSty}>Currently in-world</p>
-        </div>
+      <div style={{ ...metricCardSty, flex: 1, textAlign: "center", marginBottom: 16 }}>
+        <p style={{ fontFamily: "Lora, serif", fontSize: 36, fontWeight: 700, color: "#6ee7b7", margin: 0 }}>
+          {inWorldPlayers.length}
+        </p>
+        <p style={metricSubSty}>Currently in-world</p>
       </div>
 
       {/* In-world player list */}
