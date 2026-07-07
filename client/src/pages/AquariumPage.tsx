@@ -574,14 +574,21 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         @keyframes aqStarPop      { 0% { transform:scale(1); } 50% { transform:scale(1.35); } 100% { transform:scale(1); } }
       `}</style>
 
-      {/* Background */}
-      <img
-        src={currentBg}
-        alt=""
-        className="absolute inset-0 w-full h-full object-cover"
-        draggable={false}
-        style={{ transition: "opacity 0.4s ease" }}
-      />
+      {/* Backgrounds — all three stacked, cross-fade via opacity so there's no flash on switch */}
+      {([["main", aquariumBg], ["bayou", bayouAquariumBg], ["volcanic", volcanicAquariumBg]] as const).map(([slot, src]) => (
+        <img
+          key={slot}
+          src={src}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          draggable={false}
+          style={{
+            opacity: activeAquarium === slot ? 1 : 0,
+            transition: "opacity 0.35s ease",
+            pointerEvents: "none",
+          }}
+        />
+      ))}
 
       {/* Dark gradient overlay */}
       <div className="absolute inset-0 pointer-events-none" style={{
@@ -686,7 +693,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         className="absolute z-50 active:scale-90 transition-transform"
         style={{ top: "calc(env(safe-area-inset-top, 0px) + 8px)", right: 8, background: "none", border: "none", cursor: "pointer", padding: 0 }}
       >
-        <img src={closeIcon} alt="Close" style={{ width: 44, height: 44, objectFit: "contain" }} draggable={false} />
+        <img src={closeIcon} alt="Close" style={{ width: 44, height: 44, objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.85))" }} draggable={false} />
       </button>
 
       {/* Star button — top-left, sets current aquarium as the default (opens first) */}
@@ -702,45 +709,56 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
           lineHeight: 1,
           display: "block",
           color: activeAquarium === defaultAquarium ? "#ffd700" : "rgba(180,180,180,0.45)",
-          textShadow: activeAquarium === defaultAquarium ? "0 0 10px rgba(255,215,0,0.65)" : "none",
+          textShadow: activeAquarium === defaultAquarium
+            ? "0 0 10px rgba(255,215,0,0.65), 0 2px 8px rgba(0,0,0,0.9)"
+            : "0 2px 8px rgba(0,0,0,0.9)",
           transition: "color 0.25s ease, text-shadow 0.25s ease",
-          animation: activeAquarium === defaultAquarium ? "none" : undefined,
         }}>★</span>
       </button>
 
-      {/* Right arrow — advance to next aquarium */}
-      {(activeAquarium === "main" || activeAquarium === "bayou") && (
-        <button
-          data-testid="button-aquarium-next"
-          onClick={() => { setActiveAquarium(activeAquarium === "main" ? "bayou" : "volcanic"); setShowPanel(false); }}
-          className="absolute z-30 active:scale-90 transition-transform"
-          style={{ right: 6, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-        >
-          <img
-            src={arrowIcon}
-            alt="Next aquarium"
-            style={{ width: 64, height: "auto", objectFit: "contain", transform: "scaleX(-1)", filter: "drop-shadow(0 0 8px rgba(94,234,212,0.4))" }}
-            draggable={false}
-          />
-        </button>
-      )}
+      {/* Right arrow — always rendered, hidden on volcanic to avoid mount/unmount glitch */}
+      <button
+        data-testid="button-aquarium-next"
+        onClick={() => { setActiveAquarium(activeAquarium === "main" ? "bayou" : "volcanic"); setShowPanel(false); }}
+        className="absolute z-30 active:scale-90 transition-transform"
+        style={{
+          right: 6, top: "50%", transform: "translateY(-50%)",
+          background: "none", border: "none", cursor: "pointer", padding: 0,
+          opacity: activeAquarium === "volcanic" ? 0 : 1,
+          pointerEvents: activeAquarium === "volcanic" ? "none" : "auto",
+          transition: "opacity 0.2s ease",
+        }}
+        aria-hidden={activeAquarium === "volcanic"}
+      >
+        <img
+          src={arrowIcon}
+          alt="Next aquarium"
+          style={{ width: 64, height: "auto", objectFit: "contain", transform: "scaleX(-1)", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.85)) drop-shadow(0 0 6px rgba(94,234,212,0.35))" }}
+          draggable={false}
+        />
+      </button>
 
-      {/* Left arrow — go back to previous aquarium */}
-      {(activeAquarium === "bayou" || activeAquarium === "volcanic") && (
-        <button
-          data-testid="button-aquarium-prev"
-          onClick={() => { setActiveAquarium(activeAquarium === "volcanic" ? "bayou" : "main"); setShowPanel(false); }}
-          className="absolute z-30 active:scale-90 transition-transform"
-          style={{ left: 6, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-        >
-          <img
-            src={arrowIcon}
-            alt="Previous aquarium"
-            style={{ width: 64, height: "auto", objectFit: "contain", filter: "drop-shadow(0 0 8px rgba(94,234,212,0.4))" }}
-            draggable={false}
-          />
-        </button>
-      )}
+      {/* Left arrow — always rendered, hidden on main to avoid mount/unmount glitch */}
+      <button
+        data-testid="button-aquarium-prev"
+        onClick={() => { setActiveAquarium(activeAquarium === "volcanic" ? "bayou" : "main"); setShowPanel(false); }}
+        className="absolute z-30 active:scale-90 transition-transform"
+        style={{
+          left: 6, top: "50%", transform: "translateY(-50%)",
+          background: "none", border: "none", cursor: "pointer", padding: 0,
+          opacity: activeAquarium === "main" ? 0 : 1,
+          pointerEvents: activeAquarium === "main" ? "none" : "auto",
+          transition: "opacity 0.2s ease",
+        }}
+        aria-hidden={activeAquarium === "main"}
+      >
+        <img
+          src={arrowIcon}
+          alt="Previous aquarium"
+          style={{ width: 64, height: "auto", objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.85)) drop-shadow(0 0 6px rgba(94,234,212,0.35))" }}
+          draggable={false}
+        />
+      </button>
 
       {/* Empty hint */}
       {aquariumFish.length === 0 && !showPanel && !isLocked && (
