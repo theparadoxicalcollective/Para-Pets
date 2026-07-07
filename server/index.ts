@@ -2690,6 +2690,18 @@ app.use((req, res, next) => {
     console.error("Lava Crawl location seed error (non-fatal):", err);
   }
 
+  // Remove any fish barrel that ended up in the Volcanic world (one-shot cleanup).
+  try {
+    const volcanicBarrelCleared = await storage.getGameSetting("volcanic_no_barrel_v1");
+    if (!volcanicBarrelCleared) {
+      await db.execute(sql`DELETE FROM fish_barrels WHERE world_id = 'volcanic'`);
+      await storage.setGameSetting("volcanic_no_barrel_v1", "done");
+      console.log("Volcanic fish barrel removed (if any).");
+    }
+  } catch (err) {
+    console.error("Volcanic barrel cleanup error (non-fatal):", err);
+  }
+
   // Seed volcanic edibles (one-shot). Price === feed points (1 coin per 1 feed
   // point). Stored as type='edibles' with stat_boost_amount = feed points so
   // they appear in the admin Item Database edibles tab and are assignable to

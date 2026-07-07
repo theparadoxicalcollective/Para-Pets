@@ -2214,7 +2214,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
 
             {/* Fish Barrel */}
-            {fishBarrel && (() => {
+            {fishBarrel && worldId !== "volcanic" && (() => {
               const bpos = barrelDragPos ? barrelDragPos : { x: fishBarrel.posX, y: fishBarrel.posY };
               const sz = fishBarrel.size;
               return (

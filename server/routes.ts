@@ -7067,6 +7067,7 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
+      if ((req.params.worldId as string) === "volcanic") return res.status(400).json({ message: "Fish barrel not allowed in Volcanic world" });
       const existing = await storage.getFishBarrelByWorld((req.params.worldId as string));
       if (existing) return res.status(400).json({ message: "Barrel already exists" });
       const barrel = await storage.createFishBarrel((req.params.worldId as string));
