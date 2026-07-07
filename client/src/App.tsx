@@ -165,16 +165,18 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
   const [screenDone, setScreenDone] = useState(!isThemed);
   const [worldReady, setWorldReady] = useState(false);
 
+  const { data: worldData } = useQuery<any>({
+    queryKey: ["/api/worlds", worldId],
+    queryFn: async () => {
+      const res = await fetch(`/api/worlds/${worldId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    staleTime: 2 * 60 * 1000,
+    enabled: isThemed,
+  });
+
   useEffect(() => {
-    queryClient.prefetchQuery({
-      queryKey: ["/api/worlds", worldId],
-      queryFn: async () => {
-        const res = await fetch(`/api/worlds/${worldId}`, { credentials: "include" });
-        if (!res.ok) throw new Error("Failed");
-        return res.json();
-      },
-      staleTime: 2 * 60 * 1000,
-    });
     queryClient.prefetchQuery({
       queryKey: ["/api/world", worldId, "locations"],
       queryFn: async () => {
@@ -190,7 +192,7 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
     <>
       <WorldPage user={user} onContentReady={() => setWorldReady(true)} />
       {!screenDone && (
-        <WorldLoadingScreen worldId={worldId} pageReady={worldReady} onReady={() => setScreenDone(true)} />
+        <WorldLoadingScreen worldId={worldId} bgUrl={worldData?.bgUrl ?? null} pageReady={worldReady} onReady={() => setScreenDone(true)} />
       )}
     </>
   );

@@ -1,12 +1,11 @@
 import { useEffect, useState, useRef } from "react";
-import bgVolcanic from "@assets/bg_volcanic_map.webp";
 import bgSwamp from "@assets/bg_bayous_heart.webp";
 import bgHauntedWoods from "@assets/bg_haunted_woods_v2.webp";
 
 const WORLD_THEMES = {
   volcanic: {
     name: "Volcanic Isle",
-    bg: bgVolcanic,
+    bg: null as string | null,
     accent: "#ff4500",
     accentSoft: "#ff6a00",
     accentDim: "rgba(255,69,0,0.35)",
@@ -173,12 +172,15 @@ const MAX_WAIT_MS = 8000;
 
 interface Props {
   worldId: string;
+  bgUrl?: string | null;
   pageReady: boolean;
   onReady: () => void;
 }
 
-export default function WorldLoadingScreen({ worldId, pageReady, onReady }: Props) {
-  const theme = WORLD_THEMES[worldId as keyof typeof WORLD_THEMES];
+export default function WorldLoadingScreen({ worldId, bgUrl, pageReady, onReady }: Props) {
+  const themeBase = WORLD_THEMES[worldId as keyof typeof WORLD_THEMES];
+  // Use admin-uploaded bgUrl if provided, otherwise fall back to the bundled bg
+  const theme = themeBase ? { ...themeBase, bg: bgUrl ?? themeBase.bg } : themeBase;
   const [progress, setProgress] = useState(0);
   const [fadeOut, setFadeOut] = useState(false);
   const doneRef = useRef(false);
