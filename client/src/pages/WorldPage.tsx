@@ -576,7 +576,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     if (!locations.length) return;
     locations.forEach(loc => {
       if (loc.iconUrl) { const img = new Image(); img.src = thumbUrl(loc.iconUrl, 600)!; }
-      if (loc.bgUrl) { const img = new Image(); img.src = loc.bgUrl; }
     });
   }, [locations]);
 

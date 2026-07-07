@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import bgVolcanic from "@assets/bg_volcanic_map_v3.jpeg";
+import bgVolcanic from "@assets/bg_volcanic_map.webp";
 import bgSwamp from "@assets/bg_bayous_heart.webp";
 import bgHauntedWoods from "@assets/bg_haunted_woods_v2.webp";
 
