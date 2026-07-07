@@ -512,11 +512,11 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const lastLoadedBgRef = useRef("");
 
   useEffect(() => {
-    if (worldApiData && worldBgLoaded && !contentReadyFiredRef.current) {
+    if (worldApiData && worldBgLoaded && !locationsLoading && !contentReadyFiredRef.current) {
       contentReadyFiredRef.current = true;
       onContentReady?.();
     }
-  }, [!!worldApiData, worldBgLoaded]);
+  }, [!!worldApiData, worldBgLoaded, locationsLoading]);
 
   const mapTransformRef = useRef({ x: 0, y: 0, scale: 1 });
   const [mapX, setMapX] = useState(0);
@@ -1381,12 +1381,17 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     // If we already loaded this exact URL (e.g. stale cache returned same bg),
     // skip the reload entirely to prevent a flash of the loading screen.
     if (world.bg === lastLoadedBgRef.current) { setWorldBgLoaded(true); return; }
-    setWorldBgLoaded(false);
+    // If we already have a bg loaded for this world (lastLoadedBgRef is non-empty),
+    // the URL is just a version-bump (server restart changed ?v=). Silently swap the
+    // committed URL without toggling worldBgLoaded to false — avoids the black-screen
+    // spinner flash that would otherwise appear after the loading screen has dismissed.
+    const isVersionRefresh = !!lastLoadedBgRef.current;
+    if (!isVersionRefresh) setWorldBgLoaded(false);
     let cancelled = false;
     const img = new Image();
     img.onload = () => {
       if (cancelled) return;
-      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+      if (!isVersionRefresh && img.naturalWidth > 0 && img.naturalHeight > 0) {
         const h = WORLD_FIXED_MAP_H[worldId] ?? Math.round(MAP_W * img.naturalHeight / img.naturalWidth);
         mapHRef.current = h;
         setMapH(h);
