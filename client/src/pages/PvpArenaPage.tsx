@@ -599,6 +599,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
         healthRestored: rep.healthRestored ?? null,
         manaRestored: rep.manaRestored ?? null,
         petsRevived: rep.petsRevived ?? null,
+        petsHealed: null,
       };
       return next;
     });

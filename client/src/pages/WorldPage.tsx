@@ -4983,6 +4983,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                                       healthRestored: p.healthRestored ?? null,
                                       manaRestored: p.manaRestored ?? null,
                                       petsRevived: p.petsRevived ?? null,
+                                      petsHealed: null,
                                     };
                                     setCavePotionSlots(updated);
                                     const hasFreeSlot = updated.some(s => s === null);
@@ -5103,6 +5104,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
             healthRestored: group.healthRestored ?? null,
             manaRestored: group.manaRestored ?? null,
             petsRevived: group.petsRevived ?? null,
+            petsHealed: null,
           };
           setBattlePotionSlots(updated);
           setPotionPickerOpen(false);

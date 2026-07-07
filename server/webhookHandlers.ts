@@ -116,8 +116,9 @@ export class WebhookHandlers {
           try {
             const lifetimeUsd = await storage.getLifetimePurchaseUsd(userId);
             const earned = FOUNDER_TIERS.find(([usd]) => lifetimeUsd >= usd);
-            if (earned && user) {
-              await storage.upsertFounderByUserId(userId, (user as any).username ?? '', earned[1]);
+            if (earned) {
+              const founderUser = await storage.getUser(userId);
+              await storage.upsertFounderByUserId(userId, founderUser?.username ?? '', earned[1]);
             }
           } catch (e) {
             console.error('[Webhook] Founder tier error:', e);
