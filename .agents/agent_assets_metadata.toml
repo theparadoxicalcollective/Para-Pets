@@ -2411,3 +2411,9 @@ id = "cqBiw7-dP0OGvso7504mo"
 uri = "file://para-pets-ads.zip"
 type = "unspecified"
 title = "Para Pets Ad Creatives (3 ads + images)"
+
+[[outputs]]
+id = "SDb4RsmfZq14AImsT1HMG"
+uri = "file://attached_assets/bg_aquarium.png"
+type = "image"
+title = "Aquarium Background"
