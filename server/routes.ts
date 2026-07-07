@@ -6870,9 +6870,9 @@ export async function registerRoutes(
   app.post("/api/fishing/aquarium/add", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { shopItemId } = req.body;
+      const { shopItemId, slot } = req.body;
       if (!shopItemId) return res.status(400).json({ message: "shopItemId required" });
-      const fishId = await storage.addFishToAquarium(user.id, shopItemId);
+      const fishId = await storage.addFishToAquarium(user.id, shopItemId, slot ?? "main");
       if (!fishId) return res.status(400).json({ message: "No available fish of this type" });
       return res.json({ ok: true, fishId });
     } catch (err: any) {
@@ -6884,11 +6884,49 @@ export async function registerRoutes(
   app.post("/api/fishing/aquarium/remove", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { shopItemId } = req.body;
+      const { shopItemId, slot } = req.body;
       if (!shopItemId) return res.status(400).json({ message: "shopItemId required" });
-      const removed = await storage.removeFishFromAquarium(user.id, shopItemId);
+      const removed = await storage.removeFishFromAquarium(user.id, shopItemId, slot ?? "main");
       if (!removed) return res.status(400).json({ message: "No fish of this type in aquarium" });
       return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Get aquarium unlocks for the current user
+  app.get("/api/aquarium/unlocks", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const unlocks = await storage.getAquariumUnlocks(user.id);
+      return res.json({ unlocks });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Purchase an aquarium unlock
+  const AQUARIUM_PRICES: Record<string, number> = { bayou: 20000 };
+  app.post("/api/aquarium/unlock", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { aquariumId } = req.body;
+      if (!aquariumId || !AQUARIUM_PRICES[aquariumId]) {
+        return res.status(400).json({ message: "Invalid aquarium ID" });
+      }
+      const price = AQUARIUM_PRICES[aquariumId];
+      // Check not already unlocked
+      const existing = await storage.getAquariumUnlocks(user.id);
+      if (existing.includes(aquariumId)) {
+        return res.status(400).json({ message: "Already unlocked" });
+      }
+      // Atomic coin deduction — returns null if insufficient funds
+      const updated = await storage.atomicDeductCoins(user.id, price);
+      if (!updated) {
+        return res.status(400).json({ message: "Not enough coins" });
+      }
+      await storage.unlockAquarium(user.id, aquariumId);
+      return res.json({ ok: true, coinsRemaining: updated.coins });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

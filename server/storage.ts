@@ -260,8 +260,10 @@ export interface IStorage {
   getPlayerCaughtFishLog(userId: string): Promise<{ shopItemId: string; rewardClaimed: boolean }[]>;
   claimFishCatchReward(userId: string, shopItemId: string): Promise<boolean>;
   syncAquariumFish(userId: string, counts: { shopItemId: string; count: number }[]): Promise<void>;
-  addFishToAquarium(userId: string, shopItemId: string): Promise<string | null>;
-  removeFishFromAquarium(userId: string, shopItemId: string): Promise<boolean>;
+  addFishToAquarium(userId: string, shopItemId: string, slot?: string): Promise<string | null>;
+  removeFishFromAquarium(userId: string, shopItemId: string, slot?: string): Promise<boolean>;
+  getAquariumUnlocks(userId: string): Promise<string[]>;
+  unlockAquarium(userId: string, aquariumId: string): Promise<void>;
   getPlayerFishingEquipment(userId: string): Promise<PlayerFishingEquipment | null>;
   upsertPlayerFishingEquipment(userId: string, data: { poleInventoryId?: string | null; baitInventoryId?: string | null }): Promise<PlayerFishingEquipment>;
   getWorldDecorItems(worldId: string): Promise<WorldDecorItem[]>;
@@ -2063,7 +2065,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async addFishToAquarium(userId: string, shopItemId: string): Promise<string | null> {
+  async addFishToAquarium(userId: string, shopItemId: string, slot = "main"): Promise<string | null> {
     const [fish] = await db.select({ id: playerFishInventory.id })
       .from(playerFishInventory)
       .where(and(
@@ -2074,25 +2076,41 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     if (!fish) return null;
     await db.update(playerFishInventory)
-      .set({ inAquarium: true })
+      .set({ inAquarium: true, aquariumSlot: slot })
       .where(eq(playerFishInventory.id, fish.id));
     return fish.id;
   }
 
-  async removeFishFromAquarium(userId: string, shopItemId: string): Promise<boolean> {
+  async removeFishFromAquarium(userId: string, shopItemId: string, slot = "main"): Promise<boolean> {
     const [fish] = await db.select({ id: playerFishInventory.id })
       .from(playerFishInventory)
       .where(and(
         eq(playerFishInventory.userId, userId),
         eq(playerFishInventory.shopItemId, shopItemId),
-        eq(playerFishInventory.inAquarium, true)
+        eq(playerFishInventory.inAquarium, true),
+        eq(playerFishInventory.aquariumSlot, slot)
       ))
       .limit(1);
     if (!fish) return false;
     await db.update(playerFishInventory)
-      .set({ inAquarium: false })
+      .set({ inAquarium: false, aquariumSlot: "main" })
       .where(eq(playerFishInventory.id, fish.id));
     return true;
+  }
+
+  async getAquariumUnlocks(userId: string): Promise<string[]> {
+    const rows = await db.execute(sql`
+      SELECT aquarium_id FROM player_aquarium_unlocks WHERE user_id = ${userId}
+    `);
+    return (rows as any[]).map((r: any) => r.aquarium_id);
+  }
+
+  async unlockAquarium(userId: string, aquariumId: string): Promise<void> {
+    await db.execute(sql`
+      INSERT INTO player_aquarium_unlocks (user_id, aquarium_id)
+      VALUES (${userId}, ${aquariumId})
+      ON CONFLICT (user_id, aquarium_id) DO NOTHING
+    `);
   }
 
   async getPlayerFishingEquipment(userId: string): Promise<PlayerFishingEquipment | null> {

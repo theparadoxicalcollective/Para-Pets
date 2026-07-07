@@ -3438,6 +3438,26 @@ app.use((req, res, next) => {
     console.error("Egg hatch timer backfill error (non-fatal):", e);
   }
 
+  // ── Aquarium slot column (idempotent) ──
+  try {
+    await db.execute(sql`ALTER TABLE player_fish_inventory ADD COLUMN IF NOT EXISTS aquarium_slot TEXT NOT NULL DEFAULT 'main'`);
+    console.log("migration ok: player_fish_inventory.aquarium_slot");
+  } catch (err) { console.error("aquarium_slot migration error (non-fatal):", err); }
+
+  // ── Player aquarium unlocks table ──
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS player_aquarium_unlocks (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        aquarium_id TEXT NOT NULL,
+        unlocked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(user_id, aquarium_id)
+      )
+    `);
+    console.log("migration ok: player_aquarium_unlocks table");
+  } catch (err) { console.error("player_aquarium_unlocks migration error (non-fatal):", err); }
+
   await seedBrawlerBadges();
   await backfillBrawlerBadges();
   await backfillAdvancedAcquisitionBadge();
