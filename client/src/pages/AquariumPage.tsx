@@ -189,11 +189,12 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
   const containerRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
+  const aqDefaultKey = `aquarium_default_${userId}`;
   const [activeAquarium, setActiveAquarium] = useState<AquariumSlot>(() => {
-    try { return (localStorage.getItem("aquarium_default") as AquariumSlot) ?? "main"; } catch { return "main"; }
+    try { return (localStorage.getItem(`aquarium_default_${userId}`) as AquariumSlot) ?? "main"; } catch { return "main"; }
   });
   const [defaultAquarium, setDefaultAquarium] = useState<AquariumSlot>(() => {
-    try { return (localStorage.getItem("aquarium_default") as AquariumSlot) ?? "main"; } catch { return "main"; }
+    try { return (localStorage.getItem(`aquarium_default_${userId}`) as AquariumSlot) ?? "main"; } catch { return "main"; }
   });
   const [showPanel, setShowPanel] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<AqFishEntry | null>(null);
@@ -208,9 +209,9 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const handleSetDefault = useCallback((slot: AquariumSlot) => {
-    try { localStorage.setItem("aquarium_default", slot); } catch {}
+    try { localStorage.setItem(aqDefaultKey, slot); } catch {}
     setDefaultAquarium(slot);
-  }, []);
+  }, [aqDefaultKey]);
 
   const { data: fishInventory = [] } = useQuery<AqCaughtFish[]>({
     queryKey: ["/api/fishing/inventory"],
