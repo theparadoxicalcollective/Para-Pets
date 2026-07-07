@@ -99,7 +99,16 @@ interface DraggingPotion {
   /** Latest screen position (for the floating ghost icon). */
   screenX: number;
   screenY: number;
+  /** Pointer position when the drag started — used to distinguish a
+   *  genuine drag from a tap. Potions must be dragged onto a pet to be
+   *  used; a short tap on the chip is always a no-op. */
+  startX: number;
+  startY: number;
 }
+
+/** Minimum pointer travel (px) before we treat a press as a real drag.
+ *  Anything shorter is a tap and is cancelled without consuming. */
+const MIN_POTION_DRAG_PX = 10;
 
 const MAX_MANA = 100;
 /** Combo decays after this many ms with no swipe-hits. */
@@ -1277,6 +1286,7 @@ export default function PvpBattlePage({
       slotIndex, pointerId: e.pointerId,
       arenaX: arenaPos.x, arenaY: arenaPos.y,
       screenX: e.clientX, screenY: e.clientY,
+      startX: e.clientX, startY: e.clientY,
     };
     draggingPotionRef.current = next;
     setDraggingPotion(next);
@@ -1295,12 +1305,19 @@ export default function PvpBattlePage({
     draggingPotionRef.current = null;
     setDraggingPotion(null);
     setHoveredAllyUid(null);
+    // Taps (short press without real drag movement) must be ignored —
+    // potions are drag-only. Check total pointer travel first.
+    const dist = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
+    if (dist < MIN_POTION_DRAG_PX) return;
     const arenaPos = getArenaPos(e.clientX, e.clientY);
     const ps = petsRef.current;
     // Drop hit-test includes DEAD player pets too (revive targeting).
     const myPets = ps.filter(p => p.isPlayer);
     const target = myPets.find(a => Math.hypot(a.x - arenaPos.x, a.y - arenaPos.y) < 14);
-    consumePotion(drag.slotIndex, target?.uid ?? null);
+    // Only consume if the player actually dropped onto a pet — dropping
+    // on empty space or a quick tap returns without using the potion.
+    if (!target) return;
+    consumePotion(drag.slotIndex, target.uid);
   }, [consumePotion, getArenaPos]);
 
   /** Cancel an in-progress drag without consuming the potion. Used as a
@@ -1327,12 +1344,17 @@ export default function PvpBattlePage({
       draggingPotionRef.current = null;
       setDraggingPotion(null);
       setHoveredAllyUid(null);
+      // Same tap-guard as the React onPointerUp handler — ignore if the
+      // pointer barely moved (tap) or if the drop missed all ally sprites.
+      const dist = Math.hypot(ev.clientX - drag.startX, ev.clientY - drag.startY);
+      if (dist < MIN_POTION_DRAG_PX) return;
       const arenaPos = getArenaPos(ev.clientX, ev.clientY);
       const ps = petsRef.current;
       // Drop hit-test includes DEAD player pets too (revive targeting).
       const myPets = ps.filter(p => p.isPlayer);
       const target = myPets.find(a => Math.hypot(a.x - arenaPos.x, a.y - arenaPos.y) < 14);
-      consumePotion(drag.slotIndex, target?.uid ?? null);
+      if (!target) return;
+      consumePotion(drag.slotIndex, target.uid);
     };
     const cancelHandler = (ev: PointerEvent) => {
       const drag = draggingPotionRef.current;
@@ -2276,7 +2298,7 @@ export default function PvpBattlePage({
           {/* Hint */}
           {phase === "battle" && !pendingSkill && (
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-white/12 text-[9px] tracking-widest pointer-events-none animate-pulse whitespace-nowrap">
-              Tap enemies · Tap glowing ally for skill · Drag potion to ally
+              Tap glowing ally for skill · Drag potion onto ally to use
             </div>
           )}
 
