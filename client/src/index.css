@@ -2098,3 +2098,9 @@ img[data-interactive], button img, a img {
   70% { transform: scale(1.06); }
   100% { transform: scale(1); opacity: 1; }
 }
+@keyframes moltenCoinPop {
+  0%   { opacity: 0; transform: translate(-50%, -30%) scale(0.7); }
+  18%  { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+  70%  { opacity: 1; transform: translate(-50%, -60%) scale(1.0); }
+  100% { opacity: 0; transform: translate(-50%, -90%) scale(0.95); }
+}

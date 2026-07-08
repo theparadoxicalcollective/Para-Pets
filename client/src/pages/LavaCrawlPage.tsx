@@ -1361,42 +1361,44 @@ export default function LavaCrawlPage() {
 
       {/* ── LEADERBOARD screen ──────────────────────────────────────────────── */}
       {screen === "leaderboard" && (
-        <div style={panelStyle}>
-          <div style={{ position: "relative", width: "min(300px, 82vw)" }}>
-            <img src={lavaCrawlLbFrameImg} alt="Leaderboard" draggable={false} style={{ width: "100%", height: "auto", display: "block", pointerEvents: "none" }} />
-            <div style={{ position: "absolute", top: "21%", left: "13%", right: "13%", bottom: "9%", overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
-              {!leaderboard ? (
-                <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "12px", textAlign: "center", marginTop: "12px" }}>Loading…</div>
-              ) : leaderboard.length === 0 ? (
-                <div style={{ color: "rgba(255,200,100,0.6)", fontFamily: "monospace", fontSize: "12px", textAlign: "center", marginTop: "12px" }}>No scores yet — be the first!</div>
-              ) : (
-                leaderboard.map((row: any, i: number) => (
-                  <div
-                    key={i}
-                    data-testid={`row-leaderboard-${i}`}
-                    style={{ display: "flex", alignItems: "center", gap: "8px", padding: "5px 8px", borderRadius: "8px", background: i === 0 ? "rgba(255,215,0,0.16)" : i === 1 ? "rgba(192,192,192,0.14)" : i === 2 ? "rgba(205,127,50,0.14)" : "rgba(0,0,0,0.22)" }}
-                  >
-                    <span style={{ width: "22px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      {i === 0 ? <img src={trophy1st} alt="1st" style={{ width: 20, height: 20, objectFit: "contain" }} />
-                        : i === 1 ? <img src={trophy2nd} alt="2nd" style={{ width: 20, height: 20, objectFit: "contain" }} />
-                        : i === 2 ? <img src={trophy3rd} alt="3rd" style={{ width: 20, height: 20, objectFit: "contain" }} />
-                        : <span style={{ color: "rgba(255,208,128,0.7)", fontFamily: "monospace", fontSize: "12px" }}>{i + 1}.</span>}
-                    </span>
-                    <span style={{ flex: 1, color: "#ffd080", fontFamily: "monospace", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.username}</span>
-                    <span style={{ color: "#ff8800", fontFamily: "monospace", fontSize: "12px", fontWeight: "bold" }}>{row.best_score}</span>
-                    <span style={{ color: "#ffd700", fontFamily: "monospace", fontSize: "11px", display: "flex", alignItems: "center", gap: "2px" }}><img src={coinIconImg} alt="coins" style={{ width: 11, height: 11, objectFit: "contain" }} />{row.best_coins}</span>
-                  </div>
-                ))
-              )}
+        <div style={{ ...panelStyle, justifyContent: "flex-start", overflowY: "auto", padding: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100%", padding: "24px 20px" }}>
+            <div style={{ position: "relative", width: "min(300px, 82vw)" }}>
+              <img src={lavaCrawlLbFrameImg} alt="Leaderboard" draggable={false} style={{ width: "100%", height: "auto", display: "block", pointerEvents: "none" }} />
+              <div style={{ position: "absolute", top: "21%", left: "13%", right: "13%", bottom: "9%", overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
+                {!leaderboard ? (
+                  <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "12px", textAlign: "center", marginTop: "12px" }}>Loading…</div>
+                ) : leaderboard.length === 0 ? (
+                  <div style={{ color: "rgba(255,200,100,0.6)", fontFamily: "monospace", fontSize: "12px", textAlign: "center", marginTop: "12px" }}>No scores yet — be the first!</div>
+                ) : (
+                  leaderboard.map((row: any, i: number) => (
+                    <div
+                      key={i}
+                      data-testid={`row-leaderboard-${i}`}
+                      style={{ display: "flex", alignItems: "center", gap: "8px", padding: "5px 8px", borderRadius: "8px", background: i === 0 ? "rgba(255,215,0,0.16)" : i === 1 ? "rgba(192,192,192,0.14)" : i === 2 ? "rgba(205,127,50,0.14)" : "rgba(0,0,0,0.22)" }}
+                    >
+                      <span style={{ width: "22px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        {i === 0 ? <img src={trophy1st} alt="1st" style={{ width: 20, height: 20, objectFit: "contain" }} />
+                          : i === 1 ? <img src={trophy2nd} alt="2nd" style={{ width: 20, height: 20, objectFit: "contain" }} />
+                          : i === 2 ? <img src={trophy3rd} alt="3rd" style={{ width: 20, height: 20, objectFit: "contain" }} />
+                          : <span style={{ color: "rgba(255,208,128,0.7)", fontFamily: "monospace", fontSize: "12px" }}>{i + 1}.</span>}
+                      </span>
+                      <span style={{ flex: 1, color: "#ffd080", fontFamily: "monospace", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.username}</span>
+                      <span style={{ color: "#ff8800", fontFamily: "monospace", fontSize: "12px", fontWeight: "bold" }}>{row.best_score}</span>
+                      <span style={{ color: "#ffd700", fontFamily: "monospace", fontSize: "11px", display: "flex", alignItems: "center", gap: "2px" }}><img src={coinIconImg} alt="coins" style={{ width: 11, height: 11, objectFit: "contain" }} />{row.best_coins}</span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "16px" }}>
-            <button data-testid="button-lava-play-lb" onClick={startGame} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, margin: "6px" }}>
-              <img src={lavaCrawlLbBtnPlayImg} alt="Play" draggable={false} style={{ width: "min(190px, 60vw)", height: "auto" }} />
-            </button>
-            <button data-testid="button-lava-back-lb" onClick={() => showScreen("start")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, margin: "6px" }}>
-              <img src={lavaCrawlLbBtnBackImg} alt="Back" draggable={false} style={{ width: "min(190px, 60vw)", height: "auto" }} />
-            </button>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "16px" }}>
+              <button data-testid="button-lava-play-lb" onClick={startGame} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, margin: "6px" }}>
+                <img src={lavaCrawlLbBtnPlayImg} alt="Play" draggable={false} style={{ width: "min(190px, 60vw)", height: "auto" }} />
+              </button>
+              <button data-testid="button-lava-back-lb" onClick={() => showScreen("start")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, margin: "6px" }}>
+                <img src={lavaCrawlLbBtnBackImg} alt="Back" draggable={false} style={{ width: "min(190px, 60vw)", height: "auto" }} />
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1579,15 +1579,6 @@ export default function MoltenBlocksPage() {
           }}
         >+{coinFlash.amount} coins!</div>
       )}
-      <style>{`
-        @keyframes moltenCoinPop {
-          0%   { opacity: 0; transform: translate(-50%, -30%) scale(0.7); }
-          18%  { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
-          70%  { opacity: 1; transform: translate(-50%, -60%) scale(1.0); }
-          100% { opacity: 0; transform: translate(-50%, -90%) scale(0.95); }
-        }
-      `}</style>
-
       {/* Game over overlay — "You didn't make it" + run summary */}
       {gameOver && (
         <Overlay>
@@ -1701,10 +1692,15 @@ function Overlay({ children }: { children: React.ReactNode }) {
     <div style={{
       position: "absolute", inset: 0, zIndex: 10,
       background: "rgba(8,3,1,0.82)",
-      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-      gap: 8, padding: 20, textAlign: "center",
+      overflowY: "auto",
+      display: "flex", flexDirection: "column",
     }}>
-      {children}
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        minHeight: "100%", gap: 8, padding: 20, textAlign: "center",
+      }}>
+        {children}
+      </div>
     </div>
   );
 }
