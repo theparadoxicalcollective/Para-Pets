@@ -371,6 +371,10 @@ export default function LavaCrawlPage() {
       }
     },
   });
+  // Stable ref so the game loop can call gainExp without being in startLoop's deps
+  // (putting the mutation directly in deps causes a re-render → game restart on every kill)
+  const gainExpRef = useRef(gainExpMutation.mutate);
+  useEffect(() => { gainExpRef.current = gainExpMutation.mutate; }, [gainExpMutation.mutate]);
 
   // Load active pet image for player sprite
   useEffect(() => {
@@ -538,7 +542,7 @@ export default function LavaCrawlPage() {
             s.score += ENEMY_SCORE;
             // Float particle: XP gain
             s.floats.push({ x: e.x + EW / 2 - s.cameraX, y: e.y - 10, text: "+8 XP", color: "#a0ff80", life: 55, maxLife: 55 });
-            gainExpMutation.mutate();
+            gainExpRef.current();
           } else if (s.alive && overlaps(s.px, s.py, PW - 4, PH - 4, e.x + 2, e.y + 2, EW - 4, EH - 4)) {
             // Side/bottom collision → hurt
             s.alive = false;
@@ -986,7 +990,7 @@ export default function LavaCrawlPage() {
     };
 
     rafRef.current = requestAnimationFrame(loop);
-  }, [buildState, showScreen, completeMutation, gainExpMutation]);
+  }, [buildState, showScreen, completeMutation]);
 
   const stopLoop = useCallback(() => {
     if (rafRef.current != null) {
