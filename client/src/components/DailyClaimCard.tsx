@@ -3,11 +3,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
-import chestIcon       from "@assets/generated_images/icon_gift_treasure.png";
-import chestOpenedIcon from "@assets/hub_chest_opened.png";
+import chestIcon       from "@assets/Photoroom_20260708_51809_PM_1783549272918.png";
+import chestOpenedIcon from "@assets/Photoroom_20260708_52007_PM_1783549272918.png";
 import coinIconImg     from "@assets/icon_coin.png";
 import pvpTicketIcon   from "@assets/Photoroom_20260415_83701_PM_1776304592941.png";
-import fishingPoleIcon from "@assets/icon_fishing_pole.png";
+
+const BASIC_ROD_IMG = "/api/media/a55e45a9-a7ea-443b-bd53-24df70adb79b";
 
 interface ClaimStatus {
   canClaim: boolean;
@@ -188,7 +189,7 @@ export default function DailyClaimCard({
             {/* Fishing rod */}
             <div className="flex items-center gap-1" data-testid="reward-fishing-rod">
               <img
-                src={fishingPoleIcon}
+                src={BASIC_ROD_IMG}
                 alt="Basic Fishing Rod"
                 className="w-5 h-5 object-contain"
                 style={{ filter: "drop-shadow(0 0 4px rgba(127,191,176,0.45))" }}

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { playChime } from "@/lib/sounds";
 import coinIconImg from "@assets/icon_coin.png";
-import giftTreasureIcon from "@assets/generated_images/icon_gift_treasure.png";
+import giftTreasureIcon from "@assets/Photoroom_20260708_51809_PM_1783549272918.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
 import powerupBagIconWG from "@assets/generated_images/icon_powerup_bag.png";
 

@@ -7,7 +7,7 @@ import { Mail } from "lucide-react";
 
 import coinIconImg from "@assets/icon_coin.png";
 import coinBagIconImg from "@assets/generated_images/icon_coin_bag.png";
-import giftIconImg from "@assets/generated_images/icon_gift_treasure.png";
+import giftIconImg from "@assets/Photoroom_20260708_51809_PM_1783549272918.png";
 import RewardClaimModal from "./RewardClaimModal";
 
 interface TopBarProps {

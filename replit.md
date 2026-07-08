@@ -7,6 +7,8 @@ Para Pets is a mobile-first fantasy web app where players collect, raise, and ba
 - Simple language.
 - Iterative development.
 - Ask before making major changes.
+- **Railway is the ultimate host and database keeper.** All live game data lives on Railway Postgres. Always treat Railway as the source of truth.
+- **When asked about anything that requires looking at the database, check the production (Railway) database**, not the local Replit DB. Use `psql "$RAILWAY_DATABASE_URL"` for read queries.
 
 ---
 
