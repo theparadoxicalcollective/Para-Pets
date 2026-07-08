@@ -7,6 +7,7 @@ import chestIcon       from "@assets/generated_images/icon_gift_treasure.png";
 import chestOpenedIcon from "@assets/hub_chest_opened.png";
 import coinIconImg     from "@assets/icon_coin.png";
 import pvpTicketIcon   from "@assets/Photoroom_20260415_83701_PM_1776304592941.png";
+import fishingPoleIcon from "@assets/icon_fishing_pole.png";
 
 interface ClaimStatus {
   canClaim: boolean;
@@ -14,7 +15,7 @@ interface ClaimStatus {
   lastClaimedAt: string | null;
 }
 
-const REWARD_COINS   = 100;
+const REWARD_COINS   = 500;
 const REWARD_TICKETS = 10;
 
 function parseUtc(ts: string | null): number | null {
@@ -107,7 +108,7 @@ export default function DailyClaimCard({
       setShowBurst(true);
       toast({
         title: "Daily Reward Claimed!",
-        description: `+${REWARD_COINS} coins · +${REWARD_TICKETS} PvP tickets`,
+        description: `+${REWARD_COINS} coins · Basic Fishing Rod · +${REWARD_TICKETS} PvP tickets`,
       });
     },
     onError: (err: any) => {
@@ -163,38 +164,50 @@ export default function DailyClaimCard({
         </div>
 
         {/* Body */}
-        <div className="flex-1 flex flex-col justify-between min-w-0">
-          <div>
-            <p
-              className="font-fantasy text-[13px] tracking-wider"
-              style={{ color: "#9fdcc9" }}
-              data-testid="text-daily-claim-title"
-            >
-              Daily Reward
-            </p>
-            <div className="flex items-center gap-3 mt-1.5">
-              <div className="flex items-center gap-1" data-testid="reward-coins">
-                <img
-                  src={coinIconImg}
-                  alt="Coins"
-                  className="w-6 h-6 object-contain"
-                  style={{ filter: "drop-shadow(0 0 4px rgba(255,200,80,0.5))" }}
-                />
-                <span className="font-fantasy text-[13px]" style={{ color: "#ffd773" }}>
-                  +{REWARD_COINS}
-                </span>
-              </div>
-              <div className="flex items-center gap-1" data-testid="reward-pvp-tickets">
-                <img
-                  src={pvpTicketIcon}
-                  alt="PvP tickets"
-                  className="w-7 h-7 object-contain"
-                  style={{ filter: "drop-shadow(0 0 4px rgba(127,191,176,0.55))" }}
-                />
-                <span className="font-fantasy text-[13px]" style={{ color: "#cfe6dc" }}>
-                  +{REWARD_TICKETS}
-                </span>
-              </div>
+        <div className="flex-1 flex flex-col justify-center min-w-0 gap-1">
+          <p
+            className="font-fantasy text-[13px] tracking-wider"
+            style={{ color: "#9fdcc9" }}
+            data-testid="text-daily-claim-title"
+          >
+            Daily Rewards
+          </p>
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Coins */}
+            <div className="flex items-center gap-1" data-testid="reward-coins">
+              <img
+                src={coinIconImg}
+                alt="Coins"
+                className="w-5 h-5 object-contain"
+                style={{ filter: "drop-shadow(0 0 4px rgba(255,200,80,0.5))" }}
+              />
+              <span className="font-fantasy text-[12px]" style={{ color: "#ffd773" }}>
+                +{REWARD_COINS}
+              </span>
+            </div>
+            {/* Fishing rod */}
+            <div className="flex items-center gap-1" data-testid="reward-fishing-rod">
+              <img
+                src={fishingPoleIcon}
+                alt="Basic Fishing Rod"
+                className="w-5 h-5 object-contain"
+                style={{ filter: "drop-shadow(0 0 4px rgba(127,191,176,0.45))" }}
+              />
+              <span className="font-fantasy text-[12px]" style={{ color: "#cfe6dc" }}>
+                Rod
+              </span>
+            </div>
+            {/* PvP tickets */}
+            <div className="flex items-center gap-1" data-testid="reward-pvp-tickets">
+              <img
+                src={pvpTicketIcon}
+                alt="PvP tickets"
+                className="w-5 h-5 object-contain"
+                style={{ filter: "drop-shadow(0 0 4px rgba(127,191,176,0.55))" }}
+              />
+              <span className="font-fantasy text-[12px]" style={{ color: "#cfe6dc" }}>
+                +{REWARD_TICKETS}
+              </span>
             </div>
           </div>
         </div>

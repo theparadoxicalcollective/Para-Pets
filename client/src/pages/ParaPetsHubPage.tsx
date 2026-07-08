@@ -1413,55 +1413,59 @@ export default function ParaPetsHubPage() {
             Hatch. Explore. Collect. Conquer.
           </p>
 
-          {/* Para Pet mascot */}
-          <img
-            src={hubParaPet}
-            alt="Para Pet"
-            data-testid="img-hub-mascot"
-            style={{
-              width: 110, height: 110, objectFit: "contain",
-              filter: "drop-shadow(0 0 16px rgba(127,191,176,0.55)) drop-shadow(0 0 32px rgba(212,168,67,0.15))",
-              animation: "float 3.2s ease-in-out infinite",
-              position: "relative", zIndex: 1,
-            }}
-          />
+          {/* Pet + Play button row */}
+          <div className="flex items-center gap-5 mt-3 relative" style={{ zIndex: 1 }}>
+            {/* Para Pet mascot */}
+            <img
+              src={hubParaPet}
+              alt="Para Pet"
+              data-testid="img-hub-mascot"
+              style={{
+                width: 78, height: 78, objectFit: "contain",
+                filter: "drop-shadow(0 0 12px rgba(127,191,176,0.55)) drop-shadow(0 0 22px rgba(212,168,67,0.15))",
+                animation: "float 3.2s ease-in-out infinite",
+                flexShrink: 0,
+              }}
+            />
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-3 mt-2 relative" style={{ zIndex: 1 }}>
-            {!user && (
-              <button
-                data-testid="button-hub-hero-signin"
-                onClick={() => setShowSignIn(true)}
+            {/* Action buttons */}
+            <div className="flex flex-col gap-2">
+              {!user && (
+                <button
+                  data-testid="button-hub-hero-signin"
+                  onClick={() => setShowSignIn(true)}
+                  className="font-fantasy tracking-widest transition-all active:scale-95"
+                  style={{
+                    padding: "9px 22px", borderRadius: 12,
+                    background: "rgba(212,168,67,0.08)",
+                    border: "1.5px solid rgba(212,168,67,0.45)",
+                    color: "#d4a843",
+                    textShadow: "0 0 10px rgba(212,168,67,0.4)",
+                    fontSize: "0.78rem", letterSpacing: "0.1em",
+                  }}
+                >
+                  Sign In
+                </button>
+              )}
+              <Link
+                href={user ? "/" : "/auth"}
+                data-testid="button-hero-play-game"
                 className="font-fantasy tracking-widest transition-all active:scale-95"
                 style={{
-                  padding: "11px 26px", borderRadius: 14,
-                  background: "rgba(212,168,67,0.08)",
-                  border: "1.5px solid rgba(212,168,67,0.45)",
-                  color: "#d4a843",
-                  textShadow: "0 0 10px rgba(212,168,67,0.4)",
-                  fontSize: "0.82rem", letterSpacing: "0.1em",
+                  padding: "10px 26px", borderRadius: 12,
+                  background: "linear-gradient(135deg,#3a7a20 0%,#1a5010 60%,#2a6818 100%)",
+                  border: "2px solid rgba(212,168,67,0.55)",
+                  color: "#f0d060",
+                  boxShadow: "0 0 18px rgba(46,160,46,0.28), inset 0 1px 0 rgba(255,220,80,0.12), 0 4px 14px rgba(0,0,0,0.7)",
+                  textShadow: "0 0 12px rgba(212,168,67,0.7)",
+                  fontSize: "0.84rem", letterSpacing: "0.12em",
+                  textDecoration: "none",
+                  display: "block", textAlign: "center",
                 }}
               >
-                Sign In
-              </button>
-            )}
-            <Link
-              href={user ? "/" : "/auth"}
-              data-testid="button-hero-play-game"
-              className="font-fantasy tracking-widest transition-all active:scale-95"
-              style={{
-                padding: "12px 32px", borderRadius: 14,
-                background: "linear-gradient(135deg,#3a7a20 0%,#1a5010 60%,#2a6818 100%)",
-                border: "2px solid rgba(212,168,67,0.55)",
-                color: "#f0d060",
-                boxShadow: "0 0 22px rgba(46,160,46,0.28), inset 0 1px 0 rgba(255,220,80,0.12), 0 4px 14px rgba(0,0,0,0.7)",
-                textShadow: "0 0 12px rgba(212,168,67,0.7)",
-                fontSize: "0.92rem", letterSpacing: "0.12em",
-                textDecoration: "none",
-              }}
-            >
-              ✦ Play Game ✦
-            </Link>
+                ✦ Play Game ✦
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -1471,6 +1475,11 @@ export default function ParaPetsHubPage() {
           {/* ── Pets of the Realm banner ───────────────────────────────────── */}
           <div className="pt-6 pb-2">
             <PetsBanner />
+          </div>
+
+          {/* ── Daily Rewards ──────────────────────────────────────────────── */}
+          <div className="mt-4">
+            <DailyClaimCard user={user} />
           </div>
 
           <GoldDivider />

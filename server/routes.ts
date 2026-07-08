@@ -8954,9 +8954,10 @@ export async function registerRoutes(
   }, VW_QUOTE_INTERVAL_MS);
 
   // ── Daily Claim (fixed reward, once per 24h) ──────────────────────────────
-  const DAILY_REWARD_COINS = 100;
+  const DAILY_REWARD_COINS = 500;
   const DAILY_REWARD_TICKETS = 10;
   const DAILY_PVP_TICKET_ID = "a1b2c3d4-9001-4000-8000-000000000099";
+  const DAILY_FISHING_ROD_ID = "a1b2c3d4-9001-4000-8000-000000000088";
 
   // Auth: get player's claim status (canClaim + nextClaimAt)
   app.get("/api/daily-claim/status", isAuthenticated, async (req, res) => {
@@ -9039,7 +9040,26 @@ export async function registerRoutes(
           `);
         }
 
-        // 5. Record the claim and return canonical timestamps.
+        // 5. Grant Basic Fishing Rod — same upsert pattern as PvP tickets.
+        const rodUpdated = await tx.execute(sql`
+          UPDATE user_inventory
+          SET quantity = quantity + 1
+          WHERE id = (
+            SELECT id FROM user_inventory
+            WHERE user_id = ${user.id} AND shop_item_id = ${DAILY_FISHING_ROD_ID}
+            ORDER BY id
+            LIMIT 1
+          )
+          RETURNING id
+        `);
+        if (rodUpdated.rows.length === 0) {
+          await tx.execute(sql`
+            INSERT INTO user_inventory (user_id, shop_item_id, quantity)
+            VALUES (${user.id}, ${DAILY_FISHING_ROD_ID}, 1)
+          `);
+        }
+
+        // 6. Record the claim and return canonical timestamps.
         const inserted = await tx.execute(sql`
           INSERT INTO player_daily_login_claims (user_id, cycle_number, day_number)
           VALUES (${user.id}, 0, 1)
