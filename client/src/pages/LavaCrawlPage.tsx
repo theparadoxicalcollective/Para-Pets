@@ -12,7 +12,8 @@ import slabImg1 from "@assets/lava_slab_1.webp";
 import slabImg2 from "@assets/lava_slab_2.webp";
 import slabImg3 from "@assets/lava_slab_3.webp";
 import lavaTexImg from "@assets/lava_texture.webp";
-import lavaGroundImg from "@assets/lava_ground.webp";
+import lavaGroundStripImg from "@assets/lava_ground_strip.webp";
+import lavaPillarImg from "@assets/lava_pillar.webp";
 const LAVA_CAVE_BG = lavaCaveBg;
 
 // Pre-load canvas images at module level
@@ -20,7 +21,8 @@ const _coinImg = new Image(); _coinImg.src = coinIconImg;
 const _slabImgs = [new Image(), new Image(), new Image()];
 _slabImgs[0].src = slabImg1; _slabImgs[1].src = slabImg2; _slabImgs[2].src = slabImg3;
 const _lavaTexImg = new Image(); _lavaTexImg.src = lavaTexImg;
-const _lavaGroundImg = new Image(); _lavaGroundImg.src = lavaGroundImg;
+const _lavaGroundStripImg = new Image(); _lavaGroundStripImg.src = lavaGroundStripImg;
+const _lavaPillarImg = new Image(); _lavaPillarImg.src = lavaPillarImg;
 
 // ─── Game constants ─────────────────────────────────────────────────────────
 const LEVEL_W = 6400;
@@ -471,9 +473,21 @@ export default function LavaCrawlPage() {
         const scaledW = bw * scale;
         const totalScrollable = LEVEL_W - VW;
         const bgOffset = totalScrollable > 0 ? -(cx * 0.35) : 0;
-        ctx.drawImage(bgImgRef.current, bgOffset % scaledW, 0, scaledW, VH);
-        if (bgOffset % scaledW + scaledW < VW) {
-          ctx.drawImage(bgImgRef.current, bgOffset % scaledW + scaledW, 0, scaledW, VH);
+        const tile0X = bgOffset % scaledW;
+        ctx.drawImage(bgImgRef.current, tile0X, 0, scaledW, VH);
+        const tile1X = tile0X + scaledW;
+        if (tile1X < VW) {
+          ctx.drawImage(bgImgRef.current, tile1X, 0, scaledW, VH);
+        }
+        // Pillar at every bg seam to hide the tile join
+        if (_lavaPillarImg.complete && _lavaPillarImg.naturalWidth > 0) {
+          const pAspect = _lavaPillarImg.naturalWidth / _lavaPillarImg.naturalHeight;
+          const pDrawH = VH;
+          const pDrawW = pDrawH * pAspect;
+          // Draw pillar centered on the seam between tile0 and tile1
+          if (tile1X > -pDrawW / 2 && tile1X < VW + pDrawW / 2) {
+            ctx.drawImage(_lavaPillarImg, tile1X - pDrawW / 2, 0, pDrawW, pDrawH);
+          }
         }
       } else {
         ctx.fillStyle = "#1a0a05";
@@ -515,31 +529,35 @@ export default function LavaCrawlPage() {
 
         const isGround = p.h > 20;
         if (isGround) {
-          // Ground: tile the ground texture across the segment
-          if (_lavaGroundImg.complete && _lavaGroundImg.naturalWidth > 0) {
-            const tileAspect = _lavaGroundImg.width / _lavaGroundImg.height;
-            const tileH = p.h;
-            const tileW = tileH * tileAspect;
-            let dx = px2;
+          // Dark rocky fill for the full ground depth
+          ctx.fillStyle = "#1e0a00";
+          ctx.fillRect(px2, py2, p.w, p.h);
+          // Ground strip tiled at the top surface
+          if (_lavaGroundStripImg.complete && _lavaGroundStripImg.naturalWidth > 0) {
+            const stripAspect = _lavaGroundStripImg.naturalWidth / _lavaGroundStripImg.naturalHeight;
+            // Scale strip so its height = ~56px (readable surface), tile width proportionally
+            const stripH = 56;
+            const stripW = stripH * stripAspect;
             ctx.save();
             ctx.beginPath();
-            ctx.rect(px2, py2, p.w, p.h);
+            ctx.rect(px2, py2, p.w, stripH);
             ctx.clip();
+            let dx = px2;
             while (dx < px2 + p.w) {
-              ctx.drawImage(_lavaGroundImg, dx, py2, tileW, tileH);
-              dx += tileW;
+              ctx.drawImage(_lavaGroundStripImg, dx, py2, stripW, stripH);
+              dx += stripW;
             }
             ctx.restore();
-          } else {
-            ctx.fillStyle = "#3d2010";
-            ctx.fillRect(px2, py2, p.w, p.h);
           }
         } else {
-          // Floating slab: pick one of 3 images based on position
+          // Floating slab: pick one of 3 images, preserve natural aspect ratio
           const slabIdx = Math.abs(Math.floor(p.x / 120)) % 3;
           const slab = _slabImgs[slabIdx];
           if (slab.complete && slab.naturalWidth > 0) {
-            ctx.drawImage(slab, px2, py2, p.w, p.h);
+            const aspect = slab.naturalWidth / slab.naturalHeight;
+            // Width = platform width, height scaled proportionally (extends below hit rect)
+            const drawH = p.w / aspect;
+            ctx.drawImage(slab, px2, py2, p.w, drawH);
           } else {
             ctx.fillStyle = "#6b4030";
             ctx.fillRect(px2, py2, p.w, p.h);
