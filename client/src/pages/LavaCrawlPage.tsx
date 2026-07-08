@@ -511,17 +511,17 @@ export default function LavaCrawlPage() {
         if (moveX > 0) s.facingR = true;
         if (moveX < 0) s.facingR = false;
 
-        // Jump / double-jump: first jump requires ground; second can happen any time in air.
-        // Must land before double-jump resets (jumpCount resets to 0 on landing below).
-        if ((input.jump || input.jumpQueued) && (s.onGround || s.jumpCount < 2)) {
+        // Ground jump: held button OR fresh tap. Double-jump: fresh tap ONLY.
+        // Without this distinction the double-jump fires the frame after the first jump
+        // while the button is still held — consuming itself before the player can react.
+        const wantsJump = input.jumpQueued || (s.onGround && input.jump);
+        if (wantsJump && (s.onGround || s.jumpCount < 2)) {
           s.pvy = s.onGround ? JUMP_VEL : JUMP_VEL * 0.82;
           if (s.onGround) {
             s.jumpCount = 1;
-            // Anticipation squash → launch stretch: wide+flat first frame, then tall+thin on takeoff
             s.squishX = 0.72; s.squishY = 1.38; s.squishTimer = 14; s.squishDuration = 14;
           } else {
             s.jumpCount = 2;
-            // Double-jump: quick horizontal squash
             s.squishX = 1.3; s.squishY = 0.72; s.squishTimer = 10; s.squishDuration = 10;
           }
           s.onGround = false;
@@ -976,8 +976,19 @@ export default function LavaCrawlPage() {
 
       // ── HUD ─────────────────────────────────────────────────────────────
       ctx.save();
-      const HUD_TOP = Math.round(VH * 0.05);  // moved down — clears notch/safe-area
+      const HUD_TOP = Math.round(VH * 0.05);
       const HUD_H = 56;
+      const HEART_SIZE = 24;
+      const HEART_ROW_Y = HUD_TOP + HUD_H + 6;   // hearts sit just below the bar
+      const HUD_TOTAL_H = HUD_H + HEART_SIZE + 14; // bar + gap + hearts
+
+      // Dark gradient behind the whole header zone (bar + hearts beneath)
+      const headerGrad = ctx.createLinearGradient(0, 0, 0, HUD_TOP + HUD_TOTAL_H + 10);
+      headerGrad.addColorStop(0,   "rgba(0,0,0,0.72)");
+      headerGrad.addColorStop(0.6, "rgba(0,0,0,0.45)");
+      headerGrad.addColorStop(1,   "rgba(0,0,0,0)");
+      ctx.fillStyle = headerGrad;
+      ctx.fillRect(0, 0, VW, HUD_TOP + HUD_TOTAL_H + 10);
 
       // Toolbar image background (lava-stone bar)
       if (_hudBarImg.complete && _hudBarImg.naturalWidth > 0) {
@@ -988,36 +999,18 @@ export default function LavaCrawlPage() {
       }
 
       const textY = HUD_TOP + 36;
-      const HEART_SIZE = 24;
-      const HEART_GAP = 27;
-      const HEARTS_START_X = 12; // inset from left edge
 
-      // Lives — only show slots up to max(3, current lives).
-      // Extra slots (4th/5th) are invisible until the player actually picks up a life heart.
-      // Empty/lost slots are just darkened hearts with no rectangle overlay.
-      const totalHudSlots = Math.max(MAX_LIVES, s.lives);
-      for (let i = 0; i < totalHudSlots; i++) {
-        const hx = HEARTS_START_X + i * HEART_GAP;
-        const hy = HUD_TOP + (HUD_H - HEART_SIZE) / 2;
-        ctx.save();
-        ctx.globalAlpha = i < s.lives ? 1.0 : 0.25;
-        if (_heartImg.complete && _heartImg.naturalWidth > 0) {
-          ctx.drawImage(_heartImg, hx, hy, HEART_SIZE, HEART_SIZE);
-        } else {
-          ctx.fillStyle = i < s.lives ? "#ff4444" : "rgba(120,30,30,0.4)";
-          ctx.font = "18px serif";
-          ctx.textAlign = "left";
-          ctx.fillText("♥", hx, textY);
-        }
-        ctx.restore();
-      }
-
-      // Score — centered
-      ctx.fillStyle = "#fff8e0";
-      ctx.font = "bold 19px monospace";
+      // Score — centered in the bar with glowing "SCORE" label
       ctx.textAlign = "center";
+      ctx.shadowColor = "#ff8800";
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = "#ffcc44";
+      ctx.font = "bold 11px monospace";
+      ctx.fillText("SCORE", VW / 2, HUD_TOP + 18);
       ctx.shadowColor = "#ff6600";
-      ctx.shadowBlur = 6;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = "#fff8e0";
+      ctx.font = "bold 20px monospace";
       ctx.fillText(`${s.score}`, VW / 2, textY);
       ctx.shadowBlur = 0;
 
@@ -1033,12 +1026,31 @@ export default function LavaCrawlPage() {
         ctx.drawImage(_coinImg, VW - 18 - textW - COIN_ICON - 2, HUD_TOP + (HUD_H - COIN_ICON) / 2, COIN_ICON, COIN_ICON);
       }
 
-      // Progress bar
+      // Progress bar — sits at the bottom edge of the stone bar
       const prog = Math.min(s.px / (LEVEL_W - 100), 1);
       ctx.fillStyle = "rgba(255,255,255,0.12)";
       ctx.fillRect(VW * 0.25, HUD_TOP + HUD_H - 7, VW * 0.5, 4);
       ctx.fillStyle = "#ff8800";
       ctx.fillRect(VW * 0.25, HUD_TOP + HUD_H - 7, VW * 0.5 * prog, 4);
+
+      // Lives — row of hearts just below the toolbar, left-aligned
+      const HEART_GAP = 27;
+      const HEARTS_START_X = 12;
+      const totalHudSlots = Math.max(MAX_LIVES, s.lives);
+      for (let i = 0; i < totalHudSlots; i++) {
+        const hx = HEARTS_START_X + i * HEART_GAP;
+        ctx.save();
+        ctx.globalAlpha = i < s.lives ? 1.0 : 0.25;
+        if (_heartImg.complete && _heartImg.naturalWidth > 0) {
+          ctx.drawImage(_heartImg, hx, HEART_ROW_Y, HEART_SIZE, HEART_SIZE);
+        } else {
+          ctx.fillStyle = i < s.lives ? "#ff4444" : "rgba(120,30,30,0.4)";
+          ctx.font = "18px serif";
+          ctx.textAlign = "left";
+          ctx.fillText("♥", hx, HEART_ROW_Y + 18);
+        }
+        ctx.restore();
+      }
 
       ctx.restore();
     };
