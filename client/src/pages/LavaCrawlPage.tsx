@@ -49,7 +49,8 @@ const COIN_SCORE = 10;
 const ORB_SCORE = 5;
 const ENEMY_SCORE = 25;
 const FINISH_BONUS = 200;
-const MAX_LIVES = 3;
+const MAX_LIVES = 3;       // starting lives
+const MAX_HEART_SLOTS = 5; // absolute max (2 extra from pickups)
 
 // Ground is always at (canvasH * GR) from the top — 0.76 keeps lava fully under ground tile
 const GR = 0.76;
@@ -78,6 +79,11 @@ interface FloatParticle {
   life: number; maxLife: number;
 }
 
+interface LifeHeart {
+  x: number; y: number;
+  collected: boolean;
+}
+
 interface GState {
   px: number; py: number;
   pvx: number; pvy: number;
@@ -87,6 +93,7 @@ interface GState {
   respawnTimer: number;
   enemies: Enemy[];
   coins: Coin[];
+  lifeHearts: LifeHeart[];
   floats: FloatParticle[];
   cameraX: number;
   score: number;
@@ -244,6 +251,21 @@ function buildEnemies(gY: number): Enemy[] {
   ];
 }
 
+function buildLifeHearts(gY: number): LifeHeart[] {
+  // Sparse — 8 across 8000px (uncommon). Placed slightly above ground so they're visible but require a detour.
+  const pts: [number, number][] = [
+    [480,  gY - 38],
+    [1560, gY - 38],
+    [2450, gY - 38],
+    [3350, gY - 38],
+    [4400, gY - 38],
+    [5300, gY - 38],
+    [6450, gY - 38],
+    [7250, gY - 38],
+  ];
+  return pts.map(([x, y]) => ({ x, y, collected: false }));
+}
+
 // ─── AABB overlap test ───────────────────────────────────────────────────────
 function overlaps(
   ax: number, ay: number, aw: number, ah: number,
@@ -383,6 +405,7 @@ export default function LavaCrawlPage() {
       alive: true, respawnTimer: 0,
       enemies: buildEnemies(gY),
       coins: buildCoins(gY),
+      lifeHearts: buildLifeHearts(gY),
       floats: [],
       cameraX: 0,
       score: 0, coinsCollected: 0,
@@ -538,6 +561,20 @@ export default function LavaCrawlPage() {
             } else {
               s.score += ORB_SCORE;
               s.floats.push({ x: c.x - s.cameraX, y: c.y - 8, text: "+5", color: "#ff9933", life: 45, maxLife: 45 });
+            }
+          }
+        }
+
+        // Life heart pickups
+        for (const lh of s.lifeHearts) {
+          if (lh.collected) continue;
+          const dx = lh.x - (s.px + PW / 2);
+          const dy = lh.y - (s.py + PH / 2);
+          if (Math.sqrt(dx * dx + dy * dy) < CR + 18) {
+            if (s.lives < MAX_HEART_SLOTS) {
+              lh.collected = true;
+              s.lives = Math.min(MAX_HEART_SLOTS, s.lives + 1);
+              s.floats.push({ x: lh.x - s.cameraX, y: lh.y - 12, text: "+1 ♥", color: "#ff6699", life: 60, maxLife: 60 });
             }
           }
         }
@@ -719,6 +756,27 @@ export default function LavaCrawlPage() {
         ctx.restore();
       }
 
+      // Life heart pickups (draw in world)
+      for (const lh of s.lifeHearts) {
+        if (lh.collected) continue;
+        const lhx = lh.x - cx;
+        if (lhx < -30 || lhx > VW + 30) continue;
+        const bounce = Math.sin(lavaT * 3.5 + lh.x * 0.01) * 3;
+        const PICKUP_SIZE = 28;
+        ctx.save();
+        ctx.shadowColor = "#ff3366";
+        ctx.shadowBlur = 14 + Math.sin(lavaT * 4) * 6;
+        if (_heartImg.complete && _heartImg.naturalWidth > 0) {
+          ctx.drawImage(_heartImg, lhx - PICKUP_SIZE / 2, lh.y - bounce - PICKUP_SIZE / 2, PICKUP_SIZE, PICKUP_SIZE);
+        } else {
+          ctx.fillStyle = "#ff4477";
+          ctx.font = "22px serif";
+          ctx.textAlign = "center";
+          ctx.fillText("♥", lhx, lh.y - bounce + 7);
+        }
+        ctx.restore();
+      }
+
       // Finish portal
       const finishX = LEVEL_W - 220;
       const fx = finishX - cx;
@@ -853,8 +911,8 @@ export default function LavaCrawlPage() {
 
       // ── HUD ─────────────────────────────────────────────────────────────
       ctx.save();
-      const HUD_TOP = Math.round(VH * 0.025);
-      const HUD_H = 58;
+      const HUD_TOP = Math.round(VH * 0.05);  // moved down — clears notch/safe-area
+      const HUD_H = 56;
 
       // Toolbar image background (lava-stone bar)
       if (_hudBarImg.complete && _hudBarImg.naturalWidth > 0) {
@@ -864,53 +922,65 @@ export default function LavaCrawlPage() {
         ctx.fillRect(0, HUD_TOP, VW, HUD_H);
       }
 
-      const textY = HUD_TOP + 37;
-      const HEART_SIZE = 28;
-      const HEART_GAP = 32;
+      const textY = HUD_TOP + 36;
+      const HEART_SIZE = 22;  // slightly smaller
+      const HEART_GAP = 25;   // tighter spacing
+      const HEARTS_START_X = 10; // inset from left edge
 
-      // Lives (lava-stone heart images)
-      for (let i = 0; i < MAX_LIVES; i++) {
-        const hx = 8 + i * HEART_GAP;
+      // Lives — show all MAX_HEART_SLOTS slots; empty slots darkened
+      for (let i = 0; i < MAX_HEART_SLOTS; i++) {
+        const hx = HEARTS_START_X + i * HEART_GAP;
         const hy = HUD_TOP + (HUD_H - HEART_SIZE) / 2;
         if (_heartImg.complete && _heartImg.naturalWidth > 0) {
           ctx.save();
-          ctx.globalAlpha = i < s.lives ? 1.0 : 0.25;
-          ctx.drawImage(_heartImg, hx, hy, HEART_SIZE, HEART_SIZE);
+          if (i < s.lives) {
+            // Active life — full color
+            ctx.globalAlpha = 1.0;
+            ctx.drawImage(_heartImg, hx, hy, HEART_SIZE, HEART_SIZE);
+          } else {
+            // Lost life — dark desaturated overlay
+            ctx.globalAlpha = 0.18;
+            ctx.drawImage(_heartImg, hx, hy, HEART_SIZE, HEART_SIZE);
+            ctx.globalAlpha = 0.55;
+            ctx.fillStyle = "#1a0000";
+            ctx.fillRect(hx, hy, HEART_SIZE, HEART_SIZE);
+          }
           ctx.restore();
         } else {
-          ctx.fillStyle = i < s.lives ? "#ff4444" : "rgba(255,100,100,0.25)";
-          ctx.font = "22px serif";
+          ctx.fillStyle = i < s.lives ? "#ff4444" : "rgba(120,30,30,0.35)";
+          ctx.font = "18px serif";
           ctx.textAlign = "left";
           ctx.fillText("♥", hx, textY);
         }
       }
 
-      // Score
+      // Score — centered
       ctx.fillStyle = "#fff8e0";
-      ctx.font = "bold 20px monospace";
+      ctx.font = "bold 19px monospace";
       ctx.textAlign = "center";
       ctx.shadowColor = "#ff6600";
       ctx.shadowBlur = 6;
       ctx.fillText(`${s.score}`, VW / 2, textY);
       ctx.shadowBlur = 0;
 
-      // Coins
+      // Coins — right side, inset from edge
+      const COIN_ICON = 18;
       ctx.fillStyle = "#fff8e0";
-      ctx.font = "bold 18px monospace";
+      ctx.font = "bold 16px monospace";
       ctx.textAlign = "right";
       const coinCountStr = ` ${s.coinsCollected}`;
-      ctx.fillText(coinCountStr, VW - 12, textY);
+      ctx.fillText(coinCountStr, VW - 18, textY);
       if (_coinImg.complete && _coinImg.naturalWidth > 0) {
         const textW = ctx.measureText(coinCountStr).width;
-        ctx.drawImage(_coinImg, VW - 12 - textW - 24, HUD_TOP + 16, 24, 24);
+        ctx.drawImage(_coinImg, VW - 18 - textW - COIN_ICON - 2, HUD_TOP + (HUD_H - COIN_ICON) / 2, COIN_ICON, COIN_ICON);
       }
 
-      // Progress bar below the text
+      // Progress bar
       const prog = Math.min(s.px / (LEVEL_W - 100), 1);
       ctx.fillStyle = "rgba(255,255,255,0.12)";
-      ctx.fillRect(VW * 0.22, HUD_TOP + HUD_H - 7, VW * 0.56, 5);
+      ctx.fillRect(VW * 0.25, HUD_TOP + HUD_H - 7, VW * 0.5, 4);
       ctx.fillStyle = "#ff8800";
-      ctx.fillRect(VW * 0.22, HUD_TOP + HUD_H - 7, VW * 0.56 * prog, 5);
+      ctx.fillRect(VW * 0.25, HUD_TOP + HUD_H - 7, VW * 0.5 * prog, 4);
 
       ctx.restore();
     };
