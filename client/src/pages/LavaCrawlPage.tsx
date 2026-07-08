@@ -7,6 +7,9 @@ import lavaCrawlTitleImg from "@assets/lava_crawl_title.webp";
 import btnPlayImg from "@assets/lava_crawl_btn_play.webp";
 import btnLeaderboardImg from "@assets/lava_crawl_btn_leaderboard.webp";
 import btnBackToWorldImg from "@assets/lava_crawl_btn_back.webp";
+import btnLeftImg from "@assets/Photoroom_20260707_92022_PM_1783477769862.png";
+import btnRightImg from "@assets/Photoroom_20260707_92153_PM_1783477769862.png";
+import btnPauseImg from "@assets/Photoroom_20260707_92309_PM_1783477809830.png";
 import coinIconImg from "@assets/icon_coin.webp";
 import lavaCaveBg from "@assets/bg_lava_crawl.webp";
 import slabImg1 from "@assets/lava_slab_1.webp";
@@ -362,6 +365,8 @@ export default function LavaCrawlPage() {
       // Sync canvas to physical size
       const cw = canvas.clientWidth;
       const ch = canvas.clientHeight;
+      // Skip frames before the browser has laid out the canvas
+      if (!cw || !ch) { rafRef.current = requestAnimationFrame(loop); return; }
       if (canvas.width !== Math.round(cw * dpr) || canvas.height !== Math.round(ch * dpr)) {
         canvas.width = Math.round(cw * dpr);
         canvas.height = Math.round(ch * dpr);
@@ -719,12 +724,11 @@ export default function LavaCrawlPage() {
         ctx.shadowColor = "#ff6600";
         ctx.shadowBlur = 14;
         if (petImgRef.current) {
-          // Active pet image — mirror horizontally when facing left
-          // Pets face RIGHT by default (same convention as HomePage)
+          // Pet images face LEFT by default — flip when moving right
           const centerX = ppx + PW / 2;
           const centerY = petDrawY + PET_SIZE / 2;
           ctx.translate(centerX, centerY);
-          if (!s.facingR) ctx.scale(-1, 1);
+          if (s.facingR) ctx.scale(-1, 1);
           ctx.drawImage(petImgRef.current, -PET_SIZE / 2, -PET_SIZE / 2, PET_SIZE, PET_SIZE);
         } else {
           // Fallback pixel adventurer
@@ -764,42 +768,46 @@ export default function LavaCrawlPage() {
 
       // ── HUD ─────────────────────────────────────────────────────────────
       ctx.save();
+      const HUD_TOP = Math.round(VH * 0.04); // ~4% from top — clears safe-area on all devices
+      const HUD_H = 52;
 
       // Top bar background
-      ctx.fillStyle = "rgba(0,0,0,0.55)";
-      ctx.fillRect(0, 0, VW, 40);
+      ctx.fillStyle = "rgba(0,0,0,0.65)";
+      ctx.fillRect(0, HUD_TOP, VW, HUD_H);
+
+      const textY = HUD_TOP + 33; // baseline inside the bar
 
       // Lives (hearts)
-      ctx.font = "18px serif";
+      ctx.font = "22px serif";
       ctx.textAlign = "left";
       for (let i = 0; i < MAX_LIVES; i++) {
         ctx.fillStyle = i < s.lives ? "#ff4444" : "rgba(255,100,100,0.25)";
-        ctx.fillText("♥", 10 + i * 24, 26);
+        ctx.fillText("♥", 10 + i * 28, textY);
       }
 
       // Score
       ctx.fillStyle = "#ffd700";
-      ctx.font = "bold 15px monospace";
+      ctx.font = "bold 19px monospace";
       ctx.textAlign = "center";
-      ctx.fillText(`${s.score}`, VW / 2, 26);
+      ctx.fillText(`${s.score}`, VW / 2, textY);
 
       // Coins
       ctx.fillStyle = "#ffd700";
-      ctx.font = "bold 14px monospace";
+      ctx.font = "bold 17px monospace";
       ctx.textAlign = "right";
       const coinCountStr = ` ${s.coinsCollected}`;
-      ctx.fillText(coinCountStr, VW - 10, 26);
+      ctx.fillText(coinCountStr, VW - 12, textY);
       if (_coinImg.complete && _coinImg.naturalWidth > 0) {
         const textW = ctx.measureText(coinCountStr).width;
-        ctx.drawImage(_coinImg, VW - 10 - textW - 18, 9, 18, 18);
+        ctx.drawImage(_coinImg, VW - 12 - textW - 22, HUD_TOP + 14, 22, 22);
       }
 
-      // Progress bar
+      // Progress bar below the text
       const prog = Math.min(s.px / (LEVEL_W - 100), 1);
       ctx.fillStyle = "rgba(255,255,255,0.12)";
-      ctx.fillRect(VW * 0.25, 33, VW * 0.5, 4);
+      ctx.fillRect(VW * 0.25, HUD_TOP + HUD_H - 6, VW * 0.5, 4);
       ctx.fillStyle = "#ff8800";
-      ctx.fillRect(VW * 0.25, 33, VW * 0.5 * prog, 4);
+      ctx.fillRect(VW * 0.25, HUD_TOP + HUD_H - 6, VW * 0.5 * prog, 4);
 
       ctx.restore();
     };
@@ -943,26 +951,26 @@ export default function LavaCrawlPage() {
       {/* ── Touch controls (shown only when playing or paused) ──────────────── */}
       {(screen === "playing" || screen === "paused") && (
         <div style={{ height: "108px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", background: "rgba(10,3,0,0.85)", borderTop: "1px solid rgba(255,100,0,0.25)", userSelect: "none", flexShrink: 0 }}>
-          {/* Left */}
+          {/* Left / Right arrows */}
           <div style={{ display: "flex", gap: "8px" }}>
             <button
               data-testid="button-lava-left"
               {...makeTouch("left")}
-              style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(255,120,0,0.18)", border: "2px solid rgba(255,120,0,0.5)", color: "#ff8800", fontSize: "26px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-            >◀</button>
+              style={{ width: 76, height: 56, background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+            ><img src={btnLeftImg} alt="Left" draggable={false} style={{ width: 76, height: "auto", objectFit: "contain" }} /></button>
             <button
               data-testid="button-lava-right"
               {...makeTouch("right")}
-              style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(255,120,0,0.18)", border: "2px solid rgba(255,120,0,0.5)", color: "#ff8800", fontSize: "26px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-            >▶</button>
+              style={{ width: 76, height: 56, background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+            ><img src={btnRightImg} alt="Right" draggable={false} style={{ width: 76, height: "auto", objectFit: "contain" }} /></button>
           </div>
           {/* Pause */}
           <button
             data-testid="button-lava-pause"
             onMouseDown={() => screen === "playing" ? showScreen("paused") : showScreen("playing")}
             onTouchStart={(e) => { e.preventDefault(); screen === "playing" ? showScreen("paused") : showScreen("playing"); }}
-            style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.6)", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-          >{screen === "playing" ? "⏸" : "▶"}</button>
+            style={{ width: 64, height: 64, background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+          ><img src={btnPauseImg} alt="Pause" draggable={false} style={{ width: 64, height: 64, objectFit: "contain" }} /></button>
           {/* Jump */}
           <button
             data-testid="button-lava-jump"
@@ -1008,7 +1016,6 @@ export default function LavaCrawlPage() {
           <div style={{ ...titleStyle, fontSize: "26px", marginBottom: "16px" }}>⏸ Paused</div>
           <button data-testid="button-lava-resume" style={btnStyle("#ff8800")} onClick={() => showScreen("playing")}>▶  Resume</button>
           <button data-testid="button-lava-restart-pause" style={btnStyle("#ffd080")} onClick={startGame}>↺  Restart</button>
-          <button data-testid="button-lava-back-pause" style={btnStyle("rgba(255,200,100,0.5)")} onClick={() => navigate("/world/volcanic")}>← Exit Game</button>
         </div>
       )}
 
