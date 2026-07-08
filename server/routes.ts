@@ -7021,6 +7021,37 @@ export async function registerRoutes(
     }
   });
 
+  // Award EXP to active pet for each enemy killed in Lava Crawl
+  app.post("/api/lava-crawl/gain-exp", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const EXP_PER_KILL = 8;
+      let petResult: { petLevel: number; petLevelPoints: number; leveledUp: boolean } | null = null;
+      if (user.activePetId) {
+        const [petInv] = await db
+          .select()
+          .from(userInventory)
+          .where(and(eq(userInventory.id, user.activePetId), eq(userInventory.userId, user.id)))
+          .limit(1);
+        if (petInv) {
+          const prevLevel = petInv.petLevel || 1;
+          const { newLevel, newPoints } = applyPetXp(prevLevel, petInv.petLevelPoints || 0, EXP_PER_KILL);
+          const updates: any = { petLevelPoints: newPoints };
+          if (newLevel > prevLevel) updates.petLevel = newLevel;
+          const updated = await storage.updateInventoryItem(petInv.id, updates);
+          petResult = {
+            petLevel: updated.petLevel || 1,
+            petLevelPoints: updated.petLevelPoints || 0,
+            leveledUp: newLevel > prevLevel,
+          };
+        }
+      }
+      return res.json({ ok: true, petResult });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   // Player's personal best score
   app.get("/api/lava-crawl/my-best", isAuthenticated, async (req, res) => {
     try {

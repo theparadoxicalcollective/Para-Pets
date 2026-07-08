@@ -13,6 +13,7 @@ import btnPauseImg from "@assets/Photoroom_20260707_92309_PM_1783477809830.png";
 import btnJumpImg from "@assets/Photoroom_20260707_95354_PM_1783479266963.png";
 import hudBarImg from "@assets/Photoroom_20260707_94710_PM_1783478966948.png";
 import heartImg from "@assets/Photoroom_20260707_94648_PM_1783478966948.png";
+import skullImg from "@assets/Photoroom_20260705_103527_PM_1783426783499.png";
 import coinIconImg from "@assets/icon_coin.webp";
 import lavaCaveBg from "@assets/bg_lava_crawl.webp";
 import slabImg1 from "@assets/lava_slab_1.webp";
@@ -34,6 +35,7 @@ const _lavaGroundCapImg = new Image(); _lavaGroundCapImg.src = lavaGroundCapImg;
 const _lavaPillarImg = new Image(); _lavaPillarImg.src = lavaPillarImg;
 const _hudBarImg = new Image(); _hudBarImg.src = hudBarImg;
 const _heartImg = new Image(); _heartImg.src = heartImg;
+const _skullImg = new Image(); _skullImg.src = skullImg;
 
 // ─── Game constants ─────────────────────────────────────────────────────────
 const LEVEL_W = 8000;
@@ -70,6 +72,12 @@ interface Coin {
   type: "coin" | "orb";
 }
 
+interface FloatParticle {
+  x: number; y: number;
+  text: string; color: string;
+  life: number; maxLife: number;
+}
+
 interface GState {
   px: number; py: number;
   pvx: number; pvy: number;
@@ -79,12 +87,13 @@ interface GState {
   respawnTimer: number;
   enemies: Enemy[];
   coins: Coin[];
+  floats: FloatParticle[];
   cameraX: number;
   score: number;
   coinsCollected: number;
   lives: number;
   finishReached: boolean;
-  lavaY: number;   // current canvas-height for ground
+  lavaY: number;
 }
 
 // ─── Level data builders (called fresh each new game) ────────────────────────
@@ -331,6 +340,16 @@ export default function LavaCrawlPage() {
     },
   });
 
+  const gainExpMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/lava-crawl/gain-exp", {}),
+    onSuccess: async (res) => {
+      const data = await res.json();
+      if (data.petResult?.leveledUp) {
+        queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      }
+    },
+  });
+
   // Load active pet image for player sprite
   useEffect(() => {
     if (!authMe?.activePetId || !inventoryItems) return;
@@ -364,6 +383,7 @@ export default function LavaCrawlPage() {
       alive: true, respawnTimer: 0,
       enemies: buildEnemies(gY),
       coins: buildCoins(gY),
+      floats: [],
       cameraX: 0,
       score: 0, coinsCollected: 0,
       lives: MAX_LIVES,
@@ -490,9 +510,12 @@ export default function LavaCrawlPage() {
 
           if (stomped) {
             e.alive = false;
-            e.stompTimer = 20;
+            e.stompTimer = 30;
             s.pvy = JUMP_VEL * 0.55;
             s.score += ENEMY_SCORE;
+            // Float particle: XP gain
+            s.floats.push({ x: e.x + EW / 2 - s.cameraX, y: e.y - 10, text: "+8 XP", color: "#a0ff80", life: 55, maxLife: 55 });
+            gainExpMutation.mutate();
           } else if (s.alive && overlaps(s.px, s.py, PW - 4, PH - 4, e.x + 2, e.y + 2, EW - 4, EH - 4)) {
             // Side/bottom collision → hurt
             s.alive = false;
@@ -511,8 +534,10 @@ export default function LavaCrawlPage() {
             if (c.type === "coin") {
               s.coinsCollected++;
               s.score += COIN_SCORE;
+              s.floats.push({ x: c.x - s.cameraX, y: c.y - 8, text: "+10", color: "#ffd700", life: 45, maxLife: 45 });
             } else {
               s.score += ORB_SCORE;
+              s.floats.push({ x: c.x - s.cameraX, y: c.y - 8, text: "+5", color: "#ff9933", life: 45, maxLife: 45 });
             }
           }
         }
@@ -719,11 +744,21 @@ export default function LavaCrawlPage() {
       for (const e of s.enemies) {
         const ex = e.x - cx;
         if (ex < -50 || ex > VW + 50) continue;
-        const ey2 = e.alive ? e.y : e.stompY + (1 - e.stompTimer / 20) * EH;
-        const alpha = e.alive ? 1 : e.stompTimer / 20;
         ctx.save();
-        ctx.globalAlpha = alpha;
+        if (!e.alive) {
+          // Dead: show skull image rising + fading out
+          const t = e.stompTimer / 30;
+          ctx.globalAlpha = t;
+          const rise = (1 - t) * 22;
+          const skullSize = 44;
+          if (_skullImg.complete && _skullImg.naturalWidth > 0) {
+            ctx.drawImage(_skullImg, ex + EW / 2 - skullSize / 2, e.stompY - rise - skullSize * 0.3, skullSize, skullSize);
+          }
+          ctx.restore();
+          continue;
+        }
         // Body
+        const ey2 = e.y;
         const enemyGrad = ctx.createLinearGradient(ex, ey2, ex, ey2 + EH);
         enemyGrad.addColorStop(0, "#cc2020");
         enemyGrad.addColorStop(1, "#660808");
@@ -745,6 +780,24 @@ export default function LavaCrawlPage() {
         ctx.moveTo(ex + EW - 7, ey2); ctx.lineTo(ex + EW - 4, ey2 - 8); ctx.lineTo(ex + EW - 10, ey2); ctx.fill();
         ctx.restore();
       }
+
+      // Float particles (XP gains, coin pops)
+      ctx.save();
+      for (let i = s.floats.length - 1; i >= 0; i--) {
+        const fp = s.floats[i];
+        const t = fp.life / fp.maxLife;
+        fp.life -= dt;
+        if (fp.life <= 0) { s.floats.splice(i, 1); continue; }
+        const rise = (1 - t) * 34;
+        ctx.globalAlpha = t * (t < 0.25 ? t / 0.25 : 1); // fade in then out
+        ctx.font = `bold ${13 + (1 - t) * 4}px monospace`;
+        ctx.textAlign = "center";
+        ctx.shadowColor = "#000";
+        ctx.shadowBlur = 4;
+        ctx.fillStyle = fp.color;
+        ctx.fillText(fp.text, fp.x, fp.y - rise);
+      }
+      ctx.restore();
 
       // Player
       if (s.alive) {
@@ -863,7 +916,7 @@ export default function LavaCrawlPage() {
     };
 
     rafRef.current = requestAnimationFrame(loop);
-  }, [buildState, showScreen, completeMutation]);
+  }, [buildState, showScreen, completeMutation, gainExpMutation]);
 
   const stopLoop = useCallback(() => {
     if (rafRef.current != null) {
