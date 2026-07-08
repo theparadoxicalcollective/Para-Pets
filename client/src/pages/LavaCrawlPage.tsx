@@ -8,11 +8,19 @@ import btnLeaderboardImg from "@assets/lava_crawl_btn_leaderboard.webp";
 import btnBackToWorldImg from "@assets/lava_crawl_btn_back.webp";
 import coinIconImg from "@assets/icon_coin.webp";
 import lavaCaveBg from "@assets/bg_lava_crawl.webp";
+import slabImg1 from "@assets/lava_slab_1.webp";
+import slabImg2 from "@assets/lava_slab_2.webp";
+import slabImg3 from "@assets/lava_slab_3.webp";
+import lavaTexImg from "@assets/lava_texture.webp";
+import lavaGroundImg from "@assets/lava_ground.webp";
 const LAVA_CAVE_BG = lavaCaveBg;
 
-// Pre-load coin image for canvas HUD
-const _coinImg = new Image();
-_coinImg.src = coinIconImg;
+// Pre-load canvas images at module level
+const _coinImg = new Image(); _coinImg.src = coinIconImg;
+const _slabImgs = [new Image(), new Image(), new Image()];
+_slabImgs[0].src = slabImg1; _slabImgs[1].src = slabImg2; _slabImgs[2].src = slabImg3;
+const _lavaTexImg = new Image(); _lavaTexImg.src = lavaTexImg;
+const _lavaGroundImg = new Image(); _lavaGroundImg.src = lavaGroundImg;
 
 // ─── Game constants ─────────────────────────────────────────────────────────
 const LEVEL_W = 6400;
@@ -472,24 +480,33 @@ export default function LavaCrawlPage() {
         ctx.fillRect(0, 0, VW, VH);
       }
 
-      // Lava (animated fill in gaps)
+      // Lava (tiled texture, scrolls slowly)
       const lavaT = ts * 0.001;
-      const lavaGrad = ctx.createLinearGradient(0, gY, 0, VH);
-      lavaGrad.addColorStop(0, `rgba(255,${80 + Math.sin(lavaT * 3) * 20},0,0.95)`);
-      lavaGrad.addColorStop(0.4, "#cc2200");
-      lavaGrad.addColorStop(1, "#660800");
-      ctx.fillStyle = lavaGrad;
-      ctx.fillRect(0, gY, VW, VH - gY);
-
-      // Lava surface glow
-      ctx.strokeStyle = `rgba(255,${140 + Math.sin(lavaT * 4) * 40},0,0.8)`;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      for (let lx = 0; lx <= VW; lx += 6) {
-        const waveY = gY + Math.sin((lx + cx * 0.5 + lavaT * 120) * 0.04) * 4;
-        lx === 0 ? ctx.moveTo(lx, waveY) : ctx.lineTo(lx, waveY);
+      if (_lavaTexImg.complete && _lavaTexImg.naturalWidth > 0) {
+        const lavaH = VH - gY;
+        const tileAspect = _lavaTexImg.width / _lavaTexImg.height;
+        const tileH = lavaH;
+        const tileW = tileH * tileAspect;
+        const scrollX = (lavaT * 25) % tileW;
+        let drawX = -scrollX;
+        while (drawX < VW) {
+          ctx.drawImage(_lavaTexImg, drawX, gY, tileW, tileH);
+          drawX += tileW;
+        }
+        // Darken bottom slightly for depth
+        const depthGrad = ctx.createLinearGradient(0, gY, 0, VH);
+        depthGrad.addColorStop(0, "rgba(0,0,0,0)");
+        depthGrad.addColorStop(1, "rgba(0,0,0,0.45)");
+        ctx.fillStyle = depthGrad;
+        ctx.fillRect(0, gY, VW, lavaH);
+      } else {
+        // Fallback gradient
+        const lavaGrad = ctx.createLinearGradient(0, gY, 0, VH);
+        lavaGrad.addColorStop(0, "#ff5000");
+        lavaGrad.addColorStop(1, "#660800");
+        ctx.fillStyle = lavaGrad;
+        ctx.fillRect(0, gY, VW, VH - gY);
       }
-      ctx.stroke();
 
       // Platforms
       for (const p of allPlats) {
@@ -497,34 +514,35 @@ export default function LavaCrawlPage() {
         if (px2 + p.w < -10 || px2 > VW + 10) continue;
 
         const isGround = p.h > 20;
-        // Stone texture
-        const grad = ctx.createLinearGradient(px2, py2, px2, py2 + p.h);
         if (isGround) {
-          grad.addColorStop(0, "#5a3520");
-          grad.addColorStop(0.3, "#3d2010");
-          grad.addColorStop(1, "#200a00");
-        } else {
-          grad.addColorStop(0, "#6b4030");
-          grad.addColorStop(1, "#3d2010");
-        }
-        ctx.fillStyle = grad;
-        ctx.fillRect(px2, py2, p.w, p.h);
-
-        // Top edge highlight
-        ctx.fillStyle = isGround ? "#7a4a30" : "#8a5540";
-        ctx.fillRect(px2, py2, p.w, 3);
-
-        // Lava cracks on ground
-        if (isGround && p.w > 80) {
-          ctx.strokeStyle = "rgba(255,80,0,0.25)";
-          ctx.lineWidth = 1;
-          for (let ci = 1; ci < Math.floor(p.w / 80); ci++) {
-            const cx2 = px2 + ci * 80 + Math.sin(ci * 3.7) * 20;
+          // Ground: tile the ground texture across the segment
+          if (_lavaGroundImg.complete && _lavaGroundImg.naturalWidth > 0) {
+            const tileAspect = _lavaGroundImg.width / _lavaGroundImg.height;
+            const tileH = p.h;
+            const tileW = tileH * tileAspect;
+            let dx = px2;
+            ctx.save();
             ctx.beginPath();
-            ctx.moveTo(cx2, py2 + 4);
-            ctx.lineTo(cx2 + 10, py2 + 14);
-            ctx.lineTo(cx2 + 5, py2 + 24);
-            ctx.stroke();
+            ctx.rect(px2, py2, p.w, p.h);
+            ctx.clip();
+            while (dx < px2 + p.w) {
+              ctx.drawImage(_lavaGroundImg, dx, py2, tileW, tileH);
+              dx += tileW;
+            }
+            ctx.restore();
+          } else {
+            ctx.fillStyle = "#3d2010";
+            ctx.fillRect(px2, py2, p.w, p.h);
+          }
+        } else {
+          // Floating slab: pick one of 3 images based on position
+          const slabIdx = Math.abs(Math.floor(p.x / 120)) % 3;
+          const slab = _slabImgs[slabIdx];
+          if (slab.complete && slab.naturalWidth > 0) {
+            ctx.drawImage(slab, px2, py2, p.w, p.h);
+          } else {
+            ctx.fillStyle = "#6b4030";
+            ctx.fillRect(px2, py2, p.w, p.h);
           }
         }
       }
@@ -535,17 +553,18 @@ export default function LavaCrawlPage() {
         const cx2 = c.x - cx;
         if (cx2 < -20 || cx2 > VW + 20) continue;
         const bounce = Math.sin(lavaT * 4 + c.x * 0.01) * 3;
+        const coinSize = CR * 2.4;
         ctx.save();
         ctx.shadowColor = "gold";
-        ctx.shadowBlur = 8;
-        ctx.fillStyle = `hsl(${45 + Math.sin(lavaT * 3 + c.x) * 10}, 100%, ${55 + Math.sin(lavaT * 5) * 10}%)`;
-        ctx.beginPath();
-        ctx.arc(cx2, c.y - bounce, CR, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "rgba(255,255,255,0.5)";
-        ctx.beginPath();
-        ctx.arc(cx2 - 3, c.y - bounce - 3, CR * 0.35, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.shadowBlur = 10;
+        if (_coinImg.complete && _coinImg.naturalWidth > 0) {
+          ctx.drawImage(_coinImg, cx2 - coinSize / 2, c.y - bounce - coinSize / 2, coinSize, coinSize);
+        } else {
+          ctx.fillStyle = "#ffd700";
+          ctx.beginPath();
+          ctx.arc(cx2, c.y - bounce, CR, 0, Math.PI * 2);
+          ctx.fill();
+        }
         ctx.restore();
       }
 
