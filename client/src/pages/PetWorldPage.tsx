@@ -118,19 +118,33 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   const frameWRef = useRef(FRAME_W);
   const frameHRef = useRef(FRAME_H);
   const [frameW, setFrameW] = useState(FRAME_W);
-  const [frameH] = useState(FRAME_H);
-  // The frame width can change if the device crosses the wide breakpoint (e.g. a
-  // phone rotates to landscape). Keep the live ref + state in sync so pan
-  // clamping and centering recompute against the actual stage width.
+  const [frameH, setFrameH] = useState(FRAME_H);
+  const vpRef = useRef<HTMLDivElement>(null);
+  // The frame's on-screen box is measured directly from vpRef (the real
+  // rendered viewport element) rather than assumed from the 390/470×844
+  // design constants. Phones happen to be close to 844 tall so this was
+  // barely noticeable there, but tablets/desktop have very different aspect
+  // ratios — using the fixed 844 constant under-/over-scaled the "cover" fit
+  // and left gaps or mis-cropped backgrounds. Location/decor/collider positions
+  // are stored as percentages of the MAP_W×mapH map space, not of the frame, so
+  // measuring the real frame size only affects zoom/pan fit — it never moves
+  // anything on the map.
   useEffect(() => {
-    const onResize = () => {
-      const dw = getDesignW();
-      frameWRef.current = dw;
-      setFrameW((prev) => (prev !== dw ? dw : prev));
+    const el = vpRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.clientWidth || getDesignW();
+      const h = el.clientHeight || DESIGN_H;
+      frameWRef.current = w;
+      frameHRef.current = h;
+      setFrameW((prev) => (prev !== w ? w : prev));
+      setFrameH((prev) => (prev !== h ? h : prev));
     };
-    onResize();
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener("orientationchange", measure);
+    return () => { ro.disconnect(); window.removeEventListener("orientationchange", measure); };
   }, []);
   const mapTransformRef         = useRef({ x: 0, y: 0, scale: 1 });
   const mapPanPointersRef       = useRef(new Map<number, { x: number; y: number }>());
@@ -1315,6 +1329,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
     >
       {/* ══ Map canvas — single background, full pan + zoom ════════════════ */}
       <div
+        ref={vpRef}
         className="absolute inset-0 overflow-hidden"
         style={{ touchAction: "none", userSelect: "none", zIndex: 3 }}
         onPointerDown={handleVpPointerDown}
