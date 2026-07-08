@@ -609,10 +609,11 @@ export default function LavaCrawlPage() {
           const ecx = e.x + EW / 2, ecy = e.y + EH / 2;
           const hx = ecx - hw / 2, hy = ecy - hh / 2;
 
-          // Stomp check — player falls on top of enemy
+          // Stomp check — player must be meaningfully falling (not just gravity drift)
+          // and their feet must be in the top third of the enemy hitbox.
           const stomped =
-            s.pvy > 0 &&
-            s.py + PH <= ecy + hh * 0.2 &&
+            s.pvy > 1.5 &&
+            s.py + PH <= hy + hh * 0.42 &&
             overlaps(s.px, s.py, PW, PH, hx, hy, hw, hh);
 
           if (stomped) {
@@ -1485,7 +1486,7 @@ export default function LavaCrawlPage() {
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100%", padding: "24px 20px" }}>
             <div style={{ position: "relative", width: "min(300px, 82vw)" }}>
               <img src={lavaCrawlLbFrameImg} alt="Leaderboard" draggable={false} style={{ width: "100%", height: "auto", display: "block", pointerEvents: "none" }} />
-              <div style={{ position: "absolute", top: "21%", left: "13%", right: "13%", bottom: "9%", overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ position: "absolute", top: "28%", left: "13%", right: "13%", bottom: "9%", overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
                 {!leaderboard ? (
                   <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "12px", textAlign: "center", marginTop: "12px" }}>Loading…</div>
                 ) : leaderboard.length === 0 ? (
@@ -1495,7 +1496,7 @@ export default function LavaCrawlPage() {
                     <div
                       key={i}
                       data-testid={`row-leaderboard-${i}`}
-                      style={{ display: "flex", alignItems: "center", gap: "8px", padding: "5px 8px", borderRadius: "8px", background: i === 0 ? "rgba(255,215,0,0.16)" : i === 1 ? "rgba(192,192,192,0.14)" : i === 2 ? "rgba(205,127,50,0.14)" : "rgba(0,0,0,0.22)" }}
+                      style={{ display: "flex", alignItems: "center", gap: "8px", padding: "5px 8px", borderRadius: "8px", background: i === 0 ? "rgba(255,70,10,0.28)" : i === 1 ? "rgba(200,40,5,0.22)" : i === 2 ? "rgba(155,25,5,0.20)" : "rgba(80,12,4,0.25)" }}
                     >
                       <span style={{ width: "22px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                         {i === 0 ? <img src={trophy1st} alt="1st" style={{ width: 20, height: 20, objectFit: "contain" }} />
