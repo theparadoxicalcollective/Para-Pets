@@ -10,6 +10,9 @@ import btnBackToWorldImg from "@assets/lava_crawl_btn_back.webp";
 import btnLeftImg from "@assets/Photoroom_20260707_92022_PM_1783477769862.png";
 import btnRightImg from "@assets/Photoroom_20260707_92153_PM_1783477769862.png";
 import btnPauseImg from "@assets/Photoroom_20260707_92309_PM_1783477809830.png";
+import btnJumpImg from "@assets/Photoroom_20260707_95354_PM_1783479266963.png";
+import hudBarImg from "@assets/Photoroom_20260707_94710_PM_1783478966948.png";
+import heartImg from "@assets/Photoroom_20260707_94648_PM_1783478966948.png";
 import coinIconImg from "@assets/icon_coin.webp";
 import lavaCaveBg from "@assets/bg_lava_crawl.webp";
 import slabImg1 from "@assets/lava_slab_1.webp";
@@ -29,9 +32,11 @@ const _lavaTexImg = new Image(); _lavaTexImg.src = lavaTexImg;
 const _lavaGroundTileImg = new Image(); _lavaGroundTileImg.src = lavaGroundTileImg;
 const _lavaGroundCapImg = new Image(); _lavaGroundCapImg.src = lavaGroundCapImg;
 const _lavaPillarImg = new Image(); _lavaPillarImg.src = lavaPillarImg;
+const _hudBarImg = new Image(); _hudBarImg.src = hudBarImg;
+const _heartImg = new Image(); _heartImg.src = heartImg;
 
 // ─── Game constants ─────────────────────────────────────────────────────────
-const LEVEL_W = 6400;
+const LEVEL_W = 8000;
 const GRAVITY = 0.52;
 const JUMP_VEL = -13.5;
 const P_SPEED = 4.2;
@@ -44,8 +49,8 @@ const ENEMY_SCORE = 25;
 const FINISH_BONUS = 200;
 const MAX_LIVES = 3;
 
-// Ground is always at (canvasH * GR) from the top
-const GR = 0.80;
+// Ground is always at (canvasH * GR) from the top — 0.76 keeps lava fully under ground tile
+const GR = 0.76;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type Screen = "start" | "playing" | "paused" | "gameover" | "victory" | "leaderboard";
@@ -97,7 +102,11 @@ function buildGrounds(gY: number, ch: number): Plat[] {
     [4060, 280],
     [4520, 300],
     [5020, 250],
-    [5440, 960],
+    [5440,  460],
+    [6020,  390],
+    [6510,  330],
+    [6940,  420],
+    [7460,  540],
   ];
   return segs.map(([x, w]) => ({ x, y: gY, w, h }));
 }
@@ -147,6 +156,19 @@ function buildFloats(gY: number): Plat[] {
     { x: 5100, y: gY - 100, w: 70, h: 14 },
     { x: 5800, y: gY - 90,  w: 65, h: 14 },
     { x: 6050, y: gY - 100, w: 70, h: 14 },
+    // New section 6400-8000
+    { x: 5920, y: fy(0),  w: 85, h: 14 },  // bridge gap 5900-6020
+    { x: 5980, y: fy(-28), w: 75, h: 14 },
+    { x: 6415, y: fy(5),  w: 80, h: 14 },  // bridge gap 6300-6510 (narrower)
+    { x: 6490, y: fy(-22), w: 60, h: 14 },
+    { x: 6845, y: fy(0),  w: 85, h: 14 },  // bridge gap 6840-6940
+    { x: 7235, y: fy(0),  w: 90, h: 14 },  // bridge gap 7360-7460
+    { x: 7310, y: fy(-30), w: 70, h: 14 },
+    // High bonus platforms
+    { x: 6280, y: gY - 100, w: 70, h: 14 },
+    { x: 6700, y: gY - 95,  w: 65, h: 14 },
+    { x: 7150, y: gY - 100, w: 70, h: 14 },
+    { x: 7650, y: gY - 90,  w: 65, h: 14 },
   ];
 }
 
@@ -164,16 +186,22 @@ function buildCoins(gY: number): Coin[] {
     [5100, gY - 30], [5200, gY - 30],
     [5500, gY - 30], [5700, gY - 30], [5900, gY - 30],
     [6100, gY - 30], [6300, gY - 30],
+    // Extended section 6400-7800
+    [6100, gY - 30], [6200, gY - 30], [6500, gY - 30], [6600, gY - 30],
+    [6700, gY - 30], [6950, gY - 30], [7050, gY - 30],
+    [7150, gY - 30], [7300, gY - 30], [7500, gY - 30], [7700, gY - 30],
     // High platform coins
     [255,  gY - 120], [600,  gY - 108], [955,  gY - 118],
     [1755, gY - 118], [2355, gY - 112], [2825, gY - 118],
     [3605, gY - 112], [4155, gY - 118], [4705, gY - 112],
     [5105, gY - 118], [5805, gY - 108], [6055, gY - 118],
+    [6285, gY - 118], [6705, gY - 112], [7155, gY - 118], [7655, gY - 108],
     // Bridge coins
     [715,  gY - 72], [1235, gY - 68], [1568, gY - 72],
     [2155, gY - 68], [2580, gY - 72], [3055, gY - 68],
     [3388, gY - 72], [3902, gY - 68], [4348, gY - 72],
     [4832, gY - 68], [5283, gY - 72],
+    [5920, gY - 70], [6420, gY - 68], [6850, gY - 70], [7240, gY - 68],
   ];
   // Randomise each collectible: ~20% chance of real coin, rest are orbs.
   // Using Math.random() so the mix varies every run (not a fixed pattern).
@@ -200,6 +228,10 @@ function buildEnemies(gY: number): Enemy[] {
     e(5100, 5020, 5270),
     e(5600, 5440, 5800),
     e(6000, 5440, 6250),
+    e(6350, 6020, 6510),
+    e(6720, 6510, 6940),
+    e(7100, 6940, 7360),
+    e(7600, 7460, 7900),
   ];
 }
 
@@ -717,7 +749,7 @@ export default function LavaCrawlPage() {
       // Player
       if (s.alive) {
         const ppx = s.px - cx;
-        const PET_SIZE = 52;
+        const PET_SIZE = 64;
         // Bottom of pet image aligned with bottom of collision box
         const petDrawY = s.py + PH - PET_SIZE;
         ctx.save();
@@ -768,46 +800,64 @@ export default function LavaCrawlPage() {
 
       // ── HUD ─────────────────────────────────────────────────────────────
       ctx.save();
-      const HUD_TOP = Math.round(VH * 0.04); // ~4% from top — clears safe-area on all devices
-      const HUD_H = 52;
+      const HUD_TOP = Math.round(VH * 0.025);
+      const HUD_H = 58;
 
-      // Top bar background
-      ctx.fillStyle = "rgba(0,0,0,0.65)";
-      ctx.fillRect(0, HUD_TOP, VW, HUD_H);
+      // Toolbar image background (lava-stone bar)
+      if (_hudBarImg.complete && _hudBarImg.naturalWidth > 0) {
+        ctx.drawImage(_hudBarImg, 0, HUD_TOP - 4, VW, HUD_H + 8);
+      } else {
+        ctx.fillStyle = "rgba(0,0,0,0.70)";
+        ctx.fillRect(0, HUD_TOP, VW, HUD_H);
+      }
 
-      const textY = HUD_TOP + 33; // baseline inside the bar
+      const textY = HUD_TOP + 37;
+      const HEART_SIZE = 28;
+      const HEART_GAP = 32;
 
-      // Lives (hearts)
-      ctx.font = "22px serif";
-      ctx.textAlign = "left";
+      // Lives (lava-stone heart images)
       for (let i = 0; i < MAX_LIVES; i++) {
-        ctx.fillStyle = i < s.lives ? "#ff4444" : "rgba(255,100,100,0.25)";
-        ctx.fillText("♥", 10 + i * 28, textY);
+        const hx = 8 + i * HEART_GAP;
+        const hy = HUD_TOP + (HUD_H - HEART_SIZE) / 2;
+        if (_heartImg.complete && _heartImg.naturalWidth > 0) {
+          ctx.save();
+          ctx.globalAlpha = i < s.lives ? 1.0 : 0.25;
+          ctx.drawImage(_heartImg, hx, hy, HEART_SIZE, HEART_SIZE);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = i < s.lives ? "#ff4444" : "rgba(255,100,100,0.25)";
+          ctx.font = "22px serif";
+          ctx.textAlign = "left";
+          ctx.fillText("♥", hx, textY);
+        }
       }
 
       // Score
-      ctx.fillStyle = "#ffd700";
-      ctx.font = "bold 19px monospace";
+      ctx.fillStyle = "#fff8e0";
+      ctx.font = "bold 20px monospace";
       ctx.textAlign = "center";
+      ctx.shadowColor = "#ff6600";
+      ctx.shadowBlur = 6;
       ctx.fillText(`${s.score}`, VW / 2, textY);
+      ctx.shadowBlur = 0;
 
       // Coins
-      ctx.fillStyle = "#ffd700";
-      ctx.font = "bold 17px monospace";
+      ctx.fillStyle = "#fff8e0";
+      ctx.font = "bold 18px monospace";
       ctx.textAlign = "right";
       const coinCountStr = ` ${s.coinsCollected}`;
       ctx.fillText(coinCountStr, VW - 12, textY);
       if (_coinImg.complete && _coinImg.naturalWidth > 0) {
         const textW = ctx.measureText(coinCountStr).width;
-        ctx.drawImage(_coinImg, VW - 12 - textW - 22, HUD_TOP + 14, 22, 22);
+        ctx.drawImage(_coinImg, VW - 12 - textW - 24, HUD_TOP + 16, 24, 24);
       }
 
       // Progress bar below the text
       const prog = Math.min(s.px / (LEVEL_W - 100), 1);
       ctx.fillStyle = "rgba(255,255,255,0.12)";
-      ctx.fillRect(VW * 0.25, HUD_TOP + HUD_H - 6, VW * 0.5, 4);
+      ctx.fillRect(VW * 0.22, HUD_TOP + HUD_H - 7, VW * 0.56, 5);
       ctx.fillStyle = "#ff8800";
-      ctx.fillRect(VW * 0.25, HUD_TOP + HUD_H - 6, VW * 0.5 * prog, 4);
+      ctx.fillRect(VW * 0.22, HUD_TOP + HUD_H - 7, VW * 0.56 * prog, 5);
 
       ctx.restore();
     };
@@ -975,8 +1025,8 @@ export default function LavaCrawlPage() {
           <button
             data-testid="button-lava-jump"
             {...makeTouch("jump")}
-            style={{ width: 82, height: 82, borderRadius: "50%", background: "rgba(255,80,0,0.22)", border: "3px solid rgba(255,100,0,0.7)", color: "#ff8800", fontSize: "14px", fontWeight: "bold", fontFamily: "serif", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", letterSpacing: "0.5px" }}
-          >JUMP</button>
+            style={{ width: 82, height: 82, background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+          ><img src={btnJumpImg} alt="Jump" draggable={false} style={{ width: 82, height: 82, objectFit: "contain" }} /></button>
         </div>
       )}
 
@@ -1016,6 +1066,7 @@ export default function LavaCrawlPage() {
           <div style={{ ...titleStyle, fontSize: "26px", marginBottom: "16px" }}>⏸ Paused</div>
           <button data-testid="button-lava-resume" style={btnStyle("#ff8800")} onClick={() => showScreen("playing")}>▶  Resume</button>
           <button data-testid="button-lava-restart-pause" style={btnStyle("#ffd080")} onClick={startGame}>↺  Restart</button>
+          <button data-testid="button-lava-quit-pause" style={btnStyle("rgba(255,200,100,0.45)")} onClick={() => navigate("/world/volcanic")}>← Quit to World</button>
         </div>
       )}
 
