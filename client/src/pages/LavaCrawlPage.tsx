@@ -29,6 +29,7 @@ import lavaCrawlGemImg from "@assets/lava_crawl_gem.webp";
 import lavaCrawlLbFrameImg from "@assets/lava_crawl_lb_frame.webp";
 import lavaCrawlLbBtnPlayImg from "@assets/lava_crawl_lb_btn_play.webp";
 import lavaCrawlLbBtnBackImg from "@assets/lava_crawl_lb_btn_back.webp";
+import gameOverTitleImg from "@assets/Photoroom_20260708_113712_AM_1783534774669.png";
 import trophy1st from "@assets/Photoroom_20260616_71127_PM_1781655109379.png";
 import trophy2nd from "@assets/Photoroom_20260616_71053_PM_1781655109379.png";
 import trophy3rd from "@assets/Photoroom_20260616_70844_PM_1781655109379.png";
@@ -63,8 +64,8 @@ const ENEMY_SCORE = 25;
 const FINISH_BONUS = 200;
 const MAX_LIVES = 3;       // starting lives
 const MAX_HEART_SLOTS = 5; // absolute max (extra lives only come from rare enemy drops)
-const RESPAWN_BACK_OFFSET = 50;  // respawn this far behind the last safe checkpoint, not at level start
-const BACKTRACK_LIMIT = 260;     // can't scroll/walk back further than this behind the checkpoint
+const RESPAWN_BACK_OFFSET = 170;  // respawn this far behind the last safe checkpoint, not at level start
+const BACKTRACK_LIMIT = 320;     // can't scroll/walk back further than this behind the checkpoint
 const LIFE_DROP_CHANCE = 0.07;   // rare chance a stomped enemy drops a life pickup
 
 // Ground is always at (canvasH * GR) from the top — 0.76 keeps lava fully under ground tile
@@ -549,11 +550,21 @@ export default function LavaCrawlPage() {
           if (e.x <= e.lx) { e.x = e.lx; e.vx = Math.abs(e.vx); }
           if (e.x + EW >= e.rx) { e.x = e.rx - EW; e.vx = -Math.abs(e.vx); }
 
+          // Collision hitbox is a bit larger than the raw EW/EH box and centered on the
+          // enemy sprite's visual center — the drawn image (52-60px) is noticeably bigger
+          // than the old 32x28 hit box, so hits near the edges of the sprite were silently
+          // missed. Widening the hitbox to better match what the player actually sees fixes
+          // the "collision doesn't register" complaint without changing movement/AI logic.
+          const hitScale = e.type === "float" ? 1.25 : 1.35;
+          const hw = EW * hitScale, hh = EH * hitScale;
+          const ecx = e.x + EW / 2, ecy = e.y + EH / 2;
+          const hx = ecx - hw / 2, hy = ecy - hh / 2;
+
           // Stomp check — player falls on top of enemy
           const stomped =
             s.pvy > 0 &&
-            s.py + PH <= e.y + EH * 0.4 &&
-            overlaps(s.px, s.py, PW, PH, e.x, e.y, EW, EH);
+            s.py + PH <= ecy + hh * 0.2 &&
+            overlaps(s.px, s.py, PW, PH, hx, hy, hw, hh);
 
           if (stomped) {
             e.alive = false;
@@ -569,7 +580,7 @@ export default function LavaCrawlPage() {
             if (s.lives < MAX_HEART_SLOTS && Math.random() < LIFE_DROP_CHANCE) {
               s.lifeHearts.push({ x: e.x + EW / 2, y: gY - 38, collected: false });
             }
-          } else if (s.alive && overlaps(s.px, s.py, PW - 4, PH - 4, e.x + 2, e.y + 2, EW - 4, EH - 4)) {
+          } else if (s.alive && overlaps(s.px, s.py, PW - 2, PH - 2, hx, hy, hw, hh)) {
             // Side/bottom collision → hurt
             s.alive = false;
             s.lives = Math.max(0, s.lives - 1);
@@ -765,19 +776,21 @@ export default function LavaCrawlPage() {
             ctx.fill();
           }
         } else {
-          // Orb — glowing gem, with a soft pulsing outline so it stands out from the background
+          // Orb — glowing gem. The glow is produced purely via canvas shadow on the image
+          // draw itself, so it follows the gem's own transparent-background silhouette
+          // instead of a separate circular ring (which used to glow outside the gem shape,
+          // over the transparent padding of the image).
           const gemSize = CR * 2.8;
           const orbY = c.y - bounce;
           const pulse = 0.6 + Math.sin(lavaT * 5 + c.x * 0.02) * 0.4;
-          ctx.shadowColor = "#ff5522";
-          ctx.shadowBlur = 16 * pulse;
           if (_gemImg.complete && _gemImg.naturalWidth > 0) {
-            // Subtle glowing outline behind the gem for extra pop
-            ctx.beginPath();
-            ctx.arc(cx2, orbY, gemSize * 0.48, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(255,150,60,${0.55 * pulse})`;
-            ctx.lineWidth = 3;
-            ctx.stroke();
+            ctx.shadowColor = "#ff5522";
+            ctx.shadowBlur = 10 * pulse;
+            ctx.drawImage(_gemImg, cx2 - gemSize / 2, orbY - gemSize / 2, gemSize, gemSize);
+            // Second pass with a tighter, brighter glow for extra richness — still shaped
+            // by the gem's own alpha channel, never a plain circle.
+            ctx.shadowColor = "#ffaa55";
+            ctx.shadowBlur = 6 * pulse;
             ctx.drawImage(_gemImg, cx2 - gemSize / 2, orbY - gemSize / 2, gemSize, gemSize);
           } else {
             const orbR = CR * 1.2;
@@ -1010,7 +1023,7 @@ export default function LavaCrawlPage() {
       const scoreLabelW = ctx.measureText(scoreLabelStr).width;
       const scoreGap = 6;
       const scoreClusterW = scoreLabelW + scoreGap + scoreValueW;
-      const scoreClusterCenterX = VW * 0.28;
+      const scoreClusterCenterX = VW * 0.36;
       const scoreLeft = scoreClusterCenterX - scoreClusterW / 2;
 
       ctx.textAlign = "left";
@@ -1034,7 +1047,7 @@ export default function LavaCrawlPage() {
       const coinValueStr = `${s.coinsCollected}`;
       const coinValueW = ctx.measureText(coinValueStr).width;
       const coinClusterW = COIN_ICON + coinGap + coinValueW;
-      const coinClusterCenterX = VW * 0.72;
+      const coinClusterCenterX = VW * 0.64;
       const coinLeft = coinClusterCenterX - coinClusterW / 2;
 
       if (_coinImg.complete && _coinImg.naturalWidth > 0) {
@@ -1286,13 +1299,48 @@ export default function LavaCrawlPage() {
       {/* ── GAME OVER screen ─────────────────────────────────────────────────── */}
       {screen === "gameover" && (
         <div style={panelStyle}>
-          <div style={{ ...titleStyle, color: "#ff3030", fontSize: "30px" }}>💀 GAME OVER</div>
-          <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "15px", marginBottom: "8px" }}>Score: <strong>{endScore}</strong></div>
-          <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "14px", marginBottom: "20px" }}>Coins earned: <strong>{endCoins}</strong> <img src={coinIconImg} alt="coins" style={{ width: 14, height: 14, objectFit: "contain", verticalAlign: "middle" }} /></div>
-          {newBest && <div style={{ color: "#ffd700", fontSize: "14px", marginBottom: "12px", fontFamily: "serif", textShadow: "0 0 10px gold" }}>⭐ New Personal Best!</div>}
-          <button data-testid="button-lava-restart-gameover" style={btnStyle("#ff8800")} onClick={startGame}>↺  Try Again</button>
-          <button data-testid="button-lava-leaderboard-gameover" style={btnStyle("#ffd080")} onClick={goLeaderboard}>🏆  Leaderboard</button>
-          <button data-testid="button-lava-back-gameover" style={btnStyle("rgba(255,200,100,0.5)")} onClick={() => navigate("/world/volcanic")}>← Volcanic Isle</button>
+          <img src={gameOverTitleImg} alt="Game Over" draggable={false} style={{ width: "min(280px, 78vw)", height: "auto", marginBottom: "10px" }} />
+
+          {/* Themed stat plate — replaces plain monospace lines with a lava-stone panel */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "stretch",
+              gap: "1px",
+              background: "rgba(255,120,20,0.35)",
+              border: "1px solid rgba(255,150,60,0.5)",
+              borderRadius: "12px",
+              overflow: "hidden",
+              marginBottom: "18px",
+              boxShadow: "0 4px 18px rgba(0,0,0,0.5), inset 0 0 12px rgba(255,90,0,0.15)",
+            }}
+          >
+            <div style={{ background: "rgba(20,6,2,0.78)", padding: "10px 22px", display: "flex", flexDirection: "column", alignItems: "center", minWidth: "108px" }}>
+              <span style={{ color: "#ffcc44", fontFamily: "monospace", fontSize: "10px", letterSpacing: "1.5px", opacity: 0.85 }}>SCORE</span>
+              <span style={{ color: "#fff8e0", fontFamily: "monospace", fontSize: "22px", fontWeight: "bold", textShadow: "0 0 10px rgba(255,120,0,0.7)" }} data-testid="text-gameover-score">{endScore}</span>
+            </div>
+            <div style={{ background: "rgba(20,6,2,0.78)", padding: "10px 22px", display: "flex", flexDirection: "column", alignItems: "center", minWidth: "108px" }}>
+              <span style={{ color: "#ffcc44", fontFamily: "monospace", fontSize: "10px", letterSpacing: "1.5px", opacity: 0.85 }}>COINS</span>
+              <span style={{ display: "flex", alignItems: "center", gap: "5px", color: "#fff8e0", fontFamily: "monospace", fontSize: "22px", fontWeight: "bold", textShadow: "0 0 10px rgba(255,120,0,0.7)" }} data-testid="text-gameover-coins">
+                <img src={coinIconImg} alt="coins" style={{ width: 18, height: 18, objectFit: "contain" }} />
+                {endCoins}
+              </span>
+            </div>
+          </div>
+
+          {newBest && <div style={{ color: "#ffd700", fontSize: "14px", marginBottom: "12px", marginTop: "-10px", fontFamily: "serif", textShadow: "0 0 10px gold" }}>⭐ New Personal Best!</div>}
+
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <button data-testid="button-lava-restart-gameover" onClick={startGame} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, margin: "6px" }}>
+              <img src={btnPlayImg} alt="Try Again" draggable={false} style={{ width: "min(220px, 70vw)", height: "auto" }} />
+            </button>
+            <button data-testid="button-lava-leaderboard-gameover" onClick={goLeaderboard} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, margin: "6px" }}>
+              <img src={btnLeaderboardImg} alt="Leaderboard" draggable={false} style={{ width: "min(220px, 70vw)", height: "auto" }} />
+            </button>
+            <button data-testid="button-lava-back-gameover" onClick={() => navigate("/world/volcanic")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, margin: "6px" }}>
+              <img src={btnBackToWorldImg} alt="Back to World" draggable={false} style={{ width: "min(220px, 70vw)", height: "auto" }} />
+            </button>
+          </div>
         </div>
       )}
 
