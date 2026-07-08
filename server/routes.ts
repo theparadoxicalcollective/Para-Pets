@@ -8957,7 +8957,7 @@ export async function registerRoutes(
   const DAILY_REWARD_COINS = 500;
   const DAILY_REWARD_TICKETS = 10;
   const DAILY_PVP_TICKET_ID = "a1b2c3d4-9001-4000-8000-000000000099";
-  const DAILY_FISHING_ROD_ID = "a1b2c3d4-9001-4000-8000-000000000088";
+  const DAILY_FISHING_ROD_ID = "7b381092-3b76-4c91-99bc-5a5ba91f52ec";
 
   // Auth: get player's claim status (canClaim + nextClaimAt)
   app.get("/api/daily-claim/status", isAuthenticated, async (req, res) => {
