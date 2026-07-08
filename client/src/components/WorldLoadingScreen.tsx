@@ -20,6 +20,22 @@ const WORLD_THEMES = {
     label: "Volcanic Isle",
     subtext: "Entering the Volcanic Isle…",
   },
+  lava_crawl: {
+    name: "Lava Crawl",
+    bg: bgVolcanic as string | null,
+    accent: "#ff4500",
+    accentSoft: "#ff6a00",
+    accentDim: "rgba(255,69,0,0.35)",
+    overlay:
+      "linear-gradient(to bottom, rgba(18,4,2,0.92) 0%, rgba(36,10,5,0.70) 45%, rgba(18,4,2,0.94) 100%)",
+    solidBg: null as string | null,
+    particles: "embers" as const,
+    particleColor: "#ff7020",
+    particleGlow: "rgba(255,90,10,0.7)",
+    barGradient: "linear-gradient(90deg,#7a1800,#d43000,#ff4500,#ff8c00,#ffd060)",
+    label: "Lava Crawl",
+    subtext: "Preparing the Lava Crawl…",
+  },
   swamp: {
     name: "Elysian Swamplands",
     bg: bgSwamp,

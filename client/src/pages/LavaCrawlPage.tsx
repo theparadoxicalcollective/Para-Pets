@@ -1194,11 +1194,11 @@ export default function LavaCrawlPage() {
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", flexDirection: "column", background: "#1a0a05", overflow: "hidden" }}>
 
-      {/* ── Volcanic loading screen — covers initial flash while assets load ── */}
+      {/* ── Lava Crawl loading screen — covers initial flash while assets load ── */}
       {showLoadingScreen && (
         <div style={{ position: "absolute", inset: 0, zIndex: 50 }}>
           <WorldLoadingScreen
-            worldId="volcanic"
+            worldId="lava_crawl"
             pageReady={bgLoaded}
             onReady={() => setShowLoadingScreen(false)}
           />

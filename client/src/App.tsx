@@ -190,7 +190,15 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
 
   return (
     <>
-      <WorldPage user={user} onContentReady={() => setWorldReady(true)} />
+      {/* WorldPage keeps rendering/fetching underneath even while hidden, so its
+          data (locations, background image) is fully ready the instant the
+          loading screen fades out. `visibility: hidden` (not z-index alone) is
+          used so WorldPage's own raw content/spinner can never flash through
+          before the themed loading screen paints — same technique as the
+          HomePage base layer above. */}
+      <div style={{ visibility: !isThemed || screenDone ? "visible" : "hidden", width: "100%", height: "100%" }}>
+        <WorldPage user={user} onContentReady={() => setWorldReady(true)} />
+      </div>
       {!screenDone && (
         <WorldLoadingScreen worldId={worldId} bgUrl={worldData?.bgUrl ?? null} pageReady={worldReady} onReady={() => setScreenDone(true)} />
       )}
