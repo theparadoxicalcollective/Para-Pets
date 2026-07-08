@@ -254,36 +254,6 @@ export default function WorldLoadingScreen({ worldId, bgUrl, pageReady, onReady 
         isolation: "isolate",
       }}
     >
-      <style>{`
-        @keyframes wls-ember {
-          0%   { transform: translateY(0) translateX(0) scale(1); opacity: 0; }
-          8%   { opacity: 1; }
-          85%  { opacity: 0.55; }
-          100% { transform: translateY(calc(-75*var(--vh))) translateX(var(--drift)) scale(0.35); opacity: 0; }
-        }
-        @keyframes wls-firefly {
-          0%   { transform: translate(0,0); opacity: 0.1; }
-          30%  { opacity: 1; }
-          70%  { opacity: 0.85; }
-          100% { transform: translate(var(--driftX), var(--driftY)); opacity: 0.1; }
-        }
-        @keyframes wls-snowflake {
-          0%   { transform: translateY(-20px) translateX(0) rotate(0deg); opacity: 0; }
-          10%  { opacity: 1; }
-          90%  { opacity: 0.7; }
-          100% { transform: translateY(110vh) translateX(var(--drift)) rotate(360deg); opacity: 0; }
-        }
-        @keyframes wls-pulse-ring {
-          0%   { transform: scale(0.92); opacity: 0.6; }
-          50%  { transform: scale(1.06); opacity: 0.25; }
-          100% { transform: scale(0.92); opacity: 0.6; }
-        }
-        @keyframes wls-title-in {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
-
       {/* Background: image-based worlds */}
       {theme.bg && (
         <div
