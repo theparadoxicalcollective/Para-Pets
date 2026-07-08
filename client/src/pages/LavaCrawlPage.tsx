@@ -172,11 +172,11 @@ function buildCoins(gY: number): Coin[] {
     [3388, gY - 72], [3902, gY - 68], [4348, gY - 72],
     [4832, gY - 68], [5283, gY - 72],
   ];
-  // Sort by x so the pattern runs left→right; every 4th becomes a real coin
-  const sorted = [...pts].sort((a, b) => a[0] - b[0]);
-  return sorted.map(([x, y], i) => ({
+  // Randomise each collectible: ~20% chance of real coin, rest are orbs.
+  // Using Math.random() so the mix varies every run (not a fixed pattern).
+  return pts.map(([x, y]) => ({
     x, y, collected: false,
-    type: (i % 4 === 0) ? "coin" as const : "orb" as const,
+    type: (Math.random() < 0.20) ? "coin" as const : "orb" as const,
   }));
 }
 
@@ -586,13 +586,13 @@ export default function LavaCrawlPage() {
             const capAspect = _lavaGroundCapImg.naturalWidth / _lavaGroundCapImg.naturalHeight;
             const capH = Math.min(p.h + 40, VH - py2);
             const capW = capH * capAspect;
-            // Left cap
+            // Left cap — center aligned with ground left edge
             ctx.drawImage(_lavaGroundCapImg, px2 - capW * 0.5, py2 - 20, capW, capH);
-            // Right cap (mirror horizontally)
+            // Right cap — mirror, center aligned with ground right edge
             ctx.save();
-            ctx.translate(px2 + p.w + capW * 0.5, py2 - 20);
+            ctx.translate(px2 + p.w, py2 - 20);
             ctx.scale(-1, 1);
-            ctx.drawImage(_lavaGroundCapImg, -capW, 0, capW, capH);
+            ctx.drawImage(_lavaGroundCapImg, -capW * 0.5, 0, capW, capH);
             ctx.restore();
           }
         } else {
@@ -631,27 +631,27 @@ export default function LavaCrawlPage() {
             ctx.fill();
           }
         } else {
-          // Orb — glowing energy sphere
+          // Orb — glowing fire orb (orange/yellow)
           const orbR = CR * 1.2;
           const orbY = c.y - bounce;
           const pulse = 0.6 + Math.sin(lavaT * 5 + c.x * 0.02) * 0.4;
           // Outer glow
-          ctx.shadowColor = "#a855f7";
-          ctx.shadowBlur = 18 * pulse;
-          // Core radial gradient
+          ctx.shadowColor = "#ff8800";
+          ctx.shadowBlur = 20 * pulse;
+          // Core radial gradient — white center → orange → deep amber
           const orbGrad = ctx.createRadialGradient(cx2, orbY, 0, cx2, orbY, orbR);
-          orbGrad.addColorStop(0, `rgba(255,255,255,${0.95 * pulse})`);
-          orbGrad.addColorStop(0.3, `rgba(196,130,255,${0.9 * pulse})`);
-          orbGrad.addColorStop(0.7, `rgba(109,40,217,${0.8 * pulse})`);
-          orbGrad.addColorStop(1, `rgba(59,7,100,0)`);
+          orbGrad.addColorStop(0, `rgba(255,255,220,${0.98 * pulse})`);
+          orbGrad.addColorStop(0.3, `rgba(255,200,60,${0.95 * pulse})`);
+          orbGrad.addColorStop(0.65, `rgba(255,110,10,${0.85 * pulse})`);
+          orbGrad.addColorStop(1, `rgba(180,40,0,0)`);
           ctx.fillStyle = orbGrad;
           ctx.beginPath();
           ctx.arc(cx2, orbY, orbR, 0, Math.PI * 2);
           ctx.fill();
-          // Sparkle dot at top-left
-          ctx.fillStyle = `rgba(255,255,255,${0.7 * pulse})`;
+          // Sparkle highlight at top-left
+          ctx.fillStyle = `rgba(255,255,200,${0.8 * pulse})`;
           ctx.beginPath();
-          ctx.arc(cx2 - orbR * 0.3, orbY - orbR * 0.35, orbR * 0.2, 0, Math.PI * 2);
+          ctx.arc(cx2 - orbR * 0.3, orbY - orbR * 0.35, orbR * 0.22, 0, Math.PI * 2);
           ctx.fill();
         }
         ctx.restore();
