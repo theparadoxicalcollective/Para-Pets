@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { useLocation as useWouter } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import WorldLoadingScreen from "@/components/WorldLoadingScreen";
 import lavaCrawlTitleImg from "@assets/lava_crawl_title.webp";
 import btnPlayImg from "@assets/lava_crawl_btn_play.webp";
 import btnLeaderboardImg from "@assets/lava_crawl_btn_leaderboard.webp";
@@ -35,6 +36,7 @@ const PW = 28, PH = 36;
 const EW = 32, EH = 28;
 const CR = 10;
 const COIN_SCORE = 10;
+const ORB_SCORE = 5;
 const ENEMY_SCORE = 25;
 const FINISH_BONUS = 200;
 const MAX_LIVES = 3;
@@ -57,6 +59,7 @@ interface Enemy {
 interface Coin {
   x: number; y: number;
   collected: boolean;
+  type: "coin" | "orb";
 }
 
 interface GState {
@@ -169,7 +172,12 @@ function buildCoins(gY: number): Coin[] {
     [3388, gY - 72], [3902, gY - 68], [4348, gY - 72],
     [4832, gY - 68], [5283, gY - 72],
   ];
-  return pts.map(([x, y]) => ({ x, y, collected: false }));
+  // Sort by x so the pattern runs left→right; every 4th becomes a real coin
+  const sorted = [...pts].sort((a, b) => a[0] - b[0]);
+  return sorted.map(([x, y], i) => ({
+    x, y, collected: false,
+    type: (i % 4 === 0) ? "coin" as const : "orb" as const,
+  }));
 }
 
 function buildEnemies(gY: number): Enemy[] {
@@ -246,6 +254,7 @@ export default function LavaCrawlPage() {
   const stateRef = useRef<GState | null>(null);
   const rafRef = useRef<number | null>(null);
   const bgImgRef = useRef<HTMLImageElement | null>(null);
+  const petImgRef = useRef<HTMLImageElement | null>(null);
   const screenRef = useRef<Screen>("start");
 
   const [screen, setScreen] = useState<Screen>("start");
@@ -253,6 +262,15 @@ export default function LavaCrawlPage() {
   const [endCoins, setEndCoins] = useState(0);
   const [endLives, setEndLives] = useState(MAX_LIVES);
   const [newBest, setNewBest] = useState(false);
+  const [bgLoaded, setBgLoaded] = useState(false);
+  const [showLoadingScreen, setShowLoadingScreen] = useState(true);
+
+  // Get active pet's hatched image for the player sprite
+  const { data: authMe } = useQuery<{ activePetId: string | null }>({ queryKey: ["/api/auth/me"] });
+  const { data: inventoryItems } = useQuery<Array<{ inventoryId: string; type: string; hatchedImageUrl: string | null; imageUrl: string | null }>>({
+    queryKey: ["/api/inventory"],
+    enabled: !!authMe?.activePetId,
+  });
 
   const { data: myBest } = useQuery<{ best: number; bestCoins: number }>({
     queryKey: ["/api/lava-crawl/my-best"],
@@ -278,11 +296,23 @@ export default function LavaCrawlPage() {
     },
   });
 
-  // Preload background image
+  // Load active pet image for player sprite
+  useEffect(() => {
+    if (!authMe?.activePetId || !inventoryItems) return;
+    const pet = inventoryItems.find(i => i.inventoryId === authMe.activePetId && i.type === "pet");
+    const url = pet?.hatchedImageUrl || pet?.imageUrl;
+    if (!url) return;
+    const img = new Image();
+    img.onload = () => { petImgRef.current = img; };
+    img.src = url;
+  }, [authMe?.activePetId, inventoryItems]);
+
+  // Preload background image; signal ready for the loading screen
   useEffect(() => {
     const img = new Image();
     img.src = LAVA_CAVE_BG;
-    img.onload = () => { bgImgRef.current = img; };
+    img.onload = () => { bgImgRef.current = img; setBgLoaded(true); };
+    img.onerror = () => setBgLoaded(true); // don't hang forever
   }, []);
 
   // ─── Build fresh game state ────────────────────────────────────────────────
@@ -434,15 +464,19 @@ export default function LavaCrawlPage() {
           }
         }
 
-        // Coin collection
+        // Coin / orb collection
         for (const c of s.coins) {
           if (c.collected) continue;
           const dx = c.x - (s.px + PW / 2);
           const dy = c.y - (s.py + PH / 2);
           if (Math.sqrt(dx * dx + dy * dy) < CR + 14) {
             c.collected = true;
-            s.coinsCollected++;
-            s.score += COIN_SCORE;
+            if (c.type === "coin") {
+              s.coinsCollected++;
+              s.score += COIN_SCORE;
+            } else {
+              s.score += ORB_SCORE;
+            }
           }
         }
 
@@ -531,9 +565,6 @@ export default function LavaCrawlPage() {
 
         const isGround = p.h > 20;
         if (isGround) {
-          // Dark base fill for depth below the tile
-          ctx.fillStyle = "#1e0a00";
-          ctx.fillRect(px2, py2, p.w, p.h);
           // Seamless ground tile — tile across the full ground area
           if (_lavaGroundTileImg.complete && _lavaGroundTileImg.naturalWidth > 0) {
             const tileAspect = _lavaGroundTileImg.naturalWidth / _lavaGroundTileImg.naturalHeight;
@@ -580,22 +611,47 @@ export default function LavaCrawlPage() {
         }
       }
 
-      // Coins
+      // Coins and Orbs
       for (const c of s.coins) {
         if (c.collected) continue;
         const cx2 = c.x - cx;
         if (cx2 < -20 || cx2 > VW + 20) continue;
         const bounce = Math.sin(lavaT * 4 + c.x * 0.01) * 3;
-        const coinSize = CR * 2.4;
         ctx.save();
-        ctx.shadowColor = "gold";
-        ctx.shadowBlur = 10;
-        if (_coinImg.complete && _coinImg.naturalWidth > 0) {
-          ctx.drawImage(_coinImg, cx2 - coinSize / 2, c.y - bounce - coinSize / 2, coinSize, coinSize);
+        if (c.type === "coin") {
+          const coinSize = CR * 2.4;
+          ctx.shadowColor = "gold";
+          ctx.shadowBlur = 10;
+          if (_coinImg.complete && _coinImg.naturalWidth > 0) {
+            ctx.drawImage(_coinImg, cx2 - coinSize / 2, c.y - bounce - coinSize / 2, coinSize, coinSize);
+          } else {
+            ctx.fillStyle = "#ffd700";
+            ctx.beginPath();
+            ctx.arc(cx2, c.y - bounce, CR, 0, Math.PI * 2);
+            ctx.fill();
+          }
         } else {
-          ctx.fillStyle = "#ffd700";
+          // Orb — glowing energy sphere
+          const orbR = CR * 1.2;
+          const orbY = c.y - bounce;
+          const pulse = 0.6 + Math.sin(lavaT * 5 + c.x * 0.02) * 0.4;
+          // Outer glow
+          ctx.shadowColor = "#a855f7";
+          ctx.shadowBlur = 18 * pulse;
+          // Core radial gradient
+          const orbGrad = ctx.createRadialGradient(cx2, orbY, 0, cx2, orbY, orbR);
+          orbGrad.addColorStop(0, `rgba(255,255,255,${0.95 * pulse})`);
+          orbGrad.addColorStop(0.3, `rgba(196,130,255,${0.9 * pulse})`);
+          orbGrad.addColorStop(0.7, `rgba(109,40,217,${0.8 * pulse})`);
+          orbGrad.addColorStop(1, `rgba(59,7,100,0)`);
+          ctx.fillStyle = orbGrad;
           ctx.beginPath();
-          ctx.arc(cx2, c.y - bounce, CR, 0, Math.PI * 2);
+          ctx.arc(cx2, orbY, orbR, 0, Math.PI * 2);
+          ctx.fill();
+          // Sparkle dot at top-left
+          ctx.fillStyle = `rgba(255,255,255,${0.7 * pulse})`;
+          ctx.beginPath();
+          ctx.arc(cx2 - orbR * 0.3, orbY - orbR * 0.35, orbR * 0.2, 0, Math.PI * 2);
           ctx.fill();
         }
         ctx.restore();
@@ -656,38 +712,43 @@ export default function LavaCrawlPage() {
       // Player
       if (s.alive) {
         const ppx = s.px - cx;
-        // Glow
+        const PET_SIZE = 52;
+        // Bottom of pet image aligned with bottom of collision box
+        const petDrawY = s.py + PH - PET_SIZE;
         ctx.save();
         ctx.shadowColor = "#ff6600";
-        ctx.shadowBlur = 12;
-
-        // Body (orange adventurer)
-        ctx.fillStyle = "#e06820";
-        if (!s.facingR) {
-          ctx.save();
-          ctx.scale(-1, 1);
-          ctx.translate(-ppx * 2 - PW, 0);
+        ctx.shadowBlur = 14;
+        if (petImgRef.current) {
+          // Active pet image — mirror horizontally when facing left
+          // Pets face RIGHT by default (same convention as HomePage)
+          const centerX = ppx + PW / 2;
+          const centerY = petDrawY + PET_SIZE / 2;
+          ctx.translate(centerX, centerY);
+          if (!s.facingR) ctx.scale(-1, 1);
+          ctx.drawImage(petImgRef.current, -PET_SIZE / 2, -PET_SIZE / 2, PET_SIZE, PET_SIZE);
+        } else {
+          // Fallback pixel adventurer
+          if (!s.facingR) {
+            ctx.save();
+            ctx.scale(-1, 1);
+            ctx.translate(-ppx * 2 - PW, 0);
+          }
+          ctx.fillStyle = "#6a3010";
+          ctx.fillRect(ppx + 4, s.py + PH - 12, 8, 12);
+          ctx.fillRect(ppx + PW - 12, s.py + PH - 12, 8, 12);
+          ctx.fillStyle = "#e06820";
+          ctx.fillRect(ppx, s.py + 10, PW, PH - 22);
+          ctx.fillStyle = "#f0a060";
+          ctx.fillRect(ppx + 4, s.py, PW - 8, 14);
+          ctx.fillStyle = "#fff";
+          ctx.fillRect(ppx + 7, s.py + 3, 6, 5);
+          ctx.fillStyle = "#000";
+          ctx.fillRect(ppx + 9, s.py + 4, 3, 3);
+          ctx.fillStyle = "#e06820";
+          ctx.fillRect(ppx - 4, s.py + 10, 6, 10);
+          ctx.fillRect(ppx + PW - 2, s.py + 10, 6, 10);
+          if (!s.facingR) ctx.restore();
         }
-        // Legs
-        ctx.fillStyle = "#6a3010";
-        ctx.fillRect(ppx + 4, s.py + PH - 12, 8, 12);
-        ctx.fillRect(ppx + PW - 12, s.py + PH - 12, 8, 12);
-        // Body
-        ctx.fillStyle = "#e06820";
-        ctx.fillRect(ppx, s.py + 10, PW, PH - 22);
-        // Head
-        ctx.fillStyle = "#f0a060";
-        ctx.fillRect(ppx + 4, s.py, PW - 8, 14);
-        // Eyes
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(ppx + 7, s.py + 3, 6, 5);
-        ctx.fillStyle = "#000";
-        ctx.fillRect(ppx + 9, s.py + 4, 3, 3);
-        // Arm
-        ctx.fillStyle = "#e06820";
-        ctx.fillRect(ppx - 4, s.py + 10, 6, 10);
-        ctx.fillRect(ppx + PW - 2, s.py + 10, 6, 10);
-        if (!s.facingR) ctx.restore();
         ctx.restore();
       } else if (s.respawnTimer > 60) {
         // Flash death indicator
@@ -862,6 +923,17 @@ export default function LavaCrawlPage() {
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", flexDirection: "column", background: "#1a0a05", overflow: "hidden" }}>
 
+      {/* ── Volcanic loading screen — covers initial flash while assets load ── */}
+      {showLoadingScreen && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 50 }}>
+          <WorldLoadingScreen
+            worldId="volcanic"
+            pageReady={bgLoaded}
+            onReady={() => setShowLoadingScreen(false)}
+          />
+        </div>
+      )}
+
       {/* ── Game Canvas ─────────────────────────────────────────────────────── */}
       <canvas
         ref={canvasRef}
@@ -910,7 +982,7 @@ export default function LavaCrawlPage() {
           </div>
           {myBest && myBest.best > 0 && (
             <div style={{ color: "#ffd080", fontSize: "13px", marginBottom: "16px", fontFamily: "monospace" }}>
-              Your best: <strong>{myBest.best}</strong> pts · <strong>{myBest.bestCoins}</strong> <img src={coinIconImg} alt="coins" style={{ width: 14, height: 14, objectFit: "contain", verticalAlign: "middle" }} />
+              Your best: <strong>{myBest.best}</strong> pts
             </div>
           )}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
