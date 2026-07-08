@@ -1722,6 +1722,185 @@ img[data-interactive], button img, a img {
   100% { transform: translate(2px, -24px);   opacity: 0.9; }
 }
 
+/* ── MapPage keyframes — static, here to prevent re-injection crash ── */
+@keyframes map-floatWorld {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes map-glowPulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+@keyframes map-sparkle {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 1; transform: scale(1); }
+}
+@keyframes map-fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── FishingPage keyframes — static, here to prevent iOS Safari re-injection crash (33 keyframes) ── */
+@keyframes pondDrift {
+  0%, 100% { transform: translateX(0) scale(1); }
+  50% { transform: translateX(-6px) scale(1.015); }
+}
+@keyframes pondGlow {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+@keyframes shimmer1 {
+  0%, 100% { opacity: 0.2; transform: scaleX(1); }
+  50% { opacity: 0.5; transform: scaleX(1.15); }
+}
+@keyframes shimmer2 {
+  0%, 100% { opacity: 0.15; transform: scaleX(1); }
+  60% { opacity: 0.4; transform: scaleX(0.85); }
+}
+@keyframes lilyFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-3px) rotate(4deg); }
+}
+@keyframes rippleRing {
+  0% { width: 8px; height: 8px; opacity: 1; margin-left: -4px; margin-bottom: -4px; }
+  100% { width: 80px; height: 40px; opacity: 0; margin-left: -40px; margin-bottom: -20px; }
+}
+@keyframes bobFloat {
+  0%, 100% { transform: translate(-50%, 0) translateY(0); }
+  50% { transform: translate(-50%, 0) translateY(-5px); }
+}
+@keyframes fishNibble {
+  0%, 100% { transform: translateX(0) scaleX(1); }
+  30% { transform: translateX(-6px) scaleX(0.9); }
+  70% { transform: translateX(6px) scaleX(1.1); }
+}
+@keyframes poleCast {
+  0% { transform: rotate(40deg) translateX(0); opacity: 1; }
+  50% { transform: rotate(-20deg) translateX(30px); opacity: 1; }
+  100% { transform: rotate(-30deg) translateX(20px); opacity: 0.9; }
+}
+@keyframes poleHold {
+  0%, 100% { transform: rotate(-30deg) translateX(0); }
+  50% { transform: rotate(-28deg) translateX(2px); }
+}
+@keyframes poleBendLow {
+  0%, 100% { transform: rotate(-42deg) skewY(-2deg); }
+  50% { transform: rotate(-40deg) skewY(-4deg); }
+}
+@keyframes poleBendHigh {
+  0%, 100% { transform: rotate(-50deg) skewY(-8deg); }
+  50% { transform: rotate(-47deg) skewY(-10deg); }
+}
+@keyframes catchPop {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.08); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes catchGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(94,234,212,0.3); }
+  50% { box-shadow: 0 0 40px rgba(94,234,212,0.6); }
+}
+@keyframes missWiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-12deg); }
+  75% { transform: rotate(12deg); }
+}
+@keyframes slideUp {
+  0% { transform: translateY(20px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes petBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes nibbleDip {
+  0%   { transform: translate(-50%, 0); }
+  20%  { transform: translate(-50%, 10px); }
+  38%  { transform: translate(-50%, -4px); }
+  55%  { transform: translate(-50%, 8px); }
+  72%  { transform: translate(-50%, 0); }
+  100% { transform: translate(-50%, 0); }
+}
+@keyframes nibbleRippleOut {
+  0%   { transform: scale(1); opacity: 1; }
+  100% { transform: scale(3.5); opacity: 0; }
+}
+@keyframes nibbleGlowPulse {
+  0%   { filter: drop-shadow(0 0 8px rgba(94,234,212,0.7)) drop-shadow(0 0 14px rgba(109,40,217,0.4)); }
+  100% { filter: drop-shadow(0 0 20px rgba(94,234,212,1.0)) drop-shadow(0 0 32px rgba(109,40,217,0.8)) drop-shadow(0 0 6px #fff); }
+}
+@keyframes surgeFlash {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.1); }
+}
+@keyframes surgeShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px) translateY(-1px); }
+  75% { transform: translateX(3px) translateY(1px); }
+}
+@keyframes snapShake {
+  0%  { transform: translateX(0) scale(1); }
+  10% { transform: translateX(-8px) scale(1.02); }
+  20% { transform: translateX(8px) scale(0.98); }
+  30% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  50% { transform: translateX(-4px); }
+  60% { transform: translateX(4px); }
+  70% { transform: translateX(-2px); }
+  85% { transform: translateX(2px); }
+  100% { transform: translateX(0) scale(1); }
+}
+@keyframes tensionPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.9; }
+}
+@keyframes energyFlow {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+@keyframes sparkleOrb {
+  0%, 100% { transform: translateY(-50%) scale(1); opacity: 1; }
+  50% { transform: translateY(-50%) scale(1.4); opacity: 0.7; }
+}
+@keyframes runeRotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes fishFightWiggle {
+  0%, 100% { transform: translateX(0); }
+  30% { transform: translateX(-4px); }
+  70% { transform: translateX(2px); }
+}
+@keyframes lavaBubble {
+  0%   { transform: translateY(0) scale(1); opacity: 0; }
+  8%   { opacity: 0.95; }
+  75%  { opacity: 0.55; }
+  100% { transform: translateY(-64px) scale(0.25); opacity: 0; }
+}
+@keyframes buttonIdlePulse {
+  0%, 100% { box-shadow: 0 4px 18px rgba(0,0,0,0.75), inset 0 1px 3px rgba(255,200,100,0.1); }
+  50% { box-shadow: 0 4px 28px rgba(0,0,0,0.75), 0 0 20px rgba(200,160,80,0.35), inset 0 1px 3px rgba(255,200,100,0.1); }
+}
+@keyframes coinPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 8px rgba(251,191,36,0.8); }
+  50% { transform: scale(1.2); box-shadow: 0 0 16px rgba(251,191,36,1.0); }
+}
+@keyframes coinSpin {
+  0% { transform: rotateY(0deg) scale(1.1); }
+  50% { transform: rotateY(180deg) scale(1.2); }
+  100% { transform: rotateY(360deg) scale(1.1); }
+}
+@keyframes floatUp {
+  0%   { transform: translateY(0px); opacity: 1; }
+  60%  { transform: translateY(-28px); opacity: 1; }
+  100% { transform: translateY(-42px); opacity: 0; }
+}
+@keyframes claimFlash {
+  0%   { box-shadow: 0 0 0px rgba(250,204,21,0); background: rgba(40,35,0,0.95); }
+  30%  { box-shadow: 0 0 40px rgba(250,204,21,0.9), inset 0 0 20px rgba(250,204,21,0.3); }
+  100% { box-shadow: 0 0 24px rgba(250,204,21,0.55); background: rgba(60,50,0,0.95); }
+}
+
 /* ── WorldLoadingScreen keyframes — must live here, not in JSX, to prevent iOS Safari OOM crash ── */
 @keyframes wls-ember {
   0%   { transform: translateY(0) translateX(0) scale(1); opacity: 0; }

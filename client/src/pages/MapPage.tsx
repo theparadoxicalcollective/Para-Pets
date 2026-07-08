@@ -311,22 +311,6 @@ export default function MapPage({ user }: MapPageProps) {
       )}
 
       <style>{`
-        @keyframes floatWorld {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-5px); }
-        }
-        @keyframes glowPulse {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 0.7; }
-        }
-        @keyframes sparkle {
-          0%, 100% { opacity: 0; transform: scale(0.5); }
-          50% { opacity: 1; transform: scale(1); }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-4px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
         .world-node { transition: filter 0.2s ease; touch-action: none; }
         .world-node:active { filter: brightness(1.1); }
         .map-scroll::-webkit-scrollbar { width: 4px; }
@@ -401,7 +385,7 @@ export default function MapPage({ user }: MapPageProps) {
                         width: "30%",
                         cursor: currentUser.isAdmin ? "grab" : locked ? "default" : "pointer",
                         zIndex: isDragging ? 50 : 10 + i,
-                        animation: isDragging ? "none" : `floatWorld ${3 + (i % 3) * 0.5}s ease-in-out infinite`,
+                        animation: isDragging ? "none" : `map-floatWorld ${3 + (i % 3) * 0.5}s ease-in-out infinite`,
                         animationDelay: `${i * 0.4}s`,
                       }}
                       onPointerDown={(e) => handlePointerDown(e, w)}
@@ -412,7 +396,7 @@ export default function MapPage({ user }: MapPageProps) {
                           className="absolute inset-[-10%] rounded-full pointer-events-none"
                           style={{
                             background: `radial-gradient(circle, ${w.glowColor}30 0%, ${w.glowColor}10 50%, transparent 70%)`,
-                            animation: `glowPulse ${3 + (i % 2)}s ease-in-out infinite`,
+                            animation: `map-glowPulse ${3 + (i % 2)}s ease-in-out infinite`,
                             animationDelay: `${i * 0.3}s`,
                           }}
                         />
@@ -469,7 +453,7 @@ export default function MapPage({ user }: MapPageProps) {
                         )}
                       </div>
                       {selectedWorldId === w.id && (
-                        <div className="flex flex-col items-center gap-1 mt-0.5 relative z-10" style={{ animation: "fadeIn 0.2s ease-out" }}>
+                        <div className="flex flex-col items-center gap-1 mt-0.5 relative z-10" style={{ animation: "map-fadeIn 0.2s ease-out" }}>
                           <span
                             className="font-fantasy text-[9px] sm:text-[10px] tracking-wider font-semibold whitespace-nowrap px-2 py-0.5 rounded-full"
                             style={{

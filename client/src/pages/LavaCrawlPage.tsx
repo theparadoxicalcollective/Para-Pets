@@ -12,7 +12,8 @@ import slabImg1 from "@assets/lava_slab_1.webp";
 import slabImg2 from "@assets/lava_slab_2.webp";
 import slabImg3 from "@assets/lava_slab_3.webp";
 import lavaTexImg from "@assets/lava_texture.webp";
-import lavaGroundStripImg from "@assets/lava_ground_strip.webp";
+import lavaGroundTileImg from "@assets/lava_ground_tile.webp";
+import lavaGroundCapImg from "@assets/lava_ground_cap.webp";
 import lavaPillarImg from "@assets/lava_pillar.webp";
 const LAVA_CAVE_BG = lavaCaveBg;
 
@@ -21,7 +22,8 @@ const _coinImg = new Image(); _coinImg.src = coinIconImg;
 const _slabImgs = [new Image(), new Image(), new Image()];
 _slabImgs[0].src = slabImg1; _slabImgs[1].src = slabImg2; _slabImgs[2].src = slabImg3;
 const _lavaTexImg = new Image(); _lavaTexImg.src = lavaTexImg;
-const _lavaGroundStripImg = new Image(); _lavaGroundStripImg.src = lavaGroundStripImg;
+const _lavaGroundTileImg = new Image(); _lavaGroundTileImg.src = lavaGroundTileImg;
+const _lavaGroundCapImg = new Image(); _lavaGroundCapImg.src = lavaGroundCapImg;
 const _lavaPillarImg = new Image(); _lavaPillarImg.src = lavaPillarImg;
 
 // ─── Game constants ─────────────────────────────────────────────────────────
@@ -529,24 +531,37 @@ export default function LavaCrawlPage() {
 
         const isGround = p.h > 20;
         if (isGround) {
-          // Dark rocky fill for the full ground depth
+          // Dark base fill for depth below the tile
           ctx.fillStyle = "#1e0a00";
           ctx.fillRect(px2, py2, p.w, p.h);
-          // Ground strip tiled at the top surface
-          if (_lavaGroundStripImg.complete && _lavaGroundStripImg.naturalWidth > 0) {
-            const stripAspect = _lavaGroundStripImg.naturalWidth / _lavaGroundStripImg.naturalHeight;
-            // Scale strip so its height = ~56px (readable surface), tile width proportionally
-            const stripH = 56;
-            const stripW = stripH * stripAspect;
+          // Seamless ground tile — tile across the full ground area
+          if (_lavaGroundTileImg.complete && _lavaGroundTileImg.naturalWidth > 0) {
+            const tileAspect = _lavaGroundTileImg.naturalWidth / _lavaGroundTileImg.naturalHeight;
+            const tileH = Math.min(p.h, 90);
+            const tileW = tileH * tileAspect;
             ctx.save();
             ctx.beginPath();
-            ctx.rect(px2, py2, p.w, stripH);
+            ctx.rect(px2, py2, p.w, tileH);
             ctx.clip();
             let dx = px2;
             while (dx < px2 + p.w) {
-              ctx.drawImage(_lavaGroundStripImg, dx, py2, stripW, stripH);
-              dx += stripW;
+              ctx.drawImage(_lavaGroundTileImg, dx, py2, tileW, tileH);
+              dx += tileW;
             }
+            ctx.restore();
+          }
+          // Cap at each end of the ground segment (where ground breaks)
+          if (_lavaGroundCapImg.complete && _lavaGroundCapImg.naturalWidth > 0) {
+            const capAspect = _lavaGroundCapImg.naturalWidth / _lavaGroundCapImg.naturalHeight;
+            const capH = Math.min(p.h + 40, VH - py2);
+            const capW = capH * capAspect;
+            // Left cap
+            ctx.drawImage(_lavaGroundCapImg, px2 - capW * 0.5, py2 - 20, capW, capH);
+            // Right cap (mirror horizontally)
+            ctx.save();
+            ctx.translate(px2 + p.w + capW * 0.5, py2 - 20);
+            ctx.scale(-1, 1);
+            ctx.drawImage(_lavaGroundCapImg, -capW, 0, capW, capH);
             ctx.restore();
           }
         } else {
