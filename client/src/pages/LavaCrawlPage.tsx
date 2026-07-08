@@ -99,6 +99,8 @@ interface GState {
   facingR: boolean;
   alive: boolean;
   respawnTimer: number;
+  // Squish/stretch: scaleX/scaleY animate from their set values back to 1.0 over squishTimer frames
+  squishX: number; squishY: number; squishTimer: number; squishDuration: number;
   enemies: Enemy[];
   coins: Coin[];
   lifeHearts: LifeHeart[];
@@ -424,6 +426,7 @@ export default function LavaCrawlPage() {
       pvx: 0, pvy: 0,
       onGround: false, jumpCount: 0, facingR: true,
       alive: true, respawnTimer: 0,
+      squishX: 1, squishY: 1, squishTimer: 0, squishDuration: 1,
       enemies: buildEnemies(gY),
       coins: buildCoins(gY),
       lifeHearts: buildLifeHearts(gY),
@@ -514,8 +517,12 @@ export default function LavaCrawlPage() {
           s.pvy = s.onGround ? JUMP_VEL : JUMP_VEL * 0.82;
           if (s.onGround) {
             s.jumpCount = 1;
+            // Anticipation squash → launch stretch: wide+flat first frame, then tall+thin on takeoff
+            s.squishX = 0.72; s.squishY = 1.38; s.squishTimer = 14; s.squishDuration = 14;
           } else {
-            s.jumpCount = 2; // used double-jump, can't jump again until landing
+            s.jumpCount = 2;
+            // Double-jump: quick horizontal squash
+            s.squishX = 1.3; s.squishY = 0.72; s.squishTimer = 10; s.squishDuration = 10;
           }
           s.onGround = false;
           input.jumpQueued = false;
@@ -567,6 +574,8 @@ export default function LavaCrawlPage() {
             e.stompTimer = 30;
             s.pvy = JUMP_VEL * 0.55;
             s.score += ENEMY_SCORE;
+            // Hard stomp squash — wide and flat
+            s.squishX = 1.45; s.squishY = 0.58; s.squishTimer = 16; s.squishDuration = 16;
             // Float particle: XP gain
             s.floats.push({ x: e.x + EW / 2 - s.cameraX, y: e.y - 10, text: "+8 XP", color: "#a0ff80", life: 55, maxLife: 55 });
             gainExpRef.current();
@@ -853,10 +862,11 @@ export default function LavaCrawlPage() {
         // Images face left; flip when moving right (vx > 0)
         const eImg = e.type === "float" ? _enemy2Img : _enemy1Img;
         const drawSize = e.type === "float" ? 52 : 60;
-        // Float enemy bobs gently up and down
+        // Float enemies drift up/down slowly; ground enemies bounce with each step (position-based)
         const floatBob = e.type === "float" ? Math.sin(ts * 0.003 + e.x * 0.01) * 5 : 0;
+        const walkBob  = e.type === "ground" ? -Math.abs(Math.sin(e.x * 0.16)) * 3 : 0; // upward
         const centerX = ex + EW / 2;
-        const centerY = e.y + EH / 2 + floatBob;
+        const centerY = e.y + EH / 2 + floatBob + walkBob;
         ctx.translate(centerX, centerY);
         if (e.vx > 0) ctx.scale(-1, 1); // images face left; flip when moving right
         if (eImg.complete && eImg.naturalWidth > 0) {
@@ -891,18 +901,43 @@ export default function LavaCrawlPage() {
       if (s.alive) {
         const ppx = s.px - cx;
         const PET_SIZE = 84;
-        // Bottom of pet image aligned with bottom of collision box
-        const petDrawY = s.py + PH - PET_SIZE;
+
+        // Decay squish toward 1.0 each frame
+        if (s.squishTimer > 0) {
+          s.squishTimer -= dt;
+          if (s.squishTimer <= 0) {
+            s.squishX = 1; s.squishY = 1;
+          }
+        }
+        // Smooth eased squish value: ease from peak back to 1 using a smooth curve
+        const squishT = s.squishDuration > 0 ? Math.max(0, s.squishTimer / s.squishDuration) : 0;
+        const ease = squishT * squishT; // quadratic ease-out feel
+        const curScaleX = 1 + (s.squishX - 1) * ease;
+        const curScaleY = 1 + (s.squishY - 1) * ease;
+
+        // Walk bounce: subtle vertical bob when moving on ground (position-based → stops when still)
+        const isWalking = s.onGround && Math.abs(s.pvx) > 0.2;
+        const walkSin = Math.sin(s.px * 0.18); // ~2 bounces per ~35px of movement
+        const walkBobY = isWalking ? Math.abs(walkSin) * -5 : 0;       // 0 → -5px upward
+        const walkScaleX = isWalking ? 1 - Math.abs(walkSin) * 0.04 : 1; // slight thin at top of bounce
+        const walkScaleY = isWalking ? 1 + Math.abs(walkSin) * 0.06 : 1; // slight tall at top of bounce
+
+        // Compose walk scale with jump/stomp squish (both pivot from feet)
+        const finalScaleX = curScaleX * walkScaleX;
+        const finalScaleY = curScaleY * walkScaleY;
+
         ctx.save();
         ctx.shadowColor = "#ff6600";
         ctx.shadowBlur = 14;
         if (petImgRef.current) {
-          // Pet images face LEFT by default — flip when moving right
+          // Pet images face LEFT by default — flip when moving right.
+          // All transforms pivot from the feet so the sprite doesn't float off the ground.
           const centerX = ppx + PW / 2;
-          const centerY = petDrawY + PET_SIZE / 2;
-          ctx.translate(centerX, centerY);
+          const feetY = s.py + PH + walkBobY;
+          ctx.translate(centerX, feetY);
           if (s.facingR) ctx.scale(-1, 1);
-          ctx.drawImage(petImgRef.current, -PET_SIZE / 2, -PET_SIZE / 2, PET_SIZE, PET_SIZE);
+          ctx.scale(finalScaleX, finalScaleY);
+          ctx.drawImage(petImgRef.current, -PET_SIZE / 2, -PET_SIZE, PET_SIZE, PET_SIZE);
         } else {
           // Fallback pixel adventurer
           if (!s.facingR) {
