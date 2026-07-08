@@ -16,6 +16,10 @@ import heartImg from "@assets/Photoroom_20260707_94648_PM_1783478966948.png";
 import skullImg from "@assets/Photoroom_20260705_103527_PM_1783426783499.png";
 import enemy1Img from "@assets/Photoroom_20260707_102745_PM_1783481611016.png";
 import enemy2Img from "@assets/Photoroom_20260707_102936_PM_1783481611016.png";
+import enemy3Img from "@assets/Photoroom_20260708_34527_PM_1783543636588.png";
+import enemy4Img from "@assets/Photoroom_20260708_34404_PM_1783543636588.png";
+import doubleOrbImg from "@assets/Photoroom_20260708_40336_PM_1783544889601.png";
+import coinOrbImg from "@assets/Photoroom_20260708_40401_PM_1783544889601.png";
 import coinIconImg from "@assets/icon_coin.webp";
 import lavaCaveBg from "@assets/bg_lava_crawl.webp";
 import slabImg1 from "@assets/lava_slab_1.webp";
@@ -48,10 +52,14 @@ const _heartImg = new Image(); _heartImg.src = heartImg;
 const _skullImg = new Image(); _skullImg.src = skullImg;
 const _enemy1Img = new Image(); _enemy1Img.src = enemy1Img;
 const _enemy2Img = new Image(); _enemy2Img.src = enemy2Img;
+const _enemy3Img = new Image(); _enemy3Img.src = enemy3Img; // bat-dragon (float)
+const _enemy4Img = new Image(); _enemy4Img.src = enemy4Img; // lizard (ground)
+const _doubleOrbImg = new Image(); _doubleOrbImg.src = doubleOrbImg;
+const _coinOrbImg = new Image(); _coinOrbImg.src = coinOrbImg;
 const _gemImg = new Image(); _gemImg.src = lavaCrawlGemImg;
 
 // ─── Game constants ─────────────────────────────────────────────────────────
-const LEVEL_W = 8000;
+const LEVEL_W = 80_000;          // very long; game ends by lives, not a finish line
 const GRAVITY = 0.52;
 const JUMP_VEL = -13.5;
 const P_SPEED = 4.2;
@@ -61,12 +69,14 @@ const CR = 10;
 const COIN_SCORE = 10;
 const ORB_SCORE = 5;
 const ENEMY_SCORE = 25;
-const FINISH_BONUS = 200;
-const MAX_LIVES = 3;       // starting lives
-const MAX_HEART_SLOTS = 5; // absolute max (extra lives only come from rare enemy drops)
-const RESPAWN_BACK_OFFSET = 170;  // respawn this far behind the last safe checkpoint, not at level start
-const BACKTRACK_LIMIT = 320;     // can't scroll/walk back further than this behind the checkpoint
-const LIFE_DROP_CHANCE = 0.07;   // rare chance a stomped enemy drops a life pickup
+const MAX_LIVES = 3;
+const MAX_HEART_SLOTS = 5;
+const RESPAWN_BACK_OFFSET = 170;
+const BACKTRACK_LIMIT = 320;
+const LIFE_DROP_CHANCE = 0.07;
+const SHIELD_FRAMES = 90;        // ~1.5s invincibility after first hit
+const DOUBLE_DURATION = 600;     // x2 orb lasts ~10s at 60fps
+const COIN_ORB_AMOUNT = 10;      // coins granted by coin-orb pickup
 
 // Ground is always at (canvasH * GR) from the top — 0.76 keeps lava fully under ground tile
 const GR = 0.76;
@@ -84,12 +94,13 @@ interface Enemy {
   alive: boolean;
   stompY: number; stompTimer: number;
   type: "ground" | "float";
+  variant: 1 | 2;  // 1=original sprites, 2=new sprites
 }
 
 interface Coin {
   x: number; y: number;
   collected: boolean;
-  type: "coin" | "orb";
+  type: "coin" | "orb" | "double" | "coinBonus";
 }
 
 interface FloatParticle {
@@ -111,7 +122,6 @@ interface GState {
   facingR: boolean;
   alive: boolean;
   respawnTimer: number;
-  // Squish/stretch: scaleX/scaleY animate from their set values back to 1.0 over squishTimer frames
   squishX: number; squishY: number; squishTimer: number; squishDuration: number;
   enemies: Enemy[];
   coins: Coin[];
@@ -125,130 +135,123 @@ interface GState {
   lavaY: number;
   plats: Plat[];
   checkpointX: number;
+  groundSegs: Plat[];      // ground platforms only, for respawn logic
+  hitShield: boolean;      // true = first hit taken, invincible until timer expires
+  hitShieldTimer: number;  // frames left of shield (flash red)
+  doubleActive: boolean;   // x2 score/XP multiplier active
+  doubleTimer: number;     // frames remaining on the x2 effect
 }
 
-// ─── Level data builders (called fresh each new game) ────────────────────────
-// Ground segments — fewer, wider platforms with bigger gaps between them so hazards
-// don't feel crowded together. Widths + gaps sum exactly to LEVEL_W.
-const GROUND_SEGS: [number, number][] = [
-  [0,    900],
-  [1080, 500],
-  [1780, 550],
-  [2490, 480],
-  [3160, 520],
-  [3850, 500],
-  [4560, 480],
-  [5220, 520],
-  [5940, 500],
-  [6630, 480],
-  [7280, 720],
-];
+// ─── Level data builders (procedural — called fresh each new game) ───────────
 
-// Gaps between consecutive ground segments, derived from GROUND_SEGS so every other
-// piece of level content (bridges, coins, enemies) always stays in sync with the terrain.
-function computeGaps(): { x: number; w: number }[] {
-  const gaps: { x: number; w: number }[] = [];
-  for (let i = 0; i < GROUND_SEGS.length - 1; i++) {
-    const [x1, w1] = GROUND_SEGS[i];
-    const [x2] = GROUND_SEGS[i + 1];
-    gaps.push({ x: x1 + w1, w: x2 - (x1 + w1) });
-  }
-  return gaps;
+// Pick a random coin type: 70% orb, 16% coin, 8% coinBonus, 6% double
+function pickCoinType(): Coin["type"] {
+  const r = Math.random();
+  if (r < 0.06) return "double";
+  if (r < 0.14) return "coinBonus";
+  if (r < 0.30) return "coin";
+  return "orb";
 }
 
+// Procedurally generate ground segments for the whole LEVEL_W.
+// Returns an array of ground Plats (h >> 20 so the draw code recognises them as ground).
 function buildGrounds(gY: number, ch: number): Plat[] {
   const h = ch - gY + 2;
-  return GROUND_SEGS.map(([x, w]) => ({ x, y: gY, w, h }));
+  const segs: Plat[] = [{ x: 0, y: gY, w: 800, h }]; // safe starting platform
+  let x = 800;
+  while (x < LEVEL_W - 900) {
+    const gap = 80 + Math.floor(Math.random() * 160);  // 80–240px gap
+    x += gap;
+    if (x + 300 >= LEVEL_W - 200) break;
+    const w = 280 + Math.floor(Math.random() * 500);   // 280–780px wide
+    segs.push({ x, y: gY, w, h });
+    x += w;
+  }
+  segs.push({ x: LEVEL_W - 800, y: gY, w: 800, h });  // far-end safe pad
+  return segs;
 }
 
-function buildFloats(gY: number): Plat[] {
+// Build floating bridge/bonus platforms above the gaps between ground segments.
+function buildFloats(gY: number, groundSegs: Plat[]): Plat[] {
   const fy = (off: number) => gY - 55 + off;
-  const keep = (chance: number) => Math.random() < chance;
-
-  const gaps = computeGaps();
-  const bridges: Plat[] = [];
-  const extras: Plat[] = [];
-  for (const gap of gaps) {
-    const center = gap.x + gap.w / 2;
+  const floats: Plat[] = [];
+  for (let i = 0; i < groundSegs.length - 1; i++) {
+    const curr = groundSegs[i];
+    const next = groundSegs[i + 1];
+    const gapX = curr.x + curr.w;
+    const gapW = next.x - gapX;
+    const center = gapX + gapW / 2;
     const bridgeW = 90;
-    const bridgeX = center - bridgeW / 2;
-    // Wider gaps always need a platform to cross safely; narrower ones only sometimes get one.
-    const needsBridge = gap.w >= 190;
-    if (needsBridge || keep(0.6)) {
-      bridges.push({ x: bridgeX, y: fy(0), w: bridgeW, h: 14 });
+    if (gapW >= 180 || Math.random() < 0.62) {
+      floats.push({ x: center - bridgeW / 2, y: fy(0), w: bridgeW, h: 14 });
     }
-    // Extra high platform above the gap — nice-to-have shortcut, never required.
-    if (keep(0.4)) {
-      extras.push({ x: bridgeX + (Math.random() < 0.5 ? -45 : 45), y: fy(-28), w: 65, h: 14 });
+    if (Math.random() < 0.4) {
+      const xOff = Math.random() < 0.5 ? -48 : 48;
+      floats.push({ x: center - 32 + xOff, y: fy(-30), w: 65, h: 14 });
+    }
+    // Mid-segment bonus platform every other seg
+    if (i % 2 === 1 && curr.w > 320) {
+      floats.push({ x: curr.x + curr.w * 0.5 - 32, y: gY - 100, w: 65, h: 14 });
     }
   }
-
-  // Bonus coin platforms — one roughly mid-way through every other ground segment.
-  const bonusCoinPlatforms: Plat[] = GROUND_SEGS
-    .filter((_, i) => i % 2 === 1)
-    .map(([x, w]) => ({ x: x + w * 0.5 - 32, y: gY - 100, w: 65, h: 14 }));
-
-  return [...bridges, ...extras, ...bonusCoinPlatforms];
+  return floats;
 }
 
-function buildCoins(gY: number): Coin[] {
-  const gaps = computeGaps();
-  const pts: [number, number][] = [];
-
-  // Ground-level coins spread evenly across every segment.
-  for (const [x, w] of GROUND_SEGS) {
-    const count = Math.max(2, Math.round(w / 220));
-    for (let i = 0; i < count; i++) {
-      const frac = (i + 1) / (count + 1);
-      pts.push([x + w * frac, gY - 30]);
+// Build coins / orbs / special pickups spread across the level.
+function buildCoins(gY: number, groundSegs: Plat[]): Coin[] {
+  const coins: Coin[] = [];
+  for (let i = 0; i < groundSegs.length; i++) {
+    const seg = groundSegs[i];
+    if (i === 0) continue; // no coins on starting platform
+    const count = Math.max(2, Math.round(seg.w / 200));
+    for (let j = 0; j < count; j++) {
+      const frac = (j + 1) / (count + 1);
+      coins.push({ x: seg.x + seg.w * frac, y: gY - 30, collected: false, type: pickCoinType() });
+    }
+    // Coin arcing over gap into next segment
+    if (i < groundSegs.length - 1) {
+      const next = groundSegs[i + 1];
+      const gapCenter = seg.x + seg.w + (next.x - (seg.x + seg.w)) / 2;
+      coins.push({ x: gapCenter, y: gY - 68, collected: false, type: pickCoinType() });
+    }
+    // High bonus coin above bonus platform on every other seg
+    if (i % 2 === 1 && seg.w > 320) {
+      coins.push({ x: seg.x + seg.w * 0.5, y: gY - 118, collected: false, type: pickCoinType() });
     }
   }
-
-  // Coins arcing over each gap, rewarding a clean jump.
-  for (const gap of gaps) {
-    pts.push([gap.x + gap.w * 0.5, gY - 70]);
-  }
-
-  // High bonus coins above the mid-segment bonus platforms.
-  GROUND_SEGS.forEach(([x, w], i) => {
-    if (i % 2 === 1) pts.push([x + w * 0.5, gY - 118]);
-  });
-
-  // Randomise each collectible: ~20% chance of real coin, rest are gems (orbs).
-  // Using Math.random() so the mix varies every run (not a fixed pattern).
-  return pts.map(([x, y]) => ({
-    x, y, collected: false,
-    type: (Math.random() < 0.20) ? "coin" as const : "orb" as const,
-  }));
+  return coins;
 }
 
-function buildEnemies(gY: number): Enemy[] {
-  // Ground enemy: sits on ground level
-  const eg = (x: number, lx: number, rx: number): Enemy => ({
-    x, y: gY - EH, vx: 1.5, lx, rx, alive: true, stompY: gY - EH, stompTimer: 0, type: "ground",
-  });
-  // Float enemy: hovers ~50px above ground, moves slightly faster
-  const ef = (x: number, lx: number, rx: number): Enemy => ({
-    x, y: gY - EH - 50, vx: 1.8, lx, rx, alive: true, stompY: gY - EH - 50, stompTimer: 0, type: "float",
-  });
-
+// Build enemies across all ground segments (skipping the starting one).
+function buildEnemies(gY: number, groundSegs: Plat[]): Enemy[] {
+  const ENEMY_POOL: Array<{ type: "ground" | "float"; variant: 1 | 2 }> = [
+    { type: "ground", variant: 1 },
+    { type: "ground", variant: 2 },
+    { type: "float",  variant: 1 },
+    { type: "float",  variant: 2 },
+  ];
   const enemies: Enemy[] = [];
-  GROUND_SEGS.forEach(([x, w], i) => {
-    if (i === 0) return; // keep the starting segment enemy-free
+  for (let i = 0; i < groundSegs.length; i++) {
+    if (i === 0) continue;
+    const seg = groundSegs[i];
     const inset = 40;
-    const lx = x + inset;
-    const rx = x + w - inset;
-    if (i % 2 === 0) {
-      enemies.push(eg(x + w * 0.5, lx, rx));
-    } else {
-      enemies.push(ef(x + w * 0.5, lx, rx));
-    }
-    // Longer segments get a second enemy for variety.
-    if (w > 480) {
-      const second = i % 2 === 0 ? ef : eg;
-      enemies.push(second(x + w * 0.75, lx, rx));
-    }
-  });
+    const lx = seg.x + inset;
+    const rx = seg.x + seg.w - inset;
+    if (rx - lx < 60) continue;
+    const pick = () => ENEMY_POOL[Math.floor(Math.random() * ENEMY_POOL.length)];
+    const makeEnemy = (xPos: number, et: { type: "ground" | "float"; variant: 1 | 2 }): Enemy => {
+      const yOff = et.type === "float" ? -50 : 0;
+      return {
+        x: xPos, y: gY - EH + yOff,
+        vx: (1.3 + Math.random() * 0.9) * (Math.random() < 0.5 ? 1 : -1),
+        lx, rx, alive: true,
+        stompY: gY - EH + yOff, stompTimer: 0,
+        type: et.type, variant: et.variant,
+      };
+    };
+    enemies.push(makeEnemy(seg.x + seg.w * 0.42, pick()));
+    if (seg.w > 500) enemies.push(makeEnemy(seg.x + seg.w * 0.72, pick()));
+  }
   return enemies;
 }
 
@@ -389,7 +392,7 @@ export default function LavaCrawlPage() {
   const buildState = useCallback((ch: number): GState => {
     const gY = ch * GR;
     const grounds = buildGrounds(gY, ch);
-    const floats = buildFloats(gY);
+    const floats = buildFloats(gY, grounds);
     const allPlats = [...grounds, ...floats];
     const startX = 60, startY = gY - PH;
     return {
@@ -398,8 +401,8 @@ export default function LavaCrawlPage() {
       onGround: false, jumpCount: 0, facingR: true,
       alive: true, respawnTimer: 0,
       squishX: 1, squishY: 1, squishTimer: 0, squishDuration: 1,
-      enemies: buildEnemies(gY),
-      coins: buildCoins(gY),
+      enemies: buildEnemies(gY, grounds),
+      coins: buildCoins(gY, grounds),
       lifeHearts: [],
       floats: [],
       cameraX: 0,
@@ -409,6 +412,11 @@ export default function LavaCrawlPage() {
       lavaY: gY,
       plats: allPlats,
       checkpointX: startX,
+      groundSegs: grounds,
+      hitShield: false,
+      hitShieldTimer: 0,
+      doubleActive: false,
+      doubleTimer: 0,
     };
   }, []);
 
@@ -474,9 +482,20 @@ export default function LavaCrawlPage() {
             completeMutateRef.current({ score: s.score, coinsCollected: s.coinsCollected });
             return;
           }
-          // Respawn just behind the last safe checkpoint, not back at the level start.
-          s.px = Math.max(0, s.checkpointX - RESPAWN_BACK_OFFSET);
-          s.py = gY - PH;
+          // Respawn near last safe checkpoint — land on a ground segment, never in a gap
+          const respawnTargetX = Math.max(0, s.checkpointX - RESPAWN_BACK_OFFSET);
+          const landSeg = s.groundSegs
+            .filter(p => p.x <= respawnTargetX + PW)
+            .sort((a, b) => b.x - a.x)[0];
+          if (landSeg) {
+            s.px = Math.min(Math.max(respawnTargetX, landSeg.x + 20), landSeg.x + landSeg.w - PW - 20);
+            s.py = landSeg.y - PH;
+          } else {
+            s.px = respawnTargetX;
+            s.py = gY - PH;
+          }
+          s.hitShield = false;
+          s.hitShieldTimer = 0;
           s.pvx = 0; s.pvy = 0;
           s.alive = true;
           s.cameraX = Math.max(0, Math.min(LEVEL_W - VW, s.px - VW / 2 + PW / 2));
@@ -536,8 +555,28 @@ export default function LavaCrawlPage() {
         // Lava death (fall off screen bottom or into gap below ground)
         if (s.py > VH + 40) {
           s.alive = false;
+          s.hitShield = false;
+          s.hitShieldTimer = 0;
           s.lives = Math.max(0, s.lives - 1);
           s.respawnTimer = 90;
+        }
+
+        // Hit-shield timer (flash red after first hit)
+        if (s.hitShieldTimer > 0) {
+          s.hitShieldTimer -= dt;
+          if (s.hitShieldTimer <= 0) {
+            s.hitShield = false;
+            s.hitShieldTimer = 0;
+          }
+        }
+
+        // x2 orb timer
+        if (s.doubleActive) {
+          s.doubleTimer -= dt;
+          if (s.doubleTimer <= 0) {
+            s.doubleActive = false;
+            s.doubleTimer = 0;
+          }
         }
 
         // Enemy update + collision
@@ -570,18 +609,26 @@ export default function LavaCrawlPage() {
             e.alive = false;
             e.stompTimer = 30;
             s.pvy = JUMP_VEL * 0.55;
-            s.score += ENEMY_SCORE;
-            // Hard stomp squash — wide and flat
+            const mult = s.doubleActive ? 2 : 1;
+            s.score += ENEMY_SCORE * mult;
             s.squishX = 1.45; s.squishY = 0.58; s.squishTimer = 16; s.squishDuration = 16;
-            // Float particle: XP gain
-            s.floats.push({ x: e.x + EW / 2 - s.cameraX, y: e.y - 10, text: "+8 XP", color: "#a0ff80", life: 55, maxLife: 55 });
+            const xpText = s.doubleActive ? "+16 XP ×2" : "+8 XP";
+            s.floats.push({ x: e.x + EW / 2 - s.cameraX, y: e.y - 10, text: xpText, color: "#a0ff80", life: 55, maxLife: 55 });
             gainExpRef.current();
-            // Rare life drop — defeated enemies occasionally leave behind an extra life.
+            if (s.doubleActive) gainExpRef.current(); // double XP
             if (s.lives < MAX_HEART_SLOTS && Math.random() < LIFE_DROP_CHANCE) {
               s.lifeHearts.push({ x: e.x + EW / 2, y: gY - 38, collected: false });
             }
-          } else if (s.alive && overlaps(s.px, s.py, PW - 2, PH - 2, hx, hy, hw, hh)) {
-            // Side/bottom collision → hurt
+          } else if (s.alive && !s.hitShield && overlaps(s.px, s.py, PW - 2, PH - 2, hx, hy, hw, hh)) {
+            // First hit — activate invincibility shield and flash red
+            s.hitShield = true;
+            s.hitShieldTimer = SHIELD_FRAMES;
+            s.squishX = 1.15; s.squishY = 0.85; s.squishTimer = 12; s.squishDuration = 12;
+            s.floats.push({ x: s.px + PW / 2 - s.cameraX, y: s.py - 6, text: "!", color: "#ff4444", life: 30, maxLife: 30 });
+          } else if (s.alive && s.hitShield && overlaps(s.px, s.py, PW - 2, PH - 2, hx, hy, hw, hh)) {
+            // Second hit while shield is up — lose a life
+            s.hitShield = false;
+            s.hitShieldTimer = 0;
             s.alive = false;
             s.lives = Math.max(0, s.lives - 1);
             s.respawnTimer = 90;
@@ -595,13 +642,23 @@ export default function LavaCrawlPage() {
           const dy = c.y - (s.py + PH / 2);
           if (Math.sqrt(dx * dx + dy * dy) < CR + 14) {
             c.collected = true;
+            const mult = s.doubleActive ? 2 : 1;
             if (c.type === "coin") {
               s.coinsCollected++;
-              s.score += COIN_SCORE;
-              s.floats.push({ x: c.x - s.cameraX, y: c.y - 8, text: "+10", color: "#ffd700", life: 45, maxLife: 45 });
-            } else {
-              s.score += ORB_SCORE;
-              s.floats.push({ x: c.x - s.cameraX, y: c.y - 8, text: "+5", color: "#ff9933", life: 45, maxLife: 45 });
+              s.score += COIN_SCORE * mult;
+              const txt = s.doubleActive ? `+${COIN_SCORE * 2} ×2` : "+10";
+              s.floats.push({ x: c.x - s.cameraX, y: c.y - 8, text: txt, color: "#ffd700", life: 45, maxLife: 45 });
+            } else if (c.type === "orb") {
+              s.score += ORB_SCORE * mult;
+              const txt = s.doubleActive ? `+${ORB_SCORE * 2} ×2` : "+5";
+              s.floats.push({ x: c.x - s.cameraX, y: c.y - 8, text: txt, color: "#ff9933", life: 45, maxLife: 45 });
+            } else if (c.type === "double") {
+              s.doubleActive = true;
+              s.doubleTimer = DOUBLE_DURATION;
+              s.floats.push({ x: c.x - s.cameraX, y: c.y - 8, text: "×2 ACTIVE!", color: "#ff6600", life: 70, maxLife: 70 });
+            } else if (c.type === "coinBonus") {
+              s.coinsCollected += COIN_ORB_AMOUNT;
+              s.floats.push({ x: c.x - s.cameraX, y: c.y - 8, text: `+${COIN_ORB_AMOUNT} coins`, color: "#ffe066", life: 55, maxLife: 55 });
             }
           }
         }
@@ -618,19 +675,6 @@ export default function LavaCrawlPage() {
               s.floats.push({ x: lh.x - s.cameraX, y: lh.y - 12, text: "+1 ♥", color: "#ff6699", life: 60, maxLife: 60 });
             }
           }
-        }
-
-        // Finish portal check
-        const finishX = LEVEL_W - 220;
-        if (!s.finishReached && s.px + PW > finishX && s.px < finishX + 80 && s.py + PH > gY - 80) {
-          s.finishReached = true;
-          s.score += FINISH_BONUS;
-          setEndScore(s.score);
-          setEndCoins(s.coinsCollected);
-          setEndLives(s.lives);
-          showScreen("victory");
-          completeMutateRef.current({ score: s.score, coinsCollected: s.coinsCollected });
-          return;
         }
 
         // Camera follow
@@ -775,11 +819,7 @@ export default function LavaCrawlPage() {
             ctx.arc(cx2, c.y - bounce, CR, 0, Math.PI * 2);
             ctx.fill();
           }
-        } else {
-          // Orb — glowing gem. The glow is produced purely via canvas shadow on the image
-          // draw itself, so it follows the gem's own transparent-background silhouette
-          // instead of a separate circular ring (which used to glow outside the gem shape,
-          // over the transparent padding of the image).
+        } else if (c.type === "orb") {
           const gemSize = CR * 2.8;
           const orbY = c.y - bounce;
           const pulse = 0.6 + Math.sin(lavaT * 5 + c.x * 0.02) * 0.4;
@@ -787,22 +827,51 @@ export default function LavaCrawlPage() {
             ctx.shadowColor = "#ff5522";
             ctx.shadowBlur = 10 * pulse;
             ctx.drawImage(_gemImg, cx2 - gemSize / 2, orbY - gemSize / 2, gemSize, gemSize);
-            // Second pass with a tighter, brighter glow for extra richness — still shaped
-            // by the gem's own alpha channel, never a plain circle.
             ctx.shadowColor = "#ffaa55";
             ctx.shadowBlur = 6 * pulse;
             ctx.drawImage(_gemImg, cx2 - gemSize / 2, orbY - gemSize / 2, gemSize, gemSize);
           } else {
             const orbR = CR * 1.2;
             const orbGrad = ctx.createRadialGradient(cx2, orbY, 0, cx2, orbY, orbR);
-            orbGrad.addColorStop(0, `rgba(255,255,220,${0.98 * pulse})`);
-            orbGrad.addColorStop(0.3, `rgba(255,200,60,${0.95 * pulse})`);
-            orbGrad.addColorStop(0.65, `rgba(255,110,10,${0.85 * pulse})`);
+            orbGrad.addColorStop(0, `rgba(255,255,220,0.98)`);
+            orbGrad.addColorStop(0.65, `rgba(255,110,10,0.85)`);
             orbGrad.addColorStop(1, `rgba(180,40,0,0)`);
             ctx.fillStyle = orbGrad;
             ctx.beginPath();
             ctx.arc(cx2, orbY, orbR, 0, Math.PI * 2);
             ctx.fill();
+          }
+        } else if (c.type === "double") {
+          // x2 multiplier orb — orange-gold double icon
+          const sz = CR * 3.2;
+          const orbY = c.y - bounce;
+          const pulse = 0.7 + Math.sin(lavaT * 6 + c.x * 0.02) * 0.3;
+          if (_doubleOrbImg.complete && _doubleOrbImg.naturalWidth > 0) {
+            ctx.shadowColor = "#ff6600";
+            ctx.shadowBlur = 14 * pulse;
+            ctx.drawImage(_doubleOrbImg, cx2 - sz / 2, orbY - sz / 2, sz, sz);
+          } else {
+            ctx.fillStyle = "#ff8800";
+            ctx.font = `bold ${Math.round(CR * 1.5)}px monospace`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("×2", cx2, orbY);
+          }
+        } else if (c.type === "coinBonus") {
+          // Coin-orb — gold coin shower
+          const sz = CR * 3.0;
+          const orbY = c.y - bounce;
+          const pulse = 0.7 + Math.sin(lavaT * 5 + c.x * 0.03) * 0.3;
+          if (_coinOrbImg.complete && _coinOrbImg.naturalWidth > 0) {
+            ctx.shadowColor = "#ffd700";
+            ctx.shadowBlur = 14 * pulse;
+            ctx.drawImage(_coinOrbImg, cx2 - sz / 2, orbY - sz / 2, sz, sz);
+          } else {
+            ctx.fillStyle = "#ffd700";
+            ctx.font = `bold ${Math.round(CR * 1.4)}px monospace`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("+10", cx2, orbY);
           }
         }
         ctx.restore();
@@ -829,27 +898,6 @@ export default function LavaCrawlPage() {
         ctx.restore();
       }
 
-      // Finish portal
-      const finishX = LEVEL_W - 220;
-      const fx = finishX - cx;
-      if (fx > -100 && fx < VW + 100 && !s.finishReached) {
-        const portalPulse = 0.85 + Math.sin(lavaT * 3) * 0.15;
-        ctx.save();
-        ctx.shadowColor = "#00ff88";
-        ctx.shadowBlur = 30;
-        const portalGrad = ctx.createRadialGradient(fx + 40, gY - 40, 5, fx + 40, gY - 40, 48 * portalPulse);
-        portalGrad.addColorStop(0, "rgba(0,255,136,0.95)");
-        portalGrad.addColorStop(0.5, "rgba(0,200,100,0.7)");
-        portalGrad.addColorStop(1, "rgba(0,150,60,0)");
-        ctx.fillStyle = portalGrad;
-        ctx.fillRect(fx, gY - 80, 80, 80);
-        ctx.fillStyle = "#00ff88";
-        ctx.font = "bold 11px monospace";
-        ctx.textAlign = "center";
-        ctx.fillText("EXIT", fx + 40, gY - 5);
-        ctx.restore();
-      }
-
       // Enemies
       for (const e of s.enemies) {
         const ex = e.x - cx;
@@ -869,10 +917,16 @@ export default function LavaCrawlPage() {
           ctx.restore();
           continue;
         }
-        // Draw enemy image (ground = lava demon, float = fireball)
-        // Images face left; flip when moving right (vx > 0)
-        const eImg = e.type === "float" ? _enemy2Img : _enemy1Img;
-        const drawSize = e.type === "float" ? 52 : 60;
+        // Draw enemy image — two ground variants (1=lava demon, 2=lizard) and two float variants (1=fireball, 2=bat)
+        let eImg: HTMLImageElement;
+        let drawSize: number;
+        if (e.type === "float") {
+          eImg = e.variant === 2 ? _enemy3Img : _enemy2Img;
+          drawSize = 54;
+        } else {
+          eImg = e.variant === 2 ? _enemy4Img : _enemy1Img;
+          drawSize = 60;
+        }
         // Float enemies drift up/down slowly; ground enemies bounce with each step (position-based)
         const floatBob = e.type === "float" ? Math.sin(ts * 0.003 + e.x * 0.01) * 5 : 0;
         const walkBob  = e.type === "ground" ? -Math.abs(Math.sin(e.x * 0.09)) * 1.5 : 0; // upward
@@ -920,26 +974,31 @@ export default function LavaCrawlPage() {
             s.squishX = 1; s.squishY = 1;
           }
         }
-        // Smooth eased squish value: ease from peak back to 1 using a smooth curve
         const squishT = s.squishDuration > 0 ? Math.max(0, s.squishTimer / s.squishDuration) : 0;
-        const ease = squishT * squishT; // quadratic ease-out feel
+        const ease = squishT * squishT;
         const curScaleX = 1 + (s.squishX - 1) * ease;
         const curScaleY = 1 + (s.squishY - 1) * ease;
 
-        // Walk bounce: subtle vertical bob when moving on ground (position-based → stops when still)
         const isWalking = s.onGround && Math.abs(s.pvx) > 0.2;
-        const walkSin = Math.sin(s.px * 0.055); // slow, gentle bounce cycle
-        const walkBobY = isWalking ? Math.abs(walkSin) * -0.8 : 0;         // 0 → -0.8px upward
-        const walkScaleX = isWalking ? 1 - Math.abs(walkSin) * 0.006 : 1;  // barely-there thin at top of bounce
-        const walkScaleY = isWalking ? 1 + Math.abs(walkSin) * 0.01 : 1;   // barely-there tall at top of bounce
+        const walkSin = Math.sin(s.px * 0.055);
+        const walkBobY = isWalking ? Math.abs(walkSin) * -0.8 : 0;
+        const walkScaleX = isWalking ? 1 - Math.abs(walkSin) * 0.006 : 1;
+        const walkScaleY = isWalking ? 1 + Math.abs(walkSin) * 0.01 : 1;
 
-        // Compose walk scale with jump/stomp squish (both pivot from feet)
         const finalScaleX = curScaleX * walkScaleX;
         const finalScaleY = curScaleY * walkScaleY;
 
         ctx.save();
-        ctx.shadowColor = "#ff6600";
-        ctx.shadowBlur = 14;
+        // Hit-shield: flicker player and tint red
+        if (s.hitShieldTimer > 0) {
+          const flashOn = Math.floor(s.hitShieldTimer / 7) % 2 === 0;
+          ctx.globalAlpha = flashOn ? 1.0 : 0.3;
+          ctx.shadowColor = "#ff0000";
+          ctx.shadowBlur = 22;
+        } else {
+          ctx.shadowColor = "#ff6600";
+          ctx.shadowBlur = 14;
+        }
         if (petImgRef.current) {
           // Pet images face LEFT by default — flip when moving right.
           // All transforms pivot from the feet so the sprite doesn't float off the ground.
@@ -1059,12 +1118,30 @@ export default function LavaCrawlPage() {
 
       ctx.textBaseline = "alphabetic";
 
-      // Progress bar — sits at the bottom edge of the stone bar
-      const prog = Math.min(s.px / (LEVEL_W - 100), 1);
-      ctx.fillStyle = "rgba(255,255,255,0.12)";
-      ctx.fillRect(VW * 0.25, HUD_TOP + HUD_H - 7, VW * 0.5, 4);
-      ctx.fillStyle = "#ff8800";
-      ctx.fillRect(VW * 0.25, HUD_TOP + HUD_H - 7, VW * 0.5 * prog, 4);
+      // x2 multiplier indicator — replaces the (now-meaningless) progress bar
+      if (s.doubleActive) {
+        const barW = VW * 0.44;
+        const barX = VW * 0.28;
+        const barY = HUD_TOP + HUD_H - 8;
+        const barH = 5;
+        const prog2x = Math.max(0, s.doubleTimer / DOUBLE_DURATION);
+        ctx.fillStyle = "rgba(255,120,0,0.22)";
+        ctx.fillRect(barX, barY, barW, barH);
+        const g2x = ctx.createLinearGradient(barX, 0, barX + barW * prog2x, 0);
+        g2x.addColorStop(0, "#ff8800");
+        g2x.addColorStop(1, "#ffee44");
+        ctx.fillStyle = g2x;
+        ctx.fillRect(barX, barY, barW * prog2x, barH);
+        // "×2" label
+        ctx.font = "bold 10px monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.shadowColor = "#ff6600";
+        ctx.shadowBlur = 6;
+        ctx.fillStyle = "#ffcc44";
+        ctx.fillText("×2 ACTIVE", VW / 2, barY - 6);
+        ctx.shadowBlur = 0;
+      }
 
       // Lives — row of hearts just below the toolbar, left-aligned
       const HEART_GAP = 27;
@@ -1224,6 +1301,32 @@ export default function LavaCrawlPage() {
         style={{ flex: 1, display: "block", width: "100%", touchAction: "none" }}
       />
 
+      {/* ── Pause button — overlaid in the top-right of the canvas (opposite hearts) ── */}
+      {(screen === "playing" || screen === "paused") && (
+        <button
+          data-testid="button-lava-pause"
+          onMouseDown={() => screen === "playing" ? showScreen("paused") : showScreen("playing")}
+          onTouchStart={(e) => { e.preventDefault(); screen === "playing" ? showScreen("paused") : showScreen("playing"); }}
+          style={{
+            position: "absolute",
+            top: "4%",
+            right: "8px",
+            width: 52,
+            height: 52,
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 20,
+          }}
+        >
+          <img src={btnPauseImg} alt="Pause" draggable={false} style={{ width: 52, height: 52, objectFit: "contain" }} />
+        </button>
+      )}
+
       {/* ── Touch controls (shown only when playing or paused) ──────────────── */}
       {(screen === "playing" || screen === "paused") && (
         <div style={{ height: "108px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", background: "rgba(10,3,0,0.85)", borderTop: "1px solid rgba(255,100,0,0.25)", userSelect: "none", flexShrink: 0 }}>
@@ -1240,13 +1343,6 @@ export default function LavaCrawlPage() {
               style={{ width: 76, height: 56, background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
             ><img src={btnRightImg} alt="Right" draggable={false} style={{ width: 76, height: "auto", objectFit: "contain" }} /></button>
           </div>
-          {/* Pause */}
-          <button
-            data-testid="button-lava-pause"
-            onMouseDown={() => screen === "playing" ? showScreen("paused") : showScreen("playing")}
-            onTouchStart={(e) => { e.preventDefault(); screen === "playing" ? showScreen("paused") : showScreen("playing"); }}
-            style={{ width: 64, height: 64, background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-          ><img src={btnPauseImg} alt="Pause" draggable={false} style={{ width: 64, height: 64, objectFit: "contain" }} /></button>
           {/* Jump */}
           <button
             data-testid="button-lava-jump"
@@ -1262,7 +1358,7 @@ export default function LavaCrawlPage() {
           <img src={lavaCrawlTitleImg} alt="Lava Crawl" draggable={false} style={{ width: "min(300px, 85vw)", height: "auto", marginBottom: "4px" }} />
           <div style={subStyle}>
             Run & jump through the volcanic cavern.<br />
-            Collect coins, stomp enemies, reach the exit!
+            Collect coins, stomp enemies, survive as long as you can!
           </div>
           {myBest && myBest.best > 0 && (
             <div style={{ color: "#ffd080", fontSize: "13px", marginBottom: "16px", fontFamily: "monospace" }}>
