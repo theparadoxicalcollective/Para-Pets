@@ -136,8 +136,9 @@ interface GState {
   plats: Plat[];
   checkpointX: number;
   groundSegs: Plat[];      // ground platforms only, for respawn logic
-  hitShield: boolean;      // true = first hit taken, invincible until timer expires
-  hitShieldTimer: number;  // frames left of shield (flash red)
+  hitShield: boolean;      // true = invincible (flashing) after first hit
+  hitShieldTimer: number;  // frames left of invincibility window
+  hitCount: number;        // hits taken since last life-loss (0 or 1); life lost on 2nd hit
   doubleActive: boolean;   // x2 score/XP multiplier active
   doubleTimer: number;     // frames remaining on the x2 effect
 }
@@ -421,6 +422,7 @@ export default function LavaCrawlPage() {
       groundSegs: grounds,
       hitShield: false,
       hitShieldTimer: 0,
+      hitCount: 0,
       doubleActive: false,
       doubleTimer: 0,
     };
@@ -502,6 +504,7 @@ export default function LavaCrawlPage() {
           }
           s.hitShield = false;
           s.hitShieldTimer = 0;
+          s.hitCount = 0;
           s.pvx = 0; s.pvy = 0;
           s.alive = true;
           s.cameraX = Math.max(0, Math.min(LEVEL_W - VW, s.px - VW / 2 + PW / 2));
@@ -563,6 +566,7 @@ export default function LavaCrawlPage() {
           s.alive = false;
           s.hitShield = false;
           s.hitShieldTimer = 0;
+          s.hitCount = 0;
           s.lives = Math.max(0, s.lives - 1);
           s.respawnTimer = 90;
         }
@@ -627,18 +631,21 @@ export default function LavaCrawlPage() {
               s.lifeHearts.push({ x: e.x + EW / 2, y: gY - 38, collected: false });
             }
           } else if (s.alive && !s.hitShield && overlaps(s.px, s.py, PW - 2, PH - 2, hx, hy, hw, hh)) {
-            // First hit — activate invincibility shield and flash red
+            // Hit while not shielded — always start the invincibility window first
             s.hitShield = true;
             s.hitShieldTimer = SHIELD_FRAMES;
             s.squishX = 1.15; s.squishY = 0.85; s.squishTimer = 12; s.squishDuration = 12;
-            s.floats.push({ x: s.px + PW / 2 - s.cameraX, y: s.py - 6, text: "!", color: "#ff4444", life: 30, maxLife: 30 });
-          } else if (s.alive && s.hitShield && overlaps(s.px, s.py, PW - 2, PH - 2, hx, hy, hw, hh)) {
-            // Second hit while shield is up — lose a life
-            s.hitShield = false;
-            s.hitShieldTimer = 0;
-            s.alive = false;
-            s.lives = Math.max(0, s.lives - 1);
-            s.respawnTimer = 90;
+            s.hitCount++;
+            if (s.hitCount >= 2) {
+              // Second hit — lose a life and respawn
+              s.hitCount = 0;
+              s.alive = false;
+              s.lives = Math.max(0, s.lives - 1);
+              s.respawnTimer = 90;
+            } else {
+              // First hit — flash warning, no life lost
+              s.floats.push({ x: s.px + PW / 2 - s.cameraX, y: s.py - 6, text: "!", color: "#ff4444", life: 30, maxLife: 30 });
+            }
           }
         }
 
@@ -999,12 +1006,12 @@ export default function LavaCrawlPage() {
         const finalScaleY = curScaleY * walkScaleY;
 
         ctx.save();
-        // Hit-shield: flicker player and tint red
+        // Hit-shield: flicker player visibility + red tint filter
         if (s.hitShieldTimer > 0) {
           const flashOn = Math.floor(s.hitShieldTimer / 7) % 2 === 0;
-          ctx.globalAlpha = flashOn ? 1.0 : 0.3;
-          ctx.shadowColor = "#ff0000";
-          ctx.shadowBlur = 22;
+          ctx.globalAlpha = flashOn ? 1.0 : 0.15;
+          // ctx.filter applies to drawImage — sepia+hue-rotate gives a vivid red tint
+          if (flashOn) ctx.filter = "brightness(1.6) sepia(1) saturate(8) hue-rotate(315deg)";
         } else {
           ctx.shadowColor = "#ff6600";
           ctx.shadowBlur = 14;
@@ -1018,6 +1025,7 @@ export default function LavaCrawlPage() {
           if (s.facingR) ctx.scale(-1, 1);
           ctx.scale(finalScaleX, finalScaleY);
           ctx.drawImage(petImgRef.current, -PET_SIZE / 2, -PET_SIZE, PET_SIZE, PET_SIZE);
+          ctx.filter = "none";
         } else {
           // Fallback pixel adventurer
           if (!s.facingR) {
@@ -1398,7 +1406,13 @@ export default function LavaCrawlPage() {
           <div style={{ ...titleStyle, fontSize: "26px", marginBottom: "16px" }}>⏸ Paused</div>
           <button data-testid="button-lava-resume" style={btnStyle("#ff8800")} onClick={() => showScreen("playing")}>▶  Resume</button>
           <button data-testid="button-lava-restart-pause" style={btnStyle("#ffd080")} onClick={startGame}>↺  Restart</button>
-          <button data-testid="button-lava-quit-pause" style={btnStyle("rgba(255,200,100,0.45)")} onClick={() => navigate("/world/volcanic")}>← Quit to World</button>
+          <button data-testid="button-lava-quit-pause" style={btnStyle("rgba(255,200,100,0.45)")} onClick={() => {
+            const s = stateRef.current;
+            if (s && (s.score > 0 || s.coinsCollected > 0)) {
+              completeMutateRef.current({ score: s.score, coinsCollected: s.coinsCollected });
+            }
+            navigate("/world/volcanic");
+          }}>← Quit to World</button>
         </div>
       )}
 
