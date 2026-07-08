@@ -864,7 +864,7 @@ export default function LavaCrawlPage() {
         const drawSize = e.type === "float" ? 52 : 60;
         // Float enemies drift up/down slowly; ground enemies bounce with each step (position-based)
         const floatBob = e.type === "float" ? Math.sin(ts * 0.003 + e.x * 0.01) * 5 : 0;
-        const walkBob  = e.type === "ground" ? -Math.abs(Math.sin(e.x * 0.16)) * 3 : 0; // upward
+        const walkBob  = e.type === "ground" ? -Math.abs(Math.sin(e.x * 0.09)) * 1.5 : 0; // upward
         const centerX = ex + EW / 2;
         const centerY = e.y + EH / 2 + floatBob + walkBob;
         ctx.translate(centerX, centerY);
@@ -917,10 +917,10 @@ export default function LavaCrawlPage() {
 
         // Walk bounce: subtle vertical bob when moving on ground (position-based → stops when still)
         const isWalking = s.onGround && Math.abs(s.pvx) > 0.2;
-        const walkSin = Math.sin(s.px * 0.18); // ~2 bounces per ~35px of movement
-        const walkBobY = isWalking ? Math.abs(walkSin) * -5 : 0;       // 0 → -5px upward
-        const walkScaleX = isWalking ? 1 - Math.abs(walkSin) * 0.04 : 1; // slight thin at top of bounce
-        const walkScaleY = isWalking ? 1 + Math.abs(walkSin) * 0.06 : 1; // slight tall at top of bounce
+        const walkSin = Math.sin(s.px * 0.1); // slower bounce cycle
+        const walkBobY = isWalking ? Math.abs(walkSin) * -2 : 0;       // 0 → -2px upward
+        const walkScaleX = isWalking ? 1 - Math.abs(walkSin) * 0.015 : 1; // slight thin at top of bounce
+        const walkScaleY = isWalking ? 1 + Math.abs(walkSin) * 0.025 : 1; // slight tall at top of bounce
 
         // Compose walk scale with jump/stomp squish (both pivot from feet)
         const finalScaleX = curScaleX * walkScaleX;
@@ -998,33 +998,55 @@ export default function LavaCrawlPage() {
         ctx.fillRect(0, HUD_TOP, VW, HUD_H);
       }
 
-      const textY = HUD_TOP + 36;
+      // Vertical center of the toolbar image
+      const textY = HUD_TOP + HUD_H / 2;
+      ctx.textBaseline = "middle";
 
-      // Score — centered in the bar with glowing "SCORE" label
-      ctx.textAlign = "center";
+      // Score cluster — "SCORE" label immediately LEFT of the number, drawn as one unit
+      // and centered as a group within the left half of the toolbar.
+      ctx.font = "bold 20px monospace";
+      const scoreValueStr = `${s.score}`;
+      const scoreValueW = ctx.measureText(scoreValueStr).width;
+      ctx.font = "bold 11px monospace";
+      const scoreLabelStr = "SCORE";
+      const scoreLabelW = ctx.measureText(scoreLabelStr).width;
+      const scoreGap = 6;
+      const scoreClusterW = scoreLabelW + scoreGap + scoreValueW;
+      const scoreClusterCenterX = VW * 0.28;
+      const scoreLeft = scoreClusterCenterX - scoreClusterW / 2;
+
+      ctx.textAlign = "left";
       ctx.shadowColor = "#ff8800";
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 8;
       ctx.fillStyle = "#ffcc44";
       ctx.font = "bold 11px monospace";
-      ctx.fillText("SCORE", VW / 2, HUD_TOP + 18);
+      ctx.fillText(scoreLabelStr, scoreLeft, textY);
       ctx.shadowColor = "#ff6600";
       ctx.shadowBlur = 8;
       ctx.fillStyle = "#fff8e0";
       ctx.font = "bold 20px monospace";
-      ctx.fillText(`${s.score}`, VW / 2, textY);
+      ctx.fillText(scoreValueStr, scoreLeft + scoreLabelW + scoreGap, textY);
       ctx.shadowBlur = 0;
 
-      // Coins — right side, inset from edge
+      // Coin cluster — icon immediately LEFT of the amount, drawn as one unit
+      // and centered as a group within the right half of the toolbar.
       const COIN_ICON = 18;
-      ctx.fillStyle = "#fff8e0";
+      const coinGap = 5;
       ctx.font = "bold 16px monospace";
-      ctx.textAlign = "right";
-      const coinCountStr = ` ${s.coinsCollected}`;
-      ctx.fillText(coinCountStr, VW - 18, textY);
+      const coinValueStr = `${s.coinsCollected}`;
+      const coinValueW = ctx.measureText(coinValueStr).width;
+      const coinClusterW = COIN_ICON + coinGap + coinValueW;
+      const coinClusterCenterX = VW * 0.72;
+      const coinLeft = coinClusterCenterX - coinClusterW / 2;
+
       if (_coinImg.complete && _coinImg.naturalWidth > 0) {
-        const textW = ctx.measureText(coinCountStr).width;
-        ctx.drawImage(_coinImg, VW - 18 - textW - COIN_ICON - 2, HUD_TOP + (HUD_H - COIN_ICON) / 2, COIN_ICON, COIN_ICON);
+        ctx.drawImage(_coinImg, coinLeft, HUD_TOP + (HUD_H - COIN_ICON) / 2, COIN_ICON, COIN_ICON);
       }
+      ctx.fillStyle = "#fff8e0";
+      ctx.textAlign = "left";
+      ctx.fillText(coinValueStr, coinLeft + COIN_ICON + coinGap, textY);
+
+      ctx.textBaseline = "alphabetic";
 
       // Progress bar — sits at the bottom edge of the stone bar
       const prog = Math.min(s.px / (LEVEL_W - 100), 1);
