@@ -243,7 +243,7 @@ const WORLD_FIXED_MAP_H: Record<string, number> = {
   swamp:           1621, // bg_swamp_map_v6.jpeg 2729×4096 — natural at MAP_W=1080
   snowy_mountain:  1980, // bg_snowy_mountain_map.webp 768×1408
   sky_realm:       1980, // bg_sky_realm_map.webp 768×1408
-  volcanic:        1619, // bg_volcanic_map_v3.jpeg 2888×4330 — natural at MAP_W=1080
+  volcanic:        1619, // bg_volcanic_map_v4.webp 1620×2160 — natural at MAP_W=1080
   haunted_woods:   1619, // bg_haunted_woods_v2.png 1024×1535 — natural at MAP_W=1080
   enchanted_grove: 1980, // bg_enchanted_grove_map.webp 768×1408
   island:          1980, // bg_island_map.webp 768×1408

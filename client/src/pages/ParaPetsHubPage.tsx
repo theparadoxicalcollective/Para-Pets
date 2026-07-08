@@ -45,7 +45,7 @@ import worldDesert       from "@assets/bg_desert_map.png";
 import worldSky          from "@assets/bg_sky_realm_map.png";
 import worldIsland       from "@assets/bg_island_map.png";
 import worldSwamp        from "@assets/bg_swamp_map.png";
-import worldVolcanic     from "@assets/bg_volcanic_map.png";
+import worldVolcanic     from "@assets/bg_volcanic_map_v4.webp";
 import worldSnowy        from "@assets/bg_snowy_mountain_map.png";
 import DailyClaimCard from "@/components/DailyClaimCard";
 
