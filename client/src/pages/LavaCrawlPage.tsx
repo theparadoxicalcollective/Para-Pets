@@ -111,6 +111,7 @@ interface GState {
   lives: number;
   finishReached: boolean;
   lavaY: number;
+  plats: Plat[];
 }
 
 // ─── Level data builders (called fresh each new game) ────────────────────────
@@ -139,37 +140,47 @@ function buildGrounds(gY: number, ch: number): Plat[] {
 
 function buildFloats(gY: number): Plat[] {
   const fy = (off: number) => gY - 55 + off;
-  return [
-    // Bridge gap 700-800
-    { x: 710, y: fy(0), w: 90, h: 14 },
-    // Bridge gap 1220-1330
-    { x: 1230, y: fy(5), w: 90, h: 14 },
+  const keep = (chance: number) => Math.random() < chance;
+
+  // Required bridges — gap is wide enough that a platform is needed to cross safely.
+  const requiredBridges: Plat[] = [
+    { x: 1230, y: fy(5), w: 90, h: 14 },  // gap 1220-1330
+    { x: 2150, y: fy(5), w: 90, h: 14 },  // gap 2140-2270
+    { x: 3050, y: fy(5), w: 80, h: 14 },  // gap 3040-3180
+    { x: 3900, y: fy(5), w: 80, h: 14 },  // gap 3890-4060
+    { x: 4345, y: fy(0), w: 90, h: 14 },  // gap 4340-4520
+    { x: 4830, y: fy(5), w: 85, h: 14 },  // gap 4820-5020
+    { x: 5280, y: fy(0), w: 90, h: 14 },  // gap 5270-5440
+    { x: 5920, y: fy(0), w: 85, h: 14 },  // gap 5900-6020
+    { x: 6415, y: fy(5), w: 80, h: 14 },  // gap 6300-6510 (narrower)
+    { x: 7235, y: fy(0), w: 90, h: 14 },  // gap 7360-7460
+  ];
+
+  // Narrow gaps (<=150px) are jumpable without any platform, so they only sometimes get one.
+  const optionalNarrowBridges: Plat[] = [
+    { x: 710,  y: fy(0), w: 90, h: 14 },  // gap 700-800
+    { x: 1565, y: fy(0), w: 90, h: 14 },  // gap 1560-1680
+    { x: 2575, y: fy(0), w: 90, h: 14 },  // gap 2570-2700
+    { x: 3385, y: fy(0), w: 90, h: 14 },  // gap 3380-3530
+    { x: 6845, y: fy(0), w: 85, h: 14 },  // gap 6840-6940
+  ].filter(() => keep(0.65));
+
+  // Extra high platforms above required bridges — nice-to-have shortcuts, not needed
+  // to cross. Randomized per playthrough so every run doesn't look identical.
+  const optionalExtras: Plat[] = [
     { x: 1150, y: fy(-28), w: 75, h: 14 },
-    // Bridge gap 1560-1680
-    { x: 1565, y: fy(0), w: 90, h: 14 },
-    // Bridge gap 2140-2270
-    { x: 2150, y: fy(5), w: 90, h: 14 },
     { x: 2050, y: fy(-25), w: 75, h: 14 },
-    // Bridge gap 2570-2700
-    { x: 2575, y: fy(0), w: 90, h: 14 },
-    // Bridge gap 3040-3180
-    { x: 3050, y: fy(5), w: 80, h: 14 },
     { x: 3110, y: fy(-28), w: 70, h: 14 },
-    // Bridge gap 3380-3530
-    { x: 3385, y: fy(0), w: 90, h: 14 },
-    // Bridge gap 3890-4060
-    { x: 3900, y: fy(5), w: 80, h: 14 },
     { x: 3965, y: fy(-28), w: 75, h: 14 },
-    // Bridge gap 4340-4520
-    { x: 4345, y: fy(0), w: 90, h: 14 },
     { x: 4415, y: fy(-28), w: 80, h: 14 },
-    // Bridge gap 4820-5020
-    { x: 4830, y: fy(5), w: 85, h: 14 },
     { x: 4910, y: fy(-25), w: 80, h: 14 },
-    // Bridge gap 5270-5440
-    { x: 5280, y: fy(0), w: 90, h: 14 },
     { x: 5360, y: fy(-28), w: 80, h: 14 },
-    // Bonus coin platforms
+    { x: 5980, y: fy(-28), w: 75, h: 14 },
+    { x: 6490, y: fy(-22), w: 60, h: 14 },
+    { x: 7310, y: fy(-30), w: 70, h: 14 },
+  ].filter(() => keep(0.5));
+
+  const bonusCoinPlatforms: Plat[] = [
     { x: 250,  y: gY - 100, w: 70, h: 14 },
     { x: 600,  y: gY - 90,  w: 65, h: 14 },
     { x: 950,  y: gY - 100, w: 70, h: 14 },
@@ -182,20 +193,13 @@ function buildFloats(gY: number): Plat[] {
     { x: 5100, y: gY - 100, w: 70, h: 14 },
     { x: 5800, y: gY - 90,  w: 65, h: 14 },
     { x: 6050, y: gY - 100, w: 70, h: 14 },
-    // New section 6400-8000
-    { x: 5920, y: fy(0),  w: 85, h: 14 },  // bridge gap 5900-6020
-    { x: 5980, y: fy(-28), w: 75, h: 14 },
-    { x: 6415, y: fy(5),  w: 80, h: 14 },  // bridge gap 6300-6510 (narrower)
-    { x: 6490, y: fy(-22), w: 60, h: 14 },
-    { x: 6845, y: fy(0),  w: 85, h: 14 },  // bridge gap 6840-6940
-    { x: 7235, y: fy(0),  w: 90, h: 14 },  // bridge gap 7360-7460
-    { x: 7310, y: fy(-30), w: 70, h: 14 },
-    // High bonus platforms
     { x: 6280, y: gY - 100, w: 70, h: 14 },
     { x: 6700, y: gY - 95,  w: 65, h: 14 },
     { x: 7150, y: gY - 100, w: 70, h: 14 },
     { x: 7650, y: gY - 90,  w: 65, h: 14 },
   ];
+
+  return [...requiredBridges, ...optionalNarrowBridges, ...optionalExtras, ...bonusCoinPlatforms];
 }
 
 function buildCoins(gY: number): Coin[] {
@@ -267,15 +271,11 @@ function buildEnemies(gY: number): Enemy[] {
 }
 
 function buildLifeHearts(gY: number): LifeHeart[] {
-  // Sparse — 8 across 8000px (uncommon). Placed slightly above ground so they're visible but require a detour.
+  // Rare — 4 across 8000px. Placed slightly above ground so they're visible but require a detour.
   const pts: [number, number][] = [
-    [480,  gY - 38],
     [1560, gY - 38],
-    [2450, gY - 38],
     [3350, gY - 38],
-    [4400, gY - 38],
     [5300, gY - 38],
-    [6450, gY - 38],
     [7250, gY - 38],
   ];
   return pts.map(([x, y]) => ({ x, y, collected: false }));
@@ -436,6 +436,7 @@ export default function LavaCrawlPage() {
       lives: MAX_LIVES,
       finishReached: false,
       lavaY: gY,
+      plats: allPlats,
     };
   }, []);
 
@@ -479,8 +480,10 @@ export default function LavaCrawlPage() {
         stateRef.current = buildState(VH);
       }
       if (allPlats.length === 0) {
-        const gY0 = stateRef.current.lavaY;
-        allPlats = [...buildGrounds(gY0, VH), ...buildFloats(gY0)];
+        // Reuse the platforms generated once at game start (buildFloats randomizes which
+        // bridges appear) instead of recomputing — recomputing here would re-roll the
+        // randomization mid-run and could remove a platform the player is standing on.
+        allPlats = stateRef.current.plats;
       }
 
       const s = stateRef.current;
@@ -917,10 +920,10 @@ export default function LavaCrawlPage() {
 
         // Walk bounce: subtle vertical bob when moving on ground (position-based → stops when still)
         const isWalking = s.onGround && Math.abs(s.pvx) > 0.2;
-        const walkSin = Math.sin(s.px * 0.1); // slower bounce cycle
-        const walkBobY = isWalking ? Math.abs(walkSin) * -2 : 0;       // 0 → -2px upward
-        const walkScaleX = isWalking ? 1 - Math.abs(walkSin) * 0.015 : 1; // slight thin at top of bounce
-        const walkScaleY = isWalking ? 1 + Math.abs(walkSin) * 0.025 : 1; // slight tall at top of bounce
+        const walkSin = Math.sin(s.px * 0.055); // slow, gentle bounce cycle
+        const walkBobY = isWalking ? Math.abs(walkSin) * -0.8 : 0;         // 0 → -0.8px upward
+        const walkScaleX = isWalking ? 1 - Math.abs(walkSin) * 0.006 : 1;  // barely-there thin at top of bounce
+        const walkScaleY = isWalking ? 1 + Math.abs(walkSin) * 0.01 : 1;   // barely-there tall at top of bounce
 
         // Compose walk scale with jump/stomp squish (both pivot from feet)
         const finalScaleX = curScaleX * walkScaleX;
