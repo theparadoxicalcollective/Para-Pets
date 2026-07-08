@@ -1364,7 +1364,7 @@ export default function LavaCrawlPage() {
         <div style={panelStyle}>
           <div style={{ position: "relative", width: "min(300px, 82vw)" }}>
             <img src={lavaCrawlLbFrameImg} alt="Leaderboard" draggable={false} style={{ width: "100%", height: "auto", display: "block", pointerEvents: "none" }} />
-            <div style={{ position: "absolute", top: "17%", left: "9%", right: "9%", bottom: "9%", overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div style={{ position: "absolute", top: "21%", left: "13%", right: "13%", bottom: "9%", overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
               {!leaderboard ? (
                 <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "12px", textAlign: "center", marginTop: "12px" }}>Loading…</div>
               ) : leaderboard.length === 0 ? (
