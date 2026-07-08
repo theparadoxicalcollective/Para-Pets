@@ -144,12 +144,12 @@ interface GState {
 
 // ─── Level data builders (procedural — called fresh each new game) ───────────
 
-// Pick a random coin type: 70% orb, 16% coin, 8% coinBonus, 6% double
+// Pick a random coin type: 73% orb, 16% coin, 3% coinBonus, 6% double (coinBonus rare)
 function pickCoinType(): Coin["type"] {
   const r = Math.random();
   if (r < 0.06) return "double";
-  if (r < 0.14) return "coinBonus";
-  if (r < 0.30) return "coin";
+  if (r < 0.09) return "coinBonus";
+  if (r < 0.25) return "coin";
   return "orb";
 }
 
@@ -160,7 +160,7 @@ function buildGrounds(gY: number, ch: number): Plat[] {
   const segs: Plat[] = [{ x: 0, y: gY, w: 800, h }]; // safe starting platform
   let x = 800;
   while (x < LEVEL_W - 900) {
-    const gap = 80 + Math.floor(Math.random() * 160);  // 80–240px gap
+    const gap = 160 + Math.floor(Math.random() * 160);  // 160–320px gap (wider minimum)
     x += gap;
     if (x + 300 >= LEVEL_W - 200) break;
     const w = 280 + Math.floor(Math.random() * 500);   // 280–780px wide
@@ -646,7 +646,7 @@ export default function LavaCrawlPage() {
             if (c.type === "coin") {
               s.coinsCollected++;
               s.score += COIN_SCORE * mult;
-              const txt = s.doubleActive ? `+${COIN_SCORE * 2} ×2` : "+10";
+              const txt = s.doubleActive ? "+1 ×2" : "+1";
               s.floats.push({ x: c.x - s.cameraX, y: c.y - 8, text: txt, color: "#ffd700", life: 45, maxLife: 45 });
             } else if (c.type === "orb") {
               s.score += ORB_SCORE * mult;
@@ -935,7 +935,10 @@ export default function LavaCrawlPage() {
         ctx.translate(centerX, centerY);
         if (e.vx > 0) ctx.scale(-1, 1); // images face left; flip when moving right
         if (eImg.complete && eImg.naturalWidth > 0) {
-          ctx.drawImage(eImg, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+          const aspect = eImg.naturalWidth / eImg.naturalHeight;
+          const dw = aspect >= 1 ? drawSize : drawSize * aspect;
+          const dh = aspect >= 1 ? drawSize / aspect : drawSize;
+          ctx.drawImage(eImg, -dw / 2, -dh / 2, dw, dh);
         } else {
           // Fallback rectangle
           ctx.fillStyle = e.type === "float" ? "#ff6600" : "#cc2020";
@@ -1309,7 +1312,7 @@ export default function LavaCrawlPage() {
           onTouchStart={(e) => { e.preventDefault(); screen === "playing" ? showScreen("paused") : showScreen("playing"); }}
           style={{
             position: "absolute",
-            top: "4%",
+            top: "12%",
             right: "8px",
             width: 52,
             height: 52,
@@ -1481,7 +1484,6 @@ export default function LavaCrawlPage() {
                       </span>
                       <span style={{ flex: 1, color: "#ffd080", fontFamily: "monospace", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.username}</span>
                       <span style={{ color: "#ff8800", fontFamily: "monospace", fontSize: "12px", fontWeight: "bold" }}>{row.best_score}</span>
-                      <span style={{ color: "#ffd700", fontFamily: "monospace", fontSize: "11px", display: "flex", alignItems: "center", gap: "2px" }}><img src={coinIconImg} alt="coins" style={{ width: 11, height: 11, objectFit: "contain" }} />{row.best_coins}</span>
                     </div>
                   ))
                 )}
