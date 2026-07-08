@@ -1397,6 +1397,17 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     // If world data hasn't resolved yet (API-only world on first visit),
     // stay in loading state — the spinner will show until data arrives.
     if (!world) return;
+    // For worlds that have a staticWorld config (e.g. volcanic), world.bg is
+    // derived as `worldApiData?.bgUrl ?? null`.  Before worldApiData has loaded,
+    // world.bg is null even though the server WILL return a bgUrl.  We must
+    // not treat that null as "no background needed" and call setWorldBgLoaded(true)
+    // prematurely — doing so fires onContentReady too early, the loading screen
+    // dismisses, and then when worldApiData arrives with a real bgUrl the
+    // bg-load effect re-runs, sets worldBgLoaded→false, and the internal spinner
+    // flashes visible (the "loading screen twice" bug on volcanic).
+    // Fix: if the world has a staticWorld entry, wait for worldApiData before
+    // deciding whether there is a background to load.
+    if (staticWorld && !worldApiData) return;
     if (!world.bg) { setWorldBgLoaded(true); return; }
     // If we already loaded this exact URL (e.g. stale cache returned same bg),
     // skip the reload entirely to prevent a flash of the loading screen.
@@ -1428,7 +1439,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     };
     img.src = world.bg;
     return () => { cancelled = true; };
-  }, [worldId, world?.bg]);
+  }, [worldId, world?.bg, !!worldApiData]);
 
   const clampTransform = useCallback((x: number, y: number, sc: number) => {
     const mw = MAP_W * sc;
