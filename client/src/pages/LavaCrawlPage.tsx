@@ -25,6 +25,13 @@ import lavaTexImg from "@assets/lava_texture.webp";
 import lavaGroundTileImg from "@assets/lava_ground_tile.webp";
 import lavaGroundCapImg from "@assets/lava_ground_cap.webp";
 import lavaPillarImg from "@assets/lava_pillar.webp";
+import lavaCrawlGemImg from "@assets/lava_crawl_gem.webp";
+import lavaCrawlLbFrameImg from "@assets/lava_crawl_lb_frame.webp";
+import lavaCrawlLbBtnPlayImg from "@assets/lava_crawl_lb_btn_play.webp";
+import lavaCrawlLbBtnBackImg from "@assets/lava_crawl_lb_btn_back.webp";
+import trophy1st from "@assets/Photoroom_20260616_71127_PM_1781655109379.png";
+import trophy2nd from "@assets/Photoroom_20260616_71053_PM_1781655109379.png";
+import trophy3rd from "@assets/Photoroom_20260616_70844_PM_1781655109379.png";
 const LAVA_CAVE_BG = lavaCaveBg;
 
 // Pre-load canvas images at module level
@@ -40,6 +47,7 @@ const _heartImg = new Image(); _heartImg.src = heartImg;
 const _skullImg = new Image(); _skullImg.src = skullImg;
 const _enemy1Img = new Image(); _enemy1Img.src = enemy1Img;
 const _enemy2Img = new Image(); _enemy2Img.src = enemy2Img;
+const _gemImg = new Image(); _gemImg.src = lavaCrawlGemImg;
 
 // ─── Game constants ─────────────────────────────────────────────────────────
 const LEVEL_W = 8000;
@@ -54,7 +62,10 @@ const ORB_SCORE = 5;
 const ENEMY_SCORE = 25;
 const FINISH_BONUS = 200;
 const MAX_LIVES = 3;       // starting lives
-const MAX_HEART_SLOTS = 5; // absolute max (2 extra from pickups)
+const MAX_HEART_SLOTS = 5; // absolute max (extra lives only come from rare enemy drops)
+const RESPAWN_BACK_OFFSET = 50;  // respawn this far behind the last safe checkpoint, not at level start
+const BACKTRACK_LIMIT = 260;     // can't scroll/walk back further than this behind the checkpoint
+const LIFE_DROP_CHANCE = 0.07;   // rare chance a stomped enemy drops a life pickup
 
 // Ground is always at (canvasH * GR) from the top — 0.76 keeps lava fully under ground tile
 const GR = 0.76;
@@ -112,128 +123,97 @@ interface GState {
   finishReached: boolean;
   lavaY: number;
   plats: Plat[];
+  checkpointX: number;
 }
 
 // ─── Level data builders (called fresh each new game) ────────────────────────
+// Ground segments — fewer, wider platforms with bigger gaps between them so hazards
+// don't feel crowded together. Widths + gaps sum exactly to LEVEL_W.
+const GROUND_SEGS: [number, number][] = [
+  [0,    900],
+  [1080, 500],
+  [1780, 550],
+  [2490, 480],
+  [3160, 520],
+  [3850, 500],
+  [4560, 480],
+  [5220, 520],
+  [5940, 500],
+  [6630, 480],
+  [7280, 720],
+];
+
+// Gaps between consecutive ground segments, derived from GROUND_SEGS so every other
+// piece of level content (bridges, coins, enemies) always stays in sync with the terrain.
+function computeGaps(): { x: number; w: number }[] {
+  const gaps: { x: number; w: number }[] = [];
+  for (let i = 0; i < GROUND_SEGS.length - 1; i++) {
+    const [x1, w1] = GROUND_SEGS[i];
+    const [x2] = GROUND_SEGS[i + 1];
+    gaps.push({ x: x1 + w1, w: x2 - (x1 + w1) });
+  }
+  return gaps;
+}
+
 function buildGrounds(gY: number, ch: number): Plat[] {
   const h = ch - gY + 2;
-  const segs: [number, number][] = [
-    [0,    700],
-    [800,  420],
-    [1330, 230],
-    [1680, 460],
-    [2270, 300],
-    [2700, 340],
-    [3180, 200],
-    [3530, 360],
-    [4060, 280],
-    [4520, 300],
-    [5020, 250],
-    [5440,  460],
-    [6020,  390],
-    [6510,  330],
-    [6940,  420],
-    [7460,  540],
-  ];
-  return segs.map(([x, w]) => ({ x, y: gY, w, h }));
+  return GROUND_SEGS.map(([x, w]) => ({ x, y: gY, w, h }));
 }
 
 function buildFloats(gY: number): Plat[] {
   const fy = (off: number) => gY - 55 + off;
   const keep = (chance: number) => Math.random() < chance;
 
-  // Required bridges — gap is wide enough that a platform is needed to cross safely.
-  const requiredBridges: Plat[] = [
-    { x: 1230, y: fy(5), w: 90, h: 14 },  // gap 1220-1330
-    { x: 2150, y: fy(5), w: 90, h: 14 },  // gap 2140-2270
-    { x: 3050, y: fy(5), w: 80, h: 14 },  // gap 3040-3180
-    { x: 3900, y: fy(5), w: 80, h: 14 },  // gap 3890-4060
-    { x: 4345, y: fy(0), w: 90, h: 14 },  // gap 4340-4520
-    { x: 4830, y: fy(5), w: 85, h: 14 },  // gap 4820-5020
-    { x: 5280, y: fy(0), w: 90, h: 14 },  // gap 5270-5440
-    { x: 5920, y: fy(0), w: 85, h: 14 },  // gap 5900-6020
-    { x: 6415, y: fy(5), w: 80, h: 14 },  // gap 6300-6510 (narrower)
-    { x: 7235, y: fy(0), w: 90, h: 14 },  // gap 7360-7460
-  ];
+  const gaps = computeGaps();
+  const bridges: Plat[] = [];
+  const extras: Plat[] = [];
+  for (const gap of gaps) {
+    const center = gap.x + gap.w / 2;
+    const bridgeW = 90;
+    const bridgeX = center - bridgeW / 2;
+    // Wider gaps always need a platform to cross safely; narrower ones only sometimes get one.
+    const needsBridge = gap.w >= 190;
+    if (needsBridge || keep(0.6)) {
+      bridges.push({ x: bridgeX, y: fy(0), w: bridgeW, h: 14 });
+    }
+    // Extra high platform above the gap — nice-to-have shortcut, never required.
+    if (keep(0.4)) {
+      extras.push({ x: bridgeX + (Math.random() < 0.5 ? -45 : 45), y: fy(-28), w: 65, h: 14 });
+    }
+  }
 
-  // Narrow gaps (<=150px) are jumpable without any platform, so they only sometimes get one.
-  const optionalNarrowBridges: Plat[] = [
-    { x: 710,  y: fy(0), w: 90, h: 14 },  // gap 700-800
-    { x: 1565, y: fy(0), w: 90, h: 14 },  // gap 1560-1680
-    { x: 2575, y: fy(0), w: 90, h: 14 },  // gap 2570-2700
-    { x: 3385, y: fy(0), w: 90, h: 14 },  // gap 3380-3530
-    { x: 6845, y: fy(0), w: 85, h: 14 },  // gap 6840-6940
-  ].filter(() => keep(0.65));
+  // Bonus coin platforms — one roughly mid-way through every other ground segment.
+  const bonusCoinPlatforms: Plat[] = GROUND_SEGS
+    .filter((_, i) => i % 2 === 1)
+    .map(([x, w]) => ({ x: x + w * 0.5 - 32, y: gY - 100, w: 65, h: 14 }));
 
-  // Extra high platforms above required bridges — nice-to-have shortcuts, not needed
-  // to cross. Randomized per playthrough so every run doesn't look identical.
-  const optionalExtras: Plat[] = [
-    { x: 1150, y: fy(-28), w: 75, h: 14 },
-    { x: 2050, y: fy(-25), w: 75, h: 14 },
-    { x: 3110, y: fy(-28), w: 70, h: 14 },
-    { x: 3965, y: fy(-28), w: 75, h: 14 },
-    { x: 4415, y: fy(-28), w: 80, h: 14 },
-    { x: 4910, y: fy(-25), w: 80, h: 14 },
-    { x: 5360, y: fy(-28), w: 80, h: 14 },
-    { x: 5980, y: fy(-28), w: 75, h: 14 },
-    { x: 6490, y: fy(-22), w: 60, h: 14 },
-    { x: 7310, y: fy(-30), w: 70, h: 14 },
-  ].filter(() => keep(0.5));
-
-  const bonusCoinPlatforms: Plat[] = [
-    { x: 250,  y: gY - 100, w: 70, h: 14 },
-    { x: 600,  y: gY - 90,  w: 65, h: 14 },
-    { x: 950,  y: gY - 100, w: 70, h: 14 },
-    { x: 1750, y: gY - 100, w: 70, h: 14 },
-    { x: 2350, y: gY - 95,  w: 65, h: 14 },
-    { x: 2820, y: gY - 100, w: 70, h: 14 },
-    { x: 3600, y: gY - 95,  w: 65, h: 14 },
-    { x: 4150, y: gY - 100, w: 70, h: 14 },
-    { x: 4700, y: gY - 95,  w: 65, h: 14 },
-    { x: 5100, y: gY - 100, w: 70, h: 14 },
-    { x: 5800, y: gY - 90,  w: 65, h: 14 },
-    { x: 6050, y: gY - 100, w: 70, h: 14 },
-    { x: 6280, y: gY - 100, w: 70, h: 14 },
-    { x: 6700, y: gY - 95,  w: 65, h: 14 },
-    { x: 7150, y: gY - 100, w: 70, h: 14 },
-    { x: 7650, y: gY - 90,  w: 65, h: 14 },
-  ];
-
-  return [...requiredBridges, ...optionalNarrowBridges, ...optionalExtras, ...bonusCoinPlatforms];
+  return [...bridges, ...extras, ...bonusCoinPlatforms];
 }
 
 function buildCoins(gY: number): Coin[] {
-  const pts: [number, number][] = [
-    // Ground level coins
-    [120, gY - 30], [280, gY - 30], [480, gY - 30],
-    [850, gY - 30], [1000, gY - 30], [1100, gY - 30],
-    [1400, gY - 30], [1550, gY - 30],
-    [1800, gY - 30], [2050, gY - 30], [2200, gY - 30],
-    [2750, gY - 30], [2900, gY - 30], [3050, gY - 30],
-    [3600, gY - 30], [3720, gY - 30], [3900, gY - 30],
-    [4100, gY - 30], [4200, gY - 30],
-    [4600, gY - 30], [4750, gY - 30], [4900, gY - 30],
-    [5100, gY - 30], [5200, gY - 30],
-    [5500, gY - 30], [5700, gY - 30], [5900, gY - 30],
-    [6100, gY - 30], [6300, gY - 30],
-    // Extended section 6400-7800
-    [6100, gY - 30], [6200, gY - 30], [6500, gY - 30], [6600, gY - 30],
-    [6700, gY - 30], [6950, gY - 30], [7050, gY - 30],
-    [7150, gY - 30], [7300, gY - 30], [7500, gY - 30], [7700, gY - 30],
-    // High platform coins
-    [255,  gY - 120], [600,  gY - 108], [955,  gY - 118],
-    [1755, gY - 118], [2355, gY - 112], [2825, gY - 118],
-    [3605, gY - 112], [4155, gY - 118], [4705, gY - 112],
-    [5105, gY - 118], [5805, gY - 108], [6055, gY - 118],
-    [6285, gY - 118], [6705, gY - 112], [7155, gY - 118], [7655, gY - 108],
-    // Bridge coins
-    [715,  gY - 72], [1235, gY - 68], [1568, gY - 72],
-    [2155, gY - 68], [2580, gY - 72], [3055, gY - 68],
-    [3388, gY - 72], [3902, gY - 68], [4348, gY - 72],
-    [4832, gY - 68], [5283, gY - 72],
-    [5920, gY - 70], [6420, gY - 68], [6850, gY - 70], [7240, gY - 68],
-  ];
-  // Randomise each collectible: ~20% chance of real coin, rest are orbs.
+  const gaps = computeGaps();
+  const pts: [number, number][] = [];
+
+  // Ground-level coins spread evenly across every segment.
+  for (const [x, w] of GROUND_SEGS) {
+    const count = Math.max(2, Math.round(w / 220));
+    for (let i = 0; i < count; i++) {
+      const frac = (i + 1) / (count + 1);
+      pts.push([x + w * frac, gY - 30]);
+    }
+  }
+
+  // Coins arcing over each gap, rewarding a clean jump.
+  for (const gap of gaps) {
+    pts.push([gap.x + gap.w * 0.5, gY - 70]);
+  }
+
+  // High bonus coins above the mid-segment bonus platforms.
+  GROUND_SEGS.forEach(([x, w], i) => {
+    if (i % 2 === 1) pts.push([x + w * 0.5, gY - 118]);
+  });
+
+  // Randomise each collectible: ~20% chance of real coin, rest are gems (orbs).
   // Using Math.random() so the mix varies every run (not a fixed pattern).
   return pts.map(([x, y]) => ({
     x, y, collected: false,
@@ -250,35 +230,25 @@ function buildEnemies(gY: number): Enemy[] {
   const ef = (x: number, lx: number, rx: number): Enemy => ({
     x, y: gY - EH - 50, vx: 1.8, lx, rx, alive: true, stompY: gY - EH - 50, stompTimer: 0, type: "float",
   });
-  return [
-    eg(870,  800,  1150),
-    ef(1400, 1330, 1550),
-    eg(1800, 1680, 2000),
-    ef(2300, 2270, 2500),
-    eg(2780, 2700, 2980),
-    eg(3200, 3180, 3380),
-    ef(3650, 3530, 3800),
-    eg(4150, 4060, 4300),
-    ef(4600, 4520, 4760),
-    eg(5100, 5020, 5270),
-    ef(5600, 5440, 5800),
-    eg(6000, 5440, 6250),
-    ef(6350, 6020, 6510),
-    eg(6720, 6510, 6940),
-    ef(7100, 6940, 7360),
-    eg(7600, 7460, 7900),
-  ];
-}
 
-function buildLifeHearts(gY: number): LifeHeart[] {
-  // Rare — 4 across 8000px. Placed slightly above ground so they're visible but require a detour.
-  const pts: [number, number][] = [
-    [1560, gY - 38],
-    [3350, gY - 38],
-    [5300, gY - 38],
-    [7250, gY - 38],
-  ];
-  return pts.map(([x, y]) => ({ x, y, collected: false }));
+  const enemies: Enemy[] = [];
+  GROUND_SEGS.forEach(([x, w], i) => {
+    if (i === 0) return; // keep the starting segment enemy-free
+    const inset = 40;
+    const lx = x + inset;
+    const rx = x + w - inset;
+    if (i % 2 === 0) {
+      enemies.push(eg(x + w * 0.5, lx, rx));
+    } else {
+      enemies.push(ef(x + w * 0.5, lx, rx));
+    }
+    // Longer segments get a second enemy for variety.
+    if (w > 480) {
+      const second = i % 2 === 0 ? ef : eg;
+      enemies.push(second(x + w * 0.75, lx, rx));
+    }
+  });
+  return enemies;
 }
 
 // ─── AABB overlap test ───────────────────────────────────────────────────────
@@ -429,7 +399,7 @@ export default function LavaCrawlPage() {
       squishX: 1, squishY: 1, squishTimer: 0, squishDuration: 1,
       enemies: buildEnemies(gY),
       coins: buildCoins(gY),
-      lifeHearts: buildLifeHearts(gY),
+      lifeHearts: [],
       floats: [],
       cameraX: 0,
       score: 0, coinsCollected: 0,
@@ -437,6 +407,7 @@ export default function LavaCrawlPage() {
       finishReached: false,
       lavaY: gY,
       plats: allPlats,
+      checkpointX: startX,
     };
   }, []);
 
@@ -502,10 +473,12 @@ export default function LavaCrawlPage() {
             completeMutateRef.current({ score: s.score, coinsCollected: s.coinsCollected });
             return;
           }
-          // Respawn
-          s.px = 60; s.py = gY - PH;
+          // Respawn just behind the last safe checkpoint, not back at the level start.
+          s.px = Math.max(0, s.checkpointX - RESPAWN_BACK_OFFSET);
+          s.py = gY - PH;
           s.pvx = 0; s.pvy = 0;
-          s.alive = true; s.cameraX = 0;
+          s.alive = true;
+          s.cameraX = Math.max(0, Math.min(LEVEL_W - VW, s.px - VW / 2 + PW / 2));
         }
       } else {
         // Input
@@ -545,9 +518,19 @@ export default function LavaCrawlPage() {
           if (r.onGround) { s.onGround = true; s.jumpCount = 0; } // landing resets double-jump
         }
 
+        // Checkpoint tracking — only advances while standing on solid main ground (not a
+        // floating bridge), so respawns and the backtrack limit always land somewhere safe.
+        if (s.onGround && Math.abs((s.py + PH) - gY) < 4) {
+          s.checkpointX = Math.max(s.checkpointX, s.px);
+        }
+
         // Clamp to level bounds
         if (s.px < 0) { s.px = 0; s.pvx = 0; }
         if (s.px + PW > LEVEL_W) { s.px = LEVEL_W - PW; s.pvx = 0; }
+
+        // Prevent backtracking/scrolling too far behind the checkpoint once you've moved forward.
+        const minX = Math.max(0, s.checkpointX - BACKTRACK_LIMIT);
+        if (s.px < minX) { s.px = minX; if (s.pvx < 0) s.pvx = 0; }
 
         // Lava death (fall off screen bottom or into gap below ground)
         if (s.py > VH + 40) {
@@ -582,6 +565,10 @@ export default function LavaCrawlPage() {
             // Float particle: XP gain
             s.floats.push({ x: e.x + EW / 2 - s.cameraX, y: e.y - 10, text: "+8 XP", color: "#a0ff80", life: 55, maxLife: 55 });
             gainExpRef.current();
+            // Rare life drop — defeated enemies occasionally leave behind an extra life.
+            if (s.lives < MAX_HEART_SLOTS && Math.random() < LIFE_DROP_CHANCE) {
+              s.lifeHearts.push({ x: e.x + EW / 2, y: gY - 38, collected: false });
+            }
           } else if (s.alive && overlaps(s.px, s.py, PW - 4, PH - 4, e.x + 2, e.y + 2, EW - 4, EH - 4)) {
             // Side/bottom collision → hurt
             s.alive = false;
@@ -671,6 +658,10 @@ export default function LavaCrawlPage() {
         ctx.fillStyle = "#1a0a05";
         ctx.fillRect(0, 0, VW, VH);
       }
+
+      // Slight overall darkening so gems/coins pop more against the background
+      ctx.fillStyle = "rgba(0,0,0,0.16)";
+      ctx.fillRect(0, 0, VW, VH);
 
       // Lava (tiled texture, scrolls slowly)
       const lavaT = ts * 0.001;
@@ -774,28 +765,32 @@ export default function LavaCrawlPage() {
             ctx.fill();
           }
         } else {
-          // Orb — glowing fire orb (orange/yellow)
-          const orbR = CR * 1.2;
+          // Orb — glowing gem, with a soft pulsing outline so it stands out from the background
+          const gemSize = CR * 2.8;
           const orbY = c.y - bounce;
           const pulse = 0.6 + Math.sin(lavaT * 5 + c.x * 0.02) * 0.4;
-          // Outer glow
-          ctx.shadowColor = "#ff8800";
-          ctx.shadowBlur = 20 * pulse;
-          // Core radial gradient — white center → orange → deep amber
-          const orbGrad = ctx.createRadialGradient(cx2, orbY, 0, cx2, orbY, orbR);
-          orbGrad.addColorStop(0, `rgba(255,255,220,${0.98 * pulse})`);
-          orbGrad.addColorStop(0.3, `rgba(255,200,60,${0.95 * pulse})`);
-          orbGrad.addColorStop(0.65, `rgba(255,110,10,${0.85 * pulse})`);
-          orbGrad.addColorStop(1, `rgba(180,40,0,0)`);
-          ctx.fillStyle = orbGrad;
-          ctx.beginPath();
-          ctx.arc(cx2, orbY, orbR, 0, Math.PI * 2);
-          ctx.fill();
-          // Sparkle highlight at top-left
-          ctx.fillStyle = `rgba(255,255,200,${0.8 * pulse})`;
-          ctx.beginPath();
-          ctx.arc(cx2 - orbR * 0.3, orbY - orbR * 0.35, orbR * 0.22, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.shadowColor = "#ff5522";
+          ctx.shadowBlur = 16 * pulse;
+          if (_gemImg.complete && _gemImg.naturalWidth > 0) {
+            // Subtle glowing outline behind the gem for extra pop
+            ctx.beginPath();
+            ctx.arc(cx2, orbY, gemSize * 0.48, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(255,150,60,${0.55 * pulse})`;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.drawImage(_gemImg, cx2 - gemSize / 2, orbY - gemSize / 2, gemSize, gemSize);
+          } else {
+            const orbR = CR * 1.2;
+            const orbGrad = ctx.createRadialGradient(cx2, orbY, 0, cx2, orbY, orbR);
+            orbGrad.addColorStop(0, `rgba(255,255,220,${0.98 * pulse})`);
+            orbGrad.addColorStop(0.3, `rgba(255,200,60,${0.95 * pulse})`);
+            orbGrad.addColorStop(0.65, `rgba(255,110,10,${0.85 * pulse})`);
+            orbGrad.addColorStop(1, `rgba(180,40,0,0)`);
+            ctx.fillStyle = orbGrad;
+            ctx.beginPath();
+            ctx.arc(cx2, orbY, orbR, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
         ctx.restore();
       }
@@ -1319,32 +1314,41 @@ export default function LavaCrawlPage() {
       {/* ── LEADERBOARD screen ──────────────────────────────────────────────── */}
       {screen === "leaderboard" && (
         <div style={panelStyle}>
-          <div style={{ ...titleStyle, fontSize: "26px", marginBottom: "16px" }}>🏆 Leaderboard</div>
-          {!leaderboard ? (
-            <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "13px" }}>Loading…</div>
-          ) : leaderboard.length === 0 ? (
-            <div style={{ color: "rgba(255,200,100,0.5)", fontFamily: "monospace", fontSize: "13px" }}>No scores yet — be the first!</div>
-          ) : (
-            <div style={{ width: "100%", maxWidth: "320px" }}>
-              {leaderboard.map((row: any, i: number) => (
-                <div
-                  key={i}
-                  data-testid={`row-leaderboard-${i}`}
-                  style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", borderRadius: "8px", marginBottom: "6px", background: i === 0 ? "rgba(255,215,0,0.12)" : i === 1 ? "rgba(192,192,192,0.1)" : i === 2 ? "rgba(205,127,50,0.1)" : "rgba(255,255,255,0.04)" }}
-                >
-                  <span style={{ fontSize: "18px", width: "28px", textAlign: "center" }}>
-                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`}
-                  </span>
-                  <span style={{ flex: 1, color: "#ffd080", fontFamily: "monospace", fontSize: "13px" }}>{row.username}</span>
-                  <span style={{ color: "#ff8800", fontFamily: "monospace", fontSize: "13px", fontWeight: "bold" }}>{row.best_score}</span>
-                  <span style={{ color: "#ffd700", fontFamily: "monospace", fontSize: "12px", display: "flex", alignItems: "center", gap: "2px" }}><img src={coinIconImg} alt="coins" style={{ width: 12, height: 12, objectFit: "contain" }} />{row.best_coins}</span>
-                </div>
-              ))}
+          <div style={{ position: "relative", width: "min(300px, 82vw)" }}>
+            <img src={lavaCrawlLbFrameImg} alt="Leaderboard" draggable={false} style={{ width: "100%", height: "auto", display: "block", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", top: "17%", left: "9%", right: "9%", bottom: "9%", overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
+              {!leaderboard ? (
+                <div style={{ color: "#ffd080", fontFamily: "monospace", fontSize: "12px", textAlign: "center", marginTop: "12px" }}>Loading…</div>
+              ) : leaderboard.length === 0 ? (
+                <div style={{ color: "rgba(255,200,100,0.6)", fontFamily: "monospace", fontSize: "12px", textAlign: "center", marginTop: "12px" }}>No scores yet — be the first!</div>
+              ) : (
+                leaderboard.map((row: any, i: number) => (
+                  <div
+                    key={i}
+                    data-testid={`row-leaderboard-${i}`}
+                    style={{ display: "flex", alignItems: "center", gap: "8px", padding: "5px 8px", borderRadius: "8px", background: i === 0 ? "rgba(255,215,0,0.16)" : i === 1 ? "rgba(192,192,192,0.14)" : i === 2 ? "rgba(205,127,50,0.14)" : "rgba(0,0,0,0.22)" }}
+                  >
+                    <span style={{ width: "22px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {i === 0 ? <img src={trophy1st} alt="1st" style={{ width: 20, height: 20, objectFit: "contain" }} />
+                        : i === 1 ? <img src={trophy2nd} alt="2nd" style={{ width: 20, height: 20, objectFit: "contain" }} />
+                        : i === 2 ? <img src={trophy3rd} alt="3rd" style={{ width: 20, height: 20, objectFit: "contain" }} />
+                        : <span style={{ color: "rgba(255,208,128,0.7)", fontFamily: "monospace", fontSize: "12px" }}>{i + 1}.</span>}
+                    </span>
+                    <span style={{ flex: 1, color: "#ffd080", fontFamily: "monospace", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.username}</span>
+                    <span style={{ color: "#ff8800", fontFamily: "monospace", fontSize: "12px", fontWeight: "bold" }}>{row.best_score}</span>
+                    <span style={{ color: "#ffd700", fontFamily: "monospace", fontSize: "11px", display: "flex", alignItems: "center", gap: "2px" }}><img src={coinIconImg} alt="coins" style={{ width: 11, height: 11, objectFit: "contain" }} />{row.best_coins}</span>
+                  </div>
+                ))
+              )}
             </div>
-          )}
+          </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: "16px" }}>
-            <button data-testid="button-lava-play-lb" style={btnStyle("#ff8800")} onClick={startGame}>▶  Play</button>
-            <button data-testid="button-lava-back-lb" style={btnStyle("rgba(255,200,100,0.5)")} onClick={() => showScreen("start")}>← Back</button>
+            <button data-testid="button-lava-play-lb" onClick={startGame} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, margin: "6px" }}>
+              <img src={lavaCrawlLbBtnPlayImg} alt="Play" draggable={false} style={{ width: "min(190px, 60vw)", height: "auto" }} />
+            </button>
+            <button data-testid="button-lava-back-lb" onClick={() => showScreen("start")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, margin: "6px" }}>
+              <img src={lavaCrawlLbBtnBackImg} alt="Back" draggable={false} style={{ width: "min(190px, 60vw)", height: "auto" }} />
+            </button>
           </div>
         </div>
       )}
