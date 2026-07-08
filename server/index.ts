@@ -2691,6 +2691,25 @@ app.use((req, res, next) => {
     console.error("Lava Crawl location seed error (non-fatal):", err);
   }
 
+  // Set the canonical Volcanic Isle world background (one-shot, admin-upload-safe).
+  // volcanic is excluded from WORLD_BG_ASSETS so this value is not overwritten on restart.
+  try {
+    const volcanicBgSet = await storage.getGameSetting("volcanic_bg_v4");
+    if (!volcanicBgSet) {
+      const bgFile = "bg_volcanic_map_v4.webp";
+      const assetPath = path.join(process.cwd(), "attached_assets", bgFile);
+      if (fs.existsSync(assetPath)) {
+        const mtime = fs.statSync(assetPath).mtimeMs;
+        const bgUrl = `/world-assets/${bgFile}?v=${Math.floor(mtime / 1000)}`;
+        await storage.updateWorld("volcanic", { bgUrl } as any);
+        await storage.setGameSetting("volcanic_bg_v4", "done");
+        console.log("Volcanic world background set to v4 WebP.");
+      }
+    }
+  } catch (err) {
+    console.error("Volcanic bg v4 migration error (non-fatal):", err);
+  }
+
   // Remove any fish barrel that ended up in the Volcanic world (one-shot cleanup).
   try {
     const volcanicBarrelCleared = await storage.getGameSetting("volcanic_no_barrel_v1");
