@@ -14,6 +14,8 @@ import btnJumpImg from "@assets/Photoroom_20260707_95354_PM_1783479266963.png";
 import hudBarImg from "@assets/Photoroom_20260707_94710_PM_1783478966948.png";
 import heartImg from "@assets/Photoroom_20260707_94648_PM_1783478966948.png";
 import skullImg from "@assets/Photoroom_20260705_103527_PM_1783426783499.png";
+import enemy1Img from "@assets/Photoroom_20260707_102745_PM_1783481611016.png";
+import enemy2Img from "@assets/Photoroom_20260707_102936_PM_1783481611016.png";
 import coinIconImg from "@assets/icon_coin.webp";
 import lavaCaveBg from "@assets/bg_lava_crawl.webp";
 import slabImg1 from "@assets/lava_slab_1.webp";
@@ -36,6 +38,8 @@ const _lavaPillarImg = new Image(); _lavaPillarImg.src = lavaPillarImg;
 const _hudBarImg = new Image(); _hudBarImg.src = hudBarImg;
 const _heartImg = new Image(); _heartImg.src = heartImg;
 const _skullImg = new Image(); _skullImg.src = skullImg;
+const _enemy1Img = new Image(); _enemy1Img.src = enemy1Img;
+const _enemy2Img = new Image(); _enemy2Img.src = enemy2Img;
 
 // ─── Game constants ─────────────────────────────────────────────────────────
 const LEVEL_W = 8000;
@@ -54,6 +58,8 @@ const MAX_HEART_SLOTS = 5; // absolute max (2 extra from pickups)
 
 // Ground is always at (canvasH * GR) from the top — 0.76 keeps lava fully under ground tile
 const GR = 0.76;
+// Visual lift: draw ground tiles this many px above gY so they sit on top of lava, not flush with it
+const GROUND_LIFT = 12;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type Screen = "start" | "playing" | "paused" | "gameover" | "victory" | "leaderboard";
@@ -65,6 +71,7 @@ interface Enemy {
   vx: number; lx: number; rx: number;
   alive: boolean;
   stompY: number; stompTimer: number;
+  type: "ground" | "float";
 }
 
 interface Coin {
@@ -88,6 +95,7 @@ interface GState {
   px: number; py: number;
   pvx: number; pvy: number;
   onGround: boolean;
+  jumpCount: number;
   facingR: boolean;
   alive: boolean;
   respawnTimer: number;
@@ -228,26 +236,31 @@ function buildCoins(gY: number): Coin[] {
 }
 
 function buildEnemies(gY: number): Enemy[] {
-  const e = (x: number, lx: number, rx: number): Enemy => ({
-    x, y: gY - EH, vx: 1.5, lx, rx, alive: true, stompY: gY - EH, stompTimer: 0,
+  // Ground enemy: sits on ground level
+  const eg = (x: number, lx: number, rx: number): Enemy => ({
+    x, y: gY - EH, vx: 1.5, lx, rx, alive: true, stompY: gY - EH, stompTimer: 0, type: "ground",
+  });
+  // Float enemy: hovers ~50px above ground, moves slightly faster
+  const ef = (x: number, lx: number, rx: number): Enemy => ({
+    x, y: gY - EH - 50, vx: 1.8, lx, rx, alive: true, stompY: gY - EH - 50, stompTimer: 0, type: "float",
   });
   return [
-    e(870,  800,  1150),
-    e(1400, 1330, 1550),
-    e(1800, 1680, 2000),
-    e(2300, 2270, 2500),
-    e(2780, 2700, 2980),
-    e(3200, 3180, 3380),
-    e(3650, 3530, 3800),
-    e(4150, 4060, 4300),
-    e(4600, 4520, 4760),
-    e(5100, 5020, 5270),
-    e(5600, 5440, 5800),
-    e(6000, 5440, 6250),
-    e(6350, 6020, 6510),
-    e(6720, 6510, 6940),
-    e(7100, 6940, 7360),
-    e(7600, 7460, 7900),
+    eg(870,  800,  1150),
+    ef(1400, 1330, 1550),
+    eg(1800, 1680, 2000),
+    ef(2300, 2270, 2500),
+    eg(2780, 2700, 2980),
+    eg(3200, 3180, 3380),
+    ef(3650, 3530, 3800),
+    eg(4150, 4060, 4300),
+    ef(4600, 4520, 4760),
+    eg(5100, 5020, 5270),
+    ef(5600, 5440, 5800),
+    eg(6000, 5440, 6250),
+    ef(6350, 6020, 6510),
+    eg(6720, 6510, 6940),
+    ef(7100, 6940, 7360),
+    eg(7600, 7460, 7900),
   ];
 }
 
@@ -371,10 +384,14 @@ export default function LavaCrawlPage() {
       }
     },
   });
-  // Stable ref so the game loop can call gainExp without being in startLoop's deps
-  // (putting the mutation directly in deps causes a re-render → game restart on every kill)
+  // Stable refs so mutations can be called from the game loop without being in startLoop's deps.
+  // Every mutation state change (idle→pending→success) creates a new completeMutation/gainExpMutation
+  // object, which would give startLoop a new reference → useEffect re-runs → fresh closure with
+  // empty allPlats → ground disappears. Refs break that cycle entirely.
   const gainExpRef = useRef(gainExpMutation.mutate);
   useEffect(() => { gainExpRef.current = gainExpMutation.mutate; }, [gainExpMutation.mutate]);
+  const completeMutateRef = useRef(completeMutation.mutate);
+  useEffect(() => { completeMutateRef.current = completeMutation.mutate; }, [completeMutation.mutate]);
 
   // Load active pet image for player sprite
   useEffect(() => {
@@ -405,7 +422,7 @@ export default function LavaCrawlPage() {
     return {
       px: startX, py: startY,
       pvx: 0, pvy: 0,
-      onGround: false, facingR: true,
+      onGround: false, jumpCount: 0, facingR: true,
       alive: true, respawnTimer: 0,
       enemies: buildEnemies(gY),
       coins: buildCoins(gY),
@@ -453,11 +470,14 @@ export default function LavaCrawlPage() {
       }
       const VW = cw, VH = ch;
 
-      // Init state if fresh
+      // Init state if fresh. Also rebuild allPlats if empty (happens when startLoop re-runs
+      // mid-game due to any re-render — new closure starts with allPlats=[] but stateRef still live).
       if (!stateRef.current) {
         stateRef.current = buildState(VH);
-        const gY = stateRef.current.lavaY;
-        allPlats = [...buildGrounds(gY, VH), ...buildFloats(gY)];
+      }
+      if (allPlats.length === 0) {
+        const gY0 = stateRef.current.lavaY;
+        allPlats = [...buildGrounds(gY0, VH), ...buildFloats(gY0)];
       }
 
       const s = stateRef.current;
@@ -473,7 +493,7 @@ export default function LavaCrawlPage() {
             setEndCoins(s.coinsCollected);
             setEndLives(0);
             showScreen("gameover");
-            completeMutation.mutate({ score: s.score, coinsCollected: s.coinsCollected });
+            completeMutateRef.current({ score: s.score, coinsCollected: s.coinsCollected });
             return;
           }
           // Respawn
@@ -488,8 +508,15 @@ export default function LavaCrawlPage() {
         if (moveX > 0) s.facingR = true;
         if (moveX < 0) s.facingR = false;
 
-        if ((input.jump || input.jumpQueued) && s.onGround) {
-          s.pvy = JUMP_VEL;
+        // Jump / double-jump: first jump requires ground; second can happen any time in air.
+        // Must land before double-jump resets (jumpCount resets to 0 on landing below).
+        if ((input.jump || input.jumpQueued) && (s.onGround || s.jumpCount < 2)) {
+          s.pvy = s.onGround ? JUMP_VEL : JUMP_VEL * 0.82;
+          if (s.onGround) {
+            s.jumpCount = 1;
+          } else {
+            s.jumpCount = 2; // used double-jump, can't jump again until landing
+          }
           s.onGround = false;
           input.jumpQueued = false;
         }
@@ -505,7 +532,7 @@ export default function LavaCrawlPage() {
         for (const p of allPlats) {
           const r = resolveCollision(s.px, s.py, s.pvx, s.pvy, p.x, p.y, p.w, p.h);
           s.px = r.px; s.py = r.py; s.pvx = r.pvx; s.pvy = r.pvy;
-          if (r.onGround) s.onGround = true;
+          if (r.onGround) { s.onGround = true; s.jumpCount = 0; } // landing resets double-jump
         }
 
         // Clamp to level bounds
@@ -592,7 +619,7 @@ export default function LavaCrawlPage() {
           setEndCoins(s.coinsCollected);
           setEndLives(s.lives);
           showScreen("victory");
-          completeMutation.mutate({ score: s.score, coinsCollected: s.coinsCollected });
+          completeMutateRef.current({ score: s.score, coinsCollected: s.coinsCollected });
           return;
         }
 
@@ -668,18 +695,19 @@ export default function LavaCrawlPage() {
 
         const isGround = p.h > 20;
         if (isGround) {
-          // Seamless ground tile — tile across the full ground area
+          // Seamless ground tile — drawn GROUND_LIFT px above the physics y so it sits visually on lava
+          const visualY = py2 - GROUND_LIFT;
           if (_lavaGroundTileImg.complete && _lavaGroundTileImg.naturalWidth > 0) {
             const tileAspect = _lavaGroundTileImg.naturalWidth / _lavaGroundTileImg.naturalHeight;
-            const tileH = Math.min(p.h, 90);
+            const tileH = Math.min(p.h + GROUND_LIFT, 90);
             const tileW = tileH * tileAspect;
             ctx.save();
             ctx.beginPath();
-            ctx.rect(px2, py2, p.w, tileH);
+            ctx.rect(px2, visualY, p.w, tileH);
             ctx.clip();
             let dx = px2;
             while (dx < px2 + p.w) {
-              ctx.drawImage(_lavaGroundTileImg, dx, py2, tileW, tileH);
+              ctx.drawImage(_lavaGroundTileImg, dx, visualY, tileW, tileH);
               dx += tileW;
             }
             ctx.restore();
@@ -687,13 +715,13 @@ export default function LavaCrawlPage() {
           // Cap at each end of the ground segment (where ground breaks)
           if (_lavaGroundCapImg.complete && _lavaGroundCapImg.naturalWidth > 0) {
             const capAspect = _lavaGroundCapImg.naturalWidth / _lavaGroundCapImg.naturalHeight;
-            const capH = Math.min(p.h + 40, VH - py2);
+            const capH = Math.min(p.h + 40 + GROUND_LIFT, VH - visualY);
             const capW = capH * capAspect;
             // Left cap — center aligned with ground left edge
-            ctx.drawImage(_lavaGroundCapImg, px2 - capW * 0.5, py2 - 20, capW, capH);
+            ctx.drawImage(_lavaGroundCapImg, px2 - capW * 0.5, visualY - 20, capW, capH);
             // Right cap — mirror, center aligned with ground right edge
             ctx.save();
-            ctx.translate(px2 + p.w, py2 - 20);
+            ctx.translate(px2 + p.w, visualY - 20);
             ctx.scale(-1, 1);
             ctx.drawImage(_lavaGroundCapImg, -capW * 0.5, 0, capW, capH);
             ctx.restore();
@@ -805,41 +833,39 @@ export default function LavaCrawlPage() {
       // Enemies
       for (const e of s.enemies) {
         const ex = e.x - cx;
-        if (ex < -50 || ex > VW + 50) continue;
+        if (ex < -80 || ex > VW + 80) continue;
         ctx.save();
         if (!e.alive) {
           // Dead: show skull image rising + fading out
           const t = e.stompTimer / 30;
-          ctx.globalAlpha = t;
-          const rise = (1 - t) * 22;
-          const skullSize = 44;
-          if (_skullImg.complete && _skullImg.naturalWidth > 0) {
-            ctx.drawImage(_skullImg, ex + EW / 2 - skullSize / 2, e.stompY - rise - skullSize * 0.3, skullSize, skullSize);
+          if (t > 0) {
+            ctx.globalAlpha = t;
+            const rise = (1 - t) * 22;
+            const skullSize = 44;
+            if (_skullImg.complete && _skullImg.naturalWidth > 0) {
+              ctx.drawImage(_skullImg, ex + EW / 2 - skullSize / 2, e.stompY - rise - skullSize * 0.3, skullSize, skullSize);
+            }
           }
           ctx.restore();
           continue;
         }
-        // Body
-        const ey2 = e.y;
-        const enemyGrad = ctx.createLinearGradient(ex, ey2, ex, ey2 + EH);
-        enemyGrad.addColorStop(0, "#cc2020");
-        enemyGrad.addColorStop(1, "#660808");
-        ctx.fillStyle = enemyGrad;
-        ctx.fillRect(ex, ey2, EW, EH);
-        // Eyes
-        ctx.fillStyle = "#ffcc00";
-        ctx.fillRect(ex + 5, ey2 + 6, 8, 7);
-        ctx.fillRect(ex + EW - 13, ey2 + 6, 8, 7);
-        ctx.fillStyle = "#000";
-        const eyeOff = e.vx > 0 ? 3 : 1;
-        ctx.fillRect(ex + 5 + eyeOff, ey2 + 8, 4, 4);
-        ctx.fillRect(ex + EW - 13 + eyeOff, ey2 + 8, 4, 4);
-        // Horns
-        ctx.fillStyle = "#ff6600";
-        ctx.beginPath();
-        ctx.moveTo(ex + 7, ey2); ctx.lineTo(ex + 4, ey2 - 8); ctx.lineTo(ex + 10, ey2); ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(ex + EW - 7, ey2); ctx.lineTo(ex + EW - 4, ey2 - 8); ctx.lineTo(ex + EW - 10, ey2); ctx.fill();
+        // Draw enemy image (ground = lava demon, float = fireball)
+        // Images face left; flip when moving right (vx > 0)
+        const eImg = e.type === "float" ? _enemy2Img : _enemy1Img;
+        const drawSize = e.type === "float" ? 52 : 60;
+        // Float enemy bobs gently up and down
+        const floatBob = e.type === "float" ? Math.sin(ts * 0.003 + e.x * 0.01) * 5 : 0;
+        const centerX = ex + EW / 2;
+        const centerY = e.y + EH / 2 + floatBob;
+        ctx.translate(centerX, centerY);
+        if (e.vx > 0) ctx.scale(-1, 1); // images face left; flip when moving right
+        if (eImg.complete && eImg.naturalWidth > 0) {
+          ctx.drawImage(eImg, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+        } else {
+          // Fallback rectangle
+          ctx.fillStyle = e.type === "float" ? "#ff6600" : "#cc2020";
+          ctx.fillRect(-EW / 2, -EH / 2, EW, EH);
+        }
         ctx.restore();
       }
 
@@ -864,7 +890,7 @@ export default function LavaCrawlPage() {
       // Player
       if (s.alive) {
         const ppx = s.px - cx;
-        const PET_SIZE = 64;
+        const PET_SIZE = 84;
         // Bottom of pet image aligned with bottom of collision box
         const petDrawY = s.py + PH - PET_SIZE;
         ctx.save();
@@ -927,35 +953,28 @@ export default function LavaCrawlPage() {
       }
 
       const textY = HUD_TOP + 36;
-      const HEART_SIZE = 22;  // slightly smaller
-      const HEART_GAP = 25;   // tighter spacing
-      const HEARTS_START_X = 10; // inset from left edge
+      const HEART_SIZE = 24;
+      const HEART_GAP = 27;
+      const HEARTS_START_X = 12; // inset from left edge
 
-      // Lives — show all MAX_HEART_SLOTS slots; empty slots darkened
-      for (let i = 0; i < MAX_HEART_SLOTS; i++) {
+      // Lives — only show slots up to max(3, current lives).
+      // Extra slots (4th/5th) are invisible until the player actually picks up a life heart.
+      // Empty/lost slots are just darkened hearts with no rectangle overlay.
+      const totalHudSlots = Math.max(MAX_LIVES, s.lives);
+      for (let i = 0; i < totalHudSlots; i++) {
         const hx = HEARTS_START_X + i * HEART_GAP;
         const hy = HUD_TOP + (HUD_H - HEART_SIZE) / 2;
+        ctx.save();
+        ctx.globalAlpha = i < s.lives ? 1.0 : 0.25;
         if (_heartImg.complete && _heartImg.naturalWidth > 0) {
-          ctx.save();
-          if (i < s.lives) {
-            // Active life — full color
-            ctx.globalAlpha = 1.0;
-            ctx.drawImage(_heartImg, hx, hy, HEART_SIZE, HEART_SIZE);
-          } else {
-            // Lost life — dark desaturated overlay
-            ctx.globalAlpha = 0.18;
-            ctx.drawImage(_heartImg, hx, hy, HEART_SIZE, HEART_SIZE);
-            ctx.globalAlpha = 0.55;
-            ctx.fillStyle = "#1a0000";
-            ctx.fillRect(hx, hy, HEART_SIZE, HEART_SIZE);
-          }
-          ctx.restore();
+          ctx.drawImage(_heartImg, hx, hy, HEART_SIZE, HEART_SIZE);
         } else {
-          ctx.fillStyle = i < s.lives ? "#ff4444" : "rgba(120,30,30,0.35)";
+          ctx.fillStyle = i < s.lives ? "#ff4444" : "rgba(120,30,30,0.4)";
           ctx.font = "18px serif";
           ctx.textAlign = "left";
           ctx.fillText("♥", hx, textY);
         }
+        ctx.restore();
       }
 
       // Score — centered
@@ -990,7 +1009,7 @@ export default function LavaCrawlPage() {
     };
 
     rafRef.current = requestAnimationFrame(loop);
-  }, [buildState, showScreen, completeMutation]);
+  }, [buildState, showScreen]);
 
   const stopLoop = useCallback(() => {
     if (rafRef.current != null) {
