@@ -219,7 +219,8 @@ app.get("/world-assets/:filename", async (req: Request, res: Response, next: Nex
   if (!w) return next();
   const width = parseInt(String(w), 10);
   if (isNaN(width) || width < 10 || width > 3000) return next();
-  const filename = decodeURIComponent(req.params.filename).replace(/\.\./g, "");
+  const rawFilename = Array.isArray(req.params.filename) ? req.params.filename[0] : req.params.filename;
+  const filename = decodeURIComponent(rawFilename).replace(/\.\./g, "");
   const srcPath = path.join(process.cwd(), "attached_assets", filename);
   if (!fs.existsSync(srcPath)) return next();
   const cacheDir = "/tmp/world-thumbs";
