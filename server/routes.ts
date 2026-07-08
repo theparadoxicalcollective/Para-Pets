@@ -7025,8 +7025,7 @@ export async function registerRoutes(
   app.post("/api/lava-crawl/gain-exp", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const EXP_PER_KILL = 8;
-      let petResult: { petLevel: number; petLevelPoints: number; leveledUp: boolean } | null = null;
+      let petResult: { petLevel: number; petLevelPoints: number; leveledUp: boolean; xpGranted: number } | null = null;
       if (user.activePetId) {
         const [petInv] = await db
           .select()
@@ -7035,6 +7034,9 @@ export async function registerRoutes(
           .limit(1);
         if (petInv) {
           const prevLevel = petInv.petLevel || 1;
+          // Scale XP per kill by pet level: +10% per level so high-level pets
+          // aren't stuck grinding thousands of kills for one level-up.
+          const EXP_PER_KILL = Math.floor(8 * (1 + (prevLevel - 1) * 0.1));
           const { newLevel, newPoints } = applyPetXp(prevLevel, petInv.petLevelPoints || 0, EXP_PER_KILL);
           const updates: any = { petLevelPoints: newPoints };
           if (newLevel > prevLevel) updates.petLevel = newLevel;
@@ -7043,6 +7045,7 @@ export async function registerRoutes(
             petLevel: updated.petLevel || 1,
             petLevelPoints: updated.petLevelPoints || 0,
             leveledUp: newLevel > prevLevel,
+            xpGranted: EXP_PER_KILL,
           };
         }
       }

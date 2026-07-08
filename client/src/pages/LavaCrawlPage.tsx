@@ -322,10 +322,14 @@ export default function LavaCrawlPage() {
 
   // Get active pet's hatched image for the player sprite
   const { data: authMe } = useQuery<{ activePetId: string | null }>({ queryKey: ["/api/auth/me"] });
-  const { data: inventoryItems } = useQuery<Array<{ inventoryId: string; type: string; hatchedImageUrl: string | null; imageUrl: string | null }>>({
+  const { data: inventoryItems } = useQuery<Array<{ inventoryId: string; type: string; hatchedImageUrl: string | null; imageUrl: string | null; petLevel?: number | null }>>({
     queryKey: ["/api/inventory"],
     enabled: !!authMe?.activePetId,
   });
+
+  // Track active pet's level so the game loop can show accurate XP float text.
+  // Updated whenever inventory refreshes (e.g. after a level-up).
+  const petLevelRef = useRef(1);
 
   const { data: myBest } = useQuery<{ best: number; bestCoins: number }>({
     queryKey: ["/api/lava-crawl/my-best"],
@@ -357,6 +361,7 @@ export default function LavaCrawlPage() {
       const data = await res.json();
       if (data.petResult?.leveledUp) {
         queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+        petLevelRef.current = data.petResult.petLevel;
       }
     },
   });
@@ -369,10 +374,11 @@ export default function LavaCrawlPage() {
   const completeMutateRef = useRef(completeMutation.mutate);
   useEffect(() => { completeMutateRef.current = completeMutation.mutate; }, [completeMutation.mutate]);
 
-  // Load active pet image for player sprite
+  // Load active pet image + sync level ref for float-text scaling
   useEffect(() => {
     if (!authMe?.activePetId || !inventoryItems) return;
     const pet = inventoryItems.find(i => i.inventoryId === authMe.activePetId && i.type === "pet");
+    if (pet?.petLevel != null) petLevelRef.current = pet.petLevel;
     const url = pet?.hatchedImageUrl || pet?.imageUrl;
     if (!url) return;
     const img = new Image();
@@ -612,7 +618,8 @@ export default function LavaCrawlPage() {
             const mult = s.doubleActive ? 2 : 1;
             s.score += ENEMY_SCORE * mult;
             s.squishX = 1.45; s.squishY = 0.58; s.squishTimer = 16; s.squishDuration = 16;
-            const xpText = s.doubleActive ? "+16 XP ×2" : "+8 XP";
+            const baseXp = Math.floor(8 * (1 + (petLevelRef.current - 1) * 0.1));
+            const xpText = s.doubleActive ? `+${baseXp * 2} XP ×2` : `+${baseXp} XP`;
             s.floats.push({ x: e.x + EW / 2 - s.cameraX, y: e.y - 10, text: xpText, color: "#a0ff80", life: 55, maxLife: 55 });
             gainExpRef.current();
             if (s.doubleActive) gainExpRef.current(); // double XP
