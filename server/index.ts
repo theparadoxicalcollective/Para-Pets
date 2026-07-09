@@ -1423,7 +1423,7 @@ app.use((req, res, next) => {
     swamp: "bg_swamp_map_v6.jpeg",
     snowy_mountain: "bg_snowy_mountain_map.webp",
     sky_realm: "bg_sky_realm_map.webp",
-    haunted_woods: "IMG_6872_1783621831062.png",
+    haunted_woods: "IMG_6880_1783636894557.png",
     enchanted_grove: "bg_enchanted_grove_map.webp",
     island: "bg_island_map.webp",
     desert: "bg_desert_map.webp",
@@ -1469,7 +1469,6 @@ app.use((req, res, next) => {
     // Haunted Woods locations
     "e2f3a4b5-0001-4000-8000-000000000001": "bg_spectral_grove.webp",
     "e2f3a4b5-0002-4000-8000-000000000002": "bg_cauldrons_creep_v2.webp",
-    "e2f3a4b5-0003-4000-8000-000000000003": "bg_soul_pond_v2.webp",
     "e2f3a4b5-0004-4000-8000-000000000004": "bg_haunted_menagerie_v2.webp",
   };
   for (const [locId, bgFile] of Object.entries(LOC_BG_ALWAYS_REFRESH)) {
@@ -3270,11 +3269,11 @@ app.use((req, res, next) => {
     "c3d4e5f6-0006-4000-8000-000000000006": "icon_food_shop_volcanic.png",
     "c3d4e5f6-0007-4000-8000-000000000007": "icon_cooking_forge_volcanic.png",
     "a1b2c3d4-0010-4000-8000-000000000010": "icon_food_shop_swamp.png",
-    // Haunted Woods — converted to WebP to avoid 2MB base64 blobs in API responses
-    "e2f3a4b5-0001-4000-8000-000000000001": "icon_spectral_grove.webp",
-    "e2f3a4b5-0002-4000-8000-000000000002": "icon_cauldrons_creep.webp",
-    "e2f3a4b5-0003-4000-8000-000000000003": "icon_haunted_pond.webp",
-    "e2f3a4b5-0004-4000-8000-000000000004": "icon_haunted_pet_shop.webp",
+    // Haunted Woods
+    "e2f3a4b5-0001-4000-8000-000000000001": "Photoroom_20260709_53253_PM_1783636894557.png",
+    "e2f3a4b5-0002-4000-8000-000000000002": "Photoroom_20260709_53223_PM_1783636894557.png",
+    "e2f3a4b5-0004-4000-8000-000000000004": "Photoroom_20260709_53451_PM_1783636894557.png",
+    "e2f3a4b5-0005-4000-8000-000000000005": "Photoroom_20260709_53434_PM_1783636894557.png",
   };
   for (const [locId, iconFile] of Object.entries(LOC_ICON_ALWAYS_REFRESH)) {
     try {
@@ -3299,8 +3298,8 @@ app.use((req, res, next) => {
         AND id NOT IN (
           'e2f3a4b5-0001-4000-8000-000000000001',
           'e2f3a4b5-0002-4000-8000-000000000002',
-          'e2f3a4b5-0003-4000-8000-000000000003',
-          'e2f3a4b5-0004-4000-8000-000000000004'
+          'e2f3a4b5-0004-4000-8000-000000000004',
+          'e2f3a4b5-0005-4000-8000-000000000005'
         )
     `);
     const dupeCount = (dupeResult as any).rowCount ?? 0;
@@ -3310,6 +3309,37 @@ app.use((req, res, next) => {
     console.error("Haunted Woods duplicate location cleanup error (non-fatal):", err);
   }
 
+  // ── Haunted Woods: rename Cauldron's Creep → Ms Nyx's Elixirs (always) ──
+  try {
+    await db.execute(sql`
+      UPDATE world_locations
+      SET name = 'Ms Nyx''s Elixirs'
+      WHERE id = 'e2f3a4b5-0002-4000-8000-000000000002'
+        AND name != 'Ms Nyx''s Elixirs'
+    `);
+  } catch (err) {
+    console.error("HW rename Cauldron's Creep error (non-fatal):", err);
+  }
+
+  // ── Haunted Woods: seed new fishing/bait shop if not present ──
+  try {
+    const fishShopId = "e2f3a4b5-0005-4000-8000-000000000005";
+    const existing = await db.execute(sql`SELECT id FROM world_locations WHERE id = ${fishShopId}`);
+    if ((existing as any).rows?.length === 0) {
+      await db.execute(sql`
+        INSERT INTO world_locations
+          (id, world_id, name, type, description, pos_x, pos_y, glow_color, icon_size, sort_order, is_shop, icon_url, bg_url)
+        VALUES (
+          ${fishShopId}, 'haunted_woods', 'The Cursed Catch', 'shop',
+          'A shadowy dockside bait shop at the edge of the haunted marsh, stocked with spectral lures and cursed tackle.',
+          55, 65, '#2244cc', 350, 5, true, NULL, NULL
+        )
+      `);
+      console.log("HW: The Cursed Catch fishing shop created.");
+    }
+  } catch (err) {
+    console.error("HW fishing shop seed error (non-fatal):", err);
+  }
 
   // Always refresh the volcanic fortress background
   try {
@@ -3480,36 +3510,12 @@ app.use((req, res, next) => {
     console.error("Swamp glow fix error (non-fatal):", err);
   }
 
-  // ── Soul Pond: rename Phantom Hollow → Soul Pond, change type to minigame, update bg ──
-  // Idempotent: runs always but WHERE clause guards against overwriting admin edits
-  try {
-    const PHANTOM_HOLLOW_ID = "e2f3a4b5-0003-4000-8000-000000000003";
-    const bgData = loadAssetBase64("bg_soul_pond.png");
-    const result = await db.execute(sql`
-      UPDATE world_locations
-      SET name        = 'Soul Pond',
-          type        = 'minigame',
-          is_shop     = false,
-          description = 'A haunting body of still water reflecting the pale moon, whispered to harbor spectral fish of legend.',
-          bg_url      = COALESCE(${bgData ?? null}, bg_url)
-      WHERE id = ${PHANTOM_HOLLOW_ID}
-        AND world_id = 'haunted_woods'
-    `);
-    const affected = (result as any).count ?? (result as any).rowCount ?? 0;
-    if (affected > 0) console.log("Soul Pond: location updated.");
-    else console.log("Soul Pond: already up to date or not found.");
-  } catch (err) {
-    console.error("Soul Pond migration error (non-fatal):", err);
-  }
-
-  // ── Haunted Woods bg final pass — must run AFTER Soul Pond migration ──
-  // LOC_BG_ALWAYS_REFRESH runs early (line ~1167), but Soul Pond migration can
-  // overwrite bg_url with base64. This block has the final word every restart.
+  // ── Haunted Woods bg final pass ──
+  // LOC_BG_ALWAYS_REFRESH runs early but can be overwritten; this block has the final word every restart.
   try {
     const hwBgFinal: Record<string, string> = {
       "e2f3a4b5-0001-4000-8000-000000000001": "bg_spectral_grove.png",
       "e2f3a4b5-0002-4000-8000-000000000002": "bg_cauldrons_creep_v2.png",
-      "e2f3a4b5-0003-4000-8000-000000000003": "bg_soul_pond_v2.png",
       "e2f3a4b5-0004-4000-8000-000000000004": "bg_haunted_menagerie_v2.png",
     };
     for (const [locId, bgFile] of Object.entries(hwBgFinal)) {
