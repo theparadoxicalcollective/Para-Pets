@@ -97,10 +97,10 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
 
         {/* LEFT: profile photo + nameplate below */}
         <div className="flex flex-col items-start gap-0 min-w-0">
-          <div className="flex items-center gap-2">
-          {/* Profile photo — frame + nameplate stacked, centered */}
-          <div className="flex flex-col items-center gap-0 flex-shrink-0">
-            <div className="relative flex-shrink-0" style={{ width: 96 }}>
+          <div className="flex items-start gap-2">
+          {/* Profile photo — frame + nameplate stacked, centered. paddingTop pushes it down independently of coins */}
+          <div className="flex flex-col items-center gap-0 flex-shrink-0" style={{ paddingTop: 12 }}>
+            <div className="relative flex-shrink-0" style={{ width: 100 }}>
               <button
                 data-testid="button-profile"
                 onClick={onProfileClick}
@@ -108,10 +108,10 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 style={{ background: "none", border: "none", cursor: "pointer", display: "block", width: "100%" }}
               >
                 <div className="relative w-full">
-                  {/* Photo sits inside the frame's inner opening — ~13% inset on all sides */}
+                  {/* Photo — slightly bigger, centered in frame opening */}
                   <div
                     className="absolute z-10 overflow-hidden rounded-xl"
-                    style={{ top: "13%", left: "12%", right: "12%", bottom: "13%", border: "2px solid rgba(5,2,0,0.88)" }}
+                    style={{ top: "11%", left: "10%", right: "10%", bottom: "12%", border: "2px solid rgba(5,2,0,0.88)" }}
                   >
                     {user.profileImage ? (
                       <img
@@ -280,8 +280,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
               </div>
             )}
 
-            {/* Nameplate — centered under frame border, overlaps bottom edge */}
-            <div style={{ position: "relative", width: 108, marginTop: -12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {/* Nameplate — overlaps more into frame bottom edge */}
+            <div style={{ position: "relative", width: 108, marginTop: -18, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <img src={nameplateImg} alt="" style={{ display: "block", width: "100%", height: "auto" }} />
               <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <p
