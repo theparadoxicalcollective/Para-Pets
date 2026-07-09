@@ -419,7 +419,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   const dailyRemaining = packsData ? packsData.dailyLimit - packsData.dailySpent : 500;
 
   return (
-    <div className="h-screen-frame flex flex-col relative overflow-hidden" style={{ background: "linear-gradient(180deg, #040d04 0%, #071a0a 15%, #0d2510 40%, #081a0d 65%, #051208 85%, #040d04 100%)" }}>
+    <div className="h-screen-frame flex flex-col relative overflow-hidden" style={{ background: "linear-gradient(180deg, #040d04 0%, #071a0a 15%, #0d2510 40%, #081a0d 65%, #051208 85%, #040d04 100%)", paddingTop: "env(safe-area-inset-top, 0px)" }}>
       <style>{fireflyKeyframes}</style>
 
       <div style={{

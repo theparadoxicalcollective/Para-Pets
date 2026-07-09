@@ -22,9 +22,10 @@ interface TopBarProps {
   };
   onProfileClick: () => void;
   onUserUpdate?: (user: any) => void;
+  hideProfile?: boolean;
 }
 
-export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarProps) {
+export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile }: TopBarProps) {
   const [location, navigate] = useLocation();
   const [showRewards, setShowRewards] = useState(false);
   const [showAdminMsgsPopup, setShowAdminMsgsPopup] = useState(false);
@@ -97,9 +98,9 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
 
         {/* LEFT: profile photo + nameplate below */}
         <div className="flex flex-col items-start gap-0 min-w-0">
-          <div className="flex items-start gap-2">
-          {/* Profile photo — frame + nameplate stacked, centered. paddingTop pushes it down independently of coins */}
-          <div className="flex flex-col items-center gap-0 flex-shrink-0" style={{ paddingTop: 12 }}>
+          <div className="flex items-center gap-2">
+          {/* Profile photo — translateY shifts it down without moving coin siblings */}
+          {!hideProfile && <div className="flex flex-col items-center gap-0 flex-shrink-0" style={{ transform: "translateY(14px)" }}>
             <div className="relative flex-shrink-0" style={{ width: 100 }}>
               <button
                 data-testid="button-profile"
@@ -108,10 +109,10 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 style={{ background: "none", border: "none", cursor: "pointer", display: "block", width: "100%" }}
               >
                 <div className="relative w-full">
-                  {/* Photo — slightly bigger, centered in frame opening */}
+                  {/* Photo — bigger, pushed down within frame opening */}
                   <div
                     className="absolute z-10 overflow-hidden rounded-xl"
-                    style={{ top: "11%", left: "10%", right: "10%", bottom: "12%", border: "2px solid rgba(5,2,0,0.88)" }}
+                    style={{ top: "14%", left: "10%", right: "10%", bottom: "10%", border: "2px solid rgba(5,2,0,0.88)" }}
                   >
                     {user.profileImage ? (
                       <img
@@ -293,7 +294,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 </p>
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* Coins — bar on left, bag icon on right */}
           <div className="flex flex-row items-center gap-1 flex-shrink-0">
