@@ -419,7 +419,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   const dailyRemaining = packsData ? packsData.dailyLimit - packsData.dailySpent : 500;
 
   return (
-    <div className="h-screen-frame relative overflow-y-auto overflow-x-hidden" style={{ background: "linear-gradient(180deg, #040d04 0%, #071a0a 15%, #0d2510 40%, #081a0d 65%, #051208 85%, #040d04 100%)", paddingTop: "env(safe-area-inset-top, 0px)" }}>
+    <div style={{ position: "absolute", inset: 0, overflowY: "auto", overflowX: "hidden", background: "linear-gradient(180deg, #040d04 0%, #071a0a 15%, #0d2510 40%, #081a0d 65%, #051208 85%, #040d04 100%)", paddingTop: "env(safe-area-inset-top, 0px)" }}>
       <style>{fireflyKeyframes}</style>
 
       <div style={{
@@ -913,7 +913,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             <p className="font-fantasy text-sm animate-pulse" style={{ color: "rgba(127,255,212,0.4)" }}>Loading treasury...</p>
           </div>
         ) : (
-          <div className="px-4 grid grid-cols-2 gap-3" style={{ overflowX: "hidden" }}>
+          <div className="px-4 grid grid-cols-2 gap-3">
             {packsData?.packs.map((pack) => {
               const isDisabled = pack.priceUsd > dailyRemaining;
               const isBuying = buyingPackId === pack.id && checkoutMutation.isPending;

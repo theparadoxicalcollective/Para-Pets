@@ -757,8 +757,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         caretColor: "transparent",
       }}
     >
-      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/60 z-0 pointer-events-none" />
-      <div className="absolute left-0 right-0 top-0 z-[2] pointer-events-none" style={{ height: "45%", background: "linear-gradient(to bottom, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.38) 50%, transparent 100%)" }} />
+      <div className="absolute inset-0 z-0 pointer-events-none" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.35) 38%, transparent 58%, rgba(0,0,0,0.60) 100%)" }} />
 
 
       <div className="absolute inset-0 z-[1] pointer-events-none overflow-hidden">
