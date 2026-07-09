@@ -5,8 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Mail } from "lucide-react";
 
-import coinIconImg from "@assets/icon_coin.png";
-import coinBagIconImg from "@assets/generated_images/icon_coin_bag.png";
+import coinBarImg from "@assets/Photoroom_20260709_102133_AM_1783610567237.png";
 import giftIconImg from "@assets/Photoroom_20260708_51809_PM_1783549272918.png";
 import profileFrameImg from "@assets/Photoroom_20260709_92006_AM_1783607153082.png";
 import nameplateImg from "@assets/Photoroom_20260709_92122_AM_1783607153082.png";
@@ -107,14 +106,14 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 className="relative flex-shrink-0 transition-transform duration-150 active:scale-95"
                 style={{ background: "none", border: "none", cursor: "pointer", display: "block" }}
               >
-                <div className="relative topbar-profile-size-sm">
+                <div className="relative" style={{ width: 80, height: 80, flexShrink: 0 }}>
                   <img
                     src={profileFrameImg}
                     alt=""
                     className="absolute z-20 pointer-events-none"
-                    style={{ inset: "-6px", width: "calc(100% + 12px)", height: "calc(100% + 12px)", objectFit: "fill" }}
+                    style={{ top: "-12px", left: "-12px", width: "calc(100% + 24px)", height: "calc(100% + 24px)", objectFit: "contain" }}
                   />
-                  <div className="absolute z-10 overflow-hidden rounded-lg" style={{ inset: "0px" }}>
+                  <div className="absolute z-10 overflow-hidden rounded-lg" style={{ inset: "6px" }}>
                     {user.profileImage ? (
                       <img
                         data-testid="img-profile-avatar"
@@ -278,40 +277,35 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
 
           {/* Coins + coin bag to the right of the profile photo */}
           <div className="flex flex-col gap-1 flex-shrink-0 justify-center">
-            <div
-              className="flex items-center gap-1 px-2 py-0.5 rounded-md"
-              style={{
-                background: "linear-gradient(135deg, rgba(30,15,5,0.9) 0%, rgba(60,35,10,0.9) 100%)",
-                border: "1px solid rgba(212,160,23,0.4)",
-              }}
-            >
-              <img
-                src={coinIconImg}
-                alt="Coins"
-                className="w-4 h-4 object-contain"
-                style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }}
-              />
-              <span
-                className="font-fantasy text-[#f0c040] font-semibold"
-                style={{ fontSize: "clamp(11px, calc(3.2*var(--vw)), 15px)" }}
-                data-testid="text-coins"
-              >
-                {user.coins}
-              </span>
-            </div>
+            {/* New coin bar */}
             <button
               data-testid="button-coin-shop"
               onClick={() => navigate("/coins")}
-              className="flex items-center justify-center transition-transform active:scale-90"
-              style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}
+              className="transition-transform active:scale-95"
+              style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0, position: "relative", display: "inline-flex", alignItems: "center" }}
             >
-              <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 44, height: 44, objectFit: "contain", filter: "drop-shadow(0 0 0px 0px rgba(0,0,0,0)) drop-shadow(0 0 1.5px rgba(212,160,23,1)) drop-shadow(0 0 1.5px rgba(212,160,23,1)) drop-shadow(0 0 1.5px rgba(212,160,23,0.9)) drop-shadow(0 0 8px rgba(212,160,23,0.65)) drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
+              <img src={coinBarImg} alt="Coins" style={{ height: 42, width: "auto", objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
+              <span
+                className="font-fantasy text-[#f5d060] font-semibold"
+                style={{
+                  position: "absolute",
+                  left: "36%",
+                  right: "7%",
+                  textAlign: "center",
+                  fontSize: "clamp(11px, calc(3.4*var(--vw)), 15px)",
+                  textShadow: "0 1px 4px rgba(0,0,0,0.95), 0 0 8px rgba(0,0,0,0.7)",
+                  pointerEvents: "none",
+                }}
+                data-testid="text-coins"
+              >
+                {user.coins.toLocaleString()}
+              </span>
             </button>
           </div>
           </div>
           {/* Nameplate — centered below profile photo */}
           <div style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", marginTop: -2, alignSelf: "flex-start" }}>
-            <img src={nameplateImg} alt="" style={{ display: "block", height: 26, width: "auto", objectFit: "contain" }} />
+            <img src={nameplateImg} alt="" style={{ display: "block", height: 34, width: "auto", objectFit: "contain" }} />
             <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", paddingLeft: "10%", paddingRight: "10%" }}>
               <p
                 className="font-fantasy text-[#f0c040] font-semibold tracking-widest truncate"

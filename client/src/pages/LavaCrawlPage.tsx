@@ -20,7 +20,7 @@ import enemy3Img from "@assets/Photoroom_20260708_34527_PM_1783543636588.png";
 import enemy4Img from "@assets/Photoroom_20260708_34404_PM_1783543636588.png";
 import doubleOrbImg from "@assets/Photoroom_20260708_40336_PM_1783544889601.png";
 import coinOrbImg from "@assets/Photoroom_20260708_40401_PM_1783544889601.png";
-import coinIconImg from "@assets/icon_coin.webp";
+import coinIconImg from "@assets/icon_coin.png";
 import lavaCaveBg from "@assets/bg_lava_crawl.webp";
 import slabImg1 from "@assets/lava_slab_1.webp";
 import slabImg2 from "@assets/lava_slab_2.webp";

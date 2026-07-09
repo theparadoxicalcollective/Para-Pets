@@ -6417,7 +6417,7 @@ function CauldronPanel({
                 <button data-testid="button-brew-cauldron" onClick={onBrew} disabled={isBrewing || userCoins < 100}
                   className="font-fantasy text-[11px] tracking-wider px-3 py-1 rounded-full disabled:opacity-50 active:scale-95 transition-transform"
                   style={{ background: "linear-gradient(135deg,rgba(94,234,212,.35) 0%,rgba(45,212,191,.22) 100%)", border: "1.5px solid rgba(94,234,212,.75)", color: "#5eead4", cursor: userCoins < 100 ? "not-allowed" : "pointer", boxShadow: "0 0 14px rgba(45,212,191,.4)", whiteSpace: "nowrap" }}>
-                  {isBrewing ? "Brewing…" : <span>✨ Brew <span style={{ fontSize: "0.75em", opacity: 0.75 }}>(-100 🪙)</span></span>}
+                  {isBrewing ? "Brewing…" : <span>✨ Brew <span style={{ fontSize: "0.75em", opacity: 0.75, display: "inline-flex", alignItems: "center", gap: 2 }}>(-100 <img src={coinIconImg} alt="" style={{ width: "1em", height: "1em", objectFit: "contain", verticalAlign: "middle" }} />)</span></span>}
                 </button>
               )}
               {totalInCauldron > 0 && (

@@ -772,7 +772,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       </div>
 
       <div className="relative flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)", visibility: (isOverlayActive || showPetStats) ? "hidden" : "visible" }}>
-        <div style={{ position: "relative", zIndex: 40, visibility: "visible", pointerEvents: "none" }}>
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 40, pointerEvents: "none" }}>
           <div style={{ pointerEvents: "auto" }}>
             <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
           </div>

@@ -123,7 +123,7 @@ function ItemCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
           boxShadow: "0 0 18px rgba(250,200,50,0.25)",
         }}
       >
-        <div style={{ fontSize: 40, filter: "drop-shadow(0 0 10px rgba(250,200,50,0.8))" }}>🪙</div>
+        <img src={coinIconImg} alt="coins" style={{ width: 40, height: 40, objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(250,200,50,0.8))" }} />
         <p style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 13, textAlign: "center", fontWeight: 700 }}>
           +{formatCoins(listing.price)} coins
         </p>
