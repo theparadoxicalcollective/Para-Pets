@@ -9147,10 +9147,10 @@ export async function registerRoutes(
 
   // ── Veridian Watcher Background Jobs ──────────────────────────────────────
   const VW_QUOTE_INTERVAL_MS = 60 * 60 * 1000; // every hour
-  const VW_BACKTOBACK_GUARD_MS = 25 * 60 * 1000; // 25 min guard between any two watcher posts
+  // Quotes always fire on schedule — no back-to-back guard so leaderboard
+  // shoutouts can't accidentally block the admin-added sayings.
   setInterval(async () => {
     try {
-      if (Date.now() - lastWatcherMessageAt < VW_BACKTOBACK_GUARD_MS) return;
       const quotes = await storage.getVWQuotes();
       if (quotes.length === 0) return;
       const pick = quotes[Math.floor(Math.random() * quotes.length)];
@@ -9159,6 +9159,9 @@ export async function registerRoutes(
       console.error("[VW] Quote error:", err);
     }
   }, VW_QUOTE_INTERVAL_MS);
+
+  // Leaderboard shoutouts use a guard so rank-change pings don't stack up.
+  const VW_BACKTOBACK_GUARD_MS = 20 * 60 * 1000; // 20 min between leaderboard posts
 
   // ── Leaderboard rank monitors — shout only when a player enters top 3 ───────
   // Checks every 10 min; fires only when someone's rank improves into 1st/2nd/3rd.
