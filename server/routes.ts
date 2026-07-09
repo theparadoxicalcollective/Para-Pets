@@ -9146,8 +9146,8 @@ export async function registerRoutes(
   });
 
   // ── Veridian Watcher Background Jobs ──────────────────────────────────────
-  const VW_QUOTE_INTERVAL_MS = 3 * 60 * 60 * 1000;
-  const VW_BACKTOBACK_GUARD_MS = 60 * 60 * 1000;
+  const VW_QUOTE_INTERVAL_MS = 60 * 60 * 1000; // every hour
+  const VW_BACKTOBACK_GUARD_MS = 25 * 60 * 1000; // 25 min guard between any two watcher posts
   setInterval(async () => {
     try {
       if (Date.now() - lastWatcherMessageAt < VW_BACKTOBACK_GUARD_MS) return;
@@ -9159,6 +9159,115 @@ export async function registerRoutes(
       console.error("[VW] Quote error:", err);
     }
   }, VW_QUOTE_INTERVAL_MS);
+
+  // ── Leaderboard rank monitors — shout only when a player enters top 3 ───────
+  // Checks every 10 min; fires only when someone's rank improves into 1st/2nd/3rd.
+  const LEADERBOARD_CHECK_MS = 10 * 60 * 1000;
+
+  let hubLbSnapshot     = new Map<string, number>(); // username → rank
+  let fishingLbSnapshot = new Map<string, number>();
+  let moltenLbSnapshot  = new Map<string, number>();
+  let lavaLbSnapshot    = new Map<string, number>();
+  let lbPrimed = false;
+
+  async function shoutoutEligible(userId: string): Promise<boolean> {
+    const result: any = await db.execute(sql`
+      SELECT watcher_shoutouts_enabled FROM users WHERE id = ${userId}
+    `);
+    const row = ((result.rows ?? result) as any[])[0];
+    return row?.watcher_shoutouts_enabled !== false;
+  }
+
+  async function checkLeaderboardRanks() {
+    try {
+      // ── Hub (Hall of Founders) ──
+      const hubRows: any = await db.execute(sql`
+        SELECT cp.user_id AS user_id, u.username
+        FROM coin_purchases cp
+        JOIN users u ON cp.user_id = u.id
+        WHERE u.is_admin = false AND u.is_bot = false
+        GROUP BY cp.user_id, u.username
+        ORDER BY SUM(cp.amount_usd) DESC
+        LIMIT 5
+      `);
+      const hubTop = ((hubRows.rows ?? hubRows) as any[]).map((r: any, i: number) => ({
+        userId: r.user_id as string, username: r.username as string, rank: i + 1,
+      }));
+
+      // ── Fishing (global aggregate across all worlds) ──
+      const fishRows: any = await db.execute(sql`
+        SELECT fl.user_id AS user_id, u.username, SUM(fl.points) AS total_pts
+        FROM fishing_leaderboard fl
+        JOIN users u ON u.id = fl.user_id
+        WHERE fl.points > 0 AND u.is_bot = false
+        GROUP BY fl.user_id, u.username
+        ORDER BY SUM(fl.points) DESC
+        LIMIT 5
+      `);
+      const fishTop = ((fishRows.rows ?? fishRows) as any[]).map((r: any, i: number) => ({
+        userId: r.user_id as string, username: r.username as string, rank: i + 1,
+      }));
+
+      // ── Molten Blocks ──
+      const moltenRows: any = await db.execute(sql`
+        SELECT id AS user_id, username
+        FROM users
+        WHERE molten_blocks_high_score > 0 AND is_bot = false AND is_admin = false
+        ORDER BY molten_blocks_high_score DESC
+        LIMIT 5
+      `);
+      const moltenTop = ((moltenRows.rows ?? moltenRows) as any[]).map((r: any, i: number) => ({
+        userId: r.user_id as string, username: r.username as string, rank: i + 1,
+      }));
+
+      // ── Lava Crawl ──
+      const lavaRows: any = await db.execute(sql`
+        SELECT s.user_id AS user_id, u.username, MAX(s.score) AS best_score
+        FROM lava_crawl_scores s
+        JOIN users u ON s.user_id = u.id
+        WHERE u.is_bot = false
+        GROUP BY s.user_id, u.username
+        ORDER BY MAX(s.score) DESC
+        LIMIT 5
+      `);
+      const lavaTop = ((lavaRows.rows ?? lavaRows) as any[]).map((r: any, i: number) => ({
+        userId: r.user_id as string, username: r.username as string, rank: i + 1,
+      }));
+
+      if (lbPrimed) {
+        const boards = [
+          { top: hubTop,    prev: hubLbSnapshot,     boardName: "the Hall of Founders" },
+          { top: fishTop,   prev: fishingLbSnapshot,  boardName: "the Fishing Leaderboard" },
+          { top: moltenTop, prev: moltenLbSnapshot,   boardName: "the Molten Blocks Leaderboard" },
+          { top: lavaTop,   prev: lavaLbSnapshot,     boardName: "the Lava Crawl Leaderboard" },
+        ];
+        const medals = ["🥇", "🥈", "🥉"];
+        for (const { top, prev, boardName } of boards) {
+          for (const entry of top) {
+            if (entry.rank > 3) continue;
+            const prevRank = prev.get(entry.username);
+            if (prevRank !== undefined && prevRank <= 3 && prevRank === entry.rank) continue; // unchanged
+            if (!(await shoutoutEligible(entry.userId))) continue;
+            await postWatcherMessage(
+              `🏆 ${medals[entry.rank - 1]} ${entry.username} has reached rank #${entry.rank} on ${boardName}! A new champion rises!`
+            );
+          }
+        }
+      }
+
+      // Update snapshots
+      hubLbSnapshot     = new Map(hubTop.map(e => [e.username, e.rank]));
+      fishingLbSnapshot = new Map(fishTop.map(e => [e.username, e.rank]));
+      moltenLbSnapshot  = new Map(moltenTop.map(e => [e.username, e.rank]));
+      lavaLbSnapshot    = new Map(lavaTop.map(e => [e.username, e.rank]));
+      lbPrimed = true;
+    } catch (err) {
+      console.error("[VW] Leaderboard rank monitor error:", err);
+    }
+  }
+
+  checkLeaderboardRanks(); // Prime snapshots at startup (no shoutouts on first run)
+  setInterval(checkLeaderboardRanks, LEADERBOARD_CHECK_MS);
 
   // ── Daily Claim (fixed reward, once per 24h) ──────────────────────────────
   const DAILY_REWARD_COINS = 500;
