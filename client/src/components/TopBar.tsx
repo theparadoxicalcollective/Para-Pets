@@ -140,7 +140,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                     src={profileFrameImg}
                     alt=""
                     className="block w-full z-20 pointer-events-none relative"
-                    style={{ height: "auto", filter: "drop-shadow(0 3px 10px rgba(0,0,0,0.7))" }}
+                    style={{ height: "auto", filter: "drop-shadow(0 6px 28px rgba(0,0,0,0.55))" }}
                   />
                 </div>
               </button>
@@ -286,7 +286,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
 
             {/* Nameplate — below frame */}
             <div style={{ position: "relative", width: 108, marginTop: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <img src={nameplateImg} alt="" style={{ display: "block", width: "100%", height: "auto", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.7))" }} />
+              <img src={nameplateImg} alt="" style={{ display: "block", width: "100%", height: "auto", filter: "drop-shadow(0 4px 22px rgba(0,0,0,0.55))" }} />
               <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 6 }}>
                 <p
                   className="font-fantasy text-[#f0c040] font-semibold tracking-widest truncate"
@@ -309,7 +309,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 className="transition-transform active:scale-95"
                 style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0, position: "relative", display: "inline-flex", alignItems: "center" }}
               >
-                <img src={coinBarImg} alt="Coins" style={{ height: 30, width: "auto", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.65))" }} />
+                <img src={coinBarImg} alt="Coins" style={{ height: 30, width: "auto", objectFit: "contain" }} />
                 <span
                   className="font-fantasy text-[#f5d060] font-semibold"
                   style={{
@@ -332,7 +332,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 className="transition-transform active:scale-90"
                 style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}
               >
-                <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 34, height: 34, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(212,160,23,0.6)) drop-shadow(0 3px 8px rgba(0,0,0,0.65))" }} />
+                <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 34, height: 34, objectFit: "contain", filter: "drop-shadow(0 0 8px rgba(212,160,23,0.55))" }} />
               </button>
             </div>
             {/* Row 2: Essence bar + essence icon */}
@@ -341,7 +341,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 data-testid="display-essence"
                 style={{ flexShrink: 0, position: "relative", display: "inline-flex", alignItems: "center" }}
               >
-                <img src={essenceBarImg} alt="Essence" style={{ height: 30, width: "auto", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.65))" }} />
+                <img src={essenceBarImg} alt="Essence" style={{ height: 30, width: "auto", objectFit: "contain" }} />
                 <span
                   className="font-fantasy text-[#7fff7f] font-semibold"
                   style={{
