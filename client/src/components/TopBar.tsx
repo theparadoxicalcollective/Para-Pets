@@ -93,7 +93,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
 
   return (
     <>
-      <div className="flex items-center justify-between px-3 pb-2 gap-3 relative z-[50]" style={{ paddingTop: "max(16px, calc(env(safe-area-inset-top, 0px) + 16px))" }}>
+      <div className="flex items-center justify-between px-3 pt-3 pb-1 gap-3 relative z-[50]">
 
         {/* LEFT: profile photo + nameplate below */}
         <div className="flex flex-col items-start gap-0 min-w-0">
