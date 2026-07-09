@@ -1417,7 +1417,7 @@ app.use((req, res, next) => {
     swamp: "bg_swamp_map_v6.jpeg",
     snowy_mountain: "bg_snowy_mountain_map.webp",
     sky_realm: "bg_sky_realm_map.webp",
-    haunted_woods: "bg_haunted_woods_v2.webp",
+    haunted_woods: "IMG_6872_1783621831062.png",
     enchanted_grove: "bg_enchanted_grove_map.webp",
     island: "bg_island_map.webp",
     desert: "bg_desert_map.webp",

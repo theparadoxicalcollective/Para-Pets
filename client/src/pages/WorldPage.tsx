@@ -1998,7 +1998,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
           WebkitBackdropFilter: "blur(4px)",
         }}
       >
-        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} hideProfile />
+        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} hideProfile hideCoins />
       </div>
 
       <div

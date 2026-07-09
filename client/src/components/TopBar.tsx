@@ -23,9 +23,10 @@ interface TopBarProps {
   onProfileClick: () => void;
   onUserUpdate?: (user: any) => void;
   hideProfile?: boolean;
+  hideCoins?: boolean;
 }
 
-export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile }: TopBarProps) {
+export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile, hideCoins }: TopBarProps) {
   const [location, navigate] = useLocation();
   const [showRewards, setShowRewards] = useState(false);
   const [showAdminMsgsPopup, setShowAdminMsgsPopup] = useState(false);
@@ -112,7 +113,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                   {/* Photo — bigger, pushed down within frame opening */}
                   <div
                     className="absolute z-10 overflow-hidden rounded-xl"
-                    style={{ top: "14%", left: "10%", right: "10%", bottom: "10%", border: "2px solid rgba(5,2,0,0.88)" }}
+                    style={{ top: "18%", left: "10%", right: "10%", bottom: "8%", border: "2px solid rgba(5,2,0,0.88)" }}
                   >
                     {user.profileImage ? (
                       <img
@@ -137,7 +138,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                     src={profileFrameImg}
                     alt=""
                     className="block w-full z-20 pointer-events-none relative"
-                    style={{ height: "auto" }}
+                    style={{ height: "auto", filter: "drop-shadow(0 4px 18px rgba(0,0,0,0.9))" }}
                   />
                 </div>
               </button>
@@ -281,9 +282,9 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
               </div>
             )}
 
-            {/* Nameplate — overlaps more into frame bottom edge */}
-            <div style={{ position: "relative", width: 108, marginTop: -18, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <img src={nameplateImg} alt="" style={{ display: "block", width: "100%", height: "auto" }} />
+            {/* Nameplate — overlaps slightly into frame bottom edge */}
+            <div style={{ position: "relative", width: 108, marginTop: -8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <img src={nameplateImg} alt="" style={{ display: "block", width: "100%", height: "auto", filter: "drop-shadow(0 3px 10px rgba(0,0,0,0.9))" }} />
               <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <p
                   className="font-fantasy text-[#f0c040] font-semibold tracking-widest truncate"
@@ -297,7 +298,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
           </div>}
 
           {/* Coins — bar on left, bag icon on right */}
-          <div className="flex flex-row items-center gap-1 flex-shrink-0">
+          {!hideCoins && <div className="flex flex-row items-center gap-1 flex-shrink-0">
             {/* Coin bar — smaller, on left */}
             <button
               data-testid="button-coin-shop"
@@ -331,7 +332,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
             >
               <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 40, height: 40, objectFit: "contain", filter: "drop-shadow(0 0 1.5px rgba(212,160,23,1)) drop-shadow(0 0 8px rgba(212,160,23,0.65)) drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
             </button>
-          </div>
+          </div>}
           </div>
         </div>
 

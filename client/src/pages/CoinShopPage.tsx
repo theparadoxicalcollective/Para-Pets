@@ -455,7 +455,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         />
       ))}
 
-      <div className="flex-1 overflow-y-auto pb-6" style={{ position: "relative", zIndex: 3 }}>
+      <div className="flex-1 overflow-y-auto pb-6" style={{ position: "relative", zIndex: 3, overflowX: "hidden" }}>
         <div className="px-4 pt-5 pb-3" style={{ position: "relative", textAlign: "center" }}>
           <h1
             className="font-fantasy text-2xl tracking-[0.25em]"
@@ -913,7 +913,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             <p className="font-fantasy text-sm animate-pulse" style={{ color: "rgba(127,255,212,0.4)" }}>Loading treasury...</p>
           </div>
         ) : (
-          <div className="px-4 grid grid-cols-2 gap-3" style={{ overflow: "visible" }}>
+          <div className="px-4 grid grid-cols-2 gap-3" style={{ overflowX: "hidden" }}>
             {packsData?.packs.map((pack) => {
               const isDisabled = pack.priceUsd > dailyRemaining;
               const isBuying = buyingPackId === pack.id && checkoutMutation.isPending;
