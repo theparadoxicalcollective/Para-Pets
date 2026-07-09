@@ -875,7 +875,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             style={{
               pointerEvents: "none",
               zIndex: 30,
-              paddingTop: "82px",
+              paddingTop: "155px",
               marginBottom: "-52px",
             }}
           >

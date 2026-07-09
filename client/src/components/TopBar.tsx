@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Mail } from "lucide-react";
 
 import coinBarImg from "@assets/Photoroom_20260709_102133_AM_1783610567237.png";
+import coinBagIconImg from "@assets/generated_images/icon_coin_bag.png";
 import giftIconImg from "@assets/Photoroom_20260708_51809_PM_1783549272918.png";
 import profileFrameImg from "@assets/Photoroom_20260709_92006_AM_1783607153082.png";
 import nameplateImg from "@assets/Photoroom_20260709_92122_AM_1783607153082.png";
@@ -92,7 +93,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
 
   return (
     <>
-      <div className="flex items-center justify-between px-3 pt-3 pb-1 gap-3 relative z-[50]">
+      <div className="flex items-center justify-between px-3 pb-2 gap-3 relative z-[50]" style={{ paddingTop: "max(16px, calc(env(safe-area-inset-top, 0px) + 16px))" }}>
 
         {/* LEFT: profile photo + nameplate below */}
         <div className="flex flex-col items-start gap-0 min-w-0">
@@ -111,9 +112,9 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                     src={profileFrameImg}
                     alt=""
                     className="absolute z-20 pointer-events-none"
-                    style={{ top: "-12px", left: "-12px", width: "calc(100% + 24px)", height: "calc(100% + 24px)", objectFit: "contain" }}
+                    style={{ top: "-14px", left: "-14px", width: "calc(100% + 28px)", height: "calc(100% + 28px)", objectFit: "fill" }}
                   />
-                  <div className="absolute z-10 overflow-hidden rounded-lg" style={{ inset: "6px" }}>
+                  <div className="absolute z-10 overflow-hidden rounded-xl" style={{ inset: "6px", border: "2px solid rgba(5,2,0,0.85)", boxSizing: "border-box" }}>
                     {user.profileImage ? (
                       <img
                         data-testid="img-profile-avatar"
@@ -276,15 +277,24 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
           </div>
 
           {/* Coins + coin bag to the right of the profile photo */}
-          <div className="flex flex-col gap-1 flex-shrink-0 justify-center">
-            {/* New coin bar */}
+          <div className="flex flex-col gap-0.5 flex-shrink-0 justify-center items-center">
+            {/* Coin bag icon — tap to open coin shop */}
+            <button
+              data-testid="button-coin-bag"
+              onClick={() => navigate("/coins")}
+              className="transition-transform active:scale-90"
+              style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}
+            >
+              <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 40, height: 40, objectFit: "contain", filter: "drop-shadow(0 0 1.5px rgba(212,160,23,1)) drop-shadow(0 0 8px rgba(212,160,23,0.65)) drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
+            </button>
+            {/* Coin bar — shows amount */}
             <button
               data-testid="button-coin-shop"
               onClick={() => navigate("/coins")}
               className="transition-transform active:scale-95"
               style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0, position: "relative", display: "inline-flex", alignItems: "center" }}
             >
-              <img src={coinBarImg} alt="Coins" style={{ height: 42, width: "auto", objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
+              <img src={coinBarImg} alt="Coins" style={{ height: 40, width: "auto", objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
               <span
                 className="font-fantasy text-[#f5d060] font-semibold"
                 style={{
@@ -304,12 +314,12 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
           </div>
           </div>
           {/* Nameplate — centered below profile photo */}
-          <div style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", marginTop: -2, alignSelf: "flex-start" }}>
+          <div style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", marginTop: 2, alignSelf: "flex-start" }}>
             <img src={nameplateImg} alt="" style={{ display: "block", height: 34, width: "auto", objectFit: "contain" }} />
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", paddingLeft: "10%", paddingRight: "10%" }}>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", paddingLeft: "8%", paddingRight: "8%" }}>
               <p
                 className="font-fantasy text-[#f0c040] font-semibold tracking-widest truncate"
-                style={{ textShadow: "0 0 10px rgba(240,192,64,0.6)", fontSize: "clamp(10px, calc(2.8*var(--vw)), 13px)" }}
+                style={{ textShadow: "0 0 10px rgba(240,192,64,0.6)", fontSize: "clamp(10px, calc(2.8*var(--vw)), 13px)", width: "100%", textAlign: "center" }}
                 data-testid="text-username"
               >
                 {user.username}
