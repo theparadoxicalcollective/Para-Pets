@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
-import { X, MessageSquare, Zap, Star, RotateCcw, ShieldPlus } from "lucide-react";
+import { X, Zap, Star, RotateCcw, ShieldPlus } from "lucide-react";
+import supportIconImg from "@assets/Photoroom_20260708_111738_PM_1783570684580.png";
 import WorldChatPanel from "@/components/WorldChatPanel";
 import PetDetailPage from "@/components/PetDetailPage";
 import worldChatIconImg from "@assets/generated_images/veridian_watcher_avatar.png";
@@ -2046,7 +2047,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
             }}
           >
-            <MessageSquare className="w-4 h-4" />
+            <img src={supportIconImg} alt="Support" style={{ width: 22, height: 22, objectFit: "contain" }} />
           </button>
         </>
       )}

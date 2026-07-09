@@ -7090,13 +7090,18 @@ export async function registerRoutes(
 
   // ── Forum routes ────────────────────────────────────────────────────────────
 
-  app.get("/api/forum/posts", async (_req, res) => {
+  app.get("/api/forum/posts", async (req, res) => {
     try {
+      const userId = (req.user as any)?.id ?? null;
       const rows = await db.execute(sql`
         SELECT fp.id, fp.title, fp.body, fp.image_url, fp.is_pinned,
                fp.created_at, fp.updated_at,
                u.username AS author_name, u.profile_image AS author_avatar,
-               (SELECT COUNT(*)::int FROM forum_comments fc WHERE fc.post_id = fp.id) AS comment_count
+               (SELECT COUNT(*)::int FROM forum_comments fc WHERE fc.post_id = fp.id) AS comment_count,
+               (SELECT COUNT(*)::int FROM forum_post_likes fpl WHERE fpl.post_id = fp.id) AS like_count,
+               CASE WHEN ${userId}::text IS NOT NULL AND EXISTS (
+                 SELECT 1 FROM forum_post_likes WHERE post_id = fp.id AND user_id = ${userId}
+               ) THEN true ELSE false END AS user_liked
         FROM forum_posts fp
         LEFT JOIN users u ON fp.author_id = u.id
         ORDER BY fp.is_pinned DESC, fp.created_at DESC
@@ -7107,9 +7112,14 @@ export async function registerRoutes(
 
   app.get("/api/forum/posts/:id/comments", async (req, res) => {
     try {
+      const userId = (req.user as any)?.id ?? null;
       const rows = await db.execute(sql`
         SELECT fc.id, fc.body, fc.created_at, fc.author_id,
-               u.username AS author_name, u.profile_image AS author_avatar
+               u.username AS author_name, u.profile_image AS author_avatar,
+               (SELECT COUNT(*)::int FROM forum_comment_likes fcl WHERE fcl.comment_id = fc.id) AS like_count,
+               CASE WHEN ${userId}::text IS NOT NULL AND EXISTS (
+                 SELECT 1 FROM forum_comment_likes WHERE comment_id = fc.id AND user_id = ${userId}
+               ) THEN true ELSE false END AS user_liked
         FROM forum_comments fc
         JOIN users u ON fc.author_id = u.id
         WHERE fc.post_id = ${req.params.id}
@@ -7190,6 +7200,57 @@ export async function registerRoutes(
       } else {
         await db.execute(sql`DELETE FROM forum_comments WHERE id = ${req.params.id} AND author_id = ${user.id}`);
       }
+      return res.json({ ok: true });
+    } catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/forum/posts/:id/like", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const postId = req.params.id;
+      const existing = await db.execute(sql`SELECT 1 FROM forum_post_likes WHERE post_id = ${postId} AND user_id = ${userId}`);
+      if (existing.rows.length > 0) {
+        await db.execute(sql`DELETE FROM forum_post_likes WHERE post_id = ${postId} AND user_id = ${userId}`);
+        return res.json({ liked: false });
+      } else {
+        await db.execute(sql`INSERT INTO forum_post_likes (post_id, user_id) VALUES (${postId}, ${userId}) ON CONFLICT DO NOTHING`);
+        return res.json({ liked: true });
+      }
+    } catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/forum/comments/:id/like", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).id;
+      const commentId = req.params.id;
+      const existing = await db.execute(sql`SELECT 1 FROM forum_comment_likes WHERE comment_id = ${commentId} AND user_id = ${userId}`);
+      if (existing.rows.length > 0) {
+        await db.execute(sql`DELETE FROM forum_comment_likes WHERE comment_id = ${commentId} AND user_id = ${userId}`);
+        return res.json({ liked: false });
+      } else {
+        await db.execute(sql`INSERT INTO forum_comment_likes (comment_id, user_id) VALUES (${commentId}, ${userId}) ON CONFLICT DO NOTHING`);
+        return res.json({ liked: true });
+      }
+    } catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
+  app.get("/api/support-messages/my", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const rows = await db.execute(sql`
+        SELECT id, subject, message, is_read, created_at
+        FROM support_messages
+        WHERE username = ${user.username}
+        ORDER BY created_at DESC
+      `);
+      return res.json(rows.rows);
+    } catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/support-messages/my/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      await db.execute(sql`DELETE FROM support_messages WHERE id = ${req.params.id} AND username = ${user.username}`);
       return res.json({ ok: true });
     } catch (err: any) { return res.status(500).json({ message: err.message }); }
   });

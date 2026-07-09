@@ -1065,6 +1065,20 @@ app.use((req, res, next) => {
       )
     `);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_forum_comments_post ON forum_comments(post_id)`);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS forum_post_likes (
+        post_id uuid NOT NULL REFERENCES forum_posts(id) ON DELETE CASCADE,
+        user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        PRIMARY KEY (post_id, user_id)
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS forum_comment_likes (
+        comment_id uuid NOT NULL REFERENCES forum_comments(id) ON DELETE CASCADE,
+        user_id text NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        PRIMARY KEY (comment_id, user_id)
+      )
+    `);
     console.log("forum tables ready.");
   } catch (err) {
     console.error("forum table setup error (non-fatal):", err);

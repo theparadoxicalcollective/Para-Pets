@@ -2507,10 +2507,25 @@ function ForumAdminSection() {
   });
 
   const inputStyle: React.CSSProperties = {
-    width: "100%", background: "rgba(4,12,6,0.75)", border: "1px solid rgba(212,168,67,0.2)",
-    borderRadius: 8, color: "#d4c880", fontSize: 13, padding: "8px 10px", fontFamily: "serif", outline: "none",
+    width: "100%",
+    background: "rgba(255,248,220,0.09)",
+    border: "1px solid rgba(212,168,67,0.4)",
+    borderRadius: 8,
+    color: "#f5e8b0",
+    fontSize: 13,
+    padding: "9px 11px",
+    fontFamily: "sans-serif",
+    outline: "none",
   };
-  const labelStyle: React.CSSProperties = { fontSize: 11, color: "rgba(212,168,67,0.65)", marginBottom: 4, display: "block", fontFamily: "fantasy" };
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12,
+    color: "#c8b060",
+    marginBottom: 5,
+    display: "block",
+    fontFamily: "sans-serif",
+    fontWeight: 600,
+    letterSpacing: "0.04em",
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>

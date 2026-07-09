@@ -79,6 +79,8 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
+  const [showSupportHistory, setShowSupportHistory] = useState(false);
+  const [supportSubject, setSupportSubject] = useState("");
 
   const [showFriends, setShowFriends] = useState(false);
   const [viewingFriendId, setViewingFriendId] = useState<string | null>(null);
@@ -300,7 +302,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
       const res = await apiRequest("POST", "/api/support-message", {
         username: user.username,
         email: user.email,
-        subject: "Player Feedback",
+        subject: supportSubject.trim() || "Player Feedback",
         message: feedbackMessage.trim(),
       });
       return res.json();
@@ -308,10 +310,46 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
     onSuccess: () => {
       setFeedbackSent(true);
       setFeedbackMessage("");
+      setSupportSubject("");
+      queryClient.invalidateQueries({ queryKey: ["/api/support-messages/my"] });
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to send feedback. Please try again.", variant: "destructive" });
     },
+  });
+
+  const { data: mySupportMessages = [] } = useQuery<any[]>({
+    queryKey: ["/api/support-messages/my"],
+    queryFn: async () => {
+      const res = await fetch("/api/support-messages/my", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: showFeedback && showSupportHistory,
+    staleTime: 10_000,
+  });
+
+  const { data: adminReplies = [] } = useQuery<any[]>({
+    queryKey: ["/api/admin-messages"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin-messages", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: showFeedback && showSupportHistory,
+    staleTime: 10_000,
+  });
+
+  const deleteSentMessage = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/support-messages/my/${id}`).then(r => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/support-messages/my"] }),
+    onError: () => toast({ title: "Error", description: "Failed to delete message.", variant: "destructive" }),
+  });
+
+  const deleteAdminReply = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin-messages/${id}`).then(r => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin-messages"] }),
+    onError: () => toast({ title: "Error", description: "Failed to delete reply.", variant: "destructive" }),
   });
 
   const isPending = updateUsernameMutation.isPending || updateProfilePicMutation.isPending || changePasswordMutation.isPending || logoutMutation.isPending || deleteAccountMutation.isPending || feedbackMutation.isPending;
@@ -592,66 +630,192 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
 
               {showFeedback && (
                 <div
-                  className="mt-2 rounded-lg p-3 space-y-3"
+                  className="mt-2 rounded-lg overflow-hidden"
                   style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(100,140,212,0.2)" }}
                 >
-                  {feedbackSent ? (
-                    <div className="text-center py-2 space-y-2">
-                      <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-feedback-sent">
-                        Message sent!
-                      </p>
-                      <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
-                        Our support team will review your message and get back to you.
-                      </p>
-                      <button
-                        onClick={() => { setShowFeedback(false); setFeedbackSent(false); }}
-                        className="font-fantasy text-[#8ab4f8] text-xs tracking-wider hover:text-[#aaccff] transition-colors"
-                        style={{ background: "none", border: "none", cursor: "pointer" }}
-                      >
-                        Close
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <p className="font-fantasy text-[#8ab4f8] text-[10px] tracking-wider">
-                        Share a bug, idea, or anything on your mind — it goes straight to the admin inbox.
-                      </p>
-                      <textarea
-                        data-testid="input-feedback-message"
-                        value={feedbackMessage}
-                        onChange={e => setFeedbackMessage(e.target.value)}
-                        disabled={feedbackMutation.isPending}
-                        placeholder="What's on your mind?"
-                        rows={4}
-                        maxLength={2000}
-                        className="w-full px-3 py-2 rounded font-sans text-xs resize-none outline-none disabled:opacity-60"
-                        style={{
-                          background: "rgba(255,255,255,0.06)",
-                          border: "1px solid rgba(100,140,212,0.3)",
-                          color: "#e8d8b0",
-                        }}
-                      />
-                      <div className="flex items-center justify-between">
-                        <span className="font-fantasy text-[#6a5840] text-[9px] tracking-wider">
-                          {feedbackMessage.length}/2000
-                        </span>
-                        <button
-                          data-testid="button-submit-feedback"
-                          onClick={() => feedbackMutation.mutate()}
-                          disabled={feedbackMutation.isPending || !feedbackMessage.trim()}
-                          className="px-4 py-1.5 rounded font-fantasy text-xs tracking-wider transition-all disabled:opacity-50"
-                          style={{
-                            background: "linear-gradient(135deg, #1a2d5a 0%, #0d1a3a 100%)",
-                            border: "1px solid rgba(100,140,212,0.5)",
-                            color: "#8ab4f8",
-                            cursor: "pointer",
-                          }}
-                        >
-                          {feedbackMutation.isPending ? "Sending..." : "Send"}
-                        </button>
+                  {/* Tabs */}
+                  <div className="flex border-b" style={{ borderColor: "rgba(100,140,212,0.2)" }}>
+                    <button
+                      onClick={() => { setShowSupportHistory(false); setFeedbackSent(false); }}
+                      className="flex-1 py-2 font-fantasy text-[10px] tracking-wider transition-colors"
+                      style={{
+                        background: !showSupportHistory ? "rgba(100,140,212,0.15)" : "transparent",
+                        color: !showSupportHistory ? "#8ab4f8" : "#6a7a9a",
+                        border: "none",
+                        borderBottom: !showSupportHistory ? "2px solid #8ab4f8" : "2px solid transparent",
+                        cursor: "pointer",
+                      }}
+                    >
+                      New Message
+                    </button>
+                    <button
+                      onClick={() => setShowSupportHistory(true)}
+                      className="flex-1 py-2 font-fantasy text-[10px] tracking-wider transition-colors"
+                      style={{
+                        background: showSupportHistory ? "rgba(100,140,212,0.15)" : "transparent",
+                        color: showSupportHistory ? "#8ab4f8" : "#6a7a9a",
+                        border: "none",
+                        borderBottom: showSupportHistory ? "2px solid #8ab4f8" : "2px solid transparent",
+                        cursor: "pointer",
+                      }}
+                    >
+                      My Messages
+                    </button>
+                  </div>
+
+                  <div className="p-3 space-y-3">
+                    {!showSupportHistory ? (
+                      /* New message form */
+                      feedbackSent ? (
+                        <div className="text-center py-2 space-y-2">
+                          <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-feedback-sent">
+                            Message sent!
+                          </p>
+                          <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
+                            Our support team will review your message and get back to you.
+                          </p>
+                          <button
+                            onClick={() => { setShowFeedback(false); setFeedbackSent(false); }}
+                            className="font-fantasy text-[#8ab4f8] text-xs tracking-wider hover:text-[#aaccff] transition-colors"
+                            style={{ background: "none", border: "none", cursor: "pointer" }}
+                          >
+                            Close
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="font-fantasy text-[#8ab4f8] text-[10px] tracking-wider">
+                            Share a bug, idea, or anything — it goes straight to the admin inbox.
+                          </p>
+                          <input
+                            data-testid="input-support-subject"
+                            value={supportSubject}
+                            onChange={e => setSupportSubject(e.target.value)}
+                            disabled={feedbackMutation.isPending}
+                            placeholder="Subject (optional)"
+                            maxLength={200}
+                            className="w-full px-3 py-2 rounded font-sans text-xs outline-none disabled:opacity-60"
+                            style={{
+                              background: "rgba(255,255,255,0.06)",
+                              border: "1px solid rgba(100,140,212,0.3)",
+                              color: "#e8d8b0",
+                            }}
+                          />
+                          <textarea
+                            data-testid="input-feedback-message"
+                            value={feedbackMessage}
+                            onChange={e => setFeedbackMessage(e.target.value)}
+                            disabled={feedbackMutation.isPending}
+                            placeholder="What's on your mind?"
+                            rows={4}
+                            maxLength={2000}
+                            className="w-full px-3 py-2 rounded font-sans text-xs resize-none outline-none disabled:opacity-60"
+                            style={{
+                              background: "rgba(255,255,255,0.06)",
+                              border: "1px solid rgba(100,140,212,0.3)",
+                              color: "#e8d8b0",
+                            }}
+                          />
+                          <div className="flex items-center justify-between">
+                            <span className="font-fantasy text-[#6a5840] text-[9px] tracking-wider">
+                              {feedbackMessage.length}/2000
+                            </span>
+                            <button
+                              data-testid="button-submit-feedback"
+                              onClick={() => feedbackMutation.mutate()}
+                              disabled={feedbackMutation.isPending || !feedbackMessage.trim()}
+                              className="px-4 py-1.5 rounded font-fantasy text-xs tracking-wider transition-all disabled:opacity-50"
+                              style={{
+                                background: "linear-gradient(135deg, #1a2d5a 0%, #0d1a3a 100%)",
+                                border: "1px solid rgba(100,140,212,0.5)",
+                                color: "#8ab4f8",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {feedbackMutation.isPending ? "Sending..." : "Send"}
+                            </button>
+                          </div>
+                        </>
+                      )
+                    ) : (
+                      /* Message history */
+                      <div className="space-y-4">
+                        {/* Sent Messages */}
+                        <div>
+                          <p className="font-fantasy text-[#8ab4f8] text-[10px] tracking-widest mb-2">Sent Messages</p>
+                          {mySupportMessages.length === 0 ? (
+                            <p className="font-sans text-[#6a7a9a] text-xs italic">No messages sent yet.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {mySupportMessages.map((msg: any) => (
+                                <div
+                                  key={msg.id}
+                                  className="rounded p-2.5"
+                                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(100,140,212,0.15)" }}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-fantasy text-[#c0d0f0] text-[11px] tracking-wider truncate">{msg.subject || "Player Feedback"}</p>
+                                      <p className="font-sans text-[#8a9ab8] text-[10px] mt-0.5 line-clamp-2">{msg.message}</p>
+                                      <p className="font-sans text-[#4a5870] text-[9px] mt-1">
+                                        {msg.is_read ? "✓ Read" : "Pending"} · {new Date(msg.created_at).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                    <button
+                                      onClick={() => deleteSentMessage.mutate(String(msg.id))}
+                                      disabled={deleteSentMessage.isPending}
+                                      className="shrink-0 text-[#6a5840] hover:text-red-400 transition-colors disabled:opacity-40"
+                                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, lineHeight: 1 }}
+                                      title="Delete"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Admin Replies */}
+                        <div>
+                          <p className="font-fantasy text-[#f0c040] text-[10px] tracking-widest mb-2">Admin Replies</p>
+                          {adminReplies.length === 0 ? (
+                            <p className="font-sans text-[#6a7a9a] text-xs italic">No replies yet.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {adminReplies.map((reply: any) => (
+                                <div
+                                  key={reply.id}
+                                  className="rounded p-2.5"
+                                  style={{ background: "rgba(240,192,64,0.06)", border: "1px solid rgba(240,192,64,0.2)" }}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider truncate">{reply.subject}</p>
+                                      <p className="font-sans text-[#d4c880] text-[10px] mt-0.5">{reply.message}</p>
+                                      <p className="font-sans text-[#8a7840] text-[9px] mt-1">
+                                        {new Date(reply.created_at).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                    <button
+                                      onClick={() => deleteAdminReply.mutate(String(reply.id))}
+                                      disabled={deleteAdminReply.isPending}
+                                      className="shrink-0 text-[#6a5840] hover:text-red-400 transition-colors disabled:opacity-40"
+                                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, lineHeight: 1 }}
+                                      title="Delete"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </>
-                  )}
+                    )}
+                  </div>
                 </div>
               )}
             </div>
