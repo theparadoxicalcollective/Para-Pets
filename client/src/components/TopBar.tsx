@@ -98,8 +98,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
         {/* LEFT: profile photo + nameplate below */}
         <div className="flex flex-col items-start gap-0 min-w-0">
           <div className="flex items-center gap-2">
-          {/* Profile photo — frame is in normal flow so game-stage overflow:hidden never clips it */}
-          <div className="flex flex-col items-center gap-1 flex-shrink-0">
+          {/* Profile photo — frame + nameplate stacked, centered */}
+          <div className="flex flex-col items-center gap-0 flex-shrink-0">
             <div className="relative flex-shrink-0" style={{ width: 96 }}>
               <button
                 data-testid="button-profile"
@@ -108,6 +108,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 style={{ background: "none", border: "none", cursor: "pointer", display: "block", width: "100%" }}
               >
                 <div className="relative w-full">
+                  {/* Photo sits inside the frame's inner opening — ~13% inset on all sides */}
                   <div
                     className="absolute z-10 overflow-hidden rounded-xl"
                     style={{ top: "13%", left: "12%", right: "12%", bottom: "13%", border: "2px solid rgba(5,2,0,0.88)" }}
@@ -130,6 +131,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                       </div>
                     )}
                   </div>
+                  {/* Frame in-flow — renders at natural 1115×1126 ratio, no squish, no overflow */}
                   <img
                     src={profileFrameImg}
                     alt=""
@@ -277,17 +279,32 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 )}
               </div>
             )}
+
+            {/* Nameplate — centered under frame border, overlaps bottom edge */}
+            <div style={{ position: "relative", width: 108, marginTop: -12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <img src={nameplateImg} alt="" style={{ display: "block", width: "100%", height: "auto" }} />
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <p
+                  className="font-fantasy text-[#f0c040] font-semibold tracking-widest truncate"
+                  style={{ textShadow: "0 0 10px rgba(240,192,64,0.6)", fontSize: "clamp(10px, calc(2.8*var(--vw)), 13px)", textAlign: "center", maxWidth: "80%" }}
+                  data-testid="text-username"
+                >
+                  {user.username}
+                </p>
+              </div>
+            </div>
           </div>
 
-          {/* Coins + coin bag — vertical stack to the right of profile photo */}
-          <div className="flex flex-col gap-1 flex-shrink-0 justify-center">
+          {/* Coins — bar on left, bag icon on right */}
+          <div className="flex flex-row items-center gap-1 flex-shrink-0">
+            {/* Coin bar — smaller, on left */}
             <button
               data-testid="button-coin-shop"
               onClick={() => navigate("/coins")}
               className="transition-transform active:scale-95"
               style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0, position: "relative", display: "inline-flex", alignItems: "center" }}
             >
-              <img src={coinBarImg} alt="Coins" style={{ height: 40, width: "auto", objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
+              <img src={coinBarImg} alt="Coins" style={{ height: 30, width: "auto", objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
               <span
                 className="font-fantasy text-[#f5d060] font-semibold"
                 style={{
@@ -295,7 +312,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                   left: "36%",
                   right: "7%",
                   textAlign: "center",
-                  fontSize: "clamp(11px, calc(3.4*var(--vw)), 15px)",
+                  fontSize: "clamp(9px, calc(2.8*var(--vw)), 12px)",
                   textShadow: "0 1px 4px rgba(0,0,0,0.95), 0 0 8px rgba(0,0,0,0.7)",
                   pointerEvents: "none",
                 }}
@@ -304,28 +321,16 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 {user.coins.toLocaleString()}
               </span>
             </button>
+            {/* Coin bag icon — on right */}
             <button
               data-testid="button-coin-bag"
               onClick={() => navigate("/coins")}
-              className="flex items-center justify-center transition-transform active:scale-90"
+              className="transition-transform active:scale-90"
               style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}
             >
-              <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 44, height: 44, objectFit: "contain", filter: "drop-shadow(0 0 1.5px rgba(212,160,23,1)) drop-shadow(0 0 8px rgba(212,160,23,0.65)) drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
+              <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 40, height: 40, objectFit: "contain", filter: "drop-shadow(0 0 1.5px rgba(212,160,23,1)) drop-shadow(0 0 8px rgba(212,160,23,0.65)) drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
             </button>
           </div>
-          </div>
-          {/* Nameplate — below profile photo, aligned left */}
-          <div style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", marginTop: -2, alignSelf: "flex-start" }}>
-            <img src={nameplateImg} alt="" style={{ display: "block", height: 26, width: "auto", objectFit: "contain" }} />
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", paddingLeft: "10%", paddingRight: "10%" }}>
-              <p
-                className="font-fantasy text-[#f0c040] font-semibold tracking-widest truncate"
-                style={{ textShadow: "0 0 10px rgba(240,192,64,0.6)", fontSize: "clamp(10px, calc(2.8*var(--vw)), 13px)" }}
-                data-testid="text-username"
-              >
-                {user.username}
-              </p>
-            </div>
           </div>
         </div>
 
