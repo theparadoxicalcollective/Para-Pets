@@ -419,7 +419,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   const dailyRemaining = packsData ? packsData.dailyLimit - packsData.dailySpent : 500;
 
   return (
-    <div className="h-screen-frame flex flex-col relative overflow-hidden" style={{ background: "linear-gradient(180deg, #040d04 0%, #071a0a 15%, #0d2510 40%, #081a0d 65%, #051208 85%, #040d04 100%)", paddingTop: "env(safe-area-inset-top, 0px)" }}>
+    <div className="h-screen-frame flex flex-col relative overflow-y-auto overflow-x-hidden" style={{ background: "linear-gradient(180deg, #040d04 0%, #071a0a 15%, #0d2510 40%, #081a0d 65%, #051208 85%, #040d04 100%)", paddingTop: "env(safe-area-inset-top, 0px)" }}>
       <style>{fireflyKeyframes}</style>
 
       <div style={{
@@ -455,7 +455,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         />
       ))}
 
-      <div className="flex-1 overflow-y-auto pb-6" style={{ position: "relative", zIndex: 3, overflowX: "hidden" }}>
+      <div className="flex-1 pb-6" style={{ position: "relative", zIndex: 3 }}>
         <div className="px-4 pt-5 pb-3" style={{ position: "relative", textAlign: "center" }}>
           <h1
             className="font-fantasy text-2xl tracking-[0.25em]"

@@ -243,8 +243,8 @@ const WORLD_FIXED_MAP_H: Record<string, number> = {
   swamp:           1621, // bg_swamp_map_v6.jpeg 2729×4096 — natural at MAP_W=1080
   snowy_mountain:  1980, // bg_snowy_mountain_map.webp 768×1408
   sky_realm:       1980, // bg_sky_realm_map.webp 768×1408
-  volcanic:        1619, // bg_volcanic_map_v4.webp 1620×2160 — natural at MAP_W=1080
-  haunted_woods:   1619, // bg_haunted_woods_v2.png 1024×1535 — natural at MAP_W=1080
+  volcanic:        1440, // bg_volcanic_map_v4.webp 1620×2160 — natural at MAP_W=1080
+  haunted_woods:   1440, // IMG_6872_1783621831062.png 1620×2160 — natural at MAP_W=1080
   enchanted_grove: 1980, // bg_enchanted_grove_map.webp 768×1408
   island:          1980, // bg_island_map.webp 768×1408
   desert:          1980, // bg_desert_map.webp 768×1408
@@ -1988,18 +1988,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       style={{ animation: "worldFadeIn 0.35s ease-out" }}
     >
       <style>{`.world-scroll::-webkit-scrollbar-thumb{background:${accent}40;border-radius:4px;}.world-scroll::-webkit-scrollbar-thumb:hover{background:${accent}70;}`}</style>
-
-      <div
-        className="absolute top-0 left-0 right-0 z-40"
-        style={{
-          paddingTop: "env(safe-area-inset-top, 0px)",
-          background: "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 80%, transparent 100%)",
-          backdropFilter: "blur(4px)",
-          WebkitBackdropFilter: "blur(4px)",
-        }}
-      >
-        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} hideProfile hideCoins />
-      </div>
 
       <div
         ref={vpRef}

@@ -2008,10 +2008,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                   ? "2px solid rgba(94,234,212,0.65)"
                   : "2px solid rgba(94,234,212,0.3)",
               boxShadow: showWorldChat
-                ? "0 0 14px rgba(94,234,212,0.45)"
+                ? "0 0 14px rgba(94,234,212,0.45), 0 4px 16px rgba(0,0,0,0.9)"
                 : chatHasNewMsg
                   ? "0 0 16px rgba(94,234,212,0.6)"
-                  : "0 2px 8px rgba(0,0,0,0.5)",
+                  : "0 4px 16px rgba(0,0,0,0.9)",
             }}
           >
             <img
