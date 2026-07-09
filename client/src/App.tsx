@@ -22,7 +22,7 @@ import DevelopmentNoticeScreen from "@/components/DevelopmentNoticeScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
 import FloatingNav from "@/components/FloatingNav";
 import BeginJourneyOverlay from "@/components/BeginJourneyOverlay";
-import { bjGetStatus, bjStart } from "@/lib/beginJourney";
+import { bjGetStatus, bjStart, bjSetStep } from "@/lib/beginJourney";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 // ── Lazy-loaded page chunks ────────────────────────────────────────────────
@@ -281,8 +281,14 @@ function AppRouter() {
   // quest. Catches players who created accounts before the tutorial existed, or
   // who dismissed the welcome screen without clicking "Collect & Begin Journey".
   // Skip if showWelcome is true — new players will start it from WelcomeGiftScreen.
+  // If the server says the quest is already complete, sync localStorage so a
+  // new device/browser never re-triggers the tutorial.
   useEffect(() => {
     if (!user || showWelcome) return;
+    if ((user as any).tutorial_quest_completed || (user as any).tutorial_reward_claimed) {
+      if (bjGetStatus() !== "done") bjSetStep("done");
+      return;
+    }
     if (bjGetStatus() === "not_started") bjStart();
   }, [user, showWelcome]);
 

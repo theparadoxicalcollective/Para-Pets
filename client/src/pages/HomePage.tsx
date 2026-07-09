@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useLocation, useSearch } from "wouter";
-import { X, HelpCircle, Zap, Star, RotateCcw, ShieldPlus } from "lucide-react";
+import { X, MessageSquare, Zap, Star, RotateCcw, ShieldPlus } from "lucide-react";
 import WorldChatPanel from "@/components/WorldChatPanel";
 import PetDetailPage from "@/components/PetDetailPage";
 import worldChatIconImg from "@assets/generated_images/veridian_watcher_avatar.png";
@@ -152,7 +152,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [homeDragOver, setHomeDragOver] = useState(false);
   const [homeDragging, setHomeDragging] = useState<{ item: InventoryItem; x: number; y: number } | null>(null);
   const homeEggDropRef = useRef<HTMLDivElement>(null);
-  const [showHomePageTutorial, setShowHomePageTutorial] = useState(() => !localStorage.getItem("homePageTutorialSeen"));
+  const [showSupportModal, setShowSupportModal] = useState(false);
+  const [supportSubject, setSupportSubject] = useState("");
+  const [supportMessage, setSupportMessage] = useState("");
+  const [supportSent, setSupportSent] = useState(false);
   const [showWorldChat, setShowWorldChat] = useState(false);
   const [chatHasNewMsg, setChatHasNewMsg] = useState(false);
   const bgChatCountRef = useRef(-1);
@@ -193,6 +196,17 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     refetchInterval: 30000,
     staleTime: 10000,
     enabled: !!currentUser,
+  });
+
+  const supportMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/support-message", {
+      username: currentUser.username,
+      email: currentUser.email,
+      subject: supportSubject,
+      message: supportMessage,
+    }).then(r => r.json()),
+    onSuccess: () => setSupportSent(true),
+    onError: () => toast({ title: "Error", description: "Failed to send message. Please try again.", variant: "destructive" }),
   });
 
   const acceptFriendMutation = useMutation({
@@ -1969,8 +1983,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         }
       `}</style>
 
-      {/* Chat + Tutorial buttons — top-right corner */}
-      {!showHomePageTutorial && !showProfile && !showActionMenu && !activePetModal && (
+      {/* Chat + Support buttons — top-right corner */}
+      {!showProfile && !showActionMenu && !activePetModal && (
         <>
           {/* World Chat toggle button */}
           <button
@@ -2015,10 +2029,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               }}
             />
           </button>
-          {/* Tutorial ? button */}
+          {/* Support message button */}
           <button
-            data-testid="button-open-homepage-tutorial"
-            onClick={() => setShowHomePageTutorial(true)}
+            data-testid="button-open-support"
+            onClick={() => { setShowSupportModal(true); setSupportSent(false); setSupportSubject(""); setSupportMessage(""); }}
             className="absolute z-[50] flex items-center justify-center rounded-full transition-transform active:scale-90"
             style={{
               top: "66px",
@@ -2032,7 +2046,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
             }}
           >
-            <HelpCircle className="w-4 h-4" />
+            <MessageSquare className="w-4 h-4" />
           </button>
         </>
       )}
@@ -2054,11 +2068,12 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         </>
       )}
 
-      {/* Home page tutorial overlay */}
-      {showHomePageTutorial && (
+      {/* Support message modal */}
+      {showSupportModal && (
         <div
           className="absolute inset-0 z-[60] flex items-center justify-center px-5"
           style={{ background: "rgba(0,0,0,0.78)", backdropFilter: "blur(2px)" }}
+          onClick={e => { if (e.target === e.currentTarget) setShowSupportModal(false); }}
         >
           <div
             className="relative w-full max-w-sm rounded-2xl px-5 py-6 flex flex-col gap-4 animate-slide-up"
@@ -2070,13 +2085,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               overflowY: "auto",
             }}
           >
-            {/* Close button */}
             <button
-              data-testid="button-close-homepage-tutorial"
-              onClick={() => {
-                localStorage.setItem("homePageTutorialSeen", "1");
-                setShowHomePageTutorial(false);
-              }}
+              data-testid="button-close-support-modal"
+              onClick={() => setShowSupportModal(false)}
               className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center transition-transform active:scale-90"
               style={{
                 background: "rgba(60,25,5,0.85)",
@@ -2088,105 +2099,82 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               <X className="w-3.5 h-3.5" />
             </button>
 
-            <p className="font-fantasy text-[#f0c040] text-base tracking-wider text-center pr-6">Welcome to Para Pets!</p>
+            <p className="font-fantasy text-[#f0c040] text-base tracking-wider text-center pr-6">Contact Support</p>
 
-            <div className="flex flex-col gap-3">
-
-              {/* Active Pet */}
-              <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(212,160,23,0.12)" }}>
-                <img src={eggMagicIcon} alt="Pet" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1 }} />
-                <div>
-                  <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">Your Active Pet</p>
-                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
-                    Your current companion is shown in the center. Tap it to view details, rename it, or manage it. If it's still an egg — tap to check if it's ready to hatch!
-                  </p>
-                </div>
+            {supportSent ? (
+              <div className="flex flex-col items-center gap-3 py-4">
+                <p className="font-fantasy text-[#7fffd4] text-sm tracking-wide text-center">Message sent!</p>
+                <p className="font-fantasy text-[#a89878] text-[11px] tracking-wide text-center leading-relaxed">
+                  Your message has been delivered to the admin team. We'll look into it soon!
+                </p>
+                <button
+                  data-testid="button-support-done"
+                  onClick={() => setShowSupportModal(false)}
+                  className="mt-2 px-6 py-2 rounded-full font-fantasy text-xs tracking-widest transition-transform active:scale-95"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(0,80,50,0.9) 0%, rgba(0,50,30,0.9) 100%)",
+                    border: "1px solid rgba(0,200,160,0.4)",
+                    color: "#7fffd4",
+                    cursor: "pointer",
+                  }}
+                >
+                  Done
+                </button>
               </div>
-
-              {/* Map */}
-              <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(212,160,23,0.12)" }}>
-                <img src={mapIcon} alt="Map" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1, borderRadius: "6px" }} />
+            ) : (
+              <div className="flex flex-col gap-3">
                 <div>
-                  <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">Map  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom left</span></p>
-                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
-                    Explore different worlds, visit shops to find new pets and items, and unlock fishing spots.
-                  </p>
+                  <label className="font-fantasy text-[#f0c040] text-[10px] tracking-widest block mb-1 ml-1 uppercase opacity-70">Subject</label>
+                  <input
+                    data-testid="input-support-subject"
+                    type="text"
+                    value={supportSubject}
+                    onChange={e => setSupportSubject(e.target.value)}
+                    disabled={supportMutation.isPending}
+                    placeholder="e.g. Bug report, Account help..."
+                    className="w-full px-3 py-2 rounded-lg font-sans text-sm text-[#1a0e04] placeholder-[#8a7060] outline-none disabled:opacity-60"
+                    style={{
+                      background: "linear-gradient(135deg, #f5ead8 0%, #ecdec0 100%)",
+                      border: "1.5px solid rgba(170,125,35,0.55)",
+                      boxShadow: "inset 0 2px 4px rgba(0,0,0,0.15)",
+                    }}
+                  />
                 </div>
-              </div>
-
-              {/* Quests */}
-              <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(212,160,23,0.12)" }}>
-                <img src={questIcon} alt="Quests" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1, borderRadius: "6px" }} />
                 <div>
-                  <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">Quests  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom</span></p>
-                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
-                    View your active quests and daily challenges. Complete them to earn rewards and coins.
-                  </p>
+                  <label className="font-fantasy text-[#f0c040] text-[10px] tracking-widest block mb-1 ml-1 uppercase opacity-70">Message</label>
+                  <textarea
+                    data-testid="input-support-message"
+                    value={supportMessage}
+                    onChange={e => setSupportMessage(e.target.value)}
+                    disabled={supportMutation.isPending}
+                    placeholder="Describe what you need help with..."
+                    rows={4}
+                    maxLength={2000}
+                    className="w-full px-3 py-2 rounded-lg font-sans text-sm text-[#1a0e04] placeholder-[#8a7060] outline-none disabled:opacity-60 resize-none"
+                    style={{
+                      background: "linear-gradient(135deg, #f5ead8 0%, #ecdec0 100%)",
+                      border: "1.5px solid rgba(170,125,35,0.55)",
+                      boxShadow: "inset 0 2px 4px rgba(0,0,0,0.15)",
+                    }}
+                  />
+                  <p className="font-fantasy text-[#5a8870] text-[9px] tracking-wider text-right mt-0.5">{supportMessage.length}/2000</p>
                 </div>
+                <button
+                  data-testid="button-submit-support"
+                  onClick={() => supportMutation.mutate()}
+                  disabled={supportMutation.isPending || !supportSubject.trim() || !supportMessage.trim()}
+                  className="py-2.5 rounded-full font-fantasy text-xs tracking-widest transition-transform active:scale-95 disabled:opacity-50"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(0,80,50,0.9) 0%, rgba(0,50,30,0.9) 100%)",
+                    border: "1px solid rgba(0,200,160,0.4)",
+                    color: "#7fffd4",
+                    cursor: "pointer",
+                  }}
+                >
+                  {supportMutation.isPending ? "Sending..." : "Send Message"}
+                </button>
               </div>
-
-              {/* Battle */}
-              <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(212,160,23,0.12)" }}>
-                <img src={swordsImg} alt="Battle" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1, borderRadius: "6px" }} />
-                <div>
-                  <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">Battle Arena  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom</span></p>
-                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
-                    Challenge other keepers in the Veridia Arena. Spend a PvP Ticket to enter, swipe to attack, and climb the leaderboard with every win.
-                  </p>
-                </div>
-              </div>
-
-              {/* Pets */}
-              <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(212,160,23,0.12)" }}>
-                <img src={eggImg} alt="Pets" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1, borderRadius: "6px" }} />
-                <div>
-                  <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">Pets  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom</span></p>
-                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
-                    View your full pet collection. Set a pet as your active companion or visit the Pet House to watch them roam.
-                  </p>
-                </div>
-              </div>
-
-              {/* Badges */}
-              <div className="flex items-start gap-3 pb-3" style={{ borderBottom: "1px solid rgba(212,160,23,0.12)" }}>
-                <img src={badgeIcon} alt="Badges" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1, borderRadius: "6px" }} />
-                <div>
-                  <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">Badges  <span style={{ color: "#6a5840", fontSize: "9px" }}>— bottom right</span></p>
-                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
-                    Track your achievements and show off the badges you've earned on your journey.
-                  </p>
-                </div>
-              </div>
-
-              {/* Veridian Watcher */}
-              <div className="flex items-start gap-3">
-                <img src={worldChatIconImg} alt="The Veridian Watcher" style={{ width: 26, height: 26, objectFit: "contain", flexShrink: 0, marginTop: 1, borderRadius: "6px" }} />
-                <div>
-                  <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider mb-0.5">The Veridian Watcher  <span style={{ color: "#6a5840", fontSize: "9px" }}>— top right</span></p>
-                  <p className="font-fantasy text-[#a89878] text-[10px] tracking-wide leading-relaxed">
-                    Tap the Watcher icon to read announcements from the realm's all-seeing guardian.
-                  </p>
-                </div>
-              </div>
-
-            </div>
-
-            <button
-              data-testid="button-got-it-homepage-tutorial"
-              onClick={() => {
-                localStorage.setItem("homePageTutorialSeen", "1");
-                setShowHomePageTutorial(false);
-              }}
-              className="py-2.5 rounded-full font-fantasy text-sm tracking-widest transition-transform active:scale-95"
-              style={{
-                background: "linear-gradient(135deg, rgba(100,70,5,0.9) 0%, rgba(60,40,3,0.9) 100%)",
-                border: "1px solid rgba(212,160,23,0.5)",
-                color: "#f0c040",
-                cursor: "pointer",
-              }}
-            >
-              Begin the Journey!
-            </button>
+            )}
           </div>
         </div>
       )}
