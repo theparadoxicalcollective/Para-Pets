@@ -427,6 +427,7 @@ function AppRouter() {
     location.startsWith("/reset-password/") ||
     location === "/privacy" ||
     location === "/hub" ||
+    location === "/forum" ||
     location === "/founders" ||
     location === "/admin" ||
     location.startsWith("/visit/");

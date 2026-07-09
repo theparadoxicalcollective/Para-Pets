@@ -138,17 +138,41 @@ const NOTICES = [
   { img: noticeExplore,   label: "Explore Worlds", href: "/map" },
 ];
 
+interface DbNotice { id: string; image_url: string; href: string; label: string; }
+interface ActiveNotice { img: string; href: string | null; label: string; id: string | null; }
+
 function NoticeCarousel() {
   const [idx, setIdx] = useState(0);
   const [, navigate] = useLocation();
+  const { toast }    = useToast();
+  const qc           = useQueryClient();
   const { data: user } = useQuery<any>({ queryKey: ["/api/auth/me"], retry: false, staleTime: 30_000 });
+  const { data: dbNotices = [] } = useQuery<DbNotice[]>({
+    queryKey: ["/api/hub/notices"],
+    staleTime: 60_000,
+  });
+
   const ptrRef   = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fileRef  = useRef<HTMLInputElement>(null);
+
+  const [showEdit, setShowEdit]   = useState(false);
+  const [newHref, setNewHref]     = useState("");
+  const [newLabel, setNewLabel]   = useState("");
+  const [newImgB64, setNewImgB64] = useState<string | null>(null);
+
+  // Use DB notices when available, else fall back to hardcoded
+  const notices: ActiveNotice[] = dbNotices.length > 0
+    ? dbNotices.map(n => ({ img: n.image_url, href: n.href || null, label: n.label, id: n.id }))
+    : NOTICES.map(n => ({ img: n.img, href: (n as any).href ?? null, label: n.label, id: null }));
+
+  const safeIdx = notices.length > 0 ? Math.min(idx, notices.length - 1) : 0;
 
   const restartTimer = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => setIdx(i => (i + 1) % NOTICES.length), 4200);
-  }, []);
+    const len = Math.max(1, notices.length);
+    timerRef.current = setInterval(() => setIdx(i => (i + 1) % len), 4200);
+  }, [notices.length]);
 
   useEffect(() => {
     restartTimer();
@@ -156,64 +180,154 @@ function NoticeCarousel() {
   }, [restartTimer]);
 
   const goTo = (i: number) => {
-    setIdx(((i % NOTICES.length) + NOTICES.length) % NOTICES.length);
+    const len = Math.max(1, notices.length);
+    setIdx(((i % len) + len) % len);
     restartTimer();
   };
 
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setNewImgB64(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const addNotice = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/hub/notices", {
+      image_url: newImgB64, href: newHref.trim(), label: newLabel.trim(),
+    }).then(r => r.json()),
+    onSuccess: () => {
+      toast({ title: "Notice added" });
+      setNewImgB64(null); setNewHref(""); setNewLabel("");
+      if (fileRef.current) fileRef.current.value = "";
+      qc.invalidateQueries({ queryKey: ["/api/hub/notices"] });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteNotice = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/hub/notices/${id}`).then(r => r.json()),
+    onSuccess: () => {
+      toast({ title: "Notice removed" });
+      qc.invalidateQueries({ queryKey: ["/api/hub/notices"] });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const cur = notices[safeIdx];
+
   return (
     <div data-testid="notice-carousel">
-      <h2 className="font-fantasy text-center text-xs tracking-widest mb-4"
-        style={{ color: "rgba(212,168,67,0.7)", letterSpacing: "0.25em" }}>
-        WHAT'S HAPPENING
-      </h2>
-
-      <div
-        style={{ position: "relative", borderRadius: 18, overflow: "hidden", touchAction: "pan-y", cursor: "grab" }}
-        onPointerDown={e => { ptrRef.current = e.clientX; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); }}
-        onPointerUp={e => {
-          if (ptrRef.current === null) return;
-          const dx = e.clientX - ptrRef.current;
-          ptrRef.current = null;
-          if (Math.abs(dx) > 28) {
-            goTo(idx + (dx < 0 ? 1 : -1));
-          } else if (user && NOTICES[idx].href) {
-            navigate(NOTICES[idx].href);
-          }
-        }}
-        onPointerLeave={() => { ptrRef.current = null; }}
-      >
-        <img
-          src={NOTICES[idx].img}
-          alt={NOTICES[idx].label}
-          data-testid={`notice-img-${idx}`}
-          style={{
-            width: "100%",
-            maxHeight: 468,
-            objectFit: "cover",
-            objectPosition: "top",
-            display: "block",
-            border: "1.5px solid rgba(212,168,67,0.3)",
-            borderRadius: 18,
-            boxShadow: "0 0 28px rgba(212,168,67,0.12), 0 10px 30px rgba(0,0,0,0.65)",
-          }}
-        />
-        <div style={{
-          position: "absolute", bottom: 0, left: 0, right: 0, height: 72,
-          background: "linear-gradient(to top,rgba(3,14,5,0.75),transparent)",
-          borderRadius: "0 0 18px 18px",
-          pointerEvents: "none",
-        }} />
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 16 }}>
+        <h2 className="font-fantasy text-xs tracking-widest"
+          style={{ color: "rgba(212,168,67,0.7)", letterSpacing: "0.25em" }}>
+          WHAT'S HAPPENING
+        </h2>
+        {user?.isAdmin && (
+          <button
+            data-testid="button-notice-edit"
+            onClick={() => setShowEdit(v => !v)}
+            style={{
+              padding: "3px 9px", borderRadius: 6, fontSize: 10, cursor: "pointer", fontFamily: "fantasy",
+              background: showEdit ? "rgba(212,168,67,0.2)" : "rgba(20,40,20,0.6)",
+              border: `1px solid ${showEdit ? "rgba(212,168,67,0.5)" : "rgba(212,168,67,0.2)"}`,
+              color: "#d4a843",
+            }}
+          >
+            {showEdit ? "Done" : "Edit"}
+          </button>
+        )}
       </div>
+
+      {/* Admin edit panel */}
+      {showEdit && user?.isAdmin && (
+        <div style={{ background: "rgba(6,18,8,0.9)", border: "1px solid rgba(212,168,67,0.2)", borderRadius: 14, padding: "14px 12px", marginBottom: 14 }}>
+          <p className="font-fantasy text-xs tracking-widest mb-3" style={{ color: "rgba(212,168,67,0.6)" }}>MANAGE NOTICES</p>
+
+          {/* Existing DB notices */}
+          {dbNotices.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+              {dbNotices.map(n => (
+                <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(4,12,6,0.7)", borderRadius: 8, padding: "6px 8px" }}>
+                  <img src={n.image_url} alt="" style={{ width: 48, height: 32, objectFit: "cover", borderRadius: 5, flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: 11, color: "#d4c880", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.label || n.href || "Notice"}</span>
+                  <button onClick={() => deleteNotice.mutate(n.id)} data-testid={`button-delete-notice-${n.id}`}
+                    style={{ padding: "4px 8px", borderRadius: 6, background: "rgba(80,10,10,0.7)", border: "1px solid rgba(255,100,100,0.3)", color: "#fca5a5", fontSize: 10, cursor: "pointer", flexShrink: 0 }}>
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add new notice */}
+          <p style={{ fontSize: 10, color: "rgba(212,168,67,0.5)", marginBottom: 8 }} className="font-fantasy">ADD NEW NOTICE</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {newImgB64 && (
+              <img src={newImgB64} alt="" style={{ width: "100%", maxHeight: 120, objectFit: "cover", borderRadius: 8, border: "1px solid rgba(212,168,67,0.2)" }} />
+            )}
+            <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
+            <button onClick={() => fileRef.current?.click()} data-testid="button-notice-upload"
+              style={{ padding: "7px 12px", borderRadius: 8, background: "rgba(20,50,20,0.8)", border: "1px solid rgba(134,239,172,0.3)", color: "#86efac", fontSize: 11, cursor: "pointer", fontFamily: "fantasy", letterSpacing: "0.1em" }}>
+              {newImgB64 ? "Change Image" : "📷 Choose Image"}
+            </button>
+            <input value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="Label (optional)"
+              style={{ background: "rgba(4,12,6,0.75)", border: "1px solid rgba(212,168,67,0.15)", borderRadius: 7, color: "#d4c880", fontSize: 12, padding: "7px 10px", fontFamily: "serif", outline: "none" }} />
+            <input value={newHref} onChange={e => setNewHref(e.target.value)} placeholder="Link path e.g. /hub (optional)"
+              style={{ background: "rgba(4,12,6,0.75)", border: "1px solid rgba(212,168,67,0.15)", borderRadius: 7, color: "#d4c880", fontSize: 12, padding: "7px 10px", fontFamily: "serif", outline: "none" }} />
+            <button onClick={() => newImgB64 && addNotice.mutate()} disabled={!newImgB64 || addNotice.isPending} data-testid="button-notice-add"
+              style={{ padding: "8px 0", borderRadius: 8, background: newImgB64 ? "rgba(40,100,40,0.85)" : "rgba(20,40,20,0.5)", border: "1px solid rgba(134,239,172,0.35)", color: "#86efac", fontSize: 11, cursor: newImgB64 ? "pointer" : "default", fontFamily: "fantasy", letterSpacing: "0.1em" }}>
+              {addNotice.isPending ? "Adding…" : "Add Notice"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Carousel image */}
+      {cur && (
+        <div
+          style={{ position: "relative", borderRadius: 18, overflow: "hidden", touchAction: "pan-y", cursor: "grab" }}
+          onPointerDown={e => { ptrRef.current = e.clientX; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); }}
+          onPointerUp={e => {
+            if (ptrRef.current === null) return;
+            const dx = e.clientX - ptrRef.current;
+            ptrRef.current = null;
+            if (Math.abs(dx) > 28) {
+              goTo(safeIdx + (dx < 0 ? 1 : -1));
+            } else if (user && cur.href) {
+              navigate(cur.href);
+            }
+          }}
+          onPointerLeave={() => { ptrRef.current = null; }}
+        >
+          <img
+            src={cur.img}
+            alt={cur.label}
+            data-testid={`notice-img-${safeIdx}`}
+            style={{
+              width: "100%", maxHeight: 468, objectFit: "cover", objectPosition: "top", display: "block",
+              border: "1.5px solid rgba(212,168,67,0.3)", borderRadius: 18,
+              boxShadow: "0 0 28px rgba(212,168,67,0.12), 0 10px 30px rgba(0,0,0,0.65)",
+            }}
+          />
+          <div style={{
+            position: "absolute", bottom: 0, left: 0, right: 0, height: 72,
+            background: "linear-gradient(to top,rgba(3,14,5,0.75),transparent)",
+            borderRadius: "0 0 18px 18px", pointerEvents: "none",
+          }} />
+        </div>
+      )}
 
       {/* Pill indicators */}
       <div className="flex justify-center gap-2 mt-3">
-        {NOTICES.map((_, i) => (
+        {notices.map((_, i) => (
           <button key={i} onClick={() => goTo(i)} data-testid={`notice-dot-${i}`}
             style={{
-              width: i === idx ? 22 : 7, height: 7, borderRadius: 3.5, border: "none", padding: 0,
-              background: i === idx ? "#d4a843" : "rgba(212,168,67,0.18)",
-              cursor: "pointer",
-              transition: "width 0.32s ease, background 0.32s ease",
+              width: i === safeIdx ? 22 : 7, height: 7, borderRadius: 3.5, border: "none", padding: 0,
+              background: i === safeIdx ? "#d4a843" : "rgba(212,168,67,0.18)",
+              cursor: "pointer", transition: "width 0.32s ease, background 0.32s ease",
             }} />
         ))}
       </div>
