@@ -11,7 +11,6 @@ import worldDesert from "@assets/world_desert_v3.png";
 import worldEnchantedGrove from "@assets/world_enchanted_grove_v2.png";
 import worldHauntedWoods from "@assets/world_haunted_woods_v3.png";
 import worldSwamp from "@assets/world_swamp_v5.png";
-import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import { Plus, X, Trash2, Pencil, ImageIcon } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";

@@ -1991,9 +1991,16 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
       <div
         className="absolute top-0 left-0 right-0 z-40"
-        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+        style={{
+          paddingTop: "env(safe-area-inset-top, 0px)",
+          background: "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 80%, transparent 100%)",
+          backdropFilter: "blur(4px)",
+          WebkitBackdropFilter: "blur(4px)",
+        }}
       >
-        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
+        <div style={{ transform: "scale(0.82)", transformOrigin: "top left", width: "122%" }}>
+          <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
+        </div>
       </div>
 
       <div
