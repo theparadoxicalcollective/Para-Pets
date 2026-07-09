@@ -490,16 +490,20 @@ export default function LavaCrawlPage() {
             completeMutateRef.current({ score: s.score, coinsCollected: s.coinsCollected });
             return;
           }
-          // Respawn near last safe checkpoint — land on a ground segment, never in a gap
+          // Respawn on safe ground — prefer the segment containing respawnTargetX,
+          // fall back to nearest segment to the left, then right.
+          // Always place player at segment center so they never spawn at an edge.
           const respawnTargetX = Math.max(0, s.checkpointX - RESPAWN_BACK_OFFSET);
-          const landSeg = s.groundSegs
-            .filter(p => p.x <= respawnTargetX + PW)
-            .sort((a, b) => b.x - a.x)[0];
+          let landSeg =
+            s.groundSegs.find(p => respawnTargetX >= p.x && respawnTargetX <= p.x + p.w) ??
+            s.groundSegs.filter(p => p.x + p.w < respawnTargetX).sort((a, b) => (b.x + b.w) - (a.x + a.w))[0] ??
+            s.groundSegs.filter(p => p.x > respawnTargetX).sort((a, b) => a.x - b.x)[0];
           if (landSeg) {
-            s.px = Math.min(Math.max(respawnTargetX, landSeg.x + 20), landSeg.x + landSeg.w - PW - 20);
+            // Center within segment — guaranteed to be far from either edge
+            s.px = landSeg.x + Math.floor(landSeg.w / 2) - Math.floor(PW / 2);
             s.py = landSeg.y - PH;
           } else {
-            s.px = respawnTargetX;
+            s.px = Math.max(0, respawnTargetX);
             s.py = gY - PH;
           }
           s.hitShield = false;
@@ -624,7 +628,7 @@ export default function LavaCrawlPage() {
             s.score += ENEMY_SCORE * mult;
             s.squishX = 1.45; s.squishY = 0.58; s.squishTimer = 16; s.squishDuration = 16;
             const baseXp = Math.floor(8 * (1 + (petLevelRef.current - 1) * 0.1));
-            const xpText = s.doubleActive ? `+${baseXp * 2} XP ×2` : `+${baseXp} XP`;
+            const xpText = `+${baseXp * mult} XP`;
             s.floats.push({ x: e.x + EW / 2 - s.cameraX, y: e.y - 10, text: xpText, color: "#a0ff80", life: 55, maxLife: 55 });
             gainExpRef.current();
             if (s.doubleActive) gainExpRef.current(); // double XP
@@ -659,21 +663,19 @@ export default function LavaCrawlPage() {
             c.collected = true;
             const mult = s.doubleActive ? 2 : 1;
             if (c.type === "coin") {
-              s.coinsCollected++;
+              s.coinsCollected += mult;
               s.score += COIN_SCORE * mult;
-              const txt = s.doubleActive ? "+1 ×2" : "+1";
-              s.floats.push({ x: c.x - s.cameraX, y: c.y - 8, text: txt, color: "#ffd700", life: 45, maxLife: 45 });
+              s.floats.push({ x: c.x - s.cameraX, y: c.y - 8, text: `+${mult}`, color: "#ffd700", life: 45, maxLife: 45 });
             } else if (c.type === "orb") {
               s.score += ORB_SCORE * mult;
-              const txt = s.doubleActive ? `+${ORB_SCORE * 2} ×2` : "+5";
-              s.floats.push({ x: c.x - s.cameraX, y: c.y - 8, text: txt, color: "#ff9933", life: 45, maxLife: 45 });
+              s.floats.push({ x: c.x - s.cameraX, y: c.y - 8, text: `+${ORB_SCORE * mult}`, color: "#ff9933", life: 45, maxLife: 45 });
             } else if (c.type === "double") {
               s.doubleActive = true;
               s.doubleTimer = DOUBLE_DURATION;
               s.floats.push({ x: c.x - s.cameraX, y: c.y - 8, text: "×2 ACTIVE!", color: "#ff6600", life: 70, maxLife: 70 });
             } else if (c.type === "coinBonus") {
-              s.coinsCollected += COIN_ORB_AMOUNT;
-              s.floats.push({ x: c.x - s.cameraX, y: c.y - 8, text: `+${COIN_ORB_AMOUNT} coins`, color: "#ffe066", life: 55, maxLife: 55 });
+              s.coinsCollected += COIN_ORB_AMOUNT * mult;
+              s.floats.push({ x: c.x - s.cameraX, y: c.y - 8, text: `+${COIN_ORB_AMOUNT * mult} coins`, color: "#ffe066", life: 55, maxLife: 55 });
             }
           }
         }
@@ -740,7 +742,7 @@ export default function LavaCrawlPage() {
         const tileAspect = _lavaTexImg.width / _lavaTexImg.height;
         const tileH = lavaH;
         const tileW = tileH * tileAspect;
-        const scrollX = (lavaT * 25) % tileW;
+        const scrollX = (lavaT * 65) % tileW;
         let drawX = -scrollX;
         while (drawX < VW) {
           ctx.drawImage(_lavaTexImg, drawX, gY, tileW, tileH);
@@ -1350,7 +1352,7 @@ export default function LavaCrawlPage() {
       {(screen === "playing" || screen === "paused") && (
         <div style={{ height: "108px", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", background: "rgba(10,3,0,0.85)", borderTop: "1px solid rgba(255,100,0,0.25)", userSelect: "none", flexShrink: 0 }}>
           {/* Left / Right arrows */}
-          <div style={{ display: "flex", gap: "8px" }}>
+          <div style={{ display: "flex", gap: "36px" }}>
             <button
               data-testid="button-lava-left"
               {...makeTouch("left")}
@@ -1404,16 +1406,24 @@ export default function LavaCrawlPage() {
       {/* ── PAUSED screen ───────────────────────────────────────────────────── */}
       {screen === "paused" && (
         <div style={{ ...panelStyle, height: "auto", top: "auto", bottom: 108, borderRadius: "16px 16px 0 0" }}>
-          <div style={{ ...titleStyle, fontSize: "26px", marginBottom: "16px" }}>⏸ Paused</div>
-          <button data-testid="button-lava-resume" style={btnStyle("#ff8800")} onClick={() => showScreen("playing")}>▶  Resume</button>
-          <button data-testid="button-lava-restart-pause" style={btnStyle("#ffd080")} onClick={startGame}>↺  Restart</button>
-          <button data-testid="button-lava-quit-pause" style={btnStyle("rgba(255,200,100,0.45)")} onClick={() => {
-            const s = stateRef.current;
-            if (s && (s.score > 0 || s.coinsCollected > 0)) {
-              completeMutateRef.current({ score: s.score, coinsCollected: s.coinsCollected });
-            }
-            navigate("/world/volcanic");
-          }}>← Quit to World</button>
+          <div style={{ ...titleStyle, fontSize: "22px", marginBottom: "8px" }}>⏸ Paused</div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <button data-testid="button-lava-resume" onClick={() => showScreen("playing")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, margin: "5px" }}>
+              <img src={btnPlayImg} alt="Resume" draggable={false} style={{ width: "min(200px, 65vw)", height: "auto" }} />
+            </button>
+            <button data-testid="button-lava-restart-pause" onClick={startGame} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, margin: "5px" }}>
+              <img src={btnLeaderboardImg} alt="Restart" draggable={false} style={{ width: "min(200px, 65vw)", height: "auto" }} />
+            </button>
+            <button data-testid="button-lava-quit-pause" onClick={() => {
+              const s = stateRef.current;
+              if (s && (s.score > 0 || s.coinsCollected > 0)) {
+                completeMutateRef.current({ score: s.score, coinsCollected: s.coinsCollected });
+              }
+              navigate("/world/volcanic");
+            }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, margin: "5px" }}>
+              <img src={btnBackToWorldImg} alt="Quit to World" draggable={false} style={{ width: "min(200px, 65vw)", height: "auto" }} />
+            </button>
+          </div>
         </div>
       )}
 
