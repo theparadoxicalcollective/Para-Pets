@@ -10,6 +10,7 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   profileImage: text("profile_image"),
   coins: integer("coins").notNull().default(0),
+  essence: integer("essence").notNull().default(0),
   isAdmin: boolean("is_admin").notNull().default(false),
   isModerator: boolean("is_moderator").notNull().default(false),
   // Marks server-managed PvP bot accounts so they're excluded from public

@@ -7,6 +7,8 @@ import { Mail } from "lucide-react";
 
 import coinBarImg from "@assets/Photoroom_20260709_102133_AM_1783610567237.png";
 import coinBagIconImg from "@assets/generated_images/icon_coin_bag.png";
+import essenceBarImg from "@assets/Photoroom_20260709_24152_PM_1783626130265.png";
+import essenceIconImg from "@assets/Photoroom_20260709_23958_PM_1783626130265.png";
 import giftIconImg from "@assets/Photoroom_20260708_51809_PM_1783549272918.png";
 import profileFrameImg from "@assets/Photoroom_20260709_92006_AM_1783607153082.png";
 import nameplateImg from "@assets/Photoroom_20260709_92122_AM_1783607153082.png";
@@ -18,6 +20,7 @@ interface TopBarProps {
     username: string;
     profileImage: string | null;
     coins: number;
+    essence?: number;
     isAdmin: boolean;
   };
   onProfileClick: () => void;
@@ -138,7 +141,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                     src={profileFrameImg}
                     alt=""
                     className="block w-full z-20 pointer-events-none relative"
-                    style={{ height: "auto", filter: "drop-shadow(0 2px 8px rgba(0,0,0,1)) drop-shadow(0 6px 20px rgba(0,0,0,0.95))" }}
+                    style={{ height: "auto", filter: "drop-shadow(0 3px 10px rgba(0,0,0,0.7))" }}
                   />
                 </div>
               </button>
@@ -283,8 +286,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
             )}
 
             {/* Nameplate — below frame */}
-            <div style={{ position: "relative", width: 108, marginTop: 4, display: "flex", alignItems: "center", justifyContent: "center", filter: "drop-shadow(0 3px 12px rgba(0,0,0,1))" }}>
-              <img src={nameplateImg} alt="" style={{ display: "block", width: "100%", height: "auto" }} />
+            <div style={{ position: "relative", width: 108, marginTop: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <img src={nameplateImg} alt="" style={{ display: "block", width: "100%", height: "auto", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.7))" }} />
               <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <p
                   className="font-fantasy text-[#f0c040] font-semibold tracking-widest truncate"
@@ -297,41 +300,69 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
             </div>
           </div>}
 
-          {/* Coins — bar on left, bag icon on right */}
-          {!hideCoins && <div className="flex flex-row items-center gap-1 flex-shrink-0">
-            {/* Coin bar — smaller, on left */}
-            <button
-              data-testid="button-coin-shop"
-              onClick={() => navigate("/coins")}
-              className="transition-transform active:scale-95"
-              style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0, position: "relative", display: "inline-flex", alignItems: "center" }}
-            >
-              <img src={coinBarImg} alt="Coins" style={{ height: 30, width: "auto", objectFit: "contain", filter: "drop-shadow(0 2px 10px rgba(0,0,0,1)) drop-shadow(0 4px 16px rgba(0,0,0,0.9))" }} />
-              <span
-                className="font-fantasy text-[#f5d060] font-semibold"
-                style={{
-                  position: "absolute",
-                  left: "36%",
-                  right: "7%",
-                  textAlign: "center",
-                  fontSize: "clamp(9px, calc(2.8*var(--vw)), 12px)",
-                  textShadow: "0 1px 4px rgba(0,0,0,0.95), 0 0 8px rgba(0,0,0,0.7)",
-                  pointerEvents: "none",
-                }}
-                data-testid="text-coins"
+          {/* Coins + Essence — stacked vertically */}
+          {!hideCoins && <div className="flex flex-col gap-1 flex-shrink-0">
+            {/* Row 1: Coin bar + coin bag */}
+            <div className="flex flex-row items-center gap-1">
+              <button
+                data-testid="button-coin-shop"
+                onClick={() => navigate("/coins")}
+                className="transition-transform active:scale-95"
+                style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0, position: "relative", display: "inline-flex", alignItems: "center" }}
               >
-                {user.coins.toLocaleString()}
-              </span>
-            </button>
-            {/* Coin bag icon — on right */}
-            <button
-              data-testid="button-coin-bag"
-              onClick={() => navigate("/coins")}
-              className="transition-transform active:scale-90"
-              style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}
-            >
-              <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 40, height: 40, objectFit: "contain", filter: "drop-shadow(0 0 1.5px rgba(212,160,23,1)) drop-shadow(0 0 8px rgba(212,160,23,0.65)) drop-shadow(0 3px 12px rgba(0,0,0,1)) drop-shadow(0 5px 18px rgba(0,0,0,0.9))" }} />
-            </button>
+                <img src={coinBarImg} alt="Coins" style={{ height: 30, width: "auto", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.65))" }} />
+                <span
+                  className="font-fantasy text-[#f5d060] font-semibold"
+                  style={{
+                    position: "absolute",
+                    left: "36%",
+                    right: "7%",
+                    textAlign: "center",
+                    fontSize: "clamp(9px, calc(2.8*var(--vw)), 12px)",
+                    textShadow: "0 1px 4px rgba(0,0,0,0.95), 0 0 8px rgba(0,0,0,0.7)",
+                    pointerEvents: "none",
+                  }}
+                  data-testid="text-coins"
+                >
+                  {user.coins.toLocaleString()}
+                </span>
+              </button>
+              <button
+                data-testid="button-coin-bag"
+                onClick={() => navigate("/coins")}
+                className="transition-transform active:scale-90"
+                style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}
+              >
+                <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 34, height: 34, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(212,160,23,0.6)) drop-shadow(0 3px 8px rgba(0,0,0,0.65))" }} />
+              </button>
+            </div>
+            {/* Row 2: Essence bar + essence icon */}
+            <div className="flex flex-row items-center gap-1">
+              <div
+                data-testid="display-essence"
+                style={{ flexShrink: 0, position: "relative", display: "inline-flex", alignItems: "center" }}
+              >
+                <img src={essenceBarImg} alt="Essence" style={{ height: 30, width: "auto", objectFit: "contain", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.65))" }} />
+                <span
+                  className="font-fantasy text-[#7fff7f] font-semibold"
+                  style={{
+                    position: "absolute",
+                    left: "36%",
+                    right: "7%",
+                    textAlign: "center",
+                    fontSize: "clamp(9px, calc(2.8*var(--vw)), 12px)",
+                    textShadow: "0 1px 4px rgba(0,0,0,0.95), 0 0 8px rgba(0,80,0,0.7)",
+                    pointerEvents: "none",
+                  }}
+                  data-testid="text-essence"
+                >
+                  {(user.essence ?? 0).toLocaleString()}
+                </span>
+              </div>
+              <div style={{ flexShrink: 0 }}>
+                <img src={essenceIconImg} alt="Essence" style={{ width: 34, height: 34, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(74,222,128,0.55)) drop-shadow(0 3px 8px rgba(0,0,0,0.65))" }} />
+              </div>
+            </div>
           </div>}
           </div>
         </div>

@@ -330,6 +330,12 @@ app.use((req, res, next) => {
   }
 
   try {
+    await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS essence INTEGER NOT NULL DEFAULT 0`);
+  } catch (err) {
+    console.error("users.essence early migration error (non-fatal):", err);
+  }
+
+  try {
     await db.execute(sql`CREATE TABLE IF NOT EXISTS molten_blocks_drop_items (
       id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
       shop_item_id VARCHAR NOT NULL,
@@ -3622,6 +3628,12 @@ app.use((req, res, next) => {
   try {
     await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS total_fish_caught INTEGER NOT NULL DEFAULT 0`);
   } catch (err) { console.error("total_fish_caught migration error (non-fatal):", err); }
+
+  // Add essence currency column
+  try {
+    await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS essence INTEGER NOT NULL DEFAULT 0`);
+    console.log("migration ok: users.essence");
+  } catch (err) { console.error("essence migration error (non-fatal):", err); }
 
   // Create lava_crawl_scores table (idempotent)
   try {
