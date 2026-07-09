@@ -322,7 +322,6 @@ export default function MapPage({ user }: MapPageProps) {
       <div
         className="relative z-10 flex flex-col h-full"
         style={{
-          paddingTop: "env(safe-area-inset-top, 0px)",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
         }}
       >

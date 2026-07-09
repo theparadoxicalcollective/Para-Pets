@@ -318,8 +318,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
             </button>
           </div>
           </div>
-          {/* Nameplate — centered below profile photo */}
-          <div style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", marginTop: 2, alignSelf: "flex-start" }}>
+          {/* Nameplate — overlaps bottom edge of profile frame */}
+          <div style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", marginTop: -10, alignSelf: "flex-start" }}>
             <img src={nameplateImg} alt="" style={{ display: "block", height: 34, width: "auto", objectFit: "contain" }} />
             <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", paddingLeft: "8%", paddingRight: "8%" }}>
               <p

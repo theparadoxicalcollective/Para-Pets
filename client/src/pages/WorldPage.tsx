@@ -1991,7 +1991,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
       <div
         className="absolute top-0 left-0 right-0 z-40"
-        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
       >
         <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
       </div>
