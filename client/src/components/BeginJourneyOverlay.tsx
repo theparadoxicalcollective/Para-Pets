@@ -228,14 +228,22 @@ export default function BeginJourneyOverlay({ user }: Props) {
   });
 
   useEffect(() => {
-    if (step !== 5 || !invHatch || !user?.activePetId) return;
-    const activePet = invHatch.find(
-      (i: any) => i.inventoryId === user!.activePetId || i.id === user!.activePetId
-    );
-    if (activePet?.isHatched === true) {
-      bjSetStep(6);
-      setStep(6);
+    if (step !== 5 || !invHatch) return;
+    const arr = invHatch as any[];
+
+    // Primary check: active pet is hatched
+    if (user?.activePetId) {
+      const activePet = arr.find(
+        (i: any) => i.inventoryId === user!.activePetId || i.id === user!.activePetId
+      );
+      if (activePet?.isHatched === true) { bjSetStep(6); setStep(6); return; }
     }
+
+    // Fallback: inventory has pets but none are unhatched
+    // (covers ID-mismatch where activePetId doesn't line up with inventory rows)
+    const hasAnyPet     = arr.some((i: any) => i.type === "pet");
+    const hasUnhatched  = arr.some((i: any) => i.type === "pet" && i.isHatched === false);
+    if (hasAnyPet && !hasUnhatched) { bjSetStep(6); setStep(6); }
   }, [step, invHatch, user?.activePetId]);
 
   // ── Step 5: check for hatching potions; auto-grant if none ───────────────
@@ -284,6 +292,20 @@ export default function BeginJourneyOverlay({ user }: Props) {
     }
     return () => { bjSetStep5FakeMode(false); };
   }, [step, eggReadyToHatch]);
+
+  // ── Step 5: egg ready but no potion in inventory → skip drag, enter tap mode
+  useEffect(() => {
+    if (step !== 5 || step5TapMode || !invHatch) return;
+    const hasPotion = (invHatch as any[]).some(
+      (i: any) => i.type === "special" && i.specialType === "hatch_time"
+    );
+    if (eggReadyToHatch && !hasPotion) {
+      bjSetStep5FakeMode(false);
+      bjSetStep5TapMode(true);
+      setStep5TapMode(true);
+      window.dispatchEvent(new CustomEvent("bj_close_speedup"));
+    }
+  }, [step, invHatch, eggReadyToHatch, step5TapMode]);
 
   // ── Step 5: reset tap-mode when leaving step 5 ───────────────────────────
   useEffect(() => {
