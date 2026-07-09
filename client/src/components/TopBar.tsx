@@ -8,7 +8,6 @@ import { Mail } from "lucide-react";
 import coinBarImg from "@assets/Photoroom_20260709_102133_AM_1783610567237.png";
 import coinBagIconImg from "@assets/generated_images/icon_coin_bag.png";
 import essenceBarImg from "@assets/Photoroom_20260709_24152_PM_1783626130265.png";
-import essenceIconImg from "@assets/Photoroom_20260709_23958_PM_1783626130265.png";
 import giftIconImg from "@assets/Photoroom_20260708_51809_PM_1783549272918.png";
 import profileFrameImg from "@assets/Photoroom_20260709_92006_AM_1783607153082.png";
 import nameplateImg from "@assets/Photoroom_20260709_92122_AM_1783607153082.png";
@@ -286,9 +285,9 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
             )}
 
             {/* Nameplate — below frame */}
-            <div style={{ position: "relative", width: 108, marginTop: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ position: "relative", width: 108, marginTop: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <img src={nameplateImg} alt="" style={{ display: "block", width: "100%", height: "auto", filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.7))" }} />
-              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 6 }}>
                 <p
                   className="font-fantasy text-[#f0c040] font-semibold tracking-widest truncate"
                   style={{ fontSize: "clamp(10px, calc(2.8*var(--vw)), 13px)", textAlign: "center", maxWidth: "80%" }}
@@ -358,9 +357,6 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 >
                   {(user.essence ?? 0).toLocaleString()}
                 </span>
-              </div>
-              <div style={{ flexShrink: 0 }}>
-                <img src={essenceIconImg} alt="Essence" style={{ width: 34, height: 34, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(74,222,128,0.55)) drop-shadow(0 3px 8px rgba(0,0,0,0.65))" }} />
               </div>
             </div>
           </div>}
