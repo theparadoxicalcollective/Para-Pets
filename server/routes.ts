@@ -7075,9 +7075,10 @@ export async function registerRoutes(
   app.get("/api/lava-crawl/leaderboard", isAuthenticated, async (req, res) => {
     try {
       const rows = await db.execute(sql`
-        SELECT username, MAX(score) AS best_score, MAX(coins_collected) AS best_coins
-        FROM lava_crawl_scores
-        GROUP BY user_id, username
+        SELECT u.username, u.profile_image, MAX(s.score) AS best_score, MAX(s.coins_collected) AS best_coins
+        FROM lava_crawl_scores s
+        JOIN users u ON s.user_id = u.id
+        GROUP BY u.id, u.username, u.profile_image
         ORDER BY best_score DESC
         LIMIT 10
       `);

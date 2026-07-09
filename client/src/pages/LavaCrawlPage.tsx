@@ -95,6 +95,13 @@ interface Enemy {
   stompY: number; stompTimer: number;
   type: "ground" | "float";
   variant: 1 | 2;  // 1=original sprites, 2=new sprites
+  shootCooldown: number; // frames until next projectile (float enemies only)
+}
+
+interface Projectile {
+  x: number; y: number; // world-space center
+  vx: number;           // px per frame (positive = right)
+  alive: boolean;
 }
 
 interface Coin {
@@ -125,6 +132,7 @@ interface GState {
   squishX: number; squishY: number; squishTimer: number; squishDuration: number;
   enemies: Enemy[];
   coins: Coin[];
+  projectiles: Projectile[];
   lifeHearts: LifeHeart[];
   floats: FloatParticle[];
   cameraX: number;
@@ -199,25 +207,45 @@ function buildFloats(gY: number, groundSegs: Plat[]): Plat[] {
 }
 
 // Build coins / orbs / special pickups spread across the level.
+// Positions are randomised per game-start so each run feels fresh.
 function buildCoins(gY: number, groundSegs: Plat[]): Coin[] {
   const coins: Coin[] = [];
   for (let i = 0; i < groundSegs.length; i++) {
     const seg = groundSegs[i];
     if (i === 0) continue; // no coins on starting platform
-    const count = Math.max(2, Math.round(seg.w / 200));
+
+    // Vary count per segment (base + random ±1)
+    const baseCount = Math.max(2, Math.round(seg.w / 200));
+    const count = baseCount + (Math.random() < 0.45 ? 1 : 0);
     for (let j = 0; j < count; j++) {
       const frac = (j + 1) / (count + 1);
-      coins.push({ x: seg.x + seg.w * frac, y: gY - 30, collected: false, type: pickCoinType() });
+      const xJitter = (Math.random() - 0.5) * 44;                         // ±22 px horizontal scatter
+      const yBase  = 24 + Math.floor(Math.random() * 28);                 // 24-52 px above ground
+      const xPos = Math.max(seg.x + 14, Math.min(seg.x + seg.w - 14,
+        seg.x + seg.w * frac + xJitter));
+      coins.push({ x: xPos, y: gY - yBase, collected: false, type: pickCoinType() });
     }
-    // Coin arcing over gap into next segment
+
+    // Gap arc coins — height and lateral offset vary each run
     if (i < groundSegs.length - 1) {
       const next = groundSegs[i + 1];
-      const gapCenter = seg.x + seg.w + (next.x - (seg.x + seg.w)) / 2;
-      coins.push({ x: gapCenter, y: gY - 68, collected: false, type: pickCoinType() });
+      const gapStart = seg.x + seg.w;
+      const gapW     = next.x - gapStart;
+      const gapCX    = gapStart + gapW / 2 + (Math.random() - 0.5) * (gapW * 0.3);
+      const arcH     = 58 + Math.floor(Math.random() * 38);               // 58-96 px above ground
+      coins.push({ x: gapCX, y: gY - arcH, collected: false, type: pickCoinType() });
+      // Second gap coin roughly 40% of the time
+      if (Math.random() < 0.4) {
+        const xOff2 = (Math.random() - 0.5) * 55;
+        coins.push({ x: gapCX + xOff2, y: gY - arcH + 22, collected: false, type: pickCoinType() });
+      }
     }
-    // High bonus coin above bonus platform on every other seg
-    if (i % 2 === 1 && seg.w > 320) {
-      coins.push({ x: seg.x + seg.w * 0.5, y: gY - 118, collected: false, type: pickCoinType() });
+
+    // High bonus coin — random X within segment, random height
+    if (seg.w > 300 && Math.random() < 0.7) {
+      const bx = seg.x + 55 + Math.floor(Math.random() * (seg.w - 110));
+      const by = 92 + Math.floor(Math.random() * 38);                     // 92-130 px above ground
+      coins.push({ x: bx, y: gY - by, collected: false, type: pickCoinType() });
     }
   }
   return coins;
@@ -248,6 +276,8 @@ function buildEnemies(gY: number, groundSegs: Plat[]): Enemy[] {
         lx, rx, alive: true,
         stompY: gY - EH + yOff, stompTimer: 0,
         type: et.type, variant: et.variant,
+        // Stagger initial shoot cooldown so float enemies don't all fire at once
+        shootCooldown: et.type === "float" ? 60 + Math.floor(Math.random() * 180) : 99999,
       };
     };
     enemies.push(makeEnemy(seg.x + seg.w * 0.42, pick()));
@@ -410,6 +440,7 @@ export default function LavaCrawlPage() {
       squishX: 1, squishY: 1, squishTimer: 0, squishDuration: 1,
       enemies: buildEnemies(gY, grounds),
       coins: buildCoins(gY, grounds),
+      projectiles: [],
       lifeHearts: [],
       floats: [],
       cameraX: 0,
@@ -652,6 +683,21 @@ export default function LavaCrawlPage() {
               s.floats.push({ x: s.px + PW / 2 - s.cameraX, y: s.py - 6, text: "!", color: "#ff4444", life: 30, maxLife: 30 });
             }
           }
+
+          // Float enemies shoot small fireballs toward the player
+          if (e.type === "float" && e.alive) {
+            e.shootCooldown -= dt;
+            if (e.shootCooldown <= 0) {
+              const distX = (s.px + PW / 2) - (e.x + EW / 2);
+              // Only fire when player is in range and visible
+              if (Math.abs(distX) < 420) {
+                const dir = distX > 0 ? 1 : -1;
+                s.projectiles.push({ x: e.x + EW / 2, y: e.y + EH / 2 + 2, vx: dir * 3.8, alive: true });
+              }
+              // Recharge: 2.5 – 4.5 s  (at 60 fps = 150 – 270 frames)
+              e.shootCooldown = 150 + Math.floor(Math.random() * 120);
+            }
+          }
         }
 
         // Coin / orb collection
@@ -690,6 +736,38 @@ export default function LavaCrawlPage() {
               lh.collected = true;
               s.lives = Math.min(MAX_HEART_SLOTS, s.lives + 1);
               s.floats.push({ x: lh.x - s.cameraX, y: lh.y - 12, text: "+1 ♥", color: "#ff6699", life: 60, maxLife: 60 });
+            }
+          }
+        }
+
+        // Projectile update — move fireballs, detect player hits, cull off-screen
+        for (let i = s.projectiles.length - 1; i >= 0; i--) {
+          const proj = s.projectiles[i];
+          if (!proj.alive) { s.projectiles.splice(i, 1); continue; }
+          proj.x += proj.vx * dt;
+          // Cull when well off-screen
+          if (proj.x < s.cameraX - 90 || proj.x > s.cameraX + VW + 90) {
+            s.projectiles.splice(i, 1);
+            continue;
+          }
+          // Player collision (circle vs player AABB, generous 14 px radius)
+          if (s.alive && !s.hitShield) {
+            const pdx = (s.px + PW / 2) - proj.x;
+            const pdy = (s.py + PH / 2) - proj.y;
+            if (Math.sqrt(pdx * pdx + pdy * pdy) < 14) {
+              proj.alive = false;
+              s.hitShield = true;
+              s.hitShieldTimer = SHIELD_FRAMES;
+              s.squishX = 1.15; s.squishY = 0.85; s.squishTimer = 12; s.squishDuration = 12;
+              s.hitCount++;
+              if (s.hitCount >= 2) {
+                s.hitCount = 0;
+                s.alive = false;
+                s.lives = Math.max(0, s.lives - 1);
+                s.respawnTimer = 90;
+              } else {
+                s.floats.push({ x: s.px + PW / 2 - s.cameraX, y: s.py - 6, text: "!", color: "#ff4444", life: 30, maxLife: 30 });
+              }
             }
           }
         }
@@ -912,6 +990,31 @@ export default function LavaCrawlPage() {
           ctx.textAlign = "center";
           ctx.fillText("♥", lhx, lh.y - bounce + 7);
         }
+        ctx.restore();
+      }
+
+      // Projectiles (float-enemy fireballs) — drawn before enemies so they appear in front of bg
+      for (const proj of s.projectiles) {
+        const projSX = proj.x - cx;
+        if (projSX < -20 || projSX > VW + 20) continue;
+        const pulse = 0.6 + Math.sin(lavaT * 14 + proj.x * 0.08) * 0.4;
+        ctx.save();
+        ctx.shadowColor = "#ff4400";
+        ctx.shadowBlur = 12 * pulse;
+        // Glowing outer body
+        const pGrad = ctx.createRadialGradient(projSX, proj.y, 0, projSX, proj.y, 9);
+        pGrad.addColorStop(0,   "rgba(255,210,80,0.98)");
+        pGrad.addColorStop(0.4, "rgba(255,75,0,0.88)");
+        pGrad.addColorStop(1,   "rgba(160,20,0,0)");
+        ctx.fillStyle = pGrad;
+        ctx.beginPath();
+        ctx.arc(projSX, proj.y, 9, 0, Math.PI * 2);
+        ctx.fill();
+        // Bright hot core
+        ctx.fillStyle = "rgba(255,255,200,0.95)";
+        ctx.beginPath();
+        ctx.arc(projSX, proj.y, 2.8, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
       }
 
@@ -1406,13 +1509,10 @@ export default function LavaCrawlPage() {
       {/* ── PAUSED screen ───────────────────────────────────────────────────── */}
       {screen === "paused" && (
         <div style={{ ...panelStyle, height: "auto", top: "auto", bottom: 108, borderRadius: "16px 16px 0 0" }}>
-          <div style={{ ...titleStyle, fontSize: "22px", marginBottom: "8px" }}>⏸ Paused</div>
+          <img src={lavaCrawlTitleImg} alt="Lava Crawl" draggable={false} style={{ width: "min(200px, 60vw)", height: "auto", marginBottom: "10px" }} />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
             <button data-testid="button-lava-resume" onClick={() => showScreen("playing")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, margin: "5px" }}>
               <img src={btnPlayImg} alt="Resume" draggable={false} style={{ width: "min(200px, 65vw)", height: "auto" }} />
-            </button>
-            <button data-testid="button-lava-restart-pause" onClick={startGame} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, margin: "5px" }}>
-              <img src={btnLeaderboardImg} alt="Restart" draggable={false} style={{ width: "min(200px, 65vw)", height: "auto" }} />
             </button>
             <button data-testid="button-lava-quit-pause" onClick={() => {
               const s = stateRef.current;
@@ -1514,6 +1614,14 @@ export default function LavaCrawlPage() {
                           : i === 2 ? <img src={trophy3rd} alt="3rd" style={{ width: 20, height: 20, objectFit: "contain" }} />
                           : <span style={{ color: "rgba(255,208,128,0.7)", fontFamily: "monospace", fontSize: "12px" }}>{i + 1}.</span>}
                       </span>
+                      {row.profile_image ? (
+                        <img src={row.profile_image} alt="" draggable={false}
+                          style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,160,60,0.5)" }} />
+                      ) : (
+                        <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(255,100,30,0.35)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: "1px solid rgba(255,160,60,0.3)" }}>
+                          <span style={{ color: "#ffd080", fontSize: "10px", fontFamily: "monospace", fontWeight: "bold" }}>{(row.username?.[0] ?? "?").toUpperCase()}</span>
+                        </div>
+                      )}
                       <span style={{ flex: 1, color: "#ffd080", fontFamily: "monospace", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.username}</span>
                       <span style={{ color: "#ff8800", fontFamily: "monospace", fontSize: "12px", fontWeight: "bold" }}>{row.best_score}</span>
                     </div>
