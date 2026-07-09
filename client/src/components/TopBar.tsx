@@ -98,23 +98,21 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
         {/* LEFT: profile photo + nameplate below */}
         <div className="flex flex-col items-start gap-0 min-w-0">
           <div className="flex items-center gap-2">
-          {/* Profile photo — admin star overlays its corner so it adds no vertical height */}
+          {/* Profile photo — frame is in normal flow so game-stage overflow:hidden never clips it */}
           <div className="flex flex-col items-center gap-1 flex-shrink-0">
-            <div className="relative flex-shrink-0">
+            <div className="relative flex-shrink-0" style={{ width: 96 }}>
               <button
                 data-testid="button-profile"
                 onClick={onProfileClick}
-                className="relative flex-shrink-0 transition-transform duration-150 active:scale-95"
-                style={{ background: "none", border: "none", cursor: "pointer", display: "block" }}
+                className="transition-transform duration-150 active:scale-95"
+                style={{ background: "none", border: "none", cursor: "pointer", display: "block", width: "100%" }}
               >
-                <div className="relative" style={{ width: 80, height: 80, flexShrink: 0 }}>
-                  <img
-                    src={profileFrameImg}
-                    alt=""
-                    className="absolute z-20 pointer-events-none"
-                    style={{ top: "-14px", left: "-14px", width: "calc(100% + 28px)", height: "calc(100% + 28px)", objectFit: "fill" }}
-                  />
-                  <div className="absolute z-10 overflow-hidden rounded-xl" style={{ inset: "6px", border: "2px solid rgba(5,2,0,0.85)", boxSizing: "border-box" }}>
+                <div className="relative w-full">
+                  {/* Photo sits inside the frame's inner opening — ~13% inset on all sides */}
+                  <div
+                    className="absolute z-10 overflow-hidden rounded-xl"
+                    style={{ top: "13%", left: "12%", right: "12%", bottom: "13%", border: "2px solid rgba(5,2,0,0.88)" }}
+                  >
                     {user.profileImage ? (
                       <img
                         data-testid="img-profile-avatar"
@@ -133,6 +131,13 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                       </div>
                     )}
                   </div>
+                  {/* Frame in-flow — renders at natural 1115×1126 ratio, no squish, no overflow */}
+                  <img
+                    src={profileFrameImg}
+                    alt=""
+                    className="block w-full z-20 pointer-events-none relative"
+                    style={{ height: "auto" }}
+                  />
                 </div>
               </button>
               {user.isAdmin && (
