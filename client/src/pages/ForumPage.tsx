@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { ChevronDown, X, Pin, Trash2, Plus, MessageSquare, Star } from "lucide-react";
+import { ChevronDown, Pin, Trash2, Plus, MessageSquare, Star, Lock, CornerDownRight } from "lucide-react";
 
 import forumTitleImg  from "@assets/Photoroom_20260708_100323_PM_1783566697221.png";
 import forumDefaultBg from "@assets/Photoroom_20260708_101925_PM_1783567178576.png";
@@ -17,6 +17,7 @@ interface ForumPost {
   body: string;
   image_url: string | null;
   is_pinned: boolean;
+  is_read_only: boolean;
   created_at: string;
   author_name: string | null;
   author_avatar: string | null;
@@ -34,6 +35,7 @@ interface ForumComment {
   author_avatar: string | null;
   like_count: number;
   user_liked: boolean;
+  reply_count: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -72,14 +74,101 @@ function LikeButton({ liked, count, onToggle, disabled }: { liked: boolean; coun
         transition: "all 0.18s",
       }}
     >
-      <Star
-        size={12}
-        fill={liked ? "#f0c040" : "none"}
-        color={liked ? "#f0c040" : "rgba(212,168,67,0.45)"}
-        style={{ transition: "fill 0.2s" }}
-      />
+      <Star size={12} fill={liked ? "#f0c040" : "none"} color={liked ? "#f0c040" : "rgba(212,168,67,0.45)"} style={{ transition: "fill 0.2s" }} />
       <span style={{ fontSize: 11, color: liked ? "#f0c040" : "rgba(212,168,67,0.45)", fontFamily: "serif", minWidth: 12 }}>{count}</span>
     </button>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reply thread (shown under a top-level comment)
+// ─────────────────────────────────────────────────────────────────────────────
+function ReplyThread({ commentId, user, postReadOnly }: { commentId: string; user: any; postReadOnly: boolean }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [replyText, setReplyText] = useState("");
+
+  const { data: replies = [], isLoading } = useQuery<ForumComment[]>({
+    queryKey: ["/api/forum/comments", commentId, "replies"],
+    queryFn: () => fetch(`/api/forum/comments/${commentId}/replies`, { credentials: "include" }).then(r => r.json()),
+    staleTime: 10_000,
+  });
+
+  const likeReply = useMutation({
+    mutationFn: (id: string) => apiRequest("POST", `/api/forum/comments/${id}/like`).then(r => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/forum/comments", commentId, "replies"] }),
+  });
+
+  const deleteReply = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/forum/comments/${id}`).then(r => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/forum/comments", commentId, "replies"] }),
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const addReply = useMutation({
+    mutationFn: (body: string) => apiRequest("POST", `/api/forum/comments/${commentId}/replies`, { body }).then(r => r.json()),
+    onSuccess: () => {
+      setReplyText("");
+      qc.invalidateQueries({ queryKey: ["/api/forum/comments", commentId, "replies"] });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message ?? "Failed to post reply", variant: "destructive" }),
+  });
+
+  return (
+    <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: "2px solid rgba(212,168,67,0.12)" }}>
+      {isLoading ? (
+        <div style={{ padding: "6px 0" }}>
+          <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(212,168,67,0.3)", borderTopColor: "#d4a843", animation: "spin 0.8s linear infinite", display: "inline-block" }} />
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {replies.map(r => (
+            <div key={r.id} style={{ background: "rgba(4,10,5,0.7)", border: "1px solid rgba(212,168,67,0.08)", borderRadius: 8, padding: "7px 10px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+                <CornerDownRight size={10} color="rgba(212,168,67,0.3)" style={{ flexShrink: 0 }} />
+                <Avatar src={r.author_avatar} name={r.author_name} size={16} />
+                <span style={{ fontSize: 10, color: "rgba(212,168,67,0.6)", flex: 1 }} className="font-fantasy">{r.author_name} · {timeSince(r.created_at)}</span>
+                {(user?.isAdmin || user?.id === r.author_id) && (
+                  <button onClick={() => deleteReply.mutate(r.id)}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,100,100,0.5)", padding: 1, flexShrink: 0 }}>
+                    <Trash2 size={10} />
+                  </button>
+                )}
+              </div>
+              <p style={{ fontSize: 12, color: "rgba(200,190,160,0.85)", lineHeight: 1.5, whiteSpace: "pre-wrap", marginBottom: 5 }}>{r.body}</p>
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <LikeButton liked={r.user_liked} count={r.like_count} onToggle={() => likeReply.mutate(r.id)} disabled={!user || likeReply.isPending} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {user && !postReadOnly && (
+        <div style={{ marginTop: 8 }}>
+          <textarea
+            data-testid={`input-reply-${commentId}`}
+            value={replyText}
+            onChange={e => setReplyText(e.target.value)}
+            placeholder="Write a reply…"
+            maxLength={500}
+            rows={2}
+            style={{ width: "100%", background: "rgba(4,12,6,0.7)", border: "1px solid rgba(212,168,67,0.15)", borderRadius: 6, color: "#d4c880", fontSize: 12, padding: "6px 8px", resize: "none", fontFamily: "serif", outline: "none", boxSizing: "border-box" }}
+          />
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
+            <button
+              data-testid={`button-submit-reply-${commentId}`}
+              onClick={() => replyText.trim() && addReply.mutate(replyText)}
+              disabled={!replyText.trim() || addReply.isPending}
+              className="font-fantasy"
+              style={{ padding: "5px 14px", borderRadius: 6, background: replyText.trim() ? "rgba(40,100,40,0.85)" : "rgba(20,40,20,0.5)", border: "1px solid rgba(212,168,67,0.3)", color: "#d4a843", fontSize: 10, letterSpacing: "0.08em", cursor: replyText.trim() ? "pointer" : "default", transition: "all 0.2s" }}
+            >
+              {addReply.isPending ? "Posting…" : "Reply"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -92,11 +181,21 @@ function ThreadView({ post, user, onClose, onLikePost }: {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [commentText, setCommentText] = useState("");
+  const [openReplyId, setOpenReplyId] = useState<string | null>(null);
 
-  const { data: comments = [], isLoading } = useQuery<ForumComment[]>({
+  const { data: commentsData, isLoading } = useQuery<{ comments: ForumComment[]; userHasCommented: boolean }>({
     queryKey: ["/api/forum/posts", post.id, "comments"],
     queryFn: () => fetch(`/api/forum/posts/${post.id}/comments`, { credentials: "include" }).then(r => r.json()),
     staleTime: 10_000,
+  });
+
+  const comments = commentsData?.comments ?? [];
+  const userHasCommented = commentsData?.userHasCommented ?? false;
+
+  const toggleReadOnly = useMutation({
+    mutationFn: () => apiRequest("PATCH", `/api/forum/posts/${post.id}`, { is_read_only: !post.is_read_only }).then(r => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/forum/posts"] }),
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const addComment = useMutation({
@@ -106,12 +205,15 @@ function ThreadView({ post, user, onClose, onLikePost }: {
       qc.invalidateQueries({ queryKey: ["/api/forum/posts", post.id, "comments"] });
       qc.invalidateQueries({ queryKey: ["/api/forum/posts"] });
     },
-    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Error", description: e.message ?? "Failed to post comment", variant: "destructive" }),
   });
 
   const deleteComment = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/forum/comments/${id}`).then(r => r.json()),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/forum/posts", post.id, "comments"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/forum/posts", post.id, "comments"] });
+      qc.invalidateQueries({ queryKey: ["/api/forum/posts"] });
+    },
     onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
@@ -119,6 +221,8 @@ function ThreadView({ post, user, onClose, onLikePost }: {
     mutationFn: (id: string) => apiRequest("POST", `/api/forum/comments/${id}/like`).then(r => r.json()),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/forum/posts", post.id, "comments"] }),
   });
+
+  const showCommentBox = user && !post.is_read_only && !userHasCommented;
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(2,8,4,0.94)", backdropFilter: "blur(10px)", overflowY: "auto", padding: "16px 12px 40px" }}>
@@ -131,6 +235,25 @@ function ThreadView({ post, user, onClose, onLikePost }: {
             <ChevronDown size={16} style={{ transform: "rotate(90deg)" }} />
           </button>
           <span className="font-fantasy text-xs tracking-widest" style={{ color: "rgba(212,168,67,0.6)" }}>Forum</span>
+          {user?.isAdmin && (
+            <button
+              data-testid="button-toggle-read-only"
+              onClick={() => toggleReadOnly.mutate()}
+              disabled={toggleReadOnly.isPending}
+              className="font-fantasy"
+              style={{
+                marginLeft: "auto", display: "flex", alignItems: "center", gap: 5,
+                padding: "5px 11px", borderRadius: 6, cursor: "pointer", fontSize: 10, letterSpacing: "0.08em",
+                background: post.is_read_only ? "rgba(252,211,77,0.14)" : "rgba(60,60,60,0.4)",
+                border: post.is_read_only ? "1px solid rgba(252,211,77,0.45)" : "1px solid rgba(255,255,255,0.15)",
+                color: post.is_read_only ? "#fcd34d" : "rgba(200,190,160,0.5)",
+                transition: "all 0.2s",
+              }}
+            >
+              <Lock size={10} />
+              {post.is_read_only ? "Unlock Post" : "Set Read Only"}
+            </button>
+          )}
         </div>
 
         {/* Post image */}
@@ -148,17 +271,26 @@ function ThreadView({ post, user, onClose, onLikePost }: {
           padding: "16px 16px 14px",
           marginBottom: 14,
         }}>
-          {post.is_pinned && (
-            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>
-              <Pin size={11} color="#d4a843" />
-              <span style={{ fontSize: 10, color: "#d4a843", letterSpacing: "0.15em" }} className="font-fantasy">PINNED</span>
+          {(post.is_pinned || post.is_read_only) && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+              {post.is_pinned && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <Pin size={11} color="#d4a843" />
+                  <span style={{ fontSize: 10, color: "#d4a843", letterSpacing: "0.15em" }} className="font-fantasy">PINNED</span>
+                </div>
+              )}
+              {post.is_read_only && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <Lock size={10} color="#fcd34d" />
+                  <span style={{ fontSize: 10, color: "#fcd34d", letterSpacing: "0.15em" }} className="font-fantasy">READ ONLY</span>
+                </div>
+              )}
             </div>
           )}
           <h2 className="font-fantasy" style={{ fontSize: 18, color: "#f0d060", textShadow: "0 0 18px rgba(212,168,67,0.4)", marginBottom: 10, lineHeight: 1.3 }}>{post.title}</h2>
           {post.body && (
             <p style={{ fontSize: 13, color: "rgba(220,210,180,0.88)", lineHeight: 1.7, whiteSpace: "pre-wrap", marginBottom: 14 }}>{post.body}</p>
           )}
-          {/* Author + like row */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Avatar src={post.author_avatar} name={post.author_name ?? "?"} size={22} />
@@ -168,7 +300,7 @@ function ThreadView({ post, user, onClose, onLikePost }: {
           </div>
         </div>
 
-        {/* Comments */}
+        {/* Comments list */}
         <h3 className="font-fantasy text-xs tracking-widest mb-3" style={{ color: "rgba(212,168,67,0.5)" }}>
           {comments.length > 0 ? `${comments.length} COMMENT${comments.length !== 1 ? "S" : ""}` : "NO COMMENTS YET"}
         </h3>
@@ -193,22 +325,32 @@ function ThreadView({ post, user, onClose, onLikePost }: {
                     )}
                   </div>
                   <p style={{ fontSize: 13, color: "rgba(210,200,170,0.88)", lineHeight: 1.55, whiteSpace: "pre-wrap", marginBottom: 8 }}>{c.body}</p>
-                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <LikeButton
-                      liked={c.user_liked}
-                      count={c.like_count}
-                      onToggle={() => likeComment.mutate(c.id)}
-                      disabled={!user || likeComment.isPending}
-                    />
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    {/* Reply toggle button */}
+                    <button
+                      onClick={() => setOpenReplyId(openReplyId === c.id ? null : c.id)}
+                      data-testid={`button-toggle-replies-${c.id}`}
+                      style={{ display: "flex", alignItems: "center", gap: 4, background: openReplyId === c.id ? "rgba(212,168,67,0.08)" : "none", border: openReplyId === c.id ? "1px solid rgba(212,168,67,0.2)" : "1px solid transparent", borderRadius: 20, padding: "2px 8px", cursor: "pointer" }}
+                    >
+                      <MessageSquare size={11} color="rgba(212,168,67,0.45)" />
+                      <span style={{ fontSize: 10, color: "rgba(212,168,67,0.5)", fontFamily: "serif" }}>
+                        {c.reply_count > 0 ? `${c.reply_count} repl${c.reply_count !== 1 ? "ies" : "y"}` : "Discuss"}
+                      </span>
+                    </button>
+                    <LikeButton liked={c.user_liked} count={c.like_count} onToggle={() => likeComment.mutate(c.id)} disabled={!user || likeComment.isPending} />
                   </div>
+                  {/* Expandable reply thread */}
+                  {openReplyId === c.id && (
+                    <ReplyThread commentId={c.id} user={user} postReadOnly={post.is_read_only} />
+                  )}
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Comment input */}
-        {user ? (
+        {/* Bottom: comment input / status message */}
+        {showCommentBox ? (
           <div style={{ background: "rgba(8,20,10,0.9)", border: "1px solid rgba(212,168,67,0.2)", borderRadius: 12, padding: "12px 14px" }}>
             <textarea
               data-testid="input-forum-comment"
@@ -217,7 +359,7 @@ function ThreadView({ post, user, onClose, onLikePost }: {
               placeholder="Add a comment…"
               maxLength={1000}
               rows={3}
-              style={{ width: "100%", background: "rgba(4,12,6,0.7)", border: "1px solid rgba(212,168,67,0.15)", borderRadius: 8, color: "#d4c880", fontSize: 13, padding: "8px 10px", resize: "none", fontFamily: "serif", outline: "none" }}
+              style={{ width: "100%", background: "rgba(4,12,6,0.7)", border: "1px solid rgba(212,168,67,0.15)", borderRadius: 8, color: "#d4c880", fontSize: 13, padding: "8px 10px", resize: "none", fontFamily: "serif", outline: "none", boxSizing: "border-box" }}
             />
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
               <button
@@ -231,6 +373,15 @@ function ThreadView({ post, user, onClose, onLikePost }: {
               </button>
             </div>
           </div>
+        ) : post.is_read_only ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "12px 0", background: "rgba(252,211,77,0.05)", border: "1px solid rgba(252,211,77,0.15)", borderRadius: 10 }}>
+            <Lock size={13} color="#fcd34d" />
+            <span style={{ fontSize: 12, color: "#fcd34d" }} className="font-fantasy">This post is read only</span>
+          </div>
+        ) : user && userHasCommented ? (
+          <p style={{ textAlign: "center", fontSize: 12, color: "rgba(212,168,67,0.5)", padding: "10px 0" }} className="font-fantasy">
+            You've already left a comment. Click "Discuss" on it to keep the conversation going.
+          </p>
         ) : (
           <p style={{ textAlign: "center", fontSize: 12, color: "rgba(212,168,67,0.45)" }} className="font-fantasy">Sign in to leave a comment</p>
         )}
@@ -340,10 +491,20 @@ export default function ForumPage() {
                 )}
 
                 <div style={{ padding: "12px 14px 12px" }}>
-                  {post.is_pinned && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 5 }}>
-                      <Pin size={10} color="#d4a843" />
-                      <span style={{ fontSize: 9, color: "#d4a843", letterSpacing: "0.18em" }} className="font-fantasy">PINNED</span>
+                  {(post.is_pinned || post.is_read_only) && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5, flexWrap: "wrap" }}>
+                      {post.is_pinned && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <Pin size={10} color="#d4a843" />
+                          <span style={{ fontSize: 9, color: "#d4a843", letterSpacing: "0.18em" }} className="font-fantasy">PINNED</span>
+                        </div>
+                      )}
+                      {post.is_read_only && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <Lock size={9} color="#fcd34d" />
+                          <span style={{ fontSize: 9, color: "#fcd34d", letterSpacing: "0.18em" }} className="font-fantasy">READ ONLY</span>
+                        </div>
+                      )}
                     </div>
                   )}
 

@@ -710,7 +710,7 @@ export default function AdminPage({ user }: AdminPageProps) {
                   >
                     {([
                       { key: "watcher", label: "Watcher" },
-                      { key: "chat_filter", label: "Chat Filter" },
+                      { key: "chat_filter", label: "Word Filter" },
                     ] as const).map(t => {
                       const active = watcherTab === t.key;
                       return (
@@ -2426,6 +2426,7 @@ interface ForumPostAdmin {
   body: string;
   image_url: string | null;
   is_pinned: boolean;
+  is_read_only: boolean;
   created_at: string;
   author_name: string | null;
   comment_count: number;
@@ -2504,6 +2505,13 @@ function ForumAdminSection() {
     mutationFn: ({ id, pinned }: { id: string; pinned: boolean }) =>
       apiRequest("PATCH", `/api/forum/posts/${id}`, { is_pinned: pinned }).then(r => r.json()),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/forum/posts"] }),
+  });
+
+  const toggleReadOnly = useMutation({
+    mutationFn: ({ id, readOnly }: { id: string; readOnly: boolean }) =>
+      apiRequest("PATCH", `/api/forum/posts/${id}`, { is_read_only: readOnly }).then(r => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/forum/posts"] }),
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const inputStyle: React.CSSProperties = {
@@ -2612,13 +2620,18 @@ function ForumAdminSection() {
                 {p.image_url && <img src={p.image_url} alt="" style={{ width: 48, height: 48, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p className="font-fantasy" style={{ fontSize: 13, color: "#f0d060", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
-                  <p style={{ fontSize: 10, color: "rgba(134,239,172,0.5)", marginTop: 2 }}>{p.comment_count} comment{p.comment_count !== 1 ? "s" : ""} · {p.is_pinned ? "📌 pinned" : "not pinned"}</p>
+                  <p style={{ fontSize: 10, color: "rgba(134,239,172,0.5)", marginTop: 2 }}>{p.comment_count} comment{p.comment_count !== 1 ? "s" : ""} · {p.is_pinned ? "📌 pinned" : "not pinned"}{p.is_read_only ? " · 🔒 read only" : ""}</p>
                 </div>
                 <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
                   <button onClick={() => togglePin.mutate({ id: p.id, pinned: !p.is_pinned })} data-testid={`button-pin-${p.id}`}
                     title={p.is_pinned ? "Unpin" : "Pin"}
                     style={{ padding: "5px 8px", borderRadius: 6, background: "rgba(212,168,67,0.15)", border: "1px solid rgba(212,168,67,0.25)", color: "#d4a843", fontSize: 11, cursor: "pointer" }}>
                     📌
+                  </button>
+                  <button onClick={() => toggleReadOnly.mutate({ id: p.id, readOnly: !p.is_read_only })} data-testid={`button-readonly-${p.id}`}
+                    title={p.is_read_only ? "Unlock post" : "Set read only"}
+                    style={{ padding: "5px 8px", borderRadius: 6, background: p.is_read_only ? "rgba(252,211,77,0.18)" : "rgba(40,40,40,0.5)", border: p.is_read_only ? "1px solid rgba(252,211,77,0.4)" : "1px solid rgba(200,190,160,0.2)", color: p.is_read_only ? "#fcd34d" : "rgba(200,190,160,0.45)", fontSize: 11, cursor: "pointer" }}>
+                    🔒
                   </button>
                   <button onClick={() => openEdit(p)} data-testid={`button-edit-post-${p.id}`}
                     style={{ padding: "5px 8px", borderRadius: 6, background: "rgba(40,80,40,0.5)", border: "1px solid rgba(134,239,172,0.25)", color: "#86efac", fontSize: 11, cursor: "pointer" }}>
@@ -3334,6 +3347,7 @@ function ChatFilterSection({ currentUsername }: { currentUsername: string }) {
         style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(252,165,165,0.2)" }}
       >
         <p className="font-fantasy text-xs tracking-wider" style={{ color: ACCENT }}>Add Word to Filter</p>
+        <p style={{ fontSize: 11, color: "rgba(252,165,165,0.55)", fontFamily: "sans-serif", marginTop: -4 }}>Filtered in both world chat and forum comments</p>
         <div className="flex gap-2">
           <input
             data-testid="input-new-filter-word"

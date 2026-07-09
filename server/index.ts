@@ -1065,6 +1065,11 @@ app.use((req, res, next) => {
       )
     `);
     await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_forum_comments_post ON forum_comments(post_id)`);
+    // Extend tables with new columns (idempotent)
+    await db.execute(sql`ALTER TABLE IF EXISTS forum_posts ADD COLUMN IF NOT EXISTS is_read_only boolean NOT NULL DEFAULT false`);
+    await db.execute(sql`ALTER TABLE IF EXISTS forum_comments ADD COLUMN IF NOT EXISTS parent_comment_id uuid REFERENCES forum_comments(id) ON DELETE CASCADE`);
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS uq_forum_one_comment_per_user ON forum_comments(post_id, author_id) WHERE parent_comment_id IS NULL`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_forum_comments_parent ON forum_comments(parent_comment_id)`);
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS forum_post_likes (
         post_id uuid NOT NULL REFERENCES forum_posts(id) ON DELETE CASCADE,
