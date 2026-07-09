@@ -2034,20 +2034,17 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           <button
             data-testid="button-open-support"
             onClick={() => { setShowSupportModal(true); setSupportSent(false); setSupportSubject(""); setSupportMessage(""); }}
-            className="absolute z-[50] flex items-center justify-center rounded-full transition-transform active:scale-90"
+            className="absolute z-[50] transition-transform active:scale-90"
             style={{
               top: "66px",
               right: "12px",
-              width: "32px",
-              height: "32px",
-              background: "rgba(10,5,2,0.82)",
-              border: "1.5px solid rgba(212,160,23,0.45)",
-              color: "rgba(212,160,23,0.75)",
+              background: "none",
+              border: "none",
               cursor: "pointer",
-              boxShadow: "0 2px 10px rgba(0,0,0,0.5)",
+              padding: 0,
             }}
           >
-            <img src={supportIconImg} alt="Support" style={{ width: 22, height: 22, objectFit: "contain" }} />
+            <img src={supportIconImg} alt="Support" style={{ width: 36, height: 36, objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.7))" }} />
           </button>
         </>
       )}

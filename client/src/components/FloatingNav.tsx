@@ -401,14 +401,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
               style={{ position: "absolute", top: -22, zIndex: 100 }}
             />
           )}
-          {/* Friend-request badge — green (!) on main button when nav is closed */}
-          {friendBadge && !isOpen && (
-            <QuillBadge
-              size={15}
-              glow="#4ade80"
-              style={{ position: "absolute", top: -22, zIndex: 100 }}
-            />
-          )}
         </button>
       </div>
 

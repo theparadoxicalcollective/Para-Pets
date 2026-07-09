@@ -8,6 +8,8 @@ import { Mail } from "lucide-react";
 import coinIconImg from "@assets/icon_coin.png";
 import coinBagIconImg from "@assets/generated_images/icon_coin_bag.png";
 import giftIconImg from "@assets/Photoroom_20260708_51809_PM_1783549272918.png";
+import profileFrameImg from "@assets/Photoroom_20260709_92006_AM_1783607153082.png";
+import nameplateImg from "@assets/Photoroom_20260709_92122_AM_1783607153082.png";
 import RewardClaimModal from "./RewardClaimModal";
 
 interface TopBarProps {
@@ -93,8 +95,9 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
     <>
       <div className="flex items-center justify-between px-3 pt-3 pb-1 gap-3 relative z-[50]">
 
-        {/* LEFT: profile photo + name/coins to its right */}
-        <div className="flex items-center gap-2 min-w-0">
+        {/* LEFT: profile photo + nameplate below */}
+        <div className="flex flex-col items-start gap-0 min-w-0">
+          <div className="flex items-center gap-2">
           {/* Profile photo — admin star overlays its corner so it adds no vertical height */}
           <div className="flex flex-col items-center gap-1 flex-shrink-0">
             <div className="relative flex-shrink-0">
@@ -105,12 +108,11 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 style={{ background: "none", border: "none", cursor: "pointer", display: "block" }}
               >
                 <div className="relative topbar-profile-size-sm">
-                  <div
-                    className="absolute inset-0 rounded-lg z-20 pointer-events-none"
-                    style={{
-                      border: "2.5px solid #c9a030",
-                      boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5), inset 0 0 3px rgba(201,160,48,0.15)",
-                    }}
+                  <img
+                    src={profileFrameImg}
+                    alt=""
+                    className="absolute z-20 pointer-events-none"
+                    style={{ inset: "-6px", width: "calc(100% + 12px)", height: "calc(100% + 12px)", objectFit: "fill" }}
                   />
                   <div className="absolute z-10 overflow-hidden rounded-lg" style={{ inset: "0px" }}>
                     {user.profileImage ? (
@@ -274,65 +276,50 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
             )}
           </div>
 
-          {/* Name + coins stacked to the right of the photo */}
-          <div className="flex flex-col gap-1 min-w-0">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <div
-                className="px-2.5 py-1 rounded-md min-w-0"
-                style={{
-                  background: "linear-gradient(135deg, rgba(30,15,5,0.9) 0%, rgba(60,35,10,0.9) 100%)",
-                  border: "1px solid rgba(212,160,23,0.5)",
-                  boxShadow: "0 2px 12px rgba(0,0,0,0.6), inset 0 1px 0 rgba(212,160,23,0.2)",
-                }}
+          {/* Coins + coin bag to the right of the profile photo */}
+          <div className="flex flex-col gap-1 flex-shrink-0 justify-center">
+            <div
+              className="flex items-center gap-1 px-2 py-0.5 rounded-md"
+              style={{
+                background: "linear-gradient(135deg, rgba(30,15,5,0.9) 0%, rgba(60,35,10,0.9) 100%)",
+                border: "1px solid rgba(212,160,23,0.4)",
+              }}
+            >
+              <img
+                src={coinIconImg}
+                alt="Coins"
+                className="w-4 h-4 object-contain"
+                style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }}
+              />
+              <span
+                className="font-fantasy text-[#f0c040] font-semibold"
+                style={{ fontSize: "clamp(11px, calc(3.2*var(--vw)), 15px)" }}
+                data-testid="text-coins"
               >
-                <p
-                  className="font-fantasy text-[#f0c040] font-semibold tracking-widest truncate"
-                  style={{ textShadow: "0 0 10px rgba(240,192,64,0.6)", fontSize: "clamp(11px, calc(3.2*var(--vw)), 15px)" }}
-                  data-testid="text-username"
-                >
-                  {user.username}
-                </p>
-              </div>
+                {user.coins}
+              </span>
             </div>
-
-            <div className="flex items-center gap-1.5 self-start">
-              {/* Coin amount display — non-clickable */}
-              <div
-                className="flex items-center gap-1 px-2.5 py-0.5 rounded-md"
-                style={{
-                  background: "linear-gradient(135deg, rgba(30,15,5,0.9) 0%, rgba(60,35,10,0.9) 100%)",
-                  border: "1px solid rgba(212,160,23,0.4)",
-                }}
+            <button
+              data-testid="button-coin-shop"
+              onClick={() => navigate("/coins")}
+              className="flex items-center justify-center transition-transform active:scale-90"
+              style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}
+            >
+              <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 44, height: 44, objectFit: "contain", filter: "drop-shadow(0 0 0px 0px rgba(0,0,0,0)) drop-shadow(0 0 1.5px rgba(212,160,23,1)) drop-shadow(0 0 1.5px rgba(212,160,23,1)) drop-shadow(0 0 1.5px rgba(212,160,23,0.9)) drop-shadow(0 0 8px rgba(212,160,23,0.65)) drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
+            </button>
+          </div>
+          </div>
+          {/* Nameplate — centered below profile photo */}
+          <div style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", marginTop: -2, alignSelf: "flex-start" }}>
+            <img src={nameplateImg} alt="" style={{ display: "block", height: 26, width: "auto", objectFit: "contain" }} />
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", paddingLeft: "10%", paddingRight: "10%" }}>
+              <p
+                className="font-fantasy text-[#f0c040] font-semibold tracking-widest truncate"
+                style={{ textShadow: "0 0 10px rgba(240,192,64,0.6)", fontSize: "clamp(10px, calc(2.8*var(--vw)), 13px)" }}
+                data-testid="text-username"
               >
-                <img
-                  src={coinIconImg}
-                  alt="Coins"
-                  className="w-4 h-4 object-contain"
-                  style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }}
-                />
-                <span
-                  className="font-fantasy text-[#f0c040] font-semibold"
-                  style={{ fontSize: "clamp(11px, calc(3.2*var(--vw)), 15px)" }}
-                  data-testid="text-coins"
-                >
-                  {user.coins}
-                </span>
-              </div>
-              {/* Coin bag icon — opens coin shop */}
-              <button
-                data-testid="button-coin-shop"
-                onClick={() => navigate("/coins")}
-                className="flex items-center justify-center transition-transform active:scale-90"
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  padding: 0,
-                  cursor: "pointer",
-                  flexShrink: 0,
-                }}
-              >
-                <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 44, height: 44, objectFit: "contain", filter: "drop-shadow(0 0 0px 0px rgba(0,0,0,0)) drop-shadow(0 0 1.5px rgba(212,160,23,1)) drop-shadow(0 0 1.5px rgba(212,160,23,1)) drop-shadow(0 0 1.5px rgba(212,160,23,0.9)) drop-shadow(0 0 8px rgba(212,160,23,0.65)) drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
-              </button>
+                {user.username}
+              </p>
             </div>
           </div>
         </div>
