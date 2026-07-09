@@ -9723,11 +9723,11 @@ export async function registerRoutes(
     const userId = req.user!.id;
     try {
       const inv = await storage.getUserInventoryWithItems(userId);
-      const hasUnhatchedPet = inv.some(
-        ({ inventory, shopItem }) => inventory.isHatched === false && shopItem?.type === "pet"
+      const hasAnyPet = inv.some(
+        ({ inventory: _inv, shopItem }) => shopItem?.type === "pet"
       );
-      if (hasUnhatchedPet) {
-        return res.json({ granted: false, message: "Already has an egg" });
+      if (hasAnyPet) {
+        return res.json({ granted: false, message: "Already has a pet" });
       }
       const allItems = await storage.getAllShopItems();
       const starterEgg = allItems.find(

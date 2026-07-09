@@ -215,8 +215,8 @@ export default function BeginJourneyOverlay({ user }: Props) {
 
   useEffect(() => {
     if (step !== 2 || location !== "/pets" || !invCheck) return;
-    const hasEgg = invCheck.some(i => i.isHatched === false && i.type === "pet");
-    if (!hasEgg) setShowGrantModal(true);
+    const hasAnyPet = invCheck.some(i => i.type === "pet");
+    if (!hasAnyPet) setShowGrantModal(true);
   }, [step, location, invCheck]);
 
   // ── Poll inventory for hatch at step 5 ────────────────────────────────────
