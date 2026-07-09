@@ -94,7 +94,7 @@ export interface IStorage {
   setLastWatcherGreetedAt(id: string, when: Date): Promise<void>;
   setLastPettingRewardAt(id: string, when: Date): Promise<void>;
   setPettingRewardsToday(id: string, count: number): Promise<void>;
-  getMoltenBlocksLeaderboard(viewerId?: string): Promise<{ rank: number; username: string; score: number; isViewer: boolean }[]>;
+  getMoltenBlocksLeaderboard(viewerId?: string): Promise<{ rank: number; username: string; score: number; isViewer: boolean; profileImage: string | null }[]>;
   getMoltenBlocksViewerRank(userId: string): Promise<{ rank: number; score: number }>;
   submitMoltenBlocksScore(userId: string, score: number): Promise<number>;
   getMoltenBlocksDropItems(activeOnly?: boolean): Promise<{ id: string; shopItemId: string; rarity: string; active: boolean; itemName: string; imageUrl: string | null }[]>;
@@ -3473,9 +3473,9 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(veridianWatcherQuotes).orderBy(asc(veridianWatcherQuotes.createdAt));
   }
 
-  async getMoltenBlocksLeaderboard(viewerId?: string): Promise<{ rank: number; username: string; score: number; isViewer: boolean }[]> {
+  async getMoltenBlocksLeaderboard(viewerId?: string): Promise<{ rank: number; username: string; score: number; isViewer: boolean; profileImage: string | null }[]> {
     const rows = await db
-      .select({ id: users.id, username: users.username, score: users.moltenBlocksHighScore })
+      .select({ id: users.id, username: users.username, score: users.moltenBlocksHighScore, profileImage: users.profileImage })
       .from(users)
       .where(and(sql`${users.moltenBlocksHighScore} > 0`, eq(users.isBot, false), eq(users.isAdmin, false)))
       .orderBy(desc(users.moltenBlocksHighScore))
@@ -3485,6 +3485,7 @@ export class DatabaseStorage implements IStorage {
       username: r.username,
       score: r.score ?? 0,
       isViewer: r.id === viewerId,
+      profileImage: r.profileImage ?? null,
     }));
   }
 

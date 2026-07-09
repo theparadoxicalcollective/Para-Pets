@@ -153,11 +153,11 @@ interface GState {
 
 // ─── Level data builders (procedural — called fresh each new game) ───────────
 
-// Pick a random coin type: 73% orb, 16% coin, 3% coinBonus, 6% double (coinBonus rare)
+// Pick a random coin type: 78% orb, 15% coin, 5% coinBonus, 2% double (double very rare)
 function pickCoinType(): Coin["type"] {
   const r = Math.random();
-  if (r < 0.06) return "double";
-  if (r < 0.09) return "coinBonus";
+  if (r < 0.02) return "double";
+  if (r < 0.07) return "coinBonus";
   if (r < 0.25) return "coin";
   return "orb";
 }

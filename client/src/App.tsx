@@ -52,6 +52,7 @@ const PetCarePage          = lazy(() => import("@/pages/PetCarePage"));
 const MoltenBlocksPage     = lazy(() => import("@/pages/MoltenBlocksPage"));
 const LavaCrawlPage        = lazy(() => import("@/pages/LavaCrawlPage"));
 const FriendsPage          = lazy(() => import("@/pages/FriendsPage"));
+const ForumPage            = lazy(() => import("@/pages/ForumPage"));
 
 // ── Email gate screen — blocks the game until email is verified ───────────────
 function EmailGateScreen({ email }: { email: string }) {
@@ -438,6 +439,7 @@ function AppRouter() {
           <Route path="/reset-password/:token" component={ResetPasswordPage} />
           <Route path="/privacy"><PrivacyPolicyPage user={user ?? null} /></Route>
           <Route path="/hub"><ParaPetsHubPage /></Route>
+          <Route path="/forum"><ForumPage /></Route>
           <Route path="/founders"><FoundersPage /></Route>
           <Route path="/admin">
             {user?.isAdmin ? <AdminPage user={user} /> : <Redirect to="/" />}

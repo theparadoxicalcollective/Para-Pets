@@ -1041,6 +1041,52 @@ app.use((req, res, next) => {
     console.error("world_chat_messages table setup error (non-fatal):", err);
   }
 
+  // ── Forum tables ────────────────────────────────────────────────────────────
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS forum_posts (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        title text NOT NULL,
+        body text NOT NULL DEFAULT '',
+        image_url text,
+        is_pinned boolean NOT NULL DEFAULT false,
+        author_id text REFERENCES users(id),
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS forum_comments (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        post_id uuid NOT NULL REFERENCES forum_posts(id) ON DELETE CASCADE,
+        author_id text NOT NULL REFERENCES users(id),
+        body text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_forum_comments_post ON forum_comments(post_id)`);
+    console.log("forum tables ready.");
+  } catch (err) {
+    console.error("forum table setup error (non-fatal):", err);
+  }
+
+  // ── Hub notices table ────────────────────────────────────────────────────────
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS hub_notices (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        image_url text NOT NULL,
+        href text NOT NULL DEFAULT '',
+        label text NOT NULL DEFAULT '',
+        sort_order int NOT NULL DEFAULT 0,
+        created_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    console.log("hub_notices table ready.");
+  } catch (err) {
+    console.error("hub_notices table setup error (non-fatal):", err);
+  }
+
   try {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS daily_login_rewards (

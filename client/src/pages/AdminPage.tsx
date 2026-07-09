@@ -64,7 +64,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [banModalUserId, setBanModalUserId] = useState<string | null>(null);
   const [banDays, setBanDays] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "emblems" | "maintenance" | "home_bundle" | "purchases" | "veridian_watcher" | "quest" | "molten_blocks" | "metrics" | "recipe_items" | null>(null);
+  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "emblems" | "maintenance" | "home_bundle" | "purchases" | "veridian_watcher" | "quest" | "molten_blocks" | "metrics" | "recipe_items" | "forums" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const [characterTab, setCharacterTab] = useState<"pet" | "enemy" | "npc" | "fish">("pet");
   const [itemsTab, setItemsTab] = useState<"items" | "fishing">("items");
@@ -171,6 +171,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "quest"         as const, label: "Quests",          icon: adminIconQuest,         desc: "Manage quests",                color: "#6ee7b7", glow: "rgba(110,231,183,0.35)",  bg: "linear-gradient(145deg, rgba(8,50,35,0.92) 0%, rgba(14,80,55,0.88) 100%)",   border: "rgba(110,231,183,0.45)" },
     { key: "recipe_items"  as const, label: "Recipes",         icon: adminIconItems,         desc: "Mixing Tree brew recipes",     color: "#4ade80", glow: "rgba(74,222,128,0.35)",   bg: "linear-gradient(145deg, rgba(4,40,16,0.92) 0%, rgba(8,64,24,0.88) 100%)",   border: "rgba(74,222,128,0.5)"   },
     { key: "rewards"       as const, label: "Rewards",         icon: adminIconRewards,       desc: "Send bundles",                 color: "#c4b5fd", glow: "rgba(192,132,252,0.35)",  bg: "linear-gradient(145deg, rgba(50,18,88,0.92) 0%, rgba(80,28,120,0.88) 100%)", border: "rgba(192,132,252,0.5)"  },
+    { key: "forums"        as const, label: "Forums",          icon: adminIconVeridianWatcher, desc: "Manage forum posts",         color: "#86efac", glow: "rgba(134,239,172,0.30)",  bg: "linear-gradient(145deg, rgba(4,40,16,0.92) 0%, rgba(8,64,24,0.88) 100%)",   border: "rgba(134,239,172,0.45)" },
     { key: "veridian_watcher" as const, label: "Veridian Watcher", icon: adminIconVeridianWatcher, desc: "Bot quotes & chat filter", color: "#a5f3fc", glow: "rgba(165,243,252,0.30)", bg: "linear-gradient(145deg, rgba(8,40,55,0.92) 0%, rgba(12,65,85,0.88) 100%)", border: "rgba(165,243,252,0.45)" },
   ];
 
@@ -690,6 +691,10 @@ export default function AdminPage({ user }: AdminPageProps) {
 
               {activeSection === "maintenance" && (
                 <MaintenanceSection />
+              )}
+
+              {activeSection === "forums" && (
+                <ForumAdminSection />
               )}
 
               {activeSection === "veridian_watcher" && (
@@ -2410,6 +2415,212 @@ interface CrashEntry {
   ua: string;
   ts: string;
   userId?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Forum Admin Section
+// ─────────────────────────────────────────────────────────────────────────────
+interface ForumPostAdmin {
+  id: string;
+  title: string;
+  body: string;
+  image_url: string | null;
+  is_pinned: boolean;
+  created_at: string;
+  author_name: string | null;
+  comment_count: number;
+}
+
+function ForumAdminSection() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [showCreate, setShowCreate] = useState(false);
+  const [editPost, setEditPost] = useState<ForumPostAdmin | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const [title, setTitle]         = useState("");
+  const [body, setBody]           = useState("");
+  const [imagePrev, setImagePrev] = useState<string | null>(null);
+  const [isPinned, setIsPinned]   = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const { data: posts = [], isLoading } = useQuery<ForumPostAdmin[]>({
+    queryKey: ["/api/forum/posts"],
+    staleTime: 30_000,
+  });
+
+  const openCreate = () => {
+    setEditPost(null);
+    setTitle(""); setBody(""); setImagePrev(null); setIsPinned(false);
+    setShowCreate(true);
+  };
+
+  const openEdit = (p: ForumPostAdmin) => {
+    setEditPost(p);
+    setTitle(p.title); setBody(p.body); setImagePrev(p.image_url); setIsPinned(p.is_pinned);
+    setShowCreate(true);
+  };
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setImagePrev(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const savePost = useMutation({
+    mutationFn: async () => {
+      if (editPost) {
+        return apiRequest("PATCH", `/api/forum/posts/${editPost.id}`, {
+          title: title.trim(), body: body.trim(),
+          image_url: imagePrev ?? null, is_pinned: isPinned,
+        }).then(r => r.json());
+      }
+      return apiRequest("POST", "/api/forum/posts", {
+        title: title.trim(), body: body.trim(),
+        image_url: imagePrev ?? null, is_pinned: isPinned,
+      }).then(r => r.json());
+    },
+    onSuccess: () => {
+      toast({ title: editPost ? "Post updated" : "Post created" });
+      setShowCreate(false);
+      qc.invalidateQueries({ queryKey: ["/api/forum/posts"] });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deletePost = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/forum/posts/${id}`).then(r => r.json()),
+    onSuccess: () => {
+      toast({ title: "Post deleted" });
+      setDeleteId(null);
+      qc.invalidateQueries({ queryKey: ["/api/forum/posts"] });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const togglePin = useMutation({
+    mutationFn: ({ id, pinned }: { id: string; pinned: boolean }) =>
+      apiRequest("PATCH", `/api/forum/posts/${id}`, { is_pinned: pinned }).then(r => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/forum/posts"] }),
+  });
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", background: "rgba(4,12,6,0.75)", border: "1px solid rgba(212,168,67,0.2)",
+    borderRadius: 8, color: "#d4c880", fontSize: 13, padding: "8px 10px", fontFamily: "serif", outline: "none",
+  };
+  const labelStyle: React.CSSProperties = { fontSize: 11, color: "rgba(212,168,67,0.65)", marginBottom: 4, display: "block", fontFamily: "fantasy" };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h3 className="font-fantasy text-sm tracking-widest" style={{ color: "#86efac" }}>Forum Posts</h3>
+        <button
+          data-testid="button-forum-create"
+          onClick={openCreate}
+          className="font-fantasy text-xs tracking-wider"
+          style={{ padding: "7px 14px", borderRadius: 8, background: "rgba(40,100,40,0.8)", border: "1px solid rgba(134,239,172,0.4)", color: "#86efac", cursor: "pointer" }}
+        >
+          + New Post
+        </button>
+      </div>
+
+      {/* Create / Edit Form */}
+      {showCreate && (
+        <div style={{ background: "rgba(6,18,8,0.9)", border: "1px solid rgba(134,239,172,0.25)", borderRadius: 14, padding: "16px 14px" }}>
+          <h4 className="font-fantasy text-xs tracking-widest mb-4" style={{ color: "#86efac" }}>{editPost ? "Edit Post" : "New Post"}</h4>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Title *</label>
+              <input data-testid="input-forum-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="Post title…" style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Body</label>
+              <textarea data-testid="input-forum-body" value={body} onChange={e => setBody(e.target.value)} placeholder="Post content…" rows={4} style={{ ...inputStyle, resize: "vertical" }} />
+            </div>
+            <div>
+              <label style={labelStyle}>Image</label>
+              {imagePrev && (
+                <div style={{ position: "relative", marginBottom: 8 }}>
+                  <img src={imagePrev} alt="" style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 8, border: "1px solid rgba(134,239,172,0.2)" }} />
+                  <button onClick={() => setImagePrev(null)} style={{ position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: "50%", background: "rgba(0,0,0,0.7)", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>✕</button>
+                </div>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
+              <button onClick={() => fileRef.current?.click()} data-testid="button-forum-upload-img"
+                style={{ padding: "7px 14px", borderRadius: 8, background: "rgba(20,50,20,0.7)", border: "1px solid rgba(134,239,172,0.25)", color: "#86efac", fontSize: 11, cursor: "pointer", fontFamily: "fantasy", letterSpacing: "0.1em" }}>
+                {imagePrev ? "Change Image" : "Upload Image"}
+              </button>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <input type="checkbox" id="pin-toggle" checked={isPinned} onChange={e => setIsPinned(e.target.checked)} data-testid="checkbox-forum-pin" />
+              <label htmlFor="pin-toggle" style={{ ...labelStyle, marginBottom: 0, cursor: "pointer" }}>Pin this post</label>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setShowCreate(false)} style={{ flex: 1, padding: "8px 0", borderRadius: 8, background: "rgba(30,30,30,0.7)", border: "1px solid rgba(212,168,67,0.2)", color: "#a89878", fontSize: 12, cursor: "pointer", fontFamily: "fantasy" }}>Cancel</button>
+              <button onClick={() => savePost.mutate()} disabled={!title.trim() || savePost.isPending} data-testid="button-forum-save"
+                style={{ flex: 2, padding: "8px 0", borderRadius: 8, background: "rgba(40,100,40,0.85)", border: "1px solid rgba(134,239,172,0.4)", color: "#86efac", fontSize: 12, cursor: "pointer", fontFamily: "fantasy", letterSpacing: "0.1em" }}>
+                {savePost.isPending ? "Saving…" : (editPost ? "Save Changes" : "Create Post")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirm */}
+      {deleteId && (
+        <div style={{ background: "rgba(60,10,10,0.9)", border: "1px solid rgba(255,100,100,0.3)", borderRadius: 12, padding: "14px 16px" }}>
+          <p style={{ color: "#fca5a5", fontSize: 13, marginBottom: 12 }}>Delete this post? Comments will also be removed.</p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setDeleteId(null)} style={{ flex: 1, padding: "7px 0", borderRadius: 8, background: "rgba(30,30,30,0.7)", border: "1px solid rgba(212,168,67,0.2)", color: "#a89878", fontSize: 12, cursor: "pointer" }}>Cancel</button>
+            <button onClick={() => deletePost.mutate(deleteId!)} disabled={deletePost.isPending} data-testid="button-forum-confirm-delete"
+              style={{ flex: 1, padding: "7px 0", borderRadius: 8, background: "rgba(120,20,20,0.85)", border: "1px solid rgba(255,100,100,0.4)", color: "#fca5a5", fontSize: 12, cursor: "pointer" }}>
+              {deletePost.isPending ? "Deleting…" : "Delete"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Posts list */}
+      {isLoading ? (
+        <div style={{ textAlign: "center", padding: 20 }}>
+          <div style={{ width: 20, height: 20, borderRadius: "50%", border: "2px solid rgba(134,239,172,0.3)", borderTopColor: "#86efac", animation: "spin 0.8s linear infinite", display: "inline-block" }} />
+        </div>
+      ) : posts.length === 0 ? (
+        <p style={{ color: "rgba(134,239,172,0.45)", fontSize: 13, textAlign: "center", padding: "20px 0" }} className="font-fantasy">No posts yet. Create one above!</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {posts.map(p => (
+            <div key={p.id} style={{ background: "rgba(6,18,8,0.8)", border: `1px solid ${p.is_pinned ? "rgba(134,239,172,0.3)" : "rgba(134,239,172,0.1)"}`, borderRadius: 10, padding: "10px 12px" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                {p.image_url && <img src={p.image_url} alt="" style={{ width: 48, height: 48, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p className="font-fantasy" style={{ fontSize: 13, color: "#f0d060", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
+                  <p style={{ fontSize: 10, color: "rgba(134,239,172,0.5)", marginTop: 2 }}>{p.comment_count} comment{p.comment_count !== 1 ? "s" : ""} · {p.is_pinned ? "📌 pinned" : "not pinned"}</p>
+                </div>
+                <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
+                  <button onClick={() => togglePin.mutate({ id: p.id, pinned: !p.is_pinned })} data-testid={`button-pin-${p.id}`}
+                    title={p.is_pinned ? "Unpin" : "Pin"}
+                    style={{ padding: "5px 8px", borderRadius: 6, background: "rgba(212,168,67,0.15)", border: "1px solid rgba(212,168,67,0.25)", color: "#d4a843", fontSize: 11, cursor: "pointer" }}>
+                    📌
+                  </button>
+                  <button onClick={() => openEdit(p)} data-testid={`button-edit-post-${p.id}`}
+                    style={{ padding: "5px 8px", borderRadius: 6, background: "rgba(40,80,40,0.5)", border: "1px solid rgba(134,239,172,0.25)", color: "#86efac", fontSize: 11, cursor: "pointer" }}>
+                    Edit
+                  </button>
+                  <button onClick={() => setDeleteId(p.id)} data-testid={`button-delete-post-${p.id}`}
+                    style={{ padding: "5px 8px", borderRadius: 6, background: "rgba(80,20,20,0.5)", border: "1px solid rgba(252,165,165,0.25)", color: "#fca5a5", fontSize: 11, cursor: "pointer" }}>
+                    Del
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function MaintenanceSection() {

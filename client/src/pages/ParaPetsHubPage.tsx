@@ -54,10 +54,11 @@ import paradoxStatue from "@assets/Photoroom_20260619_64226_PM_1781913135212.png
 import noticeGoFishing from "@assets/64255BCE-2B6A-4A95-8654-145262B126FA_1781352994250.png";
 import noticeLimited   from "@assets/66A982C2-2B49-4DE0-8EE6-79C542E3351B_1781303706759.png";
 import noticeExplore   from "@assets/49FB9020-1DB5-487E-9B92-EC15E9240ABD_1781303869686.png";
+import forumBtnImg     from "@assets/Photoroom_20260708_100323_PM_1783566697221.png";
 
 const SOCIAL_LINKS = [
-  { href: "https://www.facebook.com/share/1aKivHeYYP/?mibextid=wwXIfr", icon: "/social_icon_facebook.png", label: "Facebook" },
-  { href: "https://www.tiktok.com/t/ZP8G2Qa1W/",                        icon: "/social_icon_tiktok.png",   label: "TikTok"   },
+  { href: "https://www.facebook.com/share/1aKivHeYYP/?mibextid=wwXIfr", icon: "/social_icon_facebook.png", label: "Facebook"    },
+  { href: "https://www.tiktok.com/t/ZP8G2Qa1W/",                        icon: "/social_icon_tiktok.png",   label: "TikTok"      },
   { href: "https://x.com/parapetsgames?s=11",                            icon: "/social_icon_twitter.png",  label: "X / Twitter" },
 ];
 
@@ -755,18 +756,6 @@ function PetsBanner() {
 
   return (
     <div data-testid="pets-banner" style={{ marginBottom: 0 }}>
-      {/* Label */}
-      <div className="flex items-center gap-2 mb-2 px-1">
-        <div style={{ height: 1, flex: 1, background: "linear-gradient(90deg,transparent,rgba(212,168,67,0.25))" }} />
-        <span
-          className="font-fantasy tracking-[0.2em]"
-          style={{ fontSize: 9, color: "rgba(212,168,67,0.5)", whiteSpace: "nowrap" }}
-        >
-          PETS OF THE REALM
-        </span>
-        <div style={{ height: 1, flex: 1, background: "linear-gradient(270deg,transparent,rgba(212,168,67,0.25))" }} />
-      </div>
-
       {/* Scrolling strip */}
       <div style={{ overflow: "hidden", position: "relative" }}>
         {/* Fade edges so tiles disappear cleanly */}
@@ -1489,6 +1478,31 @@ export default function ParaPetsHubPage() {
 
           <GoldDivider />
 
+          {/* ── Forum button ──────────────────────────────────────────────── */}
+          <Link
+            href="/forum"
+            data-testid="link-forum"
+            className="flex flex-col items-center gap-0 transition-all active:scale-[0.97] cursor-pointer"
+            style={{ textDecoration: "none" }}
+          >
+            <img
+              src={forumBtnImg}
+              alt="Forum"
+              style={{
+                width: 200,
+                height: "auto",
+                filter: "drop-shadow(0 0 22px rgba(80,180,80,0.45)) drop-shadow(0 6px 18px rgba(0,0,0,0.65))",
+              }}
+            />
+          </Link>
+
+          <GoldDivider />
+
+          {/* ── Realm Benefactors leaderboard ─────────────────────────────── */}
+          <ContributionLeaderboard />
+
+          <GoldDivider />
+
           {/* ── Founders button ───────────────────────────────────────────── */}
           <Link
             href="/founders"
@@ -1518,11 +1532,6 @@ export default function ParaPetsHubPage() {
               Founder's Wall
             </span>
           </Link>
-
-          <GoldDivider />
-
-          {/* ── Realm Benefactors leaderboard ─────────────────────────────── */}
-          <ContributionLeaderboard />
 
           <GoldDivider />
 

@@ -282,7 +282,7 @@ export default function MoltenBlocksPage() {
 
   // Leaderboard — fetched once on mount so the intro screen can display it.
   const { data: lbData } = useQuery<{
-    top20: { rank: number; username: string; score: number; isViewer: boolean }[];
+    top20: { rank: number; username: string; score: number; isViewer: boolean; profileImage: string | null }[];
     viewerRank: { rank: number; score: number } | null;
   }>({
     queryKey: ["/api/games/molten-blocks/leaderboard"],
@@ -1421,6 +1421,14 @@ export default function MoltenBlocksPage() {
                         <img src={trophy3rd} alt="3rd" style={{ width: 24, height: 24, objectFit: "contain" }} />
                       ) : `#${entry.rank}`}
                     </span>
+                    {entry.profileImage ? (
+                      <img src={entry.profileImage} alt="" draggable={false}
+                        style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(251,191,36,0.35)" }} />
+                    ) : (
+                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(120,50,10,0.5)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <span style={{ fontSize: 10, color: "#fbbf24", fontFamily: "monospace" }}>{(entry.username[0] ?? "?").toUpperCase()}</span>
+                      </div>
+                    )}
                     <span style={{
                       flex: 1, fontSize: 12, color: entry.isViewer ? "#fbbf24" : "#f5d589",
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",

@@ -7088,6 +7088,148 @@ export async function registerRoutes(
     }
   });
 
+  // ── Forum routes ────────────────────────────────────────────────────────────
+
+  app.get("/api/forum/posts", async (_req, res) => {
+    try {
+      const rows = await db.execute(sql`
+        SELECT fp.id, fp.title, fp.body, fp.image_url, fp.is_pinned,
+               fp.created_at, fp.updated_at,
+               u.username AS author_name, u.profile_image AS author_avatar,
+               (SELECT COUNT(*)::int FROM forum_comments fc WHERE fc.post_id = fp.id) AS comment_count
+        FROM forum_posts fp
+        LEFT JOIN users u ON fp.author_id = u.id
+        ORDER BY fp.is_pinned DESC, fp.created_at DESC
+      `);
+      return res.json(rows.rows);
+    } catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
+  app.get("/api/forum/posts/:id/comments", async (req, res) => {
+    try {
+      const rows = await db.execute(sql`
+        SELECT fc.id, fc.body, fc.created_at, fc.author_id,
+               u.username AS author_name, u.profile_image AS author_avatar
+        FROM forum_comments fc
+        JOIN users u ON fc.author_id = u.id
+        WHERE fc.post_id = ${req.params.id}
+        ORDER BY fc.created_at ASC
+      `);
+      return res.json(rows.rows);
+    } catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/forum/posts", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
+      const { title, body = "", image_url = null, is_pinned = false } = req.body;
+      if (!title?.trim()) return res.status(400).json({ message: "Title required" });
+      const rows = await db.execute(sql`
+        INSERT INTO forum_posts (title, body, image_url, is_pinned, author_id)
+        VALUES (${title.trim()}, ${body.trim()}, ${image_url}, ${is_pinned}, ${user.id})
+        RETURNING id, title, body, image_url, is_pinned, created_at
+      `);
+      return res.json(rows.rows[0]);
+    } catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
+  app.patch("/api/forum/posts/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
+      const { title, body, image_url, is_pinned } = req.body;
+      await db.execute(sql`
+        UPDATE forum_posts
+        SET title      = COALESCE(${title      ?? null}, title),
+            body       = COALESCE(${body       ?? null}, body),
+            image_url  = COALESCE(${image_url  ?? null}, image_url),
+            is_pinned  = COALESCE(${is_pinned  ?? null}, is_pinned),
+            updated_at = now()
+        WHERE id = ${req.params.id}
+      `);
+      return res.json({ ok: true });
+    } catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/forum/posts/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
+      await db.execute(sql`DELETE FROM forum_posts WHERE id = ${req.params.id}`);
+      return res.json({ ok: true });
+    } catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/forum/posts/:id/comments", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { body } = req.body;
+      if (!body?.trim()) return res.status(400).json({ message: "Comment body required" });
+      const filterWords = await db.execute(sql`SELECT word FROM chat_filter_words`);
+      let filtered = body.trim().slice(0, 1000);
+      for (const row of filterWords.rows as { word: string }[]) {
+        const re = new RegExp(`\\b${row.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, "gi");
+        filtered = filtered.replace(re, "***");
+      }
+      const rows = await db.execute(sql`
+        INSERT INTO forum_comments (post_id, author_id, body)
+        VALUES (${req.params.id}, ${user.id}, ${filtered})
+        RETURNING id, body, created_at, author_id
+      `);
+      const comment = rows.rows[0] as any;
+      return res.json({ ...comment, author_name: user.username, author_avatar: (user as any).profileImage ?? null });
+    } catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/forum/comments/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (user.isAdmin) {
+        await db.execute(sql`DELETE FROM forum_comments WHERE id = ${req.params.id}`);
+      } else {
+        await db.execute(sql`DELETE FROM forum_comments WHERE id = ${req.params.id} AND author_id = ${user.id}`);
+      }
+      return res.json({ ok: true });
+    } catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
+  // ── Hub notices routes ───────────────────────────────────────────────────────
+
+  app.get("/api/hub/notices", async (_req, res) => {
+    try {
+      const rows = await db.execute(sql`
+        SELECT id, image_url, href, label, sort_order, created_at
+        FROM hub_notices ORDER BY sort_order ASC, created_at ASC
+      `);
+      return res.json(rows.rows);
+    } catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
+  app.post("/api/hub/notices", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
+      const { image_url, href = "", label = "", sort_order = 0 } = req.body;
+      if (!image_url) return res.status(400).json({ message: "image_url required" });
+      const rows = await db.execute(sql`
+        INSERT INTO hub_notices (image_url, href, label, sort_order)
+        VALUES (${image_url}, ${href}, ${label}, ${sort_order})
+        RETURNING id, image_url, href, label, sort_order, created_at
+      `);
+      return res.json(rows.rows[0]);
+    } catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
+  app.delete("/api/hub/notices/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
+      await db.execute(sql`DELETE FROM hub_notices WHERE id = ${req.params.id}`);
+      return res.json({ ok: true });
+    } catch (err: any) { return res.status(500).json({ message: err.message }); }
+  });
+
   // Fish barrel routes
   app.get("/api/world/:worldId/fish-barrel", isAuthenticated, async (req, res) => {
     try {
