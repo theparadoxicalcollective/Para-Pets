@@ -326,8 +326,6 @@ export default function MapPage({ user }: MapPageProps) {
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
         }}
       >
-        <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
-
         <div className="flex-1 relative overflow-y-auto overflow-x-hidden map-scroll">
           <div className="flex flex-col items-center pt-2 pb-1 relative z-10" data-testid="text-map-title">
             <div className="flex items-center gap-2 mb-0.5">

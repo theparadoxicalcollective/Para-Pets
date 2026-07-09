@@ -98,8 +98,8 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
         {/* LEFT: profile photo + nameplate below */}
         <div className="flex flex-col items-start gap-0 min-w-0">
           <div className="flex items-center gap-2">
-          {/* Profile photo — frame is in normal flow so game-stage overflow:hidden never clips it */}
-          <div className="flex flex-col items-center gap-1 flex-shrink-0">
+          {/* Profile photo — frame + nameplate stacked, centered */}
+          <div className="flex flex-col items-center gap-0 flex-shrink-0">
             <div className="relative flex-shrink-0" style={{ width: 96 }}>
               <button
                 data-testid="button-profile"
@@ -279,27 +279,32 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 )}
               </div>
             )}
+
+            {/* Nameplate — centered under frame border, overlaps bottom edge */}
+            <div style={{ position: "relative", width: 108, marginTop: -12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <img src={nameplateImg} alt="" style={{ display: "block", width: "100%", height: "auto" }} />
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <p
+                  className="font-fantasy text-[#f0c040] font-semibold tracking-widest truncate"
+                  style={{ textShadow: "0 0 10px rgba(240,192,64,0.6)", fontSize: "clamp(10px, calc(2.8*var(--vw)), 13px)", textAlign: "center", maxWidth: "80%" }}
+                  data-testid="text-username"
+                >
+                  {user.username}
+                </p>
+              </div>
+            </div>
           </div>
 
-          {/* Coins + coin bag to the right of the profile photo */}
-          <div className="flex flex-col gap-0.5 flex-shrink-0 justify-center items-center">
-            {/* Coin bag icon — tap to open coin shop */}
-            <button
-              data-testid="button-coin-bag"
-              onClick={() => navigate("/coins")}
-              className="transition-transform active:scale-90"
-              style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}
-            >
-              <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 40, height: 40, objectFit: "contain", filter: "drop-shadow(0 0 1.5px rgba(212,160,23,1)) drop-shadow(0 0 8px rgba(212,160,23,0.65)) drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
-            </button>
-            {/* Coin bar — shows amount */}
+          {/* Coins — bar on left, bag icon on right */}
+          <div className="flex flex-row items-center gap-1 flex-shrink-0">
+            {/* Coin bar — smaller, on left */}
             <button
               data-testid="button-coin-shop"
               onClick={() => navigate("/coins")}
               className="transition-transform active:scale-95"
               style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0, position: "relative", display: "inline-flex", alignItems: "center" }}
             >
-              <img src={coinBarImg} alt="Coins" style={{ height: 40, width: "auto", objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
+              <img src={coinBarImg} alt="Coins" style={{ height: 30, width: "auto", objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
               <span
                 className="font-fantasy text-[#f5d060] font-semibold"
                 style={{
@@ -307,7 +312,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                   left: "36%",
                   right: "7%",
                   textAlign: "center",
-                  fontSize: "clamp(11px, calc(3.4*var(--vw)), 15px)",
+                  fontSize: "clamp(9px, calc(2.8*var(--vw)), 12px)",
                   textShadow: "0 1px 4px rgba(0,0,0,0.95), 0 0 8px rgba(0,0,0,0.7)",
                   pointerEvents: "none",
                 }}
@@ -316,20 +321,16 @@ export default function TopBar({ user, onProfileClick, onUserUpdate }: TopBarPro
                 {user.coins.toLocaleString()}
               </span>
             </button>
+            {/* Coin bag icon — on right */}
+            <button
+              data-testid="button-coin-bag"
+              onClick={() => navigate("/coins")}
+              className="transition-transform active:scale-90"
+              style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}
+            >
+              <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 40, height: 40, objectFit: "contain", filter: "drop-shadow(0 0 1.5px rgba(212,160,23,1)) drop-shadow(0 0 8px rgba(212,160,23,0.65)) drop-shadow(0 2px 6px rgba(0,0,0,0.7))" }} />
+            </button>
           </div>
-          </div>
-          {/* Nameplate — overlaps bottom edge of profile frame */}
-          <div style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", marginTop: -10, alignSelf: "flex-start" }}>
-            <img src={nameplateImg} alt="" style={{ display: "block", height: 34, width: "auto", objectFit: "contain" }} />
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", paddingLeft: "8%", paddingRight: "8%" }}>
-              <p
-                className="font-fantasy text-[#f0c040] font-semibold tracking-widest truncate"
-                style={{ textShadow: "0 0 10px rgba(240,192,64,0.6)", fontSize: "clamp(10px, calc(2.8*var(--vw)), 13px)", width: "100%", textAlign: "center" }}
-                data-testid="text-username"
-              >
-                {user.username}
-              </p>
-            </div>
           </div>
         </div>
 
