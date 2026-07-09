@@ -455,7 +455,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         />
       ))}
 
-      <div className="flex-1 pb-6" style={{ position: "relative", zIndex: 3 }}>
+      <div className="pb-6" style={{ position: "relative", zIndex: 3 }}>
         <div className="px-4 pt-5 pb-3" style={{ position: "relative", textAlign: "center" }}>
           <h1
             className="font-fantasy text-2xl tracking-[0.25em]"

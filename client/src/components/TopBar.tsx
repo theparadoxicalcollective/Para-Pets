@@ -115,7 +115,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                   {/* Photo — bigger, pushed down within frame opening */}
                   <div
                     className="absolute z-10 overflow-hidden rounded-xl"
-                    style={{ top: "18%", left: "10%", right: "10%", bottom: "8%", border: "2px solid rgba(5,2,0,0.88)" }}
+                    style={{ top: "13%", left: "7%", right: "7%", bottom: "4%", border: "2px solid rgba(5,2,0,0.88)" }}
                   >
                     {user.profileImage ? (
                       <img
@@ -285,7 +285,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
             )}
 
             {/* Nameplate — below frame */}
-            <div style={{ position: "relative", width: 108, marginTop: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ position: "relative", width: 108, marginTop: -10, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <img src={nameplateImg} alt="" style={{ display: "block", width: "100%", height: "auto", filter: "drop-shadow(0 4px 22px rgba(0,0,0,0.55))" }} />
               <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 6 }}>
                 <p
@@ -300,7 +300,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
           </div>}
 
           {/* Coins + Essence — stacked vertically */}
-          {!hideCoins && <div className="flex flex-col gap-1 flex-shrink-0">
+          {!hideCoins && <div className="flex flex-col gap-0.5 flex-shrink-0">
             {/* Row 1: Coin bar + coin bag */}
             <div className="flex flex-row items-center gap-1">
               <button
