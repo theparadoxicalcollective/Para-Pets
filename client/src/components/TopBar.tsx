@@ -285,7 +285,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
             )}
 
             {/* Nameplate — below frame */}
-            <div style={{ position: "relative", width: 108, marginTop: -10, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ position: "relative", width: 108, marginTop: -18, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <img src={nameplateImg} alt="" style={{ display: "block", width: "100%", height: "auto", filter: "drop-shadow(0 4px 22px rgba(0,0,0,0.55))" }} />
               <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 6 }}>
                 <p
@@ -332,7 +332,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
                 className="transition-transform active:scale-90"
                 style={{ background: "transparent", border: "none", padding: 0, cursor: "pointer", flexShrink: 0 }}
               >
-                <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 34, height: 34, objectFit: "contain", filter: "drop-shadow(0 0 8px rgba(212,160,23,0.55))" }} />
+                <img src={coinBagIconImg} alt="Buy Coins" style={{ width: 42, height: 42, objectFit: "contain", filter: "drop-shadow(0 0 8px rgba(212,160,23,0.55))" }} />
               </button>
             </div>
             {/* Row 2: Essence bar + essence icon */}
