@@ -440,7 +440,9 @@ function AppRouter() {
           <Route path="/reset-password/:token" component={ResetPasswordPage} />
           <Route path="/privacy"><PrivacyPolicyPage user={user ?? null} /></Route>
           <Route path="/hub"><ParaPetsHubPage /></Route>
-          <Route path="/forum"><ForumPage /></Route>
+          <Route path="/forum">
+            {user ? <ForumPage /> : <Redirect to="/auth" />}
+          </Route>
           <Route path="/founders"><FoundersPage /></Route>
           <Route path="/admin">
             {user?.isAdmin ? <AdminPage user={user} /> : <Redirect to="/" />}
