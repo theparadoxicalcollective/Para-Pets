@@ -1423,7 +1423,7 @@ app.use((req, res, next) => {
     swamp: "bg_swamp_map_v6.jpeg",
     snowy_mountain: "bg_snowy_mountain_map.webp",
     sky_realm: "bg_sky_realm_map.webp",
-    haunted_woods: "IMG_6880_1783636894557.png",
+    haunted_woods: "IMG_6880_1783638836962.jpeg",
     enchanted_grove: "bg_enchanted_grove_map.webp",
     island: "bg_island_map.webp",
     desert: "bg_desert_map.webp",
@@ -3273,7 +3273,7 @@ app.use((req, res, next) => {
     "e2f3a4b5-0001-4000-8000-000000000001": "Photoroom_20260709_53253_PM_1783636894557.png",
     "e2f3a4b5-0002-4000-8000-000000000002": "Photoroom_20260709_53223_PM_1783636894557.png",
     "e2f3a4b5-0004-4000-8000-000000000004": "Photoroom_20260709_53451_PM_1783636894557.png",
-    "e2f3a4b5-0005-4000-8000-000000000005": "Photoroom_20260709_53434_PM_1783636894557.png",
+    "e2f3a4b5-0005-4000-8000-000000000005": "Photoroom_20260709_61016_PM_1783638836962.png",
   };
   for (const [locId, iconFile] of Object.entries(LOC_ICON_ALWAYS_REFRESH)) {
     try {
