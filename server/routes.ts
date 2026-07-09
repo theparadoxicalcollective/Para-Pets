@@ -9244,7 +9244,6 @@ export async function registerRoutes(
           { top: moltenTop, prev: moltenLbSnapshot,   boardName: "the Molten Blocks Leaderboard" },
           { top: lavaTop,   prev: lavaLbSnapshot,     boardName: "the Lava Crawl Leaderboard" },
         ];
-        const medals = ["🥇", "🥈", "🥉"];
         for (const { top, prev, boardName } of boards) {
           for (const entry of top) {
             if (entry.rank > 3) continue;
@@ -9252,7 +9251,7 @@ export async function registerRoutes(
             if (prevRank !== undefined && prevRank <= 3 && prevRank === entry.rank) continue; // unchanged
             if (!(await shoutoutEligible(entry.userId))) continue;
             await postWatcherMessage(
-              `🏆 ${medals[entry.rank - 1]} ${entry.username} has reached rank #${entry.rank} on ${boardName}! A new champion rises!`
+              `☆ ${entry.username} has reached rank #${entry.rank} on ${boardName}! A new champion rises!`
             );
           }
         }
