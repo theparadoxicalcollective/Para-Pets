@@ -39,7 +39,7 @@ async function grantCommunityRewardFromWebhook(purchaserId: string, amountUsd: n
 }
 
 const EGG_BONUS: Record<number, { shopItemId: string; itemName: string; itemImageUrl: string }> = {
-  50:  { shopItemId: "5ac4de6d-bde6-4fe4-8211-32d5604ffa2a", itemName: "Violet Succubus Egg", itemImageUrl: "/api/media/62ecf53c-8bfd-40b2-9f65-ad27884d9b18" },
+  50:  { shopItemId: "23378190-8dcc-4145-9e10-f501cb42df2d", itemName: "Cerberus Serpent Egg", itemImageUrl: "/api/media/9b08c13d-262e-4251-b8ac-47ff0b44d30c" },
   100: { shopItemId: "670e8ef5-b67d-4be4-b340-3e652327975f", itemName: "The Paradox Egg",     itemImageUrl: "/api/media/e5019d66-d5a1-4f56-a7e6-e4f9bae5baee" },
 };
 

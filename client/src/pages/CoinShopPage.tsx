@@ -56,7 +56,7 @@ function imageForCoins(coins: number): string {
 
 // Limited-offer bonus eggs for $50 and $100 bundles.
 const LIMITED_BONUS: Record<number, { name: string; eggUrl: string }> = {
-  20000: { name: "Violet Succubus Egg", eggUrl: "/api/media/62ecf53c-8bfd-40b2-9f65-ad27884d9b18" },
+  20000: { name: "Cerberus Serpent Egg", eggUrl: "/api/media/9b08c13d-262e-4251-b8ac-47ff0b44d30c" },
   50000: { name: "The Paradox Egg",     eggUrl: "/api/media/e5019d66-d5a1-4f56-a7e6-e4f9bae5baee" },
 };
 
