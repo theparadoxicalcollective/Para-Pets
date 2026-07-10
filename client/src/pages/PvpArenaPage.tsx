@@ -494,6 +494,13 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
     hatchedPets.some((p: any) => (p.inventoryId || p.id) === id)
   ).length;
 
+  // Sum ATK across the currently-selected team slots.
+  const totalTeamAtk = selectedPetIds.reduce((sum, id) => {
+    if (!id) return sum;
+    const pet = hatchedPets.find((p: any) => (p.inventoryId || p.id) === id);
+    return sum + (pet?.petAtk ?? 0);
+  }, 0);
+
   // Battle-usable potions: anything in inventory typed as "potion" that
   // actually does something useful in combat (heals HP/mana or revives).
   const battlePotions = (inventory as any[]).filter(
@@ -1164,6 +1171,20 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
               >
                 PREPARE FOR BATTLE
               </div>
+              {totalTeamAtk > 0 && (
+                <div
+                  className="flex items-center justify-center gap-1 mt-1"
+                  data-testid="text-total-team-atk"
+                >
+                  <span style={{ fontSize: 12, color: "rgba(251,191,36,0.55)" }}>⚔</span>
+                  <span style={{ fontSize: 11, color: "rgba(251,191,36,0.7)", fontWeight: 600, letterSpacing: "0.08em" }}>
+                    TEAM ATK
+                  </span>
+                  <span style={{ fontSize: 12, color: "#fde68a", fontWeight: 700 }}>
+                    {totalTeamAtk.toLocaleString()}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Pets */}
