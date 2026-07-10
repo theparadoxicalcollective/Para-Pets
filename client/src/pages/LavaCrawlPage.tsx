@@ -596,8 +596,8 @@ export default function LavaCrawlPage() {
         const minX = Math.max(0, s.checkpointX - BACKTRACK_LIMIT);
         if (s.px < minX) { s.px = minX; if (s.pvx < 0) s.pvx = 0; }
 
-        // Lava death (fall off screen bottom or into gap below ground)
-        if (s.py > VH + 40) {
+        // Lava death — trigger as soon as the player's feet enter the lava zone
+        if (s.py + PH > gY + 16) {
           s.alive = false;
           s.hitShield = false;
           s.hitShieldTimer = 0;
@@ -1126,7 +1126,9 @@ export default function LavaCrawlPage() {
           // Pet images face LEFT by default — flip when moving right.
           // All transforms pivot from the feet so the sprite doesn't float off the ground.
           const centerX = ppx + PW / 2;
-          const feetY = s.py + PH + walkBobY;
+          // +10 lowers the sprite so visual feet sit on the ground tile surface
+          // (ground tiles are drawn GROUND_LIFT px above the physics gY line)
+          const feetY = s.py + PH + walkBobY + 10;
           ctx.translate(centerX, feetY);
           if (s.facingR) ctx.scale(-1, 1);
           ctx.scale(finalScaleX, finalScaleY);
@@ -1267,23 +1269,59 @@ export default function LavaCrawlPage() {
         ctx.shadowBlur = 0;
       }
 
-      // Lives — row of hearts just below the toolbar, left-aligned
+      // Lives — row of hearts just below the toolbar, left-aligned.
+      // If hitCount === 1 the current life is half-damaged: left half full, right half ghost.
       const HEART_GAP = 27;
       const HEARTS_START_X = 12;
       const totalHudSlots = Math.max(MAX_LIVES, s.lives);
       for (let i = 0; i < totalHudSlots; i++) {
         const hx = HEARTS_START_X + i * HEART_GAP;
-        ctx.save();
-        ctx.globalAlpha = i < s.lives ? 1.0 : 0.25;
+        const isFull   = i < s.lives && !(i === s.lives - 1 && s.hitCount > 0);
+        const isHalf   = i === s.lives - 1 && s.hitCount > 0;
+        const isEmpty  = i >= s.lives;
+
         if (_heartImg.complete && _heartImg.naturalWidth > 0) {
-          ctx.drawImage(_heartImg, hx, HEART_ROW_Y, HEART_SIZE, HEART_SIZE);
+          if (isHalf) {
+            // Ghost base (right half)
+            ctx.save();
+            ctx.globalAlpha = 0.25;
+            ctx.drawImage(_heartImg, hx, HEART_ROW_Y, HEART_SIZE, HEART_SIZE);
+            ctx.restore();
+            // Full left half clipped
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(hx, HEART_ROW_Y, HEART_SIZE / 2, HEART_SIZE);
+            ctx.clip();
+            ctx.globalAlpha = 1.0;
+            ctx.drawImage(_heartImg, hx, HEART_ROW_Y, HEART_SIZE, HEART_SIZE);
+            ctx.restore();
+          } else {
+            ctx.save();
+            ctx.globalAlpha = isEmpty ? 0.25 : 1.0;
+            ctx.drawImage(_heartImg, hx, HEART_ROW_Y, HEART_SIZE, HEART_SIZE);
+            ctx.restore();
+          }
         } else {
-          ctx.fillStyle = i < s.lives ? "#ff4444" : "rgba(120,30,30,0.4)";
+          // Fallback text hearts
+          ctx.save();
           ctx.font = "18px serif";
           ctx.textAlign = "left";
-          ctx.fillText("♥", hx, HEART_ROW_Y + 18);
+          if (isHalf) {
+            ctx.fillStyle = "rgba(120,30,30,0.4)";
+            ctx.fillText("♥", hx, HEART_ROW_Y + 18);
+            ctx.fillStyle = "#ff4444";
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(hx, HEART_ROW_Y, HEART_SIZE / 2, HEART_SIZE);
+            ctx.clip();
+            ctx.fillText("♥", hx, HEART_ROW_Y + 18);
+            ctx.restore();
+          } else {
+            ctx.fillStyle = isFull ? "#ff4444" : "rgba(120,30,30,0.4)";
+            ctx.fillText("♥", hx, HEART_ROW_Y + 18);
+          }
+          ctx.restore();
         }
-        ctx.restore();
       }
 
       ctx.restore();
