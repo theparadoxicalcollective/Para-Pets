@@ -1380,6 +1380,9 @@ export default function LavaCrawlPage() {
   }, [refetchLB, showScreen]);
 
   // ─── Touch button handlers ───────────────────────────────────────────────
+  // onTouchCancel is critical on Android: the OS fires cancel (not end) when
+  // system gestures, notifications, or palm rejection interrupt the touch.
+  // Without it the button stays "pressed" forever → runaway movement.
   const makeTouch = (field: "left" | "right" | "jump") => ({
     onTouchStart: (e: React.TouchEvent) => {
       e.preventDefault();
@@ -1387,6 +1390,10 @@ export default function LavaCrawlPage() {
       if (field === "jump") input.jumpQueued = true;
     },
     onTouchEnd: (e: React.TouchEvent) => {
+      e.preventDefault();
+      input[field] = false;
+    },
+    onTouchCancel: (e: React.TouchEvent) => {
       e.preventDefault();
       input[field] = false;
     },
@@ -1497,20 +1504,20 @@ export default function LavaCrawlPage() {
             <button
               data-testid="button-lava-left"
               {...makeTouch("left")}
-              style={{ width: 76, height: 56, background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-            ><img src={btnLeftImg} alt="Left" draggable={false} style={{ width: 76, height: "auto", objectFit: "contain" }} /></button>
+              style={{ width: 76, height: 56, background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", touchAction: "none" }}
+            ><img src={btnLeftImg} alt="Left" draggable={false} style={{ width: 76, height: "auto", objectFit: "contain", pointerEvents: "none" }} /></button>
             <button
               data-testid="button-lava-right"
               {...makeTouch("right")}
-              style={{ width: 76, height: 56, background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-            ><img src={btnRightImg} alt="Right" draggable={false} style={{ width: 76, height: "auto", objectFit: "contain" }} /></button>
+              style={{ width: 76, height: 56, background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", touchAction: "none" }}
+            ><img src={btnRightImg} alt="Right" draggable={false} style={{ width: 76, height: "auto", objectFit: "contain", pointerEvents: "none" }} /></button>
           </div>
           {/* Jump */}
           <button
             data-testid="button-lava-jump"
             {...makeTouch("jump")}
-            style={{ width: 82, height: 82, background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-          ><img src={btnJumpImg} alt="Jump" draggable={false} style={{ width: 82, height: 82, objectFit: "contain" }} /></button>
+            style={{ width: 82, height: 82, background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", touchAction: "none" }}
+          ><img src={btnJumpImg} alt="Jump" draggable={false} style={{ width: 82, height: 82, objectFit: "contain", pointerEvents: "none" }} /></button>
         </div>
       )}
 

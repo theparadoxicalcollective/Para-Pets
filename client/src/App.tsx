@@ -779,18 +779,27 @@ function App() {
   }, []);
 
   // --fh always tracks the real viewport height so every page fills the screen.
-  // --vh is 1/100th of innerHeight so calc(N*var(--vh)) == N% of the real
-  // viewport (accounts for iOS Safari's address bar). Embers, shop modals,
-  // and many other components rely on it — without it they break on iOS.
+  // --vh is 1/100th of that height so calc(N*var(--vh)) == N% of screen.
+  //
+  // On Android Chrome the dynamic address bar constantly changes
+  // window.innerHeight as it shows/hides, causing world-map mis-fits and
+  // layout jumps. visualViewport.height is stable — it always equals the
+  // visible area excluding the dynamic toolbar — so we prefer it when present.
+  // iOS Safari also supports visualViewport (since iOS 13) and returns the
+  // same value as window.innerHeight, so this is safe everywhere.
   useEffect(() => {
     const update = () => {
-      const h = window.innerHeight;
+      const h = (window.visualViewport?.height ?? window.innerHeight);
       document.documentElement.style.setProperty("--fh", `${h}px`);
       document.documentElement.style.setProperty("--vh", `${h * 0.01}px`);
     };
     update();
     window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+    window.visualViewport?.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("resize", update);
+    };
   }, []);
 
   useEffect(() => {
