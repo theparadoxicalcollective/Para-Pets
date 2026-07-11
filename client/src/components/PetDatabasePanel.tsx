@@ -138,6 +138,11 @@ const FRONT_PART_GROUPS: { group: string; parts: PartDef[]; collapsed?: boolean 
     // head=10), and the editor defaultZ of 60 keeps it grouped near
     // the chest accessories in the parts list.
     { key: "neck",                 label: "Neck",                  defaultZ: 60, layer: "front" },
+    // Hands — front-facing only, sit just above neck (defaultZ 60) so
+    // they overlay the neck/chest area. LAYER_ORDER z=7 (above neck=6,
+    // below head=10). Use for paw/claw/hand parts that emerge from arms.
+    { key: "left_hand",            label: "Left Hand",             defaultZ: 62, layer: "front" },
+    { key: "right_hand",           label: "Right Hand",            defaultZ: 61, layer: "front" },
     { key: "body",                 label: "Body",                  defaultZ: 50, layer: "body"  },
     // Body 2 — a second body overlay that sits BEHIND the primary body
     // silhouette (LAYER_ORDER z=4.5) but shares the same body-breath
@@ -382,6 +387,7 @@ export default function PetDatabasePanel({
     right_ear: 9, left_ear: 9,
     right_ear_2: 9, left_ear_2: 9,
     neck: 6,
+    left_hand: 7, right_hand: 7,
     head: 10,
     accessory_2: 11, accessory_1: 11,
     mouth: 12, mouth_closed: 13,

@@ -67,6 +67,9 @@ const LAYER_ORDER: Record<string, number> = {
   // left_arm=8) so arms always overlap the neck base. Mirrors
   // PetAnimator's LAYER_ORDER.
   neck: 6,
+  // Hands — front-facing only, just above neck (z=6). Mirrors
+  // PetAnimator's LAYER_ORDER and PetDatabasePanel.
+  left_hand: 7, right_hand: 7,
   head: 10,
   accessory_2: 11, accessory_1: 11,
   mouth: 12,

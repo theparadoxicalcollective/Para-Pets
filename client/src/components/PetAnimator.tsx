@@ -91,6 +91,10 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   // on the body while the head lifts and falls — the visual
   // effect is "head bobs on top of a breathing neck".
   neck: "petIdleBody",
+  // Hands ride the body breath alongside neck — same transform-origin
+  // so the chest-to-hand silhouette breathes as one unit.
+  left_hand: "petIdleBody",
+  right_hand: "petIdleBody",
   // Front-facing arms breathe with the body so the shoulder connection
   // stays visually glued to the chest during inhale/exhale. Previously
   // on petIdleLeftArm/RightArm (rotation-only), the arms stayed at their
@@ -1274,6 +1278,11 @@ const LAYER_ORDER: Record<string, number> = {
   // (z=10) still stacks well above the neck. Matches all other
   // renderers (Canvas, PetDatabasePanel, petGif).
   neck: 6,
+  // Hands — front-facing only, sit just above the neck (z=6) so they
+  // overlay the neck/chest area. Below the head (z=10). Mirrors
+  // PetAnimatorCanvas + PetDatabasePanel LAYER_ORDER.
+  left_hand: 7,
+  right_hand: 7,
   head: 10,
   // Head-anchored accessories (hats, bows, glasses) sit just above the head
   // but under the mouth / eyes / hair so the face still reads cleanly.

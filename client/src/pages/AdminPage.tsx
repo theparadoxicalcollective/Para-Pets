@@ -2717,6 +2717,31 @@ function MaintenanceSection() {
     },
   });
 
+  const { data: raidData, isLoading: raidLoading } = useQuery<{ raidVisible: boolean }>({
+    queryKey: ["/api/raid-status"],
+    staleTime: 10 * 1000,
+  });
+  const raidOn = raidData?.raidVisible === true;
+
+  const raidToggleMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const res = await apiRequest("POST", "/api/admin/raid-toggle", { enabled });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/raid-status"], { raidVisible: data.raidVisible });
+      toast({
+        title: data.raidVisible ? "Raid icon ON" : "Raid icon OFF",
+        description: data.raidVisible
+          ? "The Raid icon is now visible to all players."
+          : "The Raid icon is now hidden.",
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   const runCleanup = async () => {
     setRunning(true);
     setResult(null);
@@ -2810,6 +2835,70 @@ function MaintenanceSection() {
             Admins can still access the realm normally.
           </p>
         )}
+      </div>
+
+      {/* ── Raid Icon Toggle ── */}
+      <div
+        className="rounded-2xl p-4 flex flex-col gap-3"
+        style={{
+          background: raidOn
+            ? "linear-gradient(145deg, rgba(30,10,8,0.9) 0%, rgba(50,18,8,0.9) 100%)"
+            : "linear-gradient(145deg, rgba(10,8,20,0.9) 0%, rgba(16,10,30,0.9) 100%)",
+          border: raidOn
+            ? "1px solid rgba(240,120,40,0.4)"
+            : "1px solid rgba(120,80,40,0.25)",
+          transition: "all 0.4s ease",
+        }}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-0.5">
+            <p
+              className="font-fantasy text-sm tracking-wide"
+              style={{ color: raidOn ? "#f97316" : "#a89878" }}
+            >
+              Raid Icon
+            </p>
+            <p
+              className="font-fantasy text-[10px] tracking-wider"
+              style={{ color: raidOn ? "#7a3010" : "#3a2a18" }}
+            >
+              {raidLoading ? "Checking status..." : raidOn ? "Visible to all players" : "Hidden from players"}
+            </p>
+          </div>
+          <button
+            data-testid="button-toggle-raid"
+            onClick={() => raidToggleMutation.mutate(!raidOn)}
+            disabled={raidLoading || raidToggleMutation.isPending}
+            className="relative flex-shrink-0"
+            style={{
+              width: 52,
+              height: 28,
+              borderRadius: 14,
+              background: raidOn
+                ? "linear-gradient(135deg, #7a2808, #c0391b)"
+                : "linear-gradient(135deg, #2a1a08, #5a3010)",
+              border: raidOn ? "1px solid rgba(240,120,40,0.5)" : "1px solid rgba(120,80,40,0.3)",
+              boxShadow: raidOn ? "0 0 10px rgba(240,80,20,0.3)" : "none",
+              cursor: (raidLoading || raidToggleMutation.isPending) ? "not-allowed" : "pointer",
+              transition: "all 0.3s ease",
+              opacity: (raidLoading || raidToggleMutation.isPending) ? 0.5 : 1,
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: 3,
+                left: raidOn ? 26 : 3,
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                background: "white",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.4)",
+                transition: "left 0.3s ease",
+              }}
+            />
+          </button>
+        </div>
       </div>
 
       {/* ── Divider ── */}

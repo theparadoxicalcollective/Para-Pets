@@ -1188,7 +1188,36 @@ export async function registerRoutes(
     try {
       const { enabled } = req.body as { enabled: boolean };
       await storage.setGameSetting("maintenance_mode", enabled ? "true" : "false");
+      _maintenanceCache = null;
       return res.json({ maintenance: enabled });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Public: check raid visibility ─────────────────────────────────────────
+  let _raidCache: { value: boolean; at: number } | null = null;
+  app.get("/api/raid-status", async (_req, res) => {
+    try {
+      const now = Date.now();
+      if (_raidCache && now - _raidCache.at < 60_000) {
+        return res.json({ raidVisible: _raidCache.value });
+      }
+      const val = await storage.getGameSetting("raid_visible");
+      _raidCache = { value: val === "true", at: now };
+      return res.json({ raidVisible: _raidCache.value });
+    } catch {
+      return res.json({ raidVisible: false });
+    }
+  });
+
+  // ── Admin: toggle raid visibility ──────────────────────────────────────────
+  app.post("/api/admin/raid-toggle", isAdmin, async (req, res) => {
+    try {
+      const { enabled } = req.body as { enabled: boolean };
+      await storage.setGameSetting("raid_visible", enabled ? "true" : "false");
+      _raidCache = { value: enabled, at: Date.now() };
+      return res.json({ raidVisible: enabled });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
