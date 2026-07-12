@@ -194,6 +194,12 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   });
   const raidVisible = raidStatusData?.raidVisible === true || currentUser?.isAdmin === true;
 
+  const { data: raidBossData } = useQuery<{ templateId: string | null; rarity: number | null; name: string | null }>({
+    queryKey: ["/api/raid-boss"],
+    staleTime: 60_000,
+    enabled: raidVisible,
+  });
+
   const { data: pendingRequests = [] } = useQuery<any[]>({
     queryKey: ["/api/friends/requests"],
     queryFn: async () => {
@@ -931,6 +937,97 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             style={{ marginBottom: activePet ? "calc(26*var(--vh))" : undefined }}
           >
 
+            {/* ── Raid Boss — floats to the right of the active pet ── */}
+            {raidVisible && raidBossData?.templateId && (
+              <div
+                data-testid="display-raid-boss"
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: "42%",
+                  transform: "translateX(18%)",
+                  zIndex: 4,
+                  pointerEvents: "none",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
+                }}
+              >
+                {/* Red ominous glow under boss */}
+                <div style={{
+                  position: "absolute",
+                  bottom: "8%",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  width: "70%",
+                  height: "25%",
+                  background: "radial-gradient(ellipse, rgba(220,40,20,0.22) 0%, rgba(180,20,10,0.08) 50%, transparent 75%)",
+                  filter: "blur(12px)",
+                  pointerEvents: "none",
+                  zIndex: 0,
+                }} />
+
+                {/* Star rarity above boss head */}
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: -4, zIndex: 2 }}>
+                  {Array.from({ length: 5 }).map((_, i) => {
+                    const filled = i < (raidBossData.rarity || 0);
+                    return (
+                      <img
+                        key={i}
+                        src={starImg}
+                        alt="star"
+                        width={26}
+                        height={26}
+                        style={{
+                          margin: "0 1px",
+                          opacity: filled ? 1 : 0.12,
+                          filter: filled
+                            ? "drop-shadow(0 0 3px rgba(240,80,40,0.8)) drop-shadow(0 0 6px rgba(220,40,20,0.5))"
+                            : "grayscale(1) drop-shadow(0 0 1px #000)",
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Boss name label */}
+                <p
+                  style={{
+                    fontFamily: "Lora, serif",
+                    fontSize: 10,
+                    letterSpacing: "0.08em",
+                    color: "#e86060",
+                    textShadow: "0 0 8px rgba(220,40,20,0.6)",
+                    marginBottom: 2,
+                    zIndex: 2,
+                    textAlign: "center",
+                    maxWidth: "100%",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {raidBossData.name}
+                </p>
+
+                {/* Boss pet render */}
+                <div style={{ width: "100%", position: "relative", zIndex: 1 }}>
+                  <PetAnimator
+                    petTemplateId={raidBossData.templateId}
+                    mode="idle"
+                    view="front"
+                    size={1000}
+                    expression="neutral"
+                    className="w-full"
+                    style={{ aspectRatio: "1/1", filter: "drop-shadow(0 0 6px rgba(200,30,20,0.4))" }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Rarity sparkle lights (3/4/5 star) — gated until container has real height */}
             {orbsReady && activePet && (activePet.rarity || 0) >= 3 && (() => {
               const rarity = activePet.rarity || 0;
@@ -1370,7 +1467,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               width: 58,
               height: 58,
               objectFit: "contain",
-              filter: "drop-shadow(0 0 10px rgba(240,80,30,0.6)) drop-shadow(0 2px 4px rgba(0,0,0,0.7))",
+              filter: "drop-shadow(0 0 10px rgba(251,191,36,0.75)) drop-shadow(0 2px 4px rgba(0,0,0,0.7))",
             }}
           />
         </button>

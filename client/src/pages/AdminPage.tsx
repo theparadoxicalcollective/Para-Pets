@@ -2723,6 +2723,34 @@ function MaintenanceSection() {
   });
   const raidOn = raidData?.raidVisible === true;
 
+  const [showBossModal, setShowBossModal] = useState(false);
+
+  const { data: raidBossData, refetch: refetchRaidBoss } = useQuery<{ templateId: string | null; rarity: number | null; name: string | null }>({
+    queryKey: ["/api/raid-boss"],
+    staleTime: 10 * 1000,
+  });
+
+  const { data: templatesList = [] } = useQuery<{ id: string; name: string; rarity: number }[]>({
+    queryKey: ["/api/admin/templates-list"],
+    enabled: showBossModal,
+    staleTime: 60 * 1000,
+  });
+
+  const setBossMutation = useMutation({
+    mutationFn: async (templateId: string | null) => {
+      const res = await apiRequest("POST", "/api/admin/raid-boss", { templateId });
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchRaidBoss();
+      setShowBossModal(false);
+      toast({ title: "Raid Boss updated" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   const raidToggleMutation = useMutation({
     mutationFn: async (enabled: boolean) => {
       const res = await apiRequest("POST", "/api/admin/raid-toggle", { enabled });
@@ -2899,7 +2927,129 @@ function MaintenanceSection() {
             />
           </button>
         </div>
+
+        {/* ── Raid Boss row ── */}
+        <div className="flex items-center justify-between gap-3 pt-1 border-t" style={{ borderColor: "rgba(240,120,40,0.15)" }}>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <p className="font-fantasy text-xs tracking-wide" style={{ color: "#a89878" }}>Raid Boss</p>
+            {raidBossData?.templateId ? (
+              <div className="flex items-center gap-1.5">
+                <p className="font-fantasy text-[11px] tracking-wider truncate" style={{ color: "#f0c040" }}>
+                  {raidBossData.name ?? "Unknown"}
+                </p>
+                <span className="font-fantasy text-[10px]" style={{ color: "#f0c040" }}>
+                  {"★".repeat(raidBossData.rarity ?? 1)}{"☆".repeat(Math.max(0, 5 - (raidBossData.rarity ?? 1)))}
+                </span>
+              </div>
+            ) : (
+              <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#3a2a18" }}>No boss set</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {raidBossData?.templateId && (
+              <button
+                data-testid="button-clear-raid-boss"
+                onClick={() => setBossMutation.mutate(null)}
+                disabled={setBossMutation.isPending}
+                style={{
+                  background: "rgba(180,40,20,0.25)",
+                  border: "1px solid rgba(240,80,40,0.3)",
+                  borderRadius: 8,
+                  color: "#f87171",
+                  fontFamily: "inherit",
+                  fontSize: 11,
+                  padding: "4px 10px",
+                  cursor: "pointer",
+                }}
+              >
+                Clear
+              </button>
+            )}
+            <button
+              data-testid="button-set-raid-boss"
+              onClick={() => setShowBossModal(true)}
+              disabled={setBossMutation.isPending}
+              style={{
+                background: "linear-gradient(135deg, rgba(180,100,20,0.5), rgba(240,160,40,0.3))",
+                border: "1px solid rgba(240,160,40,0.5)",
+                borderRadius: 8,
+                color: "#f0c040",
+                fontFamily: "inherit",
+                fontSize: 13,
+                fontWeight: "bold",
+                padding: "4px 12px",
+                cursor: "pointer",
+              }}
+            >
+              +
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* ── Raid Boss picker modal ── */}
+      {showBossModal && (
+        <div
+          className="fixed inset-0 flex items-center justify-center"
+          style={{ zIndex: 9999, background: "rgba(0,0,0,0.75)" }}
+          onClick={() => setShowBossModal(false)}
+        >
+          <div
+            className="rounded-2xl flex flex-col gap-0"
+            style={{
+              background: "linear-gradient(160deg, rgba(10,4,20,0.98) 0%, rgba(20,8,35,0.98) 100%)",
+              border: "1px solid rgba(240,160,40,0.35)",
+              boxShadow: "0 0 40px rgba(200,120,20,0.15)",
+              width: "min(92vw, 380px)",
+              maxHeight: "70vh",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "rgba(240,160,40,0.2)" }}>
+              <p className="font-fantasy text-sm tracking-wider" style={{ color: "#f0c040" }}>Choose Raid Boss</p>
+              <button
+                onClick={() => setShowBossModal(false)}
+                style={{ background: "none", border: "none", color: "#a89878", cursor: "pointer", fontSize: 18, lineHeight: 1 }}
+              >✕</button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-3 flex flex-col gap-2">
+              {templatesList.length === 0 ? (
+                <p className="font-fantasy text-xs text-center py-6" style={{ color: "#4a3a28" }}>Loading...</p>
+              ) : (
+                templatesList.map((t) => (
+                  <button
+                    key={t.id}
+                    data-testid={`button-pick-boss-${t.id}`}
+                    onClick={() => setBossMutation.mutate(t.id)}
+                    disabled={setBossMutation.isPending}
+                    className="flex items-center justify-between gap-3 w-full rounded-xl px-3 py-2.5 text-left"
+                    style={{
+                      background: raidBossData?.templateId === t.id
+                        ? "linear-gradient(135deg, rgba(180,120,20,0.4), rgba(240,160,40,0.2))"
+                        : "rgba(255,255,255,0.03)",
+                      border: raidBossData?.templateId === t.id
+                        ? "1px solid rgba(240,160,40,0.5)"
+                        : "1px solid rgba(255,255,255,0.06)",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <span className="font-fantasy text-xs tracking-wide" style={{ color: raidBossData?.templateId === t.id ? "#f0c040" : "#c8b090" }}>
+                      {t.name}
+                    </span>
+                    <span className="font-fantasy text-xs flex-shrink-0" style={{ color: "#f0c040", letterSpacing: 1 }}>
+                      {"★".repeat(t.rarity ?? 1)}{"☆".repeat(Math.max(0, 5 - (t.rarity ?? 1)))}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Divider ── */}
       <div className="flex items-center gap-3">

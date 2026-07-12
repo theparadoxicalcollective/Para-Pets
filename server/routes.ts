@@ -1223,6 +1223,51 @@ export async function registerRoutes(
     }
   });
 
+  // ── Public: get raid boss info ─────────────────────────────────────────────
+  let _raidBossCache: { templateId: string | null; rarity: number | null; name: string | null; at: number } | null = null;
+
+  app.get("/api/raid-boss", async (_req, res) => {
+    try {
+      const now = Date.now();
+      if (_raidBossCache && now - _raidBossCache.at < 60_000) {
+        return res.json({ templateId: _raidBossCache.templateId, rarity: _raidBossCache.rarity, name: _raidBossCache.name });
+      }
+      const templateId = await storage.getGameSetting("raid_boss_template_id");
+      if (!templateId) {
+        _raidBossCache = { templateId: null, rarity: null, name: null, at: now };
+        return res.json({ templateId: null, rarity: null, name: null });
+      }
+      const template = await storage.getPetTemplate(templateId);
+      const result = { templateId, rarity: template?.rarity ?? null, name: template?.name ?? null };
+      _raidBossCache = { ...result, at: now };
+      return res.json(result);
+    } catch {
+      return res.json({ templateId: null, rarity: null, name: null });
+    }
+  });
+
+  // ── Admin: set raid boss ───────────────────────────────────────────────────
+  app.post("/api/admin/raid-boss", isAdmin, async (req, res) => {
+    try {
+      const { templateId } = req.body as { templateId: string | null };
+      await storage.setGameSetting("raid_boss_template_id", templateId || "");
+      _raidBossCache = null;
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Admin: list all templates (id + name + rarity) for pickers ─────────────
+  app.get("/api/admin/templates-list", isAdmin, async (_req, res) => {
+    try {
+      const templates = await storage.getAllPetTemplates();
+      return res.json(templates.map(t => ({ id: t.id, name: t.name, rarity: t.rarity ?? 1 })));
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
 
   app.post("/api/auth/login", (req, res, next) => {
     passport.authenticate("local", (err: any, user: any, info: any) => {
