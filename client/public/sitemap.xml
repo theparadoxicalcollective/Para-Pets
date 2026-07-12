@@ -1,26 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Main landing / hub -->
   <url>
     <loc>https://www.parapets.net/hub</loc>
-    <lastmod>2026-07-05</lastmod>
+    <lastmod>2026-07-12</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
+
+  <!-- Sign in / create account -->
   <url>
     <loc>https://www.parapets.net/auth</loc>
-    <lastmod>2026-07-05</lastmod>
+    <lastmod>2026-07-12</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.7</priority>
   </url>
+
+  <!-- Founders page -->
   <url>
     <loc>https://www.parapets.net/founders</loc>
-    <lastmod>2026-07-05</lastmod>
+    <lastmod>2026-07-12</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.6</priority>
   </url>
+
+  <!-- Privacy policy -->
   <url>
     <loc>https://www.parapets.net/privacy</loc>
-    <lastmod>2026-07-05</lastmod>
+    <lastmod>2026-07-12</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>

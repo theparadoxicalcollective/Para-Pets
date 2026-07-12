@@ -5,6 +5,11 @@ Allow: /founders
 Allow: /privacy
 Allow: /logo_parapets.png
 Allow: /favicon.png
+Allow: /apple-touch-icon.png
+Allow: /og_banner.jpg
+Allow: /manifest.json
+Allow: /sitemap.xml
+
 Disallow: /api/
 Disallow: /admin
 Disallow: /world/
@@ -21,5 +26,7 @@ Disallow: /aquarium
 Disallow: /map
 Disallow: /equip-accessories
 Disallow: /fishing
+Disallow: /raid
+Disallow: /dungeon
 
 Sitemap: https://www.parapets.net/sitemap.xml
