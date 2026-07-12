@@ -1224,25 +1224,31 @@ export async function registerRoutes(
   });
 
   // ── Public: get raid boss info ─────────────────────────────────────────────
-  let _raidBossCache: { templateId: string | null; rarity: number | null; name: string | null; at: number } | null = null;
+  let _raidBossCache: { templateId: string | null; rarity: number | null; name: string | null; hp: number; maxHp: number; at: number } | null = null;
 
   app.get("/api/raid-boss", async (_req, res) => {
     try {
       const now = Date.now();
-      if (_raidBossCache && now - _raidBossCache.at < 60_000) {
-        return res.json({ templateId: _raidBossCache.templateId, rarity: _raidBossCache.rarity, name: _raidBossCache.name });
+      if (_raidBossCache && now - _raidBossCache.at < 30_000) {
+        return res.json({ templateId: _raidBossCache.templateId, rarity: _raidBossCache.rarity, name: _raidBossCache.name, hp: _raidBossCache.hp, maxHp: _raidBossCache.maxHp });
       }
       const templateId = await storage.getGameSetting("raid_boss_template_id");
       if (!templateId) {
-        _raidBossCache = { templateId: null, rarity: null, name: null, at: now };
-        return res.json({ templateId: null, rarity: null, name: null });
+        _raidBossCache = { templateId: null, rarity: null, name: null, hp: 0, maxHp: 0, at: now };
+        return res.json({ templateId: null, rarity: null, name: null, hp: 0, maxHp: 0 });
       }
-      const template = await storage.getPetTemplate(templateId);
-      const result = { templateId, rarity: template?.rarity ?? null, name: template?.name ?? null };
+      const [template, hpStr, maxHpStr] = await Promise.all([
+        storage.getPetTemplate(templateId),
+        storage.getGameSetting("raid_boss_hp"),
+        storage.getGameSetting("raid_boss_max_hp"),
+      ]);
+      const maxHp = maxHpStr ? parseInt(maxHpStr, 10) : 10000;
+      const hp = hpStr ? parseInt(hpStr, 10) : maxHp;
+      const result = { templateId, rarity: template?.rarity ?? null, name: template?.name ?? null, hp, maxHp };
       _raidBossCache = { ...result, at: now };
       return res.json(result);
     } catch {
-      return res.json({ templateId: null, rarity: null, name: null });
+      return res.json({ templateId: null, rarity: null, name: null, hp: 0, maxHp: 0 });
     }
   });
 
@@ -1251,6 +1257,19 @@ export async function registerRoutes(
     try {
       const { templateId } = req.body as { templateId: string | null };
       await storage.setGameSetting("raid_boss_template_id", templateId || "");
+      _raidBossCache = null;
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Admin: set raid boss HP ────────────────────────────────────────────────
+  app.post("/api/admin/raid-boss-hp", isAdmin, async (req, res) => {
+    try {
+      const { hp, maxHp } = req.body as { hp?: number; maxHp?: number };
+      if (maxHp !== undefined) await storage.setGameSetting("raid_boss_max_hp", String(maxHp));
+      if (hp !== undefined) await storage.setGameSetting("raid_boss_hp", String(hp));
       _raidBossCache = null;
       return res.json({ success: true });
     } catch (err: any) {

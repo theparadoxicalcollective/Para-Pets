@@ -55,6 +55,54 @@ interface MemberUser {
   createdAt: string;
 }
 
+function RaidBossHpControls({ hp, maxHp, onSave }: { hp: number; maxHp: number; onSave: (hp: number, maxHp: number) => Promise<void> }) {
+  const [localHp, setLocalHp] = useState(String(hp));
+  const [localMax, setLocalMax] = useState(String(maxHp));
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { setLocalHp(String(hp)); setLocalMax(String(maxHp)); }, [hp, maxHp]);
+  const handleSave = async () => {
+    setSaving(true);
+    try { await onSave(parseInt(localHp, 10) || 0, parseInt(localMax, 10) || 1); } finally { setSaving(false); }
+  };
+  const pct = Math.max(0, Math.min(100, (parseInt(localHp, 10) || 0) / Math.max(1, parseInt(localMax, 10) || 1) * 100));
+  return (
+    <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: "linear-gradient(145deg, rgba(30,8,8,0.9) 0%, rgba(50,12,12,0.9) 100%)", border: "1px solid rgba(220,60,40,0.3)" }}>
+      <p className="font-fantasy text-xs tracking-wider" style={{ color: "#f87171" }}>Raid Boss HP</p>
+      {/* Mini HP bar preview */}
+      <div style={{ height: 6, borderRadius: 4, background: "rgba(0,0,0,0.5)", overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg, #8b0000, #e74c3c)", borderRadius: 4, transition: "width 0.3s" }} />
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-0.5 flex-1">
+          <label className="font-fantasy text-[10px]" style={{ color: "#a89878" }}>Current HP</label>
+          <input
+            type="number" min={0} value={localHp}
+            onChange={(e) => setLocalHp(e.target.value)}
+            className="rounded-lg px-2 py-1 text-xs font-fantasy w-full"
+            style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(220,60,40,0.3)", color: "#f0c040", outline: "none" }}
+          />
+        </div>
+        <div className="flex flex-col gap-0.5 flex-1">
+          <label className="font-fantasy text-[10px]" style={{ color: "#a89878" }}>Max HP</label>
+          <input
+            type="number" min={1} value={localMax}
+            onChange={(e) => setLocalMax(e.target.value)}
+            className="rounded-lg px-2 py-1 text-xs font-fantasy w-full"
+            style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(220,60,40,0.3)", color: "#f0c040", outline: "none" }}
+          />
+        </div>
+        <button
+          onClick={handleSave} disabled={saving}
+          className="mt-auto"
+          style={{ background: "linear-gradient(135deg, #7a1a08, #c0391b)", border: "1px solid rgba(240,80,40,0.5)", borderRadius: 8, color: "#fff", fontFamily: "inherit", fontSize: 11, padding: "6px 12px", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}
+        >
+          {saving ? "…" : "Save"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage({ user }: AdminPageProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
@@ -2725,7 +2773,7 @@ function MaintenanceSection() {
 
   const [showBossModal, setShowBossModal] = useState(false);
 
-  const { data: raidBossData, refetch: refetchRaidBoss } = useQuery<{ templateId: string | null; rarity: number | null; name: string | null }>({
+  const { data: raidBossData, refetch: refetchRaidBoss } = useQuery<{ templateId: string | null; rarity: number | null; name: string | null; hp: number; maxHp: number }>({
     queryKey: ["/api/raid-boss"],
     staleTime: 10 * 1000,
   });
@@ -3049,6 +3097,20 @@ function MaintenanceSection() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Raid Boss HP controls ── */}
+      {raidBossData?.templateId && (
+        <RaidBossHpControls
+          hp={raidBossData.hp ?? 0}
+          maxHp={raidBossData.maxHp ?? 10000}
+          onSave={async (hp, maxHp) => {
+            const res = await apiRequest("POST", "/api/admin/raid-boss-hp", { hp, maxHp });
+            if (!res.ok) throw new Error("Failed");
+            refetchRaidBoss();
+            toast({ title: "Raid Boss HP updated" });
+          }}
+        />
       )}
 
       {/* ── Divider ── */}

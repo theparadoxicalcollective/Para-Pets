@@ -30,6 +30,7 @@ import PetPowerUpModal, { PowerUpItem } from "@/components/PetPowerUpModal";
 import PowerUpOverlay from "@/components/PowerUpOverlay";
 import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import raidIconImg from "@assets/Photoroom_20260711_52200_PM_1783810844517.png";
+import raidHpFrameImg from "@assets/Photoroom_20260711_31007_PM_1783820810778.png";
 
 interface HomePageProps {
   user: {
@@ -194,7 +195,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   });
   const raidVisible = raidStatusData?.raidVisible === true || currentUser?.isAdmin === true;
 
-  const { data: raidBossData } = useQuery<{ templateId: string | null; rarity: number | null; name: string | null }>({
+  const { data: raidBossData } = useQuery<{ templateId: string | null; rarity: number | null; name: string | null; hp: number; maxHp: number }>({
     queryKey: ["/api/raid-boss"],
     staleTime: 60_000,
     enabled: raidVisible,
@@ -1024,6 +1025,46 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                     className="w-full"
                     style={{ aspectRatio: "1/1", filter: "drop-shadow(0 0 6px rgba(200,30,20,0.4))" }}
                   />
+                </div>
+
+                {/* HP bar under the boss */}
+                <div style={{ width: "130%", position: "relative", zIndex: 3, marginTop: -8 }}>
+                  {/* HP numbers row */}
+                  <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "14%", paddingRight: "14%", marginBottom: 1 }}>
+                    <span style={{ fontFamily: "Lora, serif", fontSize: 8, color: "#e86060", textShadow: "0 1px 3px rgba(0,0,0,0.9)", letterSpacing: "0.04em" }}>
+                      HP
+                    </span>
+                    <span style={{ fontFamily: "Lora, serif", fontSize: 8, color: "#f0c040", textShadow: "0 1px 3px rgba(0,0,0,0.9)", letterSpacing: "0.03em" }}>
+                      {(raidBossData.hp ?? 0).toLocaleString()} / {(raidBossData.maxHp ?? 0).toLocaleString()}
+                    </span>
+                  </div>
+                  {/* Frame + fill */}
+                  <div style={{ position: "relative", width: "100%" }}>
+                    {/* Dark track + crimson fill — sits behind the frame image */}
+                    <div style={{
+                      position: "absolute",
+                      left: "12%", right: "12%",
+                      top: "20%", bottom: "20%",
+                      borderRadius: 40,
+                      background: "rgba(8,2,2,0.75)",
+                      overflow: "hidden",
+                    }}>
+                      <div style={{
+                        height: "100%",
+                        width: `${Math.max(0, Math.min(100, ((raidBossData.hp ?? 0) / Math.max(1, raidBossData.maxHp ?? 1)) * 100))}%`,
+                        background: "linear-gradient(90deg, #6b0000 0%, #b02020 40%, #e03030 75%, #ff5555 100%)",
+                        borderRadius: 40,
+                        transition: "width 0.6s ease",
+                        boxShadow: "inset 0 1px 0 rgba(255,120,120,0.3)",
+                      }} />
+                    </div>
+                    {/* Decorative frame on top */}
+                    <img
+                      src={raidHpFrameImg}
+                      alt=""
+                      style={{ width: "100%", height: "auto", display: "block", position: "relative", zIndex: 1 }}
+                    />
+                  </div>
                 </div>
               </div>
             )}
