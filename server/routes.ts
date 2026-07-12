@@ -7837,6 +7837,20 @@ export async function registerRoutes(
       // two concurrent purchases can never lose-update each other's
       // ticket increment. Returns null only if the player can't afford
       // the bundle (the coin deduct's `coins >= cost` guard fails).
+      // Cap: players may hold at most 100 PvP tickets at once.
+      // Players who already have >100 (pre-cap legacy balance) keep
+      // their existing count but cannot purchase more until they drop
+      // below 100. Checked here so the limit is server-authoritative
+      // and cannot be bypassed by a modified client.
+      const PVP_TICKET_CAP = 100;
+      const currentTicketCount = await storage.getPvpTicketCount(user.id);
+      if (currentTicketCount >= PVP_TICKET_CAP) {
+        return res.status(400).json({ message: "You've reached the 100 PvP ticket limit. Use your tickets in battle to free up space." });
+      }
+      if (currentTicketCount + bundle.tickets > PVP_TICKET_CAP) {
+        return res.status(400).json({ message: `That bundle would exceed the 100 ticket limit. You have ${currentTicketCount} tickets — try a smaller bundle.` });
+      }
+
       const result = await storage.purchasePvpTicketBundleAtomic(
         user.id,
         ticketItem.id,

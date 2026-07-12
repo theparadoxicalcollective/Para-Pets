@@ -31,6 +31,12 @@ import { playClick, playTick } from "@/lib/sounds";
 // Each entry also carries the visual "tier" used to style the card
 // (border, glow, and how many fanned ticket cutouts sit behind the
 // main one) so the higher bundles read as more premium at a glance.
+// Players may hold at most this many PvP tickets at once.
+// Mirrors the server-side PVP_TICKET_CAP in server/routes.ts.
+// Bundles that would push the player over this cap are disabled
+// and lightly dimmed in the shop UI.
+const PVP_TICKET_MAX = 100;
+
 const TICKET_BUNDLES: Array<{
   id: string;
   tickets: number;
@@ -1860,11 +1866,45 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
 
             {/* Bundle grid */}
             <div className="overflow-y-auto px-3 py-3">
+              {/* Ticket-cap notice — shown when the player is at or near
+                  the 100-ticket limit so they understand why bundles are
+                  dimmed. Only rendered when relevant; won't appear for a
+                  player with 5 tickets who has plenty of room. */}
+              {ticketCount >= PVP_TICKET_MAX ? (
+                <div
+                  className="mb-2.5 rounded-lg px-3 py-2 text-center text-[11px] font-bold leading-snug"
+                  style={{
+                    background: "rgba(251,191,36,0.08)",
+                    border: "1px solid rgba(251,191,36,0.22)",
+                    color: "rgba(251,191,36,0.85)",
+                  }}
+                  data-testid="text-ticket-cap-notice"
+                >
+                  Ticket bag is full ({ticketCount}/100) — use tickets in battle to buy more.
+                </div>
+              ) : ticketCount >= PVP_TICKET_MAX - 14 ? (
+                <div
+                  className="mb-2.5 rounded-lg px-3 py-2 text-center text-[11px] leading-snug"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    color: "rgba(255,255,255,0.45)",
+                  }}
+                  data-testid="text-ticket-near-cap-notice"
+                >
+                  {ticketCount}/100 tickets — some bundles are unavailable.
+                </div>
+              ) : null}
               <div className="grid grid-cols-2 gap-2.5">
                 {TICKET_BUNDLES.map((bundle) => {
                   const v = TIER_VISUALS[bundle.tier];
                   const canAfford = (me?.coins ?? 0) >= bundle.cost;
                   const isBuying = purchasingBundleId === bundle.id;
+                  // Ticket cap: bundles that would push the player over
+                  // 100 tickets are disabled. Players with >100 legacy
+                  // tickets are also blocked (even the 1-pack) until
+                  // they drop below 100 by using tickets in battle.
+                  const wouldExceedCap = ticketCount + bundle.tickets > PVP_TICKET_MAX;
                   // Disable every other bundle once one is staged for
                   // confirmation, so the player commits to a single
                   // choice before being asked. The staged bundle stays
@@ -1875,7 +1915,16 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                   const disabled =
                     !!purchasingBundleId ||
                     (!!pendingConfirmBundleId && !isPendingConfirm) ||
-                    !canAfford;
+                    !canAfford ||
+                    wouldExceedCap;
+                  // Opacity treatment — two distinct "unavailable" states:
+                  //  • Ticket cap (wouldExceedCap): light 60% dimming so
+                  //    the shop doesn't look broken — just gently faded.
+                  //  • Can't afford: stronger 50% dimming + red "not enough"
+                  //    label to match the original disabled look.
+                  const cardOpacity = disabled
+                    ? (wouldExceedCap && canAfford ? 0.6 : 0.5)
+                    : 1;
                   // ── Tap-vs-scroll guard ──────────────────────────
                   // Plain onClick on a button inside a vertically-
                   // scrolling shop list fires too easily on mobile —
@@ -1917,12 +1966,14 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                       onClick={onClickGuarded}
                       disabled={disabled}
                       data-testid={`button-buy-ticket-bundle-${bundle.id}`}
-                      className="relative flex flex-col items-center justify-between rounded-xl px-2 pt-3 pb-2.5 active:scale-[0.97] transition-transform disabled:opacity-50 disabled:active:scale-100"
+                      className="relative flex flex-col items-center justify-between rounded-xl px-2 pt-3 pb-2.5 active:scale-[0.97] transition-transform disabled:active:scale-100"
                       style={{
                         background: "linear-gradient(180deg, rgba(20,14,38,0.95) 0%, rgba(8,6,18,0.95) 100%)",
                         border: `1px solid ${v.border}`,
                         boxShadow: v.glow,
                         minHeight: 168,
+                        opacity: cardOpacity,
+                        transition: "opacity 0.2s ease",
                         // Allow vertical scrolling to start from this
                         // button's hit area without the browser
                         // needing to "decide" between tap and pan —
@@ -2000,7 +2051,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                         </span>
                       </div>
 
-                      {/* Buying spinner / Not enough overlay */}
+                      {/* Buying spinner / status label */}
                       {isBuying && (
                         <div
                           className="absolute inset-0 rounded-xl flex items-center justify-center"
@@ -2012,7 +2063,11 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                           />
                         </div>
                       )}
-                      {!isBuying && !canAfford && !purchasingBundleId && (
+                      {/* "Not enough coins" — only shown for the
+                          affordability gate, not for the ticket cap.
+                          The cap is communicated by the lighter dimming
+                          and the notice above the grid. */}
+                      {!isBuying && !canAfford && !wouldExceedCap && !purchasingBundleId && (
                         <div
                           className="absolute bottom-1 left-1 right-1 text-center text-[9px] tracking-[0.15em] font-bold text-red-300/70 uppercase"
                           data-testid={`text-cant-afford-${bundle.id}`}
@@ -2025,7 +2080,7 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                 })}
               </div>
               <div className="mt-3 text-center text-[10px] text-white/40 leading-relaxed">
-                Tickets stack with what you already own.<br />
+                You can hold up to 100 tickets at once.<br />
                 One ticket lets you enter the Veridia Arena.
               </div>
             </div>
