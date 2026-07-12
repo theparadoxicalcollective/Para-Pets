@@ -521,12 +521,12 @@ const ANIMATION_STYLES = `
     to   { transform: translateY(var(--pet-head-bob, -2.5%)); }
   }
   @keyframes petIdleLeftEar {
-    from { transform: rotate(-8deg); }
-    to   { transform: rotate(4deg); }
+    from { transform: rotate(-4deg); }
+    to   { transform: rotate(2deg); }
   }
   @keyframes petIdleRightEar {
-    from { transform: rotate(8deg); }
-    to   { transform: rotate(-4deg); }
+    from { transform: rotate(4deg); }
+    to   { transform: rotate(-2deg); }
   }
   /* Front-facing arms — symmetric swing through 0° so the arm reads
      as a calm pendulum motion centered on its rest position rather
@@ -1170,7 +1170,7 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   "petIdleHeadSway", "petIdleHeadSwayAlt",
   // Arm breath keyframes — scale+rotate from/to motions that MUST alternate
   // so they ping-pong smoothly instead of snapping back to the "from" extreme.
-  "petIdleFrontArmBreath",
+  "petIdleLeftArmBreath", "petIdleRightArmBreath", "petIdleFrontArmBreath",
   // Back hair sway — same 2-keyframe from/to rotation as the tail keyframes.
   "petIdleBackHair",
   // Haunted Marionette idle style variants — all are 2-keyframe from/to
@@ -2235,12 +2235,14 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           }
 
           // Inject the per-pet head-bob amount as a CSS variable that the
-          // petIdleHead keyframe reads (var(--pet-head-bob, -2.5%)). Only
-          // set when this wrapper actually uses petIdleHead (idle mode,
-          // primary head, body found) — secondary heads use sway, other
-          // modes use their own keyframes that don't reference the var.
+          // petIdleHead keyframe reads (var(--pet-head-bob, -2.5%)). Set for
+          // ALL heads that use petIdleHead in idle mode — both primary and
+          // secondary — so secondary heads use the same calculated bob
+          // amplitude as the primary head rather than the 2.5% fallback
+          // (which is intentionally generous to be visible on small pets
+          // but overshoots on secondary heads positioned near the body edge).
           const headBobVarStyle =
-            (headSyncBreath && headBobCssPct)
+            (mode === "idle" && headBobCssPct)
               ? ({ "--pet-head-bob": headBobCssPct } as React.CSSProperties)
               : undefined;
           return (
