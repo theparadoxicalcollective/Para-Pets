@@ -528,13 +528,21 @@ const ANIMATION_STYLES = `
     from { transform: translateY(0%); }
     to   { transform: translateY(var(--pet-head-bob, -2.5%)); }
   }
+  /* Idle ears — front-facing pets. The motion is a gentle upward perk
+     (translateY) rather than a side-to-side rotation so the ears read
+     as "alive and alert" without appearing to swivel or spin. A tiny
+     ±0.5 ° tilt differentiates left from right and adds a hair of
+     asymmetry, but the rotation is barely perceptible on its own.
+     With animation-direction: alternate the ears smoothly perk up
+     then settle back — no snap-back. 1.5 % ≈ 4–5 px on a typical
+     300 px canvas, which is a very subtle nudge. */
   @keyframes petIdleLeftEar {
-    from { transform: rotate(-4deg); }
-    to   { transform: rotate(2deg); }
+    from { transform: translateY(0%)    rotate(-0.5deg); }
+    to   { transform: translateY(-1.5%) rotate( 0.5deg); }
   }
   @keyframes petIdleRightEar {
-    from { transform: rotate(4deg); }
-    to   { transform: rotate(-2deg); }
+    from { transform: translateY(0%)    rotate( 0.5deg); }
+    to   { transform: translateY(-1.5%) rotate(-0.5deg); }
   }
   /* Front-facing arms — symmetric swing through 0° so the arm reads
      as a calm pendulum motion centered on its rest position rather
