@@ -521,12 +521,12 @@ const ANIMATION_STYLES = `
     to   { transform: translateY(var(--pet-head-bob, -2.5%)); }
   }
   @keyframes petIdleLeftEar {
-    from { transform: rotate(-2deg); }
-    to   { transform: rotate(1deg); }
+    from { transform: rotate(-8deg); }
+    to   { transform: rotate(4deg); }
   }
   @keyframes petIdleRightEar {
-    from { transform: rotate(2deg); }
-    to   { transform: rotate(-1deg); }
+    from { transform: rotate(8deg); }
+    to   { transform: rotate(-4deg); }
   }
   /* Front-facing arms — symmetric swing through 0° so the arm reads
      as a calm pendulum motion centered on its rest position rather
@@ -1170,7 +1170,7 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   "petIdleHeadSway", "petIdleHeadSwayAlt",
   // Arm breath keyframes — scale+rotate from/to motions that MUST alternate
   // so they ping-pong smoothly instead of snapping back to the "from" extreme.
-  "petIdleLeftArmBreath", "petIdleRightArmBreath", "petIdleFrontArmBreath",
+  "petIdleFrontArmBreath",
   // Back hair sway — same 2-keyframe from/to rotation as the tail keyframes.
   "petIdleBackHair",
   // Haunted Marionette idle style variants — all are 2-keyframe from/to
@@ -2165,61 +2165,37 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           // viewParts sorted by zIndex — so groupIdx is a layering
           // index, NOT a semantic "head 1 / head 2 / head 3" identity.
           const isSecondaryHead = group.head.partType !== "head";
-          const useSecondaryHeadSway = mode === "idle" && isSecondaryHead;
-          // h2_head and h3_head get DIFFERENT keyframes (not just
-          // mirrored timings of the same motion) so the two side
-          // heads on multi-head pets like the Cerberus Serpent read
-          // as individual characters with their own personality —
-          // see the petIdleHeadSway / petIdleHeadSwayAlt comments
-          // above for the motion shapes.
-          const isH3Head = group.head.partType === "h3_head";
+          // All heads use the same upward-bob keyframe (petIdleHead) in idle
+          // so secondary heads feel "similar to" the primary head rather than
+          // sliding sideways. Secondary heads keep their own distinct durations
+          // (3.2 s for h2, 4.1 s for h3) and phase offsets (0.4 s / 1.4 s)
+          // so they drift visibly in/out of sync with the primary head — the
+          // "slightly different" feel comes purely from the timing difference.
           const wrapperAnim =
             mode === "sleep" ? "petSleepHead" :
             mode === "petting" ? "petPettingHead" :
-            // In idle, the PRIMARY head uses the upward-translation
-            // petIdleHead (even on ground pets — the small lift reads as
-            // following the body's breath). SECONDARY heads use the
-            // distinct sway keyframes (petIdleHeadSway for h2,
-            // petIdleHeadSwayAlt for h3) so they read as alive on
-            // their own next to the centre head.
             mode === "idle"
-              ? (useSecondaryHeadSway
-                  ? (isH3Head ? "petIdleHeadSwayAlt" : "petIdleHeadSway")
-                  : (resolvedView === "back" ? "petIdleHeadSide" : "petIdleHead"))
+              ? (resolvedView === "back" ? "petIdleHeadSide" : "petIdleHead")
               :
             (mode !== "house" && mode !== "static") ? anims["head"] :
             undefined;
-          // Head wrapper transform-origin defaults to the wrapper's
-          // centre (50% 50% of the canvas) — important for the
-          // secondary-head sway keyframes which now include a small
-          // rotation (rotate around the canvas centre = head arcs
-          // through space). The primary head's pure translateY also
-          // works correctly with this origin.
           const wrapperOrigin: string | undefined = undefined;
-          // In idle mode, the PRIMARY head (vertical bob) overrides its
-          // natural 3 s rhythm to match the body's 4.5 s breath — phase-
-          // locked to bodyBreathDelay so every primary head lifts on the
-          // body's inhale and settles on the exhale.
-          //
-          // SECONDARY heads (h2_/h3_) use the distinct sway keyframes
-          // (h2 → petIdleHeadSway, h3 → petIdleHeadSwayAlt). Different
-          // durations (3.2 s vs 4.1 s) AND different motion shapes mean
-          // the two side heads continuously drift in and out of phase
-          // AND look like fundamentally different motion personalities,
-          // not mirrored copies. Each also keeps a phase offset
-          // (0.4 s / 1.4 s) so they don't line up at load.
-          const headSyncBreath = mode === "idle" && !useSecondaryHeadSway && bodyBreathDelay !== undefined;
+          // PRIMARY head: phase-lock to body breath (4.5 s, bodyBreathDelay).
+          // SECONDARY heads (h2_/h3_): same upward-bob keyframe but different
+          // durations (3.2 s / 4.1 s) and phase offsets (0.4 s / 1.4 s) so
+          // they continuously drift in and out of phase with the primary head.
+          const headSyncBreath = mode === "idle" && !isSecondaryHead && bodyBreathDelay !== undefined;
           const swayPhaseOffsetSec =
             group.head.partType === "h3_head" ? 1.4 :
             group.head.partType === "h2_head" ? 0.4 : 0;
-          const secondaryHeadSwayDuration =
+          const secondaryHeadBobDuration =
             group.head.partType === "h3_head" ? "4.1s" : "3.2s";
           const wrapperDuration =
-            useSecondaryHeadSway ? secondaryHeadSwayDuration :
+            (mode === "idle" && isSecondaryHead) ? secondaryHeadBobDuration :
             headSyncBreath ? "4.5s" :
             getPartDuration("head", mode);
           const wrapperDelay: string =
-            useSecondaryHeadSway ? `-${swayPhaseOffsetSec.toFixed(2)}s` :
+            (mode === "idle" && isSecondaryHead) ? `-${swayPhaseOffsetSec.toFixed(2)}s` :
             (headSyncBreath && bodyBreathDelay) ? bodyBreathDelay :
             `${groupDelay}s`;
           // In sleep AND petting modes, force the face into a calm closed-eye
@@ -2233,25 +2209,29 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
 
           const allGroupParts = [group.head, ...group.faceParts];
 
-          // SECONDARY head wrappers (h2_head / h3_head) ALWAYS render
-          // BELOW the body silhouette so multi-head pets read with side
-          // heads tucked behind the central torso. Default head wrapper
-          // sits at zIndex 9 (above all body parts, which are compressed
-          // into 1..8). Secondary head wrappers anchor at one less than
-          // the body part's compressed z so they tuck behind the torso
-          // while still sitting in FRONT of legs / tails / wings (which
-          // are below body in the compressed range). Falls back to 4
-          // (just below the typical body z of 5–6) if the body part
-          // somehow wasn't found. PRIMARY head wrappers stay at 9.
+          // SECONDARY head wrappers (h2_head / h3_head) render ABOVE the neck
+          // so the second/third head always shows over the neck layer, while
+          // still sitting below (or at) the body level so the torso can
+          // naturally overlap them. Primary head wrappers stay at 9 (above
+          // all body parts compressed into 1..8).
           let headWrapperZ = 9;
           if (isSecondaryHead) {
             const bodyPartForLayer = bodyParts.find(p => p.partType === "body");
+            const neckPartForLayer = bodyParts.find(p => p.partType === "neck");
             const bodyCompressedZ = bodyPartForLayer
               ? compressedZ.get(bodyPartForLayer.id)
               : undefined;
-            headWrapperZ = bodyCompressedZ !== undefined
-              ? Math.max(1, bodyCompressedZ - 1)
-              : 4;
+            const neckCompressedZ = neckPartForLayer
+              ? compressedZ.get(neckPartForLayer.id)
+              : undefined;
+            if (neckCompressedZ !== undefined) {
+              // Sit just above the neck so secondary heads render over the neck layer.
+              headWrapperZ = neckCompressedZ + 1;
+            } else if (bodyCompressedZ !== undefined) {
+              headWrapperZ = Math.max(1, bodyCompressedZ - 1);
+            } else {
+              headWrapperZ = 4;
+            }
           }
 
           // Inject the per-pet head-bob amount as a CSS variable that the
