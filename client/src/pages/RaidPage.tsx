@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Users, Droplets, Heart, Check } from "lucide-react";
 import type { BattlePotionSlot } from "@/components/BattleArena";
 import raidBg from "@assets/F17D0472-325D-4FA4-B9E9-5B44668D2BC5_1783810844517.png";
@@ -16,11 +18,75 @@ const POTION_STACK_SIZE = 50;
 export default function RaidPage() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: me } = useQuery<any>({ queryKey: ["/api/auth/me"] });
   const { data: inventory = [], isSuccess: inventoryReady } = useQuery<any[]>({ queryKey: ["/api/inventory"] });
 
   const activePetId: string | null = me?.activePetId ?? null;
+  const isAdmin: boolean = me?.isAdmin === true;
+
+  // ── Admin: raid state ─────────────────────────────────────────────
+  const [showBossModal, setShowBossModal] = useState(false);
+  const { data: raidStatusData, isLoading: raidStatusLoading } = useQuery<{ raidVisible: boolean }>({
+    queryKey: ["/api/raid-status"],
+    staleTime: 10 * 1000,
+    enabled: isAdmin,
+  });
+  const raidOn = raidStatusData?.raidVisible === true;
+  const { data: raidBossData, refetch: refetchRaidBoss } = useQuery<{ templateId: string | null; rarity: number | null; name: string | null; hp: number; maxHp: number }>({
+    queryKey: ["/api/raid-boss"],
+    staleTime: 10 * 1000,
+    enabled: isAdmin,
+  });
+  const { data: templatesList = [] } = useQuery<{ id: string; name: string; rarity: number }[]>({
+    queryKey: ["/api/admin/templates-list"],
+    enabled: isAdmin && showBossModal,
+    staleTime: 60 * 1000,
+  });
+
+  const raidToggleMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const res = await apiRequest("POST", "/api/admin/raid-toggle", { enabled });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/raid-status"], { raidVisible: data.raidVisible });
+      toast({ title: data.raidVisible ? "Raid icon ON" : "Raid icon OFF" });
+    },
+    onError: (err: any) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
+  });
+  const setBossMutation = useMutation({
+    mutationFn: async (templateId: string | null) => {
+      const res = await apiRequest("POST", "/api/admin/raid-boss", { templateId });
+      return res.json();
+    },
+    onSuccess: () => { refetchRaidBoss(); setShowBossModal(false); toast({ title: "Raid Boss updated" }); },
+    onError: (err: any) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
+  });
+
+  // HP controls local state
+  const [localHp, setLocalHp] = useState("");
+  const [localMax, setLocalMax] = useState("");
+  const [hpSaving, setHpSaving] = useState(false);
+  useEffect(() => {
+    if (raidBossData) {
+      setLocalHp(String(raidBossData.hp ?? 0));
+      setLocalMax(String(raidBossData.maxHp ?? 10000));
+    }
+  }, [raidBossData?.hp, raidBossData?.maxHp]);
+  const saveHp = async () => {
+    setHpSaving(true);
+    try {
+      const res = await apiRequest("POST", "/api/admin/raid-boss-hp", { hp: parseInt(localHp, 10) || 0, maxHp: parseInt(localMax, 10) || 1 });
+      if (!res.ok) throw new Error("Failed");
+      refetchRaidBoss();
+      toast({ title: "Raid Boss HP updated" });
+    } catch (e: any) {
+      toast({ title: "Failed", description: e.message, variant: "destructive" });
+    } finally { setHpSaving(false); }
+  };
+  const hpPct = Math.max(0, Math.min(100, (parseInt(localHp, 10) || 0) / Math.max(1, parseInt(localMax, 10) || 1) * 100));
 
   // ── Pet slots ─────────────────────────────────────────────────────
   const [selectedPetIds, setSelectedPetIds] = useState<string[]>(() => {
@@ -270,6 +336,99 @@ export default function RaidPage() {
             </h1>
           </div>
         </div>
+
+        {/* ── Admin controls (only visible to admins) ─────────────── */}
+        {isAdmin && (
+          <div style={{ width: "100%", maxWidth: 420, display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* Label */}
+            <p style={{ fontFamily: "Lora, serif", fontSize: 10, letterSpacing: "0.3em", color: "#f87171", textTransform: "uppercase", textAlign: "center", margin: 0 }}>Admin Controls</p>
+
+            {/* Toggle + Boss row */}
+            <div style={{ borderRadius: 16, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12, background: raidOn ? "linear-gradient(145deg, rgba(30,10,8,0.92) 0%, rgba(50,18,8,0.92) 100%)" : "linear-gradient(145deg, rgba(10,8,20,0.92) 0%, rgba(16,10,30,0.92) 100%)", border: raidOn ? "1px solid rgba(240,120,40,0.4)" : "1px solid rgba(120,80,40,0.25)", transition: "all 0.4s ease" }}>
+              {/* Toggle */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                  <p style={{ fontFamily: "Lora, serif", fontSize: 13, color: raidOn ? "#f97316" : "#a89878", margin: 0 }}>Raid Icon</p>
+                  <p style={{ fontFamily: "Lora, serif", fontSize: 10, color: raidOn ? "#7a3010" : "#3a2a18", margin: "2px 0 0" }}>
+                    {raidStatusLoading ? "Checking…" : raidOn ? "Visible to players" : "Hidden from players"}
+                  </p>
+                </div>
+                <button
+                  data-testid="button-toggle-raid"
+                  onClick={() => raidToggleMutation.mutate(!raidOn)}
+                  disabled={raidStatusLoading || raidToggleMutation.isPending}
+                  style={{ position: "relative", flexShrink: 0, width: 52, height: 28, borderRadius: 14, background: raidOn ? "linear-gradient(135deg, #7a2808, #c0391b)" : "linear-gradient(135deg, #2a1a08, #5a3010)", border: raidOn ? "1px solid rgba(240,120,40,0.5)" : "1px solid rgba(120,80,40,0.3)", boxShadow: raidOn ? "0 0 10px rgba(240,80,20,0.3)" : "none", cursor: (raidStatusLoading || raidToggleMutation.isPending) ? "not-allowed" : "pointer", transition: "all 0.3s ease", opacity: (raidStatusLoading || raidToggleMutation.isPending) ? 0.5 : 1 }}
+                >
+                  <div style={{ position: "absolute", top: 3, left: raidOn ? 26 : 3, width: 20, height: 20, borderRadius: "50%", background: "white", boxShadow: "0 2px 4px rgba(0,0,0,0.4)", transition: "left 0.3s ease" }} />
+                </button>
+              </div>
+
+              {/* Raid Boss row */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 10, borderTop: "1px solid rgba(240,120,40,0.15)" }}>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#a89878", margin: 0 }}>Raid Boss</p>
+                  {raidBossData?.templateId ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                      <p style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#f0c040", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{raidBossData.name ?? "Unknown"}</p>
+                      <span style={{ fontFamily: "Lora, serif", fontSize: 10, color: "#f0c040", flexShrink: 0 }}>{"★".repeat(raidBossData.rarity ?? 1)}{"☆".repeat(Math.max(0, 5 - (raidBossData.rarity ?? 1)))}</span>
+                    </div>
+                  ) : (
+                    <p style={{ fontFamily: "Lora, serif", fontSize: 10, color: "#3a2a18", margin: "2px 0 0" }}>No boss set</p>
+                  )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                  {raidBossData?.templateId && (
+                    <button data-testid="button-clear-raid-boss" onClick={() => setBossMutation.mutate(null)} disabled={setBossMutation.isPending} style={{ background: "rgba(180,40,20,0.25)", border: "1px solid rgba(240,80,40,0.3)", borderRadius: 8, color: "#f87171", fontFamily: "Lora, serif", fontSize: 11, padding: "4px 10px", cursor: "pointer" }}>Clear</button>
+                  )}
+                  <button data-testid="button-set-raid-boss" onClick={() => setShowBossModal(true)} disabled={setBossMutation.isPending} style={{ background: "linear-gradient(135deg, rgba(180,100,20,0.5), rgba(240,160,40,0.3))", border: "1px solid rgba(240,160,40,0.5)", borderRadius: 8, color: "#f0c040", fontFamily: "Lora, serif", fontSize: 15, fontWeight: "bold", padding: "3px 12px", cursor: "pointer" }}>+</button>
+                </div>
+              </div>
+            </div>
+
+            {/* HP controls — only shown when a boss is set */}
+            {raidBossData?.templateId && (
+              <div style={{ borderRadius: 16, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10, background: "linear-gradient(145deg, rgba(30,8,8,0.92) 0%, rgba(50,12,12,0.92) 100%)", border: "1px solid rgba(220,60,40,0.3)" }}>
+                <p style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#f87171", margin: 0 }}>Boss HP</p>
+                <div style={{ height: 6, borderRadius: 4, background: "rgba(0,0,0,0.5)", overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${hpPct}%`, background: "linear-gradient(90deg, #8b0000, #e74c3c)", borderRadius: 4, transition: "width 0.3s" }} />
+                </div>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1 }}>
+                    <label style={{ fontFamily: "Lora, serif", fontSize: 10, color: "#a89878" }}>Current HP</label>
+                    <input type="number" min={0} value={localHp} onChange={(e) => setLocalHp(e.target.value)} style={{ borderRadius: 8, padding: "5px 8px", fontSize: 12, fontFamily: "Lora, serif", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(220,60,40,0.3)", color: "#f0c040", outline: "none", width: "100%" }} />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1 }}>
+                    <label style={{ fontFamily: "Lora, serif", fontSize: 10, color: "#a89878" }}>Max HP</label>
+                    <input type="number" min={1} value={localMax} onChange={(e) => setLocalMax(e.target.value)} style={{ borderRadius: 8, padding: "5px 8px", fontSize: 12, fontFamily: "Lora, serif", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(220,60,40,0.3)", color: "#f0c040", outline: "none", width: "100%" }} />
+                  </div>
+                  <button onClick={saveHp} disabled={hpSaving} style={{ background: "linear-gradient(135deg, #7a1a08, #c0391b)", border: "1px solid rgba(240,80,40,0.5)", borderRadius: 8, color: "#fff", fontFamily: "Lora, serif", fontSize: 11, padding: "6px 14px", cursor: hpSaving ? "not-allowed" : "pointer", opacity: hpSaving ? 0.6 : 1, flexShrink: 0 }}>{hpSaving ? "…" : "Save"}</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Boss picker modal */}
+        {isAdmin && showBossModal && (
+          <div onClick={() => setShowBossModal(false)} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ borderRadius: 16, display: "flex", flexDirection: "column", background: "linear-gradient(160deg, rgba(10,4,20,0.98) 0%, rgba(20,8,35,0.98) 100%)", border: "1px solid rgba(240,160,40,0.35)", boxShadow: "0 0 40px rgba(200,120,20,0.15)", width: "min(92vw, 380px)", maxHeight: "70vh", overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid rgba(240,160,40,0.2)" }}>
+                <p style={{ fontFamily: "Lora, serif", fontSize: 13, color: "#f0c040", margin: 0, letterSpacing: "0.1em" }}>Choose Raid Boss</p>
+                <button onClick={() => setShowBossModal(false)} style={{ background: "none", border: "none", color: "#a89878", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 0 }}>✕</button>
+              </div>
+              <div style={{ overflowY: "auto", flex: 1, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                {templatesList.length === 0 ? (
+                  <p style={{ fontFamily: "Lora, serif", fontSize: 12, color: "#4a3a28", textAlign: "center", padding: "24px 0" }}>Loading…</p>
+                ) : templatesList.map((t) => (
+                  <button key={t.id} data-testid={`button-pick-boss-${t.id}`} onClick={() => setBossMutation.mutate(t.id)} disabled={setBossMutation.isPending} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%", borderRadius: 10, padding: "10px 12px", textAlign: "left", background: raidBossData?.templateId === t.id ? "linear-gradient(135deg, rgba(180,120,20,0.4), rgba(240,160,40,0.2))" : "rgba(255,255,255,0.03)", border: raidBossData?.templateId === t.id ? "1px solid rgba(240,160,40,0.5)" : "1px solid rgba(255,255,255,0.06)", cursor: "pointer", transition: "all 0.15s ease" }}>
+                    <span style={{ fontFamily: "Lora, serif", fontSize: 12, color: raidBossData?.templateId === t.id ? "#f0c040" : "#c8b090" }}>{t.name}</span>
+                    <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#f0c040", flexShrink: 0 }}>{"★".repeat(t.rarity ?? 1)}{"☆".repeat(Math.max(0, 5 - (t.rarity ?? 1)))}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Leaderboard button */}
         <button
