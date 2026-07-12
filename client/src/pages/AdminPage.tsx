@@ -113,7 +113,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [banModalUserId, setBanModalUserId] = useState<string | null>(null);
   const [banDays, setBanDays] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "emblems" | "maintenance" | "home_bundle" | "purchases" | "veridian_watcher" | "quest" | "molten_blocks" | "metrics" | "recipe_items" | "forums" | null>(null);
+  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "emblems" | "maintenance" | "home_bundle" | "purchases" | "veridian_watcher" | "quest" | "molten_blocks" | "metrics" | "recipe_items" | "forums" | "raid" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const [characterTab, setCharacterTab] = useState<"pet" | "enemy" | "npc" | "fish">("pet");
   const [itemsTab, setItemsTab] = useState<"items" | "fishing">("items");
@@ -204,6 +204,53 @@ export default function AdminPage({ user }: AdminPageProps) {
     setCoinAmounts(prev => ({ ...prev, [userId]: "" }));
   };
 
+  // ── Raid state (hoisted so the Raid tab can access it) ──────────
+  const { data: raidData, isLoading: raidLoading } = useQuery<{ raidVisible: boolean }>({
+    queryKey: ["/api/raid-status"],
+    staleTime: 10 * 1000,
+  });
+  const raidOn = raidData?.raidVisible === true;
+  const [showBossModal, setShowBossModal] = useState(false);
+  const { data: raidBossData, refetch: refetchRaidBoss } = useQuery<{ templateId: string | null; rarity: number | null; name: string | null; hp: number; maxHp: number }>({
+    queryKey: ["/api/raid-boss"],
+    staleTime: 10 * 1000,
+  });
+  const { data: templatesList = [] } = useQuery<{ id: string; name: string; rarity: number }[]>({
+    queryKey: ["/api/admin/templates-list"],
+    enabled: showBossModal,
+    staleTime: 60 * 1000,
+  });
+  const setBossMutation = useMutation({
+    mutationFn: async (templateId: string | null) => {
+      const res = await apiRequest("POST", "/api/admin/raid-boss", { templateId });
+      return res.json();
+    },
+    onSuccess: () => {
+      refetchRaidBoss();
+      setShowBossModal(false);
+      toast({ title: "Raid Boss updated" });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err.message, variant: "destructive" });
+    },
+  });
+  const raidToggleMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const res = await apiRequest("POST", "/api/admin/raid-toggle", { enabled });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/raid-status"], { raidVisible: data.raidVisible });
+      toast({
+        title: data.raidVisible ? "Raid icon ON" : "Raid icon OFF",
+        description: data.raidVisible ? "The Raid icon is now visible to all players." : "The Raid icon is now hidden.",
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
   const sections = [
     // ── A–Z alphabetical order, each with a unique colour ────────────────────
     { key: "pets"          as const, label: "Add Character",   icon: adminIconPets,          desc: "Pets, enemies, NPCs & fish",   color: "#fb923c", glow: "rgba(251,146,60,0.35)",   bg: "linear-gradient(145deg, rgba(72,24,4,0.92) 0%, rgba(110,38,8,0.88) 100%)",    border: "rgba(251,146,60,0.5)"   },
@@ -284,10 +331,11 @@ export default function AdminPage({ user }: AdminPageProps) {
                       pointerEvents: "none",
                     }} />
                     <div className="flex items-start justify-between w-full">
-                      <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{
+                      <div className="w-12 h-12 flex items-center justify-center" style={{
                         background: "rgba(0,0,0,0.30)",
                         border: `1px solid ${s.border}`,
                         boxShadow: `0 0 12px ${s.glow}`,
+                        borderRadius: s.key === "raid" ? "50%" : "0.75rem",
                       }}>
                         <img src={s.icon} alt={s.label} className="w-9 h-9 object-contain" style={{ filter: `drop-shadow(0 0 4px ${s.glow})` }} />
                       </div>
@@ -2877,59 +2925,6 @@ function MaintenanceSection() {
         description: data.maintenance
           ? "Players are now blocked from logging in."
           : "The realm is open — players can log in again.",
-      });
-    },
-    onError: (err: any) => {
-      toast({ title: "Failed", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const { data: raidData, isLoading: raidLoading } = useQuery<{ raidVisible: boolean }>({
-    queryKey: ["/api/raid-status"],
-    staleTime: 10 * 1000,
-  });
-  const raidOn = raidData?.raidVisible === true;
-
-  const [showBossModal, setShowBossModal] = useState(false);
-
-  const { data: raidBossData, refetch: refetchRaidBoss } = useQuery<{ templateId: string | null; rarity: number | null; name: string | null; hp: number; maxHp: number }>({
-    queryKey: ["/api/raid-boss"],
-    staleTime: 10 * 1000,
-  });
-
-  const { data: templatesList = [] } = useQuery<{ id: string; name: string; rarity: number }[]>({
-    queryKey: ["/api/admin/templates-list"],
-    enabled: showBossModal,
-    staleTime: 60 * 1000,
-  });
-
-  const setBossMutation = useMutation({
-    mutationFn: async (templateId: string | null) => {
-      const res = await apiRequest("POST", "/api/admin/raid-boss", { templateId });
-      return res.json();
-    },
-    onSuccess: () => {
-      refetchRaidBoss();
-      setShowBossModal(false);
-      toast({ title: "Raid Boss updated" });
-    },
-    onError: (err: any) => {
-      toast({ title: "Failed", description: err.message, variant: "destructive" });
-    },
-  });
-
-  const raidToggleMutation = useMutation({
-    mutationFn: async (enabled: boolean) => {
-      const res = await apiRequest("POST", "/api/admin/raid-toggle", { enabled });
-      return res.json();
-    },
-    onSuccess: (data) => {
-      queryClient.setQueryData(["/api/raid-status"], { raidVisible: data.raidVisible });
-      toast({
-        title: data.raidVisible ? "Raid icon ON" : "Raid icon OFF",
-        description: data.raidVisible
-          ? "The Raid icon is now visible to all players."
-          : "The Raid icon is now hidden.",
       });
     },
     onError: (err: any) => {
