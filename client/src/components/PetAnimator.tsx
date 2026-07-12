@@ -544,6 +544,22 @@ const ANIMATION_STYLES = `
     from { transform: translateY(0%)    rotate( 0.5deg); }
     to   { transform: translateY(-1.5%) rotate(-0.5deg); }
   }
+  /* Bat-style ears (idleStyle === "bat", e.g. Cherubats). These pivot
+     back and forth on a base anchor — no up/down bob. The motion is
+     a very small angular swing so the ears look like they're twitching
+     attentively rather than flapping. Left and right mirror each other:
+     when left tilts outward, right tilts outward (and vice versa).
+     ALTERNATE so they ping-pong without a snap-back at cycle end.
+     transform-origin is handled at the render site ("50% 100%") so
+     the pivot is at the ear's base, not its centre. */
+  @keyframes petBatLeftEar {
+    from { transform: rotate(-1.5deg); }
+    to   { transform: rotate( 1.5deg); }
+  }
+  @keyframes petBatRightEar {
+    from { transform: rotate( 1.5deg); }
+    to   { transform: rotate(-1.5deg); }
+  }
   /* Front-facing arms — symmetric swing through 0° so the arm reads
      as a calm pendulum motion centered on its rest position rather
      than a one-sided "raise" that always returns to the same neutral
@@ -1163,6 +1179,7 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
 const ALTERNATE_MOTION_ANIMS = new Set<string>([
   "petIdleHead", "petIdleHeadGround", "petIdleHeadSide",
   "petIdleLeftEar", "petIdleRightEar",
+  "petBatLeftEar", "petBatRightEar",
   "petIdleLeftArm", "petIdleRightArm",
   "petIdleBody",
   "petIdleLeftWing", "petIdleRightWing",
@@ -2326,11 +2343,24 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                 // (phase-locked to bodyBreathDelay) so the hat/crown hangs like
                 // it's on a puppet string rather than floating freely.
                 const isAboveHeadMarionette = mode === "idle" && idleStyle === "marionette" && part.partType === "above_head";
-                const resolvedPartAnimName = isAboveHeadMarionette && partAnimName === "petAboveHeadBounce"
-                  ? "petAboveHeadBounceMarionette"
-                  : partAnimName;
+                // Bat style (idleStyle === "bat", e.g. Cherubats): swap idle ear
+                // animations to petBatLeftEar / petBatRightEar so the ears pivot
+                // subtly at their base instead of bobbing up. The pivot origin
+                // "50% 100%" anchors the rotation at the bottom of the ear image
+                // (the attachment point), giving a natural hinge effect.
+                // Strip h2_/h3_ prefix so the check works for all head sets.
+                const barePartType = part.partType.replace(/^h[23]_/, "");
+                const isBatLeftEar  = mode === "idle" && idleStyle === "bat" && (barePartType === "left_ear"  || barePartType === "left_ear_2");
+                const isBatRightEar = mode === "idle" && idleStyle === "bat" && (barePartType === "right_ear" || barePartType === "right_ear_2");
+                const resolvedPartAnimName =
+                  isBatLeftEar  ? "petBatLeftEar" :
+                  isBatRightEar ? "petBatRightEar" :
+                  isAboveHeadMarionette && partAnimName === "petAboveHeadBounce"
+                    ? "petAboveHeadBounceMarionette"
+                    : partAnimName;
+                const batEarOrigin = (isBatLeftEar || isBatRightEar) ? "50% 100%" : undefined;
                 const aboveHeadDelay = isAboveHeadMarionette && bodyBreathDelay !== undefined ? bodyBreathDelay : delay;
-                return renderPartImg(part, resolvedPartAnimName, undefined, aboveHeadDelay, undefined, undefined, isAboveHeadMarionette ? "4.5s" : undefined);
+                return renderPartImg(part, resolvedPartAnimName, undefined, aboveHeadDelay, batEarOrigin, undefined, isAboveHeadMarionette ? "4.5s" : undefined);
               })}
             </div>
           );
