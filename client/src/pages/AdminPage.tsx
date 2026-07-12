@@ -27,6 +27,7 @@ import adminIconVeridianWatcher from "@assets/admin_icon_veridian_watcher_transp
 import adminIconQuest from "@assets/icon_quest_v5.png";
 
 import adminIconPurchases from "@assets/admin_icon_purchases.png";
+import adminIconRaid from "@assets/Photoroom_20260711_52200_PM_1783810844517.png";
 
 interface AdminPageProps {
   user: {
@@ -217,6 +218,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "molten_blocks" as const, label: "Molten Blocks",   icon: adminIconItems,         desc: "Item drops in Molten Blocks",  color: "#fdba74", glow: "rgba(253,186,116,0.35)",  bg: "linear-gradient(145deg, rgba(72,32,4,0.92) 0%, rgba(110,50,10,0.88) 100%)",  border: "rgba(253,186,116,0.5)"  },
     { key: "purchases"     as const, label: "Purchases",       icon: adminIconPurchases,     desc: "Coin shop history",            color: "#86efac", glow: "rgba(134,239,172,0.30)",  bg: "linear-gradient(145deg, rgba(8,45,18,0.92) 0%, rgba(12,70,28,0.88) 100%)",   border: "rgba(134,239,172,0.45)" },
     { key: "quest"         as const, label: "Quests",          icon: adminIconQuest,         desc: "Manage quests",                color: "#6ee7b7", glow: "rgba(110,231,183,0.35)",  bg: "linear-gradient(145deg, rgba(8,50,35,0.92) 0%, rgba(14,80,55,0.88) 100%)",   border: "rgba(110,231,183,0.45)" },
+    { key: "raid"          as const, label: "Raid",            icon: adminIconRaid,          desc: "Boss, HP & visibility",        color: "#f87171", glow: "rgba(248,113,113,0.35)",  bg: "linear-gradient(145deg, rgba(60,8,8,0.92) 0%, rgba(90,12,12,0.88) 100%)",   border: "rgba(248,113,113,0.5)"  },
     { key: "recipe_items"  as const, label: "Recipes",         icon: adminIconItems,         desc: "Mixing Tree brew recipes",     color: "#4ade80", glow: "rgba(74,222,128,0.35)",   bg: "linear-gradient(145deg, rgba(4,40,16,0.92) 0%, rgba(8,64,24,0.88) 100%)",   border: "rgba(74,222,128,0.5)"   },
     { key: "rewards"       as const, label: "Rewards",         icon: adminIconRewards,       desc: "Send bundles",                 color: "#c4b5fd", glow: "rgba(192,132,252,0.35)",  bg: "linear-gradient(145deg, rgba(50,18,88,0.92) 0%, rgba(80,28,120,0.88) 100%)", border: "rgba(192,132,252,0.5)"  },
     { key: "forums"        as const, label: "Forums",          icon: adminIconVeridianWatcher, desc: "Manage forum posts",         color: "#86efac", glow: "rgba(134,239,172,0.30)",  bg: "linear-gradient(145deg, rgba(4,40,16,0.92) 0%, rgba(8,64,24,0.88) 100%)",   border: "rgba(134,239,172,0.45)" },
@@ -739,6 +741,123 @@ export default function AdminPage({ user }: AdminPageProps) {
 
               {activeSection === "maintenance" && (
                 <MaintenanceSection />
+              )}
+
+              {activeSection === "raid" && (
+                <div className="space-y-4 py-2">
+                  {/* ── Raid Icon Toggle ── */}
+                  <div
+                    className="rounded-2xl p-4 flex flex-col gap-3"
+                    style={{
+                      background: raidOn
+                        ? "linear-gradient(145deg, rgba(30,10,8,0.9) 0%, rgba(50,18,8,0.9) 100%)"
+                        : "linear-gradient(145deg, rgba(10,8,20,0.9) 0%, rgba(16,10,30,0.9) 100%)",
+                      border: raidOn ? "1px solid rgba(240,120,40,0.4)" : "1px solid rgba(120,80,40,0.25)",
+                      transition: "all 0.4s ease",
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-col gap-0.5">
+                        <p className="font-fantasy text-sm tracking-wide" style={{ color: raidOn ? "#f97316" : "#a89878" }}>Raid Icon</p>
+                        <p className="font-fantasy text-[10px] tracking-wider" style={{ color: raidOn ? "#7a3010" : "#3a2a18" }}>
+                          {raidLoading ? "Checking status..." : raidOn ? "Visible to all players" : "Hidden from players"}
+                        </p>
+                      </div>
+                      <button
+                        data-testid="button-toggle-raid"
+                        onClick={() => raidToggleMutation.mutate(!raidOn)}
+                        disabled={raidLoading || raidToggleMutation.isPending}
+                        className="relative flex-shrink-0"
+                        style={{
+                          width: 52, height: 28, borderRadius: 14,
+                          background: raidOn ? "linear-gradient(135deg, #7a2808, #c0391b)" : "linear-gradient(135deg, #2a1a08, #5a3010)",
+                          border: raidOn ? "1px solid rgba(240,120,40,0.5)" : "1px solid rgba(120,80,40,0.3)",
+                          boxShadow: raidOn ? "0 0 10px rgba(240,80,20,0.3)" : "none",
+                          cursor: (raidLoading || raidToggleMutation.isPending) ? "not-allowed" : "pointer",
+                          transition: "all 0.3s ease",
+                          opacity: (raidLoading || raidToggleMutation.isPending) ? 0.5 : 1,
+                        }}
+                      >
+                        <div style={{ position: "absolute", top: 3, left: raidOn ? 26 : 3, width: 20, height: 20, borderRadius: "50%", background: "white", boxShadow: "0 2px 4px rgba(0,0,0,0.4)", transition: "left 0.3s ease" }} />
+                      </button>
+                    </div>
+
+                    {/* Raid Boss row */}
+                    <div className="flex items-center justify-between gap-3 pt-1 border-t" style={{ borderColor: "rgba(240,120,40,0.15)" }}>
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <p className="font-fantasy text-xs tracking-wide" style={{ color: "#a89878" }}>Raid Boss</p>
+                        {raidBossData?.templateId ? (
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-fantasy text-[11px] tracking-wider truncate" style={{ color: "#f0c040" }}>{raidBossData.name ?? "Unknown"}</p>
+                            <span className="font-fantasy text-[10px]" style={{ color: "#f0c040" }}>
+                              {"★".repeat(raidBossData.rarity ?? 1)}{"☆".repeat(Math.max(0, 5 - (raidBossData.rarity ?? 1)))}
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#3a2a18" }}>No boss set</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {raidBossData?.templateId && (
+                          <button
+                            data-testid="button-clear-raid-boss"
+                            onClick={() => setBossMutation.mutate(null)}
+                            disabled={setBossMutation.isPending}
+                            style={{ background: "rgba(180,40,20,0.25)", border: "1px solid rgba(240,80,40,0.3)", borderRadius: 8, color: "#f87171", fontFamily: "inherit", fontSize: 11, padding: "4px 10px", cursor: "pointer" }}
+                          >
+                            Clear
+                          </button>
+                        )}
+                        <button
+                          data-testid="button-set-raid-boss"
+                          onClick={() => setShowBossModal(true)}
+                          disabled={setBossMutation.isPending}
+                          style={{ background: "linear-gradient(135deg, rgba(180,100,20,0.5), rgba(240,160,40,0.3))", border: "1px solid rgba(240,160,40,0.5)", borderRadius: 8, color: "#f0c040", fontFamily: "inherit", fontSize: 13, fontWeight: "bold", padding: "4px 12px", cursor: "pointer" }}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* HP Controls */}
+                  {raidBossData?.templateId && (
+                    <RaidBossHpControls
+                      hp={raidBossData.hp ?? 0}
+                      maxHp={raidBossData.maxHp ?? 10000}
+                      onSave={async (hp, maxHp) => {
+                        const res = await apiRequest("POST", "/api/admin/raid-boss-hp", { hp, maxHp });
+                        if (!res.ok) throw new Error("Failed");
+                        refetchRaidBoss();
+                        toast({ title: "Raid Boss HP updated" });
+                      }}
+                    />
+                  )}
+
+                  {/* Boss picker modal */}
+                  {showBossModal && (
+                    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 9999, background: "rgba(0,0,0,0.75)" }} onClick={() => setShowBossModal(false)}>
+                      <div className="rounded-2xl flex flex-col gap-0" style={{ background: "linear-gradient(160deg, rgba(10,4,20,0.98) 0%, rgba(20,8,35,0.98) 100%)", border: "1px solid rgba(240,160,40,0.35)", boxShadow: "0 0 40px rgba(200,120,20,0.15)", width: "min(92vw, 380px)", maxHeight: "70vh", overflow: "hidden", display: "flex", flexDirection: "column" }} onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "rgba(240,160,40,0.2)" }}>
+                          <p className="font-fantasy text-sm tracking-wider" style={{ color: "#f0c040" }}>Choose Raid Boss</p>
+                          <button onClick={() => setShowBossModal(false)} style={{ background: "none", border: "none", color: "#a89878", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>✕</button>
+                        </div>
+                        <div className="overflow-y-auto flex-1 p-3 flex flex-col gap-2">
+                          {templatesList.length === 0 ? (
+                            <p className="font-fantasy text-xs text-center py-6" style={{ color: "#4a3a28" }}>Loading...</p>
+                          ) : (
+                            templatesList.map((t) => (
+                              <button key={t.id} data-testid={`button-pick-boss-${t.id}`} onClick={() => setBossMutation.mutate(t.id)} disabled={setBossMutation.isPending} className="flex items-center justify-between gap-3 w-full rounded-xl px-3 py-2.5 text-left" style={{ background: raidBossData?.templateId === t.id ? "linear-gradient(135deg, rgba(180,120,20,0.4), rgba(240,160,40,0.2))" : "rgba(255,255,255,0.03)", border: raidBossData?.templateId === t.id ? "1px solid rgba(240,160,40,0.5)" : "1px solid rgba(255,255,255,0.06)", cursor: "pointer", transition: "all 0.15s ease" }}>
+                                <span className="font-fantasy text-xs tracking-wide" style={{ color: raidBossData?.templateId === t.id ? "#f0c040" : "#c8b090" }}>{t.name}</span>
+                                <span className="font-fantasy text-xs flex-shrink-0" style={{ color: "#f0c040", letterSpacing: 1 }}>{"★".repeat(t.rarity ?? 1)}{"☆".repeat(Math.max(0, 5 - (t.rarity ?? 1)))}</span>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
 
               {activeSection === "forums" && (
@@ -2912,206 +3031,6 @@ function MaintenanceSection() {
           </p>
         )}
       </div>
-
-      {/* ── Raid Icon Toggle ── */}
-      <div
-        className="rounded-2xl p-4 flex flex-col gap-3"
-        style={{
-          background: raidOn
-            ? "linear-gradient(145deg, rgba(30,10,8,0.9) 0%, rgba(50,18,8,0.9) 100%)"
-            : "linear-gradient(145deg, rgba(10,8,20,0.9) 0%, rgba(16,10,30,0.9) 100%)",
-          border: raidOn
-            ? "1px solid rgba(240,120,40,0.4)"
-            : "1px solid rgba(120,80,40,0.25)",
-          transition: "all 0.4s ease",
-        }}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex flex-col gap-0.5">
-            <p
-              className="font-fantasy text-sm tracking-wide"
-              style={{ color: raidOn ? "#f97316" : "#a89878" }}
-            >
-              Raid Icon
-            </p>
-            <p
-              className="font-fantasy text-[10px] tracking-wider"
-              style={{ color: raidOn ? "#7a3010" : "#3a2a18" }}
-            >
-              {raidLoading ? "Checking status..." : raidOn ? "Visible to all players" : "Hidden from players"}
-            </p>
-          </div>
-          <button
-            data-testid="button-toggle-raid"
-            onClick={() => raidToggleMutation.mutate(!raidOn)}
-            disabled={raidLoading || raidToggleMutation.isPending}
-            className="relative flex-shrink-0"
-            style={{
-              width: 52,
-              height: 28,
-              borderRadius: 14,
-              background: raidOn
-                ? "linear-gradient(135deg, #7a2808, #c0391b)"
-                : "linear-gradient(135deg, #2a1a08, #5a3010)",
-              border: raidOn ? "1px solid rgba(240,120,40,0.5)" : "1px solid rgba(120,80,40,0.3)",
-              boxShadow: raidOn ? "0 0 10px rgba(240,80,20,0.3)" : "none",
-              cursor: (raidLoading || raidToggleMutation.isPending) ? "not-allowed" : "pointer",
-              transition: "all 0.3s ease",
-              opacity: (raidLoading || raidToggleMutation.isPending) ? 0.5 : 1,
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                top: 3,
-                left: raidOn ? 26 : 3,
-                width: 20,
-                height: 20,
-                borderRadius: "50%",
-                background: "white",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.4)",
-                transition: "left 0.3s ease",
-              }}
-            />
-          </button>
-        </div>
-
-        {/* ── Raid Boss row ── */}
-        <div className="flex items-center justify-between gap-3 pt-1 border-t" style={{ borderColor: "rgba(240,120,40,0.15)" }}>
-          <div className="flex flex-col gap-0.5 min-w-0">
-            <p className="font-fantasy text-xs tracking-wide" style={{ color: "#a89878" }}>Raid Boss</p>
-            {raidBossData?.templateId ? (
-              <div className="flex items-center gap-1.5">
-                <p className="font-fantasy text-[11px] tracking-wider truncate" style={{ color: "#f0c040" }}>
-                  {raidBossData.name ?? "Unknown"}
-                </p>
-                <span className="font-fantasy text-[10px]" style={{ color: "#f0c040" }}>
-                  {"★".repeat(raidBossData.rarity ?? 1)}{"☆".repeat(Math.max(0, 5 - (raidBossData.rarity ?? 1)))}
-                </span>
-              </div>
-            ) : (
-              <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#3a2a18" }}>No boss set</p>
-            )}
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {raidBossData?.templateId && (
-              <button
-                data-testid="button-clear-raid-boss"
-                onClick={() => setBossMutation.mutate(null)}
-                disabled={setBossMutation.isPending}
-                style={{
-                  background: "rgba(180,40,20,0.25)",
-                  border: "1px solid rgba(240,80,40,0.3)",
-                  borderRadius: 8,
-                  color: "#f87171",
-                  fontFamily: "inherit",
-                  fontSize: 11,
-                  padding: "4px 10px",
-                  cursor: "pointer",
-                }}
-              >
-                Clear
-              </button>
-            )}
-            <button
-              data-testid="button-set-raid-boss"
-              onClick={() => setShowBossModal(true)}
-              disabled={setBossMutation.isPending}
-              style={{
-                background: "linear-gradient(135deg, rgba(180,100,20,0.5), rgba(240,160,40,0.3))",
-                border: "1px solid rgba(240,160,40,0.5)",
-                borderRadius: 8,
-                color: "#f0c040",
-                fontFamily: "inherit",
-                fontSize: 13,
-                fontWeight: "bold",
-                padding: "4px 12px",
-                cursor: "pointer",
-              }}
-            >
-              +
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Raid Boss picker modal ── */}
-      {showBossModal && (
-        <div
-          className="fixed inset-0 flex items-center justify-center"
-          style={{ zIndex: 9999, background: "rgba(0,0,0,0.75)" }}
-          onClick={() => setShowBossModal(false)}
-        >
-          <div
-            className="rounded-2xl flex flex-col gap-0"
-            style={{
-              background: "linear-gradient(160deg, rgba(10,4,20,0.98) 0%, rgba(20,8,35,0.98) 100%)",
-              border: "1px solid rgba(240,160,40,0.35)",
-              boxShadow: "0 0 40px rgba(200,120,20,0.15)",
-              width: "min(92vw, 380px)",
-              maxHeight: "70vh",
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "rgba(240,160,40,0.2)" }}>
-              <p className="font-fantasy text-sm tracking-wider" style={{ color: "#f0c040" }}>Choose Raid Boss</p>
-              <button
-                onClick={() => setShowBossModal(false)}
-                style={{ background: "none", border: "none", color: "#a89878", cursor: "pointer", fontSize: 18, lineHeight: 1 }}
-              >✕</button>
-            </div>
-            <div className="overflow-y-auto flex-1 p-3 flex flex-col gap-2">
-              {templatesList.length === 0 ? (
-                <p className="font-fantasy text-xs text-center py-6" style={{ color: "#4a3a28" }}>Loading...</p>
-              ) : (
-                templatesList.map((t) => (
-                  <button
-                    key={t.id}
-                    data-testid={`button-pick-boss-${t.id}`}
-                    onClick={() => setBossMutation.mutate(t.id)}
-                    disabled={setBossMutation.isPending}
-                    className="flex items-center justify-between gap-3 w-full rounded-xl px-3 py-2.5 text-left"
-                    style={{
-                      background: raidBossData?.templateId === t.id
-                        ? "linear-gradient(135deg, rgba(180,120,20,0.4), rgba(240,160,40,0.2))"
-                        : "rgba(255,255,255,0.03)",
-                      border: raidBossData?.templateId === t.id
-                        ? "1px solid rgba(240,160,40,0.5)"
-                        : "1px solid rgba(255,255,255,0.06)",
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    <span className="font-fantasy text-xs tracking-wide" style={{ color: raidBossData?.templateId === t.id ? "#f0c040" : "#c8b090" }}>
-                      {t.name}
-                    </span>
-                    <span className="font-fantasy text-xs flex-shrink-0" style={{ color: "#f0c040", letterSpacing: 1 }}>
-                      {"★".repeat(t.rarity ?? 1)}{"☆".repeat(Math.max(0, 5 - (t.rarity ?? 1)))}
-                    </span>
-                  </button>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Raid Boss HP controls ── */}
-      {raidBossData?.templateId && (
-        <RaidBossHpControls
-          hp={raidBossData.hp ?? 0}
-          maxHp={raidBossData.maxHp ?? 10000}
-          onSave={async (hp, maxHp) => {
-            const res = await apiRequest("POST", "/api/admin/raid-boss-hp", { hp, maxHp });
-            if (!res.ok) throw new Error("Failed");
-            refetchRaidBoss();
-            toast({ title: "Raid Boss HP updated" });
-          }}
-        />
-      )}
 
       {/* ── Divider ── */}
       <div className="flex items-center gap-3">
