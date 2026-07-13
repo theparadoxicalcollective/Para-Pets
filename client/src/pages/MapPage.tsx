@@ -253,7 +253,7 @@ export default function MapPage({ user }: MapPageProps) {
     e.preventDefault();
     e.stopPropagation();
     const newX = Math.max(0, Math.min(85, raidDragRef.current.origPosX + dx / (rect.width / 100)));
-    const newY = Math.max(0, Math.min(90, raidDragRef.current.origPosY + dy / (rect.height / 100)));
+    const newY = Math.max(0, Math.min(105, raidDragRef.current.origPosY + dy / (rect.height / 100)));
     setRaidDragPos({ x: newX, y: newY });
   }, []);
 
@@ -280,7 +280,7 @@ export default function MapPage({ user }: MapPageProps) {
     const pxPerPercX = rect.width / 100;
     const pxPerPercY = rect.height / 100;
     const newX = Math.max(0, Math.min(85, dragRef.current.origPosX + dx / pxPerPercX));
-    const newY = Math.max(0, Math.min(90, dragRef.current.origPosY + dy / pxPerPercY));
+    const newY = Math.max(0, Math.min(105, dragRef.current.origPosY + dy / pxPerPercY));
     setDragPos({ id: dragRef.current.worldId, x: newX, y: newY });
   }, []);
 
@@ -440,7 +440,7 @@ export default function MapPage({ user }: MapPageProps) {
                     style={{
                       left: `${(raidDragPos ?? raidIconPos).x}%`,
                       top: `${(raidDragPos ?? raidIconPos).y}%`,
-                      width: "20%",
+                      width: "15%",
                       cursor: currentUser.isAdmin ? "grab" : "pointer",
                       zIndex: raidDragRef.current ? 60 : 99,
                       animation: raidDragRef.current ? "none" : "map-floatWorld 3.5s ease-in-out infinite",
