@@ -4,6 +4,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Users, Droplets, Heart, Check } from "lucide-react";
+import PetAnimator from "@/components/PetAnimator";
 import type { BattlePotionSlot } from "@/components/BattleArena";
 import raidBg from "@assets/F17D0472-325D-4FA4-B9E9-5B44668D2BC5_1783810844517.png";
 
@@ -262,21 +263,46 @@ export default function RaidPage() {
         style={{ position: "absolute", inset: 0, background: "rgba(4,2,8,0.52)", pointerEvents: "none" }}
       />
 
-      {/* Close button — comfortably below the top */}
+      {/* Admin-only visibility toggle — floats left of close button */}
+      {isAdmin && (
+        <button
+          data-testid="button-toggle-raid"
+          onClick={() => raidToggleMutation.mutate(!raidOn)}
+          disabled={raidStatusLoading || raidToggleMutation.isPending}
+          style={{
+            position: "absolute",
+            top: 64,
+            right: 66,
+            zIndex: 10,
+            width: 46, height: 26, borderRadius: 13,
+            background: raidOn ? "linear-gradient(135deg, #7a2808, #c0391b)" : "linear-gradient(135deg, #2a1a08, #5a3010)",
+            border: raidOn ? "1px solid rgba(240,120,40,0.6)" : "1px solid rgba(120,80,40,0.4)",
+            boxShadow: raidOn ? "0 0 10px rgba(240,80,20,0.4)" : "none",
+            cursor: (raidStatusLoading || raidToggleMutation.isPending) ? "not-allowed" : "pointer",
+            transition: "all 0.3s ease",
+            opacity: (raidStatusLoading || raidToggleMutation.isPending) ? 0.5 : 1,
+            padding: 0,
+          }}
+        >
+          <div style={{ position: "absolute", top: 3, left: raidOn ? 22 : 3, width: 18, height: 18, borderRadius: "50%", background: "white", boxShadow: "0 2px 4px rgba(0,0,0,0.4)", transition: "left 0.3s ease" }} />
+        </button>
+      )}
+
+      {/* Close button — smaller, top-right */}
       <button
         data-testid="button-close-raid"
         onClick={() => navigate("/")}
         style={{
           position: "absolute",
-          top: 56,
-          right: 16,
+          top: 60,
+          right: 14,
           background: "none",
           border: "none",
           padding: 0,
           cursor: "pointer",
           zIndex: 10,
-          width: 52,
-          height: 52,
+          width: 40,
+          height: 40,
         }}
       >
         <img
@@ -301,96 +327,65 @@ export default function RaidPage() {
           gap: 20,
         }}
       >
-        {/* Header — title only (icon hidden) */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 16 }}>
-          <div style={{ textAlign: "center" }}>
-            <p
-              style={{
-                fontFamily: "Lora, serif",
-                fontSize: 10,
-                letterSpacing: "0.35em",
-                color: "#7a4520",
-                textTransform: "uppercase",
-                margin: "0 0 4px",
-              }}
-            >
-              World Event
-            </p>
-            <h1
-              style={{
-                fontFamily: "Lora, serif",
-                fontSize: 34,
-                color: "#f0c040",
-                letterSpacing: "0.12em",
-                margin: 0,
-                textShadow: "0 0 30px rgba(240,100,20,0.8), 0 0 8px rgba(0,0,0,1)",
-              }}
-            >
-              RAID
-            </h1>
-          </div>
-        </div>
-
-        {/* ── Admin controls (only visible to admins) ─────────────── */}
+        {/* ── Admin: boss area — animated pet OR large + button ─────── */}
         {isAdmin && (
-          <div style={{ width: "100%", maxWidth: 420, display: "flex", flexDirection: "column", gap: 12 }}>
-            <p style={{ fontFamily: "Lora, serif", fontSize: 10, letterSpacing: "0.3em", color: "#f87171", textTransform: "uppercase", textAlign: "center", margin: 0 }}>Admin Controls</p>
-            <div style={{ borderRadius: 16, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12, background: raidOn ? "linear-gradient(145deg, rgba(30,10,8,0.92) 0%, rgba(50,18,8,0.92) 100%)" : "linear-gradient(145deg, rgba(10,8,20,0.92) 0%, rgba(16,10,30,0.92) 100%)", border: raidOn ? "1px solid rgba(240,120,40,0.4)" : "1px solid rgba(120,80,40,0.25)", transition: "all 0.4s ease" }}>
-              {/* Visibility toggle */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                <div>
-                  <p style={{ fontFamily: "Lora, serif", fontSize: 13, color: raidOn ? "#f97316" : "#a89878", margin: 0 }}>Raid Icon</p>
-                  <p style={{ fontFamily: "Lora, serif", fontSize: 10, color: raidOn ? "#7a3010" : "#3a2a18", margin: "2px 0 0" }}>
-                    {raidStatusLoading ? "Checking…" : raidOn ? "Visible to players" : "Hidden from players"}
-                  </p>
-                </div>
-                <button
-                  data-testid="button-toggle-raid"
-                  onClick={() => raidToggleMutation.mutate(!raidOn)}
-                  disabled={raidStatusLoading || raidToggleMutation.isPending}
-                  style={{ position: "relative", flexShrink: 0, width: 52, height: 28, borderRadius: 14, background: raidOn ? "linear-gradient(135deg, #7a2808, #c0391b)" : "linear-gradient(135deg, #2a1a08, #5a3010)", border: raidOn ? "1px solid rgba(240,120,40,0.5)" : "1px solid rgba(120,80,40,0.3)", boxShadow: raidOn ? "0 0 10px rgba(240,80,20,0.3)" : "none", cursor: (raidStatusLoading || raidToggleMutation.isPending) ? "not-allowed" : "pointer", transition: "all 0.3s ease", opacity: (raidStatusLoading || raidToggleMutation.isPending) ? 0.5 : 1 }}
-                >
-                  <div style={{ position: "absolute", top: 3, left: raidOn ? 26 : 3, width: 20, height: 20, borderRadius: "50%", background: "white", boxShadow: "0 2px 4px rgba(0,0,0,0.4)", transition: "left 0.3s ease" }} />
-                </button>
-              </div>
-              {/* Current boss display */}
-              {raidBossData?.templateId && (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, paddingTop: 10, borderTop: "1px solid rgba(240,120,40,0.15)" }}>
-                  <div>
-                    <p style={{ fontFamily: "Lora, serif", fontSize: 10, color: "#a89878", margin: 0 }}>Current Boss</p>
-                    <p style={{ fontFamily: "Lora, serif", fontSize: 12, color: "#f0c040", margin: "2px 0 0" }}>{raidBossData.name ?? "Unknown"}</p>
-                  </div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+            {raidBossData?.templateId ? (
+              /* Boss is set — show animated pet */
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                <div style={{ position: "relative" }}>
+                  <PetAnimator
+                    petTemplateId={raidBossData.templateId}
+                    mode="idle"
+                    size={150}
+                  />
+                  {/* Change button overlaid bottom-right */}
                   <button
-                    data-testid="button-clear-raid-boss"
-                    onClick={() => clearBossMutation.mutate()}
-                    disabled={clearBossMutation.isPending}
-                    style={{ background: "rgba(180,40,20,0.25)", border: "1px solid rgba(240,80,40,0.3)", borderRadius: 8, color: "#f87171", fontFamily: "Lora, serif", fontSize: 11, padding: "4px 12px", cursor: "pointer", flexShrink: 0 }}
+                    data-testid="button-set-raid-boss"
+                    onClick={() => setBossPickStep("pick")}
+                    style={{
+                      position: "absolute", bottom: -6, right: -6,
+                      width: 34, height: 34, borderRadius: "50%",
+                      background: "linear-gradient(135deg, #5a0a0a, #c0391b)",
+                      border: "2px solid rgba(240,100,40,0.8)",
+                      boxShadow: "0 0 10px rgba(220,60,20,0.6)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", padding: 0,
+                    }}
                   >
-                    Clear
+                    <span style={{ color: "#fff", fontSize: 18, lineHeight: 1, fontWeight: "bold", marginTop: -1 }}>+</span>
                   </button>
                 </div>
-              )}
-            </div>
+                <p style={{ fontFamily: "Lora, serif", fontSize: 13, color: "#f0c040", margin: 0, letterSpacing: "0.08em" }}>{raidBossData.name ?? "Unknown Boss"}</p>
+                <button
+                  data-testid="button-clear-raid-boss"
+                  onClick={() => clearBossMutation.mutate()}
+                  disabled={clearBossMutation.isPending}
+                  style={{ background: "rgba(180,40,20,0.22)", border: "1px solid rgba(240,80,40,0.3)", borderRadius: 8, color: "#f87171", fontFamily: "Lora, serif", fontSize: 11, padding: "3px 14px", cursor: "pointer" }}
+                >
+                  Clear Boss
+                </button>
+              </div>
+            ) : (
+              /* No boss set — show the big + button */
+              <button
+                data-testid="button-set-raid-boss"
+                onClick={() => setBossPickStep("pick")}
+                style={{
+                  flexShrink: 0,
+                  width: 80, height: 80, minWidth: 80, minHeight: 80,
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #5a0a0a 0%, #a01818 50%, #c0391b 100%)",
+                  border: "2px solid rgba(240,100,40,0.7)",
+                  boxShadow: "0 0 26px rgba(220,60,20,0.55), 0 4px 14px rgba(0,0,0,0.7)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "pointer", padding: 0,
+                }}
+              >
+                <span style={{ color: "#fff", fontSize: 36, lineHeight: "1", fontWeight: "bold", display: "block", marginTop: -2 }}>+</span>
+              </button>
+            )}
           </div>
-        )}
-
-        {/* ── Admin: large + circle to set boss (above leaderboard) ── */}
-        {isAdmin && (
-          <button
-            data-testid="button-set-raid-boss"
-            onClick={() => setBossPickStep("pick")}
-            style={{
-              width: 72, height: 72, borderRadius: "50%",
-              background: "linear-gradient(135deg, #5a0a0a 0%, #a01818 50%, #c0391b 100%)",
-              border: "2px solid rgba(240,100,40,0.7)",
-              boxShadow: "0 0 22px rgba(220,60,20,0.55), 0 4px 12px rgba(0,0,0,0.7)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer",
-              transition: "transform 0.15s ease, box-shadow 0.15s ease",
-            }}
-          >
-            <span style={{ color: "#fff", fontSize: 34, lineHeight: 1, fontFamily: "Lora, serif", fontWeight: "bold", marginTop: -2 }}>+</span>
-          </button>
         )}
 
         {/* ── Boss picker 2-step modal ─────────────────────────────── */}
@@ -433,7 +428,7 @@ export default function RaidPage() {
                       style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%", borderRadius: 10, padding: "12px 14px", textAlign: "left", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", cursor: "pointer", transition: "background 0.15s ease" }}
                     >
                       <span style={{ fontFamily: "Lora, serif", fontSize: 13, color: "#c8b090" }}>{t.name}</span>
-                      <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#f0c040", flexShrink: 0 }}>{"★".repeat(t.rarity ?? 1)}{"☆".repeat(Math.max(0, 5 - (t.rarity ?? 1)))}</span>
+                      <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#f0c040", flexShrink: 0 }}>{(() => { const r = Math.min(5, Math.max(1, t.rarity || 1)); return "★".repeat(r) + "☆".repeat(5 - r); })()}</span>
                     </button>
                   ))}
                 </div>
