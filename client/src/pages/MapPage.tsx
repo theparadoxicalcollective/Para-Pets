@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import raidIconImg from "@assets/Photoroom_20260711_52200_PM_1783810844517.png";
 import worldFrostpeak from "@assets/world_frostpeak_v2.png";
 import worldSkyRealm from "@assets/world_sky_realm_v3.png";
 import worldVolcanic from "@assets/world_volcanic_v3.png";
@@ -80,6 +81,11 @@ export default function MapPage({ user }: MapPageProps) {
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
   const didDrag = useRef(false);
 
+  // Raid icon drag state (separate from world icon drag)
+  const raidDragRef = useRef<{ startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
+  const [raidDragPos, setRaidDragPos] = useState<{ x: number; y: number } | null>(null);
+  const raidDidDrag = useRef(false);
+
   const { data: worldsList = [], isLoading } = useQuery<WorldData[]>({
     queryKey: ["/api/worlds"],
     refetchOnMount: true,
@@ -88,6 +94,27 @@ export default function MapPage({ user }: MapPageProps) {
 
   const { data: mapBgData } = useQuery<{ bgUrl: string | null }>({
     queryKey: ["/api/settings/map-background"],
+  });
+
+  const { data: raidStatusData } = useQuery<{ raidVisible: boolean }>({
+    queryKey: ["/api/raid-status"],
+  });
+  const raidVisible = raidStatusData?.raidVisible === true || currentUser.isAdmin;
+
+  const { data: raidIconPosData } = useQuery<{ posX: number; posY: number }>({
+    queryKey: ["/api/raid-icon-position"],
+    enabled: raidVisible,
+  });
+  const raidIconPos = raidIconPosData ?? { posX: 48, posY: 5 };
+
+  const raidIconPosMutation = useMutation({
+    mutationFn: async ({ posX, posY }: { posX: number; posY: number }) => {
+      const res = await apiRequest("PATCH", "/api/admin/raid-icon-position", { posX, posY });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/raid-icon-position"] });
+    },
   });
 
   const mapBgMutation = useMutation({
@@ -202,6 +229,45 @@ export default function MapPage({ user }: MapPageProps) {
       origPosY: w.posY,
     };
   }, [currentUser.isAdmin]);
+
+  const handleRaidPointerDown = useCallback((e: React.PointerEvent) => {
+    if (!currentUser.isAdmin) return;
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    raidDidDrag.current = false;
+    raidDragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      origPosX: raidIconPos.posX,
+      origPosY: raidIconPos.posY,
+    };
+  }, [currentUser.isAdmin, raidIconPos]);
+
+  const handleRaidPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!raidDragRef.current || !mapRef.current) return;
+    const rect = mapRef.current.getBoundingClientRect();
+    const dx = e.clientX - raidDragRef.current.startX;
+    const dy = e.clientY - raidDragRef.current.startY;
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) raidDidDrag.current = true;
+    if (!raidDidDrag.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const newX = Math.max(0, Math.min(85, raidDragRef.current.origPosX + dx / (rect.width / 100)));
+    const newY = Math.max(0, Math.min(90, raidDragRef.current.origPosY + dy / (rect.height / 100)));
+    setRaidDragPos({ x: newX, y: newY });
+  }, []);
+
+  const handleRaidPointerUp = useCallback((e: React.PointerEvent) => {
+    if (!raidDragRef.current) return;
+    const dragged = raidDidDrag.current;
+    const pos = raidDragPos;
+    raidDragRef.current = null;
+    if (dragged && pos) {
+      raidIconPosMutation.mutate({ posX: Math.round(pos.x), posY: Math.round(pos.y) });
+    }
+    setRaidDragPos(null);
+    if (!dragged) navigate("/raid");
+  }, [raidDragPos, raidIconPosMutation, navigate]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragRef.current || !mapRef.current) return;
@@ -365,6 +431,59 @@ export default function MapPage({ user }: MapPageProps) {
               onPointerUp={handlePointerUp}
             >
               <div className="absolute inset-0">
+
+                {/* ── Raid icon — draggable by admin, clickable by all ── */}
+                {raidVisible && (
+                  <div
+                    data-testid="button-open-raid"
+                    className="absolute world-node flex flex-col items-center"
+                    style={{
+                      left: `${(raidDragPos ?? raidIconPos).x}%`,
+                      top: `${(raidDragPos ?? raidIconPos).y}%`,
+                      width: "20%",
+                      cursor: currentUser.isAdmin ? "grab" : "pointer",
+                      zIndex: raidDragRef.current ? 60 : 99,
+                      animation: raidDragRef.current ? "none" : "map-floatWorld 3.5s ease-in-out infinite",
+                      userSelect: "none",
+                    }}
+                    onPointerDown={currentUser.isAdmin ? handleRaidPointerDown : undefined}
+                    onPointerMove={currentUser.isAdmin ? handleRaidPointerMove : undefined}
+                    onPointerUp={currentUser.isAdmin ? handleRaidPointerUp : undefined}
+                    onClick={!currentUser.isAdmin ? () => navigate("/raid") : undefined}
+                  >
+                    <div className="relative w-full" style={{ aspectRatio: "1" }}>
+                      {/* Crimson glow pulse */}
+                      <div
+                        className="absolute inset-[-15%] rounded-full pointer-events-none"
+                        style={{
+                          background: "radial-gradient(circle, rgba(200,40,20,0.35) 0%, rgba(200,40,20,0.12) 50%, transparent 70%)",
+                          animation: "map-glowPulse 2.8s ease-in-out infinite",
+                        }}
+                      />
+                      <img
+                        src={raidIconImg}
+                        alt="Raid"
+                        className="w-full h-full object-contain relative z-10"
+                        draggable={false}
+                        style={{
+                          filter: "drop-shadow(0 0 14px rgba(220,60,20,0.8)) drop-shadow(0 4px 8px rgba(0,0,0,0.6))",
+                        }}
+                      />
+                    </div>
+                    <span
+                      className="font-fantasy text-[9px] tracking-wider mt-0.5 px-2 py-0.5 rounded-full whitespace-nowrap"
+                      style={{
+                        color: "#e0c0a0",
+                        background: "rgba(10,4,20,0.82)",
+                        border: "1px solid rgba(200,60,20,0.5)",
+                        textShadow: "0 0 6px rgba(220,80,20,0.6)",
+                        fontSize: "clamp(7px, 2vw, 9px)",
+                      }}
+                    >
+                      World Raid
+                    </span>
+                  </div>
+                )}
 
                 {worldsList.map((w, i) => {
                   const icon = getWorldIcon(w);

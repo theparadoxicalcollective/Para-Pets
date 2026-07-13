@@ -29,7 +29,6 @@ import PetAnimator from "@/components/PetAnimator";
 import PetPowerUpModal, { PowerUpItem } from "@/components/PetPowerUpModal";
 import PowerUpOverlay from "@/components/PowerUpOverlay";
 import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
-import raidIconImg from "@assets/Photoroom_20260711_52200_PM_1783810844517.png";
 import raidHpFrameImg from "@assets/Photoroom_20260711_31007_PM_1783820810778.png";
 
 interface HomePageProps {
@@ -1482,37 +1481,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
       </div>
 
-      {/* ── Raid icon — fixed far-left button, mirrors FloatingNav position ── */}
-      {raidVisible && !isOverlayActive && (
-        <button
-          data-testid="button-open-raid"
-          onClick={() => navigate("/raid")}
-          style={{
-            position: "fixed",
-            left: 12,
-            bottom: 16,
-            width: 58,
-            height: 58,
-            zIndex: 95,
-            background: "none",
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-            WebkitTapHighlightColor: "transparent",
-          }}
-        >
-          <img
-            src={raidIconImg}
-            alt="Raid"
-            style={{
-              width: 58,
-              height: 58,
-              objectFit: "contain",
-              filter: "drop-shadow(0 0 10px rgba(251,191,36,0.75)) drop-shadow(0 2px 4px rgba(0,0,0,0.7))",
-            }}
-          />
-        </button>
-      )}
 
       {/* Speed-up sheet is hidden during tutorial step 5 — the overlay renders its own
           single-potion card at z-99003 so there is no z-index war. */}

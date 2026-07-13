@@ -1298,6 +1298,34 @@ export async function registerRoutes(
     }
   });
 
+  // ── Raid icon position on the world map ────────────────────────────────────
+  app.get("/api/raid-icon-position", async (_req, res) => {
+    try {
+      const raw = await storage.getGameSetting("admin_pos_raid_icon");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return res.json({ posX: parsed.posX ?? 48, posY: parsed.posY ?? 5 });
+      }
+      return res.json({ posX: 48, posY: 5 });
+    } catch {
+      return res.json({ posX: 48, posY: 5 });
+    }
+  });
+
+  app.patch("/api/admin/raid-icon-position", isAdmin, async (req, res) => {
+    try {
+      const { posX, posY } = req.body;
+      if (typeof posX !== "number" || typeof posY !== "number") {
+        return res.status(400).json({ message: "posX and posY are required numbers" });
+      }
+      const clamped = { posX: Math.max(-10, Math.min(110, Math.round(posX))), posY: Math.max(-10, Math.min(110, Math.round(posY))) };
+      await storage.setGameSetting("admin_pos_raid_icon", JSON.stringify(clamped));
+      return res.json(clamped);
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
 
   app.post("/api/auth/login", (req, res, next) => {
     passport.authenticate("local", (err: any, user: any, info: any) => {
