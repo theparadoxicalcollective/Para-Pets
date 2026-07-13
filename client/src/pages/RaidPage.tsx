@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Users, Droplets, Heart, Check } from "lucide-react";
 import type { BattlePotionSlot } from "@/components/BattleArena";
 import raidBg from "@assets/F17D0472-325D-4FA4-B9E9-5B44668D2BC5_1783810844517.png";
-import raidIconImg from "@assets/Photoroom_20260711_52200_PM_1783810844517.png";
+
 import raidCloseImg from "@assets/Photoroom_20260711_90748_PM_1783822223263.png";
 import raidLeaderboardImg from "@assets/Photoroom_20260711_90837_PM_1783822223263.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
@@ -27,7 +27,14 @@ export default function RaidPage() {
   const isAdmin: boolean = me?.isAdmin === true;
 
   // ── Admin: raid state ─────────────────────────────────────────────
-  const [showBossModal, setShowBossModal] = useState(false);
+  // bossPickStep: null = closed, "pick" = choose template, "hp" = enter HP
+  const [bossPickStep, setBossPickStep] = useState<null | "pick" | "hp">(null);
+  const [pendingBossId, setPendingBossId] = useState<string | null>(null);
+  const [pendingBossName, setPendingBossName] = useState<string>("");
+  const [draftHp, setDraftHp] = useState("10000");
+  const [draftMaxHp, setDraftMaxHp] = useState("10000");
+  const [bossModalSaving, setBossModalSaving] = useState(false);
+
   const { data: raidStatusData, isLoading: raidStatusLoading } = useQuery<{ raidVisible: boolean }>({
     queryKey: ["/api/raid-status"],
     staleTime: 10 * 1000,
@@ -41,7 +48,7 @@ export default function RaidPage() {
   });
   const { data: templatesList = [] } = useQuery<{ id: string; name: string; rarity: number }[]>({
     queryKey: ["/api/admin/templates-list"],
-    enabled: isAdmin && showBossModal,
+    enabled: isAdmin && bossPickStep === "pick",
     staleTime: 60 * 1000,
   });
 
@@ -56,37 +63,34 @@ export default function RaidPage() {
     },
     onError: (err: any) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
   });
-  const setBossMutation = useMutation({
-    mutationFn: async (templateId: string | null) => {
-      const res = await apiRequest("POST", "/api/admin/raid-boss", { templateId });
+
+  const clearBossMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/raid-boss", { templateId: null });
       return res.json();
     },
-    onSuccess: () => { refetchRaidBoss(); setShowBossModal(false); toast({ title: "Raid Boss updated" }); },
+    onSuccess: () => { refetchRaidBoss(); toast({ title: "Raid Boss cleared" }); },
     onError: (err: any) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
   });
 
-  // HP controls local state
-  const [localHp, setLocalHp] = useState("");
-  const [localMax, setLocalMax] = useState("");
-  const [hpSaving, setHpSaving] = useState(false);
-  useEffect(() => {
-    if (raidBossData) {
-      setLocalHp(String(raidBossData.hp ?? 0));
-      setLocalMax(String(raidBossData.maxHp ?? 10000));
-    }
-  }, [raidBossData?.hp, raidBossData?.maxHp]);
-  const saveHp = async () => {
-    setHpSaving(true);
+  const saveBossAndHp = async () => {
+    if (!pendingBossId) return;
+    setBossModalSaving(true);
     try {
-      const res = await apiRequest("POST", "/api/admin/raid-boss-hp", { hp: parseInt(localHp, 10) || 0, maxHp: parseInt(localMax, 10) || 1 });
-      if (!res.ok) throw new Error("Failed");
+      const r1 = await apiRequest("POST", "/api/admin/raid-boss", { templateId: pendingBossId });
+      if (!r1.ok) throw new Error("Failed to set boss");
+      const hp = parseInt(draftHp, 10) || 1;
+      const maxHp = parseInt(draftMaxHp, 10) || 1;
+      const r2 = await apiRequest("POST", "/api/admin/raid-boss-hp", { hp, maxHp });
+      if (!r2.ok) throw new Error("Failed to set HP");
       refetchRaidBoss();
-      toast({ title: "Raid Boss HP updated" });
+      setBossPickStep(null);
+      setPendingBossId(null);
+      toast({ title: `${pendingBossName} set as Raid Boss` });
     } catch (e: any) {
       toast({ title: "Failed", description: e.message, variant: "destructive" });
-    } finally { setHpSaving(false); }
+    } finally { setBossModalSaving(false); }
   };
-  const hpPct = Math.max(0, Math.min(100, (parseInt(localHp, 10) || 0) / Math.max(1, parseInt(localMax, 10) || 1) * 100));
 
   // ── Pet slots ─────────────────────────────────────────────────────
   const [selectedPetIds, setSelectedPetIds] = useState<string[]>(() => {
@@ -297,18 +301,8 @@ export default function RaidPage() {
           gap: 20,
         }}
       >
-        {/* Header — icon + title */}
+        {/* Header — title only (icon hidden) */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 16 }}>
-          <img
-            src={raidIconImg}
-            alt="Raid"
-            style={{
-              width: 110,
-              height: 110,
-              objectFit: "contain",
-              filter: "drop-shadow(0 0 24px rgba(251,191,36,0.75)) drop-shadow(0 0 8px rgba(0,0,0,0.8))",
-            }}
-          />
           <div style={{ textAlign: "center" }}>
             <p
               style={{
@@ -340,12 +334,9 @@ export default function RaidPage() {
         {/* ── Admin controls (only visible to admins) ─────────────── */}
         {isAdmin && (
           <div style={{ width: "100%", maxWidth: 420, display: "flex", flexDirection: "column", gap: 12 }}>
-            {/* Label */}
             <p style={{ fontFamily: "Lora, serif", fontSize: 10, letterSpacing: "0.3em", color: "#f87171", textTransform: "uppercase", textAlign: "center", margin: 0 }}>Admin Controls</p>
-
-            {/* Toggle + Boss row */}
             <div style={{ borderRadius: 16, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12, background: raidOn ? "linear-gradient(145deg, rgba(30,10,8,0.92) 0%, rgba(50,18,8,0.92) 100%)" : "linear-gradient(145deg, rgba(10,8,20,0.92) 0%, rgba(16,10,30,0.92) 100%)", border: raidOn ? "1px solid rgba(240,120,40,0.4)" : "1px solid rgba(120,80,40,0.25)", transition: "all 0.4s ease" }}>
-              {/* Toggle */}
+              {/* Visibility toggle */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                 <div>
                   <p style={{ fontFamily: "Lora, serif", fontSize: 13, color: raidOn ? "#f97316" : "#a89878", margin: 0 }}>Raid Icon</p>
@@ -362,70 +353,130 @@ export default function RaidPage() {
                   <div style={{ position: "absolute", top: 3, left: raidOn ? 26 : 3, width: 20, height: 20, borderRadius: "50%", background: "white", boxShadow: "0 2px 4px rgba(0,0,0,0.4)", transition: "left 0.3s ease" }} />
                 </button>
               </div>
-
-              {/* Raid Boss row */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 10, borderTop: "1px solid rgba(240,120,40,0.15)" }}>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#a89878", margin: 0 }}>Raid Boss</p>
-                  {raidBossData?.templateId ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
-                      <p style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#f0c040", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{raidBossData.name ?? "Unknown"}</p>
-                      <span style={{ fontFamily: "Lora, serif", fontSize: 10, color: "#f0c040", flexShrink: 0 }}>{"★".repeat(raidBossData.rarity ?? 1)}{"☆".repeat(Math.max(0, 5 - (raidBossData.rarity ?? 1)))}</span>
-                    </div>
-                  ) : (
-                    <p style={{ fontFamily: "Lora, serif", fontSize: 10, color: "#3a2a18", margin: "2px 0 0" }}>No boss set</p>
-                  )}
+              {/* Current boss display */}
+              {raidBossData?.templateId && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, paddingTop: 10, borderTop: "1px solid rgba(240,120,40,0.15)" }}>
+                  <div>
+                    <p style={{ fontFamily: "Lora, serif", fontSize: 10, color: "#a89878", margin: 0 }}>Current Boss</p>
+                    <p style={{ fontFamily: "Lora, serif", fontSize: 12, color: "#f0c040", margin: "2px 0 0" }}>{raidBossData.name ?? "Unknown"}</p>
+                  </div>
+                  <button
+                    data-testid="button-clear-raid-boss"
+                    onClick={() => clearBossMutation.mutate()}
+                    disabled={clearBossMutation.isPending}
+                    style={{ background: "rgba(180,40,20,0.25)", border: "1px solid rgba(240,80,40,0.3)", borderRadius: 8, color: "#f87171", fontFamily: "Lora, serif", fontSize: 11, padding: "4px 12px", cursor: "pointer", flexShrink: 0 }}
+                  >
+                    Clear
+                  </button>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                  {raidBossData?.templateId && (
-                    <button data-testid="button-clear-raid-boss" onClick={() => setBossMutation.mutate(null)} disabled={setBossMutation.isPending} style={{ background: "rgba(180,40,20,0.25)", border: "1px solid rgba(240,80,40,0.3)", borderRadius: 8, color: "#f87171", fontFamily: "Lora, serif", fontSize: 11, padding: "4px 10px", cursor: "pointer" }}>Clear</button>
-                  )}
-                  <button data-testid="button-set-raid-boss" onClick={() => setShowBossModal(true)} disabled={setBossMutation.isPending} style={{ background: "linear-gradient(135deg, rgba(180,100,20,0.5), rgba(240,160,40,0.3))", border: "1px solid rgba(240,160,40,0.5)", borderRadius: 8, color: "#f0c040", fontFamily: "Lora, serif", fontSize: 15, fontWeight: "bold", padding: "3px 12px", cursor: "pointer" }}>+</button>
-                </div>
-              </div>
+              )}
             </div>
-
-            {/* HP controls — only shown when a boss is set */}
-            {raidBossData?.templateId && (
-              <div style={{ borderRadius: 16, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10, background: "linear-gradient(145deg, rgba(30,8,8,0.92) 0%, rgba(50,12,12,0.92) 100%)", border: "1px solid rgba(220,60,40,0.3)" }}>
-                <p style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#f87171", margin: 0 }}>Boss HP</p>
-                <div style={{ height: 6, borderRadius: 4, background: "rgba(0,0,0,0.5)", overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${hpPct}%`, background: "linear-gradient(90deg, #8b0000, #e74c3c)", borderRadius: 4, transition: "width 0.3s" }} />
-                </div>
-                <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1 }}>
-                    <label style={{ fontFamily: "Lora, serif", fontSize: 10, color: "#a89878" }}>Current HP</label>
-                    <input type="number" min={0} value={localHp} onChange={(e) => setLocalHp(e.target.value)} style={{ borderRadius: 8, padding: "5px 8px", fontSize: 12, fontFamily: "Lora, serif", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(220,60,40,0.3)", color: "#f0c040", outline: "none", width: "100%" }} />
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 3, flex: 1 }}>
-                    <label style={{ fontFamily: "Lora, serif", fontSize: 10, color: "#a89878" }}>Max HP</label>
-                    <input type="number" min={1} value={localMax} onChange={(e) => setLocalMax(e.target.value)} style={{ borderRadius: 8, padding: "5px 8px", fontSize: 12, fontFamily: "Lora, serif", background: "rgba(0,0,0,0.4)", border: "1px solid rgba(220,60,40,0.3)", color: "#f0c040", outline: "none", width: "100%" }} />
-                  </div>
-                  <button onClick={saveHp} disabled={hpSaving} style={{ background: "linear-gradient(135deg, #7a1a08, #c0391b)", border: "1px solid rgba(240,80,40,0.5)", borderRadius: 8, color: "#fff", fontFamily: "Lora, serif", fontSize: 11, padding: "6px 14px", cursor: hpSaving ? "not-allowed" : "pointer", opacity: hpSaving ? 0.6 : 1, flexShrink: 0 }}>{hpSaving ? "…" : "Save"}</button>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
-        {/* Boss picker modal */}
-        {isAdmin && showBossModal && (
-          <div onClick={() => setShowBossModal(false)} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ borderRadius: 16, display: "flex", flexDirection: "column", background: "linear-gradient(160deg, rgba(10,4,20,0.98) 0%, rgba(20,8,35,0.98) 100%)", border: "1px solid rgba(240,160,40,0.35)", boxShadow: "0 0 40px rgba(200,120,20,0.15)", width: "min(92vw, 380px)", maxHeight: "70vh", overflow: "hidden" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid rgba(240,160,40,0.2)" }}>
-                <p style={{ fontFamily: "Lora, serif", fontSize: 13, color: "#f0c040", margin: 0, letterSpacing: "0.1em" }}>Choose Raid Boss</p>
-                <button onClick={() => setShowBossModal(false)} style={{ background: "none", border: "none", color: "#a89878", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 0 }}>✕</button>
+        {/* ── Admin: large + circle to set boss (above leaderboard) ── */}
+        {isAdmin && (
+          <button
+            data-testid="button-set-raid-boss"
+            onClick={() => setBossPickStep("pick")}
+            style={{
+              width: 72, height: 72, borderRadius: "50%",
+              background: "linear-gradient(135deg, #5a0a0a 0%, #a01818 50%, #c0391b 100%)",
+              border: "2px solid rgba(240,100,40,0.7)",
+              boxShadow: "0 0 22px rgba(220,60,20,0.55), 0 4px 12px rgba(0,0,0,0.7)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer",
+              transition: "transform 0.15s ease, box-shadow 0.15s ease",
+            }}
+          >
+            <span style={{ color: "#fff", fontSize: 34, lineHeight: 1, fontFamily: "Lora, serif", fontWeight: "bold", marginTop: -2 }}>+</span>
+          </button>
+        )}
+
+        {/* ── Boss picker 2-step modal ─────────────────────────────── */}
+        {isAdmin && bossPickStep !== null && (
+          <div
+            onClick={() => setBossPickStep(null)}
+            style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ borderRadius: 20, display: "flex", flexDirection: "column", background: "linear-gradient(160deg, rgba(10,4,20,0.98) 0%, rgba(22,8,36,0.98) 100%)", border: "1px solid rgba(240,160,40,0.35)", boxShadow: "0 0 50px rgba(200,120,20,0.2)", width: "min(92vw, 380px)", maxHeight: "75vh", overflow: "hidden" }}
+            >
+              {/* Modal header */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid rgba(240,160,40,0.2)" }}>
+                <p style={{ fontFamily: "Lora, serif", fontSize: 13, color: "#f0c040", margin: 0, letterSpacing: "0.1em" }}>
+                  {bossPickStep === "pick" ? "Choose Raid Boss" : `Set HP for ${pendingBossName}`}
+                </p>
+                <button
+                  onClick={() => setBossPickStep(null)}
+                  style={{ background: "none", border: "none", color: "#a89878", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: 0 }}
+                >✕</button>
               </div>
-              <div style={{ overflowY: "auto", flex: 1, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-                {templatesList.length === 0 ? (
-                  <p style={{ fontFamily: "Lora, serif", fontSize: 12, color: "#4a3a28", textAlign: "center", padding: "24px 0" }}>Loading…</p>
-                ) : templatesList.map((t) => (
-                  <button key={t.id} data-testid={`button-pick-boss-${t.id}`} onClick={() => setBossMutation.mutate(t.id)} disabled={setBossMutation.isPending} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%", borderRadius: 10, padding: "10px 12px", textAlign: "left", background: raidBossData?.templateId === t.id ? "linear-gradient(135deg, rgba(180,120,20,0.4), rgba(240,160,40,0.2))" : "rgba(255,255,255,0.03)", border: raidBossData?.templateId === t.id ? "1px solid rgba(240,160,40,0.5)" : "1px solid rgba(255,255,255,0.06)", cursor: "pointer", transition: "all 0.15s ease" }}>
-                    <span style={{ fontFamily: "Lora, serif", fontSize: 12, color: raidBossData?.templateId === t.id ? "#f0c040" : "#c8b090" }}>{t.name}</span>
-                    <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#f0c040", flexShrink: 0 }}>{"★".repeat(t.rarity ?? 1)}{"☆".repeat(Math.max(0, 5 - (t.rarity ?? 1)))}</span>
-                  </button>
-                ))}
-              </div>
+
+              {/* Step 1: pet list */}
+              {bossPickStep === "pick" && (
+                <div style={{ overflowY: "auto", flex: 1, padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {templatesList.length === 0 ? (
+                    <p style={{ fontFamily: "Lora, serif", fontSize: 12, color: "#4a3a28", textAlign: "center", padding: "32px 0" }}>Loading…</p>
+                  ) : templatesList.map((t) => (
+                    <button
+                      key={t.id}
+                      data-testid={`button-pick-boss-${t.id}`}
+                      onClick={() => {
+                        setPendingBossId(t.id);
+                        setPendingBossName(t.name);
+                        setDraftHp("10000");
+                        setDraftMaxHp("10000");
+                        setBossPickStep("hp");
+                      }}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%", borderRadius: 10, padding: "12px 14px", textAlign: "left", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", cursor: "pointer", transition: "background 0.15s ease" }}
+                    >
+                      <span style={{ fontFamily: "Lora, serif", fontSize: 13, color: "#c8b090" }}>{t.name}</span>
+                      <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#f0c040", flexShrink: 0 }}>{"★".repeat(t.rarity ?? 1)}{"☆".repeat(Math.max(0, 5 - (t.rarity ?? 1)))}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Step 2: HP inputs */}
+              {bossPickStep === "hp" && (
+                <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 18 }}>
+                  <p style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#a89878", margin: 0, textAlign: "center" }}>
+                    Set the boss HP pool for this raid event
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <label style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#a89878" }}>Max HP</label>
+                      <input
+                        type="number" min={1} value={draftMaxHp}
+                        onChange={(e) => { setDraftMaxHp(e.target.value); setDraftHp(e.target.value); }}
+                        style={{ borderRadius: 10, padding: "10px 12px", fontSize: 15, fontFamily: "Lora, serif", background: "rgba(0,0,0,0.5)", border: "1px solid rgba(240,160,40,0.35)", color: "#f0c040", outline: "none", width: "100%" }}
+                      />
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <label style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#a89878" }}>Starting HP <span style={{ color: "#5a4020", fontSize: 10 }}>(defaults to Max HP)</span></label>
+                      <input
+                        type="number" min={0} value={draftHp}
+                        onChange={(e) => setDraftHp(e.target.value)}
+                        style={{ borderRadius: 10, padding: "10px 12px", fontSize: 15, fontFamily: "Lora, serif", background: "rgba(0,0,0,0.5)", border: "1px solid rgba(220,60,40,0.3)", color: "#f0c040", outline: "none", width: "100%" }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button
+                      onClick={() => setBossPickStep("pick")}
+                      style={{ flex: 1, borderRadius: 10, padding: "11px 0", fontFamily: "Lora, serif", fontSize: 12, color: "#a89878", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer" }}
+                    >← Back</button>
+                    <button
+                      data-testid="button-confirm-boss-hp"
+                      onClick={saveBossAndHp}
+                      disabled={bossModalSaving}
+                      style={{ flex: 2, borderRadius: 10, padding: "11px 0", fontFamily: "Lora, serif", fontSize: 13, color: "#fff", background: bossModalSaving ? "rgba(120,40,20,0.5)" : "linear-gradient(135deg, #7a1a08, #c0391b)", border: "1px solid rgba(240,80,40,0.5)", cursor: bossModalSaving ? "not-allowed" : "pointer", fontWeight: "bold", letterSpacing: "0.05em" }}
+                    >{bossModalSaving ? "Saving…" : "Set as Raid Boss"}</button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

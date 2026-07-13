@@ -1253,10 +1253,21 @@ export async function registerRoutes(
   });
 
   // ── Admin: set raid boss ───────────────────────────────────────────────────
+  // Attack damage rules (fixed game constants):
+  //   normal attack = 20% of target pet's current HP
+  //   large  attack = 30% of target pet's current HP
+  const RAID_NORMAL_ATK_PCT = 20;
+  const RAID_LARGE_ATK_PCT  = 30;
+
   app.post("/api/admin/raid-boss", isAdmin, async (req, res) => {
     try {
       const { templateId } = req.body as { templateId: string | null };
       await storage.setGameSetting("raid_boss_template_id", templateId || "");
+      // Seed attack-% constants so battle logic can read them from game_settings
+      const existingNormal = await storage.getGameSetting("raid_boss_normal_atk_pct");
+      if (!existingNormal) await storage.setGameSetting("raid_boss_normal_atk_pct", String(RAID_NORMAL_ATK_PCT));
+      const existingLarge = await storage.getGameSetting("raid_boss_large_atk_pct");
+      if (!existingLarge) await storage.setGameSetting("raid_boss_large_atk_pct", String(RAID_LARGE_ATK_PCT));
       _raidBossCache = null;
       return res.json({ success: true });
     } catch (err: any) {
