@@ -1262,7 +1262,7 @@ export async function registerRoutes(
         FROM users u
         WHERE COALESCE(u.raid_total_damage, 0) > 0
         ORDER BY "totalDamage" DESC
-        LIMIT 100
+        LIMIT 10000
       `);
       return res.json({ top: rows.rows ?? rows });
     } catch {
