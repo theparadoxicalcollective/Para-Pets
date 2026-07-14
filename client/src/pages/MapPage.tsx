@@ -435,8 +435,8 @@ export default function MapPage({ user }: MapPageProps) {
                     data-testid="button-open-raid"
                     className="absolute world-node flex flex-col items-center"
                     style={{
-                      left: `${(raidDragPos ?? raidIconPos).x}%`,
-                      top: `${(raidDragPos ?? raidIconPos).y}%`,
+                      left: `${raidDragPos?.x ?? raidIconPos.posX}%`,
+                      top: `${raidDragPos?.y ?? raidIconPos.posY}%`,
                       width: "12%",
                       cursor: currentUser.isAdmin ? "grab" : "pointer",
                       zIndex: 99,
