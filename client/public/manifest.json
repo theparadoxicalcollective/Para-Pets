@@ -2,7 +2,7 @@
   "name": "Para Pets — Fantasy Pet Adventure",
   "short_name": "Para Pets",
   "description": "Collect, raise, and battle magical pets in a free browser-based fantasy adventure game. Hatch eggs, explore enchanted worlds, and climb the leaderboards!",
-  "start_url": "/hub",
+  "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#080812",
