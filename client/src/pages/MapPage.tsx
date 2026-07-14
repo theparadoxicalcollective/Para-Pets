@@ -233,7 +233,7 @@ export default function MapPage({ user }: MapPageProps) {
   const handleRaidPointerDown = useCallback((e: React.PointerEvent) => {
     if (!currentUser.isAdmin) return;
     e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    mapRef.current?.setPointerCapture(e.pointerId);
     raidDidDrag.current = false;
     raidDragRef.current = {
       startX: e.clientX,

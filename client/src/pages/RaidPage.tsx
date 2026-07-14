@@ -8,6 +8,7 @@ import PetAnimator from "@/components/PetAnimator";
 import type { BattlePotionSlot } from "@/components/BattleArena";
 import raidBg from "@assets/F17D0472-325D-4FA4-B9E9-5B44668D2BC5_1783810844517.png";
 
+import starImg from "@assets/Photoroom_20260331_20947_PM_1774984267132.png";
 import raidCloseImg from "@assets/Photoroom_20260711_90748_PM_1783822223263.png";
 import raidLeaderboardImg from "@assets/Photoroom_20260711_90837_PM_1783822223263.png";
 import raidHpFrameImg from "@assets/Photoroom_20260711_31007_PM_1783820810778.png";
@@ -363,6 +364,28 @@ export default function RaidPage() {
                 )}
               </div>
 
+              {/* Stars above name */}
+              <div style={{ display: "flex", justifyContent: "center", gap: 2 }}>
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const filled = i < (raidBossData.rarity || 0);
+                  return (
+                    <img
+                      key={i}
+                      src={starImg}
+                      alt="star"
+                      width={22}
+                      height={22}
+                      style={{
+                        opacity: filled ? 1 : 0.12,
+                        filter: filled
+                          ? "drop-shadow(0 0 3px rgba(240,80,40,0.8)) drop-shadow(0 0 6px rgba(220,40,20,0.5))"
+                          : "grayscale(1)",
+                      }}
+                    />
+                  );
+                })}
+              </div>
+
               {/* Boss name */}
               <p style={{ fontFamily: "Lora, serif", fontSize: 14, color: "#f0c040", margin: 0, letterSpacing: "0.12em", textShadow: "0 0 16px rgba(240,160,20,0.5)" }}>
                 {raidBossData.name ?? "Unknown Boss"}
@@ -373,11 +396,11 @@ export default function RaidPage() {
                 {/* Fill bar rendered behind the frame */}
                 <div style={{
                   position: "absolute",
-                  top: "22%", left: "8%",
+                  top: "34%", left: "8%",
                   width: `${Math.max(0, Math.min(100, raidBossData.maxHp > 0 ? (raidBossData.hp / raidBossData.maxHp) * 100 : 0))}%`,
-                  height: "56%",
+                  height: "36%",
                   background: "linear-gradient(90deg, #8b1a00 0%, #d63010 60%, #ff6030 100%)",
-                  borderRadius: 4,
+                  borderRadius: 3,
                   maxWidth: "84%",
                   transition: "width 0.5s ease",
                 }} />
