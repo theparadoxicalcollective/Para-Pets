@@ -10,6 +10,7 @@ import raidBg from "@assets/F17D0472-325D-4FA4-B9E9-5B44668D2BC5_1783810844517.p
 
 import raidCloseImg from "@assets/Photoroom_20260711_90748_PM_1783822223263.png";
 import raidLeaderboardImg from "@assets/Photoroom_20260711_90837_PM_1783822223263.png";
+import raidHpFrameImg from "@assets/Photoroom_20260711_31007_PM_1783820810778.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 
 const POTION_LS_KEY = "raid:potionSlots:v1";
@@ -45,7 +46,6 @@ export default function RaidPage() {
   const { data: raidBossData, refetch: refetchRaidBoss } = useQuery<{ templateId: string | null; rarity: number | null; name: string | null; hp: number; maxHp: number }>({
     queryKey: ["/api/raid-boss"],
     staleTime: 10 * 1000,
-    enabled: isAdmin,
   });
   const { data: templatesList = [] } = useQuery<{ id: string; name: string; rarity: number }[]>({
     queryKey: ["/api/admin/templates-list"],
@@ -329,65 +329,104 @@ export default function RaidPage() {
           paddingRight: 16,
         }}
       >
-        {/* ── Centre area: boss display (admin) ── */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, width: "100%" }}>
-          {isAdmin && (
-            <>
-              {raidBossData?.templateId ? (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-                  <div style={{ position: "relative" }}>
-                    <PetAnimator
-                      petTemplateId={raidBossData.templateId}
-                      mode="idle"
-                      size={280}
-                    />
-                    {/* Small change button overlaid */}
-                    <button
-                      data-testid="button-set-raid-boss"
-                      onClick={() => setBossPickStep("pick")}
-                      style={{
-                        position: "absolute", bottom: 0, right: -8,
-                        width: 34, height: 34, borderRadius: "50%",
-                        background: "linear-gradient(135deg, #5a0a0a, #c0391b)",
-                        border: "2px solid rgba(240,100,40,0.8)",
-                        boxShadow: "0 0 10px rgba(220,60,20,0.6)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        cursor: "pointer", padding: 0,
-                      }}
-                    >
-                      <span style={{ color: "#fff", fontSize: 18, lineHeight: 1, fontWeight: "bold", marginTop: -1 }}>+</span>
-                    </button>
-                  </div>
-                  <p style={{ fontFamily: "Lora, serif", fontSize: 14, color: "#f0c040", margin: 0, letterSpacing: "0.1em", textShadow: "0 0 16px rgba(240,160,20,0.5)" }}>{raidBossData.name ?? "Unknown Boss"}</p>
-                  <button
-                    data-testid="button-clear-raid-boss"
-                    onClick={() => clearBossMutation.mutate()}
-                    disabled={clearBossMutation.isPending}
-                    style={{ background: "rgba(180,40,20,0.22)", border: "1px solid rgba(240,80,40,0.3)", borderRadius: 8, color: "#f87171", fontFamily: "Lora, serif", fontSize: 11, padding: "4px 16px", cursor: "pointer" }}
-                  >
-                    Clear Boss
-                  </button>
+        {/* ── Centre area: boss display ── */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, width: "100%" }}>
+          {raidBossData?.templateId ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              {/* Boss pet — large */}
+              <div style={{ position: "relative" }}>
+                <div style={{ width: 300, height: 300 }}>
+                  <PetAnimator
+                    petTemplateId={raidBossData.templateId}
+                    mode="idle"
+                    size={300}
+                    fitVisible
+                  />
                 </div>
-              ) : (
-                /* No boss set — big + centred */
+                {/* Admin: small change button */}
+                {isAdmin && (
+                  <button
+                    data-testid="button-set-raid-boss"
+                    onClick={() => setBossPickStep("pick")}
+                    style={{
+                      position: "absolute", bottom: 4, right: -10,
+                      width: 34, height: 34, borderRadius: "50%",
+                      background: "linear-gradient(135deg, #5a0a0a, #c0391b)",
+                      border: "2px solid rgba(240,100,40,0.8)",
+                      boxShadow: "0 0 10px rgba(220,60,20,0.6)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", padding: 0,
+                    }}
+                  >
+                    <span style={{ color: "#fff", fontSize: 18, lineHeight: 1, fontWeight: "bold", marginTop: -1 }}>+</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Boss name */}
+              <p style={{ fontFamily: "Lora, serif", fontSize: 14, color: "#f0c040", margin: 0, letterSpacing: "0.12em", textShadow: "0 0 16px rgba(240,160,20,0.5)" }}>
+                {raidBossData.name ?? "Unknown Boss"}
+              </p>
+
+              {/* HP bar using the uploaded frame image */}
+              <div style={{ position: "relative", width: 240, height: "auto" }}>
+                {/* Fill bar rendered behind the frame */}
+                <div style={{
+                  position: "absolute",
+                  top: "22%", left: "8%",
+                  width: `${Math.max(0, Math.min(100, raidBossData.maxHp > 0 ? (raidBossData.hp / raidBossData.maxHp) * 100 : 0))}%`,
+                  height: "56%",
+                  background: "linear-gradient(90deg, #8b1a00 0%, #d63010 60%, #ff6030 100%)",
+                  borderRadius: 4,
+                  maxWidth: "84%",
+                  transition: "width 0.5s ease",
+                }} />
+                <img
+                  src={raidHpFrameImg}
+                  alt="HP"
+                  style={{ width: "100%", height: "auto", display: "block", position: "relative", zIndex: 1, pointerEvents: "none" }}
+                  draggable={false}
+                />
+                {/* HP text */}
+                <div style={{
+                  position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                  zIndex: 2, fontFamily: "Lora, serif", fontSize: 11, color: "#fff",
+                  textShadow: "0 1px 3px rgba(0,0,0,0.9)", letterSpacing: "0.05em",
+                }}>
+                  {raidBossData.hp.toLocaleString()} / {raidBossData.maxHp.toLocaleString()}
+                </div>
+              </div>
+
+              {/* Admin: clear boss */}
+              {isAdmin && (
                 <button
-                  data-testid="button-set-raid-boss"
-                  onClick={() => setBossPickStep("pick")}
-                  style={{
-                    width: 90, height: 90, minWidth: 90, minHeight: 90,
-                    borderRadius: "50%",
-                    background: "linear-gradient(135deg, #5a0a0a 0%, #a01818 50%, #c0391b 100%)",
-                    border: "2px solid rgba(240,100,40,0.7)",
-                    boxShadow: "0 0 30px rgba(220,60,20,0.6), 0 4px 16px rgba(0,0,0,0.7)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    cursor: "pointer", padding: 0, flexShrink: 0,
-                  }}
+                  data-testid="button-clear-raid-boss"
+                  onClick={() => clearBossMutation.mutate()}
+                  disabled={clearBossMutation.isPending}
+                  style={{ background: "rgba(180,40,20,0.22)", border: "1px solid rgba(240,80,40,0.3)", borderRadius: 8, color: "#f87171", fontFamily: "Lora, serif", fontSize: 11, padding: "4px 16px", cursor: "pointer" }}
                 >
-                  <span style={{ color: "#fff", fontSize: 40, lineHeight: 1, fontWeight: "bold", display: "block", marginTop: -2 }}>+</span>
+                  Clear Boss
                 </button>
               )}
-            </>
-          )}
+            </div>
+          ) : isAdmin ? (
+            /* Admin, no boss set — big + centred */
+            <button
+              data-testid="button-set-raid-boss"
+              onClick={() => setBossPickStep("pick")}
+              style={{
+                width: 90, height: 90, minWidth: 90, minHeight: 90,
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #5a0a0a 0%, #a01818 50%, #c0391b 100%)",
+                border: "2px solid rgba(240,100,40,0.7)",
+                boxShadow: "0 0 30px rgba(220,60,20,0.6), 0 4px 16px rgba(0,0,0,0.7)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", padding: 0, flexShrink: 0,
+              }}
+            >
+              <span style={{ color: "#fff", fontSize: 40, lineHeight: 1, fontWeight: "bold", display: "block", marginTop: -2 }}>+</span>
+            </button>
+          ) : null}
         </div>
 
         {/* ── Boss picker 2-step modal ─────────────────────────────── */}
@@ -488,7 +527,7 @@ export default function RaidPage() {
             src={raidLeaderboardImg}
             alt="Leaderboard"
             style={{
-              width: 200,
+              width: 120,
               height: "auto",
               objectFit: "contain",
               filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.6))",
