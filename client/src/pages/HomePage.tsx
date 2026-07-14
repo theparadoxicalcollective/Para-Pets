@@ -192,7 +192,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     queryKey: ["/api/raid-status"],
     staleTime: 60_000,
   });
-  const raidVisible = raidStatusData?.raidVisible === true || currentUser?.isAdmin === true;
+  const raidVisible = raidStatusData?.raidVisible === true || currentUser?.isAdmin === true || currentUser?.isModerator === true;
 
   const { data: raidBossData } = useQuery<{ templateId: string | null; rarity: number | null; name: string | null; hp: number; maxHp: number }>({
     queryKey: ["/api/raid-boss"],

@@ -99,7 +99,7 @@ export default function MapPage({ user }: MapPageProps) {
   const { data: raidStatusData } = useQuery<{ raidVisible: boolean }>({
     queryKey: ["/api/raid-status"],
   });
-  const raidVisible = raidStatusData?.raidVisible === true || currentUser.isAdmin;
+  const raidVisible = raidStatusData?.raidVisible === true || currentUser.isAdmin || currentUser.isModerator;
 
   const { data: raidIconPosData } = useQuery<{ posX: number; posY: number }>({
     queryKey: ["/api/raid-icon-position"],
