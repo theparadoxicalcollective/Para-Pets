@@ -233,7 +233,7 @@ export default function MapPage({ user }: MapPageProps) {
   const handleRaidPointerDown = useCallback((e: React.PointerEvent) => {
     if (!currentUser.isAdmin) return;
     e.stopPropagation();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     raidDidDrag.current = false;
     raidDragRef.current = {
       startX: e.clientX,
@@ -243,56 +243,53 @@ export default function MapPage({ user }: MapPageProps) {
     };
   }, [currentUser.isAdmin, raidIconPos]);
 
-  const handleRaidPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!raidDragRef.current || !mapRef.current) return;
-    const rect = mapRef.current.getBoundingClientRect();
-    const dx = e.clientX - raidDragRef.current.startX;
-    const dy = e.clientY - raidDragRef.current.startY;
-    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) raidDidDrag.current = true;
-    if (!raidDidDrag.current) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const newX = Math.max(0, Math.min(85, raidDragRef.current.origPosX + dx / (rect.width / 100)));
-    const newY = Math.max(0, Math.min(105, raidDragRef.current.origPosY + dy / (rect.height / 100)));
-    setRaidDragPos({ x: newX, y: newY });
-  }, []);
-
-  const handleRaidPointerUp = useCallback((e: React.PointerEvent) => {
-    if (!raidDragRef.current) return;
-    const dragged = raidDidDrag.current;
-    const pos = raidDragPos;
-    raidDragRef.current = null;
-    if (dragged && pos) {
-      raidIconPosMutation.mutate({ posX: Math.round(pos.x), posY: Math.round(pos.y) });
-    }
-    setRaidDragPos(null);
-    if (!dragged) navigate("/raid");
-  }, [raidDragPos, raidIconPosMutation, navigate]);
-
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!dragRef.current || !mapRef.current) return;
+    if (!mapRef.current) return;
     const rect = mapRef.current.getBoundingClientRect();
-    const dx = e.clientX - dragRef.current.startX;
-    const dy = e.clientY - dragRef.current.startY;
-    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) didDrag.current = true;
-    if (!didDrag.current) return;
-    e.preventDefault();
-    const pxPerPercX = rect.width / 100;
-    const pxPerPercY = rect.height / 100;
-    const newX = Math.max(0, Math.min(85, dragRef.current.origPosX + dx / pxPerPercX));
-    const newY = Math.max(0, Math.min(105, dragRef.current.origPosY + dy / pxPerPercY));
-    setDragPos({ id: dragRef.current.worldId, x: newX, y: newY });
+
+    if (dragRef.current) {
+      const dx = e.clientX - dragRef.current.startX;
+      const dy = e.clientY - dragRef.current.startY;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) didDrag.current = true;
+      if (!didDrag.current) return;
+      e.preventDefault();
+      const pxPerPercX = rect.width / 100;
+      const pxPerPercY = rect.height / 100;
+      const newX = Math.max(0, Math.min(85, dragRef.current.origPosX + dx / pxPerPercX));
+      const newY = Math.max(0, Math.min(105, dragRef.current.origPosY + dy / pxPerPercY));
+      setDragPos({ id: dragRef.current.worldId, x: newX, y: newY });
+    } else if (raidDragRef.current) {
+      const dx = e.clientX - raidDragRef.current.startX;
+      const dy = e.clientY - raidDragRef.current.startY;
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) raidDidDrag.current = true;
+      if (!raidDidDrag.current) return;
+      e.preventDefault();
+      const newX = Math.max(0, Math.min(85, raidDragRef.current.origPosX + dx / (rect.width / 100)));
+      const newY = Math.max(0, Math.min(105, raidDragRef.current.origPosY + dy / (rect.height / 100)));
+      setRaidDragPos({ x: newX, y: newY });
+    }
   }, []);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    if (!dragRef.current) return;
-    const d = dragRef.current;
-    dragRef.current = null;
-    if (didDrag.current && dragPos) {
-      positionMutation.mutate({ worldId: d.worldId, posX: Math.round(dragPos.x), posY: Math.round(dragPos.y) });
+    if (dragRef.current) {
+      const d = dragRef.current;
+      dragRef.current = null;
+      if (didDrag.current && dragPos) {
+        positionMutation.mutate({ worldId: d.worldId, posX: Math.round(dragPos.x), posY: Math.round(dragPos.y) });
+      }
+      setDragPos(null);
     }
-    setDragPos(null);
-  }, [dragPos, positionMutation]);
+    if (raidDragRef.current) {
+      const dragged = raidDidDrag.current;
+      const pos = raidDragPos;
+      raidDragRef.current = null;
+      raidDidDrag.current = false;
+      if (dragged && pos) {
+        raidIconPosMutation.mutate({ posX: Math.round(pos.x), posY: Math.round(pos.y) });
+      }
+      setRaidDragPos(null);
+    }
+  }, [dragPos, raidDragPos, positionMutation, raidIconPosMutation]);
 
   const [navigatingWorldId, setNavigatingWorldId] = useState<string | null>(null);
 
@@ -440,19 +437,17 @@ export default function MapPage({ user }: MapPageProps) {
                     style={{
                       left: `${(raidDragPos ?? raidIconPos).x}%`,
                       top: `${(raidDragPos ?? raidIconPos).y}%`,
-                      width: "15%",
+                      width: "12%",
                       cursor: currentUser.isAdmin ? "grab" : "pointer",
-                      zIndex: raidDragRef.current ? 60 : 99,
+                      zIndex: 99,
                       animation: raidDragRef.current ? "none" : "map-floatWorld 3.5s ease-in-out infinite",
                       userSelect: "none",
+                      touchAction: "none",
                     }}
-                    onPointerDown={currentUser.isAdmin ? handleRaidPointerDown : undefined}
-                    onPointerMove={currentUser.isAdmin ? handleRaidPointerMove : undefined}
-                    onPointerUp={currentUser.isAdmin ? handleRaidPointerUp : undefined}
-                    onClick={!currentUser.isAdmin ? () => navigate("/raid") : undefined}
+                    onPointerDown={handleRaidPointerDown}
+                    onClick={() => { if (!raidDidDrag.current) navigate("/raid"); }}
                   >
                     <div className="relative w-full" style={{ aspectRatio: "1" }}>
-                      {/* Crimson glow pulse */}
                       <div
                         className="absolute inset-[-15%] rounded-full pointer-events-none"
                         style={{
@@ -470,18 +465,6 @@ export default function MapPage({ user }: MapPageProps) {
                         }}
                       />
                     </div>
-                    <span
-                      className="font-fantasy text-[9px] tracking-wider mt-0.5 px-2 py-0.5 rounded-full whitespace-nowrap"
-                      style={{
-                        color: "#e0c0a0",
-                        background: "rgba(10,4,20,0.82)",
-                        border: "1px solid rgba(200,60,20,0.5)",
-                        textShadow: "0 0 6px rgba(220,80,20,0.6)",
-                        fontSize: "clamp(7px, 2vw, 9px)",
-                      }}
-                    >
-                      World Raid
-                    </span>
                   </div>
                 )}
 
