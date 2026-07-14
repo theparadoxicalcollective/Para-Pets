@@ -5,12 +5,12 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import PetAnimator from "@/components/PetAnimator";
 import type { BattlePotionSlot } from "@/components/BattleArena";
-import raidBg from "@assets/F17D0472-325D-4FA4-B9E9-5B44668D2BC5_1783810844517.png";
-import raidCloseImg from "@assets/Photoroom_20260711_90748_PM_1783822223263.png";
-import starImg from "@assets/Photoroom_20260331_20947_PM_1774984267132.png";
-import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
+import raidBg        from "@assets/F17D0472-325D-4FA4-B9E9-5B44668D2BC5_1783810844517.png";
+import raidCloseImg  from "@assets/Photoroom_20260711_90748_PM_1783822223263.png";
+import starImg       from "@assets/Photoroom_20260331_20947_PM_1774984267132.png";
+import raidHpFrameImg from "@assets/Photoroom_20260711_31007_PM_1783820810778.png";
 
-// ── One-time keyframe injection ────────────────────────────────────────────────
+// ── One-time keyframe injection (module-level flag prevents iOS duplicates) ───
 let _stylesInjected = false;
 function ensureStyles() {
   if (_stylesInjected || typeof document === "undefined") return;
@@ -30,7 +30,6 @@ function ensureStyles() {
 // ── Constants ─────────────────────────────────────────────────────────────────
 const POTION_LS_KEY    = "raid:potionSlots:v1";
 const RAID_PETS_LS_KEY = "raid:petIds:v1";
-const MAX_ROUNDS       = 10;
 const MIN_POTION_DRAG  = 12;
 const BOSS_ATK_PCT     = 0.20;
 
@@ -42,7 +41,7 @@ const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 interface RaidPet {
   uid: string; invId: string; name: string;
   templateId: string | null; imageUrl: string | null;
-  maxHp: number; hp: number; atk: number; def: number; isDead: boolean;
+  maxHp: number; hp: number; atk: number; isDead: boolean;
 }
 interface FloatNum { id: number; x: number; y: number; value: number; isHeal?: boolean; }
 interface DraggingPotion {
@@ -65,30 +64,37 @@ export default function RaidBattlePage() {
   const [, navigate] = useLocation();
 
   const { data: inventory = [] } = useQuery<any[]>({ queryKey: ["/api/inventory"] });
-  const { data: raidBoss }       = useQuery<{ templateId: string | null; rarity: number | null; name: string | null; hp: number; maxHp: number }>({ queryKey: ["/api/raid-boss"] });
+  const { data: raidBoss } = useQuery<{
+    templateId: string | null; rarity: number | null;
+    name: string | null; hp: number; maxHp: number;
+  }>({ queryKey: ["/api/raid-boss"] });
 
   // ── Phase ──
   const [phase, setPhase]               = useState<"loading"|"countdown"|"battle"|"result">("loading");
   const [countdown, setCountdown]       = useState(3);
-  const [battleResult, setBattleResult] = useState<"complete"|"defeated"|null>(null);
-  const [roundNum, setRoundNum]         = useState(0);
+  const [battleResult, setBattleResult] = useState<"defeated"|"complete"|null>(null);
   const [totalDamage, setTotalDamage]   = useState(0);
+  const [roundNum, setRoundNum]         = useState(0);
 
   // ── Pets ──
-  const [myPets, setMyPets]   = useState<RaidPet[]>([]);
-  const petsRef               = useRef<RaidPet[]>([]);
+  const [myPets, setMyPets] = useState<RaidPet[]>([]);
+  const petsRef             = useRef<RaidPet[]>([]);
 
-  // ── Local boss simulation ──
-  const [bossHp, setBossHp]   = useState(0);
-  const [bossMaxHp, setBossMaxHp] = useState(1);
-  const bossHpRef             = useRef(0);
-  const totalDmgRef           = useRef(0);
+  // ── Damage tracking ──
+  const totalDmgRef = useRef(0);
+
+  // ── Boss HP display (real server HP minus damage dealt so far) ──
+  const serverBossHpRef    = useRef(0);
+  const serverBossMaxHpRef = useRef(1);
 
   // ── Animation flags ──
   const [attackingPetUid, setAttackingPetUid] = useState<string|null>(null);
   const [hurtPetUid, setHurtPetUid]           = useState<string|null>(null);
   const [bossAttacking, setBossAttacking]     = useState(false);
   const [bossHurt, setBossHurt]               = useState(false);
+
+  // displayed boss HP for the bar (server HP - local damage dealt)
+  const [displayBossHp, setDisplayBossHp] = useState(0);
 
   // ── Float numbers ──
   const [floatNums, setFloatNums] = useState<FloatNum[]>([]);
@@ -105,13 +111,13 @@ export default function RaidBattlePage() {
 
   // ── Potion DnD ──
   const [slotsRemaining, setSlotsRemaining] = useState<SlotState[]>([]);
-  const slotsRef      = useRef<SlotState[]>([]);
+  const slotsRef  = useRef<SlotState[]>([]);
   const [draggingPotion, setDraggingPotion] = useState<DraggingPotion|null>(null);
-  const dragRef       = useRef<DraggingPotion|null>(null);
+  const dragRef   = useRef<DraggingPotion|null>(null);
   const [hoveredAllyUid, setHoveredAllyUid] = useState<string|null>(null);
-  const arenaRef      = useRef<HTMLDivElement>(null);
+  const arenaRef  = useRef<HTMLDivElement>(null);
 
-  // ── Server deal-damage mutation (atomic) ──
+  // ── Server mutations ──
   const dealDamageMutation = useMutation({
     mutationFn: async (damage: number) => {
       const res = await apiRequest("POST", "/api/raid/deal-damage", { damage });
@@ -137,9 +143,9 @@ export default function RaidBattlePage() {
       catch { return []; }
     })();
     const hatched = (inventory as any[]).filter(i => i.type === "pet" && i.isHatched);
-    const selected: any[] = (petIds.length > 0
+    const selected: any[] = petIds.length > 0
       ? petIds.map(id => hatched.find((p: any) => (p.inventoryId || p.id) === id)).filter(Boolean)
-      : hatched.slice(0, 3));
+      : hatched.slice(0, 3);
 
     if (!selected.length) { navigate("/raid"); return; }
 
@@ -148,18 +154,16 @@ export default function RaidBattlePage() {
       name: p.name || "Pet", templateId: p.petTemplateId ?? null,
       imageUrl: p.hatchedImageUrl || p.imageUrl || null,
       maxHp: p.petHealth ?? 100, hp: p.petHealth ?? 100,
-      atk: p.petAtk ?? 50, def: p.petDef ?? 30, isDead: false,
+      atk: p.petAtk ?? 50, isDead: false,
     }));
     petsRef.current = pets;
     setMyPets(pets);
 
-    // Local boss HP scaled so battle lasts ~10 rounds
-    const totalAtk = pets.reduce((s, p) => s + p.atk, 0);
-    const localHp  = Math.max(totalAtk * 10, (raidBoss.rarity ?? 1) * 200 * pets.length);
-    bossHpRef.current = localHp;
+    // Store real server boss HP for the display bar
+    serverBossHpRef.current    = raidBoss.hp;
+    serverBossMaxHpRef.current = raidBoss.maxHp;
     totalDmgRef.current = 0;
-    setBossHp(localHp);
-    setBossMaxHp(localHp);
+    setDisplayBossHp(raidBoss.hp);
 
     // Load potions
     const slots: BattlePotionSlot[] = (() => {
@@ -181,22 +185,26 @@ export default function RaidBattlePage() {
     return () => clearTimeout(t);
   }, [phase, countdown]);
 
-  // ── Battle loop ──────────────────────────────────────────────────────────
+  // ── Battle loop — ends only when all pets are defeated ────────────────────
   useEffect(() => {
     if (phase !== "battle" || battleActiveRef.current) return;
     battleActiveRef.current = true;
 
-    const rarity   = raidBoss?.rarity ?? 1;
-    const bossDef  = rarity * 20;
+    const rarity  = raidBoss?.rarity ?? 1;
+    const bossDef = rarity * 20;
 
     const runBattle = async () => {
-      for (let round = 1; round <= MAX_ROUNDS; round++) {
-        if (!battleActiveRef.current) break;
+      let round = 0;
+
+      while (battleActiveRef.current) {
+        const alivePets = petsRef.current.filter(p => !p.isDead);
+        if (!alivePets.length) break;
+
+        round++;
         setRoundNum(round);
 
-        // ── All alive pets attack boss ──
-        const aliveBefore = petsRef.current.filter(p => !p.isDead);
-        for (const pet of aliveBefore) {
+        // ── Each alive pet attacks the boss ──
+        for (const pet of alivePets) {
           if (!battleActiveRef.current) break;
 
           setAttackingPetUid(pet.uid);
@@ -204,27 +212,30 @@ export default function RaidBattlePage() {
           setAttackingPetUid(null);
 
           const dmg = Math.max(1, pet.atk - Math.floor(bossDef * 0.15));
-          bossHpRef.current = Math.max(0, bossHpRef.current - dmg);
           totalDmgRef.current += dmg;
-          setBossHp(bossHpRef.current);
           setTotalDamage(totalDmgRef.current);
+
+          // Update displayed boss HP (server HP minus all damage dealt so far)
+          const newDisplay = Math.max(0, serverBossHpRef.current - totalDmgRef.current);
+          setDisplayBossHp(newDisplay);
+
           setBossHurt(true);
-          spawnFloatRef.current(50, 28, dmg);
+          spawnFloatRef.current(50, 30, dmg);
           setTimeout(() => setBossHurt(false), 320);
           await sleep(280);
 
-          if (bossHpRef.current <= 0) break;
+          if (!battleActiveRef.current) break;
         }
 
-        if (bossHpRef.current <= 0) break;
         if (!battleActiveRef.current) break;
 
         await sleep(380);
 
-        // ── Boss attacks one random alive pet ──
-        const aliveNow = petsRef.current.filter(p => !p.isDead);
-        if (!aliveNow.length) break;
-        const target = aliveNow[Math.floor(Math.random() * aliveNow.length)];
+        // ── Boss attacks a random alive pet ──
+        const stillAlive = petsRef.current.filter(p => !p.isDead);
+        if (!stillAlive.length) break;
+
+        const target    = stillAlive[Math.floor(Math.random() * stillAlive.length)];
         const targetIdx = petsRef.current.findIndex(p => p.uid === target.uid);
 
         setBossAttacking(true);
@@ -233,28 +244,27 @@ export default function RaidBattlePage() {
 
         const bossDmg = Math.max(1, Math.floor(target.hp * BOSS_ATK_PCT));
         const updated = petsRef.current.map(p =>
-          p.uid !== target.uid ? p : { ...p, hp: Math.max(0, p.hp - bossDmg), isDead: p.hp - bossDmg <= 0 }
+          p.uid !== target.uid ? p
+            : { ...p, hp: Math.max(0, p.hp - bossDmg), isDead: p.hp - bossDmg <= 0 }
         );
         petsRef.current = updated;
         setMyPets([...updated]);
         setHurtPetUid(target.uid);
-        const petX = ((targetIdx + 0.5) / petsRef.current.length) * 100;
-        spawnFloatRef.current(petX, 68, bossDmg);
+        spawnFloatRef.current(((targetIdx + 0.5) / petsRef.current.length) * 100, 68, bossDmg);
         setTimeout(() => setHurtPetUid(null), 360);
         await sleep(480);
 
+        // Check if all pets dead
         if (petsRef.current.every(p => p.isDead)) break;
       }
 
       if (!battleActiveRef.current) return;
       battleActiveRef.current = false;
 
-      const allDead   = petsRef.current.every(p => p.isDead);
-      const bossKilled = bossHpRef.current <= 0;
-      setBattleResult(allDead && !bossKilled ? "defeated" : "complete");
+      const allDead = petsRef.current.every(p => p.isDead);
+      setBattleResult(allDead ? "defeated" : "complete");
       setPhase("result");
 
-      // Send damage to server — atomic, safe for concurrent players
       if (totalDmgRef.current > 0) dealDamageMutation.mutate(totalDmgRef.current);
     };
 
@@ -270,8 +280,6 @@ export default function RaidBattlePage() {
     return { x: ((sx - r.left) / r.width) * 100, y: ((sy - r.top) / r.height) * 100 };
   }, []);
 
-  // Pets are rendered at bottom: 150px above potion bar.
-  // Arena total height ≈ screen height. Approximate pet y in arena % ≈ 76.
   const petHitTest = useCallback((arenaX: number, arenaY: number) => {
     const ps = petsRef.current;
     return ps.find((_, i) => {
@@ -284,11 +292,11 @@ export default function RaidBattlePage() {
     const slot = slotsRef.current[slotIndex];
     if (!slot || slot.remaining <= 0) return;
     const heal    = (slot.healthRestored ?? 0) || 0;
-    const revives = (slot.petsRevived ?? 0)    || 0;
+    const revives = (slot.petsRevived   ?? 0)  || 0;
     const ps      = petsRef.current;
-    const droppedOn   = targetUid ? ps.find(p => p.uid === targetUid) : null;
-    const aliveTarget = (droppedOn && !droppedOn.isDead ? droppedOn : null) ?? ps.find(p => !p.isDead);
-    const reviveTarget= (droppedOn && droppedOn.isDead  ? droppedOn : null) ?? ps.find(p => p.isDead);
+    const droppedOn    = targetUid ? ps.find(p => p.uid === targetUid) : null;
+    const aliveTarget  = (droppedOn && !droppedOn.isDead ? droppedOn : null) ?? ps.find(p => !p.isDead);
+    const reviveTarget = (droppedOn && droppedOn.isDead  ? droppedOn : null) ?? ps.find(p => p.isDead);
 
     const canHeal   = heal > 0    && !!aliveTarget  && aliveTarget.hp < aliveTarget.maxHp;
     const canRevive = revives > 0 && !!reviveTarget;
@@ -321,7 +329,12 @@ export default function RaidBattlePage() {
     e.stopPropagation(); e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     const ap = getArenaPos(e.clientX, e.clientY);
-    const next: DraggingPotion = { slotIndex, pointerId: e.pointerId, arenaX: ap.x, arenaY: ap.y, screenX: e.clientX, screenY: e.clientY, startX: e.clientX, startY: e.clientY };
+    const next: DraggingPotion = {
+      slotIndex, pointerId: e.pointerId,
+      arenaX: ap.x, arenaY: ap.y,
+      screenX: e.clientX, screenY: e.clientY,
+      startX: e.clientX, startY: e.clientY,
+    };
     dragRef.current = next;
     setDraggingPotion(next);
   }, [getArenaPos]);
@@ -344,8 +357,7 @@ export default function RaidBattlePage() {
     if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < MIN_POTION_DRAG) return;
     const ap = getArenaPos(e.clientX, e.clientY);
     const target = petHitTest(ap.x, ap.y);
-    if (!target) return;
-    consumePotion(drag.slotIndex, target.uid);
+    if (target) consumePotion(drag.slotIndex, target.uid);
   }, [getArenaPos, petHitTest, consumePotion]);
 
   const cancelPotionDrag = useCallback(() => {
@@ -363,7 +375,9 @@ export default function RaidBattlePage() {
       const target = petHitTest(ap.x, ap.y);
       if (target) consumePotion(d.slotIndex, target.uid);
     };
-    const cancel = (ev: PointerEvent) => { if (dragRef.current?.pointerId === ev.pointerId) cancelPotionDrag(); };
+    const cancel = (ev: PointerEvent) => {
+      if (dragRef.current?.pointerId === ev.pointerId) cancelPotionDrag();
+    };
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", cancel);
     return () => { window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", cancel); };
@@ -374,18 +388,20 @@ export default function RaidBattlePage() {
     navigate("/raid");
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Derived display values ────────────────────────────────────────────────
   const rarity   = raidBoss?.rarity ?? 0;
-  const bossName = raidBoss?.name ?? "Raid Boss";
-  const bossHpPct= bossMaxHp > 0 ? bossHp / bossMaxHp : 0;
+  const bossName = raidBoss?.name   ?? "Raid Boss";
+  const serverMaxHp   = serverBossMaxHpRef.current || raidBoss?.maxHp || 1;
+  const bossBarPct    = Math.max(0, Math.min(1, displayBossHp / serverMaxHp));
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div ref={arenaRef} style={{ position: "absolute", inset: 0, background: "#08040c", overflow: "hidden" }}>
       {/* Background */}
       <img src={raidBg} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }} />
       <div style={{ position: "absolute", inset: 0, background: "rgba(4,2,10,0.62)", pointerEvents: "none" }} />
 
-      {/* Close */}
+      {/* Close button */}
       <button data-testid="button-close-raid-battle" onClick={handleClose}
         style={{ position: "absolute", top: 60, right: 14, zIndex: 20, background: "none", border: "none", padding: 0, cursor: "pointer", width: 40, height: 40 }}>
         <img src={raidCloseImg} alt="Close" style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.7))" }} draggable={false} />
@@ -394,11 +410,11 @@ export default function RaidBattlePage() {
       {/* Round counter */}
       {(phase === "battle" || phase === "result") && (
         <div style={{ position: "absolute", top: 66, left: 16, zIndex: 20, fontFamily: "Lora, serif", fontSize: 11, color: "rgba(240,192,40,0.8)", letterSpacing: "0.18em" }}>
-          ROUND {roundNum} / {MAX_ROUNDS}
+          ROUND {roundNum}
         </div>
       )}
 
-      {/* ── Countdown ── */}
+      {/* ── Countdown overlay ── */}
       {phase === "countdown" && (
         <div style={{ position: "absolute", inset: 0, zIndex: 30, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ fontFamily: "Lora, serif", fontSize: 96, fontWeight: "bold", color: "#f0c040", textShadow: "0 0 40px rgba(240,160,20,0.8), 0 4px 24px rgba(0,0,0,1)" }}>
@@ -411,13 +427,13 @@ export default function RaidBattlePage() {
       {(phase === "battle" || phase === "result") && (
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
 
-          {/* ── BOSS section (top) ── */}
-          <div style={{ paddingTop: 56, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+          {/* ── BOSS section ── */}
+          <div style={{ paddingTop: 54, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
 
             {/* Rarity stars */}
             <div style={{ display: "flex", gap: 3 }}>
               {Array.from({ length: 5 }).map((_, i) => (
-                <img key={i} src={starImg} alt="" width={28} height={28}
+                <img key={i} src={starImg} alt="" width={26} height={26}
                   style={{ opacity: i < rarity ? 1 : 0.14, filter: i < rarity ? "drop-shadow(0 0 6px rgba(240,80,40,0.9))" : "grayscale(1)" }} />
               ))}
             </div>
@@ -427,27 +443,39 @@ export default function RaidBattlePage() {
               {bossName}
             </div>
 
-            {/* Boss HP bar */}
-            <div style={{ position: "relative", width: 260, height: 18, borderRadius: 9, background: "rgba(0,0,0,0.55)", border: "1px solid rgba(200,40,20,0.45)", overflow: "hidden" }}>
+            {/* ── HP bar with frame (same style as RaidPage) ── */}
+            <div style={{ position: "relative", width: 240, height: "auto" }}>
+              {/* Fill bar behind frame */}
               <div style={{
-                position: "absolute", inset: 0, borderRadius: 9,
-                width: `${bossHpPct * 100}%`,
-                background: "linear-gradient(90deg, #8b1a00, #d63010 60%, #ff6030)",
+                position: "absolute",
+                top: "33%", left: "8%",
+                width: `${bossBarPct * 84}%`,
+                height: "46%",
+                background: "linear-gradient(90deg, #8b1a00 0%, #d63010 60%, #ff6030 100%)",
+                borderRadius: 3,
+                maxWidth: "84%",
                 transition: "width 0.4s ease",
               }} />
-              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Lora, serif", fontSize: 9, color: "#fff", letterSpacing: "0.05em", textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}>
-                {bossHp.toLocaleString()} / {bossMaxHp.toLocaleString()}
+              {/* Frame overlay */}
+              <img src={raidHpFrameImg} alt="HP" style={{ width: "100%", height: "auto", display: "block", position: "relative", zIndex: 1, pointerEvents: "none" }} draggable={false} />
+              {/* HP text */}
+              <div style={{
+                position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                zIndex: 2, fontFamily: "Lora, serif", fontSize: 10, color: "#fff",
+                textShadow: "0 1px 4px rgba(0,0,0,0.9)", letterSpacing: "0.04em",
+              }}>
+                {displayBossHp.toLocaleString()} / {serverMaxHp.toLocaleString()}
               </div>
             </div>
 
-            {/* Boss PetAnimator — 360px, hurt/attack animations */}
+            {/* Boss PetAnimator */}
             <div style={{
-              width: 360, height: 360,
+              width: 340, height: 340,
               animation: bossHurt ? "bossHurt 0.35s ease" : bossAttacking ? "bossAtk 0.55s ease" : "none",
               transformOrigin: "center bottom",
             }}>
               {raidBoss?.templateId && (
-                <PetAnimator petTemplateId={raidBoss.templateId} mode="idle" size={360} fitVisible />
+                <PetAnimator petTemplateId={raidBoss.templateId} mode="idle" size={340} fitVisible />
               )}
             </div>
           </div>
@@ -458,7 +486,7 @@ export default function RaidBattlePage() {
           {/* ── PLAYER PETS row ── */}
           <div style={{ display: "flex", justifyContent: "center", gap: 8, paddingBottom: 8, width: "100%", paddingLeft: 8, paddingRight: 8 }}>
             {myPets.map((pet, i) => {
-              const petHpPct = pet.maxHp > 0 ? pet.hp / pet.maxHp : 0;
+              const petHpPct    = pet.maxHp > 0 ? pet.hp / pet.maxHp : 0;
               const isAttacking = attackingPetUid === pet.uid;
               const isHurt      = hurtPetUid === pet.uid;
               const isHovered   = hoveredAllyUid === pet.uid;
@@ -468,10 +496,10 @@ export default function RaidBattlePage() {
 
                   {/* Pet sprite */}
                   <div style={{
+                    position: "relative",
                     width: 80, height: 80, borderRadius: 12,
                     border: `2px solid ${isHovered ? "rgba(74,222,128,0.9)" : "rgba(255,255,255,0.08)"}`,
-                    background: "rgba(0,0,0,0.3)",
-                    overflow: "hidden",
+                    background: "rgba(0,0,0,0.3)", overflow: "hidden",
                     animation: isAttacking ? "raidLunge 0.52s ease" : isHurt ? "raidHurt 0.4s ease" : "none",
                     boxShadow: isHovered ? "0 0 18px rgba(74,222,128,0.55)" : "none",
                     transition: "box-shadow 0.15s",
@@ -479,9 +507,7 @@ export default function RaidBattlePage() {
                     {pet.templateId ? (
                       <PetAnimator petTemplateId={pet.templateId} mode="idle" size={80} fitVisible />
                     ) : (
-                      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <img src={petPawIcon} alt="" style={{ width: 40, height: 40, opacity: 0.5 }} />
-                      </div>
+                      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>🐾</div>
                     )}
                     {pet.isDead && (
                       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>💀</div>
@@ -510,8 +536,8 @@ export default function RaidBattlePage() {
             <div style={{ display: "flex", gap: 8, paddingBottom: 20, paddingTop: 4 }}>
               {slotsRemaining.map((slot, i) => {
                 if (slot.remaining <= 0) return null;
-                const isMana    = (slot.manaRestored ?? 0) > 0;
-                const isRevive  = (slot.petsRevived   ?? 0) > 0;
+                const isMana   = (slot.manaRestored ?? 0) > 0;
+                const isRevive = (slot.petsRevived  ?? 0) > 0;
                 const isDragged = draggingPotion?.slotIndex === i;
                 return (
                   <div key={`slot-${i}-${slot.shopItemId}`}
@@ -522,7 +548,8 @@ export default function RaidBattlePage() {
                     onPointerCancel={cancelPotionDrag}
                     onLostPointerCapture={cancelPotionDrag}
                     style={{
-                      position: "relative", width: 48, height: 48, borderRadius: 10, cursor: "grab", touchAction: "none",
+                      position: "relative", width: 48, height: 48, borderRadius: 10,
+                      cursor: "grab", touchAction: "none",
                       display: "flex", alignItems: "center", justifyContent: "center",
                       background: isRevive ? "rgba(251,191,36,0.18)" : isMana ? "rgba(20,80,40,0.30)" : "rgba(34,197,94,0.20)",
                       border: `1px solid ${isRevive ? "rgba(251,191,36,0.55)" : isMana ? "rgba(74,222,128,0.55)" : "rgba(34,197,94,0.55)"}`,
@@ -559,7 +586,7 @@ export default function RaidBattlePage() {
           pointerEvents: "none", zIndex: 25,
           fontFamily: "Lora, serif", fontSize: 18, fontWeight: "900",
           color: f.isHeal ? "#4ade80" : "#f87171",
-          textShadow: `0 2px 8px rgba(0,0,0,0.9)`,
+          textShadow: "0 2px 8px rgba(0,0,0,0.9)",
           animation: "raidFloat 1.3s ease forwards",
         }}>
           {f.isHeal ? "+" : "-"}{f.value.toLocaleString()}
@@ -582,18 +609,20 @@ export default function RaidBattlePage() {
 
       {/* ── Result overlay ── */}
       {phase === "result" && (
-        <div style={{ position: "absolute", inset: 0, zIndex: 40, background: "rgba(4,2,10,0.82)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
-          <div style={{ fontFamily: "Lora, serif", fontSize: 32, fontWeight: "bold", letterSpacing: "0.2em",
-            color: battleResult === "complete" ? "#f0c040" : "#f87171",
-            textShadow: `0 0 30px ${battleResult === "complete" ? "rgba(240,192,40,0.8)" : "rgba(248,113,113,0.7)"}` }}>
-            {battleResult === "complete" ? "BATTLE COMPLETE" : "DEFEATED"}
+        <div style={{ position: "absolute", inset: 0, zIndex: 40, background: "rgba(4,2,10,0.82)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
+          <div style={{
+            fontFamily: "Lora, serif", fontSize: 30, fontWeight: "bold", letterSpacing: "0.2em",
+            color: battleResult === "defeated" ? "#f87171" : "#f0c040",
+            textShadow: `0 0 30px ${battleResult === "defeated" ? "rgba(248,113,113,0.7)" : "rgba(240,192,40,0.8)"}`,
+          }}>
+            {battleResult === "defeated" ? "DEFEATED" : "BATTLE COMPLETE"}
           </div>
 
-          <div style={{ fontFamily: "Lora, serif", fontSize: 14, color: "rgba(255,255,255,0.75)", textAlign: "center" }}>
+          <div style={{ fontFamily: "Lora, serif", fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
             Damage dealt to the Raid Boss
           </div>
 
-          <div style={{ fontFamily: "Lora, serif", fontSize: 40, fontWeight: "900", color: "#f87171", textShadow: "0 0 20px rgba(248,113,113,0.6)" }}>
+          <div style={{ fontFamily: "Lora, serif", fontSize: 42, fontWeight: "900", color: "#f87171", textShadow: "0 0 20px rgba(248,113,113,0.6)" }}>
             {totalDamage.toLocaleString()}
           </div>
 
@@ -610,10 +639,10 @@ export default function RaidBattlePage() {
         </div>
       )}
 
-      {/* Loading */}
+      {/* ── Loading ── */}
       {phase === "loading" && (
         <div style={{ position: "absolute", inset: 0, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ fontFamily: "Lora, serif", fontSize: 14, color: "rgba(255,255,255,0.4)", letterSpacing: "0.2em", animation: "pulse 1.4s ease-in-out infinite" }}>
+          <div style={{ fontFamily: "Lora, serif", fontSize: 14, color: "rgba(255,255,255,0.4)", letterSpacing: "0.2em" }}>
             Preparing battle…
           </div>
         </div>

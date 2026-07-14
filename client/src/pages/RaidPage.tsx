@@ -404,7 +404,7 @@ export default function RaidPage() {
                 {/* Fill bar rendered behind the frame */}
                 <div style={{
                   position: "absolute",
-                  top: "30%", left: "8%",
+                  top: "33%", left: "8%",
                   width: `${Math.max(0, Math.min(100, raidBossData.maxHp > 0 ? (raidBossData.hp / raidBossData.maxHp) * 100 : 0))}%`,
                   height: "46%",
                   background: "linear-gradient(90deg, #8b1a00 0%, #d63010 60%, #ff6030 100%)",
