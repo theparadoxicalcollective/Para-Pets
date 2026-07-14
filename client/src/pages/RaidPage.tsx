@@ -366,22 +366,26 @@ export default function RaidPage() {
                     fitVisible
                   />
                 </div>
-                {/* Admin: small change button */}
+                {/* Admin: clear boss button in corner */}
                 {isAdmin && (
                   <button
-                    data-testid="button-set-raid-boss"
-                    onClick={() => setBossPickStep("pick")}
+                    data-testid="button-clear-raid-boss-corner"
+                    onClick={() => clearBossMutation.mutate()}
+                    disabled={clearBossMutation.isPending}
                     style={{
                       position: "absolute", bottom: 4, right: -10,
-                      width: 34, height: 34, borderRadius: "50%",
-                      background: "linear-gradient(135deg, #5a0a0a, #c0391b)",
-                      border: "2px solid rgba(240,100,40,0.8)",
-                      boxShadow: "0 0 10px rgba(220,60,20,0.6)",
+                      height: 28, borderRadius: 8,
+                      background: "linear-gradient(135deg, #5a0a0a, #a01818)",
+                      border: "1px solid rgba(240,80,40,0.7)",
+                      boxShadow: "0 0 8px rgba(220,40,20,0.5)",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      cursor: "pointer", padding: 0,
+                      cursor: "pointer", padding: "0 10px",
+                      whiteSpace: "nowrap",
                     }}
                   >
-                    <span style={{ color: "#fff", fontSize: 18, lineHeight: 1, fontWeight: "bold", marginTop: -1 }}>+</span>
+                    <span style={{ color: "#fca5a5", fontSize: 10, fontFamily: "Lora, serif", fontWeight: "bold", letterSpacing: "0.06em" }}>
+                      {clearBossMutation.isPending ? "…" : "Clear Boss"}
+                    </span>
                   </button>
                 )}
               </div>
@@ -396,9 +400,9 @@ export default function RaidPage() {
                 {/* Fill bar rendered behind the frame */}
                 <div style={{
                   position: "absolute",
-                  top: "34%", left: "8%",
+                  top: "27%", left: "8%",
                   width: `${Math.max(0, Math.min(100, raidBossData.maxHp > 0 ? (raidBossData.hp / raidBossData.maxHp) * 100 : 0))}%`,
-                  height: "36%",
+                  height: "46%",
                   background: "linear-gradient(90deg, #8b1a00 0%, #d63010 60%, #ff6030 100%)",
                   borderRadius: 3,
                   maxWidth: "84%",
@@ -420,17 +424,6 @@ export default function RaidPage() {
                 </div>
               </div>
 
-              {/* Admin: clear boss */}
-              {isAdmin && (
-                <button
-                  data-testid="button-clear-raid-boss"
-                  onClick={() => clearBossMutation.mutate()}
-                  disabled={clearBossMutation.isPending}
-                  style={{ background: "rgba(180,40,20,0.22)", border: "1px solid rgba(240,80,40,0.3)", borderRadius: 8, color: "#f87171", fontFamily: "Lora, serif", fontSize: 11, padding: "4px 16px", cursor: "pointer" }}
-                >
-                  Clear Boss
-                </button>
-              )}
             </div>
           ) : isAdmin ? (
             /* Admin, no boss set — big + centred */
@@ -544,7 +537,7 @@ export default function RaidPage() {
         <div style={{
           width: "85%", maxWidth: 320, height: 1,
           background: "linear-gradient(90deg, transparent, rgba(240,192,40,0.5) 30%, rgba(240,192,40,0.7) 50%, rgba(240,192,40,0.5) 70%, transparent)",
-          margin: "4px 0",
+          margin: "4px 0 16px",
           flexShrink: 0,
         }} />
 
