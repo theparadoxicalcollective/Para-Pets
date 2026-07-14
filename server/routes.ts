@@ -1252,6 +1252,24 @@ export async function registerRoutes(
     }
   });
 
+  // ── Public: raid leaderboard ──────────────────────────────────────────────
+  app.get("/api/raid/leaderboard", async (_req, res) => {
+    try {
+      const rows: any = await db.execute(sql`
+        SELECT u.id AS "userId", u.username, u.display_name AS "displayName",
+               u.profile_image AS "profileImage",
+               COALESCE(u.raid_total_damage, 0) AS "totalDamage"
+        FROM users u
+        WHERE COALESCE(u.raid_total_damage, 0) > 0
+        ORDER BY "totalDamage" DESC
+        LIMIT 100
+      `);
+      return res.json({ top: rows.rows ?? rows });
+    } catch {
+      return res.json({ top: [] });
+    }
+  });
+
   // ── Admin: set raid boss ───────────────────────────────────────────────────
   // Attack damage rules (fixed game constants):
   //   normal attack = 20% of target pet's current HP

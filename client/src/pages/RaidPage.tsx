@@ -540,10 +540,18 @@ export default function RaidPage() {
           </div>
         )}
 
+        {/* Gold divider */}
+        <div style={{
+          width: "85%", maxWidth: 320, height: 1,
+          background: "linear-gradient(90deg, transparent, rgba(240,192,40,0.5) 30%, rgba(240,192,40,0.7) 50%, rgba(240,192,40,0.5) 70%, transparent)",
+          margin: "4px 0",
+          flexShrink: 0,
+        }} />
+
         {/* Leaderboard button */}
         <button
           data-testid="button-raid-leaderboard"
-          onClick={() => {/* leaderboard panel — future */ }}
+          onClick={() => navigate("/raid/leaderboard")}
           style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
         >
           <img
@@ -564,6 +572,7 @@ export default function RaidPage() {
           style={{
             width: "100%",
             maxWidth: 360,
+            marginTop: 12,
             background: "linear-gradient(180deg, rgba(6,18,8,0.93) 0%, rgba(4,14,6,0.96) 100%)",
             border: "1px solid rgba(80,160,60,0.32)",
             borderRadius: 20,
