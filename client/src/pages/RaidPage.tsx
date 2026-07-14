@@ -334,7 +334,29 @@ export default function RaidPage() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, width: "100%" }}>
           {raidBossData?.templateId ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-              {/* Boss pet — large */}
+              {/* Stars — above the boss */}
+              <div style={{ display: "flex", justifyContent: "center", gap: 4 }}>
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const filled = i < (raidBossData.rarity || 0);
+                  return (
+                    <img
+                      key={i}
+                      src={starImg}
+                      alt="star"
+                      width={40}
+                      height={40}
+                      style={{
+                        opacity: filled ? 1 : 0.15,
+                        filter: filled
+                          ? "drop-shadow(0 0 5px rgba(240,80,40,0.9)) drop-shadow(0 0 10px rgba(220,40,20,0.6))"
+                          : "grayscale(1)",
+                      }}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* Boss pet — below the stars */}
               <div style={{ position: "relative" }}>
                 <div style={{ width: 300, height: 300 }}>
                   <PetAnimator
@@ -362,28 +384,6 @@ export default function RaidPage() {
                     <span style={{ color: "#fff", fontSize: 18, lineHeight: 1, fontWeight: "bold", marginTop: -1 }}>+</span>
                   </button>
                 )}
-              </div>
-
-              {/* Stars above name */}
-              <div style={{ display: "flex", justifyContent: "center", gap: 2 }}>
-                {Array.from({ length: 5 }).map((_, i) => {
-                  const filled = i < (raidBossData.rarity || 0);
-                  return (
-                    <img
-                      key={i}
-                      src={starImg}
-                      alt="star"
-                      width={22}
-                      height={22}
-                      style={{
-                        opacity: filled ? 1 : 0.12,
-                        filter: filled
-                          ? "drop-shadow(0 0 3px rgba(240,80,40,0.8)) drop-shadow(0 0 6px rgba(220,40,20,0.5))"
-                          : "grayscale(1)",
-                      }}
-                    />
-                  );
-                })}
               </div>
 
               {/* Boss name */}
