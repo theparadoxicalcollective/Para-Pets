@@ -422,6 +422,8 @@ app.use((req, res, next) => {
   // immediately experience the rebuilt Pet Care coin reward on deploy.
   await runOnce("reset_last_petting_reward_2026_04",
     () => db.execute(sql`UPDATE users SET last_petting_reward_at = NULL`));
+  await runOnce("seed_essence_1000_2026_07",
+    () => db.execute(sql`UPDATE users SET essence = 1000 WHERE essence = 0`));
   await runMigration("shop_items.skill_type",
     () => db.execute(sql`ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS skill_type TEXT`));
   await runMigration("shop_items.skill_affects",

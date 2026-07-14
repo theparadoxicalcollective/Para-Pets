@@ -1103,6 +1103,7 @@ export async function registerRoutes(
         profileImage: profileImagePath,
         isAdmin: shouldBeAdmin,
         coins: 0,
+        essence: 1000,
       });
 
       try {
