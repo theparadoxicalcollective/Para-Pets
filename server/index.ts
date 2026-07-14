@@ -336,6 +336,12 @@ app.use((req, res, next) => {
   }
 
   try {
+    await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS raid_total_damage INTEGER NOT NULL DEFAULT 0`);
+  } catch (err) {
+    console.error("users.raid_total_damage early migration error (non-fatal):", err);
+  }
+
+  try {
     await db.execute(sql`CREATE TABLE IF NOT EXISTS molten_blocks_drop_items (
       id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
       shop_item_id VARCHAR NOT NULL,
@@ -773,6 +779,8 @@ app.use((req, res, next) => {
       WHERE user_id IS NOT NULL
     `);
   });
+  await runMigration("users.raid_total_damage",
+    () => db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS raid_total_damage INTEGER NOT NULL DEFAULT 0`));
 
   try {
     await db.execute(sql`

@@ -55,6 +55,7 @@ const FriendsPage          = lazy(() => import("@/pages/FriendsPage"));
 const ForumPage            = lazy(() => import("@/pages/ForumPage"));
 const RaidPage             = lazy(() => import("@/pages/RaidPage"));
 const RaidLeaderboardPage  = lazy(() => import("@/pages/RaidLeaderboardPage"));
+const RaidBattlePage       = lazy(() => import("@/pages/RaidBattlePage"));
 
 // ── Email gate screen — blocks the game until email is verified ───────────────
 function EmailGateScreen({ email }: { email: string }) {
@@ -576,6 +577,11 @@ function AppRouter() {
         {location === "/raid/leaderboard" && (
           <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
             <RaidLeaderboardPage />
+          </div>
+        )}
+        {location === "/raid/battle" && (
+          <div className="page-overlay" style={{ position: "absolute", inset: 0 }}>
+            <RaidBattlePage />
           </div>
         )}
       </Suspense>

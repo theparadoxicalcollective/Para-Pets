@@ -1271,6 +1271,46 @@ export async function registerRoutes(
     }
   });
 
+  // ── Player: deal damage to the raid boss (atomic, safe for concurrent players) ──
+  app.post("/api/raid/deal-damage", async (req, res) => {
+    try {
+      const userId = (req.user as any)?.id;
+      if (!userId) return res.status(401).json({ message: "Not logged in" });
+
+      const { damage } = req.body as { damage: number };
+      if (typeof damage !== "number" || damage <= 0 || damage > 50_000_000) {
+        return res.status(400).json({ message: "Invalid damage value" });
+      }
+      const dmg = Math.round(damage);
+
+      // Atomic deduct: PostgreSQL UPDATE returns the new value in a single
+      // operation so two players hitting this at the same time can never
+      // apply duplicate deductions. GREATEST ensures HP never goes below 0.
+      const result: any = await db.execute(sql`
+        UPDATE game_settings
+        SET value = GREATEST('0', (value::INTEGER - ${dmg})::TEXT)
+        WHERE key = 'raid_boss_hp'
+        RETURNING value::INTEGER AS hp
+      `);
+      const newHp = (result.rows ?? result)[0]?.hp ?? 0;
+
+      // Invalidate the in-process cache so the next GET /api/raid-boss
+      // returns the fresh HP from the DB rather than the stale cached value.
+      _raidBossCache = null;
+
+      // Accumulate this player's contribution on their user row
+      await db.execute(sql`
+        UPDATE users
+        SET raid_total_damage = COALESCE(raid_total_damage, 0) + ${dmg}
+        WHERE id = ${userId}
+      `);
+
+      return res.json({ newBossHp: newHp, damageDealt: dmg });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   // ── Admin: set raid boss ───────────────────────────────────────────────────
   // Attack damage rules (fixed game constants):
   //   normal attack = 20% of target pet's current HP

@@ -356,9 +356,13 @@ export default function RaidPage() {
                 })}
               </div>
 
-              {/* Boss pet — below the stars */}
+              {/* Boss pet — below the stars, clickable to start battle */}
               <div style={{ position: "relative" }}>
-                <div style={{ width: 300, height: 300 }}>
+                <div
+                  style={{ width: 300, height: 300, cursor: "pointer" }}
+                  onClick={() => navigate("/raid/battle")}
+                  data-testid="button-start-raid-battle"
+                >
                   <PetAnimator
                     petTemplateId={raidBossData.templateId}
                     mode="idle"
