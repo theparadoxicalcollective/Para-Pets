@@ -34,14 +34,14 @@ interface RaidRewardTier {
   items: RaidRewardItem[];
 }
 
-const TIER_VISUALS: Record<string, { color: string; glow: string; bg: string; border: string; medal: string }> = {
-  t1: { color: "#f0c040", glow: "rgba(240,192,64,0.5)",  bg: "rgba(80,58,4,0.55)",   border: "rgba(240,192,64,0.5)",  medal: "🥇" },
-  t2: { color: "#c8d4e8", glow: "rgba(200,212,232,0.4)", bg: "rgba(32,42,60,0.55)",  border: "rgba(180,200,232,0.4)", medal: "🥈" },
-  t3: { color: "#d88c50", glow: "rgba(216,140,80,0.4)",  bg: "rgba(64,32,12,0.55)",  border: "rgba(205,127,50,0.45)", medal: "🥉" },
-  t4: { color: "#7eacd4", glow: "rgba(126,172,212,0.35)",bg: "rgba(18,32,52,0.55)",  border: "rgba(100,150,200,0.4)", medal: "⚔️" },
-  t5: { color: "#98c0a0", glow: "rgba(152,192,160,0.35)",bg: "rgba(14,40,20,0.55)",  border: "rgba(100,170,110,0.4)", medal: "🛡️" },
-  t6: { color: "#b8a0cc", glow: "rgba(184,160,204,0.35)",bg: "rgba(36,16,52,0.55)",  border: "rgba(160,120,200,0.4)", medal: "✦" },
-  t7: { color: "#90a8b8", glow: "rgba(144,168,184,0.3)", bg: "rgba(18,28,38,0.55)",  border: "rgba(100,140,170,0.35)",medal: "⚔" },
+const TIER_VISUALS: Record<string, { color: string; glow: string; bg: string; border: string }> = {
+  t1: { color: "#f0c040", glow: "rgba(240,192,64,0.5)",  bg: "rgba(80,58,4,0.55)",   border: "rgba(240,192,64,0.5)"  },
+  t2: { color: "#c8d4e8", glow: "rgba(200,212,232,0.4)", bg: "rgba(32,42,60,0.55)",  border: "rgba(180,200,232,0.4)" },
+  t3: { color: "#d88c50", glow: "rgba(216,140,80,0.4)",  bg: "rgba(64,32,12,0.55)",  border: "rgba(205,127,50,0.45)" },
+  t4: { color: "#7eacd4", glow: "rgba(126,172,212,0.35)",bg: "rgba(18,32,52,0.55)",  border: "rgba(100,150,200,0.4)" },
+  t5: { color: "#98c0a0", glow: "rgba(152,192,160,0.35)",bg: "rgba(14,40,20,0.55)",  border: "rgba(100,170,110,0.4)" },
+  t6: { color: "#b8a0cc", glow: "rgba(184,160,204,0.35)",bg: "rgba(36,16,52,0.55)",  border: "rgba(160,120,200,0.4)" },
+  t7: { color: "#90a8b8", glow: "rgba(144,168,184,0.3)", bg: "rgba(18,28,38,0.55)",  border: "rgba(100,140,170,0.35)"},
 };
 
 const GOLD_DIVIDER = (
@@ -226,7 +226,6 @@ export default function RaidLeaderboardPage() {
 
         {/* Tier header */}
         <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
-          <span style={{ fontSize: 18, lineHeight: 1 }}>{v.medal}</span>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: "Lora, serif", fontSize: 13, fontWeight: 900, color: v.color, letterSpacing: "0.10em", lineHeight: 1 }}>
               {tier.label.toUpperCase()}

@@ -1401,6 +1401,94 @@ export async function registerRoutes(
         WHERE id = ${userId}
       `);
 
+      // ── Boss just died → distribute rewards (fire-and-forget, deduped) ──────
+      if (newHp === 0) {
+        (async () => {
+          try {
+            // 1. Find out which boss was just killed
+            const bossRow: any = await db.execute(sql`
+              SELECT value FROM game_settings WHERE key = 'raid_boss_template_id'
+            `);
+            const bossId = ((bossRow.rows ?? bossRow)[0]?.value ?? "") as string;
+            if (!bossId) return;
+
+            // 2. Atomic dedup — only the FIRST caller proceeds (ON CONFLICT DO NOTHING)
+            const lockKey = `raid_defeat_lock_${bossId}`;
+            const lockResult: any = await db.execute(sql`
+              INSERT INTO game_settings (key, value)
+              VALUES (${lockKey}, ${new Date().toISOString()})
+              ON CONFLICT (key) DO NOTHING
+            `);
+            const gotLock = ((lockResult.rowCount ?? lockResult.count ?? 0) as number) > 0;
+            if (!gotLock) return; // another concurrent request already handling this
+
+            // 3. Load reward tier config
+            const rewardRaw = await storage.getGameSetting("raid_rewards");
+            if (!rewardRaw) { console.log("[Raid] Boss defeated but no reward config set — skipping gifts"); return; }
+            const { tiers } = JSON.parse(rewardRaw) as {
+              tiers: Array<{
+                key: string; label: string; rankFrom: number; rankTo: number | null;
+                coins: number; items: Array<{ shopItemId: string; name: string; imageUrl: string | null }>;
+              }>;
+            };
+
+            // 4. Leaderboard snapshot at time of kill
+            const lb: any = await db.execute(sql`
+              SELECT id
+              FROM users
+              WHERE COALESCE(raid_total_damage, 0) > 0
+                AND (is_admin IS NULL OR is_admin = false)
+              ORDER BY COALESCE(raid_total_damage, 0) DESC
+            `);
+            const players = (lb.rows ?? lb) as Array<{ id: string }>;
+            if (!players.length) return;
+
+            const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+            let gifted = 0;
+
+            for (let i = 0; i < players.length; i++) {
+              const rank = i + 1;
+              const playerId = players[i].id;
+
+              const tier = tiers.find(t =>
+                rank >= t.rankFrom && (t.rankTo === null || rank <= t.rankTo)
+              );
+              if (!tier) continue;
+              if (tier.coins === 0 && tier.items.length === 0) continue;
+
+              const msg = `Raid Boss Defeated! Rank #${rank} - ${tier.label} Tier Reward`;
+
+              // Coins gift (one row covers the coin payout)
+              if (tier.coins > 0) {
+                await db.execute(sql`
+                  INSERT INTO gifts
+                    (id, sender_id, receiver_id, message, coin_amount, item_quantity, status, expires_at, created_at)
+                  VALUES
+                    (gen_random_uuid(), NULL, ${playerId}, ${msg}, ${tier.coins}, 1, 'pending', ${expiresAt.toISOString()}, NOW())
+                `);
+              }
+
+              // One gift row per reward item
+              for (const item of tier.items) {
+                await db.execute(sql`
+                  INSERT INTO gifts
+                    (id, sender_id, receiver_id, message, coin_amount, item_type, shop_item_id,
+                     item_quantity, item_name, item_image_url, status, expires_at, created_at)
+                  VALUES
+                    (gen_random_uuid(), NULL, ${playerId}, ${msg}, 0, 'shop_item', ${item.shopItemId},
+                     1, ${item.name}, ${item.imageUrl ?? null}, 'pending', ${expiresAt.toISOString()}, NOW())
+                `);
+              }
+              gifted++;
+            }
+
+            console.log(`[Raid] Rewards distributed to ${gifted} players for boss ${bossId}`);
+          } catch (err) {
+            console.error("[Raid] Reward distribution error:", err);
+          }
+        })();
+      }
+
       return res.json({ newBossHp: newHp, damageDealt: dmg });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
