@@ -424,10 +424,6 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
               width: 80,
               height: 80,
               objectFit: "contain",
-              WebkitMaskImage:
-                "radial-gradient(circle at 50% 55%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 72%)",
-              maskImage:
-                "radial-gradient(circle at 50% 55%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 72%)",
               filter:
                 "drop-shadow(0 0 14px rgba(255,200,60,0.95)) drop-shadow(0 0 28px rgba(212,160,23,0.75)) drop-shadow(0 0 6px rgba(255,220,100,0.6)) drop-shadow(0 2px 8px rgba(0,0,0,0.7))",
             }}

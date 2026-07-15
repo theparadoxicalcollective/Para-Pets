@@ -164,7 +164,7 @@ export default function RaidLeaderboardPage() {
           <div
             style={{
               position: "absolute",
-              top: "60%",
+              top: "38%",
               left: "8%",
               right: "8%",
               bottom: "8%",
