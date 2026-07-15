@@ -554,7 +554,26 @@ export default function RaidBattlePage() {
               {bossName}
             </div>
 
-            {/* ── HP bar with frame (same style as RaidPage) ── */}
+            {/* Boss sprite */}
+            <div style={{
+              width: 340, height: 340,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              animation: bossHurt ? "bossHurt 0.35s ease" : bossAttacking ? "bossAtk 0.55s ease" : "bossIdle 2.4s ease-in-out infinite",
+              transformOrigin: "center bottom",
+            }}>
+              {raidBoss?.templateId ? (
+                <img
+                  src={`/api/pet-template-image/${raidBoss.templateId}/front`}
+                  alt={bossName}
+                  draggable={false}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }}
+                />
+              ) : (
+                <div style={{ fontSize: 80 }}>👹</div>
+              )}
+            </div>
+
+            {/* ── HP bar with frame (under the boss sprite) ── */}
             <div style={{ position: "relative", width: 240, height: "auto" }}>
               {/* Fill bar behind frame */}
               <div style={{
@@ -579,32 +598,13 @@ export default function RaidBattlePage() {
                 {displayBossHp.toLocaleString()} / {serverMaxHp.toLocaleString()}
               </div>
             </div>
-
-            {/* Boss sprite */}
-            <div style={{
-              width: 340, height: 340,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              animation: bossHurt ? "bossHurt 0.35s ease" : bossAttacking ? "bossAtk 0.55s ease" : "bossIdle 2.4s ease-in-out infinite",
-              transformOrigin: "center bottom",
-            }}>
-              {raidBoss?.templateId ? (
-                <img
-                  src={`/api/pet-template-image/${raidBoss.templateId}/front`}
-                  alt={bossName}
-                  draggable={false}
-                  style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }}
-                />
-              ) : (
-                <div style={{ fontSize: 80 }}>👹</div>
-              )}
-            </div>
           </div>
 
           {/* spacer */}
           <div style={{ flex: 1 }} />
 
           {/* ── PLAYER PETS row ── */}
-          <div style={{ display: "flex", justifyContent: "center", gap: 6, paddingBottom: 10, width: "100%", paddingLeft: 12, paddingRight: 12 }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 3, paddingBottom: 10, width: "100%", paddingLeft: 10, paddingRight: 10 }}>
             {myPets.map((pet, i) => {
               const petHpPct      = pet.maxHp > 0 ? pet.hp / pet.maxHp : 0;
               const manaPct       = pet.hasSpecial ? pet.mana / pet.maxMana : 0;
