@@ -425,7 +425,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
               height: 80,
               objectFit: "contain",
               filter:
-                "drop-shadow(0 0 14px rgba(255,200,60,0.95)) drop-shadow(0 0 28px rgba(212,160,23,0.75)) drop-shadow(0 0 6px rgba(255,220,100,0.6)) drop-shadow(0 2px 8px rgba(0,0,0,0.7))",
+                "drop-shadow(0 0 3px rgba(255,200,60,0.9)) drop-shadow(0 1px 4px rgba(0,0,0,0.7))",
             }}
           />
           <div
