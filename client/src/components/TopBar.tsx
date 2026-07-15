@@ -300,7 +300,7 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
           </div>}
 
           {/* Coins + Essence — stacked vertically */}
-          {!hideCoins && <div className="flex flex-col gap-0.5 flex-shrink-0">
+          {!hideCoins && <div className="flex flex-col gap-0 flex-shrink-0">
             {/* Row 1: Coin bar + coin bag */}
             <div className="flex flex-row items-center gap-1">
               <button
@@ -399,15 +399,16 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
         </div>
       </div>
 
-      {/* Floating gift button on the home page — sits just below the profile photo, layered above pet content */}
+      {/* Floating gift button on the home page — overlays the active pet at bottom-center */}
       {hasRewards && location === "/" && (
         <button
           data-testid="button-gift-rewards-floating"
           onClick={() => setShowRewards(true)}
           className="fixed transition-transform active:scale-90 animate-bounce"
           style={{
-            top: 155,
-            left: 12,
+            bottom: "calc(22*var(--vh))",
+            left: "50%",
+            transform: "translateX(-50%)",
             zIndex: 40,
             background: "none",
             border: "none",
@@ -419,24 +420,27 @@ export default function TopBar({ user, onProfileClick, onUserUpdate, hideProfile
           <img
             src={giftIconImg}
             alt="Gifts"
-            className="w-12 h-12 object-contain"
             style={{
+              width: 80,
+              height: 80,
+              objectFit: "contain",
               WebkitMaskImage:
                 "radial-gradient(circle at 50% 55%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 72%)",
               maskImage:
                 "radial-gradient(circle at 50% 55%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 72%)",
-              filter: "drop-shadow(0 0 8px rgba(255,200,80,0.7)) drop-shadow(0 0 16px rgba(127,191,176,0.45)) drop-shadow(0 2px 6px rgba(0,0,0,0.6))",
+              filter:
+                "drop-shadow(0 0 14px rgba(255,200,60,0.95)) drop-shadow(0 0 28px rgba(212,160,23,0.75)) drop-shadow(0 0 6px rgba(255,220,100,0.6)) drop-shadow(0 2px 8px rgba(0,0,0,0.7))",
             }}
           />
           <div
-            className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
+            className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
             style={{
               background: "radial-gradient(circle, #f87171 0%, #dc2626 100%)",
               border: "1.5px solid rgba(30,15,5,0.8)",
               boxShadow: "0 0 6px rgba(248,113,113,0.6)",
             }}
           >
-            <span className="font-bold text-[8px] text-white leading-none">{pendingRewards.length}</span>
+            <span className="font-bold text-[9px] text-white leading-none">{pendingRewards.length}</span>
           </div>
         </button>
       )}
