@@ -35,13 +35,13 @@ interface RaidRewardTier {
 }
 
 const TIER_VISUALS: Record<string, { color: string; glow: string; bg: string; border: string }> = {
-  t1: { color: "#f0c040", glow: "rgba(240,192,64,0.5)",  bg: "rgba(80,58,4,0.55)",   border: "rgba(240,192,64,0.5)"  },
-  t2: { color: "#c8d4e8", glow: "rgba(200,212,232,0.4)", bg: "rgba(32,42,60,0.55)",  border: "rgba(180,200,232,0.4)" },
-  t3: { color: "#d88c50", glow: "rgba(216,140,80,0.4)",  bg: "rgba(64,32,12,0.55)",  border: "rgba(205,127,50,0.45)" },
-  t4: { color: "#7eacd4", glow: "rgba(126,172,212,0.35)",bg: "rgba(18,32,52,0.55)",  border: "rgba(100,150,200,0.4)" },
-  t5: { color: "#98c0a0", glow: "rgba(152,192,160,0.35)",bg: "rgba(14,40,20,0.55)",  border: "rgba(100,170,110,0.4)" },
-  t6: { color: "#b8a0cc", glow: "rgba(184,160,204,0.35)",bg: "rgba(36,16,52,0.55)",  border: "rgba(160,120,200,0.4)" },
-  t7: { color: "#90a8b8", glow: "rgba(144,168,184,0.3)", bg: "rgba(18,28,38,0.55)",  border: "rgba(100,140,170,0.35)"},
+  t1: { color: "#f0c040", glow: "rgba(240,192,64,0.5)",  bg: "rgba(80,58,4,0.88)",   border: "rgba(240,192,64,0.5)"  },
+  t2: { color: "#c8d4e8", glow: "rgba(200,212,232,0.4)", bg: "rgba(32,42,60,0.88)",  border: "rgba(180,200,232,0.4)" },
+  t3: { color: "#d88c50", glow: "rgba(216,140,80,0.4)",  bg: "rgba(64,32,12,0.88)",  border: "rgba(205,127,50,0.45)" },
+  t4: { color: "#7eacd4", glow: "rgba(126,172,212,0.35)",bg: "rgba(18,32,52,0.88)",  border: "rgba(100,150,200,0.4)" },
+  t5: { color: "#98c0a0", glow: "rgba(152,192,160,0.35)",bg: "rgba(14,40,20,0.88)",  border: "rgba(100,170,110,0.4)" },
+  t6: { color: "#b8a0cc", glow: "rgba(184,160,204,0.35)",bg: "rgba(36,16,52,0.88)",  border: "rgba(160,120,200,0.4)" },
+  t7: { color: "#90a8b8", glow: "rgba(144,168,184,0.3)", bg: "rgba(18,28,38,0.88)",  border: "rgba(100,140,170,0.35)"},
 };
 
 const GOLD_DIVIDER = (
@@ -84,6 +84,7 @@ export default function RaidLeaderboardPage() {
   const [draftTiers, setDraftTiers] = useState<RaidRewardTier[] | null>(null);
   const [pickerOpen, setPickerOpen] = useState<{ tierIdx: number; slotIdx: number } | null>(null);
   const [shopSearch, setShopSearch] = useState("");
+  const [shopTypeFilter, setShopTypeFilter] = useState<string>("all");
 
   const activeTiers: RaidRewardTier[] = draftTiers ?? savedTiers;
   const isDirty = draftTiers !== null;
@@ -143,10 +144,18 @@ export default function RaidLeaderboardPage() {
 
   const hasAnyRewards = savedTiers.some(t => t.coins > 0 || t.items.length > 0);
 
+  const shopTypes = useMemo(() => {
+    const types = new Set<string>();
+    shopItems.forEach((s: any) => { if (s.type) types.add(s.type); });
+    return Array.from(types).sort();
+  }, [shopItems]);
+
   const filteredShop = useMemo(() =>
-    shopItems.filter((s: any) =>
-      !shopSearch || s.name.toLowerCase().includes(shopSearch.toLowerCase())
-    ), [shopItems, shopSearch]);
+    shopItems.filter((s: any) => {
+      if (shopTypeFilter !== "all" && s.type !== shopTypeFilter) return false;
+      if (shopSearch && !s.name.toLowerCase().includes(shopSearch.toLowerCase())) return false;
+      return true;
+    }), [shopItems, shopSearch, shopTypeFilter]);
 
   // ── Item picker overlay ────────────────────────────────────────────────────
   const pickerOverlay = pickerOpen && (
@@ -157,6 +166,7 @@ export default function RaidLeaderboardPage() {
         display: "flex", flexDirection: "column",
       }}
     >
+      {/* Search + close */}
       <div style={{
         display: "flex", alignItems: "center", gap: 10,
         padding: "14px 14px 10px",
@@ -174,11 +184,39 @@ export default function RaidLeaderboardPage() {
           }}
         />
         <button
-          onClick={() => { setPickerOpen(null); setShopSearch(""); }}
+          onClick={() => { setPickerOpen(null); setShopSearch(""); setShopTypeFilter("all"); }}
           style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", fontSize: 22, cursor: "pointer", padding: "0 4px" }}
         >
           ✕
         </button>
+      </div>
+
+      {/* Type filter tabs */}
+      <div style={{
+        display: "flex", gap: 6, padding: "8px 12px",
+        overflowX: "auto", borderBottom: "1px solid rgba(255,255,255,0.08)",
+        flexShrink: 0,
+      }}>
+        {["all", ...shopTypes].map(t => {
+          const active = shopTypeFilter === t;
+          return (
+            <button
+              key={t}
+              onClick={() => setShopTypeFilter(t)}
+              style={{
+                flexShrink: 0, padding: "4px 12px", borderRadius: 20, fontSize: 10,
+                fontFamily: "Lora, serif", fontWeight: active ? 700 : 400,
+                letterSpacing: "0.10em", cursor: "pointer",
+                background: active ? "rgba(240,192,64,0.22)" : "rgba(255,255,255,0.05)",
+                border: active ? "1px solid rgba(240,192,64,0.7)" : "1px solid rgba(255,255,255,0.12)",
+                color: active ? "#f0c040" : "rgba(255,255,255,0.55)",
+                textTransform: "capitalize",
+              }}
+            >
+              {t === "all" ? "All" : t}
+            </button>
+          );
+        })}
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>

@@ -167,6 +167,19 @@ export default function RaidPage() {
 
   const hatchedPets = (inventory as any[]).filter((inv: any) => inv.type === "pet" && inv.isHatched);
 
+  // Purge ghost IDs — localStorage may hold inventory IDs that no longer
+  // resolve to a hatched pet (sold, re-acquired as egg, etc.).
+  // Run once when inventory first becomes ready so newly-picked pets land
+  // in the correct slot instead of getting pushed past empty ghost slots.
+  useEffect(() => {
+    if (!inventoryReady) return;
+    const validIds = new Set(hatchedPets.map((p: any) => p.inventoryId || p.id));
+    setSelectedPetIds(prev => {
+      const cleaned = prev.filter(id => id === activePetId || validIds.has(id));
+      return cleaned.length === prev.length ? prev : cleaned;
+    });
+  }, [inventoryReady]); // intentionally omit activePetId/hatchedPets — run once on load
+
   // Seed slot 0 with active pet
   useEffect(() => {
     if (!activePetId) return;
@@ -705,7 +718,7 @@ export default function RaidPage() {
               const isActiveSlot = i === 0;
               const isActivePetHere = isActiveSlot && !!activePetId && invId === activePetId;
               return (
-                <div
+                <button
                   key={i}
                   data-testid={`div-raid-pet-slot-${i}`}
                   className="relative rounded-xl flex items-center justify-center min-w-0"
@@ -724,11 +737,13 @@ export default function RaidPage() {
                       : inv
                         ? "0 0 10px rgba(240,80,40,0.18)"
                         : undefined,
-                    cursor: inv && !isActivePetHere ? "default" : "pointer",
+                    cursor: (isActivePetHere || inv) ? "default" : "pointer",
+                    padding: 0,
                   }}
                   onClick={() => {
                     if (isActivePetHere) return;
                     if (!inv) setPickerOpen("pet");
+                    // filled non-active slots: do nothing (✕ button handles removal)
                   }}
                 >
                   {inv ? (
@@ -784,7 +799,7 @@ export default function RaidPage() {
                       ✕
                     </button>
                   )}
-                </div>
+                </button>
               );
             })}
           </div>
