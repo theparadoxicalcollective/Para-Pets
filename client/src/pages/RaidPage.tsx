@@ -639,7 +639,7 @@ export default function RaidPage() {
           {/* Right: raid ticket count — image + "×N / 100" inline */}
           {(() => {
             const count = (inventory as any[])
-              .filter(i => i.specialType === "raid_ticket")
+              .filter(i => i.type === "raid_ticket")
               .reduce((s, i) => s + (i.quantity ?? 1), 0);
             return (
               <div data-testid="raid-ticket-count" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>

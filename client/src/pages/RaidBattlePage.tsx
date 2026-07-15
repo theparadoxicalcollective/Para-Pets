@@ -46,6 +46,13 @@ interface RaidPet {
   uid: string; invId: string; name: string;
   templateId: string | null; imageUrl: string | null;
   maxHp: number; hp: number; atk: number; isDead: boolean;
+  // Mana / special attack — only set for pets that have a special skill
+  hasSpecial: boolean;
+  specialName: string | null;
+  skillDmgPct: number;      // bonus multiplier when special fires (e.g. 1.5 = +50%)
+  mana: number;
+  maxMana: number;
+  specialReady: boolean;
 }
 interface FloatNum { id: number; x: number; y: number; value: number; isHeal?: boolean; }
 interface DraggingPotion {
@@ -188,13 +195,20 @@ export default function RaidBattlePage() {
 
     initDoneRef.current = true;
 
-    const pets: RaidPet[] = selected.map((p: any) => ({
-      uid: nextUid(), invId: p.inventoryId || p.id,
-      name: p.name || "Pet", templateId: p.petTemplateId ?? null,
-      imageUrl: p.hatchedImageUrl || p.imageUrl || null,
-      maxHp: p.petHealth ?? 100, hp: p.petHealth ?? 100,
-      atk: p.petAtk ?? 50, isDead: false,
-    }));
+    const pets: RaidPet[] = selected.map((p: any) => {
+      const hasSpecial = !!(p.specialSkill || p.skillType);
+      return {
+        uid: nextUid(), invId: p.inventoryId || p.id,
+        name: p.name || "Pet", templateId: p.petTemplateId ?? null,
+        imageUrl: p.hatchedImageUrl || p.imageUrl || null,
+        maxHp: p.petHealth ?? 100, hp: p.petHealth ?? 100,
+        atk: p.petAtk ?? 50, isDead: false,
+        hasSpecial,
+        specialName: p.specialSkill || p.skillType || null,
+        skillDmgPct: p.skillDamagePercent ? p.skillDamagePercent / 100 : 0.5,
+        mana: 0, maxMana: 100, specialReady: false,
+      };
+    });
     petsRef.current = pets;
     setMyPets(pets);
 
@@ -250,11 +264,18 @@ export default function RaidBattlePage() {
         for (const pet of alivePets) {
           if (!battleActiveRef.current) break;
 
+          const currentPet = petsRef.current.find(p => p.uid === pet.uid);
+          if (!currentPet || currentPet.isDead) continue;
+
           setAttackingPetUid(pet.uid);
           await sleep(360);
           setAttackingPetUid(null);
 
-          const dmg = Math.max(1, pet.atk - Math.floor(bossDef * 0.15));
+          // Special attack fires when mana is full; otherwise normal attack
+          const isSpecial = currentPet.hasSpecial && currentPet.specialReady;
+          const baseDmg   = Math.max(1, currentPet.atk - Math.floor(bossDef * 0.15));
+          const dmg       = isSpecial ? Math.max(1, Math.floor(baseDmg * (1 + currentPet.skillDmgPct))) : baseDmg;
+
           totalDmgRef.current += dmg;
           setTotalDamage(totalDmgRef.current);
 
@@ -265,6 +286,16 @@ export default function RaidBattlePage() {
           setBossHurt(true);
           spawnFloatRef.current(50, 30, dmg);
           setTimeout(() => setBossHurt(false), 320);
+
+          // After attack: drain mana if special fired, otherwise build mana
+          const MANA_PER_ROUND = 28;
+          petsRef.current = petsRef.current.map(p => {
+            if (p.uid !== currentPet.uid) return p;
+            const newMana = isSpecial ? 0 : Math.min(p.maxMana, p.mana + MANA_PER_ROUND);
+            return { ...p, mana: newMana, specialReady: !isSpecial && newMana >= p.maxMana };
+          });
+          setMyPets([...petsRef.current]);
+
           await sleep(280);
 
           if (!battleActiveRef.current) break;
@@ -542,24 +573,55 @@ export default function RaidBattlePage() {
           {/* ── PLAYER PETS row ── */}
           <div style={{ display: "flex", justifyContent: "center", gap: 8, paddingBottom: 8, width: "100%", paddingLeft: 8, paddingRight: 8 }}>
             {myPets.map((pet, i) => {
-              const petHpPct    = pet.maxHp > 0 ? pet.hp / pet.maxHp : 0;
-              const isAttacking = attackingPetUid === pet.uid;
-              const isHurt      = hurtPetUid === pet.uid;
-              const isHovered   = hoveredAllyUid === pet.uid;
+              const petHpPct      = pet.maxHp > 0 ? pet.hp / pet.maxHp : 0;
+              const manaPct       = pet.hasSpecial ? pet.mana / pet.maxMana : 0;
+              const isAttacking   = attackingPetUid === pet.uid;
+              const isHurt        = hurtPetUid === pet.uid;
+              const isHovered     = hoveredAllyUid === pet.uid;
+              const specialReady  = pet.hasSpecial && pet.specialReady && !pet.isDead;
+
+              // Border + glow: special-ready beats hovered
+              const borderColor = specialReady
+                ? "rgba(80,160,255,1)"
+                : isHovered ? "rgba(74,222,128,0.9)" : "rgba(255,255,255,0.08)";
+              const glowShadow = specialReady
+                ? "0 0 14px 4px rgba(80,160,255,0.85), 0 0 30px 8px rgba(80,160,255,0.45)"
+                : isHovered ? "0 0 18px rgba(74,222,128,0.55)" : "none";
+
               return (
                 <div key={pet.uid} data-testid={`pet-slot-${i}`}
                   style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flex: 1, maxWidth: 100, opacity: pet.isDead ? 0.35 : 1 }}>
+
+                  {/* Special-ready label above sprite */}
+                  {specialReady && (
+                    <div style={{
+                      fontFamily: "Lora, serif", fontSize: 8, fontWeight: "bold",
+                      color: "#93c5fd", letterSpacing: "0.1em",
+                      textShadow: "0 0 8px rgba(80,160,255,0.9)",
+                      animation: "dropGlow 1.4s ease-in-out infinite",
+                      whiteSpace: "nowrap",
+                    }}>
+                      ✦ {pet.specialName ?? "SPECIAL"} ✦
+                    </div>
+                  )}
 
                   {/* Pet sprite */}
                   <div style={{
                     position: "relative",
                     width: 80, height: 80, borderRadius: 12,
-                    border: `2px solid ${isHovered ? "rgba(74,222,128,0.9)" : "rgba(255,255,255,0.08)"}`,
+                    border: `2px solid ${borderColor}`,
                     background: "rgba(0,0,0,0.3)", overflow: "hidden",
                     animation: isAttacking ? "raidLunge 0.52s ease" : isHurt ? "raidHurt 0.4s ease" : "none",
-                    boxShadow: isHovered ? "0 0 18px rgba(74,222,128,0.55)" : "none",
-                    transition: "box-shadow 0.15s",
+                    boxShadow: glowShadow,
+                    transition: "box-shadow 0.2s, border-color 0.2s",
                   }}>
+                    {specialReady && (
+                      <div style={{
+                        position: "absolute", inset: 0, borderRadius: 10, zIndex: 3, pointerEvents: "none",
+                        background: "radial-gradient(ellipse at 50% 110%, rgba(80,160,255,0.22) 0%, transparent 65%)",
+                        animation: "dropGlow 1.4s ease-in-out infinite",
+                      }} />
+                    )}
                     {(() => {
                       const src = pet.imageUrl || (pet.templateId ? `/api/pet-template-image/${pet.templateId}/front` : null);
                       return src ? (
@@ -589,6 +651,27 @@ export default function RaidBattlePage() {
                   <div style={{ fontFamily: "Lora, serif", fontSize: 8, color: "rgba(255,255,255,0.45)" }}>
                     {pet.hp} / {pet.maxHp}
                   </div>
+
+                  {/* Mana bar — only for pets with a special skill */}
+                  {pet.hasSpecial && (
+                    <>
+                      <div style={{ width: "100%", height: 5, borderRadius: 3, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(80,140,255,0.18)", overflow: "hidden" }}>
+                        <div style={{
+                          height: "100%", width: `${manaPct * 100}%`,
+                          background: specialReady
+                            ? "linear-gradient(90deg, #3b82f6, #93c5fd, #60a5fa)"
+                            : "linear-gradient(90deg, #1e40af, #3b82f6)",
+                          borderRadius: 3,
+                          transition: "width 0.35s ease",
+                          boxShadow: specialReady ? "0 0 6px rgba(80,160,255,0.8)" : "none",
+                        }} />
+                      </div>
+                      <div style={{ fontFamily: "Lora, serif", fontSize: 7, color: specialReady ? "#93c5fd" : "rgba(100,160,255,0.5)", letterSpacing: "0.06em" }}>
+                        MP {pet.mana}/{pet.maxMana}
+                      </div>
+                    </>
+                  )}
+
                 </div>
               );
             })}
