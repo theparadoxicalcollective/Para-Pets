@@ -1275,6 +1275,38 @@ export async function registerRoutes(
     }
   });
 
+  // ── Raid: reward tier config ──────────────────────────────────────────────
+  const DEFAULT_RAID_TIERS = [
+    { key: "t1",  label: "Champion",   rankFrom: 1,   rankTo: 3,    coins: 0, items: [] },
+    { key: "t2",  label: "Hero",       rankFrom: 4,   rankTo: 10,   coins: 0, items: [] },
+    { key: "t3",  label: "Elite",      rankFrom: 11,  rankTo: 25,   coins: 0, items: [] },
+    { key: "t4",  label: "Veteran",    rankFrom: 26,  rankTo: 50,   coins: 0, items: [] },
+    { key: "t5",  label: "Warrior",    rankFrom: 51,  rankTo: 100,  coins: 0, items: [] },
+    { key: "t6",  label: "Adventurer", rankFrom: 101, rankTo: 500,  coins: 0, items: [] },
+    { key: "t7",  label: "Participant",rankFrom: 1000,rankTo: null, coins: 0, items: [] },
+  ];
+
+  app.get("/api/raid/rewards", async (_req, res) => {
+    try {
+      const raw = await storage.getGameSetting("raid_rewards");
+      if (!raw) return res.json({ tiers: DEFAULT_RAID_TIERS });
+      return res.json(JSON.parse(raw));
+    } catch (err) {
+      return res.json({ tiers: DEFAULT_RAID_TIERS });
+    }
+  });
+
+  app.post("/api/admin/raid-rewards", isAdmin, async (req, res) => {
+    try {
+      const { tiers } = req.body;
+      if (!Array.isArray(tiers)) return res.status(400).json({ message: "Invalid tiers" });
+      await storage.setGameSetting("raid_rewards", JSON.stringify({ tiers }));
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
   // ── Raid: consume 1 ticket and start a battle session ─────────────────────
   const RAID_TICKET_ITEM_ID = "a1b2c3d4-9002-4000-8000-000000000099";
 
