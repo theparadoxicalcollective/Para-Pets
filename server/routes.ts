@@ -1307,13 +1307,18 @@ export async function registerRoutes(
       `);
       const bossMaxHp = ((maxHpRow.rows ?? maxHpRow)[0]?.max_hp ?? bossHp) as number;
 
-      // ── 4. Deduct 1 ticket atomically — only succeeds if quantity > 0 ──────
+      // ── 4. Deduct 1 ticket atomically — targets a single row by id ──────────
       const result: any = await db.execute(sql`
         UPDATE user_inventory
         SET quantity = quantity - 1
-        WHERE user_id = ${userId}
-          AND shop_item_id = ${RAID_TICKET_ITEM_ID}
-          AND quantity > 0
+        WHERE id = (
+          SELECT id FROM user_inventory
+          WHERE user_id = ${userId}
+            AND shop_item_id = ${RAID_TICKET_ITEM_ID}
+            AND quantity > 0
+          ORDER BY id
+          LIMIT 1
+        )
         RETURNING quantity
       `);
       const rows = result.rows ?? result;

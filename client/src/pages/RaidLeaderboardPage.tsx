@@ -160,11 +160,11 @@ export default function RaidLeaderboardPage() {
             style={{ width: "100%", height: "auto", display: "block", userSelect: "none", pointerEvents: "none" }}
             draggable={false}
           />
-          {/* Column headers overlaid near the bottom of the frame */}
+          {/* Column headers overlaid at bottom of the frame interior */}
           <div
             style={{
               position: "absolute",
-              bottom: "10%",
+              bottom: "20%",
               left: "8%",
               right: "8%",
               display: "flex",
