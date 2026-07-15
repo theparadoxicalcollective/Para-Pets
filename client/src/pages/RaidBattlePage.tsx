@@ -680,7 +680,7 @@ export default function RaidBattlePage() {
                     <div style={{ height: "100%", width: `${petHpPct * 100}%`, background: hpColor(petHpPct), borderRadius: 3, transition: "width 0.35s ease" }} />
                   </div>
                   <div style={{ fontFamily: "Lora, serif", fontSize: 8, color: "rgba(255,255,255,0.45)" }}>
-                    {pet.hp} / {pet.maxHp}
+                    {pet.hp} HP
                   </div>
 
                   {/* Mana bar — only for pets with a special skill; no text label */}
