@@ -191,7 +191,7 @@ export default function RaidBattlePage() {
     const hatched = (inventory as any[]).filter(i => i.type === "pet" && i.isHatched);
     const selected: any[] = petIds.length > 0
       ? petIds.map(id => hatched.find((p: any) => (p.inventoryId || p.id) === id)).filter(Boolean)
-      : hatched.slice(0, 3);
+      : hatched.slice(0, 5);
 
     if (!selected.length) { navigate("/raid"); return; }
 
@@ -604,7 +604,7 @@ export default function RaidBattlePage() {
           <div style={{ flex: 1 }} />
 
           {/* ── PLAYER PETS row ── */}
-          <div style={{ display: "flex", justifyContent: "center", gap: 10, paddingBottom: 10, width: "100%", paddingLeft: 16, paddingRight: 16 }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 6, paddingBottom: 10, width: "100%", paddingLeft: 12, paddingRight: 12 }}>
             {myPets.map((pet, i) => {
               const petHpPct      = pet.maxHp > 0 ? pet.hp / pet.maxHp : 0;
               const manaPct       = pet.hasSpecial ? pet.mana / pet.maxMana : 0;
@@ -629,7 +629,7 @@ export default function RaidBattlePage() {
                   onClick={() => fireSpecial(pet.uid)}
                   style={{
                     display: "flex", flexDirection: "column", alignItems: "center", gap: 1,
-                    flex: 1, maxWidth: 130, opacity: pet.isDead ? 0.35 : 1,
+                    flex: 1, maxWidth: 120, opacity: pet.isDead ? 0.35 : 1,
                     cursor: specialReady && !pet.isDead ? "pointer" : "default",
                   }}
                 >
@@ -650,7 +650,7 @@ export default function RaidBattlePage() {
                   {/* Pet sprite */}
                   <div style={{
                     position: "relative",
-                    width: 105, height: 105,
+                    width: 88, height: 88,
                     animation: isAttacking ? "raidLunge 0.52s ease" : isHurt ? "raidHurt 0.4s ease" : "none",
                     filter: specialReady
                       ? "drop-shadow(0 0 8px rgba(80,160,255,0.9)) drop-shadow(0 0 18px rgba(80,160,255,0.55))"
