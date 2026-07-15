@@ -605,7 +605,6 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
           }}
           userCoins={user.coins}
           onUserUpdate={onUserUpdate}
-          readOnly={true}
         />
       )}
     </>
