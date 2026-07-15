@@ -106,7 +106,9 @@ export default function RaidLeaderboardPage() {
 
   const { data, isLoading } = useQuery<RaidLeaderboardResponse>({
     queryKey: ["/api/raid/leaderboard"],
-    staleTime: 30 * 1000,
+    staleTime: 0,
+    refetchInterval: 8_000,
+    refetchOnWindowFocus: true,
   });
 
   const entries = data?.top ?? [];

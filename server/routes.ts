@@ -1230,7 +1230,7 @@ export async function registerRoutes(
   app.get("/api/raid-boss", async (_req, res) => {
     try {
       const now = Date.now();
-      if (_raidBossCache && now - _raidBossCache.at < 30_000) {
+      if (_raidBossCache && now - _raidBossCache.at < 5_000) {
         return res.json({ templateId: _raidBossCache.templateId, rarity: _raidBossCache.rarity, name: _raidBossCache.name, hp: _raidBossCache.hp, maxHp: _raidBossCache.maxHp });
       }
       const templateId = await storage.getGameSetting("raid_boss_template_id");

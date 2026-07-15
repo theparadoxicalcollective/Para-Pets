@@ -33,7 +33,9 @@ function ensureStyles() {
 const POTION_LS_KEY    = "raid:potionSlots:v1";
 const RAID_PETS_LS_KEY = "raid:petIds:v1";
 const MIN_POTION_DRAG  = 12;
-const BOSS_ATK_PCT     = 0.20;
+// Boss deals 50–70 % of the target pet's max HP each attack
+const BOSS_ATK_MIN_PCT = 0.50;
+const BOSS_ATK_MAX_PCT = 0.70;
 
 let _uid = 0; const nextUid = () => `rb${_uid++}`;
 let _fid = 0; const nextFid = () => ++_fid;
@@ -283,7 +285,8 @@ export default function RaidBattlePage() {
         await sleep(520);
         setBossAttacking(false);
 
-        const bossDmg = Math.max(1, Math.floor(target.maxHp * BOSS_ATK_PCT));
+        const bossPct = BOSS_ATK_MIN_PCT + Math.random() * (BOSS_ATK_MAX_PCT - BOSS_ATK_MIN_PCT);
+        const bossDmg = Math.max(1, Math.floor(target.maxHp * bossPct));
         const updated = petsRef.current.map(p =>
           p.uid !== target.uid ? p
             : { ...p, hp: Math.max(0, p.hp - bossDmg), isDead: p.hp - bossDmg <= 0 }

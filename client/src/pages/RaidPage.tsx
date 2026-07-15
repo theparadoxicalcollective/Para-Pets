@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -47,7 +47,9 @@ export default function RaidPage() {
   const raidOn = raidStatusData?.raidVisible === true;
   const { data: raidBossData, refetch: refetchRaidBoss } = useQuery<{ templateId: string | null; rarity: number | null; name: string | null; hp: number; maxHp: number }>({
     queryKey: ["/api/raid-boss"],
-    staleTime: 10 * 1000,
+    staleTime: 0,
+    refetchInterval: 6_000,
+    refetchOnWindowFocus: true,
   });
   const { data: templatesList = [] } = useQuery<{ id: string; name: string; rarity: number }[]>({
     queryKey: ["/api/admin/templates-list"],
@@ -67,6 +69,8 @@ export default function RaidPage() {
     onError: (err: any) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
   });
 
+  // useRef guard prevents double-fires from rapid taps before re-render
+  const startingBattleRef = useRef(false);
   const [startingBattle, setStartingBattle] = useState(false);
 
   const startBattleMutation = useMutation({
@@ -89,6 +93,7 @@ export default function RaidPage() {
       navigate("/raid/battle");
     },
     onError: (err: any) => {
+      startingBattleRef.current = false;
       setStartingBattle(false);
       toast({ title: "Can't start raid", description: err.message ?? "No raid tickets remaining", variant: "destructive" });
     },
@@ -99,7 +104,8 @@ export default function RaidPage() {
   useEffect(() => { refetchRaidBoss(); }, []);
 
   const handleStartBattle = () => {
-    if (startingBattle) return;
+    if (startingBattleRef.current) return;
+    startingBattleRef.current = true;
     setStartingBattle(true);
     startBattleMutation.mutate();
   };
