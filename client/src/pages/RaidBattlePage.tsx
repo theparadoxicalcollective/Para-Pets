@@ -604,7 +604,7 @@ export default function RaidBattlePage() {
           <div style={{ flex: 1 }} />
 
           {/* ── PLAYER PETS row ── */}
-          <div style={{ display: "flex", justifyContent: "center", gap: 8, paddingBottom: 8, width: "100%", paddingLeft: 8, paddingRight: 8 }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 10, paddingBottom: 10, width: "100%", paddingLeft: 16, paddingRight: 16 }}>
             {myPets.map((pet, i) => {
               const petHpPct      = pet.maxHp > 0 ? pet.hp / pet.maxHp : 0;
               const manaPct       = pet.hasSpecial ? pet.mana / pet.maxMana : 0;
@@ -629,7 +629,7 @@ export default function RaidBattlePage() {
                   onClick={() => fireSpecial(pet.uid)}
                   style={{
                     display: "flex", flexDirection: "column", alignItems: "center", gap: 1,
-                    flex: 1, maxWidth: 100, opacity: pet.isDead ? 0.35 : 1,
+                    flex: 1, maxWidth: 130, opacity: pet.isDead ? 0.35 : 1,
                     cursor: specialReady && !pet.isDead ? "pointer" : "default",
                   }}
                 >
@@ -650,7 +650,7 @@ export default function RaidBattlePage() {
                   {/* Pet sprite */}
                   <div style={{
                     position: "relative",
-                    width: 80, height: 80,
+                    width: 105, height: 105,
                     animation: isAttacking ? "raidLunge 0.52s ease" : isHurt ? "raidHurt 0.4s ease" : "none",
                     filter: specialReady
                       ? "drop-shadow(0 0 8px rgba(80,160,255,0.9)) drop-shadow(0 0 18px rgba(80,160,255,0.55))"
