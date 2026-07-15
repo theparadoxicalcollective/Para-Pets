@@ -369,8 +369,8 @@ export default function RaidPage() {
           padding: 0,
           cursor: "pointer",
           zIndex: 10,
-          width: 40,
-          height: 40,
+          width: 32,
+          height: 32,
         }}
       >
         <img
@@ -412,8 +412,8 @@ export default function RaidPage() {
                       key={i}
                       src={starImg}
                       alt="star"
-                      width={40}
-                      height={40}
+                      width={52}
+                      height={52}
                       style={{
                         transform: `translateY(${arcY}px)`,
                         opacity: filled ? 1 : 0.15,
@@ -727,15 +727,15 @@ export default function RaidPage() {
                     background: isActivePetHere
                       ? "rgba(251,191,36,0.16)"
                       : inv
-                        ? "rgba(80,20,10,0.38)"
+                        ? "rgba(10,50,20,0.38)"
                         : "rgba(255,255,255,0.04)",
                     border: isActivePetHere
                       ? "2px solid rgba(251,191,36,0.85)"
-                      : `1px solid ${inv ? "rgba(240,80,40,0.5)" : "rgba(255,255,255,0.10)"}`,
+                      : `1px solid ${inv ? "rgba(60,180,80,0.55)" : "rgba(255,255,255,0.10)"}`,
                     boxShadow: isActivePetHere
                       ? "0 0 14px rgba(251,191,36,0.55), inset 0 0 10px rgba(251,191,36,0.15)"
                       : inv
-                        ? "0 0 10px rgba(240,80,40,0.18)"
+                        ? "0 0 10px rgba(60,180,80,0.22)"
                         : undefined,
                     cursor: (isActivePetHere || inv) ? "default" : "pointer",
                     padding: 0,
