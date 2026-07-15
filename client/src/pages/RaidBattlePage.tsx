@@ -4,7 +4,6 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import PetAnimator from "@/components/PetAnimator";
 import type { BattlePotionSlot } from "@/components/BattleArena";
 import raidBg        from "@assets/F17D0472-325D-4FA4-B9E9-5B44668D2BC5_1783810844517.png";
 import raidCloseImg  from "@assets/Photoroom_20260711_90748_PM_1783822223263.png";
@@ -18,12 +17,14 @@ function ensureStyles() {
   _stylesInjected = true;
   const s = document.createElement("style");
   s.textContent = `
-    @keyframes raidLunge { 0%,100%{transform:translateY(0) scale(1)} 45%{transform:translateY(-32px) scale(1.12)} }
-    @keyframes raidHurt  { 0%,100%{opacity:1;filter:none} 50%{opacity:0.18;filter:brightness(5)} }
-    @keyframes bossHurt  { 0%,100%{filter:none} 50%{filter:brightness(2.6) hue-rotate(200deg)} }
-    @keyframes bossAtk   { 0%,100%{transform:scale(1) translateY(0)} 50%{transform:scale(1.1) translateY(30px)} }
-    @keyframes raidFloat { from{opacity:1;transform:translateY(0)} to{opacity:0;transform:translateY(-58px)} }
-    @keyframes dropGlow  { 0%,100%{box-shadow:0 0 8px rgba(74,222,128,0.5)} 50%{box-shadow:0 0 22px rgba(74,222,128,0.95)} }
+    @keyframes raidLunge   { 0%,100%{transform:translateY(0) scale(1)} 45%{transform:translateY(-32px) scale(1.12)} }
+    @keyframes raidHurt    { 0%,100%{opacity:1;filter:none} 50%{opacity:0.18;filter:brightness(5)} }
+    @keyframes bossHurt    { 0%,100%{filter:none} 50%{filter:brightness(2.6) hue-rotate(200deg)} }
+    @keyframes bossAtk     { 0%,100%{transform:scale(1) translateY(0)} 50%{transform:scale(1.1) translateY(30px)} }
+    @keyframes raidFloat   { from{opacity:1;transform:translateY(0)} to{opacity:0;transform:translateY(-58px)} }
+    @keyframes dropGlow    { 0%,100%{box-shadow:0 0 8px rgba(74,222,128,0.5)} 50%{box-shadow:0 0 22px rgba(74,222,128,0.95)} }
+    @keyframes petBounce   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
+    @keyframes bossIdle    { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-14px) scale(1.02)} }
   `;
   document.head.appendChild(s);
 }
@@ -169,8 +170,8 @@ export default function RaidBattlePage() {
       return;
     }
 
-    // Wait for raidBoss templateId (needed for PetAnimator) and inventory to load.
-    if (!raidBoss?.templateId || !(inventory as any[]).length) return;
+    // Wait for inventory to load (raidBoss can be undefined during cache refresh — that's fine).
+    if (!(inventory as any[]).length) return;
 
     const petIds: string[] = (() => {
       try { return JSON.parse(localStorage.getItem(RAID_PETS_LS_KEY) || "[]").filter(Boolean); }
@@ -512,14 +513,22 @@ export default function RaidBattlePage() {
               </div>
             </div>
 
-            {/* Boss PetAnimator */}
+            {/* Boss sprite */}
             <div style={{
-              width: 340, height: 340,
-              animation: bossHurt ? "bossHurt 0.35s ease" : bossAttacking ? "bossAtk 0.55s ease" : "none",
+              width: 260, height: 260,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              animation: bossHurt ? "bossHurt 0.35s ease" : bossAttacking ? "bossAtk 0.55s ease" : "bossIdle 2.4s ease-in-out infinite",
               transformOrigin: "center bottom",
             }}>
-              {raidBoss?.templateId && (
-                <PetAnimator petTemplateId={raidBoss.templateId} mode="idle" size={340} fitVisible />
+              {raidBoss?.templateId ? (
+                <img
+                  src={`/api/pet-template-image/${raidBoss.templateId}/front`}
+                  alt={bossName}
+                  draggable={false}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }}
+                />
+              ) : (
+                <div style={{ fontSize: 80 }}>👹</div>
               )}
             </div>
           </div>
@@ -548,11 +557,18 @@ export default function RaidBattlePage() {
                     boxShadow: isHovered ? "0 0 18px rgba(74,222,128,0.55)" : "none",
                     transition: "box-shadow 0.15s",
                   }}>
-                    {pet.templateId ? (
-                      <PetAnimator petTemplateId={pet.templateId} mode="idle" size={80} fitVisible />
-                    ) : (
-                      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32 }}>🐾</div>
-                    )}
+                    {(() => {
+                      const src = pet.imageUrl || (pet.templateId ? `/api/pet-template-image/${pet.templateId}/front` : null);
+                      return src ? (
+                        <img src={src} alt={pet.name} draggable={false}
+                          style={{
+                            width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none",
+                            animation: isAttacking || isHurt ? "none" : "petBounce 1.4s ease-in-out infinite",
+                          }} />
+                      ) : (
+                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, animation: isAttacking || isHurt ? "none" : "petBounce 1.4s ease-in-out infinite" }}>🐾</div>
+                      );
+                    })()}
                     {pet.isDead && (
                       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>💀</div>
                     )}
