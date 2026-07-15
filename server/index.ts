@@ -1241,6 +1241,38 @@ app.use((req, res, next) => {
     console.error("PvP Ticket seed error (non-fatal):", err);
   }
 
+  // ── Seed: Raid Ticket ─────────────────────────────────────────────────────
+  try {
+    const RAID_TICKET_ID   = "a1b2c3d4-9002-4000-8000-000000000099";
+    const raidTicketAsset  = path.join(process.cwd(), "attached_assets", "Photoroom_20260714_43330_PM_1784076584992.png");
+    const raidTicketV      = fs.existsSync(raidTicketAsset)
+      ? Math.floor(fs.statSync(raidTicketAsset).mtimeMs / 1000) : 0;
+    const raidTicketImgUrl = `/world-assets/Photoroom_20260714_43330_PM_1784076584992.png?v=${raidTicketV}`;
+    await db.execute(sql`
+      INSERT INTO shop_items (
+        id, name, price, type, world_id, location_id,
+        image_url, special_type,
+        shop_pos_x, shop_pos_y, shop_width
+      ) VALUES (
+        ${RAID_TICKET_ID},
+        'Raid Ticket',
+        0,
+        'special',
+        'swamp',
+        NULL,
+        ${raidTicketImgUrl},
+        'raid_ticket',
+        50, 50, 72
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        name      = 'Raid Ticket',
+        image_url = ${raidTicketImgUrl}
+    `);
+    console.log("Raid Ticket item seeded.");
+  } catch (err) {
+    console.error("Raid Ticket seed error (non-fatal):", err);
+  }
+
   // ── Seed: Gift Items ──────────────────────────────────────────────────────
   try {
     const giftDefs = [

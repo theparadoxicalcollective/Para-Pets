@@ -13,6 +13,7 @@ import raidCloseImg from "@assets/Photoroom_20260711_90748_PM_1783822223263.png"
 import raidLeaderboardImg from "@assets/Photoroom_20260711_90837_PM_1783822223263.png";
 import raidHpFrameImg from "@assets/Photoroom_20260711_31007_PM_1783820810778.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
+import raidTicketImg from "@assets/Photoroom_20260714_43330_PM_1784076584992.png";
 
 const POTION_LS_KEY = "raid:potionSlots:v1";
 const RAID_PETS_LS_KEY = "raid:petIds:v1";
@@ -418,9 +419,10 @@ export default function RaidPage() {
                   style={{ width: "100%", height: "auto", display: "block", position: "relative", zIndex: 1, pointerEvents: "none" }}
                   draggable={false}
                 />
-                {/* HP text */}
+                {/* HP text — offset down to sit inside the fill band */}
                 <div style={{
                   position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                  paddingTop: "8%",
                   zIndex: 2, fontFamily: "Lora, serif", fontSize: 11, color: "#fff",
                   textShadow: "0 1px 3px rgba(0,0,0,0.9)", letterSpacing: "0.05em",
                 }}>
@@ -545,24 +547,41 @@ export default function RaidPage() {
           flexShrink: 0,
         }} />
 
-        {/* Leaderboard button */}
-        <button
-          data-testid="button-raid-leaderboard"
-          onClick={() => navigate("/raid/leaderboard")}
-          style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
-        >
-          <img
-            src={raidLeaderboardImg}
-            alt="Leaderboard"
-            style={{
-              width: 120,
-              height: "auto",
-              objectFit: "contain",
-              filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.6))",
-            }}
-            draggable={false}
-          />
-        </button>
+        {/* Leaderboard button + Raid Ticket count */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <button
+            data-testid="button-raid-leaderboard"
+            onClick={() => navigate("/raid/leaderboard")}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+          >
+            <img
+              src={raidLeaderboardImg}
+              alt="Leaderboard"
+              style={{
+                width: 120,
+                height: "auto",
+                objectFit: "contain",
+                filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.6))",
+              }}
+              draggable={false}
+            />
+          </button>
+
+          {/* Raid Ticket count badge */}
+          {(() => {
+            const count = (inventory as any[])
+              .filter(i => i.specialType === "raid_ticket")
+              .reduce((s, i) => s + (i.quantity ?? 1), 0);
+            return (
+              <div data-testid="raid-ticket-count" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                <img src={raidTicketImg} alt="Raid Ticket" style={{ width: 52, height: "auto", objectFit: "contain", filter: "drop-shadow(0 3px 10px rgba(0,0,0,0.7))" }} draggable={false} />
+                <div style={{ fontFamily: "Lora, serif", fontSize: 13, fontWeight: "bold", color: "#f0c040", textShadow: "0 1px 6px rgba(0,0,0,0.9)", letterSpacing: "0.05em" }}>
+                  ×{count}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
 
         {/* ── Prepare for Raid card ───────────────────────────────── */}
         <div

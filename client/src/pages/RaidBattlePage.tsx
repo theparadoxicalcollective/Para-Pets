@@ -458,9 +458,10 @@ export default function RaidBattlePage() {
               }} />
               {/* Frame overlay */}
               <img src={raidHpFrameImg} alt="HP" style={{ width: "100%", height: "auto", display: "block", position: "relative", zIndex: 1, pointerEvents: "none" }} draggable={false} />
-              {/* HP text */}
+              {/* HP text — offset down to sit inside the fill band */}
               <div style={{
                 position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                paddingTop: "8%",
                 zIndex: 2, fontFamily: "Lora, serif", fontSize: 10, color: "#fff",
                 textShadow: "0 1px 4px rgba(0,0,0,0.9)", letterSpacing: "0.04em",
               }}>
