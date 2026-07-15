@@ -152,17 +152,39 @@ export default function RaidLeaderboardPage() {
           paddingRight: 16,
         }}
       >
-        {/* Frame image — title banner only */}
-        <div style={{ width: "100%", maxWidth: 360, flexShrink: 0, overflow: "hidden", height: 120 }}>
+        {/* Frame image with overlaid column headers */}
+        <div style={{ width: "100%", maxWidth: 360, position: "relative", flexShrink: 0 }}>
           <img
             src={pvpLeaderboardBg}
             alt=""
             style={{ width: "100%", height: "auto", display: "block", userSelect: "none", pointerEvents: "none" }}
             draggable={false}
           />
+          {/* Column headers overlaid near the bottom of the frame */}
+          <div
+            style={{
+              position: "absolute",
+              bottom: "10%",
+              left: "8%",
+              right: "8%",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "0 6px",
+            }}
+          >
+            <div style={{ width: 22, flexShrink: 0 }} />
+            <div style={{ width: 26, flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0, fontSize: 8, letterSpacing: "0.22em", fontWeight: "bold", color: "rgba(255,255,255,0.65)", fontFamily: "Lora, serif" }}>
+              PLAYER
+            </div>
+            <div style={{ flexShrink: 0, minWidth: 54, textAlign: "right", fontSize: 8, letterSpacing: "0.16em", fontWeight: "bold", color: "rgba(240,100,40,0.85)", fontFamily: "Lora, serif" }}>
+              DAMAGE
+            </div>
+          </div>
         </div>
 
-        {/* List body with column headers at the top */}
+        {/* List body — flows below the frame */}
         <div
           style={{
             width: "100%",
@@ -171,20 +193,9 @@ export default function RaidLeaderboardPage() {
             border: "1px solid rgba(240,192,40,0.14)",
             borderTop: "none",
             borderRadius: "0 0 16px 16px",
-            padding: "0 8px 12px",
+            padding: "4px 8px 12px",
           }}
         >
-          {/* Column headers */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 6px 4px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 2 }}>
-            <div style={{ width: 22, flexShrink: 0 }} />
-            <div style={{ width: 26, flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0, fontSize: 8, letterSpacing: "0.22em", fontWeight: "bold", color: "rgba(255,255,255,0.45)", fontFamily: "Lora, serif" }}>
-              PLAYER
-            </div>
-            <div style={{ flexShrink: 0, minWidth: 54, textAlign: "right", fontSize: 8, letterSpacing: "0.16em", fontWeight: "bold", color: "rgba(240,100,40,0.85)", fontFamily: "Lora, serif" }}>
-              DAMAGE
-            </div>
-          </div>
           {isLoading ? (
             <div style={{ fontFamily: "Lora, serif", fontSize: 12, color: "rgba(255,255,255,0.35)", textAlign: "center", padding: "28px 0" }}>
               Loading…
