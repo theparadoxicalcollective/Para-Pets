@@ -419,10 +419,10 @@ export default function RaidPage() {
                   style={{ width: "100%", height: "auto", display: "block", position: "relative", zIndex: 1, pointerEvents: "none" }}
                   draggable={false}
                 />
-                {/* HP text — offset down to sit inside the fill band */}
+                {/* HP text — sit inside the fill band */}
                 <div style={{
                   position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                  paddingTop: "8%",
+                  paddingTop: "4%",
                   zIndex: 2, fontFamily: "Lora, serif", fontSize: 11, color: "#fff",
                   textShadow: "0 1px 3px rgba(0,0,0,0.9)", letterSpacing: "0.05em",
                 }}>
@@ -548,7 +548,8 @@ export default function RaidPage() {
         }} />
 
         {/* Leaderboard button + Raid Ticket count */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          {/* Left: leaderboard */}
           <button
             data-testid="button-raid-leaderboard"
             onClick={() => navigate("/raid/leaderboard")}
@@ -567,16 +568,16 @@ export default function RaidPage() {
             />
           </button>
 
-          {/* Raid Ticket count badge */}
+          {/* Right: raid ticket count — image + "×N / 100" inline */}
           {(() => {
             const count = (inventory as any[])
               .filter(i => i.specialType === "raid_ticket")
               .reduce((s, i) => s + (i.quantity ?? 1), 0);
             return (
-              <div data-testid="raid-ticket-count" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-                <img src={raidTicketImg} alt="Raid Ticket" style={{ width: 52, height: "auto", objectFit: "contain", filter: "drop-shadow(0 3px 10px rgba(0,0,0,0.7))" }} draggable={false} />
-                <div style={{ fontFamily: "Lora, serif", fontSize: 13, fontWeight: "bold", color: "#f0c040", textShadow: "0 1px 6px rgba(0,0,0,0.9)", letterSpacing: "0.05em" }}>
-                  ×{count}
+              <div data-testid="raid-ticket-count" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <img src={raidTicketImg} alt="Raid Ticket" style={{ width: 48, height: "auto", objectFit: "contain", filter: "drop-shadow(0 3px 10px rgba(0,0,0,0.7))" }} draggable={false} />
+                <div style={{ fontFamily: "Lora, serif", fontSize: 14, fontWeight: "bold", color: "#f0c040", textShadow: "0 1px 6px rgba(0,0,0,0.9)", letterSpacing: "0.04em", lineHeight: 1 }}>
+                  ×{count}<span style={{ color: "rgba(240,192,40,0.55)", fontSize: 11, fontWeight: "normal" }}> / 100</span>
                 </div>
               </div>
             );
