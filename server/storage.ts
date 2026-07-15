@@ -702,7 +702,7 @@ export class DatabaseStorage implements IStorage {
 
   async addToInventory(userId: string, shopItemId: string, extraFields?: Partial<UserInventoryItem>, stackQty?: number): Promise<UserInventoryItem> {
     if (stackQty && stackQty > 0) {
-      // Stacking mode: find existing row for this user+item and increment quantity
+      // Explicit stacking mode: find existing row for this user+item and increment quantity
       const existing = await this.getInventoryItem(userId, shopItemId);
       if (existing) {
         const [updated] = await db
@@ -716,7 +716,37 @@ export class DatabaseStorage implements IStorage {
       const [item] = await db.insert(userInventory).values({ userId, shopItemId, quantity: stackQty, ...extraFields }).returning();
       return item;
     }
+
+    // No explicit stackQty — fetch the item type to decide whether to stack or insert fresh.
+    // Pets always get a new row (each copy is a distinct owned pet).
+    // Every other item type (special, consumable, accessory, etc.) stacks into the
+    // existing row so the player never ends up with duplicate slots and unique
+    // indexes (e.g. raid tickets) are never violated.
+    let shopItemType: string | undefined;
+    try {
+      const shopItem = await this.getShopItem(shopItemId);
+      shopItemType = shopItem?.type;
+    } catch {}
+
+    if (shopItemType && shopItemType !== "pet") {
+      // Non-pet: upsert into the single canonical row for this user+item
+      const existing = await this.getInventoryItem(userId, shopItemId);
+      if (existing) {
+        const [updated] = await db
+          .update(userInventory)
+          .set({ quantity: (existing.quantity ?? 0) + 1 })
+          .where(eq(userInventory.id, existing.id))
+          .returning();
+        return updated;
+      }
+      // No row yet — create one with quantity 1
+      const [item] = await db.insert(userInventory).values({ userId, shopItemId, quantity: 1, ...extraFields }).returning();
+      return item;
+    }
+
+    // Pet (or unknown type): insert a fresh row — each copy is its own entity
     const [item] = await db.insert(userInventory).values({ userId, shopItemId, ...extraFields }).returning();
+
     // Auto-start hatch timer for pet eggs if the caller didn't already supply one.
     // This covers every delivery path (rewards, gifts, quests, milestone drops, etc.)
     // so callers don't need to remember to set it individually.
