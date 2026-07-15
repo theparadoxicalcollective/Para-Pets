@@ -9561,7 +9561,9 @@ export async function registerRoutes(
   // ── Daily Claim (fixed reward, once per 24h) ──────────────────────────────
   const DAILY_REWARD_COINS = 500;
   const DAILY_REWARD_TICKETS = 10;
-  const DAILY_PVP_TICKET_ID = "a1b2c3d4-9001-4000-8000-000000000099";
+  const DAILY_RAID_TICKETS = 5;
+  const DAILY_PVP_TICKET_ID  = "a1b2c3d4-9001-4000-8000-000000000099";
+  const DAILY_RAID_TICKET_ID = "a1b2c3d4-9002-4000-8000-000000000099";
   const DAILY_FISHING_ROD_ID = "7b381092-3b76-4c91-99bc-5a5ba91f52ec";
 
   // Auth: get player's claim status (canClaim + nextClaimAt)
@@ -9645,7 +9647,26 @@ export async function registerRoutes(
           `);
         }
 
-        // 5. Grant Basic Fishing Rod — same upsert pattern as PvP tickets.
+        // 5. Grant Raid Tickets — same upsert pattern as PvP tickets.
+        const raidUpdated = await tx.execute(sql`
+          UPDATE user_inventory
+          SET quantity = quantity + ${DAILY_RAID_TICKETS}
+          WHERE id = (
+            SELECT id FROM user_inventory
+            WHERE user_id = ${user.id} AND shop_item_id = ${DAILY_RAID_TICKET_ID}
+            ORDER BY id
+            LIMIT 1
+          )
+          RETURNING id
+        `);
+        if (raidUpdated.rows.length === 0) {
+          await tx.execute(sql`
+            INSERT INTO user_inventory (user_id, shop_item_id, quantity)
+            VALUES (${user.id}, ${DAILY_RAID_TICKET_ID}, ${DAILY_RAID_TICKETS})
+          `);
+        }
+
+        // 6. Grant Basic Fishing Rod — same upsert pattern as PvP tickets.
         const rodUpdated = await tx.execute(sql`
           UPDATE user_inventory
           SET quantity = quantity + 1
@@ -9683,6 +9704,7 @@ export async function registerRoutes(
       return res.json({
         coinAmount: DAILY_REWARD_COINS,
         pvpTickets: DAILY_REWARD_TICKETS,
+        raidTickets: DAILY_RAID_TICKETS,
         canClaim: false,
         lastClaimedAt: result.claimedAt,
         nextClaimAt: result.nextClaimAt,

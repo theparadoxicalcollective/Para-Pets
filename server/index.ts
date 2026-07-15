@@ -1269,19 +1269,6 @@ app.use((req, res, next) => {
         image_url = ${raidTicketImgUrl}
     `);
     console.log("Raid Ticket item seeded.");
-
-    // ── Seed: Raid Ticket as daily login reward (day 7, ×5) ──────────────────
-    // Use DELETE + INSERT so this works even if the unique constraint is absent
-    // on an existing Railway table (ON CONFLICT requires the constraint to exist).
-    await db.execute(sql`
-      DELETE FROM daily_login_reward_items
-      WHERE day_number = 7 AND shop_item_id = ${RAID_TICKET_ID}
-    `);
-    await db.execute(sql`
-      INSERT INTO daily_login_reward_items (day_number, shop_item_id, quantity)
-      VALUES (7, ${RAID_TICKET_ID}, 5)
-    `);
-    console.log("Raid Ticket daily reward seeded (day 7 ×5).");
   } catch (err) {
     console.error("Raid Ticket seed error (non-fatal):", err);
   }

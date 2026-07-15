@@ -7,6 +7,7 @@ import chestIcon       from "@assets/Photoroom_20260708_51809_PM_1783549272918.p
 import chestOpenedIcon from "@assets/Photoroom_20260708_52007_PM_1783549272918.png";
 import coinIconImg     from "@assets/icon_coin.png";
 import pvpTicketIcon   from "@assets/Photoroom_20260415_83701_PM_1776304592941.png";
+import raidTicketIcon  from "@assets/Photoroom_20260714_43330_PM_1784076584992.png";
 
 const BASIC_ROD_IMG = "/api/media/a55e45a9-a7ea-443b-bd53-24df70adb79b";
 
@@ -16,8 +17,9 @@ interface ClaimStatus {
   lastClaimedAt: string | null;
 }
 
-const REWARD_COINS   = 500;
-const REWARD_TICKETS = 10;
+const REWARD_COINS        = 500;
+const REWARD_TICKETS      = 10;
+const REWARD_RAID_TICKETS = 5;
 
 function parseUtc(ts: string | null): number | null {
   if (!ts) return null;
@@ -109,7 +111,7 @@ export default function DailyClaimCard({
       setShowBurst(true);
       toast({
         title: "Daily Reward Claimed!",
-        description: `+${REWARD_COINS} coins · Basic Fishing Rod · +${REWARD_TICKETS} PvP tickets`,
+        description: `+${REWARD_COINS} coins · Rod · +${REWARD_TICKETS} PvP tickets · +${REWARD_RAID_TICKETS} Raid tickets`,
       });
     },
     onError: (err: any) => {
@@ -208,6 +210,18 @@ export default function DailyClaimCard({
               />
               <span className="font-fantasy text-[12px]" style={{ color: "#cfe6dc" }}>
                 +{REWARD_TICKETS}
+              </span>
+            </div>
+            {/* Raid tickets */}
+            <div className="flex items-center gap-1" data-testid="reward-raid-tickets">
+              <img
+                src={raidTicketIcon}
+                alt="Raid tickets"
+                className="w-5 h-5 object-contain"
+                style={{ filter: "drop-shadow(0 0 4px rgba(240,160,40,0.55))" }}
+              />
+              <span className="font-fantasy text-[12px]" style={{ color: "#cfe6dc" }}>
+                +{REWARD_RAID_TICKETS}
               </span>
             </div>
           </div>
