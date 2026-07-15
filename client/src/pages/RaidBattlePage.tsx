@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
 import type { BattlePotionSlot } from "@/components/BattleArena";
 import raidBg        from "@assets/F17D0472-325D-4FA4-B9E9-5B44668D2BC5_1783810844517.png";
@@ -62,6 +63,7 @@ function hpColor(pct: number) {
 export default function RaidBattlePage() {
   ensureStyles();
   const [, navigate] = useLocation();
+  const { toast } = useToast();
 
   const { data: inventory = [] } = useQuery<any[]>({ queryKey: ["/api/inventory"] });
   const { data: raidBoss } = useQuery<{
@@ -126,7 +128,18 @@ export default function RaidBattlePage() {
       const res = await apiRequest("POST", "/api/raid/deal-damage", { damage });
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/raid-boss"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/raid-boss"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/raid/leaderboard"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Damage not recorded",
+        description: err?.message ?? "Failed to save battle result. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const usePotionMutation = useMutation({
@@ -269,7 +282,7 @@ export default function RaidBattlePage() {
         await sleep(520);
         setBossAttacking(false);
 
-        const bossDmg = Math.max(1, Math.floor(target.hp * BOSS_ATK_PCT));
+        const bossDmg = Math.max(1, Math.floor(target.maxHp * BOSS_ATK_PCT));
         const updated = petsRef.current.map(p =>
           p.uid !== target.uid ? p
             : { ...p, hp: Math.max(0, p.hp - bossDmg), isDead: p.hp - bossDmg <= 0 }

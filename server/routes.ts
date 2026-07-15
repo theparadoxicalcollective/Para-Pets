@@ -1329,7 +1329,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/raid/deal-damage", async (req, res) => {
+  app.post("/api/raid/deal-damage", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any)?.id;
       if (!userId) return res.status(401).json({ message: "Not logged in" });
