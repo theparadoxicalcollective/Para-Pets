@@ -549,7 +549,7 @@ export default function RaidBattlePage() {
 
             {/* Boss sprite */}
             <div style={{
-              width: 260, height: 260,
+              width: 340, height: 340,
               display: "flex", alignItems: "center", justifyContent: "center",
               animation: bossHurt ? "bossHurt 0.35s ease" : bossAttacking ? "bossAtk 0.55s ease" : "bossIdle 2.4s ease-in-out infinite",
               transformOrigin: "center bottom",
@@ -605,23 +605,16 @@ export default function RaidBattlePage() {
                     </div>
                   )}
 
-                  {/* Pet sprite */}
+                  {/* Pet sprite — no box, just the sprite with glow when special ready */}
                   <div style={{
                     position: "relative",
-                    width: 80, height: 80, borderRadius: 12,
-                    border: `2px solid ${borderColor}`,
-                    background: "rgba(0,0,0,0.3)", overflow: "hidden",
+                    width: 80, height: 80,
                     animation: isAttacking ? "raidLunge 0.52s ease" : isHurt ? "raidHurt 0.4s ease" : "none",
-                    boxShadow: glowShadow,
-                    transition: "box-shadow 0.2s, border-color 0.2s",
+                    filter: specialReady
+                      ? "drop-shadow(0 0 8px rgba(80,160,255,0.9)) drop-shadow(0 0 18px rgba(80,160,255,0.55))"
+                      : isHovered ? "drop-shadow(0 0 8px rgba(74,222,128,0.7))" : "none",
+                    transition: "filter 0.2s",
                   }}>
-                    {specialReady && (
-                      <div style={{
-                        position: "absolute", inset: 0, borderRadius: 10, zIndex: 3, pointerEvents: "none",
-                        background: "radial-gradient(ellipse at 50% 110%, rgba(80,160,255,0.22) 0%, transparent 65%)",
-                        animation: "dropGlow 1.4s ease-in-out infinite",
-                      }} />
-                    )}
                     {(() => {
                       const src = pet.imageUrl || (pet.templateId ? `/api/pet-template-image/${pet.templateId}/front` : null);
                       return src ? (
@@ -629,13 +622,14 @@ export default function RaidBattlePage() {
                           style={{
                             width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none",
                             animation: isAttacking || isHurt ? "none" : "petBounce 1.4s ease-in-out infinite",
+                            opacity: pet.isDead ? 0.3 : 1,
                           }} />
                       ) : (
                         <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, animation: isAttacking || isHurt ? "none" : "petBounce 1.4s ease-in-out infinite" }}>🐾</div>
                       );
                     })()}
                     {pet.isDead && (
-                      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>💀</div>
+                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>💀</div>
                     )}
                   </div>
 
