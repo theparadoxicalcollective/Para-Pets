@@ -676,7 +676,7 @@ export default function RaidBattlePage() {
                   </div>
 
                   {/* HP bar */}
-                  <div style={{ width: "100%", height: 6, borderRadius: 3, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                  <div style={{ width: 56, height: 6, borderRadius: 3, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.06)", overflow: "hidden" }}>
                     <div style={{ height: "100%", width: `${petHpPct * 100}%`, background: hpColor(petHpPct), borderRadius: 3, transition: "width 0.35s ease" }} />
                   </div>
                   <div style={{ fontFamily: "Lora, serif", fontSize: 8, color: "rgba(255,255,255,0.45)" }}>
@@ -685,7 +685,7 @@ export default function RaidBattlePage() {
 
                   {/* Mana bar — only for pets with a special skill; no text label */}
                   {pet.hasSpecial && (
-                    <div style={{ width: "100%", height: 5, borderRadius: 3, background: "rgba(0,0,0,0.5)", border: `1px solid ${specialReady ? "rgba(80,140,255,0.6)" : "rgba(80,140,255,0.18)"}`, overflow: "hidden" }}>
+                    <div style={{ width: 56, height: 5, borderRadius: 3, background: "rgba(0,0,0,0.5)", border: `1px solid ${specialReady ? "rgba(80,140,255,0.6)" : "rgba(80,140,255,0.18)"}`, overflow: "hidden" }}>
                       <div style={{
                         height: "100%", width: `${manaPct * 100}%`,
                         background: specialReady
