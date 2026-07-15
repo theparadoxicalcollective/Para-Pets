@@ -169,10 +169,8 @@ export default function RaidPage() {
     if (activePetId && invId === activePetId) return;
     setSelectedPetIds(prev => {
       if (prev.includes(invId)) return prev.filter(id => id !== invId);
-      const validSet = new Set(hatchedPets.map((p: any) => p.inventoryId || p.id));
-      const clean = prev.filter(id => id === activePetId || validSet.has(id));
-      if (clean.length >= 5) return prev;
-      return [...clean, invId];
+      if (prev.length >= 5) return prev;
+      return [...prev, invId];
     });
   };
 

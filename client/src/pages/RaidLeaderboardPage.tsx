@@ -152,33 +152,33 @@ export default function RaidLeaderboardPage() {
           paddingRight: 16,
         }}
       >
-        {/* Frame image with overlaid column headers */}
-        <div style={{ width: "100%", maxWidth: 360, position: "relative", flexShrink: 0 }}>
+        {/* Frame image — aspect-ratio ensures container has height before image loads,
+            so the absolute overlay positions reliably */}
+        <div style={{ width: "100%", maxWidth: 360, position: "relative", flexShrink: 0, aspectRatio: "1047 / 1371" }}>
           <img
             src={pvpLeaderboardBg}
             alt=""
-            style={{ width: "100%", height: "auto", display: "block", userSelect: "none", pointerEvents: "none" }}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "fill", userSelect: "none", pointerEvents: "none" }}
             draggable={false}
           />
-          {/* Column headers overlaid at bottom of the frame interior */}
+          {/* Column headers overlaid — positioned just below the LEADERBOARD title */}
           <div
             style={{
               position: "absolute",
-              bottom: "20%",
-              left: "8%",
-              right: "8%",
+              top: "75%",
+              left: "12%",
+              right: "12%",
               display: "flex",
               alignItems: "center",
-              gap: 8,
-              padding: "0 6px",
+              gap: 4,
             }}
           >
-            <div style={{ width: 22, flexShrink: 0 }} />
-            <div style={{ width: 26, flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0, fontSize: 8, letterSpacing: "0.22em", fontWeight: "bold", color: "rgba(255,255,255,0.65)", fontFamily: "Lora, serif" }}>
+            <div style={{ width: 20, flexShrink: 0 }} />
+            <div style={{ width: 24, flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0, fontSize: 8, letterSpacing: "0.18em", fontWeight: "bold", color: "rgba(255,255,255,0.7)", fontFamily: "Lora, serif" }}>
               PLAYER
             </div>
-            <div style={{ flexShrink: 0, minWidth: 54, textAlign: "right", fontSize: 8, letterSpacing: "0.16em", fontWeight: "bold", color: "rgba(240,100,40,0.85)", fontFamily: "Lora, serif" }}>
+            <div style={{ flexShrink: 0, textAlign: "right", fontSize: 8, letterSpacing: "0.14em", fontWeight: "bold", color: "rgba(240,100,40,0.9)", fontFamily: "Lora, serif" }}>
               DAMAGE
             </div>
           </div>
