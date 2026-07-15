@@ -451,7 +451,7 @@ export default function MapPage({ user }: MapPageProps) {
                       <div
                         className="absolute inset-[-15%] rounded-full pointer-events-none"
                         style={{
-                          background: "radial-gradient(circle, rgba(200,40,20,0.35) 0%, rgba(200,40,20,0.12) 50%, transparent 70%)",
+                          background: "radial-gradient(circle, rgba(240,192,64,0.35) 0%, rgba(240,192,64,0.12) 50%, transparent 70%)",
                           animation: "map-glowPulse 2.8s ease-in-out infinite",
                         }}
                       />
@@ -461,7 +461,7 @@ export default function MapPage({ user }: MapPageProps) {
                         className="w-full h-full object-contain relative z-10"
                         draggable={false}
                         style={{
-                          filter: "drop-shadow(0 0 14px rgba(220,60,20,0.8)) drop-shadow(0 4px 8px rgba(0,0,0,0.6))",
+                          filter: "drop-shadow(0 0 14px rgba(240,192,64,0.85)) drop-shadow(0 4px 8px rgba(0,0,0,0.6))",
                         }}
                       />
                     </div>

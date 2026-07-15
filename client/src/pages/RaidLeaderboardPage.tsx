@@ -428,7 +428,7 @@ export default function RaidLeaderboardPage() {
               <div style={{ width: 22, flexShrink: 0 }} />
               <div style={{ width: 26, flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }} />
-              <div style={{ flexShrink: 0, width: 54, textAlign: "right", fontSize: 8, letterSpacing: "0.16em", fontWeight: "bold", color: "#f0c040", fontFamily: "Lora, serif" }}>
+              <div style={{ flexShrink: 0, width: 54, textAlign: "right", paddingRight: 10, fontSize: 8, letterSpacing: "0.16em", fontWeight: "bold", color: "#f0c040", fontFamily: "Lora, serif" }}>
                 DAMAGE
               </div>
             </div>
@@ -481,7 +481,7 @@ export default function RaidLeaderboardPage() {
                         {entry.username}
                       </div>
 
-                      <div style={{ flexShrink: 0, width: 54, fontSize: 12, fontWeight: "900", color: "#f0c040", fontFamily: "Lora, serif", textAlign: "right" }}>
+                      <div style={{ flexShrink: 0, width: 54, fontSize: 12, fontWeight: "900", color: "#f0c040", fontFamily: "Lora, serif", textAlign: "right", paddingRight: 10 }}>
                         {entry.totalDamage.toLocaleString()}
                       </div>
                     </div>

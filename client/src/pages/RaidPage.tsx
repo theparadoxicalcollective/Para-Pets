@@ -418,7 +418,7 @@ export default function RaidPage() {
                         transform: `translateY(${arcY}px)`,
                         opacity: filled ? 1 : 0.15,
                         filter: filled
-                          ? "drop-shadow(0 0 5px rgba(240,80,40,0.9)) drop-shadow(0 0 10px rgba(220,40,20,0.6))"
+                          ? "drop-shadow(0 0 1px rgba(240,192,64,1)) drop-shadow(0 0 4px rgba(240,192,64,0.95)) drop-shadow(0 0 10px rgba(240,192,64,0.65))"
                           : "grayscale(1)",
                       }}
                     />
