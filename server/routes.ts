@@ -1380,7 +1380,9 @@ export async function registerRoutes(
   app.get("/api/admin/templates-list", isAdmin, async (_req, res) => {
     try {
       const templates = await storage.getAllPetTemplates();
-      return res.json(templates.map(t => ({ id: t.id, name: t.name, rarity: t.rarity ?? 1 })));
+      // pet_templates has no rarity column — rarity lives on shop_items.
+      // Return placeholder 1; the raid-boss GET reads rarity from shop_items directly.
+      return res.json(templates.map(t => ({ id: t.id, name: t.name, rarity: 1 })));
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }
@@ -4864,13 +4866,41 @@ export async function registerRoutes(
     }
   });
 
-  // Lightweight meta endpoint — returns only id + assembled image URLs for
-  // every template. Used by PvP battle page to resolve frontAssembled for
-  // each pet without fetching the full parts list.
+  // ── Binary image serving for pet template assembled views ────────────────
+  // Returns the raw image bytes instead of embedding base64 in JSON payloads.
+  // Browser caches these for 24 h; they rarely change.
+  app.get("/api/pet-template-image/:id/:view", async (req, res) => {
+    try {
+      const { id, view } = req.params as Record<string, string>;
+      if (view !== "front" && view !== "back") return res.status(400).end();
+      const template = await storage.getPetTemplate(id);
+      const dataUri: string | null | undefined =
+        view === "front" ? template?.frontAssembled : template?.backAssembled;
+      if (!dataUri) return res.status(404).end();
+      // Parse  data:<mime>;base64,<data>
+      const match = dataUri.match(/^data:([^;]+);base64,(.+)$/s);
+      if (!match) return res.status(500).end();
+      const [, mime, b64] = match;
+      const buf = Buffer.from(b64, "base64");
+      res.setHeader("Content-Type", mime);
+      res.setHeader("Cache-Control", "public, max-age=86400, stale-while-revalidate=86400");
+      res.setHeader("Content-Length", buf.length);
+      return res.end(buf);
+    } catch {
+      return res.status(500).end();
+    }
+  });
+
+  // Lightweight meta endpoint — returns id + assembled image URL refs (not base64).
+  // Used by PvP battle page. Returning base64 inline was ~6 MB per request.
   app.get("/api/pet-templates/meta", isAuthenticated, async (req, res) => {
     try {
       const templates = await storage.getAllPetTemplates();
-      return res.json(templates.map(t => ({ id: t.id, frontAssembled: t.frontAssembled ?? null, backAssembled: t.backAssembled ?? null })));
+      return res.json(templates.map(t => ({
+        id: t.id,
+        frontAssembledUrl: t.frontAssembled ? `/api/pet-template-image/${t.id}/front` : null,
+        backAssembledUrl:  t.backAssembled  ? `/api/pet-template-image/${t.id}/back`  : null,
+      })));
     } catch (err) {
       return res.status(500).json({ message: "Failed to get template meta" });
     }
@@ -4973,7 +5003,16 @@ export async function registerRoutes(
       const testOnly = req.query.testOnly === "true" || req.query.testOnly === "1";
       const includeTest = req.query.includeTest === "true" || req.query.includeTest === "1";
       const templates = await storage.getAllPetTemplates({ testOnly, includeTest });
-      return res.json(templates);
+      // Strip assembled images from the list response — they are 200-500 KB each
+      // and the list can have 17+ templates. The detail endpoint (/api/admin/pet-templates/:id)
+      // still returns them for the single-template editor that actually needs them.
+      return res.json(templates.map(({ frontAssembled, backAssembled, ...rest }) => ({
+        ...rest,
+        hasFrontAssembled: !!frontAssembled,
+        hasBackAssembled:  !!backAssembled,
+        frontAssembledUrl: frontAssembled ? `/api/pet-template-image/${rest.id}/front` : null,
+        backAssembledUrl:  backAssembled  ? `/api/pet-template-image/${rest.id}/back`  : null,
+      })));
     } catch (err) {
       console.error("Get pet templates error:", err);
       return res.status(500).json({ message: "Failed to get pet templates" });
@@ -4985,7 +5024,16 @@ export async function registerRoutes(
       const template = await storage.getPetTemplate((req.params.id as string));
       if (!template) return res.status(404).json({ message: "Template not found" });
       const parts = await storage.getPetTemplateParts((req.params.id as string));
-      return res.json({ ...template, parts });
+      // Strip base64 — return URL refs instead, matching the list endpoint.
+      const { frontAssembled, backAssembled, ...rest } = template;
+      return res.json({
+        ...rest,
+        hasFrontAssembled: !!frontAssembled,
+        hasBackAssembled:  !!backAssembled,
+        frontAssembledUrl: frontAssembled ? `/api/pet-template-image/${template.id}/front` : null,
+        backAssembledUrl:  backAssembled  ? `/api/pet-template-image/${template.id}/back`  : null,
+        parts,
+      });
     } catch (err) {
       console.error("Get pet template error:", err);
       return res.status(500).json({ message: "Failed to get pet template" });
@@ -5704,8 +5752,8 @@ export async function registerRoutes(
         let petBackImageUrl: string | null = null;
         if (activePet.petTemplateId) {
           const template = await storage.getPetTemplate(activePet.petTemplateId);
-          if (template?.frontAssembled) petImageUrl = template.frontAssembled;
-          if (template?.backAssembled) petBackImageUrl = template.backAssembled;
+          if (template?.frontAssembled) petImageUrl = `/api/pet-template-image/${activePet.petTemplateId}/front`;
+          if (template?.backAssembled)  petBackImageUrl = `/api/pet-template-image/${activePet.petTemplateId}/back`;
         }
         return res.json({
           encounters: caveEncounters,
@@ -5884,8 +5932,8 @@ export async function registerRoutes(
       if (activePet.petTemplateId) {
         const template = await storage.getPetTemplate(activePet.petTemplateId);
         if (template) {
-          if (template.backAssembled) petBackImageUrl = template.backAssembled;
-          if (template.frontAssembled) petImageUrl = template.frontAssembled;
+          if (template.backAssembled)  petBackImageUrl = `/api/pet-template-image/${activePet.petTemplateId}/back`;
+          if (template.frontAssembled) petImageUrl     = `/api/pet-template-image/${activePet.petTemplateId}/front`;
         }
       }
 
@@ -5911,7 +5959,7 @@ export async function registerRoutes(
           let url: string | null = inv.hatchedImageUrl || inv.imageUrl || null;
           if (inv.petTemplateId) {
             const tpl = await storage.getPetTemplate(inv.petTemplateId);
-            if (tpl?.frontAssembled) url = tpl.frontAssembled;
+            if (tpl?.frontAssembled) url = `/api/pet-template-image/${inv.petTemplateId}/front`;
           }
           if (url) extraPetImages[invId] = url;
         }));

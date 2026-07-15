@@ -12,8 +12,10 @@ interface PetTemplate {
   id: string;
   name: string;
   facing?: string | null;
-  frontAssembled: string | null;
-  backAssembled: string | null;
+  frontAssembledUrl: string | null;
+  backAssembledUrl: string | null;
+  hasFrontAssembled?: boolean;
+  hasBackAssembled?: boolean;
   sleepingImageUrl: string | null;
   canFly: boolean;
   createdAt: string;
@@ -1195,14 +1197,14 @@ export default function PetDatabasePanel({
           </div>
         )}
 
-        {!testMode && (templateDetail.frontAssembled || templateDetail.backAssembled) && (
+        {!testMode && (templateDetail.frontAssembledUrl || templateDetail.backAssembledUrl) && (
           <div className="mt-1">
             <p className="font-fantasy text-[9px] text-[#a89878] tracking-wider mb-2 text-center">Assembled Preview</p>
             <div className="flex justify-center gap-4">
-              {templateDetail.frontAssembled && (
+              {templateDetail.frontAssembledUrl && (
                 <div className="text-center">
                   <img
-                    src={templateDetail.frontAssembled}
+                    src={templateDetail.frontAssembledUrl}
                     alt="Front"
                     className="w-28 h-28 object-contain rounded-lg"
                     style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(127,255,212,0.2)" }}
@@ -1211,10 +1213,10 @@ export default function PetDatabasePanel({
                   <span className="font-fantasy text-[8px] text-[#7fbfb0] tracking-wider">Front</span>
                 </div>
               )}
-              {templateDetail.backAssembled && (
+              {templateDetail.backAssembledUrl && (
                 <div className="text-center">
                   <img
-                    src={templateDetail.backAssembled}
+                    src={templateDetail.backAssembledUrl}
                     alt="Side"
                     className="w-28 h-28 object-contain rounded-lg"
                     style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(127,255,212,0.2)" }}
@@ -1411,10 +1413,10 @@ export default function PetDatabasePanel({
                     className="w-full aspect-square rounded-md flex items-center justify-center overflow-hidden"
                     style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}
                   >
-                    {(isSide ? t.backAssembled : t.frontAssembled) ? (
-                      <img src={(isSide ? t.backAssembled : t.frontAssembled) || ""} alt={t.name} className="w-full h-full object-contain" />
-                    ) : t.frontAssembled ? (
-                      <img src={t.frontAssembled} alt={t.name} className="w-full h-full object-contain" />
+                    {(isSide ? t.backAssembledUrl : t.frontAssembledUrl) ? (
+                      <img src={(isSide ? t.backAssembledUrl : t.frontAssembledUrl) || ""} alt={t.name} className="w-full h-full object-contain" />
+                    ) : t.frontAssembledUrl ? (
+                      <img src={t.frontAssembledUrl} alt={t.name} className="w-full h-full object-contain" />
                     ) : (
                       <Layers className="w-8 h-8" style={{ color: "rgba(240,192,64,0.2)" }} />
                     )}
@@ -1441,12 +1443,12 @@ export default function PetDatabasePanel({
                     </div>
                   )}
                   <div className="flex gap-1">
-                    {t.frontAssembled && (
+                    {(t.hasFrontAssembled || t.frontAssembledUrl) && (
                       <span className="font-fantasy text-[7px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(127,255,212,0.1)", color: "#7fbfb0", border: "1px solid rgba(127,255,212,0.2)" }}>
                         Front ✓
                       </span>
                     )}
-                    {t.backAssembled && (
+                    {(t.hasBackAssembled || t.backAssembledUrl) && (
                       <span className="font-fantasy text-[7px] px-1.5 py-0.5 rounded-full" style={{ background: "rgba(127,200,255,0.1)", color: "#7fbfff", border: "1px solid rgba(127,200,255,0.2)" }}>
                         Side ✓
                       </span>

@@ -341,7 +341,7 @@ export default function PvpBattlePage({
   const [hoveredAllyUid, setHoveredAllyUid] = useState<string | null>(null);
 
   const { data: myInventory = [] } = useQuery<any[]>({ queryKey: ["/api/inventory"] });
-  const { data: templateMetaList = [] } = useQuery<{ id: string; frontAssembled: string | null; backAssembled: string | null }[]>({
+  const { data: templateMetaList = [] } = useQuery<{ id: string; frontAssembledUrl: string | null; backAssembledUrl: string | null }[]>({
     queryKey: ["/api/pet-templates/meta"],
   });
   const templateAssembled = useMemo(
@@ -436,7 +436,7 @@ export default function PvpBattlePage({
         uid: nextUid(), invId: e.id,
         name: invItem.petNickname || invItem.name || "Pet",
         // World battle should use the hatched still image, matching Murk Cave.
-        imageUrl: (invItem.petTemplateId && templateAssembled[invItem.petTemplateId]?.frontAssembled)
+        imageUrl: (invItem.petTemplateId && templateAssembled[invItem.petTemplateId]?.frontAssembledUrl)
           || invItem.hatchedImageUrl || invItem.imageUrl || null,
         petTemplateId: invItem.petTemplateId ?? null,
         starRarity: invItem.starRarity ?? 1,
@@ -463,7 +463,7 @@ export default function PvpBattlePage({
         uid: nextUid(), invId: p.inventoryId || p.id,
         name: p.petNickname || p.name || "Foe",
         // World battle should use the hatched still image, matching Murk Cave.
-        imageUrl: (p.petTemplateId && templateAssembled[p.petTemplateId]?.frontAssembled)
+        imageUrl: (p.petTemplateId && templateAssembled[p.petTemplateId]?.frontAssembledUrl)
           || p.hatchedImageUrl || p.imageUrl || null,
         petTemplateId: p.petTemplateId ?? null,
         starRarity: p.starRarity ?? 1,
