@@ -11,7 +11,6 @@ import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 interface RaidLeaderboardEntry {
   userId: number;
   username: string;
-  displayName: string | null;
   profileImage: string | null;
   totalDamage: number;
 }
@@ -90,7 +89,7 @@ function PlayerRow({ entry, rank, isLast }: { entry: RaidLeaderboardEntry; rank:
 
       {/* Name */}
       <div style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.92)", fontFamily: "Lora, serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {entry.displayName || entry.username}
+        {entry.username}
       </div>
 
       {/* Damage */}

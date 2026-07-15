@@ -1259,16 +1259,18 @@ export async function registerRoutes(
   app.get("/api/raid/leaderboard", async (_req, res) => {
     try {
       const rows: any = await db.execute(sql`
-        SELECT u.id AS "userId", u.username, u.display_name AS "displayName",
+        SELECT u.id AS "userId", u.username,
                u.profile_image AS "profileImage",
                COALESCE(u.raid_total_damage, 0) AS "totalDamage"
         FROM users u
         WHERE COALESCE(u.raid_total_damage, 0) > 0
-        ORDER BY "totalDamage" DESC
+          AND (u.is_admin IS NULL OR u.is_admin = false)
+        ORDER BY COALESCE(u.raid_total_damage, 0) DESC
         LIMIT 10000
       `);
       return res.json({ top: rows.rows ?? rows });
-    } catch {
+    } catch (err) {
+      console.error("Raid leaderboard error:", err);
       return res.json({ top: [] });
     }
   });
