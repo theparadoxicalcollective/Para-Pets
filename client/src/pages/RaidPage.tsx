@@ -103,8 +103,20 @@ export default function RaidPage() {
   // see live data even if the TanStack cache is stale from a previous session.
   useEffect(() => { refetchRaidBoss(); }, []);
 
+  const raidTicketCount = (inventory as any[])
+    .filter(i => i.specialType === "raid_ticket")
+    .reduce((s, i) => s + (i.quantity ?? 1), 0);
+
   const handleStartBattle = () => {
     if (startingBattleRef.current) return;
+    if (raidTicketCount <= 0) {
+      toast({
+        title: "No Raid Tickets",
+        description: "You need Raid Tickets to enter a battle. Claim your daily reward to get more!",
+        variant: "destructive",
+      });
+      return;
+    }
     startingBattleRef.current = true;
     setStartingBattle(true);
     startBattleMutation.mutate();
@@ -634,16 +646,13 @@ export default function RaidPage() {
             />
           </button>
 
-          {/* Right: raid ticket count — image + "×N / 100" inline */}
+          {/* Right: raid ticket count — image + "×N / 25" inline */}
           {(() => {
-            const count = (inventory as any[])
-              .filter(i => i.specialType === "raid_ticket")
-              .reduce((s, i) => s + (i.quantity ?? 1), 0);
             return (
               <div data-testid="raid-ticket-count" style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6 }}>
                 <img src={raidTicketImg} alt="Raid Ticket" style={{ width: 48, height: "auto", objectFit: "contain", filter: "drop-shadow(0 3px 10px rgba(0,0,0,0.7))" }} draggable={false} />
-                <div style={{ fontFamily: "Lora, serif", fontSize: 14, fontWeight: "bold", color: "#f0c040", textShadow: "0 1px 6px rgba(0,0,0,0.9)", letterSpacing: "0.04em", lineHeight: 1 }}>
-                  ×{count}<span style={{ color: "rgba(240,192,40,0.55)", fontSize: 11, fontWeight: "normal" }}> / 100</span>
+                <div style={{ fontFamily: "Lora, serif", fontSize: 14, fontWeight: "bold", color: raidTicketCount === 0 ? "#f87171" : "#f0c040", textShadow: "0 1px 6px rgba(0,0,0,0.9)", letterSpacing: "0.04em", lineHeight: 1 }}>
+                  ×{raidTicketCount}<span style={{ color: "rgba(240,192,40,0.55)", fontSize: 11, fontWeight: "normal" }}> / 25</span>
                 </div>
               </div>
             );
@@ -696,15 +705,10 @@ export default function RaidPage() {
               const isActiveSlot = i === 0;
               const isActivePetHere = isActiveSlot && !!activePetId && invId === activePetId;
               return (
-                <button
+                <div
                   key={i}
                   data-testid={`div-raid-pet-slot-${i}`}
-                  onClick={() => {
-                    if (isActivePetHere) return;
-                    if (inv) togglePet(invId);
-                    else setPickerOpen("pet");
-                  }}
-                  className="relative rounded-xl flex items-center justify-center transition-all active:scale-95 min-w-0"
+                  className="relative rounded-xl flex items-center justify-center min-w-0"
                   style={{
                     aspectRatio: "1 / 1",
                     background: isActivePetHere
@@ -720,7 +724,11 @@ export default function RaidPage() {
                       : inv
                         ? "0 0 10px rgba(240,80,40,0.18)"
                         : undefined,
-                    cursor: "pointer",
+                    cursor: inv && !isActivePetHere ? "default" : "pointer",
+                  }}
+                  onClick={() => {
+                    if (isActivePetHere) return;
+                    if (!inv) setPickerOpen("pet");
                   }}
                 >
                   {inv ? (
@@ -755,7 +763,28 @@ export default function RaidPage() {
                       ACTIVE
                     </div>
                   )}
-                </button>
+                  {/* ✕ remove button — only on filled non-active slots.
+                      Separate from the slot click so touch-through from the
+                      picker overlay can never accidentally remove a pet. */}
+                  {inv && !isActivePetHere && (
+                    <button
+                      data-testid={`button-raid-pet-remove-${i}`}
+                      onPointerDown={e => { e.stopPropagation(); togglePet(invId); }}
+                      style={{
+                        position: "absolute", top: 2, right: 2,
+                        width: 16, height: 16, borderRadius: "50%",
+                        background: "rgba(180,30,10,0.85)",
+                        border: "1px solid rgba(255,100,60,0.6)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        cursor: "pointer", padding: 0,
+                        fontSize: 9, color: "#fff", fontWeight: "bold", lineHeight: 1,
+                        zIndex: 5,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               );
             })}
           </div>
