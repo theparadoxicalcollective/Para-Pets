@@ -2141,12 +2141,12 @@ img[data-interactive], button img, a img {
   to   { transform: translateY(-1.5%) rotate(-0.5deg); }
 }
 @keyframes petBatLeftEar {
-  from { transform: rotate(-1.5deg); }
-  to   { transform: rotate( 1.5deg); }
+  from { transform: rotate(-0.8deg); }
+  to   { transform: rotate( 0.8deg); }
 }
 @keyframes petBatRightEar {
-  from { transform: rotate( 1.5deg); }
-  to   { transform: rotate(-1.5deg); }
+  from { transform: rotate( 0.8deg); }
+  to   { transform: rotate(-0.8deg); }
 }
 @keyframes petIdleLeftArm {
   from { transform: rotate(-2deg); }

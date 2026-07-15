@@ -2344,9 +2344,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                 const isAboveHeadMarionette = mode === "idle" && idleStyle === "marionette" && part.partType === "above_head";
                 // Bat style (idleStyle === "bat", e.g. Cherubats): swap idle ear
                 // animations to petBatLeftEar / petBatRightEar so the ears pivot
-                // subtly at their base instead of bobbing up. The pivot origin
-                // "50% 100%" anchors the rotation at the bottom of the ear image
-                // (the attachment point), giving a natural hinge effect.
+                // subtly at their base instead of bobbing up.
                 // Strip h2_/h3_ prefix so the check works for all head sets.
                 const barePartType = part.partType.replace(/^h[23]_/, "");
                 const isBatLeftEar  = mode === "idle" && idleStyle === "bat" && (barePartType === "left_ear"  || barePartType === "left_ear_2");
@@ -2357,9 +2355,22 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                   isAboveHeadMarionette && partAnimName === "petAboveHeadBounce"
                     ? "petAboveHeadBounceMarionette"
                     : partAnimName;
-                const batEarOrigin = (isBatLeftEar || isBatRightEar) ? "50% 100%" : undefined;
+                // Use alpha-bounds-adjusted pivot for bat ears so the rotation
+                // anchors at the visible base of the wing, not the image-box
+                // bottom (which includes transparent padding and shifts the
+                // pivot below the head, amplifying the sweep at the tip).
+                // Falls back to "50% 100%" via FULL_BOUNDS until the async
+                // alpha scan resolves on first render.
+                let batEarOrigin: string | undefined;
+                if (isBatLeftEar || isBatRightEar) {
+                  const earAb = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
+                  const bx = (earAb.left + earAb.width  * 0.5) * 100;
+                  const by = (earAb.top  + earAb.height * 1.0) * 100;
+                  batEarOrigin = `${bx.toFixed(2)}% ${by.toFixed(2)}%`;
+                }
                 const aboveHeadDelay = isAboveHeadMarionette && bodyBreathDelay !== undefined ? bodyBreathDelay : delay;
-                return renderPartImg(part, resolvedPartAnimName, undefined, aboveHeadDelay, batEarOrigin, undefined, isAboveHeadMarionette ? "4.5s" : undefined);
+                const durationOverride = isAboveHeadMarionette ? "4.5s" : (isBatLeftEar || isBatRightEar) ? "5s" : undefined;
+                return renderPartImg(part, resolvedPartAnimName, undefined, aboveHeadDelay, batEarOrigin, undefined, durationOverride);
               })}
             </div>
           );
