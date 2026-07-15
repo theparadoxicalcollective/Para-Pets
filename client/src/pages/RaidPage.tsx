@@ -390,8 +390,14 @@ export default function RaidPage() {
               {/* Boss pet — below the stars, clickable to start battle */}
               <div style={{ position: "relative" }}>
                 <div
-                  style={{ width: 300, height: 300, cursor: startingBattle ? "wait" : "pointer", opacity: startingBattle ? 0.7 : 1, transition: "opacity 0.2s" }}
-                  onClick={handleStartBattle}
+                  style={{
+                    width: 300, height: 300,
+                    cursor: (startingBattle || raidBossData.hp <= 0) ? "default" : "pointer",
+                    opacity: startingBattle ? 0.7 : 1,
+                    transition: "opacity 0.2s",
+                    position: "relative",
+                  }}
+                  onClick={raidBossData.hp > 0 ? handleStartBattle : undefined}
                   data-testid="button-start-raid-battle"
                 >
                   <PetAnimator
@@ -400,6 +406,22 @@ export default function RaidPage() {
                     size={300}
                     fitVisible
                   />
+                  {/* Boss Defeated overlay */}
+                  {raidBossData.hp <= 0 && (
+                    <div style={{
+                      position: "absolute", inset: 0,
+                      background: "rgba(4,2,10,0.72)",
+                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                      borderRadius: 8,
+                    }}>
+                      <div style={{ fontFamily: "Lora, serif", fontSize: 22, fontWeight: "bold", color: "#f87171", letterSpacing: "0.18em", textShadow: "0 0 20px rgba(248,113,113,0.6)" }}>
+                        DEFEATED
+                      </div>
+                      <div style={{ fontFamily: "Lora, serif", fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 6, letterSpacing: "0.1em" }}>
+                        Wait for the next raid boss
+                      </div>
+                    </div>
+                  )}
                 </div>
                 {/* Admin: clear boss button in corner */}
                 {isAdmin && (

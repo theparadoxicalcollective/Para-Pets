@@ -1276,12 +1276,30 @@ export async function registerRoutes(
   // ── Raid: consume 1 ticket and start a battle session ─────────────────────
   const RAID_TICKET_ITEM_ID = "a1b2c3d4-9002-4000-8000-000000000099";
 
-  app.post("/api/raid/start-battle", async (req, res) => {
+  app.post("/api/raid/start-battle", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any)?.id;
       if (!userId) return res.status(401).json({ message: "Not logged in" });
 
-      // Deduct 1 ticket atomically — only succeeds if quantity > 0
+      // ── 1. Verify the raid boss is alive before spending a ticket ──────────
+      const bossRow: any = await db.execute(sql`
+        SELECT value::INTEGER AS hp FROM game_settings WHERE key = 'raid_boss_hp'
+      `);
+      const bossHp = ((bossRow.rows ?? bossRow)[0]?.hp ?? 0) as number;
+      if (bossHp <= 0) {
+        return res.status(400).json({ message: "The Raid Boss has already been defeated!" });
+      }
+
+      // ── 2. Verify the boss template is actually set ────────────────────────
+      const bossTemplateRow: any = await db.execute(sql`
+        SELECT value FROM game_settings WHERE key = 'raid_boss_template_id'
+      `);
+      const bossTemplateId = (bossTemplateRow.rows ?? bossTemplateRow)[0]?.value as string | null;
+      if (!bossTemplateId) {
+        return res.status(400).json({ message: "No Raid Boss is active right now." });
+      }
+
+      // ── 3. Deduct 1 ticket atomically — only succeeds if quantity > 0 ──────
       const result: any = await db.execute(sql`
         UPDATE user_inventory
         SET quantity = quantity - 1
@@ -1295,7 +1313,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "No raid tickets remaining" });
       }
       const remaining = rows[0].quantity as number;
-      return res.json({ success: true, remaining });
+      return res.json({ success: true, remaining, bossHp });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

@@ -142,6 +142,21 @@ export default function RaidBattlePage() {
     // Guard: only ever run init once per mount. Prevents inventory/raidBoss
     // refetches from resetting the battle mid-countdown.
     if (initDoneRef.current) return;
+
+    // If raidBoss has loaded but is invalid, redirect immediately rather than
+    // showing "Preparing battle…" forever. The server should have caught this
+    // before deducting the ticket, but guard here too.
+    if (raidBoss !== undefined) {
+      if (!raidBoss?.templateId) {
+        navigate("/raid");
+        return;
+      }
+      if (raidBoss.hp <= 0) {
+        navigate("/raid");
+        return;
+      }
+    }
+
     if (!raidBoss?.templateId || !(inventory as any[]).length) return;
 
     const petIds: string[] = (() => {
