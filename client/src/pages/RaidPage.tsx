@@ -78,7 +78,13 @@ export default function RaidPage() {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Write the server-confirmed boss HP to localStorage so the battle page
+      // can use these values instead of the potentially stale TanStack Query cache
+      // (which may show hp=0 from a previous battle that was already completed).
+      localStorage.setItem("raid_session_boss_hp", String(data.bossHp ?? 0));
+      localStorage.setItem("raid_session_boss_max_hp", String(data.bossMaxHp ?? data.bossHp ?? 0));
+      queryClient.invalidateQueries({ queryKey: ["/api/raid-boss"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       navigate("/raid/battle");
     },
@@ -87,6 +93,10 @@ export default function RaidPage() {
       toast({ title: "Can't start raid", description: err.message ?? "No raid tickets remaining", variant: "destructive" });
     },
   });
+
+  // Force-refresh boss HP whenever the player opens the Raid page so they always
+  // see live data even if the TanStack cache is stale from a previous session.
+  useEffect(() => { refetchRaidBoss(); }, []);
 
   const handleStartBattle = () => {
     if (startingBattle) return;

@@ -1299,7 +1299,13 @@ export async function registerRoutes(
         return res.status(400).json({ message: "No Raid Boss is active right now." });
       }
 
-      // ── 3. Deduct 1 ticket atomically — only succeeds if quantity > 0 ──────
+      // ── 3. Also fetch maxHp so the battle page can build the HP bar correctly
+      const maxHpRow: any = await db.execute(sql`
+        SELECT value::INTEGER AS max_hp FROM game_settings WHERE key = 'raid_boss_max_hp'
+      `);
+      const bossMaxHp = ((maxHpRow.rows ?? maxHpRow)[0]?.max_hp ?? bossHp) as number;
+
+      // ── 4. Deduct 1 ticket atomically — only succeeds if quantity > 0 ──────
       const result: any = await db.execute(sql`
         UPDATE user_inventory
         SET quantity = quantity - 1
@@ -1313,7 +1319,11 @@ export async function registerRoutes(
         return res.status(400).json({ message: "No raid tickets remaining" });
       }
       const remaining = rows[0].quantity as number;
-      return res.json({ success: true, remaining, bossHp });
+
+      // Bust the server-side cache so the next GET /api/raid-boss reflects real HP
+      _raidBossCache = null;
+
+      return res.json({ success: true, remaining, bossHp, bossMaxHp });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

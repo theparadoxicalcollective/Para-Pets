@@ -143,20 +143,20 @@ export default function RaidBattlePage() {
     // refetches from resetting the battle mid-countdown.
     if (initDoneRef.current) return;
 
-    // If raidBoss has loaded but is invalid, redirect immediately rather than
-    // showing "Preparing battle…" forever. The server should have caught this
-    // before deducting the ticket, but guard here too.
-    if (raidBoss !== undefined) {
-      if (!raidBoss?.templateId) {
-        navigate("/raid");
-        return;
-      }
-      if (raidBoss.hp <= 0) {
-        navigate("/raid");
-        return;
-      }
+    // Validate the battle session written by RaidPage right before navigating here.
+    // We intentionally do NOT use raidBoss.hp from the TanStack cache — that cache
+    // can show hp=0 from a previous battle (staleTime:Infinity means it never
+    // auto-refreshes) and would cause an instant bad redirect even when the boss
+    // is alive on the server.
+    const sessionHp    = parseInt(localStorage.getItem("raid_session_boss_hp")     || "0", 10);
+    const sessionMaxHp = parseInt(localStorage.getItem("raid_session_boss_max_hp") || "0", 10) || sessionHp;
+    if (sessionHp <= 0) {
+      // No valid session — user navigated here directly or the session is stale.
+      navigate("/raid");
+      return;
     }
 
+    // Wait for raidBoss templateId (needed for PetAnimator) and inventory to load.
     if (!raidBoss?.templateId || !(inventory as any[]).length) return;
 
     const petIds: string[] = (() => {
@@ -182,11 +182,15 @@ export default function RaidBattlePage() {
     petsRef.current = pets;
     setMyPets(pets);
 
-    // Store real server boss HP for the display bar
-    serverBossHpRef.current    = raidBoss.hp;
-    serverBossMaxHpRef.current = raidBoss.maxHp;
+    // Use the server-confirmed HP from the session rather than the stale cache.
+    serverBossHpRef.current    = sessionHp;
+    serverBossMaxHpRef.current = sessionMaxHp;
     totalDmgRef.current = 0;
-    setDisplayBossHp(raidBoss.hp);
+    setDisplayBossHp(sessionHp);
+
+    // Clear session keys so they can't be accidentally reused across reloads.
+    localStorage.removeItem("raid_session_boss_hp");
+    localStorage.removeItem("raid_session_boss_max_hp");
 
     // Load potions
     const slots: BattlePotionSlot[] = (() => {
