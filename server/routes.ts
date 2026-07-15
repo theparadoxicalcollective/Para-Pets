@@ -1238,14 +1238,16 @@ export async function registerRoutes(
         _raidBossCache = { templateId: null, rarity: null, name: null, hp: 0, maxHp: 0, at: now };
         return res.json({ templateId: null, rarity: null, name: null, hp: 0, maxHp: 0 });
       }
-      const [template, hpStr, maxHpStr] = await Promise.all([
+      const [template, hpStr, maxHpStr, shopRow] = await Promise.all([
         storage.getPetTemplate(templateId),
         storage.getGameSetting("raid_boss_hp"),
         storage.getGameSetting("raid_boss_max_hp"),
+        db.execute(sql`SELECT rarity FROM shop_items WHERE pet_template_id = ${templateId} AND type = 'pet' LIMIT 1`),
       ]);
       const maxHp = maxHpStr ? parseInt(maxHpStr, 10) : 10000;
       const hp = hpStr ? parseInt(hpStr, 10) : maxHp;
-      const result = { templateId, rarity: template?.rarity ?? null, name: template?.name ?? null, hp, maxHp };
+      const rarity: number | null = (shopRow.rows[0]?.rarity as number | null) ?? null;
+      const result = { templateId, rarity, name: template?.name ?? null, hp, maxHp };
       _raidBossCache = { ...result, at: now };
       return res.json(result);
     } catch {

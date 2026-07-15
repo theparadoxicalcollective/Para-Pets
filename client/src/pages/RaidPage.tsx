@@ -335,10 +335,12 @@ export default function RaidPage() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, width: "100%" }}>
           {raidBossData?.templateId ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-              {/* Stars — above the boss */}
-              <div style={{ display: "flex", justifyContent: "center", gap: 4 }}>
+              {/* Stars — curved arc above the boss */}
+              <div style={{ display: "flex", justifyContent: "center", gap: 4, alignItems: "flex-end" }}>
                 {Array.from({ length: 5 }).map((_, i) => {
                   const filled = i < (raidBossData.rarity || 0);
+                  // Arc: outer stars drop down, centre star is highest
+                  const arcY = [14, 6, 0, 6, 14][i];
                   return (
                     <img
                       key={i}
@@ -347,6 +349,7 @@ export default function RaidPage() {
                       width={40}
                       height={40}
                       style={{
+                        transform: `translateY(${arcY}px)`,
                         opacity: filled ? 1 : 0.15,
                         filter: filled
                           ? "drop-shadow(0 0 5px rgba(240,80,40,0.9)) drop-shadow(0 0 10px rgba(220,40,20,0.6))"
@@ -422,7 +425,7 @@ export default function RaidPage() {
                 {/* HP text — sit inside the fill band */}
                 <div style={{
                   position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                  paddingTop: "4%",
+                  paddingTop: "2%",
                   zIndex: 2, fontFamily: "Lora, serif", fontSize: 11, color: "#fff",
                   textShadow: "0 1px 3px rgba(0,0,0,0.9)", letterSpacing: "0.05em",
                 }}>

@@ -430,12 +430,15 @@ export default function RaidBattlePage() {
           {/* ── BOSS section ── */}
           <div style={{ paddingTop: 54, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
 
-            {/* Rarity stars */}
-            <div style={{ display: "flex", gap: 3 }}>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <img key={i} src={starImg} alt="" width={26} height={26}
-                  style={{ opacity: i < rarity ? 1 : 0.14, filter: i < rarity ? "drop-shadow(0 0 6px rgba(240,80,40,0.9))" : "grayscale(1)" }} />
-              ))}
+            {/* Rarity stars — curved arc */}
+            <div style={{ display: "flex", gap: 3, alignItems: "flex-end" }}>
+              {Array.from({ length: 5 }).map((_, i) => {
+                const arcY = [9, 4, 0, 4, 9][i];
+                return (
+                  <img key={i} src={starImg} alt="" width={26} height={26}
+                    style={{ transform: `translateY(${arcY}px)`, opacity: i < rarity ? 1 : 0.14, filter: i < rarity ? "drop-shadow(0 0 6px rgba(240,80,40,0.9))" : "grayscale(1)" }} />
+                );
+              })}
             </div>
 
             {/* Boss name */}
@@ -461,7 +464,7 @@ export default function RaidBattlePage() {
               {/* HP text — sit inside the fill band */}
               <div style={{
                 position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                paddingTop: "4%",
+                paddingTop: "2%",
                 zIndex: 2, fontFamily: "Lora, serif", fontSize: 10, color: "#fff",
                 textShadow: "0 1px 4px rgba(0,0,0,0.9)", letterSpacing: "0.04em",
               }}>
