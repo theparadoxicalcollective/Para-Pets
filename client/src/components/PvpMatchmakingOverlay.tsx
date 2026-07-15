@@ -157,21 +157,6 @@ export default function PvpMatchmakingOverlay({
       />
       <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at center, rgba(4,18,10,0.55) 0%, rgba(2,4,10,0.92) 80%)" }} />
 
-      {/* Inline keyframes — keeps this component self-contained so we
-          don't have to plumb global CSS for a one-off screen. */}
-      <style>{`
-        @keyframes mmRingSpin  { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes mmRingSpinR { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
-        @keyframes mmPulse     { 0%,100% { transform: scale(1); opacity: 0.55; } 50% { transform: scale(1.08); opacity: 1; } }
-        @keyframes mmRadar     { 0% { transform: rotate(0deg); opacity: 0.85; } 100% { transform: rotate(360deg); opacity: 0.85; } }
-        @keyframes mmFloat     { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-        @keyframes mmFlashIn   { 0% { transform: scale(0.4); opacity: 0; } 55% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
-        @keyframes mmSlideL    { 0% { transform: translateX(-120%); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
-        @keyframes mmSlideR    { 0% { transform: translateX( 120%); opacity: 0; } 100% { transform: translateX(0); opacity: 1; } }
-        @keyframes mmShockwave { 0% { transform: scale(0.3); opacity: 0.8; } 100% { transform: scale(3.4); opacity: 0; } }
-        @keyframes mmChargeOut { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.35); } }
-        @keyframes mmSparkle   { 0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.2); opacity: 0; } }
-      `}</style>
 
       {/* Cancel — small so it doesn't steal focus from the animation. */}
       <button

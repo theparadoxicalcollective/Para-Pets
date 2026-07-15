@@ -49,17 +49,6 @@ const TIER_CONFIG = {
   },
 };
 
-const sparkleStyle = `
-@keyframes orb-pulse {
-  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.85; filter: drop-shadow(0 0 5px rgba(217,70,239,0.8)); }
-  33%       { transform: scale(1.25) rotate(120deg); opacity: 1;    filter: drop-shadow(0 0 10px rgba(217,70,239,1)); }
-  66%       { transform: scale(0.9)  rotate(240deg); opacity: 0.75; filter: drop-shadow(0 0 4px rgba(246,220,138,0.9)); }
-}
-@keyframes legendary-shimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-`;
 
 export default function FoundersPage() {
   const { toast } = useToast();
@@ -226,7 +215,6 @@ export default function FoundersPage() {
       }}
       data-testid="founders-page"
     >
-      <style>{sparkleStyle}</style>
       <div
         aria-hidden
         className="fixed inset-0 pointer-events-none"

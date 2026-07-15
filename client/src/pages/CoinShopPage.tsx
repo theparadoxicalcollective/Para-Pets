@@ -94,73 +94,6 @@ function styleForCoins(coins: number): PackStyle {
   };
 }
 
-const fireflyKeyframes = `
-@keyframes coinSpin {
-  0% { transform: rotateY(0deg) scale(1); }
-  50% { transform: rotateY(180deg) scale(1.15); }
-  100% { transform: rotateY(360deg) scale(1); }
-}
-@keyframes modalScaleIn {
-  0% { transform: scale(0.7) translateY(20px); opacity: 0; }
-  60% { transform: scale(1.04) translateY(-4px); opacity: 1; }
-  100% { transform: scale(1) translateY(0); opacity: 1; }
-}
-@keyframes coinGlowPulse {
-  0%, 100% { filter: drop-shadow(0 0 18px rgba(240,192,64,0.9)) drop-shadow(0 0 40px rgba(240,192,64,0.5)); }
-  50% { filter: drop-shadow(0 0 30px rgba(240,192,64,1)) drop-shadow(0 0 70px rgba(240,192,64,0.7)) drop-shadow(0 0 100px rgba(240,192,64,0.3)); }
-}
-@keyframes shimmerText {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-@keyframes overlayFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes fireflyDrift1 {
-  0% { transform: translate(0, 0) scale(1); opacity: 0; }
-  10% { opacity: 1; }
-  50% { transform: translate(60px, -80px) scale(1.3); opacity: 0.8; }
-  90% { opacity: 1; }
-  100% { transform: translate(-20px, -160px) scale(0.8); opacity: 0; }
-}
-@keyframes fireflyDrift2 {
-  0% { transform: translate(0, 0) scale(0.8); opacity: 0; }
-  15% { opacity: 0.9; }
-  50% { transform: translate(-70px, -60px) scale(1.2); opacity: 0.7; }
-  85% { opacity: 0.9; }
-  100% { transform: translate(30px, -140px) scale(1); opacity: 0; }
-}
-@keyframes fireflyDrift3 {
-  0% { transform: translate(0, 0) scale(1.1); opacity: 0; }
-  20% { opacity: 0.8; }
-  50% { transform: translate(40px, -100px) scale(0.9); opacity: 1; }
-  80% { opacity: 0.7; }
-  100% { transform: translate(-40px, -180px) scale(1.2); opacity: 0; }
-}
-@keyframes fireflyDrift4 {
-  0% { transform: translate(0, 0) scale(0.9); opacity: 0; }
-  12% { opacity: 1; }
-  50% { transform: translate(-50px, -70px) scale(1.1); opacity: 0.6; }
-  88% { opacity: 0.8; }
-  100% { transform: translate(20px, -120px) scale(0.7); opacity: 0; }
-}
-@keyframes fireflyDrift5 {
-  0% { transform: translate(0, 0) scale(1); opacity: 0; }
-  18% { opacity: 0.7; }
-  50% { transform: translate(80px, -50px) scale(1.4); opacity: 0.9; }
-  82% { opacity: 0.6; }
-  100% { transform: translate(-10px, -130px) scale(0.9); opacity: 0; }
-}
-@keyframes titleGlow {
-  0%, 100% { filter: drop-shadow(0 0 15px rgba(127,255,212,0.5)) drop-shadow(0 0 30px rgba(74,222,128,0.3)); }
-  50% { filter: drop-shadow(0 0 25px rgba(127,255,212,0.7)) drop-shadow(0 0 50px rgba(74,222,128,0.5)); }
-}
-@keyframes cardPulse {
-  0%, 100% { box-shadow: var(--card-glow); }
-  50% { box-shadow: var(--card-glow-bright); }
-}
-`;
 
 const fireflies = [
   { left: "15%", bottom: "60%", animation: "fireflyDrift1 6s ease-in-out infinite", color: "rgba(180,255,200,0.9)", size: 4 },
@@ -420,8 +353,6 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
   return (
     <div style={{ position: "absolute", inset: 0, overflowY: "auto", overflowX: "hidden", background: "linear-gradient(180deg, #040d04 0%, #071a0a 15%, #0d2510 40%, #081a0d 65%, #051208 85%, #040d04 100%)", paddingTop: "env(safe-area-inset-top, 0px)" }}>
-      <style>{fireflyKeyframes}</style>
-
       <div style={{
         position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
         background: "radial-gradient(ellipse at 30% 20%, rgba(74,222,128,0.06) 0%, transparent 60%), radial-gradient(ellipse at 70% 80%, rgba(127,255,212,0.04) 0%, transparent 50%)"

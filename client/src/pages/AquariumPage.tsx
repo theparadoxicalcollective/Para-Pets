@@ -548,32 +548,6 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
       onPointerMove={onContainerPointerMove}
       onPointerUp={onContainerPointerUp}
     >
-      <style>{`
-        @keyframes aqSlideIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes aqPanelUp { from { transform:translateY(100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
-        @keyframes aquaBubbleRise {
-          0%   { transform: translateY(0)    translateX(0px);   opacity: 0;    }
-          8%   { opacity: 0.55; }
-          45%  { transform: translateY(calc(-38*var(--vh))) translateX(4px);  opacity: 0.45; }
-          55%  { transform: translateY(calc(-46*var(--vh))) translateX(-3px); opacity: 0.38; }
-          80%  { transform: translateY(calc(-66*var(--vh))) translateX(2px);  opacity: 0.22; }
-          100% { transform: translateY(calc(-84*var(--vh))) translateX(0px);  opacity: 0;    }
-        }
-        @keyframes fishTailWag   { from { transform: scaleX(0.95); } to { transform: scaleX(1.0); } }
-        @keyframes fishFinUp     { from { transform: rotate(-3deg); } to { transform: rotate(2deg);  } }
-        @keyframes fishFinDown   { from { transform: rotate(0deg);  } to { transform: rotate(2.5deg); } }
-        @keyframes fishHeadFin   { from { transform: rotate(-3deg) translateY(-1px); } to { transform: rotate(2deg) translateY(2px); } }
-        @keyframes fishTopFinSway { from { transform: rotate(-1deg); } to { transform: rotate(0.5deg); } }
-        @keyframes fishSideFin    { from { transform: rotate(-6deg); } to { transform: rotate(8deg);  } }
-        @keyframes fishLimbSwayA  { from { transform: rotate(-7deg); } to { transform: rotate(7deg);  } }
-        @keyframes fishLimbSwayB  { from { transform: rotate(6deg);  } to { transform: rotate(-6deg); } }
-        @keyframes fishTailSegA   { from { transform: rotate(-5deg); } to { transform: rotate(5deg);  } }
-        @keyframes fishTailSegB   { from { transform: rotate(4deg);  } to { transform: rotate(-4deg); } }
-        @keyframes fishBlink      { 0%,92%,100% { opacity:1; } 95%,97% { opacity:0; } }
-        @keyframes aqLockPulse    { 0%,100% { opacity:0.85; transform:scale(1); } 50% { opacity:1; transform:scale(1.04); } }
-        @keyframes aqStarPop      { 0% { transform:scale(1); } 50% { transform:scale(1.35); } 100% { transform:scale(1); } }
-      `}</style>
-
       {/* Backgrounds — all three stacked, cross-fade via opacity so there's no flash on switch */}
       {([["main", aquariumBg], ["bayou", bayouAquariumBg], ["volcanic", volcanicAquariumBg]] as const).map(([slot, src]) => (
         <img

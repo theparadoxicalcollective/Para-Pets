@@ -116,12 +116,6 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
         fontFamily: "Georgia, serif",
       }}
     >
-      <style>{`
-        @keyframes wgFadeIn { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-        @keyframes wgPulse { 0%,100% { opacity:0.6; } 50% { opacity:1; } }
-        @keyframes wgBounce { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-4px); } }
-      `}</style>
-
       {phase === "loading" ? (
         <div className="flex flex-col items-center gap-3">
           <img

@@ -781,17 +781,11 @@ function PetsBanner() {
           background: "linear-gradient(90deg,rgba(5,10,6,1) 0%,transparent 7%,transparent 93%,rgba(5,10,6,1) 100%)",
         }} />
 
-        <style>{`
-          @keyframes petsBannerScroll {
-            from { transform: translateX(0); }
-            to   { transform: translateX(-${oneSetW}px); }
-          }
-        `}</style>
-
         <div style={{
           display: "flex",
           gap: BANNER_GAP,
           width: "max-content",
+          ["--banner-scroll-end" as any]: `-${oneSetW}px`,
           animation: `petsBannerScroll ${duration}s linear infinite`,
           willChange: "transform",
         }}>

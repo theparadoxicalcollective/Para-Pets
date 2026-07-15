@@ -10,25 +10,6 @@ import raidCloseImg  from "@assets/Photoroom_20260711_90748_PM_1783822223263.png
 import starImg       from "@assets/Photoroom_20260331_20947_PM_1774984267132.png";
 import raidHpFrameImg from "@assets/Photoroom_20260711_31007_PM_1783820810778.png";
 
-// ── One-time keyframe injection (module-level flag prevents iOS duplicates) ───
-let _stylesInjected = false;
-function ensureStyles() {
-  if (_stylesInjected || typeof document === "undefined") return;
-  _stylesInjected = true;
-  const s = document.createElement("style");
-  s.textContent = `
-    @keyframes raidLunge   { 0%,100%{transform:translateY(0) scale(1)} 45%{transform:translateY(-32px) scale(1.12)} }
-    @keyframes raidHurt    { 0%,100%{opacity:1;filter:none} 50%{opacity:0.18;filter:brightness(5)} }
-    @keyframes bossHurt    { 0%,100%{filter:none} 50%{filter:brightness(2.6) hue-rotate(200deg)} }
-    @keyframes bossAtk     { 0%,100%{transform:scale(1) translateY(0)} 50%{transform:scale(1.1) translateY(30px)} }
-    @keyframes raidFloat   { from{opacity:1;transform:translateY(0)} to{opacity:0;transform:translateY(-58px)} }
-    @keyframes dropGlow    { 0%,100%{box-shadow:0 0 8px rgba(74,222,128,0.5)} 50%{box-shadow:0 0 22px rgba(74,222,128,0.95)} }
-    @keyframes petBounce   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
-    @keyframes bossIdle    { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-14px) scale(1.02)} }
-  `;
-  document.head.appendChild(s);
-}
-
 // ── Constants ─────────────────────────────────────────────────────────────────
 const POTION_LS_KEY    = "raid:potionSlots:v1";
 const RAID_PETS_LS_KEY = "raid:petIds:v1";
@@ -71,7 +52,6 @@ function hpColor(pct: number) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function RaidBattlePage() {
-  ensureStyles();
   const [, navigate] = useLocation();
   const { toast } = useToast();
 

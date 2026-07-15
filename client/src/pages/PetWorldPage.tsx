@@ -1404,7 +1404,6 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                   {/* Quest arrow — points at this location when shopHint matches */}
                   {shopHintLocId === loc.id && (
                     <>
-                      <style>{`@keyframes world-quest-bob { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-9px)} }`}</style>
                       <img
                         src={questArrowImg}
                         alt=""

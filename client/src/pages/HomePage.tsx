@@ -1287,28 +1287,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         className="w-full flex items-center justify-center"
                         data-testid="button-open-pet-actions"
                       >
-                        <style>{`
-                          /* Grounded idle for the active home pet — NO
-                             translateY anywhere. Just a tiny breath-scale
-                             and a soft brightness pulse so the pet looks
-                             alive without lifting off the platform. The
-                             previous activePetFloat / petImgIdleFly
-                             keyframes (which translated up to 14px) were
-                             still in play whenever shopItem.canFly happened
-                             to be true on the user's pet, which is what
-                             made it look like it kept floating regardless
-                             of our other tweaks. We removed the canFly
-                             branch entirely — on the home stage every
-                             active pet stays planted. */
-                          @keyframes activePetBreath {
-                            0%, 100% { transform: scale(1); filter: brightness(1); }
-                            50% { transform: scale(1.012, 1.018); filter: brightness(1.05); }
-                          }
-                          @keyframes petImgBlink {
-                            0%, 88%, 100% { opacity: 1; }
-                            92%, 96% { opacity: 0.92; }
-                          }
-                        `}</style>
                         {activePet.petTemplateId ? (
                           <div className="w-full flex items-center justify-center">
                             <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
@@ -1702,17 +1680,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               );
               return (
                 <>
-                  <style>{`
-                    @keyframes quest-sparkle-rise {
-                      0%   { transform: translateY(0) scale(1.1); opacity: 1; }
-                      100% { transform: translateY(-36px) scale(0.2); opacity: 0; }
-                    }
-                    @keyframes quest-btn-pulse {
-                      0%,100% { box-shadow: 0 0 8px 4px rgba(74,222,128,0.75), 0 0 20px 8px rgba(74,222,128,0.35); }
-                      50%     { box-shadow: 0 0 18px 8px rgba(74,222,128,1),    0 0 48px 16px rgba(74,222,128,0.55); }
-                    }
-                    @keyframes quest-arrow-bob { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-8px)} }
-                  `}</style>
                   {makeBtn(
                     "Power Up",
                     "button-action-power-up",
@@ -1863,7 +1830,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       {/* ── Quest guide arrow — Phase 1: ring closed, points at the pet ── */}
       {questGuideMode && !showActionMenu && (
         <>
-          <style>{`@keyframes quest-arrow-bob { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-8px)} }`}</style>
           <img
             src={questArrowImg}
             alt=""
@@ -2090,44 +2056,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           </span>
         </div>
       )}
-
-      <style>{`
-        @keyframes hatchFlashBg {
-          0% { background: rgba(255,248,192,0); }
-          10% { background: rgba(255,248,192,0.7); }
-          30% { background: rgba(240,192,64,0.3); }
-          60% { background: rgba(240,192,64,0.1); }
-          100% { background: rgba(0,0,0,0); }
-        }
-        @keyframes hatchOrbDramatic {
-          0% { transform: translate(0, 0) scale(0.2); opacity: 0; }
-          10% { opacity: 1; transform: translate(0, 0) scale(1.2); }
-          100% { transform: translate(var(--endX), var(--endY)) scale(0); opacity: 0; }
-        }
-        @keyframes hatchCenterDramatic {
-          0% { transform: scale(0); opacity: 0; }
-          15% { transform: scale(2.5); opacity: 1; }
-          40% { transform: scale(1.5); opacity: 0.9; }
-          70% { transform: scale(3); opacity: 0.4; }
-          100% { transform: scale(4); opacity: 0; }
-        }
-        @keyframes hatchRevealText {
-          0% { transform: translateY(15px) scale(0.5); opacity: 0; }
-          25% { transform: translateY(0px) scale(1.3); opacity: 1; }
-          50% { transform: translateY(-5px) scale(1); opacity: 1; }
-          80% { transform: translateY(-10px) scale(1); opacity: 1; }
-          100% { transform: translateY(-20px) scale(0.9); opacity: 0; }
-        }
-        @keyframes hatchPetReveal {
-          0%   { transform: scale(0.2) translateY(30px); opacity: 0; filter: brightness(5) drop-shadow(0 0 60px rgba(240,192,64,1)); }
-          18%  { transform: scale(1.18) translateY(-6px); opacity: 1; filter: brightness(2) drop-shadow(0 0 40px rgba(240,192,64,0.9)); }
-          32%  { transform: scale(0.96) translateY(0px); filter: brightness(1.3) drop-shadow(0 0 24px rgba(240,192,64,0.6)); }
-          50%  { transform: scale(1.04) translateY(-3px); opacity: 1; filter: brightness(1) drop-shadow(0 0 12px rgba(240,192,64,0.3)); }
-          72%  { transform: scale(1) translateY(0px); opacity: 1; filter: none; }
-          88%  { opacity: 1; }
-          100% { transform: scale(0.92) translateY(-10px); opacity: 0; filter: none; }
-        }
-      `}</style>
 
       {/* Chat + Support buttons — top-right corner */}
       {!showProfile && !showActionMenu && !activePetModal && (

@@ -434,26 +434,6 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
         </div>
       </div>
 
-      <style>{`
-        @keyframes hatchOrbBurst {
-          0% { transform: translate(0, 0) scale(0.3); opacity: 0; }
-          15% { opacity: 1; transform: translate(0, 0) scale(1); }
-          100% { transform: translate(var(--endX), var(--endY)) scale(0); opacity: 0; }
-        }
-        @keyframes hatchOrbCenter {
-          0% { transform: scale(0); opacity: 0; }
-          20% { transform: scale(1.8); opacity: 1; }
-          50% { transform: scale(1); opacity: 0.8; }
-          100% { transform: scale(2.5); opacity: 0; }
-        }
-        @keyframes hatchTextRise {
-          0% { transform: translateY(8px) scale(0.8); opacity: 0; }
-          30% { transform: translateY(0px) scale(1.1); opacity: 1; }
-          70% { transform: translateY(-4px) scale(1); opacity: 1; }
-          100% { transform: translateY(-12px) scale(0.9); opacity: 0; }
-        }
-      `}</style>
-
       {/* Egg detail sheet — egg at top as drop zone, items below to tap or drag */}
       {speedUpTargetId && speedUpTargetPet && (
         <div className="fixed inset-0 z-[80] flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>

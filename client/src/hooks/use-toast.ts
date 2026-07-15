@@ -150,18 +150,6 @@ function showFlash(isError: boolean) {
     opacity: 0; pointer-events: none;
     animation: toastFlashAnim ${isError ? "1.2s" : "0.8s"} ease-out forwards;
   `;
-  if (!document.getElementById("toast-flash-style")) {
-    const style = document.createElement("style");
-    style.id = "toast-flash-style";
-    style.textContent = `
-      @keyframes toastFlashAnim {
-        0% { opacity: 0; transform: scaleX(0.3); }
-        20% { opacity: 1; transform: scaleX(1); }
-        100% { opacity: 0; transform: scaleX(1); }
-      }
-    `;
-    document.head.appendChild(style);
-  }
   document.body.appendChild(el);
   setTimeout(() => el.remove(), isError ? 1300 : 900);
 }

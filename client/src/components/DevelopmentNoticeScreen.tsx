@@ -28,21 +28,6 @@ export default function DevelopmentNoticeScreen({ onContinue }: DevelopmentNotic
       }}
       data-testid="screen-development-notice"
     >
-      <style>{`
-        @keyframes devNoticeFadeUp {
-          from { opacity: 0; transform: translateY(24px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes devNoticeGlowPulse {
-          0%, 100% { box-shadow: 0 0 32px rgba(212,170,50,0.25), 0 12px 50px rgba(0,0,0,0.7); }
-          50%      { box-shadow: 0 0 44px rgba(212,170,50,0.45), 0 12px 60px rgba(0,0,0,0.75); }
-        }
-        @keyframes devNoticeFirefly {
-          0%, 100% { opacity: 0.35; transform: translateY(0) scale(1); }
-          50%      { opacity: 0.9;  transform: translateY(-6px) scale(1.15); }
-        }
-      `}</style>
-
       {/* Atmospheric darken/vignette overlay */}
       <div
         className="absolute inset-0 pointer-events-none"

@@ -1745,17 +1745,6 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
           className="absolute inset-0 z-[95] flex items-center justify-center pointer-events-none"
           data-testid="popup-ticket-purchase-success"
         >
-          <style>{`
-            @keyframes ticketCelebrationIn {
-              0%   { transform: scale(0.6) translateY(20px); opacity: 0; }
-              60%  { transform: scale(1.08) translateY(0); opacity: 1; }
-              100% { transform: scale(1)    translateY(0); opacity: 1; }
-            }
-            @keyframes ticketCelebrationGlow {
-              0%, 100% { box-shadow: 0 18px 50px rgba(0,0,0,0.7), 0 0 30px rgba(251,191,36,0.45); }
-              50%      { box-shadow: 0 18px 50px rgba(0,0,0,0.7), 0 0 55px rgba(251,191,36,0.85); }
-            }
-          `}</style>
           <div
             onClick={() => setCelebration(null)}
             className="pointer-events-auto cursor-pointer rounded-2xl px-6 py-5 flex flex-col items-center gap-2"

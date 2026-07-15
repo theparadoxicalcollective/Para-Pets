@@ -423,19 +423,6 @@ export default function BeginJourneyOverlay({ user }: Props) {
   if (showReward) {
     return (
       <>
-        <style>{`
-          @keyframes bj-reward-rise {
-            0%   { opacity: 0; transform: translateX(-50%) translateY(20px) scale(0.85); }
-            12%  { opacity: 1; transform: translateX(-50%) translateY(0px)  scale(1.06); }
-            70%  { opacity: 1; transform: translateX(-50%) translateY(0px)  scale(1); }
-            100% { opacity: 0; transform: translateX(-50%) translateY(-30px) scale(0.9); }
-          }
-          @keyframes bj-star-spin {
-            0%   { transform: rotate(0deg) scale(1); }
-            50%  { transform: rotate(180deg) scale(1.2); }
-            100% { transform: rotate(360deg) scale(1); }
-          }
-        `}</style>
         <div style={{
           position: "fixed", inset: 0,
           background: "rgba(0,0,0,0.65)",
@@ -497,17 +484,6 @@ export default function BeginJourneyOverlay({ user }: Props) {
   return (
     <>
       <style>{`
-        @keyframes bj-bounce {
-          0%, 100% { transform: translateY(0px); }
-          50%       { transform: translateY(-10px); }
-        }
-        @keyframes bj-drag-ghost {
-          0%   { opacity: 0;    transform: translate(0, 0) scale(0.7); }
-          12%  { opacity: 1;    transform: translate(0, 0) scale(1); }
-          70%  { opacity: 0.85; transform: translate(0, var(--bj-drag-dy)) scale(1.15); }
-          88%  { opacity: 0;    transform: translate(0, var(--bj-drag-dy)) scale(0.9); }
-          100% { opacity: 0;    transform: translate(0, 0) scale(0.7); }
-        }
         .bj-step5 [data-bj="egg-drop-zone"]   { display: none !important; }
         .bj-step5 [data-bj="speedup-sheet"]   { z-index: 99002 !important; }
         .bj-step5 [data-bj="speedup-backdrop"] { pointer-events: none !important; opacity: 0 !important; }

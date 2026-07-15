@@ -57,50 +57,6 @@ function LevelUpBurst({ newLevel, petName, petTemplateId }: { newLevel: number; 
       className="fixed inset-0 pointer-events-none flex flex-col items-center justify-center z-[999]"
       style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
     >
-      <style>{`
-        @keyframes glvlFadeOut {
-          0%   { opacity: 1; }
-          65%  { opacity: 1; }
-          100% { opacity: 0; }
-        }
-        @keyframes glvlRing {
-          0%   { transform: scale(0.3); opacity: 0.9; }
-          100% { transform: scale(8);   opacity: 0; }
-        }
-        @keyframes glvlRay {
-          0%   { opacity: 0.8; transform: scaleY(0.3) rotate(var(--gr)); }
-          60%  { opacity: 0.5; }
-          100% { opacity: 0;   transform: scaleY(1.4) rotate(var(--gr)); }
-        }
-        @keyframes glvlStar {
-          0%   { opacity: 0; transform: translate(-50%,-50%) scale(0.2); }
-          35%  { opacity: 1; }
-          100% { opacity: 0; transform: translate(-50%,-50%) translate(var(--sx),var(--sy)) scale(0.1); }
-        }
-        @keyframes glvlPop {
-          0%   { transform: scale(0.4); opacity: 0; }
-          55%  { transform: scale(1.08); }
-          70%  { transform: scale(0.96); }
-          100% { transform: scale(1); opacity: 1; }
-        }
-        @keyframes glvlGlow {
-          0%,100% { filter: brightness(1) drop-shadow(0 0 24px rgba(240,192,64,0.8)); }
-          50%     { filter: brightness(1.3) drop-shadow(0 0 48px rgba(240,192,64,1)); }
-        }
-        @keyframes glvlBg {
-          0%   { opacity: 0; }
-          15%  { opacity: 1; }
-          70%  { opacity: 0.6; }
-          100% { opacity: 0; }
-        }
-        @keyframes glvlPetPop {
-          0%   { transform: scale(0.6) translateY(24px); opacity: 0; }
-          50%  { transform: scale(1.04) translateY(-6px); opacity: 1; }
-          70%  { transform: scale(0.98) translateY(2px); }
-          100% { transform: scale(1) translateY(0); opacity: 1; }
-        }
-      `}</style>
-
       {/* Background colour wash */}
       <div
         className="absolute inset-0"

@@ -2040,7 +2040,6 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       }}
       data-testid="pet-animator"
     >
-      <style>{ANIMATION_STYLES}</style>
       <div style={{ position: "absolute", top: innerOffset, left: innerOffset, width: innerSize, height: innerSize, transform: fitTransform, transformOrigin: "center center" }}>
 
         {/* Body parts (back_full, limbs, wings, tail, body) */}

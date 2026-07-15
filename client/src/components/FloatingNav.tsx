@@ -264,7 +264,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
       {/* ── Login quest hint arrow ────────────────────────────────────────── */}
       {showLoginHint && (
         <>
-          <style>{`@keyframes bj-hint-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }`}</style>
 
           {/* Phase 1: nav closed — arrow points down at the main nav button */}
           {!isOpen && (

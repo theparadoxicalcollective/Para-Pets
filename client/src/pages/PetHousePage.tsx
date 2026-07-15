@@ -1961,12 +1961,6 @@ function PetStatusBars({
       {/* XP Boost active badge — shown below the bars when a loyalty boost is running */}
       {xpBoostActive && xpBoostPct > 0 && (
         <>
-          <style>{`
-            @keyframes xp-boost-shine {
-              0%, 100% { opacity: 0.85; box-shadow: 0 0 8px rgba(250,200,60,0.35), 0 0 18px rgba(250,200,60,0.15); }
-              50% { opacity: 1; box-shadow: 0 0 14px rgba(250,200,60,0.7), 0 0 28px rgba(250,200,60,0.3); }
-            }
-          `}</style>
           <div
             data-testid="xp-boost-badge"
             style={{
@@ -2905,17 +2899,6 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       {/* XP Boost activated celebration banner */}
       {boostActivated && (
         <>
-          <style>{`
-            @keyframes boost-pop-in {
-              0% { transform: translateX(-50%) scale(0.6); opacity: 0; }
-              55% { transform: translateX(-50%) scale(1.08); opacity: 1; }
-              100% { transform: translateX(-50%) scale(1); opacity: 1; }
-            }
-            @keyframes boost-pop-out {
-              0% { opacity: 1; transform: translateX(-50%) scale(1); }
-              100% { opacity: 0; transform: translateX(-50%) scale(0.85) translateY(-12px); }
-            }
-          `}</style>
           <div
             className="fixed pointer-events-none"
             style={{
@@ -3467,7 +3450,6 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
               </div>
             )}
           </div>
-          <style>{`@keyframes feedHintFloat { 0%,100% { transform:translateY(0) } 50% { transform:translateY(10px) } }`}</style>
         </>
       )}
 
