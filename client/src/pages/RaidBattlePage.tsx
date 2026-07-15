@@ -106,6 +106,9 @@ export default function RaidBattlePage() {
   const spawnFloatRef = useRef(spawnFloat);
   useEffect(() => { spawnFloatRef.current = spawnFloat; }, [spawnFloat]);
 
+  // ── Init-once guard — prevents re-running init if raidBoss/inventory refetches ──
+  const initDoneRef = useRef(false);
+
   // ── Battle control ──
   const battleActiveRef = useRef(false);
 
@@ -136,7 +139,10 @@ export default function RaidBattlePage() {
 
   // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!raidBoss?.templateId || !(inventory as any[]).length || phase !== "loading") return;
+    // Guard: only ever run init once per mount. Prevents inventory/raidBoss
+    // refetches from resetting the battle mid-countdown.
+    if (initDoneRef.current) return;
+    if (!raidBoss?.templateId || !(inventory as any[]).length) return;
 
     const petIds: string[] = (() => {
       try { return JSON.parse(localStorage.getItem(RAID_PETS_LS_KEY) || "[]").filter(Boolean); }
@@ -148,6 +154,8 @@ export default function RaidBattlePage() {
       : hatched.slice(0, 3);
 
     if (!selected.length) { navigate("/raid"); return; }
+
+    initDoneRef.current = true;
 
     const pets: RaidPet[] = selected.map((p: any) => ({
       uid: nextUid(), invId: p.inventoryId || p.id,
@@ -175,7 +183,7 @@ export default function RaidBattlePage() {
     setSlotsRemaining(slotStates);
 
     setPhase("countdown");
-  }, [raidBoss, inventory, phase, navigate]);
+  }, [raidBoss, inventory, navigate]);
 
   // ── Countdown ──
   useEffect(() => {

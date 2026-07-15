@@ -67,6 +67,33 @@ export default function RaidPage() {
     onError: (err: any) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
   });
 
+  const [startingBattle, setStartingBattle] = useState(false);
+
+  const startBattleMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/raid/start-battle", {});
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ message: "Failed to start battle" }));
+        throw new Error(body.message ?? "Failed to start battle");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      navigate("/raid/battle");
+    },
+    onError: (err: any) => {
+      setStartingBattle(false);
+      toast({ title: "Can't start raid", description: err.message ?? "No raid tickets remaining", variant: "destructive" });
+    },
+  });
+
+  const handleStartBattle = () => {
+    if (startingBattle) return;
+    setStartingBattle(true);
+    startBattleMutation.mutate();
+  };
+
   const clearBossMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/admin/raid-boss", { templateId: null });
@@ -363,8 +390,8 @@ export default function RaidPage() {
               {/* Boss pet — below the stars, clickable to start battle */}
               <div style={{ position: "relative" }}>
                 <div
-                  style={{ width: 300, height: 300, cursor: "pointer" }}
-                  onClick={() => navigate("/raid/battle")}
+                  style={{ width: 300, height: 300, cursor: startingBattle ? "wait" : "pointer", opacity: startingBattle ? 0.7 : 1, transition: "opacity 0.2s" }}
+                  onClick={handleStartBattle}
                   data-testid="button-start-raid-battle"
                 >
                   <PetAnimator
