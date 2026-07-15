@@ -500,7 +500,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
   const { data: inventory = [], isLoading: inventoryLoading } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
-    staleTime: 0,
   });
 
   const activePet = currentUser.activePetId
@@ -625,6 +624,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       queryClient.invalidateQueries({ queryKey: ["/api/quests/daily"] });
     },
     onError: (err: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       toast({ title: "Failed", description: err?.message || "Could not use item", variant: "destructive" });
     },
   });
@@ -646,6 +646,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
     },
     onError: (err: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       toast({ title: "Failed", description: err?.message || "Could not use item", variant: "destructive" });
     },
   });

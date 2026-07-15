@@ -2774,8 +2774,15 @@ export async function registerRoutes(
         }
       }
 
-      const updatedPet = await storage.updateInventoryItem(petInv.id, updates);
-      await storage.removeFromInventory(itemInv.id);
+      const updatedPet = await db.transaction(async (tx) => {
+        const [pet] = await tx
+          .update(userInventory)
+          .set(updates)
+          .where(eq(userInventory.id, petInv.id))
+          .returning();
+        await tx.delete(userInventory).where(eq(userInventory.id, itemInv.id));
+        return pet;
+      });
 
       // Quest progress: use_powerup
       incrementQuestProgress(user.id, "use_powerup").catch(() => {});
@@ -2832,22 +2839,30 @@ export async function registerRoutes(
           const trow = (trows as any).rows?.[0] ?? (trows as any)?.[0];
           allowInstantFill = !!trow?.tutorial_hatch_potions_claimed && !trow?.tutorial_quest_completed;
         }
+        let hatchUpdate: Record<string, any>;
         if (allowInstantFill) {
           // Tutorial only: set hatchStartedAt far enough in the past that
           // elapsed >= full hatch time, so the egg is immediately ready to hatch
           // and the player can finish the tutorial regardless of hatch time.
           const hatchTimeHours = (petShopItem.hatchTime ?? 24) as number;
-          const readyStart = new Date(Date.now() - (hatchTimeHours * 3600 * 1000 + 1000));
-          await storage.updateInventoryItem(petInv.id, { hatchStartedAt: readyStart });
+          hatchUpdate = { hatchStartedAt: new Date(Date.now() - (hatchTimeHours * 3600 * 1000 + 1000)) };
         } else {
           // NORMAL PLAY: reduce the remaining hatch time by the item's specific
           // amount (specialAmount minutes) by moving hatchStartedAt earlier —
           // it does NOT instantly finish hatching.
           const currentStart = petInv.hatchStartedAt ? new Date(petInv.hatchStartedAt) : new Date();
-          const minutesInMs = specialAmount * 60 * 1000;
-          const newStart = new Date(currentStart.getTime() - minutesInMs);
-          await storage.updateInventoryItem(petInv.id, { hatchStartedAt: newStart });
+          hatchUpdate = { hatchStartedAt: new Date(currentStart.getTime() - specialAmount * 60 * 1000) };
         }
+        const updatedPet = await db.transaction(async (tx) => {
+          const [pet] = await tx
+            .update(userInventory)
+            .set(hatchUpdate)
+            .where(eq(userInventory.id, petInv.id))
+            .returning();
+          await tx.delete(userInventory).where(eq(userInventory.id, itemInv.id));
+          return pet;
+        });
+        return res.json(updatedPet);
       } else if (specialType === "level") {
         if (!petInv.isHatched) {
           return res.status(400).json({ message: "Pet has not hatched yet" });
@@ -2861,14 +2876,19 @@ export async function registerRoutes(
         if (newLevel !== currentLevel) {
           updates.petLevel = newLevel;
         }
-        await storage.updateInventoryItem(petInv.id, updates);
+        const updatedPet = await db.transaction(async (tx) => {
+          const [pet] = await tx
+            .update(userInventory)
+            .set(updates)
+            .where(eq(userInventory.id, petInv.id))
+            .returning();
+          await tx.delete(userInventory).where(eq(userInventory.id, itemInv.id));
+          return pet;
+        });
+        return res.json(updatedPet);
       } else {
         return res.status(400).json({ message: "Unknown special type" });
       }
-
-      await storage.removeFromInventory(itemInv.id);
-      const updatedPet = await storage.getInventoryItemById(petInv.id);
-      return res.json(updatedPet);
     } catch (err) {
       console.error("Use special error:", err);
       return res.status(500).json({ message: "Failed to use special item" });
