@@ -355,20 +355,33 @@ export default function RaidBattlePage() {
   const consumePotion = useCallback((slotIndex: number, targetUid: string | null) => {
     const slot = slotsRef.current[slotIndex];
     if (!slot || slot.remaining <= 0) return;
-    const heal    = (slot.healthRestored ?? 0) || 0;
-    const revives = (slot.petsRevived   ?? 0)  || 0;
-    const ps      = petsRef.current;
+    const heal        = (slot.healthRestored ?? 0) || 0;
+    const revives     = (slot.petsRevived   ?? 0)  || 0;
+    const manaRestore = (slot.manaRestored  ?? 0)  || 0;
+    const ps          = petsRef.current;
     const droppedOn    = targetUid ? ps.find(p => p.uid === targetUid) : null;
     const aliveTarget  = (droppedOn && !droppedOn.isDead ? droppedOn : null) ?? ps.find(p => !p.isDead);
     const reviveTarget = (droppedOn && droppedOn.isDead  ? droppedOn : null) ?? ps.find(p => p.isDead);
+    // Mana target: prefer the dropped-on pet if alive, otherwise the alive pet
+    // with the lowest mana so the most-depleted pet gets priority.
+    const manaTarget =
+      (droppedOn && !droppedOn.isDead ? droppedOn : null) ??
+      ps.filter(p => !p.isDead && p.hasSpecial && !p.specialReady)
+        .sort((a, b) => a.mana - b.mana)[0] ??
+      ps.find(p => !p.isDead && p.hasSpecial);
 
-    const canHeal   = heal > 0    && !!aliveTarget  && aliveTarget.hp < aliveTarget.maxHp;
-    const canRevive = revives > 0 && !!reviveTarget;
-    if (!canHeal && !canRevive) return;
+    const canHeal   = heal > 0        && !!aliveTarget  && aliveTarget.hp < aliveTarget.maxHp;
+    const canRevive = revives > 0     && !!reviveTarget;
+    const canMana   = manaRestore > 0 && !!manaTarget   && !manaTarget.specialReady;
+    if (!canHeal && !canRevive && !canMana) return;
 
     const nextPets = ps.map(p => {
       if (canHeal   && p.uid === aliveTarget?.uid)  return { ...p, hp: Math.min(p.maxHp, p.hp + heal) };
       if (canRevive && p.uid === reviveTarget?.uid) return { ...p, hp: Math.max(1, Math.floor(p.maxHp * 0.5)), isDead: false };
+      if (canMana   && p.uid === manaTarget?.uid) {
+        const newMana = Math.min(p.maxMana, p.mana + manaRestore);
+        return { ...p, mana: newMana, specialReady: newMana >= p.maxMana };
+      }
       return p;
     });
     petsRef.current = nextPets;
@@ -377,6 +390,10 @@ export default function RaidBattlePage() {
     if (canHeal && aliveTarget) {
       const idx = ps.findIndex(p => p.uid === aliveTarget.uid);
       spawnFloatRef.current(((idx + 0.5) / ps.length) * 100, 64, heal, true);
+    }
+    if (canMana && manaTarget) {
+      const idx = ps.findIndex(p => p.uid === manaTarget.uid);
+      spawnFloatRef.current(((idx + 0.5) / ps.length) * 100, 64, manaRestore, true);
     }
 
     const nextSlots = slotsRef.current.map((s, i) =>
@@ -419,8 +436,10 @@ export default function RaidBattlePage() {
     const drag = dragRef.current;
     dragRef.current = null; setDraggingPotion(null); setHoveredAllyUid(null);
     if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < MIN_POTION_DRAG) return;
+    // If the finger lands on a specific pet, target it; otherwise auto-target
+    // the best pet (consumePotion handles null → picks the most appropriate pet).
     const target = petHitTest(e.clientX, e.clientY);
-    if (target) consumePotion(drag.slotIndex, target.uid);
+    consumePotion(drag.slotIndex, target?.uid ?? null);
   }, [getArenaPos, petHitTest, consumePotion]);
 
   const cancelPotionDrag = useCallback(() => {
@@ -461,7 +480,7 @@ export default function RaidBattlePage() {
       dragRef.current = null; setDraggingPotion(null); setHoveredAllyUid(null);
       if (Math.hypot(ev.clientX - d.startX, ev.clientY - d.startY) < MIN_POTION_DRAG) return;
       const target = petHitTest(ev.clientX, ev.clientY);
-      if (target) consumePotion(d.slotIndex, target.uid);
+      consumePotion(d.slotIndex, target?.uid ?? null);
     };
     const cancel = (ev: PointerEvent) => {
       if (dragRef.current?.pointerId === ev.pointerId) cancelPotionDrag();

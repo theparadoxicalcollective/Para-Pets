@@ -791,7 +791,7 @@ export default function RaidPage() {
             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }} data-testid="text-raid-potions-count">{selectedPotionSlots.filter(Boolean).length}/5</span>
           </div>
           <p style={{ fontFamily: "Lora, serif", fontSize: 9, color: "rgba(240,160,40,0.55)", letterSpacing: "0.08em", margin: "0 0 8px", textAlign: "center" }}>
-            Drag a potion onto the raid boss during battle to use it
+            Drag a potion onto one of your pets during battle to use it
           </p>
           <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
             {Array.from({ length: 5 }, (_, i) => {
