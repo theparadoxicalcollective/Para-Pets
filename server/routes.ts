@@ -9813,7 +9813,7 @@ export async function registerRoutes(
   // ── Daily Claim (fixed reward, once per 24h) ──────────────────────────────
   const DAILY_REWARD_COINS = 500;
   const DAILY_REWARD_TICKETS = 10;
-  const DAILY_RAID_TICKETS = 5;
+  const DAILY_RAID_TICKETS = 25;
   const DAILY_PVP_TICKET_ID  = "a1b2c3d4-9001-4000-8000-000000000099";
   const DAILY_RAID_TICKET_ID = "a1b2c3d4-9002-4000-8000-000000000099";
   const DAILY_FISHING_ROD_ID = "7b381092-3b76-4c91-99bc-5a5ba91f52ec";

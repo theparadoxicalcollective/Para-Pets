@@ -19,7 +19,7 @@ interface ClaimStatus {
 
 const REWARD_COINS        = 500;
 const REWARD_TICKETS      = 10;
-const REWARD_RAID_TICKETS = 5;
+const REWARD_RAID_TICKETS = 25;
 
 function parseUtc(ts: string | null): number | null {
   if (!ts) return null;
