@@ -737,13 +737,12 @@ export default function RaidPage() {
                       : inv
                         ? "0 0 10px rgba(60,180,80,0.22)"
                         : undefined,
-                    cursor: (isActivePetHere || inv) ? "default" : "pointer",
+                    cursor: isActivePetHere ? "default" : "pointer",
                     padding: 0,
                   }}
                   onClick={() => {
                     if (isActivePetHere) return;
-                    if (!inv) setPickerOpen("pet");
-                    // filled non-active slots: do nothing (✕ button handles removal)
+                    setPickerOpen("pet");
                   }}
                 >
                   {inv ? (
@@ -777,27 +776,6 @@ export default function RaidPage() {
                     >
                       ACTIVE
                     </div>
-                  )}
-                  {/* ✕ remove button — only on filled non-active slots.
-                      Separate from the slot click so touch-through from the
-                      picker overlay can never accidentally remove a pet. */}
-                  {inv && !isActivePetHere && (
-                    <button
-                      data-testid={`button-raid-pet-remove-${i}`}
-                      onPointerDown={e => { e.stopPropagation(); togglePet(invId); }}
-                      style={{
-                        position: "absolute", top: 2, right: 2,
-                        width: 16, height: 16, borderRadius: "50%",
-                        background: "rgba(180,30,10,0.85)",
-                        border: "1px solid rgba(255,100,60,0.6)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        cursor: "pointer", padding: 0,
-                        fontSize: 9, color: "#fff", fontWeight: "bold", lineHeight: 1,
-                        zIndex: 5,
-                      }}
-                    >
-                      ✕
-                    </button>
                   )}
                 </button>
               );
