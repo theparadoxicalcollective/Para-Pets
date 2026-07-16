@@ -109,9 +109,11 @@ export default function DailyClaimCard({
       await qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
       await qc.invalidateQueries({ queryKey: ["/api/inventory"] });
       setShowBurst(true);
+      const raidGranted = data.raidTickets ?? 0;
+      const raidPart = raidGranted > 0 ? ` · +${raidGranted} Raid tickets` : " · Raid tickets full (25/25)";
       toast({
         title: "Daily Reward Claimed!",
-        description: `+${REWARD_COINS} coins · Rod · +${REWARD_TICKETS} PvP tickets · +${REWARD_RAID_TICKETS} Raid tickets`,
+        description: `+${REWARD_COINS} coins · Rod · +${REWARD_TICKETS} PvP tickets${raidPart}`,
       });
     },
     onError: (err: any) => {

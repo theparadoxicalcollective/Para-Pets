@@ -9899,23 +9899,34 @@ export async function registerRoutes(
           `);
         }
 
-        // 5. Grant Raid Tickets — same upsert pattern as PvP tickets.
-        const raidUpdated = await tx.execute(sql`
-          UPDATE user_inventory
-          SET quantity = quantity + ${DAILY_RAID_TICKETS}
-          WHERE id = (
-            SELECT id FROM user_inventory
-            WHERE user_id = ${user.id} AND shop_item_id = ${DAILY_RAID_TICKET_ID}
-            ORDER BY id
-            LIMIT 1
-          )
-          RETURNING id
+        // 5. Grant Raid Tickets — cap total at 25.
+        const RAID_CAP = 25;
+        const raidCurrentRows = await tx.execute(sql`
+          SELECT COALESCE(SUM(quantity), 0) AS total
+          FROM user_inventory
+          WHERE user_id = ${user.id} AND shop_item_id = ${DAILY_RAID_TICKET_ID}
         `);
-        if (raidUpdated.rows.length === 0) {
-          await tx.execute(sql`
-            INSERT INTO user_inventory (user_id, shop_item_id, quantity)
-            VALUES (${user.id}, ${DAILY_RAID_TICKET_ID}, ${DAILY_RAID_TICKETS})
+        const raidCurrent = Number((raidCurrentRows.rows[0] as any).total ?? 0);
+        const raidToGrant = Math.max(0, RAID_CAP - raidCurrent);
+
+        if (raidToGrant > 0) {
+          const raidUpdated = await tx.execute(sql`
+            UPDATE user_inventory
+            SET quantity = quantity + ${raidToGrant}
+            WHERE id = (
+              SELECT id FROM user_inventory
+              WHERE user_id = ${user.id} AND shop_item_id = ${DAILY_RAID_TICKET_ID}
+              ORDER BY id
+              LIMIT 1
+            )
+            RETURNING id
           `);
+          if (raidUpdated.rows.length === 0) {
+            await tx.execute(sql`
+              INSERT INTO user_inventory (user_id, shop_item_id, quantity)
+              VALUES (${user.id}, ${DAILY_RAID_TICKET_ID}, ${raidToGrant})
+            `);
+          }
         }
 
         // 6. Grant Basic Fishing Rod — same upsert pattern as PvP tickets.
@@ -9947,6 +9958,7 @@ export async function registerRoutes(
           ok: true as const,
           claimedAt: inserted.rows[0].claimed_at,
           nextClaimAt: inserted.rows[0].next_claim_at,
+          raidTicketsGranted: raidToGrant,
         };
       });
 
@@ -9956,7 +9968,7 @@ export async function registerRoutes(
       return res.json({
         coinAmount: DAILY_REWARD_COINS,
         pvpTickets: DAILY_REWARD_TICKETS,
-        raidTickets: DAILY_RAID_TICKETS,
+        raidTickets: result.raidTicketsGranted,
         canClaim: false,
         lastClaimedAt: result.claimedAt,
         nextClaimAt: result.nextClaimAt,
