@@ -584,7 +584,7 @@ export default function RaidBattlePage() {
           <div style={{ flex: 1 }} />
 
           {/* ── PLAYER PETS row ── */}
-          <div style={{ display: "flex", justifyContent: "center", gap: 3, paddingBottom: 10, width: "100%", paddingLeft: 10, paddingRight: 10 }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 2, paddingBottom: 10, width: "100%", paddingLeft: 4, paddingRight: 4 }}>
             {myPets.map((pet, i) => {
               const petHpPct      = pet.maxHp > 0 ? pet.hp / pet.maxHp : 0;
               const manaPct       = pet.hasSpecial ? pet.mana / pet.maxMana : 0;
@@ -609,7 +609,7 @@ export default function RaidBattlePage() {
                   onClick={() => fireSpecial(pet.uid)}
                   style={{
                     display: "flex", flexDirection: "column", alignItems: "center", gap: 1,
-                    flex: 1, maxWidth: 120, opacity: pet.isDead ? 0.35 : 1,
+                    flex: 1, minWidth: 0, maxWidth: 90, opacity: pet.isDead ? 0.35 : 1,
                     cursor: specialReady && !pet.isDead ? "pointer" : "default",
                   }}
                 >
@@ -617,11 +617,12 @@ export default function RaidBattlePage() {
                   {/* Special-ready label above sprite */}
                   {specialReady && (
                     <div style={{
-                      fontFamily: "Lora, serif", fontSize: 8, fontWeight: "bold",
-                      color: "#93c5fd", letterSpacing: "0.1em",
+                      fontFamily: "Lora, serif", fontSize: 7, fontWeight: "bold",
+                      color: "#93c5fd", letterSpacing: "0.06em",
                       textShadow: "0 0 8px rgba(80,160,255,0.9)",
                       animation: "dropGlow 1.4s ease-in-out infinite",
-                      whiteSpace: "nowrap",
+                      whiteSpace: "nowrap", overflow: "hidden", maxWidth: "100%",
+                      textOverflow: "ellipsis",
                     }}>
                       ✦ {pet.specialName ?? "SPECIAL"} ✦
                     </div>
@@ -630,7 +631,7 @@ export default function RaidBattlePage() {
                   {/* Pet sprite */}
                   <div style={{
                     position: "relative",
-                    width: 88, height: 88,
+                    width: 68, height: 68,
                     animation: isAttacking ? "raidLunge 0.52s ease" : isHurt ? "raidHurt 0.4s ease" : "none",
                     filter: specialReady
                       ? "drop-shadow(0 0 8px rgba(80,160,255,0.9)) drop-shadow(0 0 18px rgba(80,160,255,0.55))"
@@ -647,25 +648,25 @@ export default function RaidBattlePage() {
                             opacity: pet.isDead ? 0.3 : 1,
                           }} />
                       ) : (
-                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, animation: isAttacking || isHurt ? "none" : "petBounce 1.4s ease-in-out infinite" }}>🐾</div>
+                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, animation: isAttacking || isHurt ? "none" : "petBounce 1.4s ease-in-out infinite" }}>🐾</div>
                       );
                     })()}
                     {pet.isDead && (
-                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>💀</div>
+                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>💀</div>
                     )}
                   </div>
 
                   {/* HP bar */}
-                  <div style={{ width: 56, height: 6, borderRadius: 3, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                  <div style={{ width: 44, height: 6, borderRadius: 3, background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.06)", overflow: "hidden" }}>
                     <div style={{ height: "100%", width: `${petHpPct * 100}%`, background: hpColor(petHpPct), borderRadius: 3, transition: "width 0.35s ease" }} />
                   </div>
-                  <div style={{ fontFamily: "Lora, serif", fontSize: 8, color: "rgba(255,255,255,0.45)" }}>
+                  <div style={{ fontFamily: "Lora, serif", fontSize: 7, color: "rgba(255,255,255,0.45)" }}>
                     {pet.hp} HP
                   </div>
 
                   {/* Mana bar — only for pets with a special skill; no text label */}
                   {pet.hasSpecial && (
-                    <div style={{ width: 56, height: 5, borderRadius: 3, background: "rgba(0,0,0,0.5)", border: `1px solid ${specialReady ? "rgba(80,140,255,0.6)" : "rgba(80,140,255,0.18)"}`, overflow: "hidden" }}>
+                    <div style={{ width: 44, height: 5, borderRadius: 3, background: "rgba(0,0,0,0.5)", border: `1px solid ${specialReady ? "rgba(80,140,255,0.6)" : "rgba(80,140,255,0.18)"}`, overflow: "hidden" }}>
                       <div style={{
                         height: "100%", width: `${manaPct * 100}%`,
                         background: specialReady
