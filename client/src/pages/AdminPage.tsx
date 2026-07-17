@@ -238,7 +238,7 @@ export default function AdminPage({ user }: AdminPageProps) {
                         background: "rgba(0,0,0,0.30)",
                         border: `1px solid ${s.border}`,
                         boxShadow: `0 0 12px ${s.glow}`,
-                        borderRadius: s.key === "raid" ? "50%" : "0.75rem",
+                        borderRadius: "0.75rem",
                       }}>
                         <img src={s.icon} alt={s.label} className="w-9 h-9 object-contain" style={{ filter: `drop-shadow(0 0 4px ${s.glow})` }} />
                       </div>

@@ -115,6 +115,7 @@ export default function AuthPage() {
     },
     onSuccess: async () => {
       setLoadingProgress(100);
+      queryClient.clear();
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       setTimeout(() => {
         setLocation(returnTo);
@@ -146,6 +147,7 @@ export default function AuthPage() {
       setLoadingProgress(100);
       setFieldErrors({});
       localStorage.setItem("para_pets_just_registered", "true");
+      queryClient.clear();
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       setTimeout(() => {
         setLocation(returnTo);
