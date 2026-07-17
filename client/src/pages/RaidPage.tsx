@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { setNavHidden } from "@/lib/navVisibility";
 import { Users, Droplets, Heart, Check, Swords } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import type { BattlePotionSlot } from "@/components/BattleArena";
@@ -23,6 +24,8 @@ export default function RaidPage() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  useEffect(() => { setNavHidden(true); return () => setNavHidden(false); }, []);
 
   const { data: me } = useQuery<any>({ queryKey: ["/api/auth/me"] });
   const { data: inventory = [], isSuccess: inventoryReady } = useQuery<any[]>({ queryKey: ["/api/inventory"] });

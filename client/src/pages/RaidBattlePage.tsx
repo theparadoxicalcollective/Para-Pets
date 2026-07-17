@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { setNavHidden } from "@/lib/navVisibility";
 import type { BattlePotionSlot } from "@/components/BattleArena";
 import raidBg        from "@assets/F17D0472-325D-4FA4-B9E9-5B44668D2BC5_1783810844517.png";
 import raidCloseImg  from "@assets/Photoroom_20260711_90748_PM_1783822223263.png";
@@ -98,6 +99,7 @@ export default function RaidBattlePage() {
   }, []);
   const spawnFloatRef = useRef(spawnFloat);
   useEffect(() => { spawnFloatRef.current = spawnFloat; }, [spawnFloat]);
+  useEffect(() => { setNavHidden(true); return () => setNavHidden(false); }, []);
 
   // ── Init-once guard — prevents re-running init if raidBoss/inventory refetches ──
   const initDoneRef = useRef(false);
