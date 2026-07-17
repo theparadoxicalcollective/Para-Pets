@@ -1455,7 +1455,6 @@ export async function registerRoutes(
             const players = (lb.rows ?? lb) as Array<{ id: string }>;
             if (!players.length) return;
 
-            const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
             let gifted = 0;
 
             for (let i = 0; i < players.length; i++) {
@@ -1468,31 +1467,15 @@ export async function registerRoutes(
               if (!tier) continue;
               if (tier.coins === 0 && tier.items.length === 0) continue;
 
-              const msg = `Raid Boss Defeated! Rank #${rank} - ${tier.label} Tier Reward`;
+              const bundleName = `Raid Boss Defeated - ${tier.label} Tier`;
+              const bundleMsg  = `Congratulations! You ranked #${rank} and earned ${tier.label} rewards.`;
 
-              // Coins gift (one row covers the coin payout)
-              // sender_id uses the system admin UUID (NOT NULL constraint on gifts table)
-              const SYSTEM_SENDER = "00000000-0000-4000-a000-000000000301";
-              if (tier.coins > 0) {
-                await db.execute(sql`
-                  INSERT INTO gifts
-                    (id, sender_id, receiver_id, message, coin_amount, item_quantity, status, expires_at, created_at)
-                  VALUES
-                    (gen_random_uuid(), ${SYSTEM_SENDER}, ${playerId}, ${msg}, ${tier.coins}, 1, 'pending', ${expiresAt.toISOString()}, NOW())
-                `);
-              }
-
-              // One gift row per reward item
+              // Create one reward bundle per player then link them via user_reward
+              const bundle = await storage.createRewardBundle(bundleName, tier.coins, bundleMsg);
               for (const item of tier.items) {
-                await db.execute(sql`
-                  INSERT INTO gifts
-                    (id, sender_id, receiver_id, message, coin_amount, item_type, shop_item_id,
-                     item_quantity, item_name, item_image_url, status, expires_at, created_at)
-                  VALUES
-                    (gen_random_uuid(), ${SYSTEM_SENDER}, ${playerId}, ${msg}, 0, 'shop_item', ${item.shopItemId},
-                     1, ${item.name}, ${item.imageUrl ?? null}, 'pending', ${expiresAt.toISOString()}, NOW())
-                `);
+                await storage.addRewardBundleItem(bundle.id, item.shopItemId);
               }
+              await storage.createUserReward(playerId, bundle.id);
               gifted++;
             }
 
@@ -1575,8 +1558,6 @@ export async function registerRoutes(
       const players = (lb.rows ?? lb) as Array<{ id: string }>;
       if (!players.length) return res.status(400).json({ message: "No players on leaderboard" });
 
-      const SYSTEM_SENDER = "00000000-0000-4000-a000-000000000301";
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       let gifted = 0;
 
       for (let i = 0; i < players.length; i++) {
@@ -1586,21 +1567,14 @@ export async function registerRoutes(
         if (!tier) continue;
         if (tier.coins === 0 && tier.items.length === 0) continue;
 
-        const msg = `Raid Boss Defeated! Rank #${rank} - ${tier.label} Tier Reward`;
-        if (tier.coins > 0) {
-          await db.execute(sql`
-            INSERT INTO gifts (id, sender_id, receiver_id, message, coin_amount, item_quantity, status, expires_at, created_at)
-            VALUES (gen_random_uuid(), ${SYSTEM_SENDER}, ${playerId}, ${msg}, ${tier.coins}, 1, 'pending', ${expiresAt.toISOString()}, NOW())
-          `);
-        }
+        const bundleName = `Raid Boss Defeated - ${tier.label} Tier`;
+        const bundleMsg  = `Congratulations! You ranked #${rank} and earned ${tier.label} rewards.`;
+
+        const bundle = await storage.createRewardBundle(bundleName, tier.coins, bundleMsg);
         for (const item of tier.items) {
-          await db.execute(sql`
-            INSERT INTO gifts (id, sender_id, receiver_id, message, coin_amount, item_type, shop_item_id,
-                               item_quantity, item_name, item_image_url, status, expires_at, created_at)
-            VALUES (gen_random_uuid(), ${SYSTEM_SENDER}, ${playerId}, ${msg}, 0, 'shop_item', ${item.shopItemId},
-                    1, ${item.name}, ${item.imageUrl ?? null}, 'pending', ${expiresAt.toISOString()}, NOW())
-          `);
+          await storage.addRewardBundleItem(bundle.id, item.shopItemId);
         }
+        await storage.createUserReward(playerId, bundle.id);
         gifted++;
       }
 
