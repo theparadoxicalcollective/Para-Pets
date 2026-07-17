@@ -1508,6 +1508,12 @@ export async function registerRoutes(
       if (!existingNormal) await storage.setGameSetting("raid_boss_normal_atk_pct", String(RAID_NORMAL_ATK_PCT));
       const existingLarge = await storage.getGameSetting("raid_boss_large_atk_pct");
       if (!existingLarge) await storage.setGameSetting("raid_boss_large_atk_pct", String(RAID_LARGE_ATK_PCT));
+      // Reset leaderboard and defeat lock whenever a new boss is chosen
+      await db.execute(sql`
+        INSERT INTO game_settings (key, value) VALUES ('raid_defeat_lock_current', 'pending')
+        ON CONFLICT (key) DO UPDATE SET value = 'pending'
+      `);
+      await db.execute(sql`UPDATE users SET raid_total_damage = 0 WHERE COALESCE(raid_total_damage, 0) > 0`);
       _raidBossCache = null;
       return res.json({ success: true });
     } catch (err: any) {
