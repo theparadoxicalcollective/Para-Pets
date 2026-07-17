@@ -492,6 +492,26 @@ export default function RaidBattlePage() {
 
   const handleClose = () => {
     battleActiveRef.current = false;
+    // Write the post-battle remaining counts back to localStorage before
+    // navigating so the Raid setup page initialises with accurate quantities
+    // instead of the pre-battle values that were stored when slots were equipped.
+    try {
+      const raw = localStorage.getItem(POTION_LS_KEY);
+      if (raw) {
+        const parsed: any[] = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length === 5) {
+          const remainMap = new Map(slotsRef.current.map(s => [s.inventoryId, s.remaining]));
+          const updated = parsed.map((s: any) => {
+            if (!s || typeof s.inventoryId !== "string") return s;
+            const rem = remainMap.get(s.inventoryId);
+            if (rem === undefined) return s;   // wasn't in battle (shouldn't happen)
+            if (rem <= 0) return null;          // fully consumed — remove slot
+            return { ...s, qty: rem };          // partially used — update qty
+          });
+          localStorage.setItem(POTION_LS_KEY, JSON.stringify(updated));
+        }
+      }
+    } catch {}
     navigate("/raid");
   };
 
@@ -606,11 +626,11 @@ export default function RaidBattlePage() {
           <div style={{ display: "flex", justifyContent: "center", gap: 2, paddingBottom: 10, width: "100%", paddingLeft: 4, paddingRight: 4 }}>
             {myPets.map((pet, i) => {
               const petHpPct      = pet.maxHp > 0 ? pet.hp / pet.maxHp : 0;
-              const manaPct       = pet.hasSpecial ? pet.mana / pet.maxMana : 0;
+              const manaPct       = pet.mana / pet.maxMana;
               const isAttacking   = attackingPetUid === pet.uid;
               const isHurt        = hurtPetUid === pet.uid;
               const isHovered     = hoveredAllyUid === pet.uid;
-              const specialReady  = pet.hasSpecial && pet.specialReady && !pet.isDead;
+              const specialReady  = pet.specialReady && !pet.isDead;
 
               // Border + glow: special-ready beats hovered
               const borderColor = specialReady
@@ -683,20 +703,18 @@ export default function RaidBattlePage() {
                     {pet.hp} HP
                   </div>
 
-                  {/* Mana bar — only for pets with a special skill; no text label */}
-                  {pet.hasSpecial && (
-                    <div style={{ width: 44, height: 5, borderRadius: 3, background: "rgba(0,0,0,0.5)", border: `1px solid ${specialReady ? "rgba(80,140,255,0.6)" : "rgba(80,140,255,0.18)"}`, overflow: "hidden" }}>
-                      <div style={{
-                        height: "100%", width: `${manaPct * 100}%`,
-                        background: specialReady
-                          ? "linear-gradient(90deg, #3b82f6, #93c5fd, #60a5fa)"
-                          : "linear-gradient(90deg, #1e40af, #3b82f6)",
-                        borderRadius: 3,
-                        transition: "width 0.35s ease",
-                        boxShadow: specialReady ? "0 0 6px rgba(80,160,255,0.8)" : "none",
-                      }} />
-                    </div>
-                  )}
+                  {/* Mana bar — always shown so players can see when their special is ready */}
+                  <div style={{ width: 44, height: 5, borderRadius: 3, background: "rgba(0,0,0,0.5)", border: `1px solid ${specialReady ? "rgba(80,140,255,0.6)" : "rgba(80,140,255,0.18)"}`, overflow: "hidden" }}>
+                    <div style={{
+                      height: "100%", width: `${manaPct * 100}%`,
+                      background: specialReady
+                        ? "linear-gradient(90deg, #3b82f6, #93c5fd, #60a5fa)"
+                        : "linear-gradient(90deg, #1e40af, #3b82f6)",
+                      borderRadius: 3,
+                      transition: "width 0.35s ease",
+                      boxShadow: specialReady ? "0 0 6px rgba(80,160,255,0.8)" : "none",
+                    }} />
+                  </div>
 
                 </div>
               );

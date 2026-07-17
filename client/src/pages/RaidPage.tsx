@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Users, Droplets, Heart, Check } from "lucide-react";
+import { Users, Droplets, Heart, Check, Swords } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import type { BattlePotionSlot } from "@/components/BattleArena";
 import raidBg from "@assets/F17D0472-325D-4FA4-B9E9-5B44668D2BC5_1783810844517.png";
@@ -202,6 +202,11 @@ export default function RaidPage() {
   const equippedCount = selectedPetIds.filter(id =>
     id === activePetId || hatchedPets.some((p: any) => (p.inventoryId || p.id) === id)
   ).length;
+
+  const partyTotalAtk = selectedPetIds.reduce((sum, id) => {
+    const pet = hatchedPets.find((p: any) => (p.inventoryId || p.id) === id);
+    return sum + (pet?.petAtk ?? 0);
+  }, 0);
 
   // ── Potion slots ──────────────────────────────────────────────────
   const [selectedPotionSlots, setSelectedPotionSlots] = useState<(BattlePotionSlot | null)[]>(() => {
@@ -781,6 +786,28 @@ export default function RaidPage() {
               );
             })}
           </div>
+
+          {/* ── Party ATK ── */}
+          {partyTotalAtk > 0 && (
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginBottom: 14, padding: "7px 10px", borderRadius: 8,
+              background: "rgba(240,160,20,0.08)",
+              border: "1px solid rgba(240,160,20,0.22)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Swords size={13} style={{ color: "#f0c040" }} />
+                <span style={{ fontSize: 10, letterSpacing: "0.18em", fontWeight: "bold", color: "#f0c040", fontFamily: "Lora, serif" }}>PARTY ATK</span>
+              </div>
+              <span style={{
+                fontSize: 14, fontWeight: "bold", color: "#f0c040",
+                fontFamily: "Lora, serif",
+                textShadow: "0 0 10px rgba(240,160,40,0.55)",
+              }} data-testid="text-party-atk">
+                {partyTotalAtk.toLocaleString()}
+              </span>
+            </div>
+          )}
 
           {/* ── Potions ── */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
