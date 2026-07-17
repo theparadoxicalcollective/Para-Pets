@@ -1381,14 +1381,16 @@ export async function registerRoutes(
 
       // Atomic deduct: PostgreSQL UPDATE returns the new value in a single
       // operation so two players hitting this at the same time can never
-      // apply duplicate deductions. GREATEST ensures HP never goes below 0.
+      // apply duplicate deductions. GREATEST(0, ...) with INTEGER args
+      // ensures HP never goes below 0 (text GREATEST was unreliable when
+      // the damage overshot the remaining HP and produced a negative string).
       const result: any = await db.execute(sql`
         UPDATE game_settings
-        SET value = GREATEST('0', (value::INTEGER - ${dmg})::TEXT)
+        SET value = GREATEST(0, value::INTEGER - ${dmg})::TEXT
         WHERE key = 'raid_boss_hp'
-        RETURNING value::INTEGER AS hp
+        RETURNING GREATEST(0, value::INTEGER - ${dmg}) AS hp
       `);
-      const newHp = (result.rows ?? result)[0]?.hp ?? 0;
+      const newHp = Number((result.rows ?? result)[0]?.hp ?? 0);
 
       // Invalidate the in-process cache so the next GET /api/raid-boss
       // returns the fresh HP from the DB rather than the stale cached value.
@@ -1402,7 +1404,9 @@ export async function registerRoutes(
       `);
 
       // ── Boss just died → distribute rewards (fire-and-forget, deduped) ──────
-      if (newHp === 0) {
+      // Use <= 0 so an overkill hit (where the DB value somehow slips negative)
+      // still triggers distribution.
+      if (newHp <= 0) {
         (async () => {
           try {
             // 1. Find out which boss was just killed
@@ -1412,12 +1416,20 @@ export async function registerRoutes(
             const bossId = ((bossRow.rows ?? bossRow)[0]?.value ?? "") as string;
             if (!bossId) return;
 
-            // 2. Atomic dedup — only the FIRST caller proceeds (ON CONFLICT DO NOTHING)
-            const lockKey = `raid_defeat_lock_${bossId}`;
+            // 2. Atomic dedup — one shared lock key per boss regardless of template
+            // reuse. We UPDATE (not INSERT) so this survives across raids: if the
+            // row already holds a timestamp from a previous kill, the UPDATE only
+            // succeeds for the first concurrent caller because PostgreSQL serialises
+            // row-level locks. We compare against a sentinel that is reset when the
+            // admin starts a new raid (via /api/admin/raid-boss-hp).
+            const lockKey = "raid_defeat_lock_current";
+            const defeatedAt = new Date().toISOString();
             const lockResult: any = await db.execute(sql`
               INSERT INTO game_settings (key, value)
-              VALUES (${lockKey}, ${new Date().toISOString()})
-              ON CONFLICT (key) DO NOTHING
+              VALUES (${lockKey}, ${defeatedAt})
+              ON CONFLICT (key) DO UPDATE
+                SET value = ${defeatedAt}
+                WHERE game_settings.value = 'pending'
             `);
             const gotLock = ((lockResult.rowCount ?? lockResult.count ?? 0) as number) > 0;
             if (!gotLock) return; // another concurrent request already handling this
@@ -1459,12 +1471,14 @@ export async function registerRoutes(
               const msg = `Raid Boss Defeated! Rank #${rank} - ${tier.label} Tier Reward`;
 
               // Coins gift (one row covers the coin payout)
+              // sender_id uses the system admin UUID (NOT NULL constraint on gifts table)
+              const SYSTEM_SENDER = "00000000-0000-4000-a000-000000000301";
               if (tier.coins > 0) {
                 await db.execute(sql`
                   INSERT INTO gifts
                     (id, sender_id, receiver_id, message, coin_amount, item_quantity, status, expires_at, created_at)
                   VALUES
-                    (gen_random_uuid(), NULL, ${playerId}, ${msg}, ${tier.coins}, 1, 'pending', ${expiresAt.toISOString()}, NOW())
+                    (gen_random_uuid(), ${SYSTEM_SENDER}, ${playerId}, ${msg}, ${tier.coins}, 1, 'pending', ${expiresAt.toISOString()}, NOW())
                 `);
               }
 
@@ -1475,7 +1489,7 @@ export async function registerRoutes(
                     (id, sender_id, receiver_id, message, coin_amount, item_type, shop_item_id,
                      item_quantity, item_name, item_image_url, status, expires_at, created_at)
                   VALUES
-                    (gen_random_uuid(), NULL, ${playerId}, ${msg}, 0, 'shop_item', ${item.shopItemId},
+                    (gen_random_uuid(), ${SYSTEM_SENDER}, ${playerId}, ${msg}, 0, 'shop_item', ${item.shopItemId},
                      1, ${item.name}, ${item.imageUrl ?? null}, 'pending', ${expiresAt.toISOString()}, NOW())
                 `);
               }
@@ -1524,9 +1538,76 @@ export async function registerRoutes(
       const { hp, maxHp } = req.body as { hp?: number; maxHp?: number };
       if (maxHp !== undefined) await storage.setGameSetting("raid_boss_max_hp", String(maxHp));
       if (hp !== undefined) await storage.setGameSetting("raid_boss_hp", String(hp));
+
+      // Reset defeat lock to 'pending' so the next kill can distribute rewards,
+      // and zero out per-player damage so the leaderboard is per-raid (not cumulative).
+      await db.execute(sql`
+        INSERT INTO game_settings (key, value) VALUES ('raid_defeat_lock_current', 'pending')
+        ON CONFLICT (key) DO UPDATE SET value = 'pending'
+      `);
+      await db.execute(sql`UPDATE users SET raid_total_damage = 0 WHERE COALESCE(raid_total_damage, 0) > 0`);
+
       _raidBossCache = null;
       return res.json({ success: true });
     } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // ── Admin: manually distribute raid rewards (for recovery when auto-distribution failed) ──
+  app.post("/api/admin/raid-distribute-rewards", isAdmin, async (req, res) => {
+    try {
+      const rewardRaw = await storage.getGameSetting("raid_rewards");
+      if (!rewardRaw) return res.status(400).json({ message: "No raid_rewards config set" });
+      const { tiers } = JSON.parse(rewardRaw) as {
+        tiers: Array<{
+          key: string; label: string; rankFrom: number; rankTo: number | null;
+          coins: number; items: Array<{ shopItemId: string; name: string; imageUrl: string | null }>;
+        }>;
+      };
+
+      const lb: any = await db.execute(sql`
+        SELECT id FROM users
+        WHERE COALESCE(raid_total_damage, 0) > 0
+          AND (is_admin IS NULL OR is_admin = false)
+        ORDER BY COALESCE(raid_total_damage, 0) DESC
+      `);
+      const players = (lb.rows ?? lb) as Array<{ id: string }>;
+      if (!players.length) return res.status(400).json({ message: "No players on leaderboard" });
+
+      const SYSTEM_SENDER = "00000000-0000-4000-a000-000000000301";
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      let gifted = 0;
+
+      for (let i = 0; i < players.length; i++) {
+        const rank = i + 1;
+        const playerId = players[i].id;
+        const tier = tiers.find(t => rank >= t.rankFrom && (t.rankTo === null || rank <= t.rankTo));
+        if (!tier) continue;
+        if (tier.coins === 0 && tier.items.length === 0) continue;
+
+        const msg = `Raid Boss Defeated! Rank #${rank} - ${tier.label} Tier Reward`;
+        if (tier.coins > 0) {
+          await db.execute(sql`
+            INSERT INTO gifts (id, sender_id, receiver_id, message, coin_amount, item_quantity, status, expires_at, created_at)
+            VALUES (gen_random_uuid(), ${SYSTEM_SENDER}, ${playerId}, ${msg}, ${tier.coins}, 1, 'pending', ${expiresAt.toISOString()}, NOW())
+          `);
+        }
+        for (const item of tier.items) {
+          await db.execute(sql`
+            INSERT INTO gifts (id, sender_id, receiver_id, message, coin_amount, item_type, shop_item_id,
+                               item_quantity, item_name, item_image_url, status, expires_at, created_at)
+            VALUES (gen_random_uuid(), ${SYSTEM_SENDER}, ${playerId}, ${msg}, 0, 'shop_item', ${item.shopItemId},
+                    1, ${item.name}, ${item.imageUrl ?? null}, 'pending', ${expiresAt.toISOString()}, NOW())
+          `);
+        }
+        gifted++;
+      }
+
+      console.log(`[Raid] Manual reward distribution: ${gifted} players rewarded`);
+      return res.json({ success: true, gifted });
+    } catch (err: any) {
+      console.error("[Raid] Manual distribution error:", err);
       return res.status(500).json({ message: err.message });
     }
   });
