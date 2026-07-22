@@ -1,0 +1,118 @@
+Add a new explore location to the Elysian Bayou world called “Elysian Bayou Clearing.”
+
+FILES
+The first uploaded image is the world-map icon.
+The second uploaded image is the gameplay background.
+
+Please store them using organized, descriptive filenames instead of temporary upload names:
+
+assets/worlds/elysian-bayou/elysian-bayou-clearing/icon.png
+assets/worlds/elysian-bayou/elysian-bayou-clearing/background.jpg
+
+Do not store the images as external temporary URLs. Add them to the project’s permanent asset structure.
+
+WORLD-MAP INTEGRATION
+1. Add the new icon to the currently empty explore-place location on the Elysian Bayou map.
+2. Position it approximately in the lower-left open area of the map.
+3. Store its map position and scale in the Elysian Bayou location configuration rather than hardcoding the position inside the map component.
+4. Make the icon tappable/clickable.
+5. When selected, it should open the new Elysian Bayou Clearing gameplay area.
+6. Use the transparent version of the icon and do not display a white square around it.
+7. Add a subtle hover or tap animation consistent with the other explore-place icons, but do not redesign the icon.
+
+Please use a reusable data structure similar to:
+
+{
+  id: "elysian-bayou-clearing",
+  worldId: "elysian-bayou",
+  name: "Elysian Bayou Clearing",
+  icon: ".../icon.png",
+  background: ".../background.jpg",
+  mapPosition: {
+    xPercent: editable value,
+    yPercent: editable value,
+    scale: editable value
+  },
+  sceneType: "walk-around",
+  features: {
+    movement: true,
+    enemies: false,
+    combat: false,
+    rewards: false,
+    interactions: false
+  }
+}
+
+Match the structure and naming conventions already used in the project instead of creating a conflicting second system.
+
+GAMEPLAY AREA
+For this first version, the only gameplay should be the player’s currently active pet walking around the scene.
+
+1. Load the active pet from the player’s existing active-pet state/database information.
+2. Do not use a permanently hardcoded test pet.
+3. Reuse the existing pet sprite or active-pet rendering component wherever possible.
+4. Use the uploaded portrait image as the environment background.
+5. Preserve the background’s aspect ratio. Do not stretch or distort it.
+6. Scale the game area responsively for different portrait phone sizes.
+7. Keep the pet inside the central dirt clearing and prevent it from walking into the surrounding water, rocks, trees, or outside the image.
+8. Store the walkable boundary as editable normalized coordinates or a scene collision configuration, not scattered CSS values.
+9. Place the pet near the lower-center portion of the clearing when entering the area.
+10. Add a clear back button that returns the player to the Elysian Bayou world map.
+11. Prevent the page itself from scrolling while the player is controlling the pet.
+
+MOVEMENT
+First inspect the project for an existing pet movement system and reuse it.
+
+If there is no existing movement system, create a small reusable movement controller that supports:
+- tap or click to move on mobile
+- mouse input on desktop
+- keyboard movement on desktop
+- smooth movement rather than instant teleporting
+- correct sprite direction or flipping when the pet moves left or right
+- configurable movement speed
+
+Keep movement logic separate from the Elysian Bayou Clearing page so it can be reused in future walk-around areas.
+
+CODE ORGANIZATION
+Please avoid putting all logic in one large page component.
+
+Organize the feature into separate responsibilities, following the project’s existing structure:
+
+- Elysian Bayou location configuration
+- reusable explore-location map icon
+- reusable walk-around scene
+- pet movement controller
+- active-pet renderer
+- scene collision/walkable-boundary configuration
+- Elysian Bayou Clearing location data
+
+The location page should mainly load the location configuration and pass it into the reusable walk-around scene.
+
+FUTURE EXPANSION
+This area will later become a slash-enemies gameplay location. Prepare the structure for future additions without implementing enemies yet.
+
+Leave clear extension points for:
+- enemy spawning
+- pet attack animations
+- hitboxes
+- health
+- enemy waves
+- item drops
+- rewards
+- cooldowns
+- temporary visual effects
+
+Do not add placeholder enemies, combat buttons, fake rewards, or unfinished UI to the visible page yet.
+
+SAFETY
+Do not change unrelated worlds, player data, existing explore locations, authentication, inventory, pets, or database behavior.
+
+Before editing, inspect how the current Elysian Bayou map, active-pet system, routing, and asset loading work. Reuse the current systems wherever possible.
+
+After completing the feature:
+1. Test opening the new location from the Elysian Bayou map.
+2. Test returning to the world map.
+3. Test the active pet appearing correctly.
+4. Test movement on a narrow phone screen and a larger phone/tablet screen.
+5. Confirm the icon and background load from permanent project assets.
+6. List every file created or changed and briefly explain each change.

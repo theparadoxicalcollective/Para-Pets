@@ -1642,6 +1642,11 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       setShowLocationView(true);
       return;
     }
+    // Elysian Bayou Clearing — walk-around explore scene.
+    if (loc.id === "a1b2c3d4-0011-4000-8000-000000000011") {
+      navigate("/explore/elysian-bayou-clearing");
+      return;
+    }
     if (loc.type === "fishing" && !loc.isShop) {
       setShowLocationView(false);
       setShowShop(false);
