@@ -13,6 +13,8 @@ import sharp from "sharp";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { Resend } from "resend";
 import { requireAdmin, requireAuthenticated } from "./auth";
+import { createRegisteredUser } from "./registration";
+import { deleteOwnedAdminMessage } from "./adminMessages";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Para Pets <noreply@parapets.net>";
@@ -1067,15 +1069,12 @@ export async function registerRoutes(
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
-      const user = await storage.createUser({
+      const user = await storage.createUser(createRegisteredUser({
         username,
         email,
         password: hashedPassword,
         profileImage: profileImagePath,
-        isAdmin: false,
-        coins: 0,
-        essence: 1000,
-      });
+      }));
 
       try {
         await grantWelcomeV2Bundle(user.id);
@@ -3939,16 +3938,11 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/admin-messages/:id", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const deleted = await storage.deleteAdminMessageForUsername(req.params.id as string, user.username);
-      if (!deleted) return res.status(404).json({ message: "Message not found" });
-      return res.json({ message: "Deleted" });
-    } catch (err) {
-      return res.status(500).json({ message: "Failed to delete message" });
-    }
-  });
+  app.delete(
+    "/api/admin-messages/:id",
+    isAuthenticated,
+    deleteOwnedAdminMessage(storage.deleteAdminMessageForUsername.bind(storage)),
+  );
 
   app.get("/api/admin/debug-admin-messages", isAdmin, async (_req, res) => {
     try {
