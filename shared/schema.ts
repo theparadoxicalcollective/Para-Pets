@@ -314,6 +314,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   profileImage: true,
   isAdmin: true,
   coins: true,
+  essence: true,
 });
 
 export const insertShopItemSchema = createInsertSchema(shopItems).omit({

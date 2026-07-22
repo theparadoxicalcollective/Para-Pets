@@ -5081,7 +5081,7 @@ export async function registerRoutes(
         view === "front" ? template?.frontAssembled : template?.backAssembled;
       if (!dataUri) return res.status(404).end();
       // Parse  data:<mime>;base64,<data>
-      const match = dataUri.match(/^data:([^;]+);base64,(.+)$/s);
+      const match = dataUri.match(/^data:([^;]+);base64,([\s\S]+)$/);
       if (!match) return res.status(500).end();
       const [, mime, b64] = match;
       const buf = Buffer.from(b64, "base64");

@@ -199,7 +199,7 @@ function NoticeCarousel() {
             ptrRef.current = null;
             if (Math.abs(dx) > 28) {
               goTo(safeIdx + (dx < 0 ? 1 : -1));
-            } else if (user && cur.href) {
+            } else if (cur.href) {
               navigate(cur.href);
             }
           }}
