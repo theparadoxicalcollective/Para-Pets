@@ -26,6 +26,26 @@ test("authenticated routes reject requests without a session", async () => {
   assert.deepEqual(res.result(), { statusCode: 401, body: { message: "Unauthorized" } });
 });
 
+test("expired bans are cleared before allowing an authenticated request", async () => {
+  const unbanned: string[] = [];
+  const { requireAuthenticated } = createAuthMiddleware({
+    getUser: async () => undefined,
+    unbanUser: async (id: string) => { unbanned.push(id); },
+  } as any);
+  const req = {
+    isAuthenticated: () => true,
+    user: { id: "player-1", isBanned: true, banUntil: new Date(Date.now() - 1_000) },
+  } as any;
+  const res = response();
+  let nextCalled = false;
+
+  await requireAuthenticated(req, res as any, () => { nextCalled = true; });
+
+  assert.equal(nextCalled, true);
+  assert.equal(req.user.isBanned, false);
+  assert.deepEqual(unbanned, ["player-1"]);
+});
+
 test("admin routes require a verified current administrator", async () => {
   const { requireAdmin } = createAuthMiddleware({
     getUser: async () => ({ id: "admin-1", isAdmin: true, emailVerified: false, isBanned: false }),
