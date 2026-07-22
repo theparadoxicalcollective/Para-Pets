@@ -2,9 +2,8 @@
 // version mismatch by using the `pg` driver directly.
 //
 // Output: a single self-restoring SQL file containing:
-//   1) Schema reconstruction notes (the project uses Drizzle — restore by
-//      running `npm run db:push --force` against an empty DB to recreate
-//      tables from `shared/schema.ts`, THEN apply this file's data).
+//   1) A recovery procedure that restores only to a newly provisioned,
+//      non-production database. Never use force or accept-data-loss flags.
 //   2) Per-table COPY ... FROM stdin blocks with CSV data inline.
 //
 // Restoring: `psql "$TARGET_DATABASE_URL" -f <this_file>` after schema sync.
@@ -50,9 +49,10 @@ async function main() {
   writeLn("-- HOW TO RESTORE:");
   writeLn("--   1. Provision an empty Postgres database.");
   writeLn("--   2. Set RAILWAY_DATABASE_URL (or DATABASE_URL) to it.");
-  writeLn("--   3. Run `npm run db:push --force` in the Para Pets repo to");
-  writeLn("--      recreate the schema from shared/schema.ts.");
-  writeLn("--   4. Run `psql \"$DATABASE_URL\" -f <this file>` to load data.");
+  writeLn("--   3. Recreate the schema using reviewed, non-destructive migrations.");
+  writeLn("--      Do NOT run drizzle-kit with --force or --accept-data-loss.");
+  writeLn("--   4. Run `psql \"$DATABASE_URL\" -f <this file>` only against that");
+  writeLn("--      recovery database after confirming the target is not production.");
   writeLn("--");
   writeLn("BEGIN;");
   writeLn("SET session_replication_role = 'replica'; -- skip FK checks during load");

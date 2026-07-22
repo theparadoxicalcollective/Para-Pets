@@ -186,6 +186,7 @@ export interface IStorage {
   createAdminMessage(username: string, subject: string, message: string): Promise<AdminMessage>;
   getAdminMessagesByUsername(username: string): Promise<AdminMessage[]>;
   deleteAdminMessage(id: string): Promise<void>;
+  deleteAdminMessageForUsername(id: string, username: string): Promise<boolean>;
   getLocationEnemies(locationId: string): Promise<LocationEnemy[]>;
   getLocationEnemiesByTier(locationId: string, tier: number): Promise<any[]>;
   getLocationEnemy(id: string): Promise<LocationEnemy | undefined>;
@@ -1287,6 +1288,13 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAdminMessage(id: string): Promise<void> {
     await db.delete(adminMessages).where(eq(adminMessages.id, id));
+  }
+
+  async deleteAdminMessageForUsername(id: string, username: string): Promise<boolean> {
+    const deleted = await db.delete(adminMessages)
+      .where(and(eq(adminMessages.id, id), eq(adminMessages.username, username)))
+      .returning({ id: adminMessages.id });
+    return deleted.length === 1;
   }
 
   async getLocationEnemies(locationId: string): Promise<LocationEnemy[]> {
