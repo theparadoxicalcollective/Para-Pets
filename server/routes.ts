@@ -12,6 +12,7 @@ import { and, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { Resend } from "resend";
+import { requireAdmin, requireAuthenticated } from "./auth";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Para Pets <noreply@parapets.net>";
@@ -320,19 +321,8 @@ async function getOrCreateStripePrice(stripe: any, pack: typeof COIN_PACKS[0]): 
 const MAX_PER_SESSION = 100;
 const MAX_PER_DAY = 500;
 
-async function isAuthenticated(req: Request, res: Response, next: any) {
-  if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
-  const user = req.user as any;
-  if (user.isBanned) {
-    if (user.banUntil && new Date(user.banUntil) <= new Date()) {
-      await storage.unbanUser(user.id);
-      return next();
-    }
-    req.logout(() => {});
-    return res.status(403).json({ message: "This account has been banished from the realm" });
-  }
-  return next();
-}
+const isAuthenticated = requireAuthenticated;
+const isAdmin = requireAdmin;
 
 const DEFAULT_WELCOME_CONFIG = {
   coinAmount: 500,
@@ -420,22 +410,6 @@ async function grantWelcomeV2Bundle(userId: string): Promise<void> {
     }
   }
   await storage.setWelcomeV2Sent(userId);
-}
-
-async function ensureAdminAccount() {
-  try {
-    const adminEmail = "paradox.esctacyartistry@gmail.com";
-    const user = await storage.getUserByEmail(adminEmail);
-    if (user && !user.isAdmin) {
-      const { db } = await import("./db");
-      const { users } = await import("@shared/schema");
-      const { eq } = await import("drizzle-orm");
-      await db.update(users).set({ isAdmin: true }).where(eq(users.id, user.id));
-      console.log("Set admin flag for", user.username);
-    }
-  } catch (err) {
-    console.error("Admin setup error:", err);
-  }
 }
 
 const WORLD_BG_SEED: Record<string, string> = {
@@ -976,7 +950,6 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  await ensureAdminAccount();
   seedWorldBackgrounds();
 
   // ── SEO: sitemap + robots (no auth required, served before any middleware) ──
@@ -1094,14 +1067,12 @@ export async function registerRoutes(
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
-      const adminEmail = "paradox.esctacyartistry@gmail.com";
-      const shouldBeAdmin = email.toLowerCase() === adminEmail.toLowerCase();
       const user = await storage.createUser({
         username,
         email,
         password: hashedPassword,
         profileImage: profileImagePath,
-        isAdmin: shouldBeAdmin,
+        isAdmin: false,
         coins: 0,
         essence: 1000,
       });
@@ -1133,12 +1104,8 @@ export async function registerRoutes(
 
       req.login(user, (err) => {
         if (err) return res.status(500).json({ message: "Login failed after registration" });
-        if (shouldBeAdmin) {
-          storage.verifyEmail(user.id).catch(e => console.error("Admin auto-verify failed:", e));
-        } else {
-          sendVerificationEmail(user.id, user.email, user.username)
-            .catch(e => console.error("Verification email failed:", e));
-        }
+        sendVerificationEmail(user.id, user.email, user.username)
+          .catch(e => console.error("Verification email failed:", e));
         const { password: _, ...safeUser } = user;
         return res.status(201).json(safeUser);
       });
@@ -3910,13 +3877,6 @@ export async function registerRoutes(
     }
   });
 
-  function isAdmin(req: Request, res: Response, next: any) {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
-    const user = req.user as any;
-    if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
-    return next();
-  }
-
   app.get("/api/admin/support-messages", isAdmin, async (_req, res) => {
     try {
       const messages = await storage.getAllSupportMessages();
@@ -3979,10 +3939,11 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/admin-messages/:id", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ message: "Unauthorized" });
+  app.delete("/api/admin-messages/:id", isAuthenticated, async (req, res) => {
     try {
-      await storage.deleteAdminMessage(req.params.id as string);
+      const user = req.user as any;
+      const deleted = await storage.deleteAdminMessageForUsername(req.params.id as string, user.username);
+      if (!deleted) return res.status(404).json({ message: "Message not found" });
       return res.json({ message: "Deleted" });
     } catch (err) {
       return res.status(500).json({ message: "Failed to delete message" });
