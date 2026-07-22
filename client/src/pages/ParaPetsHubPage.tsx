@@ -141,7 +141,7 @@ const NOTICES = [
 interface DbNotice { id: string; image_url: string; href: string; label: string; }
 interface ActiveNotice { img: string; href: string | null; label: string; id: string | null; }
 
-function NoticeCarousel() {
+function NoticeCarousel({ user }: { user: unknown }) {
   const [idx, setIdx] = useState(0);
   const [, navigate] = useLocation();
   const { data: dbNotices = [] } = useQuery<DbNotice[]>({
@@ -1485,7 +1485,7 @@ export default function ParaPetsHubPage() {
           <GoldDivider />
 
           {/* ── Notice carousel ───────────────────────────────────────────── */}
-          <NoticeCarousel />
+          <NoticeCarousel user={user} />
 
           <GoldDivider />
 
