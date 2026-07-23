@@ -5,7 +5,7 @@ This document describes the current production architecture on `main` after the 
 ## Runtime architecture
 
 - **Client:** `client/src/` is a React 18, TypeScript, Vite, Tailwind application. `client/src/App.tsx` owns routing and global overlays; `client/src/pages/` contains screen-level game experiences; `client/src/components/` contains reusable game UI and admin panels. Wouter manages client routing and TanStack Query manages server state.
-- **Server:** `server/index.ts` builds the Express process, configures compression, rate limits, sessions, Passport, static assets, startup migrations, and production/development serving. `server/routes.ts` registers the API surface. `server/storage.ts` is the application data-access layer over Drizzle/PostgreSQL. `server/inventoryPurchase.ts` provides the coin-shop debit-and-grant transaction boundary.
+- **Server:** `server/index.ts` builds the Express process, configures compression, rate limits, sessions, Passport, static assets, startup migrations, and production/development serving. `server/routes.ts` registers the API surface and delegates the focused account/auth flows to `server/routes/account.routes.ts`. `server/storage.ts` is the application data-access layer over Drizzle/PostgreSQL. `server/inventoryPurchase.ts` provides the coin-shop debit-and-grant transaction boundary.
 - **Persistence:** `shared/schema.ts` declares Drizzle tables and shared types. `server/db.ts` selects `RAILWAY_DATABASE_URL` first and retains `DATABASE_URL` as a fallback. Railway PostgreSQL is the production source of truth.
 - **Build/deploy:** `script/build.ts` builds the Vite client and bundles the server to `dist/index.cjs`. `railway.toml` starts that bundle and checks `GET /health`.
 
@@ -24,7 +24,7 @@ This document describes the current production architecture on `main` after the 
 
 ## Oversized and tightly coupled areas
 
-- `server/routes.ts` (~10k lines) combines account handling, gameplay rules, content management, payments, and API registration. It is the highest-value route-extraction target.
+- `server/routes.ts` (~10k lines) combines gameplay rules, content management, payments, and API registration; account registration, verification, reset, and logout flows live in `server/routes/account.routes.ts`. It is the highest-value route-extraction target.
 - `server/index.ts` (~3.7k lines) combines HTTP bootstrap with runtime schema maintenance, migration/backfill work, seeding, and static/Vite setup. Boot concerns should eventually be isolated without changing ordering.
 - `server/storage.ts` (~3.6k lines) centralizes all data access. It is a useful boundary but too broad for focused ownership and unit testing.
 - Large client screens include `WorldPage.tsx`, `AdminPage.tsx`, `PetWorldPage.tsx`, `PetHousePage.tsx`, and `BattleArena.tsx`. Each combines display state, game rules, server calls, and interaction code.
@@ -34,7 +34,7 @@ This document describes the current production architecture on `main` after the 
 
 - `server/auth.ts` contains the canonical authenticated-player and verified-administrator middleware. Privileged routes should use these guards rather than reimplementing role checks.
 - `server/index.ts` owns Passport local authentication, session cookies, `SESSION_SECRET` production enforcement, rate limits, and the Stripe raw-body webhook boundary.
-- Registration in `server/routes.ts` must always use least-privilege defaults. `server/registration.ts` makes the fixed `isAdmin: false` and `isModerator: false` registration contract explicit.
+- Registration in `server/routes/account.routes.ts` must always use least-privilege defaults. `server/registration.ts` makes the fixed `isAdmin: false` and `isModerator: false` registration contract explicit.
 - Admin-message deletion must stay username-scoped through `deleteAdminMessageForUsername`; never use the unscoped deletion method for a player route.
 - `server/stripeClient.ts` handles Stripe credentials and Replit connector fallback. Webhook signing must remain intact.
 - `server/db.ts`, `shared/schema.ts`, and runtime SQL in `server/index.ts` affect live Railway data. Follow `replit.md` database safety rules; do not force schema pushes or introduce destructive migrations.
