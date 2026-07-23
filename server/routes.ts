@@ -17,6 +17,8 @@ import { createRegisteredUser } from "./registration";
 import { deleteOwnedAdminMessage } from "./adminMessages";
 import { purchaseInventoryItem } from "./inventoryPurchase";
 
+type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Para Pets <noreply@parapets.net>";
 
@@ -2530,8 +2532,8 @@ export async function registerRoutes(
 
       const purchaseCount = shopItem.type === "pet" ? 1 : quantity;
       const purchase = await purchaseInventoryItem({
-        transaction: (work) => db.transaction(work as any),
-        deductCoins: async (tx: any, userId, cost) => {
+        transaction: async (work) => await db.transaction(async (tx) => work(tx)),
+        deductCoins: async (tx: ShopPurchaseTransaction, userId, cost) => {
           const [updated] = await tx
             .update(usersTable)
             .set({ coins: sql`${usersTable.coins} - ${cost}` })
@@ -2539,7 +2541,7 @@ export async function registerRoutes(
             .returning();
           return updated;
         },
-        grant: async (tx: any, { userId, quantity: requestedQuantity }) => {
+        grant: async (tx: ShopPurchaseTransaction, { userId, quantity: requestedQuantity }) => {
           let invItem: any = null;
           if (shopItem.fishingType === "bait") {
             const baitChargesPerPurchase = 5;
