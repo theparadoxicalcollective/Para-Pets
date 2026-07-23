@@ -74,6 +74,7 @@ interface InventoryItem {
   petLevel: number;
   petLevelPoints: number;
   itemsUsedThisLevel: number;
+  quantity: number;
 }
 
 export default function HomePage({ user, isOverlayActive = false }: HomePageProps) {
@@ -594,6 +595,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     statBoostAmount: i.statBoostAmount,
     specialType: i.specialType,
     specialAmount: i.specialAmount,
+    quantity: i.quantity,
   });
 
   const statBoostItems = inventory

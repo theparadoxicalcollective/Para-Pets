@@ -16,6 +16,7 @@ import { requireAdmin, requireAuthenticated } from "./auth";
 import { createRegisteredUser } from "./registration";
 import { deleteOwnedAdminMessage } from "./adminMessages";
 import { purchaseInventoryItem } from "./inventoryPurchase";
+import { tryConsumeInventoryQuantity, tryConsumeOneFromInventory } from "./inventoryConsumption";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -2836,9 +2837,11 @@ export async function registerRoutes(
         const [pet] = await tx
           .update(userInventory)
           .set(updates)
-          .where(eq(userInventory.id, petInv.id))
+          .where(and(eq(userInventory.id, petInv.id), eq(userInventory.userId, user.id)))
           .returning();
-        await tx.delete(userInventory).where(eq(userInventory.id, itemInv.id));
+        if (!pet) throw new Error("Pet was not available for power up");
+        const { consumed } = await tryConsumeOneFromInventory(tx, user.id, itemInv.id);
+        if (!consumed) throw new Error("Power-up item is no longer available");
         return pet;
       });
 
@@ -2915,9 +2918,11 @@ export async function registerRoutes(
           const [pet] = await tx
             .update(userInventory)
             .set(hatchUpdate)
-            .where(eq(userInventory.id, petInv.id))
-            .returning();
-          await tx.delete(userInventory).where(eq(userInventory.id, itemInv.id));
+          .where(and(eq(userInventory.id, petInv.id), eq(userInventory.userId, user.id)))
+          .returning();
+          if (!pet) throw new Error("Pet was not available for special use");
+          const { consumed } = await tryConsumeOneFromInventory(tx, user.id, itemInv.id);
+          if (!consumed) throw new Error("Special item is no longer available");
           return pet;
         });
         return res.json(updatedPet);
@@ -2938,9 +2943,11 @@ export async function registerRoutes(
           const [pet] = await tx
             .update(userInventory)
             .set(updates)
-            .where(eq(userInventory.id, petInv.id))
+            .where(and(eq(userInventory.id, petInv.id), eq(userInventory.userId, user.id)))
             .returning();
-          await tx.delete(userInventory).where(eq(userInventory.id, itemInv.id));
+          if (!pet) throw new Error("Pet was not available for special use");
+          const { consumed } = await tryConsumeOneFromInventory(tx, user.id, itemInv.id);
+          if (!consumed) throw new Error("Special item is no longer available");
           return pet;
         });
         return res.json(updatedPet);
@@ -3272,17 +3279,16 @@ export async function registerRoutes(
         lastFedAt: new Date(),
       };
 
-      const updatedPet = await storage.updateInventoryItem(petInv.id, updates);
-      // Bulk-decrement the inventory by quantity in one atomic SQL update.
-      await db.transaction(async (tx) => {
-        const newQty = availableQty - quantity;
-        if (newQty <= 0) {
-          await tx.delete(userInventory).where(eq(userInventory.id, itemInv.id));
-        } else {
-          await tx.update(userInventory)
-            .set({ quantity: newQty })
-            .where(eq(userInventory.id, itemInv.id));
+      const updatedPet = await db.transaction(async (tx) => {
+        const [pet] = await tx.update(userInventory)
+          .set(updates)
+          .where(and(eq(userInventory.id, petInv.id), eq(userInventory.userId, user.id)))
+          .returning();
+        if (!pet) throw new Error("Pet was not available for feeding");
+        if (!await tryConsumeInventoryQuantity(tx, user.id, itemInv.id, quantity)) {
+          throw new Error("Edible is no longer available");
         }
+        return pet;
       });
       // Quest progress: feed_pet
       incrementQuestProgress(user.id, "feed_pet").catch(() => {});
@@ -3327,10 +3333,16 @@ export async function registerRoutes(
 
       const points = Math.max(0, itemShopItem.giftPoints || 0);
       const newLoyalty = Math.min(loyaltyMax, (petInv.petLoyalty ?? 0) + points);
-      const updated = await storage.updateInventoryItem(petInv.id, {
-        petLoyalty: newLoyalty,
-      } as any);
-      await storage.removeFromInventory(itemInv.id);
+      const updated = await db.transaction(async (tx) => {
+        const [pet] = await tx.update(userInventory)
+          .set({ petLoyalty: newLoyalty })
+          .where(and(eq(userInventory.id, petInv.id), eq(userInventory.userId, user.id)))
+          .returning();
+        if (!pet) throw new Error("Pet was not available for gift");
+        const { consumed } = await tryConsumeOneFromInventory(tx, user.id, itemInv.id);
+        if (!consumed) throw new Error("Gift is no longer available");
+        return pet;
+      });
       return res.json({ pet: updated, loyaltyAdded: points, petLoyalty: newLoyalty });
     } catch (err) {
       console.error("Give gift error:", err);
@@ -6387,11 +6399,16 @@ export async function registerRoutes(
       const petsRevived = shopItem.petsRevived || 0;
       const petsHealed = shopItem.petsHealed || 0;
 
-      // Potions stack now — using one decrements the row's quantity, only
-      // deleting the row when the stack hits zero. Returning the post-use
-      // quantity lets the client reconcile its cached badge counts.
-      const { depleted, item: updatedRow } = await storage.decrementInventoryQuantity(inventoryId);
-      const remainingQty = depleted ? 0 : (updatedRow?.quantity ?? 0);
+      // Consume only an owned, still-positive stack. In particular, a second
+      // concurrent request for the final potion must not receive its effect.
+      const consumption = await db.transaction((tx) =>
+        tryConsumeOneFromInventory(tx, user.id, inventoryId),
+      );
+      if (!consumption.consumed) {
+        return res.status(409).json({ message: "Potion is no longer available" });
+      }
+      const remainingQty = consumption.remainingQuantity;
+      const depleted = remainingQty === 0;
 
       return res.json({ healAmount, manaAmount, petsRevived, petsHealed, potionName: shopItem.name, remainingQty, depleted });
     } catch (err) {

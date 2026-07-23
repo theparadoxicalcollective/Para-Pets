@@ -24,6 +24,7 @@ export interface PowerUpItem {
   statBoostAmount: number | null;
   specialType: string | null;
   specialAmount: number | null;
+  quantity: number;
 }
 
 interface PetPowerUpModalProps {
@@ -574,6 +575,16 @@ export default function PetPowerUpModal({
                         style={{ background: `${color}22`, color, border: `1px solid ${color}55`, textShadow: `0 0 8px ${color}80` }}>
                         {label}
                       </span>
+
+                      {item.quantity > 1 && (
+                        <span
+                          className="absolute top-1.5 right-1.5 min-w-5 h-5 px-1 rounded-full flex items-center justify-center font-fantasy text-[10px] font-bold"
+                          style={{ background: "#173d22", color: "#d9f99d", border: "1px solid #86efac88" }}
+                          aria-label={`${item.quantity} available`}
+                        >
+                          ×{item.quantity}
+                        </span>
+                      )}
 
                       {/* Locked indicator */}
                       {locked && (
