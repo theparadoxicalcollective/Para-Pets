@@ -131,7 +131,7 @@ export interface IStorage {
   getInventoryItemById(id: string): Promise<UserInventoryItem | undefined>;
   removeFromInventory(id: string): Promise<void>;
   updateInventoryItem(id: string, updates: Partial<UserInventoryItem>): Promise<UserInventoryItem>;
-  decrementPoleUses(inventoryId: string): Promise<UserInventoryItem | undefined>;
+  decrementPoleUses(inventoryId: string, userId: string): Promise<UserInventoryItem | undefined>;
   createRewardBundle(name: string, coinAmount: number, message?: string | null): Promise<RewardBundle>;
   addRewardBundleItem(bundleId: string, shopItemId: string): Promise<RewardBundleItem>;
   getRewardBundleItems(bundleId: string): Promise<RewardBundleItem[]>;
@@ -719,23 +719,25 @@ export class DatabaseStorage implements IStorage {
     }
 
     // No explicit stackQty — fetch the item type to decide whether to stack or insert fresh.
-    // Pets always get a new row (each copy is a distinct owned pet).
+    // Pets and durable fishing poles always get a new row. A pole's remaining
+    // uses belong to that physical copy, so merging poles would make one worn
+    // pole represent every pole of the same type.
     // Every other item type (special, consumable, accessory, etc.) stacks into the
     // existing row so the player never ends up with duplicate slots and unique
     // indexes (e.g. raid tickets) are never violated.
-    let shopItemType: string | undefined;
+    let shopItem: ShopItem | undefined;
     try {
-      const shopItem = await this.getShopItem(shopItemId);
-      shopItemType = shopItem?.type;
+      shopItem = await this.getShopItem(shopItemId);
     } catch {}
 
-    if (shopItemType && shopItemType !== "pet") {
+    const isDurablePole = shopItem?.type === "fishing" && shopItem.fishingType === "pole";
+    if (shopItem?.type && shopItem.type !== "pet" && !isDurablePole) {
       // Non-pet: upsert into the single canonical row for this user+item
       const existing = await this.getInventoryItem(userId, shopItemId);
       if (existing) {
         const [updated] = await db
           .update(userInventory)
-          .set({ quantity: (existing.quantity ?? 0) + 1 })
+          .set({ quantity: sql`COALESCE(${userInventory.quantity}, 0) + 1` })
           .where(eq(userInventory.id, existing.id))
           .returning();
         return updated;
@@ -916,16 +918,26 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async decrementPoleUses(inventoryId: string): Promise<UserInventoryItem | undefined> {
-    const inv = await this.getInventoryItemById(inventoryId);
-    if (!inv || inv.poleUsesLeft === null || inv.poleUsesLeft === undefined) return inv;
-    const newUses = Math.max(0, inv.poleUsesLeft - 1);
-    const [updated] = await db
-      .update(userInventory)
-      .set({ poleUsesLeft: newUses })
-      .where(eq(userInventory.id, inventoryId))
-      .returning();
-    return updated;
+  async decrementPoleUses(inventoryId: string, userId: string): Promise<UserInventoryItem | undefined> {
+    // Durable poles are individual rows. Decrement and delete only the selected
+    // owned row when its final use is spent; never delete by item type.
+    return db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(userInventory)
+        .set({ poleUsesLeft: sql`GREATEST(0, ${userInventory.poleUsesLeft} - 1)` })
+        .where(and(
+          eq(userInventory.id, inventoryId),
+          eq(userInventory.userId, userId),
+          sql`${userInventory.poleUsesLeft} IS NOT NULL AND ${userInventory.poleUsesLeft} > 0`,
+        ))
+        .returning();
+      if (!updated) return undefined;
+      if (updated.poleUsesLeft === 0) {
+        await tx.delete(userInventory).where(and(eq(userInventory.id, inventoryId), eq(userInventory.userId, userId)));
+        return undefined;
+      }
+      return updated;
+    });
   }
 
   async getInventoryItem(userId: string, shopItemId: string): Promise<UserInventoryItem | undefined> {

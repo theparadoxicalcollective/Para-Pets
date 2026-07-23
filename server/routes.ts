@@ -2503,7 +2503,13 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       const { itemId } = req.params as Record<string, string>;
-      const quantity = Math.min(Math.max(1, parseInt(req.body?.quantity ?? "1") || 1), 20);
+      const rawQuantity = req.body?.quantity ?? 1;
+      const quantity = typeof rawQuantity === "number" || typeof rawQuantity === "string"
+        ? Number(rawQuantity)
+        : NaN;
+      if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 20) {
+        return res.status(400).json({ message: "Quantity must be a whole number between 1 and 20" });
+      }
 
       const shopItem = await storage.getShopItem(itemId);
       if (!shopItem) {
@@ -2532,35 +2538,43 @@ export async function registerRoutes(
       const purchaseCount = shopItem.type === "pet" ? 1 : quantity;
       let invItem: any = null;
 
-      if (shopItem.fishingType === "bait") {
-        // Bait stacks: each purchase gives 5 charges stacked onto one inventory row
-        const baitChargesPerPurchase = 5;
-        invItem = await storage.addToInventory(user.id, itemId, {}, baitChargesPerPurchase * purchaseCount);
-      } else if (shopItem.type === "potion") {
-        // Potions stack up to 50 per row. Tops off existing partial stacks
-        // before creating new ones, so a player who has 46 small health
-        // potions and buys 10 more ends up with one stack of 50 and a
-        // new stack of 6 — not 11 separate single-quantity rows.
-        const POTION_STACK_LIMIT = 50;
-        const touched = await storage.addStackingItem(user.id, itemId, purchaseCount, POTION_STACK_LIMIT);
-        invItem = touched[touched.length - 1] ?? null;
-      } else if (shopItem.type === "edibles") {
-        // Edibles stack up to 30 per row.
-        const EDIBLE_STACK_LIMIT = 30;
-        const touched = await storage.addStackingItem(user.id, itemId, purchaseCount, EDIBLE_STACK_LIMIT);
-        invItem = touched[touched.length - 1] ?? null;
-      } else {
-        for (let i = 0; i < purchaseCount; i++) {
-          const extraFields: any = {};
-          if (shopItem.fishingType === "pole" && shopItem.poleMaxUses != null) {
-            extraFields.poleUsesLeft = shopItem.poleMaxUses;
-          }
-          invItem = await storage.addToInventory(user.id, itemId, extraFields);
-          if (shopItem.type === "pet" && shopItem.hatchTime) {
-            const updated = await storage.updateInventoryItem(invItem.id, { hatchStartedAt: new Date() });
-            if (updated) invItem = updated;
+      try {
+        if (shopItem.fishingType === "bait") {
+          // Bait stacks: each purchase gives 5 charges stacked onto one inventory row
+          const baitChargesPerPurchase = 5;
+          invItem = await storage.addToInventory(user.id, itemId, {}, baitChargesPerPurchase * purchaseCount);
+        } else if (shopItem.type === "potion") {
+          // Potions stack up to 50 per row. Tops off existing partial stacks
+          // before creating new ones, so a player who has 46 small health
+          // potions and buys 10 more ends up with one stack of 50 and a
+          // new stack of 6 — not 11 separate single-quantity rows.
+          const POTION_STACK_LIMIT = 50;
+          const touched = await storage.addStackingItem(user.id, itemId, purchaseCount, POTION_STACK_LIMIT);
+          invItem = touched[touched.length - 1] ?? null;
+        } else if (shopItem.type === "edibles") {
+          // Edibles stack up to 30 per row.
+          const EDIBLE_STACK_LIMIT = 30;
+          const touched = await storage.addStackingItem(user.id, itemId, purchaseCount, EDIBLE_STACK_LIMIT);
+          invItem = touched[touched.length - 1] ?? null;
+        } else {
+          for (let i = 0; i < purchaseCount; i++) {
+            const extraFields: any = {};
+            if (shopItem.fishingType === "pole" && shopItem.poleMaxUses != null) {
+              extraFields.poleUsesLeft = shopItem.poleMaxUses;
+            }
+            invItem = await storage.addToInventory(user.id, itemId, extraFields);
+            if (shopItem.type === "pet" && shopItem.hatchTime) {
+              const updated = await storage.updateInventoryItem(invItem.id, { hatchStartedAt: new Date() });
+              if (updated) invItem = updated;
+            }
           }
         }
+      } catch (grantError) {
+        // The debit is conditional and authoritative. If the subsequent item
+        // grant fails, compensate it before reporting the failure so a player
+        // is never charged for an incomplete purchase.
+        await storage.addCoins(user.id, totalCost);
+        throw grantError;
       }
 
       const { password: _, ...safeUser } = afterDeduct;
@@ -7318,7 +7332,12 @@ export async function registerRoutes(
 
       const equipment = await storage.getPlayerFishingEquipment(user.id);
       if (equipment?.poleInventoryId) {
-        await storage.decrementPoleUses(equipment.poleInventoryId);
+        const pole = await storage.decrementPoleUses(equipment.poleInventoryId, user.id);
+        if (!pole) {
+          // The selected pole was exhausted (or no longer belongs to this
+          // player); clear only this player's equipped reference.
+          await storage.upsertPlayerFishingEquipment(user.id, { poleInventoryId: null });
+        }
       }
 
       // If the player completed the reel mini-game (score 100) they always catch.
