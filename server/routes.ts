@@ -15,6 +15,7 @@ import { Resend } from "resend";
 import { requireAdmin, requireAuthenticated } from "./auth";
 import { createRegisteredUser } from "./registration";
 import { deleteOwnedAdminMessage } from "./adminMessages";
+import { purchaseInventoryItem } from "./inventoryPurchase";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Para Pets <noreply@parapets.net>";
@@ -2527,57 +2528,71 @@ export async function registerRoutes(
         }
       }
 
-      const totalCost = shopItem.price * (shopItem.type === "pet" ? 1 : quantity);
-
-      // Atomic check-and-deduct: fails if coins < totalCost, preventing double-spend races
-      const afterDeduct = await storage.atomicDeductCoins(user.id, totalCost);
-      if (!afterDeduct) {
-        return res.status(400).json({ message: "Not enough coins" });
-      }
-
       const purchaseCount = shopItem.type === "pet" ? 1 : quantity;
-      let invItem: any = null;
-
-      try {
-        if (shopItem.fishingType === "bait") {
-          // Bait stacks: each purchase gives 5 charges stacked onto one inventory row
-          const baitChargesPerPurchase = 5;
-          invItem = await storage.addToInventory(user.id, itemId, {}, baitChargesPerPurchase * purchaseCount);
-        } else if (shopItem.type === "potion") {
-          // Potions stack up to 50 per row. Tops off existing partial stacks
-          // before creating new ones, so a player who has 46 small health
-          // potions and buys 10 more ends up with one stack of 50 and a
-          // new stack of 6 — not 11 separate single-quantity rows.
-          const POTION_STACK_LIMIT = 50;
-          const touched = await storage.addStackingItem(user.id, itemId, purchaseCount, POTION_STACK_LIMIT);
-          invItem = touched[touched.length - 1] ?? null;
-        } else if (shopItem.type === "edibles") {
-          // Edibles stack up to 30 per row.
-          const EDIBLE_STACK_LIMIT = 30;
-          const touched = await storage.addStackingItem(user.id, itemId, purchaseCount, EDIBLE_STACK_LIMIT);
-          invItem = touched[touched.length - 1] ?? null;
-        } else {
-          for (let i = 0; i < purchaseCount; i++) {
-            const extraFields: any = {};
-            if (shopItem.fishingType === "pole" && shopItem.poleMaxUses != null) {
-              extraFields.poleUsesLeft = shopItem.poleMaxUses;
+      const purchase = await purchaseInventoryItem({
+        transaction: (work) => db.transaction(work as any),
+        deductCoins: async (tx: any, userId, cost) => {
+          const [updated] = await tx
+            .update(usersTable)
+            .set({ coins: sql`${usersTable.coins} - ${cost}` })
+            .where(and(eq(usersTable.id, userId), sql`${usersTable.coins} >= ${cost}`))
+            .returning();
+          return updated;
+        },
+        grant: async (tx: any, { userId, quantity: requestedQuantity }) => {
+          let invItem: any = null;
+          if (shopItem.fishingType === "bait") {
+            const baitChargesPerPurchase = 5;
+            const [existing] = await tx.select().from(userInventory)
+              .where(and(eq(userInventory.userId, userId), eq(userInventory.shopItemId, itemId)));
+            if (existing) {
+              [invItem] = await tx.update(userInventory)
+                .set({ quantity: sql`COALESCE(${userInventory.quantity}, 0) + ${baitChargesPerPurchase * requestedQuantity}` })
+                .where(eq(userInventory.id, existing.id)).returning();
+            } else {
+              [invItem] = await tx.insert(userInventory).values({ userId, shopItemId: itemId, quantity: baitChargesPerPurchase * requestedQuantity }).returning();
             }
-            invItem = await storage.addToInventory(user.id, itemId, extraFields);
-            if (shopItem.type === "pet" && shopItem.hatchTime) {
-              const updated = await storage.updateInventoryItem(invItem.id, { hatchStartedAt: new Date() });
-              if (updated) invItem = updated;
+          } else if (shopItem.type === "potion" || shopItem.type === "edibles") {
+            const limit = shopItem.type === "potion" ? 50 : 30;
+            // Serialize this user's stacks so topping off and overflow inserts
+            // remain consistent with concurrent purchases.
+            await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${userId})::int, hashtext(${itemId})::int)`);
+            const rows: any = await tx.execute(sql`SELECT * FROM user_inventory WHERE user_id = ${userId} AND shop_item_id = ${itemId} ORDER BY acquired_at ASC NULLS FIRST FOR UPDATE`);
+            let remaining = requestedQuantity;
+            for (const row of (rows.rows ?? rows)) {
+              if (remaining <= 0) break;
+              const add = Math.min(limit - (row.quantity ?? 1), remaining);
+              if (add <= 0) continue;
+              [invItem] = await tx.update(userInventory).set({ quantity: sql`LEAST(${limit}, COALESCE(${userInventory.quantity}, 1) + ${add})` }).where(eq(userInventory.id, row.id)).returning();
+              remaining -= add;
+            }
+            while (remaining > 0) {
+              const chunk = Math.min(limit, remaining);
+              [invItem] = await tx.insert(userInventory).values({ userId, shopItemId: itemId, quantity: chunk }).returning();
+              remaining -= chunk;
+            }
+          } else {
+            for (let i = 0; i < requestedQuantity; i++) {
+              const extraFields: any = {};
+              if (shopItem.fishingType === "pole" && shopItem.poleMaxUses != null) extraFields.poleUsesLeft = shopItem.poleMaxUses;
+              // Pets and poles must be individual rows. Other generic shop
+              // items preserve the existing storage stacking behaviour.
+              if (shopItem.type !== "pet" && shopItem.fishingType !== "pole") {
+                const [existing] = await tx.select().from(userInventory).where(and(eq(userInventory.userId, userId), eq(userInventory.shopItemId, itemId)));
+                if (existing) [invItem] = await tx.update(userInventory).set({ quantity: sql`COALESCE(${userInventory.quantity}, 0) + 1` }).where(eq(userInventory.id, existing.id)).returning();
+                else [invItem] = await tx.insert(userInventory).values({ userId, shopItemId: itemId, quantity: 1 }).returning();
+              } else {
+                [invItem] = await tx.insert(userInventory).values({ userId, shopItemId: itemId, ...extraFields, ...(shopItem.type === "pet" ? { hatchStartedAt: new Date() } : {}) }).returning();
+              }
             }
           }
-        }
-      } catch (grantError) {
-        // The debit is conditional and authoritative. If the subsequent item
-        // grant fails, compensate it before reporting the failure so a player
-        // is never charged for an incomplete purchase.
-        await storage.addCoins(user.id, totalCost);
-        throw grantError;
+          return invItem;
+        },
+      }, { userId: user.id, unitPrice: shopItem.price, quantity: purchaseCount });
+      if (!purchase.ok) {
+        return res.status(400).json({ message: "Not enough coins" });
       }
-
-      const { password: _, ...safeUser } = afterDeduct;
+      const { password: _, ...safeUser } = purchase.user as any;
 
       // Veridian Watcher congratulation for first 4/5-star pet acquisition
       if (shopItem.type === "pet" && isFirstPetAcquisition && (shopItem.starRarity ?? 0) >= 4) {
@@ -2587,7 +2602,7 @@ export async function registerRoutes(
         }
       }
 
-      return res.json({ inventory: invItem, user: safeUser, quantity: purchaseCount });
+      return res.json({ inventory: purchase.inventory, user: safeUser, quantity: purchaseCount });
     } catch (err) {
       console.error("Buy item error:", err);
       return res.status(500).json({ message: "Failed to purchase item" });
