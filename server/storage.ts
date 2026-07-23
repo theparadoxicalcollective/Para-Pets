@@ -58,6 +58,7 @@ import {
 } from "@shared/schema";
 
 import { db } from "./db";
+import { tryConsumeOneFromInventory as consumeOneFromInventory } from "./inventoryConsumption";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray, isNull, gt } from "drizzle-orm";
 
 export interface EquippedAccessoryDetail {
@@ -815,24 +816,8 @@ export class DatabaseStorage implements IStorage {
   // be used.
   async tryConsumeOneFromInventory(inventoryId: string, userId: string): Promise<{ consumed: boolean }> {
     return await db.transaction(async (tx) => {
-      const [updated] = await tx
-        .update(userInventory)
-        .set({ quantity: sql`${userInventory.quantity} - 1` })
-        .where(and(
-          eq(userInventory.id, inventoryId),
-          eq(userInventory.userId, userId),
-          sql`COALESCE(${userInventory.quantity}, 1) > 0`,
-        ))
-        .returning();
-      if (!updated) {
-        // No row matched — either wrong owner, already 0, or row missing.
-        // Nothing was consumed.
-        return { consumed: false };
-      }
-      if ((updated.quantity ?? 0) <= 0) {
-        await tx.delete(userInventory).where(eq(userInventory.id, inventoryId));
-      }
-      return { consumed: true };
+      const { consumed } = await consumeOneFromInventory(tx, userId, inventoryId);
+      return { consumed };
     });
   }
 
