@@ -7,6 +7,7 @@ import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
 import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, userHouseBundles as userHouseBundlesTable, users as usersTable, coinPurchases, deletedAccounts } from "@shared/schema";
+import { executeRewardClaim } from "./rewardClaim";
 import { db } from "./db";
 import { and, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import sharp from "sharp";
@@ -5094,58 +5095,56 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Please verify your email before claiming rewards", code: "EMAIL_UNVERIFIED" });
       }
 
-      const existing = await storage.getUserReward((req.params.rewardId as string));
-      if (!existing) {
-        return res.status(404).json({ message: "Reward not found" });
-      }
-      if (existing.claimed) {
-        return res.status(404).json({ message: "Reward already claimed" });
-      }
-      if (existing.userId !== user.id) {
-        return res.status(403).json({ message: "This reward is not yours" });
-      }
-
-      const claimed = await storage.claimReward((req.params.rewardId as string));
-      if (!claimed) {
-        return res.status(404).json({ message: "Reward not found or already claimed" });
-      }
-
-      const bundle = await storage.getRewardBundle(claimed.bundleId);
-      if (!bundle) {
-        return res.status(404).json({ message: "Bundle not found" });
-      }
-
-      if (bundle.coinAmount > 0) {
-        await storage.addCoins(user.id, bundle.coinAmount);
-      }
-
-      const bundleItems = await storage.getRewardBundleItems(bundle.id);
+      const rewardId = req.params.rewardId as string;
       const skippedPets: { name: string }[] = [];
-
       const BAIT_CHARGES_PER_BUNDLE = 5;
-
-      for (const bi of bundleItems) {
-        const shopItem = await storage.getShopItem(bi.shopItemId);
-        if (shopItem) {
-          // Bait items must stack onto the existing inventory row (quantity-based)
-          if (shopItem.fishingType === "bait") {
-            await storage.addToInventory(user.id, bi.shopItemId, {}, BAIT_CHARGES_PER_BUNDLE);
-          } else {
-            const invItem = await storage.addToInventory(user.id, bi.shopItemId);
-            // Pets always start their hatch timer fresh — duplicates of an
-            // already-owned species are allowed (no skip).
-            if (shopItem.type === "pet" && shopItem.hatchTime) {
-              await storage.updateInventoryItem(invItem.id, { hatchStartedAt: new Date() });
+      const result = await db.transaction(async (tx) => {
+        let reward: any;
+        let bundle: any;
+        let items: any[] = [];
+        return executeRewardClaim({
+          eligible: async () => {
+            const found = await tx.execute(sql`SELECT * FROM user_rewards WHERE id = ${rewardId} FOR UPDATE`);
+            reward = found.rows[0] as any;
+            if (!reward) return false;
+            if (reward.user_id !== user.id) throw Object.assign(new Error("NOT_OWNER"), { code: "NOT_OWNER" });
+            if (reward.claimed) return false;
+            const bundles = await tx.execute(sql`SELECT * FROM reward_bundles WHERE id = ${reward.bundle_id}`);
+            bundle = bundles.rows[0] as any;
+            if (!bundle) throw Object.assign(new Error("BUNDLE_NOT_FOUND"), { code: "BUNDLE_NOT_FOUND" });
+            items = (await tx.execute(sql`SELECT rbi.shop_item_id, si.type, si.fishing_type, si.hatch_time FROM reward_bundle_items rbi JOIN shop_items si ON si.id = rbi.shop_item_id WHERE rbi.bundle_id = ${reward.bundle_id}`)).rows as any[];
+            return true;
+          },
+          reserve: async () => true, // row lock plus the final conditional update is the reservation.
+          grantCoins: async () => { if (Number(bundle.coin_amount) > 0) await tx.execute(sql`UPDATE users SET coins = coins + ${Number(bundle.coin_amount)}, total_coins_earned = total_coins_earned + ${Number(bundle.coin_amount)} WHERE id = ${user.id}`); },
+          grantItems: async () => {
+            for (const item of items) {
+              if (item.fishing_type === "bait") {
+                const updated = await tx.execute(sql`UPDATE user_inventory SET quantity = quantity + ${BAIT_CHARGES_PER_BUNDLE} WHERE id = (SELECT id FROM user_inventory WHERE user_id = ${user.id} AND shop_item_id = ${item.shop_item_id} ORDER BY id LIMIT 1) RETURNING id`);
+                if (!updated.rows.length) await tx.execute(sql`INSERT INTO user_inventory (user_id, shop_item_id, quantity) VALUES (${user.id}, ${item.shop_item_id}, ${BAIT_CHARGES_PER_BUNDLE})`);
+              } else if (item.type === "pet" && item.hatch_time) {
+                await tx.execute(sql`INSERT INTO user_inventory (user_id, shop_item_id, hatch_started_at) VALUES (${user.id}, ${item.shop_item_id}, NOW())`);
+              } else {
+                await tx.execute(sql`INSERT INTO user_inventory (user_id, shop_item_id) VALUES (${user.id}, ${item.shop_item_id})`);
+              }
             }
-          }
-        }
-      }
+          },
+          commit: async () => {
+            const updated = await tx.execute(sql`UPDATE user_rewards SET claimed = true WHERE id = ${rewardId} AND user_id = ${user.id} AND claimed = false RETURNING id`);
+            if (!updated.rows.length) throw new Error("Claim record changed during claim");
+          },
+        });
+      });
+      if (result === "ineligible") return res.status(404).json({ message: "Reward not found or already claimed" });
+      if (result === "already-claimed") return res.status(404).json({ message: "Reward already claimed" });
 
       const updatedUser = await storage.getUser(user.id);
       const { password: _, ...safeUser } = updatedUser!;
 
       return res.json({ user: safeUser, skippedPets });
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.code === "NOT_OWNER") return res.status(403).json({ message: "This reward is not yours" });
+      if (err?.code === "BUNDLE_NOT_FOUND") return res.status(404).json({ message: "Bundle not found" });
       console.error("Claim reward error:", err);
       return res.status(500).json({ message: "Failed to claim reward" });
     }

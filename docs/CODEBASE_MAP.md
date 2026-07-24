@@ -39,6 +39,24 @@ This document describes the current production architecture on `main` after the 
 - `server/stripeClient.ts` handles Stripe credentials and Replit connector fallback. Webhook signing must remain intact.
 - `server/db.ts`, `shared/schema.ts`, and runtime SQL in `server/index.ts` affect live Railway data. Follow `replit.md` database safety rules; do not force schema pushes or introduce destructive migrations.
 
+## Reward-mutation map (2026-07 security audit)
+
+| Claim/mutation path | Client request / trigger | Eligibility and claim state | Values and mutations | Transaction status |
+| --- | --- | --- | --- | --- |
+| Reward inbox bundles | `POST /api/rewards/:rewardId/claim` (reward inbox client) | `user_rewards.id`, `user_id`, `claimed`; verified authenticated user | Server bundle (`reward_bundles`, `reward_bundle_items`) grants configured coins and items; bait is quantity-stacked and pets remain individual inventory records | **Atomic/idempotent:** `server/rewardClaim.ts` coordinates one `db.transaction`, locks the owned reward, grants all value, then conditionally records claim. |
+| Daily login | `DailyClaimCard` → `POST /api/daily-claim` | `player_daily_login_claims.claimed_at`, server `NOW()` and row lock | Server constants: coins, PvP/raid tickets, fishing rod | Existing transaction and server time; atomic. |
+| Daily quests | daily quest UI → `POST /api/quests/daily/claim/:questKey` | `user_daily_quest_progress.completed/reward_claimed`, server Central date | `daily_quests.coin_reward`, `reward_item_id`, `reward_item_quantity` | **Follow-up:** independently mutates coins, inventory, and claim flag. Generic client progress endpoint also needs a focused authority audit. |
+| Badge periodic coins | Badge page → `POST /api/badges/claim-daily` | owned `user_badges`; `badge_reward_claims.last_claimed_at` | server badge reward configuration | **Follow-up:** server uses process time, but coin and claim record are separate operations and concurrent calls need a transaction/lock. |
+| Purchase milestones | Coin shop → `POST /api/coins/claim-milestone` | purchase progress and `purchase_milestone_claims` | admin-configured milestone coins/item | **Follow-up:** claim record is written before grants and operations are not one transaction. |
+| Fishing catch reward | Fishing UI → `POST /api/fishing/claim-catch-reward` | caught fish / claim state in storage | server fish reward | Follow-up focused audit required. |
+| Tutorial rewards | tutorial UI → hatch-potions and `POST /api/tutorial/claim-reward` | user tutorial claim fields | fixed server potion/coin rewards | Follow-up: currently separate claim and grant mutations. |
+| Petting, loyalty, molten blocks, world/KC, PvP battle rewards | corresponding game pages → reward endpoints | server player/pet/battle state | route-calculated coin, XP, item, and battle values | Follow-up: distinct gameplay flows; do not route through generic inbox abstraction. |
+| Raid, referral/welcome, event/community and Stripe purchase rewards | server/webhook/admin/game triggers; inbox claim client | server-side event/purchase/raid state plus `user_rewards` where delivered by inbox | server/admin configured bundles, coins, badges, items | Inbox delivery is protected by the boundary above; distribution creation paths remain a focused follow-up for duplicate event issuance. |
+
+The audited reward endpoints do not accept client coin values, item IDs/quantities, rarity, or completion results for the inbox flow: only the opaque reward identifier is accepted and it is ownership-scoped. Existing daily login eligibility uses database time, not client time. No schema change was made; systems without an existing durable claim record cannot gain complete idempotency without a separately planned schema/constraint review.
+
+`server/rewardClaim.ts` is intentionally a small database-free coordinator. Its caller supplies transactional eligibility, reservation, grant, and permanent-record operations. Failure rolls back the enclosing database transaction; behavioral tests use an in-memory fake to verify retry, concurrent reservation, exact stack quantities, ineligibility, and all grant/record failure cases.
+
 ## Remaining Replit dependencies
 
 - Vite includes Replit development plugins (`@replit/vite-plugin-*`) when Replit environment variables are present.
