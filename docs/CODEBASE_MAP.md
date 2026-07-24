@@ -41,6 +41,11 @@ This document describes the current production architecture on `main` after the 
 
 ## Reward-mutation map (2026-07 security audit)
 
+For the complete badge and achievement route, client, storage, mutation, and
+integrity audit, see [`BADGE_REWARD_AUDIT.md`](./BADGE_REWARD_AUDIT.md). The
+audit documents the current non-transactional badge periodic-coin claim as the
+safest focused follow-up; it makes no runtime or schema change.
+
 | Claim/mutation path | Client request / trigger | Eligibility and claim state | Values and mutations | Transaction status |
 | --- | --- | --- | --- | --- |
 | Reward inbox bundles | `POST /api/rewards/:rewardId/claim` (reward inbox client) | `user_rewards.id`, `user_id`, `claimed`; verified authenticated user | Server bundle (`reward_bundles`, `reward_bundle_items`) grants configured coins and items; bait is quantity-stacked and pets remain individual inventory records | **Atomic/idempotent:** `server/rewardClaim.ts` coordinates one `db.transaction`, locks the owned reward, grants all value, then conditionally records claim. |
