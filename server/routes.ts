@@ -6141,8 +6141,13 @@ export async function registerRoutes(
         await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${user.id})::int, hashtext(${badgeId})::int)`);
 
         let badge: any;
-        let lastClaimedAt: Date | null = null;
-        let databaseNow: Date | undefined;
+        // Properties are intentionally used instead of closure-assigned local
+        // variables: TypeScript otherwise narrows the outer locals to their
+        // initial null/undefined values after the async state callback.
+        const claimTiming: { lastClaimedAt: Date | null; databaseNow: Date | undefined } = {
+          lastClaimedAt: null,
+          databaseNow: undefined,
+        };
         let reward = 0;
         let cooldownMs = 0;
         let periodLabel = "today";
@@ -6164,18 +6169,18 @@ export async function registerRoutes(
               WHERE user_id = ${user.id} AND badge_id = ${badgeId}
               FOR UPDATE
             `);
-            lastClaimedAt = claims.rows.reduce<Date | null>((latest, row: any) => {
+            claimTiming.lastClaimedAt = claims.rows.reduce<Date | null>((latest, row: any) => {
               const claimedAt = new Date(row.last_claimed_at);
               return !latest || claimedAt > latest ? claimedAt : latest;
             }, null);
             const nowResult = await tx.execute(sql`SELECT NOW() AS now`);
-            databaseNow = new Date((nowResult.rows[0] as any).now);
+            claimTiming.databaseNow = new Date((nowResult.rows[0] as any).now);
             reward = Number(badge.daily_reward_coins);
             if (!Number.isSafeInteger(reward) || reward <= 0) return "no-reward";
             const claimType = badge.claim_type ?? "daily";
             cooldownMs = claimType === "monthly" ? 30 * 24 * 60 * 60 * 1000 : claimType === "weekly" ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
             periodLabel = claimType === "monthly" ? "this month" : claimType === "weekly" ? "this week" : "today";
-            return lastClaimedAt && databaseNow.getTime() - lastClaimedAt.getTime() < cooldownMs ? "cooldown" : "ready";
+            return claimTiming.lastClaimedAt && claimTiming.databaseNow.getTime() - claimTiming.lastClaimedAt.getTime() < cooldownMs ? "cooldown" : "ready";
           },
           reserve: async () => true,
           grantCoins: async () => {
@@ -6187,18 +6192,18 @@ export async function registerRoutes(
             newCoins = Number((updated.rows[0] as any).coins);
           },
           commit: async () => {
-            if (!databaseNow) throw new Error("Database claim time missing");
+            if (!claimTiming.databaseNow) throw new Error("Database claim time missing");
             const updated = await tx.execute(sql`
-              UPDATE badge_reward_claims SET last_claimed_at = ${databaseNow}
+              UPDATE badge_reward_claims SET last_claimed_at = ${claimTiming.databaseNow}
               WHERE user_id = ${user.id} AND badge_id = ${badgeId} RETURNING id
             `);
             if (!updated.rows.length) await tx.execute(sql`
               INSERT INTO badge_reward_claims (user_id, badge_id, last_claimed_at)
-              VALUES (${user.id}, ${badgeId}, ${databaseNow})
+              VALUES (${user.id}, ${badgeId}, ${claimTiming.databaseNow})
             `);
           },
         });
-        return { result, reward, newCoins, cooldownMs, periodLabel, lastClaimedAt, databaseNow };
+        return { result, reward, newCoins, cooldownMs, periodLabel, ...claimTiming };
       });
       if (claim.result === "not-owned") return res.status(403).json({ message: "You don't have this badge" });
       if (claim.result === "no-reward") return res.status(400).json({ message: "This badge has no coin reward" });
