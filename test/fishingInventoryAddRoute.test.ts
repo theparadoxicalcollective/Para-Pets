@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const routesSource = readFileSync(new URL("../server/routes.ts", import.meta.url), "utf8");
+const rootRoutesSource = readFileSync(new URL("../server/routes.ts", import.meta.url), "utf8");
+const fishingRoutesSource = readFileSync(new URL("../server/routes/fishing.routes.ts", import.meta.url), "utf8");
+const routesSource = rootRoutesSource + fishingRoutesSource;
 const clientSourceFiles = [
   "../client/src/pages/FishingPage.tsx",
   "../client/src/pages/AquariumPage.tsx",

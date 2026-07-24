@@ -248,3 +248,71 @@ registration only after characterization tests.
 6. Extract a read-only fishing route group only after characterization tests.
    Low production risk/medium organization scope; no migration; inject shared
    helpers rather than importing route modules.
+
+## Fishing route-module extraction (2026-07 organization refactor)
+
+The cohesive fishing and aquarium HTTP registrations audited above now live in
+`server/routes/fishing.routes.ts`. `registerFishingRoutes(app, deps)` registers
+the original fish-part, pond/catalog, catch-reward, equipment, inventory, catch,
+and leaderboard block; `registerFishingAquariumRoutes(app, deps)` registers the
+later fish-barrel, aquarium, unlock, and fixed-price sale block. `server/routes.ts`
+calls both functions at the blocks' former logical positions, preserving their
+order relative to the market, Lava Crawl, hub-notice, and PvP registrations.
+
+The injected boundary is deliberately explicit: `storage`, `db`,
+`isAuthenticated`, fish-part image processing, `executeFishCatchRewardClaim`,
+`sellFish`, fish-sale error classification, `incrementQuestProgress`,
+`maybeAwardFisherBadges`, and `maybeAwardFishBookBadge`. The module imports only
+Drizzle's SQL template helper; it does not import application singletons or
+`server/routes.ts`, so it creates no circular route dependency. Fishing admin
+handlers retain their audited legacy combination of authentication middleware
+and an in-handler `user.isAdmin` check; this extraction does not silently change
+them to the verified-administrator middleware.
+
+### Exact registrations moved
+
+- `GET /api/fish-parts/:fishItemId`
+- `GET`, `POST /api/admin/fish-parts/:fishItemId`
+- `PATCH`, `DELETE /api/admin/fish-parts/:partId`
+- `GET`, `POST /api/admin/location/:locationId/pond-fish`
+- `DELETE /api/admin/location/:locationId/pond-fish/:shopItemId`
+- `GET /api/fishing/all-fish`
+- `GET /api/fishing/fish-by-world`
+- `GET /api/fishing/caught-fish-ids`
+- `POST /api/fishing/claim-catch-reward`
+- `GET /api/location/:locationId/pond-fish`
+- `GET /api/fishing/equipment`
+- `POST /api/fishing/equip`
+- `POST /api/fishing/unequip`
+- `GET /api/fishing/inventory`
+- `POST /api/fishing/catch`
+- `GET /api/fishing/leaderboard/:worldId`
+- `GET /api/world/:worldId/fish-barrel`
+- `PATCH`, `DELETE /api/admin/fish-barrel/:id`
+- `POST /api/fishing/aquarium/sync`
+- `POST /api/fishing/aquarium/add`
+- `POST /api/fishing/aquarium/remove`
+- `GET /api/aquarium/unlocks`
+- `POST /api/aquarium/unlock`
+- `POST /api/fishing/sell`
+
+### Deliberate boundaries and audit comparison
+
+Player-market routes remain in `server/routes.ts`: despite transferring fish,
+they are market ownership/listing flows shared with general inventory and are
+not cohesive fishing HTTP handlers. `POST /api/admin/world/:worldId/fishing-spot`
+also remains because it is part of the world-location administration block and
+uses the shared world image/default-location flow. Generic shop catalog and
+purchase routes remain with their domains. Shared quest progression and
+fisher/fish-book badge helpers remain in `server/routes.ts` and are callbacks;
+startup badge reconciliation/backfills remain untouched. `server/fishSale.ts`
+and `server/fishCatchRewardClaim.ts` remain the transactional mutation
+boundaries and were injected rather than copied or rewritten.
+
+Comparison with the pre-extraction audit found no method, path, middleware,
+request/response, price, odds, aquarium, ownership, quest, badge, reward, or
+transaction-boundary mismatch in the current runtime. The audit's source-line
+locations and its recommendation to begin with read-only registrations became
+stale when this expressly authorized cohesive extraction moved the already
+characterized mutation handlers too; the behavioral findings themselves remain
+current. The removed `POST /api/fishing/inventory/add` route remains absent.
