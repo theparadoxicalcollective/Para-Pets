@@ -143,9 +143,12 @@ only and records the live behavior rather than changing it.
   duplicate cleanup and unique `(user_id, shop_item_id)` constraint is still
   recommended; this change contains no schema migration.
 - **Confirmed risks:** client `performanceScore=100` guarantees a catch and a
-  valid client fish ID chooses a stocked fish; `/api/fishing/inventory/add`
-  permits authenticated fish minting; catch, sale, aquarium unlock, aquarium state, and fish
-  market conversions lack complete cross-record transaction boundaries.
+  valid client fish ID chooses a stocked fish; the former
+  `/api/fishing/inventory/add` authenticated direct-mint endpoint was removed
+  after caller/history verification found no legitimate client, admin, test,
+  seed, migration, tutorial, event, market, catch, reward, support, or internal
+  server caller; catch, sale, aquarium unlock, aquarium state, and fish market
+  conversions lack complete cross-record transaction boundaries.
 - **Requires verification:** production uniqueness/duplicate data for fish
   catch logs; exact parallel aquarium outcomes; verified-admin policy for
   manual fishing admin checks; and existing live indexes/constraints before
