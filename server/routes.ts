@@ -6586,21 +6586,6 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/fishing/inventory/add", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const { shopItemId } = req.body;
-      if (!shopItemId) return res.status(400).json({ message: "shopItemId required" });
-      const item = await storage.getShopItem(shopItemId);
-      if (!item || item.type !== "fishing" || item.fishingType !== "fish") {
-        return res.status(400).json({ message: "Item must be a fish-type fishing item" });
-      }
-      const entry = await storage.addFishToPlayerInventory(user.id, shopItemId);
-      return res.status(201).json(entry);
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
-  });
 
   app.post("/api/fishing/catch", isAuthenticated, async (req, res) => {
     try {

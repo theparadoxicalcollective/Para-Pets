@@ -73,7 +73,7 @@ entity/array and mutations return JSON. Manual admin checks require auth plus
 | GET `/api/fishing/equipment` (6460) | FishingPage | auth; own `player_fishing_equipment`, referenced `user_inventory`/`shop_items`; `200 {equipment,poleItem,baitItem,poleUsesLeft}`. It fetches inventory ID without an additional owner predicate, but IDs originate from the user's equipment row; verify stale/cross-owner references in data. |
 | POST `/api/fishing/equip`, POST `/api/fishing/unequip` (6484,6506) | FishingPage drag/drop; `{inventoryId,slot}` / `{slot}` | auth; equip verifies inventory ownership and fishing subtype; upserts own equipment (`user_id` unique). `200 {ok,equipment}`, `400` invalid, `404` absent. No transaction needed for its one upsert, but no lock prevents concurrent last-write-wins equipment changes. |
 | GET `/api/fishing/inventory` (6520) | Fishing/Aquarium/Market/Sell pages | auth; reads own `player_fish_inventory` joined `shop_items` plus part metadata; `200 []`; no mutation. |
-| POST `/api/fishing/inventory/add` (6540) | no production caller located | auth; `{shopItemId}` is only checked as a fish catalog item, then inserts an owned fish. `201 entry`; **confirmed vulnerability:** any authenticated user can mint any catalog fish; no location/catch/ownership evidence. |
+| POST `/api/fishing/inventory/add` | removed in the direct-mint hardening PR | The prior authenticated-only route had no legitimate production caller and allowed a player-supplied `{shopItemId}` to insert an owned fish without a catch, purchase, reward, market transfer, migration, test fixture, support action, or administrator grant. It is no longer registered; unknown-route behavior applies. |
 | POST `/api/fishing/catch` (6556) | FishingPage reel; `{locationId,performanceScore,shopItemId}` | auth; location is server-loaded and must be fishing; supplied fish must be in that pond, but supplied score (clamped 0–100) controls success and supplied fish bypasses random/bait rarity selection. Mutates fish inventory/log, later increments total catches, bait/pole inventory/equipment, quest, leaderboard, badges. `200 {caught,item}` or `{caught:null,reason:'empty_pond'|'miss'}`, `400` location, `500`. **No transaction; browser-authoritative success/fish integrity risk; retry/concurrent requests create additional catches and side effects.** |
 | GET `/api/fishing/leaderboard/:worldId` (6689) | FishingPage | auth; arbitrary path world ID reads public leaderboard and current user's rank; `200 {top,me}`; no validation of world existence or mutation. |
 | GET `/api/world/:worldId/fish-barrel`, PATCH/DELETE `/api/admin/fish-barrel/:id` (7091–7121) | World/admin editing; path and PATCH `{posX,posY,size}` | read is auth; writes manual admin; touches `fish_barrels`; no fishing reward/ownership mutation; success barrel/null or `{ok:true}`, `403` admin. |
@@ -139,8 +139,11 @@ SQL conflict pair), `fish_template_parts`, `fish_barrels`, and
 
 1. Client 100 score guarantees a catch and client stocked fish ID chooses its
    rarity/species, so animation/timer is an authority boundary.
-2. `/api/fishing/inventory/add` mints a chosen valid catalog fish for any
-   authenticated player with no server event/ownership evidence.
+2. Resolved: `/api/fishing/inventory/add` was removed because repository search
+   and history found no legitimate caller. Authentication alone was insufficient
+   because every normal logged-in player could choose any valid fish catalog ID
+   and mint it without server-authoritative catch, purchase, reward, transfer,
+   migration, support, or administrator evidence.
 3. Catch, sale, unlock, aquarium, and market cross-record mutations lack one
    transaction as described above. The catch-reward claim is intentionally no
    longer included in this finding.
@@ -192,7 +195,7 @@ species are excluded by the ownership-scoped predicates.
 
 This PR deliberately does **not** address client-authoritative catches, fish
 sales, aquarium unlocks/state, fish-market transfers, or
-`POST /api/fishing/inventory/add`; it does not change fish inventory, quests,
+the removed direct fish-mint endpoint; it does not change fish inventory, quests,
 badges, UI, odds, fish selection, or any schema.
 
 ## Relationship to extracted badge route module
@@ -223,9 +226,15 @@ registration only after characterization tests.
    quest/badge/leaderboard work until commit. Risk high; medium scope; test
    failures and simultaneous attempts; an attempt/claim uniqueness migration
    may eventually be needed.
-4. Remove or secure `/api/fishing/inventory/add` behind an authoritative
-   server-only flow. Risk critical; very small scope but needs caller/history
-   verification and authorization tests; no migration required.
+4. Completed: remove `/api/fishing/inventory/add`. The internal
+   `addFishToPlayerInventory` helper remains for trusted server-side flows: fish
+   catches and player-market fish buy/cancel transfers. No administrator or
+   reward path was found using the removed HTTP endpoint; no replacement direct
+   mint route was added. Focused tests now assert the endpoint is absent, client
+   code does not call it, the helper call sites remain limited to catch/market
+   transfer flows, and no equivalent public direct-mint endpoint was introduced.
+   No fish catch, sale, aquarium, market, badge, quest, reward, rarity, odds,
+   price, UI, asset, schema, production data, or Railway behavior changed.
 5. Make aquarium unlock and fish market conversions atomic; replace aquarium
    select/update with conditional owned updates. Risk medium; medium scope;
    parallel/retry tests; unlock already has a pair conflict key, market may
