@@ -5,7 +5,7 @@ This document describes the current production architecture on `main` after the 
 ## Runtime architecture
 
 - **Client:** `client/src/` is a React 18, TypeScript, Vite, Tailwind application. `client/src/App.tsx` owns routing and global overlays; `client/src/pages/` contains screen-level game experiences; `client/src/components/` contains reusable game UI and admin panels. Wouter manages client routing and TanStack Query manages server state.
-- **Server:** `server/index.ts` builds the Express process, configures compression, rate limits, sessions, Passport, static assets, startup migrations, and production/development serving. `server/routes.ts` registers the API surface and delegates account/auth flows to `server/routes/account.routes.ts`, support flows to `server/routes/support.routes.ts`, and badge HTTP registrations to `server/routes/badge.routes.ts`. The badge module receives authentication, storage, database, and image-processing dependencies explicitly. `server/storage.ts` is the application data-access layer over Drizzle/PostgreSQL. `server/inventoryPurchase.ts` provides the coin-shop debit-and-grant transaction boundary, and `server/fishSale.ts` owns the transactional game-shop fish-sale boundary.
+- **Server:** `server/index.ts` builds the Express process, configures compression, rate limits, sessions, Passport, static assets, startup migrations, and production/development serving. `server/routes.ts` registers the API surface and delegates account/auth flows to `server/routes/account.routes.ts`, support flows to `server/routes/support.routes.ts`, badge HTTP registrations to `server/routes/badge.routes.ts`, and cohesive fishing/aquarium registrations to `server/routes/fishing.routes.ts`. The badge module receives authentication, storage, database, and image-processing dependencies explicitly. `server/storage.ts` is the application data-access layer over Drizzle/PostgreSQL. `server/inventoryPurchase.ts` provides the coin-shop debit-and-grant transaction boundary, and `server/fishSale.ts` owns the transactional game-shop fish-sale boundary.
 - **Persistence:** `shared/schema.ts` declares Drizzle tables and shared types. `server/db.ts` selects `RAILWAY_DATABASE_URL` first and retains `DATABASE_URL` as a fallback. Railway PostgreSQL is the production source of truth.
 - **Build/deploy:** `script/build.ts` builds the Vite client and bundles the server to `dist/index.cjs`. `railway.toml` starts that bundle and checks `GET /health`.
 
@@ -17,14 +17,14 @@ This document describes the current production architecture on `main` after the 
 | Pets, inventory, accessories, care and houses | `client/src/pages/PetCarePage.tsx`, `PetHousePage.tsx`, `PetInventoryPage.tsx`; relevant routes/storage/schema |
 | World exploration, locations, cave combat | `client/src/pages/WorldPage.tsx`, `PetWorldPage.tsx`, `LavaCrawlPage.tsx`, `server/routes.ts` |
 | PvP and raid battles | `client/src/pages/PvpArenaPage.tsx`, `PvpBattlePage.tsx`, `RaidPage.tsx`; `server/seedPvpBots.ts` |
-| Fishing and aquarium | `client/src/pages/FishingPage.tsx`, `AquariumPage.tsx`, `SellFishPage.tsx`, `client/src/components/FishingAdminPanel.tsx`; fishing routes/helpers in `server/routes.ts` and `server/storage.ts`; see [`FISHING_SYSTEM_AUDIT.md`](./FISHING_SYSTEM_AUDIT.md) |
+| Fishing and aquarium | `client/src/pages/FishingPage.tsx`, `AquariumPage.tsx`, `SellFishPage.tsx`, `client/src/components/FishingAdminPanel.tsx`; fishing/aquarium HTTP routes in `server/routes/fishing.routes.ts`, shared callbacks in `server/routes.ts`, and persistence in `server/storage.ts`; see [`FISHING_SYSTEM_AUDIT.md`](./FISHING_SYSTEM_AUDIT.md) |
 | Economy, shops, inventory and Stripe purchases | `client/src/pages/CoinShopPage.tsx`, `MarketPage.tsx`, `server/stripeClient.ts`, Stripe webhook/routes |
 | Social features | `ForumPage.tsx`, `FriendsPage.tsx`, `WorldChatPanel.tsx`, support and admin-message routes |
 | Content administration | `client/src/pages/AdminPage.tsx` plus admin panels; protected API routes in `server/routes.ts` |
 
 ## Oversized and tightly coupled areas
 
-- `server/routes.ts` combines gameplay rules, content management, payments, and API registration; account registration, verification, reset, and logout flows live in `server/routes/account.routes.ts`, while badge HTTP routes live in `server/routes/badge.routes.ts`. Shared badge award/backfill helpers intentionally remain in `server/routes.ts` because fishing, PvP, purchases, and startup reconciliation invoke them directly; extracting those helpers is a separate dependency-focused follow-up.
+- `server/routes.ts` combines gameplay rules, content management, payments, and API registration; account registration, verification, reset, and logout flows live in `server/routes/account.routes.ts`, while badge HTTP routes live in `server/routes/badge.routes.ts` and fishing/aquarium HTTP routes live in `server/routes/fishing.routes.ts`. Shared badge award/backfill helpers intentionally remain in `server/routes.ts` because fishing, PvP, purchases, and startup reconciliation invoke them directly; extracting those helpers is a separate dependency-focused follow-up.
 - `server/index.ts` (~3.7k lines) combines HTTP bootstrap with runtime schema maintenance, migration/backfill work, seeding, and static/Vite setup. Boot concerns should eventually be isolated without changing ordering.
 - `server/storage.ts` (~3.6k lines) centralizes all data access. It is a useful boundary but too broad for focused ownership and unit testing.
 - Large client screens include `WorldPage.tsx`, `AdminPage.tsx`, `PetWorldPage.tsx`, `PetHousePage.tsx`, and `BattleArena.tsx`. Each combines display state, game rules, server calls, and interaction code.
@@ -116,12 +116,13 @@ only and records the live behavior rather than changing it.
   `MarketPage.tsx` (fish marketplace), `WorldPage.tsx` (opens fishing),
   `FloatingNav.tsx` (opens aquarium), and `components/FishingAdminPanel.tsx`
   (fish/bait/pole/part administration).
-- **Primary routes/helpers:** `server/routes.ts` registers the fishing,
-  aquarium, pond, fish-part, fish-barrel, player-market, and generic shop
-  configuration paths. Its catch handler calls `incrementQuestProgress`,
-  `maybeAwardFisherBadges`, and `maybeAwardFishBookBadge`; those badge helpers
-  intentionally remain outside the extracted `server/routes/badge.routes.ts`
-  HTTP module. `server/storage.ts` supplies fish inventory, catch log, pond,
+- **Primary routes/helpers:** `server/routes/fishing.routes.ts` registers the cohesive
+  fishing, aquarium, pond, fish-part, and fish-barrel HTTP paths through two
+  ordered registration functions. `server/routes.ts` injects storage/database,
+  authentication, secured reward/sale services, image processing, quest, and
+  badge callbacks. Player-market, generic shop, world fishing-spot administration,
+  shared quest/badge helpers, and startup backfills intentionally remain in their
+  existing domains. `server/storage.ts` supplies fish inventory, catch log, pond,
   equipment/consumption, aquarium, coin, leaderboard, and market operations.
 - **Primary tables:** `shop_items`, `world_locations`, `pond_fish`,
   `player_fish_inventory`, `player_fish_catch_log`,
