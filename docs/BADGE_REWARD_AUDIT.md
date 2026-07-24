@@ -34,6 +34,23 @@ runtime, schema, balance, UI, asset, gameplay, or production-data change.
 
 ## API routes and client callers
 
+### HTTP registration boundary
+
+Badge and achievement HTTP registrations now live in `server/routes/badge.routes.ts`.
+`server/routes.ts` injects the authenticated-player middleware, storage, Drizzle
+database, and shared `processWorldImage` helper, and invokes the module in
+three registration phases so the original ordering around unrelated emblem and
+avatar routes remains unchanged. The profile badge read route is registered at
+its original earlier position through the same module.
+
+Badge award and backfill helpers intentionally remain in `server/routes.ts`:
+fishing calls the fisher/fish-book award helpers, PvP calls the brawler helper,
+purchases call acquisition awards, and startup invokes backfills. Moving those
+shared functions would broaden this organization-only change and risks
+gameplay-flow coupling. The recommended next small follow-up is to extract
+those award definitions/helpers behind a dependency-injected service after
+adding focused award-trigger characterization tests.
+
 | Route | Auth / actor | Client caller(s) | Effect |
 | --- | --- | --- | --- |
 | `GET /api/badges` | Authenticated player | `BadgePage`, `AdminPage` query cache | Lists definitions; hides hidden badges from non-owners/non-admins. |
