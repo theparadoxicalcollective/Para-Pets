@@ -9,6 +9,7 @@ import { storage } from "./storage";
 import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, userHouseBundles as userHouseBundlesTable, users as usersTable, coinPurchases, deletedAccounts } from "@shared/schema";
 import { executeRewardClaim } from "./rewardClaim";
 import { executeDailyQuestClaim } from "./dailyQuestClaim";
+import { executeFishCatchRewardClaim } from "./fishCatchRewardClaim";
 import { db } from "./db";
 import { and, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import sharp from "sharp";
@@ -21,6 +22,8 @@ import { registerSupportRoutes } from "./routes/support.routes";
 import { registerBadgeRoutes, registerPlayerBadgeRoutes } from "./routes/badge.routes";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+const FISH_CATCH_REWARD_COINS = 10;
 
 
 // ── In-memory client error log (max 100 entries; resets on server restart) ────
@@ -6439,10 +6442,56 @@ export async function registerRoutes(
       const user = req.user as any;
       const { shopItemId } = req.body;
       if (!shopItemId) return res.status(400).json({ message: "shopItemId required" });
-      const claimed = await storage.claimFishCatchReward(user.id, shopItemId);
-      if (!claimed) return res.status(400).json({ message: "Reward already claimed or fish not caught" });
-      const updated = await storage.addCoins(user.id, 10);
-      return res.json({ ok: true, coins: updated.coins });
+      const result = await db.transaction(async (tx) => {
+        // The pair lock also serializes historic duplicate rows and an absent-row
+        // check, neither of which can be protected by a missing unique constraint.
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${user.id}), hashtext(${shopItemId}))`);
+
+        let lockedRows: { id: string; reward_claimed: boolean }[] = [];
+        let updatedCoins: number | null = null;
+        const claim = await executeFishCatchRewardClaim({
+          state: async () => {
+            const result = await tx.execute(sql`
+              SELECT id, reward_claimed
+              FROM player_fish_catch_log
+              WHERE user_id = ${user.id} AND shop_item_id = ${shopItemId}
+              FOR UPDATE
+            `);
+            lockedRows = result.rows as { id: string; reward_claimed: boolean }[];
+            if (lockedRows.length === 0) return "not-caught";
+            return lockedRows.some(row => row.reward_claimed) ? "already-claimed" : "ready";
+          },
+          grantCoins: async () => {
+            const result = await tx.execute(sql`
+              UPDATE users
+              SET coins = GREATEST(0, coins + ${FISH_CATCH_REWARD_COINS}),
+                  total_coins_earned = total_coins_earned + ${FISH_CATCH_REWARD_COINS}
+              WHERE id = ${user.id}
+              RETURNING coins
+            `);
+            const row = result.rows[0] as { coins: number } | undefined;
+            if (!row) throw new Error("User not found");
+            updatedCoins = row.coins;
+          },
+          claimCatchLogRows: async () => {
+            const result = await tx.execute(sql`
+              UPDATE player_fish_catch_log
+              SET reward_claimed = true
+              WHERE user_id = ${user.id}
+                AND shop_item_id = ${shopItemId}
+                AND reward_claimed = false
+              RETURNING id
+            `);
+            if (result.rows.length !== lockedRows.length) {
+              throw new Error("Fish catch reward claim was not recorded");
+            }
+          },
+        });
+        if (claim === "success" && updatedCoins === null) throw new Error("User not found");
+        return { claim, coins: updatedCoins };
+      });
+      if (result.claim !== "success") return res.status(400).json({ message: "Reward already claimed or fish not caught" });
+      return res.json({ ok: true, coins: result.coins });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
     }

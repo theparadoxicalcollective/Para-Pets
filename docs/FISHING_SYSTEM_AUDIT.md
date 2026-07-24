@@ -1,8 +1,10 @@
 # Fishing and aquarium system audit
 
-**Scope and method.** Static documentation audit of the production code at
-`044ee7d` (the local `main` tip containing merged PR #14), completed 2026-07-24.
-This is not a behavioral, schema, balance, asset, UI, API, or Railway change.
+**Scope and method.** Static documentation audit updated with the focused
+catch-reward integrity fix on the local `main` tip containing merged PR #15,
+completed 2026-07-24. This changes only the internal transaction boundary for
+the existing reward endpoint; it is not a schema, balance, asset, UI, API, or
+Railway change.
 Route registration was enumerated before conclusions by inspecting every
 fishing/fish/aquarium/pond/fish-market registration in `server/routes.ts` and
 their callers, storage methods, and Drizzle declarations.
@@ -15,11 +17,12 @@ their callers, storage methods, and Drizzle declarations.
   whenever it is stocked in the requested pond.  The browser's reel result and
   fish selection therefore affect success and rarity; the server only verifies
   pond membership, not that the animation produced the result.
-* **Confirmed vulnerability / integrity risk — catch reward is non-atomic and
-  non-idempotent.** `claimFishCatchReward` reads then flags the log row, then
-  the route separately credits 10 coins. Concurrent requests can both pass the
-  read; a coin-write failure after the flag loses the reward, while a request
-  interleaving can duplicate the credit.
+* **Resolved — catch reward is atomic and idempotent.** The route now uses one
+  transaction and `server/fishCatchRewardClaim.ts`. It serializes each
+  `(req.user.id, shopItemId)` with a transaction-scoped PostgreSQL advisory
+  lock, locks every owned matching log row with `FOR UPDATE`, grants exactly
+  10 coins, then conditionally marks every matching unclaimed row claimed.
+  Either mutation failure rolls back both changes.
 * **Confirmed integrity risks — catch, selling, aquarium unlock, and fish
   market transfers cross multiple writes without one transaction.** In
   particular, selling deletes fish before coin credit; a failure loses fish.
@@ -66,7 +69,7 @@ entity/array and mutations return JSON. Manual admin checks require auth plus
 | GET/POST/DELETE `/api/admin/location/:locationId/pond-fish[/:shopItemId]` (6334–6372) | FishingPage admin; path IDs, POST `{shopItemId}` | auth + manual admin; validates fishing location and fish catalog item; touches `pond_fish`, `world_locations`, `shop_items`; returns list/entry/`{ok:true}`. Storage propagation is multiple inserts/deletes without a transaction; declared pond uniqueness prevents duplicate same-location stock. |
 | GET `/api/fishing/all-fish` (6375), GET `/api/fishing/fish-by-world` (6385), GET `/api/location/:locationId/pond-fish` (6451) | admin/UI queries; location path | auth; catalog/world/pond reads (`shop_items`, `pond_fish`, locations/worlds); no ownership or mutation. |
 | GET `/api/fishing/caught-fish-ids` (6427) | FishingPage fish book | auth; `req.user.id`; reads own `player_fish_catch_log`, returns `{shopItemId,rewardClaimed}[]`. |
-| POST `/api/fishing/claim-catch-reward` (6437) | FishingPage fish book; `{shopItemId}` | auth; user and caught species are server-scoped, but request chooses which owned log to claim. Sets `player_fish_catch_log.reward_claimed`, then `users.coins`/`total_coins_earned` +10; `200 {ok,coins}`, `400` absent/already claim. **Nontransactional read-then-write; confirmed duplicate/lost-reward risk.** |
+| POST `/api/fishing/claim-catch-reward` (6437) | FishingPage fish book; `{shopItemId}` | unchanged auth and response contract; identity comes only from `req.user.id`, and stored owned log rows decide eligibility. One transaction takes `pg_advisory_xact_lock(hashtext(user_id), hashtext(shop_item_id))`, locks all owned matches `FOR UPDATE`, rejects absent/claimed rows, updates `users.coins` and `users.total_coins_earned` by fixed +10, then conditionally claims all rows and confirms the affected count. `200 {ok,coins}` / compatible `400` rejection. |
 | GET `/api/fishing/equipment` (6460) | FishingPage | auth; own `player_fishing_equipment`, referenced `user_inventory`/`shop_items`; `200 {equipment,poleItem,baitItem,poleUsesLeft}`. It fetches inventory ID without an additional owner predicate, but IDs originate from the user's equipment row; verify stale/cross-owner references in data. |
 | POST `/api/fishing/equip`, POST `/api/fishing/unequip` (6484,6506) | FishingPage drag/drop; `{inventoryId,slot}` / `{slot}` | auth; equip verifies inventory ownership and fishing subtype; upserts own equipment (`user_id` unique). `200 {ok,equipment}`, `400` invalid, `404` absent. No transaction needed for its one upsert, but no lock prevents concurrent last-write-wins equipment changes. |
 | GET `/api/fishing/inventory` (6520) | Fishing/Aquarium/Market/Sell pages | auth; reads own `player_fish_inventory` joined `shop_items` plus part metadata; `200 []`; no mutation. |
@@ -96,7 +99,7 @@ registrations by name.
 | Mutation | authoritative values and records | transaction / locks / retry result |
 | --- | --- | --- |
 | Catch | user=`req.user.id`; location=`world_locations`; pond fish server membership; random rarity/bait config from `shop_items` **unless client sends valid pond fish**; score is client-controlled; `player_fish_inventory` is ownership, `player_fish_catch_log` permanent species/claim record | No encompassing transaction/lock/unique log pair. Pole uses are an owned conditional SQL decrement in its own transaction; bait decrement is guarded against negative quantity in a separate transaction. Fish can be granted without log/bait/quest/points, and retries create fish. |
-| Catch reward | user session; fish is own log pair; reward fixed route constant 10 | log read/update then `addCoins`; no lock, conditional update, unique `(user,fish)`, or rollback. **Confirmed risk.** |
+| Catch reward | only `req.user.id`, the body `shopItemId`, stored owned catch-log state, and fixed server constant 10 are authoritative; client user/reward/coin/rarity/time/claim fields are ignored | One route-owned transaction takes a pair advisory lock before `FOR UPDATE` on all matching owned rows. It rejects absent or any already-claimed match, updates both `users.coins` and `users.total_coins_earned`, then conditionally marks all matching unclaimed duplicates claimed and verifies the row count. Grant/claim failures roll back together; sequential or concurrent retries produce at most one reward. |
 | Sale | session user; owned non-aquarium record; rarity and fixed price server-derived | read → delete → coin credit; no atomic boundary. Quest follows asynchronously; replay/concurrent requests need testing. |
 | Aquarium placement | session user; eligible fish selection scoped by user; slot is client display value | select → update, no row lock/conditional mutation. Sync resets then loops. Ownership cannot cross user, but simultaneous calls can violate intended selection/state. |
 | Aquarium purchase | session user; aquarium ID and price fixed server map; ownership pair `player_aquarium_unlocks` | atomic conditional debit only; insert is separate but conflict-safe. No rollback between them. |
@@ -115,7 +118,7 @@ user), `user_inventory` (bait stacks/poles), `users` (coins and
 SQL conflict pair), `fish_template_parts`, `fish_barrels`, and
 `player_market_listings`. The primary storage methods are
 `getPondFish`/`addFishToPond`, `addFishToPlayerInventory`, `logFishCatch`,
-`claimFishCatchReward`, `decrementPoleUses`, `decrementBaitQuantity`,
+`decrementPoleUses`, `decrementBaitQuantity`,
 `sync/add/removeFishToAquarium`, `atomicDeductCoins`/`addCoins`,
 `deleteFishInventoryItems`, and market conversions.
 
@@ -138,16 +141,20 @@ SQL conflict pair), `fish_template_parts`, `fish_barrels`, and
    rarity/species, so animation/timer is an authority boundary.
 2. `/api/fishing/inventory/add` mints a chosen valid catalog fish for any
    authenticated player with no server event/ownership evidence.
-3. Catch-reward claim is read-then-write and its claim flag/coin credit are
-   separate. Catch, sale, unlock, aquarium, and market cross-record mutations
-   lack one transaction as described above.
+3. Catch, sale, unlock, aquarium, and market cross-record mutations lack one
+   transaction as described above. The catch-reward claim is intentionally no
+   longer included in this finding.
 
 ### Likely risk requiring verification
 
-* `player_fish_catch_log` has no declared unique `(user_id,shop_item_id)`;
-  confirm production DDL/data and parallel requests. Badge fish-book joins can
-  count duplicated pond placements across locations, although it uses distinct
-  fish IDs.
+* `player_fish_catch_log` has no declared unique `(user_id,shop_item_id)`. The
+  TypeScript declaration has only its primary key; runtime startup SQL has no
+  catch-log table/index/constraint creation; no migration directory or
+  repository-history migration was found. Production is therefore expected to
+  permit historic duplicates unless an untracked out-of-band DDL change exists;
+  this repository cannot prove live catalog/data contents. This PR adds no
+  schema migration. A separately reviewed duplicate cleanup followed by a
+  unique `(user_id, shop_item_id)` constraint remains recommended.
 * Admin/manual fish routes use `isAuthenticated` plus a manual `isAdmin`
   condition rather than `requireAdmin`; confirm whether verified-admin policy
   is intentionally different.
@@ -162,6 +169,31 @@ module. The lack of route tests/transaction characterization tests and no
 documented production constraint catalog make secure extraction risky. The
 client has no server-verifiable fishing-attempt/session record. Existing
 comments overstate aquarium atomicity.
+
+## Catch-reward transaction boundary (2026-07)
+
+`server/fishCatchRewardClaim.ts` is a small database-independent coordinator;
+the route supplies transaction-scoped state, coin grant, and permanent claim
+operations. The transaction first obtains the pair advisory lock, then loads
+**all** owned matching log rows `FOR UPDATE`. It rejects no rows and any
+already-claimed row before mutation. It next atomically updates both
+`users.coins` and `users.total_coins_earned` by the unchanged fixed 10-coin
+reward, then marks every matching unclaimed duplicate row claimed with a
+conditional update and checks that every locked row was affected. PostgreSQL
+rolls back the grant if that final mutation fails, and rolls back the claim if
+the coin update fails or the user row is missing.
+
+The advisory lock protects both an existing row and the no/duplicate-unique-key
+case. It means overlapping requests for the same user/species wait and then
+re-evaluate stored claim state, so only one can succeed. Historic duplicates
+receive **one** 10-coin grant and are all marked claimed in that transaction;
+no remaining duplicate can be retried for another payout. Other users and
+species are excluded by the ownership-scoped predicates.
+
+This PR deliberately does **not** address client-authoritative catches, fish
+sales, aquarium unlocks/state, fish-market transfers, or
+`POST /api/fishing/inventory/add`; it does not change fish inventory, quests,
+badges, UI, odds, fish selection, or any schema.
 
 ## Relationship to extracted badge route module
 
@@ -180,32 +212,24 @@ registration only after characterization tests.
 
 ## Prioritized independent follow-ups
 
-1. **Safest first implementation — make catch-reward claims transactional and
-   idempotent.** Why: confirmed direct coin integrity risk isolated to one
-   route/storage flow. Production risk: high (duplicate/lost 10-coin claims),
-   but small blast radius. Scope: coordinator + route/storage tests; prerequisite
-   production DDL/data inspection. Tests: sequential/parallel claim, unowned,
-   already claimed, coin-write and claim-write failure rollback. A migration is
-   eventually needed for a unique `(user_id,shop_item_id)` log constraint;
-   advisory/row locks can protect the immediate route before that review.
-2. Make fish sale removal and coin credit atomic, including owned conditional
+1. Make fish sale removal and coin credit atomic, including owned conditional
    deletion and quest dispatch after commit. Risk high; medium scope; needs
    concurrent sell and failure tests; no migration required initially.
-3. Replace client-authoritative fishing result with a server attempt boundary
+2. Replace client-authoritative fishing result with a server attempt boundary
    (or server selection independent of timer). Risk critical gameplay/economy;
    medium/large scope; characterize current odds/UI contract first; likely a
    durable attempt/idempotency schema migration eventually.
-4. Make catch fish/log/bait/pole side effects transactional and postpone
+3. Make catch fish/log/bait/pole side effects transactional and postpone
    quest/badge/leaderboard work until commit. Risk high; medium scope; test
    failures and simultaneous attempts; an attempt/claim uniqueness migration
    may eventually be needed.
-5. Remove or secure `/api/fishing/inventory/add` behind an authoritative
+4. Remove or secure `/api/fishing/inventory/add` behind an authoritative
    server-only flow. Risk critical; very small scope but needs caller/history
    verification and authorization tests; no migration required.
-6. Make aquarium unlock and fish market conversions atomic; replace aquarium
+5. Make aquarium unlock and fish market conversions atomic; replace aquarium
    select/update with conditional owned updates. Risk medium; medium scope;
    parallel/retry tests; unlock already has a pair conflict key, market may
    need additional state constraints after DDL review.
-7. Extract a read-only fishing route group only after characterization tests.
+6. Extract a read-only fishing route group only after characterization tests.
    Low production risk/medium organization scope; no migration; inject shared
    helpers rather than importing route modules.
