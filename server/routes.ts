@@ -6142,7 +6142,7 @@ export async function registerRoutes(
 
         let badge: any;
         let lastClaimedAt: Date | null = null;
-        let databaseNow: Date;
+        let databaseNow: Date | undefined;
         let reward = 0;
         let cooldownMs = 0;
         let periodLabel = "today";
@@ -6187,6 +6187,7 @@ export async function registerRoutes(
             newCoins = Number((updated.rows[0] as any).coins);
           },
           commit: async () => {
+            if (!databaseNow) throw new Error("Database claim time missing");
             const updated = await tx.execute(sql`
               UPDATE badge_reward_claims SET last_claimed_at = ${databaseNow}
               WHERE user_id = ${user.id} AND badge_id = ${badgeId} RETURNING id
@@ -6202,7 +6203,9 @@ export async function registerRoutes(
       if (claim.result === "not-owned") return res.status(403).json({ message: "You don't have this badge" });
       if (claim.result === "no-reward") return res.status(400).json({ message: "This badge has no coin reward" });
       if (claim.result === "cooldown" || claim.result === "already-claimed") {
-        const msLeft = claim.lastClaimedAt ? Math.max(0, claim.cooldownMs - (claim.databaseNow.getTime() - claim.lastClaimedAt.getTime())) : claim.cooldownMs;
+        const msLeft = claim.lastClaimedAt && claim.databaseNow
+          ? Math.max(0, claim.cooldownMs - (claim.databaseNow.getTime() - claim.lastClaimedAt.getTime()))
+          : claim.cooldownMs;
         return res.status(429).json({ message: `Already claimed ${claim.periodLabel}`, msLeft });
       }
       return res.json({ coinsAwarded: claim.reward, newCoins: claim.newCoins });
