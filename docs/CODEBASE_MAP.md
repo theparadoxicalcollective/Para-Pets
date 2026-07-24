@@ -17,7 +17,7 @@ This document describes the current production architecture on `main` after the 
 | Pets, inventory, accessories, care and houses | `client/src/pages/PetCarePage.tsx`, `PetHousePage.tsx`, `PetInventoryPage.tsx`; relevant routes/storage/schema |
 | World exploration, locations, cave combat | `client/src/pages/WorldPage.tsx`, `PetWorldPage.tsx`, `LavaCrawlPage.tsx`, `server/routes.ts` |
 | PvP and raid battles | `client/src/pages/PvpArenaPage.tsx`, `PvpBattlePage.tsx`, `RaidPage.tsx`; `server/seedPvpBots.ts` |
-| Fishing and aquarium | `client/src/pages/FishingPage.tsx`, `AquariumPage.tsx`, fishing routes and storage methods |
+| Fishing and aquarium | `client/src/pages/FishingPage.tsx`, `AquariumPage.tsx`, `SellFishPage.tsx`, `client/src/components/FishingAdminPanel.tsx`; fishing routes/helpers in `server/routes.ts` and `server/storage.ts`; see [`FISHING_SYSTEM_AUDIT.md`](./FISHING_SYSTEM_AUDIT.md) |
 | Economy, shops, inventory and Stripe purchases | `client/src/pages/CoinShopPage.tsx`, `MarketPage.tsx`, `server/stripeClient.ts`, Stripe webhook/routes |
 | Social features | `ForumPage.tsx`, `FriendsPage.tsx`, `WorldChatPanel.tsx`, support and admin-message routes |
 | Content administration | `client/src/pages/AdminPage.tsx` plus admin panels; protected API routes in `server/routes.ts` |
@@ -103,6 +103,51 @@ recommended follow-up.
 - **Recommended next follow-up: badge rewards.** Give `POST /api/badges/claim-daily` the same owned-row lock, transaction, and conditional claim-record boundary; do not mix it with this daily-quest implementation.
 
 ## Remaining Replit dependencies
+
+## Fishing and aquarium audit (2026-07)
+
+The complete route-by-route fishing and aquarium audit is
+[`FISHING_SYSTEM_AUDIT.md`](./FISHING_SYSTEM_AUDIT.md). It is documentation
+only and records the live behavior rather than changing it.
+
+- **Primary client files:** `client/src/pages/FishingPage.tsx` (world fishing,
+  equipment, catch, fish book and pond administration), `AquariumPage.tsx`
+  (tank ownership/display), `SellFishPage.tsx` (fixed-price sale),
+  `MarketPage.tsx` (fish marketplace), `WorldPage.tsx` (opens fishing),
+  `FloatingNav.tsx` (opens aquarium), and `components/FishingAdminPanel.tsx`
+  (fish/bait/pole/part administration).
+- **Primary routes/helpers:** `server/routes.ts` registers the fishing,
+  aquarium, pond, fish-part, fish-barrel, player-market, and generic shop
+  configuration paths. Its catch handler calls `incrementQuestProgress`,
+  `maybeAwardFisherBadges`, and `maybeAwardFishBookBadge`; those badge helpers
+  intentionally remain outside the extracted `server/routes/badge.routes.ts`
+  HTTP module. `server/storage.ts` supplies fish inventory, catch log, pond,
+  equipment/consumption, aquarium, coin, leaderboard, and market operations.
+- **Primary tables:** `shop_items`, `world_locations`, `pond_fish`,
+  `player_fish_inventory`, `player_fish_catch_log`,
+  `player_fishing_equipment`, `user_inventory`, `users`,
+  `fishing_leaderboard`, `player_aquarium_unlocks`, `fish_template_parts`,
+  `fish_barrels`, and `player_market_listings`. `shared/schema.ts` declares
+  most of these; some runtime/raw-SQL tables and constraints need production
+  catalog verification.
+- **Cross-domain dependencies:** fishing changes inventory fish/bait/poles,
+  coins and lifetime earnings, daily quest progress, fisher/fish-book badges,
+  world locations/leaderboards, aquarium flags/unlocks, player-market listings,
+  and administrator catalog/world configuration.
+- **Highest-priority follow-up:** make `POST /api/fishing/claim-catch-reward`
+  transactional and idempotent, after production DDL/data inspection. It is
+  the smallest confirmed direct coin-integrity issue and should be covered by
+  parallel/retry/failure tests before broader catch changes.
+- **Confirmed risks:** client `performanceScore=100` guarantees a catch and a
+  valid client fish ID chooses a stocked fish; `/api/fishing/inventory/add`
+  permits authenticated fish minting; catch-reward claim flag and coins are
+  separate writes; catch, sale, aquarium unlock, aquarium state, and fish
+  market conversions lack complete cross-record transaction boundaries.
+- **Requires verification:** production uniqueness/duplicate data for fish
+  catch logs; exact parallel aquarium outcomes; verified-admin policy for
+  manual fishing admin checks; and existing live indexes/constraints before
+  migrations. Do not extract fishing writes until shared badge/quest helpers
+  can be dependency-injected and characterization tests describe live paths.
 
 - Vite includes Replit development plugins (`@replit/vite-plugin-*`) when Replit environment variables are present.
 - `server/stripeClient.ts` can obtain Stripe credentials through Replit connector environment variables and uses `stripe-replit-sync`.
