@@ -51,7 +51,7 @@ safest focused follow-up; it makes no runtime or schema change.
 | Reward inbox bundles | `POST /api/rewards/:rewardId/claim` (reward inbox client) | `user_rewards.id`, `user_id`, `claimed`; verified authenticated user | Server bundle (`reward_bundles`, `reward_bundle_items`) grants configured coins and items; bait is quantity-stacked and pets remain individual inventory records | **Atomic/idempotent:** `server/rewardClaim.ts` coordinates one `db.transaction`, locks the owned reward, grants all value, then conditionally records claim. |
 | Daily login | `DailyClaimCard` → `POST /api/daily-claim` | `player_daily_login_claims.claimed_at`, server `NOW()` and row lock | Server constants: coins, PvP/raid tickets, fishing rod | Existing transaction and server time; atomic. |
 | Daily quests | daily quest UI → `POST /api/quests/daily/claim/:questKey` | owned `user_daily_quest_progress.completed/reward_claimed`, server Central date, locked row | Server `daily_quests.coin_reward`, `reward_item_id`, `reward_item_quantity` | **Atomic/idempotent:** `server/dailyQuestClaim.ts` coordinates a transaction that locks the current user's progress row, grants configured coins/items, then conditionally records the claim. |
-| Badge periodic coins | Badge page → `POST /api/badges/claim-daily` | owned `user_badges`; `badge_reward_claims.last_claimed_at` | server badge reward configuration | **Follow-up:** server uses process time, but coin and claim record are separate operations and concurrent calls need a transaction/lock. |
+| Badge periodic coins | Badge page → `POST /api/badges/claim-daily` | authenticated user's locked `user_badges`; locked `badge_reward_claims.last_claimed_at`; PostgreSQL `NOW()` | server badge reward configuration | **Atomic/idempotent:** `server/badgePeriodicClaim.ts` coordinates one transaction. A transaction-scoped advisory lock for `(user_id, badge_id)` serializes retry, concurrent, and first-claim requests; owned and existing claim rows are additionally locked with `FOR UPDATE`; coins and timestamp roll back together. |
 | Purchase milestones | Coin shop → `POST /api/coins/claim-milestone` | purchase progress and `purchase_milestone_claims` | admin-configured milestone coins/item | **Follow-up:** claim record is written before grants and operations are not one transaction. |
 | Fishing catch reward | Fishing UI → `POST /api/fishing/claim-catch-reward` | caught fish / claim state in storage | server fish reward | Follow-up focused audit required. |
 | Tutorial rewards | tutorial UI → hatch-potions and `POST /api/tutorial/claim-reward` | user tutorial claim fields | fixed server potion/coin rewards | Follow-up: currently separate claim and grant mutations. |
@@ -61,6 +61,21 @@ safest focused follow-up; it makes no runtime or schema change.
 The audited reward endpoints do not accept client coin values, item IDs/quantities, rarity, or completion results for the inbox flow: only the opaque reward identifier is accepted and it is ownership-scoped. Existing daily login eligibility uses database time, not client time. No schema change was made; systems without an existing durable claim record cannot gain complete idempotency without a separately planned schema/constraint review.
 
 `server/rewardClaim.ts` is intentionally a small database-free coordinator. Its caller supplies transactional eligibility, reservation, grant, and permanent-record operations. Failure rolls back the enclosing database transaction; behavioral tests use an in-memory fake to verify retry, concurrent reservation, exact stack quantities, ineligibility, and all grant/record failure cases.
+
+`server/badgePeriodicClaim.ts` is the analogous database-free coordinator for
+`POST /api/badges/claim-daily`. The route accepts only `badgeId`; session
+identity selects the user, and the transaction derives ownership, configured
+coins, cadence, and eligibility from the database. It first takes
+`pg_advisory_xact_lock(hashtext(user_id), hashtext(badge_id))`, which protects
+the absent-claim-row first request without a schema constraint, then locks all
+matching `user_badges` and `badge_reward_claims` rows with `FOR UPDATE`.
+PostgreSQL `NOW()` is the cooldown clock. The coin `UPDATE` precedes the claim
+timestamp update/insert inside the same transaction, so either failure rolls
+back both. This protects concurrent first claims as long as all periodic claims
+continue through this route/locking boundary. The schema still permits historic
+duplicate `user_badges` or `badge_reward_claims` rows; a separate reviewed
+cleanup followed by unique `(user_id, badge_id)` constraints remains the
+recommended follow-up.
 
 ## Daily-quest mutation map (2026-07 claim audit)
 
