@@ -5,7 +5,7 @@ This document describes the current production architecture on `main` after the 
 ## Runtime architecture
 
 - **Client:** `client/src/` is a React 18, TypeScript, Vite, Tailwind application. `client/src/App.tsx` owns routing and global overlays; `client/src/pages/` contains screen-level game experiences; `client/src/components/` contains reusable game UI and admin panels. Wouter manages client routing and TanStack Query manages server state.
-- **Server:** `server/index.ts` builds the Express process, configures compression, rate limits, sessions, Passport, static assets, startup migrations, and production/development serving. `server/routes.ts` registers the API surface and delegates account/auth flows to `server/routes/account.routes.ts`, support flows to `server/routes/support.routes.ts`, and badge HTTP registrations to `server/routes/badge.routes.ts`. The badge module receives authentication, storage, database, and image-processing dependencies explicitly. `server/storage.ts` is the application data-access layer over Drizzle/PostgreSQL. `server/inventoryPurchase.ts` provides the coin-shop debit-and-grant transaction boundary.
+- **Server:** `server/index.ts` builds the Express process, configures compression, rate limits, sessions, Passport, static assets, startup migrations, and production/development serving. `server/routes.ts` registers the API surface and delegates account/auth flows to `server/routes/account.routes.ts`, support flows to `server/routes/support.routes.ts`, and badge HTTP registrations to `server/routes/badge.routes.ts`. The badge module receives authentication, storage, database, and image-processing dependencies explicitly. `server/storage.ts` is the application data-access layer over Drizzle/PostgreSQL. `server/inventoryPurchase.ts` provides the coin-shop debit-and-grant transaction boundary, and `server/fishSale.ts` owns the transactional game-shop fish-sale boundary.
 - **Persistence:** `shared/schema.ts` declares Drizzle tables and shared types. `server/db.ts` selects `RAILWAY_DATABASE_URL` first and retains `DATABASE_URL` as a fallback. Railway PostgreSQL is the production source of truth.
 - **Build/deploy:** `script/build.ts` builds the Vite client and bundles the server to `dist/index.cjs`. `railway.toml` starts that bundle and checks `GET /health`.
 
@@ -142,6 +142,14 @@ only and records the live behavior rather than changing it.
   conditionally claims all matching duplicate rows. A separately reviewed
   duplicate cleanup and unique `(user_id, shop_item_id)` constraint is still
   recommended; this change contains no schema migration.
+- **Fish shop-sale boundary:** `POST /api/fishing/sell` accepts only a nonempty,
+  unique array of durable `player_fish_inventory.id` values. `server/fishSale.ts`
+  locks the session player's `users` row and requested fish rows in stable order,
+  validates ownership/catalog/aquarium eligibility, derives the unchanged fixed
+  value from stored `shop_items.star_rarity`, deletes exactly those rows, credits
+  coins, and advances existing `sell_fish` quest progress in one transaction.
+  Fish are one row per unit (not quantity stacks); player-market fish have already
+  been converted out of this table, so they cannot enter the shop-sale boundary.
 - **Confirmed risks:** client `performanceScore=100` guarantees a catch and a
   valid client fish ID chooses a stocked fish; the former
   `/api/fishing/inventory/add` authenticated direct-mint endpoint was removed

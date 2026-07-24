@@ -80,7 +80,7 @@ entity/array and mutations return JSON. Manual admin checks require auth plus
 | POST `/api/fishing/aquarium/sync` (7124) | no current client caller located; `{counts:[{shopItemId,count}]}` | auth/current user; resets all their `in_aquarium` flags, then marks selected IDs. `200 {ok}`, `400` non-array. **Nontransactional and count/type unvalidated; concurrent add/remove/sync can overwrite state.** |
 | POST `/api/fishing/aquarium/add`, `/remove` (7140,7154) | AquariumPage; `{shopItemId,slot?}` | auth/current user; read then updates one owned fish matching state/slot. `200 {ok,fishId}` / `{ok:true}`, `400` absent. Comments call these atomic, but storage uses select then unconditional ID update with no transaction/conditional update; simultaneous adds can select the same fish. |
 | GET `/api/aquarium/unlocks`, POST `/api/aquarium/unlock` (7168,7180) | AquariumPage; POST `{aquariumId}` | auth/current user; fixed server `AQUARIUM_PRICES`; reads/inserts `player_aquarium_unlocks`, atomically debits `users.coins`. `200 {unlocks}` / `{ok,coinsRemaining}`, `400` invalid/already/insufficient. **Debit and ownership insert are separate; retry/failure can lose coins, and concurrent requests can double debit before conflict insert.** |
-| POST `/api/fishing/sell` (7208) | SellFishPage; `{fishIds}` | auth/current user; server loads own fish, excludes aquarium fish, derives fixed rarity price, deletes IDs then credits coins; quest once/fish fire-and-forget. `200 {sold,coinsEarned,newBalance}`, `400` bad/no valid. **No transaction; duplicate input IDs collapse in filter, but concurrent sells can credit based on stale read after one delete and credit failure loses fish.** |
+| POST `/api/fishing/sell` | SellFishPage; `{fishIds}` (durable inventory record IDs; one row per unit) | auth/current user; rejects an empty/malformed array and duplicate IDs (`400`). `server/fishSale.ts` locks the player then all requested fish rows in sorted order, safely treats absent/cross-owner/invalid-catalog rows as not found (`404`), rejects aquarium fish as unavailable (`409`), derives unchanged fixed prices from stored `shop_items.star_rarity`, deletes the exact owned rows, credits coins, and advances existing quest progress in one transaction. `200 {sold,coinsEarned,newBalance}` remains unchanged; unexpected transaction failure is `500`. Client price, rarity, quantity, user/owner, reward, catalog, and total fields are not read. |
 | POST `/api/market/list-fish` (6101), POST `/api/market/:listingId/buy` (6137), POST `/api/market/:listingId/collect` (6197), DELETE `/api/market/:listingId` (6209) | MarketPage; list `{fishInventoryId,price}`, paths | auth; list verifies owned/non-aquarium fish and bounded client **market price**, converts fish record to listed general inventory and creates listing; buy atomically debits then tries status transfer and converts listed item to fish; collect deletes listing then credits seller; cancel reverses. All touch `player_fish_inventory`, `user_inventory`, `player_market_listings`, `users`. Individual status/debit steps have conditional logic, but cross-record flows are not transactional and caught conversion errors are swallowed: confirmed integrity-risk area requiring characterization. |
 | GET `/api/market`, `/api/market/my-listings`, `/api/market/listing/:listingId/item-details` (5979,6046,2955) | MarketPage | auth fish-market reads; query search/itemType and path ID; returns listing/details; no mutation. |
 | POST `/api/admin/world/:worldId/fishing-spot` (4226) | admin/world tooling; path ID | `isAdmin` middleware; creates fishing location/art defaults; `200` location, `500`; administrator world-location configuration, no catch. |
@@ -100,7 +100,7 @@ registrations by name.
 | --- | --- | --- |
 | Catch | user=`req.user.id`; location=`world_locations`; pond fish server membership; random rarity/bait config from `shop_items` **unless client sends valid pond fish**; score is client-controlled; `player_fish_inventory` is ownership, `player_fish_catch_log` permanent species/claim record | No encompassing transaction/lock/unique log pair. Pole uses are an owned conditional SQL decrement in its own transaction; bait decrement is guarded against negative quantity in a separate transaction. Fish can be granted without log/bait/quest/points, and retries create fish. |
 | Catch reward | only `req.user.id`, the body `shopItemId`, stored owned catch-log state, and fixed server constant 10 are authoritative; client user/reward/coin/rarity/time/claim fields are ignored | One route-owned transaction takes a pair advisory lock before `FOR UPDATE` on all matching owned rows. It rejects absent or any already-claimed match, updates both `users.coins` and `users.total_coins_earned`, then conditionally marks all matching unclaimed duplicates claimed and verifies the row count. Grant/claim failures roll back together; sequential or concurrent retries produce at most one reward. |
-| Sale | session user; owned non-aquarium record; rarity and fixed price server-derived | read → delete → coin credit; no atomic boundary. Quest follows asynchronously; replay/concurrent requests need testing. |
+| Sale | session user; requested durable fish rows provide identity/ownership/aquarium state; joined `shop_items` provides fish type and `star_rarity`; unchanged fixed map is 1★=5, 2★=10, 3★=15, 4★=25, 5★=30 | One PostgreSQL transaction locks the `users` row `FOR UPDATE`, then requested fish rows `FOR UPDATE` in sorted-ID order. Exact row count/ownership/catalog/eligibility is rechecked while locked. Exact conditional deletion, coin credit, and existing quest progress then commit together. Concurrent duplicate/retry requests wait and re-read absence, so at most one is paid; any thrown write failure rolls all state back. |
 | Aquarium placement | session user; eligible fish selection scoped by user; slot is client display value | select → update, no row lock/conditional mutation. Sync resets then loops. Ownership cannot cross user, but simultaneous calls can violate intended selection/state. |
 | Aquarium purchase | session user; aquarium ID and price fixed server map; ownership pair `player_aquarium_unlocks` | atomic conditional debit only; insert is separate but conflict-safe. No rollback between them. |
 | Equipment/consumption | session user; equip validates owned inventory/subtype; pole state=owned inventory row; bait quantity=stack field | equipment upsert has unique user key; pole/bait each own atomic transaction. Catch couples neither to grant/result atomically. A depleted bait's unequip is separate. |
@@ -144,9 +144,9 @@ SQL conflict pair), `fish_template_parts`, `fish_barrels`, and
    because every normal logged-in player could choose any valid fish catalog ID
    and mint it without server-authoritative catch, purchase, reward, transfer,
    migration, support, or administrator evidence.
-3. Catch, sale, unlock, aquarium, and market cross-record mutations lack one
-   transaction as described above. The catch-reward claim is intentionally no
-   longer included in this finding.
+3. Catch, unlock, aquarium, and market cross-record mutations lack one
+   transaction as described above. Fish shop sales and catch-reward claims are
+   intentionally no longer included in this finding.
 
 ### Likely risk requiring verification
 
@@ -215,9 +215,15 @@ registration only after characterization tests.
 
 ## Prioritized independent follow-ups
 
-1. Make fish sale removal and coin credit atomic, including owned conditional
-   deletion and quest dispatch after commit. Risk high; medium scope; needs
-   concurrent sell and failure tests; no migration required initially.
+1. Completed: fish shop sale removal, coin credit, and `sell_fish` quest
+   progression now share one owned, row-locked transaction in
+   `server/fishSale.ts`. No schema migration was needed because fish are durable
+   one-row-per-unit records. Focused tests cover authentication, exact payout and
+   deletion, hostile price/rarity/identity/quantity fields, cross-owner/missing/
+   aquarium fish, duplicate and concurrent final-unit attempts, retry, both
+   write-failure rollback directions, unrelated fish/users, quest preservation,
+   the single registered route, and separation from market routes. Normal catch,
+   aquarium add/remove, and player-market behavior were not redirected or changed.
 2. Replace client-authoritative fishing result with a server attempt boundary
    (or server selection independent of timer). Risk critical gameplay/economy;
    medium/large scope; characterize current odds/UI contract first; likely a

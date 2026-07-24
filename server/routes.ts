@@ -10,6 +10,7 @@ import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBun
 import { executeRewardClaim } from "./rewardClaim";
 import { executeDailyQuestClaim } from "./dailyQuestClaim";
 import { executeFishCatchRewardClaim } from "./fishCatchRewardClaim";
+import { FishSaleError, sellFish } from "./fishSale";
 import { db } from "./db";
 import { and, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import sharp from "sharp";
@@ -7237,32 +7238,24 @@ export async function registerRoutes(
   });
 
   // Sell fish
-  const FISH_SELL_PRICES: Record<number, number> = { 1: 5, 2: 10, 3: 15, 4: 25, 5: 30 };
-
   app.post("/api/fishing/sell", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
       const { fishIds } = req.body;
-      if (!Array.isArray(fishIds) || fishIds.length === 0) {
+      if (!Array.isArray(fishIds) || fishIds.length === 0 || fishIds.some(id => typeof id !== "string" || id.length === 0)) {
         return res.status(400).json({ message: "fishIds array required" });
       }
-      const fishInventory = await storage.getPlayerFishInventory(user.id);
-      const ownedIds = new Set(fishInventory.map(f => f.id));
-      const toSell = fishInventory.filter(f => fishIds.includes(f.id) && ownedIds.has(f.id) && !f.inAquarium);
-      if (toSell.length === 0) return res.status(400).json({ message: "No valid fish to sell" });
-
-      let totalCoins = 0;
-      for (const fish of toSell) {
-        const rarity = fish.item?.starRarity ?? 1;
-        totalCoins += FISH_SELL_PRICES[rarity] ?? 5;
+      if (new Set(fishIds).size !== fishIds.length) {
+        return res.status(400).json({ message: "Each fish inventory ID may only be sold once" });
       }
-
-      await storage.deleteFishInventoryItems(toSell.map(f => f.id));
-      const updatedUser = await storage.addCoins(user.id, totalCoins);
-      // Increment sell_fish quest progress once per fish sold (fire-and-forget)
-      Promise.all(Array.from({ length: toSell.length }, () => incrementQuestProgress(user.id, "sell_fish"))).catch(() => {});
-      return res.json({ sold: toSell.length, coinsEarned: totalCoins, newBalance: updatedUser.coins });
+      return res.json(await sellFish(user.id, fishIds));
     } catch (err: any) {
+      if (err instanceof FishSaleError) {
+        if (err.reason === "fish-unavailable") {
+          return res.status(409).json({ message: "Fish is unavailable for sale" });
+        }
+        return res.status(404).json({ message: "Fish not found" });
+      }
       return res.status(500).json({ message: err.message });
     }
   });
