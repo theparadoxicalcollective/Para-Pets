@@ -8,6 +8,7 @@ import path from "path";
 import { storage } from "./storage";
 import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, userHouseBundles as userHouseBundlesTable, users as usersTable, coinPurchases, deletedAccounts } from "@shared/schema";
 import { executeRewardClaim } from "./rewardClaim";
+import { executeDailyQuestClaim } from "./dailyQuestClaim";
 import { db } from "./db";
 import { and, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import sharp from "sharp";
@@ -9494,15 +9495,10 @@ export async function registerRoutes(
 
   // Generic client-triggered quest progress endpoint (e.g. from MoltenBlocksPage)
   app.post("/api/daily-quests/progress", isAuthenticated, async (req, res) => {
-    try {
-      const user = req.user as any;
-      const { questKey } = req.body;
-      if (!questKey || typeof questKey !== "string") return res.status(400).json({ message: "questKey required" });
-      await incrementQuestProgress(user.id, questKey);
-      return res.json({ ok: true });
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
-    }
+    // Progress is only advanced by routes that have already verified the game
+    // action (feeding, fishing, selling, and power-ups). Do not let a browser
+    // select a quest and manufacture completion state.
+    return res.status(403).json({ message: "Daily quest progress is server-authoritative" });
   });
 
   app.post("/api/quests/daily/claim/:questKey", isAuthenticated, async (req, res) => {
@@ -9510,46 +9506,102 @@ export async function registerRoutes(
       const user = req.user as any;
       const { questKey } = req.params;
       const date = getCentralDate();
-      const progRes = await db.execute(sql`
-        SELECT * FROM user_daily_quest_progress
-        WHERE user_id = ${user.id} AND quest_key = ${questKey} AND quest_date = ${date}
-      `);
-      const prog = progRes.rows[0] as any;
-      if (!prog?.completed) return res.status(400).json({ message: "Quest not completed" });
-      if (prog?.reward_claimed) return res.status(400).json({ message: "Reward already claimed" });
-      const questRes = await db.execute(sql`
-        SELECT q.*, si.name AS reward_item_name
-        FROM daily_quests q
-        LEFT JOIN shop_items si ON si.id = q.reward_item_id
-        WHERE q.quest_key = ${questKey} AND q.is_active = true
-      `);
-      const quest = questRes.rows[0] as any;
-      if (!quest) return res.status(404).json({ message: "Quest not found" });
-      if (quest.coin_reward > 0) {
-        await db.execute(sql`
-          UPDATE users SET coins = coins + ${quest.coin_reward},
-            total_coins_earned = total_coins_earned + ${quest.coin_reward}
-          WHERE id = ${user.id}
-        `);
-      }
-      if (quest.reward_item_id) {
-        const qty = (quest.reward_item_quantity as number) ?? 1;
-        for (let i = 0; i < qty; i++) {
-          await storage.addToInventory(user.id, quest.reward_item_id);
+      const claim = await db.transaction(async (tx) => {
+        let progress: any;
+        let quest: any;
+        let newCoinBalance: number | undefined;
+        const result = await executeDailyQuestClaim({
+          state: async () => {
+            const progressResult = await tx.execute(sql`
+              SELECT * FROM user_daily_quest_progress
+              WHERE user_id = ${user.id} AND quest_key = ${questKey} AND quest_date = ${date}
+              FOR UPDATE
+            `);
+            progress = progressResult.rows[0] as any;
+            if (!progress) {
+              const prior = await tx.execute(sql`SELECT 1 FROM user_daily_quest_progress WHERE user_id = ${user.id} AND quest_key = ${questKey} LIMIT 1`);
+              return prior.rows.length ? "expired" : "incomplete";
+            }
+            if (progress.reward_claimed) return "already-claimed";
+            if (!progress.completed) return "incomplete";
+            const questResult = await tx.execute(sql`
+              SELECT q.*, si.name AS reward_item_name, si.type AS reward_item_type,
+                     si.fishing_type AS reward_item_fishing_type
+              FROM daily_quests q LEFT JOIN shop_items si ON si.id = q.reward_item_id
+              WHERE q.quest_key = ${questKey} AND q.is_active = true
+            `);
+            quest = questResult.rows[0] as any;
+            if (!quest) throw Object.assign(new Error("QUEST_NOT_FOUND"), { code: "QUEST_NOT_FOUND" });
+            const quantity = Number(quest.reward_item_quantity ?? 1);
+            if (!Number.isSafeInteger(Number(quest.coin_reward)) || Number(quest.coin_reward) < 0 ||
+                (quest.reward_item_id && (!Number.isSafeInteger(quantity) || quantity < 1 || !quest.reward_item_type))) {
+              throw new Error("Invalid daily quest reward configuration");
+            }
+            return "ready";
+          },
+          reserve: async () => !progress.reward_claimed,
+          grantCoins: async () => {
+            const amount = Number(quest.coin_reward);
+            if (!amount) return;
+            const updated = await tx.execute(sql`
+              UPDATE users SET coins = coins + ${amount}, total_coins_earned = total_coins_earned + ${amount}
+              WHERE id = ${user.id} RETURNING coins
+            `);
+            if (!updated.rows.length) throw new Error("User not found");
+            newCoinBalance = Number((updated.rows[0] as any).coins);
+          },
+          grantItems: async () => {
+            if (!quest.reward_item_id) return;
+            const quantity = Number(quest.reward_item_quantity ?? 1);
+            const durable = quest.reward_item_type === "pet" ||
+              (quest.reward_item_type === "fishing" && quest.reward_item_fishing_type === "pole");
+            if (durable) {
+              for (let i = 0; i < quantity; i++) {
+                await tx.execute(sql`INSERT INTO user_inventory (user_id, shop_item_id, quantity, hatch_started_at)
+                  VALUES (${user.id}, ${quest.reward_item_id}, 1, ${quest.reward_item_type === "pet" ? sql`NOW()` : null})`);
+              }
+              return;
+            }
+            // Match the canonical stack boundary used by inventory purchases:
+            // serialize the empty-row case and increment an existing stack exactly.
+            await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${user.id})::int, hashtext(${quest.reward_item_id})::int)`);
+            const stacked = await tx.execute(sql`
+              UPDATE user_inventory SET quantity = COALESCE(quantity, 0) + ${quantity}
+              WHERE id = (SELECT id FROM user_inventory WHERE user_id = ${user.id}
+                AND shop_item_id = ${quest.reward_item_id} ORDER BY acquired_at ASC NULLS FIRST LIMIT 1)
+              RETURNING id
+            `);
+            if (!stacked.rows.length) await tx.execute(sql`
+              INSERT INTO user_inventory (user_id, shop_item_id, quantity)
+              VALUES (${user.id}, ${quest.reward_item_id}, ${quantity})
+            `);
+          },
+          commit: async () => {
+            const updated = await tx.execute(sql`
+              UPDATE user_daily_quest_progress SET reward_claimed = true
+              WHERE user_id = ${user.id} AND quest_key = ${questKey} AND quest_date = ${date}
+                AND reward_claimed = false RETURNING id
+            `);
+            if (!updated.rows.length) throw new Error("Claim record changed during claim");
+          },
+        });
+        if (result === "success" && newCoinBalance === undefined) {
+          const currentUser = await tx.execute(sql`SELECT coins FROM users WHERE id = ${user.id}`);
+          newCoinBalance = Number((currentUser.rows[0] as any)?.coins);
         }
-      }
-      await db.execute(sql`
-        UPDATE user_daily_quest_progress SET reward_claimed = true
-        WHERE user_id = ${user.id} AND quest_key = ${questKey} AND quest_date = ${date}
-      `);
-      const updatedUser = await storage.getUser(user.id);
+        return { result, quest, newCoinBalance };
+      });
+      if (claim.result === "incomplete") return res.status(400).json({ message: "Quest not completed" });
+      if (claim.result === "expired") return res.status(400).json({ message: "Quest expired" });
+      if (claim.result === "already-claimed") return res.status(400).json({ message: "Reward already claimed" });
       return res.json({
         ok: true,
-        coinsGranted: quest.coin_reward,
-        itemGranted: quest.reward_item_id ? quest.reward_item_name : null,
-        newCoinBalance: updatedUser?.coins,
+        coinsGranted: claim.quest.coin_reward,
+        itemGranted: claim.quest.reward_item_id ? claim.quest.reward_item_name : null,
+        newCoinBalance: claim.newCoinBalance,
       });
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.code === "QUEST_NOT_FOUND") return res.status(404).json({ message: "Quest not found" });
       console.error("Quest claim error:", err);
       return res.status(500).json({ message: "Failed to claim quest reward" });
     }
