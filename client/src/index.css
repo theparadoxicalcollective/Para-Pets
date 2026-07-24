@@ -3375,3 +3375,14 @@ img[data-interactive], button img, a img {
   20%  { opacity: 1; transform: scaleX(1); }
   100% { opacity: 0; transform: scaleX(1); }
 }
+
+/* Keep the fish-sale queue compact, with dvh used only when the browser supports it. */
+.selected-fish-scroll-container {
+  max-height: min(28vh, 220px);
+}
+
+@supports (height: 100dvh) {
+  .selected-fish-scroll-container {
+    max-height: min(28dvh, 220px);
+  }
+}

@@ -217,7 +217,17 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
           {cartFish.length === 0 ? "Drop fish here to sell" : `${cartFish.length} fish queued`}
         </p>
         {cartFish.length > 0 && (
-          <div className="flex flex-wrap gap-2 justify-center">
+          <div
+            data-testid="selected-fish-scroll-container"
+            className="selected-fish-scroll-container flex flex-wrap content-start gap-2 justify-center overflow-y-auto"
+            style={{
+              overscrollBehavior: "contain",
+              WebkitOverflowScrolling: "touch",
+              touchAction: "pan-y",
+              padding: "2px 6px 8px",
+              scrollbarWidth: "thin",
+            }}
+          >
             {cartFish.map(fish => (
               <div key={fish.id} className="relative">
                 <button
@@ -253,8 +263,13 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
       {/* Confirm sell bar */}
       {cartFish.length > 0 && (
         <div
+          data-testid="confirm-sell-bar"
           className="mx-4 mb-2 rounded-xl flex items-center justify-between px-4 py-2.5 shrink-0"
-          style={{ background: "rgba(94,234,212,0.08)", border: `1px solid ${ACCENT}30` }}
+          style={{
+            background: "rgba(94,234,212,0.08)",
+            border: `1px solid ${ACCENT}30`,
+            marginBottom: "max(8px, env(safe-area-inset-bottom, 0px))",
+          }}
         >
           <div>
             <p className="font-fantasy text-[10px]" style={{ color: `${ACCENT}70` }}>You will receive</p>
