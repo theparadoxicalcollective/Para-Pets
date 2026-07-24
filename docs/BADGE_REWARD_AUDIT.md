@@ -14,12 +14,12 @@ runtime, schema, balance, UI, asset, gameplay, or production-data change.
   from the joined badge definition, and updates only that user's balance.
   Clients do not send progress, completion, unlock state, coins, item IDs,
   quantities, rarity, pet IDs, or reward values.
-- **Confirmed — the periodic-coin claim is not transactional or concurrency
-  safe.** `POST /api/badges/claim-daily` reads eligibility, calls `addCoins`,
-  then separately writes the claim timestamp. Two simultaneous requests can
-  both pass the stale cooldown check and both add coins. If the timestamp write
-  fails after `addCoins`, a retry can add coins again. Conversely, the current
-  ordering does not record a claim before a successful coin write.
+- **Resolved — the periodic-coin claim is transactional and idempotent.**
+  `POST /api/badges/claim-daily` now obtains a transaction-scoped PostgreSQL
+  advisory lock for the authenticated `(user_id, badge_id)` pair, locks all
+  matching owned-badge and claim rows, rechecks the server-owned definition and
+  cooldown with PostgreSQL `NOW()`, grants coins, and writes the timestamp in
+  one transaction. A grant or timestamp failure rolls back both mutations.
 - **Likely — duplicate prevention is not durable.** `awardBadge` uses a
   read-then-insert check, while the declared `user_badges` table has no unique
   `(user_id, badge_id)` constraint. Concurrent automatic or administrator
@@ -90,7 +90,7 @@ request can update badge progress or self-unlock a badge. `App.tsx` only mounts
 
 | Player/admin action | Client/request or server trigger | Authenticated identity | Server eligibility and state | Reward/unlock mutation; transaction/idempotency |
 | --- | --- | --- | --- | --- |
-| Claim periodic coins | `BadgeClaimButton` → `POST /api/badges/claim-daily` with `badgeId` | `req.user.id`; email verification required | Loads only that user's joined badge row, takes coin/cadence from `badges`, and compares server `Date.now()` with `last_claimed_at` (24h/7d/30d) | Adds configured coins to `users`, then upserts `badge_reward_claims`. **Confirmed not transactional/idempotent under concurrency.** Claim state is recorded after grant; a partial grant is possible if recording fails. |
+| Claim periodic coins | `BadgeClaimButton` → `POST /api/badges/claim-daily` with `badgeId` | `req.user.id`; email verification required | Locks only that user's owned badge rows and corresponding claim rows, takes coin/cadence from `badges`, and compares `last_claimed_at` with PostgreSQL `NOW()` (24h/7d/30d) | **Atomic/idempotent:** `server/badgePeriodicClaim.ts` coordinates one transaction. A pair advisory lock also serializes the no-claim-row first-claim case; coin grant and timestamp update/insert roll back together. |
 | Successful fishing catch | `FishingPage` flow → fishing catch route; no badge request | `req.user.id` in catch route | After catch/logging, increments server `users.total_fish_caught`; fish-book query counts server catch-log entries for the server-loaded location world | Awards permanent `user_badges` rows for 300/500/750 catches and complete biome books. **Likely not concurrency-safe** due to read-then-insert award; no reward is automatically granted at unlock beyond eligibility for periodic coin claims. |
 | Recorded PvP win | PvP result request → route records battle | `req.user.id` | Counts persisted wins after a server-recorded result | Awards 100/300/500-win `user_badges`; fire-and-forget after response. **Likely duplicate-prone** without unique pair constraint; no transaction with battle record. |
 | Completed Stripe purchase | Verify route or Stripe webhook → `maybeAwardAcquisitionBadges` | Verified session owner in verify route; Stripe session metadata/webhook for webhook | Server purchase amount; daily total from stored purchases | Awards $25, >=$100, and >=$500 daily-spend badge rows. Fire-and-forget and not in purchase transaction; duplicate-pair concern applies. Unlock has periodic coins only, claimed separately. |
@@ -108,14 +108,7 @@ request can update badge progress or self-unlock a badge. `App.tsx` only mounts
 
 ### Confirmed
 
-1. **Duplicate periodic coin rewards are possible under concurrent requests.** The
-   read of `lastClaimedAt`, coin increment, and timestamp upsert are independent
-   queries with no lock, conditional update, or transaction. This is the
-   highest-risk confirmed finding because it directly mutates coins.
-2. **A claim-state write failure leaves a paid, claimable badge.** Coins are
-   granted before the separate timestamp write. Retrying after a failed write
-   can pay the configured amount again.
-3. **Administrator badge routes do have an admin check, but do not use the
+1. **Administrator badge routes do have an admin check, but do not use the
    repository's verified-admin guard.** They require `isAuthenticated` and
    `req.user.isAdmin`, but omit the `emailVerified` requirement and canonical
    `requireAdmin` middleware. This is a confirmed policy inconsistency, not a
@@ -166,19 +159,15 @@ request can update badge progress or self-unlock a badge. `App.tsx` only mounts
   progress counters. Fisher thresholds only unlock once as intended, subject to
   the duplicate-row race above.
 - No badge unlock is based on client time. Client countdowns are presentation
-  only; claim cooldown is rechecked using server process time.
+  only; periodic claim cooldown is rechecked using PostgreSQL `NOW()` inside
+  the locked transaction.
 - Badge rewards do not bypass a required inventory helper: the implementation
   has no badge item/pet/inventory reward. Their direct `addCoins` call is the
   sole configured benefit and should be included in the future transaction.
 
 ## Recommended small follow-up PRs
 
-1. **Safest first implementation task:** make `POST /api/badges/claim-daily`
-   transactional and idempotent. In one database transaction, lock the owned
-   badge/claim state, re-evaluate cooldown using database time, grant coins,
-   and conditionally persist the claim timestamp; add focused concurrent/retry
-   tests. This changes no configured reward value or client API.
-2. Add schema migrations for unique `(user_id, badge_id)` constraints on both
+1. Add schema migrations for unique `(user_id, badge_id)` constraints on both
    `user_badges` and `badge_reward_claims`, after a reviewed duplicate-data
    cleanup/migration plan. Use database-native upserts/conflict handling in
    award and claim storage methods.
