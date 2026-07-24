@@ -261,7 +261,6 @@ export interface IStorage {
   getFishingLeaderboard(worldId: string, limit?: number): Promise<{ userId: string; username: string; profileImage: string | null; points: number }[]>;
   getPlayerFishingRank(userId: string, worldId: string): Promise<{ points: number; rank: number } | null>;
   getPlayerCaughtFishLog(userId: string): Promise<{ shopItemId: string; rewardClaimed: boolean }[]>;
-  claimFishCatchReward(userId: string, shopItemId: string): Promise<boolean>;
   syncAquariumFish(userId: string, counts: { shopItemId: string; count: number }[]): Promise<void>;
   addFishToAquarium(userId: string, shopItemId: string, slot?: string): Promise<string | null>;
   removeFishFromAquarium(userId: string, shopItemId: string, slot?: string): Promise<boolean>;
@@ -2072,18 +2071,6 @@ export class DatabaseStorage implements IStorage {
       .from(playerFishCatchLog)
       .where(eq(playerFishCatchLog.userId, userId));
     return rows;
-  }
-
-  async claimFishCatchReward(userId: string, shopItemId: string): Promise<boolean> {
-    const [entry] = await db.select()
-      .from(playerFishCatchLog)
-      .where(and(eq(playerFishCatchLog.userId, userId), eq(playerFishCatchLog.shopItemId, shopItemId)))
-      .limit(1);
-    if (!entry || entry.rewardClaimed) return false;
-    await db.update(playerFishCatchLog)
-      .set({ rewardClaimed: true })
-      .where(and(eq(playerFishCatchLog.userId, userId), eq(playerFishCatchLog.shopItemId, shopItemId)));
-    return true;
   }
 
   async syncAquariumFish(userId: string, counts: { shopItemId: string; count: number }[]): Promise<void> {

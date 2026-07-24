@@ -134,14 +134,17 @@ only and records the live behavior rather than changing it.
   coins and lifetime earnings, daily quest progress, fisher/fish-book badges,
   world locations/leaderboards, aquarium flags/unlocks, player-market listings,
   and administrator catalog/world configuration.
-- **Highest-priority follow-up:** make `POST /api/fishing/claim-catch-reward`
-  transactional and idempotent, after production DDL/data inspection. It is
-  the smallest confirmed direct coin-integrity issue and should be covered by
-  parallel/retry/failure tests before broader catch changes.
+- **Catch-reward boundary:** `POST /api/fishing/claim-catch-reward` now uses
+  the database-independent `server/fishCatchRewardClaim.ts` coordinator inside
+  one route transaction. A PostgreSQL transaction advisory lock on user/species
+  precedes `FOR UPDATE` locks on every owned log row; the route updates both
+  `users.coins` and `users.total_coins_earned` by the fixed 10 coins, then
+  conditionally claims all matching duplicate rows. A separately reviewed
+  duplicate cleanup and unique `(user_id, shop_item_id)` constraint is still
+  recommended; this change contains no schema migration.
 - **Confirmed risks:** client `performanceScore=100` guarantees a catch and a
   valid client fish ID chooses a stocked fish; `/api/fishing/inventory/add`
-  permits authenticated fish minting; catch-reward claim flag and coins are
-  separate writes; catch, sale, aquarium unlock, aquarium state, and fish
+  permits authenticated fish minting; catch, sale, aquarium unlock, aquarium state, and fish
   market conversions lack complete cross-record transaction boundaries.
 - **Requires verification:** production uniqueness/duplicate data for fish
   catch logs; exact parallel aquarium outcomes; verified-admin policy for
