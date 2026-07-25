@@ -80,6 +80,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const queryClient = useQueryClient();
   const pollRef     = useRef<ReturnType<typeof setInterval> | null>(null);
   const invCheckRef = useRef<any[]>([]); // latest invCheck data accessible from poll closure
+  const potionGrantAttemptedRef = useRef(false);
 
   // ── Mark tutorial quest complete (no coins — player claims from quest log) ──
   const completeTutorialMutation = useMutation({
@@ -100,10 +101,9 @@ export default function BeginJourneyOverlay({ user }: Props) {
         setStep("done");
       }, 3500);
     },
-    onError: () => {
-      bjSetStep("done");
-      setStep("done");
-    },
+    // Keep step 6 active after a transient failure. A retry remains available
+    // through the same quest-icon interaction and server completion stays authoritative.
+    onError: () => queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] }),
   });
 
   // ── Grant 3 free hatching potions (one-time) ──────────────────────────────
@@ -252,10 +252,15 @@ export default function BeginJourneyOverlay({ user }: Props) {
     const hasHatchPotions = (invHatch as any[]).some(i => i.type === "special" && i.specialType === "hatch_time");
     if (hasHatchPotions || potionsGranted) return;
     // No potions: silently auto-grant (no modal fallback)
-    if (!grantPotionsMutation.isPending && !grantPotionsMutation.isSuccess) {
+    if (!potionGrantAttemptedRef.current && !grantPotionsMutation.isPending) {
+      potionGrantAttemptedRef.current = true;
       grantPotionsMutation.mutate();
     }
   }, [step, location, invHatch, potionsGranted]);
+
+  useEffect(() => {
+    if (step !== 5) potionGrantAttemptedRef.current = false;
+  }, [step]);
 
   // ── Step 5: detect egg ready to hatch ────────────────────────────────────
   useEffect(() => {

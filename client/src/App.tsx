@@ -293,6 +293,12 @@ function AppRouter() {
       if (bjGetStatus() !== "done") bjSetStep("done");
       return;
     }
+    // Older clients marked local completion even when the completion request
+    // failed. Reconcile that impossible state back to the final retryable step.
+    if (bjGetStatus() === "done") {
+      bjSetStep(6);
+      return;
+    }
     if (bjGetStatus() === "not_started") bjStart();
   }, [user, showWelcome]);
 
