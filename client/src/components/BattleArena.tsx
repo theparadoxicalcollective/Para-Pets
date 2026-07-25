@@ -491,6 +491,14 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
   const [petMaxHp, setPetMaxHp] = useState(0);
   const [victoryData, setVictoryData] = useState<any>(null);
   const [totalRewards, setTotalRewards] = useState<{ lvlPoints: number; coins: number; items: any[]; levelsGained: number }>({ lvlPoints: 0, coins: 0, items: [], levelsGained: 0 });
+  const caveCompletionReportedRef = useRef(false);
+
+  useEffect(() => {
+    if (isCave && phase === "victory" && !caveCompletionReportedRef.current) {
+      caveCompletionReportedRef.current = true;
+      void onCaveTierComplete?.();
+    }
+  }, [isCave, onCaveTierComplete, phase]);
   // Per-pet level/XP snapshot used by the end-of-battle progression bars.
   // Keyed by inventoryId. We snapshot starting state on the first defeat
   // response and keep updating end state as more enemies fall.
@@ -3464,7 +3472,6 @@ export default function BattleArena({ locationId, locationName, bgUrl, accent, o
             caveTier={caveTier}
             tierBonusCoins={isCave && phase === "victory" ? (caveTier ?? 1) * 100 : undefined}
             onClose={() => {
-              if (isCave && phase === "victory") onCaveTierComplete?.();
               handleReturnToWorld();
             }}
           />

@@ -38,6 +38,17 @@ export const CAVE_TIERS = [
   { tier: 10, banner: caveBanner10, enterBtn: caveEnter10 },
 ] as const;
 
+export const CAVE_ENTER_LAYOUT = {
+  width: "38%",
+  height: "24%",
+  bottom: "2%",
+} as const;
+
+export function isCaveTierUnlocked(tier: number, currentTier: number, completedTiers: number[]) {
+  return !completedTiers.includes(tier)
+    && (tier === 1 || completedTiers.includes(tier - 1) || currentTier >= tier);
+}
+
 export interface WorldCaveOverlayProps {
   mode: "entry" | "battle";
   activePetId: string | null;
@@ -97,15 +108,15 @@ export default function WorldCaveOverlay(props: WorldCaveOverlayProps) {
       <div className="flex-1 overflow-y-auto px-3 pb-8 space-y-4 pt-1">
         {CAVE_TIERS.map(({ tier, banner, enterBtn }) => {
           const completed = completedTiers.includes(tier);
-          const unlocked = !completed && (tier === 1 || completedTiers.includes(tier - 1) || currentTier >= tier);
+          const unlocked = isCaveTierUnlocked(tier, currentTier, completedTiers);
           return (
             <div key={tier} className="relative w-full rounded-xl overflow-hidden">
               <img src={banner} alt={`Tier ${tier}`} className="w-full h-auto block" style={{ filter: unlocked ? "none" : "grayscale(0.6) brightness(0.4)" }} />
               {completed && <div className="absolute top-2 right-2 flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap" style={{ background: "rgba(0,0,0,0.75)", color: "#4ade80", border: "1px solid #4ade8066" }}>✓ CLEARED</div>}
               {!unlocked && <div className="absolute inset-0 flex items-center justify-center"><span className="text-4xl drop-shadow-lg">🔒</span></div>}
               {unlocked && (
-                <button data-testid={`button-cave-enter-tier-${tier}`} onClick={() => props.onEnterTier(tier)} className="absolute bottom-1 left-1/2 -translate-x-1/2 active:scale-95 transition-transform" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", width: "38%" }}>
-                  <img src={enterBtn} alt="Enter" className="w-full h-auto block" />
+                <button data-testid={`button-cave-enter-tier-${tier}`} onClick={() => props.onEnterTier(tier)} className="absolute left-1/2 -translate-x-1/2 active:scale-95 transition-transform" style={{ ...CAVE_ENTER_LAYOUT, background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+                  <img src={enterBtn} alt="Enter" className="block w-full h-full object-contain object-bottom" />
                 </button>
               )}
             </div>

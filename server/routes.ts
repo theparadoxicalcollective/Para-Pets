@@ -8573,15 +8573,12 @@ export async function registerRoutes(
       if (!pet) {
         return res.status(403).json({ message: "Pet not found" });
       }
-      const current = await storage.getPetCaveProgress(petInventoryId) ?? { currentTier: 1, completedTiers: [] };
-      const completedTiers = Array.from(new Set([...current.completedTiers, tier])).sort((a, b) => a - b);
-      // Unlock next tier (max 10)
-      const nextTier = Math.min(10, Math.max(current.currentTier, tier + 1));
-      await storage.upsertPetCaveProgress(petInventoryId, nextTier, completedTiers);
-      // Award tier-clear bonus coins (100 per tier)
-      const bonusCoins = tier * 100;
-      const updatedUser = await storage.addCoins(user.id, bonusCoins);
-      return res.json({ currentTier: nextTier, completedTiers, bonusCoins, newBalance: updatedUser.coins });
+      const progress = await storage.completePetCaveTier(petInventoryId, tier);
+      // A tier-clear bonus is awarded once. The serialized progress update makes
+      // retries and double clicks idempotent instead of duplicating rewards.
+      const bonusCoins = progress.newlyCompleted ? tier * 100 : 0;
+      const updatedUser = bonusCoins > 0 ? await storage.addCoins(user.id, bonusCoins) : user;
+      return res.json({ ...progress, bonusCoins, newBalance: updatedUser.coins });
     } catch (err) {
       console.error("[cave] complete-tier error:", err);
       return res.status(500).json({ message: "Server error" });

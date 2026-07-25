@@ -58,6 +58,7 @@ import {
 } from "@shared/schema";
 
 import { db } from "./db";
+import { completeCaveTier } from "./caveProgress";
 import { tryConsumeOneFromInventory as consumeOneFromInventory } from "./inventoryConsumption";
 import { eq, and, ne, gte, asc, desc, ilike, or, sql, inArray, isNull, gt } from "drizzle-orm";
 
@@ -195,6 +196,7 @@ export interface IStorage {
   createCaveEnemy(data: { locationId: string; name: string; imageUrl?: string | null; isBoss?: boolean; isMiniBoss?: boolean; caveTier?: number | null; coinReward?: number; bossSpecialAttack?: string | null }): Promise<any>;
   getPetCaveProgress(petInventoryId: string): Promise<{ currentTier: number; completedTiers: number[] } | null>;
   upsertPetCaveProgress(petInventoryId: string, currentTier: number, completedTiers: number[]): Promise<void>;
+  completePetCaveTier(petInventoryId: string, tier: number): Promise<{ currentTier: number; completedTiers: number[]; newlyCompleted: boolean }>;
   updateLocationEnemy(id: string, data: Partial<{ name: string; imageUrl: string | null; isBoss: boolean; coinReward: number; bossSpecialAttack: string | null }>): Promise<LocationEnemy>;
   deleteLocationEnemy(id: string): Promise<void>;
   getEnemyDrops(enemyId: string): Promise<EnemyDrop[]>;
@@ -1363,6 +1365,38 @@ export class DatabaseStorage implements IStorage {
         SET current_tier = EXCLUDED.current_tier,
             completed_tiers = EXCLUDED.completed_tiers
     `);
+  }
+
+  async completePetCaveTier(petInventoryId: string, tier: number): Promise<{ currentTier: number; completedTiers: number[]; newlyCompleted: boolean }> {
+    return db.transaction(async (tx) => {
+      // Serialize completions for one pet, including the first completion when
+      // there is not yet a progress row for SELECT ... FOR UPDATE to lock.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${petInventoryId})::int)`);
+      const result: any = await tx.execute(sql`
+        SELECT current_tier, completed_tiers
+        FROM pet_cave_progress
+        WHERE pet_inventory_id = ${petInventoryId}
+        FOR UPDATE
+      `);
+      const rows = result.rows ?? result;
+      const row = Array.isArray(rows) ? rows[0] : undefined;
+      const previousCompleted: number[] = row
+        ? (Array.isArray(row.completed_tiers) ? row.completed_tiers : JSON.parse(row.completed_tiers || "[]"))
+        : [];
+      const newlyCompleted = !previousCompleted.includes(tier);
+      const { completedTiers, currentTier } = completeCaveTier({
+        currentTier: row?.current_tier ?? 1,
+        completedTiers: previousCompleted,
+      }, tier);
+      await tx.execute(sql`
+        INSERT INTO pet_cave_progress (pet_inventory_id, current_tier, completed_tiers)
+        VALUES (${petInventoryId}, ${currentTier}, ${JSON.stringify(completedTiers)}::jsonb)
+        ON CONFLICT (pet_inventory_id) DO UPDATE
+          SET current_tier = EXCLUDED.current_tier,
+              completed_tiers = EXCLUDED.completed_tiers
+      `);
+      return { currentTier, completedTiers, newlyCompleted };
+    });
   }
 
   async updateLocationEnemy(id: string, data: Partial<{ name: string; imageUrl: string | null; isBoss: boolean; archetype: string; coinReward: number; bossSpecialAttack: string | null }>): Promise<LocationEnemy> {
