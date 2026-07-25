@@ -387,3 +387,37 @@ alternate path. Fish inventory and catch-log formats, first-catch claim route,
 fish book reads, sales, prices, catalog values, rarity weights, bait rarity
 behavior, pole rules, world mapping, points, assets, visuals, and overlay layout
 are unchanged.
+
+## Completion-result correctness follow-up (2026-07)
+
+The intermittent caught-fish/“It got away!” mismatch was a client protocol
+error, not a grant-transaction or world-remount error. Completion commits the
+fish and `result_json` atomically, but a response can be lost after that commit.
+TanStack Query retried once; if the transport still failed, `FishingPage`'s
+`onError` unconditionally entered `missed`. The client also inferred success
+from the presence of the nested `caught` object rather than from a durable
+outcome. Thus a committed grant could be represented as a miss even though the
+fish row correctly existed. Fresh and JSONB-replayed response casing was
+otherwise consistent, and world-location query invalidation did not remount the
+overlay.
+
+The corrected invariant is explicit: every newly stored result includes
+`outcome: "caught" | "miss"`, and a caught result also carries the authoritative
+`fishItemId`. Replays normalize parsed JSONB, JSON text, and pre-deployment
+legacy results before adding `replayed: true`, so fresh and replayed responses
+have identical semantic outcomes and never repeat inventory, bait, pole, quest,
+lifetime-count, or leaderboard writes. `FishingPage` branches on `outcome`, not
+item metadata or nested-object truthiness. Missing item presentation data uses
+the existing “Mystery Fish” fallback independently and cannot turn a catch into
+a miss. Transport exhaustion reports an unconfirmed result and deliberately
+does not manufacture a committed miss; completion has bounded exponential
+retries so a lost fresh response normally resolves through the durable replay.
+
+Before applying either terminal server result, the page clears casting/nibble
+timers and synchronously updates `phaseRef` with React state. The reel callback
+is once-only, and a late local miss callback is ignored after completion has
+been submitted. Reset and unmount still clear timers and abandon only a pending
+attempt; query invalidation remains limited to fishing equipment/inventory and
+quest data. Elysian Bayou, Volcanic Island, and all other worlds continue to
+open the same `client/src/pages/FishingPage.tsx` from `WorldPage`; no per-world
+fishing engine or page was introduced.

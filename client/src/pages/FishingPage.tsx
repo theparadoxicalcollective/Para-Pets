@@ -15,6 +15,7 @@ import fishBookIcon from "@assets/Photoroom_20260324_65241_AM_1774353229077.png"
 import leaderboardIcon from "@assets/Photoroom_20260623_111411_AM_1782231282456.png";
 import coinIconImg from "@assets/icon_coin.png";
 import { playPlop, playCatch, playReelTick } from "@/lib/sounds";
+import { fishingCompletionOutcome, type FishingCompletionResponse } from "@/lib/fishingAttemptResult";
 
 interface FishingPageProps {
   locationId: string;
@@ -251,6 +252,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
   const [bgError, setBgError] = useState(false);
   const nibbleRarityRef = useRef<number>(1);
   const activeAttemptIdRef = useRef<string | null>(null);
+  const completionSubmittedRef = useRef(false);
   const [nibbleCount, setNibbleCount] = useState(0);
   const nibbleCountRef = useRef(0);
   const [nibbleWindowMs, setNibbleWindowMs] = useState(2500);
@@ -266,6 +268,10 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
   const [dropTarget, setDropTarget] = useState<"pole" | "bait" | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const clearAllTimers = useCallback(() => {
+    if (nibbleTimeoutRef.current) { clearTimeout(nibbleTimeoutRef.current); nibbleTimeoutRef.current = null; }
+    if (castingTimeoutRef.current) { clearTimeout(castingTimeoutRef.current); castingTimeoutRef.current = null; }
+  }, []);
 
   const { data: equipData } = useQuery<EquipmentData>({
     queryKey: ["/api/fishing/equipment"],
@@ -349,12 +355,14 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
       });
       return res.json();
     },
-    onSuccess: (data: { caught: CaughtFish | null; item?: ShopItem | null; reason?: string }) => {
+    onSuccess: (data: FishingCompletionResponse<CaughtFish, ShopItem>) => {
       activeAttemptIdRef.current = null;
+      clearAllTimers();
       queryClient.invalidateQueries({ queryKey: ["/api/fishing/equipment"] });
-      if (data.caught) {
+      if (fishingCompletionOutcome(data) === "caught") {
+        const fishItemId = data.caught?.shopItemId ?? data.fishItemId ?? "unknown-fish";
         setCaughtItem(data.item ?? {
-          id: data.caught.shopItemId,
+          id: fishItemId,
           name: "Mystery Fish",
           imageUrl: null,
           type: "fishing",
@@ -362,19 +370,21 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
           starRarity: null,
           rarityBoostPercent: null,
         });
+        phaseRef.current = "caught";
         setPhase("caught");
         queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
         queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
         queryClient.invalidateQueries({ queryKey: ["/api/quests/daily"] });
       } else {
+        phaseRef.current = "missed";
         setPhase("missed");
       }
     },
     onError: (err: Error) => {
-      toast({ title: "Fishing attempt failed", description: err.message, variant: "destructive" });
-      setPhase("missed");
+      toast({ title: "Fishing result unavailable", description: `${err.message}. Your catch was not marked as missed.`, variant: "destructive" });
     },
-    retry: 1,
+    retry: 3,
+    retryDelay: attempt => Math.min(1000 * 2 ** attempt, 4000),
   });
 
   const addPondFishMutation = useMutation({
@@ -418,11 +428,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
-
-  const clearAllTimers = useCallback(() => {
-    if (nibbleTimeoutRef.current) { clearTimeout(nibbleTimeoutRef.current); nibbleTimeoutRef.current = null; }
-    if (castingTimeoutRef.current) { clearTimeout(castingTimeoutRef.current); castingTimeoutRef.current = null; }
-  }, []);
 
   const equipMutateRef = useRef(equipMutation.mutate);
   useEffect(() => { equipMutateRef.current = equipMutation.mutate; });
@@ -509,6 +514,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
       const response = await apiRequest("POST", "/api/fishing/attempts", { locationId });
       const attempt: { attemptId: string; presentationRarity: number } = await response.json();
       activeAttemptIdRef.current = attempt.attemptId;
+      completionSubmittedRef.current = false;
       nibbleRarityRef.current = Math.max(1, Math.min(5, attempt.presentationRarity));
     } catch (error) {
       toast({ title: "Couldn't cast", description: (error as Error).message, variant: "destructive" });
@@ -573,6 +579,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
     setNibbleCount(0);
     nibbleCountRef.current = 0;
     activeAttemptIdRef.current = null;
+    completionSubmittedRef.current = false;
     clearAllTimers();
   }, [clearAllTimers, locationId]);
 
@@ -983,8 +990,19 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
         <TensionReel
           rarity={nibbleRarityRef.current}
           equipData={equipDataRef.current}
-          onCaught={() => { playCatch(); catchMutateRef.current(100); }}
-          onMissed={() => { phaseRef.current = "missed"; setPhase("missed"); }}
+          onCaught={() => {
+            if (completionSubmittedRef.current) return;
+            completionSubmittedRef.current = true;
+            clearAllTimers();
+            playCatch();
+            catchMutateRef.current(100);
+          }}
+          onMissed={() => {
+            if (completionSubmittedRef.current || phaseRef.current !== "reeling") return;
+            clearAllTimers();
+            phaseRef.current = "missed";
+            setPhase("missed");
+          }}
           accent={accent}
         />
       )}

@@ -61,3 +61,31 @@ test("catch and equipment refreshes do not invalidate world locations", () => {
   assert.doesNotMatch(mutationSection, /\/api\/world.*locations/);
   assert.doesNotMatch(mutationSection, /setActiveLocationId|setFishingLocation/);
 });
+
+test("completion uses the authoritative outcome and terminal transitions clear pending timers", () => {
+  const mutationSection = fishingSource.slice(
+    fishingSource.indexOf("const catchMutation"),
+    fishingSource.indexOf("const addPondFishMutation"),
+  );
+  assert.match(mutationSection, /fishingCompletionOutcome\(data\) === "caught"/);
+  assert.match(mutationSection, /clearAllTimers\(\)/);
+  assert.match(mutationSection, /phaseRef\.current = "caught"/);
+  assert.doesNotMatch(mutationSection, /onError:[\s\S]*?setPhase\("missed"\)/);
+});
+
+test("a duplicate completion callback or late reel miss cannot replace a submitted catch", () => {
+  const reelCallbacks = fishingSource.slice(
+    fishingSource.indexOf("onCaught={() =>"),
+    fishingSource.indexOf("accent={accent}"),
+  );
+  assert.match(reelCallbacks, /if \(completionSubmittedRef\.current\) return/);
+  assert.match(reelCallbacks, /completionSubmittedRef\.current = true/);
+  assert.match(reelCallbacks, /if \(completionSubmittedRef\.current \|\| phaseRef\.current !== "reeling"\) return/);
+  assert.match(reelCallbacks, /clearAllTimers\(\)/);
+});
+
+test("all fishing worlds reuse the single FishingPage implementation", () => {
+  assert.match(worldSource, /import FishingPage from "@\/pages\/FishingPage"/);
+  assert.match(worldSource, /<FishingPage/);
+  assert.doesNotMatch(worldSource, /BayouFishingPage|VolcanicFishingPage/);
+});
