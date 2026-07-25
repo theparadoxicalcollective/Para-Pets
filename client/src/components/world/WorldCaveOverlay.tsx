@@ -39,6 +39,8 @@ export const CAVE_ENTER_LAYOUT = {
   bottom: "2%",
 } as const;
 
+export const CAVE_LATE_TIER_ENTER_HEIGHT = "31%" as const;
+
 export function isCaveTierUnlocked(tier: number, currentTier: number, completedTiers: number[]) {
   return !completedTiers.includes(tier)
     && (tier === 1 || completedTiers.includes(tier - 1) || currentTier >= tier);
@@ -110,7 +112,7 @@ export default function WorldCaveOverlay(props: WorldCaveOverlayProps) {
               {completed && <div className="absolute top-2 right-2 flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap" style={{ background: "rgba(0,0,0,0.75)", color: "#4ade80", border: "1px solid #4ade8066" }}>✓ CLEARED</div>}
               {!unlocked && <div className="absolute inset-0 flex items-center justify-center"><span className="text-4xl drop-shadow-lg">🔒</span></div>}
               {unlocked && (
-                <button data-testid={`button-cave-enter-tier-${tier}`} onClick={() => props.onEnterTier(tier)} className="absolute left-1/2 -translate-x-1/2 active:scale-95 transition-transform" style={{ ...CAVE_ENTER_LAYOUT, background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+                <button data-testid={`button-cave-enter-tier-${tier}`} onClick={() => props.onEnterTier(tier)} className="absolute left-1/2 -translate-x-1/2 active:scale-95 transition-transform" style={{ ...CAVE_ENTER_LAYOUT, height: tier >= 6 ? CAVE_LATE_TIER_ENTER_HEIGHT : CAVE_ENTER_LAYOUT.height, background: "none", border: "none", padding: 0, cursor: "pointer" }}>
                   <img src={enterBtn} alt="Enter" className="block w-full h-full object-contain object-bottom" />
                 </button>
               )}
