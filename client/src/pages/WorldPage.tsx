@@ -12,32 +12,13 @@ import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
 import fishCommonIconWp from "@assets/generated_images/icon_fish_common.png";
 import fishRodIconWp from "@assets/icon_fishing_pole.png";
-import caveBanner1 from "@assets/Photoroom_20260705_51533_PM_1783290164113.png";
-import caveBanner2 from "@assets/Photoroom_20260705_51608_PM_1783290164113.png";
-import caveBanner3 from "@assets/Photoroom_20260705_51705_PM_1783290164113.png";
-import caveBanner4 from "@assets/Photoroom_20260705_52038_PM_1783290164113.png";
-import caveBanner5 from "@assets/Photoroom_20260705_52123_PM_1783290164113.png";
-import caveBanner6 from "@assets/Photoroom_20260705_91052_PM_1783304106219.png";
-import caveBanner7 from "@assets/Photoroom_20260705_91130_PM_1783304106219.png";
-import caveBanner8 from "@assets/Photoroom_20260705_91200_PM_1783304106219.png";
-import caveBanner9 from "@assets/Photoroom_20260705_91232_PM_1783304106219.png";
-import caveBanner10 from "@assets/Photoroom_20260705_91357_PM_1783304106219.png";
-import caveEnter1 from "@assets/Photoroom_20260705_50251_PM_1783290164113.png";
-import caveEnter2 from "@assets/Photoroom_20260705_50531_PM_1783290164113.png";
-import caveEnter3 from "@assets/Photoroom_20260705_50328_PM_1783290164113.png";
-import caveEnter4 from "@assets/Photoroom_20260705_50615_PM_1783290164113.png";
-import caveEnter5 from "@assets/Photoroom_20260705_50445_PM_1783290164113.png";
-import caveEnter6 from "@assets/cave_enter_t6.png";
-import caveEnter7 from "@assets/cave_enter_t7.png";
-import caveEnter8 from "@assets/cave_enter_t8.png";
-import caveEnter9 from "@assets/cave_enter_t9.png";
-import caveEnter10 from "@assets/cave_enter_t10.png";
 import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, FlipHorizontal, Waves, Palette, Heart, Droplets } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
 import WorldLocations, { type WorldLocationData } from "@/components/world/WorldLocations";
 import WorldShopOverlay, { type WorldShopItem } from "@/components/world/WorldShopOverlay";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena, { BattlePotionSlot } from "@/components/BattleArena";
+import WorldCaveOverlay from "@/components/world/WorldCaveOverlay";
 import { QuillBadge } from "@/components/QuillBadge";
 import FishingPage from "@/pages/FishingPage";
 import SellFishPage from "@/pages/SellFishPage";
@@ -196,99 +177,6 @@ const WORLD_FIXED_MAP_H: Record<string, number> = {
 const isMobilePhone = () => true;
 
 const MURK_CAVE_ID = "a1b2c3d4-0001-4000-8000-000000000001";
-
-const CAVE_TIERS = [
-  { tier: 1,  banner: caveBanner1,  enterBtn: caveEnter1  },
-  { tier: 2,  banner: caveBanner2,  enterBtn: caveEnter2  },
-  { tier: 3,  banner: caveBanner3,  enterBtn: caveEnter3  },
-  { tier: 4,  banner: caveBanner4,  enterBtn: caveEnter4  },
-  { tier: 5,  banner: caveBanner5,  enterBtn: caveEnter5  },
-  { tier: 6,  banner: caveBanner6,  enterBtn: caveEnter6  },
-  { tier: 7,  banner: caveBanner7,  enterBtn: caveEnter7  },
-  { tier: 8,  banner: caveBanner8,  enterBtn: caveEnter8  },
-  { tier: 9,  banner: caveBanner9,  enterBtn: caveEnter9  },
-  { tier: 10, banner: caveBanner10, enterBtn: caveEnter10 },
-] as const;
-
-function CaveEntryOverlay({ activePetId, onEnterTier, onClose }: {
-  activePetId: string | null;
-  onEnterTier: (tier: number) => void;
-  onClose: () => void;
-}) {
-  const { data: progress } = useQuery<{ currentTier: number; completedTiers: number[] }>({
-    queryKey: ["/api/cave/progress", activePetId],
-    enabled: !!activePetId,
-  });
-  const completedTiers: number[] = progress?.completedTiers ?? [];
-  const currentTier = progress?.currentTier ?? 1;
-
-  const isUnlocked = (tier: number) => !completedTiers.includes(tier) && (tier === 1 || completedTiers.includes(tier - 1) || currentTier >= tier);
-  const isCompleted = (tier: number) => completedTiers.includes(tier);
-
-  return (
-    <div className="absolute inset-0 z-50 flex flex-col" style={{ background: "linear-gradient(180deg,#080810 0%,#0f0f1e 100%)" }}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-8 pb-3 flex-shrink-0">
-        <div>
-          <div className="font-fantasy text-2xl text-white tracking-wide" style={{ textShadow: "0 0 24px rgba(168,85,247,0.9)" }}>
-            ⚔ Murk Cave
-          </div>
-          <div className="text-gray-400 text-xs mt-0.5">Choose a tier · 6 waves per run</div>
-        </div>
-        <button onClick={onClose} data-testid="button-cave-close"
-          className="p-2 rounded-full bg-white/10 active:scale-90 transition-transform">
-          <X className="w-5 h-5 text-gray-300" />
-        </button>
-      </div>
-
-      {/* Tier list */}
-      <div className="flex-1 overflow-y-auto px-3 pb-8 space-y-4 pt-1">
-        {CAVE_TIERS.map(({ tier, banner, enterBtn }) => {
-          const unlocked = isUnlocked(tier);
-          const completed = isCompleted(tier);
-          return (
-            <div key={tier} className="relative w-full rounded-xl overflow-hidden">
-              {/* Banner image */}
-              <img
-                src={banner}
-                alt={`Tier ${tier}`}
-                className="w-full h-auto block"
-                style={{ filter: unlocked ? "none" : "grayscale(0.6) brightness(0.4)" }}
-              />
-
-              {/* CLEARED badge — top-right of banner */}
-              {completed && (
-                <div className="absolute top-2 right-2 flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap"
-                  style={{ background: "rgba(0,0,0,0.75)", color: "#4ade80", border: "1px solid #4ade8066" }}>
-                  ✓ CLEARED
-                </div>
-              )}
-
-              {/* Lock overlay */}
-              {!unlocked && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-4xl drop-shadow-lg">🔒</span>
-                </div>
-              )}
-
-              {/* Enter button — overlaid at bottom-center, small */}
-              {unlocked && (
-                <button
-                  data-testid={`button-cave-enter-tier-${tier}`}
-                  onClick={() => onEnterTier(tier)}
-                  className="absolute bottom-1 left-1/2 -translate-x-1/2 active:scale-95 transition-transform"
-                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer", width: "38%" }}
-                >
-                  <img src={enterBtn} alt="Enter" className="w-full h-auto block" />
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const params = useParams<{ worldId: string }>();
@@ -4603,29 +4491,64 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         );
       })()}
 
-      {showCaveEntry && battleLocationId === MURK_CAVE_ID && (
-        <CaveEntryOverlay
-          activePetId={currentUser?.activePetId ?? null}
-          onEnterTier={(tier) => {
-            const activePet = inventory.find(
-              (i: any) => i.inventoryId === currentUser?.activePetId && i.type === "pet" && i.isHatched
-            ) ?? null;
-            setBattlePets([activePet, null, null]);
-            setCaveBattleTier(tier);
-            setShowCaveEntry(false);
-            setShowBattle(true);
-          }}
-          onClose={() => {
-            setShowCaveEntry(false);
-            setBattleLocationId(null);
-          }}
-        />
-      )}
+      {(showCaveEntry || (showBattle && battleLocationId === MURK_CAVE_ID)) && battleLocationId === MURK_CAVE_ID && (() => {
+        const caveLocation = locations.find((location) => location.id === battleLocationId);
+        if (!caveLocation) return null;
+        return (
+          <WorldCaveOverlay
+            mode={showBattle ? "battle" : "entry"}
+            activePetId={currentUser.activePetId ?? null}
+            locationId={battleLocationId}
+            locationName={caveLocation.name}
+            backgroundUrl={battleLocDetail?.bgUrl ?? null}
+            accent={accent}
+            caveTier={caveBattleTier}
+            potionSlots={cavePotionSlots}
+            activePet={battlePets[0] ?? null}
+            onEnterTier={(tier) => {
+              const activePet = inventory.find(
+                (item) => item.inventoryId === currentUser.activePetId && item.type === "pet" && item.isHatched,
+              ) ?? null;
+              setBattlePets([activePet, null, null]);
+              setCaveBattleTier(tier);
+              setShowCaveEntry(false);
+              setShowBattle(true);
+            }}
+            onCloseEntry={() => {
+              setShowCaveEntry(false);
+              setBattleLocationId(null);
+            }}
+            onExitBattle={() => {
+              setShowBattle(false);
+              setActiveLocationId(null);
+              setShowCaveEntry(true);
+            }}
+            onBattleEnd={() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+            }}
+            onCaveTierComplete={async () => {
+              try {
+                const res = await apiRequest("POST", "/api/cave/complete-tier", {
+                  petInventoryId: currentUser.activePetId,
+                  tier: caveBattleTier,
+                });
+                const data = await res.json();
+                queryClient.invalidateQueries({ queryKey: ["/api/cave/progress", currentUser.activePetId] });
+                queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+                if (data.bonusCoins) {
+                  toast({ title: `+${data.bonusCoins} Coins!`, description: `Tier ${caveBattleTier} clear bonus awarded.` });
+                }
+              } catch (error) {
+                console.error("Failed to save cave progress", error);
+              }
+            }}
+          />
+        );
+      })()}
 
-      {showBattle && battleLocationId && (() => {
-        const battleLoc = locations.find(l => l.id === battleLocationId);
+      {showBattle && battleLocationId && battleLocationId !== MURK_CAVE_ID && (() => {
+        const battleLoc = locations.find((location) => location.id === battleLocationId);
         if (!battleLoc) return null;
-        const isCaveBattle = battleLocationId === MURK_CAVE_ID;
         return (
           <div className="absolute inset-0 z-50">
             <BattleArena
@@ -4633,40 +4556,16 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
               locationName={battleLoc.name}
               bgUrl={battleLocDetail?.bgUrl ?? null}
               accent={accent}
-              battlePotionSlots={isCaveBattle ? cavePotionSlots : battlePotionSlots}
-              equippedPets={isCaveBattle ? [battlePets[0] ?? null, null, null] as any : battlePets as any}
-              isCave={isCaveBattle}
-              caveTier={isCaveBattle ? caveBattleTier : undefined}
-              onCaveTierComplete={isCaveBattle ? async () => {
-                try {
-                  const res = await apiRequest("POST", "/api/cave/complete-tier", {
-                    petInventoryId: currentUser?.activePetId,
-                    tier: caveBattleTier,
-                  });
-                  const data = await res.json();
-                  queryClient.invalidateQueries({ queryKey: ["/api/cave/progress", currentUser?.activePetId] });
-                  queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-                  if (data.bonusCoins) {
-                    toast({ title: `+${data.bonusCoins} Coins!`, description: `Tier ${caveBattleTier} clear bonus awarded.` });
-                  }
-                } catch (e) {
-                  console.error("Failed to save cave progress", e);
-                }
-              } : undefined}
+              battlePotionSlots={battlePotionSlots}
+              equippedPets={battlePets as any}
               onClose={() => {
                 setShowBattle(false);
                 setActiveLocationId(null);
-                if (isCaveBattle) {
-                  setShowCaveEntry(true);
-                } else {
-                  setBattleLocationId(null);
-                }
+                setBattleLocationId(null);
               }}
               onBattleEnd={() => {
                 queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-                if (!isCaveBattle) {
-                  queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-                }
+                queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
               }}
             />
           </div>
