@@ -109,7 +109,7 @@ test("aquarium mutations scope storage access to the authenticated owner", async
 
 test("secured helper boundaries and cross-domain market ownership remain explicit", () => {
   const moduleSource = readFileSync(new URL("../server/routes/fishing.routes.ts", import.meta.url), "utf8");
-  const rootSource = readFileSync(new URL("../server/routes.ts", import.meta.url), "utf8");
+  const marketSource = readFileSync(new URL("../server/routes/marketplace.routes.ts", import.meta.url), "utf8");
   assert.equal((moduleSource.match(/app\.post\("\/api\/fishing\/sell"/g) ?? []).length, 1);
   assert.match(moduleSource, /sellFish\(user\.id, fishIds\)/);
   assert.match(moduleSource, /db\.transaction/);
@@ -120,6 +120,6 @@ test("secured helper boundaries and cross-domain market ownership remain explici
   assert.match(moduleSource, /maybeAwardFisherBadges/);
   assert.match(moduleSource, /maybeAwardFishBookBadge/);
   assert.doesNotMatch(moduleSource, /\/api\/market/);
-  assert.match(rootSource, /app\.post\("\/api\/market\/list-fish"/);
-  assert.doesNotMatch(rootSource + moduleSource, /\/api\/fishing\/inventory\/add/);
+  assert.match(marketSource, /app\.post\("\/api\/market\/list-fish"/);
+  assert.doesNotMatch(marketSource + moduleSource, /\/api\/fishing\/inventory\/add/);
 });

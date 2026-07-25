@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const routes = readFileSync("server/routes.ts", "utf8");
+const routes = readFileSync("server/routes/marketplace.routes.ts", "utf8");
 const service = readFileSync("server/marketplace/transactions.ts", "utf8");
 const client = readFileSync("client/src/pages/MarketPage.tsx", "utf8");
 
@@ -38,4 +38,3 @@ test("browser callers submit identifiers and player-selected list price only", (
   assert.match(client, /\/api\/market\/list-fish", \{ fishInventoryId, price \}/);
   assert.doesNotMatch(client, /\/api\/market[^\n]*(sellerId|buyerId|ownerId|coinsEarned|newBalance)/);
 });
-

@@ -120,7 +120,7 @@ test("inventory and coin failures roll back fish, balance, and quest progress", 
 
 test("registered route delegates only to the transactional helper and market remains separate", () => {
   const routes = readFileSync(new URL("../server/routes/fishing.routes.ts", import.meta.url), "utf8");
-  const rootRoutes = readFileSync(new URL("../server/routes.ts", import.meta.url), "utf8");
+  const marketRoutes = readFileSync(new URL("../server/routes/marketplace.routes.ts", import.meta.url), "utf8");
   const service = readFileSync(new URL("../server/fishSale.ts", import.meta.url), "utf8");
   const saleRoute = routes.slice(routes.indexOf('app.post("/api/fishing/sell"'), routes.indexOf("// ── PvP Arena Routes"));
   assert.match(saleRoute, /isAuthenticated/);
@@ -132,6 +132,6 @@ test("registered route delegates only to the transactional helper and market rem
   assert.match(service, /fish\.ownerId !== userId/);
   assert.match(service, /FISH_SELL_PRICES\[fish\.starRarity/);
   assert.equal(routes.match(/app\.post\("\/api\/fishing\/sell"/g)?.length, 1);
-  assert.match(rootRoutes, /app\.post\("\/api\/market\/list-fish"/);
-  assert.doesNotMatch(rootRoutes.slice(rootRoutes.indexOf('app.post("/api/market/list-fish"')), /sellFish\(/);
+  assert.match(marketRoutes, /app\.post\("\/api\/market\/list-fish"/);
+  assert.doesNotMatch(marketRoutes.slice(marketRoutes.indexOf('app.post("/api/market/list-fish"')), /sellFish\(/);
 });
