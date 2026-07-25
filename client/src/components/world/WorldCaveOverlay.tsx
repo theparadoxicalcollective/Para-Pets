@@ -19,11 +19,6 @@ import caveEnter2 from "@assets/Photoroom_20260705_50531_PM_1783290164113.png";
 import caveEnter3 from "@assets/Photoroom_20260705_50328_PM_1783290164113.png";
 import caveEnter4 from "@assets/Photoroom_20260705_50615_PM_1783290164113.png";
 import caveEnter5 from "@assets/Photoroom_20260705_50445_PM_1783290164113.png";
-import caveEnter6 from "@assets/cave_enter_t6.png";
-import caveEnter7 from "@assets/cave_enter_t7.png";
-import caveEnter8 from "@assets/cave_enter_t8.png";
-import caveEnter9 from "@assets/cave_enter_t9.png";
-import caveEnter10 from "@assets/cave_enter_t10.png";
 
 export const CAVE_TIERS = [
   { tier: 1, banner: caveBanner1, enterBtn: caveEnter1 },
@@ -31,11 +26,11 @@ export const CAVE_TIERS = [
   { tier: 3, banner: caveBanner3, enterBtn: caveEnter3 },
   { tier: 4, banner: caveBanner4, enterBtn: caveEnter4 },
   { tier: 5, banner: caveBanner5, enterBtn: caveEnter5 },
-  { tier: 6, banner: caveBanner6, enterBtn: caveEnter6 },
-  { tier: 7, banner: caveBanner7, enterBtn: caveEnter7 },
-  { tier: 8, banner: caveBanner8, enterBtn: caveEnter8 },
-  { tier: 9, banner: caveBanner9, enterBtn: caveEnter9 },
-  { tier: 10, banner: caveBanner10, enterBtn: caveEnter10 },
+  { tier: 6, banner: caveBanner6, enterBtn: caveEnter1 },
+  { tier: 7, banner: caveBanner7, enterBtn: caveEnter2 },
+  { tier: 8, banner: caveBanner8, enterBtn: caveEnter3 },
+  { tier: 9, banner: caveBanner9, enterBtn: caveEnter4 },
+  { tier: 10, banner: caveBanner10, enterBtn: caveEnter5 },
 ] as const;
 
 export const CAVE_ENTER_LAYOUT = {
