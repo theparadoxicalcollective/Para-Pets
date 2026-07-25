@@ -26,12 +26,30 @@ test("all ten cave tiers retain their paired banner and entrance art", () => {
   assert.match(overlaySource, /button-cave-enter-tier-\$\{tier\}/);
 });
 
-test("all ten tiers share one fixed Enter-button layout contract", () => {
+test("all ten tiers share one viewport-sized Enter-button layout contract", () => {
   assert.match(overlaySource, /export const CAVE_ENTER_LAYOUT = \{/);
-  assert.match(overlaySource, /height: "24%"/);
+  assert.match(overlaySource, /width: "min\(38%, 140px\)"/);
+  assert.match(overlaySource, /height: "clamp\(24px, 6\.5vw, 32px\)"/);
+  assert.doesNotMatch(overlaySource, /height: "(?:24|31)%"/);
   assert.match(overlaySource, /\.\.\.CAVE_ENTER_LAYOUT/);
   assert.match(overlaySource, /w-full h-full object-contain object-bottom/);
   assert.equal((overlaySource.match(/CAVE_ENTER_LAYOUT/g) ?? []).length, 2);
+});
+
+test("representative early and late tiers preserve locked, unlocked, and cleared rendering", () => {
+  for (const tier of [1, 5, 6, 10]) {
+    assert.match(overlaySource, new RegExp(`tier: ${tier}, banner: caveBanner${tier}`));
+  }
+  assert.match(overlaySource, /const completed = completedTiers\.includes\(tier\)/);
+  assert.match(overlaySource, /const unlocked = isCaveTierUnlocked\(tier, currentTier, completedTiers\)/);
+  assert.match(overlaySource, /\{completed && <div[\s\S]*?✓ CLEARED/);
+  assert.match(overlaySource, /\{!unlocked && <div[\s\S]*?🔒/);
+  assert.match(overlaySource, /\{unlocked && \([\s\S]*?props\.onEnterTier\(tier\)/);
+});
+
+test("the floating main navigation is hidden for both cave entry and battle", () => {
+  assert.match(pageSource, /const caveOpen = battleLocationId === MURK_CAVE_ID && \(showCaveEntry \|\| showBattle\)/);
+  assert.match(pageSource, /setNavHidden\([\s\S]*?\|\| caveOpen\)/);
 });
 
 test("the selected cave tier is preserved from entry through the six-wave battle", () => {

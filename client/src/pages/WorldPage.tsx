@@ -488,9 +488,10 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   // button doesn't float over the UI. Add any future mini-game state here.
   // NOTE: must live after cauldronOpen is declared to avoid TDZ ReferenceError.
   useEffect(() => {
-    setNavHidden(showShop || showFishing || showSellFish || cauldronOpen);
+    const caveOpen = battleLocationId === MURK_CAVE_ID && (showCaveEntry || showBattle);
+    setNavHidden(showShop || showFishing || showSellFish || cauldronOpen || caveOpen);
     return () => { setNavHidden(false); };
-  }, [showShop, showFishing, showSellFish, cauldronOpen]);
+  }, [showShop, showFishing, showSellFish, cauldronOpen, battleLocationId, showCaveEntry, showBattle]);
 
   const { data: inventory = [] } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
