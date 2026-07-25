@@ -159,13 +159,13 @@ only and records the live behavior rather than changing it.
   coins, and advances existing `sell_fish` quest progress in one transaction.
   Fish are one row per unit (not quantity stacks); player-market fish have already
   been converted out of this table, so they cannot enter the shop-sale boundary.
-- **Confirmed risks:** client `performanceScore=100` guarantees a catch and a
-  valid client fish ID chooses a stocked fish; the former
+- **Resolved catch authority risk:** a durable server-issued attempt now owns
+  success and stocked-fish selection; the former
   `/api/fishing/inventory/add` authenticated direct-mint endpoint was removed
   after caller/history verification found no legitimate client, admin, test,
   seed, migration, tutorial, event, market, catch, reward, support, or internal
-  server caller; catch, sale, aquarium unlock, aquarium state, and fish market
-  conversions lack complete cross-record transaction boundaries.
+  server caller. Catch core writes are now atomic; aquarium unlock, aquarium state,
+  and fish market conversions retain their separately documented boundaries.
 - **Requires verification:** production uniqueness/duplicate data for fish
   catch logs; exact parallel aquarium outcomes; verified-admin policy for
   manual fishing admin checks; and existing live indexes/constraints before
@@ -200,3 +200,17 @@ only and records the live behavior rather than changing it.
 The complete cave-flow inventory reviewed for this boundary also includes world-location selection and the Murk Cave ID, the danger-warning preparation modal, active-pet eligibility and display, the three-slot potion picker, tier/session state, battle-location detail, generic world-battle preparation, administrator location controls, completion persistence, reward toast, and query invalidations. `WorldPage` intentionally retains location selection, cave open state and the explicit transitions between warning, tier entry, and battle; shared inventory and active-pet ownership; potion preparation state; battle-session tier and pet selection; the location-detail query; the `POST /api/cave/complete-tier` mutation and unchanged payload; reward handling; and cave-progress, inventory, and authenticated-user invalidations. The shared danger-warning shell remains page-owned because it also orchestrates non-cave battle and explore locations, while generic world battles continue through their existing separate `BattleArena` path.
 
 Enemy loading and battle mutations remain owned internally by the existing `BattleArena`; cave completion remains page-owned and is supplied as a callback. No enemy or pet stats, combat formulas, potion behavior, tier requirements, rewards, request paths or payloads moved or changed. Gameplay and reward authority therefore remain at their prior client/server boundaries.
+
+## Fishing attempt authority boundary (2026-07)
+
+Fishing catches now use the focused `server/fishingAttempt.ts` coordinator and
+the durable `fishing_attempts` table. `server/routes/fishing.routes.ts` exposes
+authenticated start, complete, and abandon routes; `FishingPage.tsx` retains the
+existing presentation but holds only the current opaque attempt ID. Creation
+commits the authoritative stocked fish, rarity/bait calculation, equipment
+snapshot, expiry, and server random roll. Completion row-locks that attempt and
+atomically records its reusable response together with pole use and all core
+successful-catch writes (fish inventory/log, lifetime count, bait, leaderboard,
+and daily quest progress). Badge helpers remain post-commit callbacks. See
+[`FISHING_SYSTEM_AUDIT.md`](./FISHING_SYSTEM_AUDIT.md) for retry, abandonment,
+status, compatibility, and residual browser-interaction trust details.

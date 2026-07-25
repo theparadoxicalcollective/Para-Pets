@@ -469,6 +469,23 @@ app.use((req, res, next) => {
   await runMigration("uq_pond_fish_location_item", () =>
     db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS uq_pond_fish_location_item ON pond_fish (location_id, shop_item_id)`));
 
+  await runMigration("fishing_attempts.table", () => db.execute(sql`
+    CREATE TABLE IF NOT EXISTS fishing_attempts (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(), user_id VARCHAR NOT NULL,
+      location_id VARCHAR NOT NULL, world_id VARCHAR, selected_fish_id VARCHAR NOT NULL,
+      presentation_rarity INTEGER NOT NULL, catch_roll REAL NOT NULL,
+      pole_inventory_id VARCHAR NOT NULL, bait_inventory_id VARCHAR,
+      status TEXT NOT NULL DEFAULT 'pending', result_json JSONB,
+      expires_at TIMESTAMP NOT NULL, completed_at TIMESTAMP,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `));
+  await runMigration("fishing_attempts.owner_expiry_indexes", async () => {
+    await db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS uq_fishing_attempt_id_owner ON fishing_attempts (id, user_id)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_fishing_attempt_owner_expiry ON fishing_attempts (user_id, status, expires_at DESC)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_fishing_attempt_expiry ON fishing_attempts (expires_at) WHERE status = 'pending'`);
+  });
+
   // Cave tier system columns on location_enemies
   await runMigration("location_enemies.cave_tier",
     () => db.execute(sql`ALTER TABLE location_enemies ADD COLUMN IF NOT EXISTS cave_tier INTEGER`));

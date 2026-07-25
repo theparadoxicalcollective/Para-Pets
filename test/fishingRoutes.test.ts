@@ -23,7 +23,9 @@ const expectedRoutes = [
   ["post", "/api/fishing/equip"],
   ["post", "/api/fishing/unequip"],
   ["get", "/api/fishing/inventory"],
-  ["post", "/api/fishing/catch"],
+  ["post", "/api/fishing/attempts"],
+  ["post", "/api/fishing/attempts/:attemptId/complete"],
+  ["post", "/api/fishing/attempts/:attemptId/abandon"],
   ["get", "/api/fishing/leaderboard/:worldId"],
   ["get", "/api/world/:worldId/fish-barrel"],
   ["patch", "/api/admin/fish-barrel/:id"],
@@ -113,7 +115,8 @@ test("secured helper boundaries and cross-domain market ownership remain explici
   assert.match(moduleSource, /db\.transaction/);
   assert.match(moduleSource, /pg_advisory_xact_lock/);
   assert.match(moduleSource, /executeFishCatchRewardClaim/);
-  assert.match(moduleSource, /incrementQuestProgress\(user\.id, "catch_fish"\)/);
+  assert.doesNotMatch(moduleSource, /performanceScore|clientShopItemId/);
+  assert.match(moduleSource, /completeFishingAttempt/);
   assert.match(moduleSource, /maybeAwardFisherBadges/);
   assert.match(moduleSource, /maybeAwardFishBookBadge/);
   assert.doesNotMatch(moduleSource, /\/api\/market/);

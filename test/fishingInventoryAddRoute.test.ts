@@ -35,6 +35,5 @@ test("trusted server fish grants remain available only to catch and market trans
   assert.deepEqual(helperCalls, [
     "user.id, invItem.shopItemId",
     "user.id, invItem.shopItemId",
-    "user.id, chosenEntry.shopItemId",
   ]);
 });
