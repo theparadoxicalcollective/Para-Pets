@@ -19,6 +19,8 @@ import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClie
 import { COIN_PACKAGES } from "./payments/config";
 import { fulfillStripePurchase } from "./payments/fulfillStripePurchase";
 import { StripePurchaseError } from "./payments/errors";
+import { claimPurchaseMilestone } from "./milestones/claimPurchaseMilestone";
+import { PurchaseMilestoneError } from "./milestones/errors";
 import { requireAdmin, requireAuthenticated } from "./auth";
 import { purchaseInventoryItem } from "./inventoryPurchase";
 import { tryConsumeInventoryQuantity, tryConsumeOneFromInventory } from "./inventoryConsumption";
@@ -3128,46 +3130,32 @@ export async function registerRoutes(
   // Grants coins/item directly to inventory (no gift inbox).
   app.post("/api/coins/claim-milestone", isAuthenticated, async (req, res) => {
     const user = req.user as any;
-    const { milestone } = req.body;
-    const VALID_MILESTONES = [500, 2500, 5000, 10000];
-    if (!milestone || !VALID_MILESTONES.includes(Number(milestone))) {
-      return res.status(400).json({ message: "Invalid milestone" });
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    if (Object.keys(body).some((key) => key !== "milestoneId") || typeof body.milestoneId !== "string") {
+      return res.status(400).json({ message: "Only milestoneId may be submitted" });
     }
-    const ms = Number(milestone);
     try {
-      const cycle = await storage.getContributionCycle(user.id);
-      const cycleKey = `c-${cycle}`;
-      const points = await storage.getMonthlyProgress(user.id, cycleKey);
-      if (points < ms) {
-        return res.status(400).json({ message: "Milestone not yet reached" });
+      const result = await claimPurchaseMilestone(user.id, body.milestoneId);
+      return res.json({
+        success: true,
+        replayed: result.status === "already_claimed",
+        milestoneId: result.milestoneId,
+        claimedAt: result.claimedAt,
+        coinsGranted: result.status === "claimed" ? result.reward.coins : 0,
+        itemName: result.reward.itemName,
+        itemImageUrl: result.reward.itemImageUrl,
+        coinBalance: result.coinBalance,
+      });
+    } catch (err) {
+      if (err instanceof PurchaseMilestoneError) {
+        const status = err.code === "unknown_milestone" ? 404
+          : err.code === "not_qualified" ? 409
+          : ["missing_reward_configuration", "unsupported_reward_type", "invalid_reward_configuration", "invalid_legacy_claim_state"].includes(err.code) ? 422
+          : err.code === "concurrent_conflict" ? 409 : 500;
+        return res.status(status).json({ message: err.message, code: err.code });
       }
-      const claimed = await storage.claimMilestone(user.id, ms, cycleKey);
-      if (!claimed) {
-        return res.status(400).json({ message: "Already claimed" });
-      }
-      const allRewards = await storage.getMilestoneRewards();
-      const rewardCfg = allRewards.find((r: any) => Number(r.milestone_points) === ms);
-      let coinsGranted = 0;
-      let itemName: string | null = null;
-      let itemImageUrl: string | null = null;
-      if (rewardCfg) {
-        if (Number(rewardCfg.reward_coins) > 0) {
-          coinsGranted = Number(rewardCfg.reward_coins);
-          await storage.addCoins(user.id, coinsGranted);
-        }
-        if (rewardCfg.reward_item_id) {
-          await storage.addToInventory(user.id, rewardCfg.reward_item_id);
-          itemName = rewardCfg.reward_item_name ?? null;
-          itemImageUrl = rewardCfg.reward_item_image_url ?? null;
-        }
-      }
-      // If the final milestone was just claimed, start a fresh cycle so the bar resets.
-      if (ms === 10000) {
-        await storage.incrementContributionCycle(user.id);
-      }
-      return res.json({ success: true, coinsGranted, itemName, itemImageUrl });
-    } catch (err: any) {
-      return res.status(500).json({ message: err.message });
+      console.error("Purchase milestone claim failed:", err instanceof Error ? err.message : "unknown error");
+      return res.status(500).json({ message: "Unable to claim milestone reward" });
     }
   });
 

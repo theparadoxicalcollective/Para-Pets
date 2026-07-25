@@ -297,7 +297,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
   const claimMilestoneMutation = useMutation({
     mutationFn: async (milestone: number) => {
-      const res = await apiRequest("POST", "/api/coins/claim-milestone", { milestone });
+      const res = await apiRequest("POST", "/api/coins/claim-milestone", { milestoneId: String(milestone) });
       return res.json();
     },
     onSuccess: () => {
