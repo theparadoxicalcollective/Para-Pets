@@ -476,6 +476,27 @@ export const playerFishingEquipment = pgTable("player_fishing_equipment", {
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
+// Durable, one-time authority boundary for a fishing cast. Hidden outcome and
+// equipment snapshot fields are never returned before completion.
+export const fishingAttempts = pgTable("fishing_attempts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  locationId: varchar("location_id").notNull(),
+  worldId: varchar("world_id"),
+  selectedFishId: varchar("selected_fish_id").notNull(),
+  presentationRarity: integer("presentation_rarity").notNull(),
+  catchRoll: real("catch_roll").notNull(),
+  poleInventoryId: varchar("pole_inventory_id").notNull(),
+  baitInventoryId: varchar("bait_inventory_id"),
+  status: text("status").notNull().default("pending"),
+  resultJson: jsonb("result_json"),
+  expiresAt: timestamp("expires_at").notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (t) => [
+  uniqueIndex("uq_fishing_attempt_id_owner").on(t.id, t.userId),
+]);
+
 export const playerMarketListings = pgTable("player_market_listings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   sellerId: varchar("seller_id").notNull(),

@@ -250,7 +250,7 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
   const [bgLoaded, setBgLoaded] = useState(false);
   const [bgError, setBgError] = useState(false);
   const nibbleRarityRef = useRef<number>(1);
-  const selectedFishIdRef = useRef<string | null>(null);
+  const activeAttemptIdRef = useRef<string | null>(null);
   const [nibbleCount, setNibbleCount] = useState(0);
   const nibbleCountRef = useRef(0);
   const [nibbleWindowMs, setNibbleWindowMs] = useState(2500);
@@ -340,15 +340,17 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
   });
 
   const catchMutation = useMutation({
-    mutationFn: async (performanceScore: number) => {
-      const res = await apiRequest("POST", "/api/fishing/catch", {
+    mutationFn: async (interactionScore: number) => {
+      const attemptId = activeAttemptIdRef.current;
+      if (!attemptId) throw new Error("No active fishing attempt");
+      const res = await apiRequest("POST", `/api/fishing/attempts/${attemptId}/complete`, {
         locationId,
-        performanceScore,
-        shopItemId: selectedFishIdRef.current,
+        interactionScore,
       });
       return res.json();
     },
     onSuccess: (data: { caught: CaughtFish | null; item?: ShopItem | null; reason?: string }) => {
+      activeAttemptIdRef.current = null;
       queryClient.invalidateQueries({ queryKey: ["/api/fishing/equipment"] });
       if (data.caught) {
         setCaughtItem(data.item ?? {
@@ -368,9 +370,11 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
         setPhase("missed");
       }
     },
-    onError: () => {
+    onError: (err: Error) => {
+      toast({ title: "Fishing attempt failed", description: err.message, variant: "destructive" });
       setPhase("missed");
     },
+    retry: 1,
   });
 
   const addPondFishMutation = useMutation({
@@ -477,10 +481,18 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
   }, []);
 
   useEffect(() => {
-    return clearAllTimers;
-  }, [clearAllTimers]);
+    return () => {
+      clearAllTimers();
+      const attemptId = activeAttemptIdRef.current;
+      if (attemptId) {
+        void apiRequest("POST", `/api/fishing/attempts/${attemptId}/abandon`, { locationId }).catch(() => {});
+      }
+    };
+  }, [clearAllTimers, locationId]);
 
-  const startCasting = useCallback(() => {
+  const poleIsBroken = equipData?.poleItem != null && equipData.poleUsesLeft !== null && equipData.poleUsesLeft !== undefined && equipData.poleUsesLeft <= 0;
+
+  const startCasting = useCallback(async () => {
     if (!equipData?.poleItem || poleIsBroken) {
       setShowNoPoleModal(true);
       return;
@@ -489,15 +501,19 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
       toast({ title: "Loading pond…", description: "Checking for fish, try again in a moment." });
       return;
     }
-    if (isPondError) {
-      toast({ title: "Pond error", description: "Couldn't load fish from this pond. Try closing and reopening.", variant: "destructive" });
+    if (isPondError || pondFish.length === 0) {
+      toast({ title: isPondError ? "Pond error" : "Empty pond", description: isPondError ? "Couldn't load fish from this pond. Try closing and reopening." : "No fish in this pond yet.", variant: "destructive" });
       return;
     }
-    if (pondFish.length === 0) {
-      toast({ title: "Empty pond", description: "No fish in this pond yet.", variant: "destructive" });
+    try {
+      const response = await apiRequest("POST", "/api/fishing/attempts", { locationId });
+      const attempt: { attemptId: string; presentationRarity: number } = await response.json();
+      activeAttemptIdRef.current = attempt.attemptId;
+      nibbleRarityRef.current = Math.max(1, Math.min(5, attempt.presentationRarity));
+    } catch (error) {
+      toast({ title: "Couldn't cast", description: (error as Error).message, variant: "destructive" });
       return;
     }
-    // Close all panels before casting
     setShowPolePanel(false);
     setShowBaitPanel(false);
     setShowFishInv(false);
@@ -509,78 +525,32 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
       setPhase("waiting");
       const waitTime = 1500 + Math.random() * 2500;
       nibbleTimeoutRef.current = setTimeout(() => {
-        if (phaseRef.current === "waiting") {
-          // Only consider fish whose shop item data loaded successfully — fish with null
-          // items would cause the catch response to show "It got away!" even on a perfect reel.
-          const selectableFish = pondFish.filter(f => f.item != null);
-          const fishPool = selectableFish.length > 0 ? selectableFish : pondFish;
-
-          // Weighted selection — normalize weights per rarity group so that multiple fish
-          // of the same rarity share the rarity's probability pool instead of each getting
-          // the full weight (which would make common 1★ fish dominate).
-          // Parse starRarity to int — DB may return it as a string.
-          const rarityWeights: Record<number, number> = { 1: 60, 2: 24, 3: 10, 4: 4, 5: 2 };
-          const rarityCounts: Record<number, number> = {};
-          for (const f of fishPool) {
-            const r = parseInt(String(f?.item?.starRarity ?? 1), 10) || 1;
-            rarityCounts[r] = (rarityCounts[r] ?? 0) + 1;
-          }
-          const baitBoost = equipDataRef.current?.baitItem?.rarityBoostPercent ?? 0;
-          const baitTargetStar = equipDataRef.current?.baitItem?.baitRarityBoostStar ?? 0;
-          // Bait boost works as a direct probability roll: if baitBoost is 100 and targetStar is 5,
-          // there is a 100% chance to force a 5★ fish. If 50%, half the time a 5★ is forced.
-          // If the forced rarity has no fish in this pond, fall through to normal weighted selection.
-          let randomFish = fishPool[fishPool.length - 1];
-          let baitForcedFish: typeof fishPool | null = null;
-          if (baitBoost > 0 && baitTargetStar > 0 && Math.random() < baitBoost / 100) {
-            const targets = fishPool.filter(f => (parseInt(String(f?.item?.starRarity ?? 1), 10) || 1) === baitTargetStar);
-            if (targets.length > 0) baitForcedFish = targets;
-          }
-
-          if (baitForcedFish) {
-            randomFish = baitForcedFish[Math.floor(Math.random() * baitForcedFish.length)];
-          } else {
-            const weights = fishPool.map(f => {
-              const r = parseInt(String(f?.item?.starRarity ?? 1), 10) || 1;
-              return Math.max(0.01, (rarityWeights[r] ?? 20) / (rarityCounts[r] ?? 1));
-            });
-            const totalWeight = weights.reduce((a, b) => a + b, 0);
-            let roll = Math.random() * totalWeight;
-            for (let i = 0; i < fishPool.length; i++) {
-              roll -= weights[i];
-              if (roll <= 0) { randomFish = fishPool[i]; break; }
+        if (phaseRef.current !== "waiting") return;
+        const nibbleRarity = nibbleRarityRef.current;
+        const maxNibbles = NIBBLE_MAX_BY_RARITY[nibbleRarity - 1];
+        const nibbleMs = NIBBLE_TIMEOUT_BY_RARITY[nibbleRarity - 1];
+        nibbleCountRef.current = 1;
+        setNibbleCount(1);
+        setNibbleWindowMs(nibbleMs);
+        setPhase("nibble");
+        const scheduleNibble = () => {
+          nibbleTimeoutRef.current = setTimeout(() => {
+            if (phaseRef.current !== "nibble") return;
+            const next = nibbleCountRef.current + 1;
+            if (next > maxNibbles) {
+              setPhase("missed");
+              return;
             }
-          }
-          // Parse starRarity as integer — DB can return it as a string in some drivers
-          nibbleRarityRef.current = parseInt(String(randomFish?.item?.starRarity ?? 1), 10) || 1;
-          selectedFishIdRef.current = randomFish?.shopItemId ?? null;
-          const nibbleRarity = Math.max(1, Math.min(5, nibbleRarityRef.current));
-          const maxNibbles   = NIBBLE_MAX_BY_RARITY[nibbleRarity - 1];
-          const nibbleMs     = NIBBLE_TIMEOUT_BY_RARITY[nibbleRarity - 1];
-          // Start nibble sequence — fewer chances and tighter window for rarer fish
-          nibbleCountRef.current = 1;
-          setNibbleCount(1);
-          setNibbleWindowMs(nibbleMs);
-          setPhase("nibble");
-          const scheduleNibble = () => {
-            nibbleTimeoutRef.current = setTimeout(() => {
-              if (phaseRef.current !== "nibble") return;
-              const next = nibbleCountRef.current + 1;
-              if (next > maxNibbles) {
-                setPhase("missed");
-                return;
-              }
-              nibbleCountRef.current = next;
-              setNibbleCount(next);
-              setNibbleWindowMs(nibbleMs);
-              scheduleNibble();
-            }, nibbleMs);
-          };
-          scheduleNibble();
-        }
+            nibbleCountRef.current = next;
+            setNibbleCount(next);
+            setNibbleWindowMs(nibbleMs);
+            scheduleNibble();
+          }, nibbleMs);
+        };
+        scheduleNibble();
       }, waitTime);
     }, 1000);
-  }, [equipData, pondFish, isPondLoading, isPondError, toast]);
+  }, [equipData, poleIsBroken, locationId, pondFish.length, isPondLoading, isPondError, toast]);
 
   const startReeling = useCallback(() => {
     phaseRef.current = "reeling";
@@ -594,14 +564,18 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
   }, [clearAllTimers, startReeling]);
 
   const resetFishing = useCallback(() => {
+    const attemptId = activeAttemptIdRef.current;
+    if (attemptId) {
+      void apiRequest("POST", `/api/fishing/attempts/${attemptId}/abandon`, { locationId }).catch(() => {});
+    }
     setPhase("idle");
     setCaughtItem(null);
     setNibbleCount(0);
     nibbleCountRef.current = 0;
+    activeAttemptIdRef.current = null;
     clearAllTimers();
-  }, [clearAllTimers]);
+  }, [clearAllTimers, locationId]);
 
-  const poleIsBroken = equipData?.poleItem != null && equipData.poleUsesLeft !== null && equipData.poleUsesLeft !== undefined && equipData.poleUsesLeft <= 0;
   const hasPole = !!equipData?.poleItem && !poleIsBroken;
   const effectiveBg = (!bgUrl || bgError) ? fishingBg : bgUrl;
 

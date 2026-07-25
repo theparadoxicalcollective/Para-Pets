@@ -1,22 +1,19 @@
 # Fishing and aquarium system audit
 
-**Scope and method.** Static documentation audit updated with the focused
-catch-reward integrity fix on the local `main` tip containing merged PR #15,
-completed 2026-07-24. This changes only the internal transaction boundary for
-the existing reward endpoint; it is not a schema, balance, asset, UI, API, or
-Railway change.
+**Scope and method.** Static and implementation audit updated for the durable
+server-authoritative fishing-attempt boundary. Earlier route tables below retain
+explicit historical characterization where useful; the final section documents
+the current production protocol and supersedes the former direct-catch findings.
 Route registration was enumerated before conclusions by inspecting every
 fishing/fish/aquarium/pond/fish-market registration in `server/routes.ts` and
 their callers, storage methods, and Drizzle declarations.
 
 ## Executive result
 
-* **Confirmed vulnerability / integrity risk — client-selected catch.**
-  `POST /api/fishing/catch` accepts `performanceScore` and `shopItemId`.  A
-  score of 100 guarantees a catch, and a supplied fish ID is selected directly
-  whenever it is stocked in the requested pond.  The browser's reel result and
-  fish selection therefore affect success and rarity; the server only verifies
-  pond membership, not that the animation produced the result.
+* **Resolved — server-authoritative catch.** The direct catch endpoint is
+  removed. A durable, owned, expiring attempt commits the stocked fish, bait and
+  pole snapshot, and server catch roll before the minigame; completion is
+  one-time, row-locked, retry-safe, and atomic for core player value.
 * **Resolved — catch reward is atomic and idempotent.** The route now uses one
   transaction and `server/fishCatchRewardClaim.ts`. It serializes each
   `(req.user.id, shopItemId)` with a transaction-scoped PostgreSQL advisory
@@ -74,7 +71,7 @@ entity/array and mutations return JSON. Manual admin checks require auth plus
 | POST `/api/fishing/equip`, POST `/api/fishing/unequip` (6484,6506) | FishingPage drag/drop; `{inventoryId,slot}` / `{slot}` | auth; equip verifies inventory ownership and fishing subtype; upserts own equipment (`user_id` unique). `200 {ok,equipment}`, `400` invalid, `404` absent. No transaction needed for its one upsert, but no lock prevents concurrent last-write-wins equipment changes. |
 | GET `/api/fishing/inventory` (6520) | Fishing/Aquarium/Market/Sell pages | auth; reads own `player_fish_inventory` joined `shop_items` plus part metadata; `200 []`; no mutation. |
 | POST `/api/fishing/inventory/add` | removed in the direct-mint hardening PR | The prior authenticated-only route had no legitimate production caller and allowed a player-supplied `{shopItemId}` to insert an owned fish without a catch, purchase, reward, market transfer, migration, test fixture, support action, or administrator grant. It is no longer registered; unknown-route behavior applies. |
-| POST `/api/fishing/catch` (6556) | FishingPage reel; `{locationId,performanceScore,shopItemId}` | auth; location is server-loaded and must be fishing; supplied fish must be in that pond, but supplied score (clamped 0–100) controls success and supplied fish bypasses random/bait rarity selection. Mutates fish inventory/log, later increments total catches, bait/pole inventory/equipment, quest, leaderboard, badges. `200 {caught,item}` or `{caught:null,reason:'empty_pond'|'miss'}`, `400` location, `500`. **No transaction; browser-authoritative success/fish integrity risk; retry/concurrent requests create additional catches and side effects.** |
+| HISTORICAL — removed POST `/api/fishing/catch` | Former FishingPage reel; `{locationId,performanceScore,shopItemId}` | auth; location is server-loaded and must be fishing; supplied fish must be in that pond, but supplied score (clamped 0–100) controls success and supplied fish bypasses random/bait rarity selection. Mutates fish inventory/log, later increments total catches, bait/pole inventory/equipment, quest, leaderboard, badges. `200 {caught,item}` or `{caught:null,reason:'empty_pond'|'miss'}`, `400` location, `500`. **No transaction; browser-authoritative success/fish integrity risk; retry/concurrent requests create additional catches and side effects.** |
 | GET `/api/fishing/leaderboard/:worldId` (6689) | FishingPage | auth; arbitrary path world ID reads public leaderboard and current user's rank; `200 {top,me}`; no validation of world existence or mutation. |
 | GET `/api/world/:worldId/fish-barrel`, PATCH/DELETE `/api/admin/fish-barrel/:id` (7091–7121) | World/admin editing; path and PATCH `{posX,posY,size}` | read is auth; writes manual admin; touches `fish_barrels`; no fishing reward/ownership mutation; success barrel/null or `{ok:true}`, `403` admin. |
 | POST `/api/fishing/aquarium/sync` (7124) | no current client caller located; `{counts:[{shopItemId,count}]}` | auth/current user; resets all their `in_aquarium` flags, then marks selected IDs. `200 {ok}`, `400` non-array. **Nontransactional and count/type unvalidated; concurrent add/remove/sync can overwrite state.** |
@@ -316,3 +313,77 @@ locations and its recommendation to begin with read-only registrations became
 stale when this expressly authorized cohesive extraction moved the already
 characterized mutation handlers too; the behavioral findings themselves remain
 current. The removed `POST /api/fishing/inventory/add` route remains absent.
+
+## Server-authoritative fishing attempts (2026-07 integrity boundary)
+
+### Before and after
+
+Previously `FishingPage` selected a pond fish in the browser and posted that
+`shopItemId` plus `performanceScore` to `POST /api/fishing/catch`. A score of
+100 bypassed the probability roll, and a valid stocked ID selected the awarded
+species. The handler then decremented the pole, granted inventory, conditionally
+inserted the catch log, asynchronously incremented lifetime catches/badges,
+consumed bait, asynchronously advanced the quest, and asynchronously credited
+the leaderboard. Those separate writes could partially succeed and a retry
+could grant another fish.
+
+The production protocol is now:
+
+1. `POST /api/fishing/attempts` accepts only the fishing `locationId`. The
+   authenticated session supplies ownership. `server/fishingAttempt.ts`
+   validates the fishing location, nonempty valid pond, and an owned usable
+   pole; snapshots the equipped pole/bait; applies the unchanged rarity weights
+   and bait rarity forcing; commits a selected stocked fish and server random
+   catch roll; and returns only an opaque ID, two-minute expiry, and presentation
+   rarity.
+2. The existing casting, nibble, tension, animation, sound, and overlay UI runs.
+   `POST /api/fishing/attempts/:attemptId/complete` accepts only matching
+   `locationId` and bounded `interactionScore`. It rejects all extra fields, so
+   `shopItemId`, `performanceScore`, reward, rarity, owner, and hidden outcome
+   injection cannot select or mint a fish.
+3. Completion locks the durable attempt `FOR UPDATE`, verifies owner/location,
+   expiry and state, and performs the pole write plus (on success) fish grant,
+   permanent catch-log insert, lifetime counter, bait consumption, leaderboard
+   points, daily `catch_fish` progress, and stored response in one PostgreSQL
+   transaction. Any core failure rolls everything back. The committed JSON
+   response is returned on retry, without another mutation. Parallel completion
+   requests serialize on the same attempt row.
+4. Badges are deliberately post-commit side effects because their existing
+   helpers own separate persistence. They run only for a newly committed catch,
+   never a replay. Their failure cannot create a partially committed core catch.
+
+### Lifecycle, abandonment, and residual trust
+
+There is at most one live attempt per player, enforced under a transaction-level
+per-player advisory lock. Expired pending rows are marked expired before a new
+start. Closing/resetting the overlay requests the ownership-scoped abandon
+route; abandonment grants nothing and consumes no equipment. A disconnect
+leaves the attempt pending only until its two-minute expiry. Equipment is
+consumed at completion, not start. A lost completion response is retried by the
+client and receives the stored result with `replayed: true`; it cannot duplicate
+fish, bait, pole, quest, lifetime count, or points.
+
+The browser's minigame measurement is explicitly **not** considered tamper-proof.
+It remains a bounded influence to preserve the visible reel experience. The
+server clamps even a submitted 100 to the former 99-score probability
+(~84.35%) and compares it with randomness committed before play; therefore the
+browser cannot unconditionally force success. Presentation rarity is disclosed
+because the existing difficulty/timing requires it, so a player could abandon
+attempts to seek a displayed rarity. The selected species and success roll stay
+hidden, attempts are one-at-a-time and short-lived, and abandonment yields no
+value. Eliminating this residual presentation-rarity reroll would require a
+player-facing timing/difficulty redesign and is deliberately outside this
+integrity change.
+
+### Schema and compatibility
+
+`fishing_attempts` is declared in `shared/schema.ts` and created through the
+repository's existing idempotent Railway startup-migration convention in
+`server/index.ts`. It is additive and preserves existing rows. Owner/status/
+expiry and pending-expiry indexes support active-attempt and cleanup lookups;
+the primary key and row lock are the one-time completion boundary. The old
+`POST /api/fishing/catch` registration is removed rather than retained as an
+alternate path. Fish inventory and catch-log formats, first-catch claim route,
+fish book reads, sales, prices, catalog values, rarity weights, bait rarity
+behavior, pole rules, world mapping, points, assets, visuals, and overlay layout
+are unchanged.

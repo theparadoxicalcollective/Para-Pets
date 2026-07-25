@@ -7,7 +7,7 @@ const worldSource = readFileSync("client/src/pages/WorldPage.tsx", "utf8");
 
 test("fishing attempt reset is local and never leaves the world location", () => {
   const resetBody = fishingSource.match(
-    /const resetFishing = useCallback\(\(\) => \{([\s\S]*?)\n  \}, \[clearAllTimers\]\);/,
+    /const resetFishing = useCallback\(\(\) => \{([\s\S]*?)\n  \}, \[clearAllTimers, locationId\]\);/,
   )?.[1];
 
   assert.ok(resetBody, "expected to find resetFishing");

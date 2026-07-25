@@ -1,5 +1,6 @@
 import type { Express, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
+import { FishingAttemptError, abandonFishingAttempt, completeFishingAttempt, startFishingAttempt } from "../fishingAttempt";
 
 const FISH_CATCH_REWARD_COINS = 10;
 
@@ -371,133 +372,51 @@ export function registerFishingRoutes(app: Express, deps: FishingRouteDependenci
   });
 
 
-  app.post("/api/fishing/catch", isAuthenticated, async (req, res) => {
+  app.post("/api/fishing/attempts", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { locationId, performanceScore, shopItemId: clientShopItemId } = req.body;
+      const { locationId } = req.body ?? {};
       if (!locationId) return res.status(400).json({ message: "locationId required" });
-      const score = Math.max(0, Math.min(100, Number(performanceScore) || 0));
-
-      const location = await storage.getWorldLocation(locationId);
-      if (!location || location.type !== "fishing") return res.status(400).json({ message: "Location is not a fishing spot" });
-
-      const pondEntries = await storage.getPondFish(locationId);
-      if (pondEntries.length === 0) return res.json({ caught: null, reason: "empty_pond" });
-
-      const equipment = await storage.getPlayerFishingEquipment(user.id);
-      if (equipment?.poleInventoryId) {
-        const pole = await storage.decrementPoleUses(equipment.poleInventoryId, user.id);
-        if (!pole) {
-          // The selected pole was exhausted (or no longer belongs to this
-          // player); clear only this player's equipped reference.
-          await storage.upsertPlayerFishingEquipment(user.id, { poleInventoryId: null });
-        }
-      }
-
-      // If the player completed the reel mini-game (score 100) they always catch.
-      // Floor is 20% (not 0%) so a terrible reel still has a slim chance, but
-      // the curve now meaningfully rewards good play: score 50 → ~52%, 80 → ~72%, 99 → ~84%.
-      if (score < 100) {
-        const catchChance = 0.20 + (score / 100) * 0.65;
-        if (Math.random() > catchChance) return res.json({ caught: null, reason: "miss" });
-      }
-
-      // Use the specific fish the frontend selected for the minigame — this ensures the
-      // difficulty (based on that fish's starRarity) matches what the player actually catches.
-      // Verify it belongs to this pond before trusting the client value.
-      let chosenEntry = clientShopItemId
-        ? pondEntries.find(e => e.shopItemId === clientShopItemId) ?? null
-        : null;
-
-      // Fallback: if the client didn't send an ID or it wasn't found in this pond, random-select
-      if (!chosenEntry) {
-        let baitBoost = 0;
-        let baitRarityBoostStar = 0;
-        if (equipment?.baitInventoryId) {
-          const inv = await storage.getInventoryItemById(equipment.baitInventoryId);
-          if (inv) {
-            const bait = await storage.getShopItem(inv.shopItemId);
-            baitBoost = bait?.rarityBoostPercent ?? 0;
-            baitRarityBoostStar = bait?.baitRarityBoostStar ?? 0;
-          }
-        }
-        const baseWeights: Record<number, number> = { 1: 60, 2: 24, 3: 10, 4: 4, 5: 2 };
-        // Count fish per rarity so weights are normalized per group, preventing many 1★
-        // fish from dominating the pool over rarer fish.
-        const rarityCounts: Record<number, number> = {};
-        for (const entry of pondEntries) {
-          const s = parseInt(String(entry.item?.starRarity ?? 1), 10) || 1;
-          rarityCounts[s] = (rarityCounts[s] ?? 0) + 1;
-        }
-        // Bait boost is a direct probability roll: baitBoost=100 on star 5 guarantees a 5★ fish.
-        // If the roll succeeds but no fish of that rarity are in the pond, fall back to normal.
-        let forcedEntries: typeof pondEntries | null = null;
-        if (baitBoost > 0 && baitRarityBoostStar > 0 && Math.random() < baitBoost / 100) {
-          const targets = pondEntries.filter(e => (parseInt(String(e.item?.starRarity ?? 1), 10) || 1) === baitRarityBoostStar);
-          if (targets.length > 0) forcedEntries = targets;
-        }
-
-        if (forcedEntries) {
-          chosenEntry = forcedEntries[Math.floor(Math.random() * forcedEntries.length)];
-        } else {
-          const fishPool = pondEntries.map(entry => {
-            const star = parseInt(String(entry.item?.starRarity ?? 1), 10) || 1;
-            const weight = (baseWeights[star] ?? 10) / (rarityCounts[star] ?? 1);
-            return { entry, weight: Math.max(0.01, weight) };
-          });
-          const totalWeight = fishPool.reduce((sum, f) => sum + f.weight, 0);
-          let rand = Math.random() * totalWeight;
-          let chosen = fishPool[fishPool.length - 1];
-          for (const f of fishPool) {
-            rand -= f.weight;
-            if (rand <= 0) { chosen = f; break; }
-          }
-          chosenEntry = chosen.entry;
-        }
-      }
-
-      const caught = await storage.addFishToPlayerInventory(user.id, chosenEntry.shopItemId);
-      await storage.logFishCatch(user.id, chosenEntry.shopItemId);
-
-      // Badge awards: fish count milestones + biome book completion (fire-and-forget)
-      ;(async () => {
-        try {
-          const total = await storage.incrementTotalFishCaught(user.id);
-          maybeAwardFisherBadges(user.id, total).catch(() => {});
-          if (location.worldId) {
-            maybeAwardFishBookBadge(user.id, location.worldId).catch(() => {});
-          }
-        } catch (_) {}
-      })();
-
-      // Consume 1 bait charge on successful catch
-      if (equipment?.baitInventoryId) {
-        const { depleted } = await storage.decrementBaitQuantity(equipment.baitInventoryId);
-        if (depleted) {
-          // Bait ran out — unequip it
-          await storage.upsertPlayerFishingEquipment(user.id, { baitInventoryId: null });
-        }
-      }
-
-      // If the pond entry's item join came back null (e.g. shop item was updated/re-keyed
-      // after the pond fish was added), fetch it directly so the client always gets a
-      // valid item object and shows the "Caught!" screen instead of "It got away!".
-      const fishItem = chosenEntry.item ?? await storage.getShopItem(chosenEntry.shopItemId) ?? null;
-      // Quest progress: catch_fish
-      incrementQuestProgress(user.id, "catch_fish").catch(() => {});
-
-      // Fishing leaderboard — award points by the fish's star rarity to this
-      // world's board. Fire-and-forget so a leaderboard hiccup never blocks the
-      // catch. Only new catches accrue points (the table started empty).
-      const FISH_POINTS: Record<number, number> = { 1: 10, 2: 12, 3: 20, 4: 25, 5: 50 };
-      const star = parseInt(String(fishItem?.starRarity ?? 1), 10) || 1;
-      const pts = FISH_POINTS[star] ?? 10;
-      if (location.worldId) {
-        storage.addFishingPoints(user.id, location.worldId, pts).catch(() => {});
-      }
-
-      return res.json({ caught, item: fishItem });
+      return res.status(201).json(await startFishingAttempt(db, { userId: user.id, locationId: String(locationId) }));
     } catch (err: any) {
+      if (err instanceof FishingAttemptError) {
+        const status = err.reason === "active_attempt" ? 409 : err.reason === "no_pole" ? 422 : 400;
+        return res.status(status).json({ message: err.message, reason: err.reason });
+      }
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/fishing/attempts/:attemptId/complete", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const keys = Object.keys(req.body ?? {});
+      if (keys.some(key => !["locationId", "interactionScore"].includes(key))) return res.status(400).json({ message: "Invalid completion payload", reason: "invalid_completion" });
+      const { locationId, interactionScore } = req.body ?? {};
+      if (!locationId || typeof interactionScore !== "number") return res.status(400).json({ message: "locationId and interactionScore required", reason: "invalid_completion" });
+      const result = await completeFishingAttempt(db, { userId: user.id, attemptId: String(req.params.attemptId), locationId: String(locationId), interactionScore });
+      if (result.caught && !result.replayed) {
+        maybeAwardFisherBadges(user.id, result.totalFishCaught ?? 0).catch(() => {});
+        if (result.worldId) maybeAwardFishBookBadge(user.id, result.worldId).catch(() => {});
+      }
+      return res.json(result);
+    } catch (err: any) {
+      if (err instanceof FishingAttemptError) {
+        const status = err.reason === "wrong_owner" ? 403 : err.reason === "not_found" ? 404 : err.reason === "expired" ? 410 : err.reason === "wrong_location" || err.reason === "equipment_unavailable" ? 409 : 400;
+        return res.status(status).json({ message: err.message, reason: err.reason });
+      }
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.post("/api/fishing/attempts/:attemptId/abandon", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (typeof req.body?.locationId !== "string") return res.status(400).json({ message: "locationId required" });
+      await abandonFishingAttempt(db, { userId: user.id, attemptId: String(req.params.attemptId), locationId: req.body.locationId });
+      return res.json({ ok: true });
+    } catch (err: any) {
+      if (err instanceof FishingAttemptError) return res.status(err.reason === "wrong_owner" ? 403 : 409).json({ message: err.message, reason: err.reason });
       return res.status(500).json({ message: err.message });
     }
   });
