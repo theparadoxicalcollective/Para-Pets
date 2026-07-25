@@ -490,6 +490,8 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
     };
   }, [clearAllTimers, locationId]);
 
+  const poleIsBroken = equipData?.poleItem != null && equipData.poleUsesLeft !== null && equipData.poleUsesLeft !== undefined && equipData.poleUsesLeft <= 0;
+
   const startCasting = useCallback(async () => {
     if (!equipData?.poleItem || poleIsBroken) {
       setShowNoPoleModal(true);
@@ -574,7 +576,6 @@ export default function FishingPage({ locationId, locationName, bgUrl, worldId, 
     clearAllTimers();
   }, [clearAllTimers, locationId]);
 
-  const poleIsBroken = equipData?.poleItem != null && equipData.poleUsesLeft !== null && equipData.poleUsesLeft !== undefined && equipData.poleUsesLeft <= 0;
   const hasPole = !!equipData?.poleItem && !poleIsBroken;
   const effectiveBg = (!bgUrl || bgError) ? fishingBg : bgUrl;
 
