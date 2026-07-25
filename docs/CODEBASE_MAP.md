@@ -218,3 +218,9 @@ successful-catch writes (fish inventory/log, lifetime count, bait, leaderboard,
 and daily quest progress). Badge helpers remain post-commit callbacks. See
 [`FISHING_SYSTEM_AUDIT.md`](./FISHING_SYSTEM_AUDIT.md) for retry, abandonment,
 status, compatibility, and residual browser-interaction trust details.
+
+## Stripe purchase fulfillment boundary (2026-07)
+
+One-time coin-bundle Checkout creation remains in `server/routes.ts`, but all paid completion paths now call `server/payments/fulfillStripePurchase.ts`: the raw signed `checkout.session.completed` webhook in `server/webhookHandlers.ts` and authenticated Stripe retrieval in `/api/coins/verify`. `server/payments/config.ts` owns the unchanged packages, prices, currency, 33% award calculation, limited eggs, contribution points, and community bonus tiers. The Checkout Session ID is the canonical unique payment identity; PaymentIntent/event IDs are audit correlation only.
+
+A single PostgreSQL transaction claims/locks `coin_purchases`, locks the player, grants coins/earned total and any egg, advances contribution progress, creates the community reward inbox distribution, upgrades founder tier, and only then records fulfillment. The existing unique session index plus row lock makes event replay, distinct events, verification refreshes, races, response loss, and restarts replay-safe. Webhook raw bytes and signature verification precede global JSON parsing. Acquisition badges remain an idempotent/recoverable post-commit effect; refunds/disputes have no automatic clawback and manual milestone reward claiming retains its separate known non-atomic limitation. See [`PAYMENT_SYSTEM_AUDIT.md`](./PAYMENT_SYSTEM_AUDIT.md).
