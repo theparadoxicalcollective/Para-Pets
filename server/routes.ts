@@ -38,6 +38,7 @@ import {
 } from "./marketplace/transactions";
 import { claimTutorialReward, completeTutorial, grantTutorialHatchPotions } from "./tutorial/tutorialService";
 import { invalidTutorialRequest, TutorialError } from "./tutorial/errors";
+import { CaveTierLockedError, isCaveTierAccessible } from "./caveProgress";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -5125,6 +5126,11 @@ export async function registerRoutes(
       const MURK_CAVE_ID = "a1b2c3d4-0001-4000-8000-000000000001";
       const reqCaveTier = req.body?.caveTier != null ? parseInt(String(req.body.caveTier), 10) : NaN;
       if (locationId === MURK_CAVE_ID && !isNaN(reqCaveTier) && reqCaveTier >= 1 && reqCaveTier <= 10) {
+        const caveProgress = await storage.getPetCaveProgress(activePet.id)
+          ?? { currentTier: 1, completedTiers: [] };
+        if (!isCaveTierAccessible(caveProgress, reqCaveTier)) {
+          return res.status(403).json({ message: `Cave tier ${reqCaveTier} is locked` });
+        }
         const CAVE_TIER_STATS: Record<number, {
           normal: { hp: number; atk: number; def: number };
           miniBoss: { hp: number; atk: number; def: number };
@@ -8564,7 +8570,7 @@ export async function registerRoutes(
     try {
       const user = req.user!;
       const { petInventoryId, tier } = req.body as { petInventoryId: string; tier: number };
-      if (!petInventoryId || !tier || tier < 1 || tier > 10) {
+      if (!petInventoryId || !Number.isInteger(tier) || tier < 1 || tier > 10) {
         return res.status(400).json({ message: "Invalid tier" });
       }
       // Verify the pet belongs to the user
@@ -8580,6 +8586,9 @@ export async function registerRoutes(
       const updatedUser = bonusCoins > 0 ? await storage.addCoins(user.id, bonusCoins) : user;
       return res.json({ ...progress, bonusCoins, newBalance: updatedUser.coins });
     } catch (err) {
+      if (err instanceof CaveTierLockedError) {
+        return res.status(409).json({ message: err.message });
+      }
       console.error("[cave] complete-tier error:", err);
       return res.status(500).json({ message: "Server error" });
     }

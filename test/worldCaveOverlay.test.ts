@@ -18,9 +18,10 @@ test("Murk Cave entry and battle render through one typed overlay boundary", () 
 
 test("all ten cave tiers retain their paired banner and entrance art", () => {
   for (let tier = 1; tier <= 10; tier += 1) {
-    assert.match(overlaySource, new RegExp(`tier: ${tier}, banner: caveBanner${tier}, enterBtn: caveEnter${tier}`));
+    const enterArt = tier <= 5 ? tier : tier - 5;
+    assert.match(overlaySource, new RegExp(`tier: ${tier}, banner: caveBanner${tier}, enterBtn: caveEnter${enterArt}`));
     assert.match(overlaySource, new RegExp(`caveBanner${tier}`));
-    assert.match(overlaySource, new RegExp(`caveEnter${tier}`));
+    assert.match(overlaySource, new RegExp(`caveEnter${enterArt}`));
   }
   assert.match(overlaySource, /button-cave-enter-tier-\$\{tier\}/);
 });
@@ -95,4 +96,27 @@ test("cave close and battle exit remain explicit without routing or unrelated re
   assert.match(exitSource, /setShowBattle\(false\)/);
   assert.match(exitSource, /setShowCaveEntry\(true\)/);
   assert.doesNotMatch(exitSource, /navigate|setFishingLocation|setShowShop/);
+});
+
+test("each tier 1-10 follows the exact tier-number and six-wave lifecycle", () => {
+  assert.match(arenaSource, /useState\(0\)/, "every remounted BattleArena starts at wave index zero");
+  assert.match(routesSource, /const caveEncounters = \[/);
+  for (let tier = 1; tier <= 10; tier += 1) {
+    const enterArt = tier <= 5 ? tier : tier - 5;
+    assert.match(overlaySource, new RegExp(`tier: ${tier}, banner: caveBanner${tier}, enterBtn: caveEnter${enterArt}`));
+    assert.match(overlaySource, /onClick=\{\(\) => props\.onEnterTier\(tier\)\}/,
+      `Tier ${tier} must pass its mapped tier value`);
+    assert.match(overlaySource, /caveTier=\{props\.caveTier\}/);
+  }
+  for (let wave = 0; wave < 6; wave += 1) {
+    assert.match(routesSource, new RegExp(`"(?:normal|miniBoss|boss)", ${wave}\\)`), `wave group ${wave} must exist`);
+  }
+  assert.doesNotMatch(routesSource, /"(?:normal|miniBoss|boss)", 6\)/);
+});
+
+test("server rejects starting or completing a locked cave tier", () => {
+  assert.match(routesSource, /isCaveTierAccessible\(caveProgress, reqCaveTier\)/);
+  assert.match(routesSource, /Cave tier \$\{reqCaveTier\} is locked/);
+  assert.match(storageSource, /completeCaveTier\(\{/);
+  assert.match(routesSource, /err instanceof CaveTierLockedError/);
 });
