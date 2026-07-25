@@ -26,12 +26,12 @@ test("all ten cave tiers retain their paired banner and entrance art", () => {
   assert.match(overlaySource, /button-cave-enter-tier-\$\{tier\}/);
 });
 
-test("all ten tiers share one fixed Enter-button layout contract", () => {
+test("later cave tiers compensate for their shorter banner artwork", () => {
   assert.match(overlaySource, /export const CAVE_ENTER_LAYOUT = \{/);
   assert.match(overlaySource, /height: "24%"/);
-  assert.match(overlaySource, /\.\.\.CAVE_ENTER_LAYOUT/);
+  assert.match(overlaySource, /export const CAVE_LATE_TIER_ENTER_HEIGHT = "31%"/);
+  assert.match(overlaySource, /height: tier >= 6 \? CAVE_LATE_TIER_ENTER_HEIGHT : CAVE_ENTER_LAYOUT\.height/);
   assert.match(overlaySource, /w-full h-full object-contain object-bottom/);
-  assert.equal((overlaySource.match(/CAVE_ENTER_LAYOUT/g) ?? []).length, 2);
 });
 
 test("the selected cave tier is preserved from entry through the six-wave battle", () => {
