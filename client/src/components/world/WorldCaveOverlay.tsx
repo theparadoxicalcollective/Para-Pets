@@ -34,13 +34,13 @@ export const CAVE_TIERS = [
 ] as const;
 
 export const CAVE_ENTER_LAYOUT = {
-  // Banner aspect ratios change after tier 5, so a percentage of banner height
-  // makes the reused artwork visibly smaller. Size from the portrait viewport
-  // instead, with sensible mobile bounds, while leaving enough width for the
-  // complete image (and therefore its complete click target).
-  width: "min(38%, 140px)",
-  height: "clamp(24px, 6.5vw, 32px)",
-  bottom: "2%",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%)",
+  height: "85%",
+  width: "auto",
+  aspectRatio: "2.35 / 1",
+  maxWidth: "90%",
 } as const;
 
 export function isCaveTierUnlocked(tier: number, currentTier: number, completedTiers: number[]) {
@@ -114,8 +114,8 @@ export default function WorldCaveOverlay(props: WorldCaveOverlayProps) {
               {completed && <div className="absolute top-2 right-2 flex items-center gap-1 px-3 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap" style={{ background: "rgba(0,0,0,0.75)", color: "#4ade80", border: "1px solid #4ade8066" }}>✓ CLEARED</div>}
               {!unlocked && <div className="absolute inset-0 flex items-center justify-center"><span className="text-4xl drop-shadow-lg">🔒</span></div>}
               {unlocked && (
-                <button data-testid={`button-cave-enter-tier-${tier}`} onClick={() => props.onEnterTier(tier)} className="absolute left-1/2 -translate-x-1/2 active:scale-95 transition-transform" style={{ ...CAVE_ENTER_LAYOUT, background: "none", border: "none", padding: 0, cursor: "pointer" }}>
-                  <img src={enterBtn} alt="Enter" className="block w-full h-full object-contain object-bottom" />
+                <button data-testid={`button-cave-enter-tier-${tier}`} onClick={() => props.onEnterTier(tier)} className="absolute active:scale-95 transition-transform" style={{ ...CAVE_ENTER_LAYOUT, background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+                  <img src={enterBtn} alt="Enter" className="block w-full h-full object-contain object-center" />
                 </button>
               )}
             </div>
