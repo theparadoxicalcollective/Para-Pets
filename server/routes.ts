@@ -36,6 +36,8 @@ import {
   createFishListing,
   createInventoryListing,
 } from "./marketplace/transactions";
+import { claimTutorialReward, completeTutorial, grantTutorialHatchPotions } from "./tutorial/tutorialService";
+import { TutorialError } from "./tutorial/errors";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -8535,31 +8537,16 @@ export async function registerRoutes(
   // ── Tutorial: grant 3 free Small Hatching Potions (one-time) ────────────────
   app.post("/api/tutorial/grant-hatch-potions", isAuthenticated, async (req: any, res) => {
     const userId = req.user!.id;
-    const SMALL_HATCH_POTION_ID = "3e6d7b47-b4c5-4a34-bd69-c039a31e1770";
     try {
-      const rows = await db.execute(sql`SELECT tutorial_hatch_potions_claimed FROM users WHERE id = ${userId}`);
-      const row = (rows as any).rows?.[0] ?? (rows as any)?.[0];
-      if (row?.tutorial_hatch_potions_claimed) {
-        // Already claimed — only block re-grant if the player STILL HAS hatch potions.
-        // If they used them all (0 remaining) let them get 3 more so they can finish the tutorial.
-        const inv = await db.execute(sql`
-          SELECT COUNT(*) AS cnt FROM user_inventory
-          WHERE user_id = ${userId}
-            AND shop_item_id = ${SMALL_HATCH_POTION_ID}
-            AND quantity > 0
-        `);
-        const invRow = (inv as any).rows?.[0] ?? (inv as any)?.[0];
-        const count = parseInt(invRow?.cnt ?? invRow?.count ?? "0", 10);
-        if (count > 0) {
-          return res.status(409).json({ alreadyClaimed: true });
-        }
-        // Player has 0 potions — grant 3 more so they can complete the tutorial
+      if (Object.keys(req.body ?? {}).length > 0) {
+        return res.status(400).json({ message: "Request body must be empty" });
       }
-      await storage.addToInventory(userId, SMALL_HATCH_POTION_ID);
-      await storage.addToInventory(userId, SMALL_HATCH_POTION_ID);
-      await storage.addToInventory(userId, SMALL_HATCH_POTION_ID);
-      await db.execute(sql`UPDATE users SET tutorial_hatch_potions_claimed = true WHERE id = ${userId}`);
-      return res.json({ granted: true });
+      const result = await grantTutorialHatchPotions(userId);
+      return res.json({
+        granted: result.status === "granted",
+        alreadyGranted: result.status === "already_granted",
+        status: result.status,
+      });
     } catch (err) {
       console.error("[tutorial] grant-hatch-potions error:", err);
       return res.status(500).json({ message: "Server error" });
@@ -8747,8 +8734,11 @@ export async function registerRoutes(
   app.post("/api/tutorial/complete", isAuthenticated, async (req: any, res) => {
     const userId = req.user!.id;
     try {
-      await db.execute(sql`UPDATE users SET tutorial_quest_completed = true WHERE id = ${userId}`);
-      return res.json({ ok: true });
+      if (Object.keys(req.body ?? {}).length > 0) {
+        return res.status(400).json({ message: "Request body must be empty" });
+      }
+      const result = await completeTutorial(userId);
+      return res.json({ ok: true, status: result.status });
     } catch (err) {
       console.error("[tutorial] complete error:", err);
       return res.status(500).json({ message: "Server error" });
@@ -8802,15 +8792,20 @@ export async function registerRoutes(
   app.post("/api/tutorial/claim-reward", isAuthenticated, async (req: any, res) => {
     const userId = req.user!.id;
     try {
-      const rows = await db.execute(sql`SELECT tutorial_reward_claimed FROM users WHERE id = ${userId}`);
-      const row = (rows as any).rows?.[0] ?? (rows as any)?.[0];
-      if (row?.tutorial_reward_claimed) {
-        return res.json({ alreadyClaimed: true, coins: 0 });
+      if (Object.keys(req.body ?? {}).length > 0) {
+        return res.status(400).json({ message: "Request body must be empty" });
       }
-      await db.execute(sql`UPDATE users SET tutorial_reward_claimed = true WHERE id = ${userId}`);
-      const updated = await storage.addCoins(userId, 1500);
-      return res.json({ alreadyClaimed: false, coins: 1500, newBalance: updated.coins });
+      const result = await claimTutorialReward(userId);
+      return res.json({
+        alreadyClaimed: result.status === "already_claimed",
+        coins: result.coins,
+        newBalance: result.coinBalance,
+        status: result.status,
+      });
     } catch (err) {
+      if (err instanceof TutorialError && err.code === "tutorial_not_completed") {
+        return res.status(409).json({ message: "Tutorial is not complete" });
+      }
       console.error("[tutorial] claim-reward error:", err);
       return res.status(500).json({ message: "Server error" });
     }
