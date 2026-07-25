@@ -26,13 +26,17 @@ test("all ten cave tiers retain their paired banner and entrance art", () => {
   assert.match(overlaySource, /button-cave-enter-tier-\$\{tier\}/);
 });
 
-test("all ten tiers share one viewport-sized Enter-button layout contract", () => {
+test("all ten tiers share one centered, card-relative Enter-button layout contract", () => {
   assert.match(overlaySource, /export const CAVE_ENTER_LAYOUT = \{/);
-  assert.match(overlaySource, /width: "min\(38%, 140px\)"/);
-  assert.match(overlaySource, /height: "clamp\(24px, 6\.5vw, 32px\)"/);
-  assert.doesNotMatch(overlaySource, /height: "(?:24|31)%"/);
+  assert.match(overlaySource, /top: "50%"/);
+  assert.match(overlaySource, /left: "50%"/);
+  assert.match(overlaySource, /transform: "translate\(-50%, -50%\)"/);
+  assert.match(overlaySource, /height: "85%"/);
+  assert.match(overlaySource, /width: "auto"/);
+  assert.match(overlaySource, /maxWidth: "90%"/);
+  assert.doesNotMatch(overlaySource, /tier\s*>=|CAVE_LATE_TIER_ENTER_HEIGHT/);
   assert.match(overlaySource, /\.\.\.CAVE_ENTER_LAYOUT/);
-  assert.match(overlaySource, /w-full h-full object-contain object-bottom/);
+  assert.match(overlaySource, /w-full h-full object-contain object-center/);
   assert.equal((overlaySource.match(/CAVE_ENTER_LAYOUT/g) ?? []).length, 2);
 });
 
