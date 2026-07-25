@@ -434,7 +434,12 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   // PvP arena: an empty slot opens the inventory picker on tap; a filled
   // slot clears itself on tap. The drag-and-drop rig was removed.
   const [potionPickerOpen, setPotionPickerOpen] = useState(false);
-  const [showFishing, setShowFishing] = useState(false);
+  // Keep the opened fishing location as UI state rather than deriving the
+  // overlay from the locations query on every render. Fishing mutations
+  // invalidate/refetch several shared queries; the overlay must survive any
+  // transient location-list loading/empty result until the player leaves it.
+  const [fishingLocation, setFishingLocation] = useState<WorldLocationData | null>(null);
+  const showFishing = fishingLocation !== null;
   const [showSellFish, setShowSellFish] = useState(false);
   const [fishingShopTab, setFishingShopTab] = useState<"pole" | "bait">("pole");
   const [barrelDragPos, setBarrelDragPos] = useState<{ x: number; y: number } | null>(null);
@@ -1637,7 +1642,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     }
     // Soul Pond — future mini-game placeholder: just open the scenic background for now.
     if (loc.id === "e2f3a4b5-0003-4000-8000-000000000003") {
-      setShowFishing(false);
+      setFishingLocation(null);
       setShowShop(false);
       setShowLocationView(true);
       return;
@@ -1650,8 +1655,9 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     if (loc.type === "fishing" && !loc.isShop) {
       setShowLocationView(false);
       setShowShop(false);
-      setShowFishing(true);
+      setFishingLocation(loc);
     } else if (loc.isShop) {
+      setFishingLocation(null);
       setShowLocationView(false);
       setShowShop(true);
       setSelectedShopItem(null);
@@ -1659,8 +1665,10 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       shopJustOpened.current = Date.now();
       playShopBell();
     } else if ((loc.type === "battle" || loc.type === "explore") && !currentUser.isAdmin) {
+      setFishingLocation(null);
       setShowDangerWarning(true);
     } else {
+      setFishingLocation(null);
       setShowShop(false);
       setShowLocationView(true);
     }
@@ -5518,23 +5526,19 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
         );
       })()}
 
-      {showFishing && activeLocationId && (() => {
-        const fishLoc = locations.find(l => l.id === activeLocationId);
-        if (!fishLoc) return null;
-        return (
-          <FishingPage
-            locationId={activeLocationId}
-            locationName={fishLoc.name}
-            bgUrl={fishLoc.bgUrl ?? activeLocDetail?.bgUrl ?? null}
-            worldId={worldId}
-            user={currentUser}
-            onClose={() => {
-              setShowFishing(false);
-              setActiveLocationId(null);
-            }}
-          />
-        );
-      })()}
+      {fishingLocation && (
+        <FishingPage
+          locationId={fishingLocation.id}
+          locationName={fishingLocation.name}
+          bgUrl={fishingLocation.bgUrl ?? activeLocDetail?.bgUrl ?? null}
+          worldId={worldId}
+          user={currentUser}
+          onClose={() => {
+            setFishingLocation(null);
+            setActiveLocationId(null);
+          }}
+        />
+      )}
 
       {showSellFish && (
         <SellFishPage
