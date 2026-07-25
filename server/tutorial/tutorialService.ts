@@ -8,11 +8,15 @@ export type TutorialPotionGrantResult = {
   tutorialId: string;
   itemId: string;
   quantity: number;
+  grantedQuantity: number;
+  alreadyGranted: boolean;
 };
 
 export type TutorialCompletionResult = {
   status: "completed" | "already_completed";
   tutorialId: string;
+  tutorialCompleted: true;
+  alreadyCompleted: boolean;
 };
 
 export type TutorialRewardClaimResult = {
@@ -38,6 +42,8 @@ export async function executeTutorialHatchPotionGrant(
     tutorialId: BEGIN_JOURNEY_TUTORIAL.id,
     itemId: BEGIN_JOURNEY_TUTORIAL.hatchPotion.itemId,
     quantity: BEGIN_JOURNEY_TUTORIAL.hatchPotion.quantity,
+    grantedQuantity: status === "granted" ? BEGIN_JOURNEY_TUTORIAL.hatchPotion.quantity : 0,
+    alreadyGranted: status === "already_granted",
   };
 }
 
@@ -45,9 +51,12 @@ export async function executeTutorialCompletion(
   playerId: string,
   operations: Pick<TutorialOperations, "complete">,
 ): Promise<TutorialCompletionResult> {
+  const status = await operations.complete(playerId);
   return {
-    status: await operations.complete(playerId),
+    status,
     tutorialId: BEGIN_JOURNEY_TUTORIAL.id,
+    tutorialCompleted: true,
+    alreadyCompleted: status === "already_completed",
   };
 }
 

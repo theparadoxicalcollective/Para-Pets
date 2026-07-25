@@ -1,4 +1,5 @@
 export type TutorialErrorCode =
+  | "invalid_request"
   | "player_not_found"
   | "reward_item_unavailable"
   | "tutorial_not_completed"
@@ -9,4 +10,8 @@ export class TutorialError extends Error {
     super(message);
     this.name = "TutorialError";
   }
+}
+
+export function invalidTutorialRequest(): TutorialError {
+  return new TutorialError("invalid_request", "Request body must be empty");
 }
