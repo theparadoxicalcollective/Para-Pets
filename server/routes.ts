@@ -16,6 +16,9 @@ import { db } from "./db";
 import { and, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
+import { COIN_PACKAGES } from "./payments/config";
+import { fulfillStripePurchase } from "./payments/fulfillStripePurchase";
+import { StripePurchaseError } from "./payments/errors";
 import { requireAdmin, requireAuthenticated } from "./auth";
 import { purchaseInventoryItem } from "./inventoryPurchase";
 import { tryConsumeInventoryQuantity, tryConsumeOneFromInventory } from "./inventoryConsumption";
@@ -145,23 +148,7 @@ function setCachedTemplateParts(templateId: string, data: any) {
   templatePartsCache.set(templateId, { data, expiresAt: Date.now() + TEMPLATE_CACHE_TTL });
 }
 
-const COIN_PACKS = [
-  { id: "pack_v2_100",   coins: 100,   priceUsd: 1,   label: "100 Coins" },
-  { id: "pack_v2_1000",  coins: 1000,  priceUsd: 5,   label: "1,000 Coins" },
-  { id: "pack_v2_2500",  coins: 2500,  priceUsd: 10,  label: "2,500 Coins" },
-  { id: "pack_v2_7500",  coins: 7500,  priceUsd: 25,  label: "7,500 Coins" },
-  { id: "pack_v2_20000", coins: 20000, priceUsd: 50,  label: "20,000 Coins" },
-  { id: "pack_v2_50000", coins: 50000, priceUsd: 100, label: "50,000 Coins" },
-];
-
-// Spirit-of-Veridia community gift: scales with the new bundle progression.
-// Roughly 1/10 of the purchaser's coin pack so bigger purchases bless the
-// realm more generously without trivializing smaller ones.
-function communityRewardCoinsForUsd(amountUsd: number): number {
-  const tiered: Record<number, number> = { 1: 0, 5: 0, 10: 0, 25: 50, 50: 100, 100: 500 };
-  if (amountUsd in tiered) return tiered[amountUsd];
-  return 0;
-}
+const COIN_PACKS = COIN_PACKAGES;
 
 const stripePriceCache: Record<string, string> = {};
 
@@ -793,32 +780,6 @@ async function postWatcherMessage(message: string): Promise<void> {
   }
 }
 
-// Community reward — triggered when any player buys a coin bundle
-// All OTHER players receive coins via a gift bundle (10 coins per $1 spent)
-async function grantCommunityPurchaseReward(purchaserId: string, amountUsd: number): Promise<void> {
-  try {
-    const rewardCoins = communityRewardCoinsForUsd(amountUsd);
-    if (rewardCoins <= 0) return;
-    const allUsers = await storage.getAllUsers();
-    // Admins are excluded from the Spirit of Veridia community gift
-    const recipients = allUsers.filter(u => !u.isAdmin);
-    if (recipients.length === 0) return;
-
-    const bundle = await storage.createRewardBundle(
-      "A Blessing from the Spirit of Veridia",
-      rewardCoins,
-      `A generous soul has contributed to the realm's growth, and the Spirit of Veridia has blessed you with ${rewardCoins} coins. Claim your gift!`
-    );
-    await Promise.all(recipients.map(u => storage.createUserReward(u.id, bundle.id)));
-
-    await postWatcherMessage(
-      `🌟 A generous soul has contributed to the realm's growth, so the Spirit of Veridia has blessed us all! Every adventurer has received a gift — check your gift inbox to claim it.`
-    );
-    console.log(`[Community Reward] Granted ${rewardCoins} coins to ${recipients.length} players (purchase: $${amountUsd})`);
-  } catch (err) {
-    console.error("[Community Reward] Failed to grant community reward:", err);
-  }
-}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -3103,6 +3064,7 @@ export async function registerRoutes(
           packId: pack.id,
           coins: pack.coins.toString(),
           amountUsd: pack.priceUsd.toString(),
+          priceId,
         },
       });
 
@@ -3117,137 +3079,32 @@ export async function registerRoutes(
   });
 
   app.post("/api/coins/verify", isAuthenticated, async (req, res) => {
+    const user = req.user as any;
+    const sessionId = typeof req.body?.sessionId === "string" ? req.body.sessionId : "";
+    if (!sessionId) return res.status(400).json({ message: "Session ID required" });
     try {
-      const user = req.user as any;
-      const { sessionId } = req.body;
-
-      if (!sessionId) {
-        return res.status(400).json({ message: "Session ID required" });
-      }
-
-      const existing = await storage.getCoinPurchaseBySessionId(sessionId);
-      if (existing) {
-        const updatedUser = await storage.getUser(user.id);
-        const { password: _, ...safeUser } = updatedUser!;
-        return res.json({ alreadyCredited: true, coins: existing.coinsReceived, user: safeUser });
-      }
-
       const stripe = await getUncachableStripeClient();
       const stripeSession = await stripe.checkout.sessions.retrieve(sessionId);
-
-      if (stripeSession.payment_status !== 'paid') {
-        return res.status(400).json({ message: "Payment not completed" });
-      }
-
-      if (stripeSession.metadata?.userId !== user.id) {
-        return res.status(403).json({ message: "This purchase does not belong to you" });
-      }
-
-      const coins = parseInt(stripeSession.metadata?.coins || "0");
-      const amountUsd = parseInt(stripeSession.metadata?.amountUsd || "0");
-
-      if (coins <= 0) {
-        return res.status(400).json({ message: "Invalid coin amount" });
-      }
-
-      const amountPaidCents = stripeSession.amount_total;
-      if (amountPaidCents && amountPaidCents !== amountUsd * 100) {
-        return res.status(400).json({ message: "Payment amount mismatch" });
-      }
-
-      // Bonus pet eggs for the two largest bundles ($50 / $100).
-      const EGG_BONUS: Record<number, { shopItemId: string; itemName: string; itemImageUrl: string }> = {
-        50:  { shopItemId: "23378190-8dcc-4145-9e10-f501cb42df2d", itemName: "Cerberus Serpent Egg", itemImageUrl: "/api/media/9b08c13d-262e-4251-b8ac-47ff0b44d30c" },
-        100: { shopItemId: "670e8ef5-b67d-4be4-b340-3e652327975f", itemName: "The Paradox Egg",     itemImageUrl: "/api/media/e5019d66-d5a1-4f56-a7e6-e4f9bae5baee" },
-      };
-
-      const awardedCoins = Math.round(coins * 1.33);
-      let updatedUser;
-      // Declared at function scope (not inside the try below) so they remain
-      // in scope when the success response is built after the try/catch.
-      const eggBonus = EGG_BONUS[amountUsd];
-      let eggBonusGranted = false;
-      try {
-        await storage.createCoinPurchase(user.id, amountUsd, awardedCoins, sessionId);
-        // addCoins returns the updated user — avoid an extra round-trip
-        // Award 33% bonus on top of the base pack coins.
-        updatedUser = await storage.addCoins(user.id, awardedCoins);
-        console.log(`[Verify] Credited ${awardedCoins} coins (${coins} base + 33% bonus = ${awardedCoins - coins} bonus) to user ${user.id} (session ${sessionId}, $${amountUsd})`);
-        // Fire community reward + badge awards in the background so the player's
-        // verification overlay closes as fast as possible.
-        grantCommunityPurchaseReward(user.id, amountUsd).catch(() => {});
-        maybeAwardAcquisitionBadges(user.id, amountUsd).catch(() => {});
-        // Bonus pet egg for the limited $50 / $100 bundles — delivered directly
-        // to inventory so it appears immediately after purchase without needing
-        // the player to visit the gift inbox. The verify and webhook paths are
-        // mutually exclusive via the coin_purchases session-id dedup above, so
-        // the egg is added exactly once per purchase.
-        // NOTE: this is the per-purchase limited-bundle reward — entirely
-        // separate from the monthly Contribution milestone rewards below.
-        if (eggBonus) {
-          try {
-            const eggInv = await storage.addToInventory(user.id, eggBonus.shopItemId);
-            // Start the hatch timer immediately, same as a normal shop purchase.
-            await storage.updateInventoryItem(eggInv.id, { hatchStartedAt: new Date() });
-            eggBonusGranted = true;
-            console.log(`[Verify] Added egg bonus (${eggBonus.itemName}) directly to inventory for user ${user.id}`);
-          } catch (e) {
-            console.error("Egg bonus inventory error:", e);
-          }
-        }
-        // Track purchase progress (fire-and-forget). Milestones are claimed
-        // manually by the player via /api/coins/claim-milestone so the bar
-        // never resets before they have a chance to collect their reward.
-        const capturedUser = updatedUser;
-        ;(async () => {
-          try {
-            const cycle = await storage.getContributionCycle(user.id);
-            const cycleKey = `c-${cycle}`;
-            const progressPts = amountUsd * 100;
-            const newTotal = await storage.addPurchaseProgress(user.id, progressPts, cycleKey);
-            console.log(`[Verify] Progress for user ${user.id}: +${progressPts} pts → total ${newTotal} (cycle ${cycle})`);
-          } catch (e) { console.error('[milestone progress]', e); }
-
-          // Founder Tier — based on LIFETIME (overall) coin-purchase spend, in USD.
-          // Entirely separate from the monthly contribution reward bar above.
-          // upsertFounderByUserId only ever upgrades a tier, never downgrades, so
-          // existing founders are left as-is and the new rules apply going forward.
-          try {
-            const lifetimeUsd = await storage.getLifetimePurchaseUsd(user.id);
-            const FOUNDER_TIERS: [number, string][] = [
-              [1000, 'legendary'],
-              [500, 'gold'],
-              [150, 'silver'],
-              [50, 'bronze'],
-            ];
-            const earned = FOUNDER_TIERS.find(([usd]) => lifetimeUsd >= usd);
-            if (earned) {
-              await storage.upsertFounderByUserId(user.id, (capturedUser as any).username, earned[1]);
-            }
-          } catch (e) { console.error('[founder tier]', e); }
-        })();
-      } catch (err: any) {
-        if (err.code === '23505') {
-          const u = await storage.getUser(user.id);
-          const { password: _, ...safeU } = u!;
-          return res.json({ alreadyCredited: true, coins: awardedCoins, user: safeU });
-        }
-        throw err;
-      }
-
+      const result = await fulfillStripePurchase(stripeSession as any, { expectedUserId: user.id });
+      const updatedUser = await storage.getUser(user.id);
       const { password: _, ...safeUser } = updatedUser!;
       return res.json({
-        credited: true,
-        coins: awardedCoins,
-        baseCoins: coins,
+        credited: result.status === "fulfilled",
+        alreadyCredited: result.status === "already_fulfilled",
+        coins: result.coins,
+        baseCoins: result.baseCoins,
         user: safeUser,
-        eggBonus: eggBonusGranted && eggBonus
-          ? { name: eggBonus.itemName, imageUrl: eggBonus.itemImageUrl }
-          : null,
+        eggBonus: result.status === "fulfilled" ? result.eggBonus : null,
       });
     } catch (err) {
-      console.error("Verify purchase error:", err);
-      return res.status(500).json({ message: "Failed to verify purchase" });
+      if (err instanceof StripePurchaseError) {
+        const status = err.code === "player_mismatch" ? 403
+          : ["unpaid", "invalid_state", "unsupported_package", "amount_mismatch", "currency_mismatch"].includes(err.code) ? 400
+          : err.code === "concurrent_conflict" ? 409 : 404;
+        return res.status(status).json({ message: err.message });
+      }
+      console.error("Verify purchase error:", err instanceof Error ? err.message : "unknown error");
+      return res.status(502).json({ message: "Unable to verify payment with Stripe" });
     }
   });
 

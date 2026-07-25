@@ -683,6 +683,18 @@ app.use((req, res, next) => {
   // and idempotent: verified zero duplicate stripe_session_id rows before adding.
   await runMigration("uq_coin_purchases_stripe_session_id",
     () => db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS uq_coin_purchases_stripe_session_id ON coin_purchases (stripe_session_id)`));
+  await runMigration("coin_purchase_fulfillment_columns", () => db.execute(sql`
+    ALTER TABLE coin_purchases
+      ADD COLUMN IF NOT EXISTS stripe_payment_intent_id text,
+      ADD COLUMN IF NOT EXISTS stripe_event_id text,
+      ADD COLUMN IF NOT EXISTS package_id text,
+      ADD COLUMN IF NOT EXISTS amount_cents integer,
+      ADD COLUMN IF NOT EXISTS currency varchar(3),
+      ADD COLUMN IF NOT EXISTS fulfillment_status varchar(20) NOT NULL DEFAULT 'fulfilled',
+      ADD COLUMN IF NOT EXISTS fulfilled_at timestamp,
+      ADD COLUMN IF NOT EXISTS result_metadata jsonb,
+      ADD COLUMN IF NOT EXISTS updated_at timestamp NOT NULL DEFAULT NOW()
+  `));
   await runMigration("idx_pet_template_parts_template_id",
     () => db.execute(sql`CREATE INDEX IF NOT EXISTS idx_pet_template_parts_template_id ON pet_template_parts (template_id)`));
   await runMigration("idx_world_chat_messages_created_at",

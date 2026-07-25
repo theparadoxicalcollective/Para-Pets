@@ -304,7 +304,16 @@ export const coinPurchases = pgTable("coin_purchases", {
   amountUsd: integer("amount_usd").notNull(),
   coinsReceived: integer("coins_received").notNull(),
   stripeSessionId: text("stripe_session_id").notNull(),
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  stripeEventId: text("stripe_event_id"),
+  packageId: text("package_id"),
+  amountCents: integer("amount_cents"),
+  currency: varchar("currency", { length: 3 }),
+  fulfillmentStatus: varchar("fulfillment_status", { length: 20 }).notNull().default("fulfilled"),
+  fulfilledAt: timestamp("fulfilled_at"),
+  resultMetadata: jsonb("result_metadata"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
