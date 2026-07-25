@@ -88,6 +88,8 @@ test("first potion claim grants the unchanged server item and exact quantity", a
     tutorialId: "begin-journey",
     itemId: "3e6d7b47-b4c5-4a34-bd69-c039a31e1770",
     quantity: 3,
+    grantedQuantity: 3,
+    alreadyGranted: false,
   });
   assert.deepEqual([fake.potionQuantity, fake.claimedPotions], [3, true]);
 });
@@ -100,6 +102,7 @@ test("potion retries, lost responses, and concurrent devices grant one bundle", 
   ]);
   assert.deepEqual(concurrent.map((result) => result.status).sort(), ["already_granted", "granted"]);
   assert.equal((await executeTutorialHatchPotionGrant("player-1", fake)).status, "already_granted");
+  assert.equal((await executeTutorialHatchPotionGrant("player-1", fake)).grantedQuantity, 0);
   assert.deepEqual([fake.potionQuantity, fake.claimedPotions], [3, true]);
 });
 
@@ -138,7 +141,11 @@ test("completion is durable, replay-safe, concurrent, and grants no direct value
   ]);
   assert.deepEqual(concurrent.map((result) => result.status).sort(), ["already_completed", "completed"]);
   assert.deepEqual([fake.completed, fake.coins, fake.rewardClaimed], [true, 100, false]);
-  assert.equal((await executeTutorialCompletion("player-1", fake)).status, "already_completed");
+  const replay = await executeTutorialCompletion("player-1", fake);
+  assert.deepEqual(
+    [replay.status, replay.tutorialCompleted, replay.alreadyCompleted],
+    ["already_completed", true, true],
+  );
 });
 
 test("completion failure leaves authoritative completion false", async () => {
@@ -173,7 +180,10 @@ test("public routes use authentication, session ownership, empty bodies, and foc
     assert.match(routes, new RegExp(`app\\.post\\(\"/api/tutorial/${path}\", isAuthenticated`));
   }
   assert.match(routes, /const userId = req\.user!\.id/);
-  assert.match(routes, /Object\.keys\(req\.body \?\? \{\}\)\.length > 0/);
+  assert.match(routes, /requireEmptyTutorialBody\(req\.body\)/);
+  assert.match(routes, /typeof body !== "object" \|\| Array\.isArray\(body\)/);
+  assert.match(routes, /errorCode: error\.code/);
+  assert.match(routes, /errorCode: "tutorial_operation_failed"/);
   assert.match(routes, /grantTutorialHatchPotions\(userId\)/);
   assert.match(routes, /completeTutorial\(userId\)/);
   assert.match(routes, /claimTutorialReward\(userId\)/);

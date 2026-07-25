@@ -37,7 +37,7 @@ import {
   createInventoryListing,
 } from "./marketplace/transactions";
 import { claimTutorialReward, completeTutorial, grantTutorialHatchPotions } from "./tutorial/tutorialService";
-import { TutorialError } from "./tutorial/errors";
+import { invalidTutorialRequest, TutorialError } from "./tutorial/errors";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -46,6 +46,26 @@ function marketplaceHttpStatus(error: MarketplaceError): number {
   if (error.code === "wrong_owner") return 403;
   if (["already_sold", "already_cancelled", "already_collected", "conflict", "not_active"].includes(error.code)) return 409;
   return 400;
+}
+
+function sendTutorialError(res: Response, error: unknown, operation: string) {
+  if (error instanceof TutorialError) {
+    const status = error.code === "invalid_request" ? 400
+      : error.code === "player_not_found" ? 404
+      : error.code === "tutorial_not_completed" ? 409
+      : error.code === "reward_item_unavailable" ? 503
+      : 409;
+    return res.status(status).json({ errorCode: error.code, message: error.message });
+  }
+  console.error(`[tutorial] ${operation} error:`, error);
+  return res.status(500).json({ errorCode: "tutorial_operation_failed", message: "Tutorial operation failed" });
+}
+
+function requireEmptyTutorialBody(body: unknown): void {
+  if (body == null) return;
+  if (typeof body !== "object" || Array.isArray(body) || Object.keys(body).length > 0) {
+    throw invalidTutorialRequest();
+  }
 }
 
 
@@ -8538,18 +8558,17 @@ export async function registerRoutes(
   app.post("/api/tutorial/grant-hatch-potions", isAuthenticated, async (req: any, res) => {
     const userId = req.user!.id;
     try {
-      if (Object.keys(req.body ?? {}).length > 0) {
-        return res.status(400).json({ message: "Request body must be empty" });
-      }
+      requireEmptyTutorialBody(req.body);
       const result = await grantTutorialHatchPotions(userId);
       return res.json({
         granted: result.status === "granted",
-        alreadyGranted: result.status === "already_granted",
+        alreadyGranted: result.alreadyGranted,
+        grantedQuantity: result.grantedQuantity,
+        potionGrantStatus: result.status,
         status: result.status,
       });
     } catch (err) {
-      console.error("[tutorial] grant-hatch-potions error:", err);
-      return res.status(500).json({ message: "Server error" });
+      return sendTutorialError(res, err, "grant-hatch-potions");
     }
   });
 
@@ -8734,14 +8753,16 @@ export async function registerRoutes(
   app.post("/api/tutorial/complete", isAuthenticated, async (req: any, res) => {
     const userId = req.user!.id;
     try {
-      if (Object.keys(req.body ?? {}).length > 0) {
-        return res.status(400).json({ message: "Request body must be empty" });
-      }
+      requireEmptyTutorialBody(req.body);
       const result = await completeTutorial(userId);
-      return res.json({ ok: true, status: result.status });
+      return res.json({
+        ok: true,
+        status: result.status,
+        tutorialCompleted: result.tutorialCompleted,
+        alreadyCompleted: result.alreadyCompleted,
+      });
     } catch (err) {
-      console.error("[tutorial] complete error:", err);
-      return res.status(500).json({ message: "Server error" });
+      return sendTutorialError(res, err, "complete");
     }
   });
 
@@ -8792,9 +8813,7 @@ export async function registerRoutes(
   app.post("/api/tutorial/claim-reward", isAuthenticated, async (req: any, res) => {
     const userId = req.user!.id;
     try {
-      if (Object.keys(req.body ?? {}).length > 0) {
-        return res.status(400).json({ message: "Request body must be empty" });
-      }
+      requireEmptyTutorialBody(req.body);
       const result = await claimTutorialReward(userId);
       return res.json({
         alreadyClaimed: result.status === "already_claimed",
@@ -8803,11 +8822,7 @@ export async function registerRoutes(
         status: result.status,
       });
     } catch (err) {
-      if (err instanceof TutorialError && err.code === "tutorial_not_completed") {
-        return res.status(409).json({ message: "Tutorial is not complete" });
-      }
-      console.error("[tutorial] claim-reward error:", err);
-      return res.status(500).json({ message: "Server error" });
+      return sendTutorialError(res, err, "claim-reward");
     }
   });
 

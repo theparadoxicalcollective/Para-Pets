@@ -75,6 +75,15 @@ messages; HTTP failures do not expose SQL or item configuration. There is no
 generic public inventory mint endpoint and no alternate tutorial potion or coin
 caller.
 
+Successful potion and completion responses include explicit reconciliation
+fields (`potionGrantStatus`, `grantedQuantity`, `alreadyGranted`,
+`tutorialCompleted`, and `alreadyCompleted`). A replay is therefore an HTTP
+success with zero newly granted quantity rather than an ambiguous conflict.
+Tutorial routes reject non-object, array, and non-empty JSON bodies with the
+stable `invalid_request` code. Known domain failures map to stable, non-sensitive
+4xx/503 bodies, while unexpected transaction/SQL failures use the generic
+`tutorial_operation_failed` response.
+
 ## Transactions, locks, retries, and concurrency
 
 The hatch grant opens one PostgreSQL transaction and locks the authenticated
