@@ -23,12 +23,26 @@ export interface FishingAttemptStarted {
 }
 
 export interface FishingAttemptResult {
+  outcome: "caught" | "miss";
   caught: { id: string; userId: string; shopItemId: string; caughtAt: string; inAquarium: boolean; aquariumSlot: string } | null;
+  fishItemId?: string;
   item?: Record<string, unknown> | null;
   reason?: "miss";
   replayed?: boolean;
   totalFishCaught?: number;
   worldId?: string | null;
+}
+
+export function normalizeFishingAttemptResult(value: unknown): FishingAttemptResult {
+  let parsed = value;
+  if (typeof parsed === "string") {
+    try { parsed = JSON.parse(parsed); } catch { parsed = null; }
+  }
+  if (!parsed || typeof parsed !== "object") throw new Error("Stored fishing attempt result is invalid");
+  const result = parsed as Partial<FishingAttemptResult>;
+  const outcome = result.outcome ?? (result.caught ? "caught" : result.reason === "miss" ? "miss" : undefined);
+  if (outcome !== "caught" && outcome !== "miss") throw new Error("Stored fishing attempt outcome is invalid");
+  return { ...result, outcome, caught: result.caught ?? null } as FishingAttemptResult;
 }
 
 type Db = typeof import("./db").db;
@@ -117,7 +131,9 @@ export async function completeFishingAttempt(
     if (!attempt) throw new FishingAttemptError("not_found");
     if (attempt.user_id !== input.userId) throw new FishingAttemptError("wrong_owner");
     if (attempt.location_id !== input.locationId) throw new FishingAttemptError("wrong_location");
-    if (attempt.status === "completed" && attempt.result_json) return { ...attempt.result_json, replayed: true };
+    if (attempt.status === "completed" && attempt.result_json) {
+      return { ...normalizeFishingAttemptResult(attempt.result_json), replayed: true };
+    }
     if (attempt.status !== "pending" || attempt.is_expired) {
       if (attempt.status === "pending") await tx.execute(sql`UPDATE fishing_attempts SET status = 'expired' WHERE id = ${input.attemptId}`);
       throw new FishingAttemptError("expired");
@@ -139,7 +155,7 @@ export async function completeFishingAttempt(
     const boundedScore = Math.min(99, Math.floor(input.interactionScore));
     const catchChance = 0.20 + (boundedScore / 100) * 0.65;
     if (Number(attempt.catch_roll) > catchChance) {
-      const result: FishingAttemptResult = { caught: null, reason: "miss" };
+      const result: FishingAttemptResult = { outcome: "miss", caught: null, reason: "miss" };
       await tx.execute(sql`UPDATE fishing_attempts SET status = 'completed', completed_at = NOW(), result_json = ${JSON.stringify(result)}::jsonb WHERE id = ${input.attemptId}`);
       return result;
     }
@@ -186,7 +202,9 @@ export async function completeFishingAttempt(
         completed = CASE WHEN user_daily_quest_progress.completed THEN true ELSE user_daily_quest_progress.progress + 1 >= (SELECT target_count FROM daily_quests WHERE quest_key='catch_fish') END
     `);
     const result: FishingAttemptResult = {
+      outcome: "caught",
       caught: { id: caught.id, userId: caught.user_id, shopItemId: caught.shop_item_id, caughtAt: caught.caught_at, inAquarium: caught.in_aquarium, aquariumSlot: caught.aquarium_slot },
+      fishItemId: attempt.selected_fish_id,
       item: Object.fromEntries(Object.entries(fishItem).map(([key, value]) => [key.replace(/_([a-z])/g, (_, c) => c.toUpperCase()), value])),
       totalFishCaught: Number(total.total_fish_caught), worldId: attempt.world_id,
     };

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { FISHING_ATTEMPT_TTL_MS, FISH_POINTS, FishingAttemptError, selectAuthoritativeFish } from "../server/fishingAttempt";
+import { FISHING_ATTEMPT_TTL_MS, FISH_POINTS, FishingAttemptError, normalizeFishingAttemptResult, selectAuthoritativeFish } from "../server/fishingAttempt";
+import { fishingCompletionOutcome } from "../client/src/lib/fishingAttemptResult";
 
 const pond = [
   { shop_item_id: "common-a", star_rarity: 1 },
@@ -28,6 +29,26 @@ test("attempt constants preserve expiry, leaderboard points, and rarity weights 
   assert.deepEqual(FISH_POINTS, { 1: 10, 2: 12, 3: 20, 4: 25, 5: 50 });
 });
 
+test("fresh and replayed catches retain the same authoritative caught outcome", () => {
+  const fresh = normalizeFishingAttemptResult({ outcome: "caught", caught: { shopItemId: "fish-1" }, fishItemId: "fish-1" });
+  const replay = { ...normalizeFishingAttemptResult(JSON.stringify(fresh)), replayed: true };
+  assert.equal(fishingCompletionOutcome(fresh), "caught");
+  assert.equal(fishingCompletionOutcome(replay), "caught");
+  assert.equal(replay.caught?.shopItemId, "fish-1");
+});
+
+test("caught outcome does not depend on complete item metadata", () => {
+  const response = { outcome: "caught" as const, caught: null, fishItemId: "fish-1", item: null };
+  assert.equal(fishingCompletionOutcome(response), "caught");
+  assert.equal(response.fishItemId, "fish-1");
+});
+
+test("committed miss and legacy durable results normalize without changing semantics", () => {
+  assert.equal(fishingCompletionOutcome(normalizeFishingAttemptResult({ outcome: "miss", caught: null, reason: "miss" })), "miss");
+  assert.equal(normalizeFishingAttemptResult({ caught: { shopItemId: "legacy-fish" } }).outcome, "caught");
+  assert.equal(normalizeFishingAttemptResult({ caught: null, reason: "miss" }).outcome, "miss");
+});
+
 test("production protocol rejects old authority fields and atomically records all core writes", () => {
   const route = readFileSync("server/routes/fishing.routes.ts", "utf8");
   const service = readFileSync("server/fishingAttempt.ts", "utf8");
@@ -41,6 +62,8 @@ test("production protocol rejects old authority fields and atomically records al
     assert.match(service, new RegExp(mutation));
   }
   assert.match(service, /return db\.transaction/);
+  assert.match(service, /outcome: "caught"/);
+  assert.match(service, /outcome: "miss"/);
 });
 
 test("durable schema has ownership, expiry, hidden outcome, replay result, and lookup indexes", () => {
