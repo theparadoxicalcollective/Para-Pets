@@ -4,6 +4,7 @@ import test from "node:test";
 
 const rootRoutesSource = readFileSync(new URL("../server/routes.ts", import.meta.url), "utf8");
 const fishingRoutesSource = readFileSync(new URL("../server/routes/fishing.routes.ts", import.meta.url), "utf8");
+const marketplaceSource = readFileSync(new URL("../server/marketplace/transactions.ts", import.meta.url), "utf8");
 const routesSource = rootRoutesSource + fishingRoutesSource;
 const clientSourceFiles = [
   "../client/src/pages/FishingPage.tsx",
@@ -32,8 +33,8 @@ test("trusted server fish grants remain available only to catch and market trans
   const helperCalls = [...routesSource.matchAll(/storage\.addFishToPlayerInventory\(([^)]*)\)/g)]
     .map(match => match[1].replace(/\s+/g, " ").trim());
 
-  assert.deepEqual(helperCalls, [
-    "user.id, invItem.shopItemId",
-    "user.id, invItem.shopItemId",
-  ]);
+  assert.deepEqual(helperCalls, []);
+  assert.equal(marketplaceSource.match(/tx\.insert\(playerFishInventory\)/g)?.length, 2);
+  assert.match(marketplaceSource, /export async function buyListing/);
+  assert.match(marketplaceSource, /export async function cancelListing/);
 });

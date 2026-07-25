@@ -32,6 +32,10 @@ This document describes the current production architecture on `main` after the 
 
 ## Security-sensitive areas
 
+### Player marketplace transaction boundary (2026-07)
+
+Marketplace read and mutation routes remain registered once in `server/routes.ts`; `client/src/pages/MarketPage.tsx` remains their only client owner. The five listing lifecycle mutations delegate authenticated actor IDs to `server/marketplace/transactions.ts`. That service owns PostgreSQL transactions, row locks, conditional balance/status/escrow writes, category-specific fish versus general inventory transfer, and typed domain failures. The involved tables are `users`, `shop_items`, `user_inventory`, `player_fish_inventory`, and `player_market_listings`. Browser authority is limited to the selected inventory/listing identifier and the existing player-selected listing price; stored listing price and session identity control all value movement. The sold listing is the existing pending-proceeds record, and collection atomically credits its stored price before deleting it. Marketplace has no notification, badge, quest, or metric side effects. See [`MARKETPLACE_SYSTEM_AUDIT.md`](./MARKETPLACE_SYSTEM_AUDIT.md) for the route inventory, original risks, lock order, retry semantics, schema findings, and deliberate limitations.
+
 - `server/auth.ts` contains the canonical authenticated-player and verified-administrator middleware. Privileged routes should use these guards rather than reimplementing role checks.
 - `server/index.ts` owns Passport local authentication, session cookies, `SESSION_SECRET` production enforcement, rate limits, and the Stripe raw-body webhook boundary.
 - Registration in `server/routes/account.routes.ts` must always use least-privilege defaults. `server/registration.ts` makes the fixed `isAdmin: false` and `isModerator: false` registration contract explicit.

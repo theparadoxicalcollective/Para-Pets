@@ -1131,6 +1131,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
       apiRequest("POST", "/api/market/list", { inventoryId, price }),
     onSuccess: () => {
       setShowSellModal(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/market"] });
       queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       toast({ title: "Listed!", description: "Your item is now on the market." });
@@ -1143,6 +1144,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
       apiRequest("POST", "/api/market/list-fish", { fishInventoryId, price }),
     onSuccess: () => {
       setShowSellModal(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/market"] });
       queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
       toast({ title: "Fish listed!", description: "Your fish is now on the market." });
@@ -1176,7 +1178,11 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
       playChime();
       toast({ title: "Purchase complete!", description: "Check your inventory." });
     },
-    onError: (e: any) => toast({ title: "Purchase failed", description: e.message, variant: "destructive" }),
+    onError: (e: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/market"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
+      toast({ title: "Purchase failed", description: e.message, variant: "destructive" });
+    },
   });
 
   const collectMutation = useMutation({
@@ -1193,8 +1199,10 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
   const cancelMutation = useMutation({
     mutationFn: (listingId: string) => apiRequest("DELETE", `/api/market/${listingId}`, {}),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/market"] });
       queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
       toast({ title: "Listing cancelled", description: "Your item is back in inventory." });
     },
     onError: (e: any) => toast({ title: "Failed to cancel", description: e.message, variant: "destructive" }),
@@ -1446,8 +1454,8 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
                       listing={listing}
                       isMine={true}
                       user={user}
-                      onCollect={l => collectMutation.mutate(l.id)}
-                      onCancel={l => cancelMutation.mutate(l.id)}
+                      onCollect={l => { if (!collectMutation.isPending) collectMutation.mutate(l.id); }}
+                      onCancel={l => { if (!cancelMutation.isPending) cancelMutation.mutate(l.id); }}
                     />
                   ))}
                   {Array.from({ length: emptySlots }).map((_, i) => (
