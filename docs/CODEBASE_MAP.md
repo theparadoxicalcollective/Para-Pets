@@ -15,7 +15,7 @@ This document describes the current production architecture on `main` after the 
 | --- | --- |
 | Identity, accounts, verification, bans, sessions | `server/index.ts`, `server/auth.ts`, registration and account routes in `server/routes.ts` |
 | Pets, inventory, accessories, care and houses | `client/src/pages/PetCarePage.tsx`, `PetHousePage.tsx`, `PetInventoryPage.tsx`; relevant routes/storage/schema |
-| World exploration, locations, cave combat | `client/src/pages/WorldPage.tsx`, `PetWorldPage.tsx`, `LavaCrawlPage.tsx`, `server/routes.ts` |
+| World exploration, locations, cave combat | `client/src/pages/WorldPage.tsx`, reusable world-location rendering in `client/src/components/world/WorldLocations.tsx`, `PetWorldPage.tsx`, `LavaCrawlPage.tsx`, `server/routes.ts` |
 | PvP and raid battles | `client/src/pages/PvpArenaPage.tsx`, `PvpBattlePage.tsx`, `RaidPage.tsx`; `server/seedPvpBots.ts` |
 | Fishing and aquarium | `client/src/pages/FishingPage.tsx`, `AquariumPage.tsx`, `SellFishPage.tsx`, `client/src/components/FishingAdminPanel.tsx`; fishing/aquarium HTTP routes in `server/routes/fishing.routes.ts`, shared callbacks in `server/routes.ts`, and persistence in `server/storage.ts`; see [`FISHING_SYSTEM_AUDIT.md`](./FISHING_SYSTEM_AUDIT.md) |
 | Economy, shops, inventory and Stripe purchases | `client/src/pages/CoinShopPage.tsx`, `MarketPage.tsx`, `server/stripeClient.ts`, Stripe webhook/routes |
