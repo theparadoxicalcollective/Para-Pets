@@ -4,6 +4,9 @@ import test from "node:test";
 
 const pageSource = readFileSync("client/src/pages/WorldPage.tsx", "utf8");
 const overlaySource = readFileSync("client/src/components/world/WorldCaveOverlay.tsx", "utf8");
+const arenaSource = readFileSync("client/src/components/BattleArena.tsx", "utf8");
+const routesSource = readFileSync("server/routes.ts", "utf8");
+const storageSource = readFileSync("server/storage.ts", "utf8");
 
 test("Murk Cave entry and battle render through one typed overlay boundary", () => {
   assert.equal((pageSource.match(/<WorldCaveOverlay/g) ?? []).length, 1);
@@ -20,6 +23,43 @@ test("all ten cave tiers retain their paired banner and entrance art", () => {
     assert.match(overlaySource, new RegExp(`caveEnter${tier}`));
   }
   assert.match(overlaySource, /button-cave-enter-tier-\$\{tier\}/);
+});
+
+test("all ten tiers share one fixed Enter-button layout contract", () => {
+  assert.match(overlaySource, /export const CAVE_ENTER_LAYOUT = \{/);
+  assert.match(overlaySource, /height: "24%"/);
+  assert.match(overlaySource, /\.\.\.CAVE_ENTER_LAYOUT/);
+  assert.match(overlaySource, /w-full h-full object-contain object-bottom/);
+  assert.equal((overlaySource.match(/CAVE_ENTER_LAYOUT/g) ?? []).length, 2);
+});
+
+test("the selected cave tier is preserved from entry through the six-wave battle", () => {
+  assert.match(pageSource, /onEnterTier=\{\(tier\) => \{[\s\S]*?setCaveBattleTier\(tier\)/);
+  assert.match(overlaySource, /caveTier=\{props\.caveTier\}/);
+  assert.match(arenaSource, /encounterBody\.caveTier = caveTier/);
+  assert.match(arenaSource, /WAVE \{\(allEnemies\[waveIndex\]\?\.waveGroup \?\? waveIndex\) \+ 1\} \/ 6/);
+});
+
+test("six-wave victory reports cave completion exactly once", () => {
+  assert.match(arenaSource, /caveCompletionReportedRef = useRef\(false\)/);
+  assert.match(arenaSource, /isCave && phase === "victory" && !caveCompletionReportedRef\.current/);
+  assert.match(arenaSource, /caveCompletionReportedRef\.current = true/);
+  assert.equal((arenaSource.match(/onCaveTierComplete\?\.\(\)/g) ?? []).length, 1);
+});
+
+test("server completion persistence and rewards are retry-safe", () => {
+  assert.match(routesSource, /completePetCaveTier\(petInventoryId, tier\)/);
+  assert.match(routesSource, /progress\.newlyCompleted \? tier \* 100 : 0/);
+  assert.match(storageSource, /pg_advisory_xact_lock/);
+  assert.match(storageSource, /previousCompleted\.includes\(tier\)/);
+  assert.match(storageSource, /ON CONFLICT \(pet_inventory_id\) DO UPDATE/);
+});
+
+test("cleared state and the following tier use refreshed persisted progress", () => {
+  assert.match(overlaySource, /completedTiers\.includes\(tier\)/);
+  assert.match(overlaySource, /✓ CLEARED/);
+  assert.match(overlaySource, /completedTiers\.includes\(tier - 1\)/);
+  assert.match(pageSource, /invalidateQueries\(\{ queryKey: \["\/api\/cave\/progress", currentUser\.activePetId\] \}\)/);
 });
 
 test("BattleArena keeps the cave session boundary", () => {
