@@ -34,8 +34,12 @@ export const CAVE_TIERS = [
 ] as const;
 
 export const CAVE_ENTER_LAYOUT = {
-  width: "38%",
-  height: "24%",
+  // Banner aspect ratios change after tier 5, so a percentage of banner height
+  // makes the reused artwork visibly smaller. Size from the portrait viewport
+  // instead, with sensible mobile bounds, while leaving enough width for the
+  // complete image (and therefore its complete click target).
+  width: "min(38%, 140px)",
+  height: "clamp(24px, 6.5vw, 32px)",
   bottom: "2%",
 } as const;
 
