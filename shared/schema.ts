@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, boolean, timestamp, integer, real, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, timestamp, integer, real, unique, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -921,7 +921,10 @@ export const purchaseMilestoneClaims = pgTable("purchase_milestone_claims", {
   milestonePoints: integer("milestone_points").notNull(),
   monthYear: varchar("month_year", { length: 7 }).notNull(),
   claimedAt: timestamp("claimed_at").notNull().default(sql`now()`),
-});
+}, (table) => ({
+  playerMilestoneCycleUnique: unique("purchase_milestone_claims_user_id_milestone_points_month_year_key")
+    .on(table.userId, table.milestonePoints, table.monthYear),
+}));
 
 // ── Purchase Milestone Rewards (admin-configured) ─────────────────────────────
 export const purchaseMilestoneRewards = pgTable("purchase_milestone_rewards", {

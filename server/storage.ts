@@ -353,7 +353,6 @@ export interface IStorage {
   getMonthlyProgress(userId: string, monthYear: string): Promise<number>;
   addPurchaseProgress(userId: string, points: number, monthYear: string): Promise<number>;
   getClaimedMilestones(userId: string, monthYear: string): Promise<number[]>;
-  claimMilestone(userId: string, milestonePoints: number, monthYear: string): Promise<boolean>;
   getMilestoneRewards(): Promise<any[]>;
   setMilestoneReward(milestonePoints: number, data: { rewardCoins?: number; rewardItemId?: string | null; rewardItemName?: string | null; rewardItemImageUrl?: string | null; rewardLabel?: string | null; starRarity?: number | null }): Promise<void>;
   getVWQuotes(): Promise<VeridianWatcherQuote[]>;
@@ -3444,18 +3443,6 @@ export class DatabaseStorage implements IStorage {
       WHERE user_id = ${userId} AND month_year = ${monthYear}
     `);
     return result.rows.map((r: any) => Number(r.milestone_points));
-  }
-
-  async claimMilestone(userId: string, milestonePoints: number, monthYear: string): Promise<boolean> {
-    try {
-      await db.execute(sql`
-        INSERT INTO purchase_milestone_claims (user_id, milestone_points, month_year)
-        VALUES (${userId}, ${milestonePoints}, ${monthYear})
-      `);
-      return true;
-    } catch {
-      return false;
-    }
   }
 
   async getMilestoneRewards(): Promise<any[]> {
