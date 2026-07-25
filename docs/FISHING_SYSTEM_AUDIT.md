@@ -246,6 +246,45 @@ registration only after characterization tests.
    Low production risk/medium organization scope; no migration; inject shared
    helpers rather than importing route modules.
 
+## Atomic aquarium unlock boundary (2026-07)
+
+The former `POST /api/aquarium/unlock` handler read ownership, called
+`storage.atomicDeductCoins`, and then separately called
+`storage.unlockAquarium`. Although the debit itself was conditional and the
+ownership insert used `ON CONFLICT DO NOTHING`, those operations did not share
+a transaction. An insert failure could therefore leave a debit without an
+unlock, and two requests that passed the early ownership read could both debit
+before either ownership insert completed.
+
+`server/aquariumUnlock.ts` now owns the canonical server configuration (Bayou
+20,000 coins and Volcanic 25,000 coins) and the complete purchase transaction.
+Within one PostgreSQL transaction it validates the aquarium ID, takes a
+transaction-level advisory lock for the authenticated user/aquarium pair, locks
+the authenticated `users` row `FOR UPDATE`, rechecks ownership, conditionally
+debits the configured price, and inserts the ownership row. The insert must
+return exactly one row; otherwise the transaction throws and PostgreSQL rolls
+back the debit. Balance failures likewise leave no ownership row.
+
+The pair advisory lock protects the first-purchase case where no ownership row
+yet exists. The user-row lock gives balance writes a deterministic per-player
+order. A concurrent duplicate waits, then observes ownership and receives the
+already-unlocked conflict response; a retry after a committed purchase follows
+the same path and cannot charge again. Predicates use only the authenticated
+user ID, and the player request accepts only `aquariumId`; client-supplied
+identity, price, balance, reward, or ownership fields are rejected.
+
+No schema change was required. The existing idempotent Railway startup DDL for
+`player_aquarium_unlocks` declares `UNIQUE(user_id, aquarium_id)`, and the
+transaction retains `ON CONFLICT (user_id, aquarium_id) DO NOTHING` as a final
+constraint-backed safeguard. Because this constraint has existed since table
+creation, this change assumes production uses that repository-managed table;
+it performs no duplicate cleanup or risky startup index creation.
+
+This boundary intentionally changes neither aquarium fish placement/sync nor
+its known select-then-update concurrency risks. Aquarium visuals, capacity,
+fish behavior, fishing attempts and odds, player-market transfers, and all
+other economy values remain outside this task.
+
 ## Fishing route-module extraction (2026-07 organization refactor)
 
 The cohesive fishing and aquarium HTTP registrations audited above now live in

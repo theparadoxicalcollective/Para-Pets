@@ -1,6 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
 import { FishingAttemptError, abandonFishingAttempt, completeFishingAttempt, startFishingAttempt } from "../fishingAttempt";
+import { getAquariumUnlockErrorReason, purchaseAquariumUnlock } from "../aquariumUnlock";
 
 const FISH_CATCH_REWARD_COINS = 10;
 
@@ -534,29 +535,23 @@ export function registerFishingAquariumRoutes(app: Express, deps: FishingRouteDe
   });
 
   // Purchase an aquarium unlock
-  const AQUARIUM_PRICES: Record<string, number> = { bayou: 20000, volcanic: 25000 };
   app.post("/api/aquarium/unlock", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { aquariumId } = req.body;
-      if (!aquariumId || !AQUARIUM_PRICES[aquariumId]) {
+      const body = req.body as Record<string, unknown> | null;
+      if (!body || typeof body.aquariumId !== "string" ||
+          Object.keys(body).some((key) => key !== "aquariumId")) {
         return res.status(400).json({ message: "Invalid aquarium ID" });
       }
-      const price = AQUARIUM_PRICES[aquariumId];
-      // Check not already unlocked
-      const existing = await storage.getAquariumUnlocks(user.id);
-      if (existing.includes(aquariumId)) {
-        return res.status(400).json({ message: "Already unlocked" });
-      }
-      // Atomic coin deduction — returns null if insufficient funds
-      const updated = await storage.atomicDeductCoins(user.id, price);
-      if (!updated) {
-        return res.status(400).json({ message: "Not enough coins" });
-      }
-      await storage.unlockAquarium(user.id, aquariumId);
-      return res.json({ ok: true, coinsRemaining: updated.coins });
+      const result = await purchaseAquariumUnlock(user.id, body.aquariumId);
+      return res.json(result);
     } catch (err: any) {
-      return res.status(500).json({ message: err.message });
+      const reason = getAquariumUnlockErrorReason(err);
+      if (reason === "invalid-aquarium") return res.status(400).json({ message: "Invalid aquarium ID" });
+      if (reason === "already-unlocked") return res.status(409).json({ message: "Already unlocked" });
+      if (reason === "insufficient-funds") return res.status(400).json({ message: "Not enough coins" });
+      console.error("Aquarium unlock transaction failed:", err);
+      return res.status(500).json({ message: "Failed to unlock aquarium" });
     }
   });
 
