@@ -23,8 +23,23 @@ import { registerAccountRoutes } from "./routes/account.routes";
 import { registerSupportRoutes } from "./routes/support.routes";
 import { registerBadgeRoutes, registerPlayerBadgeRoutes } from "./routes/badge.routes";
 import { registerFishingAquariumRoutes, registerFishingRoutes, type FishingRouteDependencies } from "./routes/fishing.routes";
+import {
+  MarketplaceError,
+  buyListing,
+  cancelListing,
+  collectProceeds,
+  createFishListing,
+  createInventoryListing,
+} from "./marketplace/transactions";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+function marketplaceHttpStatus(error: MarketplaceError): number {
+  if (error.code === "not_found" || error.code === "item_not_owned") return 404;
+  if (error.code === "wrong_owner") return 403;
+  if (["already_sold", "already_cancelled", "already_collected", "conflict", "not_active"].includes(error.code)) return 409;
+  return 400;
+}
 
 
 
@@ -6061,176 +6076,64 @@ export async function registerRoutes(
   app.post("/api/market/list", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { inventoryId, price } = req.body;
-      if (!inventoryId || price == null) return res.status(400).json({ message: "inventoryId and price required" });
-      if (typeof price !== "number" || price < 1 || price > 1000000) return res.status(400).json({ message: "Price must be between 1 and 1,000,000 coins" });
-
-      const invItem = await storage.getInventoryItemById(inventoryId);
-      if (!invItem || invItem.userId !== user.id) return res.status(404).json({ message: "Item not found in your inventory" });
-      if (invItem.isListed) return res.status(400).json({ message: "Item is already listed" });
-
-      const shopItem = await storage.getShopItem(invItem.shopItemId);
-      if (!shopItem) return res.status(404).json({ message: "Item data not found" });
-
-      // Pet eggs (unhatched) can be sold; hatched pets cannot
-      if (shopItem.type === "pet") {
-        if (invItem.isHatched) return res.status(400).json({ message: "Hatch your pet into an egg first before listing — use the Revert to Egg option." });
-        if (invItem.isListed) return res.status(400).json({ message: "Pet egg is already listed" });
-      }
-
-      const myListings = await storage.getMyMarketListings(user.id);
-      const activeOrPending = myListings.filter(l => l.status === "active" || l.status === "sold");
-      const totalSlots = 25 + (user.marketExtraSlots ?? 0);
-      if (activeOrPending.length >= totalSlots) return res.status(400).json({ message: `You've reached your listing limit (${totalSlots} slots). Collect sold coins or buy more slots.` });
-
-      // For pet eggs, use the egg image; keep pet stats on the inventory item
-      const isPetEgg = shopItem.type === "pet";
-      const listing = await storage.createMarketListing({
-        sellerId: user.id,
-        sellerName: user.username,
-        inventoryId,
-        shopItemId: shopItem.id,
-        itemName: shopItem.name,
-        itemImageUrl: isPetEgg ? (shopItem.eggImageUrl ?? shopItem.imageUrl) : shopItem.imageUrl,
-        // For fishing items, use the more specific fishingType ("fish", "pole", "bait")
-        // so market filters can distinguish fish from poles. Pet eggs get their own type.
-        itemType: isPetEgg ? "pet_egg" : (shopItem.type === "fishing" && shopItem.fishingType) ? shopItem.fishingType : shopItem.type,
-        price,
-      });
+      const { inventoryId, price } = req.body ?? {};
+      if (typeof inventoryId !== "string" || price == null) return res.status(400).json({ message: "inventoryId and price required" });
+      const listing = await createInventoryListing({ actorId: user.id, inventoryId, price });
       return res.json(listing);
     } catch (err: any) {
-      return res.status(500).json({ message: err.message || "Failed to create listing" });
+      if (err instanceof MarketplaceError) return res.status(marketplaceHttpStatus(err)).json({ message: err.message, code: err.code });
+      console.error("Marketplace listing transaction failed:", err);
+      return res.status(500).json({ message: "Failed to create listing", code: "transaction_failure" });
     }
   });
 
   app.post("/api/market/list-fish", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const { fishInventoryId, price } = req.body;
-      if (!fishInventoryId || price == null) return res.status(400).json({ message: "fishInventoryId and price required" });
-      if (typeof price !== "number" || price < 1 || price > 1000000) return res.status(400).json({ message: "Price must be between 1 and 1,000,000 coins" });
-
-      const fishItem = await storage.getFishInventoryItemById(fishInventoryId, user.id);
-      if (!fishItem) return res.status(404).json({ message: "Fish not found in your inventory" });
-      if (fishItem.inAquarium) return res.status(400).json({ message: "Remove the fish from your aquarium before listing it" });
-
-      const shopItem = await storage.getShopItem(fishItem.shopItemId);
-      if (!shopItem) return res.status(404).json({ message: "Fish item data not found" });
-
-      const myListings = await storage.getMyMarketListings(user.id);
-      const activeOrPending = myListings.filter((l: any) => l.status === "active" || l.status === "sold");
-      const totalSlots = 25 + (user.marketExtraSlots ?? 0);
-      if (activeOrPending.length >= totalSlots) return res.status(400).json({ message: `You've reached your listing limit (${totalSlots} slots). Collect sold coins or buy more slots.` });
-
-      const invItem = await storage.createListedFishInventoryEntry(user.id, fishItem.shopItemId, fishInventoryId);
-      const listing = await storage.createMarketListing({
-        sellerId: user.id,
-        sellerName: user.username,
-        inventoryId: invItem.id,
-        shopItemId: shopItem.id,
-        itemName: shopItem.name,
-        itemImageUrl: shopItem.imageUrl,
-        itemType: "fish",
-        price,
-      });
+      const { fishInventoryId, price } = req.body ?? {};
+      if (typeof fishInventoryId !== "string" || price == null) return res.status(400).json({ message: "fishInventoryId and price required" });
+      const listing = await createFishListing({ actorId: user.id, fishInventoryId, price });
       return res.json(listing);
     } catch (err: any) {
-      return res.status(500).json({ message: err.message || "Failed to list fish" });
+      if (err instanceof MarketplaceError) return res.status(marketplaceHttpStatus(err)).json({ message: err.message, code: err.code });
+      console.error("Fish marketplace listing transaction failed:", err);
+      return res.status(500).json({ message: "Failed to list fish", code: "transaction_failure" });
     }
   });
 
   app.post("/api/market/:listingId/buy", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const listing = await storage.getMarketListing((req.params.listingId as string));
-      if (!listing) return res.status(404).json({ message: "Listing not found" });
-      if (listing.status !== "active") return res.status(400).json({ message: "This item is no longer available" });
-      if (listing.sellerId === user.id) return res.status(400).json({ message: "You cannot buy your own listing" });
-
-      // Atomic deduct first — prevents two buyers both passing a JS coin check
-      const afterDeduct = await storage.atomicDeductCoins(user.id, listing.price);
-      if (!afterDeduct) return res.status(400).json({ message: "Not enough coins" });
-
-      try {
-        // buyMarketListing re-checks status = 'active' atomically; throws if already sold
-        const { price } = await storage.buyMarketListing(listing.id, user.id);
-        // Fish listings: move from user_inventory to buyer's player_fish_inventory
-        if (listing.itemType === "fish") {
-          try {
-            const invItem = await storage.getInventoryItemById(listing.inventoryId);
-            if (invItem) {
-              await storage.addFishToPlayerInventory(user.id, invItem.shopItemId);
-              await storage.deleteSingleInventoryItem(listing.inventoryId);
-            }
-          } catch (fishErr) {
-            console.error("Failed to move fish to buyer fish inventory:", fishErr);
-          }
-        } else {
-          // Pet eggs bought from the player market are immediately ready to hatch —
-          // no speed-up potion needed. Backdate hatchStartedAt so the timer is
-          // already expired. This only applies here; tutorial and shop flows are
-          // unaffected.
-          try {
-            const invItem = await storage.getInventoryItemById(listing.inventoryId);
-            if (invItem && !invItem.isHatched) {
-              const shopItem = await storage.getShopItem(invItem.shopItemId);
-              if (shopItem?.type === "pet") {
-                // Use shopItem.hatchTime if set; fall back to 24h so eggs with
-                // no timer configured are still immediately hatchable after purchase.
-                const hatchHours = shopItem.hatchTime ?? 24;
-                const alreadyElapsed = (hatchHours * 3600000) + 2000;
-                await storage.updateInventoryItem(invItem.id, {
-                  hatchStartedAt: new Date(Date.now() - alreadyElapsed),
-                });
-              }
-            }
-          } catch (hatchErr) {
-            console.error("Failed to backdate hatch timer for market purchase:", hatchErr);
-          }
-        }
-        return res.json({ ok: true, price });
-      } catch (claimErr: any) {
-        // Listing was already sold to someone else — refund the deducted coins
-        await storage.addCoins(user.id, listing.price);
-        return res.status(400).json({ message: "This item was just purchased by someone else" });
-      }
+      const result = await buyListing({ actorId: user.id, listingId: req.params.listingId as string });
+      return res.json({ ok: true, ...result });
     } catch (err: any) {
-      return res.status(500).json({ message: err.message || "Failed to buy listing" });
+      if (err instanceof MarketplaceError) return res.status(marketplaceHttpStatus(err)).json({ message: err.message, code: err.code });
+      console.error("Marketplace purchase transaction failed:", err);
+      return res.status(500).json({ message: "Failed to buy listing", code: "transaction_failure" });
     }
   });
 
   app.post("/api/market/:listingId/collect", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const coinsEarned = await storage.collectMarketCoins((req.params.listingId as string), user.id);
-      await storage.addCoins(user.id, coinsEarned);
-      const updatedUser = await storage.getUser(user.id);
-      return res.json({ ok: true, coinsEarned, newBalance: updatedUser?.coins });
+      const result = await collectProceeds({ actorId: user.id, listingId: req.params.listingId as string });
+      return res.json({ ok: true, ...result });
     } catch (err: any) {
-      return res.status(400).json({ message: err.message || "Failed to collect coins" });
+      if (err instanceof MarketplaceError) return res.status(marketplaceHttpStatus(err)).json({ message: err.message, code: err.code });
+      console.error("Marketplace proceeds transaction failed:", err);
+      return res.status(500).json({ message: "Failed to collect coins", code: "transaction_failure" });
     }
   });
 
   app.delete("/api/market/:listingId", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      const listing = await storage.getMarketListing(req.params.listingId as string);
-      await storage.cancelMarketListing((req.params.listingId as string), user.id);
-      // Fish listings: return fish to seller's player_fish_inventory
-      if (listing?.itemType === "fish") {
-        try {
-          const invItem = await storage.getInventoryItemById(listing.inventoryId);
-          if (invItem) {
-            await storage.addFishToPlayerInventory(user.id, invItem.shopItemId);
-            await storage.deleteSingleInventoryItem(listing.inventoryId);
-          }
-        } catch (fishErr) {
-          console.error("Failed to return fish to seller fish inventory:", fishErr);
-        }
-      }
+      await cancelListing({ actorId: user.id, listingId: req.params.listingId as string });
       return res.json({ ok: true });
     } catch (err: any) {
-      return res.status(400).json({ message: err.message || "Failed to cancel listing" });
+      if (err instanceof MarketplaceError) return res.status(marketplaceHttpStatus(err)).json({ message: err.message, code: err.code });
+      console.error("Marketplace cancellation transaction failed:", err);
+      return res.status(500).json({ message: "Failed to cancel listing", code: "transaction_failure" });
     }
   });
 
