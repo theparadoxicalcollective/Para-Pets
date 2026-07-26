@@ -80,7 +80,12 @@ export async function maybeCreateClearingDrop(tx:any, input:{userId:string;sessi
   const result=await tx.execute(sql`SELECT id,name,image_url,clearing_slot,star_rarity,atk_boost,def_boost,health_boost FROM shop_items
     WHERE type='clearing' AND clearing_slot IN ('weapon','armor','charm') AND star_rarity BETWEEN 1 AND 5
       AND world_id IN (${input.worldId}, 'global') AND (location_id IS NULL OR location_id=${input.clearingId})`);
-  const eligibleItems = result.rows.map(normalizeEligibleLoot).filter((item): item is EligibleLoot => item !== null);
+  const normalizedItems: Array<EligibleLoot | null> = result.rows.map(
+    (row: unknown): EligibleLoot | null => normalizeEligibleLoot(row),
+  );
+  const eligibleItems = normalizedItems.filter(
+    (item: EligibleLoot | null): item is EligibleLoot => item !== null,
+  );
   const item=selectClearingLoot(eligibleItems,random);
   if(!item){if(Date.now()-lastEmptyDiagnostic>60_000){console.warn(`No eligible Clearing equipment configured for ${input.clearingId}`);lastEmptyDiagnostic=Date.now();}return null;}
   const now=input.now ?? new Date();
