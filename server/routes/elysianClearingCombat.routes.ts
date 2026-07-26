@@ -1,7 +1,8 @@
 import type { Express, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
-import { ELYSIAN_CLEARING_COMBAT, applyClearingHit, createClearingSession, removeClearingSession, respawnClearingEnemy, scaleClearingEnemy } from "../elysianClearingCombat";
+import { ELYSIAN_CLEARING_COMBAT, applyClearingHit, createClearingSession, getClearingSession, removeClearingSession, respawnClearingEnemy, scaleClearingEnemy, updateClearingPosition } from "../elysianClearingCombat";
 import { calculateClearingStats, getClearingLoadout } from "../clearingEquipment";
+import { maybeCreateClearingDrop } from "../clearingLoot";
 
 export function registerElysianClearingCombatRoutes(app: Express, deps: { db: any; storage: any; isAuthenticated: RequestHandler }) {
   const { db, storage, isAuthenticated } = deps;
@@ -15,6 +16,9 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
     const effective = calculateClearingStats({ hp: pet.petHealth || 1000, atk: pet.petAtk || 50, def: pet.petDef || 50 }, loadout.totals);
     const stats = { level: pet.petLevel || 1, ...effective, rarity: pet.rarity };
     const session = createClearingSession(user.id, pet.id, stats);
+    // Carry only still-active loot into the replacement session. This makes a
+    // refresh/re-entry apply fresh equipment stats without losing ground loot.
+    await db.execute(sql`UPDATE clearing_ground_drops SET session_id=${session.id} WHERE user_id=${user.id} AND clearing_id=${ELYSIAN_CLEARING_COMBAT.locationId} AND collected_at IS NULL AND expires_at>now()`);
     return res.json({
       sessionId: session.id,
       pet: { inventoryId: pet.id, maxHealth: stats.hp, attack: scaleClearingEnemy(stats).petDamage, defense: stats.def },
@@ -24,7 +28,7 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
 
   app.post("/api/explore/elysian-clearing/attack", isAuthenticated, async (req, res) => {
     const user = req.user as any;
-    const { sessionId, enemyInstanceId } = req.body ?? {};
+    const { sessionId, enemyInstanceId, defeatPosition } = req.body ?? {};
     if (typeof sessionId !== "string" || typeof enemyInstanceId !== "string") return res.status(400).json({ message: "Invalid combat request" });
     const inventory = await storage.getUserInventory(user.id);
     const pet = inventory.find((item: any) => item.id === user.activePetId && item.isHatched);
@@ -50,11 +54,22 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
       if (level >= 100) { level = 100; points = 0; }
       await tx.execute(sql`UPDATE user_inventory SET pet_level = ${level}, pet_level_points = ${points} WHERE id = ${pet.id} AND user_id = ${user.id}`);
       const updated = await tx.execute(sql`UPDATE users SET coins = coins + ${coinReward}, total_coins_earned = total_coins_earned + ${coinReward} WHERE id = ${user.id} RETURNING coins`);
-      return { coins: coinReward, exp: boostedExp, balance: Number((updated.rows[0] as any).coins), level, levelPoints: points };
+      const session=getClearingSession(sessionId);
+      const px=Number(defeatPosition?.x),py=Number(defeatPosition?.y);
+      const equipmentDrop=await maybeCreateClearingDrop(tx,{userId:user.id,sessionId,clearingId:ELYSIAN_CLEARING_COMBAT.locationId,rewardId:claimKey,worldId:"swamp",worldX:Number.isFinite(px)?px:session?.position.x??.5,worldY:Number.isFinite(py)?py:session?.position.y??.5});
+      return { coins: coinReward, exp: boostedExp, balance: Number((updated.rows[0] as any).coins), level, levelPoints: points, equipmentDrop };
     });
     if (!reward) return res.status(409).json({ message: "Reward already claimed" });
     const nextEnemy = respawnClearingEnemy(sessionId, enemyInstanceId);
-    return res.json({ defeated: true, health: 0, maxHealth: result.enemy.maxHealth, reward, nextEnemy: nextEnemy && { instanceId: nextEnemy.instanceId, health: nextEnemy.health } });
+    const {equipmentDrop,...normalReward}=reward;
+    return res.json({ defeated: true, health: 0, maxHealth: result.enemy.maxHealth, reward:normalReward, equipmentDrop, nextEnemy: nextEnemy && { instanceId: nextEnemy.instanceId, health: nextEnemy.health } });
+  });
+
+  app.post("/api/explore/elysian-clearing/position",isAuthenticated,(req,res)=>{
+    const {sessionId,x,y}=req.body??{};
+    if(typeof sessionId!=="string"||typeof x!=="number"||typeof y!=="number")return res.status(400).json({message:"Invalid Clearing position"});
+    const accepted=updateClearingPosition({sessionId,userId:(req.user as any).id,x,y});
+    return accepted?res.json(accepted):res.status(409).json({message:"Clearing position was rejected"});
   });
 
   app.delete("/api/explore/elysian-clearing/session/:sessionId", isAuthenticated, (req, res) => {

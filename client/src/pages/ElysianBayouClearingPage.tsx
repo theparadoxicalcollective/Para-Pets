@@ -103,6 +103,7 @@ export default function ElysianBayouClearingPage({ user }: ElysianBayouClearingP
       <WalkAroundScene
         config={CLEARING_CONFIG}
         petTemplateId={petTemplateId}
+        activePet={activePet}
         onBack={handleBack}
       />
     </div>

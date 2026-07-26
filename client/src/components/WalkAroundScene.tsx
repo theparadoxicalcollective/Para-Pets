@@ -28,11 +28,12 @@ interface WalkAroundSceneProps {
   config: WalkAroundLocationConfig;
   /** petTemplateId from the active pet inventory item; null = no pet. */
   petTemplateId: string | null;
+  activePet?: any;
   /** Called when the player taps the back button. */
   onBack: () => void;
 }
 
-export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkAroundSceneProps) {
+export default function WalkAroundScene({ config, petTemplateId, activePet, onBack }: WalkAroundSceneProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const [hudElement, setHudElement] = useState<HTMLDivElement | null>(null);
@@ -146,7 +147,7 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
       )}
 
       {config.features.combat && petTemplateId && (
-        <ElysianClearingCombat petPos={petPos} petSize={petSize} facingLeft={facingLeft} onRespawn={resetPosition} worldPixels={world} hudElement={hudElement} />
+        <ElysianClearingCombat petPos={petPos} petSize={petSize} activePet={activePet} facingLeft={facingLeft} onRespawn={resetPosition} worldPixels={world} hudElement={hudElement} />
       )}
       </div>
 

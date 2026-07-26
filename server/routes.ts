@@ -812,7 +812,7 @@ export async function registerRoutes(
   seedWorldBackgrounds();
 
   registerElysianClearingCombatRoutes(app, { db, storage, isAuthenticated });
-  registerClearingEquipmentRoutes(app, { db, isAuthenticated });
+  registerClearingEquipmentRoutes(app, { db, storage, isAuthenticated });
 
   const marketplaceRouteDependencies: MarketplaceRouteDependencies = {
     storage,
