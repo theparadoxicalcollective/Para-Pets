@@ -1,9 +1,9 @@
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import { shopItems, userClearingLoadouts, userInventory } from "@shared/schema";
-import type { ClearingEquipmentSlot, ClearingInventoryItem, ClearingLoadout, ClearingStatTotals, EffectiveClearingStats } from "@shared/clearingEquipment";
+import { CLEARING_EQUIPMENT_SALE_VALUES, type ClearingEquipmentSlot, type ClearingInventoryItem, type ClearingLoadout, type ClearingStatTotals, type EffectiveClearingStats } from "@shared/clearingEquipment";
 
 export class ClearingEquipmentError extends Error {
-  constructor(public code: "not_found" | "invalid_item" | "invalid_slot", message: string) { super(message); }
+  constructor(public code: "not_found" | "invalid_item" | "invalid_slot" | "duplicate" | "equipped", message: string) { super(message); }
 }
 
 const emptyTotals = (): ClearingStatTotals => ({ atk: 0, def: 0, hp: 0 });
@@ -13,7 +13,7 @@ function toInventoryItem(row: any, equippedIds: Set<string>): ClearingInventoryI
     inventoryId: row.inventoryId, shopItemId: row.shopItemId, name: row.name,
     imageUrl: row.imageUrl ?? null, slot: row.slot, stars: Number(row.stars),
     atkBonus: Number(row.atkBonus ?? 0), defBonus: Number(row.defBonus ?? 0), hpBonus: Number(row.hpBonus ?? 0),
-    quantity: Number(row.quantity ?? 1), acquiredAt: row.acquiredAt, equipped: equippedIds.has(row.inventoryId),
+    quantity: Number(row.quantity ?? 1), acquiredAt: row.acquiredAt, equipped: equippedIds.has(row.inventoryId), eligibleForSale: !equippedIds.has(row.inventoryId) && !row.isListed,
   };
 }
 
@@ -21,7 +21,7 @@ const selection = {
   inventoryId: userInventory.id, shopItemId: shopItems.id, name: shopItems.name, imageUrl: shopItems.imageUrl,
   itemType: shopItems.type,
   slot: shopItems.clearingSlot, stars: shopItems.starRarity, atkBonus: shopItems.atkBoost,
-  defBonus: shopItems.defBoost, hpBonus: shopItems.healthBoost, quantity: userInventory.quantity, acquiredAt: userInventory.acquiredAt,
+  defBonus: shopItems.defBoost, hpBonus: shopItems.healthBoost, quantity: userInventory.quantity, acquiredAt: userInventory.acquiredAt, isListed:userInventory.isListed,
 };
 
 async function getLoadoutRow(executor: any, userId: string) {
@@ -92,4 +92,20 @@ export function validateClearingEquipCandidate(item: { itemType: string; slot: u
     throw new ClearingEquipmentError("invalid_item", "Item is not valid clearing equipment");
   }
   return item.slot;
+}
+
+export async function sellClearingEquipment(database:any,userId:string,inventoryIds:string[]){
+  if(new Set(inventoryIds).size!==inventoryIds.length)throw new ClearingEquipmentError("duplicate","Duplicate equipment IDs are not allowed");
+  if(!inventoryIds.length||inventoryIds.length>200)throw new ClearingEquipmentError("invalid_item","Select between 1 and 200 items");
+  return database.transaction(async(tx:any)=>{
+    const loadout=await getLoadoutRow(tx,userId),equipped=new Set([loadout?.weaponInventoryId,loadout?.armorInventoryId,loadout?.charmInventoryId].filter(Boolean));
+    if(inventoryIds.some(id=>equipped.has(id)))throw new ClearingEquipmentError("equipped","Unequip items before selling them");
+    const rows=await tx.select(selection).from(userInventory).innerJoin(shopItems,eq(userInventory.shopItemId,shopItems.id)).where(and(eq(userInventory.userId,userId),or(...inventoryIds.map(id=>eq(userInventory.id,id))))).for("update");
+    if(rows.length!==inventoryIds.length)throw new ClearingEquipmentError("not_found","One or more equipment items were not found");
+    let essence=0; for(const row of rows){const stars=Number(row.stars) as keyof typeof CLEARING_EQUIPMENT_SALE_VALUES;if(row.itemType!=="clearing"||row.isListed||!CLEARING_EQUIPMENT_SALE_VALUES[stars])throw new ClearingEquipmentError("invalid_item","A selected item is not eligible for sale");essence+=CLEARING_EQUIPMENT_SALE_VALUES[stars]*Number(row.quantity??1);}
+    // Removal and server-calculated credit share this transaction, preventing partial sales.
+    await tx.delete(userInventory).where(and(eq(userInventory.userId,userId),or(...inventoryIds.map(id=>eq(userInventory.id,id)))));
+    const updated=await tx.execute(sql`UPDATE users SET essence=essence+${essence} WHERE id=${userId} RETURNING essence`);
+    return {soldCount:rows.reduce((n:any,r:any)=>n+Number(r.quantity??1),0),essenceEarned:essence,essenceBalance:Number((updated.rows[0] as any).essence)};
+  });
 }

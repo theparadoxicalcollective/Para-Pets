@@ -21,6 +21,16 @@ export interface ClearingInventoryItem {
   quantity: number;
   acquiredAt: Date;
   equipped: boolean;
+  eligibleForSale: boolean;
+}
+
+export const CLEARING_EQUIPMENT_SALE_VALUES = { 1: 25, 2: 50, 3: 100, 4: 300, 5: 500 } as const;
+export interface ClearingSaleResult { soldCount: number; essenceEarned: number; essenceBalance: number }
+
+export type ClearingCurrency = "coins" | "essence";
+export interface ClearingCurrencyDrop {
+  dropId: string; currency: ClearingCurrency; amount: number;
+  worldX: number; worldY: number; expiresAt: string;
 }
 
 export interface ClearingLoadout {

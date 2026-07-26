@@ -9,5 +9,6 @@ export function useClearingEquipment(){
   const refresh=async()=>Promise.all([queryClient.invalidateQueries({queryKey:inventoryKey}),queryClient.invalidateQueries({queryKey:loadoutKey})]);
   const equip=useMutation({mutationFn:async(inventoryId:string)=>(await apiRequest("POST","/api/clearing/loadout/equip",{inventoryId})).json(),onSuccess:refresh});
   const unequip=useMutation({mutationFn:async(slot:ClearingEquipmentSlot)=>(await apiRequest("POST","/api/clearing/loadout/unequip",{slot})).json(),onSuccess:refresh});
-  return {inventory,loadout,equip,unequip};
+  const sell=useMutation({mutationFn:async(inventoryIds:string[])=>(await apiRequest("POST","/api/clearing/inventory/sell",{inventoryIds})).json(),onSuccess:async()=>{await refresh();await queryClient.invalidateQueries({queryKey:["/api/user"]});}});
+  return {inventory,loadout,equip,unequip,sell};
 }

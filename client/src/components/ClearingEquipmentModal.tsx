@@ -61,8 +61,10 @@ export default function ClearingEquipmentModal({
           Clearing Equipment
         </DialogTitle>
 
+        {!selectedSlot && <div className="mx-auto -mt-1 rounded-xl border border-amber-500/60 bg-emerald-950/80 px-3 py-1.5 text-center text-xs shadow-inner" data-testid="clearing-total-equipment-power"><b className="text-amber-200">Total Equipment Power</b><br/><span className="text-emerald-100">{(loadout?.totals.atk??0)+(loadout?.totals.def??0)+(loadout?.totals.hp??0)} · ATK +{loadout?.totals.atk??0} · DEF +{loadout?.totals.def??0} · HP +{loadout?.totals.hp??0}</span></div>}
+
         {!selectedSlot ? (
-          <div className="grid flex-1 grid-cols-3 grid-rows-3 place-items-center gap-[clamp(6px,2vw,14px)]" data-testid="clearing-equipment-slot-grid">
+          <div className="grid flex-1 -mt-2 grid-cols-3 grid-rows-3 place-items-center gap-[clamp(4px,1.5vw,10px)]" data-testid="clearing-equipment-slot-grid">
             {slotLayout.map(({ slot, grid }) => {
               const item = isSupportedSlot(slot) ? loadout?.[slot] : null;
               return (
