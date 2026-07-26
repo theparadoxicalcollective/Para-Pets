@@ -45,7 +45,7 @@ const CLEARING_CONFIG: WalkAroundLocationConfig = {
   spawnPoint: { x: 0.50, y: 0.70 },
 
   // Scene-fraction units per second (tweak to make movement feel right)
-  movementSpeed: 0.26,
+  movementSpeed: 0.17,
 
   // A modest 12.7% increase over the walk-around default.
   petSize: 124,

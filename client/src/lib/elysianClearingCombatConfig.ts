@@ -25,4 +25,7 @@ export const ELYSIAN_CLEARING_COMBAT_CONFIG = {
   petAttackCooldownMs: 550,
   spriteSize: 70,
   attackButtonSize: 62,
+  petHealthBar: { width: 80, height: 7, offset: 112 },
+  recentDamageDisplayMs: 1800,
+  deathEffect: { size: 44, durationMs: 850, risePixels: 24 },
 } as const;
