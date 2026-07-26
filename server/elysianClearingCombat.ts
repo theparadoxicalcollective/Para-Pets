@@ -20,7 +20,7 @@ export interface ClearingEnemyRecord {
   defeated: boolean;
   lastHitAt: number;
 }
-export interface ClearingSession { id: string; userId: string; petId: string; expiresAt: number; effectiveStats: { hp: number; atk: number; def: number }; enemies: ClearingEnemyRecord[] }
+export interface ClearingSession { id: string; userId: string; petId: string; expiresAt: number; effectiveStats: { hp: number; atk: number; def: number }; enemies: ClearingEnemyRecord[]; position:{x:number;y:number;updatedAt:number} }
 
 const sessions = new Map<string, ClearingSession>();
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -42,13 +42,23 @@ export function createClearingSession(userId: string, petId: string, stats: Clea
   const session: ClearingSession = {
     id: crypto.randomUUID(), userId, petId, expiresAt: now + ELYSIAN_CLEARING_COMBAT.sessionLifetimeMs,
     effectiveStats: { hp: stats.hp, atk: stats.atk, def: stats.def ?? 0 },
-    enemies: Array.from({ length: ELYSIAN_CLEARING_COMBAT.enemyCount }, (_, slot) => ({
+    position:{x:.5,y:.7,updatedAt:now}, enemies: Array.from({ length: ELYSIAN_CLEARING_COMBAT.enemyCount }, (_, slot) => ({
       instanceId: crypto.randomUUID(), slot, maxHealth: scaled.maxHealth, health: scaled.maxHealth,
       attack: scaled.attack, defeated: false, lastHitAt: 0,
     })),
   };
   sessions.set(session.id, session);
   return session;
+}
+
+export function getClearingSession(sessionId:string){return sessions.get(sessionId)??null;}
+export function updateClearingPosition(input:{sessionId:string;userId:string;x:number;y:number;now?:number}){
+  const now=input.now??Date.now(),session=sessions.get(input.sessionId);
+  if(!session||session.userId!==input.userId||session.expiresAt<=now)return null;
+  if(!Number.isFinite(input.x)||!Number.isFinite(input.y)||input.x<.18||input.x>.82||input.y<.08||input.y>.9)return null;
+  const elapsed=Math.max(.1,(now-session.position.updatedAt)/1000),distance=Math.hypot(input.x-session.position.x,input.y-session.position.y);
+  if(distance>.17*elapsed+.08)return null;
+  session.position={x:input.x,y:input.y,updatedAt:now};return session.position;
 }
 
 export function applyClearingHit(input: { sessionId: string; instanceId: string; userId: string; petId: string; petDamage?: number; now?: number }) {

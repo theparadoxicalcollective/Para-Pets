@@ -35,3 +35,24 @@ export interface EffectiveClearingStats {
   atk: number;
   def: number;
 }
+
+export type ClearingStarRarity = 1 | 2 | 3 | 4 | 5;
+
+export interface ClearingGroundDrop {
+  dropId: string;
+  shopItemId: string;
+  name: string;
+  imageUrl: string | null;
+  slot: ClearingEquipmentSlot;
+  stars: ClearingStarRarity;
+  atkBonus: number;
+  defBonus: number;
+  hpBonus: number;
+  worldX: number;
+  worldY: number;
+  expiresAt: string;
+}
+
+export interface ClearingLoadoutResponse extends ClearingLoadout {
+  effectiveStats: EffectiveClearingStats | null;
+}

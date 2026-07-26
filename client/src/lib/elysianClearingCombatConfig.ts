@@ -23,6 +23,7 @@ export const ELYSIAN_CLEARING_COMBAT_CONFIG = {
   petAttackRangePixels: 125,
   petAttackArcDot: 0.15,
   petAttackCooldownMs: 550,
+  pickupRadiusPixels: 76,
   spriteSize: 70,
   attackButtonSize: 62,
   petHealthBar: { width: 80, height: 7, offset: 112 },
