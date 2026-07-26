@@ -9,8 +9,8 @@ import { clampPoint, pixelDelta, pixelDistance, stepToward, type WorldPixels } f
 import { useClearingGroundDrops } from "@/hooks/useClearingGroundDrops";
 import { useClearingEquipment } from "@/hooks/useClearingEquipment";
 import ClearingGroundDropLayer from "@/components/ClearingGroundDropLayer";
-import { ClearingHudControls, ClearingInventoryPanel, ClearingLoadoutPanel } from "@/components/ClearingEquipmentPanels";
-import type { ClearingEquipmentSlot, ClearingGroundDrop } from "@shared/clearingEquipment";
+import ClearingEquipmentModal from "@/components/ClearingEquipmentModal";
+import type { ClearingGroundDrop } from "@shared/clearingEquipment";
 
 type EnemyState = "spawning" | "roaming" | "pursuing" | "windup" | "recovering" | "returning" | "defeated" | "respawning";
 type Enemy = { instanceId:string; slot:number; maxHealth:number; health:number; attack:number; x:number; y:number; targetX:number; targetY:number; state:EnemyState; facingLeft:boolean; nextActionAt:number };
@@ -19,7 +19,7 @@ type Session = { sessionId:string; pet:{inventoryId:string;maxHealth:number;atta
 
 const randomBetween = (a:number,b:number) => a + Math.random()*(b-a);
 
-export default function ElysianClearingCombat({ petPos, petSize, activePet, facingLeft, onRespawn, worldPixels, hudElement }: { petPos:PetWalkPos; petSize:number; activePet?:any; facingLeft:boolean; onRespawn:()=>void; worldPixels:WorldPixels; hudElement:HTMLElement|null }) {
+export default function ElysianClearingCombat({ petPos, petSize, activePet, facingLeft, onRespawn, worldPixels, hudElement, onGameplayBlockedChange }: { petPos:PetWalkPos; petSize:number; activePet?:any; facingLeft:boolean; onRespawn:()=>void; worldPixels:WorldPixels; hudElement:HTMLElement|null; onGameplayBlockedChange:(blocked:boolean)=>void }) {
   const petPosRef = useRef(petPos); petPosRef.current = petPos;
   const [session, setSession] = useState<Session|null>(null);
   const [sessionState,setSessionState]=useState<"loading"|"ready"|"error">("loading");
@@ -32,7 +32,12 @@ export default function ElysianClearingCombat({ petPos, petSize, activePet, faci
   const lastAttack=useRef(0); const [swinging,setSwinging]=useState(false); const [feedback,setFeedback]=useState<string[]>([]);
   const ground=useClearingGroundDrops(session?.sessionId??null); const equipment=useClearingEquipment();
   const [collecting,setCollecting]=useState(new Set<string>()); const [confirmations,setConfirmations]=useState<ClearingGroundDrop[]>([]);
-  const [loadoutOpen,setLoadoutOpen]=useState(false),[inventoryOpen,setInventoryOpen]=useState(false),[inventorySlot,setInventorySlot]=useState<ClearingEquipmentSlot|null>(null);
+  const [equipmentOpen,setEquipmentOpen]=useState(false);
+
+  useEffect(() => {
+    onGameplayBlockedChange(equipmentOpen);
+    return () => onGameplayBlockedChange(false);
+  }, [equipmentOpen, onGameplayBlockedChange]);
 
   useEffect(()=>{ let alive=true; let createdId="";
     fetch("/api/explore/elysian-clearing/session",{method:"POST",credentials:"include"}).then(r=>{if(!r.ok)throw new Error("combat session failed");return r.json()}).then((data:Session)=>{
@@ -76,10 +81,9 @@ export default function ElysianClearingCombat({ petPos, petSize, activePet, faci
   const healthColor = healthPercent <= 25 ? "#ef4444" : healthPercent <= 50 ? "#eab308" : "#22c55e";
   const mutateLoadout=async(action:()=>Promise<unknown>)=>{try{await action();setFeedback(["Clearing Loadout updated","New equipment will apply when you re-enter the Clearing."]);setTimeout(()=>setFeedback([]),3000)}catch{setFeedback(["Equipment update failed"]);}};
   const fixedHud = <>
-    <ClearingHudControls petImage={activePet?.imageUrl??activePet?.hatchedImageUrl} onLoadout={()=>setLoadoutOpen(true)} onInventory={()=>{setInventorySlot(null);setInventoryOpen(true)}}/>
+    <button data-interactive data-testid="button-clearing-equipment" aria-label="Open pet equipment" onClick={()=>setEquipmentOpen(true)} className="absolute pointer-events-auto h-12 w-12 overflow-hidden rounded-full border-2 border-amber-300 bg-emerald-950 shadow-lg" style={{left:14,top:"max(58px, calc(env(safe-area-inset-top, 0px) + 58px))",zIndex:18}}>{activePet?.imageUrl||activePet?.hatchedImageUrl?<img src={activePet.imageUrl??activePet.hatchedImageUrl} alt="" className="h-full w-full object-contain"/>:<Sword className="m-auto text-amber-200"/>}</button>
     {confirmations.length>0&&<div data-testid="clearing-pickup-confirmation" className="absolute left-1/2 top-20 -translate-x-1/2 rounded-full border border-amber-300 bg-emerald-950/95 px-4 py-2 text-sm text-amber-100 shadow-xl">Equipment Collected · {confirmations[0].name} {"★".repeat(confirmations[0].stars)}</div>}
-    <ClearingLoadoutPanel open={loadoutOpen} onOpenChange={setLoadoutOpen} pet={activePet} loadout={equipment.loadout.data} onUnequip={slot=>void mutateLoadout(()=>equipment.unequip.mutateAsync(slot))} onEmpty={slot=>{setLoadoutOpen(false);setInventorySlot(slot);setInventoryOpen(true)}}/>
-    <ClearingInventoryPanel key={inventorySlot??"all"} open={inventoryOpen} onOpenChange={setInventoryOpen} items={equipment.inventory.data} loadout={equipment.loadout.data} initialSlot={inventorySlot} onEquip={id=>void mutateLoadout(()=>equipment.equip.mutateAsync(id))}/>
+    <ClearingEquipmentModal open={equipmentOpen} onOpenChange={setEquipmentOpen} inventory={equipment.inventory.data} loadout={equipment.loadout.data} onUnequip={slot=>void mutateLoadout(()=>equipment.unequip.mutateAsync(slot))} onEquip={id=>void mutateLoadout(()=>equipment.equip.mutateAsync(id))}/>
 
     {feedback.length>0&&<div className="absolute left-1/2 top-1/4 -translate-x-1/2 text-center font-bold text-yellow-200 pointer-events-none" style={{zIndex:20,textShadow:"0 2px 4px #000"}}>{feedback.map(x=><div key={x}>{x}</div>)}</div>}
     <button disabled={sessionState!=="ready"||petHealth<=0} data-interactive data-testid="button-clearing-attack" aria-label="Sword attack" onPointerDown={attack} className="absolute pointer-events-auto rounded-full active:scale-90 disabled:opacity-50 text-white border-2 border-amber-200 flex items-center justify-center" style={{right:"max(20px, env(safe-area-inset-right))",bottom:"max(20px, env(safe-area-inset-bottom))",width:CFG.attackButtonSize,height:CFG.attackButtonSize,zIndex:15,touchAction:"none",background:"#294b35",boxShadow:"0 3px 12px #000"}}><Sword aria-hidden size={28}/></button>

@@ -7,11 +7,10 @@ const sceneSource = readFileSync("client/src/components/WalkAroundScene.tsx", "u
 const combatSource = readFileSync("client/src/components/ElysianClearingCombat.tsx", "utf8");
 const configSource = readFileSync("client/src/lib/elysianClearingCombatConfig.ts", "utf8");
 
-test("Clearing alone selects the slower configured movement speed without changing its background", () => {
+test("Clearing alone selects its configured movement speed and newest organized background", () => {
   assert.match(pageSource, /movementSpeed: 0\.17/);
   assert.doesNotMatch(pageSource, /movementSpeed: 0\.26/);
-  assert.match(pageSource, /@assets\/worlds\/elysian-bayou\/elysian-bayou-clearing\/background\.jpg/);
-  assert.doesNotMatch(pageSource, /background-v2/);
+  assert.match(pageSource, /@assets\/uploads\/ElysianClearingBackground\.jpeg/);
   assert.match(sceneSource, /src=\{config\.backgroundUrl\}/);
   assert.match(sceneSource, /cameraTarget\(petPos, world, viewport\)/);
 });

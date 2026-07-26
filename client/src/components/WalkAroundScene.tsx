@@ -40,6 +40,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
   const [joystickCenter, setJoystickCenter] = useState({ x: 0, y: 0 });
   const [viewport, setViewport] = useState({ width: 1, height: 1 });
   const [camera, setCamera] = useState({ x: 0, y: 0 });
+  const [gameplayBlocked, setGameplayBlocked] = useState(false);
 
   const {
     petPos,
@@ -55,6 +56,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
     bounds: config.walkableBounds,
     spawn:  config.spawnPoint,
     speed:  config.movementSpeed,
+    enabled: !gameplayBlocked,
   });
 
   const { data: petTemplate } = useQuery<{ facing: string }>({
@@ -73,7 +75,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
   const petSize = config.petSize ?? DEFAULT_PET_SIZE;
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!sceneRef.current || !e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
+    if (gameplayBlocked || !sceneRef.current || !e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
     if ((e.target as HTMLElement).closest("button, a, input, select, textarea, [data-interactive]")) return;
     e.preventDefault();
     const rect = sceneRef.current.getBoundingClientRect();
@@ -82,7 +84,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
     const y = Math.max(radius + JOYSTICK_EDGE_GAP, Math.min(rect.height - radius - JOYSTICK_EDGE_GAP, e.clientY - rect.top));
     setJoystickCenter({ x, y });
     onJoystickPointerDown(e, { x: rect.left + x, y: rect.top + y });
-  }, [onJoystickPointerDown]);
+  }, [gameplayBlocked, onJoystickPointerDown]);
 
   const world = { width: viewport.width * (config.worldSize?.width ?? 1), height: viewport.height * (config.worldSize?.height ?? 1) };
   useEffect(() => {
@@ -147,7 +149,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
       )}
 
       {config.features.combat && petTemplateId && (
-        <ElysianClearingCombat petPos={petPos} petSize={petSize} activePet={activePet} facingLeft={facingLeft} onRespawn={resetPosition} worldPixels={world} hudElement={hudElement} />
+        <ElysianClearingCombat petPos={petPos} petSize={petSize} activePet={activePet} facingLeft={facingLeft} onRespawn={resetPosition} worldPixels={world} hudElement={hudElement} onGameplayBlockedChange={setGameplayBlocked} />
       )}
       </div>
 

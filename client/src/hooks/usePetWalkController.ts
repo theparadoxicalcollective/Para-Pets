@@ -25,6 +25,8 @@ interface Options {
   spawn: { x: number; y: number };
   /** Speed in scene-fraction units per second (default 0.28). */
   speed?: number;
+  /** Temporarily suspend and clear all movement input. */
+  enabled?: boolean;
 }
 
 export interface PetWalkController {
@@ -53,7 +55,7 @@ function clamp(pos: PetWalkPos, b: WalkableBounds): PetWalkPos {
   };
 }
 
-export function usePetWalkController({ bounds, spawn, speed = 0.28 }: Options): PetWalkController {
+export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = true }: Options): PetWalkController {
   const [petPos, setPetPos]             = useState<PetWalkPos>(() => clamp(spawn, bounds));
   const [facingLeft, setFacingLeft]     = useState(false);
   const [isMoving, setIsMoving]         = useState(false);
@@ -71,13 +73,28 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28 }: Options): 
   const movingRef       = useRef(false);
   const facingLeftRef   = useRef(false);
   const keysRef         = useRef<Set<string>>(new Set());
+  const enabledRef      = useRef(enabled);
+
+  useEffect(() => {
+    enabledRef.current = enabled;
+    if (!enabled) {
+      keysRef.current.clear();
+      joyActiveRef.current = false;
+      dirRef.current = { dx: 0, dy: 0 };
+      targetRef.current = null;
+      setIsJoystickActive(false);
+      setJoystickOffset({ x: 0, y: 0 });
+      setIsMoving(false);
+      movingRef.current = false;
+    }
+  }, [enabled]);
 
   // ── Keyboard input ────────────────────────────────────────────────────────
   useEffect(() => {
     const MOVE_KEYS = new Set(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","w","s","a","d","W","S","A","D"]);
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (!MOVE_KEYS.has(e.key)) return;
+      if (!enabledRef.current || !MOVE_KEYS.has(e.key)) return;
       e.preventDefault();
       keysRef.current.add(e.key.toLowerCase() === "w" || e.key === "ArrowUp" ? "up"
         : e.key.toLowerCase() === "s" || e.key === "ArrowDown" ? "down"
@@ -112,7 +129,9 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28 }: Options): 
       let dy = 0;
       let usingInput = false;
 
-      if (joyActiveRef.current) {
+      if (!enabledRef.current) {
+        usingInput = false;
+      } else if (joyActiveRef.current) {
         // Joystick has priority
         dx = dirRef.current.dx;
         dy = dirRef.current.dy;
@@ -195,6 +214,7 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28 }: Options): 
   }, [stopMovement]);
 
   const onJoystickPointerDown = useCallback((e: React.PointerEvent, origin: { x: number; y: number }) => {
+    if (!enabledRef.current) return;
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { stopMovement(); return; }
     joyActiveRef.current = true;
     setIsJoystickActive(true);
