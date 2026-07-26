@@ -20,6 +20,13 @@ export const executeSendGift = (input: SendGiftInput, operations: GiftTransactio
 export const executeAcceptGift = (giftId: string, receiverId: string, operations: GiftTransactionOperations = postgresGiftOperations) =>
   operations.accept(giftId, receiverId);
 
+export function giftCoinCreditUpdate(coinAmount: number) {
+  return {
+    coins: sql`${users.coins} + ${coinAmount}`,
+    totalCoinsEarned: sql`${users.totalCoinsEarned} + ${coinAmount}`,
+  };
+}
+
 async function lockUsers(tx: GiftTx, ids: string[]) {
   const ordered = [...new Set(ids)].sort();
   const result = await tx.execute(sql`SELECT id FROM users WHERE id IN (${sql.join(ordered.map(id => sql`${id}`), sql`, `)}) ORDER BY id FOR UPDATE`);
@@ -108,7 +115,7 @@ const postgresGiftOperations: GiftTransactionOperations = {
       if (gift.itemType != null && gift.itemType !== "shop_item" && gift.itemType !== "decor") throw new Error("Gift contains invalid item type");
       await lockUsers(tx, [receiverId]);
 
-      if (gift.coinAmount > 0) await tx.update(users).set({ coins: sql`${users.coins} + ${gift.coinAmount}` }).where(eq(users.id, receiverId));
+      if (gift.coinAmount > 0) await tx.update(users).set(giftCoinCreditUpdate(gift.coinAmount)).where(eq(users.id, receiverId));
       if (gift.itemType === "shop_item" && gift.shopItemId) {
         const [catalog] = await tx.select({ id: shopItems.id }).from(shopItems).where(eq(shopItems.id, gift.shopItemId)).for("share");
         if (!catalog) throw new Error("Item data not found");
