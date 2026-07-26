@@ -1,11 +1,15 @@
 import placeholderEnemyUrl from "@assets/generated_images/enemy_bayou_wraith.png";
 
-/** The Demented Vulture art is not present yet. Replace only this import when its transparent PNG is added. */
 export const ELYSIAN_CLEARING_COMBAT_CONFIG = {
-  enemyName: "Demented Vulture",
+  enemyName: "Bayou Wraith",
   enemyImageUrl: placeholderEnemyUrl,
   maxEnemies: 3,
-  homes: [{ x: 0.30, y: 0.25 }, { x: 0.69, y: 0.38 }, { x: 0.35, y: 0.57 }],
+  worldSize: { width: 1.7, height: 2.15 },
+  camera: { smoothing: 0.16, deadZone: 0.08 },
+  petSpawn: { x: 0.50, y: 0.78 },
+  walkableBounds: { xMin: 0.10, xMax: 0.90, yMin: 0.06, yMax: 0.94 },
+  petSize: 110,
+  homes: [{ x: 0.28, y: 0.20 }, { x: 0.70, y: 0.42 }, { x: 0.34, y: 0.65 }],
   initialSpawnDelayMs: [500, 1350, 2250],
   roamRadius: 0.075,
   roamSpeed: 0.035,
@@ -22,5 +26,7 @@ export const ELYSIAN_CLEARING_COMBAT_CONFIG = {
   petAttackRange: 0.14,
   petAttackArcDot: 0.15,
   petAttackCooldownMs: 550,
-  spriteSize: 86,
+  enemyVisibleSize: 70,
+  attackButtonSize: 62,
+  attackButtonSafeOffset: 20,
 } as const;

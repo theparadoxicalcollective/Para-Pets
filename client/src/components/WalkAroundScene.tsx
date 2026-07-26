@@ -12,12 +12,13 @@
  * Scene-specific constants (bounds, spawn, speed) come from WalkAroundLocationConfig.
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import PetAnimator from "@/components/PetAnimator";
 import ElysianClearingCombat from "@/components/ElysianClearingCombat";
 import { usePetWalkController } from "@/hooks/usePetWalkController";
 import type { WalkAroundLocationConfig } from "@/lib/exploreLocations";
+import { calculateFollowCamera } from "@/lib/walkAroundCamera";
 import joystickBaseImg  from "@assets/generated_images/joystick_base.png";
 import joystickThumbImg from "@assets/generated_images/joystick_thumb_v3.png";
 
@@ -35,6 +36,7 @@ interface WalkAroundSceneProps {
 
 export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkAroundSceneProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
+  const [viewport, setViewport] = useState({ width: 1, height: 1 });
   const [joystickCenter, setJoystickCenter] = useState({ x: 0, y: 0 });
 
   const {
@@ -51,6 +53,7 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
     bounds: config.walkableBounds,
     spawn:  config.spawnPoint,
     speed:  config.movementSpeed,
+    worldSize: config.worldSize,
   });
 
   const { data: petTemplate } = useQuery<{ facing: string }>({
@@ -67,6 +70,18 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
   // Side-profile templates saved in the back view are drawn left by convention.
   const naturalFacingLeft = petTemplate?.facing === "left" || petTemplate?.facing === "back";
   const petSize = config.petSize ?? DEFAULT_PET_SIZE;
+  const worldSize = config.worldSize ?? { width: 1, height: 1 };
+  useEffect(() => {
+    const node = sceneRef.current;
+    if (!node) return;
+    const update = () => setViewport({ width: node.clientWidth || 1, height: node.clientHeight || 1 });
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  const camera = useMemo(() => calculateFollowCamera(petPos, viewport, worldSize), [petPos, viewport, worldSize.height, worldSize.width]);
+  const worldTransform = `translate3d(${-camera.x}px, ${-camera.y}px, 0)`;
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!sceneRef.current || !e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
@@ -82,6 +97,7 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
 
   return (
     <div
+      ref={sceneRef}
       className="relative w-full h-full overflow-hidden select-none"
       style={{ touchAction: "none", background: "#0a120a" }}
       onPointerDown={handlePointerDown}
@@ -91,11 +107,13 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
       onPointerLeave={onJoystickPointerUp}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* ── Background ──────────────────────────────────────────────────────── */}
+      {/* World layer; viewport-sized locations retain their legacy behaviour. */}
       <div
-        ref={sceneRef}
-        className="absolute inset-0 cursor-pointer"
+        className="absolute left-0 top-0 cursor-pointer will-change-transform"
         data-testid="scene-background"
+        data-camera-x={camera.x}
+        data-camera-y={camera.y}
+        style={{ width: camera.worldWidth, height: camera.worldHeight, transform: worldTransform, transition: `transform ${Math.round(90 + (config.camera?.smoothing ?? 0) * 300)}ms linear` }}
       >
         <img
           src={config.backgroundUrl}
@@ -104,6 +122,12 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
           className="w-full h-full"
           style={{ objectFit: "cover", objectPosition: "center", pointerEvents: "none", userSelect: "none" }}
         />
+        {/* Pet and enemies use the same normalized world coordinates. */}
+        {petTemplateId && (
+          <div data-testid="walk-pet-sprite" className="absolute pointer-events-none" style={{ left:`${petPos.x*100}%`, top:`${petPos.y*100}%`, width:petSize, height:petSize, transform:`translate(-50%, -80%) scaleX(${facingLeft !== naturalFacingLeft ? -1 : 1})`, zIndex:5 }}>
+            <PetAnimator petTemplateId={petTemplateId} mode={isMoving ? "walk" : "idle"} size={petSize}/>
+          </div>
+        )}
       </div>
 
       {/* ── Subtle top gradient (readability for back button) ───────────────── */}
@@ -151,31 +175,8 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
         </span>
       </div>
 
-      {/* ── Pet sprite ──────────────────────────────────────────────────────── */}
-      {petTemplateId && (
-        <div
-          data-testid="walk-pet-sprite"
-          className="absolute pointer-events-none"
-          style={{
-            left:      `${petPos.x * 100}%`,
-            top:       `${petPos.y * 100}%`,
-            width:     petSize,
-            height:    petSize,
-            transform: `translate(-50%, -80%) scaleX(${facingLeft !== naturalFacingLeft ? -1 : 1})`,
-            zIndex:    5,
-            transition: "none",
-          }}
-        >
-          <PetAnimator
-            petTemplateId={petTemplateId}
-            mode={isMoving ? "walk" : "idle"}
-            size={petSize}
-          />
-        </div>
-      )}
-
       {config.features.combat && petTemplateId && (
-        <ElysianClearingCombat petPos={petPos} facingLeft={facingLeft} onRespawn={resetPosition} />
+        <ElysianClearingCombat petPos={petPos} facingLeft={facingLeft} onRespawn={resetPosition} world={{ width:camera.worldWidth, height:camera.worldHeight, transform:worldTransform }} />
       )}
 
       {/* ── Floating joystick: appears at the clamped pointer-down position. ── */}

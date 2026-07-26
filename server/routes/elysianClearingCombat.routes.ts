@@ -2,13 +2,18 @@ import type { Express, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
 import { ELYSIAN_CLEARING_COMBAT, applyClearingHit, createClearingSession, removeClearingSession, respawnClearingEnemy, scaleClearingEnemy } from "../elysianClearingCombat";
 
+/** users.activePetId stores the user_inventory.id (called inventoryId by the client API). */
+export function resolveActiveClearingPet(inventory: any[], activePetId: string | null | undefined) {
+  return activePetId ? inventory.find((item: any) => item.id === activePetId && item.isHatched) : undefined;
+}
+
 export function registerElysianClearingCombatRoutes(app: Express, deps: { db: any; storage: any; isAuthenticated: RequestHandler }) {
   const { db, storage, isAuthenticated } = deps;
 
   app.post("/api/explore/elysian-clearing/session", isAuthenticated, async (req, res) => {
     const user = req.user as any;
     const inventory = await storage.getUserInventory(user.id);
-    const pet = inventory.find((item: any) => item.id === user.activePetId && item.isHatched);
+    const pet = resolveActiveClearingPet(inventory, user.activePetId);
     if (!pet) return res.status(400).json({ message: "An active hatched pet is required" });
     const stats = { level: pet.petLevel || 1, hp: pet.petHealth || 1000, atk: pet.petAtk || 50, rarity: pet.rarity };
     const session = createClearingSession(user.id, pet.id, stats);
@@ -24,7 +29,7 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
     const { sessionId, enemyInstanceId } = req.body ?? {};
     if (typeof sessionId !== "string" || typeof enemyInstanceId !== "string") return res.status(400).json({ message: "Invalid combat request" });
     const inventory = await storage.getUserInventory(user.id);
-    const pet = inventory.find((item: any) => item.id === user.activePetId && item.isHatched);
+    const pet = resolveActiveClearingPet(inventory, user.activePetId);
     if (!pet) return res.status(400).json({ message: "An active hatched pet is required" });
     const result = applyClearingHit({ sessionId, instanceId: enemyInstanceId, userId: user.id, petId: pet.id, petDamage: pet.petAtk || 50 });
     if (result.status === "invalid") return res.status(409).json({ message: "Combat session expired" });

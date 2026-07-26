@@ -14,6 +14,7 @@ import WalkAroundScene from "@/components/WalkAroundScene";
 import type { WalkAroundLocationConfig } from "@/lib/exploreLocations";
 import { ELYSIAN_BAYOU_CLEARING_ID } from "@/lib/exploreLocations";
 import backgroundUrl from "@assets/worlds/elysian-bayou/elysian-bayou-clearing/background.jpg";
+import { ELYSIAN_CLEARING_COMBAT_CONFIG as COMBAT } from "@/lib/elysianClearingCombatConfig";
 
 // ── Scene configuration ───────────────────────────────────────────────────────
 //
@@ -34,21 +35,18 @@ const CLEARING_CONFIG: WalkAroundLocationConfig = {
   backgroundUrl,
   sceneType:     "walk-around",
 
-  walkableBounds: {
-    xMin: 0.18,
-    xMax: 0.82,
-    yMin: 0.08,
-    yMax: 0.90,
-  },
+  walkableBounds: COMBAT.walkableBounds,
 
   // Spawn near the lower-centre of the clearing
-  spawnPoint: { x: 0.50, y: 0.70 },
+  spawnPoint: COMBAT.petSpawn,
 
   // Scene-fraction units per second (tweak to make movement feel right)
   movementSpeed: 0.26,
 
   // A modest 12.7% increase over the walk-around default.
-  petSize: 124,
+  petSize: COMBAT.petSize,
+  worldSize: COMBAT.worldSize,
+  camera: COMBAT.camera,
 
   features: {
     movement:     true,

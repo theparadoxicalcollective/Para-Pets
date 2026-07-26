@@ -52,6 +52,10 @@ export interface WalkAroundLocationConfig {
   movementSpeed: number;
   /** Optional rendered pet size in pixels. */
   petSize?: number;
+  /** Optional world dimensions in viewport multiples. Omitted keeps legacy viewport-sized scenes. */
+  worldSize?: { width: number; height: number };
+  /** Optional follow-camera tuning. */
+  camera?: { smoothing: number; deadZone: number };
   features: ExploreLocationFeatures;
 }
 

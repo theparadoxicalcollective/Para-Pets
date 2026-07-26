@@ -10,7 +10,7 @@
  *   - Editable walkable-boundary clamping
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import type { WalkableBounds } from "@/lib/exploreLocations";
 
 export interface PetWalkPos {
@@ -25,6 +25,7 @@ interface Options {
   spawn: { x: number; y: number };
   /** Speed in scene-fraction units per second (default 0.28). */
   speed?: number;
+  worldSize?: { width: number; height: number };
 }
 
 export interface PetWalkController {
@@ -53,7 +54,7 @@ function clamp(pos: PetWalkPos, b: WalkableBounds): PetWalkPos {
   };
 }
 
-export function usePetWalkController({ bounds, spawn, speed = 0.28 }: Options): PetWalkController {
+export function usePetWalkController({ bounds, spawn, speed = 0.28, worldSize = { width: 1, height: 1 } }: Options): PetWalkController {
   const [petPos, setPetPos]             = useState<PetWalkPos>(() => clamp(spawn, bounds));
   const [facingLeft, setFacingLeft]     = useState(false);
   const [isMoving, setIsMoving]         = useState(false);
@@ -138,8 +139,11 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28 }: Options): 
       let moved = false;
 
       if (usingInput) {
-        nx += dx * speed * dt;
-        ny += dy * speed * dt;
+        const worldWidth = Math.max(1, window.innerWidth * worldSize.width);
+        const worldHeight = Math.max(1, window.innerHeight * worldSize.height);
+        const pixelsPerSecond = speed * Math.min(worldWidth, worldHeight);
+        nx += dx * pixelsPerSecond * dt / worldWidth;
+        ny += dy * pixelsPerSecond * dt / worldHeight;
         moved = true;
         if (dx < 0 && !facingLeftRef.current)  { facingLeftRef.current = true;  setFacingLeft(true); }
         if (dx > 0 &&  facingLeftRef.current)  { facingLeftRef.current = false; setFacingLeft(false); }
@@ -177,19 +181,26 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28 }: Options): 
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax, speed]);
+  }, [bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax, speed, worldSize.height, worldSize.width]);
 
   // ── Joystick handlers ─────────────────────────────────────────────────────
-  const onJoystickPointerDown = (e: React.PointerEvent, origin: { x: number; y: number }) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
+  const stopMovement = useCallback(() => {
+    joyActiveRef.current = false;
+    setIsJoystickActive(false);
+    dirRef.current = { dx: 0, dy: 0 };
+    setJoystickOffset({ x: 0, y: 0 });
+  }, []);
+
+  const onJoystickPointerDown = useCallback((e: React.PointerEvent, origin: { x: number; y: number }) => {
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* detached targets cannot capture */ }
     joyActiveRef.current = true;
     setIsJoystickActive(true);
     joyOriginRef.current = origin;
     dirRef.current = { dx: 0, dy: 0 };
     targetRef.current = null;
-  };
+  }, []);
 
-  const onJoystickPointerMove = (e: React.PointerEvent) => {
+  const onJoystickPointerMove = useCallback((e: React.PointerEvent) => {
     if (!joyActiveRef.current) return;
     const rawDx = e.clientX - joyOriginRef.current.x;
     const rawDy = e.clientY - joyOriginRef.current.y;
@@ -202,25 +213,32 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28 }: Options): 
       dx: dist > 2 ? rawDx / Math.max(dist, MAX_JOY_RADIUS) : 0,
       dy: dist > 2 ? rawDy / Math.max(dist, MAX_JOY_RADIUS) : 0,
     };
-  };
+  }, []);
 
-  const onJoystickPointerUp = () => {
-    joyActiveRef.current = false;
-    setIsJoystickActive(false);
-    dirRef.current = { dx: 0, dy: 0 };
-    setJoystickOffset({ x: 0, y: 0 });
-  };
+  const onJoystickPointerUp = stopMovement;
 
-  const onSceneClick = (normX: number, normY: number) => {
+  const onSceneClick = useCallback((normX: number, normY: number) => {
     if (joyActiveRef.current || keysRef.current.size > 0) return;
     targetRef.current = clamp({ x: normX, y: normY }, bounds);
-  };
+  }, [bounds]);
 
-  const resetPosition = () => {
+  const resetPosition = useCallback(() => {
     const safe = clamp(spawn, bounds);
     posRef.current = safe; targetRef.current = null; dirRef.current = { dx: 0, dy: 0 };
     keysRef.current.clear(); joyActiveRef.current = false; setIsJoystickActive(false); setPetPos({ ...safe });
-  };
+  }, [bounds, spawn]);
+
+  useEffect(() => {
+    const stop = () => stopMovement();
+    window.addEventListener("blur", stop);
+    document.addEventListener("visibilitychange", stop);
+    return () => {
+      stopMovement();
+      keysRef.current.clear();
+      window.removeEventListener("blur", stop);
+      document.removeEventListener("visibilitychange", stop);
+    };
+  }, [stopMovement]);
 
   return {
     petPos,

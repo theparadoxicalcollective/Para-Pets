@@ -12,9 +12,10 @@ test("only the Elysian Clearing exploration route joins the existing nav exclusi
   assert.doesNotMatch(appSource, /path\.startsWith\("\/explore\/"\)/);
 });
 
-test("Elysian Clearing modestly increases its pet without changing movement bounds", () => {
-  assert.match(pageSource, /petSize: 124/);
-  assert.match(pageSource, /xMin: 0\.18[\s\S]*xMax: 0\.82[\s\S]*yMin: 0\.08[\s\S]*yMax: 0\.90/);
+test("Elysian Clearing reads centralized world, pet, and movement tuning", () => {
+  assert.match(pageSource, /petSize: COMBAT\.petSize/);
+  assert.match(pageSource, /walkableBounds: COMBAT\.walkableBounds/);
+  assert.match(pageSource, /worldSize: COMBAT\.worldSize/);
   assert.match(sceneSource, /const DEFAULT_PET_SIZE = 110/);
 });
 
