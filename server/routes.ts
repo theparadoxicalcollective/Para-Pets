@@ -39,6 +39,8 @@ import {
 import { claimTutorialReward, completeTutorial, grantTutorialHatchPotions } from "./tutorial/tutorialService";
 import { invalidTutorialRequest, TutorialError } from "./tutorial/errors";
 import { CaveTierLockedError, isCaveTierAccessible } from "./caveProgress";
+import { executeAcceptGift, executeSendGift } from "./gifts/transactions";
+import { executeDecorPlacement, executeDecorRemoval } from "./housing/decorTransactions";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -7581,7 +7583,7 @@ export async function registerRoutes(
       const userId = (req.user as any).id;
       const { decorItemId, xPct, yPct, size, flipped, location } = req.body;
       if (!decorItemId) return res.status(400).json({ message: "decorItemId required" });
-      const row = await storage.placeHomeDecorItem(userId, decorItemId, {
+      const row = await executeDecorPlacement(userId, decorItemId, {
         xPct: xPct ?? 0.5,
         yPct: yPct ?? 0.5,
         size: size ?? 250,
@@ -7608,7 +7610,7 @@ export async function registerRoutes(
   app.delete("/api/pet-house/decor/placed/:id", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).id;
-      const result = await storage.removePlacedHomeDecor((req.params.id as string), userId);
+      const result = await executeDecorRemoval(userId, (req.params.id as string));
       return res.json({ ok: true, ...result });
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -7639,7 +7641,7 @@ export async function registerRoutes(
       if (!receiverId) return res.status(400).json({ message: "receiverId required" });
       if (coinAmount == null || coinAmount < 0) return res.status(400).json({ message: "coinAmount must be >= 0" });
       if (senderId === receiverId) return res.status(400).json({ message: "Cannot send gift to yourself" });
-      const gift = await storage.sendGift({ senderId, receiverId, message, coinAmount, itemType, shopItemInventoryId, decorItemId, itemQuantity, itemName, itemImageUrl, shopItemId });
+      const gift = await executeSendGift({ senderId, receiverId, message, coinAmount, itemType, shopItemInventoryId, decorItemId, itemQuantity, itemName, itemImageUrl, shopItemId });
       return res.json(gift);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });
@@ -7659,7 +7661,7 @@ export async function registerRoutes(
   app.post("/api/gifts/:id/accept", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).id;
-      const gift = await storage.acceptGift((req.params.id as string), userId);
+      const gift = await executeAcceptGift((req.params.id as string), userId);
       return res.json(gift);
     } catch (err: any) {
       return res.status(500).json({ message: err.message });

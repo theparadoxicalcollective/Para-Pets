@@ -331,9 +331,7 @@ export interface IStorage {
   setActiveHouseBundle(userId: string, bundleId: string | null): Promise<void>;
   getActiveBundleWithBuildings(userId: string): Promise<(HouseBundle & { buildings: HouseBundleBuilding[] }) | null>;
   getHouseBundleBuilding(id: string): Promise<HouseBundleBuilding | null>;
-  sendGift(data: { senderId: string; receiverId: string; message?: string; coinAmount: number; itemType?: string; shopItemInventoryId?: string; decorItemId?: string; itemQuantity?: number; itemName?: string; itemImageUrl?: string; shopItemId?: string }): Promise<Gift>;
   getPendingGifts(userId: string): Promise<(Gift & { senderName: string; senderProfileImageUrl: string | null })[]>;
-  acceptGift(giftId: string, userId: string): Promise<Gift>;
   getWorldChatMessages(): Promise<WorldChatMessage[]>;
   addWorldChatMessage(data: { userId: string; username: string; profileImage?: string | null; message: string; isBot?: boolean }): Promise<WorldChatMessage>;
   getLastWorldChatByUser(userId: string): Promise<WorldChatMessage | null>;
@@ -3163,22 +3161,6 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async decrementHomeDecorInventory(userId: string, decorItemId: string): Promise<void> {
-    const [existing] = await db.select().from(userHomeDecorInventory)
-      .where(and(eq(userHomeDecorInventory.userId, userId), eq(userHomeDecorInventory.decorItemId, decorItemId)));
-    if (!existing || existing.quantity <= 0) throw new Error("Not enough in inventory");
-    if (existing.quantity === 1) {
-      await db.delete(userHomeDecorInventory).where(eq(userHomeDecorInventory.id, existing.id));
-    } else {
-      await db.update(userHomeDecorInventory).set({ quantity: existing.quantity - 1 })
-        .where(eq(userHomeDecorInventory.id, existing.id));
-    }
-  }
-
-  async incrementHomeDecorInventory(userId: string, decorItemId: string): Promise<void> {
-    await this.grantHomeDecorToUser(userId, decorItemId);
-  }
-
   // ── Placed Home Decor ─────────────────────────────────────────────────────────
   async getPlacedHomeDecor(userId: string, location?: string): Promise<(PlacedHomeDecor & { item: HomeDecorItem })[]> {
     const rows = await db.select().from(placedHomeDecor)
@@ -3194,84 +3176,12 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async placeHomeDecorItem(userId: string, decorItemId: string, data: { xPct: number; yPct: number; size: number; flipped: boolean; location?: string }): Promise<PlacedHomeDecor> {
-    await this.decrementHomeDecorInventory(userId, decorItemId);
-    const [row] = await db.insert(placedHomeDecor).values({ userId, decorItemId, location: data.location ?? "outside", xPct: data.xPct, yPct: data.yPct, size: data.size, flipped: data.flipped }).returning();
-    return row;
-  }
-
   async updatePlacedHomeDecor(id: string, userId: string, data: Partial<{ xPct: number; yPct: number; size: number; flipped: boolean }>): Promise<PlacedHomeDecor> {
     const [row] = await db.update(placedHomeDecor).set(data).where(and(eq(placedHomeDecor.id, id), eq(placedHomeDecor.userId, userId))).returning();
     return row;
   }
 
-  async removePlacedHomeDecor(id: string, userId: string): Promise<{ decorItemId: string }> {
-    const [existing] = await db.select().from(placedHomeDecor).where(and(eq(placedHomeDecor.id, id), eq(placedHomeDecor.userId, userId)));
-    if (!existing) throw new Error("Placed decor not found");
-    await db.delete(placedHomeDecor).where(eq(placedHomeDecor.id, id));
-    await this.incrementHomeDecorInventory(userId, existing.decorItemId);
-    return { decorItemId: existing.decorItemId };
-  }
-
   // ── Gifts ─────────────────────────────────────────────────────────────────
-  async sendGift(data: {
-    senderId: string;
-    receiverId: string;
-    message?: string;
-    coinAmount: number;
-    itemType?: string;
-    shopItemInventoryId?: string;
-    decorItemId?: string;
-    itemQuantity?: number;
-    itemName?: string;
-    itemImageUrl?: string;
-    shopItemId?: string;
-  }): Promise<Gift> {
-    const { senderId, receiverId, message, coinAmount, itemType, shopItemInventoryId, decorItemId, itemQuantity = 1, itemName, itemImageUrl, shopItemId } = data;
-
-    // Deduct coins from sender if sending coins
-    if (coinAmount > 0) {
-      const sender = await this.getUser(senderId);
-      if (!sender || (sender.coins ?? 0) < coinAmount) throw new Error("Insufficient coins");
-      await db.update(users).set({ coins: (sender.coins ?? 0) - coinAmount }).where(eq(users.id, senderId));
-    }
-
-    // Deduct shop item from sender inventory
-    if (itemType === "shop_item" && shopItemInventoryId) {
-      const [inv] = await db.select().from(userInventory).where(and(eq(userInventory.id, shopItemInventoryId), eq(userInventory.userId, senderId)));
-      if (!inv) throw new Error("Item not found in inventory");
-      const qty = inv.quantity ?? 1;
-      if (qty <= 1) {
-        await db.delete(userInventory).where(eq(userInventory.id, shopItemInventoryId));
-      } else {
-        await db.update(userInventory).set({ quantity: qty - itemQuantity }).where(eq(userInventory.id, shopItemInventoryId));
-      }
-    }
-
-    // Deduct decor item from sender inventory
-    if (itemType === "decor" && decorItemId) {
-      await this.decrementHomeDecorInventory(senderId, decorItemId);
-    }
-
-    const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    const [gift] = await db.insert(gifts).values({
-      senderId,
-      receiverId,
-      message: message ?? null,
-      coinAmount,
-      itemType: itemType ?? null,
-      shopItemId: shopItemId ?? null,
-      shopItemInventoryId: shopItemInventoryId ?? null,
-      decorItemId: decorItemId ?? null,
-      itemQuantity,
-      itemName: itemName ?? null,
-      itemImageUrl: itemImageUrl ?? null,
-      status: "pending",
-      expiresAt: thirtyDaysFromNow,
-    }).returning();
-    return gift;
-  }
-
   async getPendingGifts(userId: string): Promise<(Gift & { senderName: string; senderProfileImageUrl: string | null })[]> {
     const rows = await db
       .select({
@@ -3292,31 +3202,6 @@ export class DatabaseStorage implements IStorage {
       senderName: r.senderName ?? "Unknown",
       senderProfileImageUrl: r.senderProfileImageUrl ?? null,
     }));
-  }
-
-  async acceptGift(giftId: string, userId: string): Promise<Gift> {
-    const [gift] = await db.select().from(gifts).where(and(eq(gifts.id, giftId), eq(gifts.receiverId, userId), eq(gifts.status, "pending")));
-    if (!gift) throw new Error("Gift not found");
-
-    // Add coins to receiver
-    if (gift.coinAmount > 0) {
-      await this.addCoins(userId, gift.coinAmount);
-    }
-
-    // Add shop item to receiver inventory
-    if (gift.itemType === "shop_item" && gift.shopItemId) {
-      await this.addToInventory(userId, gift.shopItemId, undefined, gift.itemQuantity);
-    }
-
-    // Add decor item to receiver inventory
-    if (gift.itemType === "decor" && gift.decorItemId) {
-      for (let i = 0; i < gift.itemQuantity; i++) {
-        await this.grantHomeDecorToUser(userId, gift.decorItemId);
-      }
-    }
-
-    const [updated] = await db.update(gifts).set({ status: "accepted" }).where(eq(gifts.id, giftId)).returning();
-    return updated;
   }
 
   async getWorldChatMessages(): Promise<(WorldChatMessage & { isAdmin: boolean; isModerator: boolean })[]> {
