@@ -50,6 +50,8 @@ export interface WalkAroundLocationConfig {
   spawnPoint: { x: number; y: number };
   /** Movement speed: scene-fraction units per second. */
   movementSpeed: number;
+  /** Optional rendered pet size in pixels. */
+  petSize?: number;
   features: ExploreLocationFeatures;
 }
 

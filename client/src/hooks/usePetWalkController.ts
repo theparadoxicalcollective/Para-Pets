@@ -32,9 +32,10 @@ export interface PetWalkController {
   petPos: PetWalkPos;
   facingLeft: boolean;
   isMoving: boolean;
+  isJoystickActive: boolean;
   /** Pixel offset of joystick thumb from its base centre (for rendering). */
   joystickOffset: { x: number; y: number };
-  onJoystickPointerDown: (e: React.PointerEvent) => void;
+  onJoystickPointerDown: (e: React.PointerEvent, origin: { x: number; y: number }) => void;
   onJoystickPointerMove: (e: React.PointerEvent) => void;
   onJoystickPointerUp: () => void;
   /** Call with normalised scene coords (0–1) for click-to-move. */
@@ -54,6 +55,7 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28 }: Options): 
   const [petPos, setPetPos]             = useState<PetWalkPos>(() => clamp(spawn, bounds));
   const [facingLeft, setFacingLeft]     = useState(false);
   const [isMoving, setIsMoving]         = useState(false);
+  const [isJoystickActive, setIsJoystickActive] = useState(false);
   const [joystickOffset, setJoystickOffset] = useState({ x: 0, y: 0 });
 
   // Mutable refs — updated every frame without triggering re-renders
@@ -176,10 +178,11 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28 }: Options): 
   }, [bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax, speed]);
 
   // ── Joystick handlers ─────────────────────────────────────────────────────
-  const onJoystickPointerDown = (e: React.PointerEvent) => {
+  const onJoystickPointerDown = (e: React.PointerEvent, origin: { x: number; y: number }) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     joyActiveRef.current = true;
-    joyOriginRef.current = { x: e.clientX, y: e.clientY };
+    setIsJoystickActive(true);
+    joyOriginRef.current = origin;
     dirRef.current = { dx: 0, dy: 0 };
     targetRef.current = null;
   };
@@ -201,6 +204,7 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28 }: Options): 
 
   const onJoystickPointerUp = () => {
     joyActiveRef.current = false;
+    setIsJoystickActive(false);
     dirRef.current = { dx: 0, dy: 0 };
     setJoystickOffset({ x: 0, y: 0 });
   };
@@ -214,6 +218,7 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28 }: Options): 
     petPos,
     facingLeft,
     isMoving,
+    isJoystickActive,
     joystickOffset,
     onJoystickPointerDown,
     onJoystickPointerMove,

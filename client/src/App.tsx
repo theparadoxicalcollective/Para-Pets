@@ -212,7 +212,7 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
 }
 
 // Paths where FloatingNav should NOT appear
-const NAV_HIDDEN_PATHS = ["/auth", "/hub", "/privacy", "/admin", "/equip-accessories", "/pvp", "/games/molten-blocks", "/games/lava-crawl", "/coins"];
+const NAV_HIDDEN_PATHS = ["/auth", "/hub", "/privacy", "/admin", "/equip-accessories", "/pvp", "/games/molten-blocks", "/games/lava-crawl", "/coins", "/explore/elysian-bayou-clearing"];
 function shouldHideNav(path: string) {
   if (NAV_HIDDEN_PATHS.includes(path)) return true;
   if (path.startsWith("/reset-password/")) return true;

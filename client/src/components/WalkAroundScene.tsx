@@ -12,14 +12,17 @@
  * Scene-specific constants (bounds, spawn, speed) come from WalkAroundLocationConfig.
  */
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import PetAnimator from "@/components/PetAnimator";
 import { usePetWalkController } from "@/hooks/usePetWalkController";
 import type { WalkAroundLocationConfig } from "@/lib/exploreLocations";
 import joystickBaseImg  from "@assets/generated_images/joystick_base.png";
 import joystickThumbImg from "@assets/generated_images/joystick_thumb_v3.png";
 
-const PET_SIZE = 110; // px — rendered size of the pet sprite container
+const DEFAULT_PET_SIZE = 110;
+const JOYSTICK_SIZE = 96;
+const JOYSTICK_EDGE_GAP = 8;
 
 interface WalkAroundSceneProps {
   config: WalkAroundLocationConfig;
@@ -31,41 +34,65 @@ interface WalkAroundSceneProps {
 
 export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkAroundSceneProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
+  const [joystickCenter, setJoystickCenter] = useState({ x: 0, y: 0 });
 
   const {
     petPos,
     facingLeft,
     isMoving,
+    isJoystickActive,
     joystickOffset,
     onJoystickPointerDown,
     onJoystickPointerMove,
     onJoystickPointerUp,
-    onSceneClick,
   } = usePetWalkController({
     bounds: config.walkableBounds,
     spawn:  config.spawnPoint,
     speed:  config.movementSpeed,
   });
 
-  // Convert a click on the scene div into normalised 0–1 coords
-  const handleSceneClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!sceneRef.current) return;
+  const { data: petTemplate } = useQuery<{ facing: string }>({
+    queryKey: ["/api/pet-template-parts", petTemplateId],
+    queryFn: async () => {
+      const res = await fetch(`/api/pet-template-parts/${petTemplateId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load pet template");
+      return res.json();
+    },
+    enabled: !!petTemplateId,
+    staleTime: Infinity,
+  });
+
+  // Side-profile templates saved in the back view are drawn left by convention.
+  const naturalFacingLeft = petTemplate?.facing === "left" || petTemplate?.facing === "back";
+  const petSize = config.petSize ?? DEFAULT_PET_SIZE;
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!sceneRef.current || !e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
+    if ((e.target as HTMLElement).closest("button, a, input, select, textarea, [data-interactive]")) return;
+    e.preventDefault();
     const rect = sceneRef.current.getBoundingClientRect();
-    const nx = (e.clientX - rect.left) / rect.width;
-    const ny = (e.clientY - rect.top)  / rect.height;
-    onSceneClick(nx, ny);
+    const radius = JOYSTICK_SIZE / 2;
+    const x = Math.max(radius + JOYSTICK_EDGE_GAP, Math.min(rect.width - radius - JOYSTICK_EDGE_GAP, e.clientX - rect.left));
+    const y = Math.max(radius + JOYSTICK_EDGE_GAP, Math.min(rect.height - radius - JOYSTICK_EDGE_GAP, e.clientY - rect.top));
+    setJoystickCenter({ x, y });
+    onJoystickPointerDown(e, { x: rect.left + x, y: rect.top + y });
   };
 
   return (
     <div
       className="relative w-full h-full overflow-hidden select-none"
       style={{ touchAction: "none", background: "#0a120a" }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={onJoystickPointerMove}
+      onPointerUp={onJoystickPointerUp}
+      onPointerCancel={onJoystickPointerUp}
+      onPointerLeave={onJoystickPointerUp}
+      onContextMenu={(e) => e.preventDefault()}
     >
       {/* ── Background ──────────────────────────────────────────────────────── */}
       <div
         ref={sceneRef}
         className="absolute inset-0 cursor-pointer"
-        onClick={handleSceneClick}
         data-testid="scene-background"
       >
         <img
@@ -130,9 +157,9 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
           style={{
             left:      `${petPos.x * 100}%`,
             top:       `${petPos.y * 100}%`,
-            width:     PET_SIZE,
-            height:    PET_SIZE,
-            transform: `translate(-50%, -80%) scaleX(${facingLeft ? -1 : 1})`,
+            width:     petSize,
+            height:    petSize,
+            transform: `translate(-50%, -80%) scaleX(${facingLeft !== naturalFacingLeft ? -1 : 1})`,
             zIndex:    5,
             transition: "none",
           }}
@@ -140,21 +167,24 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
           <PetAnimator
             petTemplateId={petTemplateId}
             mode={isMoving ? "walk" : "idle"}
-            size={PET_SIZE}
+            size={petSize}
           />
         </div>
       )}
 
-      {/* ── On-screen joystick (always visible; works for both touch and mouse) */}
-      <div
+      {/* ── Floating joystick: appears at the clamped pointer-down position. ── */}
+      {isJoystickActive && <div
+        data-testid="floating-joystick"
         className="absolute"
         style={{
-          bottom: "max(28px, env(safe-area-inset-bottom, 28px))",
-          right: 28,
+          left: joystickCenter.x,
+          top: joystickCenter.y,
+          transform: "translate(-50%, -50%)",
           zIndex: 10,
-          width: 96,
-          height: 96,
+          width: JOYSTICK_SIZE,
+          height: JOYSTICK_SIZE,
           touchAction: "none",
+          pointerEvents: "none",
         }}
       >
         {/* Base ring */}
@@ -178,10 +208,6 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
             touchAction: "none",
             cursor: "grab",
           }}
-          onPointerDown={onJoystickPointerDown}
-          onPointerMove={onJoystickPointerMove}
-          onPointerUp={onJoystickPointerUp}
-          onPointerCancel={onJoystickPointerUp}
         >
           <img
             src={joystickThumbImg}
@@ -191,7 +217,7 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
             style={{ userSelect: "none" }}
           />
         </div>
-      </div>
+      </div>}
 
       {/* ── Bottom gradient (readability for joystick) ───────────────────────── */}
       <div
