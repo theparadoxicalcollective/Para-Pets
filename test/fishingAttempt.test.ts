@@ -68,7 +68,7 @@ test("production protocol rejects old authority fields and atomically records al
 
 test("durable schema has ownership, expiry, hidden outcome, replay result, and lookup indexes", () => {
   const schema = readFileSync("shared/schema.ts", "utf8");
-  const runtime = readFileSync("server/index.ts", "utf8");
+  const runtime = readFileSync("server/startup/backfills/runNonCriticalStartup.ts", "utf8");
   for (const field of ["userId", "locationId", "selectedFishId", "catchRoll", "status", "resultJson", "expiresAt", "completedAt"]) assert.match(schema, new RegExp(field));
   assert.match(runtime, /idx_fishing_attempt_owner_expiry/);
   assert.match(runtime, /idx_fishing_attempt_expiry/);
