@@ -1,6 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
 import { ELYSIAN_CLEARING_COMBAT, applyClearingHit, createClearingSession, removeClearingSession, respawnClearingEnemy, scaleClearingEnemy } from "../elysianClearingCombat";
+import { calculateClearingStats, getClearingLoadout } from "../clearingEquipment";
 
 export function registerElysianClearingCombatRoutes(app: Express, deps: { db: any; storage: any; isAuthenticated: RequestHandler }) {
   const { db, storage, isAuthenticated } = deps;
@@ -10,11 +11,13 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
     const inventory = await storage.getUserInventory(user.id);
     const pet = inventory.find((item: any) => item.id === user.activePetId && item.isHatched);
     if (!pet) return res.status(400).json({ message: "An active hatched pet is required" });
-    const stats = { level: pet.petLevel || 1, hp: pet.petHealth || 1000, atk: pet.petAtk || 50, rarity: pet.rarity };
+    const loadout = await getClearingLoadout(db, user.id);
+    const effective = calculateClearingStats({ hp: pet.petHealth || 1000, atk: pet.petAtk || 50, def: pet.petDef || 50 }, loadout.totals);
+    const stats = { level: pet.petLevel || 1, ...effective, rarity: pet.rarity };
     const session = createClearingSession(user.id, pet.id, stats);
     return res.json({
       sessionId: session.id,
-      pet: { inventoryId: pet.id, maxHealth: stats.hp, attack: scaleClearingEnemy(stats).petDamage },
+      pet: { inventoryId: pet.id, maxHealth: stats.hp, attack: scaleClearingEnemy(stats).petDamage, defense: stats.def },
       enemies: session.enemies.map(({ lastHitAt: _lastHitAt, ...enemy }) => enemy),
     });
   });
@@ -26,7 +29,7 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
     const inventory = await storage.getUserInventory(user.id);
     const pet = inventory.find((item: any) => item.id === user.activePetId && item.isHatched);
     if (!pet) return res.status(400).json({ message: "An active hatched pet is required" });
-    const result = applyClearingHit({ sessionId, instanceId: enemyInstanceId, userId: user.id, petId: pet.id, petDamage: pet.petAtk || 50 });
+    const result = applyClearingHit({ sessionId, instanceId: enemyInstanceId, userId: user.id, petId: pet.id });
     if (result.status === "invalid") return res.status(409).json({ message: "Combat session expired" });
     if (result.status === "cooldown") return res.status(429).json({ message: "Attack is cooling down" });
     if (result.status === "defeated") return res.status(409).json({ message: "Enemy already defeated" });

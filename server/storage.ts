@@ -2,6 +2,7 @@ import {
   type User, type InsertUser, users,
   type ShopItem, type InsertShopItem, shopItems,
   type UserInventoryItem, userInventory,
+  userClearingLoadouts,
   type RewardBundle, rewardBundles,
   type RewardBundleItem, rewardBundleItems,
   type UserReward, userRewards,
@@ -676,6 +677,9 @@ export class DatabaseStorage implements IStorage {
       await db.delete(petHousePositions).where(inArray(petHousePositions.inventoryId, invIds));
       await db.update(playerFishingEquipment).set({ poleInventoryId: null }).where(inArray(playerFishingEquipment.poleInventoryId, invIds));
       await db.update(playerFishingEquipment).set({ baitInventoryId: null }).where(inArray(playerFishingEquipment.baitInventoryId, invIds));
+      await db.update(userClearingLoadouts).set({ weaponInventoryId: null }).where(inArray(userClearingLoadouts.weaponInventoryId, invIds));
+      await db.update(userClearingLoadouts).set({ armorInventoryId: null }).where(inArray(userClearingLoadouts.armorInventoryId, invIds));
+      await db.update(userClearingLoadouts).set({ charmInventoryId: null }).where(inArray(userClearingLoadouts.charmInventoryId, invIds));
     }
     await db.delete(userInventory).where(eq(userInventory.shopItemId, id));
     await db.delete(shopItems).where(eq(shopItems.id, id));

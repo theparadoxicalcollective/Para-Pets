@@ -44,6 +44,7 @@ import { executeDecorPlacement, executeDecorRemoval } from "./housing/decorTrans
 import { registerGiftRoutes } from "./routes/gift.routes";
 import { registerHomeDecorRoutes } from "./routes/homeDecor.routes";
 import { registerElysianClearingCombatRoutes } from "./routes/elysianClearingCombat.routes";
+import { registerClearingEquipmentRoutes } from "./routes/clearingEquipment.routes";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -811,6 +812,7 @@ export async function registerRoutes(
   seedWorldBackgrounds();
 
   registerElysianClearingCombatRoutes(app, { db, storage, isAuthenticated });
+  registerClearingEquipmentRoutes(app, { db, isAuthenticated });
 
   const marketplaceRouteDependencies: MarketplaceRouteDependencies = {
     storage,
@@ -4739,6 +4741,12 @@ export async function registerRoutes(
   app.patch("/api/admin/shop/:itemId", isAdmin, async (req, res) => {
     try {
       const { imageData, eggImageData, hatchedImageData, hooklessImageData, ...updateData } = req.body;
+
+      const existing = await storage.getShopItem(req.params.itemId as string);
+      if (!existing) return res.status(404).json({ message: "Shop item not found" });
+      const { id: _id, createdAt: _createdAt, ...existingData } = existing;
+      const parse = insertShopItemSchema.safeParse({ ...existingData, ...updateData });
+      if (!parse.success) return res.status(400).json({ message: parse.error.errors[0].message });
 
       if (imageData) {
         try { updateData.imageUrl = await processShopItemImage(imageData); }
