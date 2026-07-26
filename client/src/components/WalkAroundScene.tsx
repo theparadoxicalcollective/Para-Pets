@@ -15,6 +15,7 @@
 import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import PetAnimator from "@/components/PetAnimator";
+import ElysianClearingCombat from "@/components/ElysianClearingCombat";
 import { usePetWalkController } from "@/hooks/usePetWalkController";
 import type { WalkAroundLocationConfig } from "@/lib/exploreLocations";
 import joystickBaseImg  from "@assets/generated_images/joystick_base.png";
@@ -45,6 +46,7 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
     onJoystickPointerDown,
     onJoystickPointerMove,
     onJoystickPointerUp,
+    resetPosition,
   } = usePetWalkController({
     bounds: config.walkableBounds,
     spawn:  config.spawnPoint,
@@ -170,6 +172,10 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
             size={petSize}
           />
         </div>
+      )}
+
+      {config.features.combat && petTemplateId && (
+        <ElysianClearingCombat petPos={petPos} facingLeft={facingLeft} onRespawn={resetPosition} />
       )}
 
       {/* ── Floating joystick: appears at the clamped pointer-down position. ── */}

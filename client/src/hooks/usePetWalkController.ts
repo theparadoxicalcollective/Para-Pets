@@ -40,6 +40,8 @@ export interface PetWalkController {
   onJoystickPointerUp: () => void;
   /** Call with normalised scene coords (0–1) for click-to-move. */
   onSceneClick: (normX: number, normY: number) => void;
+  /** Return the pet to the configured safe spawn and clear current movement input. */
+  resetPosition: () => void;
 }
 
 const MAX_JOY_RADIUS = 38; // px — max thumb displacement from base centre
@@ -214,6 +216,12 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28 }: Options): 
     targetRef.current = clamp({ x: normX, y: normY }, bounds);
   };
 
+  const resetPosition = () => {
+    const safe = clamp(spawn, bounds);
+    posRef.current = safe; targetRef.current = null; dirRef.current = { dx: 0, dy: 0 };
+    keysRef.current.clear(); joyActiveRef.current = false; setIsJoystickActive(false); setPetPos({ ...safe });
+  };
+
   return {
     petPos,
     facingLeft,
@@ -224,5 +232,6 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28 }: Options): 
     onJoystickPointerMove,
     onJoystickPointerUp,
     onSceneClick,
+    resetPosition,
   };
 }

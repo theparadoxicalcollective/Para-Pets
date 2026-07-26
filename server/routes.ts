@@ -43,6 +43,7 @@ import { executeAcceptGift, executeSendGift } from "./gifts/transactions";
 import { executeDecorPlacement, executeDecorRemoval } from "./housing/decorTransactions";
 import { registerGiftRoutes } from "./routes/gift.routes";
 import { registerHomeDecorRoutes } from "./routes/homeDecor.routes";
+import { registerElysianClearingCombatRoutes } from "./routes/elysianClearingCombat.routes";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -808,6 +809,8 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   seedWorldBackgrounds();
+
+  registerElysianClearingCombatRoutes(app, { db, storage, isAuthenticated });
 
   const marketplaceRouteDependencies: MarketplaceRouteDependencies = {
     storage,
