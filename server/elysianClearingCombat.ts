@@ -3,8 +3,6 @@ import crypto from "crypto";
 export const ELYSIAN_CLEARING_COMBAT = {
   locationId: "a1b2c3d4-0011-4000-8000-000000000011",
   enemyCount: 3,
-  coinMin: 10,
-  coinMax: 15,
   expReward: 5,
   attackCooldownMs: 500,
   sessionLifetimeMs: 30 * 60_000,

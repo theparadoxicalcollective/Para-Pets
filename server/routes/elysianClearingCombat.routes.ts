@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { ELYSIAN_CLEARING_COMBAT, applyClearingHit, createClearingSession, getClearingSession, removeClearingSession, respawnClearingEnemy, scaleClearingEnemy, updateClearingPosition } from "../elysianClearingCombat";
 import { calculateClearingStats, getClearingLoadout } from "../clearingEquipment";
 import { maybeCreateClearingDrop } from "../clearingLoot";
+import { createCurrencyDrop } from "../clearingCurrency";
 
 export function registerElysianClearingCombatRoutes(app: Express, deps: { db: any; storage: any; isAuthenticated: RequestHandler }) {
   const { db, storage, isAuthenticated } = deps;
@@ -19,6 +20,7 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
     // Carry only still-active loot into the replacement session. This makes a
     // refresh/re-entry apply fresh equipment stats without losing ground loot.
     await db.execute(sql`UPDATE clearing_ground_drops SET session_id=${session.id} WHERE user_id=${user.id} AND clearing_id=${ELYSIAN_CLEARING_COMBAT.locationId} AND collected_at IS NULL AND expires_at>now()`);
+    await db.execute(sql`UPDATE clearing_currency_drops SET session_id=${session.id} WHERE user_id=${user.id} AND clearing_id=${ELYSIAN_CLEARING_COMBAT.locationId} AND collected_at IS NULL AND expires_at>now()`);
     return res.json({
       sessionId: session.id,
       pet: { inventoryId: pet.id, maxHealth: stats.hp, attack: scaleClearingEnemy(stats).petDamage, defense: stats.def },
@@ -40,7 +42,6 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
     if (result.status === "hit") return res.json({ defeated: false, health: result.enemy.health, maxHealth: result.enemy.maxHealth });
 
     const claimKey = `elysian-clearing-defeat:${user.id}:${enemyInstanceId}`;
-    const coinReward = ELYSIAN_CLEARING_COMBAT.coinMin + Math.floor(Math.random() * (ELYSIAN_CLEARING_COMBAT.coinMax - ELYSIAN_CLEARING_COMBAT.coinMin + 1));
     const reward = await db.transaction(async (tx: any) => {
       const inserted = await tx.execute(sql`INSERT INTO game_settings (key, value) VALUES (${claimKey}, ${new Date().toISOString()}) ON CONFLICT (key) DO NOTHING RETURNING key`);
       if (!inserted.rows.length) return null;
@@ -53,16 +54,16 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
       while (level < 100) { const needed = Math.floor(100 + level * 30 + level * level * 5); if (points < needed) break; points -= needed; level++; }
       if (level >= 100) { level = 100; points = 0; }
       await tx.execute(sql`UPDATE user_inventory SET pet_level = ${level}, pet_level_points = ${points} WHERE id = ${pet.id} AND user_id = ${user.id}`);
-      const updated = await tx.execute(sql`UPDATE users SET coins = coins + ${coinReward}, total_coins_earned = total_coins_earned + ${coinReward} WHERE id = ${user.id} RETURNING coins`);
       const session=getClearingSession(sessionId);
       const px=Number(defeatPosition?.x),py=Number(defeatPosition?.y);
+      const currencyDrop=await createCurrencyDrop(tx,{userId:user.id,sessionId,clearingId:ELYSIAN_CLEARING_COMBAT.locationId,rewardId:`${claimKey}:currency`,worldX:Number.isFinite(px)?px:session?.position.x??.5,worldY:Number.isFinite(py)?py:session?.position.y??.5});
       const equipmentDrop=await maybeCreateClearingDrop(tx,{userId:user.id,sessionId,clearingId:ELYSIAN_CLEARING_COMBAT.locationId,rewardId:claimKey,worldId:"swamp",worldX:Number.isFinite(px)?px:session?.position.x??.5,worldY:Number.isFinite(py)?py:session?.position.y??.5});
-      return { coins: coinReward, exp: boostedExp, balance: Number((updated.rows[0] as any).coins), level, levelPoints: points, equipmentDrop };
+      return { exp: boostedExp, level, levelPoints: points, equipmentDrop, currencyDrop };
     });
     if (!reward) return res.status(409).json({ message: "Reward already claimed" });
     const nextEnemy = respawnClearingEnemy(sessionId, enemyInstanceId);
-    const {equipmentDrop,...normalReward}=reward;
-    return res.json({ defeated: true, health: 0, maxHealth: result.enemy.maxHealth, reward:normalReward, equipmentDrop, nextEnemy: nextEnemy && { instanceId: nextEnemy.instanceId, health: nextEnemy.health } });
+    const {equipmentDrop,currencyDrop,...normalReward}=reward;
+    return res.json({ defeated: true, health: 0, maxHealth: result.enemy.maxHealth, reward:normalReward, equipmentDrop,currencyDrop, nextEnemy: nextEnemy && { instanceId: nextEnemy.instanceId, health: nextEnemy.health } });
   });
 
   app.post("/api/explore/elysian-clearing/position",isAuthenticated,(req,res)=>{

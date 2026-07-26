@@ -52,6 +52,13 @@ export async function runEssentialBoot(): Promise<void> {
       created_at TIMESTAMP NOT NULL DEFAULT now(), expires_at TIMESTAMP NOT NULL, collected_at TIMESTAMP NULL
     )`],
     ["clearing_ground_drops lookup index migration error (non-fatal):", sql`CREATE INDEX IF NOT EXISTS clearing_ground_drops_active_idx ON clearing_ground_drops(user_id, session_id, expires_at) WHERE collected_at IS NULL`],
+    ["clearing_currency_drops migration error (non-fatal):", sql`CREATE TABLE IF NOT EXISTS clearing_currency_drops (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(), user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      session_id VARCHAR NOT NULL, clearing_id VARCHAR NOT NULL, reward_id VARCHAR NOT NULL UNIQUE,
+      currency TEXT NOT NULL CHECK (currency IN ('coins','essence')), amount INTEGER NOT NULL CHECK (amount > 0),
+      world_x REAL NOT NULL, world_y REAL NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT now(), expires_at TIMESTAMP NOT NULL, collected_at TIMESTAMP NULL
+    )`],
+    ["clearing_currency_drops lookup index migration error (non-fatal):", sql`CREATE INDEX IF NOT EXISTS clearing_currency_drops_active_idx ON clearing_currency_drops(user_id, session_id, expires_at) WHERE collected_at IS NULL`],
     ["molten_blocks_drop_items migration error (non-fatal):", sql`CREATE TABLE IF NOT EXISTS molten_blocks_drop_items (
       id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
       shop_item_id VARCHAR NOT NULL,

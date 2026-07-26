@@ -190,6 +190,14 @@ export const clearingGroundDrops = pgTable("clearing_ground_drops", {
   collectedAt: timestamp("collected_at"),
 }, (t) => [uniqueIndex("clearing_ground_drops_reward_uidx").on(t.rewardId)]);
 
+export const clearingCurrencyDrops = pgTable("clearing_currency_drops", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`), userId: varchar("user_id").notNull(),
+  sessionId: varchar("session_id").notNull(), clearingId: varchar("clearing_id").notNull(),
+  rewardId: varchar("reward_id").notNull(), currency: text("currency").notNull(), amount: integer("amount").notNull(),
+  worldX: real("world_x").notNull(), worldY: real("world_y").notNull(), createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  expiresAt: timestamp("expires_at").notNull(), collectedAt: timestamp("collected_at"),
+}, (t) => [uniqueIndex("clearing_currency_drops_reward_uidx").on(t.rewardId)]);
+
 export const rewardBundles = pgTable("reward_bundles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
