@@ -49,6 +49,7 @@ const CLEARING_CONFIG: WalkAroundLocationConfig = {
 
   // A modest 12.7% increase over the walk-around default.
   petSize: 124,
+  worldSize: { width: 1.7, height: 2.1 },
 
   features: {
     movement:     true,

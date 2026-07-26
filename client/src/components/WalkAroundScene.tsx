@@ -12,17 +12,16 @@
  * Scene-specific constants (bounds, spawn, speed) come from WalkAroundLocationConfig.
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import PetAnimator from "@/components/PetAnimator";
 import ElysianClearingCombat from "@/components/ElysianClearingCombat";
 import { usePetWalkController } from "@/hooks/usePetWalkController";
 import type { WalkAroundLocationConfig } from "@/lib/exploreLocations";
-import joystickBaseImg  from "@assets/generated_images/joystick_base.png";
-import joystickThumbImg from "@assets/generated_images/joystick_thumb_v3.png";
+import { cameraTarget } from "@/lib/elysianClearingCombatMath";
 
 const DEFAULT_PET_SIZE = 110;
-const JOYSTICK_SIZE = 96;
+const JOYSTICK_SIZE = 90;
 const JOYSTICK_EDGE_GAP = 8;
 
 interface WalkAroundSceneProps {
@@ -35,7 +34,10 @@ interface WalkAroundSceneProps {
 
 export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkAroundSceneProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
+  const worldRef = useRef<HTMLDivElement>(null);
   const [joystickCenter, setJoystickCenter] = useState({ x: 0, y: 0 });
+  const [viewport, setViewport] = useState({ width: 1, height: 1 });
+  const [camera, setCamera] = useState({ x: 0, y: 0 });
 
   const {
     petPos,
@@ -68,7 +70,7 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
   const naturalFacingLeft = petTemplate?.facing === "left" || petTemplate?.facing === "back";
   const petSize = config.petSize ?? DEFAULT_PET_SIZE;
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!sceneRef.current || !e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
     if ((e.target as HTMLElement).closest("button, a, input, select, textarea, [data-interactive]")) return;
     e.preventDefault();
@@ -78,78 +80,46 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
     const y = Math.max(radius + JOYSTICK_EDGE_GAP, Math.min(rect.height - radius - JOYSTICK_EDGE_GAP, e.clientY - rect.top));
     setJoystickCenter({ x, y });
     onJoystickPointerDown(e, { x: rect.left + x, y: rect.top + y });
-  };
+  }, [onJoystickPointerDown]);
+
+  const world = { width: viewport.width * (config.worldSize?.width ?? 1), height: viewport.height * (config.worldSize?.height ?? 1) };
+  useEffect(() => {
+    const measure = () => sceneRef.current && setViewport({ width: sceneRef.current.clientWidth || 1, height: sceneRef.current.clientHeight || 1 });
+    measure(); window.addEventListener("resize", measure); return () => window.removeEventListener("resize", measure);
+  }, []);
+  useEffect(() => {
+    let raf = 0;
+    const target = cameraTarget(petPos, world, viewport);
+    const tick = () => { setCamera(current => { const next = { x: current.x + (target.x-current.x)*.16, y: current.y + (target.y-current.y)*.16 }; return Math.abs(next.x-current.x)+Math.abs(next.y-current.y)<.1 ? target : next; }); };
+    raf = requestAnimationFrame(tick); return () => cancelAnimationFrame(raf);
+  }, [petPos.x, petPos.y, world.width, world.height, viewport.width, viewport.height]);
 
   return (
     <div
+      ref={sceneRef}
       className="relative w-full h-full overflow-hidden select-none"
       style={{ touchAction: "none", background: "#0a120a" }}
       onPointerDown={handlePointerDown}
       onPointerMove={onJoystickPointerMove}
       onPointerUp={onJoystickPointerUp}
       onPointerCancel={onJoystickPointerUp}
-      onPointerLeave={onJoystickPointerUp}
+      onLostPointerCapture={onJoystickPointerUp}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* ── Background ──────────────────────────────────────────────────────── */}
       <div
-        ref={sceneRef}
-        className="absolute inset-0 cursor-pointer"
-        data-testid="scene-background"
+        ref={worldRef}
+        data-testid="walkaround-world-layer"
+        className="absolute left-0 top-0 cursor-pointer"
+        style={{width:world.width,height:world.height,transform:`translate3d(${-camera.x}px, ${-camera.y}px, 0)`,willChange:"transform"}}
       >
         <img
           src={config.backgroundUrl}
           alt={config.name}
           draggable={false}
-          className="w-full h-full"
+          className="absolute inset-0 w-full h-full"
           style={{ objectFit: "cover", objectPosition: "center", pointerEvents: "none", userSelect: "none" }}
         />
-      </div>
 
-      {/* ── Subtle top gradient (readability for back button) ───────────────── */}
-      <div
-        className="absolute top-0 left-0 right-0 pointer-events-none"
-        style={{
-          height: "18%",
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.52) 0%, transparent 100%)",
-          zIndex: 2,
-        }}
-      />
-
-      {/* ── Back button ─────────────────────────────────────────────────────── */}
-      <button
-        data-testid="button-back-walkaround"
-        onClick={onBack}
-        className="absolute flex items-center gap-1.5 px-3 py-2 rounded-xl active:scale-95 transition-transform"
-        style={{
-          top: "max(12px, env(safe-area-inset-top, 12px))",
-          left: 14,
-          zIndex: 10,
-          background: "rgba(0,0,0,0.65)",
-          border: "1px solid rgba(255,255,255,0.18)",
-          backdropFilter: "blur(4px)",
-          color: "#f0e8c8",
-          cursor: "pointer",
-          fontSize: 13,
-          fontFamily: "var(--font-fantasy, serif)",
-        }}
-      >
-        <span style={{ fontSize: 16, lineHeight: 1 }}>‹</span>
-        <span className="font-fantasy tracking-wider text-xs">Back</span>
-      </button>
-
-      {/* ── Location name ───────────────────────────────────────────────────── */}
-      <div
-        className="absolute top-0 left-0 right-0 flex justify-center pointer-events-none"
-        style={{ paddingTop: "max(14px, env(safe-area-inset-top, 14px))", zIndex: 3 }}
-      >
-        <span
-          className="font-fantasy tracking-widest text-xs"
-          style={{ color: "rgba(220,255,200,0.8)", textShadow: "0 0 8px rgba(80,200,100,0.4)" }}
-        >
-          {config.name}
-        </span>
-      </div>
 
       {/* ── Pet sprite ──────────────────────────────────────────────────────── */}
       {petTemplateId && (
@@ -175,8 +145,13 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
       )}
 
       {config.features.combat && petTemplateId && (
-        <ElysianClearingCombat petPos={petPos} facingLeft={facingLeft} onRespawn={resetPosition} />
+        <ElysianClearingCombat petPos={petPos} facingLeft={facingLeft} onRespawn={resetPosition} worldPixels={world} />
       )}
+      </div>
+
+      <div data-testid="walkaround-hud-layer" className="absolute inset-0 pointer-events-none" style={{zIndex:10}}>
+      <button data-interactive data-testid="button-back-walkaround" onClick={onBack} className="absolute pointer-events-auto px-3 py-2 rounded-xl text-xs" style={{top:"max(12px, env(safe-area-inset-top, 12px))",left:14,background:"rgba(0,0,0,.65)",border:"1px solid rgba(255,255,255,.18)",color:"#f0e8c8"}}>‹ Back</button>
+      <div className="absolute top-0 left-0 right-0 flex justify-center" style={{paddingTop:"max(14px, env(safe-area-inset-top, 14px))",color:"#dcffc8cc"}}>{config.name}</div>
 
       {/* ── Floating joystick: appears at the clamped pointer-down position. ── */}
       {isJoystickActive && <div
@@ -193,14 +168,7 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
           pointerEvents: "none",
         }}
       >
-        {/* Base ring */}
-        <img
-          src={joystickBaseImg}
-          alt=""
-          draggable={false}
-          className="absolute inset-0 w-full h-full"
-          style={{ opacity: 0.7, userSelect: "none" }}
-        />
+        <div data-testid="joystick-base" className="absolute inset-0 rounded-full" style={{border:"1px solid rgba(210,225,200,.65)",background:"rgba(20,42,30,.54)",boxShadow:"0 2px 8px rgba(0,0,0,.35)"}} />
         {/* Thumb — moves on joystick drag */}
         <div
           data-testid="joystick-thumb"
@@ -215,15 +183,10 @@ export default function WalkAroundScene({ config, petTemplateId, onBack }: WalkA
             cursor: "grab",
           }}
         >
-          <img
-            src={joystickThumbImg}
-            alt=""
-            draggable={false}
-            className="w-full h-full"
-            style={{ userSelect: "none" }}
-          />
+          <div className="w-full h-full rounded-full" style={{background:"rgba(165,190,165,.78)",border:"1px solid rgba(240,245,230,.7)"}} />
         </div>
       </div>}
+      </div>
 
       {/* ── Bottom gradient (readability for joystick) ───────────────────────── */}
       <div
