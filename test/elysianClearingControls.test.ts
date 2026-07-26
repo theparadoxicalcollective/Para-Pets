@@ -29,10 +29,25 @@ test("floating joystick uses pointer capture, edge clamping, and safe cancellati
   assert.match(sceneSource, /\{isJoystickActive && <div/);
   assert.match(sceneSource, /Math\.max\(radius \+ JOYSTICK_EDGE_GAP/);
   assert.match(sceneSource, /onPointerCancel=\{onJoystickPointerUp\}/);
-  assert.match(sceneSource, /onPointerLeave=\{onJoystickPointerUp\}/);
+  assert.match(sceneSource, /onLostPointerCapture=\{onJoystickPointerUp\}/);
   assert.match(sceneSource, /closest\("button, a, input, select, textarea, \[data-interactive\]"\)/);
   assert.match(sceneSource, /touchAction: "none"/);
   assert.match(controllerSource, /setPointerCapture\(e\.pointerId\)/);
   assert.match(controllerSource, /rawDx \/ Math\.max\(dist, MAX_JOY_RADIUS\)/);
   assert.match(controllerSource, /joyActiveRef\.current = false[\s\S]*dirRef\.current = \{ dx: 0, dy: 0 \}/);
+});
+
+test("Clearing controls use CSS-only art and stop on browser interruption", () => {
+  assert.doesNotMatch(sceneSource, /joystick_base\.png|joystick_thumb_v3\.png/);
+  assert.match(sceneSource, /data-testid="joystick-base"/);
+  assert.doesNotMatch(sceneSource.slice(sceneSource.indexOf('data-testid="floating-joystick"')), /<img[^>]+joystick/);
+  assert.match(controllerSource, /window\.addEventListener\("blur", stopMovement\)/);
+  assert.match(controllerSource, /document\.addEventListener\("visibilitychange", onVisibility\)/);
+});
+
+test("the camera has one transformed world layer and a separate fixed HUD", () => {
+  assert.match(pageSource, /worldSize: \{ width: 1\.7, height: 2\.1 \}/);
+  assert.match(sceneSource, /data-testid="walkaround-world-layer"/);
+  assert.match(sceneSource, /translate3d/);
+  assert.match(sceneSource, /data-testid="walkaround-hud-layer"/);
 });

@@ -10,7 +10,7 @@
  *   - Editable walkable-boundary clamping
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import type { WalkableBounds } from "@/lib/exploreLocations";
 
 export interface PetWalkPos {
@@ -180,16 +180,30 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28 }: Options): 
   }, [bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax, speed]);
 
   // ── Joystick handlers ─────────────────────────────────────────────────────
-  const onJoystickPointerDown = (e: React.PointerEvent, origin: { x: number; y: number }) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
+  const stopMovement = useCallback(() => {
+    joyActiveRef.current = false;
+    dirRef.current = { dx: 0, dy: 0 };
+    setIsJoystickActive(false);
+    setJoystickOffset({ x: 0, y: 0 });
+  }, []);
+
+  useEffect(() => {
+    const onVisibility = () => { if (document.visibilityState !== "visible") stopMovement(); };
+    window.addEventListener("blur", stopMovement);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => { window.removeEventListener("blur", stopMovement); document.removeEventListener("visibilitychange", onVisibility); stopMovement(); };
+  }, [stopMovement]);
+
+  const onJoystickPointerDown = useCallback((e: React.PointerEvent, origin: { x: number; y: number }) => {
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { stopMovement(); return; }
     joyActiveRef.current = true;
     setIsJoystickActive(true);
     joyOriginRef.current = origin;
     dirRef.current = { dx: 0, dy: 0 };
     targetRef.current = null;
-  };
+  }, [stopMovement]);
 
-  const onJoystickPointerMove = (e: React.PointerEvent) => {
+  const onJoystickPointerMove = useCallback((e: React.PointerEvent) => {
     if (!joyActiveRef.current) return;
     const rawDx = e.clientX - joyOriginRef.current.x;
     const rawDy = e.clientY - joyOriginRef.current.y;
@@ -202,25 +216,20 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28 }: Options): 
       dx: dist > 2 ? rawDx / Math.max(dist, MAX_JOY_RADIUS) : 0,
       dy: dist > 2 ? rawDy / Math.max(dist, MAX_JOY_RADIUS) : 0,
     };
-  };
+  }, []);
 
-  const onJoystickPointerUp = () => {
-    joyActiveRef.current = false;
-    setIsJoystickActive(false);
-    dirRef.current = { dx: 0, dy: 0 };
-    setJoystickOffset({ x: 0, y: 0 });
-  };
+  const onJoystickPointerUp = useCallback(() => stopMovement(), [stopMovement]);
 
-  const onSceneClick = (normX: number, normY: number) => {
+  const onSceneClick = useCallback((normX: number, normY: number) => {
     if (joyActiveRef.current || keysRef.current.size > 0) return;
     targetRef.current = clamp({ x: normX, y: normY }, bounds);
-  };
+  }, [bounds]);
 
-  const resetPosition = () => {
+  const resetPosition = useCallback(() => {
     const safe = clamp(spawn, bounds);
     posRef.current = safe; targetRef.current = null; dirRef.current = { dx: 0, dy: 0 };
     keysRef.current.clear(); joyActiveRef.current = false; setIsJoystickActive(false); setPetPos({ ...safe });
-  };
+  }, [bounds, spawn, stopMovement]);
 
   return {
     petPos,
