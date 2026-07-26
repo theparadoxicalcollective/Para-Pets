@@ -10,7 +10,7 @@ export const ELYSIAN_CLEARING_COMBAT = {
   sessionLifetimeMs: 30 * 60_000,
 } as const;
 
-export interface ClearingPetStats { level: number; hp: number; atk: number; rarity?: number | null }
+export interface ClearingPetStats { level: number; hp: number; atk: number; def?: number; rarity?: number | null }
 export interface ClearingEnemyRecord {
   instanceId: string;
   slot: number;
@@ -20,7 +20,7 @@ export interface ClearingEnemyRecord {
   defeated: boolean;
   lastHitAt: number;
 }
-export interface ClearingSession { id: string; userId: string; petId: string; expiresAt: number; enemies: ClearingEnemyRecord[] }
+export interface ClearingSession { id: string; userId: string; petId: string; expiresAt: number; effectiveStats: { hp: number; atk: number; def: number }; enemies: ClearingEnemyRecord[] }
 
 const sessions = new Map<string, ClearingSession>();
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -41,6 +41,7 @@ export function createClearingSession(userId: string, petId: string, stats: Clea
   const scaled = scaleClearingEnemy(stats);
   const session: ClearingSession = {
     id: crypto.randomUUID(), userId, petId, expiresAt: now + ELYSIAN_CLEARING_COMBAT.sessionLifetimeMs,
+    effectiveStats: { hp: stats.hp, atk: stats.atk, def: stats.def ?? 0 },
     enemies: Array.from({ length: ELYSIAN_CLEARING_COMBAT.enemyCount }, (_, slot) => ({
       instanceId: crypto.randomUUID(), slot, maxHealth: scaled.maxHealth, health: scaled.maxHealth,
       attack: scaled.attack, defeated: false, lastHitAt: 0,
@@ -50,7 +51,7 @@ export function createClearingSession(userId: string, petId: string, stats: Clea
   return session;
 }
 
-export function applyClearingHit(input: { sessionId: string; instanceId: string; userId: string; petId: string; petDamage: number; now?: number }) {
+export function applyClearingHit(input: { sessionId: string; instanceId: string; userId: string; petId: string; petDamage?: number; now?: number }) {
   const now = input.now ?? Date.now();
   const session = sessions.get(input.sessionId);
   if (!session || session.expiresAt <= now || session.userId !== input.userId || session.petId !== input.petId) return { status: "invalid" as const };
@@ -58,7 +59,7 @@ export function applyClearingHit(input: { sessionId: string; instanceId: string;
   if (!enemy || enemy.defeated) return { status: "defeated" as const };
   if (now - enemy.lastHitAt < ELYSIAN_CLEARING_COMBAT.attackCooldownMs) return { status: "cooldown" as const, enemy };
   enemy.lastHitAt = now;
-  enemy.health = Math.max(0, enemy.health - clamp(Math.round(input.petDamage), 20, 5_000));
+  enemy.health = Math.max(0, enemy.health - clamp(Math.round(input.petDamage ?? session.effectiveStats.atk), 20, 5_000));
   enemy.defeated = enemy.health === 0;
   return { status: enemy.defeated ? "killed" as const : "hit" as const, enemy };
 }

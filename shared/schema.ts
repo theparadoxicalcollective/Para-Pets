@@ -75,6 +75,7 @@ export const shopItems = pgTable("shop_items", {
   atkBoost: integer("atk_boost"),
   defBoost: integer("def_boost"),
   healthBoost: integer("health_boost"),
+  clearingSlot: text("clearing_slot"),
   specialType: text("special_type"),
   specialAmount: integer("special_amount"),
   shopPosX: real("shop_pos_x").notNull().default(50),
@@ -165,6 +166,14 @@ export const userInventory = pgTable("user_inventory", {
   // Extra accessory slots purchased for THIS pet specifically (max 2).
   // Base slots = 3, so a pet can have up to 5 total.
   accessoryExtraSlots: integer("accessory_extra_slots").notNull().default(0),
+});
+
+export const userClearingLoadouts = pgTable("user_clearing_loadouts", {
+  userId: varchar("user_id").primaryKey(),
+  weaponInventoryId: varchar("weapon_inventory_id"),
+  armorInventoryId: varchar("armor_inventory_id"),
+  charmInventoryId: varchar("charm_inventory_id"),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
 export const rewardBundles = pgTable("reward_bundles", {
@@ -325,10 +334,26 @@ export const insertUserSchema = createInsertSchema(users).pick({
   coins: true,
 });
 
-export const insertShopItemSchema = createInsertSchema(shopItems).omit({
+const baseInsertShopItemSchema = createInsertSchema(shopItems).omit({
   id: true,
   createdAt: true,
 });
+
+export const clearingEquipmentSlots = ["weapon", "armor", "charm"] as const;
+export const insertShopItemSchema = baseInsertShopItemSchema.superRefine((item, ctx) => {
+  if (item.type !== "clearing") return;
+  if (!clearingEquipmentSlots.includes(item.clearingSlot as typeof clearingEquipmentSlots[number])) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["clearingSlot"], message: "Clearing slot must be weapon, armor, or charm" });
+  }
+  if (!Number.isInteger(item.starRarity) || (item.starRarity ?? 0) < 1 || (item.starRarity ?? 0) > 5) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["starRarity"], message: "Clearing star rarity must be from 1 through 5" });
+  }
+  for (const field of ["atkBoost", "defBoost", "healthBoost"] as const) {
+    if ((item[field] ?? 0) < 0) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [field], message: "Clearing stat bonuses cannot be negative" });
+  }
+});
+
+export const updateShopItemSchema = baseInsertShopItemSchema.partial();
 
 export const loginSchema = z.object({
   username: z.string().min(1),
@@ -349,6 +374,7 @@ export type LoginData = z.infer<typeof loginSchema>;
 export type ShopItem = typeof shopItems.$inferSelect;
 export type InsertShopItem = z.infer<typeof insertShopItemSchema>;
 export type UserInventoryItem = typeof userInventory.$inferSelect;
+export type UserClearingLoadout = typeof userClearingLoadouts.$inferSelect;
 export type RewardBundle = typeof rewardBundles.$inferSelect;
 export type RewardBundleItem = typeof rewardBundleItems.$inferSelect;
 export type UserReward = typeof userRewards.$inferSelect;

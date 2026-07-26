@@ -30,6 +30,7 @@ export interface ShopItemFull {
   atkBoost: number | null;
   defBoost: number | null;
   healthBoost: number | null;
+  clearingSlot: "weapon" | "armor" | "charm" | null;
   specialType: string | null;
   specialAmount: number | null;
   fishingType: string | null;
@@ -54,7 +55,7 @@ export const WORLD_OPTIONS = [
   { id: "haunted_woods", name: "Haunted Woods" },
 ];
 
-const NON_PET_TYPES = ["power_up", "accessory", "potion", "special", "decor", "edibles", "fishing", "gift", "ingredient", "recipe"];
+const NON_PET_TYPES = ["power_up", "accessory", "clearing", "potion", "special", "decor", "edibles", "fishing", "gift", "ingredient", "recipe"];
 
 function formatTypeName(type: string): string {
   if (type === "power_up") return "Power Up";
@@ -71,6 +72,7 @@ export const ITEM_CATEGORIES = [
   { key: "fish",        label: "Fish",        color: "#22d3ee" },
   { key: "bait",        label: "Bait",        color: "#86efac" },
   { key: "accessories", label: "Accessories", color: "#f9a8d4" },
+  { key: "clearing",    label: "Clearing Equipment", color: "#5eead4" },
   { key: "power_ups",   label: "Power Ups",   color: "#fde68a" },
   { key: "decor",       label: "Decor",       color: "#d9f99d" },
   { key: "ingredients", label: "Ingredients", color: "#fbbf24" },
@@ -87,7 +89,7 @@ export function getItemEffectText(item: ShopItemFull): string | null {
     if (item.petsRevived) parts.push(`Revive ${item.petsRevived}`);
     return parts.join(" · ") || null;
   }
-  if (item.type === "accessory") {
+  if (item.type === "accessory" || item.type === "clearing") {
     const parts: string[] = [];
     if (item.atkBoost) parts.push(`+${item.atkBoost} ATK`);
     if (item.defBoost) parts.push(`+${item.defBoost} DEF`);
@@ -140,6 +142,7 @@ export function getItemCategory(item: ShopItemFull): ItemCategoryKey {
     return "fish";
   }
   if (item.type === "accessory") return "accessories";
+  if (item.type === "clearing") return "clearing";
   if (item.type === "power_up" || item.type === "item") return "power_ups";
   if (item.type === "decor") return "decor";
   if (item.type === "ingredient") return "ingredients";
@@ -452,9 +455,9 @@ export default function ItemDatabaseSection({
                           {item.healthRestored ? `+${item.healthRestored} HP` : ""}{item.manaRestored ? ` +${item.manaRestored} MP` : ""}{item.petsRevived ? ` Revive ${item.petsRevived}` : ""}
                         </span>
                       )}
-                      {item.type === "accessory" && (
+                      {(item.type === "accessory" || item.type === "clearing") && (
                         <span className="font-fantasy text-[#a89878] text-[7px]">
-                          {item.atkBoost ? `+${item.atkBoost} ATK` : ""}{item.defBoost ? ` +${item.defBoost} DEF` : ""}{item.healthBoost ? ` +${item.healthBoost} HP` : ""}
+                          {item.type === "clearing" ? `${item.clearingSlot ?? "Unslotted"} · ${"★".repeat(item.starRarity ?? 1)} · ` : ""}{item.atkBoost ? `+${item.atkBoost} ATK` : ""}{item.defBoost ? ` +${item.defBoost} DEF` : ""}{item.healthBoost ? ` +${item.healthBoost} HP` : ""}
                         </span>
                       )}
                       {item.type === "fishing" && (
@@ -617,6 +620,7 @@ function AdminItemForm({
   const [atkBoost, setAtkBoost] = useState(item?.atkBoost?.toString() || "");
   const [defBoost, setDefBoost] = useState(item?.defBoost?.toString() || "");
   const [healthBoost, setHealthBoost] = useState(item?.healthBoost?.toString() || "");
+  const [clearingSlot, setClearingSlot] = useState(item?.clearingSlot || "weapon");
   const [specialType, setSpecialType] = useState(item?.specialType || "hatch_time");
   const [specialAmount, setSpecialAmount] = useState(item?.specialAmount?.toString() || "10");
   const [imageData, setImageData] = useState<string | null>(null);
@@ -714,14 +718,21 @@ function AdminItemForm({
           payload.petsHealed = null;
         }
 
-        if (effectiveType === "accessory") {
-          payload.atkBoost    = parseInt(atkBoost)    || null;
-          payload.defBoost    = parseInt(defBoost)    || null;
-          payload.healthBoost = parseInt(healthBoost) || null;
+        if (effectiveType === "accessory" || effectiveType === "clearing") {
+          payload.atkBoost    = Number.isNaN(parseInt(atkBoost)) ? 0 : parseInt(atkBoost);
+          payload.defBoost    = Number.isNaN(parseInt(defBoost)) ? 0 : parseInt(defBoost);
+          payload.healthBoost = Number.isNaN(parseInt(healthBoost)) ? 0 : parseInt(healthBoost);
         } else {
           payload.atkBoost    = null;
           payload.defBoost    = null;
           payload.healthBoost = null;
+        }
+
+        if (effectiveType === "clearing") {
+          payload.clearingSlot = clearingSlot;
+          payload.starRarity = parseInt(starRarity);
+        } else {
+          payload.clearingSlot = null;
         }
 
         if (effectiveType === "special") {
@@ -753,7 +764,7 @@ function AdminItemForm({
             payload.baitRarityBoostStar = null;
             payload.poleMaxUses = parseInt(poleMaxUses) || null;
           }
-        } else {
+        } else if (effectiveType !== "clearing") {
           payload.fishingType = null;
           payload.starRarity = null;
           payload.baitCatchBoost = null;
@@ -1219,8 +1230,22 @@ function AdminItemForm({
             </>
           )}
 
-          {!petOnly && effectiveType === "accessory" && (
+          {!petOnly && (effectiveType === "accessory" || effectiveType === "clearing") && (
             <>
+              {effectiveType === "clearing" && <>
+                <div>
+                  <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Clearing Equipment Slot</label>
+                  <select data-testid="select-clearing-slot" value={clearingSlot} onChange={(e) => setClearingSlot(e.target.value as typeof clearingSlot)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
+                    <option value="weapon">Weapon</option><option value="armor">Armor</option><option value="charm">Charm</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Star Rarity (1–5)</label>
+                  <select data-testid="select-clearing-stars" value={starRarity} onChange={(e) => setStarRarity(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
+                    {[1, 2, 3, 4, 5].map(stars => <option key={stars} value={stars}>{"★".repeat(stars)} ({stars} Star{stars > 1 ? "s" : ""})</option>)}
+                  </select>
+                </div>
+              </>}
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">ATK Boost (when equipped)</label>
                 <input data-testid="input-atk-boost" type="number" value={atkBoost} onChange={(e) => setAtkBoost(e.target.value)} placeholder="0" min="0" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
@@ -1233,7 +1258,7 @@ function AdminItemForm({
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Health Boost (when equipped)</label>
                 <input data-testid="input-health-boost" type="number" value={healthBoost} onChange={(e) => setHealthBoost(e.target.value)} placeholder="0" min="0" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />
               </div>
-              <p className="font-fantasy text-[#7fbfb0] text-[8px] tracking-wider text-center">Accessories are equippable — stats added when worn, removed when unequipped.</p>
+              <p className="font-fantasy text-[#7fbfb0] text-[8px] tracking-wider text-center">{effectiveType === "clearing" ? "Clearing equipment belongs to the player and applies to the active pet in clearings." : "Accessories are equippable — stats added when worn, removed when unequipped."}</p>
             </>
           )}
 
