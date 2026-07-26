@@ -13,3 +13,12 @@ uploads
 .tmp
 .DS_Store
 .local
+
+# Confirmed repository-hygiene development artifacts
+/pvp_diff.patch
+/new_version.tsx
+/old_version.tsx
+/artifacts/mockup-sandbox/
+/screenshots/
+/attached_assets/Pasted-*.txt
+/attached_assets/ScreenRecording_*.mov

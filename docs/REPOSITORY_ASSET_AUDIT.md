@@ -1,5 +1,7 @@
 # Repository and Asset Hygiene Audit
 
+> **Phase 1 status (2026-07-26):** The safe development-artifact cleanup is complete. See [Repository Hygiene Phase 1](./REPOSITORY_HYGIENE_PHASE_1.md) for classifications, removals, validation, and rollback instructions. The original audit findings below are retained unchanged.
+
 > **Audit date:** 2026-07-26  
 > **Scope:** all 1,505 files tracked at commit `bc9659e`; working-tree and Git-object history are outside scope.  
 > **Method:** `git ls-files`, filesystem byte counts, SHA-256 comparisons, Git LFS metadata, exact path/basename reference searches, static local-import resolution, and secret-pattern scanning. No database or network connection was made. No asset, code, configuration, database, LFS, or deployment file was modified.
