@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { ClearingGroundDrop, ClearingStarRarity } from "@shared/clearingEquipment";
+import type { ClearingEquipmentSlot, ClearingGroundDrop, ClearingStarRarity } from "@shared/clearingEquipment";
 
 export const CLEARING_LOOT = {
   equipmentChance: 0.06,
@@ -9,7 +9,39 @@ export const CLEARING_LOOT = {
 } as const;
 
 export type RandomSource = () => number;
-export type EligibleLoot = { id:string; name:string; image_url:string|null; clearing_slot:string; star_rarity:number; atk_boost:number|null; def_boost:number|null; health_boost:number|null };
+export type EligibleLoot = { id:string; name:string; image_url:string|null; clearing_slot:ClearingEquipmentSlot; star_rarity:ClearingStarRarity; atk_boost:number|null; def_boost:number|null; health_boost:number|null };
+
+const clearingSlots: readonly ClearingEquipmentSlot[] = ["weapon", "armor", "charm"];
+
+export function isClearingStarRarity(value: unknown): value is ClearingStarRarity {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 5;
+}
+
+function isClearingSlot(value: unknown): value is ClearingEquipmentSlot {
+  return typeof value === "string" && clearingSlots.includes(value as ClearingEquipmentSlot);
+}
+
+function optionalNumber(value: unknown): number | null | undefined {
+  if (value === null || value === undefined) return null;
+  const normalized = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(normalized) ? normalized : undefined;
+}
+
+/** Converts an untrusted driver row into loot data and rejects malformed rows. */
+export function normalizeEligibleLoot(row: unknown): EligibleLoot | null {
+  if (!row || typeof row !== "object") return null;
+  const value = row as Record<string, unknown>;
+  const stars = typeof value.star_rarity === "number" ? value.star_rarity : Number(value.star_rarity);
+  const atk = optionalNumber(value.atk_boost);
+  const def = optionalNumber(value.def_boost);
+  const hp = optionalNumber(value.health_boost);
+  if (typeof value.id !== "string" || !value.id || typeof value.name !== "string" ||
+      (value.image_url !== null && value.image_url !== undefined && typeof value.image_url !== "string") ||
+      !isClearingSlot(value.clearing_slot) || !isClearingStarRarity(stars) ||
+      atk === undefined || def === undefined || hp === undefined) return null;
+  return { id:value.id, name:value.name, image_url:value.image_url ?? null,
+    clearing_slot:value.clearing_slot, star_rarity:stars, atk_boost:atk, def_boost:def, health_boost:hp };
+}
 
 export function rollClearingRarity(random: RandomSource = Math.random): ClearingStarRarity {
   let roll = random() * 100;
@@ -32,8 +64,11 @@ export function selectClearingLoot(items: EligibleLoot[], random: RandomSource =
 }
 
 export function serializeGroundDrop(row: any): ClearingGroundDrop {
+  if (!isClearingSlot(row.clearing_slot) || !isClearingStarRarity(Number(row.star_rarity))) {
+    throw new ClearingDropError("invalid_item", "Clearing item is no longer available");
+  }
   return { dropId:row.id, shopItemId:row.shop_item_id, name:row.name, imageUrl:row.image_url ?? null,
-    slot:row.clearing_slot, stars:Number(row.star_rarity), atkBonus:Number(row.atk_boost ?? 0),
+    slot:row.clearing_slot, stars:Number(row.star_rarity) as ClearingStarRarity, atkBonus:Number(row.atk_boost ?? 0),
     defBonus:Number(row.def_boost ?? 0), hpBonus:Number(row.health_boost ?? 0), worldX:Number(row.world_x),
     worldY:Number(row.world_y), expiresAt:new Date(row.expires_at).toISOString() };
 }
@@ -45,7 +80,8 @@ export async function maybeCreateClearingDrop(tx:any, input:{userId:string;sessi
   const result=await tx.execute(sql`SELECT id,name,image_url,clearing_slot,star_rarity,atk_boost,def_boost,health_boost FROM shop_items
     WHERE type='clearing' AND clearing_slot IN ('weapon','armor','charm') AND star_rarity BETWEEN 1 AND 5
       AND world_id IN (${input.worldId}, 'global') AND (location_id IS NULL OR location_id=${input.clearingId})`);
-  const item=selectClearingLoot(result.rows as EligibleLoot[],random);
+  const eligibleItems = result.rows.map(normalizeEligibleLoot).filter((item): item is EligibleLoot => item !== null);
+  const item=selectClearingLoot(eligibleItems,random);
   if(!item){if(Date.now()-lastEmptyDiagnostic>60_000){console.warn(`No eligible Clearing equipment configured for ${input.clearingId}`);lastEmptyDiagnostic=Date.now();}return null;}
   const now=input.now ?? new Date();
   const x=Math.max(.2,Math.min(.8,input.worldX+.018)); const y=Math.max(.1,Math.min(.88,input.worldY+.012));
