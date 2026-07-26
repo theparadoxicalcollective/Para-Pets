@@ -47,6 +47,9 @@ const CLEARING_CONFIG: WalkAroundLocationConfig = {
   // Scene-fraction units per second (tweak to make movement feel right)
   movementSpeed: 0.26,
 
+  // A modest 12.7% increase over the walk-around default.
+  petSize: 124,
+
   features: {
     movement:     true,
     // ── Not yet implemented ───────────────────────────────────────────────
