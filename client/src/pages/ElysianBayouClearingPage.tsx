@@ -4,8 +4,8 @@
  * Loads the active pet, builds the location config, and passes everything
  * into the reusable WalkAroundScene component.
  *
- * Future: add enemy spawning, combat, item drops, and rewards here by
- * extending the config.features and adding handlers to WalkAroundScene.
+ * Combat is enabled only by this location configuration and uses the existing
+ * walk-around movement controller.
  */
 
 import { useLocation } from "wouter";
@@ -52,10 +52,9 @@ const CLEARING_CONFIG: WalkAroundLocationConfig = {
 
   features: {
     movement:     true,
-    // ── Not yet implemented ───────────────────────────────────────────────
-    enemies:      false,
-    combat:       false,
-    rewards:      false,
+    enemies:      true,
+    combat:       true,
+    rewards:      true,
     interactions: false,
     // ── Future expansion slots ─────────────────────────────────────────────
     // enemySpawning:         false,
