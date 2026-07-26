@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import WalkAroundScene from "@/components/WalkAroundScene";
 import type { WalkAroundLocationConfig } from "@/lib/exploreLocations";
 import { ELYSIAN_BAYOU_CLEARING_ID } from "@/lib/exploreLocations";
-import backgroundUrl from "@assets/worlds/elysian-bayou/elysian-bayou-clearing/background.jpg";
+import backgroundUrl from "@assets/uploads/ElysianClearingBackground.jpeg";
 
 // ── Scene configuration ───────────────────────────────────────────────────────
 //
