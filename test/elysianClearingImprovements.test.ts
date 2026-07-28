@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cameraTarget, circleHitsCapsule, clearingWorldSize, insetMovementBounds, meleeArcHit } from "../client/src/lib/elysianClearingCombatMath";
+import { cameraTarget, circleHitsCapsule, clearingWorldSize, closestClearingAttackTarget, insetMovementBounds, meleeArcHit } from "../client/src/lib/elysianClearingCombatMath";
 import { enemyFlipScale, nextEnemyFacing, resolveClearingAttackStyle, rollTierRarity } from "../shared/clearingCombat";
 import { BASIC_SWORD_ID, chooseClearingStarterWeapon } from "../server/clearingEquipment";
 import { auditClearingEquipment, clearingEquipmentPower } from "../server/clearingEquipmentBalance";
@@ -20,3 +20,5 @@ test("starter selection preserves an equipped weapon and deterministically equip
   assert.deepEqual(chooseClearingStarterWeapon({ownedWeapons:owned}),{grant:false,equipId:"oldest"});
   assert.deepEqual(chooseClearingStarterWeapon({equippedId:"newer",ownedWeapons:owned}),{grant:false,equipId:null});
 });
+
+test("attack targeting always prefers the closest valid live candidate",()=>{const candidates=[{enemy:"far-facing",distance:110,facingDot:1},{enemy:"closest",distance:55,facingDot:.4},{enemy:"outside",distance:126,facingDot:1},{enemy:"behind",distance:20,facingDot:-1}];assert.equal(closestClearingAttackTarget(candidates,125,.15),"closest");assert.equal(closestClearingAttackTarget([{enemy:"less-aligned",distance:50,facingDot:.3},{enemy:"aligned",distance:50,facingDot:.9}],125,.15),"aligned");});

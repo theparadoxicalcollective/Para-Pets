@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, X } from "lucide-react";
 import type { ClearingChestEquipmentReward, ClearingRewardChest } from "@shared/clearingEquipment";
 import { currencyAssets } from "@/lib/currencyAssets";
-import { layoutClearingChests, worldYToDepth } from "@/lib/clearingWorldPresentation";
+import { worldYToDepth } from "@/lib/clearingWorldPresentation";
 import closedChestUrl from "@assets/generated_images/icon_gift_treasure.png";
 import openedChestUrl from "@assets/hub_chest_opened.png";
 import expUrl from "@assets/logo_parapets.png";
@@ -13,11 +13,10 @@ export function chestSparkleTier(rarity:number){return rarity>=5?"legendary":rar
 export function chestImageForState(state: ClearingChestPresentationState){return state === "closed" ? closedChestUrl : openedChestUrl;}
 
 export function ClearingChestLayer({chests,openingChestId,openedChestId,onOpen}:{chests:ClearingRewardChest[];openingChestId:string|null;openedChestId:string|null;onOpen:(chest:ClearingRewardChest,control:HTMLButtonElement)=>void}){
-  const positioned=useMemo(()=>layoutClearingChests(chests.map(chest=>({...chest,x:chest.worldX,y:chest.worldY}))),[chests]);
-  return <>{positioned.map(chest=>{const opening=openingChestId===chest.chestId,opened=openedChestId===chest.chestId,tier=chestSparkleTier(chest.highestEquipmentRarity);return <button key={chest.chestId} type="button" data-interactive data-testid="clearing-reward-chest" data-state={opening?"opening":opened?"opened":"closed"} aria-label={opening?"Opening treasure chest":"Open treasure chest"} disabled={opening}
+  return <>{chests.map(chest=>{const opening=openingChestId===chest.chestId,opened=openedChestId===chest.chestId,tier=chestSparkleTier(chest.highestEquipmentRarity);return <button key={chest.chestId} type="button" data-interactive data-testid="clearing-reward-chest" data-state={opening?"opening":opened?"opened":"closed"} aria-label={opening?"Opening treasure chest":"Open treasure chest"} disabled={opening}
     onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onOpen(chest,event.currentTarget)}}
     className="group absolute flex h-11 w-11 items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 disabled:cursor-wait"
-    style={{left:`${chest.x*100}%`,top:`${chest.y*100}%`,transform:"translate(-50%,-72%)",zIndex:worldYToDepth(chest.y)}}>
+    style={{left:`${chest.worldX*100}%`,top:`${chest.worldY*100}%`,transform:"translate(-50%,-50%)",zIndex:worldYToDepth(chest.worldY)}}>
       <span aria-hidden className="clearing-chest-shadow"/>
       {tier!=="none"&&<span aria-hidden className={`clearing-chest-sparkles clearing-chest-sparkles-${tier}`}><i/><i/><i/></span>}
       <img src={chestImageForState(opening?"opening":opened?"opened":"closed")} alt="" className={`h-[34px] w-[34px] object-contain drop-shadow-[0_3px_3px_rgba(0,0,0,.65)] transition-transform group-hover:scale-105 group-active:scale-90 ${opening?"animate-clearing-chest-open":""}`} draggable={false}/>

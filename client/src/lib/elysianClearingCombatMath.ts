@@ -2,6 +2,15 @@ import type { PetWalkPos } from "@/hooks/usePetWalkController";
 import type { WalkableBounds } from "@/lib/exploreLocations";
 
 export type WorldPixels = { width: number; height: number };
+
+export type ClearingAttackCandidate<T> = { enemy: T; distance: number; facingDot: number };
+
+/** Resolve a fresh target with range/facing as hard constraints and distance first. */
+export function closestClearingAttackTarget<T>(candidates: ClearingAttackCandidate<T>[], range: number, minimumFacingDot: number): T | undefined {
+  return candidates
+    .filter(({ distance, facingDot }) => Number.isFinite(distance) && distance <= range && facingDot >= minimumFacingDot)
+    .sort((a, b) => a.distance - b.distance || b.facingDot - a.facingDot)[0]?.enemy;
+}
 export type Circle = { x: number; y: number; radius: number };
 export type Capsule = { from: PetWalkPos; to: PetWalkPos; radius: number };
 
