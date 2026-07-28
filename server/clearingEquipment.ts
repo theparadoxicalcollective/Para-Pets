@@ -4,7 +4,8 @@ import { CLEARING_EQUIPMENT_SALE_VALUES, type ClearingEquipmentSlot, type Cleari
 import { resolveClearingAttackStyle } from "@shared/clearingCombat";
 
 export const BASIC_SWORD_ID = "a1b2c3d4-0011-4000-8000-000000000012";
-export const BASIC_SWORD_SLUG = "clearing-basic-sword";
+export const BASIC_SWORD_SLUG = "clearing-training-sword";
+export const BASIC_SWORD_NAME = "Training Sword";
 export const BASIC_SWORD_IMAGE_URL = "/world-assets/generated_images/pvp_battle_sword.png";
 export function chooseClearingStarterWeapon(input:{equippedId?:string|null;ownedWeapons:Array<{inventoryId:string;shopItemId:string}>}) {
   if(input.equippedId)return {grant:false,equipId:null};
@@ -19,8 +20,8 @@ export function chooseClearingStarterWeapon(input:{equippedId?:string|null;owned
 export async function ensureClearingStarterWeapon(database:any,userId:string){return database.transaction(async(tx:any)=>{
   await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`clearing-starter:${userId}`}))`);
   await tx.execute(sql`INSERT INTO shop_items(id,name,price,type,world_id,location_id,image_url,clearing_slot,clearing_attack_style,clearing_active,star_rarity,atk_boost,def_boost,health_boost)
-    VALUES(${BASIC_SWORD_ID},'Basic Sword',0,'clearing','swamp','a1b2c3d4-0011-4000-8000-000000000011',${BASIC_SWORD_IMAGE_URL},'weapon','sword_slash',true,1,4,0,0)
-    ON CONFLICT(id) DO UPDATE SET clearing_slot='weapon',clearing_attack_style='sword_slash',clearing_active=true,image_url=COALESCE(shop_items.image_url,excluded.image_url)`);
+    VALUES(${BASIC_SWORD_ID},${BASIC_SWORD_NAME},0,'clearing','swamp','a1b2c3d4-0011-4000-8000-000000000011',${BASIC_SWORD_IMAGE_URL},'weapon','sword_slash',true,1,4,0,0)
+    ON CONFLICT(id) DO UPDATE SET name=excluded.name,clearing_slot='weapon',clearing_attack_style='sword_slash',clearing_active=true,image_url=COALESCE(shop_items.image_url,excluded.image_url)`);
   const equipped=await tx.execute(sql`SELECT weapon_inventory_id FROM user_clearing_loadouts WHERE user_id=${userId} FOR UPDATE`);
   const owned=await tx.execute(sql`SELECT ui.id AS inventory_id,ui.shop_item_id FROM user_inventory ui JOIN shop_items s ON s.id=ui.shop_item_id WHERE ui.user_id=${userId} AND s.type='clearing' AND s.clearing_slot='weapon' AND s.clearing_active=true ORDER BY ui.acquired_at,ui.id`);
   const rows=owned.rows as any[],equippedId=(equipped.rows[0] as any)?.weapon_inventory_id??null;

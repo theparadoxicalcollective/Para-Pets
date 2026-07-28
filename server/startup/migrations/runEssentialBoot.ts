@@ -51,6 +51,7 @@ export async function runEssentialBoot(): Promise<void> {
       CONSTRAINT user_clearing_loadouts_boots_fk FOREIGN KEY (boots_inventory_id) REFERENCES user_inventory(id) ON DELETE SET NULL
     )`],
     ["user_clearing_loadouts five-slot migration error (non-fatal):", sql`ALTER TABLE user_clearing_loadouts ADD COLUMN IF NOT EXISTS helmet_inventory_id VARCHAR REFERENCES user_inventory(id) ON DELETE SET NULL; ALTER TABLE user_clearing_loadouts ADD COLUMN IF NOT EXISTS boots_inventory_id VARCHAR REFERENCES user_inventory(id) ON DELETE SET NULL`],
+    ["Clearing starter identity migration error (non-fatal):", sql`UPDATE shop_items SET name='Training Sword', clearing_slot='weapon', clearing_attack_style='sword_slash', clearing_active=true WHERE id='a1b2c3d4-0011-4000-8000-000000000012'`],
     ["Clearing starter deduplication migration error (non-fatal):", sql`DELETE FROM user_inventory duplicate USING user_inventory keeper WHERE duplicate.shop_item_id='a1b2c3d4-0011-4000-8000-000000000012' AND keeper.shop_item_id=duplicate.shop_item_id AND keeper.user_id=duplicate.user_id AND keeper.id < duplicate.id`],
     ["Clearing starter uniqueness migration error (non-fatal):", sql`CREATE UNIQUE INDEX IF NOT EXISTS user_inventory_clearing_basic_sword_uidx ON user_inventory(user_id, shop_item_id) WHERE shop_item_id = 'a1b2c3d4-0011-4000-8000-000000000012'`],
     ["clearing_ground_drops migration error (non-fatal):", sql`CREATE TABLE IF NOT EXISTS clearing_ground_drops (

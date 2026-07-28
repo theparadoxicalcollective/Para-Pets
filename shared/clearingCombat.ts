@@ -1,13 +1,13 @@
-export type ClearingAttackStyle = "sword_slash" | "staff_orb" | "basic_melee";
+export type ClearingAttackStyle = "sword_slash" | "staff_orb" | "default_melee";
 export type EnemyTier = "normal" | "tough" | "elite";
 export type FacingDirection = "left" | "right";
 
 export function resolveClearingAttackStyle(item?: { attackStyle?: string | null; name?: string | null }): ClearingAttackStyle {
-  if (item?.attackStyle === "sword_slash" || item?.attackStyle === "staff_orb" || item?.attackStyle === "basic_melee") return item.attackStyle;
+  if (item?.attackStyle === "sword_slash" || item?.attackStyle === "staff_orb" || item?.attackStyle === "default_melee") return item.attackStyle;
   const name = item?.name?.trim().toLocaleLowerCase() ?? "";
   if (name.includes("sword") || name.includes("blade")) return "sword_slash";
   if (name.includes("staff") || name.includes("wand")) return "staff_orb";
-  return "basic_melee";
+  return "default_melee";
 }
 
 export function nextEnemyFacing(last: FacingDirection, velocityX: number, deadZone = 3): FacingDirection {
