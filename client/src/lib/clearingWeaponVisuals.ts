@@ -9,6 +9,13 @@ export const CLEARING_SWORD_TIMING = {
   totalMs: 300,
 } as const;
 
+export const CLEARING_TRAINING_SWORD_KEY = "clearing-training-sword";
+
+/** Inventory-only metadata; combat animation transforms remain independent. */
+export function inventoryWeaponRotation(stableKey?: string | null): number {
+  return stableKey === CLEARING_TRAINING_SWORD_KEY ? 45 : 0;
+}
+
 /** The production sword art points blade-up, so -135deg places its blade down/forward. */
 export function swordTransform(facing: "left" | "right", phase: Exclude<ClearingAttackPhase, "idle">): string {
   const rotation = phase === "windup" ? -65 : phase === "impact" ? -135 : -155;

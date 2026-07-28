@@ -4,10 +4,10 @@ import { clearingPetHurtboxRadius, clearingPetSize, clearingProjectileOrigin, cl
 import { insetMovementBounds } from "../client/src/lib/elysianClearingCombatMath";
 
 test("Clearing pet size is clamped across narrow, standard, and tall phones", () => {
-  assert.equal(clearingPetSize({width:320,height:568}),140);
-  assert.equal(clearingPetSize({width:390,height:844}),144.3);
-  assert.equal(clearingPetSize({width:430,height:932}),159.1);
-  assert.equal(clearingPetSize({width:900,height:1200}),168);
+  assert.equal(clearingPetSize({width:320,height:568}),164);
+  assert.equal(clearingPetSize({width:390,height:844}),167.7);
+  assert.equal(clearingPetSize({width:430,height:932}),184.9);
+  assert.equal(clearingPetSize({width:900,height:1200}),198);
 });
 
 test("scaled pet uses intentional feet, hurtbox, and edge geometry", () => {

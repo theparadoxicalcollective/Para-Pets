@@ -4,7 +4,7 @@ import type { WorldPixels } from "@/lib/elysianClearingCombatMath";
 /** Clearing-only presentation geometry. Gameplay hit areas intentionally do not
  * scale one-for-one with the transparent sprite canvas. */
 export const CLEARING_PET_PRESENTATION = {
-  responsiveSize: { min: 140, preferredVw: 37, max: 168, viewportHeightRatio: .205 },
+  responsiveSize: { min: 164, preferredVw: 43, max: 198, viewportHeightRatio: .235 },
   feetAnchor: .82,
   visualHalfWidthRatio: .34,
   hurtboxRadiusRatio: .22,

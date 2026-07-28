@@ -27,7 +27,7 @@ test("claim is one locked transaction and retries return already claimed",()=>{
 });
 
 test("chests require activation, popup opening does not claim, and Collect All claims the bundle",()=>{
-  assert.match(ui,/aria-label="Open treasure chest"/);
+  assert.match(ui,/"Open treasure chest"/);
   assert.match(ui,/onClick=.*onOpen/);
   assert.match(ui,/"Collect All"/);
   assert.doesNotMatch(ui,/onOpen\(chest\).*claim/i);
@@ -42,8 +42,23 @@ test("rarity sparkle is equipment-only, localized, and reduced-motion safe",()=>
 });
 
 test("reward dialog is mobile bounded, scrollable, accessible, and pauses combat",()=>{
-  assert.match(ui,/max-h-\[min\(82vh,620px\)\]/);
+  assert.match(ui,/100dvh/);
+  assert.match(ui,/createPortal/);
   assert.match(ui,/overflow-y-auto/);
   assert.match(ui,/aria-modal="true"/);
   assert.match(combat,/Boolean\(selectedChest\).*"menu-paused"/);
+});
+
+test("closed and opened chest art have distinct interaction states",()=>{
+  assert.match(ui,/icon_gift_treasure\.png/);
+  assert.match(ui,/hub_chest_opened\.png/);
+  assert.match(ui,/"closed" \| "opening" \| "opened"/);
+  assert.match(combat,/if\(openingChestId\|\|selectedChest\)return/);
+});
+
+test("equipment rewards are visual tiles with a non-claiming detail view",()=>{
+  assert.match(ui,/clearing-item-detail/);
+  assert.match(ui,/Attack \+\$\{item\.atkBonus\}/);
+  assert.doesNotMatch(ui,/item\.name<\/b>/);
+  assert.match(ui,/onClick=\{\(\)=>setDetail\(item\)\}/);
 });

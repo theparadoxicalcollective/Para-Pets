@@ -4,6 +4,7 @@ import type { ClearingEquipmentSlot, ClearingInventoryItem, ClearingLoadoutRespo
 import slotBorderUrl from "@assets/uploads/ClearingEquipmentBorder.png";
 import popupBackgroundUrl from "@assets/uploads/ClearingEquipPopUp.png";
 import bagIcon from "@assets/icon_bag.png";
+import { inventoryWeaponRotation } from "@/lib/clearingWeaponVisuals";
 
 type DisplaySlot = ClearingEquipmentSlot;
 
@@ -79,7 +80,7 @@ export default function ClearingEquipmentModal({
                   onClick={() => setSelectedSlot(slot)}
                 >
                   {item?.imageUrl ? (
-                    <img src={item.imageUrl} alt={item.name} className="absolute inset-[17%] h-[66%] w-[66%] object-contain" />
+                    <img src={item.imageUrl} alt={item.name} className="absolute inset-[12%] h-[76%] w-[76%] object-contain" style={{transform:`rotate(${inventoryWeaponRotation(item.stableKey)}deg)`}} />
                   ) : (
                     <span aria-hidden className="absolute inset-0 flex items-center justify-center text-[clamp(24px,8vw,42px)] font-light text-amber-100 drop-shadow-[0_2px_2px_#000]">+</span>
                   )}

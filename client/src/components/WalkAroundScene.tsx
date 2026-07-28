@@ -20,6 +20,7 @@ import { usePetWalkController } from "@/hooks/usePetWalkController";
 import type { WalkAroundLocationConfig } from "@/lib/exploreLocations";
 import { cameraTarget, clearingWorldSize, insetMovementBounds } from "@/lib/elysianClearingCombatMath";
 import { clearingPetSize, CLEARING_PET_PRESENTATION } from "@/lib/clearingPetPresentation";
+import { worldYToDepth } from "@/lib/clearingWorldPresentation";
 
 const DEFAULT_PET_SIZE = 110;
 const JOYSTICK_SIZE = 90;
@@ -45,8 +46,9 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
 
   const responsivePet = config.aspectLayout?.responsivePet;
   const petSize = responsivePet ? clearingPetSize(viewport) : (config.petSize ?? DEFAULT_PET_SIZE);
+  const gameplayPetSize = config.petSize ?? DEFAULT_PET_SIZE;
   const world = config.aspectLayout ? clearingWorldSize(viewport, config.aspectLayout.imageAspect) : { width: viewport.width * (config.worldSize?.width ?? 1), height: viewport.height * (config.worldSize?.height ?? 1) };
-  const movementBounds = config.aspectLayout ? insetMovementBounds(config.walkableBounds, world, petSize, CLEARING_PET_PRESENTATION.feetAnchor, CLEARING_PET_PRESENTATION.visualHalfWidthRatio) : config.walkableBounds;
+  const movementBounds = config.aspectLayout ? insetMovementBounds(config.walkableBounds, world, gameplayPetSize, CLEARING_PET_PRESENTATION.feetAnchor, CLEARING_PET_PRESENTATION.visualHalfWidthRatio) : config.walkableBounds;
   const {
     petPos,
     facingLeft,
@@ -139,7 +141,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
             width:     petSize,
             height:    petSize,
             transform: `translate(-50%, -${CLEARING_PET_PRESENTATION.feetAnchor * 100}%) scaleX(${facingLeft !== naturalFacingLeft ? -1 : 1})`,
-            zIndex:    5,
+            zIndex:    worldYToDepth(petPos.y),
             transition: "none",
           }}
         >
@@ -147,16 +149,17 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
             petTemplateId={petTemplateId}
             mode={isMoving ? "walk" : "idle"}
             size={petSize}
+            fitVisible
           />
         </div>
       )}
 
       {config.features.combat && petTemplateId && (
-        <ElysianClearingCombat petPos={petPos} petSize={petSize} activePet={activePet} facingLeft={facingLeft} onRespawn={resetPosition} worldPixels={world} hudElement={hudElement} onGameplayBlockedChange={setGameplayBlocked} />
+        <ElysianClearingCombat petPos={petPos} petSize={gameplayPetSize} activePet={activePet} facingLeft={facingLeft} onRespawn={resetPosition} worldPixels={world} hudElement={hudElement} onGameplayBlockedChange={setGameplayBlocked} />
       )}
       </div>
 
-      <div ref={setHudElement} data-testid="walkaround-hud-layer" className="absolute inset-0 pointer-events-none" style={{zIndex:10}}>
+      <div ref={setHudElement} data-testid="walkaround-hud-layer" className="absolute inset-0 pointer-events-none" style={{zIndex:3000}}>
       <button data-interactive data-testid="button-back-walkaround" onClick={onBack} className="absolute pointer-events-auto px-3 py-2 rounded-xl text-xs" style={{top:"max(12px, env(safe-area-inset-top, 12px))",left:14,background:"rgba(0,0,0,.65)",border:"1px solid rgba(255,255,255,.18)",color:"#f0e8c8"}}>‹ Back</button>
       <div className="absolute top-0 left-0 right-0 flex justify-center" style={{paddingTop:"max(14px, env(safe-area-inset-top, 14px))",color:"#dcffc8cc"}}>{config.name}</div>
 
