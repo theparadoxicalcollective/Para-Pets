@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { Sword } from "lucide-react";
 import type { ClearingInventoryItem } from "@shared/clearingEquipment";
 import { resolveClearingAttackStyle } from "@shared/clearingCombat";
+import { worldYToDepth } from "@/lib/clearingWorldPresentation";
 import { swordTransform, type ClearingAttackPhase, weaponRarityFilter } from "@/lib/clearingWeaponVisuals";
 
-export default function ClearingAttackEffect({ weapon, phase, facingLeft, x, y, petSize }: {
+export default function ClearingAttackEffect({ weapon, phase, facingLeft, x, y, petSize, playerY }: {
   weapon: ClearingInventoryItem | null; phase: ClearingAttackPhase; facingLeft: boolean;
-  x: number; y: number; petSize: number;
+  x: number; y: number; petSize: number; playerY: number;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [weapon?.imageUrl]);
@@ -14,13 +15,13 @@ export default function ClearingAttackEffect({ weapon, phase, facingLeft, x, y, 
   if (phase === "idle") return null;
   const style = resolveClearingAttackStyle(weapon ? { attackStyle: weapon.attackStyle, name: weapon.name } : undefined);
   if (import.meta.env.DEV && style !== "sword_slash") console.warn("Clearing attack renderer used safe default visual", { attackStyle: weapon?.attackStyle, shopItemId: weapon?.shopItemId });
-  const safePetSize = Number.isFinite(petSize) ? Math.max(96, Math.min(126, petSize)) : 110;
-  const size = `${Math.max(42, Math.min(58, Math.round(safePetSize * .46)))}px`;
+  const safePetSize = Number.isFinite(petSize) ? Math.max(40, Math.min(90, petSize)) : 59.5;
+  const size = `${Math.max(30, Math.min(42, Math.round(safePetSize * .58)))}px`;
   const facing = facingLeft ? "left" : "right";
   const showRealSword = style === "sword_slash" && Boolean(weapon?.imageUrl) && !imageFailed;
   return <div data-testid="clearing-weapon-attack" data-phase={phase} data-facing={facing} data-attack-style={style}
-    className="absolute pointer-events-none overflow-visible"
-    style={{ left:`${x*100}%`, top:`${y*100}%`, width:size, height:size, zIndex:12, transform:swordTransform(facing, phase) }}>
+    className="absolute pointer-events-none overflow-visible clearing-player-weapon-foreground"
+    style={{ left:`${x*100}%`, top:`${y*100}%`, width:size, height:size, zIndex:worldYToDepth(playerY, 3), transform:swordTransform(facing, phase) }}>
     {showRealSword ? <img data-testid="clearing-equipped-weapon-image" src={weapon!.imageUrl!} alt="" draggable={false}
       className="h-full w-full object-contain"
       style={{ filter:weaponRarityFilter(weapon?.stars ?? 1) }}
