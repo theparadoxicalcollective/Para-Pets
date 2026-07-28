@@ -80,6 +80,7 @@ export interface ClearingChestEquipmentReward {
 
 export interface ClearingRewardBundle {
   exp: number; coins: number; essence: number;
+  items: Array<{ shopItemId:string; name:string; imageUrl:string|null; type:string; quantity:number; starRarity:number; rarity:import("./clearingConfig").ClearingRarity; slot?:string|null; atkBonus?:number; defBonus?:number; hpBonus?:number }>;
   equipment: ClearingChestEquipmentReward[];
   consumables: Array<{ shopItemId: string; name: string; imageUrl: string | null; quantity: number }>;
 }

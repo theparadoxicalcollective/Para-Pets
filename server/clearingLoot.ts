@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import type { ClearingEquipmentSlot, ClearingGroundDrop, ClearingStarRarity } from "@shared/clearingEquipment";
+import { CLEARING_BALANCE, effectiveClearingRarity, type ClearingRarity } from "@shared/clearingConfig";
 
 export const CLEARING_LOOT = {
   equipmentChance: 0.06,
@@ -9,6 +10,21 @@ export const CLEARING_LOOT = {
 } as const;
 
 export type RandomSource = () => number;
+export type ClearingLootItem = { id:string;name:string;image_url:string|null;type:string;star_rarity:number;rarity:ClearingRarity;clearing_slot?:string|null;atk_boost?:number|null;def_boost?:number|null;health_boost?:number|null };
+
+const integer=(random:RandomSource,[min,max]:readonly[number,number])=>min+Math.floor(random()*(max-min+1));
+function weightedRarity(available:Set<ClearingRarity>,weights:Record<ClearingRarity,number>,random:RandomSource){const entries=(Object.entries(weights) as [ClearingRarity,number][]).filter(([r])=>available.has(r));const total=entries.reduce((s,[,w])=>s+w,0);let roll=random()*total;for(const [rarity,weight] of entries){roll-=weight;if(roll<0)return rarity;}return entries.at(-1)![0];}
+
+/** Pure, deterministic Clearing chest formula. Items are selected without replacement. */
+export function buildClearingLoot(pool:ClearingLootItem[],boss:boolean,random:RandomSource=Math.random){
+ const normalized=pool.map(i=>({...i,rarity:effectiveClearingRarity(i.rarity,i.star_rarity)}));
+ const settings=boss?CLEARING_BALANCE.boss:CLEARING_BALANCE.regular,target=Math.min(normalized.length,integer(random,settings.itemCount));
+ const selected:ClearingLootItem[]=[];
+ const take=(rarity?:ClearingRarity)=>{const candidates=normalized.filter(i=>!selected.some(s=>s.id===i.id)&&(!rarity||i.rarity===rarity));if(!candidates.length)return false;selected.push(candidates[Math.min(candidates.length-1,Math.floor(random()*candidates.length))]);return true;};
+ if(boss&&!take("rare"))throw new Error("Boss Clearing has no effective Rare drop");
+ while(selected.length<target){const remaining=normalized.filter(i=>!selected.some(s=>s.id===i.id));if(!remaining.length)break;const groups=new Set(remaining.map(i=>i.rarity));take(weightedRarity(groups,settings.weights,random));}
+ return {items:selected,coins:integer(random,settings.coins),essence:integer(random,settings.essence),warning:selected.length<target?"Configured pool contained too few distinct items":null};
+}
 export type EligibleLoot = { id:string; name:string; image_url:string|null; clearing_slot:ClearingEquipmentSlot; star_rarity:ClearingStarRarity; atk_boost:number|null; def_boost:number|null; health_boost:number|null };
 
 const clearingSlots: readonly ClearingEquipmentSlot[] = ["helmet", "weapon", "armor", "boots", "charm"];

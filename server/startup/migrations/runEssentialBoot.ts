@@ -76,6 +76,20 @@ export async function runEssentialBoot(): Promise<void> {
       UNIQUE(user_id, defeated_enemy_id)
     )`],
     ["clearing_reward_chests lookup index migration error (non-fatal):", sql`CREATE INDEX IF NOT EXISTS clearing_reward_chests_active_idx ON clearing_reward_chests(user_id, session_id, created_at) WHERE claimed_at IS NULL`],
+    ["Clearing world configuration migration error (non-fatal):", sql`
+      CREATE TABLE IF NOT EXISTS clearing_world_drops (id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(), world_id VARCHAR NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, shop_item_id VARCHAR NOT NULL REFERENCES shop_items(id) ON DELETE CASCADE, rarity TEXT NOT NULL CHECK(rarity IN ('common','uncommon','rare')), created_at TIMESTAMP NOT NULL DEFAULT now(), UNIQUE(world_id,shop_item_id));
+      CREATE TABLE IF NOT EXISTS clearing_world_enemies (id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(), world_id VARCHAR NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, enemy_id VARCHAR NOT NULL REFERENCES enemies(id) ON DELETE CASCADE, is_boss BOOLEAN NOT NULL DEFAULT false, sort_order INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMP NOT NULL DEFAULT now(), UNIQUE(world_id,enemy_id));
+      CREATE INDEX IF NOT EXISTS clearing_world_drops_world_idx ON clearing_world_drops(world_id);
+      CREATE INDEX IF NOT EXISTS clearing_world_enemies_world_idx ON clearing_world_enemies(world_id,sort_order);
+    `],
+    ["Elysian Clearing configuration backfill error (non-fatal):", sql`
+      INSERT INTO clearing_world_enemies(world_id,enemy_id,is_boss)
+      SELECT 'swamp',e.id,false FROM enemies e WHERE EXISTS(SELECT 1 FROM worlds WHERE id='swamp') AND NOT EXISTS(SELECT 1 FROM clearing_world_enemies WHERE world_id='swamp') ORDER BY e.created_at LIMIT 1;
+      INSERT INTO clearing_world_drops(world_id,shop_item_id,rarity)
+      SELECT 'swamp',s.id,CASE WHEN COALESCE(s.star_rarity,1)>=3 THEN 'rare' WHEN s.star_rarity=2 THEN 'uncommon' ELSE 'common' END
+      FROM shop_items s WHERE EXISTS(SELECT 1 FROM worlds WHERE id='swamp') AND s.type='clearing' AND s.clearing_active=true AND s.id<>'a1b2c3d4-0011-4000-8000-000000000012' ORDER BY s.star_rarity,s.created_at LIMIT 5
+      ON CONFLICT(world_id,shop_item_id) DO NOTHING;
+    `],
     ["molten_blocks_drop_items migration error (non-fatal):", sql`CREATE TABLE IF NOT EXISTS molten_blocks_drop_items (
       id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
       shop_item_id VARCHAR NOT NULL,
