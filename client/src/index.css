@@ -3386,3 +3386,10 @@ img[data-interactive], button img, a img {
     max-height: min(28dvh, 220px);
   }
 }
+/* Clearing movement is presentation-only: the world wrapper, hitbox, depth and
+   weapon origin never inherit this transform. */
+.clearing-pet-presentation { width:100%; height:100%; transform-origin:50% 82%; animation:clearing-pet-breathe 4s ease-in-out infinite; }
+.clearing-pet-presentation.is-moving { animation:clearing-pet-step .52s ease-in-out infinite; }
+@keyframes clearing-pet-breathe { 0%,100% { translate:0 0; } 50% { translate:0 -1px; } }
+@keyframes clearing-pet-step { 0%,100% { translate:0 0; scale:1 1; } 50% { translate:0 -3px; scale:1.015 .985; } }
+@media (prefers-reduced-motion: reduce) { .clearing-pet-presentation,.clearing-pet-presentation.is-moving { animation:none; } }
