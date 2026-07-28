@@ -2,7 +2,9 @@ import crypto from "crypto";
 
 export const ELYSIAN_CLEARING_COMBAT = {
   locationId: "a1b2c3d4-0011-4000-8000-000000000011",
-  enemyCount: 3,
+  baseEnemyPopulation: 8,
+  maxEnemyPopulation: 10,
+  enemyCount: 8,
   expReward: 5,
   attackCooldownMs: 500,
   sessionLifetimeMs: 30 * 60_000,
@@ -43,7 +45,7 @@ export function createClearingSession(userId: string, petId: string, stats: Clea
     effectiveStats: { hp: stats.hp, atk: stats.atk, def: stats.def ?? 0 },
     position:{x:.5,y:.7,updatedAt:now}, enemies: Array.from({ length: ELYSIAN_CLEARING_COMBAT.enemyCount }, (_, slot) => ({
       instanceId: crypto.randomUUID(), slot, maxHealth: scaled.maxHealth, health: scaled.maxHealth,
-      attack: scaled.attack, defeated: false, lastHitAt: 0, x:[.42,.62,.36][slot]??.5, y:[.68,.58,.62][slot]??.6,
+      attack: scaled.attack, defeated: false, lastHitAt: 0, x:[.28,.68,.35,.72,.48,.25,.63,.43][slot]??.5, y:[.24,.28,.43,.48,.58,.72,.72,.82][slot]??.6,
     })),
   };
   sessions.set(session.id, session);

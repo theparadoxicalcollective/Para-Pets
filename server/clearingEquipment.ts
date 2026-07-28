@@ -7,6 +7,20 @@ export const BASIC_SWORD_ID = "a1b2c3d4-0011-4000-8000-000000000012";
 export const BASIC_SWORD_SLUG = "clearing-training-sword";
 export const BASIC_SWORD_NAME = "Training Sword";
 export const BASIC_SWORD_IMAGE_URL = "/world-assets/generated_images/pvp_battle_sword.png";
+export const ELYSIAN_CLEARING_DROP_POOL = [
+  { id:"a1b2c3d4-0011-4000-8000-000000000021", name:"Cypress Fang", imageUrl:"/world-assets/accessory_swamp_sword.png", slot:"weapon", stars:1, atk:6, def:0, hp:0 },
+  { id:"a1b2c3d4-0011-4000-8000-000000000022", name:"Wraithwood Helm", imageUrl:"/world-assets/accessory_swamp_armor.png", slot:"helmet", stars:2, atk:0, def:8, hp:12 },
+  { id:"a1b2c3d4-0011-4000-8000-000000000023", name:"Gatorhide Cuirass", imageUrl:"/world-assets/accessory_swamp_armor.png", slot:"armor", stars:3, atk:0, def:18, hp:30 },
+  { id:"a1b2c3d4-0011-4000-8000-000000000024", name:"Mirewalker Boots", imageUrl:"/world-assets/acc_charm_anklet.png", slot:"boots", stars:4, atk:4, def:24, hp:45 },
+  { id:"a1b2c3d4-0011-4000-8000-000000000025", name:"Wisplight Amulet", imageUrl:"/world-assets/accessory_swamp_amulet.png", slot:"charm", stars:5, atk:12, def:20, hp:80 },
+] as const;
+
+async function ensureClearingDropPool(tx:any){
+  for(const item of ELYSIAN_CLEARING_DROP_POOL)await tx.execute(sql`INSERT INTO shop_items(id,name,price,type,world_id,location_id,image_url,clearing_slot,clearing_attack_style,clearing_active,star_rarity,atk_boost,def_boost,health_boost)
+    VALUES(${item.id},${item.name},0,'clearing','swamp','a1b2c3d4-0011-4000-8000-000000000011',${item.imageUrl},${item.slot},${item.slot==='weapon'?'sword_slash':null},true,${item.stars},${item.atk},${item.def},${item.hp})
+    ON CONFLICT(id) DO UPDATE SET name=excluded.name,image_url=excluded.image_url,clearing_slot=excluded.clearing_slot,clearing_active=true,star_rarity=excluded.star_rarity,atk_boost=excluded.atk_boost,def_boost=excluded.def_boost,health_boost=excluded.health_boost`);
+}
+
 export function chooseClearingStarterWeapon(input:{equippedId?:string|null;ownedWeapons:Array<{inventoryId:string;shopItemId:string}>}) {
   if(input.equippedId)return {grant:false,equipId:null};
   const basic=input.ownedWeapons.find(item=>item.shopItemId===BASIC_SWORD_ID);
@@ -19,6 +33,7 @@ export function chooseClearingStarterWeapon(input:{equippedId?:string|null;owned
  * lookup make repeated entry idempotent; a deliberately equipped weapon wins. */
 export async function ensureClearingStarterWeapon(database:any,userId:string){return database.transaction(async(tx:any)=>{
   await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`clearing-starter:${userId}`}))`);
+  await ensureClearingDropPool(tx);
   await tx.execute(sql`INSERT INTO shop_items(id,name,price,type,world_id,location_id,image_url,clearing_slot,clearing_attack_style,clearing_active,star_rarity,atk_boost,def_boost,health_boost)
     VALUES(${BASIC_SWORD_ID},${BASIC_SWORD_NAME},0,'clearing','swamp','a1b2c3d4-0011-4000-8000-000000000011',${BASIC_SWORD_IMAGE_URL},'weapon','sword_slash',true,1,4,0,0)
     ON CONFLICT(id) DO UPDATE SET name=excluded.name,clearing_slot='weapon',clearing_attack_style='sword_slash',clearing_active=true,image_url=COALESCE(shop_items.image_url,excluded.image_url)`);

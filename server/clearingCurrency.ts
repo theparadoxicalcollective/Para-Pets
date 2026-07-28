@@ -3,7 +3,7 @@ import type { ClearingCurrency, ClearingCurrencyDrop } from "@shared/clearingEqu
 
 export const CLEARING_CURRENCY_REWARDS = {
   coins: { min: 1, max: 2 }, essence: { min: 10, max: 20 },
-  expirationMs: 45_000, pickupRadiusPixels: 82,
+  expirationMs: 5 * 60_000, pickupRadiusPixels: 82,
 } as const;
 
 export class ClearingCurrencyError extends Error {

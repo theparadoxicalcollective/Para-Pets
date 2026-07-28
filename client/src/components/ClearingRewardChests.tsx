@@ -16,11 +16,11 @@ export function ClearingChestLayer({chests,openingChestId,openedChestId,onOpen}:
   const positioned=useMemo(()=>layoutClearingChests(chests.map(chest=>({...chest,x:chest.worldX,y:chest.worldY}))),[chests]);
   return <>{positioned.map(chest=>{const opening=openingChestId===chest.chestId,opened=openedChestId===chest.chestId,tier=chestSparkleTier(chest.highestEquipmentRarity);return <button key={chest.chestId} type="button" data-interactive data-testid="clearing-reward-chest" data-state={opening?"opening":opened?"opened":"closed"} aria-label={opening?"Opening treasure chest":"Open treasure chest"} disabled={opening}
     onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onOpen(chest,event.currentTarget)}}
-    className="group absolute flex h-14 w-14 items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 disabled:cursor-wait"
+    className="group absolute flex h-11 w-11 items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 disabled:cursor-wait"
     style={{left:`${chest.x*100}%`,top:`${chest.y*100}%`,transform:"translate(-50%,-72%)",zIndex:worldYToDepth(chest.y)}}>
       <span aria-hidden className="clearing-chest-shadow"/>
       {tier!=="none"&&<span aria-hidden className={`clearing-chest-sparkles clearing-chest-sparkles-${tier}`}><i/><i/><i/></span>}
-      <img src={chestImageForState(opening?"opening":opened?"opened":"closed")} alt="" className={`h-12 w-12 object-contain drop-shadow-[0_3px_3px_rgba(0,0,0,.65)] transition-transform group-hover:scale-105 group-active:scale-90 ${opening?"animate-clearing-chest-open":""}`} draggable={false}/>
+      <img src={chestImageForState(opening?"opening":opened?"opened":"closed")} alt="" className={`h-[34px] w-[34px] object-contain drop-shadow-[0_3px_3px_rgba(0,0,0,.65)] transition-transform group-hover:scale-105 group-active:scale-90 ${opening?"animate-clearing-chest-open":""}`} draggable={false}/>
   </button>})}</>;
 }
 
@@ -33,7 +33,7 @@ function ItemDetails({item,onBack}:{item:ClearingChestEquipmentReward;onBack:()=
   const effects=[item.atkBonus>0&&`Attack +${item.atkBonus}`,item.defBonus>0&&`Defense +${item.defBonus}`,item.hpBonus>0&&`Health +${item.hpBonus}`].filter(Boolean);
   return <div data-testid="clearing-item-detail" className="flex min-h-0 flex-1 flex-col items-center text-center">
     <button type="button" onClick={onBack} className="mb-2 flex min-h-11 items-center gap-1 self-start rounded-lg px-2 text-amber-100 focus-visible:ring-2 focus-visible:ring-amber-200"><ArrowLeft size={20}/> Back to rewards</button>
-    <RewardImage src={item.imageUrl} alt={item.name} className="h-36 w-36 shrink-0"/>
+    <RewardImage src={item.imageUrl} alt={item.name} className="h-[clamp(6rem,24vw,8rem)] w-[clamp(6rem,24vw,8rem)] shrink-0"/>
     <h3 className="mt-2 text-xl font-black text-amber-100">{item.name}</h3>
     {item.stars>0&&<div aria-label={`${item.stars} star rarity`} className="text-lg text-amber-300">{"★".repeat(item.stars)}</div>}
     <p className="mt-1 capitalize text-emerald-100">{item.slot}</p>
@@ -53,11 +53,11 @@ export function ClearingChestModal({chest,claiming,error,onClose,onClaim,restore
       <button type="button" aria-label="Close rewards" disabled={claiming} onClick={detail?()=>setDetail(null):onClose} className="absolute right-2 top-2 z-10 flex h-11 w-11 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-amber-200 disabled:opacity-50"><X/></button>
       <h2 id="clearing-chest-title" className="shrink-0 pr-11 text-center text-xl font-black text-amber-200">{detail?"Item Details":"Treasure Rewards"}</h2>
       {detail?<ItemDetails item={detail} onBack={()=>setDetail(null)}/>:<>
-        <div data-testid="clearing-chest-reward-list" className="my-3 grid min-h-0 grid-cols-2 gap-2 overflow-y-auto overscroll-contain sm:grid-cols-3">
+        <div data-testid="clearing-chest-reward-list" className={`my-3 grid min-h-0 ${r.equipment.length===1?"grid-cols-1 justify-items-center":"grid-cols-2 max-[340px]:grid-cols-1"} gap-3 overflow-y-auto overscroll-contain px-1`}>
           {r.exp>0&&<div className="clearing-reward-tile"><RewardImage src={expUrl} alt="Experience" className="h-14 w-14"/><b>{r.exp} EXP</b></div>}
           {r.coins>0&&<div className="clearing-reward-tile"><RewardImage src={currencyAssets.coin} alt="Coins" className="h-14 w-14"/><b>{r.coins}</b></div>}
           {r.essence>0&&<div className="clearing-reward-tile"><RewardImage src={currencyAssets.essenceToken} alt="Essence" className="h-14 w-14"/><b>{r.essence}</b></div>}
-          {r.equipment.map((item,index)=><button type="button" aria-label={`Inspect ${item.name}`} key={`${item.shopItemId}-${index}`} onClick={()=>setDetail(item)} className="clearing-reward-tile relative min-h-[112px] border-violet-400/50 focus-visible:ring-2 focus-visible:ring-amber-200"><RewardImage src={item.imageUrl} alt={item.name} className="h-20 w-20"/>{item.stars>0&&<span aria-label={`${item.stars} star rarity`} className="absolute bottom-1 text-sm text-amber-300">{"★".repeat(item.stars)}</span>}</button>)}
+          {r.equipment.map((item,index)=><button type="button" aria-label={`Inspect ${item.name}`} key={`${item.shopItemId}-${index}`} onClick={()=>setDetail(item)} className="clearing-reward-tile relative min-h-[96px] w-full max-w-[10rem] border-violet-400/50 focus-visible:ring-2 focus-visible:ring-amber-200"><RewardImage src={item.imageUrl} alt={item.name} className="h-[clamp(3.5rem,17vw,4.5rem)] w-[clamp(3.5rem,17vw,4.5rem)]"/>{item.stars>0&&<span aria-label={`${item.stars} star rarity`} className="absolute bottom-1 text-sm text-amber-300">{"★".repeat(item.stars)}</span>}</button>)}
         </div>
         {error&&<p role="alert" className="mb-2 text-center text-sm text-red-300">{error} Please try again.</p>}
         <button type="button" data-testid="button-clearing-collect-all" disabled={claiming} onClick={onClaim} className="min-h-12 w-full shrink-0 rounded-xl bg-amber-400 px-5 py-3 text-lg font-black text-emerald-950 shadow active:scale-[.98] disabled:opacity-60 focus-visible:ring-2 focus-visible:ring-white">{claiming?"Collecting…":"Collect All"}</button>

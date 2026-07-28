@@ -10,15 +10,17 @@ test("clearing enemy scaling stays near the intended five-hit and eight-hit targ
   assert.ok(Math.ceil(1000 / scaled.attack) >= 8);
 });
 
-test("server combat sessions contain exactly three independently identified enemies", () => {
+test("server combat sessions contain the configured distributed enemy population", () => {
   const session = createClearingSession("user-a", "pet-a", { level: 10, hp: 1600, atk: 90 });
   assert.equal(session.enemies.length, ELYSIAN_CLEARING_COMBAT.enemyCount);
-  assert.equal(new Set(session.enemies.map((enemy) => enemy.instanceId)).size, 3);
+  assert.equal(new Set(session.enemies.map((enemy) => enemy.instanceId)).size, ELYSIAN_CLEARING_COMBAT.enemyCount);
+  assert.equal(new Set(session.enemies.map((enemy) => `${enemy.x}:${enemy.y}`)).size, ELYSIAN_CLEARING_COMBAT.enemyCount);
 });
 
 test("the server enforces attack cooldown and rejects hits after defeat", () => {
   const session = createClearingSession("user-b", "pet-b", { level: 1, hp: 1000, atk: 50 }, 1000);
   const enemy = session.enemies[0];
+  session.position = { x: enemy.x, y: enemy.y, updatedAt: 1000 };
   assert.equal(applyClearingHit({ sessionId: session.id, instanceId: enemy.instanceId, userId: "user-b", petId: "pet-b", petDamage: 50, now: 2000 }).status, "hit");
   assert.equal(applyClearingHit({ sessionId: session.id, instanceId: enemy.instanceId, userId: "user-b", petId: "pet-b", petDamage: 50, now: 2100 }).status, "cooldown");
   let result;

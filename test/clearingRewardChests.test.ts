@@ -7,10 +7,11 @@ const combat=fs.readFileSync("client/src/components/ElysianClearingCombat.tsx","
 const ui=fs.readFileSync("client/src/components/ClearingRewardChests.tsx","utf8");
 const service=fs.readFileSync("server/clearingRewardChests.ts","utf8");
 
-test("enemy defeat creates one server-owned chest and no loose pickup",()=>{
-  assert.match(service,/INSERT INTO clearing_reward_chests/);
+test("enemy defeat creates proximity currency and equipment-only chests",()=>{
+  assert.match(service,/if\(!equipment\.length\)return null/);
+  assert.match(combat,/ClearingCurrencyDropLayer/);
   assert.match(combat,/data\.chest/);
-  assert.doesNotMatch(combat,/ClearingGroundDropLayer|ClearingCurrencyDropLayer|pickupRadiusPixels/);
+  assert.match(service,/exp:0,coins:0,essence:0/);
 });
 
 test("bundle supports two equipment rewards without increasing the established six-percent expectation",()=>{
