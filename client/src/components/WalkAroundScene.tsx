@@ -19,6 +19,7 @@ import ElysianClearingCombat from "@/components/ElysianClearingCombat";
 import { usePetWalkController } from "@/hooks/usePetWalkController";
 import type { WalkAroundLocationConfig } from "@/lib/exploreLocations";
 import { cameraTarget, clearingWorldSize, insetMovementBounds } from "@/lib/elysianClearingCombatMath";
+import { clearingPetSize, CLEARING_PET_PRESENTATION } from "@/lib/clearingPetPresentation";
 
 const DEFAULT_PET_SIZE = 110;
 const JOYSTICK_SIZE = 90;
@@ -43,9 +44,9 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
   const [gameplayBlocked, setGameplayBlocked] = useState(false);
 
   const responsivePet = config.aspectLayout?.responsivePet;
-  const petSize = responsivePet ? Math.max(responsivePet.min, Math.min(responsivePet.max, viewport.width * responsivePet.preferredVw / 100, viewport.height * .18)) : (config.petSize ?? DEFAULT_PET_SIZE);
+  const petSize = responsivePet ? clearingPetSize(viewport) : (config.petSize ?? DEFAULT_PET_SIZE);
   const world = config.aspectLayout ? clearingWorldSize(viewport, config.aspectLayout.imageAspect) : { width: viewport.width * (config.worldSize?.width ?? 1), height: viewport.height * (config.worldSize?.height ?? 1) };
-  const movementBounds = config.aspectLayout ? insetMovementBounds(config.walkableBounds, world, petSize) : config.walkableBounds;
+  const movementBounds = config.aspectLayout ? insetMovementBounds(config.walkableBounds, world, petSize, CLEARING_PET_PRESENTATION.feetAnchor, CLEARING_PET_PRESENTATION.visualHalfWidthRatio) : config.walkableBounds;
   const {
     petPos,
     facingLeft,
@@ -137,7 +138,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
             top:       `${petPos.y * 100}%`,
             width:     petSize,
             height:    petSize,
-            transform: `translate(-50%, -80%) scaleX(${facingLeft !== naturalFacingLeft ? -1 : 1})`,
+            transform: `translate(-50%, -${CLEARING_PET_PRESENTATION.feetAnchor * 100}%) scaleX(${facingLeft !== naturalFacingLeft ? -1 : 1})`,
             zIndex:    5,
             transition: "none",
           }}

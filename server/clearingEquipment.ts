@@ -40,6 +40,7 @@ const emptyTotals = (): ClearingStatTotals => ({ atk: 0, def: 0, hp: 0 });
 function toInventoryItem(row: any, equippedIds: Set<string>): ClearingInventoryItem {
   return {
     inventoryId: row.inventoryId, shopItemId: row.shopItemId, name: row.name,
+    stableKey: row.shopItemId === BASIC_SWORD_ID ? BASIC_SWORD_SLUG : `clearing-item:${row.shopItemId}`,
     imageUrl: row.imageUrl ?? null, slot: row.slot, stars: Number(row.stars),
     atkBonus: Number(row.atkBonus ?? 0), defBonus: Number(row.defBonus ?? 0), hpBonus: Number(row.hpBonus ?? 0),
     quantity: Number(row.quantity ?? 1), acquiredAt: row.acquiredAt, equipped: equippedIds.has(row.inventoryId), eligibleForSale: row.shopItemId !== BASIC_SWORD_ID && !equippedIds.has(row.inventoryId) && !row.isListed, attackStyle:resolveClearingAttackStyle({attackStyle:row.attackStyle,name:row.name}),

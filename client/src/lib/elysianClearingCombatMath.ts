@@ -14,8 +14,8 @@ export function clearingWorldSize(viewport: WorldPixels, imageAspect: number): W
 
 /** Converts artwork bounds into centre-coordinate bounds that include the
  * sprite's visual radius and its feet anchor. */
-export function insetMovementBounds(bounds: WalkableBounds, world: WorldPixels, spriteSize: number, feetAnchor = .8): WalkableBounds {
-  const xInset = spriteSize * .36 / world.width;
+export function insetMovementBounds(bounds: WalkableBounds, world: WorldPixels, spriteSize: number, feetAnchor = .8, halfWidthRatio = .36): WalkableBounds {
+  const xInset = spriteSize * halfWidthRatio / world.width;
   const topInset = spriteSize * feetAnchor / world.height;
   const bottomInset = spriteSize * (1 - feetAnchor) / world.height;
   return { xMin: bounds.xMin + xInset, xMax: bounds.xMax - xInset, yMin: bounds.yMin + topInset, yMax: bounds.yMax - bottomInset };

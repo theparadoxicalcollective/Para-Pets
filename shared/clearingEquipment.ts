@@ -11,6 +11,8 @@ export interface ClearingStatTotals {
 export interface ClearingInventoryItem {
   inventoryId: string;
   shopItemId: string;
+  /** Application-stable identity; never infer identity from the display name. */
+  stableKey: string;
   name: string;
   imageUrl: string | null;
   slot: ClearingEquipmentSlot;

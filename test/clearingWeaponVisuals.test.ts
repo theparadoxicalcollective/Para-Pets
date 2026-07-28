@@ -18,7 +18,7 @@ test("starter lookup uses one stable identity and no duplicate Basic Sword seed"
 
 test("equipped weapon reaches the renderer and real image has a safe fallback", () => {
   assert.match(combat, /weapon=\{session\?\.loadout\.weapon\?\?equipment\.loadout\.data\?\.weapon\?\?null\}/);
-  for (const field of ["inventoryId","shopItemId","name","imageUrl","stars","attackStyle","atkBonus"]) assert.match(effect, new RegExp(field));
+  for (const field of ["inventoryId","shopItemId","stableKey","name","imageUrl","stars","attackStyle","atkBonus"]) assert.match(effect, new RegExp(field));
   assert.match(effect, /clearing-equipped-weapon-image/);
   assert.match(effect, /onError=.*setImageFailed\(true\)/s);
   assert.match(effect, /clearing-weapon-fallback/);
@@ -37,4 +37,5 @@ test("misses retain the slash and the request starts at impact", () => {
   assert.match(combat, /setAttackPhase\("impact"\)[\s\S]+fetch\("\/api\/explore\/elysian-clearing\/attack"/);
   assert.match(combat, /setAttackPhase\("recovery"\)/);
   assert.match(combat, /setAttackPhase\("idle"\)/);
+  assert.match(combat, /attackPhaseRef\.current!=="idle"/);
 });
