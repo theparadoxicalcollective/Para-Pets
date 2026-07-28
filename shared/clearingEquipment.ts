@@ -71,3 +71,23 @@ export interface ClearingGroundDrop {
 export interface ClearingLoadoutResponse extends ClearingLoadout {
   effectiveStats: EffectiveClearingStats | null;
 }
+
+export interface ClearingChestEquipmentReward {
+  shopItemId: string; name: string; imageUrl: string | null;
+  slot: ClearingEquipmentSlot; stars: ClearingStarRarity;
+  atkBonus: number; defBonus: number; hpBonus: number;
+}
+
+export interface ClearingRewardBundle {
+  exp: number; coins: number; essence: number;
+  equipment: ClearingChestEquipmentReward[];
+  consumables: Array<{ shopItemId: string; name: string; imageUrl: string | null; quantity: number }>;
+}
+
+export interface ClearingRewardChest {
+  chestId: string; sessionId: string; defeatedEnemyId: string;
+  worldX: number; worldY: number; createdAt: string; expiresAt: string;
+  claimedAt: string | null; status: "unclaimed" | "claimed";
+  highestEquipmentRarity: ClearingStarRarity | 0;
+  rewards: ClearingRewardBundle;
+}
