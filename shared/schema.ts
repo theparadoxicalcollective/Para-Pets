@@ -366,7 +366,7 @@ const baseInsertShopItemSchema = createInsertSchema(shopItems).omit({
 });
 
 export const clearingEquipmentSlots = ["helmet", "weapon", "armor", "boots", "charm"] as const;
-export const clearingAttackStyles = ["sword_slash", "staff_orb", "default"] as const;
+export const clearingAttackStyles = ["sword_slash", "staff_orb", "default_melee"] as const;
 export const insertShopItemSchema = baseInsertShopItemSchema.superRefine((item, ctx) => {
   if (item.type !== "clearing") return;
   if (!clearingEquipmentSlots.includes(item.clearingSlot as typeof clearingEquipmentSlots[number])) {

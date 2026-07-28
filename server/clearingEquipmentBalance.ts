@@ -10,7 +10,7 @@ export function auditClearingEquipment(items:Array<any>) {
     if(!item.imageUrl)issues.push("missing_image"); if(!Number.isInteger(stars)||stars<1||stars>5)issues.push("invalid_rarity");
     if(!["helmet","weapon","armor","boots","charm"].includes(slot))issues.push("missing_slot"); if([item.atkBonus,item.defBonus,item.hpBonus].some(v=>Number(v)<0))issues.push("negative_stat");
     if((names.get(String(item.name).toLowerCase())??0)>1)issues.push("duplicate_name");
-    if(slot==="weapon"&&resolveClearingAttackStyle({attackStyle:item.attackStyle,name:item.name})==="basic_melee")issues.push("unresolved_attack_style");
+    if(slot==="weapon"&&resolveClearingAttackStyle({attackStyle:item.attackStyle,name:item.name})==="default_melee")issues.push("unresolved_attack_style");
     if(stars>=1&&stars<=5&&["helmet","weapon","armor","boots","charm"].includes(slot)){const power=clearingEquipmentPower({slot,atkBonus:Number(item.atkBonus??0),defBonus:Number(item.defBonus??0),hpBonus:Number(item.hpBonus??0)});const [min,max]=CLEARING_STAT_BUDGETS[stars as keyof typeof CLEARING_STAT_BUDGETS];if(power<min||power>max)issues.push("stat_budget_outlier");}
     return {id:item.id,name:item.name,issues};});
 }
