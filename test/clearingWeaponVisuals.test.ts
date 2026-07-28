@@ -17,12 +17,13 @@ test("starter lookup uses one stable identity and no duplicate Basic Sword seed"
 });
 
 test("equipped weapon reaches the renderer and real image has a safe fallback", () => {
-  assert.match(combat, /weapon=\{session\?\.loadout\.weapon\?\?equipment\.loadout\.data\?\.weapon\?\?null\}/);
+  assert.match(combat, /weapon=\{equipment\.loadout\.data\?\.weapon\?\?session\?\.loadout\.weapon\?\?null\}/);
   for (const field of ["inventoryId","shopItemId","stableKey","name","imageUrl","stars","attackStyle","atkBonus"]) assert.match(effect, new RegExp(field));
   assert.match(effect, /clearing-equipped-weapon-image/);
   assert.match(effect, /onError=.*setImageFailed\(true\)/s);
   assert.match(effect, /clearing-weapon-fallback/);
-  assert.doesNotMatch(effect, /boxShadow|shadow-/);
+  assert.match(effect, /clearing-sword-slash/);
+  assert.match(effect, /clearing-staff-orb/);
 });
 
 test("sword phases mirror without turning upside down and rarity uses alpha-aware filters", () => {

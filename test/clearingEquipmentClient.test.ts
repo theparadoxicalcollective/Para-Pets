@@ -14,7 +14,7 @@ test("ground rendering uses server stars, adds five-star motes, and omits names 
   const source=fs.readFileSync("client/src/components/ClearingGroundDrop.tsx","utf8");
   assert.match(source,/repeat\(drop\.stars\)/);assert.match(source,/drop\.stars===5/);assert.doesNotMatch(source,/drop\.name|atkBonus|defBonus|hpBonus/);
 });
-test("Clearing Inventory includes empty state, slot filtering, equipped state, comparison, equip and unequip",()=>{
+test("Clearing Inventory includes empty state, game grid, equipped detail, equip and unequip",()=>{
   const source=fs.readFileSync("client/src/components/ClearingEquipmentPanels.tsx","utf8");
-  for(const value of ["Clearing Equipment can be found","filter===s","Equipped","Compare with","onEquip","onUnequip","onOpenChange"])assert.match(source,new RegExp(value));
+  for(const value of ["Clearing Equipment can be found","clearing-inventory-grid","Equipped","clearing-item-detail","onEquip","onUnequip","onOpenChange"])assert.match(source,new RegExp(value));
 });
