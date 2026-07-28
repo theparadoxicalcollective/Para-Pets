@@ -10,22 +10,29 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
 
   app.post("/api/explore/elysian-clearing/session", isAuthenticated, async (req, res) => {
     const user = req.user as any;
-    const inventory = await storage.getUserInventory(user.id);
-    const pet = inventory.find((item: any) => item.id === user.activePetId && item.isHatched);
-    if (!pet) return res.status(400).json({ message: "An active hatched pet is required" });
-    const loadout = await ensureClearingStarterWeapon(db, user.id);
-    const effective = calculateClearingStats({ hp: pet.petHealth || 1000, atk: pet.petAtk || 50, def: pet.petDef || 50 }, loadout.totals);
-    const stats = { level: pet.petLevel || 1, ...effective, rarity: pet.rarity };
-    const session = createClearingSession(user.id, pet.id, stats);
-    // Carry only still-active loot into the replacement session. This makes a
-    // refresh/re-entry apply fresh equipment stats without losing ground loot.
-    await db.execute(sql`UPDATE clearing_ground_drops SET session_id=${session.id} WHERE user_id=${user.id} AND clearing_id=${ELYSIAN_CLEARING_COMBAT.locationId} AND collected_at IS NULL AND expires_at>now()`);
-    await db.execute(sql`UPDATE clearing_currency_drops SET session_id=${session.id} WHERE user_id=${user.id} AND clearing_id=${ELYSIAN_CLEARING_COMBAT.locationId} AND collected_at IS NULL AND expires_at>now()`);
-    return res.json({
-      sessionId: session.id,
-      pet: { inventoryId: pet.id, maxHealth: stats.hp, attack: scaleClearingEnemy(stats).petDamage, defense: stats.def },
-      enemies: session.enemies.map(({ lastHitAt: _lastHitAt, ...enemy }) => enemy),
-    });
+    try {
+      const inventory = await storage.getUserInventory(user.id);
+      const pet = inventory.find((item: any) => item.id === user.activePetId && item.isHatched);
+      if (!pet) return res.status(400).json({ code: "CLEARING_ACTIVE_PET_REQUIRED", message: "Choose a hatched active pet before entering the Clearing" });
+      let loadout;
+      try { loadout = await ensureClearingStarterWeapon(db, user.id); }
+      catch (error: any) {
+        const migrationFailure = ["42P01", "42703", "42830"].includes(error?.code);
+        console.error("Clearing starter weapon preparation failed", { userId: user.id, code: error?.code ?? "unknown", message: error instanceof Error ? error.message : String(error) });
+        return res.status(500).json({ code: migrationFailure ? "CLEARING_MIGRATION_REQUIRED" : "CLEARING_STARTER_WEAPON_FAILED", message: "Unable to prepare Clearing equipment" });
+      }
+      const effective = calculateClearingStats({ hp: pet.petHealth || 1000, atk: pet.petAtk || 50, def: pet.petDef || 50 }, loadout.totals);
+      const stats = { level: pet.petLevel || 1, ...effective, rarity: pet.rarity };
+      const session = createClearingSession(user.id, pet.id, stats);
+      await db.execute(sql`UPDATE clearing_ground_drops SET session_id=${session.id} WHERE user_id=${user.id} AND clearing_id=${ELYSIAN_CLEARING_COMBAT.locationId} AND collected_at IS NULL AND expires_at>now()`);
+      await db.execute(sql`UPDATE clearing_currency_drops SET session_id=${session.id} WHERE user_id=${user.id} AND clearing_id=${ELYSIAN_CLEARING_COMBAT.locationId} AND collected_at IS NULL AND expires_at>now()`);
+      return res.json({ sessionId: session.id, loadout,
+        pet: { inventoryId: pet.id, maxHealth: stats.hp, attack: scaleClearingEnemy(stats).petDamage, defense: stats.def },
+        enemies: session.enemies.map(({ lastHitAt: _lastHitAt, ...enemy }) => enemy) });
+    } catch (error: any) {
+      console.error("Clearing session creation failed", { userId: user.id, code: error?.code ?? "unknown", message: error instanceof Error ? error.message : String(error) });
+      return res.status(503).json({ code: "CLEARING_TEMPORARILY_UNAVAILABLE", message: "The Clearing is temporarily unavailable" });
+    }
   });
 
   app.post("/api/explore/elysian-clearing/attack", isAuthenticated, async (req, res) => {

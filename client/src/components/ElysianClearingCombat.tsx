@@ -15,16 +15,15 @@ import type { ClearingCurrencyDrop } from "@shared/clearingEquipment";
 import { useClearingCurrencyDrops } from "@/hooks/useClearingCurrencyDrops";
 import ClearingCurrencyDropLayer from "@/components/ClearingCurrencyDropLayer";
 import { ClearingInventoryPanel } from "@/components/ClearingEquipmentPanels";
-import coinIcon from "@assets/icon_coin.png";
-import essenceIcon from "@assets/Photoroom_20260709_24152_PM_1783626130265.png";
+import { currencyAssets } from "@/lib/currencyAssets";
 import fallbackPet from "@assets/logo_parapets.png";
-import { useQuery } from "@tanstack/react-query";
+import { usePlayerCurrencyBalances } from "@/hooks/usePlayerCurrencyBalances";
 import { enemyFlipScale, nextEnemyFacing } from "@shared/clearingCombat";
 
 type EnemyState = "spawning" | "roaming" | "pursuing" | "windup" | "recovering" | "returning" | "defeated" | "respawning";
 type Enemy = { instanceId:string; slot:number; maxHealth:number; health:number; attack:number; x:number; y:number; targetX:number; targetY:number; state:EnemyState; facingLeft:boolean; nextActionAt:number };
 type EnemyDeathEffect = { effectId:string; enemyInstanceId:string; x:number; y:number };
-type Session = { sessionId:string; pet:{inventoryId:string;maxHealth:number;attack:number}; enemies:Array<Omit<Enemy,"x"|"y"|"targetX"|"targetY"|"state"|"facingLeft"|"nextActionAt">> };
+type Session = { sessionId:string; loadout:any; pet:{inventoryId:string;maxHealth:number;attack:number}; enemies:Array<Omit<Enemy,"x"|"y"|"targetX"|"targetY"|"state"|"facingLeft"|"nextActionAt">> };
 
 const randomBetween = (a:number,b:number) => a + Math.random()*(b-a);
 
@@ -32,6 +31,7 @@ export default function ElysianClearingCombat({ petPos, petSize, activePet, faci
   const petPosRef = useRef(petPos); petPosRef.current = petPos;
   const [session, setSession] = useState<Session|null>(null);
   const [sessionState,setSessionState]=useState<"loading"|"ready"|"error">("loading");
+  const [sessionAttempt,setSessionAttempt]=useState(0);
   const [enemies, setEnemies] = useState<Enemy[]>([]);
   const enemiesRef = useRef<Enemy[]>([]);
   const [petHealth,setPetHealth] = useState(1); const [petMaxHealth,setPetMaxHealth] = useState(1);
@@ -39,7 +39,7 @@ export default function ElysianClearingCombat({ petPos, petSize, activePet, faci
   const [deathEffects,setDeathEffects] = useState<EnemyDeathEffect[]>([]); const effectSequence=useRef(0);
   const petHealthRef=useRef(1); const petMaxHealthRef=useRef(1); const invulnerableUntil=useRef(0); const defeatedUntil=useRef(0); const timers=useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
   const lastAttack=useRef(0); const [swinging,setSwinging]=useState(false); const [feedback,setFeedback]=useState<string[]>([]);
-  const ground=useClearingGroundDrops(session?.sessionId??null); const equipment=useClearingEquipment();const currency=useClearingCurrencyDrops(session?.sessionId??null);const {data:user,isLoading:userLoading,isError:userError}=useQuery<any>({queryKey:["/api/user"]});
+  const ground=useClearingGroundDrops(session?.sessionId??null); const equipment=useClearingEquipment();const currency=useClearingCurrencyDrops(session?.sessionId??null);const balances=usePlayerCurrencyBalances();
   const [collecting,setCollecting]=useState(new Set<string>()); const [confirmations,setConfirmations]=useState<ClearingGroundDrop[]>([]);
   const [equipmentOpen,setEquipmentOpen]=useState(false);const [inventoryOpen,setInventoryOpen]=useState(false);const [currencyCollecting,setCurrencyCollecting]=useState(new Set<string>());const [currencyConfirm,setCurrencyConfirm]=useState<ClearingCurrencyDrop|null>(null);
   const gameplayState: "loading"|"running"|"menu-paused"|"defeated" = sessionState!=="ready" ? "loading" : equipmentOpen||inventoryOpen ? "menu-paused" : petHealth<=0 ? "defeated" : "running";
@@ -53,13 +53,13 @@ export default function ElysianClearingCombat({ petPos, petSize, activePet, faci
 
   useEffect(()=>{const now=performance.now();if(gameplayState==="menu-paused"&&pausedAt.current===null)pausedAt.current=now;else if(gameplayState==="running"&&pausedAt.current!==null){const duration=now-pausedAt.current;for(const enemy of enemiesRef.current)if(Number.isFinite(enemy.nextActionAt))enemy.nextActionAt+=duration+250;lastAttack.current+=duration;pausedAt.current=null;}},[gameplayState]);
 
-  useEffect(()=>{ let alive=true; let createdId="";
-    fetch("/api/explore/elysian-clearing/session",{method:"POST",credentials:"include"}).then(r=>{if(!r.ok)throw new Error("combat session failed");return r.json()}).then((data:Session)=>{
-      if(!alive)return; createdId=data.sessionId; setSession(data); setSessionState("ready"); setPetHealth(data.pet.maxHealth); setPetMaxHealth(data.pet.maxHealth); petHealthRef.current=data.pet.maxHealth; petMaxHealthRef.current=data.pet.maxHealth;
+  useEffect(()=>{ let alive=true; let createdId=""; setSessionState("loading");
+    fetch("/api/explore/elysian-clearing/session",{method:"POST",credentials:"include"}).then(async r=>{const body=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(body.message||"combat session failed"),{code:body.code||`HTTP_${r.status}`,status:r.status});return body}).then((data:Session)=>{
+      if(!alive)return; createdId=data.sessionId; setSession(data); queryClient.setQueryData(["/api/clearing/loadout"],data.loadout);void Promise.all([queryClient.invalidateQueries({queryKey:["/api/clearing/inventory"]}),queryClient.invalidateQueries({queryKey:["/api/clearing/loadout"]})]); setSessionState("ready"); setPetHealth(data.pet.maxHealth); setPetMaxHealth(data.pet.maxHealth); petHealthRef.current=data.pet.maxHealth; petMaxHealthRef.current=data.pet.maxHealth;
       const now=performance.now(); const built=data.enemies.slice(0,CFG.maxEnemies).map((e,i)=>{const h=CFG.homes[i];return {...e,x:h.x,y:h.y,targetX:h.x,targetY:h.y,state:"spawning" as EnemyState,facingLeft:false,nextActionAt:now+CFG.initialSpawnDelayMs[i]}}); enemiesRef.current=built;setEnemies(built);
-    }).catch((error)=>{if(alive){setSessionState("error");setFeedback(["Combat unavailable"]);} console.error("Elysian Clearing session failed", error instanceof Error ? error.message : "Unknown error");});
+    }).catch((error:any)=>{if(alive){const code=String(error?.code||(error?.status===401?"CLEARING_AUTH_REQUIRED":"CLEARING_TEMPORARILY_UNAVAILABLE"));setSessionState("error");setFeedback([code==="CLEARING_ACTIVE_PET_REQUIRED"?"Choose an active hatched pet":code==="CLEARING_AUTH_REQUIRED"||code==="HTTP_401"?"Please sign in again":code==="CLEARING_MIGRATION_REQUIRED"?"Clearing update required":"Combat temporarily unavailable"]);} console.error("Elysian Clearing session failed",{code:error?.code??"unknown",status:error?.status});});
     return()=>{alive=false;timers.current.forEach(clearTimeout);timers.current.clear();if(recentDamageTimer.current)clearTimeout(recentDamageTimer.current);if(createdId)void fetch(`/api/explore/elysian-clearing/session/${createdId}`,{method:"DELETE",credentials:"include",keepalive:true}).catch(error=>console.error("Elysian Clearing cleanup failed",error instanceof Error?error.message:"Unknown error"));};
-  },[]);
+  },[sessionAttempt]);
 
   useEffect(()=>{if(!session)return;const timer=setInterval(()=>{void fetch("/api/explore/elysian-clearing/position",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({sessionId:session.sessionId,x:petPosRef.current.x,y:petPosRef.current.y})});},500);return()=>clearInterval(timer)},[session]);
 
@@ -98,13 +98,14 @@ export default function ElysianClearingCombat({ petPos, petSize, activePet, faci
   const mutateLoadout=async(action:()=>Promise<unknown>)=>{try{await action();setFeedback(["Clearing Loadout updated","New equipment will apply when you re-enter the Clearing."]);setTimeout(()=>setFeedback([]),3000)}catch{setFeedback(["Equipment update failed"]);}};
   const fixedHud = <>
     <div className="absolute pointer-events-auto flex gap-2" style={{left:14,top:"max(58px, calc(env(safe-area-inset-top, 0px) + 58px))",zIndex:18}}><button data-interactive data-testid="button-clearing-equipment" aria-label="Open pet equipment" onClick={()=>setEquipmentOpen(true)} className="h-12 w-12 overflow-hidden rounded-full border-2 border-amber-300 bg-emerald-950 shadow-lg"><img src={activePet?.isHatched?(activePet.hatchedImageUrl||activePet.imageUrl||fallbackPet):(activePet?.eggImageUrl||fallbackPet)} onError={e=>{e.currentTarget.src=fallbackPet}} alt="Active pet" className="h-full w-full object-contain"/></button></div>
-    <div data-testid="clearing-currency-display" aria-live="polite" className="absolute right-3 pointer-events-none flex gap-2 rounded-xl border border-amber-500/70 bg-emerald-950/90 px-2 py-1 text-xs font-bold text-amber-100 shadow-lg" style={{top:"max(58px, calc(env(safe-area-inset-top, 0px) + 58px))",zIndex:17}}><span className="flex items-center gap-1"><img src={coinIcon} alt="Coins" className="h-5 w-5 object-contain"/>{userLoading?"…":userError?"—":Number(user?.coins??0).toLocaleString()}</span><span className="flex items-center gap-1"><img src={essenceIcon} alt="Essence" className="h-5 w-5 object-contain"/>{userLoading?"…":userError?"—":Number(user?.essence??0).toLocaleString()}</span></div>
+    <div data-testid="clearing-currency-display" aria-live="polite" className="absolute right-3 pointer-events-none flex gap-2 rounded-xl border border-amber-500/70 bg-emerald-950/90 px-2 py-1 text-xs font-bold text-amber-100 shadow-lg" style={{top:"max(58px, calc(env(safe-area-inset-top, 0px) + 58px))",zIndex:17}}><span className="flex items-center gap-1"><img src={currencyAssets.essenceToken} alt="Essence" className="h-5 w-5 object-contain"/>{balances.loading?"…":balances.error?"—":balances.formattedEssence}</span><span className="flex items-center gap-1"><img src={currencyAssets.coin} alt="Coins" className="h-5 w-5 object-contain"/>{balances.loading?"…":balances.error?"—":balances.formattedCoin}</span></div>
     {confirmations.length>0&&<div data-testid="clearing-pickup-confirmation" className="absolute left-1/2 top-20 -translate-x-1/2 rounded-full border border-amber-300 bg-emerald-950/95 px-4 py-2 text-sm text-amber-100 shadow-xl">Equipment Collected · {confirmations[0].name} {"★".repeat(confirmations[0].stars)}</div>}
     <ClearingEquipmentModal open={equipmentOpen} onOpenChange={setEquipmentOpen} onOpenInventory={()=>setInventoryOpen(true)} inventory={equipment.inventory.data} loadout={equipment.loadout.data} onUnequip={slot=>void mutateLoadout(()=>equipment.unequip.mutateAsync(slot))} onEquip={id=>void mutateLoadout(()=>equipment.equip.mutateAsync(id))}/>
     <ClearingInventoryPanel open={inventoryOpen} onOpenChange={setInventoryOpen} items={equipment.inventory.data} loadout={equipment.loadout.data} onEquip={id=>void mutateLoadout(()=>equipment.equip.mutateAsync(id))} onSell={ids=>equipment.sell.mutateAsync(ids)}/>
     {currencyConfirm&&<div className="absolute left-1/2 top-28 -translate-x-1/2 rounded-full border border-amber-300 bg-emerald-950/95 px-3 py-1 text-sm text-amber-100">+{currencyConfirm.amount} {currencyConfirm.currency}</div>}
 
     {feedback.length>0&&<div className="absolute left-1/2 top-1/4 -translate-x-1/2 text-center font-bold text-yellow-200 pointer-events-none" style={{zIndex:20,textShadow:"0 2px 4px #000"}}>{feedback.map(x=><div key={x}>{x}</div>)}</div>}
+    {sessionState==="error"&&<button data-interactive data-testid="button-clearing-retry" type="button" className="absolute left-1/2 top-[32%] -translate-x-1/2 rounded-lg border border-amber-300 bg-emerald-950 px-4 py-2 font-bold text-amber-100" style={{zIndex:21}} onClick={()=>{setFeedback([]);setSessionAttempt(v=>v+1)}}>Retry</button>}
     <button disabled={sessionState!=="ready"||petHealth<=0} data-interactive data-testid="button-clearing-attack" aria-label="Sword attack" onPointerDown={attack} className="absolute pointer-events-auto rounded-full active:scale-90 disabled:opacity-50 text-white border-2 border-amber-200 flex items-center justify-center" style={{right:"max(20px, env(safe-area-inset-right))",bottom:"max(20px, env(safe-area-inset-bottom))",width:CFG.attackButtonSize,height:CFG.attackButtonSize,zIndex:15,touchAction:"none",background:"#294b35",boxShadow:"0 3px 12px #000"}}><Sword aria-hidden size={28}/></button>
   </>;
 

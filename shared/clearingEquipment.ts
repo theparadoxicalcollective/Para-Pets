@@ -35,8 +35,10 @@ export interface ClearingCurrencyDrop {
 }
 
 export interface ClearingLoadout {
+  helmet: ClearingInventoryItem | null;
   weapon: ClearingInventoryItem | null;
   armor: ClearingInventoryItem | null;
+  boots: ClearingInventoryItem | null;
   charm: ClearingInventoryItem | null;
   totals: ClearingStatTotals;
 }

@@ -57,3 +57,15 @@ test("effective clearing bonuses are reusable across active pets without changin
   assert.deepEqual(calculateClearingStats(petB, bonuses), { hp: 900, atk: 80, def: 35 });
   assert.deepEqual(petA, { hp: 1000, atk: 50, def: 40 });
 });
+
+test("all five Clearing equipment slots are real equip candidates", () => {
+  for (const slot of ["helmet", "weapon", "armor", "boots", "charm"] as const) {
+    assert.equal(validateClearingEquipCandidate({ itemType: "clearing", slot }), slot);
+    assert.equal(insertShopItemSchema.safeParse({ ...clearingItem, clearingSlot: slot }).success, true);
+  }
+});
+
+test("Clearing weapon attack style is structured and validated", () => {
+  assert.equal(insertShopItemSchema.safeParse({ ...clearingItem, clearingAttackStyle: "sword_slash" }).success, true);
+  assert.equal(insertShopItemSchema.safeParse({ ...clearingItem, clearingAttackStyle: "free text" }).success, false);
+});

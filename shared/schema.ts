@@ -172,9 +172,11 @@ export const userInventory = pgTable("user_inventory", {
 
 export const userClearingLoadouts = pgTable("user_clearing_loadouts", {
   userId: varchar("user_id").primaryKey(),
+  helmetInventoryId: varchar("helmet_inventory_id"),
   weaponInventoryId: varchar("weapon_inventory_id"),
   armorInventoryId: varchar("armor_inventory_id"),
   charmInventoryId: varchar("charm_inventory_id"),
+  bootsInventoryId: varchar("boots_inventory_id"),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
@@ -363,11 +365,15 @@ const baseInsertShopItemSchema = createInsertSchema(shopItems).omit({
   createdAt: true,
 });
 
-export const clearingEquipmentSlots = ["weapon", "armor", "charm"] as const;
+export const clearingEquipmentSlots = ["helmet", "weapon", "armor", "boots", "charm"] as const;
+export const clearingAttackStyles = ["sword_slash", "staff_orb", "default"] as const;
 export const insertShopItemSchema = baseInsertShopItemSchema.superRefine((item, ctx) => {
   if (item.type !== "clearing") return;
   if (!clearingEquipmentSlots.includes(item.clearingSlot as typeof clearingEquipmentSlots[number])) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["clearingSlot"], message: "Clearing slot must be weapon, armor, or charm" });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["clearingSlot"], message: "Clearing slot must be helmet, weapon, armor, boots, or charm" });
+  }
+  if (item.clearingSlot === "weapon" && item.clearingAttackStyle != null && !clearingAttackStyles.includes(item.clearingAttackStyle as typeof clearingAttackStyles[number])) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["clearingAttackStyle"], message: "Clearing weapon attack style is invalid" });
   }
   if (!Number.isInteger(item.starRarity) || (item.starRarity ?? 0) < 1 || (item.starRarity ?? 0) > 5) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["starRarity"], message: "Clearing star rarity must be from 1 through 5" });
