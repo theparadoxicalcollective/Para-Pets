@@ -75,6 +75,9 @@ export function applyClearingHit(input: { sessionId: string; instanceId: string;
   if (now - enemy.lastHitAt < ELYSIAN_CLEARING_COMBAT.attackCooldownMs) return { status: "cooldown" as const, enemy };
   const target=input.enemyPosition??enemy;
   if(!Number.isFinite(target.x)||!Number.isFinite(target.y)||Math.hypot((target.x-enemy.x)*400,(target.y-enemy.y)*800)>240||Math.hypot((target.x-session.position.x)*400,(target.y-session.position.y)*800)>(input.maxRangePixels??145))return {status:"range" as const,enemy};
+  // Persist the validated client simulation coordinate so rewards use the
+  // enemy's exact final world position rather than its original spawn point.
+  enemy.x=target.x;enemy.y=target.y;
   enemy.lastHitAt = now;
   const previousHealth=enemy.health;
   enemy.health = Math.max(0, enemy.health - clamp(Math.round(input.petDamage ?? session.effectiveStats.atk), 20, 5_000));

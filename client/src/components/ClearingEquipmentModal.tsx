@@ -64,10 +64,10 @@ export default function ClearingEquipmentModal({
           Clearing Equipment
         </DialogTitle>
 
-        {!selectedSlot && <div className="mx-auto -mt-1 flex items-center gap-2"><div className="rounded-xl border border-amber-500/60 bg-emerald-950/80 px-3 py-1.5 text-center text-xs shadow-inner" data-testid="clearing-total-equipment-power"><b className="text-amber-200">Total Equipment Power</b><br/><span className="text-emerald-100">{(loadout?.totals.atk??0)+(loadout?.totals.def??0)+Math.round((loadout?.totals.hp??0)*.05)} · ATK +{loadout?.totals.atk??0} · DEF +{loadout?.totals.def??0} · HP +{loadout?.totals.hp??0}</span></div><button type="button" aria-label="Open Clearing inventory" className="h-12 w-12 shrink-0 rounded-md border border-amber-500/30 bg-transparent p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-950" onClick={()=>{onOpenChange(false);onOpenInventory();}}><img src={bagIcon} alt="" className="h-full w-full object-contain"/></button></div>}
+        {!selectedSlot && <div className="mx-auto flex w-full max-w-[19rem] items-center justify-center gap-3"><div className="min-w-0 flex-1 rounded-xl border border-amber-500/60 bg-emerald-950/80 px-3 py-1.5 text-center text-xs shadow-inner" data-testid="clearing-total-equipment-power"><b className="text-amber-200">Total Equipment Power</b><br/><span className="text-emerald-100">{(loadout?.totals.atk??0)+(loadout?.totals.def??0)+Math.round((loadout?.totals.hp??0)*.05)} · ATK +{loadout?.totals.atk??0} · DEF +{loadout?.totals.def??0} · HP +{loadout?.totals.hp??0}</span></div><button type="button" aria-label="Open Clearing inventory" className="h-12 w-12 shrink-0 rounded-md border border-amber-500/30 bg-transparent p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-950" onClick={()=>{onOpenChange(false);onOpenInventory();}}><img src={bagIcon} alt="" className="h-full w-full object-contain"/></button></div>}
 
         {!selectedSlot ? (
-          <div className="grid flex-1 -mt-2 grid-cols-3 grid-rows-3 place-items-center gap-[clamp(4px,1.5vw,10px)]" data-testid="clearing-equipment-slot-grid">
+          <div className="grid flex-1 grid-cols-3 grid-rows-3 place-items-center gap-[clamp(6px,1.5vw,10px)]" data-testid="clearing-equipment-slot-grid">
             {slotLayout.map(({ slot, grid }) => {
               const item = isSupportedSlot(slot) ? loadout?.[slot] : null;
               return (
