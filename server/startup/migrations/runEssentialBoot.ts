@@ -68,6 +68,14 @@ export async function runEssentialBoot(): Promise<void> {
       world_x REAL NOT NULL, world_y REAL NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT now(), expires_at TIMESTAMP NOT NULL, collected_at TIMESTAMP NULL
     )`],
     ["clearing_currency_drops lookup index migration error (non-fatal):", sql`CREATE INDEX IF NOT EXISTS clearing_currency_drops_active_idx ON clearing_currency_drops(user_id, session_id, expires_at) WHERE collected_at IS NULL`],
+    ["clearing_reward_chests migration error (non-fatal):", sql`CREATE TABLE IF NOT EXISTS clearing_reward_chests (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(), user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      session_id VARCHAR NOT NULL, clearing_id VARCHAR NOT NULL, defeated_enemy_id VARCHAR NOT NULL, pet_inventory_id VARCHAR NOT NULL REFERENCES user_inventory(id) ON DELETE RESTRICT,
+      world_x REAL NOT NULL, world_y REAL NOT NULL, rewards JSONB NOT NULL, highest_equipment_rarity INTEGER NOT NULL DEFAULT 0 CHECK(highest_equipment_rarity BETWEEN 0 AND 5),
+      created_at TIMESTAMP NOT NULL DEFAULT now(), expires_at TIMESTAMP NOT NULL, claimed_at TIMESTAMP NULL,
+      UNIQUE(user_id, defeated_enemy_id)
+    )`],
+    ["clearing_reward_chests lookup index migration error (non-fatal):", sql`CREATE INDEX IF NOT EXISTS clearing_reward_chests_active_idx ON clearing_reward_chests(user_id, session_id, created_at) WHERE claimed_at IS NULL`],
     ["molten_blocks_drop_items migration error (non-fatal):", sql`CREATE TABLE IF NOT EXISTS molten_blocks_drop_items (
       id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
       shop_item_id VARCHAR NOT NULL,

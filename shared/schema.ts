@@ -202,6 +202,15 @@ export const clearingCurrencyDrops = pgTable("clearing_currency_drops", {
   expiresAt: timestamp("expires_at").notNull(), collectedAt: timestamp("collected_at"),
 }, (t) => [uniqueIndex("clearing_currency_drops_reward_uidx").on(t.rewardId)]);
 
+export const clearingRewardChests = pgTable("clearing_reward_chests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(), sessionId: varchar("session_id").notNull(), clearingId: varchar("clearing_id").notNull(),
+  defeatedEnemyId: varchar("defeated_enemy_id").notNull(), petInventoryId: varchar("pet_inventory_id").notNull(),
+  worldX: real("world_x").notNull(), worldY: real("world_y").notNull(), rewards: jsonb("rewards").notNull(),
+  highestEquipmentRarity: integer("highest_equipment_rarity").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`), expiresAt: timestamp("expires_at").notNull(), claimedAt: timestamp("claimed_at"),
+}, (t) => [uniqueIndex("clearing_reward_chests_enemy_uidx").on(t.userId, t.defeatedEnemyId)]);
+
 export const rewardBundles = pgTable("reward_bundles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
