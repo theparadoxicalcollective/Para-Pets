@@ -10,7 +10,7 @@ export default function ClearingAttackEffect({ weapon, phase, facingLeft, x, y, 
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [weapon?.imageUrl]);
-  useEffect(() => { if (import.meta.env.DEV && weapon) console.debug("Clearing equipped weapon reached attack renderer", { inventoryId:weapon.inventoryId, shopItemId:weapon.shopItemId, name:weapon.name, imageUrl:weapon.imageUrl, stars:weapon.stars, attackStyle:weapon.attackStyle, attackBonus:weapon.atkBonus }); }, [weapon]);
+  useEffect(() => { if (import.meta.env.DEV && weapon) console.debug("Clearing equipped weapon reached attack renderer", { inventoryId:weapon.inventoryId, shopItemId:weapon.shopItemId, stableKey:weapon.stableKey, name:weapon.name, imageUrl:weapon.imageUrl, stars:weapon.stars, attackStyle:weapon.attackStyle, attackBonus:weapon.atkBonus }); }, [weapon]);
   if (phase === "idle") return null;
   const style = resolveClearingAttackStyle(weapon ? { attackStyle: weapon.attackStyle, name: weapon.name } : undefined);
   if (import.meta.env.DEV && style !== "sword_slash") console.warn("Clearing attack renderer used safe default visual", { attackStyle: weapon?.attackStyle, shopItemId: weapon?.shopItemId });

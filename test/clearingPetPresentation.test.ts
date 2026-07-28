@@ -1,0 +1,27 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { clearingPetHurtboxRadius, clearingPetSize, clearingProjectileOrigin, clearingWeaponOrigin, CLEARING_PET_PRESENTATION } from "../client/src/lib/clearingPetPresentation";
+import { insetMovementBounds } from "../client/src/lib/elysianClearingCombatMath";
+
+test("Clearing pet size is clamped across narrow, standard, and tall phones", () => {
+  assert.equal(clearingPetSize({width:320,height:568}),140);
+  assert.equal(clearingPetSize({width:390,height:844}),144.3);
+  assert.equal(clearingPetSize({width:430,height:932}),159.1);
+  assert.equal(clearingPetSize({width:900,height:1200}),168);
+});
+
+test("scaled pet uses intentional feet, hurtbox, and edge geometry", () => {
+  const size=144.3, world={width:560,height:844};
+  const bounds=insetMovementBounds({xMin:.18,xMax:.82,yMin:.08,yMax:.9},world,size,CLEARING_PET_PRESENTATION.feetAnchor,CLEARING_PET_PRESENTATION.visualHalfWidthRatio);
+  assert.ok(bounds.xMin>.18&&bounds.xMax<.82&&bounds.yMin>.08&&bounds.yMax<.9);
+  assert.ok(Math.abs(clearingPetHurtboxRadius(size)-31.746)<1e-9);
+  assert.ok(clearingPetHurtboxRadius(size)<size*.25);
+});
+
+test("weapon and future projectile origins mirror around the pet without changing height", () => {
+  const pet={x:.5,y:.7},world={width:500,height:800};
+  const right=clearingWeaponOrigin(pet,150,world,false),left=clearingWeaponOrigin(pet,150,world,true);
+  assert.ok(Math.abs((right.x-.5)-(.5-left.x))<1e-9);
+  assert.equal(right.y,left.y);
+  assert.ok(clearingProjectileOrigin(pet,150,world,false).x>right.x);
+});

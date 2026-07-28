@@ -47,3 +47,25 @@ keeping the sword upright and moving down-forward to the left.
 Timing is 90 ms windup, 70 ms impact, and 140 ms recovery (300 ms total). Target selection,
 collision qualification, and the server request occur on entry to impact. A miss still
 continues through impact and recovery with the equipped image visible.
+
+The cached loadout response now carries the starter's application key
+`clearing-training-sword` alongside inventory ID and shop-item ID. Other Clearing items
+receive a deterministic `clearing-item:<shop-item-id>` compatibility key until a persisted
+slug column is approved; the client never derives identity from the mutable display name.
+
+## Clearing pet presentation refinement
+
+The Clearing-only responsive sprite canvas is now `clamp(140px, 37vw, 168px)`, additionally
+capped at 20.5% of viewport height. This yields 140 px on a 320×568 phone, 144.3 px on a
+390×844 phone, and 159.1 px on a 430×932 phone. The prior responsive range was 116–142 px,
+so the standard-phone canvas increases about 20%. The feet anchor is 82%, intentional
+visual half-width is 34%, and the gameplay hurtbox radius is only 22% of the sprite canvas.
+The hand-based sword origin moves 20% of sprite size forward and 57% upward; the reserved
+staff/projectile origin moves 28% forward and 48% upward.
+
+Pet templates have varying transparent padding, so a universal pixel-derived visual-height
+ratio would be misleading. The target is approximately 90–100% of the normal wraith's
+visible artwork after the standard-phone adjustment and remains a required device check
+with representative production pets. Narrow/standard/tall sizes, bounds, feet geometry,
+mirrored origins, camera clamping, and attack phases are covered programmatically; actual
+left/right edge compositing and HUD overlap remain manual checks in an authenticated build.
