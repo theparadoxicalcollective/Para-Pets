@@ -3,6 +3,8 @@ import placeholderEnemyUrl from "@assets/generated_images/enemy_bayou_wraith.png
 export const ELYSIAN_CLEARING_COMBAT_CONFIG = {
   enemyName: "Bayou Wraith",
   enemyImageUrl: placeholderEnemyUrl,
+  naturalFacing: "right" as const,
+  facingDeadZonePixels: 3,
   maxEnemies: 3,
   homes: [{ x: 0.30, y: 0.25 }, { x: 0.69, y: 0.38 }, { x: 0.35, y: 0.57 }],
   initialSpawnDelayMs: [500, 1350, 2250],

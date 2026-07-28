@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { ClearingEquipmentSlot, ClearingInventoryItem, ClearingLoadoutResponse } from "@shared/clearingEquipment";
 import slotBorderUrl from "@assets/uploads/ClearingEquipmentBorder.png";
 import popupBackgroundUrl from "@assets/uploads/ClearingEquipPopUp.png";
+import bagIcon from "@assets/icon_bag.png";
 
 type DisplaySlot = "helmet" | ClearingEquipmentSlot | "boots";
 
@@ -24,6 +25,7 @@ export default function ClearingEquipmentModal({
   loadout,
   onEquip,
   onUnequip,
+  onOpenInventory,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -31,6 +33,7 @@ export default function ClearingEquipmentModal({
   loadout?: ClearingLoadoutResponse;
   onEquip: (inventoryId: string) => void;
   onUnequip: (slot: ClearingEquipmentSlot) => void;
+  onOpenInventory: () => void;
 }) {
   const [selectedSlot, setSelectedSlot] = useState<DisplaySlot | null>(null);
   const compatibleItems = useMemo(
@@ -61,7 +64,7 @@ export default function ClearingEquipmentModal({
           Clearing Equipment
         </DialogTitle>
 
-        {!selectedSlot && <div className="mx-auto -mt-1 rounded-xl border border-amber-500/60 bg-emerald-950/80 px-3 py-1.5 text-center text-xs shadow-inner" data-testid="clearing-total-equipment-power"><b className="text-amber-200">Total Equipment Power</b><br/><span className="text-emerald-100">{(loadout?.totals.atk??0)+(loadout?.totals.def??0)+(loadout?.totals.hp??0)} · ATK +{loadout?.totals.atk??0} · DEF +{loadout?.totals.def??0} · HP +{loadout?.totals.hp??0}</span></div>}
+        {!selectedSlot && <div className="mx-auto -mt-1 flex items-center gap-2"><div className="rounded-xl border border-amber-500/60 bg-emerald-950/80 px-3 py-1.5 text-center text-xs shadow-inner" data-testid="clearing-total-equipment-power"><b className="text-amber-200">Total Equipment Power</b><br/><span className="text-emerald-100">{(loadout?.totals.atk??0)+(loadout?.totals.def??0)+Math.round((loadout?.totals.hp??0)*.05)} · ATK +{loadout?.totals.atk??0} · DEF +{loadout?.totals.def??0} · HP +{loadout?.totals.hp??0}</span></div><button type="button" aria-label="Open Clearing inventory" className="h-12 w-12 shrink-0 rounded-md border border-amber-500/30 bg-transparent p-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-950" onClick={()=>{onOpenChange(false);onOpenInventory();}}><img src={bagIcon} alt="" className="h-full w-full object-contain"/></button></div>}
 
         {!selectedSlot ? (
           <div className="grid flex-1 -mt-2 grid-cols-3 grid-rows-3 place-items-center gap-[clamp(4px,1.5vw,10px)]" data-testid="clearing-equipment-slot-grid">
@@ -72,7 +75,7 @@ export default function ClearingEquipmentModal({
                   key={slot}
                   type="button"
                   aria-label={`Equip ${slot}`}
-                  className={`${grid} relative aspect-square w-full max-w-[112px] bg-contain bg-center bg-no-repeat transition-transform active:scale-95`}
+                  className={`${grid} relative aspect-square w-full max-w-[112px] bg-contain bg-center bg-no-repeat transition-transform outline-none focus-visible:ring-2 focus-visible:ring-amber-300 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-950 active:scale-95`}
                   style={{ backgroundImage: `url(${slotBorderUrl})` }}
                   onClick={() => setSelectedSlot(slot)}
                 >
@@ -87,7 +90,7 @@ export default function ClearingEquipmentModal({
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col">
-            <button type="button" className="mb-3 self-start rounded-lg border border-amber-500/70 bg-black/30 px-3 py-1 text-sm" onClick={() => setSelectedSlot(null)}>‹ Slots</button>
+            <button type="button" className="mb-3 self-start rounded-lg border border-amber-500/70 bg-black/30 px-3 py-1 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300" onClick={() => setSelectedSlot(null)}>‹ Back</button>
             <h2 className="mb-3 text-center font-semibold capitalize">Choose {selectedSlot}</h2>
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain">
               {compatibleItems.map((item) => (

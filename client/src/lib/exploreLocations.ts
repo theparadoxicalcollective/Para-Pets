@@ -54,6 +54,8 @@ export interface WalkAroundLocationConfig {
   petSize?: number;
   /** Optional world dimensions as viewport multiples. Omitted means 1 x 1. */
   worldSize?: { width: number; height: number };
+  /** Optional scene-local rendering math; ignored by all other locations. */
+  aspectLayout?: { imageAspect: number; fit: "height-contain"; colorFill: string; responsivePet: { min: number; preferredVw: number; max: number } };
   features: ExploreLocationFeatures;
 }
 
