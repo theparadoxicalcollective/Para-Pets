@@ -14,7 +14,8 @@ export default function ClearingAttackEffect({ weapon, phase, facingLeft, x, y, 
   if (phase === "idle") return null;
   const style = resolveClearingAttackStyle(weapon ? { attackStyle: weapon.attackStyle, name: weapon.name } : undefined);
   if (import.meta.env.DEV && style !== "sword_slash") console.warn("Clearing attack renderer used safe default visual", { attackStyle: weapon?.attackStyle, shopItemId: weapon?.shopItemId });
-  const size = `clamp(44px, ${Math.round(petSize * .82)}px, 92px)`;
+  const safePetSize = Number.isFinite(petSize) ? Math.max(96, Math.min(126, petSize)) : 110;
+  const size = `${Math.max(42, Math.min(58, Math.round(safePetSize * .46)))}px`;
   const facing = facingLeft ? "left" : "right";
   const showRealSword = style === "sword_slash" && Boolean(weapon?.imageUrl) && !imageFailed;
   return <div data-testid="clearing-weapon-attack" data-phase={phase} data-facing={facing} data-attack-style={style}

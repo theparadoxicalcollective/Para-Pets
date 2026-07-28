@@ -40,7 +40,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
   const worldRef = useRef<HTMLDivElement>(null);
   const [hudElement, setHudElement] = useState<HTMLDivElement | null>(null);
   const [joystickCenter, setJoystickCenter] = useState({ x: 0, y: 0 });
-  const [viewport, setViewport] = useState({ width: 1, height: 1 });
+  const [viewport, setViewport] = useState({ width: 390, height: 844 });
   const [camera, setCamera] = useState({ x: 0, y: 0 });
   const [gameplayBlocked, setGameplayBlocked] = useState(false);
 
@@ -140,22 +140,19 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
             top:       `${petPos.y * 100}%`,
             width:     petSize,
             height:    petSize,
-            transform: `translate(-50%, -${CLEARING_PET_PRESENTATION.feetAnchor * 100}%) scaleX(${facingLeft !== naturalFacingLeft ? -1 : 1})`,
+            transform: `translate(-50%, -${CLEARING_PET_PRESENTATION.feetAnchor * 100}%)`,
             zIndex:    worldYToDepth(petPos.y),
             transition: "none",
           }}
         >
-          <PetAnimator
-            petTemplateId={petTemplateId}
-            mode={isMoving ? "walk" : "idle"}
-            size={petSize}
-            fitVisible
-          />
+          <div className={`clearing-pet-presentation ${isMoving ? "is-moving" : ""}`} style={{transform:`scaleX(${facingLeft !== naturalFacingLeft ? -1 : 1})`}}>
+            <PetAnimator petTemplateId={petTemplateId} mode="static" size={petSize} fitVisible />
+          </div>
         </div>
       )}
 
       {config.features.combat && petTemplateId && (
-        <ElysianClearingCombat petPos={petPos} petSize={gameplayPetSize} activePet={activePet} facingLeft={facingLeft} onRespawn={resetPosition} worldPixels={world} hudElement={hudElement} onGameplayBlockedChange={setGameplayBlocked} />
+        <ElysianClearingCombat petPos={petPos} petSize={petSize} activePet={activePet} facingLeft={facingLeft} onRespawn={resetPosition} worldPixels={world} hudElement={hudElement} onGameplayBlockedChange={setGameplayBlocked} />
       )}
       </div>
 

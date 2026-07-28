@@ -15,14 +15,19 @@ export function clearingWorldSize(viewport: WorldPixels, imageAspect: number): W
 /** Converts artwork bounds into centre-coordinate bounds that include the
  * sprite's visual radius and its feet anchor. */
 export function insetMovementBounds(bounds: WalkableBounds, world: WorldPixels, spriteSize: number, feetAnchor = .8, halfWidthRatio = .36): WalkableBounds {
-  const xInset = spriteSize * halfWidthRatio / world.width;
-  const topInset = spriteSize * feetAnchor / world.height;
-  const bottomInset = spriteSize * (1 - feetAnchor) / world.height;
+  const width = Number.isFinite(world.width) && world.width > 1 ? world.width : 390;
+  const height = Number.isFinite(world.height) && world.height > 1 ? world.height : 844;
+  const size = Number.isFinite(spriteSize) ? Math.max(1, Math.min(256, spriteSize)) : 110;
+  const xInset = Math.min((bounds.xMax-bounds.xMin)/2-.001, size * halfWidthRatio / width);
+  const topInset = Math.min((bounds.yMax-bounds.yMin)/2-.001, size * feetAnchor / height);
+  const bottomInset = Math.min((bounds.yMax-bounds.yMin)/2-.001, size * (1-feetAnchor) / height);
   return { xMin: bounds.xMin + xInset, xMax: bounds.xMax - xInset, yMin: bounds.yMin + topInset, yMax: bounds.yMax - bottomInset };
 }
 
 export function pixelDelta(from: PetWalkPos, to: PetWalkPos, world: WorldPixels) {
-  return { dx: (to.x - from.x) * world.width, dy: (to.y - from.y) * world.height };
+  const width=Number.isFinite(world.width)&&world.width>0?world.width:1,height=Number.isFinite(world.height)&&world.height>0?world.height:1;
+  const fx=Number.isFinite(from.x)?from.x:0,fy=Number.isFinite(from.y)?from.y:0,tx=Number.isFinite(to.x)?to.x:fx,ty=Number.isFinite(to.y)?to.y:fy;
+  return { dx:(tx-fx)*width, dy:(ty-fy)*height };
 }
 
 export function pixelDistance(from: PetWalkPos, to: PetWalkPos, world: WorldPixels) {
@@ -38,7 +43,8 @@ export function stepToward(from: PetWalkPos, to: PetWalkPos, pixels: number, wor
 }
 
 export function clampPoint(point: PetWalkPos, bounds: WalkableBounds) {
-  return { x: Math.max(bounds.xMin, Math.min(bounds.xMax, point.x)), y: Math.max(bounds.yMin, Math.min(bounds.yMax, point.y)) };
+  const x=Number.isFinite(point.x)?point.x:(bounds.xMin+bounds.xMax)/2,y=Number.isFinite(point.y)?point.y:(bounds.yMin+bounds.yMax)/2;
+  return { x:Math.max(bounds.xMin,Math.min(bounds.xMax,x)), y:Math.max(bounds.yMin,Math.min(bounds.yMax,y)) };
 }
 
 export function cameraTarget(pet: PetWalkPos, world: WorldPixels, viewport: WorldPixels) {

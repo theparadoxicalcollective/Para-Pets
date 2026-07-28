@@ -40,3 +40,12 @@ test("effects share the world transform while attack controls use the fixed HUD 
   assert.match(combatSource, /data-testid="button-clearing-attack"[\s\S]*pointer-events-auto/);
   assert.match(combatSource, /timers\.current\.forEach\(clearTimeout\)/);
 });
+
+test("Clearing uses one whole-sprite presentation animation and bounded enemy pressure",()=>{
+  assert.match(sceneSource,/mode="static"/);
+  assert.match(sceneSource,/clearing-pet-presentation/);
+  assert.match(combatSource,/maxSimultaneousAttackers/);
+  assert.match(combatSource,/enemySeparationPixels/);
+  assert.match(combatSource,/document\.visibilityState/);
+  assert.doesNotMatch(combatSource,/\},\[onRespawn,worldPixels/);
+});
