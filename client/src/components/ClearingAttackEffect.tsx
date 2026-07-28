@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Sword } from "lucide-react";
+import { Sword, Sparkles } from "lucide-react";
 import type { ClearingInventoryItem } from "@shared/clearingEquipment";
 import { resolveClearingAttackStyle } from "@shared/clearingCombat";
 import { worldYToDepth } from "@/lib/clearingWorldPresentation";
@@ -14,18 +14,21 @@ export default function ClearingAttackEffect({ weapon, phase, facingLeft, x, y, 
   useEffect(() => { if (import.meta.env.DEV && weapon) console.debug("Clearing equipped weapon reached attack renderer", { inventoryId:weapon.inventoryId, shopItemId:weapon.shopItemId, stableKey:weapon.stableKey, name:weapon.name, imageUrl:weapon.imageUrl, stars:weapon.stars, attackStyle:weapon.attackStyle, attackBonus:weapon.atkBonus }); }, [weapon]);
   if (phase === "idle") return null;
   const style = resolveClearingAttackStyle(weapon ? { attackStyle: weapon.attackStyle, name: weapon.name } : undefined);
-  if (import.meta.env.DEV && style !== "sword_slash") console.warn("Clearing attack renderer used safe default visual", { attackStyle: weapon?.attackStyle, shopItemId: weapon?.shopItemId });
   const safePetSize = Number.isFinite(petSize) ? Math.max(40, Math.min(90, petSize)) : 59.5;
   const size = `${Math.max(30, Math.min(42, Math.round(safePetSize * .58)))}px`;
   const facing = facingLeft ? "left" : "right";
-  const showRealSword = style === "sword_slash" && Boolean(weapon?.imageUrl) && !imageFailed;
+  const showRealWeapon = Boolean(weapon?.imageUrl) && !imageFailed;
   return <div data-testid="clearing-weapon-attack" data-phase={phase} data-facing={facing} data-attack-style={style}
     className="absolute pointer-events-none overflow-visible clearing-player-weapon-foreground"
     style={{ left:`${x*100}%`, top:`${y*100}%`, width:size, height:size, zIndex:worldYToDepth(playerY, 3), transform:swordTransform(facing, phase) }}>
-    {showRealSword ? <img data-testid="clearing-equipped-weapon-image" src={weapon!.imageUrl!} alt="" draggable={false}
+    {showRealWeapon ? <img data-testid="clearing-equipped-weapon-image" src={weapon!.imageUrl!} alt="" draggable={false}
       className="h-full w-full object-contain"
       style={{ filter:weaponRarityFilter(weapon?.stars ?? 1) }}
       onError={() => { if (import.meta.env.DEV) console.warn("Clearing equipped weapon image failed to load", { imageUrl:weapon?.imageUrl, shopItemId:weapon?.shopItemId }); setImageFailed(true); }}/>
-      : <Sword data-testid="clearing-weapon-fallback" aria-hidden className="h-full w-full text-amber-100" style={{ filter:weaponRarityFilter(weapon?.stars ?? 1) }}/>} 
+      : style==="staff_orb"?<Sparkles data-testid="clearing-staff-fallback" aria-hidden className="h-full w-full text-cyan-200"/>:<Sword data-testid="clearing-weapon-fallback" aria-hidden className="h-full w-full text-amber-100" style={{ filter:weaponRarityFilter(weapon?.stars ?? 1) }}/>}
+    {style==="sword_slash"&&phase==="impact"&&<span data-testid="clearing-sword-slash" className="absolute -inset-2 rounded-[50%] border-t-[3px] border-amber-100 opacity-90" style={{filter:`drop-shadow(0 0 ${3+Math.min(5,weapon?.stars??1)}px #fbbf24)`}}/>}
+    {style==="staff_orb"&&phase==="impact"&&<span data-testid="clearing-staff-orb" className={`absolute top-1/2 h-3 w-3 rounded-full bg-cyan-100 shadow-[0_0_10px_4px_#67e8f9] ${facingLeft?"animate-clearing-orb-left":"animate-clearing-orb-right"}`}/>}
+    {style==="default_melee"&&phase==="impact"&&!showRealWeapon&&<span data-testid="clearing-default-impact" className="absolute inset-2 rounded-full border-2 border-white/70"/>}
+    <style>{`@keyframes clearing-orb-right{to{transform:translateX(250px);opacity:0}}@keyframes clearing-orb-left{to{transform:translateX(-250px);opacity:0}}.animate-clearing-orb-right,.animate-clearing-orb-left{animation:clearing-orb-right 260ms linear forwards}.animate-clearing-orb-left{animation-name:clearing-orb-left}@media(prefers-reduced-motion:reduce){.animate-clearing-orb-right,.animate-clearing-orb-left{animation-duration:1ms}}`}</style>
   </div>;
 }

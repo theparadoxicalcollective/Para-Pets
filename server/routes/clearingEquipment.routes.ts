@@ -4,7 +4,7 @@ import type { ClearingEquipmentSlot } from "@shared/clearingEquipment";
 import { ClearingEquipmentError, equipClearingItem, getClearingInventory, getClearingLoadout, sellClearingEquipment, unequipClearingItem } from "../clearingEquipment";
 import { calculateClearingStats } from "../clearingEquipment";
 import { ClearingDropError, collectClearingDrop, getActiveClearingDrops } from "../clearingLoot";
-import { ELYSIAN_CLEARING_COMBAT, getClearingSession } from "../elysianClearingCombat";
+import { ELYSIAN_CLEARING_COMBAT, getClearingSession, synchronizeClearingSessions } from "../elysianClearingCombat";
 import { ClearingCurrencyError, collectCurrencyDrop, getCurrencyDrops } from "../clearingCurrency";
 
 const equipSchema = z.object({ inventoryId: z.string().min(1) }).strict();
@@ -31,14 +31,14 @@ export function registerClearingEquipmentRoutes(app: Express, deps: { db: any; s
   app.post("/api/clearing/loadout/equip", isAuthenticated, async (req, res) => {
     const parsed = equipSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ message: "A valid inventory ID is required" });
-    try { return res.json(await equipClearingItem(db, (req.user as any).id, parsed.data.inventoryId)); }
+    try { const user=req.user as any;await equipClearingItem(db,user.id,parsed.data.inventoryId);const loadout=await getClearingLoadout(db,user.id),inventory=await storage.getUserInventory(user.id),pet=inventory.find((item:any)=>item.id===user.activePetId&&item.isHatched),effective=pet?calculateClearingStats({hp:pet.petHealth||1000,atk:pet.petAtk||50,def:pet.petDef||50},loadout.totals):null;if(effective)synchronizeClearingSessions(user.id,effective);return res.json({...loadout,effectiveStats:effective}); }
     catch (error) { return respondError(res, error); }
   });
 
   app.post("/api/clearing/loadout/unequip", isAuthenticated, async (req, res) => {
     const parsed = unequipSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ message: "Clearing slot must be helmet, weapon, armor, boots, or charm" });
-    try { return res.json(await unequipClearingItem(db, (req.user as any).id, parsed.data.slot as ClearingEquipmentSlot)); }
+    try { const user=req.user as any;await unequipClearingItem(db,user.id,parsed.data.slot as ClearingEquipmentSlot);const loadout=await getClearingLoadout(db,user.id),inventory=await storage.getUserInventory(user.id),pet=inventory.find((item:any)=>item.id===user.activePetId&&item.isHatched),effective=pet?calculateClearingStats({hp:pet.petHealth||1000,atk:pet.petAtk||50,def:pet.petDef||50},loadout.totals):null;if(effective)synchronizeClearingSessions(user.id,effective);return res.json({...loadout,effectiveStats:effective}); }
     catch (error) { return respondError(res, error); }
   });
 

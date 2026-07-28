@@ -1,7 +1,8 @@
 import type { Express, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
 import { ELYSIAN_CLEARING_COMBAT, applyClearingHit, createClearingSession, removeClearingSession, respawnClearingEnemy, scaleClearingEnemy, updateClearingPosition } from "../elysianClearingCombat";
-import { calculateClearingStats, ensureClearingStarterWeapon } from "../clearingEquipment";
+import { calculateClearingStats, ensureClearingStarterWeapon, getClearingLoadout } from "../clearingEquipment";
+import { resolveClearingAttackStyle } from "@shared/clearingCombat";
 import { claimClearingRewardChest, ClearingChestError, createClearingRewardChest, getClearingRewardChests } from "../clearingRewardChests";
 import { CLEARING_BALANCE } from "@shared/clearingConfig";
 
@@ -43,12 +44,13 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
     const inventory = await storage.getUserInventory(user.id);
     const pet = inventory.find((item: any) => item.id === user.activePetId && item.isHatched);
     if (!pet) return res.status(400).json({ message: "An active hatched pet is required" });
-    const result = applyClearingHit({ sessionId, instanceId: enemyInstanceId, userId: user.id, petId: pet.id, enemyPosition:targetPosition });
+    const loadout=await getClearingLoadout(db,user.id),style=resolveClearingAttackStyle(loadout.weapon?{attackStyle:loadout.weapon.attackStyle,name:loadout.weapon.name}:undefined);
+    const result = applyClearingHit({ sessionId, instanceId: enemyInstanceId, userId: user.id, petId: pet.id, enemyPosition:targetPosition,maxRangePixels:style==="staff_orb"?270:145 });
     if (result.status === "invalid") return res.status(409).json({ message: "Combat session expired" });
     if (result.status === "cooldown") return res.status(429).json({ message: "Attack is cooling down" });
     if (result.status === "range") return res.status(409).json({ message: "Target is out of range" });
     if (result.status === "defeated") return res.status(409).json({ message: "Enemy already defeated" });
-    if (result.status === "hit") return res.json({ defeated: false, health: result.enemy.health, maxHealth: result.enemy.maxHealth });
+    if (result.status === "hit") return res.json({ defeated: false, health: result.enemy.health, maxHealth: result.enemy.maxHealth, damage:result.damage });
 
     const claimKey = `elysian-clearing-defeat:${user.id}:${enemyInstanceId}`;
     const reward = await db.transaction(async (tx: any) => {

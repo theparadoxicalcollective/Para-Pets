@@ -45,7 +45,7 @@ test("Clearing uses one whole-sprite presentation animation and bounded enemy pr
   assert.match(sceneSource,/mode="static"/);
   assert.match(sceneSource,/clearing-pet-presentation/);
   assert.match(combatSource,/maxSimultaneousAttackers/);
-  assert.match(combatSource,/enemySeparationPixels/);
+  assert.match(combatSource,/resolveEnemyPairs/);
   assert.match(combatSource,/document\.visibilityState/);
   assert.doesNotMatch(combatSource,/\},\[onRespawn,worldPixels/);
 });

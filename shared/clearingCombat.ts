@@ -5,8 +5,8 @@ export type FacingDirection = "left" | "right";
 export function resolveClearingAttackStyle(item?: { attackStyle?: string | null; name?: string | null }): ClearingAttackStyle {
   if (item?.attackStyle === "sword_slash" || item?.attackStyle === "staff_orb" || item?.attackStyle === "default_melee") return item.attackStyle;
   const name = item?.name?.trim().toLocaleLowerCase() ?? "";
-  if (name.includes("sword") || name.includes("blade")) return "sword_slash";
-  if (name.includes("staff") || name.includes("wand")) return "staff_orb";
+  if (name.includes("sword")) return "sword_slash";
+  if (name.includes("staff")) return "staff_orb";
   return "default_melee";
 }
 
