@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { cameraTarget, circleHitsCapsule, clearingWorldSize, insetMovementBounds, meleeArcHit } from "../client/src/lib/elysianClearingCombatMath";
+import { enemyFlipScale, nextEnemyFacing, resolveClearingAttackStyle, rollTierRarity } from "../shared/clearingCombat";
+import { BASIC_SWORD_ID, chooseClearingStarterWeapon } from "../server/clearingEquipment";
+import { auditClearingEquipment, clearingEquipmentPower } from "../server/clearingEquipmentBalance";
+
+test("responsive Clearing background preserves aspect and eliminates vertical travel",()=>{const world=clearingWorldSize({width:390,height:844},2886/4331);assert.equal(world.height,844);assert.ok(Math.abs(world.width-844*2886/4331)<1e-9);assert.equal(cameraTarget({x:.5,y:1},world,{width:390,height:844}).y,0);});
+test("camera clamps all contained artwork edges",()=>{const w={width:600,height:800},v={width:400,height:800};assert.deepEqual(cameraTarget({x:0,y:0},w,v),{x:0,y:0});assert.deepEqual(cameraTarget({x:1,y:1},w,v),{x:200,y:0});});
+test("movement bounds include visual radius and feet anchor",()=>{const b=insetMovementBounds({xMin:.1,xMax:.9,yMin:.1,yMax:.9},{width:400,height:800},120);assert.deepEqual(b,{xMin:.208,xMax:.792,yMin:.22,yMax:.87});});
+test("facing honors natural orientation and idle dead zone",()=>{assert.equal(nextEnemyFacing("left",2),"left");assert.equal(nextEnemyFacing("left",4),"right");assert.equal(enemyFlipScale("left","left"),1);assert.equal(enemyFlipScale("left","right"),-1);});
+test("attack style prefers metadata and has normalized fallbacks",()=>{assert.equal(resolveClearingAttackStyle({attackStyle:"staff_orb",name:"Sword"}),"staff_orb");assert.equal(resolveClearingAttackStyle({name:" BASIC SWORD "}),"sword_slash");assert.equal(resolveClearingAttackStyle({name:"mystery"}),"basic_melee");});
+test("sword arcs and staff projectile capsules can hit and miss",()=>{assert.equal(meleeArcHit({x:0,y:0},1,{x:8,y:0,radius:1},10),true);assert.equal(meleeArcHit({x:0,y:0},1,{x:-2,y:0,radius:1},10),false);const c={from:{x:0,y:0},to:{x:10,y:0},radius:1};assert.equal(circleHitsCapsule({x:5,y:1,radius:.1},c),true);assert.equal(circleHitsCapsule({x:5,y:3,radius:.1},c),false);});
+test("starter sword grant is idempotent and never overwrites equipment",()=>{assert.deepEqual(chooseClearingStarterWeapon({ownedWeapons:[]}),{grant:true,equipId:null});assert.deepEqual(chooseClearingStarterWeapon({ownedWeapons:[{inventoryId:"basic",shopItemId:BASIC_SWORD_ID}]}),{grant:false,equipId:"basic"});assert.deepEqual(chooseClearingStarterWeapon({equippedId:"chosen",ownedWeapons:[]}),{grant:false,equipId:null});});
+test("tier tables enforce hard rarity caps",()=>{assert.equal(rollTierRarity("normal",()=>.999),3);assert.equal(rollTierRarity("tough",()=>.999),4);assert.equal(rollTierRarity("elite",()=>.999),5);});
+test("equipment audit validates power budgets and unresolved weapons",()=>{assert.equal(clearingEquipmentPower({slot:"weapon",atkBonus:4,defBonus:0,hpBonus:0}),8);const [row]=auditClearingEquipment([{id:"x",name:"Mystery",imageUrl:null,slot:"weapon",stars:1,atkBonus:-1,defBonus:0,hpBonus:0}]);assert.deepEqual(row.issues.sort(),["missing_image","negative_stat","stat_budget_outlier","unresolved_attack_style"].sort());});

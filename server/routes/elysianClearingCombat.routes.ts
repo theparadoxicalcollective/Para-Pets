@@ -1,7 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
 import { ELYSIAN_CLEARING_COMBAT, applyClearingHit, createClearingSession, getClearingSession, removeClearingSession, respawnClearingEnemy, scaleClearingEnemy, updateClearingPosition } from "../elysianClearingCombat";
-import { calculateClearingStats, getClearingLoadout } from "../clearingEquipment";
+import { calculateClearingStats, ensureClearingStarterWeapon } from "../clearingEquipment";
 import { maybeCreateClearingDrop } from "../clearingLoot";
 import { createCurrencyDrop } from "../clearingCurrency";
 
@@ -13,7 +13,7 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
     const inventory = await storage.getUserInventory(user.id);
     const pet = inventory.find((item: any) => item.id === user.activePetId && item.isHatched);
     if (!pet) return res.status(400).json({ message: "An active hatched pet is required" });
-    const loadout = await getClearingLoadout(db, user.id);
+    const loadout = await ensureClearingStarterWeapon(db, user.id);
     const effective = calculateClearingStats({ hp: pet.petHealth || 1000, atk: pet.petAtk || 50, def: pet.petDef || 50 }, loadout.totals);
     const stats = { level: pet.petLevel || 1, ...effective, rarity: pet.rarity };
     const session = createClearingSession(user.id, pet.id, stats);
@@ -30,14 +30,15 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
 
   app.post("/api/explore/elysian-clearing/attack", isAuthenticated, async (req, res) => {
     const user = req.user as any;
-    const { sessionId, enemyInstanceId, defeatPosition } = req.body ?? {};
+    const { sessionId, enemyInstanceId, defeatPosition, targetPosition } = req.body ?? {};
     if (typeof sessionId !== "string" || typeof enemyInstanceId !== "string") return res.status(400).json({ message: "Invalid combat request" });
     const inventory = await storage.getUserInventory(user.id);
     const pet = inventory.find((item: any) => item.id === user.activePetId && item.isHatched);
     if (!pet) return res.status(400).json({ message: "An active hatched pet is required" });
-    const result = applyClearingHit({ sessionId, instanceId: enemyInstanceId, userId: user.id, petId: pet.id });
+    const result = applyClearingHit({ sessionId, instanceId: enemyInstanceId, userId: user.id, petId: pet.id, enemyPosition:targetPosition });
     if (result.status === "invalid") return res.status(409).json({ message: "Combat session expired" });
     if (result.status === "cooldown") return res.status(429).json({ message: "Attack is cooling down" });
+    if (result.status === "range") return res.status(409).json({ message: "Target is out of range" });
     if (result.status === "defeated") return res.status(409).json({ message: "Enemy already defeated" });
     if (result.status === "hit") return res.json({ defeated: false, health: result.enemy.health, maxHealth: result.enemy.maxHealth });
 

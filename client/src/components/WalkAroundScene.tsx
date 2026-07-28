@@ -18,7 +18,7 @@ import PetAnimator from "@/components/PetAnimator";
 import ElysianClearingCombat from "@/components/ElysianClearingCombat";
 import { usePetWalkController } from "@/hooks/usePetWalkController";
 import type { WalkAroundLocationConfig } from "@/lib/exploreLocations";
-import { cameraTarget } from "@/lib/elysianClearingCombatMath";
+import { cameraTarget, clearingWorldSize, insetMovementBounds } from "@/lib/elysianClearingCombatMath";
 
 const DEFAULT_PET_SIZE = 110;
 const JOYSTICK_SIZE = 90;
@@ -42,6 +42,10 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
   const [camera, setCamera] = useState({ x: 0, y: 0 });
   const [gameplayBlocked, setGameplayBlocked] = useState(false);
 
+  const responsivePet = config.aspectLayout?.responsivePet;
+  const petSize = responsivePet ? Math.max(responsivePet.min, Math.min(responsivePet.max, viewport.width * responsivePet.preferredVw / 100, viewport.height * .18)) : (config.petSize ?? DEFAULT_PET_SIZE);
+  const world = config.aspectLayout ? clearingWorldSize(viewport, config.aspectLayout.imageAspect) : { width: viewport.width * (config.worldSize?.width ?? 1), height: viewport.height * (config.worldSize?.height ?? 1) };
+  const movementBounds = config.aspectLayout ? insetMovementBounds(config.walkableBounds, world, petSize) : config.walkableBounds;
   const {
     petPos,
     facingLeft,
@@ -53,7 +57,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
     onJoystickPointerUp,
     resetPosition,
   } = usePetWalkController({
-    bounds: config.walkableBounds,
+    bounds: movementBounds,
     spawn:  config.spawnPoint,
     speed:  config.movementSpeed,
     enabled: !gameplayBlocked,
@@ -72,7 +76,6 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
 
   // Side-profile templates saved in the back view are drawn left by convention.
   const naturalFacingLeft = petTemplate?.facing === "left" || petTemplate?.facing === "back";
-  const petSize = config.petSize ?? DEFAULT_PET_SIZE;
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (gameplayBlocked || !sceneRef.current || !e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
@@ -86,7 +89,6 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
     onJoystickPointerDown(e, { x: rect.left + x, y: rect.top + y });
   }, [gameplayBlocked, onJoystickPointerDown]);
 
-  const world = { width: viewport.width * (config.worldSize?.width ?? 1), height: viewport.height * (config.worldSize?.height ?? 1) };
   useEffect(() => {
     const measure = () => sceneRef.current && setViewport({ width: sceneRef.current.clientWidth || 1, height: sceneRef.current.clientHeight || 1 });
     measure(); window.addEventListener("resize", measure); return () => window.removeEventListener("resize", measure);
@@ -116,12 +118,12 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
         className="absolute left-0 top-0 cursor-pointer"
         style={{width:world.width,height:world.height,transform:`translate3d(${-camera.x}px, ${-camera.y}px, 0)`,willChange:"transform"}}
       >
-        <img
+        {config.aspectLayout && <img aria-hidden src={config.backgroundUrl} className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-md" draggable={false}/>}<img
           src={config.backgroundUrl}
           alt={config.name}
           draggable={false}
           className="absolute inset-0 w-full h-full"
-          style={{ objectFit: "cover", objectPosition: "center", pointerEvents: "none", userSelect: "none" }}
+          style={{ objectFit: config.aspectLayout ? "contain" : "cover", objectPosition: "center", pointerEvents: "none", userSelect: "none" }}
         />
 
 

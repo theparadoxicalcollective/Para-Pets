@@ -46,7 +46,8 @@ test("Clearing controls use CSS-only art and stop on browser interruption", () =
 });
 
 test("the camera has one transformed world layer and a separate fixed HUD", () => {
-  assert.match(pageSource, /worldSize: \{ width: 1\.7, height: 2\.1 \}/);
+  assert.match(pageSource, /worldSize: \{ width: 1, height: 1 \}/);
+  assert.match(pageSource, /aspectLayout: \{ imageAspect: 2886 \/ 4331/);
   assert.match(sceneSource, /data-testid="walkaround-world-layer"/);
   assert.match(sceneSource, /translate3d/);
   assert.match(sceneSource, /data-testid="walkaround-hud-layer"/);

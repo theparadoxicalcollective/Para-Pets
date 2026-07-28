@@ -34,6 +34,7 @@ export async function runEssentialBoot(): Promise<void> {
     ["users.essence early migration error (non-fatal):", sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS essence INTEGER NOT NULL DEFAULT 0`],
     ["users.raid_total_damage early migration error (non-fatal):", sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS raid_total_damage INTEGER NOT NULL DEFAULT 0`],
     ["shop_items.clearing_slot migration error (non-fatal):", sql`ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS clearing_slot text`],
+    ["shop_items Clearing combat metadata migration error (non-fatal):", sql`ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS clearing_attack_style text; ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS clearing_active boolean NOT NULL DEFAULT true`],
     ["user_clearing_loadouts migration error (non-fatal):", sql`CREATE TABLE IF NOT EXISTS user_clearing_loadouts (
       user_id VARCHAR PRIMARY KEY,
       weapon_inventory_id VARCHAR NULL,

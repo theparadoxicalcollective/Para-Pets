@@ -17,6 +17,7 @@ export interface ClearingEnemyRecord {
   attack: number;
   defeated: boolean;
   lastHitAt: number;
+  x: number; y: number;
 }
 export interface ClearingSession { id: string; userId: string; petId: string; expiresAt: number; effectiveStats: { hp: number; atk: number; def: number }; enemies: ClearingEnemyRecord[]; position:{x:number;y:number;updatedAt:number} }
 
@@ -42,7 +43,7 @@ export function createClearingSession(userId: string, petId: string, stats: Clea
     effectiveStats: { hp: stats.hp, atk: stats.atk, def: stats.def ?? 0 },
     position:{x:.5,y:.7,updatedAt:now}, enemies: Array.from({ length: ELYSIAN_CLEARING_COMBAT.enemyCount }, (_, slot) => ({
       instanceId: crypto.randomUUID(), slot, maxHealth: scaled.maxHealth, health: scaled.maxHealth,
-      attack: scaled.attack, defeated: false, lastHitAt: 0,
+      attack: scaled.attack, defeated: false, lastHitAt: 0, x:[.42,.62,.36][slot]??.5, y:[.68,.58,.62][slot]??.6,
     })),
   };
   sessions.set(session.id, session);
@@ -59,13 +60,15 @@ export function updateClearingPosition(input:{sessionId:string;userId:string;x:n
   session.position={x:input.x,y:input.y,updatedAt:now};return session.position;
 }
 
-export function applyClearingHit(input: { sessionId: string; instanceId: string; userId: string; petId: string; petDamage?: number; now?: number }) {
+export function applyClearingHit(input: { sessionId: string; instanceId: string; userId: string; petId: string; petDamage?: number; enemyPosition?:{x:number;y:number}; now?: number }) {
   const now = input.now ?? Date.now();
   const session = sessions.get(input.sessionId);
   if (!session || session.expiresAt <= now || session.userId !== input.userId || session.petId !== input.petId) return { status: "invalid" as const };
   const enemy = session.enemies.find((candidate) => candidate.instanceId === input.instanceId);
   if (!enemy || enemy.defeated) return { status: "defeated" as const };
   if (now - enemy.lastHitAt < ELYSIAN_CLEARING_COMBAT.attackCooldownMs) return { status: "cooldown" as const, enemy };
+  const target=input.enemyPosition??enemy;
+  if(!Number.isFinite(target.x)||!Number.isFinite(target.y)||Math.hypot((target.x-enemy.x)*400,(target.y-enemy.y)*800)>240||Math.hypot((target.x-session.position.x)*400,(target.y-session.position.y)*800)>145)return {status:"range" as const,enemy};
   enemy.lastHitAt = now;
   enemy.health = Math.max(0, enemy.health - clamp(Math.round(input.petDamage ?? session.effectiveStats.atk), 20, 5_000));
   enemy.defeated = enemy.health === 0;

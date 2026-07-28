@@ -1,6 +1,30 @@
 import { and, eq, or, sql } from "drizzle-orm";
 import { shopItems, userClearingLoadouts, userInventory } from "@shared/schema";
 import { CLEARING_EQUIPMENT_SALE_VALUES, type ClearingEquipmentSlot, type ClearingInventoryItem, type ClearingLoadout, type ClearingStatTotals, type EffectiveClearingStats } from "@shared/clearingEquipment";
+import { resolveClearingAttackStyle } from "@shared/clearingCombat";
+
+export const BASIC_SWORD_ID = "a1b2c3d4-0011-4000-8000-000000000012";
+export function chooseClearingStarterWeapon(input:{equippedId?:string|null;ownedWeapons:Array<{inventoryId:string;shopItemId:string}>}) {
+  if(input.equippedId)return {grant:false,equipId:null};
+  const basic=input.ownedWeapons.find(item=>item.shopItemId===BASIC_SWORD_ID);
+  if(basic)return {grant:false,equipId:basic.inventoryId};
+  if(input.ownedWeapons.length)return {grant:false,equipId:input.ownedWeapons[0].inventoryId};
+  return {grant:true,equipId:null};
+}
+
+/** Transactional session bootstrap. The canonical item and per-user inventory
+ * lookup make repeated entry idempotent; a deliberately equipped weapon wins. */
+export async function ensureClearingStarterWeapon(database:any,userId:string){return database.transaction(async(tx:any)=>{
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`clearing-starter:${userId}`}))`);
+  await tx.execute(sql`INSERT INTO shop_items(id,name,price,type,world_id,location_id,image_url,clearing_slot,clearing_attack_style,clearing_active,star_rarity,atk_boost,def_boost,health_boost)
+    VALUES(${BASIC_SWORD_ID},'Basic Sword',0,'clearing','swamp','a1b2c3d4-0011-4000-8000-000000000011',NULL,'weapon','sword_slash',true,1,4,0,0) ON CONFLICT(id) DO NOTHING`);
+  const state=await tx.execute(sql`SELECT l.weapon_inventory_id,ui.id AS inventory_id,ui.shop_item_id FROM user_clearing_loadouts l FULL JOIN user_inventory ui ON ui.user_id=${userId} AND ui.shop_item_id IN (SELECT id FROM shop_items WHERE type='clearing' AND clearing_slot='weapon' AND clearing_active=true) WHERE l.user_id=${userId} OR ui.user_id=${userId} ORDER BY ui.acquired_at`);
+  const rows=state.rows as any[],equippedId=rows.find(r=>r.weapon_inventory_id)?.weapon_inventory_id??null;
+  const decision=chooseClearingStarterWeapon({equippedId,ownedWeapons:rows.filter(r=>r.inventory_id).map(r=>({inventoryId:r.inventory_id,shopItemId:r.shop_item_id}))});
+  let equipId=decision.equipId;if(decision.grant){const inserted=await tx.execute(sql`INSERT INTO user_inventory(user_id,shop_item_id,quantity) SELECT ${userId},${BASIC_SWORD_ID},1 WHERE NOT EXISTS(SELECT 1 FROM user_inventory WHERE user_id=${userId} AND shop_item_id=${BASIC_SWORD_ID}) RETURNING id`);equipId=(inserted.rows[0] as any)?.id??null;if(!equipId){const existing=await tx.execute(sql`SELECT id FROM user_inventory WHERE user_id=${userId} AND shop_item_id=${BASIC_SWORD_ID} ORDER BY acquired_at LIMIT 1`);equipId=(existing.rows[0] as any)?.id;}}
+  if(!equippedId&&equipId)await tx.execute(sql`INSERT INTO user_clearing_loadouts(user_id,weapon_inventory_id) VALUES(${userId},${equipId}) ON CONFLICT(user_id) DO UPDATE SET weapon_inventory_id=CASE WHEN user_clearing_loadouts.weapon_inventory_id IS NULL THEN excluded.weapon_inventory_id ELSE user_clearing_loadouts.weapon_inventory_id END,updated_at=now()`);
+  return getClearingLoadout(tx,userId);
+});}
 
 export class ClearingEquipmentError extends Error {
   constructor(public code: "not_found" | "invalid_item" | "invalid_slot" | "duplicate" | "equipped", message: string) { super(message); }
@@ -13,7 +37,7 @@ function toInventoryItem(row: any, equippedIds: Set<string>): ClearingInventoryI
     inventoryId: row.inventoryId, shopItemId: row.shopItemId, name: row.name,
     imageUrl: row.imageUrl ?? null, slot: row.slot, stars: Number(row.stars),
     atkBonus: Number(row.atkBonus ?? 0), defBonus: Number(row.defBonus ?? 0), hpBonus: Number(row.hpBonus ?? 0),
-    quantity: Number(row.quantity ?? 1), acquiredAt: row.acquiredAt, equipped: equippedIds.has(row.inventoryId), eligibleForSale: !equippedIds.has(row.inventoryId) && !row.isListed,
+    quantity: Number(row.quantity ?? 1), acquiredAt: row.acquiredAt, equipped: equippedIds.has(row.inventoryId), eligibleForSale: !equippedIds.has(row.inventoryId) && !row.isListed, attackStyle:resolveClearingAttackStyle({attackStyle:row.attackStyle,name:row.name}),
   };
 }
 
@@ -22,6 +46,7 @@ const selection = {
   itemType: shopItems.type,
   slot: shopItems.clearingSlot, stars: shopItems.starRarity, atkBonus: shopItems.atkBoost,
   defBonus: shopItems.defBoost, hpBonus: shopItems.healthBoost, quantity: userInventory.quantity, acquiredAt: userInventory.acquiredAt, isListed:userInventory.isListed,
+  attackStyle: shopItems.clearingAttackStyle,
 };
 
 async function getLoadoutRow(executor: any, userId: string) {

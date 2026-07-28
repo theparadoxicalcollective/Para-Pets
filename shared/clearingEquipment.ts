@@ -22,6 +22,7 @@ export interface ClearingInventoryItem {
   acquiredAt: Date;
   equipped: boolean;
   eligibleForSale: boolean;
+  attackStyle?: import("./clearingCombat").ClearingAttackStyle;
 }
 
 export const CLEARING_EQUIPMENT_SALE_VALUES = { 1: 25, 2: 50, 3: 100, 4: 300, 5: 500 } as const;
