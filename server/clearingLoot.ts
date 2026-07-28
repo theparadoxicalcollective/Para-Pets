@@ -11,7 +11,7 @@ export const CLEARING_LOOT = {
 export type RandomSource = () => number;
 export type EligibleLoot = { id:string; name:string; image_url:string|null; clearing_slot:ClearingEquipmentSlot; star_rarity:ClearingStarRarity; atk_boost:number|null; def_boost:number|null; health_boost:number|null };
 
-const clearingSlots: readonly ClearingEquipmentSlot[] = ["weapon", "armor", "charm"];
+const clearingSlots: readonly ClearingEquipmentSlot[] = ["helmet", "weapon", "armor", "boots", "charm"];
 
 export function isClearingStarRarity(value: unknown): value is ClearingStarRarity {
   return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 5;
@@ -78,7 +78,7 @@ export async function maybeCreateClearingDrop(tx:any, input:{userId:string;sessi
   const random=input.random ?? Math.random;
   if (random() >= CLEARING_LOOT.equipmentChance) return null;
   const result=await tx.execute(sql`SELECT id,name,image_url,clearing_slot,star_rarity,atk_boost,def_boost,health_boost FROM shop_items
-    WHERE type='clearing' AND clearing_slot IN ('weapon','armor','charm') AND star_rarity BETWEEN 1 AND 5
+    WHERE type='clearing' AND clearing_active=true AND clearing_slot IN ('helmet','weapon','armor','boots','charm') AND star_rarity BETWEEN 1 AND 5
       AND world_id IN (${input.worldId}, 'global') AND (location_id IS NULL OR location_id=${input.clearingId})`);
   const normalizedItems: Array<EligibleLoot | null> = result.rows.map(
     (row: unknown): EligibleLoot | null => normalizeEligibleLoot(row),
@@ -115,7 +115,7 @@ export async function collectClearingDrop(db:any,input:{userId:string;sessionId:
     if(row.session_id!==input.sessionId||row.clearing_id!==input.clearingId)throw new ClearingDropError("wrong_session","Clearing Ground Drop belongs to another session");
     if(row.collected_at)return {alreadyCollected:true,item:serializeGroundDrop(row)};
     if(new Date(row.expires_at)<= (input.now??new Date()))throw new ClearingDropError("expired","Clearing Ground Drop expired");
-    if(row.type!=="clearing"||!["weapon","armor","charm"].includes(row.clearing_slot)||Number(row.star_rarity)<1||Number(row.star_rarity)>5)throw new ClearingDropError("invalid_item","Clearing item is no longer available");
+    if(row.type!=="clearing"||!["helmet","weapon","armor","boots","charm"].includes(row.clearing_slot)||Number(row.star_rarity)<1||Number(row.star_rarity)>5)throw new ClearingDropError("invalid_item","Clearing item is no longer available");
     const distance=Math.hypot((input.playerX-Number(row.world_x))*input.worldPixels.width,(input.playerY-Number(row.world_y))*input.worldPixels.height);
     if(distance>CLEARING_LOOT.pickupRadiusPixels)throw new ClearingDropError("distance","Move closer to collect this Clearing Ground Drop");
     await tx.execute(sql`INSERT INTO user_inventory(user_id,shop_item_id,quantity) VALUES(${input.userId},${row.shop_item_id},1)`);

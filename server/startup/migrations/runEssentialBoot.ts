@@ -37,15 +37,22 @@ export async function runEssentialBoot(): Promise<void> {
     ["shop_items Clearing combat metadata migration error (non-fatal):", sql`ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS clearing_attack_style text; ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS clearing_active boolean NOT NULL DEFAULT true`],
     ["user_clearing_loadouts migration error (non-fatal):", sql`CREATE TABLE IF NOT EXISTS user_clearing_loadouts (
       user_id VARCHAR PRIMARY KEY,
+      helmet_inventory_id VARCHAR NULL,
       weapon_inventory_id VARCHAR NULL,
       armor_inventory_id VARCHAR NULL,
       charm_inventory_id VARCHAR NULL,
+      boots_inventory_id VARCHAR NULL,
       updated_at TIMESTAMP NOT NULL DEFAULT now(),
       CONSTRAINT user_clearing_loadouts_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      CONSTRAINT user_clearing_loadouts_helmet_fk FOREIGN KEY (helmet_inventory_id) REFERENCES user_inventory(id) ON DELETE SET NULL,
       CONSTRAINT user_clearing_loadouts_weapon_fk FOREIGN KEY (weapon_inventory_id) REFERENCES user_inventory(id) ON DELETE SET NULL,
       CONSTRAINT user_clearing_loadouts_armor_fk FOREIGN KEY (armor_inventory_id) REFERENCES user_inventory(id) ON DELETE SET NULL,
-      CONSTRAINT user_clearing_loadouts_charm_fk FOREIGN KEY (charm_inventory_id) REFERENCES user_inventory(id) ON DELETE SET NULL
+      CONSTRAINT user_clearing_loadouts_charm_fk FOREIGN KEY (charm_inventory_id) REFERENCES user_inventory(id) ON DELETE SET NULL,
+      CONSTRAINT user_clearing_loadouts_boots_fk FOREIGN KEY (boots_inventory_id) REFERENCES user_inventory(id) ON DELETE SET NULL
     )`],
+    ["user_clearing_loadouts five-slot migration error (non-fatal):", sql`ALTER TABLE user_clearing_loadouts ADD COLUMN IF NOT EXISTS helmet_inventory_id VARCHAR REFERENCES user_inventory(id) ON DELETE SET NULL; ALTER TABLE user_clearing_loadouts ADD COLUMN IF NOT EXISTS boots_inventory_id VARCHAR REFERENCES user_inventory(id) ON DELETE SET NULL`],
+    ["Clearing starter deduplication migration error (non-fatal):", sql`DELETE FROM user_inventory duplicate USING user_inventory keeper WHERE duplicate.shop_item_id='a1b2c3d4-0011-4000-8000-000000000012' AND keeper.shop_item_id=duplicate.shop_item_id AND keeper.user_id=duplicate.user_id AND keeper.id < duplicate.id`],
+    ["Clearing starter uniqueness migration error (non-fatal):", sql`CREATE UNIQUE INDEX IF NOT EXISTS user_inventory_clearing_basic_sword_uidx ON user_inventory(user_id, shop_item_id) WHERE shop_item_id = 'a1b2c3d4-0011-4000-8000-000000000012'`],
     ["clearing_ground_drops migration error (non-fatal):", sql`CREATE TABLE IF NOT EXISTS clearing_ground_drops (
       id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(), user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       session_id VARCHAR NOT NULL, clearing_id VARCHAR NOT NULL, shop_item_id VARCHAR NOT NULL REFERENCES shop_items(id) ON DELETE CASCADE,

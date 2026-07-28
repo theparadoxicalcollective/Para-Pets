@@ -30,7 +30,8 @@ export interface ShopItemFull {
   atkBoost: number | null;
   defBoost: number | null;
   healthBoost: number | null;
-  clearingSlot: "weapon" | "armor" | "charm" | null;
+  clearingSlot: "helmet" | "weapon" | "armor" | "boots" | "charm" | null;
+  clearingAttackStyle?: "sword_slash" | "staff_orb" | "default" | null;
   specialType: string | null;
   specialAmount: number | null;
   fishingType: string | null;
@@ -621,6 +622,7 @@ function AdminItemForm({
   const [defBoost, setDefBoost] = useState(item?.defBoost?.toString() || "");
   const [healthBoost, setHealthBoost] = useState(item?.healthBoost?.toString() || "");
   const [clearingSlot, setClearingSlot] = useState(item?.clearingSlot || "weapon");
+  const [clearingAttackStyle, setClearingAttackStyle] = useState(item?.clearingAttackStyle || "default");
   const [specialType, setSpecialType] = useState(item?.specialType || "hatch_time");
   const [specialAmount, setSpecialAmount] = useState(item?.specialAmount?.toString() || "10");
   const [imageData, setImageData] = useState<string | null>(null);
@@ -731,8 +733,10 @@ function AdminItemForm({
         if (effectiveType === "clearing") {
           payload.clearingSlot = clearingSlot;
           payload.starRarity = parseInt(starRarity);
+          payload.clearingAttackStyle = clearingSlot === "weapon" ? clearingAttackStyle : null;
         } else {
           payload.clearingSlot = null;
+          payload.clearingAttackStyle = null;
         }
 
         if (effectiveType === "special") {
@@ -1236,9 +1240,13 @@ function AdminItemForm({
                 <div>
                   <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Clearing Equipment Slot</label>
                   <select data-testid="select-clearing-slot" value={clearingSlot} onChange={(e) => setClearingSlot(e.target.value as typeof clearingSlot)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
-                    <option value="weapon">Weapon</option><option value="armor">Armor</option><option value="charm">Charm</option>
+                    <option value="helmet">Helm</option><option value="weapon">Weapon</option><option value="armor">Armor</option><option value="boots">Boots</option><option value="charm">Charm</option>
                   </select>
                 </div>
+                {clearingSlot === "weapon" && <div>
+                  <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Attack Style</label>
+                  <select data-testid="select-clearing-attack-style" value={clearingAttackStyle} onChange={(e) => setClearingAttackStyle(e.target.value as typeof clearingAttackStyle)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}><option value="sword_slash">Sword Slash</option><option value="staff_orb">Staff Orb</option><option value="default">Other/Default</option></select>
+                </div>}
                 <div>
                   <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Star Rarity (1–5)</label>
                   <select data-testid="select-clearing-stars" value={starRarity} onChange={(e) => setStarRarity(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>

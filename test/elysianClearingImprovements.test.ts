@@ -14,3 +14,9 @@ test("sword arcs and staff projectile capsules can hit and miss",()=>{assert.equ
 test("starter sword grant is idempotent and never overwrites equipment",()=>{assert.deepEqual(chooseClearingStarterWeapon({ownedWeapons:[]}),{grant:true,equipId:null});assert.deepEqual(chooseClearingStarterWeapon({ownedWeapons:[{inventoryId:"basic",shopItemId:BASIC_SWORD_ID}]}),{grant:false,equipId:"basic"});assert.deepEqual(chooseClearingStarterWeapon({equippedId:"chosen",ownedWeapons:[]}),{grant:false,equipId:null});});
 test("tier tables enforce hard rarity caps",()=>{assert.equal(rollTierRarity("normal",()=>.999),3);assert.equal(rollTierRarity("tough",()=>.999),4);assert.equal(rollTierRarity("elite",()=>.999),5);});
 test("equipment audit validates power budgets and unresolved weapons",()=>{assert.equal(clearingEquipmentPower({slot:"weapon",atkBonus:4,defBonus:0,hpBonus:0}),8);const [row]=auditClearingEquipment([{id:"x",name:"Mystery",imageUrl:null,slot:"weapon",stars:1,atkBonus:-1,defBonus:0,hpBonus:0}]);assert.deepEqual(row.issues.sort(),["missing_image","negative_stat","stat_budget_outlier","unresolved_attack_style"].sort());});
+
+test("starter selection preserves an equipped weapon and deterministically equips the oldest eligible owned weapon",()=>{
+  const owned=[{inventoryId:"oldest",shopItemId:"weapon-a"},{inventoryId:"newer",shopItemId:"weapon-b"}];
+  assert.deepEqual(chooseClearingStarterWeapon({ownedWeapons:owned}),{grant:false,equipId:"oldest"});
+  assert.deepEqual(chooseClearingStarterWeapon({equippedId:"newer",ownedWeapons:owned}),{grant:false,equipId:null});
+});

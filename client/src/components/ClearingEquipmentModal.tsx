@@ -5,7 +5,7 @@ import slotBorderUrl from "@assets/uploads/ClearingEquipmentBorder.png";
 import popupBackgroundUrl from "@assets/uploads/ClearingEquipPopUp.png";
 import bagIcon from "@assets/icon_bag.png";
 
-type DisplaySlot = "helmet" | ClearingEquipmentSlot | "boots";
+type DisplaySlot = ClearingEquipmentSlot;
 
 const slotLayout: Array<{ slot: DisplaySlot; grid: string }> = [
   { slot: "helmet", grid: "col-start-2 row-start-1" },
@@ -15,8 +15,7 @@ const slotLayout: Array<{ slot: DisplaySlot; grid: string }> = [
   { slot: "boots", grid: "col-start-2 row-start-3" },
 ];
 
-const isSupportedSlot = (slot: DisplaySlot): slot is ClearingEquipmentSlot =>
-  slot === "weapon" || slot === "armor" || slot === "charm";
+const isSupportedSlot = (_slot: DisplaySlot): _slot is ClearingEquipmentSlot => true;
 
 export default function ClearingEquipmentModal({
   open,

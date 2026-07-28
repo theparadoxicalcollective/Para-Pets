@@ -8,7 +8,7 @@ import { ELYSIAN_CLEARING_COMBAT, getClearingSession } from "../elysianClearingC
 import { ClearingCurrencyError, collectCurrencyDrop, getCurrencyDrops } from "../clearingCurrency";
 
 const equipSchema = z.object({ inventoryId: z.string().min(1) }).strict();
-const unequipSchema = z.object({ slot: z.enum(["weapon", "armor", "charm"]) }).strict();
+const unequipSchema = z.object({ slot: z.enum(["helmet", "weapon", "armor", "boots", "charm"]) }).strict();
 
 export function registerClearingEquipmentRoutes(app: Express, deps: { db: any; storage:any; isAuthenticated: RequestHandler }): void {
   const { db, storage, isAuthenticated } = deps;
@@ -37,7 +37,7 @@ export function registerClearingEquipmentRoutes(app: Express, deps: { db: any; s
 
   app.post("/api/clearing/loadout/unequip", isAuthenticated, async (req, res) => {
     const parsed = unequipSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ message: "Clearing slot must be weapon, armor, or charm" });
+    if (!parsed.success) return res.status(400).json({ message: "Clearing slot must be helmet, weapon, armor, boots, or charm" });
     try { return res.json(await unequipClearingItem(db, (req.user as any).id, parsed.data.slot as ClearingEquipmentSlot)); }
     catch (error) { return respondError(res, error); }
   });
