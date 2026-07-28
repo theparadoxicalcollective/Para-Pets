@@ -219,6 +219,19 @@ export const rewardBundles = pgTable("reward_bundles", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const clearingWorldDrops = pgTable("clearing_world_drops", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  worldId: varchar("world_id").notNull(), shopItemId: varchar("shop_item_id").notNull(),
+  rarity: text("rarity").notNull(), createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (t) => [uniqueIndex("clearing_world_drops_world_item_uidx").on(t.worldId, t.shopItemId)]);
+
+export const clearingWorldEnemies = pgTable("clearing_world_enemies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  worldId: varchar("world_id").notNull(), enemyId: varchar("enemy_id").notNull(),
+  isBoss: boolean("is_boss").notNull().default(false), sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (t) => [uniqueIndex("clearing_world_enemies_world_enemy_uidx").on(t.worldId, t.enemyId)]);
+
 export const rewardBundleItems = pgTable("reward_bundle_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bundleId: varchar("bundle_id").notNull(),

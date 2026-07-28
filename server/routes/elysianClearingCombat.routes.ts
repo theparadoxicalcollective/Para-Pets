@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import { ELYSIAN_CLEARING_COMBAT, applyClearingHit, createClearingSession, removeClearingSession, respawnClearingEnemy, scaleClearingEnemy, updateClearingPosition } from "../elysianClearingCombat";
 import { calculateClearingStats, ensureClearingStarterWeapon } from "../clearingEquipment";
 import { claimClearingRewardChest, ClearingChestError, createClearingRewardChest, getClearingRewardChests } from "../clearingRewardChests";
-import { createCurrencyDrop, getCurrencyDrops } from "../clearingCurrency";
+import { CLEARING_BALANCE } from "@shared/clearingConfig";
 
 export function registerElysianClearingCombatRoutes(app: Express, deps: { db: any; storage: any; isAuthenticated: RequestHandler }) {
   const { db, storage, isAuthenticated } = deps;
@@ -23,11 +23,13 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
       }
       const effective = calculateClearingStats({ hp: pet.petHealth || 1000, atk: pet.petAtk || 50, def: pet.petDef || 50 }, loadout.totals);
       const stats = { level: pet.petLevel || 1, ...effective, rarity: pet.rarity };
-      const session = createClearingSession(user.id, pet.id, stats);
-      const [chests,currencyDrops]=await Promise.all([getClearingRewardChests(db,{userId:user.id,sessionId:session.id,clearingId:ELYSIAN_CLEARING_COMBAT.locationId}),getCurrencyDrops(db,{userId:user.id,sessionId:session.id,clearingId:ELYSIAN_CLEARING_COMBAT.locationId})]);
+      const configured=await db.execute(sql`SELECT a.enemy_id,a.is_boss,e.name,e.image_url FROM clearing_world_enemies a JOIN enemies e ON e.id=a.enemy_id WHERE a.world_id='swamp' ORDER BY a.sort_order`);
+      if(!configured.rows.length)console.warn("No Clearing enemies configured for swamp; using temporary Elysian fallback");
+      const session = createClearingSession(user.id, pet.id, stats,Date.now(),Math.random,configured.rows as any);
+      const chests=await getClearingRewardChests(db,{userId:user.id,sessionId:session.id,clearingId:ELYSIAN_CLEARING_COMBAT.locationId});
       return res.json({ sessionId: session.id, loadout,
         pet: { inventoryId: pet.id, maxHealth: stats.hp, attack: scaleClearingEnemy(stats).petDamage, defense: stats.def },
-        enemies: session.enemies.map(({ lastHitAt: _lastHitAt, ...enemy }) => enemy), chests, currencyDrops });
+        enemies: session.enemies.map(({ lastHitAt: _lastHitAt, ...enemy }) => enemy), chests });
     } catch (error: any) {
       console.error("Clearing session creation failed", { userId: user.id, code: error?.code ?? "unknown", message: error instanceof Error ? error.message : String(error) });
       return res.status(503).json({ code: "CLEARING_TEMPORARILY_UNAVAILABLE", message: "The Clearing is temporarily unavailable" });
@@ -55,18 +57,18 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
       const current = await tx.execute(sql`SELECT xp_boost_until, xp_boost_pct, pet_level, pet_level_points FROM user_inventory WHERE id = ${pet.id} AND user_id = ${user.id} FOR UPDATE`);
       if (!current.rows.length) throw new Error("Active pet disappeared during reward grant");
       const row = current.rows[0] as any;
+      const baseExp = result.enemy.isBoss ? CLEARING_BALANCE.bossExp : CLEARING_BALANCE.regularExp;
       const boostedExp = row.xp_boost_until && new Date(row.xp_boost_until).getTime() > Date.now()
-        ? Math.round(ELYSIAN_CLEARING_COMBAT.expReward * (1 + Number(row.xp_boost_pct || 0) / 100)) : ELYSIAN_CLEARING_COMBAT.expReward;
+        ? Math.round(baseExp * (1 + Number(row.xp_boost_pct || 0) / 100)) : baseExp;
       let level=Number((current.rows[0] as any).pet_level||pet.petLevel||1), points=Number((current.rows[0] as any).pet_level_points||0)+boostedExp;
       while(level<100){const needed=Math.floor(100+level*30+level*level*5);if(points<needed)break;points-=needed;level++;} if(level>=100){level=100;points=0;}
       await tx.execute(sql`UPDATE user_inventory SET pet_level=${level},pet_level_points=${points} WHERE id=${pet.id} AND user_id=${user.id}`);
-      const currencyDrop=await createCurrencyDrop(tx,{userId:user.id,sessionId,clearingId:ELYSIAN_CLEARING_COMBAT.locationId,rewardId:enemyInstanceId,worldX:result.enemy.x,worldY:result.enemy.y});
-      const chest=await createClearingRewardChest(tx,{userId:user.id,sessionId,clearingId:ELYSIAN_CLEARING_COMBAT.locationId,enemyId:enemyInstanceId,petInventoryId:pet.id,worldX:result.enemy.x,worldY:result.enemy.y,forceEquipment:process.env.NODE_ENV!=="production"&&req.get("x-clearing-test-drop")==="equipment"});
-      return { chest, currencyDrop, expAwarded:boostedExp, pet:{level,levelPoints:points} };
+      const chest=await createClearingRewardChest(tx,{userId:user.id,sessionId,clearingId:ELYSIAN_CLEARING_COMBAT.locationId,worldId:"swamp",enemyId:enemyInstanceId,petInventoryId:pet.id,worldX:result.enemy.x,worldY:result.enemy.y,boss:result.enemy.isBoss});
+      return { chest, expAwarded:boostedExp, boss:result.enemy.isBoss, pet:{level,levelPoints:points} };
     });
     if (!reward) return res.status(409).json({ message: "Reward already claimed" });
     const nextEnemy = respawnClearingEnemy(sessionId, enemyInstanceId);
-    return res.json({ defeated: true, health: 0, maxHealth: result.enemy.maxHealth, chest:reward.chest, currencyDrop:reward.currencyDrop, expAwarded:reward.expAwarded, pet:reward.pet, nextEnemy: nextEnemy && { instanceId: nextEnemy.instanceId, health: nextEnemy.health } });
+    return res.json({ defeated: true, health: 0, maxHealth: result.enemy.maxHealth, chest:reward.chest, boss:reward.boss, expAwarded:reward.expAwarded, pet:reward.pet, nextEnemy });
   });
 
   app.get("/api/explore/elysian-clearing/chests/:sessionId",isAuthenticated,async(req,res)=>res.json(await getClearingRewardChests(db,{userId:(req.user as any).id,sessionId:req.params.sessionId as string,clearingId:ELYSIAN_CLEARING_COMBAT.locationId})));

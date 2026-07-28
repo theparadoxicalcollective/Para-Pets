@@ -45,6 +45,7 @@ import { registerGiftRoutes } from "./routes/gift.routes";
 import { registerHomeDecorRoutes } from "./routes/homeDecor.routes";
 import { registerElysianClearingCombatRoutes } from "./routes/elysianClearingCombat.routes";
 import { registerClearingEquipmentRoutes } from "./routes/clearingEquipment.routes";
+import { registerClearingAdminRoutes } from "./routes/clearingAdmin.routes";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -813,6 +814,7 @@ export async function registerRoutes(
 
   registerElysianClearingCombatRoutes(app, { db, storage, isAuthenticated });
   registerClearingEquipmentRoutes(app, { db, storage, isAuthenticated });
+  registerClearingAdminRoutes(app, { db, isAdmin });
 
   const marketplaceRouteDependencies: MarketplaceRouteDependencies = {
     storage,

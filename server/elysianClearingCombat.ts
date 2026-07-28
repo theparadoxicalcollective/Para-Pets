@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { CLEARING_BALANCE } from "@shared/clearingConfig";
 
 export const ELYSIAN_CLEARING_COMBAT = {
   locationId: "a1b2c3d4-0011-4000-8000-000000000011",
@@ -20,6 +21,8 @@ export interface ClearingEnemyRecord {
   defeated: boolean;
   lastHitAt: number;
   x: number; y: number;
+  isBoss: boolean;
+  templateId?: string; name?: string; imageUrl?: string | null;
 }
 export interface ClearingSession { id: string; userId: string; petId: string; expiresAt: number; effectiveStats: { hp: number; atk: number; def: number }; enemies: ClearingEnemyRecord[]; position:{x:number;y:number;updatedAt:number} }
 
@@ -37,16 +40,16 @@ export function scaleClearingEnemy(pet: ClearingPetStats) {
   };
 }
 
-export function createClearingSession(userId: string, petId: string, stats: ClearingPetStats, now = Date.now()): ClearingSession {
+export function createClearingSession(userId: string, petId: string, stats: ClearingPetStats, now = Date.now(), random=Math.random, templates:Array<{enemy_id:string;is_boss:boolean;name:string;image_url:string|null}>=[]): ClearingSession {
   for (const [id, session] of sessions) if (session.expiresAt <= now || session.userId === userId) sessions.delete(id);
   const scaled = scaleClearingEnemy(stats);
   const session: ClearingSession = {
     id: crypto.randomUUID(), userId, petId, expiresAt: now + ELYSIAN_CLEARING_COMBAT.sessionLifetimeMs,
     effectiveStats: { hp: stats.hp, atk: stats.atk, def: stats.def ?? 0 },
-    position:{x:.5,y:.7,updatedAt:now}, enemies: Array.from({ length: ELYSIAN_CLEARING_COMBAT.enemyCount }, (_, slot) => ({
-      instanceId: crypto.randomUUID(), slot, maxHealth: scaled.maxHealth, health: scaled.maxHealth,
-      attack: scaled.attack, defeated: false, lastHitAt: 0, x:[.28,.68,.35,.72,.48,.25,.63,.43][slot]??.5, y:[.24,.28,.43,.48,.58,.72,.72,.82][slot]??.6,
-    })),
+    position:{x:.5,y:.7,updatedAt:now}, enemies: Array.from({ length: ELYSIAN_CLEARING_COMBAT.enemyCount }, (_, slot) => {const bosses=templates.filter(t=>t.is_boss),regulars=templates.filter(t=>!t.is_boss),isBoss=slot===0&&bosses.length>0&&random()<CLEARING_BALANCE.bossSpawnChance,choices=isBoss?bosses:regulars,template=choices[Math.floor(random()*choices.length)],maxHealth=Math.round(scaled.maxHealth*(isBoss?CLEARING_BALANCE.bossHealthMultiplier:1));return{
+      instanceId: crypto.randomUUID(), slot, maxHealth, health:maxHealth,
+      attack:Math.round(scaled.attack*(isBoss?CLEARING_BALANCE.bossDamageMultiplier:1)),isBoss,templateId:template?.enemy_id,name:template?.name,imageUrl:template?.image_url, defeated: false, lastHitAt: 0, x:[.28,.68,.35,.72,.48,.25,.63,.43][slot]??.5, y:[.24,.28,.43,.48,.58,.72,.72,.82][slot]??.6,
+    }}),
   };
   sessions.set(session.id, session);
   return session;
