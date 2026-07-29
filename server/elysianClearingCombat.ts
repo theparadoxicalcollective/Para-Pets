@@ -27,8 +27,13 @@ export interface ClearingEnemyRecord {
 }
 export interface ClearingSession { id: string; userId: string; petId: string; expiresAt: number; effectiveStats: { hp: number; atk: number; def: number }; enemies: ClearingEnemyRecord[]; position:{x:number;y:number;updatedAt:number} }
 
+type ClearingEnemyTemplate = {enemy_id:string;is_boss:boolean;name:string;image_url:string|null};
+
 const sessions = new Map<string, ClearingSession>();
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+const clearingHomes=[{x:.28,y:.24},{x:.68,y:.28},{x:.35,y:.43},{x:.72,y:.48},{x:.48,y:.58},{x:.25,y:.72},{x:.63,y:.72},{x:.43,y:.82}] as const;
+
+function layoutClearingEncounter(templates:(ClearingEnemyTemplate|undefined)[]){const counts=new Map<string,number>(),anchors=new Map<string,number>();let nextAnchor=0;return templates.map(template=>{const key=template?.enemy_id??"fallback",n=counts.get(key)||0,clusterId=`${key}:${Math.floor(n/3)}`;counts.set(key,n+1);if(!anchors.has(clusterId))anchors.set(clusterId,nextAnchor++);const base=clearingHomes[(anchors.get(clusterId)??0)%clearingHomes.length],member=n%3,angle=member*Math.PI*2/3-Math.PI/2,r=member===0?0:26;return{x:base.x+Math.cos(angle)*r/400,y:base.y+Math.sin(angle)*r/800};});}
 
 export function scaleClearingEnemy(pet: ClearingPetStats) {
   const levelFactor = 1 + Math.min(0.25, Math.max(0, pet.level - 1) * 0.008);
@@ -41,15 +46,27 @@ export function scaleClearingEnemy(pet: ClearingPetStats) {
   };
 }
 
-export function createClearingSession(userId: string, petId: string, stats: ClearingPetStats, now = Date.now(), random=Math.random, templates:Array<{enemy_id:string;is_boss:boolean;name:string;image_url:string|null}>=[]): ClearingSession {
+/** Builds small same-species packs while retaining the existing boss chance.
+ * This makes the population read as intentional encounters rather than eight
+ * unrelated rolls, without changing combat stats or reward frequency. */
+export function selectClearingEncounterTemplates(count:number,templates:ClearingEnemyTemplate[],random=Math.random){
+  const bosses=templates.filter(template=>template.is_boss),regulars=templates.filter(template=>!template.is_boss),selected:(ClearingEnemyTemplate|undefined)[]=[];
+  const hasBoss=bosses.length>0&&random()<CLEARING_BALANCE.bossSpawnChance;
+  let previousTemplate:ClearingEnemyTemplate|undefined;
+  while(selected.length<count-(hasBoss?1:0)){const choices=regulars.length>1?regulars.filter(template=>template!==previousTemplate):regulars,template=choices[Math.floor(random()*choices.length)],packSize=Math.min(2+Math.floor(random()*2),count-(hasBoss?1:0)-selected.length);for(let member=0;member<packSize;member++)selected.push(template);previousTemplate=template;}
+  if(hasBoss)selected.push(bosses[Math.floor(random()*bosses.length)]);
+  return selected;
+}
+
+export function createClearingSession(userId: string, petId: string, stats: ClearingPetStats, now = Date.now(), random=Math.random, templates:ClearingEnemyTemplate[]=[]): ClearingSession {
   for (const [id, session] of sessions) if (session.expiresAt <= now || session.userId === userId) sessions.delete(id);
-  const scaled = scaleClearingEnemy(stats);
+  const scaled = scaleClearingEnemy(stats),encounterTemplates=selectClearingEncounterTemplates(ELYSIAN_CLEARING_COMBAT.enemyCount,templates,random),encounterPositions=layoutClearingEncounter(encounterTemplates);
   const session: ClearingSession = {
     id: crypto.randomUUID(), userId, petId, expiresAt: now + ELYSIAN_CLEARING_COMBAT.sessionLifetimeMs,
     effectiveStats: { hp: stats.hp, atk: stats.atk, def: stats.def ?? 0 },
-    position:{x:.5,y:.7,updatedAt:now}, enemies: Array.from({ length: ELYSIAN_CLEARING_COMBAT.enemyCount }, (_, slot) => {const bosses=templates.filter(t=>t.is_boss),regulars=templates.filter(t=>!t.is_boss),isBoss=slot===0&&bosses.length>0&&random()<CLEARING_BALANCE.bossSpawnChance,choices=isBoss?bosses:regulars,template=choices[Math.floor(random()*choices.length)],maxHealth=Math.round(scaled.maxHealth*(isBoss?CLEARING_BALANCE.bossHealthMultiplier:1));return{
+    position:{x:.5,y:.7,updatedAt:now}, enemies: encounterTemplates.map((template,slot) => {const isBoss=Boolean(template?.is_boss),maxHealth=Math.round(scaled.maxHealth*(isBoss?CLEARING_BALANCE.bossHealthMultiplier:1)),spawn=encounterPositions[slot];return{
       instanceId: crypto.randomUUID(), slot, maxHealth, health:maxHealth,
-      attack:Math.round(scaled.attack*(isBoss?CLEARING_BALANCE.bossDamageMultiplier:1)),isBoss,engagedByPlayer:false,templateId:template?.enemy_id,name:template?.name,imageUrl:template?.image_url, defeated: false, lastHitAt: 0, x:[.28,.68,.35,.72,.48,.25,.63,.43][slot]??.5, y:[.24,.28,.43,.48,.58,.72,.72,.82][slot]??.6,
+      attack:Math.round(scaled.attack*(isBoss?CLEARING_BALANCE.bossDamageMultiplier:1)),isBoss,engagedByPlayer:false,templateId:template?.enemy_id,name:template?.name,imageUrl:template?.image_url, defeated: false, lastHitAt: 0, x:spawn?.x??.5, y:spawn?.y??.6,
     }}),
   };
   sessions.set(session.id, session);
