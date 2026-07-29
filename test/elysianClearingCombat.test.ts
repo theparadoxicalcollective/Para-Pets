@@ -2,12 +2,20 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ELYSIAN_CLEARING_COMBAT, applyClearingHit, createClearingSession, scaleClearingEnemy } from "../server/elysianClearingCombat";
 
-test("clearing enemy scaling stays near the intended five-hit and eight-hit targets", () => {
+test("clearing enemy scaling uses actual pet HP and stays proportional across pets", () => {
   const scaled = scaleClearingEnemy({ level: 1, hp: 1000, atk: 50, rarity: 1 });
+  const highHp = scaleClearingEnemy({ level: 50, hp: 2500, atk: 50, rarity: 1 });
   assert.equal(scaled.maxHealth, 250);
-  assert.ok(scaled.attack >= 110 && scaled.attack <= 120);
+  assert.equal(scaled.attack, 120);
+  assert.equal(highHp.attack, 300);
   assert.equal(Math.ceil(scaled.maxHealth / scaled.petDamage), 5);
-  assert.ok(Math.ceil(1000 / scaled.attack) >= 8);
+  assert.equal(Math.ceil(1000 / scaled.attack), Math.ceil(2500 / highHp.attack));
+});
+
+test("boss damage remains a proportional fifteen percent of pet HP", () => {
+  const session = createClearingSession("boss-balance", "pet", { level: 1, hp: 2000, atk: 50 }, 1000, () => 0, [{ enemy_id: "boss", is_boss: true, name: "Boss", image_url: null }]);
+  const boss = session.enemies.find(enemy => enemy.isBoss);
+  assert.equal(boss?.attack, 300);
 });
 
 test("server combat sessions contain the configured distributed enemy population", () => {

@@ -23,7 +23,9 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
         console.error("Clearing starter weapon preparation failed", { userId: user.id, code: error?.code ?? "unknown", message: error instanceof Error ? error.message : String(error) });
         return res.status(500).json({ code: migrationFailure ? "CLEARING_MIGRATION_REQUIRED" : "CLEARING_STARTER_WEAPON_FAILED", message: "Unable to prepare Clearing equipment" });
       }
-      const effective = calculateClearingStats({ hp: pet.petHealth || 1000, atk: pet.petAtk || 50, def: pet.petDef || 50 }, loadout.totals);
+      // Clearing starts from the active inventory pet's real stats; equipped
+      // Clearing gear is then added by the existing stat calculator.
+      const effective = calculateClearingStats({ hp: Number(pet.petHealth), atk: Number(pet.petAtk), def: Number(pet.petDef) }, loadout.totals);
       const stats = { level: pet.petLevel || 1, ...effective, rarity: pet.rarity };
       const configured=await db.execute(sql`SELECT a.enemy_id,a.is_boss,e.name,e.image_url FROM clearing_world_enemies a JOIN enemies e ON e.id=a.enemy_id WHERE a.world_id='swamp' ORDER BY a.sort_order`);
       const special=await db.execute(sql`SELECT a.pet_shop_item_id,s.name,COALESCE(s.rarity,1) rarity,s.egg_image_url,s.hatched_image_url,s.image_url FROM clearing_world_special_mobs a JOIN shop_items s ON s.id=a.pet_shop_item_id WHERE a.world_id='swamp' AND s.type='pet'`);
