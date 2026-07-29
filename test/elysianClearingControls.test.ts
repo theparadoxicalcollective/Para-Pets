@@ -13,11 +13,22 @@ test("only the Elysian Clearing exploration route joins the existing nav exclusi
 });
 
 test("Elysian Clearing alone uses its larger responsive pet presentation", () => {
-  assert.match(pageSource, /petSize: 148/);
-  assert.match(pageSource, /responsivePet: \{ min: 140, preferredVw: 37, max: 168 \}/);
+  assert.match(pageSource, /petSize: 133/);
+  assert.match(pageSource, /responsivePet: \{ min: 126, preferredVw: 33\.3, max: 151 \}/);
   assert.match(pageSource, /xMin: 0\.18[\s\S]*xMax: 0\.82[\s\S]*yMin: 0\.08[\s\S]*yMax: 0\.90/);
   assert.match(sceneSource, /const DEFAULT_PET_SIZE = 110/);
   assert.match(sceneSource, /responsivePet \? clearingPetSize\(viewport\)/);
+});
+
+test("Clearing offers three health-or-mana potion slots and a world-return defeat dialog", () => {
+  const combatSource = readFileSync("client/src/components/ElysianClearingCombat.tsx", "utf8");
+  assert.match(combatSource, /data-testid="clearing-potion-slots"/);
+  assert.match(combatSource, /\[0,1,2\]\.map/);
+  assert.match(combatSource, /Number\(item\.petsRevived\|\|0\)===0/);
+  assert.match(combatSource, /Math\.min\(50/);
+  assert.match(combatSource, /usingPotionRef\.current/);
+  assert.match(combatSource, /data-testid="button-clearing-defeat-return"/);
+  assert.match(combatSource, /onReturnToWorld/);
 });
 
 test("pet direction is flipped relative to each template's natural facing", () => {
