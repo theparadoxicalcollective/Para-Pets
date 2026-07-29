@@ -24,10 +24,11 @@ test("only equipped Clearing gear receives the decorative gold frame",()=>{
   assert.match(source,/backgroundImage:item\.equipped\?`url\(\$\{equipmentBorder\}\)`/);
   assert.match(source,/item\.equipped\?"bg-black\/25 ring-1 ring-amber-500":"bg-black\/20"/);
 });
-test("treasure rewards use a compact modal and reward tiles",()=>{
-  const modal=fs.readFileSync("client/src/components/ClearingRewardChests.tsx","utf8");
+test("treasure rewards rise in a curved in-world presentation",()=>{
+  const layer=fs.readFileSync("client/src/components/ClearingRewardChests.tsx","utf8");
   const combat=fs.readFileSync("client/src/components/ElysianClearingCombat.tsx","utf8");
-  assert.match(modal,/22rem/);
-  assert.match(modal,/max-w-\[9rem\]/);
-  assert.match(combat,/clearing-reward-tile\{display:flex;min-height:72px/);
+  assert.match(layer,/clearing-chest-reward-arc/);
+  assert.match(layer,/Math\.cos\(radians\)\*radius/);
+  assert.doesNotMatch(layer,/createPortal|role="dialog"/);
+  assert.match(combat,/clearing-drop-rise/);
 });
