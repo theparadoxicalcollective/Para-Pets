@@ -2,7 +2,7 @@ import type { Express, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
 import { ELYSIAN_CLEARING_COMBAT, applyClearingHit, createClearingSession, getClearingSession, removeClearingSession, respawnClearingEnemy, scaleClearingEnemy, updateClearingPosition } from "../elysianClearingCombat";
 import { calculateClearingStats, ensureClearingStarterWeapon, getClearingLoadout } from "../clearingEquipment";
-import { resolveClearingAttackStyle } from "@shared/clearingCombat";
+import { clearingSpecialDamage, resolveClearingAttackStyle, resolveClearingSpecialKind } from "@shared/clearingCombat";
 import { claimClearingRewardChest, ClearingChestError, createClearingRewardChest, getClearingRewardChests } from "../clearingRewardChests";
 import { CLEARING_BALANCE } from "@shared/clearingConfig";
 import { collectSpecialEggDrop, createSpecialEggDrop, getSpecialEggDrops } from "../clearingSpecialMobs";
@@ -42,13 +42,15 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
 
   app.post("/api/explore/elysian-clearing/attack", isAuthenticated, async (req, res) => {
     const user = req.user as any;
-    const { sessionId, enemyInstanceId, targetPosition } = req.body ?? {};
+    const { sessionId, enemyInstanceId, targetPosition, isSpecial } = req.body ?? {};
     if (typeof sessionId !== "string" || typeof enemyInstanceId !== "string") return res.status(400).json({ message: "Invalid combat request" });
     const inventory = await storage.getUserInventory(user.id);
     const pet = inventory.find((item: any) => item.id === user.activePetId && item.isHatched);
     if (!pet) return res.status(400).json({ message: "An active hatched pet is required" });
     const loadout=await getClearingLoadout(db,user.id),style=resolveClearingAttackStyle(loadout.weapon?{attackStyle:loadout.weapon.attackStyle,name:loadout.weapon.name}:undefined);
-    const result = applyClearingHit({ sessionId, instanceId: enemyInstanceId, userId: user.id, petId: pet.id, enemyPosition:targetPosition,maxRangePixels:style==="staff_orb"?270:145 });
+    const specialKind=resolveClearingSpecialKind(pet),sessionDamage=getClearingSession(sessionId)?.effectiveStats.atk;
+    const petDamage=isSpecial===true&&specialKind==="damage"&&sessionDamage?clearingSpecialDamage(sessionDamage):undefined;
+    const result = applyClearingHit({ sessionId, instanceId: enemyInstanceId, userId: user.id, petId: pet.id, petDamage, enemyPosition:targetPosition,maxRangePixels:style==="staff_orb"?270:145 });
     if (result.status === "invalid") return res.status(409).json({ message: "Combat session expired" });
     if (result.status === "cooldown") return res.status(429).json({ message: "Attack is cooling down" });
     if (result.status === "range") return res.status(409).json({ message: "Target is out of range" });

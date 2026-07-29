@@ -31,15 +31,15 @@ function ChestRewardArc({chest,error,onRetry,onCollect}:{chest:ClearingRewardChe
 }
 
 export function ClearingChestLayer({chests,openingChestId,openedChestId,claimError,onOpen,onRetry,onCollect}:{chests:ClearingRewardChest[];openingChestId:string|null;openedChestId:string|null;claimError:string|null;onOpen:(chest:ClearingRewardChest,control:HTMLButtonElement)=>void;onRetry:(chest:ClearingRewardChest)=>void;onCollect:(chest:ClearingRewardChest)=>void}){
-  return <>{chests.map(chest=>{const opening=openingChestId===chest.chestId,opened=openedChestId===chest.chestId,tier=chestSparkleTier(chest.highestEquipmentRarity);return <div key={chest.chestId} className="absolute h-14 w-14" style={{left:`${chest.worldX*100}%`,top:`${chest.worldY*100}%`,transform:"translate(-50%,-50%)",zIndex:worldYToDepth(chest.worldY)}}>
+  return <>{chests.map(chest=>{const opening=openingChestId===chest.chestId,opened=openedChestId===chest.chestId,tier=chestSparkleTier(chest.highestEquipmentRarity);return <div key={chest.chestId} className="absolute h-11 w-11" style={{left:`${chest.worldX*100}%`,top:`${chest.worldY*100}%`,transform:"translate(-50%,-50%)",zIndex:worldYToDepth(chest.worldY)}}>
     {opened&&<ChestRewardArc chest={chest} error={claimError} onRetry={()=>onRetry(chest)} onCollect={()=>onCollect(chest)}/>}
     <button type="button" data-interactive data-testid="clearing-reward-chest" data-state={opening?"opening":opened?"opened":"closed"} aria-label={opening?"Opening treasure chest":opened?"Collect opened treasure chest":"Open treasure chest"} disabled={opening}
     onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();opened?onCollect(chest):onOpen(chest,event.currentTarget)}}
-    className="group absolute flex h-14 w-14 items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 disabled:cursor-default"
+    className="group absolute flex h-11 w-11 items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 disabled:cursor-default"
     >
       <span aria-hidden className="clearing-chest-shadow"/>
       {tier!=="none"&&<span aria-hidden className={`clearing-chest-sparkles clearing-chest-sparkles-${tier}`}><i/><i/><i/></span>}
-      <img src={chestImageForState(opening?"opening":opened?"opened":"closed")} alt="" className={`relative h-12 w-12 object-contain drop-shadow-[0_3px_3px_rgba(0,0,0,.65)] transition-transform group-hover:scale-105 group-active:scale-90 ${opening?"animate-clearing-chest-open":""}`} draggable={false}/>
+      <img src={chestImageForState(opening?"opening":opened?"opened":"closed")} alt="" className={`relative h-9 w-9 object-contain drop-shadow-[0_3px_3px_rgba(0,0,0,.65)] transition-transform group-hover:scale-105 group-active:scale-90 ${opening?"animate-clearing-chest-open":""}`} draggable={false}/>
     </button>
   </div>})}</>;
 }
