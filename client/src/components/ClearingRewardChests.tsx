@@ -1,66 +1,45 @@
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { ArrowLeft, X } from "lucide-react";
-import type { ClearingChestEquipmentReward, ClearingRewardChest } from "@shared/clearingEquipment";
+import { useState, type CSSProperties } from "react";
+import type { ClearingRewardChest } from "@shared/clearingEquipment";
 import { currencyAssets } from "@/lib/currencyAssets";
 import { worldYToDepth } from "@/lib/clearingWorldPresentation";
 import closedChestUrl from "@assets/generated_images/icon_gift_treasure.png";
 import openedChestUrl from "@assets/hub_chest_opened.png";
-import expUrl from "@assets/logo_parapets.png";
 
 export type ClearingChestPresentationState = "closed" | "opening" | "opened";
 export function chestSparkleTier(rarity:number){return rarity>=5?"legendary":rarity>=4?"epic":rarity>=3?"rare":"none";}
 export function chestImageForState(state: ClearingChestPresentationState){return state === "closed" ? closedChestUrl : openedChestUrl;}
 
-export function ClearingChestLayer({chests,openingChestId,openedChestId,onOpen}:{chests:ClearingRewardChest[];openingChestId:string|null;openedChestId:string|null;onOpen:(chest:ClearingRewardChest,control:HTMLButtonElement)=>void}){
-  return <>{chests.map(chest=>{const opening=openingChestId===chest.chestId,opened=openedChestId===chest.chestId,tier=chestSparkleTier(chest.highestEquipmentRarity);return <button key={chest.chestId} type="button" data-interactive data-testid="clearing-reward-chest" data-state={opening?"opening":opened?"opened":"closed"} aria-label={opening?"Opening treasure chest":"Open treasure chest"} disabled={opening}
+function RewardImage({src,alt}:{src:string|null;alt:string}){
+  const [failed,setFailed]=useState(false);
+  return failed||!src?<span role="img" aria-label={`${alt} artwork unavailable`} className="flex h-9 w-9 items-center justify-center text-xl">🎁</span>:<img src={src} alt={alt} className="h-9 w-9 object-contain drop-shadow-[0_2px_3px_rgba(0,0,0,.8)]" onError={()=>setFailed(true)}/>;
+}
+
+function ChestRewardArc({chest,error,onRetry}:{chest:ClearingRewardChest;error:string|null;onRetry:()=>void}){
+  const rewards=[
+    ...(chest.rewards.coins>0?[{key:"coins",name:"Coins",imageUrl:currencyAssets.coin,stars:0}]:[]),
+    ...(chest.rewards.essence>0?[{key:"essence",name:"Essence",imageUrl:currencyAssets.essenceToken,stars:0}]:[]),
+    ...chest.rewards.items.map((item,index)=>({key:`${item.shopItemId}-${index}`,name:item.name,imageUrl:item.imageUrl,stars:item.starRarity})),
+  ];
+  const spread=Math.min(140,58+Math.max(0,rewards.length-1)*23);
+  return <span data-testid="clearing-chest-reward-arc" className="pointer-events-none absolute left-1/2 top-1/2">
+    {rewards.map((reward,index)=>{const angle=rewards.length===1?90:90-spread/2+(spread*index)/(rewards.length-1),radians=angle*Math.PI/180,radius=68+(index%2)*4;return <span key={reward.key} className="clearing-chest-drop absolute flex w-14 flex-col items-center text-center" style={{"--drop-x":`${Math.cos(radians)*radius}px`,"--drop-y":`${-Math.sin(radians)*radius}px`,"--drop-delay":`${index*70}ms`} as CSSProperties}>
+      <RewardImage src={reward.imageUrl} alt={reward.name}/>
+      {reward.stars>0&&<span aria-label={`${reward.stars} star rarity`} className="mt-1 text-[11px] leading-none text-amber-300 drop-shadow-[0_1px_2px_#000]">{"★".repeat(reward.stars)}</span>}
+    </span>})}
+    {error&&<button type="button" data-interactive data-testid="button-clearing-chest-retry" className="pointer-events-auto absolute left-1/2 top-8 w-40 -translate-x-1/2 rounded-lg border border-red-200/70 bg-emerald-950/95 px-2 py-1 text-[10px] font-bold text-red-100 shadow-xl" onClick={event=>{event.stopPropagation();onRetry()}}>{error} · Tap to retry</button>}
+  </span>;
+}
+
+export function ClearingChestLayer({chests,openingChestId,openedChestId,claimError,onOpen,onRetry}:{chests:ClearingRewardChest[];openingChestId:string|null;openedChestId:string|null;claimError:string|null;onOpen:(chest:ClearingRewardChest,control:HTMLButtonElement)=>void;onRetry:(chest:ClearingRewardChest)=>void}){
+  return <>{chests.map(chest=>{const opening=openingChestId===chest.chestId,opened=openedChestId===chest.chestId,tier=chestSparkleTier(chest.highestEquipmentRarity);return <div key={chest.chestId} className="absolute h-14 w-14" style={{left:`${chest.worldX*100}%`,top:`${chest.worldY*100}%`,transform:"translate(-50%,-50%)",zIndex:worldYToDepth(chest.worldY)}}>
+    {opened&&<ChestRewardArc chest={chest} error={claimError} onRetry={()=>onRetry(chest)}/>}
+    <button type="button" data-interactive data-testid="clearing-reward-chest" data-state={opening?"opening":opened?"opened":"closed"} aria-label={opening?"Opening treasure chest":opened?"Opened treasure chest":"Open treasure chest"} disabled={opening||opened}
     onPointerDown={event=>event.stopPropagation()} onClick={event=>{event.stopPropagation();onOpen(chest,event.currentTarget)}}
-    className="group absolute flex h-11 w-11 items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 disabled:cursor-wait"
-    style={{left:`${chest.worldX*100}%`,top:`${chest.worldY*100}%`,transform:"translate(-50%,-50%)",zIndex:worldYToDepth(chest.worldY)}}>
+    className="group absolute flex h-14 w-14 items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 disabled:cursor-default"
+    >
       <span aria-hidden className="clearing-chest-shadow"/>
       {tier!=="none"&&<span aria-hidden className={`clearing-chest-sparkles clearing-chest-sparkles-${tier}`}><i/><i/><i/></span>}
-      <img src={chestImageForState(opening?"opening":opened?"opened":"closed")} alt="" className={`h-[34px] w-[34px] object-contain drop-shadow-[0_3px_3px_rgba(0,0,0,.65)] transition-transform group-hover:scale-105 group-active:scale-90 ${opening?"animate-clearing-chest-open":""}`} draggable={false}/>
-  </button>})}</>;
-}
-
-function RewardImage({src,alt,className}:{src:string|null;alt:string;className:string}){
-  const [failed,setFailed]=useState(false);
-  return failed||!src?<span role="img" aria-label={`${alt} artwork unavailable`} className={`${className} flex items-center justify-center rounded-lg bg-black/25 text-2xl`}>🎁</span>:<img src={src} alt={alt} className={`${className} object-contain`} onError={()=>setFailed(true)}/>;
-}
-
-function ItemDetails({item,onBack}:{item:ClearingChestEquipmentReward;onBack:()=>void}){
-  const effects=[item.atkBonus>0&&`Attack +${item.atkBonus}`,item.defBonus>0&&`Defense +${item.defBonus}`,item.hpBonus>0&&`Health +${item.hpBonus}`].filter(Boolean);
-  return <div data-testid="clearing-item-detail" className="flex min-h-0 flex-1 flex-col items-center text-center">
-    <button type="button" onClick={onBack} className="mb-2 flex min-h-11 items-center gap-1 self-start rounded-lg px-2 text-amber-100 focus-visible:ring-2 focus-visible:ring-amber-200"><ArrowLeft size={20}/> Back to rewards</button>
-    <RewardImage src={item.imageUrl} alt={item.name} className="h-[clamp(6rem,24vw,8rem)] w-[clamp(6rem,24vw,8rem)] shrink-0"/>
-    <h3 className="mt-2 text-xl font-black text-amber-100">{item.name}</h3>
-    {item.stars>0&&<div aria-label={`${item.stars} star rarity`} className="text-lg text-amber-300">{"★".repeat(item.stars)}</div>}
-    <p className="mt-1 capitalize text-emerald-100">{item.slot}</p>
-    <div className="mt-3 w-full rounded-xl border border-amber-500/30 bg-black/20 p-3">
-      {effects.length?effects.map(effect=><p key={String(effect)} className="font-bold text-amber-100">{effect}</p>):<p className="text-emerald-100">This item equips in the {item.slot} slot.</p>}
-      <p className="mt-2 text-sm text-emerald-100">Equip this item to apply the listed bonuses in Clearing combat.</p>
-    </div>
-  </div>;
-}
-
-export function ClearingChestModal({chest,claiming,error,onClose,onClaim,restoreFocus}:{chest:ClearingRewardChest|null;claiming:boolean;error:string|null;onClose:()=>void;onClaim:()=>void;restoreFocus?:HTMLElement|null}){
-  const [detail,setDetail]=useState<ClearingChestEquipmentReward|null>(null);const dialogRef=useRef<HTMLDivElement>(null);
-  useEffect(()=>{if(!chest){setDetail(null);return;}const previous=document.body.style.overflow;document.body.style.overflow="hidden";requestAnimationFrame(()=>dialogRef.current?.querySelector<HTMLElement>("button")?.focus());const key=(event:KeyboardEvent)=>{if(event.key==="Escape"&&!claiming)(detail?setDetail(null):onClose());if(event.key==="Tab"&&dialogRef.current){const focusable=[...dialogRef.current.querySelectorAll<HTMLElement>('button:not([disabled]),[href],[tabindex]:not([tabindex="-1"])')];if(!focusable.length)return;const first=focusable[0],last=focusable[focusable.length-1];if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}};document.addEventListener("keydown",key);return()=>{document.body.style.overflow=previous;document.removeEventListener("keydown",key);restoreFocus?.focus();};},[chest,claiming,detail,onClose,restoreFocus]);
-  if(!chest)return null;const r=chest.rewards;
-  const modal=<div data-interactive role="presentation" className="fixed inset-0 flex items-center justify-center bg-black/70" style={{zIndex:4000,padding:"max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))"}} onPointerDown={event=>event.stopPropagation()}>
-    <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="clearing-chest-title" className="relative flex w-[min(calc(100vw-24px),22rem)] max-w-full flex-col overflow-hidden rounded-xl border border-amber-400/70 bg-emerald-950 p-3 text-amber-50 shadow-2xl" style={{maxHeight:"calc(100dvh - max(24px, env(safe-area-inset-top)) - max(24px, env(safe-area-inset-bottom)))"}}>
-      <button type="button" aria-label="Close rewards" disabled={claiming} onClick={detail?()=>setDetail(null):onClose} className="absolute right-2 top-2 z-10 flex h-11 w-11 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-amber-200 disabled:opacity-50"><X/></button>
-      <h2 id="clearing-chest-title" className="shrink-0 pr-11 text-center text-lg font-black text-amber-200">{detail?"Item Details":"Treasure Rewards"}</h2>
-      {detail?<ItemDetails item={detail} onBack={()=>setDetail(null)}/>:<>
-        <div data-testid="clearing-chest-reward-list" className={`my-2 grid min-h-0 ${r.items.length===1?"grid-cols-1 justify-items-center":"grid-cols-2"} gap-2 overflow-y-auto overscroll-contain`}>
-                    {r.coins>0&&<div className="clearing-reward-tile"><RewardImage src={currencyAssets.coin} alt="Coins" className="h-8 w-8"/><b className="text-sm">{r.coins}</b></div>}
-          {r.essence>0&&<div className="clearing-reward-tile"><RewardImage src={currencyAssets.essenceToken} alt="Essence" className="h-8 w-8"/><b className="text-sm">{r.essence}</b></div>}
-          {r.items.map((item,index)=><div key={`${item.shopItemId}-${index}`} className="clearing-reward-tile relative w-full max-w-[9rem] border-violet-400/40"><RewardImage src={item.imageUrl} alt={item.name} className="h-10 w-10"/><b className="line-clamp-2 text-center text-[11px] leading-tight">{item.name}{item.quantity>1?` ×${item.quantity}`:""}</b>{item.starRarity>0&&<span aria-label={`${item.starRarity} star rarity`} className="text-xs leading-none text-amber-300">{"★".repeat(item.starRarity)}</span>}<small className="text-[10px] capitalize leading-none">{item.type} · {item.rarity}</small></div>)}
-        </div>
-        {error&&<p role="alert" className="mb-2 text-center text-sm text-red-300">{error} Please try again.</p>}
-        <button type="button" data-testid="button-clearing-collect-all" disabled={claiming} onClick={onClaim} className="min-h-11 w-full shrink-0 rounded-lg bg-amber-400 px-4 py-2 text-base font-black text-emerald-950 shadow active:scale-[.98] disabled:opacity-60 focus-visible:ring-2 focus-visible:ring-white">{claiming?"Collecting…":"Collect All"}</button>
-      </>}
-    </div>
-  </div>;
-  return createPortal(modal,document.body);
+      <img src={chestImageForState(opening?"opening":opened?"opened":"closed")} alt="" className={`relative h-12 w-12 object-contain drop-shadow-[0_3px_3px_rgba(0,0,0,.65)] transition-transform group-hover:scale-105 group-active:scale-90 ${opening?"animate-clearing-chest-open":""}`} draggable={false}/>
+    </button>
+  </div>})}</>;
 }
