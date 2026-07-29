@@ -1,6 +1,18 @@
 export type ClearingAttackStyle = "sword_slash" | "staff_orb" | "default_melee";
 export type EnemyTier = "normal" | "tough" | "elite";
 export type FacingDirection = "left" | "right";
+export type ClearingSpecialKind = "damage" | "heal";
+
+export function resolveClearingSpecialKind(pet?: { specialSkill?: string | null; specialSkillType?: string | null; skillType?: string | null }): ClearingSpecialKind | null {
+  if (!pet || !(pet.specialSkill || pet.specialSkillType || pet.skillType)) return null;
+  const configuredType = pet.skillType?.trim().toLocaleLowerCase();
+  if (configuredType === "heal" || configuredType === "revive") return "heal";
+  const legacyName = `${pet.specialSkillType ?? ""} ${pet.specialSkill ?? ""}`.toLocaleLowerCase();
+  return legacyName.includes("heal") || legacyName.includes("revive") ? "heal" : "damage";
+}
+
+export function clearingSpecialDamage(baseDamage: number) { return Math.round(baseDamage * 1.75); }
+export function clearingSpecialHeal(maxHealth: number) { return Math.max(1, Math.round(maxHealth * .3)); }
 
 export function resolveClearingAttackStyle(item?: { attackStyle?: string | null; name?: string | null }): ClearingAttackStyle {
   if (item?.attackStyle === "sword_slash" || item?.attackStyle === "staff_orb" || item?.attackStyle === "default_melee") return item.attackStyle;

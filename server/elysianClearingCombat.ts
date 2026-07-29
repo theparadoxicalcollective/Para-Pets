@@ -44,7 +44,7 @@ export function scaleClearingEnemy(pet: ClearingPetStats) {
   return {
     petDamage,
     maxHealth: clamp(Math.round(petDamage * 5 * levelFactor * rarityFactor), 100, 28_000),
-    attack: clamp(Math.round(pet.hp / (8.5 * levelFactor)), 12, 3_500),
+    attack: Math.max(1, Math.round(pet.hp * CLEARING_BALANCE.enemyDamagePercent)),
   };
 }
 

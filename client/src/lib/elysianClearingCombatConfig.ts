@@ -9,7 +9,9 @@ export const ELYSIAN_CLEARING_COMBAT_CONFIG = {
   maxEnemyPopulation: 10,
   maxEnemies: 10,
   maxSimultaneousAttackers: 2,
-  homes: [{ x: .28, y: .24 }, { x: .68, y: .28 }, { x: .35, y: .43 }, { x: .72, y: .48 }, { x: .48, y: .58 }, { x: .25, y: .72 }, { x: .63, y: .72 }, { x: .43, y: .82 }, { x: .14, y: .52 }, { x: .86, y: .64 }],
+  // Cluster anchors are consumed in encounter order, so interleave their
+  // vertical positions instead of filling the top of the scene first.
+  homes: [{ x: .28, y: .24 }, { x: .48, y: .58 }, { x: .43, y: .82 }, { x: .68, y: .28 }, { x: .25, y: .72 }, { x: .14, y: .52 }, { x: .35, y: .43 }, { x: .63, y: .72 }, { x: .86, y: .64 }, { x: .72, y: .48 }],
   initialSpawnDelayMs: [500, 1050, 1600, 2150, 2700, 3250, 3800, 4350, 4900, 5450],
   worldSize: { width: 1.7, height: 2.1 },
   worldBounds: { xMin: 0.08, xMax: 0.92, yMin: 0.05, yMax: 0.94 },
