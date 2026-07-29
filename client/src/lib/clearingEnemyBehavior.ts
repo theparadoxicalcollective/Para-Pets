@@ -3,7 +3,7 @@ export const enemySpeciesKey=(e:Pick<SimEnemy,"templateId"|"imageUrl"|"name">)=>
 /** Enemies share roughly the same footprint as the player's Clearing pet. A
  * boss is only a little taller; its aura/nameplate provide the visual emphasis
  * instead of an oversized sprite. */
-export const enemyVisibleHeight=(boss:boolean)=>boss?64:50;
+export const enemyVisibleHeight=(boss:boolean)=>boss?54:44;
 export const enemyMinimumSeparation=(a:Pick<SimEnemy,"templateId"|"imageUrl"|"name"|"visibleHalfWidth">,b:Pick<SimEnemy,"templateId"|"imageUrl"|"name"|"visibleHalfWidth">)=>a.visibleHalfWidth+b.visibleHalfWidth+(enemySpeciesKey(a)===enemySpeciesKey(b)?-4:10);
 export function engageConfirmedEnemy(enemies:SimEnemy[],id:string){const enemy=enemies.find(e=>e.instanceId===id);if(enemy){enemy.engagedByPlayer=true;enemy.state="pursuing";}return enemies;}
 export function resetEnemyPassive(enemy:SimEnemy){enemy.engagedByPlayer=false;enemy.state="roaming";}
