@@ -30,5 +30,7 @@ test("treasure rewards rise in a curved in-world presentation",()=>{
   assert.match(layer,/clearing-chest-reward-arc/);
   assert.match(layer,/Math\.cos\(radians\)\*radius/);
   assert.doesNotMatch(layer,/createPortal|role="dialog"/);
+  assert.doesNotMatch(layer,/reward\.quantity|>\{reward\.name\}<\/b>/);
+  assert.match(layer,/reward\.stars>0/);
   assert.match(combat,/clearing-drop-rise/);
 });
