@@ -1,9 +1,8 @@
 export type SimEnemy={instanceId:string;templateId?:string;imageUrl?:string|null;name?:string;isBoss:boolean;state:string;engagedByPlayer:boolean;x:number;y:number;homeX:number;homeY:number;visibleHalfWidth:number};
 export const enemySpeciesKey=(e:Pick<SimEnemy,"templateId"|"imageUrl"|"name">)=>e.templateId||`${e.imageUrl||""}|${e.name||"enemy"}`;
-/** Enemies share roughly the same footprint as the player's Clearing pet. A
- * boss is only a little taller; its aura/nameplate provide the visual emphasis
- * instead of an oversized sprite. */
-export const enemyVisibleHeight=(boss:boolean)=>boss?54:44;
+/** Regular enemies are one-third shorter than the portrait-phone pet. Bosses
+ * alone retain the pet's full visible height. */
+export const enemyVisibleHeight=(boss:boolean)=>boss?48:32;
 export const enemyMinimumSeparation=(a:Pick<SimEnemy,"templateId"|"imageUrl"|"name"|"visibleHalfWidth">,b:Pick<SimEnemy,"templateId"|"imageUrl"|"name"|"visibleHalfWidth">)=>a.visibleHalfWidth+b.visibleHalfWidth+(enemySpeciesKey(a)===enemySpeciesKey(b)?-4:10);
 export function engageConfirmedEnemy(enemies:SimEnemy[],id:string){const enemy=enemies.find(e=>e.instanceId===id);if(enemy){enemy.engagedByPlayer=true;enemy.state="pursuing";}return enemies;}
 export function resetEnemyPassive(enemy:SimEnemy){enemy.engagedByPlayer=false;enemy.state="roaming";}
