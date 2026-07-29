@@ -79,8 +79,12 @@ export async function runEssentialBoot(): Promise<void> {
     ["Clearing world configuration migration error (non-fatal):", sql`
       CREATE TABLE IF NOT EXISTS clearing_world_drops (id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(), world_id VARCHAR NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, shop_item_id VARCHAR NOT NULL REFERENCES shop_items(id) ON DELETE CASCADE, rarity TEXT NOT NULL CHECK(rarity IN ('common','uncommon','rare')), created_at TIMESTAMP NOT NULL DEFAULT now(), UNIQUE(world_id,shop_item_id));
       CREATE TABLE IF NOT EXISTS clearing_world_enemies (id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(), world_id VARCHAR NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, enemy_id VARCHAR NOT NULL REFERENCES enemies(id) ON DELETE CASCADE, is_boss BOOLEAN NOT NULL DEFAULT false, sort_order INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMP NOT NULL DEFAULT now(), UNIQUE(world_id,enemy_id));
+      CREATE TABLE IF NOT EXISTS clearing_world_special_mobs (id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(), world_id VARCHAR NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, pet_shop_item_id VARCHAR NOT NULL REFERENCES shop_items(id) ON DELETE CASCADE, created_at TIMESTAMP NOT NULL DEFAULT now(), UNIQUE(world_id,pet_shop_item_id));
+      CREATE TABLE IF NOT EXISTS clearing_special_egg_drops (id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(), user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE, session_id VARCHAR NOT NULL, clearing_id VARCHAR NOT NULL, defeated_enemy_id VARCHAR NOT NULL, pet_shop_item_id VARCHAR NOT NULL REFERENCES shop_items(id) ON DELETE RESTRICT, world_x REAL NOT NULL, world_y REAL NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT now(), expires_at TIMESTAMP NOT NULL, collected_at TIMESTAMP NULL, UNIQUE(user_id,defeated_enemy_id));
       CREATE INDEX IF NOT EXISTS clearing_world_drops_world_idx ON clearing_world_drops(world_id);
       CREATE INDEX IF NOT EXISTS clearing_world_enemies_world_idx ON clearing_world_enemies(world_id,sort_order);
+      CREATE INDEX IF NOT EXISTS clearing_world_special_mobs_world_idx ON clearing_world_special_mobs(world_id);
+      CREATE INDEX IF NOT EXISTS clearing_special_egg_drops_active_idx ON clearing_special_egg_drops(user_id,session_id,expires_at) WHERE collected_at IS NULL;
     `],
     ["Elysian Clearing configuration backfill error (non-fatal):", sql`
       INSERT INTO clearing_world_enemies(world_id,enemy_id,is_boss)
