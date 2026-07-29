@@ -9,7 +9,6 @@ export const BASIC_SWORD_NAME = "Training Sword";
 export const BASIC_SWORD_IMAGE_URL = "/world-assets/generated_images/pvp_battle_sword.png";
 export const ELYSIAN_CLEARING_DROP_POOL = [
   { id:"a1b2c3d4-0011-4000-8000-000000000021", name:"Cypress Fang", imageUrl:"/world-assets/accessory_swamp_sword.png", slot:"weapon", stars:1, atk:6, def:0, hp:0 },
-  { id:"a1b2c3d4-0011-4000-8000-000000000022", name:"Wraithwood Helm", imageUrl:"/world-assets/accessory_swamp_armor.png", slot:"helmet", stars:2, atk:0, def:8, hp:12 },
   { id:"a1b2c3d4-0011-4000-8000-000000000023", name:"Gatorhide Cuirass", imageUrl:"/world-assets/accessory_swamp_armor.png", slot:"armor", stars:3, atk:0, def:18, hp:30 },
   { id:"a1b2c3d4-0011-4000-8000-000000000024", name:"Mirewalker Boots", imageUrl:"/world-assets/acc_charm_anklet.png", slot:"boots", stars:4, atk:4, def:24, hp:45 },
   { id:"a1b2c3d4-0011-4000-8000-000000000025", name:"Wisplight Amulet", imageUrl:"/world-assets/accessory_swamp_amulet.png", slot:"charm", stars:5, atk:12, def:20, hp:80 },

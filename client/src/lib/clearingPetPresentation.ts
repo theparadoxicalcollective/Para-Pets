@@ -4,7 +4,7 @@ import type { WorldPixels } from "@/lib/elysianClearingCombatMath";
 /** Clearing-only presentation geometry. Gameplay hit areas intentionally do not
  * scale one-for-one with the transparent sprite canvas. */
 export const CLEARING_PET_PRESENTATION = {
-  petEnemyVisualRatio: .85,
+  petEnemyVisualRatio: .68,
   standardEnemyVisibleHeight: 70,
   feetAnchor: .82,
   visualHalfWidthRatio: .34,
@@ -14,8 +14,8 @@ export const CLEARING_PET_PRESENTATION = {
 } as const;
 
 export function clearingPetSize(viewport: WorldPixels): number {
-  void viewport;
-  return CLEARING_PET_PRESENTATION.standardEnemyVisibleHeight * CLEARING_PET_PRESENTATION.petEnemyVisualRatio;
+  const portraitPhone = viewport.height > viewport.width && viewport.width <= 480;
+  return CLEARING_PET_PRESENTATION.standardEnemyVisibleHeight * (portraitPhone ? CLEARING_PET_PRESENTATION.petEnemyVisualRatio : .76);
 }
 
 export function clearingPetHurtboxRadius(_spriteSize?: number): number {

@@ -33,7 +33,7 @@ export const ELYSIAN_CLEARING_COMBAT_CONFIG = {
   bossEnemyVisibleHeight: 68,
   staffAttackRangePixels: 250,
   attackButtonSize: 62,
-  petHealthBar: { width: 80, height: 7, offset: 112 },
+  petHealthBar: { width: 64, height: 6, gap: 7 },
   recentDamageDisplayMs: 1800,
   deathEffect: { size: 44, durationMs: 850, risePixels: 24 },
 } as const;
