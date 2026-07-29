@@ -3393,3 +3393,19 @@ img[data-interactive], button img, a img {
 @keyframes clearing-pet-breathe { 0%,100% { translate:0 0; } 50% { translate:0 -1px; } }
 @keyframes clearing-pet-step { 0%,100% { translate:0 0; scale:1 1; } 50% { translate:0 -3px; scale:1.015 .985; } }
 @media (prefers-reduced-motion: reduce) { .clearing-pet-presentation,.clearing-pet-presentation.is-moving { animation:none; } }
+
+/* Clearing controls share one fixed-width metallic edge so focus/pressed states
+   change only paint, never geometry or touch-target dimensions. */
+:root { --clearing-gold: #c9a84c; --clearing-gold-glow: rgba(201,168,76,.24); }
+.clearing-action-button {
+  border: 1.5px solid var(--clearing-gold);
+  box-shadow: 0 0 7px var(--clearing-gold-glow), 0 3px 6px rgba(0,0,0,.55);
+  outline: none;
+  transition: filter 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+.clearing-action-button:hover:not(:disabled),
+.clearing-action-button:focus-visible { box-shadow: 0 0 9px rgba(201,168,76,.36), 0 3px 6px rgba(0,0,0,.58); }
+.clearing-action-button:focus-visible { outline: 2px solid rgba(255,236,170,.72); outline-offset: 2px; }
+.clearing-action-button:active:not(:disabled),
+.clearing-action-button[aria-pressed="true"] { filter: brightness(1.08); box-shadow: 0 0 11px rgba(201,168,76,.42), 0 2px 4px rgba(0,0,0,.62); }
+.clearing-action-button:disabled { filter: saturate(.55); cursor: not-allowed; }

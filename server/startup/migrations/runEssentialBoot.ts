@@ -90,6 +90,21 @@ export async function runEssentialBoot(): Promise<void> {
       FROM shop_items s WHERE EXISTS(SELECT 1 FROM worlds WHERE id='swamp') AND s.type='clearing' AND s.clearing_active=true AND s.id<>'a1b2c3d4-0011-4000-8000-000000000012' ORDER BY s.star_rarity,s.created_at LIMIT 5
       ON CONFLICT(world_id,shop_item_id) DO NOTHING;
     `],
+    ["Elysian Clearing retired helmet cleanup error (non-fatal):", sql`
+      UPDATE shop_items SET clearing_active=false WHERE id='a1b2c3d4-0011-4000-8000-000000000022';
+      DELETE FROM clearing_world_drops WHERE shop_item_id='a1b2c3d4-0011-4000-8000-000000000022';
+    `],
+    ["Elysian Clearing Murk enemy reuse error (non-fatal):", sql`
+      INSERT INTO enemies(id,name,image_url,atk,health,is_boss,archetype) VALUES
+        ('elysian-murk-puddle-grub','Puddle Grub','/world-assets/generated_images/enemy_t1_puddle_grub.png',8,85,false,'slow'),
+        ('elysian-murk-boglet','Boglet','/world-assets/generated_images/enemy_t1_boglet.png',9,75,false,'balanced'),
+        ('elysian-murk-newt','Murk Newt','/world-assets/generated_images/enemy_t1_murk_newt.png',7,65,false,'nimble')
+      ON CONFLICT(id) DO NOTHING;
+      INSERT INTO clearing_world_enemies(world_id,enemy_id,is_boss,sort_order)
+      SELECT 'swamp',id,false,20+row_number() OVER(ORDER BY id) FROM enemies
+      WHERE id IN ('elysian-murk-puddle-grub','elysian-murk-boglet','elysian-murk-newt')
+      ON CONFLICT(world_id,enemy_id) DO NOTHING;
+    `],
     ["molten_blocks_drop_items migration error (non-fatal):", sql`CREATE TABLE IF NOT EXISTS molten_blocks_drop_items (
       id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
       shop_item_id VARCHAR NOT NULL,

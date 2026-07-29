@@ -21,7 +21,7 @@ export function buildClearingLoot(pool:ClearingLootItem[],boss:boolean,random:Ra
  const settings=boss?CLEARING_BALANCE.boss:CLEARING_BALANCE.regular,target=Math.min(normalized.length,integer(random,settings.itemCount));
  const selected:ClearingLootItem[]=[];
  const take=(rarity?:ClearingRarity)=>{const candidates=normalized.filter(i=>!selected.some(s=>s.id===i.id)&&(!rarity||i.rarity===rarity));if(!candidates.length)return false;selected.push(candidates[Math.min(candidates.length-1,Math.floor(random()*candidates.length))]);return true;};
- if(boss&&!take("rare"))throw new Error("Boss Clearing has no effective Rare drop");
+ if(boss&&normalized.length&&!take("rare"))throw new Error("Boss Clearing has no effective Rare drop");
  while(selected.length<target){const remaining=normalized.filter(i=>!selected.some(s=>s.id===i.id));if(!remaining.length)break;const groups=new Set(remaining.map(i=>i.rarity));take(weightedRarity(groups,settings.weights,random));}
  return {items:selected,coins:integer(random,settings.coins),essence:integer(random,settings.essence),warning:selected.length<target?"Configured pool contained too few distinct items":null};
 }
@@ -93,9 +93,10 @@ let lastEmptyDiagnostic = 0;
 export async function maybeCreateClearingDrop(tx:any, input:{userId:string;sessionId:string;clearingId:string;rewardId:string;worldId:string;worldX:number;worldY:number;now?:Date;random?:RandomSource}) {
   const random=input.random ?? Math.random;
   if (random() >= CLEARING_LOOT.equipmentChance) return null;
-  const result=await tx.execute(sql`SELECT id,name,image_url,clearing_slot,star_rarity,atk_boost,def_boost,health_boost FROM shop_items
-    WHERE type='clearing' AND clearing_active=true AND clearing_slot IN ('helmet','weapon','armor','boots','charm') AND star_rarity BETWEEN 1 AND 5
-      AND world_id IN (${input.worldId}, 'global') AND (location_id IS NULL OR location_id=${input.clearingId})`);
+  const result=await tx.execute(sql`SELECT s.id,s.name,s.image_url,s.clearing_slot,s.star_rarity,s.atk_boost,s.def_boost,s.health_boost FROM clearing_world_drops d
+    JOIN shop_items s ON s.id=d.shop_item_id
+    WHERE d.world_id=${input.worldId} AND s.type='clearing' AND s.clearing_active=true AND s.clearing_slot IN ('helmet','weapon','armor','boots','charm') AND s.star_rarity BETWEEN 1 AND 5
+      AND s.world_id IN (${input.worldId}, 'global') AND (s.location_id IS NULL OR s.location_id=${input.clearingId})`);
   const normalizedItems: Array<EligibleLoot | null> = result.rows.map(
     (row: unknown): EligibleLoot | null => normalizeEligibleLoot(row),
   );

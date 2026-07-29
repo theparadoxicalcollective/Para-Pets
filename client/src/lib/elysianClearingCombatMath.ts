@@ -11,6 +11,29 @@ export function closestClearingAttackTarget<T>(candidates: ClearingAttackCandida
     .filter(({ distance, facingDot }) => Number.isFinite(distance) && distance <= range && facingDot >= minimumFacingDot)
     .sort((a, b) => a.distance - b.distance || b.facingDot - a.facingDot)[0]?.enemy;
 }
+
+export type ClearingTargetCandidate<T> = {
+  enemy: T;
+  active: boolean;
+  health: number;
+  center: PetWalkPos;
+  collisionRadius: number;
+};
+
+/** Selects by hitbox centres, using collision radius only to determine whether
+ * the target's near edge is in range. Array order never overrides distance. */
+export function nearestValidClearingTarget<T>(origin: PetWalkPos, candidates: ClearingTargetCandidate<T>[], range: number, world: WorldPixels): T | undefined {
+  return candidates
+    .filter(candidate => candidate.active && candidate.health > 0)
+    .map(candidate => ({ candidate, centerDistance: pixelDistance(origin, candidate.center, world) }))
+    .filter(({ candidate, centerDistance }) => Number.isFinite(centerDistance) && centerDistance - Math.max(0, candidate.collisionRadius) <= range)
+    .sort((a, b) => a.centerDistance - b.centerDistance)[0]?.candidate.enemy;
+}
+
+export function directionToClearingTarget(origin: PetWalkPos, target: PetWalkPos, world: WorldPixels) {
+  const { dx, dy } = pixelDelta(origin, target, world);
+  return { dx, dy, angleRadians: Math.atan2(dy, dx) };
+}
 export type Circle = { x: number; y: number; radius: number };
 export type Capsule = { from: PetWalkPos; to: PetWalkPos; radius: number };
 

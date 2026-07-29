@@ -35,8 +35,9 @@ test("sword phases mirror without turning upside down and rarity uses alpha-awar
   for (let stars=1;stars<=5;stars++) assert.match(weaponRarityFilter(stars), /drop-shadow/);
 });
 
-test("misses retain the slash and the request starts at impact", () => {
-  assert.match(combat, /setAttackPhase\("impact"\)[\s\S]+if\(!target\)\{setFeedback\(\["Miss"\]\);return;\}/);
+test("a target is locked before windup and the request starts at impact", () => {
+  assert.match(combat, /if\(!target\).*setFeedback\(\["Miss"\]\)/);
+  assert.match(combat, /lockedInstanceId=target\.instanceId/);
   assert.match(combat, /setAttackPhase\("impact"\)[\s\S]+fetch\("\/api\/explore\/elysian-clearing\/attack"/);
   assert.match(combat, /setAttackPhase\("recovery"\)/);
   assert.match(combat, /setAttackPhase\("idle"\)/);

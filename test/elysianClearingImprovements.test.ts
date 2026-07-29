@@ -22,3 +22,16 @@ test("starter selection preserves an equipped weapon and deterministically equip
 });
 
 test("attack targeting always prefers the closest valid live candidate",()=>{const candidates=[{enemy:"far-facing",distance:110,facingDot:1},{enemy:"closest",distance:55,facingDot:.4},{enemy:"outside",distance:126,facingDot:1},{enemy:"behind",distance:20,facingDot:-1}];assert.equal(closestClearingAttackTarget(candidates,125,.15),"closest");assert.equal(closestClearingAttackTarget([{enemy:"less-aligned",distance:50,facingDot:.3},{enemy:"aligned",distance:50,facingDot:.9}],125,.15),"aligned");});
+
+test("center-based targeting ignores dead entries and chooses the nearest in-range hitbox",async()=>{
+  const {nearestValidClearingTarget,directionToClearingTarget}=await import("../client/src/lib/elysianClearingCombatMath");
+  const world={width:400,height:800},origin={x:.5,y:.5};
+  const candidates=[
+    {enemy:"dead-near",active:true,health:0,center:{x:.51,y:.5},collisionRadius:10},
+    {enemy:"far",active:true,health:10,center:{x:.7,y:.5},collisionRadius:10},
+    {enemy:"near",active:true,health:10,center:{x:.6,y:.5},collisionRadius:10},
+    {enemy:"inactive",active:false,health:10,center:{x:.52,y:.5},collisionRadius:10},
+  ];
+  assert.equal(nearestValidClearingTarget(origin,candidates,125,world),"near");
+  assert.equal(directionToClearingTarget(origin,{x:.6,y:.6},world).angleRadians,Math.atan2(80,40));
+});

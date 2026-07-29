@@ -3,9 +3,10 @@ import test from "node:test";
 import { clearingPetHurtboxRadius, clearingPetSize, clearingProjectileOrigin, clearingWeaponOrigin, CLEARING_PET_PRESENTATION } from "../client/src/lib/clearingPetPresentation";
 import { insetMovementBounds } from "../client/src/lib/elysianClearingCombatMath";
 
-test("Clearing pet size is clamped across narrow, standard, and tall phones", () => {
-  for (const viewport of [{width:320,height:568},{width:390,height:844},{width:430,height:932},{width:900,height:1200}]) assert.equal(clearingPetSize(viewport),59.5);
-  assert.equal(CLEARING_PET_PRESENTATION.petEnemyVisualRatio,.85);
+test("Clearing pet is noticeably smaller on portrait phones without affecting enemy geometry", () => {
+  for (const viewport of [{width:320,height:568},{width:390,height:844},{width:430,height:932}]) assert.equal(clearingPetSize(viewport),47.6);
+  assert.equal(clearingPetSize({width:900,height:1200}),53.2);
+  assert.equal(CLEARING_PET_PRESENTATION.petEnemyVisualRatio,.68);
   assert.ok(clearingPetSize({width:390,height:844})<CLEARING_PET_PRESENTATION.standardEnemyVisibleHeight);
 });
 
