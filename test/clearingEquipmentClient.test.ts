@@ -18,3 +18,16 @@ test("Clearing Inventory includes empty state, game grid, equipped detail, equip
   const source=fs.readFileSync("client/src/components/ClearingEquipmentPanels.tsx","utf8");
   for(const value of ["Clearing Equipment can be found","clearing-inventory-grid","Equipped","clearing-item-detail","onEquip","onUnequip","onOpenChange"])assert.match(source,new RegExp(value));
 });
+
+test("only equipped Clearing gear receives the decorative gold frame",()=>{
+  const source=fs.readFileSync("client/src/components/ClearingEquipmentPanels.tsx","utf8");
+  assert.match(source,/backgroundImage:item\.equipped\?`url\(\$\{equipmentBorder\}\)`/);
+  assert.match(source,/item\.equipped\?"bg-black\/25 ring-1 ring-amber-500":"bg-black\/20"/);
+});
+test("treasure rewards use a compact modal and reward tiles",()=>{
+  const modal=fs.readFileSync("client/src/components/ClearingRewardChests.tsx","utf8");
+  const combat=fs.readFileSync("client/src/components/ElysianClearingCombat.tsx","utf8");
+  assert.match(modal,/22rem/);
+  assert.match(modal,/max-w-\[9rem\]/);
+  assert.match(combat,/clearing-reward-tile\{display:flex;min-height:72px/);
+});

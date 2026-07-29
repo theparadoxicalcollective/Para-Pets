@@ -1,11 +1,12 @@
 import crypto from "crypto";
 import { CLEARING_BALANCE } from "@shared/clearingConfig";
+import { selectClearingSpecialMob, type ClearingSpecialMobTemplate } from "./clearingSpecialMobs";
 
 export const ELYSIAN_CLEARING_COMBAT = {
   locationId: "a1b2c3d4-0011-4000-8000-000000000011",
   baseEnemyPopulation: 8,
   maxEnemyPopulation: 10,
-  enemyCount: 8,
+  enemyCount: 10,
   expReward: 5,
   attackCooldownMs: 500,
   sessionLifetimeMs: 30 * 60_000,
@@ -24,6 +25,7 @@ export interface ClearingEnemyRecord {
   isBoss: boolean;
   engagedByPlayer: boolean;
   templateId?: string; name?: string; imageUrl?: string | null;
+  specialPetShopItemId?:string; specialRarity?:number;
 }
 export interface ClearingSession { id: string; userId: string; petId: string; expiresAt: number; effectiveStats: { hp: number; atk: number; def: number }; enemies: ClearingEnemyRecord[]; position:{x:number;y:number;updatedAt:number} }
 
@@ -58,15 +60,15 @@ export function selectClearingEncounterTemplates(count:number,templates:Clearing
   return selected;
 }
 
-export function createClearingSession(userId: string, petId: string, stats: ClearingPetStats, now = Date.now(), random=Math.random, templates:ClearingEnemyTemplate[]=[]): ClearingSession {
+export function createClearingSession(userId: string, petId: string, stats: ClearingPetStats, now = Date.now(), random=Math.random, templates:ClearingEnemyTemplate[]=[], specialTemplates:ClearingSpecialMobTemplate[]=[]): ClearingSession {
   for (const [id, session] of sessions) if (session.expiresAt <= now || session.userId === userId) sessions.delete(id);
-  const scaled = scaleClearingEnemy(stats),encounterTemplates=selectClearingEncounterTemplates(ELYSIAN_CLEARING_COMBAT.enemyCount,templates,random),encounterPositions=layoutClearingEncounter(encounterTemplates);
+  const scaled = scaleClearingEnemy(stats),special=selectClearingSpecialMob(specialTemplates,random),encounterTemplates=selectClearingEncounterTemplates(ELYSIAN_CLEARING_COMBAT.enemyCount,templates,random);if(special)encounterTemplates[encounterTemplates.length-1]=undefined;const encounterPositions=layoutClearingEncounter(encounterTemplates);
   const session: ClearingSession = {
     id: crypto.randomUUID(), userId, petId, expiresAt: now + ELYSIAN_CLEARING_COMBAT.sessionLifetimeMs,
     effectiveStats: { hp: stats.hp, atk: stats.atk, def: stats.def ?? 0 },
     position:{x:.5,y:.7,updatedAt:now}, enemies: encounterTemplates.map((template,slot) => {const isBoss=Boolean(template?.is_boss),maxHealth=Math.round(scaled.maxHealth*(isBoss?CLEARING_BALANCE.bossHealthMultiplier:1)),spawn=encounterPositions[slot];return{
       instanceId: crypto.randomUUID(), slot, maxHealth, health:maxHealth,
-      attack:Math.round(scaled.attack*(isBoss?CLEARING_BALANCE.bossDamageMultiplier:1)),isBoss,engagedByPlayer:false,templateId:template?.enemy_id,name:template?.name,imageUrl:template?.image_url, defeated: false, lastHitAt: 0, x:spawn?.x??.5, y:spawn?.y??.6,
+      attack:Math.round(scaled.attack*(isBoss?CLEARING_BALANCE.bossDamageMultiplier:1)),isBoss,engagedByPlayer:false,templateId:template?.enemy_id,name:slot===encounterTemplates.length-1&&special?special.name:template?.name,imageUrl:slot===encounterTemplates.length-1&&special?(special.hatched_image_url||special.image_url):template?.image_url,specialPetShopItemId:slot===encounterTemplates.length-1?special?.pet_shop_item_id:undefined,specialRarity:slot===encounterTemplates.length-1?Number(special?.rarity||1):undefined, defeated: false, lastHitAt: 0, x:spawn?.x??.5, y:spawn?.y??.6,
     }}),
   };
   sessions.set(session.id, session);
@@ -77,7 +79,7 @@ export function getClearingSession(sessionId:string){return sessions.get(session
 export function updateClearingPosition(input:{sessionId:string;userId:string;x:number;y:number;now?:number}){
   const now=input.now??Date.now(),session=sessions.get(input.sessionId);
   if(!session||session.userId!==input.userId||session.expiresAt<=now)return null;
-  if(!Number.isFinite(input.x)||!Number.isFinite(input.y)||input.x<.18||input.x>.82||input.y<.08||input.y>.9)return null;
+  if(!Number.isFinite(input.x)||!Number.isFinite(input.y)||input.x<.08||input.x>.92||input.y<.05||input.y>.94)return null;
   const elapsed=Math.max(.1,(now-session.position.updatedAt)/1000),distance=Math.hypot(input.x-session.position.x,input.y-session.position.y);
   if(distance>.17*elapsed+.08)return null;
   session.position={x:input.x,y:input.y,updatedAt:now};return session.position;
@@ -107,6 +109,9 @@ export function respawnClearingEnemy(sessionId: string, instanceId: string) {
   const session = sessions.get(sessionId);
   const enemy = session?.enemies.find((candidate) => candidate.instanceId === instanceId && candidate.defeated);
   if (!enemy) return null;
+  // A special mob is a one-off encounter for this session; it must not turn
+  // into an endlessly farmable egg source after its guaranteed drop.
+  if (enemy.specialPetShopItemId) return null;
   enemy.instanceId = crypto.randomUUID(); enemy.health = enemy.maxHealth; enemy.defeated = false; enemy.engagedByPlayer=false; enemy.lastHitAt = 0;
   return enemy;
 }

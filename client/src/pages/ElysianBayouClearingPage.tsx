@@ -24,7 +24,7 @@ import backgroundUrl from "@assets/uploads/ElysianClearingBackground.jpeg";
 //   yMin / yMax — top/bottom boundary
 //
 // The background is a portrait bayou path image; the central dirt channel
-// runs vertically through roughly x 0.18–0.82, y 0.08–0.90.
+// supports movement near the visible artwork edges while retaining a small safety inset.
 
 const CLEARING_CONFIG: WalkAroundLocationConfig = {
   id:            ELYSIAN_BAYOU_CLEARING_ID,
@@ -35,10 +35,10 @@ const CLEARING_CONFIG: WalkAroundLocationConfig = {
   sceneType:     "walk-around",
 
   walkableBounds: {
-    xMin: 0.18,
-    xMax: 0.82,
-    yMin: 0.08,
-    yMax: 0.90,
+    xMin: 0.08,
+    xMax: 0.92,
+    yMin: 0.05,
+    yMax: 0.94,
   },
 
   // Spawn near the lower-centre of the clearing
@@ -49,9 +49,9 @@ const CLEARING_CONFIG: WalkAroundLocationConfig = {
 
   // Source artwork is 2886×4331. Fit its full height and use a colour-matched
   // edge extension rather than cropping it with cover.
-  petSize: 133,
+  petSize: 96,
   worldSize: { width: 1, height: 1 },
-  aspectLayout: { imageAspect: 2886 / 4331, fit: "height-contain", colorFill: "#18251b", responsivePet: { min: 126, preferredVw: 33.3, max: 151 } },
+  aspectLayout: { imageAspect: 2886 / 4331, fit: "height-contain", colorFill: "#18251b", responsivePet: { min: 86, preferredVw: 24, max: 108 } },
 
   features: {
     movement:     true,

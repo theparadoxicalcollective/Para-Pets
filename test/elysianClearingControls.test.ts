@@ -12,10 +12,10 @@ test("only the Elysian Clearing exploration route joins the existing nav exclusi
   assert.doesNotMatch(appSource, /path\.startsWith\("\/explore\/"\)/);
 });
 
-test("Elysian Clearing alone uses its larger responsive pet presentation", () => {
-  assert.match(pageSource, /petSize: 133/);
-  assert.match(pageSource, /responsivePet: \{ min: 126, preferredVw: 33\.3, max: 151 \}/);
-  assert.match(pageSource, /xMin: 0\.18[\s\S]*xMax: 0\.82[\s\S]*yMin: 0\.08[\s\S]*yMax: 0\.90/);
+test("Elysian Clearing uses a compact responsive pet and expanded movement bounds", () => {
+  assert.match(pageSource, /petSize: 96/);
+  assert.match(pageSource, /responsivePet: \{ min: 86, preferredVw: 24, max: 108 \}/);
+  assert.match(pageSource, /xMin: 0\.08[\s\S]*xMax: 0\.92[\s\S]*yMin: 0\.05[\s\S]*yMax: 0\.94/);
   assert.match(sceneSource, /const DEFAULT_PET_SIZE = 110/);
   assert.match(sceneSource, /responsivePet \? clearingPetSize\(viewport\)/);
 });

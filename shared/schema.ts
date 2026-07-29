@@ -232,6 +232,20 @@ export const clearingWorldEnemies = pgTable("clearing_world_enemies", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 }, (t) => [uniqueIndex("clearing_world_enemies_world_enemy_uidx").on(t.worldId, t.enemyId)]);
 
+export const clearingWorldSpecialMobs = pgTable("clearing_world_special_mobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  worldId: varchar("world_id").notNull(), petShopItemId: varchar("pet_shop_item_id").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (t) => [uniqueIndex("clearing_world_special_mobs_world_pet_uidx").on(t.worldId, t.petShopItemId)]);
+
+export const clearingSpecialEggDrops = pgTable("clearing_special_egg_drops", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`), userId: varchar("user_id").notNull(),
+  sessionId: varchar("session_id").notNull(), clearingId: varchar("clearing_id").notNull(),
+  defeatedEnemyId: varchar("defeated_enemy_id").notNull(), petShopItemId: varchar("pet_shop_item_id").notNull(),
+  worldX: real("world_x").notNull(), worldY: real("world_y").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`), expiresAt: timestamp("expires_at").notNull(), collectedAt: timestamp("collected_at"),
+}, (t) => [uniqueIndex("clearing_special_egg_drops_enemy_uidx").on(t.userId, t.defeatedEnemyId)]);
+
 export const rewardBundleItems = pgTable("reward_bundle_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bundleId: varchar("bundle_id").notNull(),
