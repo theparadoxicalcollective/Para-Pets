@@ -49,9 +49,9 @@ const CLEARING_CONFIG: WalkAroundLocationConfig = {
 
   // Source artwork is 2886×4331. Fit its full height and use a colour-matched
   // edge extension rather than cropping it with cover.
-  petSize: 148,
+  petSize: 133,
   worldSize: { width: 1, height: 1 },
-  aspectLayout: { imageAspect: 2886 / 4331, fit: "height-contain", colorFill: "#18251b", responsivePet: { min: 140, preferredVw: 37, max: 168 } },
+  aspectLayout: { imageAspect: 2886 / 4331, fit: "height-contain", colorFill: "#18251b", responsivePet: { min: 126, preferredVw: 33.3, max: 151 } },
 
   features: {
     movement:     true,
