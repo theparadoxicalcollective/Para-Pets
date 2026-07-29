@@ -21,6 +21,7 @@ import type { WalkAroundLocationConfig } from "@/lib/exploreLocations";
 import { cameraTarget, clearingWorldSize, insetMovementBounds } from "@/lib/elysianClearingCombatMath";
 import { clearingPetSize, CLEARING_PET_PRESENTATION } from "@/lib/clearingPetPresentation";
 import { worldYToDepth } from "@/lib/clearingWorldPresentation";
+import WorldLoadingScreen from "@/components/WorldLoadingScreen";
 
 const DEFAULT_PET_SIZE = 110;
 const JOYSTICK_SIZE = 90;
@@ -43,6 +44,8 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
   const [viewport, setViewport] = useState({ width: 390, height: 844 });
   const [camera, setCamera] = useState({ x: 0, y: 0 });
   const [gameplayBlocked, setGameplayBlocked] = useState(false);
+  const [clearingReady, setClearingReady] = useState(!config.features.combat || !petTemplateId);
+  const [loadingComplete, setLoadingComplete] = useState(!config.features.combat);
 
   const responsivePet = config.aspectLayout?.responsivePet;
   const petSize = responsivePet ? clearingPetSize(viewport) : (config.petSize ?? DEFAULT_PET_SIZE);
@@ -152,7 +155,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
       )}
 
       {config.features.combat && petTemplateId && (
-        <ElysianClearingCombat petPos={petPos} petSize={petSize} activePet={activePet} facingLeft={facingLeft} onReturnToWorld={onBack} worldPixels={world} hudElement={hudElement} onGameplayBlockedChange={setGameplayBlocked} />
+        <ElysianClearingCombat petPos={petPos} petSize={petSize} activePet={activePet} facingLeft={facingLeft} onReturnToWorld={onBack} worldPixels={world} hudElement={hudElement} onGameplayBlockedChange={setGameplayBlocked} onEnemiesReady={() => setClearingReady(true)} />
       )}
       </div>
 
@@ -204,6 +207,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
           zIndex: 4,
         }}
       />
+      {!loadingComplete && <div className="absolute inset-0" style={{zIndex:5000}}><WorldLoadingScreen worldId="elysian_clearing" bgUrl={config.backgroundUrl} pageReady={clearingReady} onReady={() => setLoadingComplete(true)} /></div>}
     </div>
   );
 }

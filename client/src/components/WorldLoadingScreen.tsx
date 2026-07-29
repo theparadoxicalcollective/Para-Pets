@@ -52,6 +52,22 @@ const WORLD_THEMES = {
     label: "Elysian Swamplands",
     subtext: "Entering the Elysian Swamplands…",
   },
+  elysian_clearing: {
+    name: "Elysian Clearing",
+    bg: bgSwamp,
+    accent: "#4ade80",
+    accentSoft: "#34d399",
+    accentDim: "rgba(74,222,128,0.28)",
+    overlay:
+      "linear-gradient(to bottom, rgba(3,10,6,0.93) 0%, rgba(6,20,10,0.68) 45%, rgba(3,10,6,0.96) 100%)",
+    solidBg: null as string | null,
+    particles: "fireflies" as const,
+    particleColor: "#86efac",
+    particleGlow: "rgba(74,222,128,0.75)",
+    barGradient: "linear-gradient(90deg,#052e1c,#059669,#34d399,#a7f3d0)",
+    label: "Elysian Clearing",
+    subtext: "Preparing the enemies in the clearing…",
+  },
   haunted_woods: {
     name: "Haunted Woods",
     bg: bgHauntedWoods,
