@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 import { cameraTarget, circleHitsCapsule, clearingWorldSize, closestClearingAttackTarget, insetMovementBounds, meleeArcHit } from "../client/src/lib/elysianClearingCombatMath";
 import { enemyFlipScale, nextEnemyFacing, resolveClearingAttackStyle, rollTierRarity } from "../shared/clearingCombat";
@@ -34,4 +35,19 @@ test("center-based targeting ignores dead entries and chooses the nearest in-ran
   ];
   assert.equal(nearestValidClearingTarget(origin,candidates,125,world),"near");
   assert.equal(directionToClearingTarget(origin,{x:.6,y:.6},world).angleRadians,Math.atan2(80,40));
+});
+
+test("Clearing attacks can acquire the nearest enemy on either side of the pet",async()=>{
+  const {nearestValidClearingTarget,directionToClearingTarget}=await import("../client/src/lib/elysianClearingCombatMath");
+  const world={width:400,height:800},origin={x:.5,y:.5};
+  const candidates=[
+    {enemy:"right",active:true,health:10,center:{x:.7,y:.5},collisionRadius:10},
+    {enemy:"left",active:true,health:10,center:{x:.4,y:.5},collisionRadius:10},
+  ];
+  const target=nearestValidClearingTarget(origin,candidates,125,world);
+  assert.equal(target,"left");
+  assert.ok(directionToClearingTarget(origin,candidates[1].center,world).dx<0);
+  const combatSource=fs.readFileSync(new URL("../client/src/components/ElysianClearingCombat.tsx",import.meta.url),"utf8");
+  assert.doesNotMatch(combatSource,/active:isAhead/);
+  assert.match(combatSource,/setAttackFacingLeft\(direction\.dx<0\)/);
 });
