@@ -20,6 +20,19 @@ export function directionToClearingTarget(origin: PetWalkPos, target: PetWalkPos
   const { dx, dy } = pixelDelta(origin, target, world);
   return { dx, dy, angleRadians: Math.atan2(dy, dx) };
 }
+export function resolveLockedClearingTarget<T extends {instanceId:string}>(lockedInstanceId:string|null,candidates:ClearingTargetCandidate<T>[],acquire:()=>T|undefined):T|undefined {
+  if (lockedInstanceId) return candidates.find(candidate=>candidate.active&&candidate.health>0&&candidate.enemy.instanceId===lockedInstanceId)?.enemy;
+  return acquire();
+}
+
+export function weaponPointerPosition(origin:PetWalkPos,direction:ClearingDirection,world:WorldPixels,visiblePetRadius:number,weaponSize:number,gap:number) {
+  return pointInDirection(origin,direction,Math.max(0,visiblePetRadius)+Math.max(0,weaponSize)/2+Math.max(0,gap),world);
+}
+
+export function weaponPointerRotation(direction:ClearingDirection,artOffsetDegrees:number) {
+  const normalized=normalizeDirection(direction);
+  return normalized ? Math.atan2(normalized.dy,normalized.dx)+artOffsetDegrees*Math.PI/180 : artOffsetDegrees*Math.PI/180;
+}
 export type Circle = { x: number; y: number; radius: number };
 export type Capsule = { from: PetWalkPos; to: PetWalkPos; radius: number };
 

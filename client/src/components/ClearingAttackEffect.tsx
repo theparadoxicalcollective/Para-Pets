@@ -3,30 +3,27 @@ import { Sword, Sparkles } from "lucide-react";
 import type { ClearingInventoryItem } from "@shared/clearingEquipment";
 import { resolveClearingAttackStyle } from "@shared/clearingCombat";
 import { worldYToDepth } from "@/lib/clearingWorldPresentation";
-import { swordTransform, type ClearingAttackPhase, weaponRarityFilter } from "@/lib/clearingWeaponVisuals";
+import { weaponAttackTransform, type ClearingAttackPhase, weaponRarityFilter } from "@/lib/clearingWeaponVisuals";
 
-export default function ClearingAttackEffect({ weapon, phase, facingLeft, angleRadians, targetDistance, x, y, petSize, playerY }: {
-  weapon: ClearingInventoryItem | null; phase: ClearingAttackPhase; facingLeft: boolean;
-  angleRadians: number; targetDistance: number; x: number; y: number; petSize: number; playerY: number;
+export default function ClearingAttackEffect({ weapon, phase, angleRadians, targetDistance, x, y, sizePixels, playerY }: {
+  weapon: ClearingInventoryItem | null; phase: ClearingAttackPhase;
+  angleRadians: number; targetDistance: number; x: number; y: number; sizePixels: number; playerY: number;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [weapon?.imageUrl]);
   useEffect(() => { if (import.meta.env.DEV && weapon) console.debug("Clearing equipped weapon reached attack renderer", { inventoryId:weapon.inventoryId, shopItemId:weapon.shopItemId, stableKey:weapon.stableKey, name:weapon.name, imageUrl:weapon.imageUrl, stars:weapon.stars, attackStyle:weapon.attackStyle, attackBonus:weapon.atkBonus }); }, [weapon]);
-  if (phase === "idle") return null;
   const style = resolveClearingAttackStyle(weapon ? { attackStyle: weapon.attackStyle, name: weapon.name } : undefined);
-  const safePetSize = Number.isFinite(petSize) ? Math.max(40, Math.min(90, petSize)) : 59.5;
-  const size = `${Math.max(30, Math.min(42, Math.round(safePetSize * .58)))}px`;
-  const facing = facingLeft ? "left" : "right";
+  const size = `${Math.max(28, Math.min(42, sizePixels))}px`;
   const showRealWeapon = Boolean(weapon?.imageUrl) && !imageFailed;
-  return <div data-testid="clearing-weapon-attack" data-phase={phase} data-facing={facing} data-attack-style={style}
+  return <div data-testid="clearing-equipped-weapon-pointer" data-phase={phase} data-attack-style={style}
     className="absolute pointer-events-none overflow-visible clearing-player-weapon-foreground"
     style={{ left:`${x*100}%`, top:`${y*100}%`, width:size, height:size, zIndex:worldYToDepth(playerY, 3), transform:`rotate(${angleRadians}rad)` }}>
-    <div className="relative h-full w-full" style={{transform:swordTransform("right", phase)}}>
+    <div className="relative h-full w-full" style={{transform:weaponAttackTransform(phase)}}>
     {showRealWeapon ? <img data-testid="clearing-equipped-weapon-image" src={weapon!.imageUrl!} alt="" draggable={false}
       className="h-full w-full object-contain"
       style={{ filter:weaponRarityFilter(weapon?.stars ?? 1) }}
       onError={() => { if (import.meta.env.DEV) console.warn("Clearing equipped weapon image failed to load", { imageUrl:weapon?.imageUrl, shopItemId:weapon?.shopItemId }); setImageFailed(true); }}/>
-      : style==="staff_orb"?<Sparkles data-testid="clearing-staff-fallback" aria-hidden className="h-full w-full text-cyan-200"/>:<Sword data-testid="clearing-weapon-fallback" aria-hidden className="h-full w-full text-amber-100" style={{ filter:weaponRarityFilter(weapon?.stars ?? 1) }}/>}
+      : style==="staff_orb"?<Sparkles data-testid="clearing-staff-fallback" aria-hidden className="h-full w-full text-cyan-200" style={{filter:weaponRarityFilter(weapon?.stars ?? 1)}}/>:<Sword data-testid="clearing-weapon-fallback" aria-hidden className="h-full w-full text-amber-100" style={{ filter:weaponRarityFilter(weapon?.stars ?? 1) }}/>}
     {style==="sword_slash"&&phase==="impact"&&<span data-testid="clearing-sword-slash" className="absolute -inset-2 rounded-[50%] border-t-[3px] border-amber-100 opacity-90" style={{filter:`drop-shadow(0 0 ${3+Math.min(5,weapon?.stars??1)}px #fbbf24)`}}/>}
     {style==="staff_orb"&&phase==="impact"&&<span data-testid="clearing-staff-orb" className="absolute top-1/2 h-3 w-3 rounded-full bg-cyan-100 shadow-[0_0_10px_4px_#67e8f9] animate-clearing-orb-target" style={{"--clearing-projectile-distance":`${Math.max(0,targetDistance)}px`} as React.CSSProperties}/>}
     {style==="default_melee"&&phase==="impact"&&!showRealWeapon&&<span data-testid="clearing-default-impact" className="absolute inset-2 rounded-full border-2 border-white/70"/>}

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
-import { CLEARING_SWORD_TIMING, inventoryWeaponRotation, swordTransform, weaponRarityFilter } from "../client/src/lib/clearingWeaponVisuals";
+import { CLEARING_SWORD_TIMING, inventoryWeaponRotation, weaponAttackTransform, weaponRarityFilter } from "../client/src/lib/clearingWeaponVisuals";
 import { BASIC_SWORD_ID, BASIC_SWORD_IMAGE_URL, BASIC_SWORD_NAME, BASIC_SWORD_SLUG, chooseClearingStarterWeapon } from "../server/clearingEquipment";
 
 const combat = fs.readFileSync("client/src/components/ElysianClearingCombat.tsx", "utf8");
@@ -26,18 +26,18 @@ test("equipped weapon reaches the renderer and real image has a safe fallback", 
   assert.match(effect, /clearing-staff-orb/);
 });
 
-test("sword phases mirror without turning upside down and rarity uses alpha-aware filters", () => {
+test("weapon attack phases stay separate from directional wrapper rotation and rarity uses alpha-aware filters", () => {
   assert.equal(inventoryWeaponRotation("clearing-training-sword"),45);
   assert.equal(inventoryWeaponRotation("another-weapon"),0);
-  assert.equal(swordTransform("right", "impact"), "translate(-50%, -88%) scaleX(1) rotate(-135deg)");
-  assert.equal(swordTransform("left", "impact"), "translate(-50%, -88%) scaleX(-1) rotate(-135deg)");
+  assert.equal(weaponAttackTransform("idle"), "translateX(0px) rotate(0deg)");
+  assert.equal(weaponAttackTransform("impact"), "translateX(8px) rotate(35deg)");
   assert.deepEqual(CLEARING_SWORD_TIMING, {windupMs:90,impactMs:70,recoveryMs:140,totalMs:300});
   for (let stars=1;stars<=5;stars++) assert.match(weaponRarityFilter(stars), /drop-shadow/);
 });
 
 test("a target is locked before windup and the request starts at impact", () => {
-  assert.match(combat, /if\(!target\).*setFeedback\(\["Miss"\]\)/);
-  assert.match(combat, /lockedInstanceId=target\.instanceId/);
+  assert.match(combat, /lockedTargetInstanceIdRef/);
+  assert.match(combat, /setFeedback\(\["No target"\]\)/);
   assert.match(combat, /setAttackPhase\("impact"\)[\s\S]+fetch\("\/api\/explore\/elysian-clearing\/attack"/);
   assert.match(combat, /setAttackPhase\("recovery"\)/);
   assert.match(combat, /setAttackPhase\("idle"\)/);
