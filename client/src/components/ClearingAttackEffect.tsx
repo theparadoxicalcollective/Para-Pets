@@ -5,9 +5,9 @@ import { resolveClearingAttackStyle } from "@shared/clearingCombat";
 import { worldYToDepth } from "@/lib/clearingWorldPresentation";
 import { weaponAttackTransform, type ClearingAttackPhase, weaponRarityFilter } from "@/lib/clearingWeaponVisuals";
 
-export default function ClearingAttackEffect({ weapon, phase, angleRadians, mirrored, targetDistance, x, y, sizePixels, playerY }: {
+export default function ClearingAttackEffect({ weapon, phase, angleRadians, targetDistance, x, y, sizePixels, playerY }: {
   weapon: ClearingInventoryItem | null; phase: ClearingAttackPhase;
-  angleRadians: number; mirrored: boolean; targetDistance: number; x: number; y: number; sizePixels: number; playerY: number;
+  angleRadians: number; targetDistance: number; x: number; y: number; sizePixels: number; playerY: number;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [weapon?.imageUrl]);
@@ -18,7 +18,6 @@ export default function ClearingAttackEffect({ weapon, phase, angleRadians, mirr
   return <div data-testid="clearing-equipped-weapon-pointer" data-phase={phase} data-attack-style={style}
     className="absolute pointer-events-none overflow-visible clearing-player-weapon-foreground"
     style={{ left:`${x*100}%`, top:`${y*100}%`, width:size, height:size, zIndex:worldYToDepth(playerY, 3), transform:`translate(-50%, -50%) rotate(${angleRadians}rad)`, transition:"transform 60ms linear" }}>
-    <div className="relative h-full w-full" style={{transform:`scaleX(${mirrored?-1:1})`}}>
     <div className="relative h-full w-full" style={{transform:weaponAttackTransform(phase),transformOrigin:"50% 78%"}}>
     {showRealWeapon ? <img data-testid="clearing-equipped-weapon-image" src={weapon!.imageUrl!} alt="" draggable={false}
       className="h-full w-full object-contain"
@@ -28,6 +27,6 @@ export default function ClearingAttackEffect({ weapon, phase, angleRadians, mirr
     {style==="sword_slash"&&phase==="impact"&&<span data-testid="clearing-sword-slash" className="absolute -inset-2 rounded-[50%] border-t-[3px] border-amber-100 opacity-90" style={{filter:`drop-shadow(0 0 ${3+Math.min(5,weapon?.stars??1)}px #fbbf24)`}}/>}
     {style==="staff_orb"&&phase==="impact"&&<span data-testid="clearing-staff-orb" className="absolute top-1/2 h-3 w-3 rounded-full bg-cyan-100 shadow-[0_0_10px_4px_#67e8f9] animate-clearing-orb-target" style={{"--clearing-projectile-distance":`${Math.max(0,targetDistance)}px`} as React.CSSProperties}/>}
     {style==="default_melee"&&phase==="impact"&&!showRealWeapon&&<span data-testid="clearing-default-impact" className="absolute inset-2 rounded-full border-2 border-white/70"/>}
-    </div></div><style>{`@keyframes clearing-orb-target{to{transform:translateX(var(--clearing-projectile-distance));opacity:0}}.animate-clearing-orb-target{animation:clearing-orb-target 240ms linear forwards}@media(prefers-reduced-motion:reduce){.animate-clearing-orb-target{animation-duration:1ms}}`}</style>
+    </div><style>{`@keyframes clearing-orb-target{to{transform:translateX(var(--clearing-projectile-distance));opacity:0}}.animate-clearing-orb-target{animation:clearing-orb-target 240ms linear forwards}@media(prefers-reduced-motion:reduce){.animate-clearing-orb-target{animation-duration:1ms}}`}</style>
   </div>;
 }

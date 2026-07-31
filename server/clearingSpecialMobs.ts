@@ -1,11 +1,12 @@
 import { sql } from "drizzle-orm";
 
 export type ClearingSpecialMobTemplate = { pet_shop_item_id:string; name:string; rarity:number; egg_image_url:string|null; hatched_image_url:string|null; image_url:string|null };
+export const specialPetMobSpawnChance = 0.05;
 
 /** Special mobs are intentionally uncommon, and each additional rarity star
  * makes a configured pet half as likely to be selected. */
 export function selectClearingSpecialMob(templates:ClearingSpecialMobTemplate[], random=Math.random) {
-  if (!templates.length || random() >= .12) return undefined;
+  if (!templates.length || random() >= specialPetMobSpawnChance) return undefined;
   const weighted=templates.map(template=>({template,weight:1/Math.pow(2,Math.max(0,Number(template.rarity||1)-1))}));
   const total=weighted.reduce((sum,item)=>sum+item.weight,0);let roll=random()*total;
   for(const item of weighted){roll-=item.weight;if(roll<0)return item.template;}
