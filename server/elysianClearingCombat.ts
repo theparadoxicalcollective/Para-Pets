@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { CLEARING_BALANCE } from "@shared/clearingConfig";
 import { selectClearingSpecialMob, type ClearingSpecialMobTemplate } from "./clearingSpecialMobs";
-import { CLEARING_AIM_GEOMETRY, clearingDistanceToRay, clearingPointInDirection, isFiniteClearingPoint, normalizeClearingDirection, type ClearingDirection, type ClearingPoint } from "@shared/clearingCombatGeometry";
+import { CLEARING_AIM_GEOMETRY, clearingDistanceToRay, clearingHitboxEdgeDistance, clearingPointInDirection, isFiniteClearingPoint, normalizeClearingDirection, type ClearingDirection, type ClearingPoint } from "@shared/clearingCombatGeometry";
 import type { ClearingAttackStyle } from "@shared/clearingCombat";
 import { layoutClearingEncounter } from "@shared/clearingEncounterLayout";
 
@@ -104,9 +104,10 @@ export function validateClearingAttackGeometry(input:{style:ClearingAttackStyle;
   if(!expected||Math.hypot((expected.x-input.aimPoint.x)*worldPixels.width,(expected.y-input.aimPoint.y)*worldPixels.height)>CLEARING_AIM_GEOMETRY.serverAimPointTolerancePixels)return false;
   const radius=Math.max(0,Number(input.enemyRadiusPixels)||0);
   if(input.style!=="staff_orb"){const delta={dx:(input.enemyPosition.x-input.playerPosition.x)*worldPixels.width,dy:(input.enemyPosition.y-input.playerPosition.y)*worldPixels.height},distance=Math.hypot(delta.dx,delta.dy),edge=Math.max(0,distance-radius),alignment=distance?(delta.dx*n.dx+delta.dy*n.dy)/distance:1;return edge<=CLEARING_AIM_GEOMETRY.meleeTargetAssistRadiusPixels&&alignment>=Math.cos(CLEARING_AIM_GEOMETRY.meleePreferredConeDegrees*Math.PI/360)||edge<=CLEARING_AIM_GEOMETRY.meleeFallbackRadiusPixels;}
-  const ray=clearingDistanceToRay(input.playerPosition,n,input.enemyPosition,acquisitionRange,worldPixels);
+  const ray=clearingDistanceToRay(input.playerPosition,n,input.enemyPosition,acquisitionRange+radius,worldPixels);
   const lane=input.style==="staff_orb"?CLEARING_AIM_GEOMETRY.staffCapsuleRadiusPixels:CLEARING_AIM_GEOMETRY.meleeCapsuleRadiusPixels;
-  return Boolean(ray&&ray.along>=0&&ray.distance<=lane+radius);
+  const edgeDistance=clearingHitboxEdgeDistance(input.playerPosition,input.enemyPosition,radius,worldPixels);
+  return Boolean(ray&&ray.along>=0&&edgeDistance<=acquisitionRange&&ray.distance<=lane+radius);
 }
 
 export function applyClearingHit(input: { sessionId: string; instanceId: string; userId: string; petId: string; petDamage?: number; enemyPosition?:{x:number;y:number}; maxRangePixels?:number; attackGeometry?:Parameters<typeof validateClearingAttackGeometry>[0]; attackActionId?:string; now?: number }):ClearingHitResult {
@@ -114,6 +115,7 @@ export function applyClearingHit(input: { sessionId: string; instanceId: string;
   const session = sessions.get(input.sessionId);
   if (!session || session.expiresAt <= now || session.userId !== input.userId || session.petId !== input.petId) return { status: "invalid" as const };
   if(input.attackActionId&&session.processedAttacks.has(input.attackActionId))return session.processedAttacks.get(input.attackActionId)!;
+  if(session.lockedTargetInstanceId&&input.attackGeometry){const locked=session.enemies.find(candidate=>candidate.instanceId===session.lockedTargetInstanceId),world=input.attackGeometry.worldPixels,radius=locked?.isBoss?25:19,lockRange=input.attackGeometry.style==="staff_orb"?CLEARING_AIM_GEOMETRY.staffAttackRangePixels+CLEARING_AIM_GEOMETRY.staffLockHysteresisPixels:CLEARING_AIM_GEOMETRY.meleeAttackRangePixels+CLEARING_AIM_GEOMETRY.meleeLockHysteresisPixels;if(!locked||locked.defeated||clearingHitboxEdgeDistance(session.position,locked,radius,world)>lockRange)session.lockedTargetInstanceId=null;}
   if(session.lockedTargetInstanceId&&session.lockedTargetInstanceId!==input.instanceId)return {status:"target_locked" as const};
   const enemy = session.enemies.find((candidate) => candidate.instanceId === input.instanceId);
   if (!enemy || enemy.defeated) return { status: "defeated" as const };

@@ -52,7 +52,7 @@ test("the server accepts sequential button hits and rejects hits after defeat", 
 
 test("server rejects melee and staff targets outside directional geometry", async () => {
   const { validateClearingAttackGeometry } = await import("../server/elysianClearingCombat");
-  const base={playerPosition:{x:.5,y:.5},aimDirection:{dx:1,dy:0},aimPoint:{x:.8625,y:.5},worldPixels:{width:400,height:800},enemyRadiusPixels:10};
+  const base={playerPosition:{x:.5,y:.5},aimDirection:{dx:1,dy:0},aimPoint:{x:.7625,y:.5},worldPixels:{width:400,height:800},enemyRadiusPixels:10};
   assert.equal(validateClearingAttackGeometry({...base,style:"default_melee",enemyPosition:{x:.5,y:.25}}),false);
   assert.equal(validateClearingAttackGeometry({...base,style:"default_melee",enemyPosition:{x:.68,y:.5}}),true);
   assert.equal(validateClearingAttackGeometry({...base,style:"staff_orb",aimPoint:{x:1.125,y:.5},enemyPosition:{x:.7,y:.65}}),false);
