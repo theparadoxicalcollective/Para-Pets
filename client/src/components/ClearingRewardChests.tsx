@@ -39,7 +39,7 @@ export function ClearingChestLayer({chests,openingChestId,openedChestId,claimErr
     >
       <span aria-hidden className="clearing-chest-shadow"/>
       {tier!=="none"&&<span aria-hidden className={`clearing-chest-sparkles clearing-chest-sparkles-${tier}`}><i/><i/><i/></span>}
-      <img src={chestImageForState(opening?"opening":opened?"opened":"closed")} alt="" className={`relative h-9 w-9 object-contain drop-shadow-[0_3px_3px_rgba(0,0,0,.65)] transition-transform group-hover:scale-105 group-active:scale-90 ${opening?"animate-clearing-chest-open":""}`} draggable={false}/>
+      <img src={chestImageForState(opening?"opening":opened?"opened":"closed")} alt="" className={`relative h-9 w-9 object-contain [filter:drop-shadow(0_4px_4px_rgba(0,0,0,.88))_drop-shadow(0_0_4px_rgba(251,191,36,.72))] transition-transform group-hover:scale-105 group-active:scale-90 ${opening?"animate-clearing-chest-open":""}`} draggable={false}/>
     </button>
   </div>})}</>;
 }

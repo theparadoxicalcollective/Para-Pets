@@ -1,16 +1,10 @@
 import type { PetWalkPos } from "@/hooks/usePetWalkController";
 import type { WalkableBounds } from "@/lib/exploreLocations";
+import { clearingDistanceToRay, clearingPointInDirection, normalizeClearingDirection, type ClearingDirection } from "@shared/clearingCombatGeometry";
 
 export type WorldPixels = { width: number; height: number };
-
-export type ClearingAttackCandidate<T> = { enemy: T; distance: number; facingDot: number };
-
-/** Resolve a fresh target with range/facing as hard constraints and distance first. */
-export function closestClearingAttackTarget<T>(candidates: ClearingAttackCandidate<T>[], range: number, minimumFacingDot: number): T | undefined {
-  return candidates
-    .filter(({ distance, facingDot }) => Number.isFinite(distance) && distance <= range && facingDot >= minimumFacingDot)
-    .sort((a, b) => a.distance - b.distance || b.facingDot - a.facingDot)[0]?.enemy;
-}
+export const normalizeDirection=normalizeClearingDirection;
+export const pointInDirection=clearingPointInDirection;
 
 export type ClearingTargetCandidate<T> = {
   enemy: T;
@@ -19,16 +13,8 @@ export type ClearingTargetCandidate<T> = {
   center: PetWalkPos;
   collisionRadius: number;
 };
-
-/** Selects by hitbox centres, using collision radius only to determine whether
- * the target's near edge is in range. Array order never overrides distance. */
-export function nearestValidClearingTarget<T>(origin: PetWalkPos, candidates: ClearingTargetCandidate<T>[], range: number, world: WorldPixels): T | undefined {
-  return candidates
-    .filter(candidate => candidate.active && candidate.health > 0)
-    .map(candidate => ({ candidate, centerDistance: pixelDistance(origin, candidate.center, world) }))
-    .filter(({ candidate, centerDistance }) => Number.isFinite(centerDistance) && centerDistance - Math.max(0, candidate.collisionRadius) <= range)
-    .sort((a, b) => a.centerDistance - b.centerDistance)[0]?.candidate.enemy;
-}
+export function selectEnemyUnderAimPointer<T>(pointer:PetWalkPos,candidates:ClearingTargetCandidate<T>[],pointerRadius:number,world:WorldPixels):T|undefined{return candidates.filter(c=>c.active&&c.health>0&&Number.isFinite(c.collisionRadius)).map(candidate=>({candidate,distance:pixelDistance(pointer,candidate.center,world)})).filter(({candidate,distance})=>Number.isFinite(distance)&&distance<=pointerRadius+Math.max(0,candidate.collisionRadius)).sort((a,b)=>a.distance-b.distance)[0]?.candidate.enemy;}
+export function selectFirstEnemyAlongAimCapsule<T>(origin:PetWalkPos,direction:ClearingDirection,candidates:ClearingTargetCandidate<T>[],range:number,capsuleRadius:number,world:WorldPixels):T|undefined{return candidates.filter(c=>c.active&&c.health>0).map(candidate=>({candidate,ray:clearingDistanceToRay(origin,direction,candidate.center,range,world)})).filter(({candidate,ray})=>ray&&ray.along>=0&&ray.along<=range&&ray.distance<=capsuleRadius+Math.max(0,candidate.collisionRadius)).sort((a,b)=>(a.ray?.along??Infinity)-(b.ray?.along??Infinity))[0]?.candidate.enemy;}
 
 export function directionToClearingTarget(origin: PetWalkPos, target: PetWalkPos, world: WorldPixels) {
   const { dx, dy } = pixelDelta(origin, target, world);

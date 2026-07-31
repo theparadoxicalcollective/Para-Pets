@@ -55,6 +55,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
   const {
     petPos,
     facingLeft,
+    aimDirection,
     isMoving,
     isJoystickActive,
     joystickOffset,
@@ -155,7 +156,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
       )}
 
       {config.features.combat && petTemplateId && (
-        <ElysianClearingCombat petPos={petPos} petSize={petSize} activePet={activePet} facingLeft={facingLeft} onReturnToWorld={onBack} worldPixels={world} hudElement={hudElement} onGameplayBlockedChange={setGameplayBlocked} onEnemiesReady={() => setClearingReady(true)} />
+        <ElysianClearingCombat petPos={petPos} petSize={petSize} activePet={activePet} facingLeft={facingLeft} aimDirection={aimDirection} onReturnToWorld={onBack} worldPixels={world} hudElement={hudElement} onGameplayBlockedChange={setGameplayBlocked} onEnemiesReady={() => setClearingReady(true)} />
       )}
       </div>
 

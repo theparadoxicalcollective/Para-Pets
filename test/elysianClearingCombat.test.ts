@@ -49,3 +49,13 @@ test("the server enforces attack cooldown and rejects hits after defeat", () => 
   for (let now = 2600; now <= 5000; now += 600) result = applyClearingHit({ sessionId: session.id, instanceId: enemy.instanceId, userId: "user-b", petId: "pet-b", petDamage: 50, now });
   assert.equal(result?.status, "defeated");
 });
+
+test("server rejects melee and staff targets outside directional geometry", async () => {
+  const { validateClearingAttackGeometry } = await import("../server/elysianClearingCombat");
+  const base={playerPosition:{x:.5,y:.5},aimDirection:{dx:1,dy:0},aimPoint:{x:.68,y:.5},worldPixels:{width:400,height:800},enemyRadiusPixels:10};
+  assert.equal(validateClearingAttackGeometry({...base,style:"default_melee",enemyPosition:{x:.5,y:.4}}),false);
+  assert.equal(validateClearingAttackGeometry({...base,style:"default_melee",enemyPosition:{x:.68,y:.5}}),true);
+  assert.equal(validateClearingAttackGeometry({...base,style:"staff_orb",enemyPosition:{x:.7,y:.65}}),false);
+  assert.equal(validateClearingAttackGeometry({...base,style:"staff_orb",enemyPosition:{x:.8,y:.5}}),true);
+  assert.equal(validateClearingAttackGeometry({...base,style:"staff_orb",aimDirection:{dx:Infinity,dy:0},enemyPosition:{x:.8,y:.5}}),false);
+});

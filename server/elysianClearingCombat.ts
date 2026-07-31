@@ -1,6 +1,8 @@
 import crypto from "crypto";
 import { CLEARING_BALANCE } from "@shared/clearingConfig";
 import { selectClearingSpecialMob, type ClearingSpecialMobTemplate } from "./clearingSpecialMobs";
+import { CLEARING_AIM_GEOMETRY, clearingDistanceToRay, clearingPointInDirection, isFiniteClearingPoint, normalizeClearingDirection, type ClearingDirection, type ClearingPoint } from "@shared/clearingCombatGeometry";
+import type { ClearingAttackStyle } from "@shared/clearingCombat";
 
 export const ELYSIAN_CLEARING_COMBAT = {
   locationId: "a1b2c3d4-0011-4000-8000-000000000011",
@@ -85,7 +87,17 @@ export function updateClearingPosition(input:{sessionId:string;userId:string;x:n
   session.position={x:input.x,y:input.y,updatedAt:now};return session.position;
 }
 
-export function applyClearingHit(input: { sessionId: string; instanceId: string; userId: string; petId: string; petDamage?: number; enemyPosition?:{x:number;y:number}; maxRangePixels?:number; now?: number }) {
+export function validateClearingAttackGeometry(input:{style:ClearingAttackStyle;playerPosition:ClearingPoint;aimDirection:ClearingDirection;aimPoint:ClearingPoint;enemyPosition:ClearingPoint;enemyRadiusPixels?:number;worldPixels:{width:number;height:number}}){
+  const {worldPixels}=input,n=normalizeClearingDirection(input.aimDirection);
+  if(!n||!isFiniteClearingPoint(input.playerPosition)||!isFiniteClearingPoint(input.aimPoint)||!isFiniteClearingPoint(input.enemyPosition)||!Number.isFinite(worldPixels?.width)||!Number.isFinite(worldPixels?.height)||worldPixels.width<=0||worldPixels.height<=0)return false;
+  const expected=clearingPointInDirection(input.playerPosition,n,CLEARING_AIM_GEOMETRY.aimPointerDistancePixels,worldPixels);
+  if(!expected||Math.hypot((expected.x-input.aimPoint.x)*worldPixels.width,(expected.y-input.aimPoint.y)*worldPixels.height)>CLEARING_AIM_GEOMETRY.serverAimPointTolerancePixels)return false;
+  const radius=Math.max(0,Number(input.enemyRadiusPixels)||0);
+  if(input.style==="staff_orb"){const ray=clearingDistanceToRay(input.playerPosition,n,input.enemyPosition,CLEARING_AIM_GEOMETRY.staffAttackRangePixels+CLEARING_AIM_GEOMETRY.serverPositionTolerancePixels,worldPixels);return Boolean(ray&&ray.along>=-CLEARING_AIM_GEOMETRY.serverPositionTolerancePixels&&ray.distance<=CLEARING_AIM_GEOMETRY.staffCapsuleRadiusPixels+radius+CLEARING_AIM_GEOMETRY.serverPositionTolerancePixels);}
+  return Math.hypot((input.enemyPosition.x-input.aimPoint.x)*worldPixels.width,(input.enemyPosition.y-input.aimPoint.y)*worldPixels.height)<=CLEARING_AIM_GEOMETRY.aimPointerHitRadiusPixels+radius+CLEARING_AIM_GEOMETRY.serverPositionTolerancePixels;
+}
+
+export function applyClearingHit(input: { sessionId: string; instanceId: string; userId: string; petId: string; petDamage?: number; enemyPosition?:{x:number;y:number}; maxRangePixels?:number; attackGeometry?:Parameters<typeof validateClearingAttackGeometry>[0]; now?: number }) {
   const now = input.now ?? Date.now();
   const session = sessions.get(input.sessionId);
   if (!session || session.expiresAt <= now || session.userId !== input.userId || session.petId !== input.petId) return { status: "invalid" as const };
@@ -93,6 +105,7 @@ export function applyClearingHit(input: { sessionId: string; instanceId: string;
   if (!enemy || enemy.defeated) return { status: "defeated" as const };
   if (now - enemy.lastHitAt < ELYSIAN_CLEARING_COMBAT.attackCooldownMs) return { status: "cooldown" as const, enemy };
   const target=input.enemyPosition??enemy;
+  if(input.attackGeometry){const geometry=input.attackGeometry;if(!validateClearingAttackGeometry(geometry)||Math.hypot((geometry.playerPosition.x-session.position.x)*geometry.worldPixels.width,(geometry.playerPosition.y-session.position.y)*geometry.worldPixels.height)>CLEARING_AIM_GEOMETRY.serverPositionTolerancePixels)return {status:"direction" as const,enemy};}
   if(!Number.isFinite(target.x)||!Number.isFinite(target.y)||Math.hypot((target.x-enemy.x)*400,(target.y-enemy.y)*800)>240||Math.hypot((target.x-session.position.x)*400,(target.y-session.position.y)*800)>(input.maxRangePixels??145))return {status:"range" as const,enemy};
   // Persist the validated client simulation coordinate so rewards use the
   // enemy's exact final world position rather than its original spawn point.
