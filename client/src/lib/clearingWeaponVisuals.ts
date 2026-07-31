@@ -16,10 +16,11 @@ export function inventoryWeaponRotation(stableKey?: string | null): number {
   return stableKey === CLEARING_TRAINING_SWORD_KEY ? 45 : 0;
 }
 
-/** The production sword art points blade-up, so -135deg places its blade down/forward. */
-export function swordTransform(facing: "left" | "right", phase: Exclude<ClearingAttackPhase, "idle">): string {
-  const rotation = phase === "windup" ? -65 : phase === "impact" ? -135 : -155;
-  return `translate(-50%, -88%) scaleX(${facing === "left" ? -1 : 1}) rotate(${rotation}deg)`;
+/** Attack motion is local to the already direction-oriented weapon wrapper. */
+export function weaponAttackTransform(phase: ClearingAttackPhase): string {
+  const rotation = phase === "windup" ? -35 : phase === "impact" ? 35 : phase === "recovery" ? 12 : 0;
+  const reach = phase === "impact" ? 8 : 0;
+  return `translateX(${reach}px) rotate(${rotation}deg)`;
 }
 
 export function weaponRarityFilter(stars: number): string {

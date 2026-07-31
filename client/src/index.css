@@ -3393,9 +3393,6 @@ img[data-interactive], button img, a img {
 @keyframes clearing-pet-breathe { 0%,100% { translate:0 0; } 50% { translate:0 -1px; } }
 @keyframes clearing-pet-step { 0%,100% { translate:0 0; scale:1 1; } 50% { translate:0 -3px; scale:1.015 .985; } }
 @media (prefers-reduced-motion: reduce) { .clearing-pet-presentation,.clearing-pet-presentation.is-moving { animation:none; } }
-.clearing-enemy-idle-bounce { animation:clearing-enemy-idle 2.2s ease-in-out infinite; transform-origin:50% 100%; }
-@keyframes clearing-enemy-idle { 0%,100% { translate:0 0; scale:1 1; } 50% { translate:0 -2px; scale:1.012 .988; } }
-@media (prefers-reduced-motion: reduce) { .clearing-enemy-idle-bounce { animation:none; } }
 
 /* Clearing controls share one fixed-width metallic edge so focus/pressed states
    change only paint, never geometry or touch-target dimensions. */
