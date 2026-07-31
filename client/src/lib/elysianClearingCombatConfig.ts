@@ -1,5 +1,6 @@
 import placeholderEnemyUrl from "@assets/generated_images/enemy_bayou_wraith.png";
 import { CLEARING_AIM_GEOMETRY } from "@shared/clearingCombatGeometry";
+import { CLEARING_ENCOUNTER_HOMES } from "@shared/clearingEncounterLayout";
 
 export const ELYSIAN_CLEARING_COMBAT_CONFIG = {
   enemyName: "Bayou Wraith",
@@ -12,7 +13,7 @@ export const ELYSIAN_CLEARING_COMBAT_CONFIG = {
   maxSimultaneousAttackers: 2,
   // Cluster anchors are consumed in encounter order, so interleave their
   // vertical positions instead of filling the top of the scene first.
-  homes: [{ x: .28, y: .24 }, { x: .48, y: .58 }, { x: .43, y: .82 }, { x: .68, y: .28 }, { x: .25, y: .72 }, { x: .14, y: .52 }, { x: .35, y: .43 }, { x: .63, y: .72 }, { x: .86, y: .64 }, { x: .72, y: .48 }],
+  homes: CLEARING_ENCOUNTER_HOMES,
   initialSpawnDelayMs: [500, 1050, 1600, 2150, 2700, 3250, 3800, 4350, 4900, 5450],
   worldSize: { width: 1.7, height: 2.1 },
   worldBounds: { xMin: 0.08, xMax: 0.92, yMin: 0.05, yMax: 0.94 },

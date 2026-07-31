@@ -9,7 +9,7 @@ export const CLEARING_PET_PRESENTATION = {
   feetAnchor: .82,
   visualHalfWidthRatio: .34,
   hurtboxRadiusPixels: 26,
-  weaponOrigin: { forwardRatio: .25, upRatio: .48 },
+  weaponOrigin: { forwardRatio: .15, upRatio: .33 },
   projectileOrigin: { forwardRatio: .28, upRatio: .48 },
 } as const;
 
