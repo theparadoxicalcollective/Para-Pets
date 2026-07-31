@@ -17,8 +17,8 @@ export default function ClearingAttackEffect({ weapon, phase, angleRadians, targ
   const showRealWeapon = Boolean(weapon?.imageUrl) && !imageFailed;
   return <div data-testid="clearing-equipped-weapon-pointer" data-phase={phase} data-attack-style={style}
     className="absolute pointer-events-none overflow-visible clearing-player-weapon-foreground"
-    style={{ left:`${x*100}%`, top:`${y*100}%`, width:size, height:size, zIndex:worldYToDepth(playerY, 3), transform:`rotate(${angleRadians}rad)` }}>
-    <div className="relative h-full w-full" style={{transform:weaponAttackTransform(phase)}}>
+    style={{ left:`${x*100}%`, top:`${y*100}%`, width:size, height:size, zIndex:worldYToDepth(playerY, 3), transform:`translate(-50%, -50%) rotate(${angleRadians}rad)`, transition:"transform 60ms linear" }}>
+    <div className="relative h-full w-full" style={{transform:weaponAttackTransform(phase),transformOrigin:"22% 78%"}}>
     {showRealWeapon ? <img data-testid="clearing-equipped-weapon-image" src={weapon!.imageUrl!} alt="" draggable={false}
       className="h-full w-full object-contain"
       style={{ filter:weaponRarityFilter(weapon?.stars ?? 1) }}

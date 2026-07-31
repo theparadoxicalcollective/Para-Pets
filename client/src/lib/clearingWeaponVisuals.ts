@@ -18,8 +18,8 @@ export function inventoryWeaponRotation(stableKey?: string | null): number {
 
 /** Attack motion is local to the already direction-oriented weapon wrapper. */
 export function weaponAttackTransform(phase: ClearingAttackPhase): string {
-  const rotation = phase === "windup" ? -35 : phase === "impact" ? 35 : phase === "recovery" ? 12 : 0;
-  const reach = phase === "impact" ? 8 : 0;
+  const rotation = phase === "windup" ? -15 : phase === "impact" ? 22 : phase === "recovery" ? 7 : 0;
+  const reach = phase === "impact" ? 4 : 0;
   return `translateX(${reach}px) rotate(${rotation}deg)`;
 }
 
