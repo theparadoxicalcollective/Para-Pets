@@ -44,6 +44,8 @@ export interface WalkAroundLocationConfig {
   /** Imported background image URL — pass from the page via @assets import. */
   backgroundUrl: string;
   sceneType: "walk-around";
+  /** Scene headings remain visible unless a location explicitly opts out. */
+  showSceneTitle?: boolean;
   /** Area inside the background where the pet is allowed to walk. */
   walkableBounds: WalkableBounds;
   /** Starting position as a fraction of the container (0–1). */
