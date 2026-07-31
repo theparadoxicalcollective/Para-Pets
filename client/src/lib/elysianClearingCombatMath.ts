@@ -48,7 +48,8 @@ export function weaponPointerRotation(direction:ClearingDirection,artOffsetDegre
   const normalized=normalizeDirection(direction);
   return normalized ? Math.atan2(normalized.dy,normalized.dx)+artOffsetDegrees*Math.PI/180 : artOffsetDegrees*Math.PI/180;
 }
-export function weaponArtOffsetForStyle(style:"sword_slash"|"staff_orb"|"default_melee"){return style==="staff_orb"?0:45;}
+/** Training Sword artwork's blade points up (-90deg in CSS coordinates). */
+export function weaponArtOffsetForStyle(style:"sword_slash"|"staff_orb"|"default_melee"){return style==="staff_orb"?0:90;}
 export type Circle = { x: number; y: number; radius: number };
 export type Capsule = { from: PetWalkPos; to: PetWalkPos; radius: number };
 

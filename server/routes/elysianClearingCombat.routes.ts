@@ -1,6 +1,6 @@
 import type { Express, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
-import { ELYSIAN_CLEARING_COMBAT, applyClearingHit, createClearingSession, getClearingSession, removeClearingSession, respawnClearingEnemy, scaleClearingEnemy, updateClearingPosition } from "../elysianClearingCombat";
+import { ELYSIAN_CLEARING_COMBAT, applyClearingHit, createClearingSession, getClearingSession, removeClearingSession, respawnClearingEnemy, scaleClearingEnemy, updateClearingEnemyPositions, updateClearingPosition } from "../elysianClearingCombat";
 import { calculateClearingStats, ensureClearingStarterWeapon, getClearingLoadout } from "../clearingEquipment";
 import { clearingSpecialDamage, resolveClearingAttackStyle, resolveClearingSpecialKind } from "@shared/clearingCombat";
 import { claimClearingRewardChest, ClearingChestError, createClearingRewardChest, getClearingRewardChests } from "../clearingRewardChests";
@@ -43,7 +43,7 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
       const eggDrops=await getSpecialEggDrops(db,{userId:user.id,sessionId:session.id,clearingId:ELYSIAN_CLEARING_COMBAT.locationId});
       return res.json({ sessionId: session.id, loadout,
         pet: { inventoryId: pet.id, maxHealth: stats.hp, attack: scaleClearingEnemy(stats).petDamage, defense: stats.def },
-        enemies: session.enemies.map(({ lastHitAt: _lastHitAt, ...enemy }) => enemy), chests,eggDrops });
+        enemies: session.enemies.map(({ lastHitAt: _lastHitAt, positionUpdatedAt: _positionUpdatedAt, ...enemy }) => enemy), chests,eggDrops });
     } catch (error: any) {
       console.error("Clearing session creation failed", { userId: user.id, code: error?.code ?? "unknown", message: error instanceof Error ? error.message : String(error) });
       return res.status(503).json({ code: "CLEARING_TEMPORARILY_UNAVAILABLE", message: "The Clearing is temporarily unavailable" });
@@ -63,8 +63,10 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
     const enemy=getClearingSession(sessionId)?.enemies.find(candidate=>candidate.instanceId===enemyInstanceId);
     if(!enemy||!playerPosition||!aimDirection||!aimPoint||!targetPosition||!worldPixels)return res.status(400).json({message:"Invalid directional combat request"});
     const result = applyClearingHit({ sessionId, instanceId: enemyInstanceId, userId: user.id, petId: pet.id, petDamage, enemyPosition:targetPosition,maxRangePixels:style==="staff_orb"?250:undefined,attackActionId,attackGeometry:{style,playerPosition,aimDirection,aimPoint,enemyPosition:targetPosition,enemyRadiusPixels:enemy.isBoss?25:19,worldPixels} });
+    if(process.env.NODE_ENV!=="production"&&result.diagnostic)console.debug("Clearing attack geometry rejection",result.diagnostic);
     if (result.status === "invalid") return res.status(409).json({code:"CLEARING_SESSION_EXPIRED", message: "Combat session expired" });
     if (result.status === "range") return res.status(409).json({code:"CLEARING_TARGET_TOO_FAR", message: "Target is out of range" });
+    if (result.status === "desync") return res.status(409).json({code:"CLEARING_ENEMY_POSITION_DESYNC", message: "Enemy position could not be synchronized" });
     if (result.status === "direction") return res.status(409).json({code:"CLEARING_INVALID_POSITION", message: "Attack position or direction was rejected" });
     if (result.status === "target_locked") return res.status(409).json({ code:"CLEARING_TARGET_LOCKED",message: "Combat is locked to another target" });
     if (result.status === "defeated") return res.status(409).json({ message: "Enemy already defeated" });
@@ -99,10 +101,12 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
   app.post("/api/explore/elysian-clearing/eggs/:dropId/collect",isAuthenticated,async(req,res)=>{const session=getClearingSession(String(req.body?.sessionId||""));if(!session||session.userId!==(req.user as any).id)return res.status(409).json({message:"Clearing session expired"});try{return res.json(await collectSpecialEggDrop(db,{userId:session.userId,sessionId:session.id,dropId:req.params.dropId as string,playerX:session.position.x,playerY:session.position.y}));}catch(error){return res.status(409).json({message:error instanceof Error?error.message:"Unable to collect egg"})}});
 
   app.post("/api/explore/elysian-clearing/position",isAuthenticated,(req,res)=>{
-    const {sessionId,x,y}=req.body??{};
+    const {sessionId,x,y,enemyPositions,worldPixels}=req.body??{};
     if(typeof sessionId!=="string"||typeof x!=="number"||typeof y!=="number")return res.status(400).json({message:"Invalid Clearing position"});
     const accepted=updateClearingPosition({sessionId,userId:(req.user as any).id,x,y});
-    return accepted?res.json(accepted):res.status(409).json({message:"Clearing position was rejected"});
+    if(!accepted)return res.status(409).json({message:"Clearing position was rejected"});
+    if(enemyPositions!==undefined&&!updateClearingEnemyPositions({sessionId,userId:(req.user as any).id,positions:enemyPositions,worldPixels}))return res.status(409).json({code:"CLEARING_ENEMY_POSITION_DESYNC",message:"Enemy position update was rejected"});
+    return res.json(accepted);
   });
 
   app.delete("/api/explore/elysian-clearing/session/:sessionId", isAuthenticated, (req, res) => {
