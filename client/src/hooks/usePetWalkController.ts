@@ -33,6 +33,7 @@ export interface PetWalkController {
   /** Current pet position as fractions of the scene container. */
   petPos: PetWalkPos;
   facingLeft: boolean;
+  aimDirection: { dx: number; dy: number };
   isMoving: boolean;
   isJoystickActive: boolean;
   /** Pixel offset of joystick thumb from its base centre (for rendering). */
@@ -47,6 +48,7 @@ export interface PetWalkController {
 }
 
 const MAX_JOY_RADIUS = 38; // px — max thumb displacement from base centre
+export function persistentAimDirection(current:{dx:number;dy:number},dx:number,dy:number){const length=Math.hypot(dx,dy);return length<.001?current:{dx:dx/length,dy:dy/length};}
 
 function clamp(pos: PetWalkPos, b: WalkableBounds): PetWalkPos {
   return {
@@ -58,6 +60,7 @@ function clamp(pos: PetWalkPos, b: WalkableBounds): PetWalkPos {
 export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = true }: Options): PetWalkController {
   const [petPos, setPetPos]             = useState<PetWalkPos>(() => clamp(spawn, bounds));
   const [facingLeft, setFacingLeft]     = useState(false);
+  const [aimDirection, setAimDirection] = useState({ dx: 1, dy: 0 });
   const [isMoving, setIsMoving]         = useState(false);
   const [isJoystickActive, setIsJoystickActive] = useState(false);
   const [joystickOffset, setJoystickOffset] = useState({ x: 0, y: 0 });
@@ -65,6 +68,8 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
   // Mutable refs — updated every frame without triggering re-renders
   const posRef          = useRef<PetWalkPos>(clamp(spawn, bounds));
   const dirRef          = useRef({ dx: 0, dy: 0 });
+  const aimRef          = useRef({ dx: 1, dy: 0 });
+  const updateAim = useCallback((dx:number,dy:number) => { const next=persistentAimDirection(aimRef.current,dx,dy); if(Math.hypot(next.dx-aimRef.current.dx,next.dy-aimRef.current.dy)>.002){aimRef.current=next;setAimDirection(next);}}, []);
   const joyActiveRef    = useRef(false);
   const joyOriginRef    = useRef({ x: 0, y: 0 });
   const targetRef       = useRef<PetWalkPos | null>(null);
@@ -157,6 +162,7 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
       let moved = false;
 
       if (usingInput) {
+        updateAim(dx, dy);
         nx += dx * speed * dt;
         ny += dy * speed * dt;
         moved = true;
@@ -168,6 +174,7 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
         const tdy = targetRef.current.y - ny;
         const dist = Math.sqrt(tdx * tdx + tdy * tdy);
         if (dist > 0.006) {
+          updateAim(tdx, tdy);
           const s = speed * dt / dist;
           nx += tdx * s;
           ny += tdy * s;
@@ -196,7 +203,7 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax, speed]);
+  }, [bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax, speed, updateAim]);
 
   // ── Joystick handlers ─────────────────────────────────────────────────────
   const stopMovement = useCallback(() => {
@@ -254,6 +261,7 @@ export function usePetWalkController({ bounds, spawn, speed = 0.28, enabled = tr
   return {
     petPos,
     facingLeft,
+    aimDirection,
     isMoving,
     isJoystickActive,
     joystickOffset,

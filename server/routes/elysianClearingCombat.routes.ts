@@ -52,7 +52,7 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
 
   app.post("/api/explore/elysian-clearing/attack", isAuthenticated, async (req, res) => {
     const user = req.user as any;
-    const { sessionId, enemyInstanceId, targetPosition, isSpecial } = req.body ?? {};
+    const { sessionId, enemyInstanceId, playerPosition, aimDirection, aimPoint, targetPosition, worldPixels, isSpecial } = req.body ?? {};
     if (typeof sessionId !== "string" || typeof enemyInstanceId !== "string") return res.status(400).json({ message: "Invalid combat request" });
     const inventory = await storage.getUserInventory(user.id);
     const pet = inventory.find((item: any) => item.id === user.activePetId && item.isHatched);
@@ -60,10 +60,13 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
     const loadout=await getClearingLoadout(db,user.id),style=resolveClearingAttackStyle(loadout.weapon?{attackStyle:loadout.weapon.attackStyle,name:loadout.weapon.name}:undefined);
     const specialKind=resolveClearingSpecialKind(pet),sessionDamage=getClearingSession(sessionId)?.effectiveStats.atk;
     const petDamage=isSpecial===true&&specialKind==="damage"&&sessionDamage?clearingSpecialDamage(sessionDamage):undefined;
-    const result = applyClearingHit({ sessionId, instanceId: enemyInstanceId, userId: user.id, petId: pet.id, petDamage, enemyPosition:targetPosition,maxRangePixels:style==="staff_orb"?270:145 });
+    const enemy=getClearingSession(sessionId)?.enemies.find(candidate=>candidate.instanceId===enemyInstanceId);
+    if(!enemy||!playerPosition||!aimDirection||!aimPoint||!targetPosition||!worldPixels)return res.status(400).json({message:"Invalid directional combat request"});
+    const result = applyClearingHit({ sessionId, instanceId: enemyInstanceId, userId: user.id, petId: pet.id, petDamage, enemyPosition:targetPosition,maxRangePixels:style==="staff_orb"?270:145,attackGeometry:{style,playerPosition,aimDirection,aimPoint,enemyPosition:targetPosition,enemyRadiusPixels:enemy.isBoss?25:19,worldPixels} });
     if (result.status === "invalid") return res.status(409).json({ message: "Combat session expired" });
     if (result.status === "cooldown") return res.status(429).json({ message: "Attack is cooling down" });
     if (result.status === "range") return res.status(409).json({ message: "Target is out of range" });
+    if (result.status === "direction") return res.status(409).json({ message: "Target is outside the attack direction" });
     if (result.status === "defeated") return res.status(409).json({ message: "Enemy already defeated" });
     if (result.status === "hit") return res.json({ defeated: false, health: result.enemy.health, maxHealth: result.enemy.maxHealth, damage:result.damage });
 

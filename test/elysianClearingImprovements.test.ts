@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
-import { cameraTarget, circleHitsCapsule, clearingWorldSize, closestClearingAttackTarget, insetMovementBounds, meleeArcHit } from "../client/src/lib/elysianClearingCombatMath";
+import { cameraTarget, circleHitsCapsule, clearingWorldSize, insetMovementBounds, meleeArcHit } from "../client/src/lib/elysianClearingCombatMath";
 import { enemyFlipScale, nextEnemyFacing, resolveClearingAttackStyle, rollTierRarity } from "../shared/clearingCombat";
 import { BASIC_SWORD_ID, chooseClearingStarterWeapon } from "../server/clearingEquipment";
 import { auditClearingEquipment, clearingEquipmentPower } from "../server/clearingEquipmentBalance";
@@ -22,32 +22,13 @@ test("starter selection preserves an equipped weapon and deterministically equip
   assert.deepEqual(chooseClearingStarterWeapon({equippedId:"newer",ownedWeapons:owned}),{grant:false,equipId:null});
 });
 
-test("attack targeting always prefers the closest valid live candidate",()=>{const candidates=[{enemy:"far-facing",distance:110,facingDot:1},{enemy:"closest",distance:55,facingDot:.4},{enemy:"outside",distance:126,facingDot:1},{enemy:"behind",distance:20,facingDot:-1}];assert.equal(closestClearingAttackTarget(candidates,125,.15),"closest");assert.equal(closestClearingAttackTarget([{enemy:"less-aligned",distance:50,facingDot:.3},{enemy:"aligned",distance:50,facingDot:.9}],125,.15),"aligned");});
-
-test("center-based targeting ignores dead entries and chooses the nearest in-range hitbox",async()=>{
-  const {nearestValidClearingTarget,directionToClearingTarget}=await import("../client/src/lib/elysianClearingCombatMath");
-  const world={width:400,height:800},origin={x:.5,y:.5};
-  const candidates=[
-    {enemy:"dead-near",active:true,health:0,center:{x:.51,y:.5},collisionRadius:10},
-    {enemy:"far",active:true,health:10,center:{x:.7,y:.5},collisionRadius:10},
-    {enemy:"near",active:true,health:10,center:{x:.6,y:.5},collisionRadius:10},
-    {enemy:"inactive",active:false,health:10,center:{x:.52,y:.5},collisionRadius:10},
-  ];
-  assert.equal(nearestValidClearingTarget(origin,candidates,125,world),"near");
-  assert.equal(directionToClearingTarget(origin,{x:.6,y:.6},world).angleRadians,Math.atan2(80,40));
+test("directional pointer uses pixel geometry in every direction",async()=>{
+  const {pointInDirection}=await import("../client/src/lib/elysianClearingCombatMath");const o={x:.5,y:.5},w={width:400,height:800};
+  assert.ok(Math.abs(pointInDirection(o,{dx:1,dy:0},72,w)!.x-.68)<1e-12);assert.ok(Math.abs(pointInDirection(o,{dx:-1,dy:0},72,w)!.x-.32)<1e-12);
+  assert.deepEqual(pointInDirection(o,{dx:0,dy:1},72,w),{x:.5,y:.59});assert.deepEqual(pointInDirection(o,{dx:0,dy:-1},72,w),{x:.5,y:.41000000000000003});
+  const diagonal=pointInDirection(o,{dx:1,dy:1},72,w)!;assert.ok(Math.abs(Math.hypot((diagonal.x-o.x)*400,(diagonal.y-o.y)*800)-72)<1e-9);
 });
-
-test("Clearing attacks can acquire the nearest enemy on either side of the pet",async()=>{
-  const {nearestValidClearingTarget,directionToClearingTarget}=await import("../client/src/lib/elysianClearingCombatMath");
-  const world={width:400,height:800},origin={x:.5,y:.5};
-  const candidates=[
-    {enemy:"right",active:true,health:10,center:{x:.7,y:.5},collisionRadius:10},
-    {enemy:"left",active:true,health:10,center:{x:.4,y:.5},collisionRadius:10},
-  ];
-  const target=nearestValidClearingTarget(origin,candidates,125,world);
-  assert.equal(target,"left");
-  assert.ok(directionToClearingTarget(origin,candidates[1].center,world).dx<0);
-  const combatSource=fs.readFileSync(new URL("../client/src/components/ElysianClearingCombat.tsx",import.meta.url),"utf8");
-  assert.doesNotMatch(combatSource,/active:isAhead/);
-  assert.match(combatSource,/setAttackFacingLeft\(direction\.dx<0\)/);
-});
+test("persistent aim keeps the last non-zero direction",async()=>{const {persistentAimDirection}=await import("../client/src/hooks/usePetWalkController");const up=persistentAimDirection({dx:1,dy:0},0,-2);assert.deepEqual(up,{dx:0,dy:-1});assert.equal(persistentAimDirection(up,0,0),up);});
+test("melee selects only pointer overlap and closest overlap",async()=>{const {selectEnemyUnderAimPointer}=await import("../client/src/lib/elysianClearingCombatMath");const w={width:400,height:800},pointer={x:.68,y:.5};const c=[{enemy:"behind",active:true,health:1,center:{x:.49,y:.5},collisionRadius:10},{enemy:"front-far",active:true,health:1,center:{x:.7,y:.5},collisionRadius:10},{enemy:"front-near",active:true,health:1,center:{x:.675,y:.5},collisionRadius:10}];assert.equal(selectEnemyUnderAimPointer(pointer,c,13,w),"front-near");assert.equal(selectEnemyUnderAimPointer(pointer,[{...c[0],center:{x:.5,y:.5}}],13,w),undefined);});
+test("melee ignores every inactive lifecycle and malformed geometry",async()=>{const {selectEnemyUnderAimPointer,pointInDirection}=await import("../client/src/lib/elysianClearingCombatMath");const states=["dead","spawning","defeated","respawning"].map(enemy=>({enemy,active:false,health:enemy==="dead"?0:1,center:{x:.68,y:.5},collisionRadius:10}));assert.equal(selectEnemyUnderAimPointer({x:.68,y:.5},states,13,{width:400,height:800}),undefined);assert.equal(pointInDirection({x:NaN,y:0},{dx:1,dy:0},72,{width:400,height:800}),null);});
+test("staff selects first along capsule and ignores a closer side enemy",async()=>{const {selectFirstEnemyAlongAimCapsule}=await import("../client/src/lib/elysianClearingCombatMath");const candidates=[{enemy:"side",active:true,health:1,center:{x:.52,y:.55},collisionRadius:5},{enemy:"second",active:true,health:1,center:{x:.85,y:.5},collisionRadius:5},{enemy:"first",active:true,health:1,center:{x:.7,y:.5},collisionRadius:5}];assert.equal(selectFirstEnemyAlongAimCapsule({x:.5,y:.5},{dx:1,dy:0},candidates,250,14,{width:400,height:800}),"first");});

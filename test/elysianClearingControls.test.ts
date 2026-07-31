@@ -65,3 +65,12 @@ test("the camera has one transformed world layer and a separate fixed HUD", () =
   assert.match(sceneSource, /translate3d/);
   assert.match(sceneSource, /data-testid="walkaround-hud-layer"/);
 });
+
+test("Clearing aim pointer is world-space and cannot intercept controls", () => {
+  const combatSource=readFileSync("client/src/components/ElysianClearingCombat.tsx","utf8");
+  assert.match(controllerSource,/aimDirection/);assert.match(controllerSource,/persistentAimDirection/);
+  assert.match(sceneSource,/aimDirection=\{aimDirection\}/);
+  assert.match(combatSource,/data-testid="clearing-aim-pointer"/);assert.match(combatSource,/clearing-aim-pointer"[^>]*aria-hidden[^>]*pointer-events-none/);
+  assert.match(combatSource,/selectEnemyUnderAimPointer/);assert.match(combatSource,/selectFirstEnemyAlongAimCapsule/);
+  assert.match(combatSource,/data-testid="button-clearing-attack"[\s\S]*pointer-events-auto/);
+});

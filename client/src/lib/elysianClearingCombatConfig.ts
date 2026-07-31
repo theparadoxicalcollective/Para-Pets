@@ -1,4 +1,5 @@
 import placeholderEnemyUrl from "@assets/generated_images/enemy_bayou_wraith.png";
+import { CLEARING_AIM_GEOMETRY } from "@shared/clearingCombatGeometry";
 
 export const ELYSIAN_CLEARING_COMBAT_CONFIG = {
   enemyName: "Bayou Wraith",
@@ -27,8 +28,10 @@ export const ELYSIAN_CLEARING_COMBAT_CONFIG = {
   respawnProtectionMs: 1600,
   respawnDelayMs: { min: 8000, max: 14000 },
   roamPauseMs: { min: 900, max: 2400 },
-  petAttackRangePixels: 125,
-  petAttackArcDot: 0.15,
+  aimPointerDistancePixels: CLEARING_AIM_GEOMETRY.aimPointerDistancePixels,
+  aimPointerSizePixels: CLEARING_AIM_GEOMETRY.aimPointerSizePixels,
+  aimPointerHitRadiusPixels: CLEARING_AIM_GEOMETRY.aimPointerHitRadiusPixels,
+  staffCapsuleRadiusPixels: CLEARING_AIM_GEOMETRY.staffCapsuleRadiusPixels,
   petAttackCooldownMs: 550,
   pickupRadiusPixels: 76,
   normalEnemyVisibleHeight: 38,
