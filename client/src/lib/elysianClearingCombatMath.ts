@@ -1,6 +1,6 @@
 import type { PetWalkPos } from "@/hooks/usePetWalkController";
 import type { WalkableBounds } from "@/lib/exploreLocations";
-import { clearingDistanceToRay, clearingPointInDirection, normalizeClearingDirection, type ClearingDirection } from "@shared/clearingCombatGeometry";
+import { CLEARING_AIM_GEOMETRY, clearingDistanceToRay, clearingHitboxEdgeDistance, clearingPointInDirection, normalizeClearingDirection, type ClearingDirection } from "@shared/clearingCombatGeometry";
 
 export type WorldPixels = { width: number; height: number };
 export const normalizeDirection=normalizeClearingDirection;
@@ -13,9 +13,23 @@ export type ClearingTargetCandidate<T> = {
   center: PetWalkPos;
   collisionRadius: number;
 };
+export type ClearingTargetQualification<T> = { enemy:T; centerDistance:number; edgeDistance:number; direction:ClearingDirection; alignment:number; directlyInStrikeRange:boolean; onlyWithinAssistRange:boolean };
+export const authoritativePetGroundPosition=(position:PetWalkPos)=>({x:position.x,y:position.y});
+export const authoritativeEnemyGroundPosition=<T extends PetWalkPos>(enemy:T)=>({x:enemy.x,y:enemy.y});
+export const visualPetWeaponOrigin=(position:PetWalkPos,petSize:number,world:WorldPixels)=>({x:position.x,y:position.y-petSize*.45/world.height});
+export const visualEnemyAimPoint=(position:PetWalkPos,visibleHeight:number,world:WorldPixels)=>({x:position.x,y:position.y-visibleHeight*.45/world.height});
+export const hitboxEdgeDistance=clearingHitboxEdgeDistance;
 export function selectEnemyUnderAimPointer<T>(pointer:PetWalkPos,candidates:ClearingTargetCandidate<T>[],pointerRadius:number,world:WorldPixels):T|undefined{return candidates.filter(c=>c.active&&c.health>0&&Number.isFinite(c.collisionRadius)).map(candidate=>({candidate,distance:pixelDistance(pointer,candidate.center,world)})).filter(({candidate,distance})=>Number.isFinite(distance)&&distance<=pointerRadius+Math.max(0,candidate.collisionRadius)).sort((a,b)=>a.distance-b.distance)[0]?.candidate.enemy;}
 export function selectFirstEnemyAlongAimCapsule<T>(origin:PetWalkPos,direction:ClearingDirection,candidates:ClearingTargetCandidate<T>[],range:number,capsuleRadius:number,world:WorldPixels):T|undefined{return candidates.filter(c=>c.active&&c.health>0).map(candidate=>({candidate,ray:clearingDistanceToRay(origin,direction,candidate.center,range,world)})).filter(({candidate,ray})=>ray&&ray.along>=0&&ray.along<=range&&ray.distance<=capsuleRadius+Math.max(0,candidate.collisionRadius)).sort((a,b)=>(a.ray?.along??Infinity)-(b.ray?.along??Infinity))[0]?.candidate.enemy;}
 export function selectMeleeAimAssistTarget<T>(origin:PetWalkPos,direction:ClearingDirection,candidates:ClearingTargetCandidate<T>[],world:WorldPixels,assistRadius=190,preferredConeDegrees=120,fallbackRadius=155):T|undefined{const n=normalizeDirection(direction);if(!n)return undefined;const scored=candidates.filter(c=>c.active&&c.health>0).map(candidate=>{const delta=pixelDelta(origin,candidate.center,world),centerDistance=Math.hypot(delta.dx,delta.dy),edgeDistance=Math.max(0,centerDistance-Math.max(0,candidate.collisionRadius)),alignment=centerDistance?((delta.dx*n.dx+delta.dy*n.dy)/centerDistance):1;return{candidate,edgeDistance,alignment};}).filter(x=>x.edgeDistance<=assistRadius);const preferred=scored.filter(x=>x.alignment>=Math.cos(preferredConeDegrees*Math.PI/360)).sort((a,b)=>(b.alignment-a.alignment)*80+(a.edgeDistance-b.edgeDistance));return (preferred[0]??scored.filter(x=>x.edgeDistance<=fallbackRadius).sort((a,b)=>a.edgeDistance-b.edgeDistance)[0])?.candidate.enemy;}
+
+export function resolveMeleeTarget<T extends {instanceId:string}>(origin:PetWalkPos,direction:ClearingDirection,candidates:ClearingTargetCandidate<T>[],world:WorldPixels,lockedInstanceId:string|null=null):ClearingTargetQualification<T>|undefined {
+  const aim=normalizeDirection(direction)??{dx:1,dy:0};
+  const scored=candidates.filter(candidate=>candidate.active&&candidate.health>0).map(candidate=>{const delta=pixelDelta(origin,candidate.center,world),centerDistance=Math.hypot(delta.dx,delta.dy),edgeDistance=Math.max(0,centerDistance-Math.max(0,candidate.collisionRadius)),targetDirection=normalizeDirection(delta)??aim,alignment=centerDistance?(delta.dx*aim.dx+delta.dy*aim.dy)/centerDistance:1;return{enemy:candidate.enemy,centerDistance,edgeDistance,direction:targetDirection,alignment,directlyInStrikeRange:edgeDistance<=CLEARING_AIM_GEOMETRY.meleeAttackRangePixels+(candidate.enemy.instanceId===lockedInstanceId?CLEARING_AIM_GEOMETRY.meleeLockHysteresisPixels:0),onlyWithinAssistRange:edgeDistance>CLEARING_AIM_GEOMETRY.meleeAttackRangePixels};}).filter(result=>result.edgeDistance<=(result.enemy.instanceId===lockedInstanceId?CLEARING_AIM_GEOMETRY.meleeDisengageRangePixels:CLEARING_AIM_GEOMETRY.meleeTargetAssistRadiusPixels));
+  const locked=lockedInstanceId?scored.find(result=>result.enemy.instanceId===lockedInstanceId):undefined;if(locked)return locked;
+  const cone=Math.cos(CLEARING_AIM_GEOMETRY.meleePreferredConeDegrees*Math.PI/360),compare=(a:ClearingTargetQualification<T>,b:ClearingTargetQualification<T>)=>Number(b.directlyInStrikeRange)-Number(a.directlyInStrikeRange)||b.alignment-a.alignment||a.edgeDistance-b.edgeDistance||a.enemy.instanceId.localeCompare(b.enemy.instanceId);
+  return scored.filter(result=>result.alignment>=cone).sort(compare)[0]??scored.filter(result=>result.edgeDistance<=CLEARING_AIM_GEOMETRY.meleeFallbackRadiusPixels).sort((a,b)=>Number(b.directlyInStrikeRange)-Number(a.directlyInStrikeRange)||a.edgeDistance-b.edgeDistance||a.enemy.instanceId.localeCompare(b.enemy.instanceId))[0];
+}
 
 export function directionToClearingTarget(origin: PetWalkPos, target: PetWalkPos, world: WorldPixels) {
   const { dx, dy } = pixelDelta(origin, target, world);

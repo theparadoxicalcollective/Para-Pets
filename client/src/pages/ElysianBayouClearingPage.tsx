@@ -33,6 +33,7 @@ const CLEARING_CONFIG: WalkAroundLocationConfig = {
   route:         "/explore/elysian-bayou-clearing",
   backgroundUrl,
   sceneType:     "walk-around",
+  showSceneTitle: false,
 
   walkableBounds: {
     xMin: 0.08,

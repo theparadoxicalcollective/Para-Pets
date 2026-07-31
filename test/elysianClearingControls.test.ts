@@ -66,6 +66,16 @@ test("the camera has one transformed world layer and a separate fixed HUD", () =
   assert.match(sceneSource, /data-testid="walkaround-hud-layer"/);
 });
 
+test("only the Clearing hides its scene title and its currency row stays safe-area aware",()=>{
+  const combatSource=readFileSync("client/src/components/ElysianClearingCombat.tsx","utf8");
+  assert.match(pageSource,/showSceneTitle: false/);
+  assert.match(sceneSource,/config\.showSceneTitle!==false/);
+  assert.match(sceneSource,/data-testid="walkaround-scene-title"/);
+  assert.match(combatSource,/--clearing-hud-top-row/);
+  assert.match(combatSource,/env\(safe-area-inset-top/);
+  assert.doesNotMatch(combatSource,/safe-area-inset-top, 0px\) \+ 58px/);
+});
+
 test("Clearing equipped weapon pointer is world-space and cannot intercept controls", () => {
   const combatSource=readFileSync("client/src/components/ElysianClearingCombat.tsx","utf8");
   const effectSource=readFileSync("client/src/components/ClearingAttackEffect.tsx","utf8");

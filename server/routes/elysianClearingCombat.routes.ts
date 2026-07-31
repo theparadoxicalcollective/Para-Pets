@@ -62,7 +62,7 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
     const petDamage=isSpecial===true&&specialKind==="damage"&&sessionDamage?clearingSpecialDamage(sessionDamage):undefined;
     const enemy=getClearingSession(sessionId)?.enemies.find(candidate=>candidate.instanceId===enemyInstanceId);
     if(!enemy||!playerPosition||!aimDirection||!aimPoint||!targetPosition||!worldPixels)return res.status(400).json({message:"Invalid directional combat request"});
-    const result = applyClearingHit({ sessionId, instanceId: enemyInstanceId, userId: user.id, petId: pet.id, petDamage, enemyPosition:targetPosition,maxRangePixels:style==="staff_orb"?250:190,attackActionId,attackGeometry:{style,playerPosition,aimDirection,aimPoint,enemyPosition:targetPosition,enemyRadiusPixels:enemy.isBoss?25:19,worldPixels} });
+    const result = applyClearingHit({ sessionId, instanceId: enemyInstanceId, userId: user.id, petId: pet.id, petDamage, enemyPosition:targetPosition,maxRangePixels:style==="staff_orb"?250:undefined,attackActionId,attackGeometry:{style,playerPosition,aimDirection,aimPoint,enemyPosition:targetPosition,enemyRadiusPixels:enemy.isBoss?25:19,worldPixels} });
     if (result.status === "invalid") return res.status(409).json({code:"CLEARING_SESSION_EXPIRED", message: "Combat session expired" });
     if (result.status === "range") return res.status(409).json({code:"CLEARING_TARGET_TOO_FAR", message: "Target is out of range" });
     if (result.status === "direction") return res.status(409).json({code:"CLEARING_INVALID_POSITION", message: "Attack position or direction was rejected" });
