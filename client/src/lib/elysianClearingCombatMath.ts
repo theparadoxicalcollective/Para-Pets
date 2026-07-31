@@ -15,6 +15,7 @@ export type ClearingTargetCandidate<T> = {
 };
 export function selectEnemyUnderAimPointer<T>(pointer:PetWalkPos,candidates:ClearingTargetCandidate<T>[],pointerRadius:number,world:WorldPixels):T|undefined{return candidates.filter(c=>c.active&&c.health>0&&Number.isFinite(c.collisionRadius)).map(candidate=>({candidate,distance:pixelDistance(pointer,candidate.center,world)})).filter(({candidate,distance})=>Number.isFinite(distance)&&distance<=pointerRadius+Math.max(0,candidate.collisionRadius)).sort((a,b)=>a.distance-b.distance)[0]?.candidate.enemy;}
 export function selectFirstEnemyAlongAimCapsule<T>(origin:PetWalkPos,direction:ClearingDirection,candidates:ClearingTargetCandidate<T>[],range:number,capsuleRadius:number,world:WorldPixels):T|undefined{return candidates.filter(c=>c.active&&c.health>0).map(candidate=>({candidate,ray:clearingDistanceToRay(origin,direction,candidate.center,range,world)})).filter(({candidate,ray})=>ray&&ray.along>=0&&ray.along<=range&&ray.distance<=capsuleRadius+Math.max(0,candidate.collisionRadius)).sort((a,b)=>(a.ray?.along??Infinity)-(b.ray?.along??Infinity))[0]?.candidate.enemy;}
+export function selectMeleeAimAssistTarget<T>(origin:PetWalkPos,direction:ClearingDirection,candidates:ClearingTargetCandidate<T>[],world:WorldPixels,assistRadius=190,preferredConeDegrees=120,fallbackRadius=155):T|undefined{const n=normalizeDirection(direction);if(!n)return undefined;const scored=candidates.filter(c=>c.active&&c.health>0).map(candidate=>{const delta=pixelDelta(origin,candidate.center,world),centerDistance=Math.hypot(delta.dx,delta.dy),edgeDistance=Math.max(0,centerDistance-Math.max(0,candidate.collisionRadius)),alignment=centerDistance?((delta.dx*n.dx+delta.dy*n.dy)/centerDistance):1;return{candidate,edgeDistance,alignment};}).filter(x=>x.edgeDistance<=assistRadius);const preferred=scored.filter(x=>x.alignment>=Math.cos(preferredConeDegrees*Math.PI/360)).sort((a,b)=>(b.alignment-a.alignment)*80+(a.edgeDistance-b.edgeDistance));return (preferred[0]??scored.filter(x=>x.edgeDistance<=fallbackRadius).sort((a,b)=>a.edgeDistance-b.edgeDistance)[0])?.candidate.enemy;}
 
 export function directionToClearingTarget(origin: PetWalkPos, target: PetWalkPos, world: WorldPixels) {
   const { dx, dy } = pixelDelta(origin, target, world);
@@ -25,14 +26,15 @@ export function resolveLockedClearingTarget<T extends {instanceId:string}>(locke
   return acquire();
 }
 
-export function weaponPointerPosition(origin:PetWalkPos,direction:ClearingDirection,world:WorldPixels,visiblePetRadius:number,weaponSize:number,gap:number) {
-  return pointInDirection(origin,direction,Math.max(0,visiblePetRadius)+Math.max(0,weaponSize)/2+Math.max(0,gap),world);
+export function weaponPointerPosition(origin:PetWalkPos,direction:ClearingDirection,world:WorldPixels,distancePixels:number) {
+  return pointInDirection(origin,direction,Math.max(0,distancePixels),world);
 }
 
 export function weaponPointerRotation(direction:ClearingDirection,artOffsetDegrees:number) {
   const normalized=normalizeDirection(direction);
   return normalized ? Math.atan2(normalized.dy,normalized.dx)+artOffsetDegrees*Math.PI/180 : artOffsetDegrees*Math.PI/180;
 }
+export function weaponArtOffsetForStyle(style:"sword_slash"|"staff_orb"|"default_melee"){return style==="staff_orb"?0:45;}
 export type Circle = { x: number; y: number; radius: number };
 export type Capsule = { from: PetWalkPos; to: PetWalkPos; radius: number };
 

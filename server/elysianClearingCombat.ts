@@ -10,7 +10,6 @@ export const ELYSIAN_CLEARING_COMBAT = {
   maxEnemyPopulation: 10,
   enemyCount: 10,
   expReward: 5,
-  attackCooldownMs: 500,
   sessionLifetimeMs: 30 * 60_000,
 } as const;
 
@@ -29,7 +28,8 @@ export interface ClearingEnemyRecord {
   templateId?: string; name?: string; imageUrl?: string | null;
   specialPetShopItemId?:string; specialRarity?:number;
 }
-export interface ClearingSession { id: string; userId: string; petId: string; expiresAt: number; effectiveStats: { hp: number; atk: number; def: number }; enemies: ClearingEnemyRecord[]; position:{x:number;y:number;updatedAt:number}; lockedTargetInstanceId:string|null }
+export interface ClearingSession { id: string; userId: string; petId: string; expiresAt: number; effectiveStats: { hp: number; atk: number; def: number }; enemies: ClearingEnemyRecord[]; position:{x:number;y:number;updatedAt:number}; lockedTargetInstanceId:string|null; processedAttacks:Map<string,ClearingHitResult> }
+type ClearingHitResult={status:"invalid"|"target_locked"|"defeated"|"direction"|"range"|"hit"|"killed";enemy?:ClearingEnemyRecord;damage?:number;lockedTargetInstanceId?:string|null};
 
 type ClearingEnemyTemplate = {enemy_id:string;is_boss:boolean;name:string;image_url:string|null};
 
@@ -68,7 +68,7 @@ export function createClearingSession(userId: string, petId: string, stats: Clea
   const session: ClearingSession = {
     id: crypto.randomUUID(), userId, petId, expiresAt: now + ELYSIAN_CLEARING_COMBAT.sessionLifetimeMs,
     effectiveStats: { hp: stats.hp, atk: stats.atk, def: stats.def ?? 0 },
-    position:{x:.5,y:.7,updatedAt:now}, lockedTargetInstanceId:null, enemies: encounterTemplates.map((template,slot) => {const isBoss=Boolean(template?.is_boss),maxHealth=Math.round(scaled.maxHealth*(isBoss?CLEARING_BALANCE.bossHealthMultiplier:1)),spawn=encounterPositions[slot];return{
+    position:{x:.5,y:.7,updatedAt:now}, lockedTargetInstanceId:null,processedAttacks:new Map(), enemies: encounterTemplates.map((template,slot) => {const isBoss=Boolean(template?.is_boss),maxHealth=Math.round(scaled.maxHealth*(isBoss?CLEARING_BALANCE.bossHealthMultiplier:1)),spawn=encounterPositions[slot];return{
       instanceId: crypto.randomUUID(), slot, maxHealth, health:maxHealth,
       attack:Math.round(scaled.attack*(isBoss?CLEARING_BALANCE.bossDamageMultiplier:1)),isBoss,engagedByPlayer:false,templateId:template?.enemy_id,name:slot===encounterTemplates.length-1&&special?special.name:template?.name,imageUrl:slot===encounterTemplates.length-1&&special?(special.hatched_image_url||special.image_url):template?.image_url,specialPetShopItemId:slot===encounterTemplates.length-1?special?.pet_shop_item_id:undefined,specialRarity:slot===encounterTemplates.length-1?Number(special?.rarity||1):undefined, defeated: false, lastHitAt: 0, x:spawn?.x??.5, y:spawn?.y??.6,
     }}),
@@ -87,6 +87,8 @@ export function updateClearingPosition(input:{sessionId:string;userId:string;x:n
   session.position={x:input.x,y:input.y,updatedAt:now};return session.position;
 }
 
+export function validateAndUpdateClearingCombatPosition(input:{session:ClearingSession;playerPosition:ClearingPoint;worldPixels:{width:number;height:number};now?:number}){const now=input.now??Date.now(),{session,playerPosition,worldPixels}=input;if(!isFiniteClearingPoint(playerPosition)||!Number.isFinite(worldPixels.width)||!Number.isFinite(worldPixels.height)||worldPixels.width<=0||worldPixels.height<=0||playerPosition.x<.08||playerPosition.x>.92||playerPosition.y<.05||playerPosition.y>.94)return false;const elapsed=Math.max(0,(now-session.position.updatedAt)/1000),deltaX=(playerPosition.x-session.position.x)*worldPixels.width,deltaY=(playerPosition.y-session.position.y)*worldPixels.height,maxDistance=CLEARING_AIM_GEOMETRY.playerMovementSpeedPixelsPerSecond*elapsed+CLEARING_AIM_GEOMETRY.positionJitterAllowancePixels;if(Math.hypot(deltaX,deltaY)>maxDistance)return false;session.position={...playerPosition,updatedAt:now};return true;}
+
 export function validateClearingAttackGeometry(input:{style:ClearingAttackStyle;playerPosition:ClearingPoint;aimDirection:ClearingDirection;aimPoint:ClearingPoint;enemyPosition:ClearingPoint;enemyRadiusPixels?:number;worldPixels:{width:number;height:number}}){
   const {worldPixels}=input,n=normalizeClearingDirection(input.aimDirection);
   if(!n||!isFiniteClearingPoint(input.playerPosition)||!isFiniteClearingPoint(input.aimPoint)||!isFiniteClearingPoint(input.enemyPosition)||!Number.isFinite(worldPixels?.width)||!Number.isFinite(worldPixels?.height)||worldPixels.width<=0||worldPixels.height<=0)return false;
@@ -94,23 +96,25 @@ export function validateClearingAttackGeometry(input:{style:ClearingAttackStyle;
   const expected=clearingPointInDirection(input.playerPosition,n,acquisitionRange,worldPixels);
   if(!expected||Math.hypot((expected.x-input.aimPoint.x)*worldPixels.width,(expected.y-input.aimPoint.y)*worldPixels.height)>CLEARING_AIM_GEOMETRY.serverAimPointTolerancePixels)return false;
   const radius=Math.max(0,Number(input.enemyRadiusPixels)||0);
-  const ray=clearingDistanceToRay(input.playerPosition,n,input.enemyPosition,acquisitionRange+CLEARING_AIM_GEOMETRY.serverPositionTolerancePixels,worldPixels);
+  if(input.style!=="staff_orb"){const delta={dx:(input.enemyPosition.x-input.playerPosition.x)*worldPixels.width,dy:(input.enemyPosition.y-input.playerPosition.y)*worldPixels.height},distance=Math.hypot(delta.dx,delta.dy),edge=Math.max(0,distance-radius),alignment=distance?(delta.dx*n.dx+delta.dy*n.dy)/distance:1;return edge<=CLEARING_AIM_GEOMETRY.meleeTargetAssistRadiusPixels&&alignment>=Math.cos(CLEARING_AIM_GEOMETRY.meleePreferredConeDegrees*Math.PI/360)||edge<=CLEARING_AIM_GEOMETRY.meleeFallbackRadiusPixels;}
+  const ray=clearingDistanceToRay(input.playerPosition,n,input.enemyPosition,acquisitionRange,worldPixels);
   const lane=input.style==="staff_orb"?CLEARING_AIM_GEOMETRY.staffCapsuleRadiusPixels:CLEARING_AIM_GEOMETRY.meleeCapsuleRadiusPixels;
-  return Boolean(ray&&ray.along>=-CLEARING_AIM_GEOMETRY.serverPositionTolerancePixels&&ray.distance<=lane+radius+CLEARING_AIM_GEOMETRY.serverPositionTolerancePixels);
+  return Boolean(ray&&ray.along>=0&&ray.distance<=lane+radius);
 }
 
-export function applyClearingHit(input: { sessionId: string; instanceId: string; userId: string; petId: string; petDamage?: number; enemyPosition?:{x:number;y:number}; maxRangePixels?:number; attackGeometry?:Parameters<typeof validateClearingAttackGeometry>[0]; now?: number }) {
+export function applyClearingHit(input: { sessionId: string; instanceId: string; userId: string; petId: string; petDamage?: number; enemyPosition?:{x:number;y:number}; maxRangePixels?:number; attackGeometry?:Parameters<typeof validateClearingAttackGeometry>[0]; attackActionId?:string; now?: number }):ClearingHitResult {
   const now = input.now ?? Date.now();
   const session = sessions.get(input.sessionId);
   if (!session || session.expiresAt <= now || session.userId !== input.userId || session.petId !== input.petId) return { status: "invalid" as const };
+  if(input.attackActionId&&session.processedAttacks.has(input.attackActionId))return session.processedAttacks.get(input.attackActionId)!;
   if(session.lockedTargetInstanceId&&session.lockedTargetInstanceId!==input.instanceId)return {status:"target_locked" as const};
   const enemy = session.enemies.find((candidate) => candidate.instanceId === input.instanceId);
   if (!enemy || enemy.defeated) return { status: "defeated" as const };
-  if (now - enemy.lastHitAt < ELYSIAN_CLEARING_COMBAT.attackCooldownMs) return { status: "cooldown" as const, enemy };
   const target=input.enemyPosition??enemy;
-  if(input.attackGeometry){const geometry=input.attackGeometry;if((!session.lockedTargetInstanceId&&!validateClearingAttackGeometry(geometry))||!normalizeClearingDirection(geometry.aimDirection)||!isFiniteClearingPoint(geometry.aimPoint)||!isFiniteClearingPoint(geometry.playerPosition)||Math.hypot((geometry.playerPosition.x-session.position.x)*geometry.worldPixels.width,(geometry.playerPosition.y-session.position.y)*geometry.worldPixels.height)>CLEARING_AIM_GEOMETRY.serverPositionTolerancePixels)return {status:"direction" as const,enemy};}
+  if(input.attackGeometry){const geometry=input.attackGeometry;if(!validateAndUpdateClearingCombatPosition({session,playerPosition:geometry.playerPosition,worldPixels:geometry.worldPixels,now})||(!session.lockedTargetInstanceId&&!validateClearingAttackGeometry(geometry))||!normalizeClearingDirection(geometry.aimDirection)||!isFiniteClearingPoint(geometry.aimPoint))return {status:"direction" as const,enemy};}
   const world=input.attackGeometry?.worldPixels??{width:CLEARING_AIM_GEOMETRY.worldWidthPixels,height:CLEARING_AIM_GEOMETRY.worldHeightPixels};
-  if(!Number.isFinite(target.x)||!Number.isFinite(target.y)||Math.hypot((target.x-enemy.x)*world.width,(target.y-enemy.y)*world.height)>CLEARING_AIM_GEOMETRY.serverEnemyPositionTolerancePixels||Math.hypot((target.x-session.position.x)*world.width,(target.y-session.position.y)*world.height)>(input.maxRangePixels??CLEARING_AIM_GEOMETRY.meleeAttackRangePixels)+CLEARING_AIM_GEOMETRY.continuationRangeTolerancePixels)return {status:"range" as const,enemy};
+  const allowedRange=session.lockedTargetInstanceId?CLEARING_AIM_GEOMETRY.lockedTargetAttackRangePixels:(input.maxRangePixels??CLEARING_AIM_GEOMETRY.meleeAttackRangePixels);
+  if(!Number.isFinite(target.x)||!Number.isFinite(target.y)||Math.hypot((target.x-enemy.x)*world.width,(target.y-enemy.y)*world.height)>CLEARING_AIM_GEOMETRY.serverEnemyPositionTolerancePixels||Math.hypot((target.x-session.position.x)*world.width,(target.y-session.position.y)*world.height)>allowedRange)return {status:"range" as const,enemy};
   // Persist the validated client simulation coordinate so rewards use the
   // enemy's exact final world position rather than its original spawn point.
   enemy.x=target.x;enemy.y=target.y;
@@ -121,7 +125,7 @@ export function applyClearingHit(input: { sessionId: string; instanceId: string;
   enemy.engagedByPlayer = enemy.health > 0;
   enemy.defeated = enemy.health === 0;
   if(enemy.defeated)session.lockedTargetInstanceId=null;
-  return { status: enemy.defeated ? "killed" as const : "hit" as const, enemy, damage:previousHealth-enemy.health };
+  const result:ClearingHitResult={ status: enemy.defeated ? "killed" : "hit", enemy, damage:previousHealth-enemy.health,lockedTargetInstanceId:session.lockedTargetInstanceId };if(input.attackActionId){session.processedAttacks.set(input.attackActionId,result);while(session.processedAttacks.size>64)session.processedAttacks.delete(session.processedAttacks.keys().next().value!);}return result;
 }
 
 export function respawnClearingEnemy(sessionId: string, instanceId: string) {

@@ -30,16 +30,16 @@ test("weapon attack phases stay separate from directional wrapper rotation and r
   assert.equal(inventoryWeaponRotation("clearing-training-sword"),45);
   assert.equal(inventoryWeaponRotation("another-weapon"),0);
   assert.equal(weaponAttackTransform("idle"), "translateX(0px) rotate(0deg)");
-  assert.equal(weaponAttackTransform("impact"), "translateX(8px) rotate(35deg)");
+  assert.equal(weaponAttackTransform("impact"), "translateX(4px) rotate(22deg)");
   assert.deepEqual(CLEARING_SWORD_TIMING, {windupMs:90,impactMs:70,recoveryMs:140,totalMs:300});
   for (let stars=1;stars<=5;stars++) assert.match(weaponRarityFilter(stars), /drop-shadow/);
 });
 
-test("a target is locked before windup and the request starts at impact", () => {
+test("a target is committed after a successful impact and queued presses are retained", () => {
   assert.match(combat, /lockedTargetInstanceIdRef/);
-  assert.match(combat, /setFeedback\(\["No target"\]\)/);
+  assert.match(combat, /data.lockedTargetInstanceId\)updateTargetLock/);
   assert.match(combat, /setAttackPhase\("impact"\)[\s\S]+fetch\("\/api\/explore\/elysian-clearing\/attack"/);
   assert.match(combat, /setAttackPhase\("recovery"\)/);
   assert.match(combat, /setAttackPhase\("idle"\)/);
-  assert.match(combat, /attackPhaseRef\.current!=="idle"/);
+  assert.match(combat, /queuedAttackRef\.current=true/);
 });
