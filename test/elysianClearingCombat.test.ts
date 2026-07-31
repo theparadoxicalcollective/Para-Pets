@@ -1,6 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ELYSIAN_CLEARING_COMBAT, applyClearingHit, createClearingSession, scaleClearingEnemy } from "../server/elysianClearingCombat";
+import { resolveClearingPetBaseStats } from "../server/routes/elysianClearingCombat.routes";
+
+test("Clearing sessions retain combat defaults when legacy pet stats are absent", () => {
+  assert.deepEqual(resolveClearingPetBaseStats({ petHealth: null, petAtk: undefined, petDef: "" }), {
+    hp: 1000,
+    atk: 50,
+    def: 50,
+  });
+  assert.deepEqual(resolveClearingPetBaseStats({ petHealth: "1200", petAtk: "75", petDef: "60" }), {
+    hp: 1200,
+    atk: 75,
+    def: 60,
+  });
+});
 
 test("clearing enemy scaling uses actual pet HP and stays proportional across pets", () => {
   const scaled = scaleClearingEnemy({ level: 1, hp: 1000, atk: 50, rarity: 1 });
