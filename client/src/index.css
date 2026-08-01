@@ -403,6 +403,163 @@
   will-change: transform;
 }
 
+/* Pet Care inventory: the artwork and interaction row share one responsive
+   coordinate system. The frame inset keeps the first/last of six equal slots
+   centered inside the shelf's outer uprights at every viewport width. */
+.pet-care-item-shelf {
+  width: min(100%, 650px);
+  margin: 0 auto 5px;
+  color: #f3dfb0;
+  font-family: "Lora", serif;
+}
+
+.pet-care-item-shelf__heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 18px;
+  padding: 0 3.8%;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.9);
+}
+
+.pet-care-item-shelf__count {
+  color: rgba(243, 223, 176, 0.65);
+  letter-spacing: normal;
+}
+
+.pet-care-item-shelf__note {
+  margin-left: auto;
+  color: rgba(243, 223, 176, 0.5);
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: normal;
+}
+
+.pet-care-item-shelf__stage {
+  --pet-care-shelf-frame-inset: 4.4%;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 993 / 180;
+  overflow: hidden;
+}
+
+.pet-care-item-shelf__art {
+  position: absolute;
+  /* Shelf1 is already tracked with transparency, but includes a large clear
+     canvas. Crop that canvas in the presentation layer so this change does not
+     introduce a second binary copy of the same artwork. */
+  top: -362.78%;
+  left: -1.61%;
+  z-index: 0;
+  display: block;
+  width: 103.12%;
+  height: auto;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+}
+
+.pet-care-item-shelf__viewport {
+  position: absolute;
+  inset: 2% 0 0;
+  z-index: 1;
+  display: flex;
+  box-sizing: border-box;
+  height: 77%;
+  padding-inline: var(--pet-care-shelf-frame-inset);
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--pet-care-shelf-frame-inset);
+  scrollbar-width: none;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pet-care-item-shelf__viewport::-webkit-scrollbar { display: none; }
+
+.pet-care-item-shelf__item {
+  flex: 0 0 calc((100% - (2 * var(--pet-care-shelf-frame-inset))) / var(--pet-care-visible-slots));
+  min-width: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  scroll-snap-align: start;
+  touch-action: pan-x;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.pet-care-item-shelf__item-image {
+  position: relative;
+  width: min(78%, 52px);
+  aspect-ratio: 1;
+}
+
+.pet-care-item-shelf__item-image > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.75));
+}
+
+.pet-care-item-shelf__quantity,
+.pet-care-item-shelf__value {
+  position: absolute;
+  border-radius: 7px;
+  padding: 0 4px;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 13px;
+  white-space: nowrap;
+}
+
+.pet-care-item-shelf__quantity {
+  top: -2px;
+  right: -4px;
+  color: #fff3d1;
+  background: rgba(62, 39, 15, 0.96);
+  border: 1px solid rgba(232, 192, 116, 0.75);
+}
+
+.pet-care-item-shelf__value { bottom: -3px; left: 50%; transform: translateX(-50%); }
+.pet-care-item-shelf__value--edible { color: #071a02; background: rgba(120, 194, 76, 0.97); }
+.pet-care-item-shelf__value--gift { color: #fff0f7; background: rgba(210, 55, 130, 0.97); }
+
+.pet-care-item-shelf__name {
+  width: 92%;
+  margin-top: 2px;
+  overflow: hidden;
+  color: #f2e2bd;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px #000;
+  white-space: nowrap;
+}
+
+.pet-care-item-shelf__empty {
+  position: absolute;
+  z-index: 2;
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: rgba(243, 223, 176, 0.7);
+  font-size: 11px;
+  font-style: italic;
+  pointer-events: none;
+  text-shadow: 0 1px 4px #000;
+}
+
 /* Care page — petting reward coins. Spawned in a scatter around the pet,
    each one popping out with a small upward arc, then spinning continuously
    in place. Tap to "collect" — the coin then translates toward the coin
