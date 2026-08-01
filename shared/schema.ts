@@ -307,6 +307,29 @@ export const worlds = pgTable("worlds", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+/** Per-world Essence shop settings. Prices intentionally live on assignments,
+ * never on shopItems.price (which remains the coin-shop price). */
+export const clearingWorldShops = pgTable("clearing_world_shops", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  worldId: varchar("world_id").notNull().unique(),
+  enabled: boolean("enabled").notNull().default(false),
+  portalX: real("portal_x").notNull().default(.5),
+  portalY: real("portal_y").notNull().default(.55),
+  portalWidth: integer("portal_width").notNull().default(96),
+  interactionRadiusPixels: integer("interaction_radius_pixels").notNull().default(58),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const clearingWorldShopItems = pgTable("clearing_world_shop_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  worldId: varchar("world_id").notNull(),
+  shopItemId: varchar("shop_item_id").notNull(),
+  essencePrice: integer("essence_price").notNull(),
+  active: boolean("active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, table => [unique("clearing_world_shop_item_unique").on(table.worldId, table.shopItemId)]);
+
 export const worldBuildings = pgTable("world_buildings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   worldId: text("world_id").notNull(),

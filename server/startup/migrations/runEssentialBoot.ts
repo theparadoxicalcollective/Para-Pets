@@ -98,6 +98,22 @@ export async function runEssentialBoot(): Promise<void> {
       UPDATE shop_items SET clearing_active=false WHERE id='a1b2c3d4-0011-4000-8000-000000000022';
       DELETE FROM clearing_world_drops WHERE shop_item_id='a1b2c3d4-0011-4000-8000-000000000022';
     `],
+    ["Clearing world shops migration error (non-fatal):", sql`
+      CREATE TABLE IF NOT EXISTS clearing_world_shops (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(), world_id VARCHAR NOT NULL UNIQUE REFERENCES worlds(id) ON DELETE CASCADE,
+        enabled BOOLEAN NOT NULL DEFAULT false, portal_x REAL NOT NULL DEFAULT .50 CHECK(portal_x BETWEEN .08 AND .92),
+        portal_y REAL NOT NULL DEFAULT .55 CHECK(portal_y BETWEEN .05 AND .94), portal_width INTEGER NOT NULL DEFAULT 96 CHECK(portal_width BETWEEN 64 AND 160),
+        interaction_radius_pixels INTEGER NOT NULL DEFAULT 58 CHECK(interaction_radius_pixels BETWEEN 36 AND 140), updated_at TIMESTAMP NOT NULL DEFAULT now());
+      CREATE TABLE IF NOT EXISTS clearing_world_shop_items (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(), world_id VARCHAR NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+        shop_item_id VARCHAR NOT NULL REFERENCES shop_items(id) ON DELETE CASCADE, essence_price INTEGER NOT NULL CHECK(essence_price BETWEEN 1 AND 1000000),
+        active BOOLEAN NOT NULL DEFAULT true, sort_order INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMP NOT NULL DEFAULT now(), UNIQUE(world_id,shop_item_id));
+      CREATE INDEX IF NOT EXISTS clearing_world_shop_items_order_idx ON clearing_world_shop_items(world_id,active,sort_order);
+      CREATE TABLE IF NOT EXISTS clearing_shop_purchases (
+        purchase_action_id UUID PRIMARY KEY, user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        assignment_id VARCHAR NOT NULL, inventory_id VARCHAR NOT NULL REFERENCES user_inventory(id) ON DELETE RESTRICT,
+        essence_spent INTEGER NOT NULL, resulting_essence INTEGER NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT now());
+    `],
     ["Elysian Clearing Murk enemy reuse error (non-fatal):", sql`
       INSERT INTO enemies(id,name,image_url,atk,health,is_boss,archetype) VALUES
         ('elysian-murk-puddle-grub','Puddle Grub','/world-assets/generated_images/enemy_t1_puddle_grub.png',8,85,false,'slow'),
