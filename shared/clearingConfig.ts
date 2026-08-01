@@ -8,8 +8,8 @@ export function effectiveClearingRarity(configured: ClearingRarity, starRarity: 
 
 export const CLEARING_BALANCE = {
   regularExp: 5, bossExp: 20,
-  regularEnemyHealthPerPetDamage: 8,
-  maxRegularEnemyHealth: 60_000,
+  regularEnemyHealthPerPetDamage: 12,
+  maxRegularEnemyHealth: 90_000,
   specialPetMobHealthMultiplier: 1.5,
   bossHealthMultiplier: 2.5, bossDamageMultiplier: 1.25,
   // Percentage of the active pet's effective maximum HP removed per hit.
