@@ -34,9 +34,10 @@ interface WalkAroundSceneProps {
   activePet?: any;
   /** Called when the player taps the back button. */
   onBack: () => void;
+  isAdmin?: boolean;
 }
 
-export default function WalkAroundScene({ config, petTemplateId, activePet, onBack }: WalkAroundSceneProps) {
+export default function WalkAroundScene({ config, petTemplateId, activePet, onBack, isAdmin=false }: WalkAroundSceneProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const [hudElement, setHudElement] = useState<HTMLDivElement | null>(null);
@@ -156,7 +157,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
       )}
 
       {config.features.combat && petTemplateId && (
-        <ElysianClearingCombat petPos={petPos} petSize={petSize} activePet={activePet} facingLeft={facingLeft} aimDirection={aimDirection} onReturnToWorld={onBack} worldPixels={world} hudElement={hudElement} onGameplayBlockedChange={setGameplayBlocked} onEnemiesReady={() => setClearingReady(true)} />
+        <ElysianClearingCombat petPos={petPos} petSize={petSize} activePet={activePet} facingLeft={facingLeft} aimDirection={aimDirection} onReturnToWorld={onBack} worldPixels={world} hudElement={hudElement} onGameplayBlockedChange={setGameplayBlocked} onEnemiesReady={() => setClearingReady(true)} isAdmin={isAdmin} />
       )}
       </div>
 

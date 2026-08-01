@@ -46,6 +46,7 @@ import { registerHomeDecorRoutes } from "./routes/homeDecor.routes";
 import { registerElysianClearingCombatRoutes } from "./routes/elysianClearingCombat.routes";
 import { registerClearingEquipmentRoutes } from "./routes/clearingEquipment.routes";
 import { registerClearingAdminRoutes } from "./routes/clearingAdmin.routes";
+import { registerClearingShopRoutes } from "./routes/clearingShop.routes";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -813,6 +814,7 @@ export async function registerRoutes(
   seedWorldBackgrounds();
 
   registerElysianClearingCombatRoutes(app, { db, storage, isAuthenticated });
+  registerClearingShopRoutes(app, { db, isAuthenticated });
   registerClearingEquipmentRoutes(app, { db, storage, isAuthenticated });
   registerClearingAdminRoutes(app, { db, isAdmin });
 

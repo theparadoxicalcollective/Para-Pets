@@ -59,7 +59,7 @@ const CLEARING_CONFIG: WalkAroundLocationConfig = {
     enemies:      true,
     combat:       true,
     rewards:      true,
-    interactions: false,
+    interactions: true,
     // ── Future expansion slots ─────────────────────────────────────────────
     // enemySpawning:         false,
     // petAttackAnimations:   false,
@@ -75,7 +75,7 @@ const CLEARING_CONFIG: WalkAroundLocationConfig = {
 // ── Page component ────────────────────────────────────────────────────────────
 
 interface ElysianBayouClearingPageProps {
-  user: { id: string; activePetId: string | null };
+  user: { id: string; activePetId: string | null; isAdmin?: boolean };
 }
 
 export default function ElysianBayouClearingPage({ user }: ElysianBayouClearingPageProps) {
@@ -108,6 +108,7 @@ export default function ElysianBayouClearingPage({ user }: ElysianBayouClearingP
         petTemplateId={petTemplateId}
         activePet={activePet}
         onBack={handleBack}
+        isAdmin={Boolean(user.isAdmin)}
       />
     </div>
   );

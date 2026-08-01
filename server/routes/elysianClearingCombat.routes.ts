@@ -103,7 +103,7 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
   app.post("/api/explore/elysian-clearing/position",isAuthenticated,(req,res)=>{
     const {sessionId,x,y,enemyPositions,worldPixels}=req.body??{};
     if(typeof sessionId!=="string"||typeof x!=="number"||typeof y!=="number")return res.status(400).json({message:"Invalid Clearing position"});
-    const accepted=updateClearingPosition({sessionId,userId:(req.user as any).id,x,y});
+    const accepted=updateClearingPosition({sessionId,userId:(req.user as any).id,x,y,worldPixels});
     if(!accepted)return res.status(409).json({message:"Clearing position was rejected"});
     if(enemyPositions!==undefined&&!updateClearingEnemyPositions({sessionId,userId:(req.user as any).id,positions:enemyPositions,worldPixels}))return res.status(409).json({code:"CLEARING_ENEMY_POSITION_DESYNC",message:"Enemy position update was rejected"});
     return res.json(accepted);

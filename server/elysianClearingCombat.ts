@@ -29,7 +29,7 @@ export interface ClearingEnemyRecord {
   templateId?: string; name?: string; imageUrl?: string | null;
   specialPetShopItemId?:string; specialRarity?:number;
 }
-export interface ClearingSession { id: string; userId: string; petId: string; expiresAt: number; effectiveStats: { hp: number; atk: number; def: number }; enemies: ClearingEnemyRecord[]; position:{x:number;y:number;updatedAt:number}; lockedTargetInstanceId:string|null; processedAttacks:Map<string,ClearingHitResult> }
+export interface ClearingSession { id: string; userId: string; petId: string; expiresAt: number; effectiveStats: { hp: number; atk: number; def: number }; enemies: ClearingEnemyRecord[]; position:{x:number;y:number;updatedAt:number}; worldPixels?:{width:number;height:number}; lockedTargetInstanceId:string|null; processedAttacks:Map<string,ClearingHitResult> }
 type ClearingHitResult={status:"invalid"|"target_locked"|"defeated"|"direction"|"desync"|"range"|"hit"|"killed";enemy?:ClearingEnemyRecord;damage?:number;lockedTargetInstanceId?:string|null;diagnostic?:ClearingAttackDiagnostic};
 export type ClearingAttackDiagnostic={enemyInstanceId:string;playerPosition:ClearingPoint;clientTargetPosition:ClearingPoint;serverEnemyPosition:ClearingPoint;edgeDistance:number;allowedRange:number;rejectionReason:string};
 
@@ -77,13 +77,13 @@ export function createClearingSession(userId: string, petId: string, stats: Clea
 }
 
 export function getClearingSession(sessionId:string){return sessions.get(sessionId)??null;}
-export function updateClearingPosition(input:{sessionId:string;userId:string;x:number;y:number;now?:number}){
+export function updateClearingPosition(input:{sessionId:string;userId:string;x:number;y:number;worldPixels?:{width:number;height:number};now?:number}){
   const now=input.now??Date.now(),session=sessions.get(input.sessionId);
   if(!session||session.userId!==input.userId||session.expiresAt<=now)return null;
   if(!Number.isFinite(input.x)||!Number.isFinite(input.y)||input.x<.08||input.x>.92||input.y<.05||input.y>.94)return null;
   const elapsed=Math.max(.1,(now-session.position.updatedAt)/1000),distance=Math.hypot(input.x-session.position.x,input.y-session.position.y);
   if(distance>.17*elapsed+.08)return null;
-  session.position={x:input.x,y:input.y,updatedAt:now};return session.position;
+  session.position={x:input.x,y:input.y,updatedAt:now};if(input.worldPixels&&Number.isFinite(input.worldPixels.width)&&Number.isFinite(input.worldPixels.height)&&input.worldPixels.width>0&&input.worldPixels.height>0)session.worldPixels=input.worldPixels;return session.position;
 }
 
 export function updateClearingEnemyPositions(input:{sessionId:string;userId:string;positions:unknown;worldPixels:unknown;now?:number}){
