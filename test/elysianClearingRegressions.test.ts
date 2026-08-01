@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { initializeClearingEnemies } from "../client/src/lib/clearingEnemySession";
 import { scheduleClearingDeathEffectRemoval, CLEARING_DEATH_EFFECT_SAFETY_MS } from "../client/src/lib/clearingDeathEffects";
 import { clearingWeaponOrigin, CLEARING_PET_PRESENTATION } from "../client/src/lib/clearingPetPresentation";
@@ -50,6 +51,12 @@ test("weapon body anchor and upward-art forward vector work in all target direct
     assert.ok((blade.dx*direction.dx+blade.dy*direction.dy)/length>.999,"blade points at target");
     const frozen=rotation,movedTarget={x:target.x+.08,y:target.y+.04};void movedTarget;assert.equal(frozen,rotation,"active swing retains its start direction");
   }
+});
+
+test("combat renders every attack phase from the fixed body anchor instead of an aim offset",()=>{
+  const source=readFileSync("client/src/components/ElysianClearingCombat.tsx","utf8");
+  assert.match(source,/const weaponPointer=petCombatCenter;/);
+  assert.doesNotMatch(source,/const weaponPointer=weaponPointerPosition\(petCombatCenter/);
 });
 
 test("death effects are independently removed after duration under normal and reduced motion",()=>{

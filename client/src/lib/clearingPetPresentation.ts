@@ -32,8 +32,10 @@ function origin(pet: PetWalkPos, spriteSize: number, world: WorldPixels, facingL
   return { x: x + direction * safeSize * config.forwardRatio / width, y: y - safeSize * config.upRatio / height };
 }
 
-export function clearingWeaponOrigin(pet: PetWalkPos, spriteSize: number, world: WorldPixels, facingLeft: boolean) {
-  return origin(pet, spriteSize, world, facingLeft, CLEARING_PET_PRESENTATION.weaponOrigin);
+export function clearingWeaponOrigin(pet: PetWalkPos, spriteSize: number, world: WorldPixels, _facingLeft: boolean) {
+  // Weapon aiming changes rotation, not the hand/body anchor. Keeping this on
+  // the pet art's foreground side prevents the weapon orbiting through its body.
+  return origin(pet, spriteSize, world, false, CLEARING_PET_PRESENTATION.weaponOrigin);
 }
 
 /** Future staff/projectile art shares the scaled pet's deliberate hand anchor. */

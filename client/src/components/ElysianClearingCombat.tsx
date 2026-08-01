@@ -6,7 +6,7 @@ import { ELYSIAN_CLEARING_COMBAT_CONFIG as CFG } from "@/lib/elysianClearingComb
 import type { PetWalkPos } from "@/hooks/usePetWalkController";
 import { Sword } from "lucide-react";
 import skullUrl from "@assets/Photoroom_20260705_103527_PM_1783308939570.png";
-import { authoritativeEnemyGroundPosition, authoritativePetGroundPosition, clampPoint, directionToClearingTarget, hitboxEdgeDistance, pointInDirection, resolveMeleeTarget, selectFirstEnemyAlongAimCapsule, pixelDelta, pixelDistance, stepToward, visualEnemyAimPoint, weaponArtOffsetForWeapon, weaponPointerPosition, weaponPointerRotation, type WorldPixels } from "@/lib/elysianClearingCombatMath";
+import { authoritativeEnemyGroundPosition, authoritativePetGroundPosition, clampPoint, directionToClearingTarget, hitboxEdgeDistance, pointInDirection, resolveMeleeTarget, selectFirstEnemyAlongAimCapsule, pixelDelta, pixelDistance, stepToward, visualEnemyAimPoint, weaponArtOffsetForWeapon, weaponPointerRotation, type WorldPixels } from "@/lib/elysianClearingCombatMath";
 import { useClearingEquipment } from "@/hooks/useClearingEquipment";
 import ClearingEquipmentModal from "@/components/ClearingEquipmentModal";
 import { ClearingInventoryPanel } from "@/components/ClearingEquipmentPanels";
@@ -159,7 +159,7 @@ export default function ElysianClearingCombat({ petPos, petSize, activePet, faci
   const presentedWeapon=equipment.loadout.data?.weapon??session?.loadout.weapon;
   const presentedArtOffset=weaponArtOffsetForWeapon({stableKey:presentedWeapon?.stableKey,shopItemId:presentedWeapon?.shopItemId,attackStyle:presentedStyle});
   const displayedDirection=attackPhase==="idle"?visualAttackDirection:{dx:Math.cos(attackDirection.angleRadians-presentedArtOffset*Math.PI/180),dy:Math.sin(attackDirection.angleRadians-presentedArtOffset*Math.PI/180)};
-  const weaponPointer=weaponPointerPosition(petCombatCenter,displayedDirection,worldPixels,6)??petCombatCenter;
+  const weaponPointer=petCombatCenter;
   const weaponAngle=attackPhase==="idle"?weaponPointerRotation(displayedDirection,presentedArtOffset):attackDirection.angleRadians;
   const healthColor = healthPercent <= 25 ? "#ef4444" : healthPercent <= 50 ? "#eab308" : "#22c55e";
   const mutateLoadout=async(action:()=>Promise<unknown>)=>{try{await action();setFeedback(["Clearing loadout updated"]);setTimeout(()=>setFeedback([]),1800)}catch{setFeedback(["Equipment update failed"]);}};
