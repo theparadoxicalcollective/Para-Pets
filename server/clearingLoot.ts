@@ -10,7 +10,7 @@ export const CLEARING_LOOT = {
 } as const;
 
 export type RandomSource = () => number;
-export type ClearingLootItem = { id:string;name:string;image_url:string|null;type:string;star_rarity:number;rarity:ClearingRarity;clearing_slot?:string|null;atk_boost?:number|null;def_boost?:number|null;health_boost?:number|null };
+export type ClearingLootItem = { id:string;name:string;image_url:string|null;type:string;star_rarity:number;rarity:ClearingRarity;clearing_slot?:string|null;clearing_active?:boolean|null;atk_boost?:number|null;def_boost?:number|null;health_boost?:number|null };
 
 const integer=(random:RandomSource,[min,max]:readonly[number,number])=>min+Math.floor(random()*(max-min+1));
 function weightedRarity(available:Set<ClearingRarity>,weights:Record<ClearingRarity,number>,random:RandomSource){const entries=(Object.entries(weights) as [ClearingRarity,number][]).filter(([r])=>available.has(r));const total=entries.reduce((s,[,w])=>s+w,0);let roll=random()*total;for(const [rarity,weight] of entries){roll-=weight;if(roll<0)return rarity;}return entries.at(-1)![0];}
