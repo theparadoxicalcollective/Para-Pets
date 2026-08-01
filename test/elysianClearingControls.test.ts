@@ -22,10 +22,11 @@ test("Elysian Clearing uses a compact responsive pet and expanded movement bound
 
 test("Clearing offers three health-or-mana potion slots and a world-return defeat dialog", () => {
   const combatSource = readFileSync("client/src/components/ElysianClearingCombat.tsx", "utf8");
+  const potionSource = readFileSync("client/src/lib/clearingPotionSlots.ts", "utf8");
   assert.match(combatSource, /data-testid="clearing-potion-slots"/);
   assert.match(combatSource, /\[0,1,2\]\.map/);
-  assert.match(combatSource, /Number\(item\.petsRevived\|\|0\)===0/);
-  assert.match(combatSource, /Math\.min\(50/);
+  assert.match(potionSource, /Number\(item\.petsRevived\|\|0\)===0/);
+  assert.match(potionSource, /Math\.min\(50/);
   assert.match(combatSource, /usingPotionRef\.current/);
   assert.match(combatSource, /data-testid="button-clearing-defeat-return"/);
   assert.match(combatSource, /onReturnToWorld/);

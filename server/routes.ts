@@ -5638,7 +5638,7 @@ export async function registerRoutes(
       const remainingQty = consumption.remainingQuantity;
       const depleted = remainingQty === 0;
 
-      return res.json({ healAmount, manaAmount, petsRevived, petsHealed, potionName: shopItem.name, remainingQty, depleted });
+      return res.json({ consumedInventoryId: inventoryId, remainingQuantity: remainingQty, healAmount, manaAmount, petsRevived, petsHealed, potionName: shopItem.name, remainingQty, depleted });
     } catch (err) {
       console.error("Use potion error:", err);
       return res.status(500).json({ message: "Failed to use potion" });
