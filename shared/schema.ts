@@ -315,7 +315,7 @@ export const clearingWorldShops = pgTable("clearing_world_shops", {
   enabled: boolean("enabled").notNull().default(false),
   portalX: real("portal_x").notNull().default(.5),
   portalY: real("portal_y").notNull().default(.55),
-  portalWidth: integer("portal_width").notNull().default(96),
+  portalWidth: integer("portal_width").notNull().default(88),
   interactionRadiusPixels: integer("interaction_radius_pixels").notNull().default(58),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });

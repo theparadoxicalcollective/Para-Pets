@@ -149,6 +149,14 @@ export async function runNonCriticalStartup(): Promise<void> {
   await runMigration("pet_cave_progress.uq_pet", () =>
     db.execute(sql`CREATE UNIQUE INDEX IF NOT EXISTS uq_pet_cave_progress_pet ON pet_cave_progress (pet_inventory_id)`));
 
+  // The Clearing portal used to allow widths up to 160px. Clamp persisted
+  // configurations as well as the shared default so existing worlds receive
+  // the smaller presentation without changing their interaction radius.
+  await runOnce("normalize_clearing_portal_width_2026_08", () => db.execute(sql`
+    UPDATE clearing_world_shops SET portal_width = 112, updated_at = now()
+    WHERE portal_width > 112
+  `));
+
   // One-time consolidation: collapse every user's per-row potion inventory
   // into stacks of up to 50. Older builds inserted one row per potion
   // purchased, so a player who bought 46 small health potions had 46
