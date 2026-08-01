@@ -12,6 +12,10 @@ export const CLEARING_BALANCE = {
   // Bosses inherit the multiplier above (12% × 1.25 = 15%).
   enemyDamagePercent: 0.12,
   bossSpawnChance: 0.05,
+  regularChestGearChance: 0.30,
+  bossChestGearChance: 0.65,
+  regularChestMaxGearItems: 1,
+  bossChestMaxGearItems: 2,
   regular: { itemCount: [1, 3], coins: [1, 2], essence: [0, 0], weights: { common: 72, uncommon: 26, rare: 2 } },
   boss: { itemCount: [3, 5], coins: [3, 5], essence: [10, 20], weights: { common: 25, uncommon: 65, rare: 10 } },
 } as const;

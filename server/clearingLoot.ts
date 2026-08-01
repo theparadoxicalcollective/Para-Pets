@@ -18,11 +18,15 @@ function weightedRarity(available:Set<ClearingRarity>,weights:Record<ClearingRar
 /** Pure, deterministic Clearing chest formula. Items are selected without replacement. */
 export function buildClearingLoot(pool:ClearingLootItem[],boss:boolean,random:RandomSource=Math.random){
  const normalized=pool.map(i=>({...i,rarity:effectiveClearingRarity(i.rarity,i.star_rarity)}));
- const settings=boss?CLEARING_BALANCE.boss:CLEARING_BALANCE.regular,target=Math.min(normalized.length,integer(random,settings.itemCount));
+ const gear=normalized.filter(i=>i.type==="clearing"&&i.clearing_active===true&&isClearingSlot(i.clearing_slot)&&isClearingStarRarity(Number(i.star_rarity)));
+ const nonGear=normalized.filter(i=>i.type!=="clearing");
+ const settings=boss?CLEARING_BALANCE.boss:CLEARING_BALANCE.regular,target=integer(random,settings.itemCount);
  const selected:ClearingLootItem[]=[];
- const take=(rarity?:ClearingRarity)=>{const candidates=normalized.filter(i=>!selected.some(s=>s.id===i.id)&&(!rarity||i.rarity===rarity));if(!candidates.length)return false;selected.push(candidates[Math.min(candidates.length-1,Math.floor(random()*candidates.length))]);return true;};
- if(boss&&normalized.length&&!take("rare"))throw new Error("Boss Clearing has no effective Rare drop");
- while(selected.length<target){const remaining=normalized.filter(i=>!selected.some(s=>s.id===i.id));if(!remaining.length)break;const groups=new Set(remaining.map(i=>i.rarity));take(weightedRarity(groups,settings.weights,random));}
+ const takeFrom=(source:ClearingLootItem[])=>{const remaining=source.filter(i=>!selected.some(s=>s.id===i.id));if(!remaining.length)return false;const groups=new Set(remaining.map(i=>i.rarity));const rarity=weightedRarity(groups,settings.weights,random);const candidates=remaining.filter(i=>i.rarity===rarity);selected.push(candidates[Math.min(candidates.length-1,Math.floor(random()*candidates.length))]);return true;};
+ const gearChance=boss?CLEARING_BALANCE.bossChestGearChance:CLEARING_BALANCE.regularChestGearChance;
+ const maxGear=boss?CLEARING_BALANCE.bossChestMaxGearItems:CLEARING_BALANCE.regularChestMaxGearItems;
+ if(gear.length&&random()<gearChance){const gearTarget=Math.min(gear.length,target,maxGear===1?1:integer(random,[1,maxGear]));while(selected.length<gearTarget&&takeFrom(gear));}
+ while(selected.length<target&&takeFrom(nonGear));
  return {items:selected,coins:integer(random,settings.coins),essence:integer(random,settings.essence),warning:selected.length<target?"Configured pool contained too few distinct items":null};
 }
 export type EligibleLoot = { id:string; name:string; image_url:string|null; clearing_slot:ClearingEquipmentSlot; star_rarity:ClearingStarRarity; atk_boost:number|null; def_boost:number|null; health_boost:number|null };
