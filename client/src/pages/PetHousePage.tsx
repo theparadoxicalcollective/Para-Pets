@@ -27,6 +27,14 @@ import LoadingScreen from "@/components/LoadingScreen";
 import GiftClaimModal from "@/components/GiftClaimModal";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import loyaltyRewardIcon from "@assets/Photoroom_20260703_72612_AM_1783081617614.png";
+import petCareItemShelf from "@assets/uploads/Shelf1.png";
+import {
+  classifyPetCareItemGesture,
+  PET_CARE_DROP_PADDING_PX,
+  PET_CARE_VISIBLE_SLOTS,
+  pointInsideExpandedPetDropZone,
+  type PetCareItemGestureIntent,
+} from "@/lib/petCareInteractions";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -1826,6 +1834,68 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   );
 }
 
+type PetCareShelfItem = {
+  id: string;
+  imageUrl: string | null;
+  name: string;
+  quantity?: number | null;
+  type: string;
+  statBoostAmount?: number | null;
+  giftPoints?: number | null;
+};
+
+function PetCareItemShelf({
+  kind,
+  items,
+  onItemPointerDown,
+}: {
+  kind: "edibles" | "gifts";
+  items: PetCareShelfItem[];
+  onItemPointerDown: (event: React.PointerEvent<HTMLDivElement>, item: PetCareShelfItem) => void;
+}) {
+  const isEdible = kind === "edibles";
+  const title = isEdible ? "EDIBLES" : "GIFTS";
+  return (
+    <section
+      className="pet-care-item-shelf"
+      data-testid={`pet-care-${kind}-shelf`}
+      style={{ "--pet-care-visible-slots": PET_CARE_VISIBLE_SLOTS } as React.CSSProperties}
+    >
+      <div className="pet-care-item-shelf__heading">
+        <span>{title}</span>
+        <span className="pet-care-item-shelf__count">{items.length}</span>
+        {isEdible && <span className="pet-care-item-shelf__note">stacks up to 30</span>}
+      </div>
+      <div className="pet-care-item-shelf__stage">
+        <img className="pet-care-item-shelf__art" src={petCareItemShelf} alt="" aria-hidden="true" draggable={false} />
+        <div className="pet-care-item-shelf__viewport">
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="pet-care-item-shelf__item"
+              onPointerDown={(event) => onItemPointerDown(event, item)}
+              data-testid={`${isEdible ? "edible" : "gift"}-item-${item.id}`}
+            >
+              <div className="pet-care-item-shelf__item-image">
+                {item.imageUrl && <img src={item.imageUrl} alt={item.name} draggable={false} />}
+                {(item.quantity ?? 1) > 1 && <span className="pet-care-item-shelf__quantity">×{item.quantity}</span>}
+                {isEdible && item.statBoostAmount != null && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--edible">+{item.statBoostAmount}</span>}
+                {!isEdible && !!item.giftPoints && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--gift">+{item.giftPoints}</span>}
+              </div>
+              <span className="pet-care-item-shelf__name">{item.name}</span>
+            </div>
+          ))}
+        </div>
+        {items.length === 0 && (
+          <span className="pet-care-item-shelf__empty" data-testid={`text-no-${kind}`}>
+            No {kind}
+          </span>
+        )}
+      </div>
+    </section>
+  );
+}
+
 // ── Feeding Overlay ──────────────────────────────────────────────────────────
 // Full-screen magical-rainforest scene where a player drags edibles from the
 // bottom strip onto the pet to feed it. Each successful drop calls the existing
@@ -2044,12 +2114,22 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const dragRef = useRef<{
     inventoryId: string;
     imageUrl: string | null;
+    type: string;
+    quantity: number;
+    name: string;
+    statBoostAmount: number;
+    giftPoints: number;
     pid: number;
     startX: number;
     startY: number;
-    captured: boolean;   // true once vertical-drag intent detected & captured
+    origin: HTMLElement;
+    intent: PetCareItemGestureIntent;
   } | null>(null);
-  const [dragGhost, setDragGhost] = useState<{ inventoryId: string; imageUrl: string | null; x: number; y: number } | null>(null);
+  const [dragGhost, setDragGhost] = useState<{ inventoryId: string; imageUrl: string | null } | null>(null);
+  const dragGhostRef = useRef<HTMLDivElement>(null);
+  const dragFrameRef = useRef<number | null>(null);
+  const dragPositionRef = useRef({ x: 0, y: 0 });
+  const suppressClickRef = useRef(false);
 
   // Feed-stack popup: shown when a stacked edible is dropped on the pet.
   const [pendingFeed, setPendingFeed] = useState<{
@@ -2502,17 +2582,52 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     },
   });
 
-  const onItemPointerDown = useCallback((e: React.PointerEvent, item: any) => {
+  const updateDragGhostPosition = useCallback((x: number, y: number) => {
+    dragPositionRef.current = { x, y };
+    if (dragFrameRef.current != null) return;
+    dragFrameRef.current = requestAnimationFrame(() => {
+      dragFrameRef.current = null;
+      const ghost = dragGhostRef.current;
+      if (ghost) {
+        const point = dragPositionRef.current;
+        ghost.style.transform = `translate3d(${point.x - 36}px, ${point.y - 94}px, 0)`;
+      }
+    });
+  }, []);
+
+  const cleanupItemGesture = useCallback((releaseCapture = true) => {
+    const drag = dragRef.current;
+    dragRef.current = null;
+    if (dragFrameRef.current != null) {
+      cancelAnimationFrame(dragFrameRef.current);
+      dragFrameRef.current = null;
+    }
+    if (releaseCapture && drag?.origin.hasPointerCapture?.(drag.pid)) {
+      try { drag.origin.releasePointerCapture(drag.pid); } catch {}
+    }
+    setDragGhost(null);
+    setPetGlow(false);
+  }, []);
+
+  useEffect(() => () => cleanupItemGesture(), [cleanupItemGesture]);
+
+  const onItemPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, item: PetCareShelfItem) => {
     // Do NOT preventDefault or capture here — we let the browser handle
     // horizontal scroll normally until we detect upward-drag intent.
     e.stopPropagation();
     dragRef.current = {
       inventoryId: item.id,
       imageUrl: item.imageUrl,
+      type: item.type,
+      quantity: item.quantity ?? 1,
+      name: item.name,
+      statBoostAmount: item.statBoostAmount ?? 5,
+      giftPoints: item.giftPoints ?? 0,
       pid: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
-      captured: false,
+      origin: e.currentTarget,
+      intent: "pending",
     };
     setDragGhost(null);
   }, []);
@@ -2521,61 +2636,62 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     const d = dragRef.current;
     if (!d || d.pid !== e.pointerId) return;
 
-    if (!d.captured) {
-      const dx = Math.abs(e.clientX - d.startX);
-      const dy = Math.abs(e.clientY - d.startY);
-      // Wait until the pointer has moved enough to decide intent.
-      if (dx < 6 && dy < 6) return;
-      if (dy > dx) {
-        // Vertical (drag-to-pet) intent — capture the pointer now.
-        try { (e.target as HTMLElement).setPointerCapture?.(e.pointerId); } catch {}
-        d.captured = true;
-        setDragGhost({ inventoryId: d.inventoryId, imageUrl: d.imageUrl, x: e.clientX, y: e.clientY });
-      } else {
-        // Horizontal scroll intent — let the browser handle it, abort drag.
-        dragRef.current = null;
+    if (d.intent === "pending") {
+      const intent = classifyPetCareItemGesture(e.clientX - d.startX, e.clientY - d.startY);
+      if (intent === "pending") return;
+      d.intent = intent;
+      if (intent === "horizontal-scroll") {
+        cleanupItemGesture(false);
+        return;
       }
-      return;
+      try { d.origin.setPointerCapture(e.pointerId); } catch {}
+      suppressClickRef.current = true;
+      setDragGhost({ inventoryId: d.inventoryId, imageUrl: d.imageUrl });
     }
-
-    setDragGhost({ inventoryId: d.inventoryId, imageUrl: d.imageUrl, x: e.clientX, y: e.clientY });
-  }, []);
+    if (d.intent !== "vertical-item-drag") return;
+    e.preventDefault();
+    updateDragGhostPosition(e.clientX, e.clientY);
+    const box = petBoxRef.current?.getBoundingClientRect();
+    setPetGlow(!!box && pointInsideExpandedPetDropZone({ x: e.clientX, y: e.clientY }, box));
+  }, [cleanupItemGesture, updateDragGhostPosition]);
 
   const onItemPointerUp = useCallback((e: React.PointerEvent) => {
     const d = dragRef.current;
     if (!d || d.pid !== e.pointerId) return;
-    dragRef.current = null;
-
-    if (!d.captured) {
+    if (d.intent !== "vertical-item-drag") {
       // Pointer was released before drag intent was established (tap or scroll).
-      setDragGhost(null);
+      cleanupItemGesture();
       return;
     }
 
-    const ghost = { x: e.clientX, y: e.clientY };
     const box = petBoxRef.current?.getBoundingClientRect();
-    setDragGhost(null);
-    if (box && ghost.x >= box.left && ghost.x <= box.right && ghost.y >= box.top && ghost.y <= box.bottom) {
-      // Look up the dragged item to decide whether this is a feed or a gift.
-      const draggedItem = inventory.find((it) => it.id === d.inventoryId);
-      if (draggedItem?.type === "gift") {
+    const validDrop = !!box && pointInsideExpandedPetDropZone({ x: e.clientX, y: e.clientY }, box, PET_CARE_DROP_PADDING_PX);
+    cleanupItemGesture();
+    window.setTimeout(() => { suppressClickRef.current = false; }, 0);
+    if (validDrop) {
+      if (d.type === "gift" && !giftMutation.isPending) {
         giftMutation.mutate({ itemInventoryId: d.inventoryId });
-      } else if (draggedItem && (draggedItem.quantity ?? 1) > 1) {
+      } else if (d.type === "edibles" && d.quantity > 1 && !feedMutation.isPending) {
         // Stacked edible — show popup to choose Feed All or Divide.
         setPendingFeed({
           inventoryId: d.inventoryId,
           imageUrl: d.imageUrl,
-          name: draggedItem.name,
-          quantity: draggedItem.quantity,
-          statBoostAmount: draggedItem.statBoostAmount ?? 5,
+          name: d.name,
+          quantity: d.quantity,
+          statBoostAmount: d.statBoostAmount,
         });
         setDivideMode(false);
         setDivideInput("1");
-      } else {
+      } else if (d.type === "edibles" && !feedMutation.isPending) {
         feedMutation.mutate({ itemInventoryId: d.inventoryId });
       }
     }
-  }, [feedMutation, giftMutation, inventory]);
+  }, [cleanupItemGesture, feedMutation, giftMutation]);
+
+  const onItemPointerCancel = useCallback((e: React.PointerEvent) => {
+    if (dragRef.current?.pid !== e.pointerId) return;
+    cleanupItemGesture();
+  }, [cleanupItemGesture]);
 
   return (
     <div
@@ -2589,11 +2705,19 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
         maxWidth: "768px", margin: "0 auto", left: 0, right: 0,
-        touchAction: "none",
+        touchAction: "pan-x",
+        overscrollBehavior: "contain",
       }}
       onPointerMove={onItemPointerMove}
       onPointerUp={onItemPointerUp}
-      onPointerCancel={onItemPointerUp}
+      onPointerCancel={onItemPointerCancel}
+      onLostPointerCapture={onItemPointerCancel}
+      onClickCapture={(e) => {
+        if (suppressClickRef.current) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
       data-testid="overlay-feeding"
     >
       {/* Top bar */}
@@ -3175,185 +3299,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           paddingRight: 10,
         }}
       >
-        {/* ── Edibles ─────────────────────────────────────────────────── */}
-        <div
-          style={{
-            borderRadius: 12,
-            border: "1.5px solid rgba(120,210,90,0.38)",
-            background: "rgba(20,50,15,0.55)",
-            boxShadow: "0 0 14px rgba(100,200,70,0.08), inset 0 1px 0 rgba(140,230,100,0.06)",
-            padding: "8px 8px 6px",
-            marginBottom: 8,
-          }}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <span style={{ fontFamily: "Lora, serif", color: "#9fd690", fontSize: 10, fontWeight: 800, letterSpacing: "0.18em" }}>
-              EDIBLES
-            </span>
-            <span style={{ fontFamily: "Lora, serif", color: "rgba(159,214,144,0.5)", fontSize: 10, fontWeight: 700 }}>
-              {edibles.length}
-            </span>
-            <span style={{ fontFamily: "Lora, serif", color: "rgba(159,214,144,0.3)", fontSize: 8, marginLeft: "auto" }}>
-              stacks up to 30
-            </span>
-          </div>
-
-          {edibles.length === 0 ? (
-            <div
-              className="flex items-center"
-              style={{ height: 44 }}
-              data-testid="text-no-edibles"
-            >
-              <span style={{ fontFamily: "Lora, serif", color: "rgba(159,214,144,0.35)", fontSize: 11, fontStyle: "italic", letterSpacing: "0.04em", paddingLeft: 4 }}>
-                No edibles
-              </span>
-            </div>
-          ) : (
-            <div
-              className="flex gap-2 overflow-x-auto pb-1"
-              style={{
-                touchAction: "pan-x",
-                WebkitOverflowScrolling: "touch",
-                overscrollBehaviorX: "contain",
-                scrollbarWidth: "none",
-                msOverflowStyle: "none",
-              }}
-            >
-              {edibles.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex-shrink-0 flex flex-col items-center relative"
-                  style={{ width: 52, touchAction: "pan-x", cursor: "grab", userSelect: "none" }}
-                  onPointerDown={(e) => onItemPointerDown(e, item)}
-                  data-testid={`edible-item-${item.id}`}
-                >
-                  <div className="relative" style={{ width: 46, height: 46 }}>
-                    {item.imageUrl ? (
-                      <img
-                        src={item.imageUrl}
-                        alt={item.name}
-                        draggable={false}
-                        style={{ width: 46, height: 46, objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))", pointerEvents: "none" }}
-                      />
-                    ) : (
-                      <div style={{ width: 46, height: 46, background: "rgba(255,255,255,0.06)", borderRadius: 8 }} />
-                    )}
-                    {item.quantity > 1 && (
-                      <div className="absolute" style={{
-                        top: -3, right: -5,
-                        background: "rgba(30,55,22,0.97)",
-                        border: "1.5px solid rgba(150,220,120,0.7)",
-                        borderRadius: 8, padding: "1px 5px",
-                        fontFamily: "Lora, serif", color: "#dfffd0", fontSize: 9, fontWeight: 800, lineHeight: "14px",
-                      }}>×{item.quantity}</div>
-                    )}
-                    {item.statBoostAmount != null && (
-                      <div className="absolute" style={{
-                        bottom: -4, left: "50%", transform: "translateX(-50%)",
-                        background: "rgba(100,185,75,0.97)",
-                        borderRadius: 6, padding: "0px 4px",
-                        fontFamily: "Lora, serif", color: "#071a02", fontSize: 8, fontWeight: 800, whiteSpace: "nowrap", lineHeight: "13px",
-                      }}>+{item.statBoostAmount}</div>
-                    )}
-                  </div>
-                  <span style={{
-                    fontFamily: "Lora, serif", color: "#c8e8b0", fontSize: 8, fontWeight: 600,
-                    lineHeight: 1.2, maxWidth: 50, overflow: "hidden", textOverflow: "ellipsis",
-                    whiteSpace: "nowrap", textAlign: "center", marginTop: 4,
-                  }}>{item.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ── Gifts ───────────────────────────────────────────────────── */}
-        <div
-          style={{
-            borderRadius: 12,
-            border: "1.5px solid rgba(240,140,200,0.38)",
-            background: "rgba(50,15,35,0.55)",
-            boxShadow: "0 0 14px rgba(220,80,160,0.08), inset 0 1px 0 rgba(255,180,220,0.06)",
-            padding: "8px 8px 6px",
-          }}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <span style={{ fontFamily: "Lora, serif", color: "#f9b8d8", fontSize: 10, fontWeight: 800, letterSpacing: "0.18em" }}>
-              GIFTS
-            </span>
-            <span style={{ fontFamily: "Lora, serif", color: "rgba(249,184,216,0.5)", fontSize: 10, fontWeight: 700 }}>
-              {gifts.length}
-            </span>
-          </div>
-
-          {gifts.length === 0 ? (
-            <div
-              className="flex items-center"
-              style={{ height: 44 }}
-              data-testid="text-no-gifts"
-            >
-              <span style={{ fontFamily: "Lora, serif", color: "rgba(249,184,216,0.35)", fontSize: 11, fontStyle: "italic", letterSpacing: "0.04em", paddingLeft: 4 }}>
-                No gifts
-              </span>
-            </div>
-          ) : (
-            <div
-              className="flex gap-2 overflow-x-auto pb-1"
-              style={{
-                touchAction: "pan-x",
-                WebkitOverflowScrolling: "touch",
-                overscrollBehaviorX: "contain",
-                scrollbarWidth: "none",
-                msOverflowStyle: "none",
-              }}
-            >
-              {gifts.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex-shrink-0 flex flex-col items-center relative"
-                  style={{ width: 52, touchAction: "pan-x", cursor: "grab", userSelect: "none" }}
-                  onPointerDown={(e) => onItemPointerDown(e, item)}
-                  data-testid={`gift-item-${item.id}`}
-                >
-                  <div className="relative" style={{ width: 44, height: 44 }}>
-                    {item.imageUrl ? (
-                      <img
-                        src={item.imageUrl}
-                        alt={item.name}
-                        draggable={false}
-                        style={{ width: 44, height: 44, objectFit: "contain", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.7))", pointerEvents: "none" }}
-                      />
-                    ) : (
-                      <div style={{ width: 44, height: 44, background: "rgba(255,255,255,0.06)", borderRadius: 8 }} />
-                    )}
-                    {item.quantity > 1 && (
-                      <div className="absolute" style={{
-                        top: -2, right: -4,
-                        background: "rgba(80,22,55,0.95)",
-                        border: "1px solid rgba(255,170,210,0.55)",
-                        borderRadius: 8, padding: "0px 4px",
-                        fontFamily: "Lora, serif", color: "#ffe6f1", fontSize: 9, fontWeight: 800, lineHeight: "14px",
-                      }}>×{item.quantity}</div>
-                    )}
-                    {item.giftPoints && (
-                      <div className="absolute" style={{
-                        bottom: -4, left: "50%", transform: "translateX(-50%)",
-                        background: "rgba(210,55,130,0.97)",
-                        borderRadius: 6, padding: "0px 4px",
-                        fontFamily: "Lora, serif", color: "#fff0f7", fontSize: 8, fontWeight: 800, whiteSpace: "nowrap", lineHeight: "13px",
-                      }}>+{item.giftPoints}</div>
-                    )}
-                  </div>
-                  <span style={{
-                    fontFamily: "Lora, serif", color: "#f9d8eb", fontSize: 8, fontWeight: 600,
-                    lineHeight: 1.2, maxWidth: 54, overflow: "hidden", textOverflow: "ellipsis",
-                    whiteSpace: "nowrap", textAlign: "center", marginTop: 4,
-                  }}>{item.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <PetCareItemShelf kind="edibles" items={edibles} onItemPointerDown={onItemPointerDown} />
+        <PetCareItemShelf kind="gifts" items={gifts} onItemPointerDown={onItemPointerDown} />
       </div>
 
       {/* ── Feed hint overlay ───────────────────────────────────────────────
@@ -3456,14 +3403,17 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       {/* Drag ghost */}
       {dragGhost && (
         <div
+          ref={dragGhostRef}
           className="fixed pointer-events-none"
           style={{
-            left: dragGhost.x - 36,
-            top: dragGhost.y - 36,
+            left: 0,
+            top: 0,
             width: 72,
             height: 72,
             zIndex: 520,
             opacity: 0.92,
+            transform: `translate3d(${dragPositionRef.current.x - 36}px, ${dragPositionRef.current.y - 94}px, 0)`,
+            willChange: "transform",
             filter: "drop-shadow(0 6px 12px rgba(0,0,0,0.6)) drop-shadow(0 0 16px rgba(190,255,140,0.5))",
           }}
         >
