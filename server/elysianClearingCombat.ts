@@ -44,7 +44,7 @@ export function scaleClearingEnemy(pet: ClearingPetStats) {
   const petDamage = clamp(Math.round(pet.atk), 20, 5_000);
   return {
     petDamage,
-    maxHealth: clamp(Math.round(petDamage * 5 * levelFactor * rarityFactor), 100, 28_000),
+    maxHealth: clamp(Math.round(petDamage * CLEARING_BALANCE.regularEnemyHealthPerPetDamage * levelFactor * rarityFactor), 100, CLEARING_BALANCE.maxRegularEnemyHealth),
     attack: Math.max(1, Math.round(pet.hp * CLEARING_BALANCE.enemyDamagePercent)),
   };
 }
@@ -67,9 +67,11 @@ export function createClearingSession(userId: string, petId: string, stats: Clea
   const session: ClearingSession = {
     id: crypto.randomUUID(), userId, petId, expiresAt: now + ELYSIAN_CLEARING_COMBAT.sessionLifetimeMs,
     effectiveStats: { hp: stats.hp, atk: stats.atk, def: stats.def ?? 0 },
-    position:{x:.5,y:.7,updatedAt:now}, lockedTargetInstanceId:null,processedAttacks:new Map(), enemies: encounterTemplates.map((template,slot) => {const isBoss=Boolean(template?.is_boss),maxHealth=Math.round(scaled.maxHealth*(isBoss?CLEARING_BALANCE.bossHealthMultiplier:1)),spawn=encounterPositions[slot];return{
+    // A rolled special replaces the final encounter template (including a
+    // possible boss), so boss and special health multipliers never stack.
+    position:{x:.5,y:.7,updatedAt:now}, lockedTargetInstanceId:null,processedAttacks:new Map(), enemies: encounterTemplates.map((template,slot) => {const isBoss=Boolean(template?.is_boss),specialPetShopItemId=slot===encounterTemplates.length-1?special?.pet_shop_item_id:undefined,isSpecial=Boolean(specialPetShopItemId),healthMultiplier=isBoss?CLEARING_BALANCE.bossHealthMultiplier:isSpecial?CLEARING_BALANCE.specialPetMobHealthMultiplier:1,maxHealth=Math.round(scaled.maxHealth*healthMultiplier),spawn=encounterPositions[slot];return{
       instanceId: crypto.randomUUID(), slot, maxHealth, health:maxHealth,
-      attack:Math.round(scaled.attack*(isBoss?CLEARING_BALANCE.bossDamageMultiplier:1)),isBoss,engagedByPlayer:false,templateId:template?.enemy_id,name:slot===encounterTemplates.length-1&&special?special.name:template?.name,imageUrl:slot===encounterTemplates.length-1&&special?(special.hatched_image_url||special.image_url):template?.image_url,specialPetShopItemId:slot===encounterTemplates.length-1?special?.pet_shop_item_id:undefined,specialRarity:slot===encounterTemplates.length-1?Number(special?.rarity||1):undefined, defeated: false, lastHitAt: 0, x:spawn?.x??.5, y:spawn?.y??.6, positionUpdatedAt:now,
+      attack:Math.round(scaled.attack*(isBoss?CLEARING_BALANCE.bossDamageMultiplier:1)),isBoss,engagedByPlayer:false,templateId:template?.enemy_id,name:slot===encounterTemplates.length-1&&special?special.name:template?.name,imageUrl:slot===encounterTemplates.length-1&&special?(special.hatched_image_url||special.image_url):template?.image_url,specialPetShopItemId,specialRarity:slot===encounterTemplates.length-1?Number(special?.rarity||1):undefined, defeated: false, lastHitAt: 0, x:spawn?.x??.5, y:spawn?.y??.6, positionUpdatedAt:now,
     }}),
   };
   sessions.set(session.id, session);
