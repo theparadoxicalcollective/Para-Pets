@@ -19,6 +19,7 @@ import rank2Icon from "@assets/Photoroom_20260707_64734_AM_1783425136780.png";
 import rank3Icon from "@assets/Photoroom_20260707_64923_AM_1783425136780.png";
 import beginBattleBtn from "@assets/Photoroom_20260707_64611_AM_1783425205559.png";
 import swordImg from "@assets/generated_images/pvp_battle_sword.png";
+import basicPotionImg from "@assets/potion_health.png";
 import RoleBadge from "@/components/RoleBadge";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import { playClick, playTick } from "@/lib/sounds";
@@ -1317,7 +1318,12 @@ export default function PvpArenaPage({ onClose }: { onClose: () => void }) {
                     }}
                   >
                     {isEmpty ? (
-                      <span className="text-2xl text-white/30 font-light">+</span>
+                      <img
+                        src={basicPotionImg}
+                        alt=""
+                        aria-hidden
+                        className="w-12 h-12 object-contain grayscale opacity-35"
+                      />
                     ) : (
                       <>
                         {slot.imageUrl
