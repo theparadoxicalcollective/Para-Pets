@@ -414,9 +414,10 @@
 }
 
 .pet-care-item-shelf__heading {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   height: 18px;
   padding: 0 3.8%;
   font-size: 10px;
@@ -425,13 +426,20 @@
   text-shadow: 0 1px 5px rgba(0, 0, 0, 0.9);
 }
 
+.pet-care-item-shelf__title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
 .pet-care-item-shelf__count {
   color: rgba(243, 223, 176, 0.65);
   letter-spacing: normal;
 }
 
 .pet-care-item-shelf__note {
-  margin-left: auto;
+  position: absolute;
+  right: 3.8%;
   color: rgba(243, 223, 176, 0.5);
   font-size: 8px;
   font-weight: 500;
@@ -494,12 +502,18 @@
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
+  transition: transform 140ms ease, filter 140ms ease;
+}
+
+.pet-care-item-shelf__item:active {
+  transform: translateY(-3px) scale(1.06);
+  filter: brightness(1.15);
 }
 
 .pet-care-item-shelf__visible-artwork {
   position: relative;
-  width: min(88%, 60px);
-  height: min(82%, 60px);
+  width: min(98%, 72px);
+  height: 96%;
 }
 
 .pet-care-item-shelf__normalized-image {
@@ -533,20 +547,6 @@
 .pet-care-item-shelf__value { bottom: -3px; left: 50%; transform: translateX(-50%); }
 .pet-care-item-shelf__value--edible { color: #071a02; background: rgba(120, 194, 76, 0.97); }
 .pet-care-item-shelf__value--gift { color: #fff0f7; background: rgba(210, 55, 130, 0.97); }
-
-.pet-care-item-shelf__name {
-  width: 92%;
-  margin-top: 2px;
-  overflow: hidden;
-  color: #f2e2bd;
-  font-size: 8px;
-  font-weight: 700;
-  line-height: 1.15;
-  text-align: center;
-  text-overflow: ellipsis;
-  text-shadow: 0 1px 3px #000;
-  white-space: nowrap;
-}
 
 .pet-care-item-shelf__empty {
   position: absolute;
