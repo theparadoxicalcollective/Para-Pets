@@ -45,8 +45,15 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
   const [viewport, setViewport] = useState({ width: 390, height: 844 });
   const [camera, setCamera] = useState({ x: 0, y: 0 });
   const [gameplayBlocked, setGameplayBlocked] = useState(false);
-  const [clearingReady, setClearingReady] = useState(!config.features.combat || !petTemplateId);
+  const activePetInventoryId: string | null = typeof activePet?.inventoryId === "string" ? activePet.inventoryId : null;
+  const [clearingReady, setClearingReady] = useState(!config.features.combat);
   const [loadingComplete, setLoadingComplete] = useState(!config.features.combat);
+
+  useEffect(() => {
+    if (!config.features.combat) return;
+    setClearingReady(false);
+    setLoadingComplete(false);
+  }, [activePetInventoryId, config.features.combat]);
 
   const responsivePet = config.aspectLayout?.responsivePet;
   const petSize = responsivePet ? clearingPetSize(viewport) : (config.petSize ?? DEFAULT_PET_SIZE);
@@ -156,8 +163,8 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
         </div>
       )}
 
-      {config.features.combat && petTemplateId && (
-        <ElysianClearingCombat petPos={petPos} petSize={petSize} activePet={activePet} facingLeft={facingLeft} aimDirection={aimDirection} onReturnToWorld={onBack} worldPixels={world} hudElement={hudElement} onGameplayBlockedChange={setGameplayBlocked} onEnemiesReady={() => setClearingReady(true)} isAdmin={isAdmin} />
+      {config.features.combat && petTemplateId && activePetInventoryId && (
+        <ElysianClearingCombat key={activePetInventoryId} activePetInventoryId={activePetInventoryId} petPos={petPos} petSize={petSize} activePet={activePet} facingLeft={facingLeft} aimDirection={aimDirection} onReturnToWorld={onBack} worldPixels={world} hudElement={hudElement} onGameplayBlockedChange={setGameplayBlocked} onEnemiesReady={() => setClearingReady(true)} isAdmin={isAdmin} />
       )}
       </div>
 

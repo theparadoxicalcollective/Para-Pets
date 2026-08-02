@@ -124,6 +124,8 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
       // emailVerified (if stored as NULL in the DB) and cause the email-gate
       // or other AppRouter guards to flash for one render cycle.
       onUserUpdate({ activePetId: data.activePetId ?? null });
+      queryClient.setQueryData(["/api/auth/me"], (current: any) => current ? { ...current, activePetId: data.activePetId ?? null } : current);
+      void queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       // Suppress toast during tutorial — the overlay guides the player and a
       // "Pet Selected" popup mid-quest is jarring / breaks immersion.
       if (bjGetStatus() !== "active") {
@@ -258,6 +260,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
   const speedUpTargetPet = speedUpTargetId ? (inventory.find(i => i.inventoryId === speedUpTargetId) ?? null) : null;
 
   const handlePetToggle = (inventoryId: string) => {
+    if (setActivePetMutation.isPending) return;
     if (user.activePetId === inventoryId) {
       setActivePetMutation.mutate(null);
     } else {
@@ -404,6 +407,7 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
                 isDragging={!!dragging}
                 onPetClick={(pet) => pet.isHatched && setSelectedPetId(pet.inventoryId)}
                 isPending={setActivePetMutation.isPending}
+                pendingPetId={setActivePetMutation.variables ?? null}
               />
             )}
           </div>
@@ -662,6 +666,7 @@ function PetView({
   onPetClick,
   onEggSpeedUp,
   isPending,
+  pendingPetId,
   isDragging,
 }: {
   pets: InventoryItem[];
@@ -670,6 +675,7 @@ function PetView({
   onPetClick: (pet: InventoryItem) => void;
   onEggSpeedUp?: (petInvId: string) => void;
   isPending: boolean;
+  pendingPetId: string | null;
   isDragging?: boolean;
 }) {
   const queryClient = useQueryClient();
@@ -1012,7 +1018,7 @@ function PetView({
                   className="font-fantasy"
                   style={{ fontSize: 9, color: isActive ? "#f0c040" : "rgba(240,192,64,0.38)", letterSpacing: "0.08em" }}
                 >
-                  {isActive ? "ACTIVE" : "SELECT"}
+                  {isPending && pendingPetId === pet.inventoryId ? "UPDATING…" : isActive ? "ACTIVE" : "SELECT"}
                 </span>
               </button>
             </div>
