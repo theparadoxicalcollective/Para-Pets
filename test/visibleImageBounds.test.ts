@@ -74,6 +74,6 @@ test("shelf badges use the normalized wrapper while the full compartment remains
   const wrapperRule = css.match(/\.pet-care-item-shelf__visible-artwork\s*\{([^}]*)\}/)?.[1] ?? "";
   const imageRule = css.match(/\.pet-care-item-shelf__normalized-image\s*\{([^}]*)\}/)?.[1] ?? "";
   assert.doesNotMatch(wrapperRule, /transform/);
-  assert.match(imageRule, /transform:\s*translateY\(-11px\)/);
+  assert.match(imageRule, /transform:\s*translateY\(calc\(-1 \* var\(--pet-care-item-lift\)\)\)/);
   assert.match(item, /pet-care-item-shelf__visible-artwork[\s\S]*pet-care-item-shelf__normalized-image[\s\S]*pet-care-item-shelf__quantity[\s\S]*pet-care-item-shelf__value/);
 });
