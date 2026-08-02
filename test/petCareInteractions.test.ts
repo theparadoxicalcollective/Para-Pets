@@ -48,6 +48,11 @@ test("both inventories share the reusable six-slot shelf without old panels", ()
   assert.match(page, /<PetCareItemShelf kind="edibles"/);
   assert.match(page, /<PetCareItemShelf kind="gifts"/);
   assert.match(page, /"--pet-care-visible-slots": PET_CARE_VISIBLE_SLOTS/);
+  assert.match(page, /pet-care-item-shelf--\$\{kind\}/);
+  const viewportRule = css.match(/\.pet-care-item-shelf__viewport\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+  assert.match(viewportRule, /right:\s*var\(--pet-care-shelf-frame-inset\)/);
+  assert.match(viewportRule, /left:\s*var\(--pet-care-shelf-frame-inset\)/);
+  assert.match(viewportRule, /padding-inline:\s*0/);
   const itemRule = css.match(/\.pet-care-item-shelf__item\s*\{([\s\S]*?)\}/)?.[1] ?? "";
   assert.match(itemRule, /flex:\s*0 0 calc\(100% \/ var\(--pet-care-visible-slots\)\);/);
   assert.doesNotMatch(itemRule, /pet-care-shelf-frame-inset/);
@@ -61,6 +66,8 @@ test("both inventories share the reusable six-slot shelf without old panels", ()
   assert.doesNotMatch(page, /pet-care-item-shelf__name/);
   assert.doesNotMatch(page, /border: "1\.5px solid rgba\(120,210,90,0\.38\)"/);
   assert.doesNotMatch(page, /border: "1\.5px solid rgba\(240,140,200,0\.38\)"/);
+  const edibleShelfRule = css.match(/\.pet-care-item-shelf--edibles\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+  assert.match(edibleShelfRule, /transform:\s*translateY\(clamp\(-8px, -1\.2vh, -4px\)\)/);
 });
 
 test("care items capture the pointer before intent detection", () => {
