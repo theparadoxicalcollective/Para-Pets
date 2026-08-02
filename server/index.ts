@@ -16,6 +16,7 @@ import rateLimit from "express-rate-limit";
 import sharp from "sharp";
 import { registerHealthRoute } from "./health";
 import { runStartup } from "./startup/runStartup";
+import { registerBuildInfoRoute } from "./buildInfo";
 
 const app = express();
 app.set('trust proxy', 1);
@@ -62,6 +63,7 @@ app.use("/api", apiLimiter);
 
 // Lightweight health check for Railway / load balancers — no DB hit, no rate limit.
 registerHealthRoute(app);
+registerBuildInfoRoute(app);
 
 const httpServer = createServer(app);
 const PgSession = connectPgSimple(session);

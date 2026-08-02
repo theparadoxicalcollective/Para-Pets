@@ -505,7 +505,6 @@
   position: relative;
   width: min(88%, 68px);
   height: 92%;
-  transform: translateY(-11px);
 }
 
 .pet-care-drag-ghost__artwork {
@@ -533,6 +532,7 @@
   height: 100%;
   object-fit: contain;
   pointer-events: none;
+  transform: translateY(-11px);
   filter: drop-shadow(0 1px 1px rgba(255, 226, 150, 0.35)) drop-shadow(0 3px 5px rgba(0, 0, 0, 0.82));
 }
 
