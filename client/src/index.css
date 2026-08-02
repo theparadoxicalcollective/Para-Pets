@@ -441,6 +441,19 @@
   overflow: visible;
 }
 
+.pet-care-item-shelf__art-crop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pet-care-item-shelf__art-crop--front {
+  z-index: 2;
+  clip-path: inset(68% 0 0);
+}
+
 .pet-care-item-shelf__art {
   position: absolute;
   /* Shelf1 is already tracked with transparency, but includes a large clear
@@ -448,7 +461,6 @@
      introduce a second binary copy of the same artwork. */
   top: -362.78%;
   left: -1.61%;
-  z-index: 0;
   display: block;
   width: 103.12%;
   height: auto;
