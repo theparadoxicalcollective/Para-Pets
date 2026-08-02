@@ -11,6 +11,26 @@ export type PetCareInventoryStack<T> = T & {
   quantity: number;
 };
 
+export type PetCareEffectItem = {
+  statBoostAmount?: number | null;
+  giftPoints?: number | null;
+};
+
+/** Orders care items from the smallest bar increase to the largest. */
+export function orderPetCareItemsByEffect<T extends PetCareEffectItem>(
+  items: readonly T[],
+  kind: "edibles" | "gifts",
+): T[] {
+  const effectAmount = (item: T) =>
+    kind === "edibles" ? item.statBoostAmount : item.giftPoints;
+
+  return [...items].sort(
+    (left, right) =>
+      (effectAmount(left) ?? Number.POSITIVE_INFINITY) -
+      (effectAmount(right) ?? Number.POSITIVE_INFINITY),
+  );
+}
+
 /**
  * Builds display stacks from the persisted inventory quantities. shopItemId is
  * the stable item-definition identifier; inventory row ids, names, and artwork

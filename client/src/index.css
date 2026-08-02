@@ -407,7 +407,7 @@
    coordinate system. The frame inset keeps the first/last of six equal slots
    centered inside the shelf's outer uprights at every viewport width. */
 .pet-care-item-shelf {
-  --pet-care-item-lift: clamp(12px, 2.5vw, 16px);
+  --pet-care-item-lift: clamp(20px, 4vw, 26px);
   width: min(100%, 650px);
   margin: 0 auto clamp(8px, 1.6vh, 14px);
   color: #f3dfb0;
@@ -552,7 +552,6 @@
   filter: drop-shadow(0 1px 1px rgba(255, 226, 150, 0.35)) drop-shadow(0 3px 5px rgba(0, 0, 0, 0.82));
 }
 
-.pet-care-item-shelf__quantity,
 .pet-care-item-shelf__value {
   position: absolute;
   padding: 0;
@@ -563,11 +562,6 @@
   white-space: nowrap;
   text-shadow: -1px -1px 0 rgba(49, 24, 3, 0.9), 1px -1px 0 rgba(49, 24, 3, 0.9), -1px 1px 0 rgba(49, 24, 3, 0.9), 1px 1px 0 rgba(49, 24, 3, 0.9), 0 2px 4px rgba(0, 0, 0, 0.9);
   pointer-events: none;
-}
-
-.pet-care-item-shelf__quantity {
-  top: 3px;
-  left: 3px;
 }
 
 .pet-care-item-shelf__value { right: 3px; bottom: 3px; }

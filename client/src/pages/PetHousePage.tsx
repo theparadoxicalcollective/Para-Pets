@@ -38,7 +38,7 @@ import {
   pointInsideExpandedPetDropZone,
   type PetCareItemGestureIntent,
 } from "@/lib/petCareInteractions";
-import { buildPetCareInventoryStacks } from "@/lib/petCareInventory";
+import { buildPetCareInventoryStacks, orderPetCareItemsByEffect } from "@/lib/petCareInventory";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -1881,7 +1881,6 @@ function PetCareItemShelf({
             >
               <div className="pet-care-item-shelf__visible-artwork">
                 {item.imageUrl && <VisibleAssetImage className="pet-care-item-shelf__normalized-image" src={item.imageUrl} alt={item.name} />}
-                <span className="pet-care-item-shelf__quantity">{item.quantity ?? 1}</span>
                 {isEdible && item.statBoostAmount != null && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--edible">+{item.statBoostAmount}</span>}
                 {!isEdible && !!item.giftPoints && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--gift">+{item.giftPoints}</span>}
               </div>
@@ -2094,11 +2093,17 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     refetchInterval: 30_000,  // Keep hunger/mood live while overlay is open.
   });
   const edibles = useMemo(
-    () => buildPetCareInventoryStacks(inventory.filter((it) => it.type === "edibles")),
+    () => orderPetCareItemsByEffect(
+      buildPetCareInventoryStacks(inventory.filter((it) => it.type === "edibles")),
+      "edibles",
+    ),
     [inventory],
   );
   const gifts = useMemo(
-    () => buildPetCareInventoryStacks(inventory.filter((it) => it.type === "gift")),
+    () => orderPetCareItemsByEffect(
+      buildPetCareInventoryStacks(inventory.filter((it) => it.type === "gift")),
+      "gifts",
+    ),
     [inventory],
   );
   // Find the live pet record so hunger/mood reflect server state.
