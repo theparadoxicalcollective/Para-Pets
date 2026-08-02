@@ -35,8 +35,21 @@ test("both inventories share the reusable six-slot shelf without old panels", ()
   assert.match(page, /<PetCareItemShelf kind="gifts"/);
   assert.match(page, /"--pet-care-visible-slots": PET_CARE_VISIBLE_SLOTS/);
   assert.match(css, /\/ var\(--pet-care-visible-slots\)\)/);
+  assert.match(css, /\.pet-care-item-shelf__heading[\s\S]*justify-content: center/);
+  assert.doesNotMatch(page, /pet-care-item-shelf__name/);
   assert.doesNotMatch(page, /border: "1\.5px solid rgba\(120,210,90,0\.38\)"/);
   assert.doesNotMatch(page, /border: "1\.5px solid rgba\(240,140,200,0\.38\)"/);
+});
+
+test("care items capture the pointer before intent detection", () => {
+  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const pointerDown = page.slice(
+    page.indexOf("const onItemPointerDown"),
+    page.indexOf("const onItemPointerMove"),
+  );
+  assert.match(pointerDown, /setPointerCapture\(e\.pointerId\)/);
+  assert.match(page, /playGrab\(\)/);
+  assert.match(page, /playPlop\(\)/);
 });
 
 test("pointer cancellation is cleanup-only and server mutation paths stay intact", () => {

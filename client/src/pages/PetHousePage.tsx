@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { MailOpen } from "lucide-react";
-import { playGrab } from "@/lib/sounds";
+import { playClick, playGrab, playPlop } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -1863,8 +1863,10 @@ function PetCareItemShelf({
       style={{ "--pet-care-visible-slots": PET_CARE_VISIBLE_SLOTS } as React.CSSProperties}
     >
       <div className="pet-care-item-shelf__heading">
-        <span>{title}</span>
-        <span className="pet-care-item-shelf__count">{items.length}</span>
+        <span className="pet-care-item-shelf__title">
+          {title}
+          <span className="pet-care-item-shelf__count">{items.length}</span>
+        </span>
         {isEdible && <span className="pet-care-item-shelf__note">stacks up to 30</span>}
       </div>
       <div className="pet-care-item-shelf__stage">
@@ -1883,7 +1885,6 @@ function PetCareItemShelf({
                 {isEdible && item.statBoostAmount != null && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--edible">+{item.statBoostAmount}</span>}
                 {!isEdible && !!item.giftPoints && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--gift">+{item.giftPoints}</span>}
               </div>
-              <span className="pet-care-item-shelf__name">{item.name}</span>
             </div>
           ))}
         </div>
@@ -1967,7 +1968,7 @@ function PetStatusBars({
     <div
       className="absolute left-1/2"
       style={{
-        top: "calc(42% + 130px)",
+        top: "calc(38% + 130px)",
         // Nudge right to sit closer to the pet's visual centre.
         transform: "translateX(calc(-50% + 36px))",
         display: "flex",
@@ -2258,6 +2259,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       return await res.json();
     },
     onSuccess: (data: any) => {
+      playPlop();
       qc.invalidateQueries({ queryKey: ["/api/inventory"] });
       if (data?.rewarded && data?.amount > 0) {
         spawnRewardCoins(data.amount);
@@ -2489,6 +2491,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       return await res.json();
     },
     onSuccess: (data: any) => {
+      playPlop();
       qc.invalidateQueries({ queryKey: ["/api/inventory"] });
       setPetGlow(true);
       setPetBounce(true);
@@ -2552,6 +2555,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       return await apiRequest("POST", `/api/pet/${pet.inventoryId}/feed-edible`, { itemInventoryId, quantity });
     },
     onSuccess: (_data, variables) => {
+      playPlop();
       qc.invalidateQueries({ queryKey: ["/api/inventory"] });
       qc.invalidateQueries({ queryKey: ["/api/quests/daily"] });
       // Glow + bounce + sparkles + floating text on successful feed.
@@ -2613,9 +2617,12 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   useEffect(() => () => cleanupItemGesture(), [cleanupItemGesture]);
 
   const onItemPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, item: PetCareShelfItem) => {
-    // Do NOT preventDefault or capture here — we let the browser handle
-    // horizontal scroll normally until we detect upward-drag intent.
+    // Capture immediately so touch browsers keep delivering the gesture after
+    // the finger leaves the small shelf slot. `touch-action: pan-x` still lets
+    // a horizontal swipe become native shelf scrolling (and pointercancel then
+    // performs cleanup), while upward movement remains available for dragging.
     e.stopPropagation();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
     dragRef.current = {
       inventoryId: item.id,
       imageUrl: item.imageUrl,
@@ -2642,10 +2649,10 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       if (intent === "pending") return;
       d.intent = intent;
       if (intent === "horizontal-scroll") {
-        cleanupItemGesture(false);
+        cleanupItemGesture();
         return;
       }
-      try { d.origin.setPointerCapture(e.pointerId); } catch {}
+      playGrab();
       suppressClickRef.current = true;
       setDragGhost({ inventoryId: d.inventoryId, imageUrl: d.imageUrl });
     }
@@ -2762,7 +2769,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           )}
           {/* Help / tutorial button */}
           <button
-            onClick={() => setShowCareTutorial(true)}
+            onClick={() => { playClick(); setShowCareTutorial(true); }}
             className="w-9 h-9 rounded-full flex items-center justify-center"
             style={{
               background: "rgba(15,25,12,0.75)",
@@ -2778,7 +2785,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
             aria-label="How to care for your pet"
           >?</button>
           <button
-            onClick={onClose}
+            onClick={() => { playClick(); onClose(); }}
             className="w-9 h-9 rounded-full flex items-center justify-center"
             style={{
               background: "rgba(15,25,12,0.75)",
@@ -2825,11 +2832,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         className="absolute"
         style={{
           left: "50%",
-          // Pet centerpiece sits at 42% of the frame — the original
-          // composition that left enough breathing room above for the
-          // header and below for the status-bar block (which anchors at
-          // calc(42% + 130px) so the two move together).
-          top: "42%",
+          // Keep the pet and its status block together while leaving more
+          // breathing room for the two inventory shelves below.
+          top: "38%",
           // Nudge right slightly — sits between page centre and the bars,
           // closer to the loyalty bar on the left edge.
           transform: "translate(calc(-50% + 10px), -50%)",
@@ -2911,7 +2916,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         className="absolute"
         style={{
           left: 22,
-          top: "18%",
+          top: "14%",
           height: "50%",
           width: 36,
           display: "flex",
