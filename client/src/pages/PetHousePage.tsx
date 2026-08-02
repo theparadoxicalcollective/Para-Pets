@@ -32,7 +32,9 @@ import petCareItemShelf from "@assets/uploads/Shelf1.png";
 import {
   classifyPetCareItemGesture,
   PET_CARE_DROP_PADDING_PX,
+  PET_CARE_DRAG_GHOST_SIZE_PX,
   PET_CARE_VISIBLE_SLOTS,
+  getPetCareDragGhostTransform,
   pointInsideExpandedPetDropZone,
   type PetCareItemGestureIntent,
 } from "@/lib/petCareInteractions";
@@ -2595,7 +2597,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       const ghost = dragGhostRef.current;
       if (ghost) {
         const point = dragPositionRef.current;
-        ghost.style.transform = `translate3d(${point.x - 36}px, ${point.y - 94}px, 0)`;
+        ghost.style.transform = getPetCareDragGhostTransform(point.x, point.y);
       }
     });
   }, []);
@@ -2643,9 +2645,18 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const onItemPointerMove = useCallback((e: React.PointerEvent) => {
     const d = dragRef.current;
     if (!d || d.pid !== e.pointerId) return;
+    const nativeEvent = e.nativeEvent;
+    const coalescedEvents =
+      typeof nativeEvent.getCoalescedEvents === "function"
+        ? nativeEvent.getCoalescedEvents()
+        : [];
+    const point =
+      coalescedEvents.length > 0
+        ? coalescedEvents[coalescedEvents.length - 1]
+        : nativeEvent;
 
     if (d.intent === "pending") {
-      const intent = classifyPetCareItemGesture(e.clientX - d.startX, e.clientY - d.startY);
+      const intent = classifyPetCareItemGesture(point.clientX - d.startX, point.clientY - d.startY);
       if (intent === "pending") return;
       d.intent = intent;
       if (intent === "horizontal-scroll") {
@@ -2654,13 +2665,16 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       }
       playGrab();
       suppressClickRef.current = true;
+      // Store the first drag position before mounting the ghost so it cannot
+      // briefly render at the viewport origin.
+      updateDragGhostPosition(point.clientX, point.clientY);
       setDragGhost({ inventoryId: d.inventoryId, imageUrl: d.imageUrl });
     }
     if (d.intent !== "vertical-item-drag") return;
     e.preventDefault();
-    updateDragGhostPosition(e.clientX, e.clientY);
+    updateDragGhostPosition(point.clientX, point.clientY);
     const box = petBoxRef.current?.getBoundingClientRect();
-    setPetGlow(!!box && pointInsideExpandedPetDropZone({ x: e.clientX, y: e.clientY }, box));
+    setPetGlow(!!box && pointInsideExpandedPetDropZone({ x: point.clientX, y: point.clientY }, box));
   }, [cleanupItemGesture, updateDragGhostPosition]);
 
   const onItemPointerUp = useCallback((e: React.PointerEvent) => {
@@ -2672,8 +2686,16 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       return;
     }
 
+    const nativeEvent = e.nativeEvent;
+    const coalescedEvents =
+      typeof nativeEvent.getCoalescedEvents === "function"
+        ? nativeEvent.getCoalescedEvents()
+        : [];
+    const point = coalescedEvents.length > 0
+      ? coalescedEvents[coalescedEvents.length - 1]
+      : nativeEvent;
     const box = petBoxRef.current?.getBoundingClientRect();
-    const validDrop = !!box && pointInsideExpandedPetDropZone({ x: e.clientX, y: e.clientY }, box, PET_CARE_DROP_PADDING_PX);
+    const validDrop = !!box && pointInsideExpandedPetDropZone({ x: point.clientX, y: point.clientY }, box, PET_CARE_DROP_PADDING_PX);
     cleanupItemGesture();
     window.setTimeout(() => { suppressClickRef.current = false; }, 0);
     if (validDrop) {
@@ -3414,18 +3436,19 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           style={{
             left: 0,
             top: 0,
-            width: 72,
-            height: 72,
+            width: PET_CARE_DRAG_GHOST_SIZE_PX,
+            height: PET_CARE_DRAG_GHOST_SIZE_PX,
             zIndex: 520,
-            opacity: 0.92,
-            transform: `translate3d(${dragPositionRef.current.x - 36}px, ${dragPositionRef.current.y - 94}px, 0)`,
+            opacity: 1,
+            transform: getPetCareDragGhostTransform(dragPositionRef.current.x, dragPositionRef.current.y),
             willChange: "transform",
-            filter: "drop-shadow(0 6px 12px rgba(0,0,0,0.6)) drop-shadow(0 0 16px rgba(190,255,140,0.5))",
           }}
         >
-          {dragGhost.imageUrl && (
-            <img src={dragGhost.imageUrl} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-          )}
+          <div className="pet-care-drag-ghost__artwork">
+            {dragGhost.imageUrl && (
+              <img className="pet-care-drag-ghost__image" src={dragGhost.imageUrl} alt="" draggable={false} />
+            )}
+          </div>
         </div>
       )}
 
