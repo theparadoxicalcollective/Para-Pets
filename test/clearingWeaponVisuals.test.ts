@@ -30,7 +30,7 @@ test("weapon attack phases stay separate from directional wrapper rotation and r
   assert.equal(inventoryWeaponRotation("clearing-training-sword"),45);
   assert.equal(inventoryWeaponRotation("another-weapon"),0);
   assert.equal(weaponAttackTransform("idle"), "translateX(0px) rotate(0deg)");
-  assert.equal(weaponAttackTransform("impact"), "translateX(4px) rotate(22deg)");
+  assert.equal(weaponAttackTransform("impact"), "translateX(6px) rotate(42deg)");
   assert.deepEqual(CLEARING_SWORD_TIMING, {windupMs:90,impactMs:70,recoveryMs:140,totalMs:300});
   for (let stars=1;stars<=5;stars++) assert.match(weaponRarityFilter(stars), /drop-shadow/);
 });
