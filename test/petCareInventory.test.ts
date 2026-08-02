@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildPetCareInventoryStacks } from "../client/src/lib/petCareInventory";
+import { buildPetCareInventoryStacks, orderPetCareItemsByEffect } from "../client/src/lib/petCareInventory";
 
 const item = (quantity: number, overrides = {}) => ({
   id: "inventory-row-a",
@@ -37,5 +37,37 @@ test("different item definitions and persisted rows remain distinct", () => {
   assert.deepEqual(stacks.map(({ shopItemId, quantity }) => [shopItemId, quantity]), [
     ["definition-apple", 2],
     ["definition-berry", 3],
+  ]);
+});
+
+test("pet care items are ordered by the amount they add to the relevant bar", () => {
+  const items = [
+    { name: "large", statBoostAmount: 30, giftPoints: 20 },
+    { name: "small", statBoostAmount: 5, giftPoints: 40 },
+    { name: "medium", statBoostAmount: 10, giftPoints: 10 },
+  ];
+
+  assert.deepEqual(orderPetCareItemsByEffect(items, "edibles").map(({ name }) => name), [
+    "small",
+    "medium",
+    "large",
+  ]);
+  assert.deepEqual(orderPetCareItemsByEffect(items, "gifts").map(({ name }) => name), [
+    "medium",
+    "large",
+    "small",
+  ]);
+  assert.deepEqual(items.map(({ name }) => name), ["large", "small", "medium"]);
+});
+
+test("items without a bar increase appear after items with a known value", () => {
+  const items = [
+    { name: "unknown", statBoostAmount: null },
+    { name: "known", statBoostAmount: 5 },
+  ];
+
+  assert.deepEqual(orderPetCareItemsByEffect(items, "edibles").map(({ name }) => name), [
+    "known",
+    "unknown",
   ]);
 });

@@ -60,7 +60,7 @@ test("URL cache reuses successful analysis and failed analysis", async () => {
   assert.equal(failures, 1);
 });
 
-test("shelf badges use the normalized wrapper while the full compartment remains the drag target", () => {
+test("shelf effect badges use the normalized wrapper while the full compartment remains the drag target", () => {
   const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
   const component = readFileSync("client/src/components/VisibleAssetImage.tsx", "utf8");
   const css = readFileSync("client/src/index.css", "utf8");
@@ -68,12 +68,13 @@ test("shelf badges use the normalized wrapper while the full compartment remains
   const itemEnd = page.indexOf('</div>\n          ))}', itemStart);
   const item = page.slice(itemStart, itemEnd);
   assert.match(item, /className="pet-care-item-shelf__item"[\s\S]*onPointerDown=/);
-  assert.match(item, /pet-care-item-shelf__visible-artwork[\s\S]*VisibleAssetImage[\s\S]*pet-care-item-shelf__quantity/);
+  assert.match(item, /pet-care-item-shelf__visible-artwork[\s\S]*VisibleAssetImage[\s\S]*pet-care-item-shelf__value/);
+  assert.doesNotMatch(item, /pet-care-item-shelf__quantity/);
   assert.match(component, /if \(fallback\) return <img className=\{className\}/);
   assert.match(css, /\.pet-care-item-shelf__normalized-image[\s\S]*object-fit: contain/);
   const wrapperRule = css.match(/\.pet-care-item-shelf__visible-artwork\s*\{([^}]*)\}/)?.[1] ?? "";
   const imageRule = css.match(/\.pet-care-item-shelf__normalized-image\s*\{([^}]*)\}/)?.[1] ?? "";
   assert.doesNotMatch(wrapperRule, /transform/);
   assert.match(imageRule, /transform:\s*translateY\(calc\(-1 \* var\(--pet-care-item-lift\)\)\)/);
-  assert.match(item, /pet-care-item-shelf__visible-artwork[\s\S]*pet-care-item-shelf__normalized-image[\s\S]*pet-care-item-shelf__quantity[\s\S]*pet-care-item-shelf__value/);
+  assert.match(item, /pet-care-item-shelf__visible-artwork[\s\S]*pet-care-item-shelf__normalized-image[\s\S]*pet-care-item-shelf__value/);
 });
