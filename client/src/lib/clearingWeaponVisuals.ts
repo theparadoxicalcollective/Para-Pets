@@ -18,8 +18,10 @@ export function inventoryWeaponRotation(stableKey?: string | null): number {
 
 /** Attack motion is local to the already direction-oriented weapon wrapper. */
 export function weaponAttackTransform(phase: ClearingAttackPhase): string {
-  const rotation = phase === "windup" ? -15 : phase === "impact" ? 22 : phase === "recovery" ? 7 : 0;
-  const reach = phase === "impact" ? 4 : 0;
+  // A broad sweep keeps sword art from appearing pinned in its resting,
+  // downward orientation while still rotating around the pet's hand.
+  const rotation = phase === "windup" ? -48 : phase === "impact" ? 42 : phase === "recovery" ? 14 : 0;
+  const reach = phase === "impact" ? 6 : 0;
   return `translateX(${reach}px) rotate(${rotation}deg)`;
 }
 

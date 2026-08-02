@@ -23,6 +23,7 @@ import petCardFrameImg from "@assets/generated_images/pet_card_frame.png";
 import petCardTextureImg from "@assets/generated_images/pet_card_texture.png";
 import petInvDividerImg from "@assets/generated_images/pet_inventory_divider.png";
 import PetDetailPage from "./PetDetailPage";
+import { itemTypeLabel, itemTypeOptions } from "@/lib/itemTypeFilters";
 
 function getRarityStyle(rarity: number | null): { border: string; glow: string; bg: string; starColor: string; borderOpacity: number; glowStrength: number } {
   // Unified gold palette — intensity scales with rarity, no rainbow colors
@@ -1099,7 +1100,7 @@ function getItemUsageHint(item: InventoryItem): { where: string; how: string } {
 
 const POTION_STACK_MAX = 50;
 
-type BagTabKey = "all" | "potion" | "item" | "accessory" | "special" | "recipe";
+type BagTabKey = string;
 
 const BAG_TABS: { key: BagTabKey; label: string; icon: string }[] = [
   { key: "all",       label: "All",     icon: tabIconAll       },
@@ -1108,6 +1109,11 @@ const BAG_TABS: { key: BagTabKey; label: string; icon: string }[] = [
   { key: "accessory", label: "Gear",    icon: tabIconAccessory },
   { key: "special",   label: "Special", icon: tabIconSpecial   },
   { key: "recipe",    label: "Recipes", icon: recipeScrollIcon },
+  { key: "ingredient",label: "Ingredients", icon: tabIconItem  },
+  { key: "edibles",   label: "Edibles", icon: tabIconPotion    },
+  { key: "gift",      label: "Gifts", icon: tabIconSpecial     },
+  { key: "fishing",   label: "Fishing", icon: tabIconItem      },
+  { key: "clearing",  label: "Clearing Gear", icon: tabIconAccessory },
 ];
 
 function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemPointerDown?: (e: React.PointerEvent, item: InventoryItem) => void }) {
@@ -1175,8 +1181,10 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
     ...Array.from(stackMap.values()),
   ];
 
-  // Which tabs actually have items (hide empty tabs)
-  const tabsWithItems = new Set(allDisplayItems.map(({ item }) => item.type));
+  // Every stored item type remains reachable, including future catalog types.
+  const tabsWithItems = itemTypeOptions(allDisplayItems.map(({item})=>item));
+  const configuredTabs = new Set(BAG_TABS.map(tab=>tab.key));
+  const visibleTabs = [...BAG_TABS.filter(tab=>tab.key==="all"||tabsWithItems.includes(tab.key)),...tabsWithItems.filter(type=>!configuredTabs.has(type)).map(type=>({key:type,label:itemTypeLabel(type),icon:tabIconItem}))];
 
   // Filter by selected tab; sort alphabetically for "all"
   const displayItems = allDisplayItems
@@ -1189,7 +1197,7 @@ function BagView({ items, onItemPointerDown }: { items: InventoryItem[]; onItemP
     <>
       {/* ── Type tabs ─────────────────────────────────────────────── */}
       <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-        {BAG_TABS.filter(t => t.key === "all" || tabsWithItems.has(t.key)).map(tab => {
+        {visibleTabs.map(tab => {
           const active = bagTab === tab.key;
           return (
             <button
