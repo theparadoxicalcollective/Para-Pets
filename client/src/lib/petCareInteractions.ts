@@ -1,6 +1,12 @@
 export const PET_CARE_VISIBLE_SLOTS = 6;
-export const PET_CARE_GESTURE_THRESHOLD_PX = 11;
+export const PET_CARE_GESTURE_THRESHOLD_PX = 8;
 export const PET_CARE_DROP_PADDING_PX = 26;
+export const PET_CARE_DRAG_GHOST_SIZE_PX = 86;
+export const PET_CARE_DRAG_GHOST_FINGER_GAP_PX = 12;
+
+export function getPetCareDragGhostTransform(x: number, y: number): string {
+  return `translate3d(${x - PET_CARE_DRAG_GHOST_SIZE_PX / 2}px, ${y - PET_CARE_DRAG_GHOST_SIZE_PX - PET_CARE_DRAG_GHOST_FINGER_GAP_PX}px, 0)`;
+}
 
 export type PetCareItemGestureIntent =
   | "pending"
