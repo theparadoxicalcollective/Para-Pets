@@ -77,4 +77,9 @@ test("shelf effect badges use the normalized wrapper while the full compartment 
   assert.doesNotMatch(wrapperRule, /transform/);
   assert.match(imageRule, /transform:\s*translateY\(calc\(-1 \* var\(--pet-care-item-lift\)\)\)/);
   assert.match(item, /pet-care-item-shelf__visible-artwork[\s\S]*pet-care-item-shelf__normalized-image[\s\S]*pet-care-item-shelf__value/);
+  const valueRules = [...css.matchAll(/\.pet-care-item-shelf__value\s*\{([^}]*)\}/g)];
+  const valueRule = valueRules.at(-1)?.[1] ?? "";
+  assert.match(valueRule, /top:\s*3px/);
+  assert.match(valueRule, /right:\s*3px/);
+  assert.match(valueRule, /translateY\(calc\(-1 \* var\(--pet-care-item-lift\)\)\)/);
 });

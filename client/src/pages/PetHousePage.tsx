@@ -1863,7 +1863,7 @@ function PetCareItemShelf({
   const title = isEdible ? "EDIBLES" : "GIFTS";
   return (
     <section
-      className="pet-care-item-shelf"
+      className={`pet-care-item-shelf pet-care-item-shelf--${kind}`}
       data-testid={`pet-care-${kind}-shelf`}
       style={{ "--pet-care-visible-slots": PET_CARE_VISIBLE_SLOTS } as React.CSSProperties}
     >

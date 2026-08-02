@@ -415,6 +415,12 @@
   overflow: visible;
 }
 
+/* Lift the first shelf without changing the bottom safe-area position. This
+   creates a little more breathing room between the two shelf fronts. */
+.pet-care-item-shelf--edibles {
+  transform: translateY(clamp(-8px, -1.2vh, -4px));
+}
+
 .pet-care-inventory-section {
   bottom: clamp(4px, 1.2vh, 12px);
 }
@@ -472,20 +478,20 @@
 .pet-care-item-shelf__viewport {
   position: absolute;
   top: calc(2% - var(--pet-care-item-lift));
-  right: 0;
+  right: var(--pet-care-shelf-frame-inset);
   bottom: 0;
-  left: 0;
+  left: var(--pet-care-shelf-frame-inset);
   z-index: 1;
   display: flex;
   box-sizing: border-box;
   height: calc(77% + var(--pet-care-item-lift));
   padding-top: var(--pet-care-item-lift);
-  padding-inline: var(--pet-care-shelf-frame-inset);
+  padding-inline: 0;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
-  scroll-padding-inline: var(--pet-care-shelf-frame-inset);
+  scroll-padding-inline: 0;
   scrollbar-width: none;
   touch-action: pan-x;
   -webkit-overflow-scrolling: touch;
@@ -564,7 +570,11 @@
   pointer-events: none;
 }
 
-.pet-care-item-shelf__value { right: 3px; bottom: 3px; }
+.pet-care-item-shelf__value {
+  top: 3px;
+  right: 3px;
+  transform: translateY(calc(-1 * var(--pet-care-item-lift)));
+}
 
 .pet-care-item-shelf__empty {
   position: absolute;
