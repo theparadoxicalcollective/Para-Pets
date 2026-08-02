@@ -52,13 +52,17 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
 
   app.post("/api/explore/elysian-clearing/attack", isAuthenticated, async (req, res) => {
     const user = req.user as any;
+    try {
     const { sessionId, enemyInstanceId, playerPosition, aimDirection, aimPoint, targetPosition, worldPixels, isSpecial,attackActionId } = req.body ?? {};
     if (typeof sessionId !== "string" || typeof enemyInstanceId !== "string"||typeof attackActionId!=="string"||attackActionId.length>100) return res.status(400).json({code:"CLEARING_MALFORMED_REQUEST", message: "Invalid combat request" });
+    const session=getClearingSession(sessionId);
+    if(!session||session.userId!==user.id||session.expiresAt<=Date.now())return res.status(409).json({code:"CLEARING_SESSION_EXPIRED",message:"Combat session expired"});
     const inventory = await storage.getUserInventory(user.id);
     const pet = inventory.find((item: any) => item.id === user.activePetId && item.isHatched);
     if (!pet) return res.status(400).json({ message: "An active hatched pet is required" });
+    if(session.petId!==pet.id)return res.status(409).json({code:"CLEARING_ACTIVE_PET_CHANGED",message:"Your active pet changed. Recreating the Clearing session."});
     const loadout=await getClearingLoadout(db,user.id),style=resolveClearingAttackStyle(loadout.weapon?{attackStyle:loadout.weapon.attackStyle,name:loadout.weapon.name}:undefined);
-    const specialKind=resolveClearingSpecialKind(pet),sessionDamage=getClearingSession(sessionId)?.effectiveStats.atk;
+    const specialKind=resolveClearingSpecialKind(pet),sessionDamage=session.effectiveStats.atk;
     const petDamage=isSpecial===true&&specialKind==="damage"&&sessionDamage?clearingSpecialDamage(sessionDamage):undefined;
     const enemy=getClearingSession(sessionId)?.enemies.find(candidate=>candidate.instanceId===enemyInstanceId);
     if(!enemy||!playerPosition||!aimDirection||!aimPoint||!targetPosition||!worldPixels)return res.status(400).json({message:"Invalid directional combat request"});
@@ -93,6 +97,10 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
     const nextEnemy = respawnClearingEnemy(sessionId, enemyInstanceId);
     if(reward.eggDrop&&nextEnemy){nextEnemy.specialPetShopItemId=undefined;nextEnemy.specialRarity=undefined;}
     return res.json({ defeated: true, health: 0, maxHealth: result.enemy!.maxHealth, chest:reward.chest,eggDrop:reward.eggDrop, boss:reward.boss, expAwarded:reward.expAwarded, pet:reward.pet, nextEnemy });
+    } catch(error:any) {
+      console.error("Clearing attack failed",{userId:user.id,code:error?.code??"unknown"});
+      return res.status(500).json({code:"CLEARING_ATTACK_FAILED",message:"The Clearing attack could not be completed"});
+    }
   });
 
   app.get("/api/explore/elysian-clearing/chests/:sessionId",isAuthenticated,async(req,res)=>res.json(await getClearingRewardChests(db,{userId:(req.user as any).id,sessionId:req.params.sessionId as string,clearingId:ELYSIAN_CLEARING_COMBAT.locationId})));
