@@ -38,6 +38,7 @@ import {
   pointInsideExpandedPetDropZone,
   type PetCareItemGestureIntent,
 } from "@/lib/petCareInteractions";
+import { buildPetCareInventoryStacks } from "@/lib/petCareInventory";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -1839,6 +1840,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
 
 type PetCareShelfItem = {
   id: string;
+  shopItemId: string;
+  stackId: string;
   imageUrl: string | null;
   name: string;
   quantity?: number | null;
@@ -1867,23 +1870,21 @@ function PetCareItemShelf({
       <div className="pet-care-item-shelf__heading">
         <span className="pet-care-item-shelf__title">
           {title}
-          <span className="pet-care-item-shelf__count">{items.length}</span>
         </span>
-        {isEdible && <span className="pet-care-item-shelf__note">stacks up to 30</span>}
       </div>
       <div className="pet-care-item-shelf__stage">
         <img className="pet-care-item-shelf__art" src={petCareItemShelf} alt="" aria-hidden="true" draggable={false} />
         <div className="pet-care-item-shelf__viewport">
           {items.map((item) => (
             <div
-              key={item.id}
+              key={item.stackId}
               className="pet-care-item-shelf__item"
               onPointerDown={(event) => onItemPointerDown(event, item)}
               data-testid={`${isEdible ? "edible" : "gift"}-item-${item.id}`}
             >
               <div className="pet-care-item-shelf__visible-artwork">
                 {item.imageUrl && <VisibleAssetImage className="pet-care-item-shelf__normalized-image" src={item.imageUrl} alt={item.name} />}
-                {(item.quantity ?? 1) > 1 && <span className="pet-care-item-shelf__quantity">×{item.quantity}</span>}
+                {(item.quantity ?? 1) > 1 && <span className="pet-care-item-shelf__quantity">{item.quantity}</span>}
                 {isEdible && item.statBoostAmount != null && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--edible">+{item.statBoostAmount}</span>}
                 {!isEdible && !!item.giftPoints && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--gift">+{item.giftPoints}</span>}
               </div>
@@ -2090,11 +2091,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     refetchInterval: 30_000,  // Keep hunger/mood live while overlay is open.
   });
   const edibles = useMemo(
-    () => inventory.filter((it) => it.type === "edibles"),
+    () => buildPetCareInventoryStacks(inventory.filter((it) => it.type === "edibles")),
     [inventory],
   );
   const gifts = useMemo(
-    () => inventory.filter((it) => it.type === "gift"),
+    () => buildPetCareInventoryStacks(inventory.filter((it) => it.type === "gift")),
     [inventory],
   );
   // Find the live pet record so hunger/mood reflect server state.
@@ -3318,7 +3319,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           horizontally. Swipe left/right to browse; drag upward to feed/gift
           the pet. The strip is capped so it never overlaps the status bars. */}
       <div
-        className="absolute bottom-0 left-0 right-0"
+        className="absolute left-0 right-0 pet-care-inventory-section"
         style={{
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 10px)",
           background: "linear-gradient(0deg, rgba(6,14,6,0.97) 0%, rgba(6,14,6,0.88) 65%, rgba(6,14,6,0) 100%)",

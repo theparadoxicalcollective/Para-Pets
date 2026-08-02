@@ -413,6 +413,10 @@
   font-family: "Lora", serif;
 }
 
+.pet-care-inventory-section {
+  bottom: clamp(4px, 1.2vh, 12px);
+}
+
 .pet-care-item-shelf__heading {
   position: relative;
   display: flex;
@@ -430,20 +434,6 @@
   display: inline-flex;
   align-items: baseline;
   gap: 8px;
-}
-
-.pet-care-item-shelf__count {
-  color: rgba(243, 223, 176, 0.65);
-  letter-spacing: normal;
-}
-
-.pet-care-item-shelf__note {
-  position: absolute;
-  right: 3.8%;
-  color: rgba(243, 223, 176, 0.5);
-  font-size: 8px;
-  font-weight: 500;
-  letter-spacing: normal;
 }
 
 .pet-care-item-shelf__stage {
@@ -543,31 +533,28 @@
   height: 100%;
   object-fit: contain;
   pointer-events: none;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.75));
+  filter: drop-shadow(0 1px 1px rgba(255, 226, 150, 0.35)) drop-shadow(0 3px 5px rgba(0, 0, 0, 0.82));
 }
 
 .pet-care-item-shelf__quantity,
 .pet-care-item-shelf__value {
   position: absolute;
-  border-radius: 7px;
-  padding: 0 4px;
-  font-size: 8px;
+  padding: 0;
+  color: #f6cf58;
+  font-size: clamp(9px, 2.6vw, 12px);
   font-weight: 800;
-  line-height: 13px;
+  line-height: 1;
   white-space: nowrap;
+  text-shadow: -1px -1px 0 rgba(49, 24, 3, 0.9), 1px -1px 0 rgba(49, 24, 3, 0.9), -1px 1px 0 rgba(49, 24, 3, 0.9), 1px 1px 0 rgba(49, 24, 3, 0.9), 0 2px 4px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
 }
 
 .pet-care-item-shelf__quantity {
-  top: -2px;
-  right: -4px;
-  color: #fff3d1;
-  background: rgba(62, 39, 15, 0.96);
-  border: 1px solid rgba(232, 192, 116, 0.75);
+  top: 3px;
+  left: 3px;
 }
 
-.pet-care-item-shelf__value { bottom: -3px; left: 50%; transform: translateX(-50%); }
-.pet-care-item-shelf__value--edible { color: #071a02; background: rgba(120, 194, 76, 0.97); }
-.pet-care-item-shelf__value--gift { color: #fff0f7; background: rgba(210, 55, 130, 0.97); }
+.pet-care-item-shelf__value { right: 3px; bottom: 3px; }
 
 .pet-care-item-shelf__empty {
   position: absolute;
