@@ -25,6 +25,7 @@ import moodFaceHungry from "@assets/mood_face_hungry.png";
 import coinIconImg from "@assets/icon_coin.png";
 import LoadingScreen from "@/components/LoadingScreen";
 import GiftClaimModal from "@/components/GiftClaimModal";
+import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import loyaltyRewardIcon from "@assets/Photoroom_20260703_72612_AM_1783081617614.png";
 import petCareItemShelf from "@assets/uploads/Shelf1.png";
@@ -1876,8 +1877,8 @@ function PetCareItemShelf({
               onPointerDown={(event) => onItemPointerDown(event, item)}
               data-testid={`${isEdible ? "edible" : "gift"}-item-${item.id}`}
             >
-              <div className="pet-care-item-shelf__item-image">
-                {item.imageUrl && <img src={item.imageUrl} alt={item.name} draggable={false} />}
+              <div className="pet-care-item-shelf__visible-artwork">
+                {item.imageUrl && <VisibleAssetImage className="pet-care-item-shelf__normalized-image" src={item.imageUrl} alt={item.name} />}
                 {(item.quantity ?? 1) > 1 && <span className="pet-care-item-shelf__quantity">×{item.quantity}</span>}
                 {isEdible && item.statBoostAmount != null && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--edible">+{item.statBoostAmount}</span>}
                 {!isEdible && !!item.giftPoints && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--gift">+{item.giftPoints}</span>}
