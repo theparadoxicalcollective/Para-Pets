@@ -15,6 +15,8 @@
 import { memo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getAlphaBounds, getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
+import { PET_LAYER_ORDER, getEffectivePetLayer, isHeadGroupPart as canonicalIsHeadGroupPart } from "@/lib/petPartConfig";
+import { DEFAULT_PET_ANIMATION, alphaAdjustedPivot, earMotion, normalizeAnimationProfile } from "@/lib/petAnimationConfig";
 
 interface PetPart {
   id: string; templateId: string; partType: string; view: string; imageUrl: string;
@@ -24,96 +26,9 @@ interface PetPart {
 
 const CANVAS_SIZE = 1000;
 const ANIM_ONLY_PARTS = new Set(["eyes_closed", "mouth"]);
-// Canonical layer order — kept in lockstep with the LAYER_ORDER table in
-// PetAnimator.tsx (≈ line 692). The img-renderer (PetAnimator) is the
-// reference for visual stacking; this canvas-renderer must match it part
-// for part or PvP pets render with limbs / hair / wings on the wrong side
-// of the body. New part types added to PetAnimator MUST be mirrored here.
-const LAYER_ORDER: Record<string, number> = {
-  // ── Tail / hind decorations (deepest back layer) ──────────────────────
-  head_wing_left: 1, head_wing_right: 1,
-  tail: 1, tail_2: 1, tail_3: 1,
-  back_hair: 1,
-  // ── Wings (back-layer in side view, body wings on front view) ─────────
-  back_wing: 2, back_wing_2: 2,
-  right_wing: 2, left_wing: 2,
-  wing_set2_left: 2, wing_set2_right: 2,
-  // ── Back-side limbs / accessories (behind body) ───────────────────────
-  back_leg: 3, right_leg: 3, left_leg: 3,
-  back_accessory_2: 3, back_accessory_1: 3,
-  back_arm: 4, back_shoulder: 4,
-  // ── Body ──────────────────────────────────────────────────────────────
-  body: 5, body_2: 4.5,
-  // ── Front-facing-only accessories that sit BEHIND the body silhouette
-  //    (capes, satchels). Same z=3 + role as back_accessory_1/2 — kept
-  //    in lockstep with PetAnimator's LAYER_ORDER so the canvas + img
-  //    renderers stack identically.
-  front_left_accessory: 3, front_right_accessory: 3,
-  // ── Front-side accessories / front wings (in front of body) ───────────
-  front_wing_2: 6, front_wing: 6,
-  front_accessory_2: 6, front_accessory_1: 6,
-  // ── Arms (overHeadPartTypes sends them to z=20 for front-facing pets) ─
-  right_arm: 5, left_arm: 5, front_arm: 5,
-  // ── Front-facing shoulders behind neck (z=5 < neck z=6) ──────────────
-  left_shoulder: 5, right_shoulder: 5,
-  // ── Front-side limbs (side-view legs + shoulders stay in front of neck) ─
-  front_leg: 7, front_shoulder: 8,
-  // ── Face / head ───────────────────────────────────────────────────────
-  right_ear: 9, left_ear: 9,
-  // Second ear pair on Head 1 — same z-band as the primary ears.
-  // Mirrors PetAnimator's LAYER_ORDER.
-  right_ear_2: 9, left_ear_2: 9,
-  // Neck — in front of body (5) but BEHIND the arms (right_arm=7,
-  // left_arm=8) so arms always overlap the neck base. Mirrors
-  // PetAnimator's LAYER_ORDER.
-  neck: 6,
-  // Hands — front-facing only, just above neck (z=6). Mirrors
-  // PetAnimator's LAYER_ORDER and PetDatabasePanel.
-  left_hand: 7, right_hand: 7,
-  head: 10,
-  accessory_2: 11, accessory_1: 11,
-  mouth: 12,
-  mouth_closed: 13,
-  eyes_closed: 14,
-  eyes: 15,
-  hair_right: 16,
-  hair_left: 17,
-  hair_center: 18,
-  above_head: 19,
-};
-
-// Parts that should ride along with the head bob (so the whole head reads
-// as one floating object instead of the eyes/mouth detaching from the
-// skull on every up-stroke). Mirrors the canonical FACE_PART_TYPES + isFacePart()
-// rule in PetAnimator.tsx (≈ line 286): a base set of face-anchored part
-// types, plus any h2_/h3_-prefixed variant of those base types so multi-head
-// pets bob each face as a unit. Also includes "head" itself and the
-// prefixed head variants so the head wrapper drives the wrapper transform.
-//
-// IMPORTANT: keep this list in lockstep with FACE_PART_TYPES in
-// PetAnimator.tsx. Adding a part here that the img-renderer does NOT bob
-// (or vice-versa) creates "renderer drift" — the same template animates
-// differently on the canvas vs the img path. Notably, head_wing_left/right
-// are NOT in the canonical face group (they animate independently like
-// regular wings) so they MUST stay out of this set.
-const FACE_BASE_PARTS = new Set([
-  "eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed",
-  "hair_left", "hair_right", "hair_center", "accessory_1", "accessory_2", "above_head",
-  // Second pair of ears on Head 1 — must ride the head-bob wrapper
-  // alongside the primary ears (same rule as in PetAnimator's
-  // FACE_PART_TYPES). Out-of-phase swing comes from a slightly
-  // different period (3.1 s vs 3.5 s) below.
-  "left_ear_2", "right_ear_2",
-]);
-const isHeadGroupPart = (partType: string): boolean => {
-  if (partType === "head") return true;
-  if (FACE_BASE_PARTS.has(partType)) return true;
-  // Strip h2_/h3_ prefix and recheck the base set, so h2_accessory_1,
-  // h3_hair_left, h2_above_head, h3_head, etc. all ride their own head's bob.
-  const m = partType.match(/^h[23]_(.+)$/);
-  if (!m) return false;
-  return m[1] === "head" || FACE_BASE_PARTS.has(m[1]);
-};
+// All renderers consume the same canonical layer and head-group rules.
+const LAYER_ORDER = PET_LAYER_ORDER;
+const isHeadGroupPart = canonicalIsHeadGroupPart;
 
 function kfi(kfs: [number, number][], t: number): number {
   if (t <= kfs[0][0]) return kfs[0][1];
@@ -149,8 +64,8 @@ interface AnimResult {
 // ±2.4 % / ±4.6 % so the torso reads as gentle breathing rather than
 // an obvious swell. Mirrors PetAnimator.tsx IDLE_ANIMATIONS.
 function bodyBreath(sec: number): AnimResult {
-  const w = (1 + sinWave(sec, 4.5)) * 0.5; // 0..1 sine
-  return { op: 1, rot: 0, sx: 1 + w * 0.012, sy: 1 + w * 0.022 };
+  const w = (1 + sinWave(sec, DEFAULT_PET_ANIMATION.body.durationSec)) * 0.5;
+  return { op: 1, rot: 0, sx: 1 + w * (DEFAULT_PET_ANIMATION.body.scaleX - 1), sy: 1 + w * (DEFAULT_PET_ANIMATION.body.scaleY - 1) };
 }
 
 function evalAnim(partType: string, sec: number, blinkOff: number, idleStyle?: string): AnimResult {
@@ -175,11 +90,14 @@ function evalAnim(partType: string, sec: number, blinkOff: number, idleStyle?: s
     case "mouth":        return { op: 0, rot: 0 };
     case "mouth_closed": return { op: 1, rot: 0 };
 
-    // Ears — sine sweep at 3.5 s. Subtle ±2°.
-    case "left_ear": case "hair_left":
-      return { op: 1, rot: -sinWave(sec, 3.5) * 2 * D2R };
-    case "right_ear": case "hair_right":
-      return { op: 1, rot:  sinWave(sec, 3.5) * 2 * D2R };
+    // Ears use the same subtle rotation-only profile as the image renderer.
+    case "left_ear": case "right_ear":
+    case "left_ear_2": case "right_ear_2":
+      return { op: 1, rot: earMotion(base, sec, normalizeAnimationProfile(idleStyle)) * D2R };
+    case "hair_left":
+      return { op: 1, rot: -sinWave(sec, DEFAULT_PET_ANIMATION.hair.durationSec) * DEFAULT_PET_ANIMATION.hair.degrees * D2R };
+    case "hair_right":
+      return { op: 1, rot: sinWave(sec, DEFAULT_PET_ANIMATION.hair.durationSec) * DEFAULT_PET_ANIMATION.hair.degrees * D2R };
     // Center hair — rides the head-group bob applied externally (headBobPx
     // in the draw loop). Any additional per-part motion (formerly bodyBreath
     // = scale from the body's feet anchor) compounds with that bob and pushes
@@ -187,15 +105,6 @@ function evalAnim(partType: string, sec: number, blinkOff: number, idleStyle?: s
     // wrapper's translateY is the ONLY force acting on this part.
     case "hair_center":
       return { op: 1, rot: 0 };
-    // Second ear pair on Head 1 — same ±2° mirrored swing as the
-    // primary ears, but on a 3.1 s period so it continuously drifts
-    // in and out of phase with the 3.5 s primary pair. Mirrors the
-    // img-renderer's IDLE_ANIMATIONS + getPartDuration entries.
-    case "left_ear_2":
-      return { op: 1, rot: -sinWave(sec, 3.1) * 2 * D2R };
-    case "right_ear_2":
-      return { op: 1, rot:  sinWave(sec, 3.1) * 2 * D2R };
-
     // Front-facing arms breathe with the body (same scale as bodyBreath)
     // PLUS a very subtle ±1.5° rotation so the arm reads as alive without
     // overpowering the calm breathing pose. The rotation peaks exactly when
@@ -234,24 +143,6 @@ function evalAnim(partType: string, sec: number, blinkOff: number, idleStyle?: s
     }
     case "back_arm":
       return isMarionette ? { op: 1, rot: 0, sx: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.008, sy: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.016 } : bodyBreath(sec);
-    case "left_arm": {
-      // Marionette: rise upward (ty) in sync with body breath + tiny in-place
-      // CCW tilt so the arm tip angles up slightly. Canvas rotates around the
-      // part's own centre by default, so 1° is a gentle pivot, not a sweep.
-      if (isMarionette) {
-        const w = (1 + sinWave(sec, 4.5)) * 0.5;
-        return { op: 1, rot: -w * 1 * D2R, ty: -w * 3, sx: 1 + w * 0.008, sy: 1 + w * 0.016 };
-      }
-      return { op: 1, rot: 0 };
-    }
-    case "right_arm": {
-      // Marionette: mirrors left_arm — upward rise + tiny CW tilt.
-      if (isMarionette) {
-        const w = (1 + sinWave(sec, 4.5)) * 0.5;
-        return { op: 1, rot: w * 1 * D2R, ty: -w * 3, sx: 1 + w * 0.008, sy: 1 + w * 0.016 };
-      }
-      return { op: 1, rot: 0 };
-    }
     case "left_leg":
       // Marionette: pendulum sway at 3.7 s, mirrored with right_leg.
       // Non-marionette: static (same as front/back_leg below).
@@ -516,14 +407,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
     const isSecondaryHeadGroupPart = (pt: string): boolean =>
       (pt.startsWith("h2_") || pt.startsWith("h3_")) && isHeadGroupPart(pt);
     const effectivePartZ = (part: PetPart): number => {
-      // Arms/legs that must layer over the head draw last (highest z).
-      if (overHeadPartTypes.has(part.partType)) return 20;
-      if (isSecondaryHeadGroupPart(part.partType)) {
-        const basePt = part.partType.replace(/^h[23]_/, "");
-        const subZ = LAYER_ORDER[basePt] ?? 10;
-        return 4 + subZ * 0.001;
-      }
-      return LAYER_ORDER[part.partType] ?? part.zIndex;
+      return getEffectivePetLayer(part, facing);
     };
 
     const viewParts = allParts
@@ -885,8 +769,9 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         const tailFacingRight = resolvedViewRef.current !== "back";
         const pxPct = isTailPart ? (tailFacingRight ? 1.0 : 0.0) : (part.pivotX ?? 50) / 100;
         const pyPct = isTailPart ? 1.0 : (part.pivotY ?? 50) / 100;
-        const px = left + w * (ab.left + ab.width  * pxPct);
-        const py = top  + h * (ab.top  + ab.height * pyPct);
+        const visiblePivot = alphaAdjustedPivot(pxPct * 100, pyPct * 100, ab, { x: 0.5, y: 0.5 });
+        const px = left + w * visiblePivot.x;
+        const py = top  + h * visiblePivot.y;
 
         // Per-part vertical offset (head bob OR above-head float OR
         // the part's own ty if it has one). Same CSS-px → buffer-px
