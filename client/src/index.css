@@ -505,7 +505,7 @@
   position: relative;
   width: min(88%, 68px);
   height: 92%;
-  transform: translateY(-4px);
+  transform: translateY(-11px);
 }
 
 .pet-care-drag-ghost__artwork {
