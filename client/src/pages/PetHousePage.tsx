@@ -1867,13 +1867,10 @@ function PetCareItemShelf({
       data-testid={`pet-care-${kind}-shelf`}
       style={{ "--pet-care-visible-slots": PET_CARE_VISIBLE_SLOTS } as React.CSSProperties}
     >
-      <div className="pet-care-item-shelf__heading">
-        <span className="pet-care-item-shelf__title">
-          {title}
-        </span>
-      </div>
       <div className="pet-care-item-shelf__stage">
-        <img className="pet-care-item-shelf__art" src={petCareItemShelf} alt="" aria-hidden="true" draggable={false} />
+        <div className="pet-care-item-shelf__art-crop" aria-hidden="true">
+          <img className="pet-care-item-shelf__art" src={petCareItemShelf} alt="" draggable={false} />
+        </div>
         <div className="pet-care-item-shelf__viewport">
           {items.map((item) => (
             <div
@@ -1891,11 +1888,17 @@ function PetCareItemShelf({
             </div>
           ))}
         </div>
+        <div className="pet-care-item-shelf__art-crop pet-care-item-shelf__art-crop--front" aria-hidden="true">
+          <img className="pet-care-item-shelf__art" src={petCareItemShelf} alt="" draggable={false} />
+        </div>
         {items.length === 0 && (
           <span className="pet-care-item-shelf__empty" data-testid={`text-no-${kind}`}>
             No {kind}
           </span>
         )}
+        <span className="pet-care-item-shelf__title">
+          {title}
+        </span>
       </div>
     </section>
   );

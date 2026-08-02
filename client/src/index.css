@@ -407,33 +407,30 @@
    coordinate system. The frame inset keeps the first/last of six equal slots
    centered inside the shelf's outer uprights at every viewport width. */
 .pet-care-item-shelf {
+  --pet-care-item-lift: clamp(12px, 2.5vw, 16px);
   width: min(100%, 650px);
-  margin: 0 auto 5px;
+  margin: 0 auto clamp(8px, 1.6vh, 14px);
   color: #f3dfb0;
   font-family: "Lora", serif;
+  overflow: visible;
 }
 
 .pet-care-inventory-section {
   bottom: clamp(4px, 1.2vh, 12px);
 }
 
-.pet-care-item-shelf__heading {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 18px;
-  padding: 0 3.8%;
+.pet-care-item-shelf__title {
+  position: absolute;
+  left: 50%;
+  bottom: 4%;
+  z-index: 3;
+  transform: translateX(-50%);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.18em;
-  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.9);
-}
-
-.pet-care-item-shelf__title {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 8px;
+  line-height: 1;
+  pointer-events: none;
+  text-shadow: -1px -1px 0 rgba(49, 24, 3, 0.8), 1px -1px 0 rgba(49, 24, 3, 0.8), -1px 1px 0 rgba(49, 24, 3, 0.8), 1px 1px 0 rgba(49, 24, 3, 0.8), 0 2px 5px rgba(0, 0, 0, 0.95);
 }
 
 .pet-care-item-shelf__stage {
@@ -441,7 +438,20 @@
   position: relative;
   width: 100%;
   aspect-ratio: 993 / 180;
+  overflow: visible;
+}
+
+.pet-care-item-shelf__art-crop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
   overflow: hidden;
+  pointer-events: none;
+}
+
+.pet-care-item-shelf__art-crop--front {
+  z-index: 2;
+  clip-path: inset(68% 0 0);
 }
 
 .pet-care-item-shelf__art {
@@ -451,7 +461,6 @@
      introduce a second binary copy of the same artwork. */
   top: -362.78%;
   left: -1.61%;
-  z-index: 0;
   display: block;
   width: 103.12%;
   height: auto;
@@ -462,11 +471,15 @@
 
 .pet-care-item-shelf__viewport {
   position: absolute;
-  inset: 2% 0 0;
+  top: calc(2% - var(--pet-care-item-lift));
+  right: 0;
+  bottom: 0;
+  left: 0;
   z-index: 1;
   display: flex;
   box-sizing: border-box;
-  height: 77%;
+  height: calc(77% + var(--pet-care-item-lift));
+  padding-top: var(--pet-care-item-lift);
   padding-inline: var(--pet-care-shelf-frame-inset);
   overflow-x: auto;
   overflow-y: hidden;
@@ -494,6 +507,7 @@
   user-select: none;
   -webkit-user-select: none;
   transition: transform 140ms ease, filter 140ms ease;
+  overflow: visible;
 }
 
 .pet-care-item-shelf__item:active {
@@ -503,8 +517,10 @@
 
 .pet-care-item-shelf__visible-artwork {
   position: relative;
+  z-index: 2;
   width: min(88%, 68px);
   height: 92%;
+  overflow: visible;
 }
 
 .pet-care-drag-ghost__artwork {
@@ -532,7 +548,7 @@
   height: 100%;
   object-fit: contain;
   pointer-events: none;
-  transform: translateY(-11px);
+  transform: translateY(calc(-1 * var(--pet-care-item-lift)));
   filter: drop-shadow(0 1px 1px rgba(255, 226, 150, 0.35)) drop-shadow(0 3px 5px rgba(0, 0, 0, 0.82));
 }
 
