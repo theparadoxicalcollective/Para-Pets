@@ -51,7 +51,13 @@ test("both inventories share the reusable six-slot shelf without old panels", ()
   const itemRule = css.match(/\.pet-care-item-shelf__item\s*\{([\s\S]*?)\}/)?.[1] ?? "";
   assert.match(itemRule, /flex:\s*0 0 calc\(100% \/ var\(--pet-care-visible-slots\)\);/);
   assert.doesNotMatch(itemRule, /pet-care-shelf-frame-inset/);
-  assert.match(css, /\.pet-care-item-shelf__heading[\s\S]*justify-content: center/);
+  const titleRule = css.match(/\.pet-care-item-shelf__title\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+  assert.match(titleRule, /position:\s*absolute/);
+  assert.match(titleRule, /left:\s*50%/);
+  assert.match(titleRule, /bottom:\s*4%/);
+  assert.match(titleRule, /translateX\(-50%\)/);
+  assert.doesNotMatch(page, /pet-care-item-shelf__heading/);
+  assert.match(page, /pet-care-item-shelf__art-crop pet-care-item-shelf__art-crop--front/);
   assert.doesNotMatch(page, /pet-care-item-shelf__name/);
   assert.doesNotMatch(page, /border: "1\.5px solid rgba\(120,210,90,0\.38\)"/);
   assert.doesNotMatch(page, /border: "1\.5px solid rgba\(240,140,200,0\.38\)"/);
