@@ -496,13 +496,14 @@
   -webkit-user-select: none;
 }
 
-.pet-care-item-shelf__item-image {
+.pet-care-item-shelf__visible-artwork {
   position: relative;
-  width: min(78%, 52px);
-  aspect-ratio: 1;
+  width: min(88%, 60px);
+  height: min(82%, 60px);
 }
 
-.pet-care-item-shelf__item-image > img {
+.pet-care-item-shelf__normalized-image {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
