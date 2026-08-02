@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getEffectivePetLayer } from "@/lib/petPartConfig";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readFileAsDataUrl } from "@/lib/utils";
@@ -7,6 +8,7 @@ import { Plus, Trash2, X, ArrowLeft, Save, Layers, Link2, Pencil, ChevronUp, Che
 import { renderPetGif, type GifAnimation } from "@/lib/petGif";
 import { getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
 import PetAnimatorCanvas from "@/components/PetAnimatorCanvas";
+import { PET_ANIMATION_PROFILES, type PetAnimationProfile, normalizeAnimationProfile } from "@/lib/petAnimationConfig";
 
 interface PetTemplate {
   id: string;
@@ -18,6 +20,7 @@ interface PetTemplate {
   hasBackAssembled?: boolean;
   sleepingImageUrl: string | null;
   canFly: boolean;
+  idleStyle?: PetAnimationProfile | null;
   createdAt: string;
 }
 
@@ -361,74 +364,10 @@ export default function PetDatabasePanel({
     }
   }, [templateDetail?.id, templateDetail?.facing]);
 
-  // Editor preview must stack parts in EXACTLY the same order the in-game
-  // renderer (PetAnimator / PetAnimatorCanvas) uses, otherwise the admin
-  // sees "ear_2 in front of the face" when the live game shows it tucked
-  // behind the head. Mirrors PetAnimator's LAYER_ORDER table verbatim and
-  // uses the same secondary-head (h2_/h3_) depth-trick PetAnimatorCanvas
-  // applies (so Heads 2/3 render BEHIND the body in the editor too).
-  // Fallback to the part's stored zIndex when the part type isn't in the
-  // canonical table (e.g. one-off custom parts).
-  // IMPORTANT: keep this in lockstep with PetAnimator.tsx LAYER_ORDER
-  //            (≈ L1006) and PetAnimatorCanvas.tsx LAYER_ORDER (≈ L32).
-  const PREVIEW_LAYER_ORDER: Record<string, number> = {
-    head_wing_left: 1, head_wing_right: 1,
-    tail: 1, tail_2: 1, tail_3: 1, back_hair: 1,
-    back_wing: 2, back_wing_2: 2,
-    right_wing: 2, left_wing: 2, wing_set2_left: 2, wing_set2_right: 2,
-    back_leg: 3, right_leg: 3, left_leg: 3,
-    back_accessory_2: 3, back_accessory_1: 3,
-    front_left_accessory: 3, front_right_accessory: 3,
-    back_arm: 4, back_shoulder: 4,
-    body: 5, body_2: 4.5,
-    front_wing_2: 6, front_wing: 6,
-    front_accessory_2: 6, front_accessory_1: 6,
-    right_arm: 5, left_arm: 5, front_arm: 5,
-    left_shoulder: 5, right_shoulder: 5,
-    front_leg: 7, front_shoulder: 8,
-    right_ear: 9, left_ear: 9,
-    right_ear_2: 9, left_ear_2: 9,
-    neck: 6,
-    left_hand: 7, right_hand: 7,
-    head: 10,
-    accessory_2: 11, accessory_1: 11,
-    mouth: 12, mouth_closed: 13,
-    eyes_closed: 14, eyes: 15,
-    hair_right: 16, hair_left: 17, hair_center: 18,
-    above_head: 19,
-  };
-  // Facing-aware over-head parts — mirrors PetAnimator.tsx logic.
-  // Front-facing: left_arm + right_arm layer above the head.
-  // Side-facing (KC left/right): front_arm + front_leg layer above the head.
+  // Static preview, animated preview, and click selection all use production layering.
   const previewFacing = templateDetail?.facing ?? "front";
-  const previewIsSideFacing = previewFacing === "left" || previewFacing === "right";
-  // Front-facing: left_arm + right_arm render above head (z=20).
-  // Shoulders (left_shoulder / right_shoulder) use LAYER_ORDER z=5
-  // so the neck overlaps the shoulder joint.
-  // Side-facing: only front_leg crosses above the head.
-  const overHeadPreviewParts: ReadonlySet<string> = previewIsSideFacing
-    ? new Set(["front_leg"])
-    : new Set(["left_arm", "right_arm"]);
-  const previewIsHeadGroupBase = new Set([
-    "eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed",
-    "hair_left", "hair_right", "hair_center", "accessory_1", "accessory_2", "above_head",
-    "left_ear_2", "right_ear_2",
-  ]);
-  const previewIsSecondaryHeadGroupPart = (pt: string): boolean => {
-    if (!pt.startsWith("h2_") && !pt.startsWith("h3_")) return false;
-    const base = pt.replace(/^h[23]_/, "");
-    return base === "head" || previewIsHeadGroupBase.has(base);
-  };
-  const previewEffectiveZ = (p: { partType: string; zIndex: number }): number => {
-    // Arms/legs that must layer above the head in the editor preview.
-    if (overHeadPreviewParts.has(p.partType)) return 20;
-    if (previewIsSecondaryHeadGroupPart(p.partType)) {
-      const base = p.partType.replace(/^h[23]_/, "");
-      const subZ = PREVIEW_LAYER_ORDER[base] ?? 10;
-      return 4 + subZ * 0.001;
-    }
-    return PREVIEW_LAYER_ORDER[p.partType] ?? p.zIndex;
-  };
+  const previewEffectiveZ = (p: { partType: string; zIndex: number }): number =>
+    getEffectivePetLayer(p, previewFacing);
   const viewParts = (templateDetail?.parts || [])
     .filter(p => p.view === activeView)
     .sort((a, b) => previewEffectiveZ(a) - previewEffectiveZ(b));
@@ -490,6 +429,19 @@ export default function PetDatabasePanel({
     onError: () => {
       toast({ title: "Error", description: "Failed to update fly setting", variant: "destructive" });
     },
+  });
+
+  const animationProfileMutation = useMutation({
+    mutationFn: async ({ id, idleStyle }: { id: string; idleStyle: PetAnimationProfile }) => {
+      const res = await apiRequest("PATCH", `/api/admin/pet-templates/${id}`, { idleStyle });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts", selectedTemplateId] });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to update animation profile", variant: "destructive" }),
   });
 
   const addPartMutation = useMutation({
@@ -649,7 +601,7 @@ export default function PetDatabasePanel({
     const canvasY = (e.clientY - rect.top) / scale;
     if (canvasX < 0 || canvasX > CANVAS_SIZE || canvasY < 0 || canvasY > CANVAS_SIZE) return;
     // Hit-test top-to-bottom by zIndex, picking the first opaque part under the click
-    const sorted = [...viewParts].sort((a, b) => b.zIndex - a.zIndex);
+    const sorted = [...viewParts].sort((a, b) => previewEffectiveZ(b) - previewEffectiveZ(a));
     for (const part of sorted) {
       if (canvasX < part.posX || canvasX > part.posX + part.width ||
           canvasY < part.posY || canvasY > part.posY + part.height) continue;
@@ -855,7 +807,7 @@ export default function PetDatabasePanel({
                     top: `${(part.posY / CANVAS_SIZE) * 100}%`,
                     width: `${(part.width / CANVAS_SIZE) * 100}%`,
                     height: `${(part.height / CANVAS_SIZE) * 100}%`,
-                    zIndex: part.zIndex,
+                    zIndex: previewEffectiveZ(part),
                     pointerEvents: "none",
                     outline: isSelected ? "2px solid rgba(240,192,64,0.8)" : "none",
                     outlineOffset: "2px",
@@ -1173,6 +1125,24 @@ export default function PetDatabasePanel({
           <span style={{ fontSize: 14 }}>{templateDetail.canFly ? "✦" : "○"}</span>
           {templateDetail.canFly ? "Can Fly — On" : "Can Fly — Off"}
         </button>
+
+        <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wider" style={{ color: "#a89878" }}>
+          Animation profile
+          <select
+            data-testid="select-animation-profile"
+            value={normalizeAnimationProfile(templateDetail.idleStyle, templateDetail.canFly)}
+            onChange={(event) => animationProfileMutation.mutate({
+              id: templateDetail.id,
+              idleStyle: event.target.value as PetAnimationProfile,
+            })}
+            className="rounded-lg px-2 py-2 text-xs"
+            style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(106,88,64,0.5)", color: "#e7d7b5" }}
+          >
+            {PET_ANIMATION_PROFILES.map(profile => (
+              <option key={profile} value={profile}>{profile.replaceAll("_", " ")}</option>
+            ))}
+          </select>
+        </label>
 
         {!testMode && (
           <div className="flex gap-2">

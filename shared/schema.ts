@@ -348,6 +348,11 @@ export const gameSettings = pgTable("game_settings", {
   value: text("value").notNull(),
 });
 
+export const petAnimationProfileSchema = z.enum([
+  "standard_ground", "standard_flying", "bat", "marionette",
+]);
+export type PetAnimationProfile = z.infer<typeof petAnimationProfileSchema>;
+
 export const petTemplates = pgTable("pet_templates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -360,9 +365,8 @@ export const petTemplates = pgTable("pet_templates", {
   // from the live game (filtered out of the regular admin pet list) so admins
   // can experiment with parts without polluting real gameplay data.
   isTest: boolean("is_test").notNull().default(false),
-  // Per-template idle animation style. null = standard behaviour. Set to
-  // "marionette" for the Haunted Marionette so its above_head, body, arms,
-  // and accessories animate with puppet-specific timing.
+  // Validated by petAnimationProfileSchema at API boundaries. Legacy nulls are
+  // normalized to standard_ground/standard_flying by renderers.
   idleStyle: text("idle_style"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });

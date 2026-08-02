@@ -1,4 +1,6 @@
 import { GIFEncoder, quantize, applyPalette } from "gifenc";
+import { PET_LAYER_ORDER, getEffectivePetLayer } from "@/lib/petPartConfig";
+import { DEFAULT_PET_ANIMATION } from "@/lib/petAnimationConfig";
 
 /* ─────────────────────────────────────────────────────────────────────────── *
  *  Pet GIF renderer — deterministic, pure-canvas, no html-to-image.
@@ -57,20 +59,7 @@ const CANVAS_SIZE = 1000;
 
 // Mirrors PetAnimator's LAYER_ORDER so the saved GIF matches the live preview
 // (back layers first, eyes on top).
-const LAYER_ORDER: Record<string, number> = {
-  tail: 1, right_leg: 2, left_leg: 2, back_wing: 2,
-  back_leg: 3, right_wing: 3, back_arm: 4, left_wing: 4,
-  body: 5, right_arm: 5, left_arm: 5, front_arm: 5,
-  left_shoulder: 5, right_shoulder: 5,
-  front_wing: 6, front_leg: 7,
-  right_ear: 9, left_ear: 9,
-  // Second ear pair on Head 1 — same z-band as the primary ears.
-  right_ear_2: 9, left_ear_2: 9,
-  // Neck — z=6, in front of arms (z=5) so the neck base overlaps the
-  // shoulder joint. Stays behind the head (z=10). Mirrors PetAnimator.
-  neck: 6,
-  head: 10, mouth: 12, mouth_closed: 13, eyes_closed: 14, eyes: 15,
-};
+const LAYER_ORDER = PET_LAYER_ORDER;
 
 const FACE_PART_TYPES = new Set([
   "eyes", "eyes_closed", "left_ear", "right_ear", "mouth", "mouth_closed",
@@ -247,10 +236,10 @@ function sampleBodyPartTransform(part: PetPart, animation: GifAnimation, t: numb
   // idle (default)
   if (pt === "body") {
     const b = bobCos(t);
-    return { tx: 0, ty: 0, rotate: 0, scaleX: 1 + 0.022 * b, scaleY: 1 + 0.040 * b, opacity: 1 };
+    return { tx: 0, ty: 0, rotate: 0, scaleX: 1 + (DEFAULT_PET_ANIMATION.body.scaleX - 1) * b, scaleY: 1 + (DEFAULT_PET_ANIMATION.body.scaleY - 1) * b, opacity: 1 };
   }
-  if (pt === "left_ear")   return { ...NEUTRAL, rotate: -2 * sineWave(t) };
-  if (pt === "right_ear")  return { ...NEUTRAL, rotate:  2 * sineWave(t) };
+  if (pt === "left_ear")   return { ...NEUTRAL, rotate: -DEFAULT_PET_ANIMATION.ear.degrees * sineWave(t) };
+  if (pt === "right_ear")  return { ...NEUTRAL, rotate:  DEFAULT_PET_ANIMATION.ear.degrees * sineWave(t) };
   // Arms: very subtle rotation (±1.5°) synced to body breath scale.
   // Reduced from ±3.5°/±3.0° to match the calmer CSS keyframe amplitude.
   if (pt === "left_arm") {
@@ -263,8 +252,7 @@ function sampleBodyPartTransform(part: PetPart, animation: GifAnimation, t: numb
   }
   if (pt === "left_wing")  return { ...NEUTRAL, rotate: -5 * sineWave(t) };
   if (pt === "right_wing") return { ...NEUTRAL, rotate:  5 * sineWave(t) };
-  if (pt === "left_leg")   return { ...NEUTRAL, ty:  1.5 * bobCos(t) };
-  if (pt === "right_leg")  return { ...NEUTRAL, ty:  1.5 * bobCos(t) };
+  if (pt === "left_leg" || pt === "right_leg") return NEUTRAL;
   if (pt === "tail")       return { ...NEUTRAL, ty: -0.5 * bobCos(t), rotate: 1.2 * sineWave(t) };
   return NEUTRAL;
 }
@@ -428,9 +416,7 @@ export async function renderPetGif(opts: RenderPetGifOpts): Promise<CaptureResul
   const viewParts = opts.parts
     .filter(p => p.view === resolvedView)
     .sort((a, b) => {
-      const getZ = (pt: string, fallback: number) =>
-        overHeadPartTypes.has(basePartType(pt)) ? 20 : (LAYER_ORDER[basePartType(pt)] ?? fallback);
-      return getZ(a.partType, a.zIndex) - getZ(b.partType, b.zIndex);
+      return getEffectivePetLayer(a, gifFacing) - getEffectivePetLayer(b, gifFacing);
     });
 
   if (viewParts.length === 0) {

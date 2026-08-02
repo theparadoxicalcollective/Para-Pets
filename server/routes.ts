@@ -6,7 +6,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
-import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, userHouseBundles as userHouseBundlesTable, users as usersTable, coinPurchases, deletedAccounts } from "@shared/schema";
+import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, userHouseBundles as userHouseBundlesTable, users as usersTable, coinPurchases, deletedAccounts, petAnimationProfileSchema } from "@shared/schema";
 import { executeRewardClaim } from "./rewardClaim";
 import { executeDailyQuestClaim } from "./dailyQuestClaim";
 import { registerQuestRoutes } from "./routes/quest.routes";
@@ -4511,13 +4511,18 @@ export async function registerRoutes(
 
   app.patch("/api/admin/pet-templates/:id", isAdmin, async (req, res) => {
     try {
-      const { name, frontAssembled, backAssembled, facing, canFly, sleepingImageData, clearSleepingImage } = req.body;
+      const { name, frontAssembled, backAssembled, facing, canFly, idleStyle, sleepingImageData, clearSleepingImage } = req.body;
       const updates: Record<string, any> = {};
       if (name !== undefined) updates.name = name;
       if (frontAssembled !== undefined) updates.frontAssembled = frontAssembled;
       if (backAssembled !== undefined) updates.backAssembled = backAssembled;
       if (facing !== undefined) updates.facing = facing;
       if (canFly !== undefined) updates.canFly = canFly;
+      if (idleStyle !== undefined) {
+        const parsed = petAnimationProfileSchema.safeParse(idleStyle);
+        if (!parsed.success) return res.status(400).json({ message: "Invalid pet animation profile" });
+        updates.idleStyle = parsed.data;
+      }
       if (sleepingImageData) updates.sleepingImageUrl = await processWorldImage(sleepingImageData, 1000);
       if (clearSleepingImage) updates.sleepingImageUrl = null;
       const updated = await storage.updatePetTemplate((req.params.id as string), updates);

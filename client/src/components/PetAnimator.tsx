@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { getAlphaBounds, getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
+import { PET_LAYER_ORDER, getEffectivePetLayer } from "@/lib/petPartConfig";
+import { DEFAULT_PET_ANIMATION, alphaAdjustedPivot } from "@/lib/petAnimationConfig";
 
 interface PetPart {
   id: string;
@@ -72,15 +74,8 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   head: "petIdleHead",
   left_ear: "petIdleLeftEar",
   right_ear: "petIdleRightEar",
-  // Second pair of ears on Head One — share the same mirrored
-  // keyframes as left_ear / right_ear so they swing the same shape
-  // (left rotates one way, right rotates the opposite). The visible
-  // "slightly out of sync" feel comes from a different cycle period
-  // (3.1 s vs 3.5 s) defined in getPartDuration below — coprime-ish
-  // periods drift continuously in and out of phase rather than
-  // re-converging on a fixed beat. Only present on Head 1 in the
-  // admin editor; multi-head pets (h2_/h3_) keep their original
-  // single ear pair.
+  // A secondary pair uses the same mirrored, rotation-only keyframes with a
+  // slightly longer shared-config period to avoid mechanical synchronization.
   left_ear_2: "petIdleLeftEar",
   right_ear_2: "petIdleRightEar",
   // Neck — rides the body breath alongside shoulders, back_arm,
@@ -107,8 +102,6 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   body: "petIdleBody",
   left_wing: "petIdleLeftWing",
   right_wing: "petIdleRightWing",
-  left_leg: "petIdleLeftLeg",
-  right_leg: "petIdleRightLeg",
   // Tails move UP with the body's breath (so they read as part of the body).
   // When a pet has multiple tails, tail_2 also drifts a touch left and tail_3
   // a touch right — just enough to fan them apart visually without ever
@@ -155,8 +148,8 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   front_right_accessory: "petIdleAccessorySway",
   // Hair pieces sway gently like ears; center hair bobs with the head
   // group (no rotation — it sits symmetrically and just rides the head bob).
-  hair_left: "petIdleLeftEar",
-  hair_right: "petIdleRightEar",
+  hair_left: "petIdleLeftHair",
+  hair_right: "petIdleRightHair",
   hair_center: "petIdleBody",
   back_hair: "petIdleBackHair",
   // Above-head accessory (crowns / halos / hats) gets a small extra bounce
@@ -187,8 +180,6 @@ const IDLE_ANIMATIONS: Record<string, string> = {
   // independently — only the LIMBS were the problem.
   front_arm: "petIdleFrontArmBreath",
   back_arm: "petIdleBody",
-  front_leg: "petIdleBody",
-  back_leg: "petIdleBody",
   // Paired flippers (e.g. Bayou Turtle) — breathe with body scale AND
   // add a subtle inward translateX so both flippers arc toward the body on
   // inhale and release on exhale. Mirrored keyframes so left/right paddle
@@ -528,21 +519,23 @@ const ANIMATION_STYLES = `
     from { transform: translateY(0%); }
     to   { transform: translateY(var(--pet-head-bob, -2.5%)); }
   }
-  /* Idle ears — front-facing pets. The motion is a gentle upward perk
-     (translateY) rather than a side-to-side rotation so the ears read
-     as "alive and alert" without appearing to swivel or spin. A tiny
-     ±0.5 ° tilt differentiates left from right and adds a hair of
-     asymmetry, but the rotation is barely perceptible on its own.
-     With animation-direction: alternate the ears smoothly perk up
-     then settle back — no snap-back. 1.5 % ≈ 4–5 px on a typical
-     300 px canvas, which is a very subtle nudge. */
+  /* Idle ears rotate only around their alpha-adjusted saved base pivot. The
+     two sides mirror one another; no ear-local translation or scale is used. */
   @keyframes petIdleLeftEar {
-    from { transform: translateY(0%)    rotate(-0.5deg); }
-    to   { transform: translateY(-1.5%) rotate( 0.5deg); }
+    from { transform: rotate(-${DEFAULT_PET_ANIMATION.ear.degrees}deg); }
+    to   { transform: rotate(${DEFAULT_PET_ANIMATION.ear.degrees}deg); }
   }
   @keyframes petIdleRightEar {
-    from { transform: translateY(0%)    rotate( 0.5deg); }
-    to   { transform: translateY(-1.5%) rotate(-0.5deg); }
+    from { transform: rotate(${DEFAULT_PET_ANIMATION.ear.degrees}deg); }
+    to   { transform: rotate(-${DEFAULT_PET_ANIMATION.ear.degrees}deg); }
+  }
+  @keyframes petIdleLeftHair {
+    from { transform: rotate(-${DEFAULT_PET_ANIMATION.hair.degrees}deg); }
+    to { transform: rotate(${DEFAULT_PET_ANIMATION.hair.degrees}deg); }
+  }
+  @keyframes petIdleRightHair {
+    from { transform: rotate(${DEFAULT_PET_ANIMATION.hair.degrees}deg); }
+    to { transform: rotate(-${DEFAULT_PET_ANIMATION.hair.degrees}deg); }
   }
   /* Bat-style ears (idleStyle === "bat", e.g. Cherubats). These pivot
      back and forth on a base anchor — no up/down bob. The motion is
@@ -553,12 +546,12 @@ const ANIMATION_STYLES = `
      transform-origin is handled at the render site ("50% 100%") so
      the pivot is at the ear's base, not its centre. */
   @keyframes petBatLeftEar {
-    from { transform: rotate(-1.5deg); }
-    to   { transform: rotate( 1.5deg); }
+    from { transform: rotate(-${DEFAULT_PET_ANIMATION.batEar.degrees}deg); }
+    to   { transform: rotate(${DEFAULT_PET_ANIMATION.batEar.degrees}deg); }
   }
   @keyframes petBatRightEar {
-    from { transform: rotate( 1.5deg); }
-    to   { transform: rotate(-1.5deg); }
+    from { transform: rotate(${DEFAULT_PET_ANIMATION.batEar.degrees}deg); }
+    to   { transform: rotate(-${DEFAULT_PET_ANIMATION.batEar.degrees}deg); }
   }
   /* Front-facing arms — symmetric swing through 0° so the arm reads
      as a calm pendulum motion centered on its rest position rather
@@ -585,7 +578,7 @@ const ANIMATION_STYLES = `
      body top by a consistent ~0 % (no overshoot guarantee holds). */
   @keyframes petIdleBody {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.012, 1.022); }
+    to   { transform: scale(${DEFAULT_PET_ANIMATION.body.scaleX}, ${DEFAULT_PET_ANIMATION.body.scaleY}); }
   }
   /* Wings — flap motion. The wings travel UP together (matched
      translateY) on the up-stroke and DOWN together on the down-stroke,
@@ -1055,14 +1048,14 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
   if (mode === "idle") {
     const durations: Record<string, string> = {
       eyes: "4s", eyes_closed: "4s", mouth: "5s", mouth_closed: "5s",
-      head: "3s", left_ear: "3.5s", right_ear: "3.5s",
+      head: "3s", left_ear: "5s", right_ear: "5s",
       // Second ear pair on Head 1 uses 3.1 s — coprime-ish with the
       // primary ear period (3.5 s) so the two pairs continuously
       // drift in and out of phase rather than re-locking on a
       // visible cycle. Mirrored shape from petIdleLeftEar /
       // petIdleRightEar (left/right rotate opposite directions),
       // just on a slightly faster beat.
-      left_ear_2: "3.1s", right_ear_2: "3.1s",
+      left_ear_2: "5.3s", right_ear_2: "5.3s",
       // Arms slowed from 3.5 s → 4.5 s so the front-facing left/right
       // arm sweep doesn't read as twitchy next to the body's deep
       // 4.5 s breathing — the previous 3.5 s made the arms feel
@@ -1242,94 +1235,7 @@ function buildAnimationCss(animName: string, duration: string, delay: string): s
 // totally different scale, e.g. 35–58, and would render on top of the head
 // wrapper — see headGroups below, which forces the head/face wrapper to a
 // fixed z-index in the parent stacking context).
-const LAYER_ORDER: Record<string, number> = {
-  // ── Back-most: head wings (sit way behind everything), tails, back hair ──
-  head_wing_left: 1,
-  head_wing_right: 1,
-  tail: 1,
-  tail_2: 1,
-  tail_3: 1,
-  back_hair: 1,
-  // ── Wings (back-layer in side view, body wings on front view) ──────────
-  back_wing: 2,
-  back_wing_2: 2,
-  right_wing: 2,
-  left_wing: 2,
-  wing_set2_left: 2,
-  wing_set2_right: 2,
-  // ── Back-side limbs / accessories (behind body) ────────────────────────
-  back_leg: 3,
-  right_leg: 3,
-  left_leg: 3,
-  back_accessory_2: 3,
-  back_accessory_1: 3,
-  back_arm: 4,
-  back_shoulder: 4,
-  // ── Body ───────────────────────────────────────────────────────────────
-  body: 5,
-  // Body 2 — behind body (z=4.5) but shares the body-breath animation.
-  body_2: 4.5,
-  // ── Front-facing-only accessories that sit BEHIND the body silhouette
-  //    (e.g. capes, satchels mounted on the chest from the back). Z=3
-  //    drops them under body (z=5) but keeps them above tails (z=1) and
-  //    wings (z=2) so they sit cleanly tucked behind the torso. Sit at
-  //    the same z as back_accessory_1/2 for consistency, since the visual
-  //    role is identical (accessories that ride the body's breath from
-  //    behind the silhouette).
-  front_left_accessory: 3,
-  front_right_accessory: 3,
-  // ── Front-side accessories / front wings (in front of body) ────────────
-  front_wing_2: 6,
-  front_wing: 6,
-  front_accessory_2: 6,
-  front_accessory_1: 6,
-  // ── Front-facing arms — stay BELOW the head wrapper (compressedZ 1..8).
-  //    They no longer use the overHeadPartTypes override.
-  right_arm: 5,
-  left_arm: 5,
-  front_arm: 5,
-  // Paired flippers sit at the same depth as back_arm (behind the body)
-  flipper_left: 4,
-  flipper_right: 4,
-  // ── Front-facing shoulders — sit BEHIND the neck (z=5 < neck z=6) so
-  //    the neck base overlaps the shoulder joint for both front-facing pets.
-  left_shoulder: 5,
-  right_shoulder: 5,
-  // ── Front-side limbs (side-view legs + shoulders stay in front of neck) ─
-  front_leg: 7,
-  front_shoulder: 8,
-  // ── Face / head (most live inside the head-group wrapper at z=9) ───────
-  right_ear: 9,
-  left_ear: 9,
-  // Second ear pair on Head 1 — same z-band as the primary ears so
-  // they sit alongside them in the head silhouette. Admin can fine-
-  // tune per-pet stacking via the part's individual zOrder.
-  right_ear_2: 9,
-  left_ear_2: 9,
-  // Neck — in front of body (z=5) but BEHIND both arms (right_arm=7,
-  // left_arm=8) so the arms always overlap the neck base. The head
-  // (z=10) still stacks well above the neck. Matches all other
-  // renderers (Canvas, PetDatabasePanel, petGif).
-  neck: 6,
-  // Hands — front-facing only, sit just above the neck (z=6) so they
-  // overlay the neck/chest area. Below the head (z=10). Mirrors
-  // PetAnimatorCanvas + PetDatabasePanel LAYER_ORDER.
-  left_hand: 7,
-  right_hand: 7,
-  head: 10,
-  // Head-anchored accessories (hats, bows, glasses) sit just above the head
-  // but under the mouth / eyes / hair so the face still reads cleanly.
-  accessory_2: 11,
-  accessory_1: 11,
-  mouth: 12,
-  mouth_closed: 13,
-  eyes_closed: 14,
-  eyes: 15,
-  hair_right: 16,
-  hair_left: 17,
-  hair_center: 18,
-  above_head: 19,
-};
+const LAYER_ORDER = PET_LAYER_ORDER;
 
 // Stagger offsets for duplicate same-type non-head parts
 const DUP_STAGGER_OFFSETS = [0, 0.4, 0.75, 1.1, 1.4];
@@ -1618,9 +1524,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   const OVER_HEAD_Z = 20;
 
   const viewParts = allParts.filter(p => p.view === resolvedView).sort((a, b) => {
-    const getZ = (pt: string, fallback: number) =>
-      overHeadPartTypes.has(pt) ? OVER_HEAD_Z : (LAYER_ORDER[pt] ?? fallback);
-    return getZ(a.partType, a.zIndex) - getZ(b.partType, b.zIndex);
+    return getEffectivePetLayer(a, facing) - getEffectivePetLayer(b, facing);
   });
 
   if (viewParts.length === 0) return null;
@@ -1958,10 +1862,9 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     // below the visible tail. Falls back to the raw pivot until the
     // async alpha scan resolves and the parent re-renders.
     const ab = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
-    const pxPct = (part.pivotX ?? 50) / 100;
-    const pyPct = (part.pivotY ?? 50) / 100;
-    const originX = (ab.left + ab.width  * pxPct) * 100;
-    const originY = (ab.top  + ab.height * pyPct) * 100;
+    const visiblePivot = alphaAdjustedPivot(part.pivotX, part.pivotY, ab, { x: 0.5, y: 0.5 });
+    const originX = visiblePivot.x * 100;
+    const originY = visiblePivot.y * 100;
     // Body-breath origin sync — every part on the petIdleBody keyframe
     // (back_arm, back_accessory_1/2, back/front-view shoulders) MUST
     // scale around the SAME WORLD POINT as the body itself, otherwise
