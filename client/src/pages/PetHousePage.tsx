@@ -1884,7 +1884,7 @@ function PetCareItemShelf({
             >
               <div className="pet-care-item-shelf__visible-artwork">
                 {item.imageUrl && <VisibleAssetImage className="pet-care-item-shelf__normalized-image" src={item.imageUrl} alt={item.name} />}
-                {(item.quantity ?? 1) > 1 && <span className="pet-care-item-shelf__quantity">{item.quantity}</span>}
+                <span className="pet-care-item-shelf__quantity">{item.quantity ?? 1}</span>
                 {isEdible && item.statBoostAmount != null && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--edible">+{item.statBoostAmount}</span>}
                 {!isEdible && !!item.giftPoints && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--gift">+{item.giftPoints}</span>}
               </div>

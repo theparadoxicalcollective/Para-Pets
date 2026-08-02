@@ -23,6 +23,12 @@ test("pet care quantities above 30 flow into stable additional slots", () => {
   ]);
 });
 
+test("pet care quantities 30, 31, and 65 split into visible stacks of at most 30", () => {
+  assert.deepEqual(buildPetCareInventoryStacks([item(30)]).map(({ quantity }) => quantity), [30]);
+  assert.deepEqual(buildPetCareInventoryStacks([item(31)]).map(({ quantity }) => quantity), [30, 1]);
+  assert.deepEqual(buildPetCareInventoryStacks([item(65)]).map(({ quantity }) => quantity), [30, 30, 5]);
+});
+
 test("different item definitions and persisted rows remain distinct", () => {
   const stacks = buildPetCareInventoryStacks([
     item(2),

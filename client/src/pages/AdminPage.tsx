@@ -56,6 +56,14 @@ interface MemberUser {
   createdAt: string;
 }
 
+interface BuildInfo {
+  shortCommitSha: string;
+  fullCommitSha: string;
+  buildTimestamp: string;
+  environment: string;
+  branch: string;
+}
+
 export default function AdminPage({ user }: AdminPageProps) {
   const [showProfile, setShowProfile] = useState(false);
   const [currentUser, setCurrentUser] = useState(user);
@@ -84,6 +92,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     queryKey: ["/api/admin/support-messages"],
     refetchInterval: 60000,
   });
+  const { data: buildInfo } = useQuery<BuildInfo>({ queryKey: ["/api/build-info"] });
   const unreadSupportCount = supportMsgsAll.filter((m: SupportMsg) => !m.isRead).length;
 
   const sortedMembers = [...members].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -261,6 +270,9 @@ export default function AdminPage({ user }: AdminPageProps) {
                   </button>
                 ))}
               </div>
+              <p data-testid="admin-build-commit" className="mt-5 text-center font-mono text-[9px] tracking-wide text-[#a89878]">
+                Build {buildInfo?.shortCommitSha ?? "unknown"}
+              </p>
             </>
           ) : (
             <>
