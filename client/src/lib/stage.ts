@@ -14,6 +14,24 @@ export const DESIGN_H = 844;
 export const WIDE_DESIGN_W = 470;
 export const WIDE_BREAKPOINT = 768;
 
+export type StageLayout = {
+  designWidth: number; designHeight: number; scale: number;
+  renderedWidth: number; renderedHeight: number; left: number; top: number;
+};
+
+/** Pure shared layout used by GameStage and regression tests. */
+export function calculateStageLayout(visibleWidth: number, visibleHeight: number, offsetTop = 0): StageLayout {
+  const width = Math.max(1, visibleWidth);
+  const height = Math.max(1, visibleHeight);
+  const scale = Math.min(width / DESIGN_W, height / DESIGN_H, 1);
+  const renderedWidth = DESIGN_W * scale;
+  const renderedHeight = DESIGN_H * scale;
+  return {
+    designWidth: DESIGN_W, designHeight: DESIGN_H, scale, renderedWidth, renderedHeight,
+    left: Math.max(0, (width - renderedWidth) / 2), top: offsetTop,
+  };
+}
+
 // The live authored frame width for the current screen. Skinny phones -> 390;
 // roomy screens -> WIDE_DESIGN_W. Height is always DESIGN_H so vertical layout
 // (and the bottom nav landing point) is unchanged everywhere.

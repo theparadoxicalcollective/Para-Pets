@@ -28,9 +28,9 @@ test("only primarily upward travel selects item dragging", () => {
 });
 
 test("drag ghost positioning shares its size and finger-gap constants", () => {
-  assert.equal(PET_CARE_DRAG_GHOST_SIZE_PX, 86);
+  assert.equal(PET_CARE_DRAG_GHOST_SIZE_PX, 56);
   assert.equal(PET_CARE_DRAG_GHOST_FINGER_GAP_PX, 12);
-  assert.equal(getPetCareDragGhostTransform(100, 200), "translate3d(57px, 102px, 0)");
+  assert.equal(getPetCareDragGhostTransform(100, 200), "translate3d(72px, 132px, 0)");
   const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
   assert.equal(page.match(/getPetCareDragGhostTransform\(/g)?.length, 2);
 });
@@ -70,7 +70,7 @@ test("both inventories share the reusable six-slot shelf without old panels", ()
   assert.match(edibleShelfRule, /transform:\s*translateY\(clamp\(-8px, -1\.2vh, -4px\)\)/);
 });
 
-test("care items capture the stable overlay only after drag intent detection", () => {
+test("care items never capture the pointer", () => {
   const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
   const pointerDown = page.slice(
     page.indexOf("const onItemPointerDown"),
@@ -78,20 +78,18 @@ test("care items capture the stable overlay only after drag intent detection", (
   );
   assert.doesNotMatch(pointerDown, /setPointerCapture/);
   const pointerMove = page.slice(page.indexOf("const onItemPointerMove"), page.indexOf("const onItemPointerUp"));
-  assert.match(pointerMove, /overlayRef\.current/);
-  assert.match(pointerMove, /captureTarget\.setPointerCapture\(e\.pointerId\)/);
+  assert.doesNotMatch(pointerMove, /setPointerCapture|releasePointerCapture/);
   assert.match(page, /playGrab\(\)/);
   assert.match(page, /playPlop\(\)/);
 });
 
-test("dragging follows the latest coalesced pointer sample", () => {
+test("dragging uses direct pointer coordinates", () => {
   const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
   const moveHandler = page.slice(
     page.indexOf("const onItemPointerMove"),
     page.indexOf("const onItemPointerUp"),
   );
-  assert.match(page, /typeof event\.getCoalescedEvents === "function"/);
-  assert.match(page, /catch \{/);
+  assert.doesNotMatch(moveHandler, /getCoalescedEvents/);
   assert.match(moveHandler, /updateDragGhostPosition\(point\.clientX, point\.clientY\)/);
   assert.match(moveHandler, /pointInsideExpandedPetDropZone\(\{ x: point\.clientX, y: point\.clientY \}/);
 });

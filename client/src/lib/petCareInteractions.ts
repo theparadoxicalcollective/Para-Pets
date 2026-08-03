@@ -1,7 +1,7 @@
 export const PET_CARE_VISIBLE_SLOTS = 6;
 export const PET_CARE_GESTURE_THRESHOLD_PX = 8;
 export const PET_CARE_DROP_PADDING_PX = 26;
-export const PET_CARE_DRAG_GHOST_SIZE_PX = 86;
+export const PET_CARE_DRAG_GHOST_SIZE_PX = 56;
 export const PET_CARE_DRAG_GHOST_FINGER_GAP_PX = 12;
 
 export function getPetCareDragGhostTransform(x: number, y: number): string {
@@ -40,4 +40,31 @@ export function pointInsideExpandedPetDropZone(
     && point.x <= rect.right + padding
     && point.y >= rect.top - padding
     && point.y <= rect.bottom + padding;
+}
+
+export type PetCareGestureRecord<T> = { pointerId: number; startX: number; startY: number; item: T; intent: PetCareItemGestureIntent };
+
+/** Single-consumer gesture state machine. The component uses this exact controller. */
+export function createPetCareGestureController<T>() {
+  let active: PetCareGestureRecord<T> | null = null;
+  return {
+    begin(pointerId: number, x: number, y: number, item: T) {
+      active = { pointerId, startX: x, startY: y, item, intent: "pending" };
+      return active;
+    },
+    move(pointerId: number, x: number, y: number) {
+      if (!active || active.pointerId !== pointerId) return null;
+      if (active.intent === "pending") active.intent = classifyPetCareItemGesture(x - active.startX, y - active.startY);
+      if (active.intent === "horizontal-scroll") active = null;
+      return active;
+    },
+    consume(pointerId: number) {
+      if (!active || active.pointerId !== pointerId) return null;
+      const result = active;
+      active = null;
+      return result;
+    },
+    cancel() { active = null; },
+    current() { return active; },
+  };
 }
