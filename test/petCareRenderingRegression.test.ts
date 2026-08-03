@@ -9,7 +9,7 @@ test("Pet Care shelves retain effect labels and order items by their bar increas
   assert.doesNotMatch(page, /pet-care-item-shelf__quantity/);
   assert.match(page, /pet-care-item-shelf__value--edible/);
   assert.match(page, /pet-care-item-shelf__value--gift/);
-  assert.match(page, /onPointerDown=\{safeMode \? undefined : \(event\) => onItemPointerDown\(event, item\)\}/);
+  assert.match(page, /onPointerDown=\{dragEnabled \? \(event\) => onItemPointerDown\(event, item\) : undefined\}/);
 });
 
 test("Pet Care uses the original scene and decorative asset meters", () => {

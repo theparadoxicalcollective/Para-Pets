@@ -410,7 +410,7 @@
   --pet-care-scene-right: clamp(8px, 3vw, 22px);
   --pet-care-meter-width: min(100%, 486px);
   --pet-care-mood-top: calc(env(safe-area-inset-top, 0px) + clamp(62px, 9dvh, 84px));
-  --pet-care-pet-size: clamp(190px, 35dvh, 325px);
+  --pet-care-pet-size: clamp(210px, 39dvh, 350px);
   --pet-care-pet-center: clamp(245px, 43dvh, 400px);
   --pet-care-hunger-bottom: calc(env(safe-area-inset-bottom, 0px) + clamp(142px, 19dvh, 178px));
   height: 100%;
@@ -426,6 +426,11 @@
   backdrop-filter: none !important;
   transition: none !important;
   will-change: auto !important;
+}
+
+.pet-care-safe-static-pet {
+  transform: scale(1.08);
+  transform-origin: center bottom;
 }
 
 .pet-care-route-state {
@@ -743,7 +748,7 @@
 @media (max-height: 650px) {
   .pet-care-overlay {
     --pet-care-mood-top: calc(env(safe-area-inset-top, 0px) + 58px);
-    --pet-care-pet-size: clamp(170px, 31dvh, 198px);
+    --pet-care-pet-size: clamp(184px, 34dvh, 218px);
     --pet-care-pet-center: clamp(238px, 42dvh, 270px);
     --pet-care-hunger-bottom: calc(env(safe-area-inset-bottom, 0px) + 150px);
   }
@@ -776,13 +781,22 @@
 .pet-care-inventory-section .pet-care-hunger {
   position: relative;
   inset: auto;
-  width: calc(100% - 20px);
+  width: min(88%, 430px);
   margin: 0 auto clamp(16px, 2.5dvh, 24px);
   padding: 0;
 }
 
 .pet-care-inventory-section .pet-care-hunger .pet-care-meter {
-  width: min(100%, 486px);
+  width: 100%;
+}
+
+/* The authored home stage uses one explicit stone-platform baseline. */
+.home-active-pet-stage {
+  --home-active-pet-ground-y: 610px;
+  position: absolute;
+  left: 50%;
+  bottom: calc(844px - var(--home-active-pet-ground-y));
+  transform: translateX(-50%);
 }
 
 .pet-care-item-shelf__title {

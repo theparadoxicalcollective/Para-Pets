@@ -70,7 +70,7 @@ test("both inventories share the reusable six-slot shelf without old panels", ()
   assert.match(edibleShelfRule, /transform:\s*translateY\(clamp\(-8px, -1\.2vh, -4px\)\)/);
 });
 
-test("care items never capture the pointer", () => {
+test("care items capture only after vertical intent and release during cleanup", () => {
   const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
   const pointerDown = page.slice(
     page.indexOf("const onItemPointerDown"),
@@ -78,9 +78,31 @@ test("care items never capture the pointer", () => {
   );
   assert.doesNotMatch(pointerDown, /setPointerCapture/);
   const pointerMove = page.slice(page.indexOf("const onItemPointerMove"), page.indexOf("const onItemPointerUp"));
-  assert.doesNotMatch(pointerMove, /setPointerCapture|releasePointerCapture/);
+  assert.match(pointerMove, /setPointerCapture/);
+  const cleanup = page.slice(page.indexOf("const cleanupItemGesture"), page.indexOf("const onItemPointerDown"));
+  assert.match(cleanup, /releasePointerCapture/);
   assert.match(page, /playGrab\(\)/);
   assert.match(page, /playPlop\(\)/);
+});
+
+test("safe visual mode leaves lightweight drag and tap-select handlers mounted", () => {
+  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  assert.match(page, /onPointerDown=\{dragEnabled \?/);
+  assert.match(page, /onPointerMove=\{dragEnabled \? onItemPointerMove/);
+  assert.match(page, /\{dragEnabled && dragGhost && \(/);
+  assert.match(page, /onClick=\{\(\) => onItemClick\(item\)\}/);
+  assert.match(page, /className="pet-care-safe-static-pet"/);
+  assert.doesNotMatch(page, /<VisibleAssetImage[^>]*dragGhost/);
+});
+
+test("drop applies once only inside the pet and cancellation only resets state", () => {
+  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const up = page.slice(page.indexOf("const onItemPointerUp"), page.indexOf("const onItemPointerCancel"));
+  assert.match(up, /if \(!validDrop\) \{\s*cleanupItemGesture\(\);\s*return;/);
+  assert.equal(up.match(/void applyCareItem\(d\)/g)?.length, 1);
+  const cancel = page.slice(page.indexOf("const onItemPointerCancel"), page.indexOf("const submitFeedSelection"));
+  assert.match(cancel, /cleanupItemGesture\(\)/);
+  assert.doesNotMatch(cancel, /applyCareItem|mutate/);
 });
 
 test("dragging uses direct pointer coordinates", () => {

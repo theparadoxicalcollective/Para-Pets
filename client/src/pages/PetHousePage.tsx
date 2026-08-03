@@ -46,7 +46,7 @@ import { buildPetCareInventoryStacks, orderPetCareItemsByEffect } from "@/lib/pe
 import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
-import { clearPetCarePhase, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, shouldUsePetCareSafeMode, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
+import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -1875,6 +1875,7 @@ function PetCareItemShelf({
   onItemClick,
   selectedStackId,
   safeMode,
+  dragEnabled,
 }: {
   kind: "edibles" | "gifts";
   items: PetCareShelfItem[];
@@ -1882,6 +1883,7 @@ function PetCareItemShelf({
   onItemClick: (item: PetCareShelfItem) => void;
   selectedStackId: string | null;
   safeMode: boolean;
+  dragEnabled: boolean;
 }) {
   const isEdible = kind === "edibles";
   const title = isEdible ? "EDIBLES" : "GIFTS";
@@ -1900,7 +1902,7 @@ function PetCareItemShelf({
             <div
               key={item.stackId}
               className={`pet-care-item-shelf__item${selectedStackId === item.stackId ? " pet-care-item-shelf__item--selected" : ""}`}
-              onPointerDown={safeMode ? undefined : (event) => onItemPointerDown(event, item)}
+              onPointerDown={dragEnabled ? (event) => onItemPointerDown(event, item) : undefined}
               onClick={() => onItemClick(item)}
               data-testid={`${isEdible ? "edible" : "gift"}-item-${item.id}`}
             >
@@ -2071,7 +2073,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const mountedRef = useRef(true);
   const runtime = useMemo(() => detectRuntimeMode(), []);
   const recoveredPhase = useMemo(() => readRecoverablePetCarePhase(window.localStorage), []);
-  const safeMode = shouldUsePetCareSafeMode(runtime, window.location.search, !!recoveredPhase);
+  const { reducedVisualMode: safeMode, dragEnabled, emergencyInteractionFallback } = getPetCareRuntimeDecisions(runtime, window.location.search, !!recoveredPhase);
   const interactionRef = useRef<{ id: string; itemType?: "edibles" | "gift" }>({ id: "mount" });
   const recordPhase = useCallback((phase: PetCarePhase, itemType = interactionRef.current.itemType) => {
     const record: PetCarePhaseRecord = {
@@ -2179,6 +2181,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const dragGhostRef = useRef<HTMLImageElement>(null);
   const dragFrameRef = useRef<number | null>(null);
   const dragPositionRef = useRef({ x: 0, y: 0 });
+  const capturedPointerRef = useRef<number | null>(null);
   const suppressClickRef = useRef(false);
   const isApplyingItemRef = useRef(false);
   const [isApplyingItem, setIsApplyingItem] = useState(false);
@@ -2671,7 +2674,12 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     });
   }, []);
 
-  const cleanupItemGesture = useCallback((_releaseCapture = true, updateState = mountedRef.current) => {
+  const cleanupItemGesture = useCallback((releaseCapture = true, updateState = mountedRef.current) => {
+    const capturedPointer = capturedPointerRef.current;
+    if (releaseCapture && capturedPointer != null && overlayRef.current?.hasPointerCapture?.(capturedPointer)) {
+      overlayRef.current.releasePointerCapture(capturedPointer);
+    }
+    capturedPointerRef.current = null;
     dragRef.current = null;
     suppressClickRef.current = false;
     itemGestureControllerRef.current.cancel();
@@ -2810,6 +2818,10 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         return;
       }
       playGrab();
+      // Capture only after an intentional upward drag. Pending/horizontal
+      // gestures stay with WebKit's native horizontal shelf scroller.
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+      capturedPointerRef.current = e.pointerId;
       suppressClickRef.current = true;
       recordPhase("vertical-drag-started");
       // Store the first drag position before mounting the ghost so it cannot
@@ -2889,7 +2901,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   return (
     <div
       ref={overlayRef}
-      className={`fixed inset-0 pet-care-overlay${!safeMode && dragGhost ? " pet-care-overlay--item-dragging" : ""}`}
+      className={`fixed inset-0 pet-care-overlay${dragEnabled && dragGhost ? " pet-care-overlay--item-dragging" : ""}`}
       style={{
         zIndex: 500,
         backgroundColor: "#0c1a10",
@@ -2901,9 +2913,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         touchAction: "pan-x pan-y",
         overscrollBehavior: "contain",
       }}
-      onPointerMove={safeMode ? undefined : onItemPointerMove}
-      onPointerUp={safeMode ? undefined : onItemPointerUp}
-      onPointerCancel={safeMode ? undefined : onItemPointerCancel}
+      onPointerMove={dragEnabled ? onItemPointerMove : undefined}
+      onPointerUp={dragEnabled ? onItemPointerUp : undefined}
+      onPointerCancel={dragEnabled ? onItemPointerCancel : undefined}
       onClickCapture={(e) => {
         if (suppressClickRef.current) {
           e.preventDefault();
@@ -2912,6 +2924,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       }}
       data-testid="overlay-feeding"
       data-pet-care-safe-mode={safeMode ? "true" : "false"}
+      data-pet-care-drag-enabled={dragEnabled ? "true" : "false"}
+      data-pet-care-emergency-input-fallback={emergencyInteractionFallback ? "true" : "false"}
       aria-busy={isApplyingItem}
     >
       {/* Top bar */}
@@ -3049,6 +3063,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         >
           {safeMode && (pet.hatchedImageUrl || pet.imageUrl) ? (
             <img
+              className="pet-care-safe-static-pet"
               src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
               alt={pet.nickname ?? pet.name}
               draggable={false}
@@ -3332,7 +3347,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
               <div className="pb-3" style={{ borderBottom: "1px solid rgba(180,255,160,0.15)" }}>
                 <p style={{ color: "#c8ff90", fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 4 }}>FEED</p>
                 <p style={{ color: "#aac8a0", fontSize: 11, lineHeight: 1.55 }}>
-                      {safeMode ? "Tap an edible, then tap your pet to fill its hunger meter and lift its mood." : "Drag any edible from the bottom strip onto your pet to fill its hunger meter and lift its mood."}
+                      {dragEnabled ? "Drag any edible from the bottom strip onto your pet to fill its hunger meter and lift its mood. You can also tap an item, then tap your pet." : "Tap an edible, then tap your pet to fill its hunger meter and lift its mood."}
                 </p>
               </div>
               <div className="pb-3" style={{ borderBottom: "1px solid rgba(180,255,160,0.15)" }}>
@@ -3391,8 +3406,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           xpBoostPct={(livePet as any).xpBoostPct ?? 0}
           safeMode={safeMode}
         />
-        <PetCareItemShelf kind="edibles" items={edibles} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} selectedStackId={selectedCareItem?.stackId ?? null} safeMode={safeMode} />
-        <PetCareItemShelf kind="gifts" items={gifts} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} selectedStackId={selectedCareItem?.stackId ?? null} safeMode={safeMode} />
+        <PetCareItemShelf kind="edibles" items={edibles} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} selectedStackId={selectedCareItem?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
+        <PetCareItemShelf kind="gifts" items={gifts} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} selectedStackId={selectedCareItem?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
       </div>
 
       {/* ── Feed hint overlay ───────────────────────────────────────────────
@@ -3431,7 +3446,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
                   boxShadow: "0 0 16px rgba(34,197,94,0.4), 0 4px 12px rgba(0,0,0,0.6)",
                 }}>
                   <span style={{ fontFamily: "Lora, serif", color: "#86efac", fontSize: 12, fontWeight: 700, letterSpacing: "0.04em" }}>
-                    {safeMode ? "Tap edible, then pet" : "Drag edibles onto pet"}
+                    {dragEnabled ? "Drag edible onto pet (or tap both)" : "Tap edible, then pet"}
                   </span>
                 </div>
                 {/* Arrow — pointing down toward edibles strip */}
@@ -3493,7 +3508,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       )}
 
       {/* Drag ghost */}
-      {!safeMode && dragGhost && (
+      {dragEnabled && dragGhost && (
         <img
           ref={dragGhostRef}
           className="absolute pointer-events-none pet-care-drag-ghost__image"

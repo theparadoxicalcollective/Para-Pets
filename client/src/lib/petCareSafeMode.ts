@@ -32,6 +32,15 @@ export function shouldUsePetCareSafeMode(runtime: RuntimeMode, search: string, r
   return runtime.displayMode === "ios-browser" || runtime.displayMode === "ios-embedded" || runtime.displayMode === "ios-standalone";
 }
 
+/** Keep visual degradation independent from Pet Care input capabilities. */
+export function getPetCareRuntimeDecisions(runtime: RuntimeMode, search: string, recovered = false) {
+  return {
+    reducedVisualMode: shouldUsePetCareSafeMode(runtime, search, recovered),
+    dragEnabled: true,
+    emergencyInteractionFallback: false,
+  } as const;
+}
+
 export function readRecoverablePetCarePhase(storage: Pick<Storage, "getItem">, now = Date.now()) {
   try {
     const raw = storage.getItem(PET_CARE_PHASE_KEY);

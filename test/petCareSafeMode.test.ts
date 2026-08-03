@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   PET_CARE_PHASE_KEY,
   clearPetCarePhase,
+  getPetCareRuntimeDecisions,
   readRecoverablePetCarePhase,
   sanitizePetCareRoute,
   shouldUsePetCareSafeMode,
@@ -12,6 +13,16 @@ import type { RuntimeMode } from "../client/src/lib/runtimeMode";
 
 const runtime = (displayMode: RuntimeMode["displayMode"]): RuntimeMode => ({
   displayMode, isStandalone: displayMode === "ios-standalone", browserClassification: displayMode,
+});
+
+test("iOS reduced visuals retain drag and tap fallback capabilities", () => {
+  for (const mode of ["ios-browser", "ios-embedded", "ios-standalone"] as const) {
+    assert.deepEqual(getPetCareRuntimeDecisions(runtime(mode), ""), {
+      reducedVisualMode: true,
+      dragEnabled: true,
+      emergencyInteractionFallback: false,
+    });
+  }
 });
 
 test("Pet Care defaults all iOS runtime modes to safe mode with controlled overrides", () => {
