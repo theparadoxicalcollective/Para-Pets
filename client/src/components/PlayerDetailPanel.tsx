@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Fish, UserCheck, UserPlus } from "lucide-react";
+import { UserCheck, UserPlus } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
-import petHouseIcon from "@assets/icon_pet_house.png";
+import petHouseIcon from "@assets/generated_images/nav_icon_home.png";
+import aquariumIcon from "@assets/icon_fishbowl.png";
 import RoleBadge from "@/components/RoleBadge";
 import { AquariumPage } from "@/pages/AquariumPage";
 
@@ -89,7 +90,7 @@ function CompanionStat({ label, value, color }: { label: string; value: number; 
   );
 }
 
-function ActionTile({
+function ActionButton({
   icon,
   label,
   accent,
@@ -105,26 +106,29 @@ function ActionTile({
   testId: string;
 }) {
   return (
-    <button
-      data-testid={testId}
-      onClick={onClick}
-      disabled={disabled}
-      className="group flex min-h-[66px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1.5 py-2 transition-transform active:scale-[0.97] disabled:active:scale-100"
-      style={{
-        background: `linear-gradient(180deg, ${accent}12, ${accent}08)`,
-        border: `1px solid ${accent}30`,
-        borderBottomColor: `${accent}80`,
-        color: accent,
-        cursor: disabled ? "default" : "pointer",
-        opacity: disabled ? 0.58 : 1,
-        WebkitTapHighlightColor: "transparent",
-      }}
-    >
-      <span className="flex h-6 items-center justify-center" aria-hidden="true">{icon}</span>
-      <span className="w-full truncate text-center font-fantasy text-[9px] font-medium leading-tight tracking-[0.04em]">
+    <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+      <button
+        data-testid={testId}
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        className="group flex h-14 w-14 shrink-0 items-center justify-center rounded-full transition-transform active:scale-95 disabled:active:scale-100"
+        style={{
+          background: `radial-gradient(circle at 38% 30%, ${accent}28, rgba(12,8,2,0.96) 68%)`,
+          border: `1px solid ${accent}70`,
+          boxShadow: `inset 0 0 0 2px rgba(255,255,255,0.025), 0 0 12px ${accent}20, 0 4px 9px rgba(0,0,0,0.55)`,
+          color: accent,
+          cursor: disabled ? "default" : "pointer",
+          opacity: disabled ? 0.58 : 1,
+          WebkitTapHighlightColor: "transparent",
+        }}
+      >
+        <span className="flex h-8 w-8 items-center justify-center" aria-hidden="true">{icon}</span>
+      </button>
+      <span className="w-full truncate text-center font-fantasy text-[9px] font-medium leading-tight tracking-[0.04em]" style={{ color: accent }}>
         {label}
       </span>
-    </button>
+    </div>
   );
 }
 
@@ -321,18 +325,21 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
 
             {/* Profile picture + name — centered */}
             <div className="flex flex-col items-center gap-2 pb-1">
-              <div className="rounded-xl overflow-hidden flex-shrink-0"
-                style={{ width: 72, height: 72, border: "2.5px solid #c9a030", boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5)" }}>
-                {profile.profileImage ? (
-                  <img src={profile.profileImage} alt="" className="w-full h-full object-cover" data-testid="img-player-profile" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center"
-                    style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}>
-                    <span className="font-fantasy text-[#d4a017] text-xl font-bold">
-                      {(profile.username ?? "?").charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                )}
+              <div className="flex h-[76px] w-[76px] flex-shrink-0 items-center justify-center"
+                style={{ background: "linear-gradient(145deg, #f2d574, #8d6416)", clipPath: "polygon(50% 0%, 94% 23%, 84% 78%, 50% 100%, 16% 78%, 6% 23%)", filter: "drop-shadow(0 3px 6px rgba(0,0,0,0.65)) drop-shadow(0 0 5px rgba(201,160,48,0.28))" }}>
+                <div className="h-[70px] w-[70px] overflow-hidden"
+                  style={{ clipPath: "polygon(50% 0%, 94% 23%, 84% 78%, 50% 100%, 16% 78%, 6% 23%)" }}>
+                  {profile.profileImage ? (
+                    <img src={profile.profileImage} alt="" className="h-full w-full object-cover" data-testid="img-player-profile" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center"
+                      style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}>
+                      <span className="font-fantasy text-[#d4a017] text-xl font-bold">
+                        {(profile.username ?? "?").charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex flex-col items-center gap-1">
                 <p className="font-fantasy text-lg font-semibold tracking-wide" style={{ color: "#f0c040" }} data-testid="text-player-username">
@@ -388,28 +395,47 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
               </div>
             )}
 
-            {/* Active Companion */}
-            <div className="flex flex-col gap-3">
-              <p className="font-fantasy text-xs tracking-widest uppercase" style={{ color: "rgba(212,160,23,0.6)" }}>
-                Active Companion
-              </p>
-
+            {/* Active companion showcase */}
+            <div className="flex min-w-0 flex-col items-center gap-2">
               {profile.activePet ? (
                 <>
-                  {/* Pet image (large, no box) + info to the right */}
-                  <div className="flex items-start gap-3 sm:gap-4">
-                    <div className="flex h-[92px] w-[88px] flex-shrink-0 items-center justify-center min-[380px]:h-[104px] min-[380px]:w-[104px]" data-testid="img-active-pet">
+                  {/* Floating equipment arc */}
+                  {equippedAccessories.length > 0 && (
+                    <div className="flex h-12 w-full max-w-[230px] items-end justify-center gap-1" data-testid="equipped-accessories-arc">
+                      {equippedAccessories.map((acc, i) => {
+                        const center = (equippedAccessories.length - 1) / 2;
+                        const distance = Math.abs(i - center);
+                        return (
+                          <button
+                            key={acc.id ?? acc.accessoryInventoryId ?? i}
+                            onClick={() => setAccessoryDetail(acc)}
+                            data-testid={`button-acc-${i}`}
+                            aria-label={`View ${acc.name}`}
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-transparent transition-transform active:scale-95"
+                            style={{ transform: `translateY(${distance * 7}px)`, border: "none", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
+                          >
+                            {acc.imageUrl ? (
+                              <img src={acc.imageUrl} alt="" className="h-8 w-8 object-contain" style={{ filter: "drop-shadow(0 0 5px rgba(192,132,252,0.35)) drop-shadow(0 3px 3px rgba(0,0,0,0.85))" }} />
+                            ) : (
+                              <span aria-hidden="true" className="text-lg text-purple-300/50" style={{ filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.8))" }}>✦</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div className="flex w-full min-w-0 flex-col items-center">
+                    <div className="flex h-[142px] w-[min(44vw,156px)] items-center justify-center min-[380px]:h-[158px] min-[380px]:w-[170px]" data-testid="img-active-pet">
                       {petImg ? (
                         <img src={petImg} alt="" className="w-full h-full object-contain"
-                          style={{ filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.75))" }} />
+                          style={{ filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.78))" }} />
                       ) : (
-                        <img src={petPawIcon} alt="" style={{ width: 64, height: 64, objectFit: "contain" }} />
+                        <img src={petPawIcon} alt="" className="h-24 w-24 object-contain" />
                       )}
                     </div>
-
-                    {/* Pet name + rarity + stats to the right */}
-                    <div className="flex-1 min-w-0 flex flex-col gap-1.5 pt-1">
-                      <p className="font-fantasy text-sm font-semibold" style={{ color: "#f0c040" }} data-testid="text-active-pet-name">
+                    <div className="flex min-w-0 flex-col items-center gap-1 text-center">
+                      <p className="font-fantasy text-base font-semibold" style={{ color: "#f0c040" }} data-testid="text-active-pet-name">
                         {profile.activePet.nickname || profile.activePet.name}
                       </p>
                       {profile.activePet.nickname && (
@@ -417,7 +443,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                           ({profile.activePet.name})
                         </p>
                       )}
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center gap-2">
                         <RarityStars rarity={profile.activePet.rarity} />
                         <span aria-hidden="true" style={{ color: "rgba(168,152,120,0.35)", fontSize: 9 }}>•</span>
                         <span className="font-fantasy text-[9px]"
@@ -431,7 +457,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                           ✦ {profile.activePet.specialSkill}
                         </p>
                       )}
-                      <div className="mt-1 flex w-full min-w-0 items-center divide-x" style={{ borderColor: "rgba(168,152,120,0.2)" }}>
+                      <div className="mt-2 flex w-full max-w-[300px] min-w-0 items-center divide-x" style={{ borderColor: "rgba(168,152,120,0.25)" }} data-testid="active-pet-stats">
                         <CompanionStat label="HP" value={profile.activePet.petHealth} color="#d97878" />
                         <CompanionStat label="ATK" value={profile.activePet.petAtk} color="#df925d" />
                         <CompanionStat label="DEF" value={profile.activePet.petDef} color="#719acb" />
@@ -439,38 +465,6 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                     </div>
                   </div>
 
-                  {/* Equipped accessories — image-only thumbnails, tap for detail */}
-                  {equippedAccessories.length > 0 && (
-                    <div className="flex flex-col gap-1.5">
-                      <p className="font-fantasy text-[10px] tracking-widest uppercase" style={{ color: "rgba(192,132,252,0.6)" }}>
-                        Equipped
-                      </p>
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        {equippedAccessories.map((acc, i) => (
-                          <button
-                            key={acc.id ?? acc.accessoryInventoryId ?? i}
-                            onClick={() => setAccessoryDetail(acc)}
-                            data-testid={`button-acc-${i}`}
-                            className="flex h-12 w-12 items-center justify-center rounded-full transition-colors active:bg-purple-300/10"
-                            style={{
-                              padding: 6,
-                              background: "transparent",
-                              border: "none",
-                              cursor: "pointer",
-                              WebkitTapHighlightColor: "transparent",
-                            }}
-                          >
-                            {acc.imageUrl ? (
-                              <img src={acc.imageUrl} alt={acc.name} style={{ width: 34, height: 34, objectFit: "contain", filter: "drop-shadow(0 2px 5px rgba(192,132,252,0.28)) drop-shadow(0 2px 3px rgba(0,0,0,0.8))" }} />
-                            ) : (
-                              <span aria-label={`${acc.name} artwork unavailable`} style={{ fontSize: 18, color: "rgba(192,132,252,0.5)", filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.8))" }}>✦</span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="h-px w-full" style={{ background: "linear-gradient(90deg, rgba(192,132,252,0.2), transparent)" }} />
-                    </div>
-                  )}
                 </>
               ) : (
                 <div className="rounded-2xl p-5 flex items-center justify-center"
@@ -483,8 +477,8 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
             {/* Action buttons — hidden when viewing own card */}
             {!isSelf && (
               <div className="flex flex-col gap-3 border-t pt-4" style={{ borderColor: "rgba(212,160,23,0.14)" }}>
-                <div className="grid w-full grid-cols-3 gap-2">
-                  <ActionTile
+                <div className="flex w-full items-start justify-center gap-2 min-[360px]:gap-5">
+                  <ActionButton
                     testId="button-add-friend"
                     onClick={fb.action}
                     disabled={fb.disabled || anyMutationPending}
@@ -492,18 +486,18 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                     icon={friendStatus?.status === "accepted" ? <UserCheck size={20} /> : <UserPlus size={20} />}
                     label={anyMutationPending ? "…" : fb.label}
                   />
-                  <ActionTile
+                  <ActionButton
                     testId="button-visit-pethouse"
                     onClick={() => setComingSoon(true)}
                     accent="#6fa977"
-                    icon={<img src={petHouseIcon} alt="" className="h-6 w-6 object-contain opacity-80" />}
+                    icon={<img src={petHouseIcon} alt="" className="h-8 w-8 object-contain" />}
                     label="Pet Home"
                   />
-                  <ActionTile
+                  <ActionButton
                     testId="button-view-aquarium"
                     onClick={() => setShowAquarium(true)}
                     accent="#63b7ac"
-                    icon={<Fish size={21} />}
+                    icon={<img src={aquariumIcon} alt="" className="h-8 w-8 object-contain" />}
                     label="Aquarium"
                   />
                 </div>
