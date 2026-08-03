@@ -1932,7 +1932,9 @@ function PetCareAssetMeter({
   testId: string;
   children?: React.ReactNode;
 }) {
-  const safePercentage = Math.max(0, Math.min(100, percentage));
+  const safePercentage = Number.isFinite(percentage)
+    ? Math.max(0, Math.min(100, percentage))
+    : 0;
   return (
     <div
       className={`pet-care-meter pet-care-meter--${orientation} pet-care-meter--${theme}`}
@@ -2027,6 +2029,15 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const [, navigate] = useLocation();
   const overlayRef = useRef<HTMLDivElement>(null);
   const [showFeedHint, setShowFeedHint] = useState(feedHint);
+  const timeoutIdsRef = useRef<Set<number>>(new Set());
+  const scheduleTimeout = useCallback((callback: () => void, delay: number) => {
+    const id = window.setTimeout(() => {
+      timeoutIdsRef.current.delete(id);
+      callback();
+    }, delay);
+    timeoutIdsRef.current.add(id);
+    return id;
+  }, []);
 
   // Pull the live, full inventory so we can filter to edibles AND look up the
   // canonical, server-decayed hunger/mood for THIS pet (the prop is a stale
@@ -2054,15 +2065,18 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     () => inventory.find((it) => it.id === pet.inventoryId) ?? pet,
     [inventory, pet],
   );
-  const maxHunger = Math.max(1, livePet.petHealth ?? 1000);
-  const hungerRaw = livePet.petHunger;
-  const hungerVal = hungerRaw == null || hungerRaw < 0 ? maxHunger : hungerRaw;
+  const petHealth = Number(livePet.petHealth);
+  const maxHunger = Number.isFinite(petHealth) && petHealth > 0 ? petHealth : 1000;
+  const rawHunger = Number(livePet.petHunger);
+  const hungerVal = Number.isFinite(rawHunger) && rawHunger >= 0 ? rawHunger : maxHunger;
   const hungerPct = Math.max(0, Math.min(100, (hungerVal / maxHunger) * 100));
-  const moodVal = Math.max(0, Math.min(100, livePet.petMood ?? 100));
+  const rawMood = Number(livePet.petMood);
+  const moodVal = Number.isFinite(rawMood) ? Math.max(0, Math.min(100, rawMood)) : 100;
   const petStarRarity: number = (livePet as any).starRarity ?? 1;
   const loyaltyMaxByRarity: Record<number, number> = { 1: 1000, 2: 2000, 3: 3000, 4: 4000, 5: 5000 };
   const loyaltyMax = loyaltyMaxByRarity[petStarRarity] ?? 1000;
-  const loyaltyVal = Math.max(0, Math.min(loyaltyMax, (livePet as any).petLoyalty ?? 0));
+  const rawLoyalty = Number((livePet as any).petLoyalty);
+  const loyaltyVal = Number.isFinite(rawLoyalty) ? Math.max(0, Math.min(loyaltyMax, rawLoyalty)) : 0;
   const loyaltyPct = (loyaltyVal / loyaltyMax) * 100;
   const loyaltyFull = loyaltyVal >= loyaltyMax;
 
@@ -2139,11 +2153,20 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const [displayCoins, setDisplayCoins] = useState<number>(user?.coins ?? 0);
   useEffect(() => { setDisplayCoins(user?.coins ?? 0); }, [user?.coins]);
 
-  // Preload the feeding background once so the overlay doesn't flash the
-  // pet-house view through while the image is still being fetched.
-  useEffect(() => {
-    const img = new Image();
-    img.src = feedingPageBg;
+  // The CSS background is the single owner of the large scene image. Creating
+  // an additional Image object here made WebKit retain a second decoded copy.
+
+  // Clear every delayed animation and gesture timer when switching pets or
+  // leaving Pet Care. Without this, rapid reopen cycles retained particle
+  // closures and continued updating an overlay that no longer existed.
+  useEffect(() => () => {
+    timeoutIdsRef.current.forEach((id) => window.clearTimeout(id));
+    timeoutIdsRef.current.clear();
+    const gesture = petGestureRef.current;
+    if (gesture?.heartTimer != null) window.clearInterval(gesture.heartTimer);
+    if (gesture?.sparkleTimer != null) window.clearInterval(gesture.sparkleTimer);
+    if (gesture?.circleResetTimer != null) window.clearTimeout(gesture.circleResetTimer);
+    petGestureRef.current = null;
   }, []);
 
   // Particles (coins/hearts/sparkles) are `position: fixed` inside the scaled
@@ -2235,7 +2258,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           const cy = fp.y;
           const id = ++floatIdRef.current;
           setFloatTexts((arr) => [...arr, { id, x: cx, y: cy, text: `+${data.moodGained} Mood` }]);
-          setTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
+          scheduleTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
         }
       }
     },
@@ -2261,7 +2284,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       const next = n + 1;
       // After the last coin's fly-in completes, reconcile with the server so
       // the cached value matches the authoritative total.
-      setTimeout(() => {
+      scheduleTimeout(() => {
         setRewardCoins((coins) => coins.filter((c) => c.id !== coinId));
         if (next >= batchSize) {
           qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
@@ -2286,7 +2309,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     });
     setHearts((h) => [...h, ...newOnes]);
     const ids = new Set(newOnes.map((n) => n.id));
-    setTimeout(() => setHearts((h) => h.filter((x) => !ids.has(x.id))), 2600);
+    scheduleTimeout(() => setHearts((h) => h.filter((x) => !ids.has(x.id))), 2600);
   }, [clampToFrame]);
 
   const burstSparkles = useCallback((cx: number, cy: number, count = 10) => {
@@ -2305,7 +2328,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     });
     setSparkles((s) => [...s, ...newOnes]);
     const ids = new Set(newOnes.map((n) => n.id));
-    setTimeout(() => setSparkles((s) => s.filter((x) => !ids.has(x.id))), 1200);
+    scheduleTimeout(() => setSparkles((s) => s.filter((x) => !ids.has(x.id))), 1200);
   }, [clampToFrame]);
 
   // ── Petting gesture ──────────────────────────────────────────────────────
@@ -2360,7 +2383,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     }
     // If circling stops for 350ms, drop the bounce/hearts/sparkles.
     if (g.circleResetTimer != null) window.clearTimeout(g.circleResetTimer);
-    g.circleResetTimer = window.setTimeout(() => {
+    g.circleResetTimer = scheduleTimeout(() => {
       const cur = petGestureRef.current;
       if (cur?.heartTimer != null) {
         window.clearInterval(cur.heartTimer);
@@ -2449,15 +2472,15 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       qc.invalidateQueries({ queryKey: ["/api/inventory"] });
       setPetGlow(true);
       setPetBounce(true);
-      setTimeout(() => setPetGlow(false), 700);
-      setTimeout(() => setPetBounce(false), 1100);
+      scheduleTimeout(() => setPetGlow(false), 700);
+      scheduleTimeout(() => setPetBounce(false), 1100);
       const id = ++floatIdRef.current;
       const box = petBoxRef.current?.getBoundingClientRect();
       const cx = box ? box.left + box.width / 2 : window.innerWidth / 2;
       const cy = box ? box.top + box.height * 0.3 : window.innerHeight / 2;
       const added = data?.loyaltyAdded ?? 0;
       setFloatTexts((arr) => [...arr, { id, x: cx, y: cy, text: `+${added} Loyalty` }]);
-      setTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
+      scheduleTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
       if (box) {
         const bx = box.left + box.width / 2;
         const by = box.top + box.height / 2;
@@ -2484,13 +2507,13 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       const coinsText = data?.coinsAwarded ? `+${data.coinsAwarded} Coins!` : "Reward Claimed!";
       const id1 = ++floatIdRef.current;
       setFloatTexts((arr) => [...arr, { id: id1, x: cx, y: cy - 20, text: coinsText }]);
-      setTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id1)), 1800);
+      scheduleTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id1)), 1800);
       if (data?.xpBoostPct > 0) {
         const id2 = ++floatIdRef.current;
         setFloatTexts((arr) => [...arr, { id: id2, x: cx, y: cy + 20, text: `+${data.xpBoostPct}% XP for 1 hr!` }]);
-        setTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id2)), 2400);
+        scheduleTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id2)), 2400);
         setBoostActivated(true);
-        setTimeout(() => setBoostActivated(false), 3200);
+        scheduleTimeout(() => setBoostActivated(false), 3200);
       }
       if (box) {
         burstHearts(cx, cy + 30, 14);
@@ -2515,8 +2538,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       // Glow + bounce + sparkles + floating text on successful feed.
       setPetGlow(true);
       setPetBounce(true);
-      setTimeout(() => setPetGlow(false), 700);
-      setTimeout(() => setPetBounce(false), 1100);
+      scheduleTimeout(() => setPetGlow(false), 700);
+      scheduleTimeout(() => setPetBounce(false), 1100);
       const fed = inventory.find((it) => it.id === variables.itemInventoryId);
       const qty = variables.quantity ?? 1;
       const amount = (fed?.statBoostAmount ?? 5) * qty;
@@ -2525,7 +2548,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       const cx = box ? box.left + box.width / 2 : window.innerWidth / 2;
       const cy = box ? box.top + box.height * 0.3 : window.innerHeight / 2;
       setFloatTexts((arr) => [...arr, { id, x: cx, y: cy, text: `+${amount} Feed pts` }]);
-      setTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
+      scheduleTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
       if (box) {
         const bx = box.left + box.width / 2;
         const by = box.top + box.height / 2;
@@ -2649,7 +2672,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     const box = petBoxRef.current?.getBoundingClientRect();
     const validDrop = !!box && pointInsideExpandedPetDropZone({ x: point.clientX, y: point.clientY }, box, PET_CARE_DROP_PADDING_PX);
     cleanupItemGesture();
-    window.setTimeout(() => { suppressClickRef.current = false; }, 0);
+    scheduleTimeout(() => { suppressClickRef.current = false; }, 0);
     if (validDrop) {
       if (d.type === "gift" && !giftMutation.isPending) {
         giftMutation.mutate({ itemInventoryId: d.inventoryId });

@@ -44,3 +44,17 @@ test("the dynamic mood face is embedded in the Mood meter medallion", () => {
   assert.equal(page.match(/data-testid="img-mood-face"/g)?.length, 1);
   assert.doesNotMatch(page, /Mood face icon centered beneath/);
 });
+
+test("Pet Care meters clamp finite percentages and share an inset inner track", () => {
+  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const css = readFileSync("client/src/index.css", "utf8");
+
+  assert.match(page, /Number\.isFinite\(percentage\)/);
+  assert.match(page, /Number\.isFinite\(rawHunger\)/);
+  assert.match(page, /Number\.isFinite\(rawMood\)/);
+  assert.match(page, /Number\.isFinite\(rawLoyalty\)/);
+  assert.match(css, /\.pet-care-meter--horizontal \.pet-care-meter__track[\s\S]*?overflow: hidden/);
+  assert.match(css, /\.pet-care-meter--horizontal \.pet-care-meter__fill \{[\s\S]*?top: 6%;[\s\S]*?height: 88%/);
+  assert.match(css, /\.pet-care-meter--mood \{\s*width: 90%;/);
+  assert.match(css, /\.pet-care-meter__mood-face[\s\S]*?padding: 1\.6%;[\s\S]*?object-fit: contain/);
+});
