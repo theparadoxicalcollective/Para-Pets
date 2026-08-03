@@ -1,12 +1,15 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import "./petCarePolish.css";
+import { installPetCareDragPolish } from "./petCarePolish";
 
 function setAppHeight() {
   document.documentElement.style.setProperty("--app-height", `${window.innerHeight}px`);
 }
 setAppHeight();
 window.addEventListener("resize", setAppHeight);
+installPetCareDragPolish();
 
 // ── Global error reporter ─────────────────────────────────────────────────────
 // Captures unhandled JS errors and promise rejections that bypass React's
