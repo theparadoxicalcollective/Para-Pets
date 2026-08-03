@@ -11,10 +11,13 @@ export default function PetCarePage() {
   const inventoryId = params?.inventoryId ?? null;
   const feedHint = new URLSearchParams(window.location.search).get("feedHint") === "1";
 
-  const { data: user } = useQuery<any>({ queryKey: ["/api/auth/me"] });
-  const { data: inventory = [], isLoading } = useQuery<any[]>({
+  const userQuery = useQuery<any>({ queryKey: ["/api/auth/me"] });
+  const inventoryQuery = useQuery<any[]>({
     queryKey: ["/api/inventory"],
   });
+  const user = userQuery.data;
+  const inventory = inventoryQuery.data ?? [];
+  const isLoading = userQuery.isLoading || inventoryQuery.isLoading;
 
   const pet = inventoryId
     ? inventory.find((it: any) => it.id === inventoryId && it.type === "pet")
@@ -30,10 +33,23 @@ export default function PetCarePage() {
   // Navigation is a side effect. Running it while React is rendering can
   // repeatedly update the router when a stale or deleted pet URL is opened.
   useEffect(() => {
-    if (isLoading || !user || pet || hasRedirectedRef.current) return;
+    if (isLoading || userQuery.isError || inventoryQuery.isError || !user || pet || hasRedirectedRef.current) return;
     hasRedirectedRef.current = true;
     close();
-  }, [isLoading, user, pet]);
+  }, [inventoryQuery.isError, isLoading, pet, user, userQuery.isError]);
+
+  if (userQuery.isError || inventoryQuery.isError) {
+    return (
+      <main className="pet-care-route-state" role="alert" data-testid="pet-care-error">
+        <h1>Pet Care couldn't load</h1>
+        <p>Your pet and items are safe. Check your connection and try again.</p>
+        <div>
+          <button type="button" onClick={() => void Promise.all([userQuery.refetch(), inventoryQuery.refetch()])}>Try again</button>
+          <button type="button" onClick={close}>Go back</button>
+        </div>
+      </main>
+    );
+  }
 
   if (isLoading || !user) return <LoadingScreen label="Loading…" />;
 

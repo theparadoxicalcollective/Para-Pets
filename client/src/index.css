@@ -412,6 +412,33 @@
   overflow: hidden;
 }
 
+.pet-care-route-state {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 28px;
+  color: #fff4dc;
+  text-align: center;
+  background: #0c1a10;
+}
+.pet-care-route-state h1 { font: 700 24px/1.2 "Lora", serif; }
+.pet-care-route-state p { max-width: 320px; color: #d7e5d2; }
+.pet-care-route-state div { display: flex; gap: 10px; }
+.pet-care-route-state button {
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid #a98d45;
+  border-radius: 999px;
+  background: #18321e;
+  color: inherit;
+  font-weight: 700;
+}
+
 .pet-care-header { z-index: 540; }
 .pet-care-pet { z-index: 2; }
 
@@ -472,7 +499,11 @@
   transition: width 500ms ease, height 500ms ease;
 }
 
-.pet-care-meter--horizontal .pet-care-meter__fill { height: 100%; }
+.pet-care-meter--horizontal .pet-care-meter__fill {
+  top: 6%;
+  height: 88%;
+  border-radius: inherit;
+}
 .pet-care-meter--vertical .pet-care-meter__fill { width: 100%; }
 .pet-care-meter--hunger .pet-care-meter__fill {
   background: linear-gradient(90deg, #50b93e 0%, #a5eb3d 58%, #f5e96b 100%);
@@ -481,6 +512,9 @@
 .pet-care-meter--mood .pet-care-meter__fill {
   background: linear-gradient(90deg, #1c9ee0 0%, #25c9fa 60%, #b6f7ff 100%);
   box-shadow: inset 0 0 8px rgba(205, 249, 255, 0.75);
+}
+.pet-care-meter--mood {
+  width: 90%;
 }
 .pet-care-meter--loyalty .pet-care-meter__fill {
   background: linear-gradient(0deg, #e63a9d 0%, #ad55d9 52%, #ffd27d 100%);
@@ -524,10 +558,12 @@
 .pet-care-meter__mood-face {
   position: absolute;
   z-index: 6;
-  top: 38%;
-  left: 5.5%;
-  width: 16.5%;
-  height: 43%;
+  top: 37.5%;
+  left: 5.6%;
+  width: 16.2%;
+  height: 44%;
+  box-sizing: border-box;
+  padding: 1.6%;
   object-fit: contain;
   filter: drop-shadow(0 2px 3px rgba(0,0,0,0.65));
   pointer-events: none;
