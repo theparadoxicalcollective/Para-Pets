@@ -732,7 +732,6 @@ function AdminItemForm({
 
         if (effectiveType === "clearing") {
           payload.clearingSlot = clearingSlot;
-          payload.starRarity = parseInt(starRarity);
           payload.clearingAttackStyle = clearingSlot === "weapon" ? clearingAttackStyle : null;
         } else {
           payload.clearingSlot = null;
@@ -768,13 +767,16 @@ function AdminItemForm({
             payload.baitRarityBoostStar = null;
             payload.poleMaxUses = parseInt(poleMaxUses) || null;
           }
-        } else if (effectiveType !== "clearing") {
+        } else if (effectiveType !== "clearing" && effectiveType !== "accessory") {
           payload.fishingType = null;
           payload.starRarity = null;
           payload.baitCatchBoost = null;
           payload.rarityBoostPercent = null;
           payload.baitRarityBoostStar = null;
           payload.poleMaxUses = null;
+        }
+        if (effectiveType === "clearing" || effectiveType === "accessory") {
+          payload.starRarity = Math.max(1, Math.min(5, parseInt(starRarity) || 1));
         }
       }
 
@@ -1247,13 +1249,13 @@ function AdminItemForm({
                   <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Attack Style</label>
                   <select data-testid="select-clearing-attack-style" value={clearingAttackStyle} onChange={(e) => setClearingAttackStyle(e.target.value as typeof clearingAttackStyle)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}><option value="sword_slash">Sword Slash</option><option value="staff_orb">Staff Orb</option><option value="default">Other/Default</option></select>
                 </div>}
-                <div>
-                  <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Star Rarity (1–5)</label>
-                  <select data-testid="select-clearing-stars" value={starRarity} onChange={(e) => setStarRarity(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
-                    {[1, 2, 3, 4, 5].map(stars => <option key={stars} value={stars}>{"★".repeat(stars)} ({stars} Star{stars > 1 ? "s" : ""})</option>)}
-                  </select>
-                </div>
               </>}
+              <div>
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Star Rarity (1–5)</label>
+                <select data-testid={effectiveType === "accessory" ? "select-accessory-stars" : "select-clearing-stars"} value={starRarity} onChange={(e) => setStarRarity(e.target.value)} className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle}>
+                  {[1, 2, 3, 4, 5].map(stars => <option key={stars} value={stars}>{"★".repeat(stars)} ({stars} Star{stars > 1 ? "s" : ""})</option>)}
+                </select>
+              </div>
               <div>
                 <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">ATK Boost (when equipped)</label>
                 <input data-testid="input-atk-boost" type="number" value={atkBoost} onChange={(e) => setAtkBoost(e.target.value)} placeholder="0" min="0" className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none" style={inputStyle} />

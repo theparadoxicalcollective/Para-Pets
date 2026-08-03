@@ -60,7 +60,10 @@ interface EquippedAcc {
   atkBoost: number | null;
   defBoost: number | null;
   healthBoost: number | null;
+  starRarity?: number | null;
 }
+
+const OCTAGON_CLIP_PATH = "polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)";
 
 interface Badge {
   id: string;
@@ -230,6 +233,11 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
   });
 
   const petImg = profile?.activePet?.hatchedImageUrl || profile?.activePet?.imageUrl;
+  const sortedAccessories = [...equippedAccessories].sort(
+    (a, b) => (a.slot ?? 999) - (b.slot ?? 999),
+  );
+  const leftAccessories = sortedAccessories.slice(0, 3);
+  const rightAccessories = sortedAccessories.slice(3, 5);
   const anyMutationPending = sendRequestMutation.isPending || acceptRequestMutation.isPending || cancelOrDeclineMutation.isPending;
 
   type FriendBtnDef = {
@@ -321,14 +329,14 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
         )}
 
         {profile && (
-          <div className="px-5 pb-8 pt-2 flex flex-col gap-5">
+          <div className="px-4 pb-8 pt-2 min-[380px]:px-5 flex flex-col gap-5">
 
-            {/* Profile picture + name — centered */}
-            <div className="flex flex-col items-center gap-2 pb-1">
-              <div className="flex h-[76px] w-[76px] flex-shrink-0 items-center justify-center"
-                style={{ background: "linear-gradient(145deg, #f2d574, #8d6416)", clipPath: "polygon(50% 0%, 94% 23%, 84% 78%, 50% 100%, 16% 78%, 6% 23%)", filter: "drop-shadow(0 3px 6px rgba(0,0,0,0.65)) drop-shadow(0 0 5px rgba(201,160,48,0.28))" }}>
-                <div className="h-[70px] w-[70px] overflow-hidden"
-                  style={{ clipPath: "polygon(50% 0%, 94% 23%, 84% 78%, 50% 100%, 16% 78%, 6% 23%)" }}>
+            {/* Compact horizontal identity row */}
+            <div className="flex min-w-0 items-center gap-3 pb-1 pr-12" data-testid="player-identity-row">
+              <div className="flex aspect-square flex-shrink-0 items-center justify-center"
+                style={{ width: "clamp(66px, 18vw, 78px)", background: "linear-gradient(145deg, #f2d574, #8d6416)", clipPath: OCTAGON_CLIP_PATH, filter: "drop-shadow(0 3px 6px rgba(0,0,0,0.65)) drop-shadow(0 0 5px rgba(201,160,48,0.32))" }}>
+                <div className="aspect-square overflow-hidden"
+                  style={{ width: "calc(100% - 6px)", clipPath: OCTAGON_CLIP_PATH }}>
                   {profile.profileImage ? (
                     <img src={profile.profileImage} alt="" className="h-full w-full object-cover" data-testid="img-player-profile" />
                   ) : (
@@ -341,8 +349,8 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                   )}
                 </div>
               </div>
-              <div className="flex flex-col items-center gap-1">
-                <p className="font-fantasy text-lg font-semibold tracking-wide" style={{ color: "#f0c040" }} data-testid="text-player-username">
+              <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
+                <p className="max-w-full overflow-hidden text-ellipsis font-fantasy text-lg font-semibold tracking-wide text-left" style={{ color: "#f0c040" }} data-testid="text-player-username">
                   {profile.username}
                 </p>
                 <RoleBadge isAdmin={profile.isAdmin} isModerator={profile.isModerator} size="sm" />
@@ -399,34 +407,45 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
             <div className="flex min-w-0 flex-col items-center gap-2">
               {profile.activePet ? (
                 <>
-                  {/* Floating equipment arc */}
-                  {equippedAccessories.length > 0 && (
-                    <div className="flex h-12 w-full max-w-[230px] items-end justify-center gap-1" data-testid="equipped-accessories-arc">
-                      {equippedAccessories.map((acc, i) => {
-                        const center = (equippedAccessories.length - 1) / 2;
-                        const distance = Math.abs(i - center);
-                        return (
+                  <div
+                    className="grid w-full min-w-0 items-center gap-x-1 min-[375px]:gap-x-2"
+                    style={{ gridTemplateColumns: "minmax(48px, 68px) minmax(0, 1fr) minmax(48px, 68px)" }}
+                    data-testid="companion-showcase"
+                  >
+                    {([leftAccessories, rightAccessories] as const).map((accessories, columnIndex) => (
+                      <div
+                        key={columnIndex}
+                        className={`flex h-full flex-col items-center justify-evenly ${columnIndex === 0 ? "col-start-1 row-start-1" : "col-start-3 row-start-1"}`}
+                        data-testid={columnIndex === 0 ? "equipment-column-left" : "equipment-column-right"}
+                      >
+                        {Array.from({ length: columnIndex === 0 ? 3 : 2 }).map((_, columnItemIndex) => {
+                          const acc = accessories[columnItemIndex];
+                          const i = columnIndex === 0 ? columnItemIndex : columnItemIndex + 3;
+                          if (!acc) return <span key={`spacer-${columnItemIndex}`} className="h-11 w-11 min-[375px]:h-12 min-[375px]:w-12" aria-hidden="true" />;
+                          return (
                           <button
                             key={acc.id ?? acc.accessoryInventoryId ?? i}
                             onClick={() => setAccessoryDetail(acc)}
                             data-testid={`button-acc-${i}`}
                             aria-label={`View ${acc.name}`}
-                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-transparent transition-transform active:scale-95"
-                            style={{ transform: `translateY(${distance * 7}px)`, border: "none", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
+                            className="flex shrink-0 items-center justify-center rounded-full bg-transparent transition-[transform,filter] hover:bg-purple-300/5 active:scale-95"
+                            style={{ width: "clamp(46px, 12vw, 56px)", height: "clamp(46px, 12vw, 56px)", border: "none", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
                           >
                             {acc.imageUrl ? (
-                              <img src={acc.imageUrl} alt="" className="h-8 w-8 object-contain" style={{ filter: "drop-shadow(0 0 5px rgba(192,132,252,0.35)) drop-shadow(0 3px 3px rgba(0,0,0,0.85))" }} />
+                              <span className="flex flex-col items-center">
+                                <img src={acc.imageUrl} alt="" className="object-contain" style={{ width: "clamp(36px, 9.5vw, 46px)", height: "clamp(36px, 9.5vw, 46px)", filter: "drop-shadow(0 0 5px rgba(192,132,252,0.35)) drop-shadow(0 3px 3px rgba(0,0,0,0.85))" }} />
+                                {!!acc.starRarity && <span className="-mt-1 whitespace-nowrap text-[7px] leading-none text-[#f0c040]" aria-label={`${acc.starRarity} star rarity`}>{"★".repeat(acc.starRarity)}</span>}
+                              </span>
                             ) : (
                               <span aria-hidden="true" className="text-lg text-purple-300/50" style={{ filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.8))" }}>✦</span>
                             )}
                           </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                          );
+                        })}
+                      </div>
+                    ))}
 
-                  <div className="flex w-full min-w-0 flex-col items-center">
-                    <div className="flex h-[142px] w-[min(44vw,156px)] items-center justify-center min-[380px]:h-[158px] min-[380px]:w-[170px]" data-testid="img-active-pet">
+                    <div className="col-start-2 row-start-1 flex h-[142px] w-full min-w-0 items-center justify-center min-[380px]:h-[158px]" data-testid="img-active-pet">
                       {petImg ? (
                         <img src={petImg} alt="" className="w-full h-full object-contain"
                           style={{ filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.78))" }} />
@@ -434,7 +453,8 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                         <img src={petPawIcon} alt="" className="h-24 w-24 object-contain" />
                       )}
                     </div>
-                    <div className="flex min-w-0 flex-col items-center gap-1 text-center">
+                  </div>
+                  <div className="flex w-full min-w-0 flex-col items-center gap-1 text-center" data-testid="active-pet-information">
                       <p className="font-fantasy text-base font-semibold" style={{ color: "#f0c040" }} data-testid="text-active-pet-name">
                         {profile.activePet.nickname || profile.activePet.name}
                       </p>
@@ -462,7 +482,6 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                         <CompanionStat label="ATK" value={profile.activePet.petAtk} color="#df925d" />
                         <CompanionStat label="DEF" value={profile.activePet.petDef} color="#719acb" />
                       </div>
-                    </div>
                   </div>
 
                 </>

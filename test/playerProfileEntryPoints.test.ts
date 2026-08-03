@@ -61,3 +61,43 @@ test("game leaderboard responses expose stable user ids alongside display fields
   assert.match(routes, /SELECT u\.id AS user_id, u\.username, u\.profile_image/);
   assert.match(storage, /userId: r\.id/);
 });
+
+test("shared player card uses a compact octagonal horizontal identity", () => {
+  const source = read("client/src/components/PlayerDetailPanel.tsx");
+  assert.match(source, /polygon\(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%\)/);
+  assert.match(source, /data-testid="player-identity-row"/);
+  assert.match(source, /player-identity-row[\s\S]*img-player-profile[\s\S]*text-player-username/);
+  assert.match(source, /flex min-w-0 items-center/);
+});
+
+test("shared player card sorts and divides side-mounted accessory controls", () => {
+  const source = read("client/src/components/PlayerDetailPanel.tsx");
+  assert.match(source, /\[\.\.\.equippedAccessories\]\.sort/);
+  assert.match(source, /\(a\.slot \?\? 999\) - \(b\.slot \?\? 999\)/);
+  assert.match(source, /sortedAccessories\.slice\(0, 3\)/);
+  assert.match(source, /sortedAccessories\.slice\(3, 5\)/);
+  assert.match(source, /equipment-column-left/);
+  assert.match(source, /equipment-column-right/);
+  assert.doesNotMatch(source, /data-testid="equipped-accessories-arc"/);
+  assert.match(source, /onClick=\{\(\) => setAccessoryDetail\(acc\)\}/);
+  assert.match(source, /data-testid=\{`button-acc-\$\{i\}`\}/);
+});
+
+test("shared player card retains companion information and visitor controls", () => {
+  const source = read("client/src/components/PlayerDetailPanel.tsx");
+  for (const testId of [
+    "text-active-pet-name", "text-active-pet-level", "active-pet-stats",
+    "button-add-friend", "button-visit-pethouse", "button-view-aquarium", "button-remove-friend",
+  ]) assert.ok(source.includes(testId), testId);
+  assert.match(source, /<RarityStars rarity=\{profile\.activePet\.rarity\}/);
+  assert.match(source, /profile\.activePet\.specialSkill/);
+});
+
+test("admin item form saves a bounded accessory star rarity", () => {
+  const form = read("client/src/components/ItemDatabaseSection.tsx");
+  const schema = read("shared/schema.ts");
+  assert.match(form, /select-accessory-stars/);
+  assert.match(form, /effectiveType === "clearing" \|\| effectiveType === "accessory"/);
+  assert.match(form, /Math\.max\(1, Math\.min\(5, parseInt\(starRarity\) \|\| 1\)\)/);
+  assert.match(schema, /Accessory star rarity must be from 1 through 5/);
+});

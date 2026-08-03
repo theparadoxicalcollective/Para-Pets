@@ -431,6 +431,9 @@ const baseInsertShopItemSchema = createInsertSchema(shopItems).omit({
 export const clearingEquipmentSlots = ["helmet", "weapon", "armor", "boots", "charm"] as const;
 export const clearingAttackStyles = ["sword_slash", "staff_orb", "default_melee"] as const;
 export const insertShopItemSchema = baseInsertShopItemSchema.superRefine((item, ctx) => {
+  if (item.type === "accessory" && (!Number.isInteger(item.starRarity) || (item.starRarity ?? 0) < 1 || (item.starRarity ?? 0) > 5)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["starRarity"], message: "Accessory star rarity must be from 1 through 5" });
+  }
   if (item.type !== "clearing") return;
   if (!clearingEquipmentSlots.includes(item.clearingSlot as typeof clearingEquipmentSlots[number])) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["clearingSlot"], message: "Clearing slot must be helmet, weapon, armor, boots, or charm" });
