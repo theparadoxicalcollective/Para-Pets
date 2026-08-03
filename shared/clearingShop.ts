@@ -1,9 +1,11 @@
 import { z } from "zod";
 export const CLEARING_SHOP_LIMITS={xMin:.08,xMax:.92,yMin:.05,yMax:.94,widthMin:64,widthMax:112,radiusMin:36,radiusMax:140,maxPrice:1_000_000} as const;
 export const DEFAULT_CLEARING_SHOP={id:"",worldId:"swamp",enabled:false,portalX:.5,portalY:.55,portalWidth:88,interactionRadiusPixels:58,items:[]} as const;
+/** Radius around the portal's visible ground-level glow that accepts the pet's movement center. */
+export const CLEARING_PORTAL_ACTIVATION_RADIUS=30;
 export const normalizeClearingPortalWidth=(value:unknown)=>Math.min(CLEARING_SHOP_LIMITS.widthMax,Math.max(CLEARING_SHOP_LIMITS.widthMin,Number.isFinite(Number(value))?Math.round(Number(value)):DEFAULT_CLEARING_SHOP.portalWidth));
 /** Player entry begins inside the portal's inner glow, not at its outer motes. */
-export const clearingShopActivationRadius=(interactionRadiusPixels:number)=>Math.max(24,Math.round(interactionRadiusPixels*.6));
+export const clearingShopActivationRadius=(_interactionRadiusPixels:number)=>CLEARING_PORTAL_ACTIVATION_RADIUS;
 export const clearingShopPatchSchema=z.object({enabled:z.boolean().optional(),portalX:z.number().finite().min(.08).max(.92).optional(),portalY:z.number().finite().min(.05).max(.94).optional(),portalWidth:z.number().int().min(64).max(CLEARING_SHOP_LIMITS.widthMax).optional(),interactionRadiusPixels:z.number().int().min(36).max(140).optional()}).strict();
 export const clearingShopItemCreateSchema=z.object({shopItemId:z.string().min(1).max(200),essencePrice:z.number().int().positive().max(CLEARING_SHOP_LIMITS.maxPrice),active:z.boolean().optional(),sortOrder:z.number().int().min(-10000).max(10000).optional()}).strict();
 export const clearingShopItemPatchSchema=clearingShopItemCreateSchema.omit({shopItemId:true}).partial().strict();
