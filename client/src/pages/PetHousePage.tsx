@@ -2038,12 +2038,13 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const overlayRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(true);
   const [showFeedHint, setShowFeedHint] = useState(feedHint);
   const timeoutIdsRef = useRef<Set<number>>(new Set());
   const scheduleTimeout = useCallback((callback: () => void, delay: number) => {
     const id = window.setTimeout(() => {
       timeoutIdsRef.current.delete(id);
-      callback();
+      if (mountedRef.current) callback();
     }, delay);
     timeoutIdsRef.current.add(id);
     return id;
@@ -2120,6 +2121,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const dragFrameRef = useRef<number | null>(null);
   const dragPositionRef = useRef({ x: 0, y: 0 });
   const suppressClickRef = useRef(false);
+  const isApplyingItemRef = useRef(false);
+  const [isApplyingItem, setIsApplyingItem] = useState(false);
 
   // Feed-stack popup: shown when a stacked edible is dropped on the pet.
   const [pendingFeed, setPendingFeed] = useState<{
@@ -2180,6 +2183,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   // leaving Pet Care. Without this, rapid reopen cycles retained particle
   // closures and continued updating an overlay that no longer existed.
   useEffect(() => () => {
+    mountedRef.current = false;
     timeoutIdsRef.current.forEach((id) => window.clearTimeout(id));
     timeoutIdsRef.current.clear();
     const gesture = petGestureRef.current;
@@ -2597,21 +2601,27 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     });
   }, []);
 
-  const cleanupItemGesture = useCallback((releaseCapture = true) => {
+  const cleanupItemGesture = useCallback((releaseCapture = true, updateState = mountedRef.current) => {
     const drag = dragRef.current;
     dragRef.current = null;
     if (dragFrameRef.current != null) {
       cancelAnimationFrame(dragFrameRef.current);
       dragFrameRef.current = null;
     }
-    if (releaseCapture && drag?.origin.hasPointerCapture?.(drag.pid)) {
-      try { drag.origin.releasePointerCapture(drag.pid); } catch {}
+    if (releaseCapture && drag?.origin) {
+      try {
+        if (drag.origin.hasPointerCapture?.(drag.pid)) drag.origin.releasePointerCapture(drag.pid);
+      } catch {
+        // WebKit may detach the captured shelf node during cancellation.
+      }
     }
-    setDragGhost(null);
-    setPetGlow(false);
+    if (updateState) {
+      setDragGhost(null);
+      setPetGlow(false);
+    }
   }, []);
 
-  useEffect(() => () => cleanupItemGesture(), [cleanupItemGesture]);
+  useEffect(() => () => cleanupItemGesture(true, false), [cleanupItemGesture]);
 
   const onItemPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, item: PetCareShelfItem) => {
     // Capture immediately so touch browsers keep delivering the gesture after
@@ -2619,6 +2629,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     // a horizontal swipe become native shelf scrolling (and pointercancel then
     // performs cleanup), while upward movement remains available for dragging.
     e.stopPropagation();
+    if (isApplyingItemRef.current || !item?.id || (item.quantity ?? 0) <= 0) return;
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
     dragRef.current = {
       inventoryId: item.id,
@@ -2636,6 +2647,46 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     };
     setDragGhost(null);
   }, []);
+
+  const applyCareItem = useCallback(async (drag: NonNullable<typeof dragRef.current>) => {
+    if (isApplyingItemRef.current) return;
+    const currentItem = inventory.find((entry) => entry?.id === drag.inventoryId);
+    const currentPet = inventory.find((entry) => entry?.id === pet?.inventoryId);
+    if (!currentItem || Number(currentItem.quantity ?? 0) <= 0) {
+      toast({ title: "Item unavailable", description: "That item is no longer in your inventory." });
+      return;
+    }
+    if (!currentPet || !currentPet.isHatched || !pet?.inventoryId) {
+      toast({ title: "Pet unavailable", description: "Please reopen Pet Care and try again." });
+      return;
+    }
+
+    isApplyingItemRef.current = true;
+    if (mountedRef.current) setIsApplyingItem(true);
+    try {
+      if (drag.type === "gift") {
+        await giftMutation.mutateAsync({ itemInventoryId: drag.inventoryId });
+      } else if (drag.type === "edibles" && drag.quantity > 1) {
+        if (mountedRef.current) {
+          setPendingFeed({
+            inventoryId: drag.inventoryId,
+            imageUrl: drag.imageUrl,
+            name: drag.name,
+            quantity: Math.min(drag.quantity, Number(currentItem.quantity)),
+            statBoostAmount: drag.statBoostAmount,
+          });
+          setDivideMode(false);
+          setDivideInput("1");
+        }
+      } else if (drag.type === "edibles") {
+        await feedMutation.mutateAsync({ itemInventoryId: drag.inventoryId });
+      }
+    } finally {
+      cleanupItemGesture(true, mountedRef.current);
+      isApplyingItemRef.current = false;
+      if (mountedRef.current) setIsApplyingItem(false);
+    }
+  }, [cleanupItemGesture, feedMutation, giftMutation, inventory, pet?.inventoryId, toast]);
 
   const onItemPointerMove = useCallback((e: React.PointerEvent) => {
     const d = dragRef.current;
@@ -2691,32 +2742,47 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       : nativeEvent;
     const box = petBoxRef.current?.getBoundingClientRect();
     const validDrop = !!box && pointInsideExpandedPetDropZone({ x: point.clientX, y: point.clientY }, box, PET_CARE_DROP_PADDING_PX);
-    cleanupItemGesture();
     scheduleTimeout(() => { suppressClickRef.current = false; }, 0);
-    if (validDrop) {
-      if (d.type === "gift" && !giftMutation.isPending) {
-        giftMutation.mutate({ itemInventoryId: d.inventoryId });
-      } else if (d.type === "edibles" && d.quantity > 1 && !feedMutation.isPending) {
-        // Stacked edible — show popup to choose Feed All or Divide.
-        setPendingFeed({
-          inventoryId: d.inventoryId,
-          imageUrl: d.imageUrl,
-          name: d.name,
-          quantity: d.quantity,
-          statBoostAmount: d.statBoostAmount,
-        });
-        setDivideMode(false);
-        setDivideInput("1");
-      } else if (d.type === "edibles" && !feedMutation.isPending) {
-        feedMutation.mutate({ itemInventoryId: d.inventoryId });
-      }
+    if (!validDrop) {
+      cleanupItemGesture();
+      return;
     }
-  }, [cleanupItemGesture, feedMutation, giftMutation]);
+    // Consume this release synchronously; React Query pending state is not a
+    // sufficient same-frame duplicate guard.
+    cleanupItemGesture();
+    void applyCareItem(d);
+  }, [applyCareItem, cleanupItemGesture, scheduleTimeout]);
 
   const onItemPointerCancel = useCallback((e: React.PointerEvent) => {
     if (dragRef.current?.pid !== e.pointerId) return;
     cleanupItemGesture();
   }, [cleanupItemGesture]);
+
+  const submitFeedSelection = useCallback(async (itemInventoryId: string, quantity: number) => {
+    if (isApplyingItemRef.current) return;
+    const currentItem = inventory.find((entry) => entry?.id === itemInventoryId);
+    const currentPet = inventory.find((entry) => entry?.id === pet?.inventoryId);
+    if (!currentItem || Number(currentItem.quantity ?? 0) < quantity || quantity < 1) {
+      toast({ title: "Item unavailable", description: "The selected stack has changed. Please try again." });
+      setPendingFeed(null);
+      return;
+    }
+    if (!currentPet || !currentPet.isHatched || !pet?.inventoryId) {
+      toast({ title: "Pet unavailable", description: "Please reopen Pet Care and try again." });
+      setPendingFeed(null);
+      return;
+    }
+    isApplyingItemRef.current = true;
+    if (mountedRef.current) setIsApplyingItem(true);
+    try {
+      await feedMutation.mutateAsync({ itemInventoryId, quantity });
+      if (mountedRef.current) setPendingFeed(null);
+    } finally {
+      cleanupItemGesture(true, mountedRef.current);
+      isApplyingItemRef.current = false;
+      if (mountedRef.current) setIsApplyingItem(false);
+    }
+  }, [cleanupItemGesture, feedMutation, inventory, pet?.inventoryId, toast]);
 
   return (
     <div
@@ -2730,7 +2796,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
         maxWidth: "768px", margin: "0 auto", left: 0, right: 0,
-        touchAction: "pan-x",
+        touchAction: dragGhost ? "none" : "auto",
         overscrollBehavior: "contain",
       }}
       onPointerMove={onItemPointerMove}
@@ -2744,26 +2810,10 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         }
       }}
       data-testid="overlay-feeding"
+      aria-busy={isApplyingItem}
     >
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between gap-2 px-4 pt-4 pet-care-header" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 14px)" }}>
-        <div
-          className="px-3 py-1.5 rounded-full"
-          style={{
-            background: "rgba(15,25,12,0.7)",
-            border: "1px solid rgba(180,255,160,0.35)",
-            backdropFilter: "blur(6px)",
-            fontFamily: "Lora, serif",
-            color: "#dfffd0",
-            fontSize: 13,
-            fontWeight: 700,
-            letterSpacing: "0.06em",
-            boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
-          }}
-          data-testid="text-feeding-pet-name"
-        >
-          Caring for {pet.nickname ?? pet.name}
-        </div>
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-end gap-2 px-4 pt-4 pet-care-header" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 14px)" }}>
         <div className="flex items-center gap-2">
           {/* Coin balance chip — coins fly into this when collected. Hidden on standalone pet-care page. */}
           {!hideCoinDisplay && (
@@ -2911,15 +2961,6 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           ) : null}
         </div>
       </div>
-
-      {/* Hunger occupies its own lower scene zone above the shelves. */}
-      <PetCareHungerMeter
-        hungerVal={hungerVal}
-        hungerMax={maxHunger}
-        hungerPct={hungerPct}
-        xpBoostActive={!!(livePet as any).xpBoostUntil && new Date((livePet as any).xpBoostUntil).getTime() > Date.now()}
-        xpBoostPct={(livePet as any).xpBoostPct ?? 0}
-      />
 
       {/* Decorative vertical meter retains the existing loyalty source of truth
           and reward action while clipping its fill beneath the artwork. */}
@@ -3227,6 +3268,15 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           paddingRight: 10,
         }}
       >
+        {/* Hunger shares the inventory column's normal flow, guaranteeing a
+            stable gap above the shelf at every phone height. */}
+        <PetCareHungerMeter
+          hungerVal={hungerVal}
+          hungerMax={maxHunger}
+          hungerPct={hungerPct}
+          xpBoostActive={!!(livePet as any).xpBoostUntil && new Date((livePet as any).xpBoostUntil).getTime() > Date.now()}
+          xpBoostPct={(livePet as any).xpBoostPct ?? 0}
+        />
         <PetCareItemShelf kind="edibles" items={edibles} onItemPointerDown={onItemPointerDown} />
         <PetCareItemShelf kind="gifts" items={gifts} onItemPointerDown={onItemPointerDown} />
       </div>
@@ -3403,10 +3453,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
                 <div style={{ display: "flex", gap: 8, width: "100%" }}>
                   <button
                     data-testid="button-feed-all"
-                    onClick={() => {
-                      feedMutation.mutate({ itemInventoryId: pendingFeed.inventoryId, quantity: pendingFeed.quantity });
-                      setPendingFeed(null);
-                    }}
+                    onClick={() => void submitFeedSelection(pendingFeed.inventoryId, pendingFeed.quantity)}
+                    disabled={isApplyingItem}
                     style={{
                       flex: 1,
                       background: "linear-gradient(135deg, #1a5c1a 0%, #2d8c2d 100%)",
@@ -3494,9 +3542,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
                     data-testid="button-confirm-divide"
                     onClick={() => {
                       const n = Math.min(pendingFeed.quantity, Math.max(1, Math.floor(Number(divideInput) || 1)));
-                      feedMutation.mutate({ itemInventoryId: pendingFeed.inventoryId, quantity: n });
-                      setPendingFeed(null);
+                      void submitFeedSelection(pendingFeed.inventoryId, n);
                     }}
+                    disabled={isApplyingItem}
                     style={{
                       flex: 2,
                       background: "linear-gradient(135deg, #1a5c1a 0%, #2d8c2d 100%)",

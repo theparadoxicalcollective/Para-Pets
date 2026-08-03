@@ -2705,7 +2705,13 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       const { itemInventoryId, quantity: rawQuantity } = req.body;
-      const quantity = Math.max(1, Math.floor(Number(rawQuantity) || 1));
+      if (typeof itemInventoryId !== "string" || !itemInventoryId) {
+        return res.status(400).json({ message: "itemInventoryId required" });
+      }
+      const quantity = rawQuantity == null ? 1 : Number(rawQuantity);
+      if (!Number.isInteger(quantity) || quantity < 1) {
+        return res.status(400).json({ message: "Quantity must be a positive integer" });
+      }
 
       const petInv = await storage.getInventoryItemById((req.params.inventoryId as string));
       if (!petInv || petInv.userId !== user.id) {
@@ -2719,7 +2725,10 @@ export async function registerRoutes(
       if (!itemInv || itemInv.userId !== user.id) {
         return res.status(404).json({ message: "Edible not found in inventory" });
       }
-      const availableQty = itemInv.quantity ?? 1;
+      const availableQty = itemInv.quantity ?? 0;
+      if (availableQty <= 0) {
+        return res.status(409).json({ message: "Edible has already been consumed" });
+      }
       if (quantity > availableQty) {
         return res.status(400).json({ message: "Not enough items in inventory" });
       }
@@ -2774,6 +2783,9 @@ export async function registerRoutes(
       return res.json({ ...updatedPet, totalFeedPoints });
     } catch (err) {
       console.error("Feed edible error:", err);
+      if (err instanceof Error && err.message === "Edible is no longer available") {
+        return res.status(409).json({ message: "Edible has already been consumed" });
+      }
       return res.status(500).json({ message: "Failed to feed edible" });
     }
   });
@@ -2786,6 +2798,9 @@ export async function registerRoutes(
     try {
       const user = req.user as any;
       const { itemInventoryId } = req.body;
+      if (typeof itemInventoryId !== "string" || !itemInventoryId) {
+        return res.status(400).json({ message: "itemInventoryId required" });
+      }
 
       const petInv = await storage.getInventoryItemById(req.params.inventoryId as string);
       if (!petInv || petInv.userId !== user.id) {
@@ -2798,6 +2813,9 @@ export async function registerRoutes(
       const itemInv = await storage.getInventoryItemById(itemInventoryId);
       if (!itemInv || itemInv.userId !== user.id) {
         return res.status(404).json({ message: "Gift not found in inventory" });
+      }
+      if ((itemInv.quantity ?? 0) <= 0) {
+        return res.status(409).json({ message: "Gift has already been consumed" });
       }
 
       const itemShopItem = await storage.getShopItem(itemInv.shopItemId);
@@ -2825,6 +2843,9 @@ export async function registerRoutes(
       return res.json({ pet: updated, loyaltyAdded: points, petLoyalty: newLoyalty });
     } catch (err) {
       console.error("Give gift error:", err);
+      if (err instanceof Error && err.message === "Gift is no longer available") {
+        return res.status(409).json({ message: "Gift has already been consumed" });
+      }
       return res.status(500).json({ message: "Failed to give gift" });
     }
   });
