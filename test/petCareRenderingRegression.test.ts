@@ -12,9 +12,10 @@ test("Pet Care shelves retain effect labels and order items by their bar increas
   assert.match(page, /onPointerDown=\{\(event\) => onItemPointerDown\(event, item\)\}/);
 });
 
-test("Pet Care uses the uploaded scene and decorative asset meters", () => {
+test("Pet Care uses the original scene and decorative asset meters", () => {
   const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
-  assert.match(page, /@assets\/ui\/pet-care\/pet-care-background\.png/);
+  assert.match(page, /@assets\/IMG_5734_1783098320823\.jpeg/);
+  assert.doesNotMatch(page, /@assets\/ui\/pet-care\/pet-care-background\.png/);
   assert.match(page, /@assets\/ui\/pet-care\/loyalty-meter-frame\.png/);
   assert.match(page, /@assets\/ui\/pet-care\/hunger-meter-frame\.png/);
   assert.match(page, /@assets\/ui\/pet-care\/mood-meter-frame\.png/);

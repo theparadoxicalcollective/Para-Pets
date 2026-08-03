@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import { queryClient } from "@/lib/queryClient";
@@ -19,15 +20,24 @@ export default function PetCarePage() {
     ? inventory.find((it: any) => it.id === inventoryId && it.type === "pet")
     : null;
 
+  const hasRedirectedRef = useRef(false);
+
   const close = () => {
     if (window.history.length > 1) window.history.back();
     else navigate("/");
   };
 
+  // Navigation is a side effect. Running it while React is rendering can
+  // repeatedly update the router when a stale or deleted pet URL is opened.
+  useEffect(() => {
+    if (isLoading || !user || pet || hasRedirectedRef.current) return;
+    hasRedirectedRef.current = true;
+    close();
+  }, [isLoading, user, pet]);
+
   if (isLoading || !user) return <LoadingScreen label="Loading…" />;
 
   if (!pet) {
-    close();
     return null;
   }
 
