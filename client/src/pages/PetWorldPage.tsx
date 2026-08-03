@@ -12,9 +12,11 @@ import priceTagImg from "@assets/price_tag.png";
 import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import PetAnimator from "@/components/PetAnimator";
 import UserProfilePanel from "@/components/UserProfilePanel";
+import { AquariumPage } from "@/pages/AquariumPage";
 import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
 import coinIconImg from "@assets/icon_coin.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
+import aquariumIconImg from "@assets/icon_fish_inventory.png";
 import joystickBaseImg  from "@assets/generated_images/joystick_base.png";
 import joystickThumbImg from "@assets/generated_images/joystick_thumb_v3.png";
 
@@ -3497,6 +3499,7 @@ function PetDetailModal({
   });
 
   const [pendingHover, setPendingHover] = useState(false);
+  const [showAquarium, setShowAquarium] = useState(false);
 
   const rarityCount = Math.min(5, Math.max(0, pet.rarity ?? 0));
   const RARITY_COLOURS = ["", "#a0a0b0", "#4ade80", "#60a5fa", "#c084fc", "#f0c040"];
@@ -3508,6 +3511,10 @@ function PetDetailModal({
   const friendship = friendStatus?.friendship;
   const isFriend = friendship?.status === "accepted";
   const isPending = friendship?.status === "pending";
+
+  if (showAquarium) {
+    return <AquariumPage onClose={() => setShowAquarium(false)} userId={pet.userId} readOnly />;
+  }
 
   return (
     <div
@@ -3666,6 +3673,23 @@ function PetDetailModal({
                   <img src={petHouseIconImg} alt="Pet House" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 </div>
                 <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(212,160,23,0.7)" }}>Pet House</span>
+              </button>
+
+              {/* View the owner's favorited aquarium without edit controls. */}
+              <button
+                data-testid="button-view-aquarium"
+                onClick={() => setShowAquarium(true)}
+                className="flex flex-col items-center gap-1 transition-transform active:scale-90"
+                style={{ background: "none", border: "none", cursor: "pointer" }}
+              >
+                <div style={{
+                  width: 46, height: 46, borderRadius: 12,
+                  background: "rgba(4,10,16,0.7)", border: "1.5px solid rgba(94,234,212,0.4)",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <img src={aquariumIconImg} alt="Aquarium" style={{ width: 34, height: 34, objectFit: "contain" }} />
+                </div>
+                <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(94,234,212,0.75)" }}>Aquarium</span>
               </button>
             </div>
           )}
