@@ -25,6 +25,8 @@ import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
+import PlayerAvatarButton from "@/components/PlayerAvatarButton";
+import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import PetAnimator from "@/components/PetAnimator";
 import PetPowerUpModal, { PowerUpItem } from "@/components/PetPowerUpModal";
 import PowerUpOverlay from "@/components/PowerUpOverlay";
@@ -79,6 +81,7 @@ interface InventoryItem {
 
 export default function HomePage({ user, isOverlayActive = false }: HomePageProps) {
   const [showProfile, setShowProfile] = useState(false);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState(user);
   // Gate sparkle orbs on the pet container having real height.
   // Uses a continuous ResizeObserver (no disconnect) so if the container
@@ -813,19 +816,21 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                   }}
                 >
                   {/* Avatar */}
-                  <div className="flex-shrink-0 rounded-lg overflow-hidden"
-                    style={{ width: 36, height: 36, border: "1.5px solid rgba(212,160,23,0.4)" }}>
-                    {req.profileImage ? (
-                      <img src={req.profileImage} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center"
-                        style={{ background: "linear-gradient(135deg, #2a1a0a, #4a2e18)" }}>
-                        <span className="font-fantasy text-[#d4a017] font-bold text-sm">
-                          {(req.username ?? "?").charAt(0).toUpperCase()}
+                  <PlayerAvatarButton userId={req.requesterId} username={req.username} onSelectPlayer={setSelectedPlayerId} testId={`button-home-request-avatar-${req.id}`}>
+                    <span className="flex-shrink-0 rounded-lg overflow-hidden"
+                      style={{ width: 36, height: 36, border: "1.5px solid rgba(212,160,23,0.4)" }}>
+                      {req.profileImage ? (
+                        <img src={req.profileImage} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="w-full h-full flex items-center justify-center"
+                          style={{ background: "linear-gradient(135deg, #2a1a0a, #4a2e18)" }}>
+                          <span className="font-fantasy text-[#d4a017] font-bold text-sm">
+                            {(req.username ?? "?").charAt(0).toUpperCase()}
+                          </span>
                         </span>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </span>
+                  </PlayerAvatarButton>
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
@@ -1944,6 +1949,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             setShowProfile(false);
           }}
         />
+      )}
+      {selectedPlayerId && (
+        <PlayerDetailPanel userId={selectedPlayerId} currentUserId={user.id} onClose={() => setSelectedPlayerId(null)} zIndex={10050} />
       )}
 
       {!isOverlayActive && hatchRevealing && (

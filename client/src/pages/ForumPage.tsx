@@ -4,6 +4,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { ChevronDown, Pin, Trash2, Plus, MessageSquare, Star, Lock, CornerDownRight } from "lucide-react";
+import PlayerAvatarButton from "@/components/PlayerAvatarButton";
+import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 
 import forumTitleImg  from "@assets/Photoroom_20260708_100323_PM_1783566697221.png";
 import forumDefaultBg from "@assets/Photoroom_20260708_101925_PM_1783567178576.png";
@@ -21,6 +23,7 @@ interface ForumPost {
   created_at: string;
   author_name: string | null;
   author_avatar: string | null;
+  author_id: string | null;
   comment_count: number;
   like_count: number;
   user_liked: boolean;
@@ -51,13 +54,17 @@ function timeSince(iso: string) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-function Avatar({ src, name, size = 28 }: { src: string | null; name: string; size?: number }) {
-  return src ? (
-    <img src={src} alt={name} style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(212,168,67,0.35)" }} />
-  ) : (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: "rgba(40,80,40,0.7)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: "1px solid rgba(212,168,67,0.2)", fontSize: size * 0.45, color: "#d4a843", fontFamily: "serif" }}>
-      {(name[0] ?? "?").toUpperCase()}
-    </div>
+function Avatar({ src, name, userId, onSelectPlayer, size = 28 }: { src: string | null; name: string; userId?: string | null; onSelectPlayer: (userId: string) => void; size?: number }) {
+  return (
+    <PlayerAvatarButton userId={userId} username={name} onSelectPlayer={onSelectPlayer}>
+      {src ? (
+        <img src={src} alt="" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(212,168,67,0.35)" }} />
+      ) : (
+        <span style={{ width: size, height: size, borderRadius: "50%", background: "rgba(40,80,40,0.7)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: "1px solid rgba(212,168,67,0.2)", fontSize: size * 0.45, color: "#d4a843", fontFamily: "serif" }}>
+          {(name[0] ?? "?").toUpperCase()}
+        </span>
+      )}
+    </PlayerAvatarButton>
   );
 }
 
@@ -83,7 +90,7 @@ function LikeButton({ liked, count, onToggle, disabled }: { liked: boolean; coun
 // ─────────────────────────────────────────────────────────────────────────────
 // Reply thread (shown under a top-level comment)
 // ─────────────────────────────────────────────────────────────────────────────
-function ReplyThread({ commentId, user, postReadOnly }: { commentId: string; user: any; postReadOnly: boolean }) {
+function ReplyThread({ commentId, user, postReadOnly, onSelectPlayer }: { commentId: string; user: any; postReadOnly: boolean; onSelectPlayer: (userId: string) => void }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [replyText, setReplyText] = useState("");
@@ -126,7 +133,7 @@ function ReplyThread({ commentId, user, postReadOnly }: { commentId: string; use
             <div key={r.id} style={{ background: "rgba(4,10,5,0.7)", border: "1px solid rgba(212,168,67,0.08)", borderRadius: 8, padding: "7px 10px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
                 <CornerDownRight size={10} color="rgba(212,168,67,0.3)" style={{ flexShrink: 0 }} />
-                <Avatar src={r.author_avatar} name={r.author_name} size={16} />
+                <Avatar src={r.author_avatar} name={r.author_name} userId={r.author_id} onSelectPlayer={onSelectPlayer} size={16} />
                 <span style={{ fontSize: 10, color: "rgba(212,168,67,0.6)", flex: 1 }} className="font-fantasy">{r.author_name} · {timeSince(r.created_at)}</span>
                 {(user?.isAdmin || user?.id === r.author_id) && (
                   <button onClick={() => deleteReply.mutate(r.id)}
@@ -175,8 +182,8 @@ function ReplyThread({ commentId, user, postReadOnly }: { commentId: string; use
 // ─────────────────────────────────────────────────────────────────────────────
 // Thread view
 // ─────────────────────────────────────────────────────────────────────────────
-function ThreadView({ post, user, onClose, onLikePost }: {
-  post: ForumPost; user: any; onClose: () => void; onLikePost: () => void;
+function ThreadView({ post, user, onClose, onLikePost, onSelectPlayer }: {
+  post: ForumPost; user: any; onClose: () => void; onLikePost: () => void; onSelectPlayer: (userId: string) => void;
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -293,7 +300,7 @@ function ThreadView({ post, user, onClose, onLikePost }: {
           )}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Avatar src={post.author_avatar} name={post.author_name ?? "?"} size={22} />
+              <Avatar src={post.author_avatar} name={post.author_name ?? "Admin"} userId={post.author_id} onSelectPlayer={onSelectPlayer} size={22} />
               <span style={{ fontSize: 11, color: "rgba(212,168,67,0.55)" }} className="font-fantasy">{post.author_name ?? "Admin"} · {timeSince(post.created_at)}</span>
             </div>
             <LikeButton liked={post.user_liked} count={post.like_count} onToggle={onLikePost} disabled={!user} />
@@ -315,7 +322,7 @@ function ThreadView({ post, user, onClose, onLikePost }: {
               {comments.map(c => (
                 <div key={c.id} style={{ background: "rgba(6,15,8,0.85)", border: "1px solid rgba(212,168,67,0.1)", borderRadius: 10, padding: "10px 12px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
-                    <Avatar src={c.author_avatar} name={c.author_name} size={20} />
+                    <Avatar src={c.author_avatar} name={c.author_name} userId={c.author_id} onSelectPlayer={onSelectPlayer} size={20} />
                     <span style={{ fontSize: 11, color: "rgba(212,168,67,0.65)", flex: 1 }} className="font-fantasy">{c.author_name} · {timeSince(c.created_at)}</span>
                     {(user?.isAdmin || user?.id === c.author_id) && (
                       <button onClick={() => deleteComment.mutate(c.id)} data-testid={`button-delete-comment-${c.id}`}
@@ -341,7 +348,7 @@ function ThreadView({ post, user, onClose, onLikePost }: {
                   </div>
                   {/* Expandable reply thread */}
                   {openReplyId === c.id && (
-                    <ReplyThread commentId={c.id} user={user} postReadOnly={post.is_read_only} />
+                    <ReplyThread commentId={c.id} user={user} postReadOnly={post.is_read_only} onSelectPlayer={onSelectPlayer} />
                   )}
                 </div>
               ))}
@@ -402,6 +409,7 @@ export default function ForumPage() {
   });
   const qc = useQueryClient();
   const [openPostId, setOpenPostId] = useState<string | null>(null);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const openPost = openPostId ? (posts.find(p => p.id === openPostId) ?? null) : null;
 
   const likePost = useMutation({
@@ -519,7 +527,7 @@ export default function ForumPage() {
 
                   {/* Bottom row */}
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Avatar src={post.author_avatar} name={post.author_name ?? "Admin"} size={20} />
+                    <Avatar src={post.author_avatar} name={post.author_name ?? "Admin"} userId={post.author_id} onSelectPlayer={setSelectedPlayerId} size={20} />
                     <span style={{ fontSize: 10, color: "rgba(212,168,67,0.5)", flex: 1 }} className="font-fantasy">{post.author_name ?? "Admin"} · {timeSince(post.created_at)}</span>
                     <div style={{ display: "flex", alignItems: "center", gap: 4, marginRight: 4 }}>
                       <MessageSquare size={11} color="rgba(212,168,67,0.4)" />
@@ -545,6 +553,15 @@ export default function ForumPage() {
           user={user}
           onClose={() => setOpenPostId(null)}
           onLikePost={() => user && likePost.mutate(openPost.id)}
+          onSelectPlayer={setSelectedPlayerId}
+        />
+      )}
+      {selectedPlayerId && user?.id && (
+        <PlayerDetailPanel
+          userId={selectedPlayerId}
+          currentUserId={user.id}
+          onClose={() => setSelectedPlayerId(null)}
+          zIndex={10050}
         />
       )}
     </div>

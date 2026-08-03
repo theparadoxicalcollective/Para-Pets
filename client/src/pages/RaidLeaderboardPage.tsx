@@ -11,6 +11,8 @@ import rank2Icon from "@assets/Photoroom_20260707_64734_AM_1783425136780.png";
 import rank3Icon from "@assets/Photoroom_20260707_64923_AM_1783425136780.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import coinIconImg from "@assets/icon_coin.png";
+import PlayerAvatarButton from "@/components/PlayerAvatarButton";
+import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 
 interface RaidLeaderboardEntry {
   userId: string;
@@ -58,6 +60,7 @@ export default function RaidLeaderboardPage() {
 
   const { data: meData } = useQuery<any>({ queryKey: ["/api/auth/me"] });
   const isAdmin = meData?.isAdmin === true;
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
 
   const { data: lbData, isLoading: lbLoading } = useQuery<{ top: RaidLeaderboardEntry[] }>({
     queryKey: ["/api/raid/leaderboard"],
@@ -469,13 +472,15 @@ export default function RaidLeaderboardPage() {
                         )}
                       </div>
 
-                      {entry.profileImage ? (
-                        <img src={entry.profileImage} style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }} />
-                      ) : (
-                        <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(80,20,10,0.5)", border: "1px solid rgba(220,60,20,0.2)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <img src={petPawIcon} alt="" style={{ width: 14, height: 14, objectFit: "contain", opacity: 0.45 }} />
-                        </div>
-                      )}
+                      <PlayerAvatarButton userId={entry.userId} username={entry.username} onSelectPlayer={setSelectedPlayerId} testId={`button-raid-avatar-${entry.userId}`}>
+                        {entry.profileImage ? (
+                          <img src={entry.profileImage} alt="" style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }} />
+                        ) : (
+                          <span style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(80,20,10,0.5)", border: "1px solid rgba(220,60,20,0.2)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <img src={petPawIcon} alt="" style={{ width: 14, height: 14, objectFit: "contain", opacity: 0.45 }} />
+                          </span>
+                        )}
+                      </PlayerAvatarButton>
 
                       <div style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.92)", fontFamily: "Lora, serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {entry.username}
@@ -556,6 +561,9 @@ export default function RaidLeaderboardPage() {
           </div>
         )}
       </div>
+      {selectedPlayerId && meData?.id && (
+        <PlayerDetailPanel userId={selectedPlayerId} currentUserId={meData.id} onClose={() => setSelectedPlayerId(null)} zIndex={10050} />
+      )}
     </div>
   );
 }

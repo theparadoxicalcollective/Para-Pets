@@ -7,6 +7,7 @@ import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
+import PlayerAvatarButton from "@/components/PlayerAvatarButton";
 
 interface User {
   id: string;
@@ -1144,13 +1145,15 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
                       className="flex items-center gap-2 rounded-xl px-3 py-2"
                       style={{ background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}
                     >
-                      {req.profileImage ? (
-                        <img src={req.profileImage} alt={req.username} style={{ width: 30, height: 30, borderRadius: 8, objectFit: "cover", border: "1px solid rgba(74,222,128,0.3)", flexShrink: 0 }} />
-                      ) : (
-                        <div style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <span className="font-fantasy font-bold" style={{ fontSize: 12, color: "#4ade80" }}>{(req.username ?? "?").charAt(0).toUpperCase()}</span>
-                        </div>
-                      )}
+                      <PlayerAvatarButton userId={req.requesterId} username={req.username} onSelectPlayer={setViewingFriendId} testId={`button-profile-request-avatar-${req.id}`}>
+                        {req.profileImage ? (
+                          <img src={req.profileImage} alt="" style={{ width: 30, height: 30, borderRadius: 8, objectFit: "cover", border: "1px solid rgba(74,222,128,0.3)", flexShrink: 0 }} />
+                        ) : (
+                          <span style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <span className="font-fantasy font-bold" style={{ fontSize: 12, color: "#4ade80" }}>{(req.username ?? "?").charAt(0).toUpperCase()}</span>
+                          </span>
+                        )}
+                      </PlayerAvatarButton>
                       <span className="flex-1 truncate font-fantasy text-sm" style={{ color: "#d4e8da" }}>{req.username}</span>
                       <button
                         data-testid={`button-accept-${req.id}`}

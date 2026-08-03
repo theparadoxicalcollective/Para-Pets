@@ -5931,7 +5931,7 @@ export async function registerRoutes(
   app.get("/api/lava-crawl/leaderboard", isAuthenticated, async (req, res) => {
     try {
       const rows = await db.execute(sql`
-        SELECT u.username, u.profile_image, MAX(s.score) AS best_score, MAX(s.coins_collected) AS best_coins
+        SELECT u.id AS user_id, u.username, u.profile_image, MAX(s.score) AS best_score, MAX(s.coins_collected) AS best_coins
         FROM lava_crawl_scores s
         JOIN users u ON s.user_id = u.id
         GROUP BY u.id, u.username, u.profile_image
@@ -5952,7 +5952,7 @@ export async function registerRoutes(
       const rows = await db.execute(sql`
         SELECT fp.id, fp.title, fp.body, fp.image_url, fp.is_pinned, fp.is_read_only,
                fp.created_at, fp.updated_at,
-               u.username AS author_name, u.profile_image AS author_avatar,
+               fp.author_id, u.username AS author_name, u.profile_image AS author_avatar,
                (SELECT COUNT(*)::int FROM forum_comments fc WHERE fc.post_id = fp.id) AS comment_count,
                (SELECT COUNT(*)::int FROM forum_post_likes fpl WHERE fpl.post_id = fp.id) AS like_count,
                CASE WHEN ${userId}::text IS NOT NULL AND EXISTS (

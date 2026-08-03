@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { setNavHidden } from "@/lib/navVisibility";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
+import PlayerAvatarButton from "@/components/PlayerAvatarButton";
 import { playClick, playTick } from "@/lib/sounds";
 
 export default function FriendsPage() {
@@ -181,20 +182,22 @@ export default function FriendsPage() {
                 className="flex items-center gap-2 rounded-xl px-3 py-2"
                 style={{ background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}
               >
-                <div
-                  className="flex-shrink-0 rounded-lg overflow-hidden"
-                  style={{ width: 30, height: 30, border: "1px solid rgba(74,222,128,0.3)" }}
-                >
-                  {req.profileImage ? (
-                    <img src={req.profileImage} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center" style={{ background: "rgba(74,222,128,0.08)" }}>
-                      <span className="font-fantasy text-xs font-bold" style={{ color: "#4ade80" }}>
-                        {(req.username ?? "?").charAt(0).toUpperCase()}
+                <PlayerAvatarButton userId={req.requesterId} username={req.username} onSelectPlayer={setViewingId} testId={`button-request-avatar-${req.id}`}>
+                  <span
+                    className="flex-shrink-0 rounded-lg overflow-hidden"
+                    style={{ width: 30, height: 30, border: "1px solid rgba(74,222,128,0.3)" }}
+                  >
+                    {req.profileImage ? (
+                      <img src={req.profileImage} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="w-full h-full flex items-center justify-center" style={{ background: "rgba(74,222,128,0.08)" }}>
+                        <span className="font-fantasy text-xs font-bold" style={{ color: "#4ade80" }}>
+                          {(req.username ?? "?").charAt(0).toUpperCase()}
+                        </span>
                       </span>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </span>
+                </PlayerAvatarButton>
                 <span className="flex-1 truncate font-fantasy text-sm" style={{ color: "#d4e8da" }}>{req.username}</span>
                 <button
                   data-testid={`button-accept-${req.id}`}

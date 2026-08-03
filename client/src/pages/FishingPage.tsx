@@ -16,6 +16,8 @@ import leaderboardIcon from "@assets/Photoroom_20260623_111411_AM_1782231282456.
 import coinIconImg from "@assets/icon_coin.png";
 import { playPlop, playCatch, playReelTick } from "@/lib/sounds";
 import { fishingCompletionOutcome, type FishingCompletionResponse } from "@/lib/fishingAttemptResult";
+import PlayerAvatarButton from "@/components/PlayerAvatarButton";
+import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 
 interface FishingPageProps {
   locationId: string;
@@ -1496,6 +1498,7 @@ function FishingLeaderboardPanel({
   });
 
   const top = data?.top ?? [];
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const me = data?.me ?? null;
   const meInTop = top.some(e => e.userId === currentUserId);
 
@@ -1533,14 +1536,16 @@ function FishingLeaderboardPanel({
             {rank}
           </span>
         </div>
-        <div
-          className="w-9 h-9 rounded-full overflow-hidden shrink-0 flex items-center justify-center"
-          style={{ border: `1px solid ${medal ?? `${accent}40`}`, background: "rgba(0,0,0,0.4)" }}
-        >
-          {e.profileImage
-            ? <img src={e.profileImage} alt="" className="w-full h-full object-cover" />
-            : <span className="font-fantasy text-xs" style={{ color: `${accent}70` }}>{e.username.charAt(0).toUpperCase()}</span>}
-        </div>
+        <PlayerAvatarButton userId={e.userId} username={e.username} onSelectPlayer={setSelectedPlayerId} testId={`button-fishing-avatar-${e.userId}`}>
+          <span
+            className="w-9 h-9 rounded-full overflow-hidden shrink-0 flex items-center justify-center"
+            style={{ border: `1px solid ${medal ?? `${accent}40`}`, background: "rgba(0,0,0,0.4)" }}
+          >
+            {e.profileImage
+              ? <img src={e.profileImage} alt="" className="w-full h-full object-cover" />
+              : <span className="font-fantasy text-xs" style={{ color: `${accent}70` }}>{e.username.charAt(0).toUpperCase()}</span>}
+          </span>
+        </PlayerAvatarButton>
         <span
           className="flex-1 font-fantasy text-xs truncate"
           style={{ color: isMe ? accent : "#e8f5f0", fontWeight: isMe ? 700 : 500 }}
@@ -1606,6 +1611,9 @@ function FishingLeaderboardPanel({
             </span>
           </div>
         </div>
+      )}
+      {selectedPlayerId && (
+        <PlayerDetailPanel userId={selectedPlayerId} currentUserId={currentUserId} onClose={() => setSelectedPlayerId(null)} zIndex={10050} />
       )}
     </div>
   );

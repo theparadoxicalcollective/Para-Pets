@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { playBlockMove, playBlockRotate, playBlockLock, playBlockHardDrop, playLineClear, playHoldSwap, playDefeat, playShopBell } from "@/lib/sounds";
+import PlayerAvatarButton from "@/components/PlayerAvatarButton";
+import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import blockI from "@assets/molten_block_I.webp";
 import blockO from "@assets/molten_block_O.webp";
 import blockT from "@assets/molten_block_T.webp";
@@ -217,6 +219,7 @@ const STARTING_LIVES = 1;
 export default function MoltenBlocksPage() {
   const [, navigate] = useLocation();
   const { data: authUser } = useQuery<any>({ queryKey: ["/api/auth/me"] });
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   // localStorage key namespaced by user ID to prevent cross-player score leakage
   // on shared devices. Falls back to the legacy generic key until auth resolves.
   const lsKeyRef = useRef<string>("molten_blocks_hi");
@@ -282,7 +285,7 @@ export default function MoltenBlocksPage() {
 
   // Leaderboard — fetched once on mount so the intro screen can display it.
   const { data: lbData } = useQuery<{
-    top20: { rank: number; username: string; score: number; isViewer: boolean; profileImage: string | null }[];
+    top20: { rank: number; userId: string; username: string; score: number; isViewer: boolean; profileImage: string | null }[];
     viewerRank: { rank: number; score: number } | null;
   }>({
     queryKey: ["/api/games/molten-blocks/leaderboard"],
@@ -1421,14 +1424,16 @@ export default function MoltenBlocksPage() {
                         <img src={trophy3rd} alt="3rd" style={{ width: 24, height: 24, objectFit: "contain" }} />
                       ) : `#${entry.rank}`}
                     </span>
-                    {entry.profileImage ? (
-                      <img src={entry.profileImage} alt="" draggable={false}
-                        style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(251,191,36,0.35)" }} />
-                    ) : (
-                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(120,50,10,0.5)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <span style={{ fontSize: 10, color: "#fbbf24", fontFamily: "monospace" }}>{(entry.username[0] ?? "?").toUpperCase()}</span>
-                      </div>
-                    )}
+                    <PlayerAvatarButton userId={entry.userId} username={entry.username} onSelectPlayer={setSelectedPlayerId} testId={`button-molten-avatar-${entry.userId}`}>
+                      {entry.profileImage ? (
+                        <img src={entry.profileImage} alt="" draggable={false}
+                          style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(251,191,36,0.35)" }} />
+                      ) : (
+                        <span style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(120,50,10,0.5)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <span style={{ fontSize: 10, color: "#fbbf24", fontFamily: "monospace" }}>{(entry.username[0] ?? "?").toUpperCase()}</span>
+                        </span>
+                      )}
+                    </PlayerAvatarButton>
                     <span style={{
                       flex: 1, fontSize: 12, color: entry.isViewer ? "#fbbf24" : "#f5d589",
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
@@ -1648,6 +1653,9 @@ export default function MoltenBlocksPage() {
             >Return</button>
           </div>
         </Overlay>
+      )}
+      {selectedPlayerId && authUser?.id && (
+        <PlayerDetailPanel userId={selectedPlayerId} currentUserId={authUser.id} onClose={() => setSelectedPlayerId(null)} zIndex={10050} />
       )}
     </div>
   );
