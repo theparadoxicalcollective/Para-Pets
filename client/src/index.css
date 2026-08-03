@@ -480,7 +480,7 @@
 }
 
 .pet-care-mood .pet-care-meter {
-  width: min(94%, 500px);
+  width: min(78%, 420px);
 }
 
 .pet-care-meter {
@@ -726,6 +726,18 @@
 
 .pet-care-inventory-section {
   bottom: 0;
+}
+
+.pet-care-inventory-section .pet-care-hunger {
+  position: relative;
+  inset: auto;
+  width: calc(100% - 20px);
+  margin: 0 auto clamp(16px, 2.5dvh, 24px);
+  padding: 0;
+}
+
+.pet-care-inventory-section .pet-care-hunger .pet-care-meter {
+  width: min(100%, 530px);
 }
 
 .pet-care-item-shelf__title {
