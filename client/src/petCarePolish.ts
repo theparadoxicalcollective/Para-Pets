@@ -4,10 +4,12 @@ type ActivePetCareDrag = {
   startY: number;
   x: number;
   y: number;
+  item: HTMLElement;
+  shelf: HTMLElement;
   artwork: HTMLElement;
-  originalParent: HTMLElement;
-  marker: Comment;
   originalStyle: string | null;
+  containingLeft: number;
+  containingTop: number;
   width: number;
   height: number;
   started: boolean;
@@ -23,11 +25,25 @@ declare global {
 const START_DISTANCE_PX = 9;
 const VERTICAL_INTENT_RATIO = 1.12;
 
+function findFixedContainingBlock(element: HTMLElement): HTMLElement | null {
+  let ancestor = element.parentElement;
+  while (ancestor && ancestor !== document.body) {
+    const style = window.getComputedStyle(ancestor);
+    const hasContainingTransform =
+      style.transform !== "none" ||
+      style.perspective !== "none" ||
+      style.filter !== "none" ||
+      style.backdropFilter !== "none";
+    if (hasContainingTransform) return ancestor;
+    ancestor = ancestor.parentElement;
+  }
+  return null;
+}
+
 /**
- * Keeps Pet Care's existing React gesture and mutation logic intact, but moves
- * the original shelf artwork into a top-level compositor layer while dragging.
- * The React drag ghost remains mounted as a fallback and is hidden only after
- * this enhancement has successfully promoted the real artwork.
+ * Keeps Pet Care's existing React gesture, drop validation, and mutations
+ * intact. During an intentional upward drag, the original shelf artwork is
+ * promoted to a fixed compositor layer without removing it from React's DOM.
  */
 export function installPetCareDragPolish(): void {
   if (typeof window === "undefined" || window.__paraPetCareDragPolishInstalled) return;
@@ -39,9 +55,9 @@ export function installPetCareDragPolish(): void {
     drag.frame = null;
     if (!drag.started || !drag.artwork.isConnected) return;
 
-    const left = Math.round(drag.x - drag.width / 2);
-    // Keep the item slightly above the fingertip so the drop target remains visible.
-    const top = Math.round(drag.y - drag.height * 0.72);
+    const left = Math.round(drag.x - drag.width / 2 - drag.containingLeft);
+    // Keep the item slightly above the fingertip so the pet remains visible.
+    const top = Math.round(drag.y - drag.height * 0.72 - drag.containingTop);
     drag.artwork.style.transform = `translate3d(${left}px, ${top}px, 0)`;
   };
 
@@ -58,21 +74,13 @@ export function installPetCareDragPolish(): void {
     if (drag.frame != null) window.cancelAnimationFrame(drag.frame);
     document.body.classList.remove("pet-care-native-item-dragging");
 
+    drag.item.classList.remove("pet-care-native-source-item");
+    drag.shelf.classList.remove("pet-care-item-shelf--native-dragging");
+    drag.artwork.classList.remove("pet-care-native-drag-artwork");
+
     if (drag.started) {
-      drag.artwork.classList.remove("pet-care-native-drag-artwork");
       if (drag.originalStyle == null) drag.artwork.removeAttribute("style");
       else drag.artwork.setAttribute("style", drag.originalStyle);
-
-      if (drag.marker.parentNode) {
-        drag.marker.parentNode.insertBefore(drag.artwork, drag.marker);
-        drag.marker.remove();
-      } else if (drag.originalParent.isConnected) {
-        drag.originalParent.appendChild(drag.artwork);
-      } else {
-        drag.artwork.remove();
-      }
-    } else {
-      drag.marker.remove();
     }
   };
 
@@ -85,16 +93,25 @@ export function installPetCareDragPolish(): void {
     drag.height = Math.max(1, rect.height);
     drag.originalStyle = drag.artwork.getAttribute("style");
 
-    drag.originalParent.insertBefore(drag.marker, drag.artwork);
-    document.body.appendChild(drag.artwork);
+    drag.item.classList.add("pet-care-native-source-item");
+    drag.shelf.classList.add("pet-care-item-shelf--native-dragging");
     drag.artwork.classList.add("pet-care-native-drag-artwork");
+    document.body.classList.add("pet-care-native-item-dragging");
+
+    // The Edibles shelf has an authored translateY, which makes it the fixed
+    // containing block. Gifts normally use the viewport. Account for either
+    // case so the original artwork tracks the same finger coordinates.
+    const containingBlock = findFixedContainingBlock(drag.artwork);
+    const containingRect = containingBlock?.getBoundingClientRect();
+    drag.containingLeft = containingRect?.left ?? 0;
+    drag.containingTop = containingRect?.top ?? 0;
+
     drag.artwork.style.left = "0";
     drag.artwork.style.top = "0";
     drag.artwork.style.width = `${drag.width}px`;
     drag.artwork.style.height = `${drag.height}px`;
     drag.artwork.style.transform = "translate3d(-9999px, -9999px, 0)";
 
-    document.body.classList.add("pet-care-native-item-dragging");
     requestPosition(drag);
   };
 
@@ -103,8 +120,9 @@ export function installPetCareDragPolish(): void {
 
     const target = event.target instanceof Element ? event.target : null;
     const item = target?.closest<HTMLElement>(".pet-care-overlay .pet-care-item-shelf__item");
+    const shelf = item?.closest<HTMLElement>(".pet-care-item-shelf");
     const artwork = item?.querySelector<HTMLElement>(".pet-care-item-shelf__visible-artwork");
-    if (!item || !artwork) return;
+    if (!item || !shelf || !artwork) return;
 
     restore();
     active = {
@@ -113,10 +131,12 @@ export function installPetCareDragPolish(): void {
       startY: event.clientY,
       x: event.clientX,
       y: event.clientY,
+      item,
+      shelf,
       artwork,
-      originalParent: artwork.parentElement as HTMLElement,
-      marker: document.createComment("pet-care-drag-origin"),
       originalStyle: null,
+      containingLeft: 0,
+      containingTop: 0,
       width: 1,
       height: 1,
       started: false,
@@ -141,7 +161,6 @@ export function installPetCareDragPolish(): void {
       // intentional upward gesture promotes the item into the drag layer.
       if (absX >= START_DISTANCE_PX && absX > absY) {
         active = null;
-        drag.marker.remove();
         return;
       }
 
