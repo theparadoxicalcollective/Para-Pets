@@ -403,6 +403,238 @@
   will-change: transform;
 }
 
+/* Pet Care scene geometry stays compact on short phones while preserving the
+   same centered, portrait composition at the game's tablet max width. */
+.pet-care-overlay {
+  --pet-care-pet-size: clamp(205px, 39vh, 330px);
+  --pet-care-pet-top: clamp(178px, 33vh, 300px);
+  --pet-care-pet-offset: clamp(22px, 7vw, 52px);
+  overflow: hidden;
+}
+
+.pet-care-header { z-index: 540; }
+.pet-care-pet { z-index: 2; }
+
+.pet-care-status {
+  position: absolute;
+  top: clamp(286px, 54vh, 492px);
+  left: clamp(88px, 25vw, 154px);
+  right: clamp(8px, 3vw, 22px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(1px, 0.4vh, 5px);
+  max-width: 530px;
+  pointer-events: none;
+}
+
+.pet-care-meter {
+  position: relative;
+  isolation: isolate;
+  pointer-events: none;
+}
+
+.pet-care-meter--horizontal {
+  width: 100%;
+  aspect-ratio: 3.72 / 1;
+  overflow: hidden;
+}
+
+/* The uploaded horizontal art uses a square transparent canvas. These crop
+   coordinates expose the painted frame without creating altered asset copies. */
+.pet-care-meter--horizontal .pet-care-meter__frame {
+  position: absolute;
+  z-index: 5;
+  top: -126%;
+  left: -2%;
+  width: 104%;
+  max-width: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+.pet-care-meter--horizontal .pet-care-meter__track {
+  position: absolute;
+  z-index: 2;
+  top: 38%;
+  right: 4.8%;
+  bottom: 27%;
+  left: 26.5%;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(8, 18, 13, 0.86);
+}
+
+.pet-care-meter__fill {
+  position: relative;
+  overflow: hidden;
+  transition: width 500ms ease, height 500ms ease;
+}
+
+.pet-care-meter--horizontal .pet-care-meter__fill { height: 100%; }
+.pet-care-meter--vertical .pet-care-meter__fill { width: 100%; }
+.pet-care-meter--hunger .pet-care-meter__fill {
+  background: linear-gradient(90deg, #50b93e 0%, #a5eb3d 58%, #f5e96b 100%);
+  box-shadow: inset 0 0 8px rgba(255, 248, 145, 0.65);
+}
+.pet-care-meter--mood .pet-care-meter__fill {
+  background: linear-gradient(90deg, #1c9ee0 0%, #25c9fa 60%, #b6f7ff 100%);
+  box-shadow: inset 0 0 8px rgba(205, 249, 255, 0.75);
+}
+.pet-care-meter--loyalty .pet-care-meter__fill {
+  background: linear-gradient(0deg, #e63a9d 0%, #ad55d9 52%, #ffd27d 100%);
+  box-shadow: inset 0 0 10px rgba(255, 221, 153, 0.72);
+}
+
+.pet-care-meter__highlight,
+.pet-care-meter__sparkles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.pet-care-meter__highlight {
+  background: linear-gradient(110deg, transparent 20%, rgba(255,255,255,0.7) 48%, transparent 72%);
+  animation: pet-care-meter-shimmer 3.6s ease-in-out infinite;
+}
+.pet-care-meter__sparkles {
+  opacity: 0.8;
+  background-image:
+    radial-gradient(circle, #fff 0 1px, transparent 1.8px),
+    radial-gradient(circle, currentColor 0 1.2px, transparent 2px),
+    radial-gradient(circle, #fff7bd 0 0.8px, transparent 1.7px);
+  background-position: 15% 28%, 54% 72%, 84% 35%;
+  background-size: 31px 23px, 43px 29px, 37px 31px;
+  animation: pet-care-meter-stars 2.8s ease-in-out infinite alternate;
+}
+.pet-care-meter--hunger { color: #fff1a1; }
+.pet-care-meter--mood { color: #d9f9ff; }
+.pet-care-meter--loyalty { color: #ffd0f0; }
+
+@keyframes pet-care-meter-shimmer {
+  0%, 18% { transform: translateX(-130%); opacity: 0; }
+  45% { opacity: 0.72; }
+  75%, 100% { transform: translateX(130%); opacity: 0; }
+}
+@keyframes pet-care-meter-stars {
+  from { opacity: 0.38; transform: translate3d(-2px, 1px, 0); }
+  to { opacity: 0.95; transform: translate3d(3px, -1px, 0); }
+}
+
+.pet-care-meter__mood-face {
+  position: absolute;
+  z-index: 6;
+  top: 38%;
+  left: 5.5%;
+  width: 16.5%;
+  height: 43%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.65));
+  pointer-events: none;
+}
+
+.pet-care-loyalty {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 70px);
+  left: clamp(-10px, -1vw, 0px);
+  z-index: 6;
+  width: clamp(88px, 25vw, 132px);
+  height: clamp(225px, 49vh, 455px);
+  pointer-events: none;
+}
+.pet-care-meter--vertical { width: 100%; height: 100%; }
+.pet-care-meter--vertical .pet-care-meter__frame {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  left: 50%;
+  height: 100%;
+  width: auto;
+  max-width: none;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.pet-care-meter--vertical .pet-care-meter__track {
+  position: absolute;
+  z-index: 2;
+  top: 20%;
+  bottom: 14%;
+  left: 42.5%;
+  width: 15%;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(22, 8, 24, 0.9);
+}
+.pet-care-meter--vertical .pet-care-meter__highlight {
+  background: linear-gradient(0deg, transparent 20%, rgba(255,255,255,0.72) 48%, transparent 72%);
+  animation-name: pet-care-meter-shimmer-vertical;
+}
+@keyframes pet-care-meter-shimmer-vertical {
+  0%, 18% { transform: translateY(130%); opacity: 0; }
+  45% { opacity: 0.72; }
+  75%, 100% { transform: translateY(-130%); opacity: 0; }
+}
+.pet-care-loyalty__current,
+.pet-care-loyalty__maximum {
+  position: absolute;
+  z-index: 7;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff4dc;
+  font: 800 clamp(9px, 2.8vw, 13px)/1 "Lora", serif;
+  text-shadow: 0 2px 4px #160614, 0 0 6px rgba(255, 160, 220, 0.7);
+  pointer-events: none;
+}
+.pet-care-loyalty__current { top: 15.8%; }
+.pet-care-loyalty__maximum { bottom: 2.5%; }
+.pet-care-loyalty__claim {
+  position: absolute;
+  z-index: 8;
+  right: 3%;
+  bottom: 1%;
+  width: 30px;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid #8af0a2;
+  border-radius: 50%;
+  background: rgba(18, 92, 44, 0.9);
+  box-shadow: 0 0 14px rgba(74, 222, 128, 0.85);
+  animation: loyalty-claim-pulse 1.4s ease-in-out infinite;
+  pointer-events: auto;
+}
+.pet-care-loyalty__claim img { width: 100%; height: 100%; object-fit: contain; }
+.pet-care-xp-boost {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: -4px;
+  padding: 3px 10px;
+  border: 1px solid rgba(250,200,60,0.55);
+  border-radius: 999px;
+  color: #fde68a;
+  background: rgba(45,31,4,0.9);
+  font: 800 8px/1 "Lora", serif;
+  letter-spacing: 0.12em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pet-care-meter__highlight,
+  .pet-care-meter__sparkles,
+  .pet-care-loyalty__claim { animation: none; }
+}
+
+@media (max-height: 650px) {
+  .pet-care-overlay {
+    --pet-care-pet-size: clamp(190px, 35vh, 225px);
+    --pet-care-pet-top: clamp(160px, 31vh, 195px);
+  }
+  .pet-care-status { top: clamp(255px, 50vh, 320px); }
+  .pet-care-loyalty { height: clamp(205px, 45vh, 285px); }
+  .pet-care-item-shelf { margin-bottom: 3px; }
+}
+
 /* Pet Care inventory: the artwork and interaction row share one responsive
    coordinate system. The frame inset keeps the first/last of six equal slots
    centered inside the shelf's outer uprights at every viewport width. */
