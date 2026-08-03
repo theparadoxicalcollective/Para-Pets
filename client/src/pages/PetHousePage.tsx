@@ -15,7 +15,7 @@ import homeInventoryIcon from "@assets/icon_home_inventory.png";
 import decorInventoryIcon from "@assets/icon_decor_inventory.png";
 import petInventoryIcon from "@assets/icon_pet_inventory.png";
 import feedButtonIcon from "@assets/generated_images/feed_button_icon.png";
-import feedingPageBg from "@assets/IMG_5734_1783098320823.jpeg";
+import feedingPageBg from "@assets/ui/pet-care/pet-care-background.png";
 import careWreathImg from "@assets/Photoroom_20260611_74428_AM_1781181905848.png";
 import { QuillBadge } from "@/components/QuillBadge";
 import moodFaceHappy from "@assets/mood_face_happy.png";
@@ -28,7 +28,10 @@ import GiftClaimModal from "@/components/GiftClaimModal";
 import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import loyaltyRewardIcon from "@assets/Photoroom_20260703_72612_AM_1783081617614.png";
-import petCareItemShelf from "@assets/uploads/Shelf1.png";
+import petCareItemShelf from "@assets/ui/pet-care/item-shelf.png";
+import hungerMeterFrame from "@assets/ui/pet-care/hunger-meter-frame.png";
+import moodMeterFrame from "@assets/ui/pet-care/mood-meter-frame.png";
+import loyaltyMeterFrame from "@assets/ui/pet-care/loyalty-meter-frame.png";
 import {
   classifyPetCareItemGesture,
   PET_CARE_DROP_PADDING_PX,
@@ -1912,6 +1915,50 @@ function PetCareItemShelf({
 // Hunger: color shifts green → yellow → orange → red as it depletes.
 // Mood: color shifts gold → soft purple → grey → muddy red, with the
 // matching mood face icon swapped out at thresholds.
+function PetCareAssetMeter({
+  orientation = "horizontal",
+  frame,
+  percentage,
+  theme,
+  accessibleLabel,
+  testId,
+  children,
+}: {
+  orientation?: "horizontal" | "vertical";
+  frame: string;
+  percentage: number;
+  theme: "hunger" | "mood" | "loyalty";
+  accessibleLabel: string;
+  testId: string;
+  children?: React.ReactNode;
+}) {
+  const safePercentage = Math.max(0, Math.min(100, percentage));
+  return (
+    <div
+      className={`pet-care-meter pet-care-meter--${orientation} pet-care-meter--${theme}`}
+      role="meter"
+      aria-label={accessibleLabel}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(safePercentage)}
+      data-testid={testId}
+      data-percentage={safePercentage}
+    >
+      <div className="pet-care-meter__track" aria-hidden="true">
+        <div
+          className="pet-care-meter__fill"
+          style={orientation === "vertical" ? { height: `${safePercentage}%` } : { width: `${safePercentage}%` }}
+        >
+          <span className="pet-care-meter__highlight" />
+          <span className="pet-care-meter__sparkles" />
+        </div>
+      </div>
+      <img className="pet-care-meter__frame" src={frame} alt="" draggable={false} aria-hidden="true" />
+      {children}
+    </div>
+  );
+}
+
 function PetStatusBars({
   hungerVal,
   hungerMax,
@@ -1927,145 +1974,41 @@ function PetStatusBars({
   xpBoostActive?: boolean;
   xpBoostPct?: number;
 }) {
-  const hungerColor =
-    hungerPct > 66 ? "linear-gradient(90deg, #6dd36b 0%, #b9f0a0 100%)"
-    : hungerPct > 33 ? "linear-gradient(90deg, #d3c44e 0%, #f0e58a 100%)"
-    : hungerPct > 12 ? "linear-gradient(90deg, #d38c4e 0%, #f0c08a 100%)"
-    : "linear-gradient(90deg, #b94a3b 0%, #f08a7a 100%)";
-
   let moodFace = moodFaceHappy;
-  let moodColor = "linear-gradient(90deg, #f4c84a 0%, #ffe890 100%)";
   let moodLabel = "Happy";
-  if (moodVal <= 25) { moodFace = moodFaceHungry; moodColor = "linear-gradient(90deg, #b94a3b 0%, #f08a7a 100%)"; moodLabel = "Miserable"; }
-  else if (moodVal <= 50) { moodFace = moodFaceSad; moodColor = "linear-gradient(90deg, #6a6790 0%, #b8b3d8 100%)"; moodLabel = "Sad"; }
-  else if (moodVal <= 75) { moodFace = moodFaceContent; moodColor = "linear-gradient(90deg, #6db3a6 0%, #a8d8ce 100%)"; moodLabel = "Content"; }
-
-  const boostGlow = xpBoostActive
-    ? "inset 0 1px 3px rgba(0,0,0,0.6), 0 0 8px rgba(250,200,60,0.45), 0 1px 4px rgba(0,0,0,0.4)"
-    : "inset 0 1px 3px rgba(0,0,0,0.6), 0 1px 4px rgba(0,0,0,0.4)";
-  const barWrap: React.CSSProperties = {
-    width: 240,
-    height: 14,
-    borderRadius: 999,
-    background: "rgba(10,18,8,0.75)",
-    border: xpBoostActive ? "1px solid rgba(250,200,60,0.45)" : "1px solid rgba(180,255,160,0.35)",
-    boxShadow: boostGlow,
-    overflow: "hidden",
-    transition: "border 0.5s ease, box-shadow 0.5s ease",
-  };
-  const labelStyle: React.CSSProperties = {
-    fontFamily: "Lora, serif",
-    color: "#e6f5d0",
-    fontSize: 9,
-    fontWeight: 800,
-    letterSpacing: "0.15em",
-    textShadow: "0 1px 4px rgba(0,0,0,0.7)",
-  };
-  const valStyle: React.CSSProperties = {
-    fontFamily: "Lora, serif",
-    color: "#f7ffe8",
-    fontSize: 10,
-    fontWeight: 700,
-    textShadow: "0 1px 4px rgba(0,0,0,0.7)",
-  };
+  if (moodVal <= 25) { moodFace = moodFaceHungry; moodLabel = "Miserable"; }
+  else if (moodVal <= 50) { moodFace = moodFaceSad; moodLabel = "Sad"; }
+  else if (moodVal <= 75) { moodFace = moodFaceContent; moodLabel = "Content"; }
 
   return (
-    <div
-      className="absolute left-1/2"
-      style={{
-        top: "calc(38% + 130px)",
-        // Nudge right to sit closer to the pet's visual centre.
-        transform: "translateX(calc(-50% + 36px))",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 8,
-        pointerEvents: "none",
-      }}
-      data-testid="pet-status-bars"
-    >
-      {/* Bars use a 2-column grid so the hunger and mood bars share the
-          same left edge, and their value readouts share the same column on
-          the right (regardless of how many digits each number has). */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "240px 64px",
-          columnGap: 8,
-          rowGap: 2,
-          alignItems: "center",
-        }}
+    <div className="pet-care-status" data-testid="pet-status-bars">
+      <PetCareAssetMeter
+        frame={hungerMeterFrame}
+        percentage={hungerPct}
+        theme="hunger"
+        accessibleLabel={`Hunger ${hungerVal} of ${hungerMax}`}
+        testId="bar-hunger"
+      />
+      <PetCareAssetMeter
+        frame={moodMeterFrame}
+        percentage={moodVal}
+        theme="mood"
+        accessibleLabel={`Mood ${moodVal} of 100, ${moodLabel}`}
+        testId="bar-mood"
       >
-        <span style={{ ...labelStyle, gridColumn: "1 / -1" }}>HUNGER</span>
-        <div style={barWrap} data-testid="bar-hunger">
-          <div
-            style={{
-              width: `${hungerPct}%`,
-              height: "100%",
-              background: hungerColor,
-              transition: "width 0.5s ease, background 0.5s ease",
-              boxShadow: "0 0 10px rgba(255,255,255,0.25)",
-            }}
-          />
-        </div>
-        <span style={{ ...valStyle, textAlign: "left" }} data-testid="text-hunger-value">{hungerVal}/{hungerMax}</span>
-
-        <span style={{ ...labelStyle, gridColumn: "1 / -1", marginTop: 4 }}>MOOD</span>
-        <div style={barWrap} data-testid="bar-mood">
-          <div
-            style={{
-              width: `${moodVal}%`,
-              height: "100%",
-              background: moodColor,
-              transition: "width 0.5s ease, background 0.5s ease",
-              boxShadow: "0 0 10px rgba(255,255,255,0.25)",
-            }}
-          />
-        </div>
-        <span style={{ ...valStyle, textAlign: "left" }} data-testid="text-mood-value">{moodVal}</span>
-
-        {/* Mood face icon centered beneath the mood bar */}
-        <div style={{ gridColumn: "1 / 2", display: "flex", justifyContent: "center", marginTop: 2 }}>
-          <img
-            src={moodFace}
-            alt={moodLabel}
-            style={{ width: 32, height: 32, objectFit: "contain", filter: "drop-shadow(0 0 6px rgba(255,220,120,0.5)) drop-shadow(0 2px 4px rgba(0,0,0,0.6))" }}
-            data-testid="img-mood-face"
-          />
-        </div>
-      </div>
-
-      {/* XP Boost active badge — shown below the bars when a loyalty boost is running */}
+        <img
+          className="pet-care-meter__mood-face"
+          src={moodFace}
+          alt={`${moodLabel} mood`}
+          data-testid="img-mood-face"
+        />
+      </PetCareAssetMeter>
       {xpBoostActive && xpBoostPct > 0 && (
-        <>
-          <div
-            data-testid="xp-boost-badge"
-            style={{
-              marginTop: 10,
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              padding: "4px 12px",
-              borderRadius: 999,
-              background: "linear-gradient(90deg, rgba(40,28,4,0.92) 0%, rgba(60,42,6,0.88) 100%)",
-              border: "1px solid rgba(250,200,60,0.55)",
-              animation: "xp-boost-shine 2.2s ease-in-out infinite",
-            }}
-          >
-            <span style={{ fontSize: 12, lineHeight: 1 }}>⚡</span>
-            <span style={{
-              fontFamily: "Lora, serif",
-              fontSize: 9,
-              fontWeight: 800,
-              letterSpacing: "0.14em",
-              color: "#fde68a",
-              textShadow: "0 0 10px rgba(250,200,60,0.9), 0 1px 3px rgba(0,0,0,0.9)",
-            }}>
-              LOYALTY +{xpBoostPct}% XP
-            </span>
-            <span style={{ fontSize: 12, lineHeight: 1 }}>⚡</span>
-          </div>
-        </>
+        <div className="pet-care-xp-boost" data-testid="xp-boost-badge">
+          <span aria-hidden="true">⚡</span>
+          <span>LOYALTY +{xpBoostPct}% XP</span>
+          <span aria-hidden="true">⚡</span>
+        </div>
       )}
     </div>
   );
@@ -2735,11 +2678,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0"
+      className="fixed inset-0 pet-care-overlay"
       style={{
         zIndex: 500,
         backgroundColor: "#0c1a10",
-        backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.25) 60%, rgba(0,0,0,0.55) 100%), url(${feedingPageBg})`,
+        backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.04) 58%, rgba(0,0,0,0.38) 100%), url(${feedingPageBg})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
@@ -2760,7 +2703,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       data-testid="overlay-feeding"
     >
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between gap-2 px-4 pt-4" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 14px)" }}>
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between gap-2 px-4 pt-4 pet-care-header" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 14px)" }}>
         <div
           className="px-3 py-1.5 rounded-full"
           style={{
@@ -2860,17 +2803,15 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       {/* Pet centerpiece — drop target + click target */}
       <div
         ref={petBoxRef}
-        className="absolute"
+        className="absolute pet-care-pet"
         style={{
           left: "50%",
           // Keep the pet and its status block together while leaving more
           // breathing room for the two inventory shelves below.
-          top: "38%",
-          // Nudge right slightly — sits between page centre and the bars,
-          // closer to the loyalty bar on the left edge.
-          transform: "translate(calc(-50% + 10px), -50%)",
-          width: 300,
-          height: 300,
+          top: "var(--pet-care-pet-top)",
+          transform: "translate(calc(-50% + var(--pet-care-pet-offset)), -50%)",
+          width: "var(--pet-care-pet-size)",
+          height: "var(--pet-care-pet-size)",
           cursor: "pointer",
           filter: petGlow
             ? "drop-shadow(0 0 32px rgba(190,255,160,1)) drop-shadow(0 0 14px rgba(255,220,120,0.85)) drop-shadow(0 6px 16px rgba(0,0,0,0.55))"
@@ -2940,119 +2881,29 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         xpBoostPct={(livePet as any).xpBoostPct ?? 0}
       />
 
-      {/* Vertical Loyalty bar — sits along the left edge of the page. Fills
-          from 0 to a rarity-based cap when the player gives gifts. Glows
-          green and shows a (!) claim button once the bar is full. */}
-      <div
-        className="absolute"
-        style={{
-          left: 22,
-          top: "14%",
-          height: "50%",
-          width: 36,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 4,
-          pointerEvents: loyaltyFull ? "auto" : "none",
-          zIndex: 510,
-        }}
-        data-testid="loyalty-meter"
-      >
-        <span
-          style={{
-            fontFamily: "Lora, serif",
-            color: loyaltyFull ? "#86efac" : "#fff5fa",
-            fontSize: 10,
-            fontWeight: 800,
-            textShadow: loyaltyFull
-              ? "0 0 8px rgba(74,222,128,0.9), 0 1px 4px rgba(0,0,0,0.7)"
-              : "0 1px 4px rgba(0,0,0,0.7)",
-            transition: "color 0.4s, text-shadow 0.4s",
-          }}
-          data-testid="text-loyalty-value"
+      {/* Decorative vertical meter retains the existing loyalty source of truth
+          and reward action while clipping its fill beneath the artwork. */}
+      <div className="pet-care-loyalty" data-testid="loyalty-meter">
+        <span className="pet-care-loyalty__current" data-testid="text-loyalty-value">{loyaltyVal}</span>
+        <PetCareAssetMeter
+          orientation="vertical"
+          frame={loyaltyMeterFrame}
+          percentage={loyaltyPct}
+          theme="loyalty"
+          accessibleLabel={`Loyalty ${loyaltyVal} of ${loyaltyMax}`}
+          testId="bar-loyalty"
         >
-          {loyaltyVal}
-        </span>
-        <div
-          style={{
-            flex: 1,
-            width: 12,
-            borderRadius: 999,
-            background: "rgba(20,8,18,0.75)",
-            border: loyaltyFull ? "1px solid rgba(74,222,128,0.8)" : "1px solid rgba(255,180,220,0.45)",
-            boxShadow: loyaltyFull
-              ? "inset 0 1px 3px rgba(0,0,0,0.6), 0 0 12px rgba(74,222,128,0.7), 0 0 24px rgba(74,222,128,0.4)"
-              : "inset 0 1px 3px rgba(0,0,0,0.6), 0 1px 4px rgba(0,0,0,0.4)",
-            overflow: "hidden",
-            position: "relative",
-            display: "flex",
-            alignItems: "flex-end",
-            transition: "border 0.4s, box-shadow 0.4s",
-          }}
-          data-testid="bar-loyalty"
-        >
-          <div
-            style={{
-              width: "100%",
-              height: `${loyaltyPct}%`,
-              background: loyaltyFull
-                ? "linear-gradient(0deg, #16a34a 0%, #86efac 100%)"
-                : "linear-gradient(0deg, #ec4899 0%, #fbcfe8 100%)",
-              transition: "height 0.5s ease, background 0.4s ease",
-              boxShadow: loyaltyFull
-                ? "0 0 14px rgba(74,222,128,0.8)"
-                : "0 0 10px rgba(236,72,153,0.4)",
-            }}
-          />
-        </div>
-        <span
-          style={{
-            fontFamily: "Lora, serif",
-            color: loyaltyFull ? "#86efac" : "#ffd1ec",
-            fontSize: 8,
-            fontWeight: 800,
-            letterSpacing: "0.18em",
-            textShadow: loyaltyFull
-              ? "0 0 8px rgba(74,222,128,0.9), 0 1px 4px rgba(0,0,0,0.7)"
-              : "0 1px 4px rgba(0,0,0,0.7)",
-            marginTop: 2,
-            transition: "color 0.4s, text-shadow 0.4s",
-          }}
-        >
-          LOYALTY
-        </span>
-
-        {/* Glowing (!) claim button — only visible when bar is full */}
+          <span className="pet-care-loyalty__maximum" aria-hidden="true">{loyaltyMax}</span>
+        </PetCareAssetMeter>
         {loyaltyFull && (
           <button
+            className="pet-care-loyalty__claim"
             data-testid="button-claim-loyalty"
             onClick={() => claimLoyaltyMutation.mutate()}
             disabled={claimLoyaltyMutation.isPending}
-            style={{
-              marginTop: 4,
-              width: 28,
-              height: 28,
-              borderRadius: "50%",
-              border: "2px solid #4ade80",
-              background: "rgba(22,163,74,0.25)",
-              color: "#4ade80",
-              fontFamily: "Lora, serif",
-              fontWeight: 900,
-              fontSize: 16,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              boxShadow: "0 0 10px rgba(74,222,128,0.8), 0 0 22px rgba(74,222,128,0.5)",
-              animation: "loyalty-claim-pulse 1.4s ease-in-out infinite",
-              opacity: claimLoyaltyMutation.isPending ? 0.5 : 1,
-              transition: "opacity 0.2s",
-              pointerEvents: "auto",
-            }}
             title="Claim Loyalty Reward!"
           >
-            <img src={loyaltyRewardIcon} alt="Claim!" style={{ width: 26, height: 26, objectFit: "contain" }} />
+            <img src={loyaltyRewardIcon} alt="Claim loyalty reward" />
           </button>
         )}
       </div>
@@ -3330,7 +3181,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         className="absolute left-0 right-0 pet-care-inventory-section"
         style={{
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 10px)",
-          background: "linear-gradient(0deg, rgba(6,14,6,0.97) 0%, rgba(6,14,6,0.88) 65%, rgba(6,14,6,0) 100%)",
+          background: "linear-gradient(0deg, rgba(6,14,6,0.78) 0%, rgba(6,14,6,0.3) 70%, rgba(6,14,6,0) 100%)",
           paddingTop: 12,
           paddingLeft: 10,
           paddingRight: 10,
