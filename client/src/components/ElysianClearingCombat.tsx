@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -46,6 +47,10 @@ const randomBetween = (a:number,b:number) => a + Math.random()*(b-a);
 let activeClearingLoops = 0;
 
 export default function ElysianClearingCombat({ activePetInventoryId, petPos, petSize, activePet, facingLeft, aimDirection, onReturnToWorld, worldPixels, hudElement, onGameplayBlockedChange, onEnemiesReady, isAdmin=false }: { activePetInventoryId:string; petPos:PetWalkPos; petSize:number; activePet?:any; facingLeft:boolean; aimDirection:{dx:number;dy:number}; onReturnToWorld:()=>void; worldPixels:WorldPixels; hudElement:HTMLElement|null; onGameplayBlockedChange:(blocked:boolean)=>void; onEnemiesReady:()=>void; isAdmin?:boolean }) {
+  useEffect(() => {
+    stabilityDiagnostic("component-mount", { component: "ElysianClearingCombat" });
+    return () => stabilityDiagnostic("component-unmount", { component: "ElysianClearingCombat" });
+  }, []);
   const petPosRef = useRef(petPos); petPosRef.current = petPos;
   const [session, setSession] = useState<Session|null>(null);
   const [sessionState,setSessionState]=useState<"loading"|"ready"|"error">("loading");

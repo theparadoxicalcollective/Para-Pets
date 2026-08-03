@@ -5,7 +5,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import { Suspense, useEffect, useState, type ReactNode } from "react";
-import { lazyWithRetry as lazy, clearChunkReloadFlag } from "@/lib/lazyWithRetry";
+import { lazyWithRetry as lazy } from "@/lib/lazyWithRetry";
+import { installPageLifecycleDiagnostics, stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { playClick, unlockAudio } from "@/lib/sounds";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -244,12 +245,24 @@ function RouterErrorBoundary({ children }: { children: ReactNode }) {
 
 function AppRouter() {
   const [location] = useLocation();
+  useEffect(() => { stabilityDiagnostic("wouter-route-change"); }, [location]);
   const { data: user, isLoading } = useQuery<any>({
     queryKey: ["/api/auth/me"],
     retry: false,
     staleTime: 20 * 1000,
     refetchInterval: 30 * 1000,
     refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const response = await fetch("/api/auth/me", { credentials: "include" });
+      if (response.status === 401) {
+        const previous = queryClient.getQueryData(["/api/auth/me"]);
+        stabilityDiagnostic("auth-401", { retainedAuthenticatedUser: Boolean(previous) });
+        if (previous) throw new Error("Authentication validation temporarily failed (401)");
+        return null;
+      }
+      if (!response.ok) throw new Error(`Authentication validation failed (${response.status})`);
+      return response.json();
+    },
   });
 
   const { data: maintenanceData } = useQuery<{ maintenance: boolean }>({
@@ -760,7 +773,11 @@ function GameStage({ children }: { children: ReactNode }) {
 function App() {
   useEffect(() => {
     initTabSync();
-    return () => teardownTabSync();
+    const removeLifecycleDiagnostics = installPageLifecycleDiagnostics();
+    return () => {
+      removeLifecycleDiagnostics();
+      teardownTabSync();
+    };
   }, []);
 
   // Forward global window errors to the server crash log
@@ -798,14 +815,6 @@ function App() {
       window.removeEventListener("error", onError);
       window.removeEventListener("unhandledrejection", onUnhandled);
     };
-  }, []);
-
-  // Reset the lazy-chunk reload guard once the app has successfully mounted.
-  // This way the next time we ship a new build, lazyWithRetry is allowed to
-  // do its one-shot reload again (instead of treating the old session's
-  // already-recovered flag as "already retried, give up").
-  useEffect(() => {
-    clearChunkReloadFlag();
   }, []);
 
   // --fh always tracks the real viewport height so every page fills the screen.

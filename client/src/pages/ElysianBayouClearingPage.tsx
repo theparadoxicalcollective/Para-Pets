@@ -10,6 +10,8 @@
 
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import WalkAroundScene from "@/components/WalkAroundScene";
 import type { WalkAroundLocationConfig } from "@/lib/exploreLocations";
 import { ELYSIAN_BAYOU_CLEARING_ID } from "@/lib/exploreLocations";
@@ -79,14 +81,19 @@ interface ElysianBayouClearingPageProps {
 }
 
 export default function ElysianBayouClearingPage({ user }: ElysianBayouClearingPageProps) {
+  useEffect(() => {
+    stabilityDiagnostic("component-mount", { component: "ElysianBayouClearingPage" });
+    return () => stabilityDiagnostic("component-unmount", { component: "ElysianBayouClearingPage" });
+  }, []);
   const [, navigate] = useLocation();
 
   // Inventory gives us the templateId for the active pet
-  const { data: inventory = [] } = useQuery<any[]>({
+  const inventoryQuery = useQuery<any[]>({
     queryKey: ["/api/inventory"],
   });
+  const inventory = inventoryQuery.data ?? [];
 
-  const activePet = user.activePetId
+  const foundActivePet = user.activePetId
     ? inventory.find(
         (item: any) =>
           item.inventoryId === user.activePetId &&
@@ -94,6 +101,9 @@ export default function ElysianBayouClearingPage({ user }: ElysianBayouClearingP
           item.isHatched,
       )
     : null;
+  const confirmedActivePetRef = useRef<any>(null);
+  if (foundActivePet) confirmedActivePetRef.current = foundActivePet;
+  const activePet = foundActivePet ?? (inventoryQuery.isFetching ? confirmedActivePetRef.current : null);
 
   const petTemplateId: string | null = activePet?.petTemplateId ?? null;
 

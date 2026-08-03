@@ -4,8 +4,13 @@ import { useLocation, useRoute } from "wouter";
 import { queryClient } from "@/lib/queryClient";
 import { FeedingOverlay } from "@/pages/PetHousePage";
 import LoadingScreen from "@/components/LoadingScreen";
+import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 
 export default function PetCarePage() {
+  useEffect(() => {
+    stabilityDiagnostic("component-mount", { component: "PetCarePage" });
+    return () => stabilityDiagnostic("component-unmount", { component: "PetCarePage" });
+  }, []);
   const [, navigate] = useLocation();
   const [, params] = useRoute<{ inventoryId: string }>("/pet-care/:inventoryId");
   const inventoryId = params?.inventoryId ?? null;
@@ -19,9 +24,12 @@ export default function PetCarePage() {
   const inventory = inventoryQuery.data ?? [];
   const isLoading = userQuery.isLoading || inventoryQuery.isLoading;
 
-  const pet = inventoryId
+  const foundPet = inventoryId
     ? inventory.find((it: any) => it.id === inventoryId && it.type === "pet")
     : null;
+  const confirmedPetRef = useRef<any>(null);
+  if (foundPet) confirmedPetRef.current = foundPet;
+  const pet = foundPet ?? (inventoryQuery.isFetching ? confirmedPetRef.current : null);
 
   const hasRedirectedRef = useRef(false);
 

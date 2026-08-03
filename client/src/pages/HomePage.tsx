@@ -171,8 +171,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   // so the icon can glow when Veridian Watcher or other players post.
   const { data: bgChatData } = useQuery<any[]>({
     queryKey: ["/api/world-chat"],
-    refetchInterval: showWorldChat ? false : 15000,
-    enabled: !!currentUser,
+    refetchInterval: showWorldChat || isOverlayActive ? false : 15000,
+    enabled: !!currentUser && !isOverlayActive,
     staleTime: 0,
   });
   useEffect(() => {
@@ -213,7 +213,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     },
     refetchInterval: 30000,
     staleTime: 10000,
-    enabled: !!currentUser,
+    enabled: !!currentUser && !isOverlayActive,
   });
 
   const supportMutation = useMutation({
