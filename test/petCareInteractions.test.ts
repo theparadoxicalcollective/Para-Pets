@@ -85,13 +85,18 @@ test("care items capture only after vertical intent and release during cleanup",
   assert.match(page, /playPlop\(\)/);
 });
 
-test("safe visual mode leaves lightweight drag and tap-select handlers mounted", () => {
+test("safe visual mode keeps idle rendering and petting without heavy particle timers", () => {
   const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
   assert.match(page, /onPointerDown=\{dragEnabled \?/);
   assert.match(page, /onPointerMove=\{dragEnabled \? onItemPointerMove/);
   assert.match(page, /\{dragEnabled && dragGhost && \(/);
   assert.match(page, /onClick=\{\(\) => onItemClick\(item\)\}/);
-  assert.match(page, /className="pet-care-safe-static-pet"/);
+  assert.match(page, /onPointerDown=\{onPetPointerDown\}/);
+  assert.match(page, /onPointerMove=\{onPetPointerMove\}/);
+  assert.match(page, /mode="idle"/);
+  assert.match(page, /performanceStatic=\{safeMode\}/);
+  assert.match(page, /if \(!safeMode\) \{[\s\S]*?g\.heartTimer/);
+  assert.doesNotMatch(page, /pet-care-safe-static-pet/);
   assert.doesNotMatch(page, /<VisibleAssetImage[^>]*dragGhost/);
 });
 
