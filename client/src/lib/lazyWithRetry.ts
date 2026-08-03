@@ -1,5 +1,7 @@
 import { lazy, type ComponentType } from "react";
 
+export const CHUNK_RELOAD_KEY = "__para_chunk_reloaded";
+
 /**
  * Wrap React.lazy with stale-deploy recovery.
  *
@@ -22,17 +24,20 @@ export function lazyWithRetry<T extends ComponentType<any>>(
   factory: () => Promise<{ default: T }>,
 ) {
   return lazy(async () => {
-    const RELOAD_KEY = "__para_chunk_reloaded";
     try {
-      return await factory();
+      const module = await factory();
+      clearChunkReloadFlag();
+      if (import.meta.env.DEV) console.info("[stability] lazy-route-loaded");
+      return module;
     } catch (err: any) {
       const msg = String(err?.message ?? err ?? "");
       const looksLikeChunkLoadError =
         err?.name === "ChunkLoadError" ||
         /Loading chunk|Loading CSS chunk|dynamically imported module|MIME type|Failed to fetch dynamically|Importing a module script failed/i.test(msg);
-      const alreadyReloaded = sessionStorage.getItem(RELOAD_KEY) === "1";
+      const alreadyReloaded = sessionStorage.getItem(CHUNK_RELOAD_KEY) === "1";
       if (looksLikeChunkLoadError && !alreadyReloaded) {
-        sessionStorage.setItem(RELOAD_KEY, "1");
+        sessionStorage.setItem(CHUNK_RELOAD_KEY, "1");
+        if (import.meta.env.DEV) console.info("[stability] lazy-chunk-hard-reload", { reason: err?.name || "dynamic-import" });
         // Hard reload so the browser drops cached index.html and re-fetches
         // the new asset manifest. Use replace() to avoid back-button getting
         // stuck on the broken state.
@@ -49,5 +54,5 @@ export function lazyWithRetry<T extends ComponentType<any>>(
 // Call this from a successful render path (e.g. App mount) to reset the
 // reload-once flag so a future stale deploy can recover again.
 export function clearChunkReloadFlag() {
-  try { sessionStorage.removeItem("__para_chunk_reloaded"); } catch (_) {}
+  try { sessionStorage.removeItem(CHUNK_RELOAD_KEY); } catch (_) {}
 }
