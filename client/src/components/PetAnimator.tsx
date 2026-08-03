@@ -42,6 +42,8 @@ interface PetAnimatorProps {
   expression?: "neutral" | "happy" | "petted";
   className?: string;
   style?: React.CSSProperties;
+  /** Pet Care-only low-memory rendering: fixed parts, without image analysis or observers. */
+  performanceStatic?: boolean;
 }
 
 // Face-part substitutions for non-neutral expressions. Returns the desired
@@ -1348,7 +1350,7 @@ function buildHeadGroups(parts: PetPart[]): { head: PetPart; faceParts: PetPart[
   return groups;
 }
 
-export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, fillContainer = false, fitVisible = false, expression = "neutral", className = "", style: externalStyle }: PetAnimatorProps) {
+export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, fillContainer = false, fitVisible = false, expression = "neutral", className = "", style: externalStyle, performanceStatic = false }: PetAnimatorProps) {
   // Stable random blink offset per instance — spreads eye animations across the
   // full 4 s blink cycle so pets don't all blink at the same time.
   const blinkOffset = useRef(`-${(Math.random() * 4).toFixed(2)}s`);
@@ -1366,15 +1368,15 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // the measurement and the corresponding state update happen before the
   // browser paints the first frame.
   useLayoutEffect(() => {
-    if (!fillContainer) return;
+    if (!fillContainer || performanceStatic) return;
     const el = wrapperRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const s = Math.min(rect.width, rect.height);
     if (s > 0) setMeasuredSize((prev) => (Math.abs(prev - s) > 0.5 ? s : prev));
-  }, [fillContainer]);
+  }, [fillContainer, performanceStatic]);
   useEffect(() => {
-    if (!fillContainer) return;
+    if (!fillContainer || performanceStatic) return;
     const el = wrapperRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver((entries) => {
@@ -1387,7 +1389,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [fillContainer]);
+  }, [fillContainer, performanceStatic]);
 
   const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean; idleStyle?: string | null }>({
     queryKey: ["/api/pet-template-parts", petTemplateId],
@@ -1410,7 +1412,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // any of the same part images get the corrected pivot for free.
   const [, bumpAlphaVersion] = useReducer((x: number) => x + 1, 0);
   useEffect(() => {
-    if (!allParts.length) return;
+    if (performanceStatic || !allParts.length) return;
     let cancelled = false;
     let pending = 0;
     for (const p of allParts) {
@@ -1426,7 +1428,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       });
     }
     return () => { cancelled = true; };
-  }, [allParts]);
+  }, [allParts, performanceStatic]);
   // Flying pets keep the original head-bob idle so they look like they're
   // hovering. Ground pets switch to the head-tilt-only variant so they
   // don't read as "floating off the ground".
@@ -1861,7 +1863,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     // tail") becomes e.g. 50/82 if there's 18 % transparent padding
     // below the visible tail. Falls back to the raw pivot until the
     // async alpha scan resolves and the parent re-renders.
-    const ab = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
+    const ab = performanceStatic ? FULL_BOUNDS : (getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS);
     const visiblePivot = alphaAdjustedPivot(part.pivotX, part.pivotY, ab, { x: 0.5, y: 0.5 });
     const originX = visiblePivot.x * 100;
     const originY = visiblePivot.y * 100;

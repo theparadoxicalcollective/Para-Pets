@@ -46,6 +46,7 @@ import { buildPetCareInventoryStacks, orderPetCareItemsByEffect } from "@/lib/pe
 import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
+import { clearPetCarePhase, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, shouldUsePetCareSafeMode, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -1873,12 +1874,14 @@ function PetCareItemShelf({
   onItemPointerDown,
   onItemClick,
   selectedStackId,
+  safeMode,
 }: {
   kind: "edibles" | "gifts";
   items: PetCareShelfItem[];
   onItemPointerDown: (event: React.PointerEvent<HTMLDivElement>, item: PetCareShelfItem) => void;
   onItemClick: (item: PetCareShelfItem) => void;
   selectedStackId: string | null;
+  safeMode: boolean;
 }) {
   const isEdible = kind === "edibles";
   const title = isEdible ? "EDIBLES" : "GIFTS";
@@ -1897,12 +1900,14 @@ function PetCareItemShelf({
             <div
               key={item.stackId}
               className={`pet-care-item-shelf__item${selectedStackId === item.stackId ? " pet-care-item-shelf__item--selected" : ""}`}
-              onPointerDown={(event) => onItemPointerDown(event, item)}
+              onPointerDown={safeMode ? undefined : (event) => onItemPointerDown(event, item)}
               onClick={() => onItemClick(item)}
               data-testid={`${isEdible ? "edible" : "gift"}-item-${item.id}`}
             >
               <div className="pet-care-item-shelf__visible-artwork">
-                {item.imageUrl && <VisibleAssetImage className="pet-care-item-shelf__normalized-image" src={item.imageUrl} alt={item.name} />}
+                {item.imageUrl && (safeMode
+                  ? <img className="pet-care-item-shelf__normalized-image" src={item.imageUrl} alt={item.name} draggable={false} style={{ objectFit: "contain" }} />
+                  : <VisibleAssetImage className="pet-care-item-shelf__normalized-image" src={item.imageUrl} alt={item.name} />)}
                 {isEdible && item.statBoostAmount != null && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--edible">+{item.statBoostAmount}</span>}
                 {!isEdible && !!item.giftPoints && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--gift">+{item.giftPoints}</span>}
               </div>
@@ -1942,6 +1947,7 @@ function PetCareAssetMeter({
   accessibleLabel,
   testId,
   children,
+  safeMode = false,
 }: {
   orientation?: "horizontal" | "vertical";
   frame: string;
@@ -1950,6 +1956,7 @@ function PetCareAssetMeter({
   accessibleLabel: string;
   testId: string;
   children?: React.ReactNode;
+  safeMode?: boolean;
 }) {
   const safePercentage = Number.isFinite(percentage)
     ? Math.max(0, Math.min(100, percentage))
@@ -1970,8 +1977,8 @@ function PetCareAssetMeter({
           className="pet-care-meter__fill"
           style={orientation === "vertical" ? { height: `${safePercentage}%` } : { width: `${safePercentage}%` }}
         >
-          <span className="pet-care-meter__highlight" />
-          <span className="pet-care-meter__sparkles" />
+          {!safeMode && <span className="pet-care-meter__highlight" />}
+          {!safeMode && <span className="pet-care-meter__sparkles" />}
         </div>
       </div>
       <img className="pet-care-meter__frame" src={frame} alt="" draggable={false} aria-hidden="true" />
@@ -1980,8 +1987,9 @@ function PetCareAssetMeter({
   );
 }
 
-function PetCareMoodMeter({ moodVal }: {
+function PetCareMoodMeter({ moodVal, safeMode = false }: {
   moodVal: number;
+  safeMode?: boolean;
 }) {
   let moodFace = moodFaceHappy;
   let moodLabel = "Happy";
@@ -1997,6 +2005,7 @@ function PetCareMoodMeter({ moodVal }: {
           theme="mood"
           accessibleLabel={`Mood ${moodVal} of 100, ${moodLabel}`}
           testId="bar-mood"
+          safeMode={safeMode}
         >
           <div className="pet-care-meter__mood-face-window">
             <img
@@ -2017,12 +2026,14 @@ function PetCareHungerMeter({
   hungerPct,
   xpBoostActive = false,
   xpBoostPct = 0,
+  safeMode = false,
 }: {
   hungerVal: number;
   hungerMax: number;
   hungerPct: number;
   xpBoostActive?: boolean;
   xpBoostPct?: number;
+  safeMode?: boolean;
 }) {
   return (
     <div className="pet-care-hunger" data-testid="pet-care-hunger-zone">
@@ -2032,6 +2043,7 @@ function PetCareHungerMeter({
           theme="hunger"
           accessibleLabel={`Hunger ${hungerVal} of ${hungerMax}`}
           testId="bar-hunger"
+          safeMode={safeMode}
         />
         {xpBoostActive && xpBoostPct > 0 && (
           <div className="pet-care-xp-boost" data-testid="xp-boost-badge">
@@ -2057,9 +2069,21 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const [, navigate] = useLocation();
   const overlayRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(true);
+  const runtime = useMemo(() => detectRuntimeMode(), []);
+  const recoveredPhase = useMemo(() => readRecoverablePetCarePhase(window.localStorage), []);
+  const safeMode = shouldUsePetCareSafeMode(runtime, window.location.search, !!recoveredPhase);
+  const interactionRef = useRef<{ id: string; itemType?: "edibles" | "gift" }>({ id: "mount" });
+  const recordPhase = useCallback((phase: PetCarePhase, itemType = interactionRef.current.itemType) => {
+    const record: PetCarePhaseRecord = {
+      version: 1, buildId: __BUILD_ID__, timestamp: Date.now(), route: sanitizePetCareRoute(window.location.pathname),
+      runtimeMode: runtime.displayMode, safeMode, phase,
+      interactionId: interactionRef.current.id, ...(itemType ? { itemType } : {}),
+    };
+    writePetCarePhase(window.localStorage, record);
+    if (phase === "cleanup-complete") clearPetCarePhase(window.localStorage);
+  }, [runtime.displayMode, safeMode]);
   const [showFeedHint, setShowFeedHint] = useState(feedHint);
   useEffect(() => {
-    const runtime = detectRuntimeMode();
     const viewport = window.visualViewport;
     console.info("[Para Pets] Pet Care runtime", {
       buildId: __BUILD_ID__, displayMode: runtime.displayMode,
@@ -2069,7 +2093,12 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       visualViewportOffsetTop: viewport?.offsetTop ?? null,
       devicePixelRatio: window.devicePixelRatio, stageScale: getStageScale(), route: window.location.pathname,
     });
-  }, []);
+    if (recoveredPhase) {
+      reportRecoveredPetCarePhase(recoveredPhase);
+      clearPetCarePhase(window.localStorage);
+    }
+    recordPhase("mounted");
+  }, [recordPhase, recoveredPhase, runtime]);
   const timeoutIdsRef = useRef<Set<number>>(new Set());
   const scheduleTimeout = useCallback((callback: () => void, delay: number) => {
     const id = window.setTimeout(() => {
@@ -2523,13 +2552,17 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       return await res.json();
     },
     onSuccess: (data: any) => {
+      recordPhase("mutation-success-received");
       setSelectedCareItem(null);
       playPlop();
       qc.invalidateQueries({ queryKey: ["/api/inventory"] });
-      setPetGlow(true);
-      setPetBounce(true);
-      scheduleTimeout(() => setPetGlow(false), 700);
-      scheduleTimeout(() => setPetBounce(false), 1100);
+      recordPhase("success-visual-started");
+      if (!safeMode) {
+        setPetGlow(true);
+        setPetBounce(true);
+        scheduleTimeout(() => setPetGlow(false), 700);
+        scheduleTimeout(() => setPetBounce(false), 1100);
+      }
       const id = ++floatIdRef.current;
       const box = petBoxRef.current?.getBoundingClientRect();
       const cx = box ? box.left + box.width / 2 : window.innerWidth / 2;
@@ -2537,7 +2570,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       const added = data?.loyaltyAdded ?? 0;
       setFloatTexts((arr) => [...arr, { id, x: cx, y: cy, text: `+${added} Loyalty` }]);
       scheduleTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
-      if (box) {
+      if (box && !safeMode) {
         const bx = box.left + box.width / 2;
         const by = box.top + box.height / 2;
         burstHearts(bx, by + 30, 12);
@@ -2588,15 +2621,19 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       return await apiRequest("POST", `/api/pet/${pet.inventoryId}/feed-edible`, { itemInventoryId, quantity });
     },
     onSuccess: (_data, variables) => {
+      recordPhase("mutation-success-received");
       setSelectedCareItem(null);
       playPlop();
       qc.invalidateQueries({ queryKey: ["/api/inventory"] });
       qc.invalidateQueries({ queryKey: ["/api/quests/daily"] });
       // Glow + bounce + sparkles + floating text on successful feed.
-      setPetGlow(true);
-      setPetBounce(true);
-      scheduleTimeout(() => setPetGlow(false), 700);
-      scheduleTimeout(() => setPetBounce(false), 1100);
+      recordPhase("success-visual-started");
+      if (!safeMode) {
+        setPetGlow(true);
+        setPetBounce(true);
+        scheduleTimeout(() => setPetGlow(false), 700);
+        scheduleTimeout(() => setPetBounce(false), 1100);
+      }
       const fed = inventory.find((it) => it.id === variables.itemInventoryId);
       const qty = variables.quantity ?? 1;
       const amount = (fed?.statBoostAmount ?? 5) * qty;
@@ -2606,7 +2643,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       const cy = box ? box.top + box.height * 0.3 : window.innerHeight / 2;
       setFloatTexts((arr) => [...arr, { id, x: cx, y: cy, text: `+${amount} Feed pts` }]);
       scheduleTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
-      if (box) {
+      if (box && !safeMode) {
         const bx = box.left + box.width / 2;
         const by = box.top + box.height / 2;
         burstSparkles(bx, by, 14);
@@ -2636,6 +2673,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
 
   const cleanupItemGesture = useCallback((_releaseCapture = true, updateState = mountedRef.current) => {
     dragRef.current = null;
+    suppressClickRef.current = false;
     itemGestureControllerRef.current.cancel();
     if (dragFrameRef.current != null) {
       cancelAnimationFrame(dragFrameRef.current);
@@ -2644,8 +2682,10 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     if (updateState) {
       setDragGhost(null);
       setPetGlow(false);
+      setIsApplyingItem(false);
     }
-  }, []);
+    recordPhase("cleanup-complete");
+  }, [recordPhase]);
 
   useEffect(() => () => cleanupItemGesture(true, false), [cleanupItemGesture]);
   useEffect(() => {
@@ -2665,6 +2705,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     // upward item drag has been classified.
     e.stopPropagation();
     if (isApplyingItemRef.current || !item?.id || (item.quantity ?? 0) <= 0) return;
+    interactionRef.current = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, itemType: item.type === "gift" ? "gift" : "edibles" };
+    recordPhase("pointer-down");
     dragRef.current = {
       inventoryId: item.id,
       imageUrl: item.imageUrl,
@@ -2680,7 +2722,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     };
     itemGestureControllerRef.current.begin(e.pointerId, e.clientX, e.clientY, item);
     setDragGhost(null);
-  }, []);
+  }, [recordPhase]);
 
   const applyCareItem = useCallback(async (drag: NonNullable<typeof dragRef.current>) => {
     if (isApplyingItemRef.current) return;
@@ -2696,9 +2738,12 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     }
 
     isApplyingItemRef.current = true;
+    interactionRef.current.itemType = drag.type === "gift" ? "gift" : "edibles";
+    recordPhase("drop-attempt");
     if (mountedRef.current) setIsApplyingItem(true);
     try {
       if (drag.type === "gift") {
+        recordPhase("mutation-started");
         await giftMutation.mutateAsync({ itemInventoryId: drag.inventoryId });
       } else if (drag.type === "edibles" && drag.quantity > 1) {
         if (mountedRef.current) {
@@ -2713,6 +2758,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           setDivideInput("1");
         }
       } else if (drag.type === "edibles") {
+        recordPhase("mutation-started");
         await feedMutation.mutateAsync({ itemInventoryId: drag.inventoryId });
       }
     } catch (error) {
@@ -2725,12 +2771,14 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       isApplyingItemRef.current = false;
       if (mountedRef.current) setIsApplyingItem(false);
     }
-  }, [cleanupItemGesture, feedMutation, giftMutation, inventory, pet?.inventoryId, toast]);
+  }, [cleanupItemGesture, feedMutation, giftMutation, inventory, pet?.inventoryId, recordPhase, toast]);
 
   const selectCareItem = useCallback((item: PetCareShelfItem) => {
     if (suppressClickRef.current) return;
+    interactionRef.current = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, itemType: item.type === "gift" ? "gift" : "edibles" };
+    recordPhase("item-selected");
     setSelectedCareItem((current) => current?.stackId === item.stackId ? null : item);
-  }, []);
+  }, [recordPhase]);
 
   const applySelectedCareItem = useCallback(() => {
     const item = selectedCareItem;
@@ -2763,6 +2811,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       }
       playGrab();
       suppressClickRef.current = true;
+      recordPhase("vertical-drag-started");
       // Store the first drag position before mounting the ghost so it cannot
       // briefly render at the viewport origin.
       updateDragGhostPosition(point.clientX, point.clientY);
@@ -2774,7 +2823,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     const box = petBoxRef.current?.getBoundingClientRect();
     const nextGlow = !!box && pointInsideExpandedPetDropZone({ x: point.clientX, y: point.clientY }, box);
     setPetGlow((current) => current === nextGlow ? current : nextGlow);
-  }, [cleanupItemGesture, updateDragGhostPosition]);
+  }, [cleanupItemGesture, recordPhase, updateDragGhostPosition]);
 
   const onItemPointerUp = useCallback((e: React.PointerEvent) => {
     const d = dragRef.current;
@@ -2821,6 +2870,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     isApplyingItemRef.current = true;
     if (mountedRef.current) setIsApplyingItem(true);
     try {
+      interactionRef.current.itemType = "edibles";
+      recordPhase("drop-attempt");
+      recordPhase("mutation-started");
       await feedMutation.mutateAsync({ itemInventoryId, quantity });
       if (mountedRef.current) setPendingFeed(null);
     } catch (error) {
@@ -2832,12 +2884,12 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       isApplyingItemRef.current = false;
       if (mountedRef.current) setIsApplyingItem(false);
     }
-  }, [cleanupItemGesture, feedMutation, inventory, pet?.inventoryId, toast]);
+  }, [cleanupItemGesture, feedMutation, inventory, pet?.inventoryId, recordPhase, toast]);
 
   return (
     <div
       ref={overlayRef}
-      className={`fixed inset-0 pet-care-overlay${dragGhost ? " pet-care-overlay--item-dragging" : ""}`}
+      className={`fixed inset-0 pet-care-overlay${!safeMode && dragGhost ? " pet-care-overlay--item-dragging" : ""}`}
       style={{
         zIndex: 500,
         backgroundColor: "#0c1a10",
@@ -2849,9 +2901,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         touchAction: "pan-x pan-y",
         overscrollBehavior: "contain",
       }}
-      onPointerMove={onItemPointerMove}
-      onPointerUp={onItemPointerUp}
-      onPointerCancel={onItemPointerCancel}
+      onPointerMove={safeMode ? undefined : onItemPointerMove}
+      onPointerUp={safeMode ? undefined : onItemPointerUp}
+      onPointerCancel={safeMode ? undefined : onItemPointerCancel}
       onClickCapture={(e) => {
         if (suppressClickRef.current) {
           e.preventDefault();
@@ -2859,6 +2911,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         }
       }}
       data-testid="overlay-feeding"
+      data-pet-care-safe-mode={safeMode ? "true" : "false"}
       aria-busy={isApplyingItem}
     >
       {/* Top bar */}
@@ -2872,7 +2925,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
               style={{
                 background: "rgba(15,25,12,0.7)",
                 border: "1px solid rgba(255,210,90,0.45)",
-                backdropFilter: "blur(6px)",
+                backdropFilter: safeMode ? "none" : "blur(6px)",
                 boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
               }}
               data-testid="chip-feeding-coins"
@@ -2890,7 +2943,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
             style={{
               background: "rgba(15,25,12,0.75)",
               border: "1px solid rgba(180,255,160,0.4)",
-              backdropFilter: "blur(6px)",
+              backdropFilter: safeMode ? "none" : "blur(6px)",
               color: "#dfffd0",
               fontFamily: "Lora, serif",
               fontWeight: 700,
@@ -2906,7 +2959,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
             style={{
               background: "rgba(15,25,12,0.75)",
               border: "1px solid rgba(180,255,160,0.4)",
-              backdropFilter: "blur(6px)",
+              backdropFilter: safeMode ? "none" : "blur(6px)",
               color: "#dfffd0",
               fontFamily: "Lora, serif",
               fontWeight: 700,
@@ -2920,7 +2973,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       </div>
 
       {/* Floating glowing orbs around the pet — pure decoration */}
-      {[
+      {!safeMode && [
         { left: "22%", top: "30%", size: 18, hue: "rgba(190,255,140,0.85)", delay: "0s",   dur: "4.2s" },
         { left: "78%", top: "32%", size: 14, hue: "rgba(255,220,140,0.85)", delay: "0.6s", dur: "5.1s" },
         { left: "16%", top: "55%", size: 10, hue: "rgba(150,230,255,0.8)",  delay: "1.2s", dur: "4.6s" },
@@ -2943,7 +2996,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       ))}
 
       {/* Mood occupies its own upper scene zone, independent of Hunger. */}
-      <PetCareMoodMeter moodVal={moodVal} />
+      <PetCareMoodMeter moodVal={moodVal} safeMode={safeMode} />
 
       {/* Pet centerpiece — drop target + click target */}
       <div
@@ -2953,27 +3006,28 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           width: "var(--pet-care-pet-size)",
           height: "var(--pet-care-pet-size)",
           cursor: "pointer",
-          filter: petGlow
+          filter: safeMode ? "none" : petGlow
             ? "drop-shadow(0 0 32px rgba(190,255,160,1)) drop-shadow(0 0 14px rgba(255,220,120,0.85)) drop-shadow(0 6px 16px rgba(0,0,0,0.55))"
             : "drop-shadow(0 0 18px rgba(190,255,160,0.55)) drop-shadow(0 0 8px rgba(255,220,120,0.35)) drop-shadow(0 6px 16px rgba(0,0,0,0.55))",
-          transition: "filter 0.3s ease",
+          transition: safeMode ? "none" : "filter 0.3s ease",
+          outline: safeMode && selectedCareItem ? "1px solid rgba(255,215,0,0.6)" : "none",
           touchAction: "none",
         }}
-        onPointerDown={onPetPointerDown}
-        onPointerMove={onPetPointerMove}
-        onPointerUp={endPetGesture}
-        onPointerCancel={endPetGesture}
+        onPointerDown={safeMode ? undefined : onPetPointerDown}
+        onPointerMove={safeMode ? undefined : onPetPointerMove}
+        onPointerUp={safeMode ? undefined : endPetGesture}
+        onPointerCancel={safeMode ? undefined : endPetGesture}
         onClick={applySelectedCareItem}
         data-testid="drop-zone-feed-pet"
       >
         {/* Soft radial halo behind the pet */}
-        <div
+        {!safeMode && <div
           className="absolute inset-0 pointer-events-none feed-halo-pulse"
           style={{
             background:
               "radial-gradient(circle, rgba(190,255,160,0.22) 0%, rgba(190,255,160,0.06) 45%, transparent 70%)",
           }}
-        />
+        />}
         <div
           className={
             petBounce ? "feed-pet-happy"
@@ -2993,12 +3047,20 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           }
           style={{ width: "100%", height: "100%" }}
         >
-          {pet.petTemplateId ? (
+          {safeMode && (pet.hatchedImageUrl || pet.imageUrl) ? (
+            <img
+              src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
+              alt={pet.nickname ?? pet.name}
+              draggable={false}
+              style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }}
+            />
+          ) : pet.petTemplateId ? (
             <PetAnimator
               petTemplateId={pet.petTemplateId}
-              mode="idle"
+              mode={safeMode ? "static" : "idle"}
               size={300}
               fillContainer
+              performanceStatic={safeMode}
               expression={petBounce ? "happy" : (petPressed || petCircling) ? "petted" : "neutral"}
             />
           ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
@@ -3023,6 +3085,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           theme="loyalty"
           accessibleLabel={`Loyalty ${loyaltyVal} of ${loyaltyMax}`}
           testId="bar-loyalty"
+          safeMode={safeMode}
         >
           <span className="pet-care-loyalty__maximum" aria-hidden="true">{loyaltyMax}</span>
         </PetCareAssetMeter>
@@ -3089,7 +3152,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       )}
 
       {/* Floating heart layer — appears when the pet is clicked or fed */}
-      {hearts.map((h) => (
+      {!safeMode && hearts.map((h) => (
         <div
           key={h.id}
           className="fixed pointer-events-none feed-heart-rise"
@@ -3124,7 +3187,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       ))}
 
       {/* Sparkle burst layer */}
-      {sparkles.map((s) => (
+      {!safeMode && sparkles.map((s) => (
         <div
           key={s.id}
           className="fixed pointer-events-none feed-sparkle"
@@ -3169,7 +3232,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
             fontWeight: 800,
             fontSize: 22,
             color: "#c8ff90",
-            textShadow: "0 2px 8px rgba(0,0,0,0.8), 0 0 12px rgba(190,255,140,0.7)",
+            textShadow: safeMode ? "none" : "0 2px 8px rgba(0,0,0,0.8), 0 0 12px rgba(190,255,140,0.7)",
             zIndex: 510,
           }}
         >
@@ -3269,7 +3332,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
               <div className="pb-3" style={{ borderBottom: "1px solid rgba(180,255,160,0.15)" }}>
                 <p style={{ color: "#c8ff90", fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 4 }}>FEED</p>
                 <p style={{ color: "#aac8a0", fontSize: 11, lineHeight: 1.55 }}>
-                  Drag any edible from the bottom strip onto your pet to fill its hunger meter and lift its mood.
+                      {safeMode ? "Tap an edible, then tap your pet to fill its hunger meter and lift its mood." : "Drag any edible from the bottom strip onto your pet to fill its hunger meter and lift its mood."}
                 </p>
               </div>
               <div className="pb-3" style={{ borderBottom: "1px solid rgba(180,255,160,0.15)" }}>
@@ -3326,9 +3389,10 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           hungerPct={hungerPct}
           xpBoostActive={!!(livePet as any).xpBoostUntil && new Date((livePet as any).xpBoostUntil).getTime() > Date.now()}
           xpBoostPct={(livePet as any).xpBoostPct ?? 0}
+          safeMode={safeMode}
         />
-        <PetCareItemShelf kind="edibles" items={edibles} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} selectedStackId={selectedCareItem?.stackId ?? null} />
-        <PetCareItemShelf kind="gifts" items={gifts} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} selectedStackId={selectedCareItem?.stackId ?? null} />
+        <PetCareItemShelf kind="edibles" items={edibles} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} selectedStackId={selectedCareItem?.stackId ?? null} safeMode={safeMode} />
+        <PetCareItemShelf kind="gifts" items={gifts} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} selectedStackId={selectedCareItem?.stackId ?? null} safeMode={safeMode} />
       </div>
 
       {/* ── Feed hint overlay ───────────────────────────────────────────────
@@ -3367,7 +3431,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
                   boxShadow: "0 0 16px rgba(34,197,94,0.4), 0 4px 12px rgba(0,0,0,0.6)",
                 }}>
                   <span style={{ fontFamily: "Lora, serif", color: "#86efac", fontSize: 12, fontWeight: 700, letterSpacing: "0.04em" }}>
-                    Drag edibles onto pet
+                    {safeMode ? "Tap edible, then pet" : "Drag edibles onto pet"}
                   </span>
                 </div>
                 {/* Arrow — pointing down toward edibles strip */}
@@ -3429,7 +3493,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       )}
 
       {/* Drag ghost */}
-      {dragGhost && (
+      {!safeMode && dragGhost && (
         <img
           ref={dragGhostRef}
           className="absolute pointer-events-none pet-care-drag-ghost__image"

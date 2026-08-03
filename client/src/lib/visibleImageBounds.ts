@@ -72,6 +72,9 @@ export function containVisibleArtwork(
   };
 }
 
+// A bounded cache prevents the prior unbounded retention of full decoded source
+// HTMLImageElements. Pet Care safe mode bypasses this cache/canvas path entirely.
+const VISIBLE_IMAGE_CACHE_LIMIT = 24;
 const analysisCache = new Map<string, Promise<AnalyzedVisibleImage>>();
 
 export function getVisibleImageAnalysis(
@@ -82,6 +85,9 @@ export function getVisibleImageAnalysis(
   if (!pending) {
     pending = analyze(url);
     analysisCache.set(url, pending);
+    if (analysisCache.size > VISIBLE_IMAGE_CACHE_LIMIT) {
+      analysisCache.delete(analysisCache.keys().next().value!);
+    }
   }
   return pending;
 }
