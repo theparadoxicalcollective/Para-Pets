@@ -192,7 +192,7 @@ function FishPartsView({ fishItemId, size, flipped, isSeaAnimal }: { fishItemId:
   );
 }
 
-export function AquariumPage({ onClose, userId }: { onClose: () => void; userId: string }) {
+export function AquariumPage({ onClose, userId, readOnly = false }: { onClose: () => void; userId: string; readOnly?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -203,6 +203,28 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
   const [defaultAquarium, setDefaultAquarium] = useState<AquariumSlot>(() => {
     try { return (localStorage.getItem(`aquarium_default_${userId}`) as AquariumSlot) ?? "main"; } catch { return "main"; }
   });
+
+  const { data: favoriteData } = useQuery<{ aquarium: AquariumSlot }>({
+    queryKey: ["/api/aquarium/favorite"],
+    enabled: !readOnly,
+  });
+  const { data: visitorData } = useQuery<{ aquarium: AquariumSlot; fish: AqCaughtFish[] }>({
+    queryKey: ["/api/users", userId, "aquarium"],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${userId}/aquarium`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load aquarium");
+      return res.json();
+    },
+    enabled: readOnly,
+  });
+
+  useEffect(() => {
+    const favorite = readOnly ? visitorData?.aquarium : favoriteData?.aquarium;
+    if (favorite) {
+      setActiveAquarium(favorite);
+      setDefaultAquarium(favorite);
+    }
+  }, [favoriteData?.aquarium, readOnly, visitorData?.aquarium]);
   const [showPanel, setShowPanel] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<AqFishEntry | null>(null);
   const [dragging, setDragging] = useState<{ fish: AqFishEntry; gx: number; gy: number } | null>(null);
@@ -216,23 +238,31 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const handleSetDefault = useCallback((slot: AquariumSlot) => {
+    if (readOnly) return;
     try { localStorage.setItem(aqDefaultKey, slot); } catch {}
     setDefaultAquarium(slot);
-  }, [aqDefaultKey]);
+    apiRequest("PATCH", "/api/aquarium/favorite", { aquarium: slot }).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["/api/aquarium/favorite"] });
+    });
+  }, [aqDefaultKey, queryClient, readOnly]);
 
-  const { data: fishInventory = [] } = useQuery<AqCaughtFish[]>({
+  const { data: ownFishInventory = [] } = useQuery<AqCaughtFish[]>({
     queryKey: ["/api/fishing/inventory"],
     staleTime: 30000,
+    enabled: !readOnly,
   });
+  const fishInventory = readOnly ? (visitorData?.fish ?? []) : ownFishInventory;
 
   const { data: unlocksData } = useQuery<{ unlocks: string[] }>({
     queryKey: ["/api/aquarium/unlocks"],
     staleTime: 60000,
+    enabled: !readOnly,
   });
 
   const { data: currentUser } = useQuery<{ coins: number }>({
     queryKey: ["/api/auth/me"],
     staleTime: 30000,
+    enabled: !readOnly,
   });
 
   const unlocks = unlocksData?.unlocks ?? [];
@@ -536,7 +566,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
 
   const currentBg = activeAquarium === "volcanic" ? volcanicAquariumBg : activeAquarium === "bayou" ? bayouAquariumBg : aquariumBg;
   const title = activeAquarium === "volcanic" ? "VOLCANIC AQUARIUM" : activeAquarium === "bayou" ? "BAYOU AQUARIUM" : "AQUARIUM";
-  const isLocked = (activeAquarium === "bayou" && !bayouUnlocked) || (activeAquarium === "volcanic" && !volcanicUnlocked);
+  const isLocked = !readOnly && ((activeAquarium === "bayou" && !bayouUnlocked) || (activeAquarium === "volcanic" && !volcanicUnlocked));
   const userCoins = currentUser?.coins ?? 0;
   const lockedConfig = activeAquarium !== "main" ? AQUARIUM_CONFIG[activeAquarium] : null;
 
@@ -613,7 +643,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
         return (
           <button
             key={f.id}
-            onClick={() => setPendingRemove(f)}
+            onClick={() => { if (!readOnly) setPendingRemove(f); }}
             title="Tap fish"
             style={{
               position: "absolute",
@@ -622,7 +652,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
               transform: "translate(-50%,-50%)",
               background: "none", border: "none", outline: "none",
               WebkitTapHighlightColor: "transparent",
-              cursor: "pointer", padding: 0, zIndex: 10,
+              cursor: readOnly ? "default" : "pointer", padding: 0, zIndex: 10,
             }}
           >
             {f.hasParts
@@ -668,7 +698,7 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
       </button>
 
       {/* Star button — top-left, sets current aquarium as the default (opens first) */}
-      <button
+      {!readOnly && <button
         data-testid="button-aquarium-set-default"
         onClick={() => handleSetDefault(activeAquarium)}
         className="absolute z-50 transition-transform active:scale-90"
@@ -685,10 +715,10 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
             : "0 2px 8px rgba(0,0,0,0.9)",
           transition: "color 0.25s ease, text-shadow 0.25s ease",
         }}>★</span>
-      </button>
+      </button>}
 
       {/* Right arrow — always rendered, hidden on volcanic to avoid mount/unmount glitch */}
-      <button
+      {!readOnly && <button
         data-testid="button-aquarium-next"
         onClick={() => { setActiveAquarium(activeAquarium === "main" ? "bayou" : "volcanic"); setShowPanel(false); }}
         className="absolute z-30 active:scale-90 transition-transform"
@@ -707,10 +737,10 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
           style={{ width: 64, height: "auto", objectFit: "contain", transform: "scaleX(-1)", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.85)) drop-shadow(0 0 6px rgba(94,234,212,0.35))" }}
           draggable={false}
         />
-      </button>
+      </button>}
 
       {/* Left arrow — always rendered, hidden on main to avoid mount/unmount glitch */}
-      <button
+      {!readOnly && <button
         data-testid="button-aquarium-prev"
         onClick={() => { setActiveAquarium(activeAquarium === "volcanic" ? "bayou" : "main"); setShowPanel(false); }}
         className="absolute z-30 active:scale-90 transition-transform"
@@ -729,20 +759,20 @@ export function AquariumPage({ onClose, userId }: { onClose: () => void; userId:
           style={{ width: 64, height: "auto", objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.85)) drop-shadow(0 0 6px rgba(94,234,212,0.35))" }}
           draggable={false}
         />
-      </button>
+      </button>}
 
 
       {/* Fish count */}
       {aquariumFish.length > 0 && !isLocked && (
         <div className="absolute pointer-events-none" style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 88px)", left: 0, right: 0, display: "flex", justifyContent: "center" }}>
           <span className="font-fantasy text-[9px] tracking-widest" style={{ color: "rgba(94,234,212,0.45)" }}>
-            {aquariumFish.length}/{AQ_MAX} fish · tap a fish to release it
+            {aquariumFish.length}/{AQ_MAX} fish{readOnly ? " · view only" : " · tap a fish to release it"}
           </span>
         </div>
       )}
 
       {/* Fish bag button (hidden when locked) */}
-      {!isLocked && (
+      {!readOnly && !isLocked && (
         <div className="absolute bottom-0 left-0 right-0 flex justify-center z-30"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom, 0px), 8px)", paddingTop: 8 }}>
           <button

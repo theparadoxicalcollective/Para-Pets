@@ -27,6 +27,9 @@ const expectedRoutes = [
   ["post", "/api/fishing/attempts/:attemptId/complete"],
   ["post", "/api/fishing/attempts/:attemptId/abandon"],
   ["get", "/api/fishing/leaderboard/:worldId"],
+  ["get", "/api/aquarium/favorite"],
+  ["patch", "/api/aquarium/favorite"],
+  ["get", "/api/users/:userId/aquarium"],
   ["get", "/api/world/:worldId/fish-barrel"],
   ["patch", "/api/admin/fish-barrel/:id"],
   ["delete", "/api/admin/fish-barrel/:id"],
@@ -105,6 +108,31 @@ test("aquarium mutations scope storage access to the authenticated owner", async
   await add.handlers[1]({ user: { id: "session-owner" }, body: { shopItemId: "fish", slot: "bayou", ownerId: "attacker" } }, res);
   assert.deepEqual(calls, [["session-owner", "fish", "bayou"]]);
   assert.deepEqual(res.body, { ok: true, fishId: "owned-fish" });
+});
+
+test("public aquarium viewing exposes only the owner's favorited tank and no visitor mutation", async () => {
+  const inventoryCalls: string[] = [];
+  const { registrations } = setup({
+    db: { execute: async () => ({ rows: [{ value: "bayou" }] }) },
+    storage: {
+      getUser: async (id: string) => ({ id, isBanned: false }),
+      getFishTemplateParts: async () => [],
+      getPlayerFishInventory: async (id: string) => {
+        inventoryCalls.push(id);
+        return [
+          { id: "shown", userId: id, shopItemId: "fish-1", inAquarium: true, aquariumSlot: "bayou", caughtAt: new Date(), item: { id: "fish-1", name: "Fish", imageUrl: null } },
+          { id: "hidden", userId: id, shopItemId: "fish-2", inAquarium: true, aquariumSlot: "main", caughtAt: new Date(), item: { id: "fish-2", name: "Other", imageUrl: null } },
+        ];
+      },
+    },
+  });
+  const view = registrations.find(r => r.path === "/api/users/:userId/aquarium")!;
+  const res = response();
+  await view.handlers[1]({ user: { id: "visitor" }, params: { userId: "owner" } }, res);
+  assert.deepEqual(inventoryCalls, ["owner"]);
+  assert.equal((res.body as any).aquarium, "bayou");
+  assert.deepEqual((res.body as any).fish.map((fish: any) => fish.id), ["shown"]);
+  assert.equal("userId" in (res.body as any).fish[0], false);
 });
 
 test("secured helper boundaries and cross-domain market ownership remain explicit", () => {

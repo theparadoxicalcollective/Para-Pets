@@ -441,10 +441,84 @@ export function registerFishingRoutes(app: Express, deps: FishingRouteDependenci
 export function registerFishingAquariumRoutes(app: Express, deps: FishingRouteDependencies): void {
   const {
     storage,
+    db,
     isAuthenticated,
     sellFish,
     getFishSaleErrorReason,
   } = deps;
+
+  const aquariumSlots = new Set(["main", "bayou", "volcanic"]);
+  const favoriteKey = (userId: string) => `aquarium_favorite:${userId}`;
+
+  app.get("/api/aquarium/favorite", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const result = await db.execute(sql`SELECT value FROM game_settings WHERE key = ${favoriteKey(user.id)}`);
+      const value = (result.rows[0] as any)?.value;
+      return res.json({ aquarium: aquariumSlots.has(value) ? value : "main" });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.patch("/api/aquarium/favorite", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const aquarium = req.body?.aquarium;
+      if (typeof aquarium !== "string" || !aquariumSlots.has(aquarium)) {
+        return res.status(400).json({ message: "Invalid aquarium" });
+      }
+      if (aquarium !== "main" && !(await storage.getAquariumUnlocks(user.id)).includes(aquarium)) {
+        return res.status(403).json({ message: "Aquarium is not unlocked" });
+      }
+      await db.execute(sql`
+        INSERT INTO game_settings (key, value) VALUES (${favoriteKey(user.id)}, ${aquarium})
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+      `);
+      return res.json({ aquarium });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
+
+  // A visitor receives display-only data for the owner's favorited tank. No
+  // mutation route accepts a target user id; aquarium edits remain session-scoped.
+  app.get("/api/users/:userId/aquarium", isAuthenticated, async (req, res) => {
+    try {
+      const targetUserId = req.params.userId as string;
+      const targetUser = await storage.getUser(targetUserId);
+      if (!targetUser || targetUser.isBanned) return res.status(404).json({ message: "User not found" });
+      const favoriteResult = await db.execute(sql`SELECT value FROM game_settings WHERE key = ${favoriteKey(targetUserId)}`);
+      const storedFavorite = (favoriteResult.rows[0] as any)?.value;
+      const aquarium = aquariumSlots.has(storedFavorite) ? storedFavorite : "main";
+      const displayedFish = (await storage.getPlayerFishInventory(targetUserId))
+        .filter(item => item.inAquarium && (item.aquariumSlot ?? "main") === aquarium);
+      const partsByItem = new Map<string, boolean>();
+      await Promise.all([...new Set(displayedFish.map(item => item.shopItemId))].map(async itemId => {
+        partsByItem.set(itemId, (await storage.getFishTemplateParts(itemId)).length > 0);
+      }));
+      const fish = displayedFish
+        .map(item => ({
+          id: item.id,
+          shopItemId: item.shopItemId,
+          inAquarium: true,
+          aquariumSlot: item.aquariumSlot,
+          item: item.item && {
+            id: item.item.id,
+            name: item.item.name,
+            imageUrl: item.item.imageUrl,
+            starRarity: item.item.starRarity,
+            facingDirection: item.item.facingDirection,
+            fishSwimZone: item.item.fishSwimZone,
+            hasParts: partsByItem.get(item.shopItemId) ?? false,
+            isSeaAnimal: item.item.isSeaAnimal,
+          },
+        }));
+      return res.json({ aquarium, fish });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message });
+    }
+  });
 
   // Fish barrel routes
   app.get("/api/world/:worldId/fish-barrel", isAuthenticated, async (req, res) => {
