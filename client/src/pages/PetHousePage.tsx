@@ -43,6 +43,7 @@ import {
 } from "@/lib/petCareInteractions";
 import { buildPetCareInventoryStacks, orderPetCareItemsByEffect } from "@/lib/petCareInventory";
 import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
+import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -1854,6 +1855,29 @@ type PetCareShelfItem = {
   giftPoints?: number | null;
 };
 
+function latestUsablePointerSample(event: PointerEvent): Pick<PointerEvent, "clientX" | "clientY"> {
+  try {
+    const samples = typeof event.getCoalescedEvents === "function" ? event.getCoalescedEvents() : [];
+    for (let index = samples.length - 1; index >= 0; index -= 1) {
+      const sample = samples[index];
+      if (Number.isFinite(sample?.clientX) && Number.isFinite(sample?.clientY)) return sample;
+    }
+  } catch {
+    // Older WebKit builds expose this method but can throw while dispatching.
+  }
+  return event;
+}
+
+function logUnexpectedPetCareMutationError(context: string, error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/\b(?:400|404|409)\b/.test(message)) return;
+  try {
+    stabilityDiagnostic("pet-care-mutation-failed", { context, message });
+  } catch {
+    // Diagnostics must never turn a contained request failure into a crash.
+  }
+}
+
 function PetCareItemShelf({
   kind,
   items,
@@ -2113,7 +2137,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     pid: number;
     startX: number;
     startY: number;
-    origin: HTMLElement;
+    captureTarget: HTMLElement | null;
     intent: PetCareItemGestureIntent;
   } | null>(null);
   const [dragGhost, setDragGhost] = useState<{ inventoryId: string; imageUrl: string | null } | null>(null);
@@ -2608,9 +2632,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       cancelAnimationFrame(dragFrameRef.current);
       dragFrameRef.current = null;
     }
-    if (releaseCapture && drag?.origin) {
+    if (releaseCapture && drag?.captureTarget) {
       try {
-        if (drag.origin.hasPointerCapture?.(drag.pid)) drag.origin.releasePointerCapture(drag.pid);
+        if (drag.captureTarget.hasPointerCapture?.(drag.pid)) drag.captureTarget.releasePointerCapture(drag.pid);
       } catch {
         // WebKit may detach the captured shelf node during cancellation.
       }
@@ -2624,13 +2648,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   useEffect(() => () => cleanupItemGesture(true, false), [cleanupItemGesture]);
 
   const onItemPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, item: PetCareShelfItem) => {
-    // Capture immediately so touch browsers keep delivering the gesture after
-    // the finger leaves the small shelf slot. `touch-action: pan-x` still lets
-    // a horizontal swipe become native shelf scrolling (and pointercancel then
-    // performs cleanup), while upward movement remains available for dragging.
+    // Leave the gesture pending so Safari can give a horizontal swipe to the
+    // native shelf scroller. Capture moves to the stable overlay only after an
+    // upward item drag has been classified.
     e.stopPropagation();
     if (isApplyingItemRef.current || !item?.id || (item.quantity ?? 0) <= 0) return;
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
     dragRef.current = {
       inventoryId: item.id,
       imageUrl: item.imageUrl,
@@ -2642,7 +2664,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       pid: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
-      origin: e.currentTarget,
+      captureTarget: null,
       intent: "pending",
     };
     setDragGhost(null);
@@ -2681,6 +2703,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       } else if (drag.type === "edibles") {
         await feedMutation.mutateAsync({ itemInventoryId: drag.inventoryId });
       }
+    } catch (error) {
+      // React Query's onError already showed the normal toast. Consuming the
+      // mutateAsync rejection here prevents the global unhandled-rejection
+      // reporter from treating a stale inventory response as an app crash.
+      logUnexpectedPetCareMutationError(`${drag.type}-drop`, error);
     } finally {
       cleanupItemGesture(true, mountedRef.current);
       isApplyingItemRef.current = false;
@@ -2691,15 +2718,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const onItemPointerMove = useCallback((e: React.PointerEvent) => {
     const d = dragRef.current;
     if (!d || d.pid !== e.pointerId) return;
-    const nativeEvent = e.nativeEvent;
-    const coalescedEvents =
-      typeof nativeEvent.getCoalescedEvents === "function"
-        ? nativeEvent.getCoalescedEvents()
-        : [];
-    const point =
-      coalescedEvents.length > 0
-        ? coalescedEvents[coalescedEvents.length - 1]
-        : nativeEvent;
+    const point = latestUsablePointerSample(e.nativeEvent);
 
     if (d.intent === "pending") {
       const intent = classifyPetCareItemGesture(point.clientX - d.startX, point.clientY - d.startY);
@@ -2708,6 +2727,15 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       if (intent === "horizontal-scroll") {
         cleanupItemGesture();
         return;
+      }
+      const captureTarget = overlayRef.current;
+      if (captureTarget) {
+        try {
+          captureTarget.setPointerCapture(e.pointerId);
+          d.captureTarget = captureTarget;
+        } catch {
+          // Safari can decline capture; overlay bubbling still owns cleanup.
+        }
       }
       playGrab();
       suppressClickRef.current = true;
@@ -2720,7 +2748,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     e.preventDefault();
     updateDragGhostPosition(point.clientX, point.clientY);
     const box = petBoxRef.current?.getBoundingClientRect();
-    setPetGlow(!!box && pointInsideExpandedPetDropZone({ x: point.clientX, y: point.clientY }, box));
+    const nextGlow = !!box && pointInsideExpandedPetDropZone({ x: point.clientX, y: point.clientY }, box);
+    setPetGlow((current) => current === nextGlow ? current : nextGlow);
   }, [cleanupItemGesture, updateDragGhostPosition]);
 
   const onItemPointerUp = useCallback((e: React.PointerEvent) => {
@@ -2732,14 +2761,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       return;
     }
 
-    const nativeEvent = e.nativeEvent;
-    const coalescedEvents =
-      typeof nativeEvent.getCoalescedEvents === "function"
-        ? nativeEvent.getCoalescedEvents()
-        : [];
-    const point = coalescedEvents.length > 0
-      ? coalescedEvents[coalescedEvents.length - 1]
-      : nativeEvent;
+    const point = latestUsablePointerSample(e.nativeEvent);
     const box = petBoxRef.current?.getBoundingClientRect();
     const validDrop = !!box && pointInsideExpandedPetDropZone({ x: point.clientX, y: point.clientY }, box, PET_CARE_DROP_PADDING_PX);
     scheduleTimeout(() => { suppressClickRef.current = false; }, 0);
@@ -2777,6 +2799,10 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     try {
       await feedMutation.mutateAsync({ itemInventoryId, quantity });
       if (mountedRef.current) setPendingFeed(null);
+    } catch (error) {
+      // The mutation toast is player-facing; this catch owns the rejected
+      // promise so stack-popup button handlers remain safe to fire-and-forget.
+      logUnexpectedPetCareMutationError("stack-selection", error);
     } finally {
       cleanupItemGesture(true, mountedRef.current);
       isApplyingItemRef.current = false;
@@ -2796,7 +2822,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
         maxWidth: "768px", margin: "0 auto", left: 0, right: 0,
-        touchAction: dragGhost ? "none" : "auto",
+        touchAction: "pan-x pan-y",
         overscrollBehavior: "contain",
       }}
       onPointerMove={onItemPointerMove}

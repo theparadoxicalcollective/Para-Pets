@@ -866,6 +866,7 @@ function App() {
   useEffect(() => {
     let touchStartX = 0;
     let touchStartY = 0;
+    let touchStartedInPetCareShelf = false;
 
     // Track where a touch started so touchmove can detect horizontal swipes.
     // Do NOT call preventDefault on touchstart — it silently kills click events
@@ -873,12 +874,14 @@ function App() {
     const trackTouchStart = (e: TouchEvent) => {
       touchStartX = e.touches[0].clientX;
       touchStartY = e.touches[0].clientY;
+      touchStartedInPetCareShelf = (e.target as Element | null)?.closest?.(".pet-care-item-shelf__viewport") != null;
     };
 
     // Block iOS swipe-back / swipe-forward gestures. Prevents back-navigation when
     // players swipe horizontally to attack in battles or navigate map areas.
     // Blocks any predominantly-horizontal swipe, plus edge-started ones at any angle.
     const blockHorizontalSwipe = (e: TouchEvent) => {
+      if (touchStartedInPetCareShelf) return;
       const adx = Math.abs(e.touches[0].clientX - touchStartX);
       const ady = Math.abs(e.touches[0].clientY - touchStartY);
       const fromEdge = touchStartX < 80 || touchStartX > window.innerWidth - 80;
