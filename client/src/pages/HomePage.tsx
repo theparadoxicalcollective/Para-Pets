@@ -941,7 +941,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         <div className="flex-1 flex flex-col items-center justify-center px-0 py-0 min-h-0">
           <div
             ref={petContainerRef}
-            className={`relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]${activePet ? " home-active-pet-stage" : ""}`}
+            className="relative flex items-center justify-center w-full max-w-[520px] md:max-w-[680px] lg:max-w-[800px]"
+            style={{ marginBottom: activePet ? "calc(26*var(--vh))" : undefined }}
           >
 
             {/* ── Raid Boss — floats to the right of the active pet ── */}
@@ -1275,14 +1276,14 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         style={{
                           cursor: "pointer",
                           touchAction: "none",
-                          // Interaction-only transform. The outer stage owns the
-                          // platform baseline, so pressed/petted scale cannot
-                          // move the visible feet.
+                          // Scale the pet up 12% from its center-bottom so it
+                          // fills the stage nicely. transformOrigin center-bottom
+                          // keeps the pet grounded — it grows upward only.
                           transform: petCircling
-                            ? "scale(1.155, 1.092)"
+                            ? "scale(1.155, 1.092) translateY(8%)"
                             : petPressed
-                              ? "scale(1.108, 1.132)"
-                              : "scale(1.12)",
+                              ? "scale(1.108, 1.132) translateY(8%)"
+                              : "scale(1.12) translateY(8%)",
                           transition: "transform 320ms cubic-bezier(0.34, 1.2, 0.5, 1)",
                           transformOrigin: "center bottom",
                           // Sit above heart/sparkle bursts and surrounding chrome
@@ -1295,7 +1296,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                       >
                         {activePet.petTemplateId ? (
                           <div className="w-full flex items-center justify-center">
-                            <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} fitVisible expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
+                            <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
                           </div>
                         ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
                           <div style={{ paddingTop: "calc(8*var(--vh))", width: "100%" }}>

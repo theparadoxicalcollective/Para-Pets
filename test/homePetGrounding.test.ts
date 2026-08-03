@@ -2,13 +2,16 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-test("active pet has one authored platform baseline separate from interaction scale", () => {
+test("active pet uses the restored responsive home flow", () => {
   const page = readFileSync("client/src/pages/HomePage.tsx", "utf8");
-  const css = readFileSync("client/src/index.css", "utf8");
-  assert.match(css, /--home-active-pet-ground-y:\s*610px/);
-  assert.match(css, /bottom:\s*calc\(844px - var\(--home-active-pet-ground-y\)\)/);
-  assert.doesNotMatch(page, /marginBottom: activePet \? "calc\(26\*var\(--vh\)\)"/);
-  assert.doesNotMatch(page, /translateY\(8%\)/);
-  assert.match(page, /<PetAnimator[^>]*fitVisible/);
-  assert.match(page, /transformOrigin: "center bottom"/);
+
+  assert.match(
+    page,
+    /className="relative flex items-center justify-center w-full max-w-\[520px\] md:max-w-\[680px\] lg:max-w-\[800px\]"/,
+  );
+  assert.match(
+    page,
+    /style=\{\{ marginBottom: activePet \? "calc\(26\*var\(--vh\)\)" : undefined \}\}/,
+  );
+  assert.doesNotMatch(page, /className="home-active-pet-stage"/);
 });
