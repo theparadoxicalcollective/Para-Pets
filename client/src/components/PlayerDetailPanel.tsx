@@ -109,13 +109,13 @@ function ActionButton({
   testId: string;
 }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+    <div className="flex min-w-[48px] flex-col items-center gap-1">
       <button
         data-testid={testId}
         onClick={onClick}
         disabled={disabled}
         aria-label={label}
-        className="group flex h-14 w-14 shrink-0 items-center justify-center rounded-full transition-transform active:scale-95 disabled:active:scale-100"
+        className="group flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-transform active:scale-95 disabled:active:scale-100 min-[390px]:h-11 min-[390px]:w-11"
         style={{
           background: `radial-gradient(circle at 38% 30%, ${accent}28, rgba(12,8,2,0.96) 68%)`,
           border: `1px solid ${accent}70`,
@@ -126,9 +126,9 @@ function ActionButton({
           WebkitTapHighlightColor: "transparent",
         }}
       >
-        <span className="flex h-8 w-8 items-center justify-center" aria-hidden="true">{icon}</span>
+        <span className="flex h-6 w-6 items-center justify-center" aria-hidden="true">{icon}</span>
       </button>
-      <span className="w-full truncate text-center font-fantasy text-[9px] font-medium leading-tight tracking-[0.04em]" style={{ color: accent }}>
+      <span className="max-w-[58px] truncate text-center font-fantasy text-[8px] font-medium leading-tight tracking-[0.03em]" style={{ color: accent }}>
         {label}
       </span>
     </div>
@@ -179,7 +179,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: !!userId && !!pvpStats,
+    enabled: !!userId,
   });
 
   const sendRequestMutation = useMutation({
@@ -331,9 +331,10 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
         {profile && (
           <div className="px-4 pb-8 pt-2 min-[380px]:px-5 flex flex-col gap-5">
 
-            {/* Compact horizontal identity row */}
-            <div className="flex min-w-0 items-center gap-3 pb-1 pr-12" data-testid="player-identity-row">
-              <div className="flex aspect-square flex-shrink-0 items-center justify-center"
+            {/* PvP-style identity row with profile actions kept beside the name. */}
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-3 pb-1 pr-11" data-testid="player-identity-row">
+              <div className="flex min-w-0 items-center flex-1 gap-3">
+                <div className="flex aspect-square flex-shrink-0 items-center justify-center"
                 style={{ width: "clamp(66px, 18vw, 78px)", background: "linear-gradient(145deg, #f2d574, #8d6416)", clipPath: OCTAGON_CLIP_PATH, filter: "drop-shadow(0 3px 6px rgba(0,0,0,0.65)) drop-shadow(0 0 5px rgba(201,160,48,0.32))" }}>
                 <div className="aspect-square overflow-hidden"
                   style={{ width: "calc(100% - 6px)", clipPath: OCTAGON_CLIP_PATH }}>
@@ -348,13 +349,40 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                     </div>
                   )}
                 </div>
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
+                  <p className="max-w-full overflow-hidden text-ellipsis font-fantasy text-lg font-semibold tracking-wide text-left" style={{ color: "#f0c040" }} data-testid="text-player-username">
+                    {profile.username}
+                  </p>
+                  <RoleBadge isAdmin={profile.isAdmin} isModerator={profile.isModerator} size="sm" />
+                </div>
               </div>
-              <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
-                <p className="max-w-full overflow-hidden text-ellipsis font-fantasy text-lg font-semibold tracking-wide text-left" style={{ color: "#f0c040" }} data-testid="text-player-username">
-                  {profile.username}
-                </p>
-                <RoleBadge isAdmin={profile.isAdmin} isModerator={profile.isModerator} size="sm" />
-              </div>
+              {!isSelf && (
+                <div className="ml-auto flex max-w-full flex-wrap items-start justify-end gap-1 min-[390px]:gap-2" data-testid="player-header-actions">
+                  <ActionButton
+                    testId="button-add-friend"
+                    onClick={fb.action}
+                    disabled={fb.disabled || anyMutationPending}
+                    accent={fb.pushed ? "#b49a61" : "#72bd78"}
+                    icon={friendStatus?.status === "accepted" ? <UserCheck size={17} /> : <UserPlus size={17} />}
+                    label={anyMutationPending ? "…" : fb.label}
+                  />
+                  <ActionButton
+                    testId="button-visit-pethouse"
+                    onClick={() => setComingSoon(true)}
+                    accent="#6fa977"
+                    icon={<img src={petHouseIcon} alt="" className="h-6 w-6 object-contain" />}
+                    label="Pet Home"
+                  />
+                  <ActionButton
+                    testId="button-view-aquarium"
+                    onClick={() => setShowAquarium(true)}
+                    accent="#63b7ac"
+                    icon={<img src={aquariumIcon} alt="" className="h-6 w-6 object-contain" />}
+                    label="Aquarium"
+                  />
+                </div>
+              )}
             </div>
 
             {/* PvP rank stats — shown only from PvP leaderboard */}
@@ -379,13 +407,13 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
               </div>
             )}
 
-            {/* Badges — PvP leaderboard only */}
-            {pvpStats && badges && badges.length > 0 && (
+            {/* Player badges use the same section on every detail card. */}
+            {badges && (
               <div className="flex flex-col gap-2">
-                <p className="font-fantasy text-xs tracking-widest uppercase" style={{ color: "rgba(212,160,23,0.6)" }}>Emblems</p>
-                <div className="flex flex-wrap gap-2">
+                <p className="font-fantasy text-xs tracking-widest uppercase" style={{ color: "rgba(212,160,23,0.6)" }}>Badges</p>
+                {badges.length > 0 ? <div className="grid grid-cols-[repeat(auto-fill,minmax(54px,1fr))] gap-2">
                   {badges.map(badge => (
-                    <div key={badge.id} data-testid={`badge-${badge.id}`} className="flex flex-col items-center gap-1" style={{ width: 56 }} title={badge.description || badge.name}>
+                    <div key={badge.id} data-testid={`badge-${badge.id}`} className="flex min-w-0 flex-col items-center gap-1" title={badge.description || badge.name}>
                       <div className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden"
                         style={{ background: "linear-gradient(135deg, rgba(40,20,5,0.95), rgba(20,8,0,0.95))", border: "1.5px solid rgba(240,192,64,0.4)", boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
                         {badge.imageUrl ? (
@@ -399,7 +427,9 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                       </p>
                     </div>
                   ))}
-                </div>
+                </div> : (
+                  <p className="font-fantasy text-[9px]" style={{ color: "rgba(168,152,120,0.5)" }}>No Badges Yet</p>
+                )}
               </div>
             )}
 
@@ -409,7 +439,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                 <>
                   <div
                     className="grid w-full min-w-0 items-center gap-x-1 min-[375px]:gap-x-2"
-                    style={{ gridTemplateColumns: "minmax(48px, 68px) minmax(0, 1fr) minmax(48px, 68px)" }}
+                    style={{ gridTemplateColumns: "minmax(54px, 76px) minmax(0, 1fr) minmax(54px, 76px)" }}
                     data-testid="companion-showcase"
                   >
                     {([leftAccessories, rightAccessories] as const).map((accessories, columnIndex) => (
@@ -421,7 +451,10 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                         {Array.from({ length: columnIndex === 0 ? 3 : 2 }).map((_, columnItemIndex) => {
                           const acc = accessories[columnItemIndex];
                           const i = columnIndex === 0 ? columnItemIndex : columnItemIndex + 3;
-                          if (!acc) return <span key={`spacer-${columnItemIndex}`} className="h-11 w-11 min-[375px]:h-12 min-[375px]:w-12" aria-hidden="true" />;
+                          const arcOffset = columnIndex === 0
+                            ? [8, 0, 8][columnItemIndex] ?? 0
+                            : [-7, -7][columnItemIndex] ?? 0;
+                          if (!acc) return <span key={`spacer-${columnItemIndex}`} className="h-[54px] w-[54px] min-[390px]:h-16 min-[390px]:w-16" aria-hidden="true" />;
                           return (
                           <button
                             key={acc.id ?? acc.accessoryInventoryId ?? i}
@@ -429,11 +462,11 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                             data-testid={`button-acc-${i}`}
                             aria-label={`View ${acc.name}`}
                             className="flex shrink-0 items-center justify-center rounded-full bg-transparent transition-[transform,filter] hover:bg-purple-300/5 active:scale-95"
-                            style={{ width: "clamp(46px, 12vw, 56px)", height: "clamp(46px, 12vw, 56px)", border: "none", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
+                            style={{ width: "clamp(54px, 15vw, 64px)", height: "clamp(54px, 15vw, 64px)", transform: `translateX(${arcOffset}px)`, border: "none", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
                           >
                             {acc.imageUrl ? (
                               <span className="flex flex-col items-center">
-                                <img src={acc.imageUrl} alt="" className="object-contain" style={{ width: "clamp(36px, 9.5vw, 46px)", height: "clamp(36px, 9.5vw, 46px)", filter: "drop-shadow(0 0 5px rgba(192,132,252,0.35)) drop-shadow(0 3px 3px rgba(0,0,0,0.85))" }} />
+                                <img src={acc.imageUrl} alt="" className="object-contain" style={{ width: "clamp(44px, 12vw, 54px)", height: "clamp(44px, 12vw, 54px)", filter: "drop-shadow(0 0 5px rgba(192,132,252,0.35)) drop-shadow(0 3px 3px rgba(0,0,0,0.85))" }} />
                                 {!!acc.starRarity && <span className="-mt-1 whitespace-nowrap text-[7px] leading-none text-[#f0c040]" aria-label={`${acc.starRarity} star rarity`}>{"★".repeat(acc.starRarity)}</span>}
                               </span>
                             ) : (
@@ -493,34 +526,9 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
               )}
             </div>
 
-            {/* Action buttons — hidden when viewing own card */}
+            {/* Lower friend action — navigation buttons live in the header. */}
             {!isSelf && (
-              <div className="flex flex-col gap-3 border-t pt-4" style={{ borderColor: "rgba(212,160,23,0.14)" }}>
-                <div className="flex w-full items-start justify-center gap-2 min-[360px]:gap-5">
-                  <ActionButton
-                    testId="button-add-friend"
-                    onClick={fb.action}
-                    disabled={fb.disabled || anyMutationPending}
-                    accent={fb.pushed ? "#b49a61" : "#72bd78"}
-                    icon={friendStatus?.status === "accepted" ? <UserCheck size={20} /> : <UserPlus size={20} />}
-                    label={anyMutationPending ? "…" : fb.label}
-                  />
-                  <ActionButton
-                    testId="button-visit-pethouse"
-                    onClick={() => setComingSoon(true)}
-                    accent="#6fa977"
-                    icon={<img src={petHouseIcon} alt="" className="h-8 w-8 object-contain" />}
-                    label="Pet Home"
-                  />
-                  <ActionButton
-                    testId="button-view-aquarium"
-                    onClick={() => setShowAquarium(true)}
-                    accent="#63b7ac"
-                    icon={<img src={aquariumIcon} alt="" className="h-8 w-8 object-contain" />}
-                    label="Aquarium"
-                  />
-                </div>
-
+              <div className="flex flex-col gap-3 border-t pt-3" style={{ borderColor: "rgba(212,160,23,0.14)" }}>
                 {/* Remove Friend — only shown from the Friends page when already friends */}
                 {onRemoveFriend && friendStatus?.status === "accepted" && (
                   <button
