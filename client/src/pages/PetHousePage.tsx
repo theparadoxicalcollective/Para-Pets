@@ -2141,8 +2141,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     () => inventory.find((it) => it?.id === pet?.inventoryId) ?? pet ?? {},
     [inventory, pet],
   );
-  const petHealth = Number(livePet?.petHealth);
-  const maxHunger = Number.isFinite(petHealth) && petHealth > 0 ? petHealth : 1000;
+  // Hunger is a fixed 0–1000 care stat on the server; combat HP is unrelated.
+  const maxHunger = 1000;
   const rawHunger = Number(livePet?.petHunger);
   const hungerVal = Number.isFinite(rawHunger)
     ? finitePetCareStat(rawHunger, maxHunger, maxHunger)
@@ -2324,7 +2324,19 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     },
     onSuccess: (data: any) => {
       playPlop();
-      qc.invalidateQueries({ queryKey: ["/api/inventory"] });
+      // Reflect the mood gain immediately while the authoritative refetch runs.
+      if (data?.moodGained > 0 && pet?.inventoryId) {
+        qc.setQueryData(["/api/inventory"], (payload: unknown) => {
+          if (!Array.isArray(payload)) return payload;
+          return payload.map((entry: any) => {
+            if (entry?.id !== pet.inventoryId) return entry;
+            const currentMood = Number(entry.petMood);
+            const baseMood = Number.isFinite(currentMood) ? currentMood : 100;
+            return { ...entry, petMood: Math.min(100, baseMood + Number(data.moodGained)) };
+          });
+        });
+      }
+      void qc.invalidateQueries({ queryKey: ["/api/inventory"] });
       if (data?.rewarded && data?.amount > 0) {
         spawnRewardCoins(data.amount);
       } else {
@@ -2446,29 +2458,30 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     setPetCircling(true);
     const g = petGestureRef.current;
     if (!g) return;
-    // Continuously emit a few hearts + a shower of golden sparkles while circling.
-    if (g.heartTimer == null) {
-      const tick = () => {
-        const cur = petGestureRef.current;
-        if (!cur) return;
-        burstHearts(cur.cx, cur.cy + 30, 2);
-      };
-      tick();
-      g.heartTimer = window.setInterval(tick, 380);
+    // Keep petting and rewards enabled on iOS while avoiding the repeating
+    // particle timers that originally made the low-memory mode expensive.
+    if (!safeMode) {
+      if (g.heartTimer == null) {
+        const tick = () => {
+          const cur = petGestureRef.current;
+          if (!cur) return;
+          burstHearts(cur.cx, cur.cy + 30, 2);
+        };
+        tick();
+        g.heartTimer = window.setInterval(tick, 380);
+      }
+      if (g.sparkleTimer == null) {
+        const sparkleTick = () => {
+          const cur = petGestureRef.current;
+          if (!cur) return;
+          const ringAngle = Math.random() * Math.PI * 2;
+          const ringR = 60 + Math.random() * 40;
+          burstSparkles(cur.cx + Math.cos(ringAngle) * ringR, cur.cy + Math.sin(ringAngle) * ringR, 6);
+        };
+        sparkleTick();
+        g.sparkleTimer = window.setInterval(sparkleTick, 180);
+      }
     }
-    if (g.sparkleTimer == null) {
-      const sparkleTick = () => {
-        const cur = petGestureRef.current;
-        if (!cur) return;
-        // Burst from a slight ring around the pet so sparkles trace the petting motion.
-        const ringAngle = Math.random() * Math.PI * 2;
-        const ringR    = 60 + Math.random() * 40;
-        burstSparkles(cur.cx + Math.cos(ringAngle) * ringR, cur.cy + Math.sin(ringAngle) * ringR, 6);
-      };
-      sparkleTick();
-      g.sparkleTimer = window.setInterval(sparkleTick, 180);
-    }
-    // If circling stops for 350ms, drop the bounce/hearts/sparkles.
     if (g.circleResetTimer != null) window.clearTimeout(g.circleResetTimer);
     g.circleResetTimer = scheduleTimeout(() => {
       const cur = petGestureRef.current;
@@ -2482,7 +2495,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       }
       setPetCircling(false);
     }, 350);
-  }, [burstHearts, burstSparkles]);
+  }, [burstHearts, burstSparkles, safeMode, scheduleTimeout]);
 
   const onPetPointerMove = useCallback((e: React.PointerEvent) => {
     const g = petGestureRef.current;
@@ -2621,15 +2634,25 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
 
   const feedMutation = useMutation({
     mutationFn: async ({ itemInventoryId, quantity = 1 }: { itemInventoryId: string; quantity?: number }) => {
-      return await apiRequest("POST", `/api/pet/${pet.inventoryId}/feed-edible`, { itemInventoryId, quantity });
+      const res = await apiRequest("POST", `/api/pet/${pet.inventoryId}/feed-edible`, { itemInventoryId, quantity });
+      return await res.json();
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (data: any, variables) => {
       recordPhase("mutation-success-received");
       setSelectedCareItem(null);
       playPlop();
-      qc.invalidateQueries({ queryKey: ["/api/inventory"] });
-      qc.invalidateQueries({ queryKey: ["/api/quests/daily"] });
-      // Glow + bounce + sparkles + floating text on successful feed.
+      // The feed endpoint returns the updated pet. Merge it into the inventory
+      // cache immediately so Hunger and Mood move before the refetch completes.
+      if (data && typeof data === "object" && pet?.inventoryId) {
+        qc.setQueryData(["/api/inventory"], (payload: unknown) => {
+          if (!Array.isArray(payload)) return payload;
+          return payload.map((entry: any) =>
+            entry?.id === pet.inventoryId ? { ...entry, ...data } : entry
+          );
+        });
+      }
+      void qc.invalidateQueries({ queryKey: ["/api/inventory"] });
+      void qc.invalidateQueries({ queryKey: ["/api/quests/daily"] });
       recordPhase("success-visual-started");
       if (!safeMode) {
         setPetGlow(true);
@@ -2639,7 +2662,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       }
       const fed = inventory.find((it) => it.id === variables.itemInventoryId);
       const qty = variables.quantity ?? 1;
-      const amount = (fed?.statBoostAmount ?? 5) * qty;
+      const amount = Number(data?.totalFeedPoints) || (fed?.statBoostAmount ?? 5) * qty;
       const id = ++floatIdRef.current;
       const box = petBoxRef.current?.getBoundingClientRect();
       const cx = box ? box.left + box.width / 2 : window.innerWidth / 2;
@@ -3027,10 +3050,10 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           outline: safeMode && selectedCareItem ? "1px solid rgba(255,215,0,0.6)" : "none",
           touchAction: "none",
         }}
-        onPointerDown={safeMode ? undefined : onPetPointerDown}
-        onPointerMove={safeMode ? undefined : onPetPointerMove}
-        onPointerUp={safeMode ? undefined : endPetGesture}
-        onPointerCancel={safeMode ? undefined : endPetGesture}
+        onPointerDown={onPetPointerDown}
+        onPointerMove={onPetPointerMove}
+        onPointerUp={endPetGesture}
+        onPointerCancel={endPetGesture}
         onClick={applySelectedCareItem}
         data-testid="drop-zone-feed-pet"
       >
@@ -3061,18 +3084,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           }
           style={{ width: "100%", height: "100%" }}
         >
-          {safeMode && (pet.hatchedImageUrl || pet.imageUrl) ? (
-            <img
-              className="pet-care-safe-static-pet"
-              src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
-              alt={pet.nickname ?? pet.name}
-              draggable={false}
-              style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }}
-            />
-          ) : pet.petTemplateId ? (
+          {pet.petTemplateId ? (
             <PetAnimator
               petTemplateId={pet.petTemplateId}
-              mode={safeMode ? "static" : "idle"}
+              mode="idle"
+              view="front"
               size={300}
               fillContainer
               performanceStatic={safeMode}

@@ -72,3 +72,17 @@ test("Pet Care meters clamp finite percentages and use separate responsive scene
   assert.match(css, /--pet-care-hunger-bottom:[^;]*env\(safe-area-inset-bottom/);
   assert.match(css, /height: 100dvh/);
 });
+
+
+test("Pet Care hunger follows the server care-stat scale and updates from feed responses", () => {
+  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const css = readFileSync("client/src/index.css", "utf8");
+  assert.match(page, /const maxHunger = 1000;/);
+  assert.doesNotMatch(page, /maxHunger = Number\.isFinite\(petHealth\)/);
+  const feed = page.slice(page.indexOf("const feedMutation"), page.indexOf("const updateDragGhostPosition"));
+  assert.match(feed, /return await res\.json\(\)/);
+  assert.match(feed, /qc\.setQueryData\(\["\/api\/inventory"\]/);
+  assert.match(feed, /totalFeedPoints/);
+  assert.match(css, /width: min\(calc\(100% - var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\), 390px\)/);
+  assert.match(css, /transform: translateX\(calc\(\(var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\) \/ 2\)\)/);
+});

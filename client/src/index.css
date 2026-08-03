@@ -781,9 +781,10 @@
 .pet-care-inventory-section .pet-care-hunger {
   position: relative;
   inset: auto;
-  width: min(88%, 430px);
+  width: min(calc(100% - var(--pet-care-usable-left) - var(--pet-care-scene-right)), 390px);
   margin: 0 auto clamp(16px, 2.5dvh, 24px);
   padding: 0;
+  transform: translateX(calc((var(--pet-care-usable-left) - var(--pet-care-scene-right)) / 2));
 }
 
 .pet-care-inventory-section .pet-care-hunger .pet-care-meter {
