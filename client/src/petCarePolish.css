@@ -32,15 +32,37 @@
     translateY(-7px);
 }
 
-/* Normal shelf artwork remains in its authored order. The actual item artwork
-   is promoted to the document layer only while an upward drag is active. */
 .pet-care-overlay .pet-care-item-shelf {
   position: relative;
 }
 
+/* During an upward item drag, raise only the inventory layer involved in the
+   gesture. The original artwork stays in React's DOM and is positioned by a
+   compositor-only transform, avoiding a second visible image and avoiding DOM
+   reparenting on mobile Safari. */
+body.pet-care-native-item-dragging .pet-care-inventory-section {
+  z-index: 30 !important;
+}
+
+body.pet-care-native-item-dragging .pet-care-item-shelf--native-dragging {
+  z-index: 31;
+}
+
+body.pet-care-native-item-dragging .pet-care-item-shelf__viewport {
+  overflow: visible !important;
+}
+
+body.pet-care-native-item-dragging .pet-care-native-source-item,
+body.pet-care-native-item-dragging .pet-care-native-source-item:active {
+  z-index: 10040;
+  transform: none !important;
+  filter: none !important;
+}
+
 .pet-care-native-drag-artwork {
   position: fixed !important;
-  inset: auto !important;
+  right: auto !important;
+  bottom: auto !important;
   margin: 0 !important;
   z-index: 10050 !important;
   pointer-events: none !important;
@@ -48,21 +70,14 @@
   transition: none !important;
   animation: none !important;
   will-change: transform;
-  contain: layout paint style;
   filter: drop-shadow(0 7px 12px rgba(0, 0, 0, 0.68));
 }
 
-/* React retains its lightweight drag ghost as a safe fallback. Once the real
-   shelf artwork has been promoted, hide that fallback so players see one item
-   rather than a duplicate. */
+/* React retains its lightweight drag ghost as a fallback. Hide it only once
+   the real shelf artwork is actively following the pointer. */
 body.pet-care-native-item-dragging .pet-care-drag-ghost__image {
   visibility: hidden !important;
   opacity: 0 !important;
-}
-
-body.pet-care-native-item-dragging .pet-care-item-shelf__item:active {
-  transform: none;
-  filter: none;
 }
 
 body.pet-care-native-item-dragging .pet-care-pet {
