@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Fish, UserCheck, UserPlus } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import petHouseIcon from "@assets/icon_pet_house.png";
 import RoleBadge from "@/components/RoleBadge";
+import { AquariumPage } from "@/pages/AquariumPage";
 
 interface PvpStats {
   wins: number;
@@ -77,13 +79,51 @@ function RarityStars({ rarity }: { rarity: number | null }) {
   );
 }
 
-function StatPill({ label, value, color }: { label: string; value: number; color: string }) {
+function CompanionStat({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="flex items-center gap-1 px-2 py-0.5 rounded-full"
-      style={{ background: "rgba(0,0,0,0.35)", border: `1px solid ${color}44` }}>
-      <span style={{ color, fontSize: 9, fontWeight: 700, letterSpacing: "0.04em" }}>{label}</span>
-      <span className="font-fantasy" style={{ color: "#f0e8d0", fontSize: 10 }}>{value}</span>
+    <div className="flex min-w-0 flex-1 items-baseline justify-center gap-1.5 px-1 first:pl-0 last:pr-0">
+      <span style={{ color, fontSize: 8, fontWeight: 700, letterSpacing: "0.08em" }}>{label}</span>
+      <span className="font-fantasy tabular-nums" style={{ color: "#e8ddc5", fontSize: 10 }}>{value}</span>
     </div>
+  );
+}
+
+function ActionTile({
+  icon,
+  label,
+  accent,
+  onClick,
+  disabled = false,
+  testId,
+}: {
+  icon: ReactNode;
+  label: string;
+  accent: string;
+  onClick: () => void;
+  disabled?: boolean;
+  testId: string;
+}) {
+  return (
+    <button
+      data-testid={testId}
+      onClick={onClick}
+      disabled={disabled}
+      className="group flex min-h-[66px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1.5 py-2 transition-transform active:scale-[0.97] disabled:active:scale-100"
+      style={{
+        background: `linear-gradient(180deg, ${accent}12, ${accent}08)`,
+        border: `1px solid ${accent}30`,
+        borderBottomColor: `${accent}80`,
+        color: accent,
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.58 : 1,
+        WebkitTapHighlightColor: "transparent",
+      }}
+    >
+      <span className="flex h-6 items-center justify-center" aria-hidden="true">{icon}</span>
+      <span className="w-full truncate text-center font-fantasy text-[9px] font-medium leading-tight tracking-[0.04em]">
+        {label}
+      </span>
+    </button>
   );
 }
 
@@ -91,6 +131,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
   const { toast } = useToast();
   const isSelf = !!currentUserId && currentUserId === userId;
   const [comingSoon, setComingSoon] = useState(false);
+  const [showAquarium, setShowAquarium] = useState(false);
   const [accessoryDetail, setAccessoryDetail] = useState<EquippedAcc | null>(null);
 
   const { data: profile, isLoading, isError } = useQuery<PublicProfile>({
@@ -220,6 +261,10 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
   };
   const fb = getFriendBtn();
 
+  if (showAquarium) {
+    return <AquariumPage userId={userId} readOnly onClose={() => setShowAquarium(false)} />;
+  }
+
   return (
     <div
       data-testid="overlay-player-detail"
@@ -271,10 +316,10 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
         )}
 
         {profile && (
-          <div className="px-5 pb-8 pt-2 flex flex-col gap-4">
+          <div className="px-5 pb-8 pt-2 flex flex-col gap-5">
 
             {/* Profile picture + name — centered */}
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-2 pb-1">
               <div className="rounded-xl overflow-hidden flex-shrink-0"
                 style={{ width: 72, height: 72, border: "2.5px solid #c9a030", boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5)" }}>
                 {profile.profileImage ? (
@@ -288,7 +333,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2 flex-wrap justify-center">
+              <div className="flex flex-col items-center gap-1">
                 <p className="font-fantasy text-lg font-semibold tracking-wide" style={{ color: "#f0c040" }} data-testid="text-player-username">
                   {profile.username}
                 </p>
@@ -298,8 +343,8 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
 
             {/* PvP rank stats — shown only from PvP leaderboard */}
             {pvpStats && (
-              <div className="rounded-2xl p-3 flex items-stretch justify-around gap-2"
-                style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(40,15,80,0.32))", border: "1px solid rgba(167,139,250,0.32)" }}
+              <div className="flex items-stretch justify-around gap-2 border-y py-3"
+                style={{ borderColor: "rgba(167,139,250,0.18)" }}
                 data-testid="section-pvp-rank-stats">
                 <div className="flex flex-col items-center justify-center px-2">
                   <span className="font-fantasy text-[8px] tracking-[0.18em] uppercase" style={{ color: "#a78bfa" }}>Wins</span>
@@ -351,8 +396,8 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
               {profile.activePet ? (
                 <>
                   {/* Pet image (large, no box) + info to the right */}
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 flex items-center justify-center" style={{ width: 100, height: 100 }} data-testid="img-active-pet">
+                  <div className="flex items-start gap-3 sm:gap-4">
+                    <div className="flex h-[92px] w-[88px] flex-shrink-0 items-center justify-center min-[380px]:h-[104px] min-[380px]:w-[104px]" data-testid="img-active-pet">
                       {petImg ? (
                         <img src={petImg} alt="" className="w-full h-full object-contain"
                           style={{ filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.75))" }} />
@@ -371,12 +416,13 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                           ({profile.activePet.name})
                         </p>
                       )}
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-2">
                         <RarityStars rarity={profile.activePet.rarity} />
-                        <span className="font-fantasy text-[10px] px-2 py-0.5 rounded-full"
-                          style={{ background: "rgba(127,191,176,0.15)", border: "1px solid rgba(127,191,176,0.3)", color: "#7fbfb0" }}
+                        <span aria-hidden="true" style={{ color: "rgba(168,152,120,0.35)", fontSize: 9 }}>•</span>
+                        <span className="font-fantasy text-[9px]"
+                          style={{ color: "rgba(127,191,176,0.8)" }}
                           data-testid="text-active-pet-level">
-                          Lv.{profile.activePet.petLevel}
+                          Lv. {profile.activePet.petLevel}
                         </span>
                       </div>
                       {profile.activePet.specialSkill && (
@@ -384,45 +430,44 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                           ✦ {profile.activePet.specialSkill}
                         </p>
                       )}
-                      <div className="flex flex-wrap gap-1.5 mt-0.5">
-                        <StatPill label="HP" value={profile.activePet.petHealth} color="#f87171" />
-                        <StatPill label="ATK" value={profile.activePet.petAtk} color="#fb923c" />
-                        <StatPill label="DEF" value={profile.activePet.petDef} color="#60a5fa" />
+                      <div className="mt-1 flex w-full min-w-0 items-center divide-x" style={{ borderColor: "rgba(168,152,120,0.2)" }}>
+                        <CompanionStat label="HP" value={profile.activePet.petHealth} color="#d97878" />
+                        <CompanionStat label="ATK" value={profile.activePet.petAtk} color="#df925d" />
+                        <CompanionStat label="DEF" value={profile.activePet.petDef} color="#719acb" />
                       </div>
                     </div>
                   </div>
 
                   {/* Equipped accessories — image-only thumbnails, tap for detail */}
                   {equippedAccessories.length > 0 && (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-1.5">
                       <p className="font-fantasy text-[10px] tracking-widest uppercase" style={{ color: "rgba(192,132,252,0.6)" }}>
                         Equipped
                       </p>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         {equippedAccessories.map((acc, i) => (
                           <button
                             key={acc.id ?? acc.accessoryInventoryId ?? i}
                             onClick={() => setAccessoryDetail(acc)}
                             data-testid={`button-acc-${i}`}
+                            className="flex h-12 w-12 items-center justify-center rounded-full transition-colors active:bg-purple-300/10"
                             style={{
-                              width: 44, height: 44,
-                              padding: 4,
-                              borderRadius: 10,
-                              background: "rgba(192,132,252,0.1)",
-                              border: "1.5px solid rgba(192,132,252,0.3)",
+                              padding: 6,
+                              background: "transparent",
+                              border: "none",
                               cursor: "pointer",
-                              display: "flex", alignItems: "center", justifyContent: "center",
                               WebkitTapHighlightColor: "transparent",
                             }}
                           >
                             {acc.imageUrl ? (
-                              <img src={acc.imageUrl} alt={acc.name} style={{ width: 32, height: 32, objectFit: "contain" }} />
+                              <img src={acc.imageUrl} alt={acc.name} style={{ width: 34, height: 34, objectFit: "contain", filter: "drop-shadow(0 2px 5px rgba(192,132,252,0.28)) drop-shadow(0 2px 3px rgba(0,0,0,0.8))" }} />
                             ) : (
-                              <span style={{ fontSize: 18 }}>✦</span>
+                              <span aria-label={`${acc.name} artwork unavailable`} style={{ fontSize: 18, color: "rgba(192,132,252,0.5)", filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.8))" }}>✦</span>
                             )}
                           </button>
                         ))}
                       </div>
+                      <div className="h-px w-full" style={{ background: "linear-gradient(90deg, rgba(192,132,252,0.2), transparent)" }} />
                     </div>
                   )}
                 </>
@@ -436,45 +481,31 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
 
             {/* Action buttons — hidden when viewing own card */}
             {!isSelf && (
-              <div className="flex flex-col gap-2">
-                {/* Add Friend / Sent / Friends / Accept */}
-                <button
-                  data-testid="button-add-friend"
-                  onClick={fb.action}
-                  disabled={fb.disabled || anyMutationPending}
-                  style={{
-                    width: "100%", padding: "11px 0", borderRadius: 10,
-                    background: fb.pushed ? "rgba(8,8,8,0.55)" : fb.bg,
-                    border: `1.5px solid ${fb.border}`,
-                    color: fb.color,
-                    fontFamily: "Lora, serif", fontSize: 12, letterSpacing: "0.1em",
-                    cursor: (fb.disabled || anyMutationPending) ? "default" : "pointer",
-                    boxShadow: fb.pushed ? "inset 0 2px 6px rgba(0,0,0,0.6)" : "none",
-                    WebkitTapHighlightColor: "transparent",
-                    transition: "opacity 0.15s",
-                  }}
-                >
-                  {anyMutationPending ? "…" : fb.label}
-                </button>
-
-                {/* Visit Pet Home — uses actual game house icon */}
-                <button
-                  data-testid="button-visit-pethouse"
-                  onClick={() => setComingSoon(true)}
-                  style={{
-                    width: "100%", padding: "10px 0", borderRadius: 10,
-                    background: "rgba(15,50,30,0.5)",
-                    border: "1.5px solid rgba(74,222,128,0.35)",
-                    color: "#86efac",
-                    fontFamily: "Lora, serif", fontSize: 12, letterSpacing: "0.1em",
-                    cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                    WebkitTapHighlightColor: "transparent",
-                  }}
-                >
-                  <img src={petHouseIcon} alt="" style={{ width: 20, height: 20, objectFit: "contain", opacity: 0.85 }} />
-                  Visit Pet Home
-                </button>
+              <div className="flex flex-col gap-3 border-t pt-4" style={{ borderColor: "rgba(212,160,23,0.14)" }}>
+                <div className="grid w-full grid-cols-3 gap-2">
+                  <ActionTile
+                    testId="button-add-friend"
+                    onClick={fb.action}
+                    disabled={fb.disabled || anyMutationPending}
+                    accent={fb.pushed ? "#b49a61" : "#72bd78"}
+                    icon={friendStatus?.status === "accepted" ? <UserCheck size={20} /> : <UserPlus size={20} />}
+                    label={anyMutationPending ? "…" : fb.label}
+                  />
+                  <ActionTile
+                    testId="button-visit-pethouse"
+                    onClick={() => setComingSoon(true)}
+                    accent="#6fa977"
+                    icon={<img src={petHouseIcon} alt="" className="h-6 w-6 object-contain opacity-80" />}
+                    label="Pet Home"
+                  />
+                  <ActionTile
+                    testId="button-view-aquarium"
+                    onClick={() => setShowAquarium(true)}
+                    accent="#63b7ac"
+                    icon={<Fish size={21} />}
+                    label="Aquarium"
+                  />
+                </div>
 
                 {/* Remove Friend — only shown from the Friends page when already friends */}
                 {onRemoveFriend && friendStatus?.status === "accepted" && (
@@ -482,12 +513,12 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                     data-testid="button-remove-friend"
                     onClick={() => removeFriendMutation.mutate()}
                     disabled={removeFriendMutation.isPending}
+                    className="mx-auto min-h-10 px-4 py-2"
                     style={{
-                      width: "100%", padding: "10px 0", borderRadius: 10,
-                      background: "rgba(60,10,10,0.55)",
-                      border: "1.5px solid rgba(248,113,113,0.35)",
+                      background: "transparent",
+                      border: "none",
                       color: "#f87171",
-                      fontFamily: "Lora, serif", fontSize: 12, letterSpacing: "0.1em",
+                      fontFamily: "Lora, serif", fontSize: 10, letterSpacing: "0.08em",
                       cursor: removeFriendMutation.isPending ? "default" : "pointer",
                       WebkitTapHighlightColor: "transparent",
                       opacity: removeFriendMutation.isPending ? 0.5 : 1,
