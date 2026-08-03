@@ -19,11 +19,13 @@ test("Pet Care drags the original shelf artwork above the UI", () => {
   const css = readFileSync("client/src/petCarePolish.css", "utf8");
 
   assert.match(drag, /querySelector<HTMLElement>\("\.pet-care-item-shelf__visible-artwork"\)/);
-  assert.match(drag, /document\.body\.appendChild\(drag\.artwork\)/);
+  assert.doesNotMatch(drag, /appendChild\(drag\.artwork\)/);
+  assert.match(drag, /findFixedContainingBlock/);
   assert.match(drag, /requestAnimationFrame/);
   assert.match(drag, /translate3d/);
   assert.match(drag, /Horizontal movement belongs to the shelf's native scroller/);
-  assert.match(drag, /drag\.marker\.parentNode\.insertBefore\(drag\.artwork, drag\.marker\)/);
-  assert.match(css, /\.pet-care-native-drag-artwork[\s\S]*?z-index: 10050/);
+  assert.match(drag, /drag\.artwork\.classList\.add\("pet-care-native-drag-artwork"\)/);
+  assert.match(css, /body\.pet-care-native-item-dragging \.pet-care-inventory-section[\s\S]*?z-index: 30/);
+  assert.match(css, /\.pet-care-native-drag-artwork[\s\S]*?position: fixed[\s\S]*?z-index: 10050/);
   assert.match(css, /body\.pet-care-native-item-dragging \.pet-care-drag-ghost__image[\s\S]*?visibility: hidden/);
 });
