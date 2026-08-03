@@ -333,7 +333,7 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
 
             {/* PvP-style identity row with profile actions kept beside the name. */}
             <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-3 pb-1 pr-11" data-testid="player-identity-row">
-              <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="flex min-w-0 items-center flex-1 gap-3">
                 <div className="flex aspect-square flex-shrink-0 items-center justify-center"
                 style={{ width: "clamp(66px, 18vw, 78px)", background: "linear-gradient(145deg, #f2d574, #8d6416)", clipPath: OCTAGON_CLIP_PATH, filter: "drop-shadow(0 3px 6px rgba(0,0,0,0.65)) drop-shadow(0 0 5px rgba(201,160,48,0.32))" }}>
                 <div className="aspect-square overflow-hidden"
