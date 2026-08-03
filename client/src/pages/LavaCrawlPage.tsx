@@ -3,6 +3,8 @@ import { useLocation as useWouter } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import WorldLoadingScreen from "@/components/WorldLoadingScreen";
+import PlayerAvatarButton from "@/components/PlayerAvatarButton";
+import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import lavaCrawlTitleImg from "@assets/lava_crawl_title.webp";
 import btnPlayImg from "@assets/lava_crawl_btn_play.webp";
 import btnLeaderboardImg from "@assets/lava_crawl_btn_leaderboard.webp";
@@ -352,7 +354,8 @@ export default function LavaCrawlPage() {
   const [showLoadingScreen, setShowLoadingScreen] = useState(true);
 
   // Get active pet's hatched image for the player sprite
-  const { data: authMe } = useQuery<{ activePetId: string | null }>({ queryKey: ["/api/auth/me"] });
+  const { data: authMe } = useQuery<{ id: string; activePetId: string | null }>({ queryKey: ["/api/auth/me"] });
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const { data: inventoryItems } = useQuery<Array<{ inventoryId: string; type: string; hatchedImageUrl: string | null; imageUrl: string | null; petLevel?: number | null }>>({
     queryKey: ["/api/inventory"],
     enabled: !!authMe?.activePetId,
@@ -1659,14 +1662,16 @@ export default function LavaCrawlPage() {
                           : i === 2 ? <img src={trophy3rd} alt="3rd" style={{ width: 20, height: 20, objectFit: "contain" }} />
                           : <span style={{ color: "rgba(255,208,128,0.7)", fontFamily: "monospace", fontSize: "12px" }}>{i + 1}.</span>}
                       </span>
-                      {row.profile_image ? (
-                        <img src={row.profile_image} alt="" draggable={false}
-                          style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,160,60,0.5)" }} />
-                      ) : (
-                        <div style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(255,100,30,0.35)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: "1px solid rgba(255,160,60,0.3)" }}>
-                          <span style={{ color: "#ffd080", fontSize: "10px", fontFamily: "monospace", fontWeight: "bold" }}>{(row.username?.[0] ?? "?").toUpperCase()}</span>
-                        </div>
-                      )}
+                      <PlayerAvatarButton userId={row.user_id} username={row.username} onSelectPlayer={setSelectedPlayerId} testId={`button-lava-avatar-${row.user_id}`}>
+                        {row.profile_image ? (
+                          <img src={row.profile_image} alt="" draggable={false}
+                            style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,160,60,0.5)" }} />
+                        ) : (
+                          <span style={{ width: 22, height: 22, borderRadius: "50%", background: "rgba(255,100,30,0.35)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: "1px solid rgba(255,160,60,0.3)" }}>
+                            <span style={{ color: "#ffd080", fontSize: "10px", fontFamily: "monospace", fontWeight: "bold" }}>{(row.username?.[0] ?? "?").toUpperCase()}</span>
+                          </span>
+                        )}
+                      </PlayerAvatarButton>
                       <span style={{ flex: 1, color: "#ffd080", fontFamily: "monospace", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.username}</span>
                       <span style={{ color: "#ff8800", fontFamily: "monospace", fontSize: "12px", fontWeight: "bold" }}>{row.best_score}</span>
                     </div>
@@ -1684,6 +1689,9 @@ export default function LavaCrawlPage() {
             </div>
           </div>
         </div>
+      )}
+      {selectedPlayerId && authMe?.id && (
+        <PlayerDetailPanel userId={selectedPlayerId} currentUserId={authMe.id} onClose={() => setSelectedPlayerId(null)} zIndex={10050} />
       )}
     </div>
   );

@@ -13,6 +13,8 @@ import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png
 import PetAnimator from "@/components/PetAnimator";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import { AquariumPage } from "@/pages/AquariumPage";
+import PlayerAvatarButton from "@/components/PlayerAvatarButton";
+import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
 import coinIconImg from "@assets/icon_coin.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
@@ -538,6 +540,7 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
   }, [user.isAdmin]);
 
   const [selectedPet, setSelectedPet] = useState<WorldActivePet | null>(null);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
 
   // ── Joystick / walking state ────────────────────────────────────────────────
   const [localPetPos,    setLocalPetPos]    = useState<{ x: number; y: number } | null>(null);
@@ -2104,16 +2107,16 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       border: "1px solid rgba(127,255,212,0.12)",
                     }}
                   >
-                    <div style={{ flexShrink: 0 }}>
+                    <PlayerAvatarButton userId={req.requesterId} username={req.username} onSelectPlayer={setSelectedPlayerId} testId={`button-world-request-avatar-${req.id}`}>
                       {req.profileImage ? (
-                        <img src={req.profileImage} alt={req.username}
+                        <img src={req.profileImage} alt=""
                           style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(127,255,212,0.3)" }} />
                       ) : (
-                        <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(127,255,212,0.1)", border: "1px solid rgba(127,255,212,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <span style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(127,255,212,0.1)", border: "1px solid rgba(127,255,212,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <span style={{ fontSize: 12, color: ACCENT, fontWeight: "bold" }}>{(req.username ?? "?").charAt(0).toUpperCase()}</span>
-                        </div>
+                        </span>
                       )}
-                    </div>
+                    </PlayerAvatarButton>
                     <span className="font-fantasy text-xs" style={{ color: "#d4e8da", flex: 1 }} data-testid={`text-request-username-${req.id}`}>{req.username}</span>
                     <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                       <button
@@ -2168,16 +2171,16 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
                       border: "1px solid rgba(127,255,212,0.1)",
                     }}
                   >
-                    <div style={{ flexShrink: 0 }}>
+                    <PlayerAvatarButton userId={f.friendId} username={f.username} onSelectPlayer={setSelectedPlayerId} testId={`button-world-friend-avatar-${f.friendId}`}>
                       {f.profileImage ? (
-                        <img src={f.profileImage} alt={f.username}
+                        <img src={f.profileImage} alt=""
                           style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(212,160,23,0.35)" }} />
                       ) : (
-                        <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(212,160,23,0.1)", border: "1px solid rgba(212,160,23,0.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <span style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(212,160,23,0.1)", border: "1px solid rgba(212,160,23,0.35)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <span style={{ fontSize: 12, color: "#d4a017", fontWeight: "bold" }}>{(f.username ?? "?").charAt(0).toUpperCase()}</span>
-                        </div>
+                        </span>
                       )}
-                    </div>
+                    </PlayerAvatarButton>
                     <span className="font-fantasy text-xs flex-1 truncate" style={{ color: "#d4e8da" }} data-testid={`text-friend-username-${f.friendId}`}>{f.username}</span>
                     <button
                       data-testid={`button-remove-friend-${f.friendId}`}
@@ -3437,7 +3440,11 @@ export default function PetWorldPage({ user, onClose }: PetWorldPageProps) {
           pet={selectedPet}
           currentUserId={user.id}
           onClose={() => setSelectedPet(null)}
+          onSelectPlayer={setSelectedPlayerId}
         />
+      )}
+      {selectedPlayerId && (
+        <PlayerDetailPanel userId={selectedPlayerId} currentUserId={user.id} onClose={() => setSelectedPlayerId(null)} zIndex={10050} />
       )}
 
       {/* User profile / settings panel */}
@@ -3460,10 +3467,12 @@ function PetDetailModal({
   pet,
   currentUserId,
   onClose,
+  onSelectPlayer,
 }: {
   pet: WorldActivePet;
   currentUserId: string;
   onClose: () => void;
+  onSelectPlayer: (userId: string) => void;
 }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -3592,13 +3601,13 @@ function PetDetailModal({
 
           {/* Owner row */}
           <div className="flex flex-col items-center gap-2">
-            <div style={{ width: 52, height: 52, borderRadius: "50%", border: "2.5px solid rgba(212,160,23,0.55)", overflow: "hidden", background: "rgba(212,160,23,0.12)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <PlayerAvatarButton userId={pet.userId} username={pet.username} onSelectPlayer={onSelectPlayer} testId={`button-world-pet-owner-${pet.userId}`} style={{ width: 52, height: 52, borderRadius: "50%", border: "2.5px solid rgba(212,160,23,0.55)", overflow: "hidden", background: "rgba(212,160,23,0.12)" }}>
               {pet.profileImage ? (
-                <img src={pet.profileImage} alt={pet.username} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <img src={pet.profileImage} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
                 <span style={{ fontSize: 20, color: "#d4a017", fontWeight: "bold" }}>{(pet.username ?? "?").charAt(0).toUpperCase()}</span>
               )}
-            </div>
+            </PlayerAvatarButton>
             <span className="font-fantasy text-sm" style={{ color: "#d4a017", textShadow: "0 0 10px rgba(212,160,23,0.35)" }} data-testid="text-pet-detail-owner">{pet.username}</span>
           </div>
 

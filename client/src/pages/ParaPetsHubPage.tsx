@@ -5,6 +5,7 @@ import { ChevronDown, X, Eye, EyeOff, Loader2, Maximize2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
+import PlayerAvatarButton from "@/components/PlayerAvatarButton";
 
 import heroBanner        from "@assets/hub_hero_banner.png";
 import mascot            from "@assets/Photoroom_20260502_90936_AM_1777731667331.png";
@@ -1198,22 +1199,12 @@ function useSeoMeta() {
 // ─────────────────────────────────────────────────────────────────────────────
 type LeaderboardEntry = { rank: number; userId: string; username: string; profileImage: string | null; isModerator?: boolean; points: number };
 
-function ContributionLeaderboard() {
+function ContributionLeaderboard({ currentUserId, onSelectPlayer }: { currentUserId?: string; onSelectPlayer: (userId: string) => void }) {
   const { data: entries = [], isLoading } = useQuery<LeaderboardEntry[]>({
     queryKey: ["/api/public/leaderboard"],
     staleTime: 60_000,
     retry: false,
   });
-
-  // Same player card the world chat opens. Only logged-in viewers can open it
-  // (the profile endpoint requires auth), and never your own avatar.
-  const { data: viewer } = useQuery<{ id: string } | null>({
-    queryKey: ["/api/auth/me"],
-    retry: false,
-    staleTime: 30_000,
-  });
-  const currentUserId = viewer?.id;
-  const [viewingPlayerId, setViewingPlayerId] = useState<string | null>(null);
 
   if (isLoading) return (
     <div className="flex justify-center py-8">
@@ -1274,18 +1265,16 @@ function ContributionLeaderboard() {
               </span>
 
               {/* Avatar — opens the same player card the world chat does */}
-              {(() => {
-                const canView = !!currentUserId && currentUserId !== e.userId && !!e.userId;
-                return (
-                  <div
-                    data-testid={`button-leaderboard-avatar-${e.rank}`}
-                    onClick={() => canView && setViewingPlayerId(e.userId)}
+              <PlayerAvatarButton
+                    userId={e.userId}
+                    username={e.username}
+                    onSelectPlayer={currentUserId ? onSelectPlayer : undefined}
+                    testId={`button-leaderboard-avatar-${e.rank}`}
                     style={{
                       width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
                       overflow: "hidden",
                       border: `1.5px solid ${isTop3 ? rankColor + "60" : "rgba(212,168,67,0.12)"}`,
                       background: "rgba(10,18,14,0.8)",
-                      cursor: canView ? "pointer" : "default",
                     }}>
                     {e.profileImage ? (
                       <img src={e.profileImage} alt={e.username}
@@ -1300,9 +1289,7 @@ function ContributionLeaderboard() {
                         {e.username[0]?.toUpperCase()}
                       </div>
                     )}
-                  </div>
-                );
-              })()}
+              </PlayerAvatarButton>
 
               {/* Username + optional mod badge */}
               <div className="flex items-center gap-1.5 flex-1 min-w-0">
@@ -1335,13 +1322,6 @@ function ContributionLeaderboard() {
         })}
       </div>
 
-      {viewingPlayerId && (
-        <PlayerDetailPanel
-          userId={viewingPlayerId}
-          currentUserId={currentUserId}
-          onClose={() => setViewingPlayerId(null)}
-        />
-      )}
     </div>
   );
 }
@@ -1349,6 +1329,7 @@ function ContributionLeaderboard() {
 export default function ParaPetsHubPage() {
   useSeoMeta();
   const [showSignIn, setShowSignIn] = useState(false);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [showClaimHint, setShowClaimHint] = useState(() =>
     new URLSearchParams(window.location.search).get("claimHint") === "1"
   );
@@ -1510,7 +1491,7 @@ export default function ParaPetsHubPage() {
           <GoldDivider />
 
           {/* ── Realm Benefactors leaderboard ─────────────────────────────── */}
-          <ContributionLeaderboard />
+          <ContributionLeaderboard currentUserId={user?.id} onSelectPlayer={setSelectedPlayerId} />
 
           <GoldDivider />
 
@@ -1574,7 +1555,10 @@ export default function ParaPetsHubPage() {
                       className="flex flex-col items-center gap-1.5"
                       style={{ minWidth: 72 }}
                     >
-                      <div
+                      <PlayerAvatarButton
+                        userId={member.id}
+                        username={member.username}
+                        onSelectPlayer={user?.id ? setSelectedPlayerId : undefined}
                         className="relative"
                         style={{
                           width: isAdmin ? 58 : 50,
@@ -1600,7 +1584,7 @@ export default function ParaPetsHubPage() {
                         )}
                         <div className="absolute inset-0 rounded-full pointer-events-none"
                           style={{ boxShadow: `inset 0 0 10px ${roleGlow}` }} />
-                      </div>
+                      </PlayerAvatarButton>
 
                       <p className="font-fantasy text-[10px] text-center tracking-wide"
                         style={{ color: roleColor, maxWidth: 76 }}
@@ -1618,8 +1602,8 @@ export default function ParaPetsHubPage() {
                     </div>
                   );
                 })}
-              </div>
-            </div>
+      </div>
+    </div>
           )}
 
           <GoldDivider />
@@ -1694,6 +1678,9 @@ export default function ParaPetsHubPage() {
 
         </main>
 
+        {selectedPlayerId && user?.id && (
+          <PlayerDetailPanel userId={selectedPlayerId} currentUserId={user.id} onClose={() => setSelectedPlayerId(null)} zIndex={10050} />
+        )}
         {showSignIn && (
           <SignInModal onClose={() => setShowSignIn(false)} onSuccess={handleSignInSuccess} />
         )}

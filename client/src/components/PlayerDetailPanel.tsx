@@ -20,6 +20,7 @@ interface PlayerDetailPanelProps {
   onClose: () => void;
   pvpStats?: PvpStats;
   onRemoveFriend?: () => void;
+  zIndex?: number;
 }
 
 interface ActivePet {
@@ -127,7 +128,7 @@ function ActionTile({
   );
 }
 
-export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpStats, onRemoveFriend }: PlayerDetailPanelProps) {
+export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpStats, onRemoveFriend, zIndex = 50 }: PlayerDetailPanelProps) {
   const { toast } = useToast();
   const isSelf = !!currentUserId && currentUserId === userId;
   const [comingSoon, setComingSoon] = useState(false);
@@ -268,8 +269,8 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
   return (
     <div
       data-testid="overlay-player-detail"
-      className="fixed inset-0 z-50 flex items-end justify-center"
-      style={{ background: "rgba(0,0,0,0.72)" }}
+      className="fixed inset-0 flex items-end justify-center"
+      style={{ background: "rgba(0,0,0,0.72)", zIndex }}
       onClick={onClose}
     >
       <div
