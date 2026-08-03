@@ -417,6 +417,17 @@
   overflow: hidden;
 }
 
+/* Route-local WebKit safe mode preserves authored geometry while removing
+   filters/transitions from the single pet subtree. Decorations are omitted in
+   JSX rather than hidden here, so they never allocate compositor layers. */
+.pet-care-overlay[data-pet-care-safe-mode="true"] .pet-care-pet,
+.pet-care-overlay[data-pet-care-safe-mode="true"] .pet-care-pet * {
+  filter: none !important;
+  backdrop-filter: none !important;
+  transition: none !important;
+  will-change: auto !important;
+}
+
 .pet-care-route-state {
   position: fixed;
   inset: 0;
