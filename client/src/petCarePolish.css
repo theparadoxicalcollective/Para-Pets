@@ -1,0 +1,83 @@
+/* Pet Care-only refinements. Kept separate from the main stylesheet so these
+   adjustments cannot change the layout or interaction model on other pages. */
+
+/* Keep the full Loyalty artwork inside the phone safe area. */
+.pet-care-overlay .pet-care-loyalty {
+  left: clamp(4px, 1.4vw, 10px);
+}
+
+/* Match the live Loyalty fill to the painted opening instead of leaving a
+   noticeably narrow strip down the middle of the frame. */
+.pet-care-overlay .pet-care-meter--vertical .pet-care-meter__track {
+  top: 19.4%;
+  bottom: 14.6%;
+  left: 40.5%;
+  width: 19%;
+}
+
+/* Leave a little more breathing room around the pet without changing the
+   shared meter artwork or the stat values behind it. */
+.pet-care-overlay .pet-care-mood .pet-care-meter {
+  width: min(72%, 380px);
+}
+
+.pet-care-overlay .pet-care-inventory-section .pet-care-hunger {
+  width: min(
+    calc(100% - var(--pet-care-usable-left) - var(--pet-care-scene-right)),
+    360px
+  );
+  margin-bottom: clamp(12px, 2dvh, 18px);
+  transform:
+    translateX(calc((var(--pet-care-usable-left) - var(--pet-care-scene-right)) / 2))
+    translateY(-7px);
+}
+
+/* Normal shelf artwork remains in its authored order. The actual item artwork
+   is promoted to the document layer only while an upward drag is active. */
+.pet-care-overlay .pet-care-item-shelf {
+  position: relative;
+}
+
+.pet-care-native-drag-artwork {
+  position: fixed !important;
+  inset: auto !important;
+  margin: 0 !important;
+  z-index: 10050 !important;
+  pointer-events: none !important;
+  touch-action: none !important;
+  transition: none !important;
+  animation: none !important;
+  will-change: transform;
+  contain: layout paint style;
+  filter: drop-shadow(0 7px 12px rgba(0, 0, 0, 0.68));
+}
+
+/* React retains its lightweight drag ghost as a safe fallback. Once the real
+   shelf artwork has been promoted, hide that fallback so players see one item
+   rather than a duplicate. */
+body.pet-care-native-item-dragging .pet-care-drag-ghost__image {
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+body.pet-care-native-item-dragging .pet-care-item-shelf__item:active {
+  transform: none;
+  filter: none;
+}
+
+body.pet-care-native-item-dragging .pet-care-pet {
+  transition: none !important;
+}
+
+@media (max-width: 390px) {
+  .pet-care-overlay .pet-care-mood .pet-care-meter {
+    width: min(70%, 350px);
+  }
+
+  .pet-care-overlay .pet-care-inventory-section .pet-care-hunger {
+    width: min(
+      calc(100% - var(--pet-care-usable-left) - var(--pet-care-scene-right)),
+      340px
+    );
+  }
+}
