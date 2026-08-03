@@ -71,7 +71,7 @@ test("shelf effect badges use the normalized wrapper while the full compartment 
   const shelf = page.slice(shelfStart, shelfEnd);
   assert.match(shelf, /pet-care-item-shelf__item/);
   assert.match(shelf, /pet-care-item-shelf__item--selected/);
-  assert.match(shelf, /onPointerDown=\{safeMode \? undefined : \(event\) => onItemPointerDown\(event, item\)\}/);
+  assert.match(shelf, /onPointerDown=\{dragEnabled \? \(event\) => onItemPointerDown\(event, item\) : undefined\}/);
   assert.match(shelf, /onClick=\{\(\) => onItemClick\(item\)\}/);
   assert.match(shelf, /pet-care-item-shelf__visible-artwork/);
   assert.match(shelf, /VisibleAssetImage/);
