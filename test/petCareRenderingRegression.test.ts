@@ -36,16 +36,24 @@ test("decorative meters retain live percentages without separate status boxes", 
   assert.match(page, /accessibleLabel=\{`Mood \$\{moodVal\} of 100, \$\{moodLabel\}`\}/);
 });
 
-test("the dynamic mood face is embedded in the Mood meter medallion", () => {
+test("the dynamic mood face is clipped inside the Mood meter medallion", () => {
   const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const css = readFileSync("client/src/index.css", "utf8");
   const moodMeter = page.slice(page.indexOf('frame={moodMeterFrame}'), page.indexOf('</PetCareAssetMeter>', page.indexOf('frame={moodMeterFrame}')));
+  assert.match(moodMeter, /pet-care-meter__mood-face-window/);
   assert.match(moodMeter, /pet-care-meter__mood-face/);
   assert.match(moodMeter, /data-testid="img-mood-face"/);
   assert.equal(page.match(/data-testid="img-mood-face"/g)?.length, 1);
+  assert.match(page, /moodFace = moodFaceHappy/);
+  assert.match(page, /moodFace = moodFaceHungry/);
+  assert.match(page, /moodFace = moodFaceSad/);
+  assert.match(page, /moodFace = moodFaceContent/);
+  assert.match(css, /\.pet-care-meter__mood-face-window[\s\S]*?overflow: hidden;[\s\S]*?border-radius: 50%;/);
+  assert.match(css, /\.pet-care-meter__mood-face \{[\s\S]*?padding: 0;[\s\S]*?transform: scale\(/);
   assert.doesNotMatch(page, /Mood face icon centered beneath/);
 });
 
-test("Pet Care meters clamp finite percentages and share an inset inner track", () => {
+test("Pet Care meters clamp finite percentages and use separate responsive scene zones", () => {
   const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
   const css = readFileSync("client/src/index.css", "utf8");
 
@@ -55,6 +63,12 @@ test("Pet Care meters clamp finite percentages and share an inset inner track", 
   assert.match(page, /Number\.isFinite\(rawLoyalty\)/);
   assert.match(css, /\.pet-care-meter--horizontal \.pet-care-meter__track[\s\S]*?overflow: hidden/);
   assert.match(css, /\.pet-care-meter--horizontal \.pet-care-meter__fill \{[\s\S]*?top: 6%;[\s\S]*?height: 88%/);
-  assert.match(css, /\.pet-care-meter--mood \{\s*width: 90%;/);
-  assert.match(css, /\.pet-care-meter__mood-face[\s\S]*?padding: 1\.6%;[\s\S]*?object-fit: contain/);
+  assert.match(page, /className="pet-care-mood" data-testid="pet-care-mood-zone"/);
+  assert.match(page, /className="pet-care-hunger" data-testid="pet-care-hunger-zone"/);
+  assert.doesNotMatch(page, /pet-care-status/);
+  assert.match(css, /\.pet-care-mood \{[\s\S]*?top: var\(--pet-care-mood-top\)/);
+  assert.match(css, /\.pet-care-hunger \{[\s\S]*?bottom: var\(--pet-care-hunger-bottom\)/);
+  assert.match(css, /--pet-care-mood-top:[^;]*env\(safe-area-inset-top/);
+  assert.match(css, /--pet-care-hunger-bottom:[^;]*env\(safe-area-inset-bottom/);
+  assert.match(css, /height: 100dvh/);
 });
