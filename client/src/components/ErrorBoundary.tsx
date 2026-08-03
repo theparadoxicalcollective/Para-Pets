@@ -10,6 +10,8 @@ interface Props {
   /** Extra cleanup callback fired when the user taps Return to Game. Used by
    *  the app shell to also navigate back to a safe route. */
   onReset?: () => void;
+  /** Identifies the feature boundary in browser and server crash logs. */
+  context?: string;
 }
 
 interface State {
@@ -34,7 +36,8 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
-    console.error("[ErrorBoundary] Caught render error:", error, info.componentStack);
+    const context = this.props.context ?? "Application";
+    console.error(`[ErrorBoundary:${context}] Caught render error:`, error, info.componentStack);
     if (import.meta.env.DEV) console.info("[stability] error-boundary-crash", { path: window.location.pathname });
     try {
       const entry = JSON.stringify({
@@ -52,6 +55,7 @@ export default class ErrorBoundary extends Component<Props, State> {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "crash",
+          component: context,
           msg: String(error?.message ?? error).slice(0, 800),
           source: String(info?.componentStack ?? "").slice(0, 600),
           url: window.location.pathname,

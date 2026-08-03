@@ -5,6 +5,8 @@ import { queryClient } from "@/lib/queryClient";
 import { FeedingOverlay } from "@/pages/PetHousePage";
 import LoadingScreen from "@/components/LoadingScreen";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import { parsePetCareInventory, parsePetCareUser, readPetCareJson } from "@/lib/petCareData";
 
 export default function PetCarePage() {
   useEffect(() => {
@@ -16,16 +18,26 @@ export default function PetCarePage() {
   const inventoryId = params?.inventoryId ?? null;
   const feedHint = new URLSearchParams(window.location.search).get("feedHint") === "1";
 
-  const userQuery = useQuery<any>({ queryKey: ["/api/auth/me"] });
-  const inventoryQuery = useQuery<any[]>({
+  const userQuery = useQuery({
+    queryKey: ["/api/auth/me"],
+    queryFn: async () => parsePetCareUser(await readPetCareJson(
+      await fetch("/api/auth/me", { credentials: "include" }),
+      "user",
+    )),
+  });
+  const inventoryQuery = useQuery({
     queryKey: ["/api/inventory"],
+    queryFn: async () => parsePetCareInventory(await readPetCareJson(
+      await fetch("/api/inventory", { credentials: "include" }),
+      "inventory",
+    )),
   });
   const user = userQuery.data;
-  const inventory = inventoryQuery.data ?? [];
+  const inventory = parsePetCareInventory(inventoryQuery.data ?? []);
   const isLoading = userQuery.isLoading || inventoryQuery.isLoading;
 
   const foundPet = inventoryId
-    ? inventory.find((it: any) => it.id === inventoryId && it.type === "pet")
+    ? inventory.find((it) => it?.id === inventoryId && it?.type === "pet")
     : null;
   const confirmedPetRef = useRef<any>(null);
   if (foundPet) confirmedPetRef.current = foundPet;
@@ -46,6 +58,17 @@ export default function PetCarePage() {
     close();
   }, [inventoryQuery.isError, isLoading, pet, user, userQuery.isError]);
 
+  useEffect(() => {
+    const error = userQuery.error ?? inventoryQuery.error;
+    if (!error) return;
+    console.error("[PetCarePage:init] Pet Care initialization failed", {
+      inventoryId,
+      error,
+      userStatus: userQuery.status,
+      inventoryStatus: inventoryQuery.status,
+    });
+  }, [inventoryId, inventoryQuery.error, inventoryQuery.status, userQuery.error, userQuery.status]);
+
   if (userQuery.isError || inventoryQuery.isError) {
     return (
       <main className="pet-care-route-state" role="alert" data-testid="pet-care-error">
@@ -65,16 +88,28 @@ export default function PetCarePage() {
     return null;
   }
 
-  const housePet = { ...pet, inventoryId: pet.id };
+  const housePet = { ...pet, inventoryId: String(pet?.id ?? inventoryId ?? "") } as any;
 
   return (
-    <FeedingOverlay
-      pet={housePet}
-      user={user}
-      onUserUpdate={(u) => queryClient.setQueryData(["/api/auth/me"], u)}
-      onClose={close}
-      feedHint={feedHint}
-      hideCoinDisplay={true}
-    />
+    <ErrorBoundary
+      context="PetCarePage.FeedingOverlay"
+      resetKey={inventoryId}
+      fallback={(
+        <main className="pet-care-route-state" role="alert" data-testid="pet-care-render-error">
+          <h1>Pet Care couldn't finish loading</h1>
+          <p>Your pet and items are safe. Go back and try again.</p>
+          <button type="button" onClick={close}>Go back</button>
+        </main>
+      )}
+    >
+      <FeedingOverlay
+        pet={housePet}
+        user={user}
+        onUserUpdate={(u) => queryClient.setQueryData(["/api/auth/me"], u)}
+        onClose={close}
+        feedHint={feedHint}
+        hideCoinDisplay={true}
+      />
+    </ErrorBoundary>
   );
 }

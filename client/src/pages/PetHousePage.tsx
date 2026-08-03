@@ -42,6 +42,7 @@ import {
   type PetCareItemGestureIntent,
 } from "@/lib/petCareInteractions";
 import { buildPetCareInventoryStacks, orderPetCareItemsByEffect } from "@/lib/petCareInventory";
+import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
 function SvgMinus() {
@@ -2051,41 +2052,51 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   // Pull the live, full inventory so we can filter to edibles AND look up the
   // canonical, server-decayed hunger/mood for THIS pet (the prop is a stale
   // snapshot from the pet-house page).
-  const { data: inventory = [] } = useQuery<any[]>({
+  const { data: inventoryPayload } = useQuery<unknown>({
     queryKey: ["/api/inventory"],
     refetchInterval: 30_000,  // Keep hunger/mood live while overlay is open.
   });
+  const inventory = useMemo<any[]>(
+    () => parsePetCareInventory(Array.isArray(inventoryPayload) ? inventoryPayload : []) as any[],
+    [inventoryPayload],
+  );
   const edibles = useMemo(
     () => orderPetCareItemsByEffect(
-      buildPetCareInventoryStacks(inventory.filter((it) => it.type === "edibles")),
+      buildPetCareInventoryStacks(inventory.filter((it) => it.type === "edibles") as any[]),
       "edibles",
     ),
     [inventory],
   );
   const gifts = useMemo(
     () => orderPetCareItemsByEffect(
-      buildPetCareInventoryStacks(inventory.filter((it) => it.type === "gift")),
+      buildPetCareInventoryStacks(inventory.filter((it) => it.type === "gift") as any[]),
       "gifts",
     ),
     [inventory],
   );
   // Find the live pet record so hunger/mood reflect server state.
   const livePet = useMemo(
-    () => inventory.find((it) => it.id === pet.inventoryId) ?? pet,
+    () => inventory.find((it) => it?.id === pet?.inventoryId) ?? pet ?? {},
     [inventory, pet],
   );
-  const petHealth = Number(livePet.petHealth);
+  const petHealth = Number(livePet?.petHealth);
   const maxHunger = Number.isFinite(petHealth) && petHealth > 0 ? petHealth : 1000;
-  const rawHunger = Number(livePet.petHunger);
-  const hungerVal = Number.isFinite(rawHunger) && rawHunger >= 0 ? rawHunger : maxHunger;
+  const rawHunger = Number(livePet?.petHunger);
+  const hungerVal = Number.isFinite(rawHunger)
+    ? finitePetCareStat(rawHunger, maxHunger, maxHunger)
+    : maxHunger;
   const hungerPct = Math.max(0, Math.min(100, (hungerVal / maxHunger) * 100));
-  const rawMood = Number(livePet.petMood);
-  const moodVal = Number.isFinite(rawMood) ? Math.max(0, Math.min(100, rawMood)) : 100;
-  const petStarRarity: number = (livePet as any).starRarity ?? 1;
+  const rawMood = Number(livePet?.petMood);
+  const moodVal = Number.isFinite(rawMood)
+    ? finitePetCareStat(rawMood, 100)
+    : 100;
+  const petStarRarity: number = Number(livePet?.starRarity) || 1;
   const loyaltyMaxByRarity: Record<number, number> = { 1: 1000, 2: 2000, 3: 3000, 4: 4000, 5: 5000 };
   const loyaltyMax = loyaltyMaxByRarity[petStarRarity] ?? 1000;
-  const rawLoyalty = Number((livePet as any).petLoyalty);
-  const loyaltyVal = Number.isFinite(rawLoyalty) ? Math.max(0, Math.min(loyaltyMax, rawLoyalty)) : 0;
+  const rawLoyalty = Number(livePet?.petLoyalty);
+  const loyaltyVal = Number.isFinite(rawLoyalty)
+    ? finitePetCareStat(rawLoyalty, 0, loyaltyMax)
+    : 0;
   const loyaltyPct = (loyaltyVal / loyaltyMax) * 100;
   const loyaltyFull = loyaltyVal >= loyaltyMax;
 
