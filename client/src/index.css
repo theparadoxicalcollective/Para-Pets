@@ -408,7 +408,7 @@
 .pet-care-overlay {
   --pet-care-usable-left: clamp(82px, 23vw, 142px);
   --pet-care-scene-right: clamp(8px, 3vw, 22px);
-  --pet-care-meter-width: min(100%, 530px);
+  --pet-care-meter-width: min(100%, 486px);
   --pet-care-mood-top: calc(env(safe-area-inset-top, 0px) + clamp(62px, 9dvh, 84px));
   --pet-care-pet-size: clamp(190px, 35dvh, 325px);
   --pet-care-pet-center: clamp(245px, 43dvh, 400px);
@@ -490,9 +490,43 @@
 }
 
 .pet-care-meter--horizontal {
+  --pet-care-frame-top: -126%;
+  --pet-care-frame-left: -2%;
+  --pet-care-frame-width: 104%;
+  --pet-care-track-top: 38%;
+  --pet-care-track-right: 4.8%;
+  --pet-care-track-bottom: 27%;
+  --pet-care-track-left: 26.5%;
+  --pet-care-track-radius: 999px;
   width: 100%;
   aspect-ratio: 3.72 / 1;
   overflow: hidden;
+}
+
+/* The two frames have different alpha bounds and center openings. Keep their
+   calibration independent even though they share meter markup. */
+.pet-care-meter--hunger {
+  --pet-care-frame-top: -126%;
+  --pet-care-frame-left: -2%;
+  --pet-care-frame-width: 104%;
+  --pet-care-track-top: 38%;
+  --pet-care-track-right: 4.8%;
+  --pet-care-track-bottom: 27%;
+  --pet-care-track-left: 26.5%;
+  --pet-care-fill-inset: 0%;
+  --pet-care-track-radius: 999px;
+}
+
+.pet-care-meter--mood {
+  --pet-care-frame-top: -126%;
+  --pet-care-frame-left: -1.4%;
+  --pet-care-frame-width: 102.8%;
+  --pet-care-track-top: 32%;
+  --pet-care-track-right: 6.1%;
+  --pet-care-track-bottom: 27%;
+  --pet-care-track-left: 26.7%;
+  --pet-care-fill-inset: 0%;
+  --pet-care-track-radius: 999px;
 }
 
 /* The uploaded horizontal art uses a square transparent canvas. These crop
@@ -500,9 +534,9 @@
 .pet-care-meter--horizontal .pet-care-meter__frame {
   position: absolute;
   z-index: 5;
-  top: -126%;
-  left: -2%;
-  width: 104%;
+  top: var(--pet-care-frame-top);
+  left: var(--pet-care-frame-left);
+  width: var(--pet-care-frame-width);
   max-width: none;
   user-select: none;
   pointer-events: none;
@@ -511,12 +545,12 @@
 .pet-care-meter--horizontal .pet-care-meter__track {
   position: absolute;
   z-index: 2;
-  top: 38%;
-  right: 4.8%;
-  bottom: 27%;
-  left: 26.5%;
+  top: var(--pet-care-track-top);
+  right: var(--pet-care-track-right);
+  bottom: var(--pet-care-track-bottom);
+  left: var(--pet-care-track-left);
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--pet-care-track-radius);
   background: rgba(8, 18, 13, 0.86);
 }
 
@@ -527,8 +561,8 @@
 }
 
 .pet-care-meter--horizontal .pet-care-meter__fill {
-  top: 6%;
-  height: 88%;
+  top: var(--pet-care-fill-inset, 0%);
+  height: calc(100% - (2 * var(--pet-care-fill-inset, 0%)));
   border-radius: inherit;
 }
 .pet-care-meter--vertical .pet-care-meter__fill { width: 100%; }
@@ -582,9 +616,9 @@
 .pet-care-meter__mood-face-window {
   position: absolute;
   z-index: 6;
-  top: 31%;
-  left: 6.1%;
-  width: 15%;
+  top: 28%;
+  left: 7.5%;
+  width: 17%;
   aspect-ratio: 1;
   overflow: hidden;
   border-radius: 50%;
@@ -597,7 +631,7 @@
   height: 100%;
   padding: 0;
   object-fit: contain;
-  transform: scale(1.35);
+  transform: scale(1.11);
   transform-origin: center;
   filter: drop-shadow(0 2px 3px rgba(0,0,0,0.65));
   pointer-events: none;
@@ -627,10 +661,10 @@
 .pet-care-meter--vertical .pet-care-meter__track {
   position: absolute;
   z-index: 2;
-  top: 20%;
-  bottom: 14%;
-  left: 42.5%;
-  width: 15%;
+  top: 20.2%;
+  bottom: 15.2%;
+  left: 43%;
+  width: 14%;
   display: flex;
   align-items: flex-end;
   overflow: hidden;
@@ -737,7 +771,7 @@
 }
 
 .pet-care-inventory-section .pet-care-hunger .pet-care-meter {
-  width: min(100%, 530px);
+  width: min(100%, 486px);
 }
 
 .pet-care-item-shelf__title {

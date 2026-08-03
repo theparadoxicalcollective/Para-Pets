@@ -62,7 +62,7 @@ test("Pet Care meters clamp finite percentages and use separate responsive scene
   assert.match(page, /Number\.isFinite\(rawMood\)/);
   assert.match(page, /Number\.isFinite\(rawLoyalty\)/);
   assert.match(css, /\.pet-care-meter--horizontal \.pet-care-meter__track[\s\S]*?overflow: hidden/);
-  assert.match(css, /\.pet-care-meter--horizontal \.pet-care-meter__fill \{[\s\S]*?top: 6%;[\s\S]*?height: 88%/);
+  assert.match(css, /\.pet-care-meter--horizontal \.pet-care-meter__fill \{[\s\S]*?top: var\(--pet-care-fill-inset, 0%\);[\s\S]*?height: calc\(100%/);
   assert.match(page, /className="pet-care-mood" data-testid="pet-care-mood-zone"/);
   assert.match(page, /className="pet-care-hunger" data-testid="pet-care-hunger-zone"/);
   assert.doesNotMatch(page, /pet-care-status/);

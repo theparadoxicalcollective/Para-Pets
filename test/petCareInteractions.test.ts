@@ -70,13 +70,16 @@ test("both inventories share the reusable six-slot shelf without old panels", ()
   assert.match(edibleShelfRule, /transform:\s*translateY\(clamp\(-8px, -1\.2vh, -4px\)\)/);
 });
 
-test("care items capture the pointer before intent detection", () => {
+test("care items capture the stable overlay only after drag intent detection", () => {
   const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
   const pointerDown = page.slice(
     page.indexOf("const onItemPointerDown"),
     page.indexOf("const onItemPointerMove"),
   );
-  assert.match(pointerDown, /setPointerCapture\(e\.pointerId\)/);
+  assert.doesNotMatch(pointerDown, /setPointerCapture/);
+  const pointerMove = page.slice(page.indexOf("const onItemPointerMove"), page.indexOf("const onItemPointerUp"));
+  assert.match(pointerMove, /overlayRef\.current/);
+  assert.match(pointerMove, /captureTarget\.setPointerCapture\(e\.pointerId\)/);
   assert.match(page, /playGrab\(\)/);
   assert.match(page, /playPlop\(\)/);
 });
@@ -87,8 +90,8 @@ test("dragging follows the latest coalesced pointer sample", () => {
     page.indexOf("const onItemPointerMove"),
     page.indexOf("const onItemPointerUp"),
   );
-  assert.match(moveHandler, /nativeEvent\.getCoalescedEvents\(\)/);
-  assert.match(moveHandler, /coalescedEvents\[coalescedEvents\.length - 1\]/);
+  assert.match(page, /typeof event\.getCoalescedEvents === "function"/);
+  assert.match(page, /catch \{/);
   assert.match(moveHandler, /updateDragGhostPosition\(point\.clientX, point\.clientY\)/);
   assert.match(moveHandler, /pointInsideExpandedPetDropZone\(\{ x: point\.clientX, y: point\.clientY \}/);
 });
