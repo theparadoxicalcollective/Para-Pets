@@ -2,8 +2,15 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+import { execFileSync } from "node:child_process";
+
+const buildId = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA || (() => {
+  try { return execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim(); }
+  catch { return "development"; }
+})();
 
 export default defineConfig({
+  define: { __BUILD_ID__: JSON.stringify(buildId) },
   plugins: [
     react(),
     runtimeErrorOverlay(),

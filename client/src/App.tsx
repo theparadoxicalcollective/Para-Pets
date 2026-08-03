@@ -11,7 +11,8 @@ import { playClick, unlockAudio } from "@/lib/sounds";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
-import { getDesignW } from "@/lib/stage";
+import { calculateStageLayout, getDesignW, DESIGN_H, WIDE_BREAKPOINT } from "@/lib/stage";
+import { detectRuntimeMode } from "@/lib/runtimeMode";
 import homeBg from "@assets/bg_home_v2.png";
 
 // ── Eagerly imported (always or near-always needed at startup) ──────────────
@@ -738,28 +739,71 @@ function DesktopNotice() {
 
 function GameStage({ children }: { children: ReactNode }) {
   const [designW, setDesignW] = useState(() => getDesignW());
+  const mode = detectRuntimeMode();
+  const readLayout = () => {
+    const vv = window.visualViewport;
+    return calculateStageLayout(vv?.width ?? window.innerWidth, vv?.height ?? window.innerHeight, vv?.offsetTop ?? 0);
+  };
+  const [layout, setLayout] = useState(readLayout);
 
   useEffect(() => {
-    document.documentElement.style.setProperty("--stage-scale", "1");
-    const onResize = () => setDesignW(getDesignW());
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    let frame = 0;
+    const update = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        setDesignW(getDesignW());
+        const next = readLayout();
+        setLayout((old) => Math.abs(old.renderedWidth - next.renderedWidth) < 1.5
+          && Math.abs(old.renderedHeight - next.renderedHeight) < 1.5
+          && Math.abs(old.top - next.top) < 1.5 ? old : next);
+      });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    window.visualViewport?.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("scroll", update);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+      window.visualViewport?.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("scroll", update);
+    };
   }, []);
+
+  const narrow = window.innerWidth < WIDE_BREAKPOINT;
+  const scale = narrow ? layout.scale : 1;
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--stage-scale", `${scale}`);
+    root.style.setProperty("--game-stage-scale", `${scale}`);
+    root.style.setProperty("--game-visible-width", `${layout.renderedWidth}px`);
+    root.style.setProperty("--game-visible-height", `${layout.renderedHeight}px`);
+  }, [layout, scale]);
 
   return (
     <div
       style={{
         position: "fixed", inset: 0,
-        display: "flex", alignItems: "stretch", justifyContent: "center",
+        display: "block",
         background: "#050c08",
       }}
     >
       <div
         id="game-stage"
+        data-display-mode={mode.displayMode}
+        data-standalone={mode.isStandalone ? "true" : "false"}
         style={{
-          position: "relative",
-          width: "100%",
-          maxWidth: designW,
+          position: "absolute",
+          width: narrow ? 390 : "100%",
+          height: narrow ? DESIGN_H : "100%",
+          maxWidth: narrow ? undefined : designW,
+          left: narrow ? layout.left : "50%",
+          top: narrow ? layout.top : 0,
+          transform: narrow ? `scale(${scale})` : "translateX(-50%)",
+          transformOrigin: "top left",
           overflow: "hidden",
           isolation: "isolate",
         }}
@@ -828,7 +872,7 @@ function App() {
   // same value as window.innerHeight, so this is safe everywhere.
   useEffect(() => {
     const update = () => {
-      const h = (window.visualViewport?.height ?? window.innerHeight);
+      const h = window.innerWidth < WIDE_BREAKPOINT ? DESIGN_H : (window.visualViewport?.height ?? window.innerHeight);
       document.documentElement.style.setProperty("--fh", `${h}px`);
       document.documentElement.style.setProperty("--vh", `${h * 0.01}px`);
     };
