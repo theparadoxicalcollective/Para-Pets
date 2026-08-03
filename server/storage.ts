@@ -72,6 +72,7 @@ export interface EquippedAccessoryDetail {
   atkBoost: number | null;
   defBoost: number | null;
   healthBoost: number | null;
+  starRarity: number | null;
 }
 
 const LEADERBOARD_EXCLUDED_USERNAMES = new Set(["paradox"]);
@@ -1880,6 +1881,7 @@ export class DatabaseStorage implements IStorage {
       atkBoost: r.shop_items?.atkBoost || null,
       defBoost: r.shop_items?.defBoost || null,
       healthBoost: r.shop_items?.healthBoost || null,
+      starRarity: r.shop_items?.starRarity || null,
     }));
   }
 
@@ -1903,6 +1905,7 @@ export class DatabaseStorage implements IStorage {
       atkBoost: shopRow?.atkBoost || null,
       defBoost: shopRow?.defBoost || null,
       healthBoost: shopRow?.healthBoost || null,
+      starRarity: shopRow?.starRarity || null,
     };
   }
 
