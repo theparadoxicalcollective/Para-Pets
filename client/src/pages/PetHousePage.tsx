@@ -2062,14 +2062,14 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   );
   const edibles = useMemo(
     () => orderPetCareItemsByEffect(
-      buildPetCareInventoryStacks(inventory.filter((it) => it?.type === "edibles") as any[]),
+      buildPetCareInventoryStacks(inventory.filter((it) => it.type === "edibles") as any[]),
       "edibles",
     ),
     [inventory],
   );
   const gifts = useMemo(
     () => orderPetCareItemsByEffect(
-      buildPetCareInventoryStacks(inventory.filter((it) => it?.type === "gift") as any[]),
+      buildPetCareInventoryStacks(inventory.filter((it) => it.type === "gift") as any[]),
       "gifts",
     ),
     [inventory],
@@ -2081,13 +2081,22 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   );
   const petHealth = Number(livePet?.petHealth);
   const maxHunger = Number.isFinite(petHealth) && petHealth > 0 ? petHealth : 1000;
-  const hungerVal = finitePetCareStat(livePet?.petHunger, maxHunger, maxHunger);
+  const rawHunger = Number(livePet?.petHunger);
+  const hungerVal = Number.isFinite(rawHunger)
+    ? finitePetCareStat(rawHunger, maxHunger, maxHunger)
+    : maxHunger;
   const hungerPct = Math.max(0, Math.min(100, (hungerVal / maxHunger) * 100));
-  const moodVal = finitePetCareStat(livePet?.petMood, 100);
+  const rawMood = Number(livePet?.petMood);
+  const moodVal = Number.isFinite(rawMood)
+    ? finitePetCareStat(rawMood, 100)
+    : 100;
   const petStarRarity: number = Number(livePet?.starRarity) || 1;
   const loyaltyMaxByRarity: Record<number, number> = { 1: 1000, 2: 2000, 3: 3000, 4: 4000, 5: 5000 };
   const loyaltyMax = loyaltyMaxByRarity[petStarRarity] ?? 1000;
-  const loyaltyVal = finitePetCareStat(livePet?.petLoyalty, 0, loyaltyMax);
+  const rawLoyalty = Number(livePet?.petLoyalty);
+  const loyaltyVal = Number.isFinite(rawLoyalty)
+    ? finitePetCareStat(rawLoyalty, 0, loyaltyMax)
+    : 0;
   const loyaltyPct = (loyaltyVal / loyaltyMax) * 100;
   const loyaltyFull = loyaltyVal >= loyaltyMax;
 
