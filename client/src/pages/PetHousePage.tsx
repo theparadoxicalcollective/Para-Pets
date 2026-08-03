@@ -1961,20 +1961,8 @@ function PetCareAssetMeter({
   );
 }
 
-function PetStatusBars({
-  hungerVal,
-  hungerMax,
-  hungerPct,
-  moodVal,
-  xpBoostActive = false,
-  xpBoostPct = 0,
-}: {
-  hungerVal: number;
-  hungerMax: number;
-  hungerPct: number;
+function PetCareMoodMeter({ moodVal }: {
   moodVal: number;
-  xpBoostActive?: boolean;
-  xpBoostPct?: number;
 }) {
   let moodFace = moodFaceHappy;
   let moodLabel = "Happy";
@@ -1983,35 +1971,56 @@ function PetStatusBars({
   else if (moodVal <= 75) { moodFace = moodFaceContent; moodLabel = "Content"; }
 
   return (
-    <div className="pet-care-status" data-testid="pet-status-bars">
-      <PetCareAssetMeter
-        frame={hungerMeterFrame}
-        percentage={hungerPct}
-        theme="hunger"
-        accessibleLabel={`Hunger ${hungerVal} of ${hungerMax}`}
-        testId="bar-hunger"
-      />
-      <PetCareAssetMeter
-        frame={moodMeterFrame}
-        percentage={moodVal}
-        theme="mood"
-        accessibleLabel={`Mood ${moodVal} of 100, ${moodLabel}`}
-        testId="bar-mood"
-      >
-        <img
-          className="pet-care-meter__mood-face"
-          src={moodFace}
-          alt={`${moodLabel} mood`}
-          data-testid="img-mood-face"
+    <div className="pet-care-mood" data-testid="pet-care-mood-zone">
+        <PetCareAssetMeter
+          frame={moodMeterFrame}
+          percentage={moodVal}
+          theme="mood"
+          accessibleLabel={`Mood ${moodVal} of 100, ${moodLabel}`}
+          testId="bar-mood"
+        >
+          <div className="pet-care-meter__mood-face-window">
+            <img
+              className="pet-care-meter__mood-face"
+              src={moodFace}
+              alt={`${moodLabel} mood`}
+              data-testid="img-mood-face"
+            />
+          </div>
+        </PetCareAssetMeter>
+    </div>
+  );
+}
+
+function PetCareHungerMeter({
+  hungerVal,
+  hungerMax,
+  hungerPct,
+  xpBoostActive = false,
+  xpBoostPct = 0,
+}: {
+  hungerVal: number;
+  hungerMax: number;
+  hungerPct: number;
+  xpBoostActive?: boolean;
+  xpBoostPct?: number;
+}) {
+  return (
+    <div className="pet-care-hunger" data-testid="pet-care-hunger-zone">
+        <PetCareAssetMeter
+          frame={hungerMeterFrame}
+          percentage={hungerPct}
+          theme="hunger"
+          accessibleLabel={`Hunger ${hungerVal} of ${hungerMax}`}
+          testId="bar-hunger"
         />
-      </PetCareAssetMeter>
-      {xpBoostActive && xpBoostPct > 0 && (
-        <div className="pet-care-xp-boost" data-testid="xp-boost-badge">
-          <span aria-hidden="true">⚡</span>
-          <span>LOYALTY +{xpBoostPct}% XP</span>
-          <span aria-hidden="true">⚡</span>
-        </div>
-      )}
+        {xpBoostActive && xpBoostPct > 0 && (
+          <div className="pet-care-xp-boost" data-testid="xp-boost-badge">
+            <span aria-hidden="true">⚡</span>
+            <span>LOYALTY +{xpBoostPct}% XP</span>
+            <span aria-hidden="true">⚡</span>
+          </div>
+        )}
     </div>
   );
 }
@@ -2823,16 +2832,14 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         />
       ))}
 
+      {/* Mood occupies its own upper scene zone, independent of Hunger. */}
+      <PetCareMoodMeter moodVal={moodVal} />
+
       {/* Pet centerpiece — drop target + click target */}
       <div
         ref={petBoxRef}
         className="absolute pet-care-pet"
         style={{
-          left: "50%",
-          // Keep the pet and its status block together while leaving more
-          // breathing room for the two inventory shelves below.
-          top: "var(--pet-care-pet-top)",
-          transform: "translate(calc(-50% + var(--pet-care-pet-offset)), -50%)",
           width: "var(--pet-care-pet-size)",
           height: "var(--pet-care-pet-size)",
           cursor: "pointer",
@@ -2894,12 +2901,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         </div>
       </div>
 
-      {/* Hunger + Mood bars beneath the pet */}
-      <PetStatusBars
+      {/* Hunger occupies its own lower scene zone above the shelves. */}
+      <PetCareHungerMeter
         hungerVal={hungerVal}
         hungerMax={maxHunger}
         hungerPct={hungerPct}
-        moodVal={moodVal}
         xpBoostActive={!!(livePet as any).xpBoostUntil && new Date((livePet as any).xpBoostUntil).getTime() > Date.now()}
         xpBoostPct={(livePet as any).xpBoostPct ?? 0}
       />
