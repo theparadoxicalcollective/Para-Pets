@@ -4,6 +4,7 @@
 /* Keep the full Loyalty artwork inside the phone safe area. */
 .pet-care-overlay .pet-care-loyalty {
   left: clamp(4px, 1.4vw, 10px);
+  isolation: isolate;
 }
 
 /* Match the live Loyalty fill to the painted opening instead of leaving a
@@ -32,8 +33,81 @@
     translateY(-7px);
 }
 
+/* Fine-tune the live fills to the visible openings in the authored frames. */
+.pet-care-overlay .pet-care-meter--hunger {
+  --pet-care-track-top: 40%;
+  --pet-care-track-bottom: 25%;
+}
+
+.pet-care-overlay .pet-care-meter--mood {
+  --pet-care-track-top: 34%;
+  --pet-care-track-right: 4.3%;
+  --pet-care-track-bottom: 25%;
+}
+
+/* Let the changing expression occupy more of the Mood medallion and align it
+   with the circle's actual painted opening. */
+.pet-care-overlay .pet-care-meter__mood-face-window {
+  top: 24.5%;
+  left: 6.7%;
+  width: 18.7%;
+}
+
+.pet-care-overlay .pet-care-meter__mood-face {
+  transform: scale(1.15);
+}
+
+/* Soft translucent shadows give the ornate UI separation from bright scenery
+   without adding solid panels or changing the supplied artwork. */
+.pet-care-overlay .pet-care-mood .pet-care-meter::before,
+.pet-care-overlay .pet-care-hunger .pet-care-meter::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 18% 1.5% 17% 1.5%;
+  border-radius: 999px;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.42),
+    0 0 14px rgba(0, 0, 0, 0.24);
+}
+
+.pet-care-overlay .pet-care-loyalty::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 4% 8% 3%;
+  border-radius: 45%;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.16);
+  box-shadow:
+    0 10px 18px rgba(0, 0, 0, 0.42),
+    0 0 14px rgba(0, 0, 0, 0.2);
+}
+
 .pet-care-overlay .pet-care-item-shelf {
   position: relative;
+}
+
+.pet-care-overlay .pet-care-item-shelf__stage {
+  isolation: isolate;
+}
+
+.pet-care-overlay .pet-care-item-shelf__stage::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 13% 0.5% 2%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.34) 0%,
+    rgba(0, 0, 0, 0.18) 68%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.34);
 }
 
 /* During an upward item drag, raise only the inventory layer involved in the
@@ -48,7 +122,13 @@ body.pet-care-native-item-dragging .pet-care-item-shelf--native-dragging {
   z-index: 31;
 }
 
-body.pet-care-native-item-dragging .pet-care-item-shelf__viewport {
+/* The shelf's front lip normally sits above the inventory viewport. Raise the
+   active viewport above that lip while dragging so the item travels over the
+   shelf artwork instead of being clipped behind it. */
+body.pet-care-native-item-dragging
+  .pet-care-item-shelf--native-dragging
+  .pet-care-item-shelf__viewport {
+  z-index: 4 !important;
   overflow: visible !important;
 }
 
