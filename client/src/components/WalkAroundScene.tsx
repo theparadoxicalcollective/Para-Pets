@@ -45,6 +45,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
   const [viewport, setViewport] = useState({ width: 390, height: 844 });
   const [camera, setCamera] = useState({ x: 0, y: 0 });
   const [gameplayBlocked, setGameplayBlocked] = useState(false);
+  const [specialReady, setSpecialReady] = useState(false);
   const activePetInventoryId: string | null = typeof activePet?.inventoryId === "string" ? activePet.inventoryId : null;
   const [clearingReady, setClearingReady] = useState(!config.features.combat);
   const [loadingComplete, setLoadingComplete] = useState(!config.features.combat);
@@ -53,6 +54,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
     if (!config.features.combat) return;
     setClearingReady(false);
     setLoadingComplete(false);
+    setSpecialReady(false);
   }, [activePetInventoryId, config.features.combat]);
 
   const responsivePet = config.aspectLayout?.responsivePet;
@@ -157,14 +159,14 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
             transition: "none",
           }}
         >
-          <div className={`clearing-pet-presentation ${isMoving ? "is-moving" : ""}`} style={{transform:`scaleX(${facingLeft !== naturalFacingLeft ? -1 : 1})`}}>
+          <div className={`clearing-pet-presentation ${isMoving ? "is-moving" : ""} ${specialReady ? "is-special-ready" : ""}`} style={{transform:`scaleX(${facingLeft !== naturalFacingLeft ? -1 : 1})`}}>
             <PetAnimator petTemplateId={petTemplateId} mode="static" size={petSize} fitVisible />
           </div>
         </div>
       )}
 
       {config.features.combat && petTemplateId && activePetInventoryId && (
-        <ElysianClearingCombat key={activePetInventoryId} activePetInventoryId={activePetInventoryId} petPos={petPos} petSize={petSize} activePet={activePet} facingLeft={facingLeft} aimDirection={aimDirection} onReturnToWorld={onBack} worldPixels={world} hudElement={hudElement} onGameplayBlockedChange={setGameplayBlocked} onEnemiesReady={() => setClearingReady(true)} isAdmin={isAdmin} />
+        <ElysianClearingCombat key={activePetInventoryId} activePetInventoryId={activePetInventoryId} petPos={petPos} petSize={petSize} activePet={activePet} facingLeft={facingLeft} aimDirection={aimDirection} onReturnToWorld={onBack} worldPixels={world} hudElement={hudElement} onGameplayBlockedChange={setGameplayBlocked} onEnemiesReady={() => setClearingReady(true)} onSpecialReadyChange={setSpecialReady} isAdmin={isAdmin} />
       )}
       </div>
 
