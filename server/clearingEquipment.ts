@@ -20,6 +20,11 @@ async function ensureClearingDropPool(tx:any){
     ON CONFLICT(id) DO UPDATE SET name=excluded.name,image_url=excluded.image_url,clearing_slot=excluded.clearing_slot,clearing_active=true,star_rarity=excluded.star_rarity,atk_boost=excluded.atk_boost,def_boost=excluded.def_boost,health_boost=excluded.health_boost`);
 }
 
+const clearingEquipmentMutationKey=(userId:string)=>`clearing-equipment:${userId}`;
+async function lockClearingEquipmentMutation(tx:any,userId:string){
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${clearingEquipmentMutationKey(userId)}))`);
+}
+
 export function chooseClearingStarterWeapon(input:{equippedId?:string|null;ownedWeapons:Array<{inventoryId:string;shopItemId:string}>}) {
   if(input.equippedId)return {grant:false,equipId:null};
   const basic=input.ownedWeapons.find(item=>item.shopItemId===BASIC_SWORD_ID);
@@ -28,10 +33,14 @@ export function chooseClearingStarterWeapon(input:{equippedId?:string|null;owned
   return {grant:true,equipId:null};
 }
 
+export function isClearingEquipmentEligibleForSale(item:{equipped:boolean;isListed:boolean}){
+  return !item.equipped&&!item.isListed;
+}
+
 /** Transactional session bootstrap. The canonical item and per-user inventory
  * lookup make repeated entry idempotent; a deliberately equipped weapon wins. */
 export async function ensureClearingStarterWeapon(database:any,userId:string){return database.transaction(async(tx:any)=>{
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`clearing-starter:${userId}`}))`);
+  await lockClearingEquipmentMutation(tx,userId);
   await ensureClearingDropPool(tx);
   await tx.execute(sql`INSERT INTO shop_items(id,name,price,type,world_id,location_id,image_url,clearing_slot,clearing_attack_style,clearing_active,star_rarity,atk_boost,def_boost,health_boost)
     VALUES(${BASIC_SWORD_ID},${BASIC_SWORD_NAME},0,'clearing','swamp','a1b2c3d4-0011-4000-8000-000000000011',${BASIC_SWORD_IMAGE_URL},'weapon','sword_slash',true,1,4,0,0)
@@ -52,12 +61,13 @@ export class ClearingEquipmentError extends Error {
 const emptyTotals = (): ClearingStatTotals => ({ atk: 0, def: 0, hp: 0 });
 
 function toInventoryItem(row: any, equippedIds: Set<string>): ClearingInventoryItem {
+  const equipped=equippedIds.has(row.inventoryId);
   return {
     inventoryId: row.inventoryId, shopItemId: row.shopItemId, name: row.name,
     stableKey: row.shopItemId === BASIC_SWORD_ID ? BASIC_SWORD_SLUG : `clearing-item:${row.shopItemId}`,
     imageUrl: row.imageUrl ?? null, slot: row.slot, stars: Number(row.stars),
     atkBonus: Number(row.atkBonus ?? 0), defBonus: Number(row.defBonus ?? 0), hpBonus: Number(row.hpBonus ?? 0),
-    quantity: Number(row.quantity ?? 1), acquiredAt: row.acquiredAt, equipped: equippedIds.has(row.inventoryId), eligibleForSale: row.shopItemId !== BASIC_SWORD_ID && !equippedIds.has(row.inventoryId) && !row.isListed, attackStyle:resolveClearingAttackStyle({attackStyle:row.attackStyle,name:row.name}),
+    quantity: Number(row.quantity ?? 1), acquiredAt: row.acquiredAt, equipped, eligibleForSale: isClearingEquipmentEligibleForSale({equipped,isListed:Boolean(row.isListed)}), attackStyle:resolveClearingAttackStyle({attackStyle:row.attackStyle,name:row.name}),
   };
 }
 
@@ -110,6 +120,7 @@ export async function getClearingLoadout(executor: any, userId: string): Promise
 
 export async function equipClearingItem(database: any, userId: string, inventoryId: string): Promise<ClearingLoadout> {
   return database.transaction(async (tx: any) => {
+    await lockClearingEquipmentMutation(tx,userId);
     const [item] = await tx.select(selection).from(userInventory).innerJoin(shopItems, eq(userInventory.shopItemId, shopItems.id))
       .where(and(eq(userInventory.id, inventoryId), eq(userInventory.userId, userId))).for("update");
     if (!item) throw new ClearingEquipmentError("not_found", "Inventory item was not found");
@@ -125,6 +136,7 @@ export async function equipClearingItem(database: any, userId: string, inventory
 export async function unequipClearingItem(database: any, userId: string, slot: ClearingEquipmentSlot): Promise<ClearingLoadout> {
   if (!["helmet", "weapon", "armor", "boots", "charm"].includes(slot)) throw new ClearingEquipmentError("invalid_slot", "Clearing slot is invalid");
   return database.transaction(async (tx: any) => {
+    await lockClearingEquipmentMutation(tx,userId);
     const field = `${slot}InventoryId`;
     await tx.insert(userClearingLoadouts).values({ userId, [field]: null }).onConflictDoUpdate({ target: userClearingLoadouts.userId, set: { [field]: null, updatedAt: new Date() } });
     return getClearingLoadout(tx, userId);
@@ -146,11 +158,12 @@ export async function sellClearingEquipment(database:any,userId:string,inventory
   if(new Set(inventoryIds).size!==inventoryIds.length)throw new ClearingEquipmentError("duplicate","Duplicate equipment IDs are not allowed");
   if(!inventoryIds.length||inventoryIds.length>200)throw new ClearingEquipmentError("invalid_item","Select between 1 and 200 items");
   return database.transaction(async(tx:any)=>{
+    await lockClearingEquipmentMutation(tx,userId);
     const loadout=await getLoadoutRow(tx,userId),equipped=new Set([loadout?.helmetInventoryId,loadout?.weaponInventoryId,loadout?.armorInventoryId,loadout?.bootsInventoryId,loadout?.charmInventoryId].filter(Boolean));
     if(inventoryIds.some(id=>equipped.has(id)))throw new ClearingEquipmentError("equipped","Unequip items before selling them");
     const rows=await tx.select(selection).from(userInventory).innerJoin(shopItems,eq(userInventory.shopItemId,shopItems.id)).where(and(eq(userInventory.userId,userId),or(...inventoryIds.map(id=>eq(userInventory.id,id))))).for("update");
     if(rows.length!==inventoryIds.length)throw new ClearingEquipmentError("not_found","One or more equipment items were not found");
-    let essence=0; for(const row of rows){const stars=Number(row.stars) as keyof typeof CLEARING_EQUIPMENT_SALE_VALUES;if(row.shopItemId===BASIC_SWORD_ID||row.itemType!=="clearing"||row.isListed||!CLEARING_EQUIPMENT_SALE_VALUES[stars])throw new ClearingEquipmentError("invalid_item","A selected item is not eligible for sale");essence+=CLEARING_EQUIPMENT_SALE_VALUES[stars]*Number(row.quantity??1);}
+    let essence=0; for(const row of rows){const stars=Number(row.stars) as keyof typeof CLEARING_EQUIPMENT_SALE_VALUES;if(row.itemType!=="clearing"||!isClearingEquipmentEligibleForSale({equipped:equipped.has(row.inventoryId),isListed:Boolean(row.isListed)})||!CLEARING_EQUIPMENT_SALE_VALUES[stars])throw new ClearingEquipmentError("invalid_item","A selected item is not eligible for sale");essence+=CLEARING_EQUIPMENT_SALE_VALUES[stars]*Number(row.quantity??1);}
     // Removal and server-calculated credit share this transaction, preventing partial sales.
     await tx.delete(userInventory).where(and(eq(userInventory.userId,userId),or(...inventoryIds.map(id=>eq(userInventory.id,id)))));
     const updated=await tx.execute(sql`UPDATE users SET essence=essence+${essence} WHERE id=${userId} RETURNING essence`);
