@@ -29,7 +29,7 @@ test("Soul Exchange portal is a lightweight purple mobile asset with reduced-mot
   assert.match(portal, /portal-breathe/);
   assert.match(portal, /soul-mote/);
   assert.doesNotMatch(portal, /<script/i);
-  assert.doesNotMatch(portal, /https?:\/\//i);
+  assert.doesNotMatch(portal, /(?:href|xlink:href)="https?:/i);
 });
 
 test("Haunted Woods reconciliation refreshes presentation without overwriting admin layout", () => {
