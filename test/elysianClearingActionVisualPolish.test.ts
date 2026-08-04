@@ -30,8 +30,10 @@ test("special readiness glows the original pet without a duplicate image", () =>
   assert.equal(scene.match(/<PetAnimator/g)?.length, 1);
 });
 
-test("the equipped weapon stays fixed while attack VFX aim independently", () => {
-  assert.doesNotMatch(weapon, /weaponAttackTransform/);
+test("the equipped weapon mirrors with the pet and swipes locally while attack VFX aim independently", () => {
+  assert.match(weapon, /weaponAttackTransform\(phase,style\)/);
+  assert.match(weapon, /data-testid="clearing-equipped-weapon-motion"/);
+  assert.match(weapon, /data-motion-style=\{style\}/);
   assert.match(weapon, /scaleX\(\$\{facingLeft\?-1:1\}\)/);
   assert.match(weapon, /data-testid="clearing-attack-vfx"/);
   assert.match(weapon, /rotate\(\$\{angleRadians\}rad\)/);
@@ -39,11 +41,17 @@ test("the equipped weapon stays fixed while attack VFX aim independently", () =>
   assert.match(combat, /clearingWeaponOrigin\(petPos,petSize,worldPixels,facingLeft\)/);
 });
 
-test("moving enemies use a CSS-only grounded squish with reduced-motion support", () => {
+test("moving enemies use varied, subtle walk cycles with reduced-motion support", () => {
   assert.match(combat, /data-enemy-state=\{e\.state\}/);
   assert.match(combat, /\["roaming","pursuing","returning"\]\.includes\(e\.state\)/);
   assert.match(combat, /clearing-enemy-art\.is-moving/);
-  assert.match(combat, /transform-origin:50% 100%/);
-  assert.match(combat, /scaleY\(\.96\)/);
-  assert.match(combat, /prefers-reduced-motion:reduce/);
+  assert.match(weapon, /clearing-enemy-walk-drift-a/);
+  assert.match(weapon, /clearing-enemy-walk-drift-b/);
+  assert.match(weapon, /clearing-enemy-walk-drift-c/);
+  assert.match(weapon, /nth-of-type\(3n\+2\)/);
+  assert.match(weapon, /animation-duration:760ms/);
+  assert.match(weapon, /animation-duration:930ms/);
+  assert.match(weapon, /animation-duration:1080ms/);
+  assert.match(weapon, /scaleY\(\.985\)/);
+  assert.match(weapon, /prefers-reduced-motion:reduce/);
 });
