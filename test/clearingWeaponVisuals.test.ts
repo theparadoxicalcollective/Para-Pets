@@ -41,7 +41,7 @@ test("sword and staff attack phases animate locally while directional VFX remain
 
 test("a target is committed after a successful impact and queued presses are retained", () => {
   assert.match(combat, /lockedTargetInstanceIdRef/);
-  assert.match(combat, /data.lockedTargetInstanceId\)updateTargetLock/);
+  assert.match(combat, /updateTargetLock\(typeof body\.lockedTargetInstanceId==="string"\?body\.lockedTargetInstanceId:null\)/);
   assert.match(combat, /setAttackPhase\("impact"\)[\s\S]+fetch\("\/api\/explore\/elysian-clearing\/attack"/);
   assert.match(combat, /setAttackPhase\("recovery"\)/);
   assert.match(combat, /setAttackPhase\("idle"\)/);

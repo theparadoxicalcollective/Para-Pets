@@ -24,7 +24,19 @@ test("an attack from pet A's session is rejected without damage or rewards after
   const attack = routes.find(route => route.method === "POST" && route.path.endsWith("/attack"))!.handlers.at(-1)!;
   let status = 200;
   let body: any;
-  await attack({ user: { id: "switch-user", activePetId: "pet-b" }, body: { sessionId: session.id, enemyInstanceId: enemy.instanceId, attackActionId: "race-attack" } } as any, {
+  await attack({
+    user: { id: "switch-user", activePetId: "pet-b" },
+    body: {
+      sessionId: session.id,
+      enemyInstanceId: enemy.instanceId,
+      targetPosition: { x: enemy.x, y: enemy.y },
+      playerPosition: { x: session.position.x, y: session.position.y },
+      aimDirection: { dx: 1, dy: 0 },
+      aimPoint: { x: enemy.x, y: enemy.y },
+      worldPixels: { width: 400, height: 800 },
+      attackActionId: "race-attack",
+    },
+  } as any, {
     status(code: number) { status = code; return this; },
     json(value: unknown) { body = value; return this; },
   } as any, (() => {}) as any);

@@ -83,6 +83,6 @@ test("Clearing equipped weapon pointer is world-space and cannot intercept contr
   assert.match(controllerSource,/aimDirection/);assert.match(controllerSource,/persistentAimDirection/);
   assert.match(sceneSource,/aimDirection=\{aimDirection\}/);
   assert.doesNotMatch(combatSource,/data-testid="clearing-aim-pointer"/);assert.match(effectSource,/data-testid="clearing-equipped-weapon-pointer"[^>]*[\s\S]*pointer-events-none/);
-  assert.match(combatSource,/lockedStaff/);assert.match(combatSource,/selectFirstEnemyAlongAimCapsule/);
+  assert.match(combatSource,/selectClearingStrikeTargets/);assert.match(combatSource,/CFG\.maxStrikeTargets/);assert.match(combatSource,/provisionalTargetInstanceIds/);
   assert.match(combatSource,/data-testid="button-clearing-attack"[\s\S]*pointer-events-auto/);
 });

@@ -41,10 +41,10 @@ test("the equipped weapon mirrors with the pet and swipes locally while attack V
   assert.match(combat, /clearingWeaponOrigin\(petPos,petSize,worldPixels,facingLeft\)/);
 });
 
-test("moving enemies use varied, subtle walk cycles with reduced-motion support", () => {
+test("moving enemies use velocity-gated, varied walk cycles with reduced-motion support", () => {
   assert.match(combat, /data-enemy-state=\{e\.state\}/);
-  assert.match(combat, /\["roaming","pursuing","returning"\]\.includes\(e\.state\)/);
-  assert.match(combat, /clearing-enemy-art\.is-moving/);
+  assert.match(combat, /Math\.hypot\(e\.velocityX,e\.velocityY\)>3/);
+  assert.match(combat, /clearing-enemy-art \$\{moving\?"is-moving":""\}/);
   assert.match(weapon, /clearing-enemy-walk-drift-a/);
   assert.match(weapon, /clearing-enemy-walk-drift-b/);
   assert.match(weapon, /clearing-enemy-walk-drift-c/);
