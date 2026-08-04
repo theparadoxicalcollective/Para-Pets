@@ -30,7 +30,8 @@ test("enemy attacks use a forward lunge without changing combat state logic",()=
 test("admin resource tab exposes three inert colored portal placeholders",()=>{
   const scene=fs.readFileSync("client/src/components/WalkAroundScene.tsx","utf8");
   const panel=fs.readFileSync("client/src/components/clearing/ClearingAdminResourcePanel.tsx","utf8");
-  assert.match(scene,/config\.features\.combat&&isAdmin&&<ClearingAdminResourcePanel/);
+  assert.match(scene,/config\.id===ELYSIAN_BAYOU_CLEARING_ID/);
+  assert.match(scene,/isElysianClearing&&isAdmin&&<ClearingAdminResourcePanel/);
   assert.match(panel,/data-testid=\"button-add-clearing-resource\"/);
   assert.match(panel,/clearing-resource-placeholder-\$\{theme\.id\}/);
   assert.match(panel,/id:\"amber\"/);
