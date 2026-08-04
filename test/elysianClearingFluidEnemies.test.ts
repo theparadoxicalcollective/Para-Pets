@@ -3,7 +3,6 @@ import test from "node:test";
 import fs from "node:fs";
 import { smoothEnemyMotion } from "../client/src/lib/clearingEnemyBehavior";
 import { selectClearingStrikeTargets } from "../client/src/lib/elysianClearingCombatMath";
-import { ELYSIAN_CLEARING_COMBAT_CONFIG as CFG } from "../client/src/lib/elysianClearingCombatConfig";
 import { applyClearingHit, createClearingSession } from "../server/elysianClearingCombat";
 import { layoutClearingEncounter } from "../shared/clearingEncounterLayout";
 import { CLEARING_AIM_GEOMETRY } from "../shared/clearingCombatGeometry";
@@ -36,12 +35,12 @@ test("enemy steering accelerates smoothly and brakes instead of snapping",()=>{
 });
 
 test("Clearing movement tuning is smaller, slower, and gives idle enemies longer rests",()=>{
-  assert.equal(CFG.normalEnemyVisibleHeight,28);
-  assert.equal(CFG.bossEnemyVisibleHeight,38);
-  assert.ok(CFG.roamSpeedPixels<=18);
-  assert.ok(CFG.roamPauseMs.min>=1800);
-  assert.ok(CFG.roamPauseMs.max>=4000);
-  assert.equal(CFG.maxStrikeTargets,2);
+  const config=fs.readFileSync("client/src/lib/elysianClearingCombatConfig.ts","utf8");
+  assert.match(config,/normalEnemyVisibleHeight:\s*28/);
+  assert.match(config,/bossEnemyVisibleHeight:\s*38/);
+  assert.match(config,/roamSpeedPixels:\s*18/);
+  assert.match(config,/roamPauseMs:\s*\{\s*min:\s*1800,\s*max:\s*4200\s*\}/);
+  assert.match(config,/maxStrikeTargets:\s*2/);
 });
 
 test("one strike selects no more than two enemies in the same attack direction",()=>{
