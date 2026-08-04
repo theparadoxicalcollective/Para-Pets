@@ -26,11 +26,15 @@ test("equipped weapon reaches the renderer and real image has a safe fallback", 
   assert.match(effect, /clearing-staff-orb/);
 });
 
-test("weapon attack phases stay separate from directional wrapper rotation and rarity uses alpha-aware filters", () => {
+test("sword and staff attack phases animate locally while directional VFX remain separate", () => {
   assert.equal(inventoryWeaponRotation("clearing-training-sword"),45);
   assert.equal(inventoryWeaponRotation("another-weapon"),0);
   assert.equal(weaponAttackTransform("idle"), "translateX(0px) rotate(0deg)");
-  assert.equal(weaponAttackTransform("impact"), "translateX(6px) rotate(42deg)");
+  assert.equal(weaponAttackTransform("windup","sword_slash"), "translateX(-2px) rotate(-30deg)");
+  assert.equal(weaponAttackTransform("impact","sword_slash"), "translateX(5px) rotate(34deg)");
+  assert.equal(weaponAttackTransform("windup","staff_orb"), "translateX(-1px) rotate(-16deg)");
+  assert.equal(weaponAttackTransform("impact","staff_orb"), "translateX(4px) rotate(20deg)");
+  assert.notEqual(weaponAttackTransform("impact","sword_slash"),weaponAttackTransform("impact","staff_orb"));
   assert.deepEqual(CLEARING_SWORD_TIMING, {windupMs:90,impactMs:70,recoveryMs:140,totalMs:300});
   for (let stars=1;stars<=5;stars++) assert.match(weaponRarityFilter(stars), /drop-shadow/);
 });
