@@ -27,8 +27,8 @@ test("pet health is a clamped, conditional world-space sibling overlay", () => {
 
 test("confirmed defeats capture one stable skull effect before enemy replacement", () => {
   assert.match(combatSource, /@assets\/Photoroom_20260705_103527_PM_1783308939570\.png/);
-  assert.match(combatSource, /enemyInstanceId:target\.instanceId,x:target\.x,y:target\.y/);
-  assert.ok(combatSource.indexOf("setDeathEffects(current=>[...current,defeated])") < combatSource.indexOf("target.instanceId=data.nextEnemy.instanceId"));
+  assert.match(combatSource, /enemyInstanceId:struckInstanceId,x:struck\.x,y:struck\.y/);
+  assert.ok(combatSource.indexOf("setDeathEffects(current=>[...current,defeated])") < combatSource.indexOf("struck.instanceId=String(data.nextEnemy.instanceId"));
   assert.match(combatSource, /CFG\.deathEffect\.durationMs/);
   assert.match(combatSource, /deathEffects\.map/);
   assert.equal((combatSource.match(/Photoroom_20260705_103527_PM_1783308939570/g) ?? []).length, 1);
