@@ -1,4 +1,5 @@
 import type { ClearingStarRarity } from "@shared/clearingEquipment";
+import type { ClearingAttackStyle } from "@shared/clearingCombat";
 
 export type ClearingAttackPhase = "idle" | "windup" | "impact" | "recovery";
 
@@ -16,12 +17,23 @@ export function inventoryWeaponRotation(stableKey?: string | null): number {
   return stableKey === CLEARING_TRAINING_SWORD_KEY ? 45 : 0;
 }
 
-/** Attack motion is local to the already direction-oriented weapon wrapper. */
-export function weaponAttackTransform(phase: ClearingAttackPhase): string {
-  // A broad sweep keeps sword art from appearing pinned in its resting,
-  // downward orientation while still rotating around the pet's hand.
-  const rotation = phase === "windup" ? -48 : phase === "impact" ? 42 : phase === "recovery" ? 14 : 0;
-  const reach = phase === "impact" ? 6 : 0;
+/** Local hand motion only. Target-facing VFX remain on their own rotated layer. */
+export function weaponAttackTransform(phase: ClearingAttackPhase, style: ClearingAttackStyle = "sword_slash"): string {
+  const staff = style === "staff_orb";
+  const rotation = phase === "windup"
+    ? (staff ? -16 : -30)
+    : phase === "impact"
+      ? (staff ? 20 : 34)
+      : phase === "recovery"
+        ? (staff ? 7 : 10)
+        : 0;
+  const reach = phase === "windup"
+    ? (staff ? -1 : -2)
+    : phase === "impact"
+      ? (staff ? 4 : 5)
+      : phase === "recovery"
+        ? 1
+        : 0;
   return `translateX(${reach}px) rotate(${rotation}deg)`;
 }
 
