@@ -33,6 +33,16 @@
     translateY(-7px);
 }
 
+/* The frame PNGs include small decorative tips beyond the live track. Keep
+   those transparent edge pixels visible instead of clipping them to the
+   meter's layout box on narrow screens. */
+.pet-care-overlay .pet-care-mood,
+.pet-care-overlay .pet-care-hunger,
+.pet-care-overlay .pet-care-mood .pet-care-meter,
+.pet-care-overlay .pet-care-hunger .pet-care-meter {
+  overflow: visible;
+}
+
 /* Fine-tune the live fills to the visible openings in the authored frames. */
 .pet-care-overlay .pet-care-meter--hunger {
   --pet-care-track-top: 40%;
@@ -40,16 +50,16 @@
 }
 
 .pet-care-overlay .pet-care-meter--mood {
-  --pet-care-track-top: 34%;
+  --pet-care-track-top: 35%;
   --pet-care-track-right: 4.3%;
-  --pet-care-track-bottom: 25%;
+  --pet-care-track-bottom: 24%;
 }
 
 /* Let the changing expression occupy more of the Mood medallion and align it
    with the circle's actual painted opening. */
 .pet-care-overlay .pet-care-meter__mood-face-window {
   top: 24.5%;
-  left: 6.7%;
+  left: 6.1%;
   width: 18.7%;
 }
 
@@ -88,6 +98,16 @@
 
 .pet-care-overlay .pet-care-item-shelf {
   position: relative;
+}
+
+/* Lower only the edible artwork into its shelf cubbies. Gifts keep their
+   existing position. Inline drag positioning replaces this offset while an
+   edible is following the pointer. */
+.pet-care-overlay
+  .pet-care-item-shelf--edibles
+  .pet-care-item-shelf__visible-artwork {
+  position: relative;
+  top: 4px;
 }
 
 .pet-care-overlay .pet-care-item-shelf__stage {
@@ -132,6 +152,28 @@ body.pet-care-native-item-dragging
   overflow: visible !important;
 }
 
+/* Every known shelf ancestor must release its crop while the original item is
+   promoted. This keeps large or edge-heavy item art intact without cloning or
+   reparenting anything outside React's tree. */
+body.pet-care-native-item-dragging .pet-care-item-shelf--native-dragging,
+body.pet-care-native-item-dragging
+  .pet-care-item-shelf--native-dragging
+  .pet-care-item-shelf__stage,
+body.pet-care-native-item-dragging
+  .pet-care-item-shelf--native-dragging
+  .pet-care-item-shelf__viewport,
+body.pet-care-native-item-dragging
+  .pet-care-item-shelf--native-dragging
+  .pet-care-item-shelf__item,
+body.pet-care-native-item-dragging
+  .pet-care-item-shelf--native-dragging
+  .pet-care-item-shelf__visible-artwork {
+  overflow: visible !important;
+  clip-path: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
 body.pet-care-native-item-dragging .pet-care-native-source-item,
 body.pet-care-native-item-dragging .pet-care-native-source-item:active {
   z-index: 10040;
@@ -149,6 +191,9 @@ body.pet-care-native-item-dragging .pet-care-native-source-item:active {
   touch-action: none !important;
   transition: none !important;
   animation: none !important;
+  overflow: visible !important;
+  clip-path: none !important;
+  contain: none !important;
   will-change: transform;
   filter: drop-shadow(0 7px 12px rgba(0, 0, 0, 0.68));
 }

@@ -29,6 +29,20 @@ test("pet care quantities 30, 31, and 65 split into visible stacks of at most 30
   assert.deepEqual(buildPetCareInventoryStacks([item(65)]).map(({ quantity }) => quantity), [30, 30, 5]);
 });
 
+test("gifts use individual shelf slots instead of display stacks", () => {
+  const gifts = buildPetCareInventoryStacks([item(3, {
+    type: "gift",
+    shopItemId: "definition-gift",
+  })]);
+
+  assert.deepEqual(gifts.map(({ quantity }) => quantity), [1, 1, 1]);
+  assert.deepEqual(gifts.map(({ stackId }) => stackId), [
+    "definition-gift:inventory-row-a:0",
+    "definition-gift:inventory-row-a:1",
+    "definition-gift:inventory-row-a:2",
+  ]);
+});
+
 test("different item definitions and persisted rows remain distinct", () => {
   const stacks = buildPetCareInventoryStacks([
     item(2),
