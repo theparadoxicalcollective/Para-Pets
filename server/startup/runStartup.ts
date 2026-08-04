@@ -15,11 +15,15 @@ interface StartupDependencies {
 }
 
 async function runBackgroundInitialization(): Promise<void> {
-  await runNonCriticalStartup();
-  // The legacy backfill still understands older Haunted Woods databases. Run
-  // the focused reconciliation afterward so its canonical world locations and
-  // source-controlled assets always have the final word.
-  await reconcileHauntedWoodsWorld();
+  try {
+    await runNonCriticalStartup();
+  } finally {
+    // The legacy backfill understands older Haunted Woods databases. The
+    // focused reconciliation runs afterward—even if an unrelated legacy task
+    // fails—so canonical world locations and source-controlled assets have the
+    // final word without replacing admin-controlled placement values.
+    await reconcileHauntedWoodsWorld();
+  }
 }
 
 export async function runStartup({ app, httpServer, log }: StartupDependencies): Promise<void> {
