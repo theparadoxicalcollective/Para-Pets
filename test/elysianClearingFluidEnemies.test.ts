@@ -31,7 +31,7 @@ test("enemy steering accelerates smoothly and brakes instead of snapping",()=>{
   body={x:first.x,y:first.y,velocityX:first.velocityX,velocityY:first.velocityY};
   const second=smoothEnemyMotion(body,targetPoint,18,55,.05,world);
   assert.ok(second.velocityX>=first.velocityX);
-  const near=smoothEnemyMotion({x:.699,y:.5,velocityX:4,velocityY:0},targetPoint,18,55,.05,world);
+  const near=smoothEnemyMotion({x:.6998,y:.5,velocityX:4,velocityY:0},targetPoint,18,55,.05,world);
   assert.ok(near.velocityX<4||near.arrived);
 });
 
