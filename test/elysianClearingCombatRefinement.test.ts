@@ -10,7 +10,7 @@ const world={width:400,height:800},origin={x:.5,y:.5};
 const candidate=(instanceId:string,edgePixels:number,angle=0,radius=20)=>({enemy:{instanceId},active:true,health:100,center:{x:origin.x+Math.cos(angle)*(edgePixels+radius+CLEARING_PET_COMBAT_RADIUS)/world.width,y:origin.y+Math.sin(angle)*(edgePixels+radius+CLEARING_PET_COMBAT_RADIUS)/world.height},collisionRadius:radius});
 const pointsAt=(direction:{dx:number;dy:number},offset:number,nativeDegrees:number)=>{const rotation=weaponPointerRotation(direction,offset),native=rotation+nativeDegrees*Math.PI/180,length=Math.hypot(direction.dx,direction.dy);return (Math.cos(native)*direction.dx+Math.sin(native)*direction.dy)/length;};
 
-test("attack direction remains available while equipped weapon presentation only flips with the pet",()=>{
+test("attack direction remains available while equipped weapon motion stays local to the pet",()=>{
   const training=weaponArtOffsetForWeapon({stableKey:"clearing-training-sword",attackStyle:"sword_slash"});
   const cypress=weaponArtOffsetForWeapon({shopItemId:"a1b2c3d4-0011-4000-8000-000000000021",attackStyle:"sword_slash"});
   for(const direction of [{dx:1,dy:0},{dx:-1,dy:0},{dx:1,dy:1},{dx:-1,dy:-1}]){
@@ -19,7 +19,11 @@ test("attack direction remains available while equipped weapon presentation only
     assert.ok(pointsAt(direction,cypress,135)>.999,"Cypress Fang points along target vector");
   }
   const effect=fs.readFileSync("client/src/components/ClearingAttackEffect.tsx","utf8");
-  assert.match(effect,/scaleX\(\$\{facingLeft\?-1:1\}\)/);assert.match(effect,/data-testid="clearing-attack-vfx"/);assert.doesNotMatch(effect,/weaponAttackTransform/);
+  assert.match(effect,/scaleX\(\$\{facingLeft\?-1:1\}\)/);
+  assert.match(effect,/data-testid="clearing-equipped-weapon-motion"/);
+  assert.match(effect,/weaponAttackTransform\(phase,style\)/);
+  assert.match(effect,/data-testid="clearing-attack-vfx"/);
+  assert.match(effect,/rotate\(\$\{angleRadians\}rad\)/);
   const committed=weaponPointerRotation({dx:-1,dy:.5},training);
   for(const phase of ["windup","impact","recovery"] as const){assert.match(weaponAttackTransform(phase),/translateX|rotate/);assert.equal(committed,weaponPointerRotation({dx:-1,dy:.5},training));}
 });
