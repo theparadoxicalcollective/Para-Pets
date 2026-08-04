@@ -26,10 +26,13 @@ test("invalid first-frame geometry stays finite and inside ordered bounds",()=>{
   assert.ok(Number.isFinite(origin.x)&&Number.isFinite(origin.y));
 });
 
-test("weapon stays on the pet's foreground hand anchor when aim direction changes", () => {
+test("weapon anchor mirrors outside the pet's face while keeping the same vertical level", () => {
   const pet={x:.5,y:.7},world={width:500,height:800};
   const right=clearingWeaponOrigin(pet,150,world,false),left=clearingWeaponOrigin(pet,150,world,true);
-  assert.deepEqual(left,right);
   assert.ok(right.x>pet.x);
+  assert.ok(left.x<pet.x);
+  assert.equal(left.y,right.y);
+  assert.ok(Math.abs((right.x-pet.x)-(pet.x-left.x))<1e-12);
   assert.ok(clearingProjectileOrigin(pet,150,world,false).x>right.x);
+  assert.ok(clearingProjectileOrigin(pet,150,world,true).x<left.x);
 });
