@@ -5,14 +5,14 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, fix/clearing-action-visual-polish]
+    branches: [main]
 
 permissions:
   contents: write
 
 jobs:
   apply-clearing-polish:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/fix/clearing-action-visual-polish'
+    if: github.event_name == 'pull_request' && github.head_ref == 'fix/clearing-action-visual-polish'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -82,7 +82,6 @@ jobs:
           git push origin HEAD:fix/clearing-action-visual-polish
 
   verify:
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
