@@ -10,7 +10,7 @@ export const ELYSIAN_CLEARING_COMBAT_CONFIG = {
   baseEnemyPopulation: 8,
   maxEnemyPopulation: 10,
   maxEnemies: 10,
-  maxStrikeTargets: 2,
+  maxStrikeTargets: 1,
   maxSimultaneousAttackers: 2,
   // Cluster anchors are consumed in encounter order, so interleave their
   // vertical positions instead of filling the top of the scene first.
