@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
 import { queryClient } from "@/lib/queryClient";
-import { FeedingOverlay } from "@/pages/PetHousePage";
+import { FeedingOverlay } from "@/features/pet-care/FeedingOverlay";
 import LoadingScreen from "@/components/LoadingScreen";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import ErrorBoundary from "@/components/ErrorBoundary";

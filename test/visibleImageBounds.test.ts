@@ -61,7 +61,7 @@ test("URL cache reuses successful analysis and failed analysis", async () => {
 });
 
 test("shelf effect badges use the normalized wrapper while the full compartment remains the drag target", () => {
-  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   const component = readFileSync("client/src/components/VisibleAssetImage.tsx", "utf8");
   const css = readFileSync("client/src/index.css", "utf8");
   const shelfStart = page.indexOf("function PetCareItemShelf(");
