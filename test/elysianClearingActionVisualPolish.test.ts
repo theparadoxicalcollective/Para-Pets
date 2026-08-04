@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
+// Keep the requested Clearing presentation rules protected from future combat refactors.
 const combat = readFileSync("client/src/components/ElysianClearingCombat.tsx", "utf8");
 const scene = readFileSync("client/src/components/WalkAroundScene.tsx", "utf8");
 const weapon = readFileSync("client/src/components/ClearingAttackEffect.tsx", "utf8");
