@@ -4,6 +4,7 @@ export type PetCareInventoryItem = {
   id: string;
   shopItemId: string;
   quantity?: number | null;
+  type?: string | null;
 };
 
 export type PetCareInventoryStack<T> = T & {
@@ -32,12 +33,13 @@ export function orderPetCareItemsByEffect<T extends PetCareEffectItem>(
 }
 
 /**
- * Builds display stacks from the persisted inventory quantities. shopItemId is
+ * Builds display slots from the persisted inventory quantities. shopItemId is
  * the stable item-definition identifier; inventory row ids, names, and artwork
  * are deliberately not used to decide whether two items are identical.
  *
  * Inventory rows remain untouched and are still the consumption source of
- * truth. A large persisted quantity is only divided into shelf-sized views.
+ * truth. Edibles use shelf-sized stacks of at most 30, while gifts are shown as
+ * individual one-gift slots so separate presents never appear bundled together.
  */
 export function buildPetCareInventoryStacks<T extends PetCareInventoryItem>(
   items: readonly T[],
@@ -49,12 +51,13 @@ export function buildPetCareInventoryStacks<T extends PetCareInventoryItem>(
 
   return items.flatMap((item) => {
     const quantity = Math.max(1, Math.floor(item.quantity ?? 1));
-    const stackCount = Math.ceil(quantity / stackLimit);
+    const displayLimit = item.type === "gift" ? 1 : stackLimit;
+    const stackCount = Math.ceil(quantity / displayLimit);
 
     return Array.from({ length: stackCount }, (_, stackIndex) => ({
       ...item,
       stackId: `${item.shopItemId}:${item.id}:${stackIndex}`,
-      quantity: Math.min(stackLimit, quantity - stackIndex * stackLimit),
+      quantity: Math.min(displayLimit, quantity - stackIndex * displayLimit),
     }));
   });
 }
