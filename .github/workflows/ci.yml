@@ -1,3 +1,4 @@
+# Temporary branch runner; restored to the normal CI file by the patch job.
 name: CI
 
 on:
