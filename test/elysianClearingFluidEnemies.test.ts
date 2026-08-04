@@ -78,6 +78,6 @@ test("enemy renderer has no ground shadow circles and the request is capped at t
   assert.doesNotMatch(combat,/h-\[76px\] w-\[76px\].*rounded-full/);
   assert.match(combat,/targets:targetPayloads/);
   assert.match(combat,/slice\(0,CFG\.maxStrikeTargets\)/);
-  assert.match(routes,/rawTargets\.length>2/);
-  assert.match(routes,/secondaryStrike:index>0/);
+  assert.match(routes,/rawTargets\.length\s*>\s*2/);
+  assert.match(routes,/secondaryStrike:\s*index\s*>\s*0/);
 });
