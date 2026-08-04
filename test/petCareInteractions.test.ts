@@ -31,7 +31,7 @@ test("drag ghost positioning shares its size and finger-gap constants", () => {
   assert.equal(PET_CARE_DRAG_GHOST_SIZE_PX, 56);
   assert.equal(PET_CARE_DRAG_GHOST_FINGER_GAP_PX, 12);
   assert.equal(getPetCareDragGhostTransform(100, 200), "translate3d(72px, 132px, 0)");
-  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   assert.equal(page.match(/getPetCareDragGhostTransform\(/g)?.length, 2);
 });
 
@@ -43,7 +43,7 @@ test("expanded pet drop zone accepts padded edges and rejects outside points", (
 
 test("both inventories share the reusable six-slot shelf without old panels", () => {
   assert.equal(PET_CARE_VISIBLE_SLOTS, 6);
-  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   const css = readFileSync("client/src/index.css", "utf8");
   assert.match(page, /<PetCareItemShelf kind="edibles"/);
   assert.match(page, /<PetCareItemShelf kind="gifts"/);
@@ -71,7 +71,7 @@ test("both inventories share the reusable six-slot shelf without old panels", ()
 });
 
 test("care items capture only after vertical intent and release during cleanup", () => {
-  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   const pointerDown = page.slice(
     page.indexOf("const onItemPointerDown"),
     page.indexOf("const onItemPointerMove"),
@@ -86,7 +86,7 @@ test("care items capture only after vertical intent and release during cleanup",
 });
 
 test("safe visual mode keeps idle rendering and petting without heavy particle timers", () => {
-  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   assert.match(page, /onPointerDown=\{dragEnabled \?/);
   assert.match(page, /onPointerMove=\{dragEnabled \? onItemPointerMove/);
   assert.match(page, /\{dragEnabled && dragGhost && \(/);
@@ -101,7 +101,7 @@ test("safe visual mode keeps idle rendering and petting without heavy particle t
 });
 
 test("drop applies once only inside the pet and cancellation only resets state", () => {
-  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   const up = page.slice(page.indexOf("const onItemPointerUp"), page.indexOf("const onItemPointerCancel"));
   assert.match(up, /if \(!validDrop\) \{\s*cleanupItemGesture\(\);\s*return;/);
   assert.equal(up.match(/void applyCareItem\(d\)/g)?.length, 1);
@@ -111,7 +111,7 @@ test("drop applies once only inside the pet and cancellation only resets state",
 });
 
 test("dragging uses direct pointer coordinates", () => {
-  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   const moveHandler = page.slice(
     page.indexOf("const onItemPointerMove"),
     page.indexOf("const onItemPointerUp"),
@@ -122,7 +122,7 @@ test("dragging uses direct pointer coordinates", () => {
 });
 
 test("pointer cancellation is cleanup-only and server mutation paths stay intact", () => {
-  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   const cancelHandler = page.slice(
     page.indexOf("const onItemPointerCancel"),
     page.indexOf("return (", page.indexOf("const onItemPointerCancel")),

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 test("Pet Care shelves retain effect labels and order items by their bar increase", () => {
-  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   assert.match(page, /orderPetCareItemsByEffect\([\s\S]*?it\.type === "edibles"[\s\S]*?"edibles"/);
   assert.match(page, /orderPetCareItemsByEffect\([\s\S]*?it\.type === "gift"[\s\S]*?"gifts"/);
   assert.doesNotMatch(page, /pet-care-item-shelf__quantity/);
@@ -13,7 +13,7 @@ test("Pet Care shelves retain effect labels and order items by their bar increas
 });
 
 test("Pet Care uses the original scene and decorative asset meters", () => {
-  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   assert.match(page, /@assets\/IMG_5734_1783098320823\.jpeg/);
   assert.doesNotMatch(page, /@assets\/ui\/pet-care\/pet-care-background\.png/);
   assert.match(page, /@assets\/ui\/pet-care\/loyalty-meter-frame\.png/);
@@ -26,7 +26,7 @@ test("Pet Care uses the original scene and decorative asset meters", () => {
 });
 
 test("decorative meters retain live percentages without separate status boxes", () => {
-  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   assert.match(page, /percentage=\{hungerPct\}/);
   assert.match(page, /percentage=\{moodVal\}/);
   assert.match(page, /percentage=\{loyaltyPct\}/);
@@ -37,7 +37,7 @@ test("decorative meters retain live percentages without separate status boxes", 
 });
 
 test("the dynamic mood face is clipped inside the Mood meter medallion", () => {
-  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   const css = readFileSync("client/src/index.css", "utf8");
   const moodMeter = page.slice(page.indexOf('frame={moodMeterFrame}'), page.indexOf('</PetCareAssetMeter>', page.indexOf('frame={moodMeterFrame}')));
   assert.match(moodMeter, /pet-care-meter__mood-face-window/);
@@ -54,7 +54,7 @@ test("the dynamic mood face is clipped inside the Mood meter medallion", () => {
 });
 
 test("Pet Care meters clamp finite percentages and use separate responsive scene zones", () => {
-  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   const css = readFileSync("client/src/index.css", "utf8");
 
   assert.match(page, /Number\.isFinite\(percentage\)/);
@@ -75,7 +75,7 @@ test("Pet Care meters clamp finite percentages and use separate responsive scene
 
 
 test("Pet Care hunger follows the server care-stat scale and updates from feed responses", () => {
-  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   const css = readFileSync("client/src/index.css", "utf8");
   assert.match(page, /const maxHunger = 1000;/);
   assert.doesNotMatch(page, /maxHunger = Number\.isFinite\(petHealth\)/);

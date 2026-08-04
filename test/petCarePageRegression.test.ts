@@ -20,11 +20,23 @@ test("Pet Care exposes recoverable loading failures instead of rendering incompl
 });
 
 test("Pet Care owns and cleans up animation timers and avoids duplicate background decoding", () => {
-  const page = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   const overlay = page.slice(page.indexOf("export function FeedingOverlay"));
 
   assert.match(overlay, /timeoutIdsRef\.current\.forEach\(\(id\) => window\.clearTimeout\(id\)\)/);
   assert.match(overlay, /window\.clearInterval\(gesture\.heartTimer\)/);
   assert.match(overlay, /window\.clearInterval\(gesture\.sparkleTimer\)/);
   assert.doesNotMatch(overlay, /new Image\(\)/);
+});
+
+
+test("Pet Care route imports its independent feature boundary", () => {
+  const route = readFileSync("client/src/pages/PetCarePage.tsx", "utf8");
+  const feature = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
+  const house = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+
+  assert.match(route, /@\/features\/pet-care\/FeedingOverlay/);
+  assert.doesNotMatch(route, /@\/pages\/PetHousePage/);
+  assert.match(feature, /export function FeedingOverlay/);
+  assert.doesNotMatch(house, /export function FeedingOverlay/);
 });
