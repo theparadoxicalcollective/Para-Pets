@@ -160,12 +160,11 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
         const candidate = value as { enemyInstanceId?: unknown; targetPosition?: { x?: unknown; y?: unknown } };
         return { enemyInstanceId: candidate?.enemyInstanceId, targetPosition: candidate?.targetPosition };
       });
-      const malformedTarget = targets.some(target =>
-        typeof target.enemyInstanceId !== "string" ||
-        !target.targetPosition ||
-        !Number.isFinite(target.targetPosition.x) ||
-        !Number.isFinite(target.targetPosition.y),
-      );
+      const malformedTarget = targets.some(target => {
+        const x = target.targetPosition?.x;
+        const y = target.targetPosition?.y;
+        return typeof target.enemyInstanceId !== "string" || typeof x !== "number" || !Number.isFinite(x) || typeof y !== "number" || !Number.isFinite(y);
+      });
       if (malformedTarget || new Set(targets.map(target => target.enemyInstanceId)).size !== targets.length) {
         return res.status(400).json({ code: "CLEARING_MALFORMED_REQUEST", message: "Invalid combat targets" });
       }
@@ -277,9 +276,14 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
     }
   });
 
-  app.get("/api/explore/elysian-clearing/chests/:sessionId", isAuthenticated, async (req, res) =>
-    res.json(await getClearingRewardChests(db, { userId: (req.user as any).id, sessionId: req.params.sessionId as string, clearingId: ELYSIAN_CLEARING_COMBAT.locationId })),
-  );
+  app.get("/api/explore/elysian-clearing/chests/:sessionId", isAuthenticated, async (req, res) => {
+    return res.json(await getClearingRewardChests(db, {
+      userId: (req.user as any).id,
+      sessionId: req.params.sessionId as string,
+      clearingId: ELYSIAN_CLEARING_COMBAT.locationId,
+    }));
+  });
+
   app.post("/api/explore/elysian-clearing/chests/:chestId/claim", isAuthenticated, async (req, res) => {
     try {
       return res.json(await claimClearingRewardChest(db, { userId: (req.user as any).id, chestId: req.params.chestId as string }));
@@ -288,9 +292,15 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
       throw error;
     }
   });
-  app.get("/api/explore/elysian-clearing/eggs/:sessionId", isAuthenticated, async (req, res) =>
-    res.json(await getSpecialEggDrops(db, { userId: (req.user as any).id, sessionId: req.params.sessionId as string, clearingId: ELYSIAN_CLEARING_COMBAT.locationId })),
-  );
+
+  app.get("/api/explore/elysian-clearing/eggs/:sessionId", isAuthenticated, async (req, res) => {
+    return res.json(await getSpecialEggDrops(db, {
+      userId: (req.user as any).id,
+      sessionId: req.params.sessionId as string,
+      clearingId: ELYSIAN_CLEARING_COMBAT.locationId,
+    }));
+  });
+
   app.post("/api/explore/elysian-clearing/eggs/:dropId/collect", isAuthenticated, async (req, res) => {
     const session = getClearingSession(String(req.body?.sessionId || ""));
     if (!session || session.userId !== (req.user as any).id) return res.status(409).json({ message: "Clearing session expired" });
