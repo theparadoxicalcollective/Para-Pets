@@ -176,11 +176,28 @@ export function installPetCareDragPolish(): void {
     if (active?.pointerId === event.pointerId) restore();
   };
 
+  // Pet Care item use is intentionally drag-and-drop only. Block the legacy
+  // item-selection click and the matching tap-on-pet application path before
+  // React receives the synthetic click. Pointer events used for dragging and
+  // petting still run normally.
+  const blockLegacyTapToUse = (event: MouseEvent) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const legacyTapTarget = target?.closest(
+      ".pet-care-overlay .pet-care-item-shelf__item, .pet-care-overlay .pet-care-pet",
+    );
+    if (!legacyTapTarget) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+  };
+
   window.addEventListener("pointerdown", onPointerDown, { capture: true, passive: true });
   window.addEventListener("pointermove", onPointerMove, { capture: true, passive: true });
   window.addEventListener("pointerup", finishMatchingPointer, true);
   window.addEventListener("pointercancel", finishMatchingPointer, true);
   window.addEventListener("lostpointercapture", finishMatchingPointer, true);
+  window.addEventListener("click", blockLegacyTapToUse, true);
   window.addEventListener("blur", restore, true);
   window.addEventListener("pagehide", restore, true);
   document.addEventListener("visibilitychange", () => {
