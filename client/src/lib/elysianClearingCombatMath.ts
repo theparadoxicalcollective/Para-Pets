@@ -33,12 +33,12 @@ export function resolveMeleeTarget<T extends {instanceId:string}>(origin:PetWalk
   return strikeable.filter(result=>result.alignment>=cone).sort(compare)[0]??strikeable.filter(result=>result.edgeDistance<=CLEARING_AIM_GEOMETRY.meleeFallbackRadiusPixels).sort(compare)[0];
 }
 
-/** Selects a primary target with the existing lock and assist rules, then adds
- * one nearby enemy only when it is inside the same validated strike direction. */
+/** Selects one current target for a single-target strike, or a primary plus one
+ * secondary only for callers that explicitly request the legacy two-target mode. */
 export function selectClearingStrikeTargets<T extends {instanceId:string}>(style:ClearingAttackStyle,origin:PetWalkPos,direction:ClearingDirection,candidates:ClearingTargetCandidate<T>[],world:WorldPixels,lockedInstanceId:string|null=null,maxTargets=2):T[]{
   const limit=Math.max(1,Math.min(2,maxTargets));
   if(style==="staff_orb")return selectEnemiesAlongAimCapsule(origin,direction,candidates,CLEARING_AIM_GEOMETRY.staffAttackRangePixels,CLEARING_AIM_GEOMETRY.staffCapsuleRadiusPixels,world,limit);
-  const primary=resolveMeleeTarget(origin,direction,candidates,world,lockedInstanceId);if(!primary)return[];
+  const primary=resolveMeleeTarget(origin,direction,candidates,world,limit>1?lockedInstanceId:null);if(!primary)return[];
   const strikeDirection=normalizeDirection(primary.direction)??normalizeDirection(direction)??{dx:1,dy:0},cone=Math.cos(CLEARING_AIM_GEOMETRY.meleePreferredConeDegrees*Math.PI/360);
   const secondary=candidates.filter(candidate=>candidate.active&&candidate.health>0&&candidate.enemy.instanceId!==primary.enemy.instanceId).map(candidate=>{const delta=pixelDelta(origin,candidate.center,world),distance=Math.hypot(delta.dx,delta.dy),edgeDistance=clearingCollisionGapDistance(origin,candidate.center,CLEARING_PET_COMBAT_RADIUS,candidate.collisionRadius,world),alignment=distance?(delta.dx*strikeDirection.dx+delta.dy*strikeDirection.dy)/distance:1;return{candidate,edgeDistance,alignment};}).filter(result=>result.edgeDistance<=CLEARING_AIM_GEOMETRY.meleeAttackRangePixels&&result.alignment>=cone).sort((a,b)=>a.edgeDistance-b.edgeDistance||b.alignment-a.alignment||a.candidate.enemy.instanceId.localeCompare(b.candidate.enemy.instanceId))[0]?.candidate.enemy;
   return secondary&&limit>1?[primary.enemy,secondary]:[primary.enemy];

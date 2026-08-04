@@ -40,43 +40,47 @@ test("Clearing movement tuning is smaller, slower, and gives idle enemies longer
   assert.match(config,/bossEnemyVisibleHeight:\s*38/);
   assert.match(config,/roamSpeedPixels:\s*18/);
   assert.match(config,/roamPauseMs:\s*\{\s*min:\s*1800,\s*max:\s*4200\s*\}/);
-  assert.match(config,/maxStrikeTargets:\s*2/);
+  assert.match(config,/maxStrikeTargets:\s*1/);
 });
 
-test("one strike selects no more than two enemies in the same attack direction",()=>{
-  const origin={x:.5,y:.5};
-  const melee=selectClearingStrikeTargets("sword_slash",origin,{dx:1,dy:0},[
-    target("near",.59),target("second",.61,.505),target("behind",.42),target("off-axis",.56,.62),
-  ],world,null,2);
-  assert.deepEqual(melee.map(enemy=>enemy.instanceId),["near","second"]);
+test("each strike selects one enemy and may retarget according to the current aim",()=>{
+  const origin={x:.5,y:.5},candidates=[target("left",.41),target("right",.59)];
+  const right=selectClearingStrikeTargets("sword_slash",origin,{dx:1,dy:0},candidates,world,"left",1);
+  assert.deepEqual(right.map(enemy=>enemy.instanceId),["right"]);
+  const left=selectClearingStrikeTargets("sword_slash",origin,{dx:-1,dy:0},candidates,world,"right",1);
+  assert.deepEqual(left.map(enemy=>enemy.instanceId),["left"]);
   const staff=selectClearingStrikeTargets("staff_orb",origin,{dx:1,dy:0},[
     target("first",.65),target("second",.75,.51),target("third",.85,.5),
-  ],world,null,2);
-  assert.deepEqual(staff.map(enemy=>enemy.instanceId),["first","second"]);
+  ],world,null,1);
+  assert.deepEqual(staff.map(enemy=>enemy.instanceId),["first"]);
 });
 
-test("server validates a secondary strike while preserving the primary target lock",()=>{
-  const session=createClearingSession("dual-user","pet",{level:1,hp:1000,atk:50},1000,seeded(5));
+test("a legacy secondary target cannot take damage while a later primary strike can retarget",()=>{
+  const session=createClearingSession("single-user","pet",{level:1,hp:1000,atk:50},1000,seeded(5));
   const primary=session.enemies[0],secondary=session.enemies[1],origin={x:.5,y:.5};
   primary.x=.58;primary.y=.5;secondary.x=.60;secondary.y=.505;
   session.position={...origin,updatedAt:2000};
   const aimDirection={dx:1,dy:0},aimPoint={x:origin.x+CLEARING_AIM_GEOMETRY.meleeAttackRangePixels/world.width,y:origin.y};
   const geometry=(enemy:typeof primary)=>({style:"sword_slash" as const,playerPosition:origin,aimDirection,aimPoint,enemyPosition:{x:enemy.x,y:enemy.y},enemyRadiusPixels:19,worldPixels:world});
-  const first=applyClearingHit({sessionId:session.id,instanceId:primary.instanceId,userId:session.userId,petId:session.petId,petDamage:20,attackActionId:"dual:0",attackGeometry:geometry(primary),enemyPosition:{x:primary.x,y:primary.y},now:2000});
+  const first=applyClearingHit({sessionId:session.id,instanceId:primary.instanceId,userId:session.userId,petId:session.petId,petDamage:20,attackActionId:"single:0",attackGeometry:geometry(primary),enemyPosition:{x:primary.x,y:primary.y},now:2000});
   assert.equal(first.status,"hit");
   assert.equal(session.lockedTargetInstanceId,primary.instanceId);
-  const second=applyClearingHit({sessionId:session.id,instanceId:secondary.instanceId,userId:session.userId,petId:session.petId,petDamage:20,attackActionId:"dual:1",secondaryStrike:true,attackGeometry:geometry(secondary),enemyPosition:{x:secondary.x,y:secondary.y},now:2000});
-  assert.equal(second.status,"hit");
+  const secondaryHealth=secondary.health;
+  const blocked=applyClearingHit({sessionId:session.id,instanceId:secondary.instanceId,userId:session.userId,petId:session.petId,petDamage:20,attackActionId:"single:0:legacy-secondary",secondaryStrike:true,attackGeometry:geometry(secondary),enemyPosition:{x:secondary.x,y:secondary.y},now:2000});
+  assert.equal(blocked.status,"direction");
+  assert.equal(secondary.health,secondaryHealth);
   assert.equal(session.lockedTargetInstanceId,primary.instanceId);
-  assert.equal(applyClearingHit({sessionId:session.id,instanceId:secondary.instanceId,userId:session.userId,petId:session.petId,now:2001}).status,"target_locked");
+  const retargeted=applyClearingHit({sessionId:session.id,instanceId:secondary.instanceId,userId:session.userId,petId:session.petId,petDamage:20,attackActionId:"single:1",attackGeometry:geometry(secondary),enemyPosition:{x:secondary.x,y:secondary.y},now:2001});
+  assert.equal(retargeted.status,"hit");
+  assert.equal(secondary.health,secondaryHealth-20);
+  assert.equal(session.lockedTargetInstanceId,secondary.instanceId);
 });
 
-test("enemy renderer has no ground shadow circles and the request is capped at two targets",()=>{
-  const combat=fs.readFileSync("client/src/components/ElysianClearingCombat.tsx","utf8"),routes=fs.readFileSync("server/routes/elysianClearingCombat.routes.ts","utf8");
+test("enemy renderer has no ground shadow circles and the client sends its configured target count",()=>{
+  const combat=fs.readFileSync("client/src/components/ElysianClearingCombat.tsx","utf8"),server=fs.readFileSync("server/elysianClearingCombat.ts","utf8");
   assert.doesNotMatch(combat,/clearing-enemy-ground-shadow/);
   assert.doesNotMatch(combat,/h-\[76px\] w-\[76px\].*rounded-full/);
   assert.match(combat,/targets:targetPayloads/);
   assert.match(combat,/slice\(0,CFG\.maxStrikeTargets\)/);
-  assert.match(routes,/rawTargets\.length\s*>\s*2/);
-  assert.match(routes,/secondaryStrike:\s*index\s*>\s*0/);
+  assert.match(server,/if\(input\.secondaryStrike===true\)return \{status:"direction" as const\}/);
 });

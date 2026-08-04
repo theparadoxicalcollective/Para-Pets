@@ -117,31 +117,33 @@ export function applyClearingHit(input: { sessionId: string; instanceId: string;
   const session = sessions.get(input.sessionId);
   if (!session || session.expiresAt <= now || session.userId !== input.userId || session.petId !== input.petId) return { status: "invalid" as const };
   if(input.attackActionId&&session.processedAttacks.has(input.attackActionId))return session.processedAttacks.get(input.attackActionId)!;
+  // Older clients may still submit a second target. Keep the request safe during
+  // rollout by rejecting every secondary strike before geometry or health work.
+  if(input.secondaryStrike===true)return {status:"direction" as const};
   if(session.lockedTargetInstanceId&&input.attackGeometry){const locked=session.enemies.find(candidate=>candidate.instanceId===session.lockedTargetInstanceId),world=input.attackGeometry.worldPixels,radius=locked?.isBoss?25:19,staff=input.attackGeometry.style==="staff_orb",lockRange=staff?CLEARING_AIM_GEOMETRY.staffAttackRangePixels+CLEARING_AIM_GEOMETRY.staffLockHysteresisPixels:CLEARING_AIM_GEOMETRY.meleeAttackRangePixels+CLEARING_AIM_GEOMETRY.meleeLockHysteresisPixels,lockDistance=staff?clearingHitboxEdgeDistance(session.position,locked??session.position,radius,world):clearingCollisionGapDistance(session.position,locked??session.position,CLEARING_PET_COMBAT_RADIUS,radius,world);if(!locked||locked.defeated||lockDistance>lockRange)session.lockedTargetInstanceId=null;}
-  const secondaryStrike=input.secondaryStrike===true,preservedLock=secondaryStrike?session.lockedTargetInstanceId:null;
-  if(session.lockedTargetInstanceId&&session.lockedTargetInstanceId!==input.instanceId&&!secondaryStrike)return {status:"target_locked" as const};
   const enemy = session.enemies.find((candidate) => candidate.instanceId === input.instanceId);
   if (!enemy || enemy.defeated) return { status: "defeated" as const };
   const target=input.enemyPosition??enemy;
   const world=input.attackGeometry?.worldPixels??{width:CLEARING_AIM_GEOMETRY.worldWidthPixels,height:CLEARING_AIM_GEOMETRY.worldHeightPixels};
   if(input.attackGeometry&&!validateAndUpdateClearingCombatPosition({session,playerPosition:input.attackGeometry.playerPosition,worldPixels:world,now}))return {status:"direction" as const,enemy};
-  const targetRadius=Math.max(0,input.attackGeometry?.enemyRadiusPixels??0),allowedEdgeRange=!input.attackGeometry?(input.maxRangePixels??CLEARING_AIM_GEOMETRY.meleeAttackRangePixels):input.attackGeometry.style==="staff_orb"?(input.maxRangePixels??CLEARING_AIM_GEOMETRY.staffAttackRangePixels):CLEARING_AIM_GEOMETRY.meleeAttackRangePixels+(!secondaryStrike&&session.lockedTargetInstanceId?CLEARING_AIM_GEOMETRY.meleeLockHysteresisPixels:0);
+  const targetRadius=Math.max(0,input.attackGeometry?.enemyRadiusPixels??0),allowedEdgeRange=!input.attackGeometry?(input.maxRangePixels??CLEARING_AIM_GEOMETRY.meleeAttackRangePixels):input.attackGeometry.style==="staff_orb"?(input.maxRangePixels??CLEARING_AIM_GEOMETRY.staffAttackRangePixels):CLEARING_AIM_GEOMETRY.meleeAttackRangePixels+(session.lockedTargetInstanceId===input.instanceId?CLEARING_AIM_GEOMETRY.meleeLockHysteresisPixels:0);
   const edgeDistance=input.attackGeometry?.style==="staff_orb"?clearingHitboxEdgeDistance(session.position,target,targetRadius,world):clearingCollisionGapDistance(session.position,target,CLEARING_PET_COMBAT_RADIUS,targetRadius,world),coordinateDelta=Math.hypot((target.x-enemy.x)*world.width,(target.y-enemy.y)*world.height);
   const diagnostic=(reason:string):ClearingAttackDiagnostic=>({enemyInstanceId:enemy.instanceId,playerPosition:{x:session.position.x,y:session.position.y},clientTargetPosition:{x:target.x,y:target.y},serverEnemyPosition:{x:enemy.x,y:enemy.y},edgeDistance,allowedRange:allowedEdgeRange,rejectionReason:reason});
   if(!Number.isFinite(target.x)||!Number.isFinite(target.y)||coordinateDelta>CLEARING_AIM_GEOMETRY.serverEnemyPositionTolerancePixels)return {status:"desync" as const,enemy,diagnostic:diagnostic("enemy_position_desync")};
-  if(input.attackGeometry){const geometry=input.attackGeometry;if(((!session.lockedTargetInstanceId||secondaryStrike)&&!validateClearingAttackGeometry(geometry))||!normalizeClearingDirection(geometry.aimDirection)||!isFiniteClearingPoint(geometry.aimPoint))return {status:"direction" as const,enemy};}
+  if(input.attackGeometry){const geometry=input.attackGeometry;if(!validateClearingAttackGeometry(geometry)||!normalizeClearingDirection(geometry.aimDirection)||!isFiniteClearingPoint(geometry.aimPoint))return {status:"direction" as const,enemy};}
   if(edgeDistance>allowedEdgeRange)return {status:"range" as const,enemy,diagnostic:diagnostic("target_too_far")};
   // Persist the validated client simulation coordinate so rewards use the
   // enemy's exact final world position rather than its original spawn point.
   enemy.x=target.x;enemy.y=target.y;
-  if(!secondaryStrike||!session.lockedTargetInstanceId)session.lockedTargetInstanceId=enemy.instanceId;
+  // A successful new strike may replace the previous visual target. This keeps
+  // retargeting responsive while damage remains limited to this one enemy.
+  session.lockedTargetInstanceId=enemy.instanceId;
   enemy.lastHitAt = now;
   const previousHealth=enemy.health;
   enemy.health = Math.max(0, enemy.health - clamp(Math.round(input.petDamage ?? session.effectiveStats.atk), 20, 5_000));
   enemy.engagedByPlayer = enemy.health > 0;
   enemy.defeated = enemy.health === 0;
   if(enemy.defeated&&session.lockedTargetInstanceId===enemy.instanceId)session.lockedTargetInstanceId=null;
-  if(secondaryStrike&&preservedLock&&session.enemies.some(candidate=>candidate.instanceId===preservedLock&&!candidate.defeated))session.lockedTargetInstanceId=preservedLock;
   const result:ClearingHitResult={ status: enemy.defeated ? "killed" : "hit", enemy, damage:previousHealth-enemy.health,lockedTargetInstanceId:session.lockedTargetInstanceId };if(input.attackActionId){session.processedAttacks.set(input.attackActionId,result);while(session.processedAttacks.size>64)session.processedAttacks.delete(session.processedAttacks.keys().next().value!);}return result;
 }
 
