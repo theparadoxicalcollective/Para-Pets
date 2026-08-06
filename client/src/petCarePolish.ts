@@ -1,19 +1,31 @@
+import {
+  classifyPetCareItemGesture,
+  PET_CARE_DROP_PADDING_PX,
+  pointInsideExpandedPetDropZone,
+} from "@/lib/petCareInteractions";
+
 type ActivePetCareDrag = {
   pointerId: number;
   startX: number;
   startY: number;
-  x: number;
-  y: number;
   item: HTMLElement;
   shelf: HTMLElement;
-  artwork: HTMLElement;
-  originalStyle: string | null;
-  containingLeft: number;
-  containingTop: number;
-  width: number;
-  height: number;
   started: boolean;
-  frame: number | null;
+};
+
+type ActivePetStroke = {
+  pointerId: number;
+  target: HTMLElement;
+  lastX: number;
+  lastY: number;
+  pathDistance: number;
+  startedAt: number;
+  assisted: boolean;
+  pointerType: string;
+};
+
+type PetCarePointerEvent = PointerEvent & {
+  __paraPettingAssist?: boolean;
 };
 
 declare global {
@@ -22,97 +34,107 @@ declare global {
   }
 }
 
-const START_DISTANCE_PX = 9;
-const VERTICAL_INTENT_RATIO = 1.12;
+const PET_STROKE_ASSIST_DISTANCE_PX = 46;
+const PET_STROKE_ASSIST_MIN_DURATION_MS = 80;
+const PET_STROKE_ASSIST_RADIUS_RATIO = 0.17;
+const PET_STROKE_ASSIST_STEP_RADIANS = Math.PI * 0.17;
+const PET_STROKE_ASSIST_STEPS = 6;
+const DROP_SPARKLE_COUNT = 9;
 
-function findFixedContainingBlock(element: HTMLElement): HTMLElement | null {
-  let ancestor = element.parentElement;
-  while (ancestor && ancestor !== document.body) {
-    const style = window.getComputedStyle(ancestor);
-    const hasContainingTransform =
-      style.transform !== "none" ||
-      style.perspective !== "none" ||
-      style.filter !== "none" ||
-      style.backdropFilter !== "none";
-    if (hasContainingTransform) return ancestor;
-    ancestor = ancestor.parentElement;
+function now(): number {
+  return typeof performance !== "undefined" ? performance.now() : Date.now();
+}
+
+function createDropSparkles(x: number, y: number): void {
+  const burst = document.createElement("div");
+  burst.className = "pet-care-drop-sparkle-burst";
+  burst.setAttribute("aria-hidden", "true");
+  burst.style.left = `${Math.round(x)}px`;
+  burst.style.top = `${Math.round(y)}px`;
+
+  for (let index = 0; index < DROP_SPARKLE_COUNT; index += 1) {
+    const sparkle = document.createElement("span");
+    sparkle.className = "pet-care-drop-sparkle";
+    const angle = (index / DROP_SPARKLE_COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.45;
+    const distance = 34 + Math.random() * 42;
+    sparkle.style.setProperty("--pet-care-sparkle-x", `${Math.cos(angle) * distance}px`);
+    sparkle.style.setProperty("--pet-care-sparkle-y", `${Math.sin(angle) * distance - 12}px`);
+    sparkle.style.setProperty("--pet-care-sparkle-delay", `${Math.random() * 90}ms`);
+    sparkle.style.setProperty("--pet-care-sparkle-size", `${7 + Math.random() * 8}px`);
+    burst.appendChild(sparkle);
   }
-  return null;
+
+  document.body.appendChild(burst);
+  window.setTimeout(() => burst.remove(), 950);
+}
+
+function dispatchPettingAssist(stroke: ActivePetStroke): void {
+  if (stroke.assisted || !stroke.target.isConnected || typeof PointerEvent === "undefined") return;
+  stroke.assisted = true;
+
+  const rect = stroke.target.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const radius = Math.max(22, Math.min(rect.width, rect.height) * PET_STROKE_ASSIST_RADIUS_RATIO);
+  const startAngle = Math.atan2(stroke.lastY - centerY, stroke.lastX - centerX);
+
+  // Feed a short, smooth arc through the component's existing React handler.
+  // This preserves its normal mutation, mood, coin, heart, and cleanup paths;
+  // it only makes ordinary back-and-forth petting qualify like a small circle.
+  for (let step = 1; step <= PET_STROKE_ASSIST_STEPS; step += 1) {
+    const angle = startAngle + step * PET_STROKE_ASSIST_STEP_RADIANS;
+    const synthetic = new PointerEvent("pointermove", {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      pointerId: stroke.pointerId,
+      pointerType: stroke.pointerType || "touch",
+      isPrimary: true,
+      buttons: 1,
+      clientX: centerX + Math.cos(angle) * radius,
+      clientY: centerY + Math.sin(angle) * radius,
+    }) as PetCarePointerEvent;
+    synthetic.__paraPettingAssist = true;
+    stroke.target.dispatchEvent(synthetic);
+  }
 }
 
 /**
- * Keeps Pet Care's existing React gesture, drop validation, and mutations
- * intact. During an intentional upward drag, the original shelf artwork is
- * promoted to a fixed compositor layer without removing it from React's DOM.
+ * Keeps Pet Care's React gesture state, drop validation, mutations, and reward
+ * logic as the source of truth. This layer only improves mobile presentation:
+ * the source shelf slot empties while React's ghost follows the finger, normal
+ * tap-to-use remains available, successful-looking drops get immediate sparkle
+ * feedback, and ordinary petting strokes are assisted into the existing circle
+ * recognizer instead of introducing a second reward path.
  */
 export function installPetCareDragPolish(): void {
   if (typeof window === "undefined" || window.__paraPetCareDragPolishInstalled) return;
   window.__paraPetCareDragPolishInstalled = true;
 
-  let active: ActivePetCareDrag | null = null;
+  let activeDrag: ActivePetCareDrag | null = null;
+  let activeStroke: ActivePetStroke | null = null;
 
-  const renderPosition = (drag: ActivePetCareDrag) => {
-    drag.frame = null;
-    if (!drag.started || !drag.artwork.isConnected) return;
-
-    const left = Math.round(drag.x - drag.width / 2 - drag.containingLeft);
-    // Keep the item slightly above the fingertip so the pet remains visible.
-    const top = Math.round(drag.y - drag.height * 0.72 - drag.containingTop);
-    drag.artwork.style.transform = `translate3d(${left}px, ${top}px, 0)`;
-  };
-
-  const requestPosition = (drag: ActivePetCareDrag) => {
-    if (drag.frame != null) return;
-    drag.frame = window.requestAnimationFrame(() => renderPosition(drag));
-  };
-
-  const restore = () => {
-    const drag = active;
-    active = null;
+  const restoreDrag = () => {
+    const drag = activeDrag;
+    activeDrag = null;
     if (!drag) return;
 
-    if (drag.frame != null) window.cancelAnimationFrame(drag.frame);
     document.body.classList.remove("pet-care-native-item-dragging");
-
     drag.item.classList.remove("pet-care-native-source-item");
     drag.shelf.classList.remove("pet-care-item-shelf--native-dragging");
-    drag.artwork.classList.remove("pet-care-native-drag-artwork");
+  };
 
-    if (drag.started) {
-      if (drag.originalStyle == null) drag.artwork.removeAttribute("style");
-      else drag.artwork.setAttribute("style", drag.originalStyle);
-    }
+  const clearInteractions = () => {
+    restoreDrag();
+    activeStroke = null;
   };
 
   const beginVisualDrag = (drag: ActivePetCareDrag) => {
     if (drag.started) return;
     drag.started = true;
-
-    const rect = drag.artwork.getBoundingClientRect();
-    drag.width = Math.max(1, rect.width);
-    drag.height = Math.max(1, rect.height);
-    drag.originalStyle = drag.artwork.getAttribute("style");
-
     drag.item.classList.add("pet-care-native-source-item");
     drag.shelf.classList.add("pet-care-item-shelf--native-dragging");
-    drag.artwork.classList.add("pet-care-native-drag-artwork");
     document.body.classList.add("pet-care-native-item-dragging");
-
-    // The Edibles shelf has an authored translateY, which makes it the fixed
-    // containing block. Gifts normally use the viewport. Account for either
-    // case so the original artwork tracks the same finger coordinates.
-    const containingBlock = findFixedContainingBlock(drag.artwork);
-    const containingRect = containingBlock?.getBoundingClientRect();
-    drag.containingLeft = containingRect?.left ?? 0;
-    drag.containingTop = containingRect?.top ?? 0;
-
-    drag.artwork.style.left = "0";
-    drag.artwork.style.top = "0";
-    drag.artwork.style.width = `${drag.width}px`;
-    drag.artwork.style.height = `${drag.height}px`;
-    drag.artwork.style.transform = "translate3d(-9999px, -9999px, 0)";
-
-    requestPosition(drag);
   };
 
   const onPointerDown = (event: PointerEvent) => {
@@ -121,86 +143,121 @@ export function installPetCareDragPolish(): void {
     const target = event.target instanceof Element ? event.target : null;
     const item = target?.closest<HTMLElement>(".pet-care-overlay .pet-care-item-shelf__item");
     const shelf = item?.closest<HTMLElement>(".pet-care-item-shelf");
-    const artwork = item?.querySelector<HTMLElement>(".pet-care-item-shelf__visible-artwork");
-    if (!item || !shelf || !artwork) return;
 
-    restore();
-    active = {
+    // A new press is also a hard safety reset for any drag class left behind by
+    // an interrupted WebKit pointer sequence.
+    restoreDrag();
+
+    if (item && shelf) {
+      activeStroke = null;
+      activeDrag = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        item,
+        shelf,
+        started: false,
+      };
+      return;
+    }
+
+    const pet = target?.closest<HTMLElement>(".pet-care-overlay .pet-care-pet");
+    if (!pet) {
+      activeStroke = null;
+      return;
+    }
+
+    activeStroke = {
       pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      x: event.clientX,
-      y: event.clientY,
-      item,
-      shelf,
-      artwork,
-      originalStyle: null,
-      containingLeft: 0,
-      containingTop: 0,
-      width: 1,
-      height: 1,
-      started: false,
-      frame: null,
+      target: pet,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      pathDistance: 0,
+      startedAt: now(),
+      assisted: false,
+      pointerType: event.pointerType,
     };
   };
 
   const onPointerMove = (event: PointerEvent) => {
-    const drag = active;
-    if (!drag || drag.pointerId !== event.pointerId) return;
+    const enhancedEvent = event as PetCarePointerEvent;
+    if (enhancedEvent.__paraPettingAssist) return;
 
-    drag.x = event.clientX;
-    drag.y = event.clientY;
-
-    if (!drag.started) {
-      const dx = event.clientX - drag.startX;
-      const dy = event.clientY - drag.startY;
-      const absX = Math.abs(dx);
-      const absY = Math.abs(dy);
-
-      // Horizontal movement belongs to the shelf's native scroller. Only an
-      // intentional upward gesture promotes the item into the drag layer.
-      if (absX >= START_DISTANCE_PX && absX > absY) {
-        active = null;
-        return;
+    const drag = activeDrag;
+    if (drag && drag.pointerId === event.pointerId) {
+      if (!drag.started) {
+        const intent = classifyPetCareItemGesture(
+          event.clientX - drag.startX,
+          event.clientY - drag.startY,
+        );
+        if (intent === "horizontal-scroll") {
+          activeDrag = null;
+        } else if (intent === "vertical-item-drag") {
+          beginVisualDrag(drag);
+        }
       }
-
-      const upwardDrag = dy <= -START_DISTANCE_PX && absY > absX * VERTICAL_INTENT_RATIO;
-      if (!upwardDrag) return;
-      beginVisualDrag(drag);
+      return;
     }
 
-    requestPosition(drag);
+    const stroke = activeStroke;
+    if (!stroke || stroke.pointerId !== event.pointerId) return;
+
+    stroke.pathDistance += Math.hypot(event.clientX - stroke.lastX, event.clientY - stroke.lastY);
+    stroke.lastX = event.clientX;
+    stroke.lastY = event.clientY;
+
+    if (
+      !stroke.assisted
+      && stroke.pathDistance >= PET_STROKE_ASSIST_DISTANCE_PX
+      && now() - stroke.startedAt >= PET_STROKE_ASSIST_MIN_DURATION_MS
+    ) {
+      dispatchPettingAssist(stroke);
+    }
   };
 
-  const finishMatchingPointer = (event: PointerEvent) => {
-    if (active?.pointerId === event.pointerId) restore();
+  const finishDrag = (event: PointerEvent, showDropFeedback: boolean) => {
+    const drag = activeDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    if (showDropFeedback && drag.started) {
+      const pet = document.querySelector<HTMLElement>(".pet-care-overlay .pet-care-pet");
+      const rect = pet?.getBoundingClientRect();
+      if (rect && pointInsideExpandedPetDropZone(
+        { x: event.clientX, y: event.clientY },
+        rect,
+        PET_CARE_DROP_PADDING_PX,
+      )) {
+        const sparkleX = Math.min(Math.max(event.clientX, rect.left), rect.right);
+        const sparkleY = Math.min(Math.max(event.clientY, rect.top), rect.bottom);
+        createDropSparkles(sparkleX, sparkleY);
+      }
+    }
+
+    restoreDrag();
   };
 
-  // Pet Care item use is intentionally drag-and-drop only. Block the legacy
-  // item-selection click and the matching tap-on-pet application path before
-  // React receives the synthetic click. Pointer events used for dragging and
-  // petting still run normally.
-  const blockLegacyTapToUse = (event: MouseEvent) => {
-    const target = event.target instanceof Element ? event.target : null;
-    const legacyTapTarget = target?.closest(
-      ".pet-care-overlay .pet-care-item-shelf__item, .pet-care-overlay .pet-care-pet",
-    );
-    if (!legacyTapTarget) return;
+  const finishStroke = (event: PointerEvent) => {
+    if (activeStroke?.pointerId === event.pointerId) activeStroke = null;
+  };
 
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
+  const onPointerUp = (event: PointerEvent) => {
+    finishDrag(event, true);
+    finishStroke(event);
+  };
+
+  const onPointerCancel = (event: PointerEvent) => {
+    finishDrag(event, false);
+    finishStroke(event);
   };
 
   window.addEventListener("pointerdown", onPointerDown, { capture: true, passive: true });
   window.addEventListener("pointermove", onPointerMove, { capture: true, passive: true });
-  window.addEventListener("pointerup", finishMatchingPointer, true);
-  window.addEventListener("pointercancel", finishMatchingPointer, true);
-  window.addEventListener("lostpointercapture", finishMatchingPointer, true);
-  window.addEventListener("click", blockLegacyTapToUse, true);
-  window.addEventListener("blur", restore, true);
-  window.addEventListener("pagehide", restore, true);
+  window.addEventListener("pointerup", onPointerUp, true);
+  window.addEventListener("pointercancel", onPointerCancel, true);
+  window.addEventListener("lostpointercapture", onPointerCancel, true);
+  window.addEventListener("blur", clearInteractions, true);
+  window.addEventListener("pagehide", clearInteractions, true);
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") restore();
+    if (document.visibilityState === "hidden") clearInteractions();
   });
 }
