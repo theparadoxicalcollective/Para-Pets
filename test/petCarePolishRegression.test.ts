@@ -7,7 +7,7 @@ test("Pet Care layout polish stays route-scoped", () => {
   const css = readFileSync("client/src/petCarePolish.css", "utf8");
 
   assert.match(main, /import "\.\/petCarePolish\.css";/);
-  assert.match(main, /installPetCareDragPolish\(\);/);
+  assert.match(main, /installScopedPetCareDragPolish\(\);/);
   assert.match(css, /\.pet-care-overlay \.pet-care-loyalty[\s\S]*?left: clamp\(4px/);
   assert.match(css, /\.pet-care-overlay \.pet-care-meter--vertical \.pet-care-meter__track[\s\S]*?width: 19%/);
   assert.match(css, /\.pet-care-overlay \.pet-care-mood \.pet-care-meter[\s\S]*?width: min\(72%, 380px\)/);
