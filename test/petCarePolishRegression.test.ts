@@ -16,32 +16,50 @@ test("Pet Care layout polish stays route-scoped", () => {
   assert.match(css, /\.pet-care-item-shelf--edibles[\s\S]*?\.pet-care-item-shelf__visible-artwork[\s\S]*?top: 4px/);
 });
 
-test("Pet Care item application is drag-only", () => {
+test("Pet Care keeps tap-to-select available beside drag-and-drop", () => {
   const drag = readFileSync("client/src/petCarePolish.ts", "utf8");
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
 
-  assert.match(drag, /const blockLegacyTapToUse = \(event: MouseEvent\)/);
-  assert.match(drag, /\.pet-care-item-shelf__item, \.pet-care-overlay \.pet-care-pet/);
-  assert.match(drag, /event\.preventDefault\(\)/);
-  assert.match(drag, /event\.stopImmediatePropagation\(\)/);
-  assert.match(drag, /window\.addEventListener\("click", blockLegacyTapToUse, true\)/);
+  assert.doesNotMatch(drag, /blockLegacyTapToUse/);
+  assert.doesNotMatch(drag, /addEventListener\("click"/);
+  assert.match(page, /onClick=\{\(\) => onItemClick\(item\)\}/);
+  assert.match(page, /onClick=\{applySelectedCareItem\}/);
 });
 
-test("Pet Care drags the original shelf artwork above every shelf crop", () => {
+test("Pet Care empties the source shelf slot and leaves React's ghost visible", () => {
   const drag = readFileSync("client/src/petCarePolish.ts", "utf8");
   const css = readFileSync("client/src/petCarePolish.css", "utf8");
 
-  assert.match(drag, /querySelector<HTMLElement>\("\.pet-care-item-shelf__visible-artwork"\)/);
-  assert.doesNotMatch(drag, /appendChild\(drag\.artwork\)/);
-  assert.match(drag, /findFixedContainingBlock/);
-  assert.match(drag, /requestAnimationFrame/);
-  assert.match(drag, /translate3d/);
-  assert.match(drag, /Horizontal movement belongs to the shelf's native scroller/);
-  assert.match(drag, /drag\.artwork\.classList\.add\("pet-care-native-drag-artwork"\)/);
-  assert.match(css, /body\.pet-care-native-item-dragging \.pet-care-inventory-section[\s\S]*?z-index: 30/);
-  assert.match(css, /pet-care-item-shelf--native-dragging[\s\S]*?pet-care-item-shelf__viewport[\s\S]*?z-index: 4 !important;[\s\S]*?overflow: visible !important/);
-  assert.match(css, /pet-care-item-shelf--native-dragging[\s\S]*?pet-care-item-shelf__stage[\s\S]*?pet-care-item-shelf__item[\s\S]*?overflow: visible !important;[\s\S]*?clip-path: none !important/);
-  assert.match(css, /\.pet-care-native-drag-artwork[\s\S]*?position: fixed[\s\S]*?z-index: 10050[\s\S]*?overflow: visible !important/);
-  assert.match(css, /body\.pet-care-native-item-dragging \.pet-care-drag-ghost__image[\s\S]*?visibility: hidden/);
+  assert.match(drag, /classifyPetCareItemGesture/);
+  assert.match(drag, /drag\.item\.classList\.add\("pet-care-native-source-item"\)/);
+  assert.match(drag, /drag\.shelf\.classList\.add\("pet-care-item-shelf--native-dragging"\)/);
+  assert.doesNotMatch(drag, /pet-care-native-drag-artwork/);
+  assert.doesNotMatch(drag, /drag\.artwork\.style/);
+  assert.match(css, /pet-care-native-source-item[\s\S]*?pet-care-item-shelf__visible-artwork[\s\S]*?opacity: 0 !important;[\s\S]*?visibility: hidden !important/);
+  assert.match(css, /body\.pet-care-native-item-dragging \.pet-care-drag-ghost__image[\s\S]*?visibility: visible !important;[\s\S]*?opacity: 1 !important/);
+  assert.doesNotMatch(css, /\.pet-care-native-drag-artwork/);
+});
+
+test("Pet Care drop feedback uses a lightweight sparkle burst", () => {
+  const drag = readFileSync("client/src/petCarePolish.ts", "utf8");
+  const css = readFileSync("client/src/petCarePolish.css", "utf8");
+
+  assert.match(drag, /function createDropSparkles/);
+  assert.match(drag, /pointInsideExpandedPetDropZone/);
+  assert.match(drag, /createDropSparkles\(sparkleX, sparkleY\)/);
+  assert.match(css, /\.pet-care-drop-sparkle-burst/);
+  assert.match(css, /@keyframes pet-care-drop-sparkle-pop/);
+});
+
+test("Pet Care assists natural strokes through the existing React petting path", () => {
+  const drag = readFileSync("client/src/petCarePolish.ts", "utf8");
+
+  assert.match(drag, /PET_STROKE_ASSIST_DISTANCE_PX/);
+  assert.match(drag, /function dispatchPettingAssist/);
+  assert.match(drag, /new PointerEvent\("pointermove"/);
+  assert.match(drag, /synthetic\.__paraPettingAssist = true/);
+  assert.match(drag, /stroke\.target\.dispatchEvent\(synthetic\)/);
+  assert.doesNotMatch(drag, /\/petting-reward|apiRequest|fetch\(/);
 });
 
 test("Pet Care frames receive subtle shadows and calibrated fills", () => {
