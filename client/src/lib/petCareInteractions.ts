@@ -1,5 +1,5 @@
 export const PET_CARE_VISIBLE_SLOTS = 6;
-export const PET_CARE_GESTURE_THRESHOLD_PX = 8;
+export const PET_CARE_GESTURE_THRESHOLD_PX = 7;
 export const PET_CARE_DROP_PADDING_PX = 26;
 export const PET_CARE_DRAG_GHOST_SIZE_PX = 56;
 export const PET_CARE_DRAG_GHOST_FINGER_GAP_PX = 12;
@@ -22,9 +22,10 @@ export function classifyPetCareItemGesture(
   const absY = Math.abs(dy);
   if (Math.hypot(dx, dy) < threshold) return "pending";
   if (absX >= absY) return "horizontal-scroll";
-  // The pet is above the shelves. Only a clearly upward gesture may pick up
-  // an item; downward and ambiguous diagonal gestures remain native pans.
-  if (dy < 0 && absY >= absX * 1.2) return "vertical-item-drag";
+  // The pet is above the shelves. Only upward travel may pick up an item, but
+  // allow a natural diagonal thumb motion so the lower Gifts shelf is not
+  // noticeably harder to use than Edibles.
+  if (dy < 0 && absY >= absX * 1.08) return "vertical-item-drag";
   return "horizontal-scroll";
 }
 
