@@ -16,12 +16,17 @@ test("Pet Care layout polish stays route-scoped", () => {
   assert.match(css, /\.pet-care-item-shelf--edibles[\s\S]*?\.pet-care-item-shelf__visible-artwork[\s\S]*?top: 4px/);
 });
 
-test("Pet Care keeps tap-to-select available beside drag-and-drop", () => {
+test("Pet Care is drag-only in normal mode and keeps emergency tap fallback", () => {
   const drag = readFileSync("client/src/petCarePolish.ts", "utf8");
   const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
 
-  assert.doesNotMatch(drag, /blockLegacyTapToUse/);
-  assert.doesNotMatch(drag, /addEventListener\("click"/);
+  assert.match(drag, /const blockLegacyTapToUse = \(event: MouseEvent\)/);
+  assert.match(drag, /overlay\?\.dataset\.petCareDragEnabled !== "true"/);
+  assert.match(drag, /event\.preventDefault\(\)/);
+  assert.match(drag, /event\.stopImmediatePropagation\(\)/);
+  assert.match(drag, /window\.addEventListener\("click", blockLegacyTapToUse, true\)/);
+  // The React click handlers remain wired so explicit no-drag emergency mode
+  // can still use the accessible tap-item / tap-pet fallback.
   assert.match(page, /onClick=\{\(\) => onItemClick\(item\)\}/);
   assert.match(page, /onClick=\{applySelectedCareItem\}/);
 });
@@ -67,6 +72,8 @@ test("Pet Care frames receive subtle shadows and calibrated fills", () => {
 
   assert.match(css, /\.pet-care-overlay \.pet-care-meter--hunger[\s\S]*?--pet-care-track-top: 40%;[\s\S]*?--pet-care-track-bottom: 25%/);
   assert.match(css, /\.pet-care-overlay \.pet-care-meter--mood[\s\S]*?--pet-care-track-top: 35%;[\s\S]*?--pet-care-track-right: 4\.3%;[\s\S]*?--pet-care-track-bottom: 24%/);
+  assert.match(css, /\.pet-care-meter--mood \.pet-care-meter__track[\s\S]*?translateY\(1px\)/);
+  assert.match(css, /\.pet-care-meter--hunger \.pet-care-meter__track[\s\S]*?translateY\(5px\)/);
   assert.match(css, /\.pet-care-overlay \.pet-care-meter__mood-face-window[\s\S]*?top: 24\.5%;[\s\S]*?left: 6\.1%;[\s\S]*?width: 18\.7%/);
   assert.match(css, /\.pet-care-overlay \.pet-care-meter__mood-face[\s\S]*?scale\(1\.15\)/);
   assert.match(css, /\.pet-care-overlay \.pet-care-mood \.pet-care-meter::before[\s\S]*?background: rgba\(0, 0, 0, 0\.22\)/);
