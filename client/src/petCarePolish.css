@@ -140,30 +140,71 @@
   box-shadow: 0 10px 18px rgba(0, 0, 0, 0.34);
 }
 
-/* React already owns the finger-following ghost. During an intentional drag,
-   hide only the source artwork while preserving the slot's dimensions. This
-   makes the item visibly leave its exact cubby without moving React-owned DOM
-   into a transformed ancestor or leaving a stuck drag layer behind on iOS. */
+/* Stacked edibles show their inventory amount in the lower-left of the cubby.
+   The badge is deliberately compact so it does not compete with the gold care
+   value at the upper edge of the artwork. */
+.pet-care-overlay
+  .pet-care-item-shelf__item[data-pet-care-stack-quantity]::after {
+  content: "×" attr(data-pet-care-stack-quantity);
+  position: absolute;
+  left: 6px;
+  bottom: 24%;
+  z-index: 8;
+  pointer-events: none;
+  color: #9dff83;
+  font-family: Lora, Georgia, serif;
+  font-size: clamp(10px, 2.8vw, 13px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.95),
+    0 0 5px rgba(64, 255, 92, 0.75);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8));
+}
+
+.pet-care-overlay
+  .pet-care-item-shelf__item[data-pet-care-drag-source="true"]::after {
+  opacity: 0;
+}
+
+/* The helper copies the already-normalized canvas/image into a body-level fixed
+   layer. That prevents the shelf crop and React rerender from leaving a clipped
+   source copy underneath the moving item. */
 body.pet-care-native-item-dragging .pet-care-inventory-section {
   z-index: 30 !important;
 }
 
-body.pet-care-native-item-dragging .pet-care-item-shelf--native-dragging {
-  z-index: 31;
+body.pet-care-native-item-dragging .pet-care-pet {
+  transition: none !important;
 }
 
-body.pet-care-native-item-dragging
-  .pet-care-native-source-item
-  .pet-care-item-shelf__visible-artwork {
-  opacity: 0 !important;
-  visibility: hidden !important;
+.pet-care-polished-drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10060;
+  pointer-events: none;
+  touch-action: none;
+  overflow: visible;
+  contain: layout style;
+  will-change: transform;
+  filter:
+    drop-shadow(0 0 9px rgba(255, 236, 150, 0.68))
+    drop-shadow(0 9px 13px rgba(0, 0, 0, 0.72));
 }
 
-body.pet-care-native-item-dragging .pet-care-native-source-item {
-  transform: none !important;
-  filter: none !important;
+.pet-care-polished-drag-ghost__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
 }
 
+/* React's built-in ghost remains the fallback when the normalized source canvas
+   is not ready. Once the body-level snapshot exists, hide React's raw-image
+   ghost so the player sees exactly one complete item. */
 body.pet-care-native-item-dragging .pet-care-drag-ghost__image {
   visibility: visible !important;
   opacity: 1 !important;
@@ -173,34 +214,66 @@ body.pet-care-native-item-dragging .pet-care-drag-ghost__image {
   will-change: transform;
 }
 
-body.pet-care-native-item-dragging .pet-care-pet {
-  transition: none !important;
+body.pet-care-polished-ghost-active .pet-care-drag-ghost__image {
+  visibility: hidden !important;
+  opacity: 0 !important;
 }
 
 /* Lightweight drop feedback remains visible even in reduced visual mode. The
-   existing React success particles still run when available; this quick burst
-   makes the release itself feel responsive while the request is in flight. */
+   parent must not use paint containment: a 1px paint-contained box clipped all
+   of the outward-moving sparkles in the previous implementation. */
 .pet-care-drop-sparkle-burst {
   position: fixed;
   z-index: 10070;
-  width: 1px;
-  height: 1px;
+  width: 0;
+  height: 0;
   pointer-events: none;
-  contain: layout style paint;
+  overflow: visible;
+  contain: layout style;
+}
+
+.pet-care-drop-sparkle-core {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 70px;
+  height: 70px;
+  margin: -35px;
+  border: 2px solid rgba(255, 240, 148, 0.92);
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow:
+    0 0 18px rgba(255, 223, 88, 0.9),
+    inset 0 0 16px rgba(255, 255, 220, 0.75);
+  animation: pet-care-drop-sparkle-core 720ms ease-out forwards;
 }
 
 .pet-care-drop-sparkle {
   position: absolute;
   left: 0;
   top: 0;
-  width: var(--pet-care-sparkle-size, 10px);
-  height: var(--pet-care-sparkle-size, 10px);
-  margin: calc(var(--pet-care-sparkle-size, 10px) / -2);
+  width: var(--pet-care-sparkle-size, 12px);
+  height: var(--pet-care-sparkle-size, 12px);
+  margin: calc(var(--pet-care-sparkle-size, 12px) / -2);
   opacity: 0;
   background: radial-gradient(circle, #fffdf1 0 24%, #ffe886 34% 56%, rgba(255, 191, 47, 0) 76%);
   clip-path: polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%);
-  filter: drop-shadow(0 0 5px rgba(255, 222, 102, 0.9));
-  animation: pet-care-drop-sparkle-pop 780ms cubic-bezier(0.2, 0.72, 0.22, 1) var(--pet-care-sparkle-delay, 0ms) forwards;
+  filter: drop-shadow(0 0 6px rgba(255, 222, 102, 1));
+  animation: pet-care-drop-sparkle-pop 900ms cubic-bezier(0.2, 0.72, 0.22, 1) var(--pet-care-sparkle-delay, 0ms) forwards;
+}
+
+@keyframes pet-care-drop-sparkle-core {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  22% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
 }
 
 @keyframes pet-care-drop-sparkle-pop {
@@ -208,24 +281,25 @@ body.pet-care-native-item-dragging .pet-care-pet {
     opacity: 0;
     transform: translate3d(0, 0, 0) scale(0.2) rotate(0deg);
   }
-  20% {
+  18% {
     opacity: 1;
   }
-  72% {
-    opacity: 0.95;
+  70% {
+    opacity: 0.98;
   }
   100% {
     opacity: 0;
     transform:
       translate3d(var(--pet-care-sparkle-x), var(--pet-care-sparkle-y), 0)
-      scale(1.15)
-      rotate(170deg);
+      scale(1.2)
+      rotate(190deg);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pet-care-drop-sparkle {
-    animation-duration: 420ms;
+  .pet-care-drop-sparkle,
+  .pet-care-drop-sparkle-core {
+    animation-duration: 480ms;
   }
 }
 
@@ -239,5 +313,11 @@ body.pet-care-native-item-dragging .pet-care-pet {
       calc(100% - var(--pet-care-usable-left) - var(--pet-care-scene-right)),
       340px
     );
+  }
+
+  .pet-care-overlay
+    .pet-care-item-shelf__item[data-pet-care-stack-quantity]::after {
+    left: 4px;
+    bottom: 25%;
   }
 }
