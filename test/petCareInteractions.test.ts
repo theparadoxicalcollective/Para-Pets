@@ -12,7 +12,7 @@ import {
 } from "../client/src/lib/petCareInteractions";
 
 test("pet-care gesture intent waits for the movement threshold", () => {
-  assert.equal(PET_CARE_GESTURE_THRESHOLD_PX, 8);
+  assert.equal(PET_CARE_GESTURE_THRESHOLD_PX, 7);
   assert.equal(classifyPetCareItemGesture(4, -4), "pending");
 });
 
@@ -20,11 +20,12 @@ test("horizontal travel selects native shelf scrolling", () => {
   assert.equal(classifyPetCareItemGesture(28, -8), "horizontal-scroll");
 });
 
-test("only primarily upward travel selects item dragging", () => {
+test("upward diagonal travel selects item dragging without stealing shelf scrolls", () => {
   assert.equal(classifyPetCareItemGesture(3, -8), "vertical-item-drag");
   assert.equal(classifyPetCareItemGesture(3, 8), "horizontal-scroll");
   assert.equal(classifyPetCareItemGesture(8, -8), "horizontal-scroll");
-  assert.equal(classifyPetCareItemGesture(10, -11), "horizontal-scroll");
+  assert.equal(classifyPetCareItemGesture(10, -11), "vertical-item-drag");
+  assert.equal(classifyPetCareItemGesture(11, -10), "horizontal-scroll");
 });
 
 test("drag ghost positioning shares its size and finger-gap constants", () => {
