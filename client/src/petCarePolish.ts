@@ -103,9 +103,11 @@ function dispatchPettingAssist(stroke: ActivePetStroke): void {
  * Keeps Pet Care's React gesture state, drop validation, mutations, and reward
  * logic as the source of truth. This layer only improves mobile presentation:
  * the source shelf slot empties while React's ghost follows the finger, normal
- * tap-to-use remains available, successful-looking drops get immediate sparkle
+ * play stays drag-and-drop only, successful-looking drops get immediate sparkle
  * feedback, and ordinary petting strokes are assisted into the existing circle
- * recognizer instead of introducing a second reward path.
+ * recognizer instead of introducing a second reward path. Tap-to-use remains
+ * available only when the overlay explicitly disables dragging as an emergency
+ * compatibility fallback.
  */
 export function installPetCareDragPolish(): void {
   if (typeof window === "undefined" || window.__paraPetCareDragPolishInstalled) return;
@@ -250,11 +252,30 @@ export function installPetCareDragPolish(): void {
     finishStroke(event);
   };
 
+  // The original, correctly working interaction was drag-and-drop only. PR #137
+  // unintentionally exposed the component's old item-select / tap-pet handlers
+  // during normal play, making taps look like the primary care interaction.
+  // Keep those existing handlers wired only for the explicit no-drag emergency
+  // mode; blocking click events does not interfere with pointer drag or petting.
+  const blockLegacyTapToUse = (event: MouseEvent) => {
+    const target = event.target instanceof Element ? event.target : null;
+    const legacyTapTarget = target?.closest<HTMLElement>(
+      ".pet-care-overlay .pet-care-item-shelf__item, .pet-care-overlay .pet-care-pet",
+    );
+    const overlay = legacyTapTarget?.closest<HTMLElement>(".pet-care-overlay");
+    if (!legacyTapTarget || overlay?.dataset.petCareDragEnabled !== "true") return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+  };
+
   window.addEventListener("pointerdown", onPointerDown, { capture: true, passive: true });
   window.addEventListener("pointermove", onPointerMove, { capture: true, passive: true });
   window.addEventListener("pointerup", onPointerUp, true);
   window.addEventListener("pointercancel", onPointerCancel, true);
   window.addEventListener("lostpointercapture", onPointerCancel, true);
+  window.addEventListener("click", blockLegacyTapToUse, true);
   window.addEventListener("blur", clearInteractions, true);
   window.addEventListener("pagehide", clearInteractions, true);
   document.addEventListener("visibilitychange", () => {

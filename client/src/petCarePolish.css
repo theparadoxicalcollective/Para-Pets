@@ -55,6 +55,17 @@
   --pet-care-track-bottom: 24%;
 }
 
+/* Move only the live fill tracks, not the ornate frame artwork. Pixel offsets
+   preserve the existing fill height and make the requested alignment change
+   predictable across the scaled phone stage. */
+.pet-care-overlay .pet-care-meter--mood .pet-care-meter__track {
+  transform: translateY(1px);
+}
+
+.pet-care-overlay .pet-care-meter--hunger .pet-care-meter__track {
+  transform: translateY(5px);
+}
+
 /* Let the changing expression occupy more of the Mood medallion and align it
    with the circle's actual painted opening. */
 .pet-care-overlay .pet-care-meter__mood-face-window {
