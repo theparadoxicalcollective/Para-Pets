@@ -33,28 +33,50 @@ test("Pet Care is drag-only in normal mode and keeps emergency tap fallback", ()
   assert.match(page, /onPointerMove=\{dragEnabled \? onItemPointerMove/);
 });
 
-test("Pet Care empties the source shelf slot and leaves React's ghost visible", () => {
+test("Pet Care drag uses one unclipped snapshot and hides the exact source inline", () => {
   const drag = readFileSync("client/src/petCarePolish.ts", "utf8");
   const css = readFileSync("client/src/petCarePolish.css", "utf8");
 
-  assert.match(drag, /classifyPetCareItemGesture/);
-  assert.match(drag, /drag\.item\.classList\.add\("pet-care-native-source-item"\)/);
-  assert.match(drag, /drag\.shelf\.classList\.add\("pet-care-item-shelf--native-dragging"\)/);
-  assert.doesNotMatch(drag, /pet-care-native-drag-artwork/);
-  assert.doesNotMatch(drag, /drag\.artwork\.style/);
-  assert.match(css, /pet-care-native-source-item[\s\S]*?pet-care-item-shelf__visible-artwork[\s\S]*?opacity: 0 !important;[\s\S]*?visibility: hidden !important/);
-  assert.match(css, /body\.pet-care-native-item-dragging \.pet-care-drag-ghost__image[\s\S]*?visibility: visible !important;[\s\S]*?opacity: 1 !important/);
-  assert.doesNotMatch(css, /\.pet-care-native-drag-artwork/);
+  assert.match(drag, /function copyRenderedArtwork/);
+  assert.match(drag, /querySelector<HTMLElement>\("\.pet-care-item-shelf__normalized-image"\)/);
+  assert.match(drag, /context\.drawImage\(rendered, 0, 0\)/);
+  assert.match(drag, /function createRenderedDragGhost/);
+  assert.match(drag, /document\.body\.appendChild\(ghost\)/);
+  assert.match(drag, /drag\.artwork\.style\.opacity = "0"/);
+  assert.match(drag, /drag\.artwork\.style\.visibility = "hidden"/);
+  assert.match(drag, /drag\.originalArtworkStyle == null/);
+  assert.match(drag, /drag\.ghost\?\.remove\(\)/);
+  assert.doesNotMatch(drag, /pet-care-native-source-item/);
+  assert.match(css, /\.pet-care-polished-drag-ghost[\s\S]*?position: fixed[\s\S]*?z-index: 10060/);
+  assert.match(css, /body\.pet-care-polished-ghost-active \.pet-care-drag-ghost__image[\s\S]*?visibility: hidden !important;[\s\S]*?opacity: 0 !important/);
 });
 
-test("Pet Care drop feedback uses a lightweight sparkle burst", () => {
+test("Pet Care shows green lower-left quantities for stacked inventory", () => {
+  const drag = readFileSync("client/src/petCarePolish.ts", "utf8");
+  const css = readFileSync("client/src/petCarePolish.css", "utf8");
+
+  assert.match(drag, /queryClient\.getQueryData<unknown>\(\["\/api\/inventory"\]\)/);
+  assert.match(drag, /buildPetCareInventoryStacks/);
+  assert.match(drag, /orderPetCareItemsByEffect/);
+  assert.match(drag, /item\.dataset\.petCareStackQuantity = String\(quantity\)/);
+  assert.match(drag, /new MutationObserver\(scheduleQuantitySync\)/);
+  assert.match(drag, /getQueryCache\(\)\.subscribe\(scheduleQuantitySync\)/);
+  assert.match(css, /data-pet-care-stack-quantity[\s\S]*?content: "×" attr\(data-pet-care-stack-quantity\)/);
+  assert.match(css, /data-pet-care-stack-quantity[\s\S]*?left: 6px;[\s\S]*?bottom: 24%;/);
+  assert.match(css, /color: #9dff83/);
+});
+
+test("Pet Care drop feedback is visible outside the zero-sized burst origin", () => {
   const drag = readFileSync("client/src/petCarePolish.ts", "utf8");
   const css = readFileSync("client/src/petCarePolish.css", "utf8");
 
   assert.match(drag, /function createDropSparkles/);
+  assert.match(drag, /DROP_SPARKLE_COUNT = 14/);
   assert.match(drag, /pointInsideExpandedPetDropZone/);
-  assert.match(drag, /createDropSparkles\(sparkleX, sparkleY\)/);
-  assert.match(css, /\.pet-care-drop-sparkle-burst/);
+  assert.match(drag, /createDropSparkles\(rect\.left \+ rect\.width \/ 2, rect\.top \+ rect\.height \* 0\.48\)/);
+  assert.match(css, /\.pet-care-drop-sparkle-burst[\s\S]*?overflow: visible;[\s\S]*?contain: layout style;/);
+  assert.doesNotMatch(css, /contain: layout style paint/);
+  assert.match(css, /\.pet-care-drop-sparkle-core/);
   assert.match(css, /@keyframes pet-care-drop-sparkle-pop/);
 });
 
