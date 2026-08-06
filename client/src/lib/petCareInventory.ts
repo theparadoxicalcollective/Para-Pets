@@ -9,7 +9,10 @@ export type PetCareInventoryItem = {
 
 export type PetCareInventoryStack<T> = T & {
   stackId: string;
-  quantity: number;
+  /** The number shown on this shelf slot. */
+  displayQuantity: number;
+  /** Every drag/tap applies exactly one inventory unit. */
+  quantity: 1;
 };
 
 export type PetCareEffectItem = {
@@ -33,13 +36,15 @@ export function orderPetCareItemsByEffect<T extends PetCareEffectItem>(
 }
 
 /**
- * Builds display slots from the persisted inventory quantities. shopItemId is
- * the stable item-definition identifier; inventory row ids, names, and artwork
- * are deliberately not used to decide whether two items are identical.
+ * Builds shelf slots from persisted inventory quantities. `shopItemId` is the
+ * stable item-definition identifier; inventory row ids, names, and artwork are
+ * deliberately not used to decide whether two items are identical.
  *
- * Inventory rows remain untouched and are still the consumption source of
- * truth. Edibles use shelf-sized stacks of at most 30, while gifts are shown as
- * individual one-gift slots so separate presents never appear bundled together.
+ * `displayQuantity` owns presentation only. Edibles still appear in visible
+ * stacks of at most 30 and Gifts remain one per slot, but `quantity` is always
+ * one so a single drag can never open a bulk-use flow or consume more than the
+ * item the player actually moved. The persisted inventory row remains the
+ * authoritative source for the remaining amount.
  */
 export function buildPetCareInventoryStacks<T extends PetCareInventoryItem>(
   items: readonly T[],
@@ -50,14 +55,18 @@ export function buildPetCareInventoryStacks<T extends PetCareInventoryItem>(
   }
 
   return items.flatMap((item) => {
-    const quantity = Math.max(1, Math.floor(item.quantity ?? 1));
+    const persistedQuantity = Math.max(1, Math.floor(item.quantity ?? 1));
     const displayLimit = item.type === "gift" ? 1 : stackLimit;
-    const stackCount = Math.ceil(quantity / displayLimit);
+    const stackCount = Math.ceil(persistedQuantity / displayLimit);
 
     return Array.from({ length: stackCount }, (_, stackIndex) => ({
       ...item,
       stackId: `${item.shopItemId}:${item.id}:${stackIndex}`,
-      quantity: Math.min(displayLimit, quantity - stackIndex * displayLimit),
+      displayQuantity: Math.min(
+        displayLimit,
+        persistedQuantity - stackIndex * displayLimit,
+      ),
+      quantity: 1 as const,
     }));
   });
 }

@@ -42,6 +42,7 @@ type PetCarePointerEvent = PointerEvent & {
 };
 
 type PetCareDisplayStack = {
+  displayQuantity?: number | null;
   quantity?: number | null;
 };
 
@@ -182,7 +183,10 @@ function applyStackQuantities(
   );
 
   items.forEach((item, index) => {
-    const quantity = Math.max(1, Math.floor(Number(stacks[index]?.quantity ?? 1)));
+    const quantity = Math.max(
+      1,
+      Math.floor(Number(stacks[index]?.displayQuantity ?? stacks[index]?.quantity ?? 1)),
+    );
     if (quantity > 1) item.dataset.petCareStackQuantity = String(quantity);
     else delete item.dataset.petCareStackQuantity;
   });
