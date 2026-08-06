@@ -29,6 +29,8 @@ test("Pet Care is drag-only in normal mode and keeps emergency tap fallback", ()
   // can still use the accessible tap-item / tap-pet fallback.
   assert.match(page, /onClick=\{\(\) => onItemClick\(item\)\}/);
   assert.match(page, /onClick=\{applySelectedCareItem\}/);
+  assert.match(page, /data-pet-care-drag-enabled=\{dragEnabled \? "true" : "false"\}/);
+  assert.match(page, /onPointerMove=\{dragEnabled \? onItemPointerMove/);
 });
 
 test("Pet Care empties the source shelf slot and leaves React's ghost visible", () => {
