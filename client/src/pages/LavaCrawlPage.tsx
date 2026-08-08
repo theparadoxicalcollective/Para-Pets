@@ -1363,11 +1363,13 @@ export default function LavaCrawlPage() {
         showScreen("paused");
       }
     };
-    window.addEventListener("keydown", e => onKey(e, true));
-    window.addEventListener("keyup", e => onKey(e, false));
+    const onKeyDown = (event: KeyboardEvent) => onKey(event, true);
+    const onKeyUp = (event: KeyboardEvent) => onKey(event, false);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
     return () => {
-      window.removeEventListener("keydown", e => onKey(e, true));
-      window.removeEventListener("keyup", e => onKey(e, false));
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
     };
   }, [showScreen]);
 
