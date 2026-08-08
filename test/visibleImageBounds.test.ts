@@ -72,14 +72,14 @@ test("shelf effect badges use the normalized wrapper while the full compartment 
   assert.match(shelf, /pet-care-item-shelf__item/);
   assert.match(shelf, /pet-care-item-shelf__item--selected/);
   assert.match(shelf, /onPointerDown=\{dragEnabled \? \(event\) => onItemPointerDown\(event, item\) : undefined\}/);
-  assert.match(shelf, /onClick=\{\(\) => onItemClick\(item\)\}/);
+  assert.match(shelf, /onClick=\{!dragEnabled \? \(\) => onItemClick\(item\) : undefined\}/);
   assert.match(shelf, /pet-care-item-shelf__visible-artwork/);
   assert.match(shelf, /VisibleAssetImage/);
   assert.match(shelf, /pet-care-item-shelf__normalized-image/);
   assert.match(shelf, /pet-care-item-shelf__value/);
   assert.match(shelf, /className=\{`pet-care-item-shelf__item\$\{[\s\S]*pet-care-item-shelf__item--selected[\s\S]*: ""\}`\}/);
   assert.match(shelf, /pet-care-item-shelf__visible-artwork[\s\S]*VisibleAssetImage[\s\S]*pet-care-item-shelf__normalized-image[\s\S]*pet-care-item-shelf__value/);
-  assert.doesNotMatch(shelf, /pet-care-item-shelf__quantity/);
+  assert.match(shelf, /pet-care-item-shelf__quantity/);
   assert.match(component, /if \(fallback\) return <img className=\{className\}/);
   assert.match(css, /\.pet-care-item-shelf__normalized-image[\s\S]*object-fit: contain/);
   const wrapperRule = css.match(/\.pet-care-item-shelf__visible-artwork\s*\{([^}]*)\}/)?.[1] ?? "";

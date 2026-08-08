@@ -90,8 +90,8 @@ test("safe visual mode keeps idle rendering and petting without heavy particle t
   const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   assert.match(page, /onPointerDown=\{dragEnabled \?/);
   assert.match(page, /onPointerMove=\{dragEnabled \? onItemPointerMove/);
-  assert.match(page, /\{dragEnabled && dragGhost && \(/);
-  assert.match(page, /onClick=\{\(\) => onItemClick\(item\)\}/);
+  assert.match(page, /\{dragEnabled && dragGhost && createPortal\(/);
+  assert.match(page, /onClick=\{!dragEnabled \? \(\) => onItemClick\(item\) : undefined\}/);
   assert.match(page, /onPointerDown=\{onPetPointerDown\}/);
   assert.match(page, /onPointerMove=\{onPetPointerMove\}/);
   assert.match(page, /mode="idle"/);
