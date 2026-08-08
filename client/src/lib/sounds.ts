@@ -1,4 +1,9 @@
 let ctx: AudioContext | null = null;
+export type SemanticGameSound="attack"|"hit"|"pet-damage"|"heal"|"special-ready"|"special-cast"|"enemy-defeat"|"boss-warning"|"boss-defeat"|"reward"|"pickup";
+const semanticLastPlayed=new Map<SemanticGameSound,number>();
+
+/** Synthesized cues sharing the existing context, with semantic throttling to cap combat polyphony. */
+export function playGameSound(sound:SemanticGameSound){const now=performance.now(),minimum=sound==="hit"?55:sound==="pet-damage"?180:sound==="pickup"?100:80;if(now-(semanticLastPlayed.get(sound)??-Infinity)<minimum)return;semanticLastPlayed.set(sound,now);try{const c=getCtx();if(!c)return;const tones:Record<SemanticGameSound,[number,number,number]>={attack:[310,190,.055],hit:[150,95,.06],"pet-damage":[120,70,.13],heal:[520,880,.3],"special-ready":[660,990,.35],"special-cast":[440,1040,.28],"enemy-defeat":[280,520,.22],"boss-warning":[95,62,.55],"boss-defeat":[180,720,.7],reward:[620,1040,.42],pickup:[760,1120,.12]};const [from,to,duration]=tones[sound],osc=c.createOscillator(),gain=c.createGain(),compressor=c.createDynamicsCompressor();osc.connect(gain);gain.connect(compressor);compressor.connect(c.destination);osc.type=sound.includes("boss")?"sawtooth":"triangle";osc.frequency.setValueAtTime(from,c.currentTime);osc.frequency.exponentialRampToValueAtTime(to,c.currentTime+duration);gain.gain.setValueAtTime(.12,c.currentTime);gain.gain.exponentialRampToValueAtTime(.001,c.currentTime+duration);osc.start();osc.stop(c.currentTime+duration+.02);}catch{}}
 
 function getCtx(): AudioContext | null {
   try {
