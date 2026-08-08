@@ -21,7 +21,6 @@ const BOSS_ATK_MAX_PCT = 0.70;
 
 let _uid = 0; const nextUid = () => `rb${_uid++}`;
 let _fid = 0; const nextFid = () => ++_fid;
-const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface RaidPet {
@@ -55,6 +54,23 @@ function hpColor(pct: number) {
 export default function RaidBattlePage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const timerRefs = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const schedule = useCallback((callback: () => void, ms: number) => {
+    const timer = setTimeout(() => {
+      timerRefs.current.delete(timer);
+      callback();
+    }, ms);
+    timerRefs.current.add(timer);
+    return timer;
+  }, []);
+  const sleep = useCallback((ms: number) => new Promise<void>((resolve) => {
+    schedule(resolve, ms);
+  }), [schedule]);
+
+  useEffect(() => () => {
+    timerRefs.current.forEach(clearTimeout);
+    timerRefs.current.clear();
+  }, []);
 
   const { data: inventory = [] } = useQuery<any[]>({ queryKey: ["/api/inventory"] });
   const { data: raidBoss } = useQuery<{
@@ -95,8 +111,8 @@ export default function RaidBattlePage() {
   const spawnFloat = useCallback((x: number, y: number, value: number, isHeal?: boolean) => {
     const id = nextFid();
     setFloatNums(p => [...p, { id, x, y, value, isHeal }]);
-    setTimeout(() => setFloatNums(p => p.filter(f => f.id !== id)), 1300);
-  }, []);
+    schedule(() => setFloatNums(p => p.filter(f => f.id !== id)), 1300);
+  }, [schedule]);
   const spawnFloatRef = useRef(spawnFloat);
   useEffect(() => { spawnFloatRef.current = spawnFloat; }, [spawnFloat]);
   useEffect(() => { setNavHidden(true); return () => setNavHidden(false); }, []);
@@ -269,7 +285,7 @@ export default function RaidBattlePage() {
 
           setBossHurt(true);
           spawnFloatRef.current(50, 30, dmg);
-          setTimeout(() => setBossHurt(false), 320);
+          schedule(() => setBossHurt(false), 320);
 
           // After attack: build mana toward full
           const MANA_PER_ROUND = 28;
@@ -310,7 +326,7 @@ export default function RaidBattlePage() {
         setMyPets([...updated]);
         setHurtPetUid(target.uid);
         spawnFloatRef.current(((targetIdx + 0.5) / petsRef.current.length) * 100, 68, bossDmg);
-        setTimeout(() => setHurtPetUid(null), 360);
+        schedule(() => setHurtPetUid(null), 360);
         await sleep(480);
 
         // Check if all pets dead
@@ -463,16 +479,16 @@ export default function RaidBattlePage() {
 
     setBossHurt(true);
     spawnFloatRef.current(50, 30, dmg);
-    setTimeout(() => setBossHurt(false), 320);
+    schedule(() => setBossHurt(false), 320);
 
     setAttackingPetUid(petUid);
-    setTimeout(() => setAttackingPetUid(null), 520);
+    schedule(() => setAttackingPetUid(null), 520);
 
     petsRef.current = petsRef.current.map(p =>
       p.uid === petUid ? { ...p, mana: 0, specialReady: false } : p
     );
     setMyPets([...petsRef.current]);
-  }, []);
+  }, [schedule]);
 
   useEffect(() => {
     if (!draggingPotion) return;
