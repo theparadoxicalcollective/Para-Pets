@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { MailOpen } from "lucide-react";
 import { playClick, playGrab, playPlop } from "@/lib/sounds";
@@ -69,6 +70,7 @@ type PetCareShelfItem = {
   imageUrl: string | null;
   name: string;
   quantity?: number | null;
+  displayQuantity: number;
   type: string;
   statBoostAmount?: number | null;
   giftPoints?: number | null;
@@ -90,6 +92,7 @@ function PetCareItemShelf({
   onItemPointerDown,
   onItemClick,
   selectedStackId,
+  draggingStackId,
   safeMode,
   dragEnabled,
 }: {
@@ -98,6 +101,7 @@ function PetCareItemShelf({
   onItemPointerDown: (event: React.PointerEvent<HTMLDivElement>, item: PetCareShelfItem) => void;
   onItemClick: (item: PetCareShelfItem) => void;
   selectedStackId: string | null;
+  draggingStackId: string | null;
   safeMode: boolean;
   dragEnabled: boolean;
 }) {
@@ -119,7 +123,9 @@ function PetCareItemShelf({
               key={item.stackId}
               className={`pet-care-item-shelf__item${selectedStackId === item.stackId ? " pet-care-item-shelf__item--selected" : ""}`}
               onPointerDown={dragEnabled ? (event) => onItemPointerDown(event, item) : undefined}
-              onClick={() => onItemClick(item)}
+              onClick={!dragEnabled ? () => onItemClick(item) : undefined}
+              data-pet-care-drag-source={draggingStackId === item.stackId ? "true" : undefined}
+              data-pet-care-stack-id={item.stackId}
               data-testid={`${isEdible ? "edible" : "gift"}-item-${item.id}`}
             >
               <div className="pet-care-item-shelf__visible-artwork">
@@ -128,6 +134,7 @@ function PetCareItemShelf({
                   : <VisibleAssetImage className="pet-care-item-shelf__normalized-image" src={item.imageUrl} alt={item.name} />)}
                 {isEdible && item.statBoostAmount != null && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--edible">+{item.statBoostAmount}</span>}
                 {!isEdible && !!item.giftPoints && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--gift">+{item.giftPoints}</span>}
+                {item.displayQuantity > 1 && <span className="pet-care-item-shelf__quantity">×{item.displayQuantity}</span>}
               </div>
             </div>
           ))}
@@ -387,14 +394,15 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     name: string;
     statBoostAmount: number;
     giftPoints: number;
+    stackId: string;
     pid: number;
     startX: number;
     startY: number;
     intent: PetCareItemGestureIntent;
   } | null>(null);
   const itemGestureControllerRef = useRef(createPetCareGestureController<PetCareShelfItem>());
-  const [dragGhost, setDragGhost] = useState<{ inventoryId: string; imageUrl: string | null } | null>(null);
-  const dragGhostRef = useRef<HTMLImageElement>(null);
+  const [dragGhost, setDragGhost] = useState<PetCareShelfItem | null>(null);
+  const dragGhostRef = useRef<HTMLDivElement>(null);
   const dragFrameRef = useRef<number | null>(null);
   const dragPositionRef = useRef({ x: 0, y: 0 });
   const capturedPointerRef = useRef<number | null>(null);
@@ -433,6 +441,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     circleResetTimer: number | null;
     heartTimer: number | null;
     sparkleTimer: number | null;
+    lastX: number; lastY: number;
+    pathDistance: number;
+    startedAt: number;
   } | null>(null);
   const [floatTexts, setFloatTexts] = useState<{ id: number; x: number; y: number; text: string }[]>([]);
   const [sparkles, setSparkles] = useState<{ id: number; cx: number; cy: number; dx: number; dy: number; rot: number; size: number }[]>([]);
@@ -666,6 +677,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       circleResetTimer: null,
       heartTimer: null,
       sparkleTimer: null,
+      lastX: e.clientX, lastY: e.clientY,
+      pathDistance: 0,
+      startedAt: performance.now(),
     };
     setPetPressed(true);
   }, []);
@@ -716,6 +730,20 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const onPetPointerMove = useCallback((e: React.PointerEvent) => {
     const g = petGestureRef.current;
     if (!g || g.pid !== e.pointerId) return;
+    g.pathDistance += Math.hypot(e.clientX - g.lastX, e.clientY - g.lastY);
+    g.lastX = e.clientX;
+    g.lastY = e.clientY;
+    // A deliberate short rub is petting too; it should not require a perfect
+    // circle. It enters the same guarded reward path as circular motion.
+    if (g.pathDistance >= 46 && performance.now() - g.startedAt >= 80) {
+      triggerCircleEffects();
+      if (!g.rewardTriedThisPress) {
+        g.rewardTriedThisPress = true;
+        if (pet?.inventoryId) pettingRewardMutation.mutate(pet.inventoryId);
+      }
+      g.pathDistance = 0;
+      g.startedAt = performance.now();
+    }
     const dx = e.clientX - g.cx;
     const dy = e.clientY - g.cy;
     const dist = Math.hypot(dx, dy);
@@ -901,7 +929,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   });
 
   const updateDragGhostPosition = useCallback((x: number, y: number) => {
-    dragPositionRef.current = clientToStage(x, y);
+    // The ghost is portaled to body and therefore uses viewport coordinates,
+    // independent of the scaled game-stage coordinate system.
+    dragPositionRef.current = { x, y };
     if (dragFrameRef.current != null) return;
     dragFrameRef.current = requestAnimationFrame(() => {
       dragFrameRef.current = null;
@@ -962,6 +992,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       name: item.name,
       statBoostAmount: item.statBoostAmount ?? 5,
       giftPoints: item.giftPoints ?? 0,
+      stackId: item.stackId,
       pid: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
@@ -1035,6 +1066,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       quantity: item.quantity ?? 1, name: item.name,
       statBoostAmount: item.statBoostAmount ?? 5, giftPoints: item.giftPoints ?? 0,
       pid: -1, startX: 0, startY: 0, intent: "vertical-item-drag",
+      stackId: item.stackId,
     });
   }, [applyCareItem, selectedCareItem]);
 
@@ -1066,7 +1098,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       // Store the first drag position before mounting the ghost so it cannot
       // briefly render at the viewport origin.
       updateDragGhostPosition(point.clientX, point.clientY);
-      setDragGhost({ inventoryId: d.inventoryId, imageUrl: d.imageUrl });
+      setDragGhost(gesture.item);
     }
     if (d.intent !== "vertical-item-drag") return;
     e.preventDefault();
@@ -1155,6 +1187,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       onPointerMove={dragEnabled ? onItemPointerMove : undefined}
       onPointerUp={dragEnabled ? onItemPointerUp : undefined}
       onPointerCancel={dragEnabled ? onItemPointerCancel : undefined}
+      onLostPointerCapture={dragEnabled ? onItemPointerCancel : undefined}
       onClickCapture={(e) => {
         if (suppressClickRef.current) {
           e.preventDefault();
@@ -1270,7 +1303,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         onPointerMove={onPetPointerMove}
         onPointerUp={endPetGesture}
         onPointerCancel={endPetGesture}
-        onClick={applySelectedCareItem}
+        onClick={!dragEnabled ? applySelectedCareItem : undefined}
         data-testid="drop-zone-feed-pet"
       >
         {/* Soft radial halo behind the pet */}
@@ -1513,6 +1546,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
               padding: 0,
               border: "none",
               background: "transparent",
+              WebkitTapHighlightColor: "transparent",
+              outline: "none",
               cursor: c.flying ? "default" : "pointer",
               zIndex: 520,
               ["--care-coin-tx" as any]: `${tx}px`,
@@ -1535,7 +1570,6 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
                 height: "100%",
                 objectFit: "contain",
                 pointerEvents: "none",
-                filter: "drop-shadow(0 0 10px rgba(255,210,90,0.9)) drop-shadow(0 4px 6px rgba(0,0,0,0.5))",
               }}
             />
           </button>
@@ -1638,8 +1672,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           xpBoostPct={(livePet as any).xpBoostPct ?? 0}
           safeMode={safeMode}
         />
-        <PetCareItemShelf kind="edibles" items={edibles} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} selectedStackId={selectedCareItem?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
-        <PetCareItemShelf kind="gifts" items={gifts} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} selectedStackId={selectedCareItem?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
+        <PetCareItemShelf kind="edibles" items={edibles} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
+        <PetCareItemShelf kind="gifts" items={gifts} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
       </div>
 
       {/* ── Feed hint overlay ───────────────────────────────────────────────
@@ -1740,23 +1774,26 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       )}
 
       {/* Drag ghost */}
-      {dragEnabled && dragGhost && (
-        <img
+      {dragEnabled && dragGhost && createPortal(
+        <div
           ref={dragGhostRef}
-          className="absolute pointer-events-none pet-care-drag-ghost__image"
-          src={dragGhost.imageUrl ?? ""}
-          alt=""
-          draggable={false}
+          className="pet-care-drag-ghost"
+          aria-hidden="true"
           style={{
             left: 0,
             top: 0,
             width: PET_CARE_DRAG_GHOST_SIZE_PX,
             height: PET_CARE_DRAG_GHOST_SIZE_PX,
-            zIndex: 520,
+            zIndex: 10060,
             opacity: 1,
             transform: getPetCareDragGhostTransform(dragPositionRef.current.x, dragPositionRef.current.y),
           }}
-        />
+        >
+          {dragGhost.imageUrl && <img className="pet-care-drag-ghost__image" src={dragGhost.imageUrl} alt="" draggable={false} />}
+          {dragGhost.type === "edibles" && dragGhost.statBoostAmount != null && <span className="pet-care-drag-ghost__value">+{dragGhost.statBoostAmount}</span>}
+          {dragGhost.type === "gift" && !!dragGhost.giftPoints && <span className="pet-care-drag-ghost__value">+{dragGhost.giftPoints}</span>}
+          {dragGhost.displayQuantity > 1 && <span className="pet-care-drag-ghost__quantity">×{dragGhost.displayQuantity}</span>}
+        </div>, document.body,
       )}
 
       {/* Feed-stack popup */}

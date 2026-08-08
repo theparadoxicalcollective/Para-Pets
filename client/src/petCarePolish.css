@@ -140,12 +140,8 @@
   box-shadow: 0 10px 18px rgba(0, 0, 0, 0.34);
 }
 
-/* Stacked edibles show their inventory amount in the lower-left of the cubby.
-   The badge is deliberately compact so it does not compete with the gold care
-   value at the upper edge of the artwork. */
-.pet-care-overlay
-  .pet-care-item-shelf__item[data-pet-care-stack-quantity]::after {
-  content: "×" attr(data-pet-care-stack-quantity);
+/* Stack quantities come directly from React-owned displayQuantity. */
+.pet-care-overlay .pet-care-item-shelf__quantity {
   position: absolute;
   left: 6px;
   bottom: 24%;
@@ -156,151 +152,50 @@
   font-size: clamp(10px, 2.8vw, 13px);
   font-weight: 900;
   line-height: 1;
-  letter-spacing: 0.01em;
-  text-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.95),
-    0 0 5px rgba(64, 255, 92, 0.75);
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8));
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 5px rgba(64, 255, 92, 0.75);
 }
 
-.pet-care-overlay
-  .pet-care-item-shelf__item[data-pet-care-drag-source="true"]::after {
-  opacity: 0;
+/* Hide only the chosen stack's artwork; its cubby remains in layout. */
+.pet-care-overlay .pet-care-item-shelf__item[data-pet-care-drag-source="true"]
+  .pet-care-item-shelf__visible-artwork {
+  visibility: hidden;
 }
 
-/* The helper copies the already-normalized canvas/image into a body-level fixed
-   layer. That prevents the shelf crop and React rerender from leaving a clipped
-   source copy underneath the moving item. */
-body.pet-care-native-item-dragging .pet-care-inventory-section {
-  z-index: 30 !important;
-}
-
-body.pet-care-native-item-dragging .pet-care-pet {
-  transition: none !important;
-}
-
-.pet-care-polished-drag-ghost {
+/* The sole drag visual is React-rendered into document.body. */
+.pet-care-drag-ghost {
   position: fixed;
   left: 0;
   top: 0;
+  width: 56px;
+  height: 56px;
   z-index: 10060;
   pointer-events: none;
-  touch-action: none;
   overflow: visible;
   contain: layout style;
   will-change: transform;
-  filter:
-    drop-shadow(0 0 9px rgba(255, 236, 150, 0.68))
-    drop-shadow(0 9px 13px rgba(0, 0, 0, 0.72));
+  filter: drop-shadow(0 0 8px rgba(255, 236, 150, 0.55)) drop-shadow(0 8px 12px rgba(0, 0, 0, 0.68));
 }
-
-.pet-care-polished-drag-ghost__image {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  pointer-events: none;
-}
-
-/* React's built-in ghost remains the fallback when the normalized source canvas
-   is not ready. Once the body-level snapshot exists, hide React's raw-image
-   ghost so the player sees exactly one complete item. */
-body.pet-care-native-item-dragging .pet-care-drag-ghost__image {
-  visibility: visible !important;
-  opacity: 1 !important;
-  filter:
-    drop-shadow(0 0 8px rgba(255, 236, 150, 0.55))
-    drop-shadow(0 8px 12px rgba(0, 0, 0, 0.68));
-  will-change: transform;
-}
-
-body.pet-care-polished-ghost-active .pet-care-drag-ghost__image {
-  visibility: hidden !important;
-  opacity: 0 !important;
-}
-
-/* Lightweight drop feedback remains visible even in reduced visual mode. The
-   parent must not use paint containment: a 1px paint-contained box clipped all
-   of the outward-moving sparkles in the previous implementation. */
-.pet-care-drop-sparkle-burst {
-  position: fixed;
-  z-index: 10070;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-  overflow: visible;
-  contain: layout style;
-}
-
-.pet-care-drop-sparkle-core {
+.pet-care-drag-ghost__image { display: block; width: 100%; height: 100%; object-fit: contain; }
+.pet-care-drag-ghost__value,
+.pet-care-drag-ghost__quantity {
   position: absolute;
-  left: 0;
-  top: 0;
-  width: 70px;
-  height: 70px;
-  margin: -35px;
-  border: 2px solid rgba(255, 240, 148, 0.92);
-  border-radius: 50%;
-  opacity: 0;
-  box-shadow:
-    0 0 18px rgba(255, 223, 88, 0.9),
-    inset 0 0 16px rgba(255, 255, 220, 0.75);
-  animation: pet-care-drop-sparkle-core 720ms ease-out forwards;
+  z-index: 1;
+  color: #fff3a0;
+  font: 900 12px/1 Lora, Georgia, serif;
+  text-shadow: 0 1px 3px #000, 0 0 5px rgba(255, 210, 70, 0.8);
 }
+.pet-care-drag-ghost__value { right: 0; top: 0; }
+.pet-care-drag-ghost__quantity { left: 0; bottom: 0; color: #9dff83; }
 
-.pet-care-drop-sparkle {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: var(--pet-care-sparkle-size, 12px);
-  height: var(--pet-care-sparkle-size, 12px);
-  margin: calc(var(--pet-care-sparkle-size, 12px) / -2);
-  opacity: 0;
-  background: radial-gradient(circle, #fffdf1 0 24%, #ffe886 34% 56%, rgba(255, 191, 47, 0) 76%);
-  clip-path: polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%);
-  filter: drop-shadow(0 0 6px rgba(255, 222, 102, 1));
-  animation: pet-care-drop-sparkle-pop 900ms cubic-bezier(0.2, 0.72, 0.22, 1) var(--pet-care-sparkle-delay, 0ms) forwards;
+/* Route-scoped glows sit on live tracks beneath the unchanged ornate frames. */
+.pet-care-overlay .pet-care-meter--hunger .pet-care-meter__track {
+  box-shadow: 0 0 10px 2px rgba(139, 255, 80, 0.48);
 }
-
-@keyframes pet-care-drop-sparkle-core {
-  0% {
-    opacity: 0;
-    transform: scale(0.2);
-  }
-  22% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: scale(1.35);
-  }
+.pet-care-overlay .pet-care-meter--mood .pet-care-meter__track {
+  box-shadow: 0 0 10px 2px rgba(64, 220, 255, 0.46);
 }
-
-@keyframes pet-care-drop-sparkle-pop {
-  0% {
-    opacity: 0;
-    transform: translate3d(0, 0, 0) scale(0.2) rotate(0deg);
-  }
-  18% {
-    opacity: 1;
-  }
-  70% {
-    opacity: 0.98;
-  }
-  100% {
-    opacity: 0;
-    transform:
-      translate3d(var(--pet-care-sparkle-x), var(--pet-care-sparkle-y), 0)
-      scale(1.2)
-      rotate(190deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pet-care-drop-sparkle,
-  .pet-care-drop-sparkle-core {
-    animation-duration: 480ms;
-  }
+.pet-care-overlay .pet-care-meter--loyalty .pet-care-meter__track {
+  box-shadow: 0 0 10px 2px rgba(235, 90, 220, 0.42), 0 0 7px 1px rgba(255, 205, 92, 0.3);
 }
 
 @media (max-width: 390px) {
@@ -316,7 +211,7 @@ body.pet-care-polished-ghost-active .pet-care-drag-ghost__image {
   }
 
   .pet-care-overlay
-    .pet-care-item-shelf__item[data-pet-care-stack-quantity]::after {
+    .pet-care-item-shelf__quantity {
     left: 4px;
     bottom: 25%;
   }
