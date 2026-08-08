@@ -6,7 +6,7 @@ test("Pet Care shelves retain effect labels and order items by their bar increas
   const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   assert.match(page, /orderPetCareItemsByEffect\([\s\S]*?it\.type === "edibles"[\s\S]*?"edibles"/);
   assert.match(page, /orderPetCareItemsByEffect\([\s\S]*?it\.type === "gift"[\s\S]*?"gifts"/);
-  assert.doesNotMatch(page, /pet-care-item-shelf__quantity/);
+  assert.match(page, /pet-care-item-shelf__quantity/);
   assert.match(page, /pet-care-item-shelf__value--edible/);
   assert.match(page, /pet-care-item-shelf__value--gift/);
   assert.match(page, /onPointerDown=\{dragEnabled \? \(event\) => onItemPointerDown\(event, item\) : undefined\}/);

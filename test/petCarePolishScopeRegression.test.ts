@@ -1,28 +1,19 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
-test("Pet Care polish is bootstrapped without observing Home's animated DOM", () => {
+test("Pet Care no longer installs a global polish controller", () => {
   const main = readFileSync("client/src/main.tsx", "utf8");
-  const bootstrap = readFileSync("client/src/petCarePolishBootstrap.ts", "utf8");
-
-  assert.match(main, /installScopedPetCareDragPolish/);
-  assert.doesNotMatch(main, /import \{ installPetCareDragPolish \} from "\.\/petCarePolish"/);
-  assert.match(bootstrap, /target === document\.documentElement/);
-  assert.match(bootstrap, /quantityObserver = this/);
-  assert.match(bootstrap, /originalObserve\.call\(quantityObserver, nextOverlay/);
-  assert.match(bootstrap, /document\.querySelector<HTMLElement>\(PET_CARE_OVERLAY_SELECTOR\)/);
-  assert.match(bootstrap, /observedOverlay\?\.isConnected/);
-  assert.match(bootstrap, /quantityObserver\?\.disconnect\(\)/);
+  assert.equal(existsSync("client/src/petCarePolish.ts"), false);
+  assert.equal(existsSync("client/src/petCarePolishBootstrap.ts"), false);
+  assert.doesNotMatch(main, /installPetCareDragPolish|installScopedPetCareDragPolish/);
 });
 
-test("Pet Care observer scope preserves the existing interaction implementation", () => {
-  const bootstrap = readFileSync("client/src/petCarePolishBootstrap.ts", "utf8");
-  const polish = readFileSync("client/src/petCarePolish.ts", "utf8");
-
-  assert.match(bootstrap, /installPetCareDragPolish\(\)/);
-  assert.match(polish, /createRenderedDragGhost/);
-  assert.match(polish, /createDropSparkles/);
-  assert.match(polish, /dispatchPettingAssist/);
-  assert.match(polish, /syncStackQuantityBadges/);
+test("Pet Care owns only lifecycle safety listeners outside its overlay", () => {
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
+  assert.doesNotMatch(page, /MutationObserver|queryCache\.subscribe|setInterval\(refreshPetCareScope/);
+  assert.match(page, /window\.addEventListener\("pagehide", cancelForLifecycle\)/);
+  assert.match(page, /document\.addEventListener\("visibilitychange", onVisibility\)/);
+  assert.match(page, /window\.removeEventListener\("pagehide", cancelForLifecycle\)/);
+  assert.match(page, /document\.removeEventListener\("visibilitychange", onVisibility\)/);
 });
