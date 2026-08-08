@@ -21,6 +21,8 @@ export const ELYSIAN_CLEARING_COMBAT_CONFIG = {
   roamRadiusPixels: 82,
   roamSpeedPixels: 18,
   roamAccelerationPixels: 55,
+  roamCurvePixels: 7,
+  alertDurationMs: 420,
   pursuitSpeedPixels: 68,
   pursuitAccelerationPixels: 190,
   returnAccelerationPixels: 85,
