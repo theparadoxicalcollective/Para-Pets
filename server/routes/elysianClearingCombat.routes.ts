@@ -2,11 +2,12 @@ import type { Express, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
 import {
   ELYSIAN_CLEARING_COMBAT,
+  advanceClearingBossEncounter,
   applyClearingHit,
+  clearingBossProgress,
   createClearingSession,
   getClearingSession,
   removeClearingSession,
-  respawnClearingEnemy,
   scaleClearingEnemy,
   updateClearingEnemyPositions,
   updateClearingPosition,
@@ -131,6 +132,7 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
         enemies: session.enemies.map(({ lastHitAt: _lastHitAt, positionUpdatedAt: _positionUpdatedAt, ...enemy }) => enemy),
         chests,
         eggDrops,
+        bossProgress: clearingBossProgress(session),
       });
     } catch (error: any) {
       console.error("Clearing session creation failed", {
@@ -247,7 +249,8 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
           if (index === 0) return res.status(409).json({ message: "Reward already claimed" });
           continue;
         }
-        const nextEnemy = respawnClearingEnemy(sessionId, target.enemyInstanceId);
+        const encounter = advanceClearingBossEncounter(sessionId, target.enemyInstanceId);
+        const nextEnemy = encounter?.nextEnemy ?? null;
         if (reward.eggDrop && nextEnemy) {
           nextEnemy.specialPetShopItemId = undefined;
           nextEnemy.specialRarity = undefined;
@@ -264,6 +267,7 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
           expAwarded: reward.expAwarded,
           pet: reward.pet,
           nextEnemy: nextEnemy ? { ...nextEnemy } : null,
+          bossProgress: encounter?.progress ?? clearingBossProgress(session),
         });
       }
 

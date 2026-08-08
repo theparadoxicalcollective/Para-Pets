@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { CLEARING_BALANCE } from "@shared/clearingConfig";
+import { CLEARING_BALANCE, CLEARING_BOSS_ENCOUNTER } from "@shared/clearingConfig";
 import { selectClearingSpecialMob, type ClearingSpecialMobTemplate } from "./clearingSpecialMobs";
 import { CLEARING_AIM_GEOMETRY, CLEARING_PET_COMBAT_RADIUS, clearingCollisionGapDistance, clearingDistanceToRay, clearingHitboxEdgeDistance, clearingPointInDirection, isFiniteClearingPoint, normalizeClearingDirection, type ClearingDirection, type ClearingPoint } from "@shared/clearingCombatGeometry";
 import type { ClearingAttackStyle } from "@shared/clearingCombat";
@@ -29,11 +29,12 @@ export interface ClearingEnemyRecord {
   templateId?: string; name?: string; imageUrl?: string | null;
   specialPetShopItemId?:string; specialRarity?:number;
 }
-export interface ClearingSession { id: string; userId: string; petId: string; expiresAt: number; effectiveStats: { hp: number; atk: number; def: number }; enemies: ClearingEnemyRecord[]; position:{x:number;y:number;updatedAt:number}; worldPixels?:{width:number;height:number}; lockedTargetInstanceId:string|null; processedAttacks:Map<string,ClearingHitResult> }
+export type ClearingBossPhase = "regular" | "preparing" | "active";
+export interface ClearingSession { id: string; userId: string; petId: string; expiresAt: number; effectiveStats: { hp: number; atk: number; def: number }; scaledEnemy:{maxHealth:number;attack:number}; enemies: ClearingEnemyRecord[]; position:{x:number;y:number;updatedAt:number}; worldPixels?:{width:number;height:number}; lockedTargetInstanceId:string|null; processedAttacks:Map<string,ClearingHitResult>; regularDefeats:number; bossPhase:ClearingBossPhase; bossReadyAt:number|null; regularTemplates:ClearingEnemyTemplate[]; bossTemplates:ClearingEnemyTemplate[] }
 type ClearingHitResult={status:"invalid"|"target_locked"|"defeated"|"direction"|"desync"|"range"|"hit"|"killed";enemy?:ClearingEnemyRecord;damage?:number;lockedTargetInstanceId?:string|null;diagnostic?:ClearingAttackDiagnostic};
 export type ClearingAttackDiagnostic={enemyInstanceId:string;playerPosition:ClearingPoint;clientTargetPosition:ClearingPoint;serverEnemyPosition:ClearingPoint;edgeDistance:number;allowedRange:number;rejectionReason:string};
 
-type ClearingEnemyTemplate = {enemy_id:string;is_boss:boolean;name:string;image_url:string|null};
+export type ClearingEnemyTemplate = {enemy_id:string;is_boss:boolean;name:string;image_url:string|null};
 
 const sessions = new Map<string, ClearingSession>();
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -49,15 +50,14 @@ export function scaleClearingEnemy(pet: ClearingPetStats) {
   };
 }
 
-/** Builds small same-species packs while retaining the existing boss chance.
+/** Builds small same-species packs. Bosses are introduced only by the
+ * authoritative defeat-threshold encounter state machine.
  * This makes the population read as intentional encounters rather than eight
- * unrelated rolls, without changing combat stats or reward frequency. */
+ * unrelated rolls. */
 export function selectClearingEncounterTemplates(count:number,templates:ClearingEnemyTemplate[],random=Math.random){
-  const bosses=templates.filter(template=>template.is_boss),regulars=templates.filter(template=>!template.is_boss),selected:(ClearingEnemyTemplate|undefined)[]=[];
-  const hasBoss=bosses.length>0&&random()<CLEARING_BALANCE.bossSpawnChance;
+  const regulars=templates.filter(template=>!template.is_boss),selected:(ClearingEnemyTemplate|undefined)[]=[];
   let previousTemplate:ClearingEnemyTemplate|undefined;
-  while(selected.length<count-(hasBoss?1:0)){const choices=regulars.length>1?regulars.filter(template=>template!==previousTemplate):regulars,template=choices[Math.floor(random()*choices.length)],packSize=Math.min(2+Math.floor(random()*2),count-(hasBoss?1:0)-selected.length);for(let member=0;member<packSize;member++)selected.push(template);previousTemplate=template;}
-  if(hasBoss)selected.push(bosses[Math.floor(random()*bosses.length)]);
+  while(selected.length<count){const choices=regulars.length>1?regulars.filter(template=>template!==previousTemplate):regulars,template=choices[Math.floor(random()*choices.length)],packSize=Math.min(2+Math.floor(random()*2),count-selected.length);for(let member=0;member<packSize;member++)selected.push(template);previousTemplate=template;}
   return selected;
 }
 
@@ -66,10 +66,9 @@ export function createClearingSession(userId: string, petId: string, stats: Clea
   const scaled = scaleClearingEnemy(stats),special=selectClearingSpecialMob(specialTemplates,random),encounterTemplates=selectClearingEncounterTemplates(ELYSIAN_CLEARING_COMBAT.enemyCount,templates,random);if(special)encounterTemplates[encounterTemplates.length-1]=undefined;const encounterPositions=layoutClearingEncounter(encounterTemplates,random);
   const session: ClearingSession = {
     id: crypto.randomUUID(), userId, petId, expiresAt: now + ELYSIAN_CLEARING_COMBAT.sessionLifetimeMs,
-    effectiveStats: { hp: stats.hp, atk: stats.atk, def: stats.def ?? 0 },
-    // A rolled special replaces the final encounter template (including a
-    // possible boss), so boss and special health multipliers never stack.
-    position:{x:.5,y:.7,updatedAt:now}, lockedTargetInstanceId:null,processedAttacks:new Map(), enemies: encounterTemplates.map((template,slot) => {const isBoss=Boolean(template?.is_boss),specialPetShopItemId=slot===encounterTemplates.length-1?special?.pet_shop_item_id:undefined,isSpecial=Boolean(specialPetShopItemId),healthMultiplier=isBoss?CLEARING_BALANCE.bossHealthMultiplier:isSpecial?CLEARING_BALANCE.specialPetMobHealthMultiplier:1,maxHealth=Math.round(scaled.maxHealth*healthMultiplier),spawn=encounterPositions[slot];return{
+    effectiveStats: { hp: stats.hp, atk: stats.atk, def: stats.def ?? 0 },scaledEnemy:{maxHealth:scaled.maxHealth,attack:scaled.attack},
+    // A rolled special replaces the final regular encounter template.
+    position:{x:.5,y:.7,updatedAt:now}, lockedTargetInstanceId:null,processedAttacks:new Map(), regularDefeats:0,bossPhase:"regular",bossReadyAt:null,regularTemplates:templates.filter(template=>!template.is_boss),bossTemplates:templates.filter(template=>template.is_boss), enemies: encounterTemplates.map((template,slot) => {const isBoss=Boolean(template?.is_boss),specialPetShopItemId=slot===encounterTemplates.length-1?special?.pet_shop_item_id:undefined,isSpecial=Boolean(specialPetShopItemId),healthMultiplier=isBoss?CLEARING_BALANCE.bossHealthMultiplier:isSpecial?CLEARING_BALANCE.specialPetMobHealthMultiplier:1,maxHealth=Math.round(scaled.maxHealth*healthMultiplier),spawn=encounterPositions[slot];return{
       instanceId: crypto.randomUUID(), slot, maxHealth, health:maxHealth,
       attack:Math.round(scaled.attack*(isBoss?CLEARING_BALANCE.bossDamageMultiplier:1)),isBoss,engagedByPlayer:false,templateId:template?.enemy_id,name:slot===encounterTemplates.length-1&&special?special.name:template?.name,imageUrl:slot===encounterTemplates.length-1&&special?(special.hatched_image_url||special.image_url):template?.image_url,specialPetShopItemId,specialRarity:slot===encounterTemplates.length-1?Number(special?.rarity||1):undefined, defeated: false, lastHitAt: 0, x:spawn?.x??.5, y:spawn?.y??.6, positionUpdatedAt:now,
     }}),
@@ -79,6 +78,27 @@ export function createClearingSession(userId: string, petId: string, stats: Clea
 }
 
 export function getClearingSession(sessionId:string){return sessions.get(sessionId)??null;}
+export function clearingBossProgress(session:ClearingSession){return {regularDefeats:session.regularDefeats,defeatsRequired:CLEARING_BOSS_ENCOUNTER.defeatsRequired,phase:session.bossPhase,readyAt:session.bossReadyAt};}
+
+export function advanceClearingBossEncounter(sessionId:string,defeatedInstanceId:string,now=Date.now(),random=Math.random){
+  const session=sessions.get(sessionId),defeated=session?.enemies.find(enemy=>enemy.instanceId===defeatedInstanceId&&enemy.defeated);
+  if(!session||!defeated)return null;
+  if(defeated.isBoss){
+    session.regularDefeats=0;session.bossPhase="regular";session.bossReadyAt=null;
+    const template=session.regularTemplates[Math.floor(random()*session.regularTemplates.length)];
+    defeated.instanceId=crypto.randomUUID();defeated.isBoss=false;defeated.templateId=template?.enemy_id;defeated.name=template?.name;defeated.imageUrl=template?.image_url;defeated.maxHealth=session.scaledEnemy.maxHealth;defeated.health=defeated.maxHealth;defeated.attack=session.scaledEnemy.attack;defeated.defeated=false;defeated.engagedByPlayer=false;defeated.lastHitAt=0;
+    return {progress:clearingBossProgress(session),nextEnemy:defeated};
+  }
+  if(session.bossPhase!=="regular")return {progress:clearingBossProgress(session),nextEnemy:null};
+  session.regularDefeats=Math.min(CLEARING_BOSS_ENCOUNTER.defeatsRequired,session.regularDefeats+1);
+  if(session.regularDefeats<CLEARING_BOSS_ENCOUNTER.defeatsRequired)return {progress:clearingBossProgress(session),nextEnemy:respawnClearingEnemy(sessionId,defeatedInstanceId)};
+  const template=session.bossTemplates[Math.floor(random()*session.bossTemplates.length)];
+  if(!template){session.regularDefeats=CLEARING_BOSS_ENCOUNTER.defeatsRequired-1;return {progress:clearingBossProgress(session),nextEnemy:respawnClearingEnemy(sessionId,defeatedInstanceId)};}
+  session.bossPhase="preparing";session.bossReadyAt=now+CLEARING_BOSS_ENCOUNTER.introDurationMs;session.lockedTargetInstanceId=null;
+  session.enemies.forEach(enemy=>{enemy.defeated=true;enemy.engagedByPlayer=false;});
+  const scaled=session.scaledEnemy,boss:ClearingEnemyRecord={instanceId:crypto.randomUUID(),slot:0,maxHealth:Math.round(scaled.maxHealth*CLEARING_BALANCE.bossHealthMultiplier),health:Math.round(scaled.maxHealth*CLEARING_BALANCE.bossHealthMultiplier),attack:Math.round(scaled.attack*CLEARING_BALANCE.bossDamageMultiplier),defeated:false,lastHitAt:0,x:.5,y:.42,positionUpdatedAt:now,isBoss:true,engagedByPlayer:false,templateId:template.enemy_id,name:template.name,imageUrl:template.image_url};
+  session.enemies=[boss];return {progress:clearingBossProgress(session),nextEnemy:boss};
+}
 export function updateClearingPosition(input:{sessionId:string;userId:string;x:number;y:number;worldPixels?:{width:number;height:number};now?:number}){
   const now=input.now??Date.now(),session=sessions.get(input.sessionId);
   if(!session||session.userId!==input.userId||session.expiresAt<=now)return null;
@@ -116,6 +136,7 @@ export function applyClearingHit(input: { sessionId: string; instanceId: string;
   const now = input.now ?? Date.now();
   const session = sessions.get(input.sessionId);
   if (!session || session.expiresAt <= now || session.userId !== input.userId || session.petId !== input.petId) return { status: "invalid" as const };
+  if(session.bossPhase==="preparing"){if((session.bossReadyAt??Infinity)>now)return {status:"target_locked" as const};session.bossPhase="active";}
   if(input.attackActionId&&session.processedAttacks.has(input.attackActionId))return session.processedAttacks.get(input.attackActionId)!;
   // Older clients may still submit a second target. Keep the request safe during
   // rollout by rejecting every secondary strike before geometry or health work.

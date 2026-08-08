@@ -23,3 +23,10 @@ export const CLEARING_BALANCE = {
   regular: { itemCount: [1, 3], coins: [1, 2], essence: [0, 0], weights: { common: 72, uncommon: 26, rare: 2 } },
   boss: { itemCount: [3, 5], coins: [3, 5], essence: [10, 20], weights: { common: 25, uncommon: 65, rare: 10 } },
 } as const;
+
+/** Session-scoped Clearing boss cadence and presentation timing. */
+export const CLEARING_BOSS_ENCOUNTER = {
+  defeatsRequired: 10,
+  introDurationMs: 1_500,
+  resetBehavior: "resume_regular_encounter" as const,
+} as const;

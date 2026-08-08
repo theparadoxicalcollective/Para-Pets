@@ -1,4 +1,11 @@
 let ctx: AudioContext | null = null;
+const SOUND_PREFS_KEY = "para-pets:audio:v1";
+const lastPlayed = new Map<string, number>();
+
+export type GameSound = "attack"|"enemyHit"|"playerHit"|"healing"|"specialReady"|"specialCast"|"reward"|"chest"|"coin"|"essence"|"rareReward"|"enemyDefeat"|"bossArrival"|"bossDefeat"|"success"|"failure";
+export type SoundPreferences = { effects: boolean; ambience: boolean };
+export function getSoundPreferences():SoundPreferences { try{return {...{effects:true,ambience:true},...JSON.parse(localStorage.getItem(SOUND_PREFS_KEY)||"{}")};}catch{return {effects:true,ambience:true};} }
+export function setSoundPreferences(next:Partial<SoundPreferences>){const value={...getSoundPreferences(),...next};localStorage.setItem(SOUND_PREFS_KEY,JSON.stringify(value));return value;}
 
 function getCtx(): AudioContext | null {
   try {
@@ -15,6 +22,21 @@ function getCtx(): AudioContext | null {
     return null;
   }
 }
+
+const semanticSound:Record<GameSound,{notes:number[];volume:number;duration:number;throttle:number}>={
+  attack:{notes:[330,220],volume:.08,duration:.08,throttle:90},enemyHit:{notes:[150,95],volume:.1,duration:.09,throttle:75},playerHit:{notes:[120,72],volume:.1,duration:.12,throttle:180},healing:{notes:[523,659,784],volume:.09,duration:.32,throttle:250},specialReady:{notes:[880,1175],volume:.07,duration:.28,throttle:1000},specialCast:{notes:[392,784,1175],volume:.1,duration:.35,throttle:250},reward:{notes:[659,880],volume:.08,duration:.26,throttle:130},chest:{notes:[262,523,784],volume:.1,duration:.4,throttle:350},coin:{notes:[988,1319],volume:.055,duration:.12,throttle:90},essence:{notes:[740,1109],volume:.06,duration:.2,throttle:120},rareReward:{notes:[523,784,1047,1568],volume:.1,duration:.55,throttle:600},enemyDefeat:{notes:[220,147],volume:.09,duration:.22,throttle:120},bossArrival:{notes:[98,147,196],volume:.11,duration:.7,throttle:1400},bossDefeat:{notes:[392,523,784,1047],volume:.12,duration:.75,throttle:1200},success:{notes:[523,659,784],volume:.08,duration:.35,throttle:300},failure:{notes:[220,165],volume:.07,duration:.3,throttle:350}
+};
+
+/** Small, throttled WebAudio cues keep semantic feedback consistent without assets or painful stacking. */
+export function playGameSound(name:GameSound){
+  if(!getSoundPreferences().effects)return;const now=performance.now(),spec=semanticSound[name];if(now-(lastPlayed.get(name)??-Infinity)<spec.throttle)return;lastPlayed.set(name,now);
+  try{const c=getCtx();if(!c)return;spec.notes.forEach((frequency,index)=>{const start=c.currentTime+index*.055,osc=c.createOscillator(),gain=c.createGain();osc.type=name==="bossArrival"?"sawtooth":"sine";osc.frequency.setValueAtTime(frequency,start);osc.connect(gain);gain.connect(c.destination);gain.gain.setValueAtTime(0,start);gain.gain.linearRampToValueAtTime(spec.volume/Math.sqrt(spec.notes.length),start+.012);gain.gain.exponentialRampToValueAtTime(.001,start+spec.duration);osc.start(start);osc.stop(start+spec.duration+.02);});}catch{}
+}
+
+let ambience:HTMLAudioElement|null=null;
+/** Future route ambience uses one exclusive, preference-aware track. */
+export function playAmbience(src:string,volume=.18){stopAmbience();if(!getSoundPreferences().ambience)return;ambience=new Audio(src);ambience.loop=true;ambience.volume=Math.min(.25,Math.max(0,volume));void ambience.play().catch(()=>{stopAmbience();});}
+export function stopAmbience(){if(!ambience)return;ambience.pause();ambience.src="";ambience=null;}
 
 /** Call once on the very first user gesture to pre-unlock the audio context. */
 export function unlockAudio() {
