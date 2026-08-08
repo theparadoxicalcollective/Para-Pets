@@ -3,6 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { initializeClearingEnemies } from "../client/src/lib/clearingEnemySession";
 import { scheduleClearingDeathEffectRemoval, CLEARING_DEATH_EFFECT_SAFETY_MS } from "../client/src/lib/clearingDeathEffects";
+import { scheduleClearingTimer } from "../client/src/lib/clearingTimers";
 import { clearingWeaponOrigin, CLEARING_PET_PRESENTATION } from "../client/src/lib/clearingPetPresentation";
 import { directionToClearingTarget, weaponArtOffsetForStyle, weaponPointerPosition, weaponPointerRotation } from "../client/src/lib/elysianClearingCombatMath";
 import { CLEARING_ENCOUNTER_HOMES } from "../shared/clearingEncounterLayout";
@@ -64,4 +65,15 @@ test("death effects are independently removed after duration under normal and re
     scheduleClearingDeathEffectRemoval("one",850,id=>{effects=effects.filter(effect=>effect!==id)},fakeTimer);
     assert.deepEqual(effects,["one","two"]);assert.equal(delay,850+CLEARING_DEATH_EFFECT_SAFETY_MS);callback!();assert.deepEqual(effects,["two"]);assert.equal(typeof reducedMotion,"boolean");
   }
+});
+
+test("completed combat timers release retained attack state and enemy alerts have no visual indicator",()=>{
+  const timers=new Set<ReturnType<typeof setTimeout>>();let callback:(()=>void)|undefined,runs=0;
+  const fakeTimer=((fn:()=>void)=>{callback=fn;return 1 as unknown as ReturnType<typeof setTimeout>}) as typeof setTimeout;
+  scheduleClearingTimer(timers,()=>{runs++},100,fakeTimer);
+  assert.equal(timers.size,1);callback!();assert.equal(runs,1);assert.equal(timers.size,0);
+
+  const source=readFileSync("client/src/components/ElysianClearingCombat.tsx","utf8");
+  assert.match(source,/scheduleClearingTimer\(timers\.current,async\(\)=>/);
+  assert.doesNotMatch(source,/clearing-enemy-alert|clearing-alert-pop|>!<\/span>/);
 });
