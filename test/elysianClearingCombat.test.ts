@@ -1,8 +1,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ELYSIAN_CLEARING_COMBAT, applyClearingHit, createClearingSession, respawnClearingEnemy, scaleClearingEnemy } from "../server/elysianClearingCombat";
+import { ELYSIAN_CLEARING_COMBAT, advanceClearingBossEncounter, applyClearingHit, createClearingSession, respawnClearingEnemy, scaleClearingEnemy } from "../server/elysianClearingCombat";
 import { CLEARING_BALANCE } from "../shared/clearingConfig";
 import { resolveClearingPetBaseStats } from "../server/routes/elysianClearingCombat.routes";
+
+const bossTemplates = [
+  { enemy_id: "regular", is_boss: false, name: "Regular", image_url: null },
+  { enemy_id: "boss", is_boss: true, name: "Boss", image_url: null },
+];
+
+function prepareBoss(session: ReturnType<typeof createClearingSession>) {
+  for (let defeat = 0; defeat < 10; defeat += 1) {
+    const target = session.enemies[0];
+    target.defeated = true;
+    target.health = 0;
+    advanceClearingBossEncounter(session.id, target.instanceId, 2000 + defeat, () => 0);
+  }
+  return session.enemies[0];
+}
 
 test("Clearing sessions retain combat defaults when legacy pet stats are absent", () => {
   assert.deepEqual(resolveClearingPetBaseStats({ petHealth: null, petAtk: undefined, petDef: "" }), {
@@ -32,17 +47,16 @@ test("Clearing regular, special, and boss health use bounded named multipliers",
   assert.equal(regular.maxHealth,50*CLEARING_BALANCE.regularEnemyHealthPerPetDamage);
   assert.equal(scaleClearingEnemy({level:99,hp:1000,atk:5000,rarity:5}).maxHealth,82_500);
   const bounded=scaleClearingEnemy({level:99,hp:1000,atk:999999,rarity:99}).maxHealth;assert.ok(bounded>28_000);assert.ok(bounded<=CLEARING_BALANCE.maxRegularEnemyHealth);
-  const bossSession=createClearingSession("boss-health","pet",{level:1,hp:1000,atk:50},1000,()=>0,[{enemy_id:"boss",is_boss:true,name:"Boss",image_url:null}]);const boss=bossSession.enemies.find(enemy=>enemy.isBoss)!;
+  const bossSession=createClearingSession("boss-health","pet",{level:1,hp:1000,atk:50},1000,()=>0,bossTemplates);const boss=prepareBoss(bossSession);
   assert.equal(boss.maxHealth,regular.maxHealth*CLEARING_BALANCE.bossHealthMultiplier);
   const special=createClearingSession("special-health","pet",{level:1,hp:1000,atk:50},1000,()=>0,[],[{pet_shop_item_id:"special",name:"Not detection state",rarity:1,egg_image_url:null,hatched_image_url:null,image_url:null}]).enemies.at(-1)!;
   assert.equal(special.maxHealth,regular.maxHealth*CLEARING_BALANCE.specialPetMobHealthMultiplier);
   assert.equal(special.specialPetShopItemId,"special");
-  boss.defeated=true;boss.health=0;const oldId=boss.instanceId;const respawned=respawnClearingEnemy(bossSession.id,oldId);assert.equal(respawned?.health,boss.maxHealth);assert.equal(respawned?.maxHealth,boss.maxHealth);
 });
 
 test("boss damage remains a proportional fifteen percent of pet HP", () => {
-  const session = createClearingSession("boss-balance", "pet", { level: 1, hp: 2000, atk: 50 }, 1000, () => 0, [{ enemy_id: "boss", is_boss: true, name: "Boss", image_url: null }]);
-  const boss = session.enemies.find(enemy => enemy.isBoss);
+  const session = createClearingSession("boss-balance", "pet", { level: 1, hp: 2000, atk: 50 }, 1000, () => 0, bossTemplates);
+  const boss = prepareBoss(session);
   assert.equal(boss?.attack, 300);
 });
 
