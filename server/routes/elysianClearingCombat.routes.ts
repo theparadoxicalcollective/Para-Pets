@@ -2,10 +2,13 @@ import type { Express, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
 import {
   ELYSIAN_CLEARING_COMBAT,
+  advanceClearingBossEncounter,
   applyClearingHit,
+  completeClearingBossEncounter,
   createClearingSession,
   getClearingSession,
   removeClearingSession,
+  recordClearingRegularDefeat,
   respawnClearingEnemy,
   scaleClearingEnemy,
   updateClearingEnemyPositions,
@@ -131,6 +134,7 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
         enemies: session.enemies.map(({ lastHitAt: _lastHitAt, positionUpdatedAt: _positionUpdatedAt, ...enemy }) => enemy),
         chests,
         eggDrops,
+        clearingBossProgress:session.clearingBossProgress,
       });
     } catch (error: any) {
       console.error("Clearing session creation failed", {
@@ -140,6 +144,14 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
       });
       return res.status(503).json({ code: "CLEARING_TEMPORARILY_UNAVAILABLE", message: "The Clearing is temporarily unavailable" });
     }
+  });
+
+  app.post("/api/explore/elysian-clearing/boss/advance", isAuthenticated, (req, res) => {
+    const sessionId=req.body?.sessionId;
+    if(typeof sessionId!=="string")return res.status(400).json({code:"CLEARING_MALFORMED_REQUEST",message:"Invalid boss encounter request"});
+    const boss=advanceClearingBossEncounter({sessionId,userId:(req.user as any).id});
+    if(!boss)return res.status(409).json({code:"CLEARING_BOSS_NOT_READY",message:"The boss encounter is not ready"});
+    return res.json({boss,clearingBossProgress:getClearingSession(sessionId)!.clearingBossProgress});
   });
 
   app.post("/api/explore/elysian-clearing/attack", isAuthenticated, async (req, res) => {
@@ -247,7 +259,9 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
           if (index === 0) return res.status(409).json({ message: "Reward already claimed" });
           continue;
         }
-        const nextEnemy = respawnClearingEnemy(sessionId, target.enemyInstanceId);
+        const bossProgress=enemySnapshot.isBoss?session.clearingBossProgress:recordClearingRegularDefeat(sessionId,target.enemyInstanceId);
+        const nextEnemies=enemySnapshot.isBoss?completeClearingBossEncounter(sessionId,target.enemyInstanceId):null;
+        const nextEnemy = enemySnapshot.isBoss ? null : respawnClearingEnemy(sessionId, target.enemyInstanceId);
         if (reward.eggDrop && nextEnemy) {
           nextEnemy.specialPetShopItemId = undefined;
           nextEnemy.specialRarity = undefined;
@@ -264,6 +278,8 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
           expAwarded: reward.expAwarded,
           pet: reward.pet,
           nextEnemy: nextEnemy ? { ...nextEnemy } : null,
+          nextEnemies:nextEnemies?.map(enemy=>({...enemy}))??null,
+          clearingBossProgress:session.clearingBossProgress??bossProgress,
         });
       }
 

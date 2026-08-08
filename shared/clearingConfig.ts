@@ -23,3 +23,9 @@ export const CLEARING_BALANCE = {
   regular: { itemCount: [1, 3], coins: [1, 2], essence: [0, 0], weights: { common: 72, uncommon: 26, rare: 2 } },
   boss: { itemCount: [3, 5], coins: [3, 5], essence: [10, 20], weights: { common: 25, uncommon: 65, rare: 10 } },
 } as const;
+
+/** Server-owned cadence for the Elysian Clearing boss encounter. */
+export const CLEARING_BOSS_ENCOUNTER = {
+  regularDefeatThreshold: 10,
+  preparationMs: 2_200,
+} as const;

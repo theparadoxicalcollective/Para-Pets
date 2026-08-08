@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { CLEARING_BALANCE } from "@shared/clearingConfig";
+import { CLEARING_BALANCE, CLEARING_BOSS_ENCOUNTER } from "@shared/clearingConfig";
 import { selectClearingSpecialMob, type ClearingSpecialMobTemplate } from "./clearingSpecialMobs";
 import { CLEARING_AIM_GEOMETRY, CLEARING_PET_COMBAT_RADIUS, clearingCollisionGapDistance, clearingDistanceToRay, clearingHitboxEdgeDistance, clearingPointInDirection, isFiniteClearingPoint, normalizeClearingDirection, type ClearingDirection, type ClearingPoint } from "@shared/clearingCombatGeometry";
 import type { ClearingAttackStyle } from "@shared/clearingCombat";
@@ -29,7 +29,9 @@ export interface ClearingEnemyRecord {
   templateId?: string; name?: string; imageUrl?: string | null;
   specialPetShopItemId?:string; specialRarity?:number;
 }
-export interface ClearingSession { id: string; userId: string; petId: string; expiresAt: number; effectiveStats: { hp: number; atk: number; def: number }; enemies: ClearingEnemyRecord[]; position:{x:number;y:number;updatedAt:number}; worldPixels?:{width:number;height:number}; lockedTargetInstanceId:string|null; processedAttacks:Map<string,ClearingHitResult> }
+export type ClearingBossPhase = "regular" | "preparing" | "active";
+export interface ClearingBossProgress { regularDefeats:number; bossPhase:ClearingBossPhase; bossReadyAt:number|null }
+export interface ClearingSession { id: string; userId: string; petId: string; expiresAt: number; effectiveStats: { hp: number; atk: number; def: number }; enemies: ClearingEnemyRecord[]; position:{x:number;y:number;updatedAt:number}; worldPixels?:{width:number;height:number}; lockedTargetInstanceId:string|null; processedAttacks:Map<string,ClearingHitResult>; clearingBossProgress:ClearingBossProgress; bossTemplate?:ClearingEnemyTemplate; regularTemplates:ClearingEnemyTemplate[]; scaledEnemy:ReturnType<typeof scaleClearingEnemy> }
 type ClearingHitResult={status:"invalid"|"target_locked"|"defeated"|"direction"|"desync"|"range"|"hit"|"killed";enemy?:ClearingEnemyRecord;damage?:number;lockedTargetInstanceId?:string|null;diagnostic?:ClearingAttackDiagnostic};
 export type ClearingAttackDiagnostic={enemyInstanceId:string;playerPosition:ClearingPoint;clientTargetPosition:ClearingPoint;serverEnemyPosition:ClearingPoint;edgeDistance:number;allowedRange:number;rejectionReason:string};
 
@@ -63,10 +65,12 @@ export function selectClearingEncounterTemplates(count:number,templates:Clearing
 
 export function createClearingSession(userId: string, petId: string, stats: ClearingPetStats, now = Date.now(), random=Math.random, templates:ClearingEnemyTemplate[]=[], specialTemplates:ClearingSpecialMobTemplate[]=[]): ClearingSession {
   for (const [id, session] of sessions) if (session.expiresAt <= now || session.userId === userId) sessions.delete(id);
-  const scaled = scaleClearingEnemy(stats),special=selectClearingSpecialMob(specialTemplates,random),encounterTemplates=selectClearingEncounterTemplates(ELYSIAN_CLEARING_COMBAT.enemyCount,templates,random);if(special)encounterTemplates[encounterTemplates.length-1]=undefined;const encounterPositions=layoutClearingEncounter(encounterTemplates,random);
+  const scaled = scaleClearingEnemy(stats),special=selectClearingSpecialMob(specialTemplates,random),encounterTemplates=selectClearingEncounterTemplates(ELYSIAN_CLEARING_COMBAT.enemyCount,templates.some(template=>!template.is_boss)?templates.filter(template=>!template.is_boss):templates,random);if(special)encounterTemplates[encounterTemplates.length-1]=undefined;const encounterPositions=layoutClearingEncounter(encounterTemplates,random);
   const session: ClearingSession = {
     id: crypto.randomUUID(), userId, petId, expiresAt: now + ELYSIAN_CLEARING_COMBAT.sessionLifetimeMs,
     effectiveStats: { hp: stats.hp, atk: stats.atk, def: stats.def ?? 0 },
+    clearingBossProgress:{regularDefeats:0,bossPhase:"regular",bossReadyAt:null},
+    bossTemplate:templates.find(template=>template.is_boss), regularTemplates:templates.filter(template=>!template.is_boss), scaledEnemy:scaled,
     // A rolled special replaces the final encounter template (including a
     // possible boss), so boss and special health multipliers never stack.
     position:{x:.5,y:.7,updatedAt:now}, lockedTargetInstanceId:null,processedAttacks:new Map(), enemies: encounterTemplates.map((template,slot) => {const isBoss=Boolean(template?.is_boss),specialPetShopItemId=slot===encounterTemplates.length-1?special?.pet_shop_item_id:undefined,isSpecial=Boolean(specialPetShopItemId),healthMultiplier=isBoss?CLEARING_BALANCE.bossHealthMultiplier:isSpecial?CLEARING_BALANCE.specialPetMobHealthMultiplier:1,maxHealth=Math.round(scaled.maxHealth*healthMultiplier),spawn=encounterPositions[slot];return{
@@ -76,6 +80,38 @@ export function createClearingSession(userId: string, petId: string, stats: Clea
   };
   sessions.set(session.id, session);
   return session;
+}
+
+export function recordClearingRegularDefeat(sessionId:string,instanceId:string,now=Date.now()){
+  const session=sessions.get(sessionId),enemy=session?.enemies.find(candidate=>candidate.instanceId===instanceId);
+  if(!session||!enemy||enemy.isBoss||!enemy.defeated||session.clearingBossProgress.bossPhase!=="regular")return session?.clearingBossProgress??null;
+  const key=`defeat:${instanceId}`;
+  if(session.processedAttacks.has(key))return session.clearingBossProgress;
+  session.processedAttacks.set(key,{status:"defeated"});
+  session.clearingBossProgress.regularDefeats++;
+  if(session.bossTemplate&&session.clearingBossProgress.regularDefeats>=CLEARING_BOSS_ENCOUNTER.regularDefeatThreshold){
+    session.clearingBossProgress={regularDefeats:session.clearingBossProgress.regularDefeats,bossPhase:"preparing",bossReadyAt:now+CLEARING_BOSS_ENCOUNTER.preparationMs};
+    session.enemies.forEach(candidate=>{candidate.defeated=true;candidate.engagedByPlayer=false;});
+    session.lockedTargetInstanceId=null;
+  }
+  return session.clearingBossProgress;
+}
+
+/** Advances only a server-prepared encounter; request data cannot select or construct a boss. */
+export function advanceClearingBossEncounter(input:{sessionId:string;userId:string;now?:number}){
+  const now=input.now??Date.now(),session=sessions.get(input.sessionId);
+  if(!session||session.userId!==input.userId||session.clearingBossProgress.bossPhase!=="preparing"||!session.bossTemplate||now<(session.clearingBossProgress.bossReadyAt??Infinity))return null;
+  const template=session.bossTemplate,maxHealth=Math.round(session.scaledEnemy.maxHealth*CLEARING_BALANCE.bossHealthMultiplier);
+  const boss:ClearingEnemyRecord={instanceId:crypto.randomUUID(),slot:0,maxHealth,health:maxHealth,attack:Math.round(session.scaledEnemy.attack*CLEARING_BALANCE.bossDamageMultiplier),defeated:false,lastHitAt:0,x:.5,y:.42,positionUpdatedAt:now,isBoss:true,engagedByPlayer:false,templateId:template.enemy_id,name:template.name,imageUrl:template.image_url};
+  session.enemies=[boss];session.clearingBossProgress={...session.clearingBossProgress,bossPhase:"active",bossReadyAt:null};return boss;
+}
+
+export function completeClearingBossEncounter(sessionId:string,instanceId:string,now=Date.now(),random=Math.random){
+  const session=sessions.get(sessionId),boss=session?.enemies.find(enemy=>enemy.instanceId===instanceId);
+  if(!session||!boss?.isBoss||!boss.defeated||session.clearingBossProgress.bossPhase!=="active")return null;
+  const templates=selectClearingEncounterTemplates(ELYSIAN_CLEARING_COMBAT.enemyCount,session.regularTemplates,random),positions=layoutClearingEncounter(templates,random);
+  session.enemies=templates.map((template,slot)=>{const spawn=positions[slot],maxHealth=session.scaledEnemy.maxHealth;return{instanceId:crypto.randomUUID(),slot,maxHealth,health:maxHealth,attack:session.scaledEnemy.attack,defeated:false,lastHitAt:0,x:spawn?.x??.5,y:spawn?.y??.6,positionUpdatedAt:now,isBoss:false,engagedByPlayer:false,templateId:template?.enemy_id,name:template?.name,imageUrl:template?.image_url};});
+  session.clearingBossProgress={regularDefeats:0,bossPhase:"regular",bossReadyAt:null};session.lockedTargetInstanceId=null;return session.enemies;
 }
 
 export function getClearingSession(sessionId:string){return sessions.get(sessionId)??null;}
@@ -150,7 +186,7 @@ export function applyClearingHit(input: { sessionId: string; instanceId: string;
 export function respawnClearingEnemy(sessionId: string, instanceId: string) {
   const session = sessions.get(sessionId);
   const enemy = session?.enemies.find((candidate) => candidate.instanceId === instanceId && candidate.defeated);
-  if (!enemy) return null;
+  if (!enemy || session?.clearingBossProgress.bossPhase!=="regular") return null;
   if(session?.lockedTargetInstanceId===instanceId)session.lockedTargetInstanceId=null;
   // A special mob is a one-off encounter for this session; it must not turn
   // into an endlessly farmable egg source after its guaranteed drop.
