@@ -191,7 +191,7 @@ export default function ElysianClearingCombat({ activePetInventoryId, petPos, pe
 
   const openChest=(chest:ClearingRewardChest)=>{if(openingChestId||selectedChest)return;setChestError(null);setOpeningChestId(chest.chestId);const timer=setTimeout(()=>{setOpeningChestId(null);setSelectedChest(chest);void collectChest(chest);timers.current.delete(timer);},180);timers.current.add(timer);};
 
-  const threatened = enemies.some(enemy => enemy.health > 0 && ["alerting", "pursuing", "windup", "recovering"].includes(enemy.state));
+  const threatened = enemies.some(enemy => enemy.health > 0 && (enemy.state === "alerting" || ["pursuing", "windup", "recovering"].includes(enemy.state)));
   const healthPercent = Math.max(0, Math.min(100, 100 * petHealth / Math.max(1, petMaxHealth)));
   const visualTargetInstanceId=provisionalTargetInstanceIds[0]??lockedTargetInstanceId;
   const visualTargetEnemy=visualTargetInstanceId?enemies.find(enemy=>enemy.instanceId===visualTargetInstanceId&&enemy.health>0&&!['defeated','respawning','spawning'].includes(enemy.state)):undefined;
