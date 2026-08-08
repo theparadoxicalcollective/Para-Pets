@@ -132,7 +132,7 @@ Counts are static indicators, not defects by themselves. Minified/condensed file
 - **Why it is safe:** named wrappers preserve the same key behavior and effect dependencies while allowing exact cleanup.
 - **Expected benefit:** prevents duplicate controls, retained component closures, and remount-related memory growth.
 - **Risk level:** low.
-- **Verification:** added a regression test asserting matching callback identities. Type checking, the new focused test, and the production build pass; the complete suite still exposes the unrelated pre-existing brittle assertion recorded below.
+- **Verification:** added a regression test asserting matching callback identities. Type checking, the complete test suite, the focused test, and the production build pass.
 
 #### 9. Other timers/listeners/RAF loops require profiling, not bulk edits
 
@@ -297,8 +297,8 @@ Counts are static indicators, not defects by themselves. Minified/condensed file
 - No giant file was reformatted or split.
 - No formula was unified across game modes.
 
-## Baseline test issue discovered (not changed here)
+## Baseline test issue discovered and corrected
 
-The complete `npm test` run executes 445 tests: 444 pass and one existing static-source assertion fails in `test/itemTypeFilters.test.ts`. The test expects the minified text `type==="all"||(item.type||"item")===type`, while the current implementation in `client/src/components/clearing/ClearingAdminSections.tsx` contains the behaviorally equivalent formatted expression `(type === "all" || (item.type || "item") === type)`. This audit and the Lava Crawl change do not touch either file. Per the repository safety policy, this unrelated brittle test was not silently rewritten; it should be corrected in a focused test-maintenance PR.
+The initial complete `npm test` run exposed a brittle static-source assertion in `test/itemTypeFilters.test.ts`: it required the minified text `type==="all"||(item.type||"item")===type`, while `client/src/components/clearing/ClearingAdminSections.tsx` contains the behaviorally equivalent formatted expression `(type === "all" || (item.type || "item") === type)`. The assertion now permits formatting whitespace while continuing to require the same item-type filtering expression. No application or gameplay behavior changed.
 
 This audit should be treated as a point-in-time prioritization document. Before each follow-up PR, re-run the relevant current-tree verification rather than relying on this report as permanent proof.

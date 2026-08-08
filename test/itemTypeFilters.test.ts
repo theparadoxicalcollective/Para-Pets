@@ -17,7 +17,10 @@ test("player bag, Clearing drop picker, and Clearing Shop expose themed type con
   assert.match(inventory,/visibleTabs\.map/);
   assert.match(inventory,/itemTypeOptions/);
   assert.match(admin,/Filter catalog by item type/);
-  assert.match(admin,/type==="all"\|\|\(item\.type\|\|"item"\)===type/);
+  assert.match(
+    admin,
+    /type\s*===\s*"all"\s*\|\|\s*\(item\.type\s*\|\|\s*"item"\)\s*===\s*type/,
+  );
   assert.match(shop,/Filter Clearing Shop by item type/);
   assert.match(shop,/shownItems\.map/);
 });
