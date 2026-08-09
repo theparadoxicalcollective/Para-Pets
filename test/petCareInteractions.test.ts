@@ -12,7 +12,7 @@ import {
 } from "../client/src/lib/petCareInteractions";
 
 test("pet-care gesture intent waits for the movement threshold", () => {
-  assert.equal(PET_CARE_GESTURE_THRESHOLD_PX, 7);
+  assert.equal(PET_CARE_GESTURE_THRESHOLD_PX, 10);
   assert.equal(classifyPetCareItemGesture(4, -4), "pending");
 });
 
@@ -21,11 +21,19 @@ test("horizontal travel selects native shelf scrolling", () => {
 });
 
 test("upward diagonal travel selects item dragging without stealing shelf scrolls", () => {
-  assert.equal(classifyPetCareItemGesture(3, -8), "vertical-item-drag");
-  assert.equal(classifyPetCareItemGesture(3, 8), "horizontal-scroll");
-  assert.equal(classifyPetCareItemGesture(8, -8), "horizontal-scroll");
+  assert.equal(classifyPetCareItemGesture(0, -12), "vertical-item-drag");
+  assert.equal(classifyPetCareItemGesture(8, -12), "vertical-item-drag");
+  assert.equal(classifyPetCareItemGesture(12, -10), "vertical-item-drag");
+  assert.equal(classifyPetCareItemGesture(3, 12), "pending");
+  assert.equal(classifyPetCareItemGesture(8, -8), "vertical-item-drag");
   assert.equal(classifyPetCareItemGesture(10, -11), "vertical-item-drag");
-  assert.equal(classifyPetCareItemGesture(11, -10), "horizontal-scroll");
+  assert.equal(classifyPetCareItemGesture(14, -10), "horizontal-scroll");
+});
+
+test("ambiguous initial movement remains pending for later upward intent", () => {
+  assert.equal(classifyPetCareItemGesture(9, -2), "pending");
+  assert.equal(classifyPetCareItemGesture(10, -18), "vertical-item-drag");
+  assert.equal(classifyPetCareItemGesture(2, 12), "pending", "downward movement never starts a drag");
 });
 
 test("drag ghost positioning shares its size and finger-gap constants", () => {
@@ -84,6 +92,8 @@ test("care items capture only after vertical intent and release during cleanup",
   assert.match(cleanup, /releasePointerCapture/);
   assert.match(page, /playGrab\(\)/);
   assert.match(page, /playPlop\(\)/);
+  assert.match(page, /style=\{\{ touchAction: "pan-x" \}\}/);
+  assert.doesNotMatch(page, /touchAction: "none"[\s\S]*data-testid=\{`\$\{isEdible/);
 });
 
 test("safe visual mode keeps idle rendering and petting without heavy particle timers", () => {

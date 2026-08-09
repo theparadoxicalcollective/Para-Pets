@@ -127,6 +127,7 @@ function PetCareItemShelf({
               data-pet-care-drag-source={draggingStackId === item.stackId ? "true" : undefined}
               data-pet-care-stack-id={item.stackId}
               data-testid={`${isEdible ? "edible" : "gift"}-item-${item.id}`}
+              style={{ touchAction: "pan-x" }}
             >
               <div className="pet-care-item-shelf__visible-artwork">
                 {item.imageUrl && (safeMode
@@ -1085,7 +1086,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       if (intent === "pending") return;
       d.intent = intent;
       if (intent === "horizontal-scroll") {
-        cleanupItemGesture();
+        // Keep the confirmed state until pointerup/cancel. The browser owns
+        // this pan, but an early diagonal sample no longer deletes our record.
         return;
       }
       playGrab();
