@@ -35,7 +35,7 @@ test("stack quantity is React-owned presentation while a drag remains one item",
 test("normal mode arbitrates pointer taps and drags while explicit fallback retains clicks", () => {
   const source = page();
   assert.match(source, /onClick=\{!dragEnabled \? \(\) => onItemClick\(item\) : undefined\}/);
-  assert.match(source, /onClick=\{!dragEnabled \? applySelectedCareItem : undefined\}/);
+  assert.match(source, /onClick=\{applySelectedCareItem\}/);
   assert.match(source, /gesture\.intent === "pending"\) selectCareItem\(gesture\.item\)/);
   assert.match(source, /data-pet-care-emergency-input-fallback/);
 });

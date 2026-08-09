@@ -16,24 +16,24 @@ test("pet-care gesture intent waits for the movement threshold", () => {
   assert.equal(classifyPetCareItemGesture(4, -4), "pending");
 });
 
-test("horizontal travel selects native shelf scrolling", () => {
-  assert.equal(classifyPetCareItemGesture(28, -8), "horizontal-scroll");
+test("horizontal travel starts an item drag now that shelves use paging", () => {
+  assert.equal(classifyPetCareItemGesture(28, -8), "vertical-item-drag");
 });
 
 test("upward diagonal travel selects item dragging without stealing shelf scrolls", () => {
   assert.equal(classifyPetCareItemGesture(0, -12), "vertical-item-drag");
   assert.equal(classifyPetCareItemGesture(8, -12), "vertical-item-drag");
   assert.equal(classifyPetCareItemGesture(12, -10), "vertical-item-drag");
-  assert.equal(classifyPetCareItemGesture(3, 12), "pending");
+  assert.equal(classifyPetCareItemGesture(3, 12), "vertical-item-drag");
   assert.equal(classifyPetCareItemGesture(8, -8), "vertical-item-drag");
   assert.equal(classifyPetCareItemGesture(10, -11), "vertical-item-drag");
-  assert.equal(classifyPetCareItemGesture(14, -10), "horizontal-scroll");
+  assert.equal(classifyPetCareItemGesture(14, -10), "vertical-item-drag");
 });
 
 test("ambiguous initial movement remains pending for later upward intent", () => {
   assert.equal(classifyPetCareItemGesture(9, -2), "pending");
   assert.equal(classifyPetCareItemGesture(10, -18), "vertical-item-drag");
-  assert.equal(classifyPetCareItemGesture(2, 12), "pending", "downward movement never starts a drag");
+  assert.equal(classifyPetCareItemGesture(2, 12), "vertical-item-drag");
 });
 
 test("drag ghost positioning shares its size and finger-gap constants", () => {
@@ -79,21 +79,21 @@ test("both inventories share the reusable six-slot shelf without old panels", ()
   assert.match(edibleShelfRule, /transform:\s*translateY\(clamp\(-8px, -1\.2vh, -4px\)\)/);
 });
 
-test("care items capture only after vertical intent and release during cleanup", () => {
+test("care items capture on pointerdown and release during cleanup", () => {
   const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   const pointerDown = page.slice(
     page.indexOf("const onItemPointerDown"),
     page.indexOf("const onItemPointerMove"),
   );
-  assert.doesNotMatch(pointerDown, /setPointerCapture/);
+  assert.match(pointerDown, /setPointerCapture/);
   const pointerMove = page.slice(page.indexOf("const onItemPointerMove"), page.indexOf("const onItemPointerUp"));
-  assert.match(pointerMove, /setPointerCapture/);
+  assert.doesNotMatch(pointerMove, /setPointerCapture/);
   const cleanup = page.slice(page.indexOf("const cleanupItemGesture"), page.indexOf("const onItemPointerDown"));
   assert.match(cleanup, /releasePointerCapture/);
   assert.match(page, /playGrab\(\)/);
   assert.match(page, /playPlop\(\)/);
-  assert.match(page, /style=\{\{ touchAction: "pan-x" \}\}/);
-  assert.doesNotMatch(page, /touchAction: "none"[\s\S]*data-testid=\{`\$\{isEdible/);
+  assert.match(page, /style=\{\{ touchAction: "none" \}\}/);
+  assert.match(page, /data-testid=\{`\$\{isEdible[\s\S]*style=\{\{ touchAction: "none" \}\}/);
 });
 
 test("safe visual mode keeps idle rendering and petting without heavy particle timers", () => {
@@ -115,10 +115,10 @@ test("drop applies once only inside the pet and cancellation only resets state",
   const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   const up = page.slice(page.indexOf("const onItemPointerUp"), page.indexOf("const onItemPointerCancel"));
   assert.match(up, /if \(!validDrop\) \{\s*cleanupItemGesture\(\);\s*return;/);
-  assert.equal(up.match(/void applyCareItem\(d\)/g)?.length, 1);
+  assert.equal(up.match(/void usePetCareItem\(d\)/g)?.length, 1);
   const cancel = page.slice(page.indexOf("const onItemPointerCancel"), page.indexOf("const submitFeedSelection"));
   assert.match(cancel, /cleanupItemGesture\(\)/);
-  assert.doesNotMatch(cancel, /applyCareItem|mutate/);
+  assert.doesNotMatch(cancel, /usePetCareItem|mutate/);
 });
 
 test("dragging uses direct pointer coordinates", () => {

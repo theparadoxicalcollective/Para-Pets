@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createPetCareGestureController } from "../client/src/lib/petCareInteractions";
 
-test("real gesture controller separates shelf scrolling from one upward drag", () => {
+test("real gesture controller owns deliberate movement as one item drag", () => {
   const controller = createPetCareGestureController<{ id: string }>();
   controller.begin(1, 100, 200, { id: "food" });
-  assert.equal(controller.move(1, 130, 195)?.intent, "horizontal-scroll");
-  assert.equal(controller.current()?.intent, "horizontal-scroll", "confirmed scrolling persists until release");
+  assert.equal(controller.move(1, 130, 195)?.intent, "vertical-item-drag");
+  assert.equal(controller.current()?.intent, "vertical-item-drag", "confirmed dragging persists until release");
   controller.cancel();
   controller.begin(2, 100, 200, { id: "food" });
   assert.equal(controller.move(2, 102, 180)?.intent, "vertical-item-drag");
@@ -24,14 +24,14 @@ test("a horizontal wobble can remain pending and resolve into an upward drag", (
   }
 });
 
-test("a stationary release remains a tap while a shelf swipe does not", () => {
+test("a stationary release remains a tap while movement becomes a drag", () => {
   const controller = createPetCareGestureController<{ id: string }>();
   controller.begin(5, 100, 200, { id: "apple" });
   assert.equal(controller.consume(5)?.intent, "pending", "a release without travel is available to the tap fallback");
 
   controller.begin(6, 100, 200, { id: "apple" });
   controller.move(6, 125, 201);
-  assert.equal(controller.consume(6)?.intent, "horizontal-scroll", "a shelf swipe cannot accidentally select an item");
+  assert.equal(controller.consume(6)?.intent, "vertical-item-drag", "movement cannot accidentally become a shelf swipe");
 });
 
 test("drop arbitration applies once inside the expanded pet and never outside", () => {

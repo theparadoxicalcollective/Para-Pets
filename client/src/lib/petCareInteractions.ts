@@ -20,17 +20,11 @@ export function classifyPetCareItemGesture(
   dy: number,
   threshold = PET_CARE_GESTURE_THRESHOLD_PX,
 ): PetCareItemGestureIntent {
-  const absX = Math.abs(dx);
-  const absY = Math.abs(dy);
   if (Math.hypot(dx, dy) < threshold) return "pending";
-  // Confirm only strong directional intent. Keeping the diagonal middle band
-  // pending lets a small thumb wobble resolve naturally instead of making the
-  // first few pixels an irreversible shelf-scroll decision.
-  if (absX >= absY * PET_CARE_HORIZONTAL_INTENT_RATIO) return "horizontal-scroll";
-  // The pet is above the shelves. Upward travel may be substantially diagonal:
-  // pan-x on each item keeps the browser from taking the vertical component.
-  if (dy < 0 && absY >= absX * PET_CARE_UPWARD_INTENT_RATIO) return "vertical-item-drag";
-  return "pending";
+  // Shelves page with buttons rather than native scrolling, so every deliberate
+  // movement belongs to the item. This avoids WebKit permanently classifying a
+  // slightly diagonal first sample as a shelf pan and losing the drag.
+  return "vertical-item-drag";
 }
 
 export type PetCarePoint = { x: number; y: number };

@@ -40,11 +40,9 @@ export function orderPetCareItemsByEffect<T extends PetCareEffectItem>(
  * stable item-definition identifier; inventory row ids, names, and artwork are
  * deliberately not used to decide whether two items are identical.
  *
- * `displayQuantity` owns presentation only. Edibles still appear in visible
- * stacks of at most 30 and Gifts remain one per slot, but `quantity` is always
- * one so a single drag can never open a bulk-use flow or consume more than the
- * item the player actually moved. The persisted inventory row remains the
- * authoritative source for the remaining amount.
+ * `displayQuantity` owns presentation only. Each persisted inventory row gets
+ * one stable shelf slot, while `quantity` is always one so a drag or tap can
+ * consume exactly one unit. The persisted inventory remains authoritative.
  */
 export function buildPetCareInventoryStacks<T extends PetCareInventoryItem>(
   items: readonly T[],
@@ -54,19 +52,13 @@ export function buildPetCareInventoryStacks<T extends PetCareInventoryItem>(
     throw new Error("Pet care stack limit must be a positive integer");
   }
 
-  return items.flatMap((item) => {
+  return items.map((item) => {
     const persistedQuantity = Math.max(1, Math.floor(item.quantity ?? 1));
-    const displayLimit = item.type === "gift" ? 1 : stackLimit;
-    const stackCount = Math.ceil(persistedQuantity / displayLimit);
-
-    return Array.from({ length: stackCount }, (_, stackIndex) => ({
+    return {
       ...item,
-      stackId: `${item.shopItemId}:${item.id}:${stackIndex}`,
-      displayQuantity: Math.min(
-        displayLimit,
-        persistedQuantity - stackIndex * displayLimit,
-      ),
+      stackId: `${item.shopItemId}:${item.id}`,
+      displayQuantity: persistedQuantity,
       quantity: 1 as const,
-    }));
+    };
   });
 }

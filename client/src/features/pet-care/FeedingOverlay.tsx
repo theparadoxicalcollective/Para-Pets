@@ -95,6 +95,7 @@ function PetCareItemShelf({
   draggingStackId,
   safeMode,
   dragEnabled,
+  onPageChange,
 }: {
   kind: "edibles" | "gifts";
   items: PetCareShelfItem[];
@@ -104,9 +105,27 @@ function PetCareItemShelf({
   draggingStackId: string | null;
   safeMode: boolean;
   dragEnabled: boolean;
+  onPageChange: () => void;
 }) {
   const isEdible = kind === "edibles";
   const title = isEdible ? "EDIBLES" : "GIFTS";
+  const [page, setPage] = useState(0);
+  const pageCount = Math.max(1, Math.ceil(items.length / PET_CARE_VISIBLE_SLOTS));
+  const currentPage = Math.min(page, pageCount - 1);
+  const visibleItems = items.slice(
+    currentPage * PET_CARE_VISIBLE_SLOTS,
+    (currentPage + 1) * PET_CARE_VISIBLE_SLOTS,
+  );
+
+  useEffect(() => {
+    if (page !== currentPage) setPage(currentPage);
+  }, [currentPage, page]);
+
+  const changePage = (nextPage: number) => {
+    setPage(nextPage);
+    onPageChange();
+  };
+
   return (
     <section
       className={`pet-care-item-shelf pet-care-item-shelf--${kind}`}
@@ -118,7 +137,7 @@ function PetCareItemShelf({
           <img className="pet-care-item-shelf__art" src={petCareItemShelf} alt="" draggable={false} />
         </div>
         <div className="pet-care-item-shelf__viewport">
-          {items.map((item) => (
+          {visibleItems.map((item) => (
             <div
               key={item.stackId}
               className={`pet-care-item-shelf__item${selectedStackId === item.stackId ? " pet-care-item-shelf__item--selected" : ""}`}
@@ -127,7 +146,7 @@ function PetCareItemShelf({
               data-pet-care-drag-source={draggingStackId === item.stackId ? "true" : undefined}
               data-pet-care-stack-id={item.stackId}
               data-testid={`${isEdible ? "edible" : "gift"}-item-${item.id}`}
-              style={{ touchAction: "pan-x" }}
+              style={{ touchAction: "none" }}
             >
               <div className="pet-care-item-shelf__visible-artwork">
                 {item.imageUrl && (safeMode
@@ -140,6 +159,20 @@ function PetCareItemShelf({
             </div>
           ))}
         </div>
+        <button
+          type="button"
+          className="pet-care-item-shelf__arrow pet-care-item-shelf__arrow--previous"
+          onClick={() => changePage(currentPage - 1)}
+          disabled={currentPage === 0}
+          aria-label={`Previous ${kind}`}
+        >‹</button>
+        <button
+          type="button"
+          className="pet-care-item-shelf__arrow pet-care-item-shelf__arrow--next"
+          onClick={() => changePage(currentPage + 1)}
+          disabled={currentPage >= pageCount - 1}
+          aria-label={`Next ${kind}`}
+        >›</button>
         <div className="pet-care-item-shelf__art-crop pet-care-item-shelf__art-crop--front" aria-hidden="true">
           <img className="pet-care-item-shelf__art" src={petCareItemShelf} alt="" draggable={false} />
         </div>
@@ -407,6 +440,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const dragFrameRef = useRef<number | null>(null);
   const dragPositionRef = useRef({ x: 0, y: 0 });
   const capturedPointerRef = useRef<number | null>(null);
+  const captureTargetRef = useRef<HTMLElement | null>(null);
   const suppressClickRef = useRef(false);
   const isApplyingItemRef = useRef(false);
   const [isApplyingItem, setIsApplyingItem] = useState(false);
@@ -946,10 +980,12 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
 
   const cleanupItemGesture = useCallback((releaseCapture = true, updateState = mountedRef.current) => {
     const capturedPointer = capturedPointerRef.current;
-    if (releaseCapture && capturedPointer != null && overlayRef.current?.hasPointerCapture?.(capturedPointer)) {
-      overlayRef.current.releasePointerCapture(capturedPointer);
+    const captureTarget = captureTargetRef.current;
+    if (releaseCapture && capturedPointer != null && captureTarget?.hasPointerCapture?.(capturedPointer)) {
+      captureTarget.releasePointerCapture(capturedPointer);
     }
     capturedPointerRef.current = null;
+    captureTargetRef.current = null;
     dragRef.current = null;
     suppressClickRef.current = false;
     itemGestureControllerRef.current.cancel();
@@ -978,9 +1014,6 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   }, [cleanupItemGesture]);
 
   const onItemPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, item: PetCareShelfItem) => {
-    // Leave the gesture pending so Safari can give a horizontal swipe to the
-    // native shelf scroller. Capture moves to the stable overlay only after an
-    // upward item drag has been classified.
     e.stopPropagation();
     if (isApplyingItemRef.current || !item?.id || (item.quantity ?? 0) <= 0) return;
     interactionRef.current = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, itemType: item.type === "gift" ? "gift" : "edibles" };
@@ -1000,10 +1033,14 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       intent: "pending",
     };
     itemGestureControllerRef.current.begin(e.pointerId, e.clientX, e.clientY, item);
+    const captureTarget = e.currentTarget;
+    captureTarget.setPointerCapture?.(e.pointerId);
+    capturedPointerRef.current = e.pointerId;
+    captureTargetRef.current = captureTarget;
     setDragGhost(null);
   }, [recordPhase]);
 
-  const applyCareItem = useCallback(async (drag: NonNullable<typeof dragRef.current>) => {
+  const usePetCareItem = useCallback(async (drag: NonNullable<typeof dragRef.current>) => {
     if (isApplyingItemRef.current) return;
     const currentItem = inventory.find((entry) => entry?.id === drag.inventoryId);
     const currentPet = inventory.find((entry) => entry?.id === pet?.inventoryId);
@@ -1062,14 +1099,14 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const applySelectedCareItem = useCallback(() => {
     const item = selectedCareItem;
     if (!item || isApplyingItemRef.current) return;
-    void applyCareItem({
+    void usePetCareItem({
       inventoryId: item.id, imageUrl: item.imageUrl, type: item.type,
       quantity: item.quantity ?? 1, name: item.name,
       statBoostAmount: item.statBoostAmount ?? 5, giftPoints: item.giftPoints ?? 0,
       pid: -1, startX: 0, startY: 0, intent: "vertical-item-drag",
       stackId: item.stackId,
     });
-  }, [applyCareItem, selectedCareItem]);
+  }, [selectedCareItem, usePetCareItem]);
 
   const onItemPointerMove = useCallback((e: React.PointerEvent) => {
     const d = dragRef.current;
@@ -1085,16 +1122,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       const intent = gesture.intent;
       if (intent === "pending") return;
       d.intent = intent;
-      if (intent === "horizontal-scroll") {
-        // Keep the confirmed state until pointerup/cancel. The browser owns
-        // this pan, but an early diagonal sample no longer deletes our record.
-        return;
-      }
       playGrab();
-      // Capture only after an intentional upward drag. Pending/horizontal
-      // gestures stay with WebKit's native horizontal shelf scroller.
-      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-      capturedPointerRef.current = e.pointerId;
       suppressClickRef.current = true;
       recordPhase("vertical-drag-started");
       // Store the first drag position before mounting the ghost so it cannot
@@ -1136,8 +1164,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     // Consume this release synchronously; React Query pending state is not a
     // sufficient same-frame duplicate guard.
     cleanupItemGesture();
-    void applyCareItem(d);
-  }, [applyCareItem, cleanupItemGesture, scheduleTimeout, selectCareItem]);
+    void usePetCareItem(d);
+  }, [cleanupItemGesture, scheduleTimeout, selectCareItem, usePetCareItem]);
 
   const onItemPointerCancel = useCallback((e: React.PointerEvent) => {
     if (dragRef.current?.pid !== e.pointerId) return;
@@ -1311,7 +1339,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         onPointerMove={onPetPointerMove}
         onPointerUp={endPetGesture}
         onPointerCancel={endPetGesture}
-        onClick={!dragEnabled ? applySelectedCareItem : undefined}
+        onClick={applySelectedCareItem}
         data-testid="drop-zone-feed-pet"
       >
         {/* Soft radial halo behind the pet */}
@@ -1657,9 +1685,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       )}
 
       {/* ── Bottom item strip — edibles + gifts ──────────────────────────── */}
-      {/* Items are compact image-only chips (no card boxes) that scroll
-          horizontally. Swipe left/right to browse; drag upward to feed/gift
-          the pet. The strip is capped so it never overlaps the status bars. */}
+      {/* Items are compact image-only chips (no card boxes). Shelf arrows page
+          through six slots without competing with item pointer gestures. The
+          strip remains capped so it never overlaps the status bars. */}
       <div
         className="absolute left-0 right-0 pet-care-inventory-section"
         style={{
@@ -1680,8 +1708,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           xpBoostPct={(livePet as any).xpBoostPct ?? 0}
           safeMode={safeMode}
         />
-        <PetCareItemShelf kind="edibles" items={edibles} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
-        <PetCareItemShelf kind="gifts" items={gifts} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
+        <PetCareItemShelf kind="edibles" items={edibles} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} onPageChange={() => setSelectedCareItem(null)} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
+        <PetCareItemShelf kind="gifts" items={gifts} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} onPageChange={() => setSelectedCareItem(null)} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
       </div>
 
       {/* ── Feed hint overlay ───────────────────────────────────────────────
