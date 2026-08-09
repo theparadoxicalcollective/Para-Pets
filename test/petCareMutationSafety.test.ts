@@ -68,8 +68,8 @@ test("duplicate release is consumed once and cancellation never applies", () => 
   assert.equal(applications, 1);
 });
 
-test("horizontal shelf travel never begins an item drag", () => {
-  assert.equal(classifyPetCareItemGesture(40, -5), "horizontal-scroll");
+test("horizontal shelf travel begins an item drag when arrows own paging", () => {
+  assert.equal(classifyPetCareItemGesture(40, -5), "vertical-item-drag");
 });
 
 test("twenty sequential applications leave no busy state or ghost", async () => {

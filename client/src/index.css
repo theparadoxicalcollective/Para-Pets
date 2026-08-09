@@ -862,14 +862,13 @@
   height: calc(77% + var(--pet-care-item-lift));
   padding-top: var(--pet-care-item-lift);
   padding-inline: 0;
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
   scroll-padding-inline: 0;
   scrollbar-width: none;
-  touch-action: pan-x;
-  -webkit-overflow-scrolling: touch;
+  touch-action: none;
 }
 
 .pet-care-item-shelf__viewport::-webkit-scrollbar { display: none; }
@@ -883,12 +882,39 @@
   flex-direction: column;
   align-items: center;
   scroll-snap-align: start;
-  touch-action: pan-x;
+  touch-action: none;
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
   transition: transform 140ms ease, filter 140ms ease;
   overflow: visible;
+}
+
+.pet-care-item-shelf__arrow {
+  position: absolute;
+  top: 34%;
+  z-index: 4;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  background: radial-gradient(circle, rgba(75, 51, 13, 0.88) 0 34%, transparent 36%);
+  color: #f6cf58;
+  font: 900 28px/1 "Lora", serif;
+  text-shadow: 0 1px 2px #241300, 0 0 5px rgba(246, 207, 88, 0.65);
+  cursor: pointer;
+  touch-action: manipulation;
+  transform: translateY(-50%);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pet-care-item-shelf__arrow--previous { left: -8px; }
+.pet-care-item-shelf__arrow--next { right: -8px; }
+.pet-care-item-shelf__arrow:disabled {
+  opacity: 0.28;
+  cursor: default;
 }
 
 .pet-care-item-shelf__item:active {

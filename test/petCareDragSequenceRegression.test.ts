@@ -31,7 +31,7 @@ test("Pet Care still uses the existing server-safe one-item mutations", () => {
 
   assert.match(page, /feedMutation\.mutateAsync\(\{ itemInventoryId: drag\.inventoryId \}\)/);
   assert.match(page, /giftMutation\.mutateAsync\(\{ itemInventoryId: drag\.inventoryId \}\)/);
-  assert.match(page, /cleanupItemGesture\(\);\s*void applyCareItem\(d\)/);
+  assert.match(page, /cleanupItemGesture\(\);\s*void usePetCareItem\(d\)/);
 });
 
 test("Pet Care preserves the mobile tap fallback without selecting during shelf scroll", () => {

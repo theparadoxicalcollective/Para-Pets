@@ -19,35 +19,28 @@ test("pet care display quantities stay in one slot through the stack limit", () 
   assert.deepEqual(thirty.map(({ quantity }) => quantity), [1]);
 });
 
-test("pet care quantities above 30 flow into stable additional slots", () => {
+test("pet care quantities above 30 remain in one stable slot", () => {
   const stacks = buildPetCareInventoryStacks([item(31)]);
-  assert.deepEqual(stacks.map(({ displayQuantity }) => displayQuantity), [30, 1]);
-  assert.deepEqual(stacks.map(({ quantity }) => quantity), [1, 1]);
-  assert.deepEqual(stacks.map(({ stackId }) => stackId), [
-    "definition-apple:inventory-row-a:0",
-    "definition-apple:inventory-row-a:1",
-  ]);
+  assert.deepEqual(stacks.map(({ displayQuantity }) => displayQuantity), [31]);
+  assert.deepEqual(stacks.map(({ quantity }) => quantity), [1]);
+  assert.deepEqual(stacks.map(({ stackId }) => stackId), ["definition-apple:inventory-row-a"]);
 });
 
-test("pet care quantities 30, 31, and 65 split into visible stacks of at most 30", () => {
+test("pet care quantities 30, 31, and 65 each use one visible stack", () => {
   assert.deepEqual(buildPetCareInventoryStacks([item(30)]).map(({ displayQuantity }) => displayQuantity), [30]);
-  assert.deepEqual(buildPetCareInventoryStacks([item(31)]).map(({ displayQuantity }) => displayQuantity), [30, 1]);
-  assert.deepEqual(buildPetCareInventoryStacks([item(65)]).map(({ displayQuantity }) => displayQuantity), [30, 30, 5]);
+  assert.deepEqual(buildPetCareInventoryStacks([item(31)]).map(({ displayQuantity }) => displayQuantity), [31]);
+  assert.deepEqual(buildPetCareInventoryStacks([item(65)]).map(({ displayQuantity }) => displayQuantity), [65]);
 });
 
-test("gifts use individual shelf slots instead of display stacks", () => {
+test("gift copies use one shelf slot with their displayed quantity", () => {
   const gifts = buildPetCareInventoryStacks([item(3, {
     type: "gift",
     shopItemId: "definition-gift",
   })]);
 
-  assert.deepEqual(gifts.map(({ displayQuantity }) => displayQuantity), [1, 1, 1]);
-  assert.deepEqual(gifts.map(({ quantity }) => quantity), [1, 1, 1]);
-  assert.deepEqual(gifts.map(({ stackId }) => stackId), [
-    "definition-gift:inventory-row-a:0",
-    "definition-gift:inventory-row-a:1",
-    "definition-gift:inventory-row-a:2",
-  ]);
+  assert.deepEqual(gifts.map(({ displayQuantity }) => displayQuantity), [3]);
+  assert.deepEqual(gifts.map(({ quantity }) => quantity), [1]);
+  assert.deepEqual(gifts.map(({ stackId }) => stackId), ["definition-gift:inventory-row-a"]);
 });
 
 test("a stacked edible drag and the following gift drag both represent one use", () => {
