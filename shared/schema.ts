@@ -403,6 +403,7 @@ export const soulExchangeTransactions = pgTable("soul_exchange_transactions", {
   rarity: integer("rarity").notNull(),
   essenceAwarded: integer("essence_awarded").notNull(),
   resultingEssence: integer("resulting_essence").notNull(),
+  exchangedPets: jsonb("exchanged_pets").notNull().default(sql`'[]'::jsonb`),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 

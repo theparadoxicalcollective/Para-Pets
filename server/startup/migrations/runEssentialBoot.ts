@@ -32,8 +32,10 @@ export async function runEssentialBoot(): Promise<void> {
       pet_inventory_id VARCHAR NOT NULL, shop_item_id VARCHAR NOT NULL REFERENCES shop_items(id) ON DELETE RESTRICT,
       pet_name TEXT NOT NULL, rarity INTEGER NOT NULL CHECK(rarity BETWEEN 1 AND 5),
       essence_awarded INTEGER NOT NULL CHECK(essence_awarded > 0), resulting_essence INTEGER NOT NULL,
+      exchanged_pets JSONB NOT NULL DEFAULT '[]'::jsonb,
       created_at TIMESTAMP NOT NULL DEFAULT now()
-    ); CREATE INDEX IF NOT EXISTS soul_exchange_transactions_user_created_idx ON soul_exchange_transactions(user_id,created_at DESC)`],
+    ); ALTER TABLE soul_exchange_transactions ADD COLUMN IF NOT EXISTS exchanged_pets JSONB NOT NULL DEFAULT '[]'::jsonb;
+    CREATE INDEX IF NOT EXISTS soul_exchange_transactions_user_created_idx ON soul_exchange_transactions(user_id,created_at DESC)`],
     ["watcher_shoutouts_enabled migration error (non-fatal):", sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS watcher_shoutouts_enabled boolean NOT NULL DEFAULT true`],
     ["is_bot migration error (non-fatal):", sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_bot boolean NOT NULL DEFAULT false`],
     ["pvp_battle_groups.attack_power migration error (non-fatal):", sql`ALTER TABLE pvp_battle_groups ADD COLUMN IF NOT EXISTS attack_power integer NOT NULL DEFAULT 0`],

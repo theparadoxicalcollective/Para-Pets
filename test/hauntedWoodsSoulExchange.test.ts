@@ -38,7 +38,7 @@ test("Haunted Woods reconciliation refreshes presentation without overwriting ad
   const source = fs.readFileSync("server/worlds/hauntedWoods.ts", "utf8");
   assert.match(source, /ON CONFLICT \(id\) DO UPDATE SET/);
   assert.match(source, /LEGACY_SOUL_POND_LOCATION_ID/);
-  assert.match(source, /lower\(name\) IN \('phantom hollow', 'soul pond'\)/);
+  assert.match(source, /id = \$\{LEGACY_SOUL_POND_LOCATION_ID\} AND lower\(name\) IN \('phantom hollow', 'soul pond'\)/);
   assert.match(source, /versionedWorldAssetUrl/);
 
   const conflictUpdate = source.match(
@@ -61,7 +61,9 @@ test("legacy Soul Exchange layout and Haunted Woods snapshot migrate before dupl
   assert.match(source, /icon_size=\$\{migratedLayout\.iconSize\}/);
   assert.match(source, /sort_order=\$\{migratedLayout\.sortOrder\}/);
   assert.match(source, /flipped=\$\{migratedLayout\.flipped\}/);
-  assert.match(source, /snapshot = snapshot\.filter\(entry => entry\.id !== duplicate\.id\)/);
+  assert.match(source, /snapshot = snapshot\.filter\(entry => !duplicateIds\.has\(entry\.id\)\)/);
+  assert.match(source, /duplicateWithSnapshot/);
+  assert.match(source, /layoutSource = duplicateWithSnapshot \?\? duplicates\[0\]/);
 });
 
 test("Soul Exchange uses the shared scenic location flow and does not require an active pet", () => {
