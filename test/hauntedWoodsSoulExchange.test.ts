@@ -28,6 +28,8 @@ test("Soul Exchange portal is a lightweight purple mobile asset with reduced-mot
   assert.match(portal, /prefers-reduced-motion:reduce/);
   assert.match(portal, /portal-breathe/);
   assert.match(portal, /soul-mote/);
+  assert.doesNotMatch(portal, /stroke-dasharray/i);
+  assert.doesNotMatch(portal, /<ellipse[^>]+portal-shimmer/i);
   assert.doesNotMatch(portal, /<script/i);
   assert.doesNotMatch(portal, /(?:href|xlink:href)="https?:/i);
 });
@@ -39,12 +41,24 @@ test("Haunted Woods reconciliation refreshes presentation without overwriting ad
   assert.match(source, /lower\(name\) IN \('phantom hollow', 'soul pond'\)/);
   assert.match(source, /versionedWorldAssetUrl/);
 
-  const conflictUpdate = source.slice(source.indexOf("ON CONFLICT (id) DO UPDATE SET"));
+  const conflictUpdate = source.slice(source.indexOf("ON CONFLICT (id) DO UPDATE SET"), source.indexOf("`;", source.indexOf("ON CONFLICT (id) DO UPDATE SET")));
   assert.doesNotMatch(conflictUpdate, /pos_x\s*=/);
   assert.doesNotMatch(conflictUpdate, /pos_y\s*=/);
   assert.doesNotMatch(conflictUpdate, /icon_size\s*=/);
   assert.doesNotMatch(conflictUpdate, /sort_order\s*=/);
   assert.doesNotMatch(conflictUpdate, /flipped\s*=/);
+});
+
+test("legacy Soul Exchange layout and Haunted Woods snapshot migrate before duplicate deletion", () => {
+  const source = fs.readFileSync("server/worlds/hauntedWoods.ts", "utf8");
+  const migrate = source.indexOf("migratedLayout");
+  const snapshot = source.indexOf("admin_pos_locs__haunted_woods");
+  const deletion = source.indexOf("DELETE FROM world_locations", source.indexOf("Layout and its snapshot"));
+  assert.ok(snapshot >= 0 && migrate >= 0 && deletion > migrate);
+  assert.match(source, /icon_size=\$\{migratedLayout\.iconSize\}/);
+  assert.match(source, /sort_order=\$\{migratedLayout\.sortOrder\}/);
+  assert.match(source, /flipped=\$\{migratedLayout\.flipped\}/);
+  assert.match(source, /snapshot = snapshot\.filter\(entry => entry\.id !== duplicate\.id\)/);
 });
 
 test("Soul Exchange uses the shared scenic location flow and does not require an active pet", () => {

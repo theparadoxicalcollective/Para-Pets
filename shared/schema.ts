@@ -394,6 +394,18 @@ export const petEquippedAccessories = pgTable("pet_equipped_accessories", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const soulExchangeTransactions = pgTable("soul_exchange_transactions", {
+  exchangeActionId: varchar("exchange_action_id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  petInventoryId: varchar("pet_inventory_id").notNull(),
+  shopItemId: varchar("shop_item_id").notNull(),
+  petName: text("pet_name").notNull(),
+  rarity: integer("rarity").notNull(),
+  essenceAwarded: integer("essence_awarded").notNull(),
+  resultingEssence: integer("resulting_essence").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export type PetEquippedAccessory = typeof petEquippedAccessories.$inferSelect;
 
 export const coinPurchases = pgTable("coin_purchases", {

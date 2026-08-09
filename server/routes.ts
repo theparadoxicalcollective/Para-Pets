@@ -47,6 +47,7 @@ import { registerElysianClearingCombatRoutes } from "./routes/elysianClearingCom
 import { registerClearingEquipmentRoutes } from "./routes/clearingEquipment.routes";
 import { registerClearingAdminRoutes } from "./routes/clearingAdmin.routes";
 import { registerClearingShopRoutes } from "./routes/clearingShop.routes";
+import { registerSoulExchangeRoutes } from "./routes/soulExchange.routes";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -815,6 +816,7 @@ export async function registerRoutes(
 
   registerElysianClearingCombatRoutes(app, { db, storage, isAuthenticated });
   registerClearingShopRoutes(app, { db, isAuthenticated });
+  registerSoulExchangeRoutes(app, { isAuthenticated });
   registerClearingEquipmentRoutes(app, { db, storage, isAuthenticated });
   registerClearingAdminRoutes(app, { db, isAdmin });
 
