@@ -16,6 +16,8 @@ import { Plus, Minus, Trash2, X, MapPin, Package, Pencil, Settings, Swords, Flip
 import { readFileAsDataUrl } from "@/lib/utils";
 import WorldLocations, { type WorldLocationData } from "@/components/world/WorldLocations";
 import WorldShopOverlay, { type WorldShopItem } from "@/components/world/WorldShopOverlay";
+import SoulExchangeOverlay from "@/components/SoulExchangeOverlay";
+import { SOUL_EXCHANGE_LOCATION } from "@shared/hauntedWoods";
 import ExploreAdminPanel from "@/components/ExploreAdminPanel";
 import BattleArena, { BattlePotionSlot } from "@/components/BattleArena";
 import WorldCaveOverlay from "@/components/world/WorldCaveOverlay";
@@ -3340,6 +3342,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       {showLocationView && (() => {
         const activeLoc = locations.find(l => l.id === activeLocationId);
         if (!activeLoc) return null;
+        if (activeLoc.id === SOUL_EXCHANGE_LOCATION.id) return <SoulExchangeOverlay backgroundUrl={committedLocBgUrl} onClose={()=>{setShowLocationView(false);setActiveLocationId(null)}}/>;
         const isBattleAdmin = activeLoc.type === "battle" && currentUser.isAdmin;
 
         if (isBattleAdmin) {
