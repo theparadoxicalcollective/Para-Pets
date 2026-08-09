@@ -11,7 +11,7 @@ import { playClick, unlockAudio } from "@/lib/sounds";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
-import { getDesignW } from "@/lib/stage";
+import { calculateStageLayout, getVisibleViewport } from "@/lib/stage";
 import homeBg from "@assets/bg_home_v2.png";
 
 // ── Eagerly imported (always or near-always needed at startup) ──────────────
@@ -737,29 +737,54 @@ function DesktopNotice() {
 }
 
 function GameStage({ children }: { children: ReactNode }) {
-  const [designW, setDesignW] = useState(() => getDesignW());
+  const [layout, setLayout] = useState(() => {
+    const viewport = getVisibleViewport();
+    return calculateStageLayout(viewport.width, viewport.height, viewport.top, viewport.left);
+  });
 
   useEffect(() => {
-    document.documentElement.style.setProperty("--stage-scale", "1");
-    const onResize = () => setDesignW(getDesignW());
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    const update = () => {
+      const viewport = getVisibleViewport();
+      const next = calculateStageLayout(viewport.width, viewport.height, viewport.top, viewport.left);
+      setLayout(next);
+      const root = document.documentElement.style;
+      root.setProperty("--stage-scale", String(next.scale));
+      root.setProperty("--viewport-height", `${next.viewportHeight}px`);
+      root.setProperty("--viewport-width", `${next.viewportWidth}px`);
+      root.setProperty("--fh", `${next.designHeight}px`);
+      root.setProperty("--vh", `${next.designHeight * 0.01}px`);
+      root.setProperty("--vw", `${next.designWidth * 0.01}px`);
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("scroll", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("scroll", update);
+    };
   }, []);
 
   return (
     <div
       style={{
         position: "fixed", inset: 0,
-        display: "flex", alignItems: "stretch", justifyContent: "center",
         background: "#050c08",
       }}
     >
       <div
         id="game-stage"
+        data-design-width={layout.designWidth}
+        data-design-height={layout.designHeight}
         style={{
-          position: "relative",
-          width: "100%",
-          maxWidth: designW,
+          position: "absolute",
+          left: layout.left,
+          top: layout.top,
+          width: layout.designWidth,
+          height: layout.designHeight,
+          transform: `scale(${layout.scale})`,
+          transformOrigin: "top left",
           overflow: "hidden",
           isolation: "isolate",
         }}
@@ -814,30 +839,6 @@ function App() {
     return () => {
       window.removeEventListener("error", onError);
       window.removeEventListener("unhandledrejection", onUnhandled);
-    };
-  }, []);
-
-  // --fh always tracks the real viewport height so every page fills the screen.
-  // --vh is 1/100th of that height so calc(N*var(--vh)) == N% of screen.
-  //
-  // On Android Chrome the dynamic address bar constantly changes
-  // window.innerHeight as it shows/hides, causing world-map mis-fits and
-  // layout jumps. visualViewport.height is stable — it always equals the
-  // visible area excluding the dynamic toolbar — so we prefer it when present.
-  // iOS Safari also supports visualViewport (since iOS 13) and returns the
-  // same value as window.innerHeight, so this is safe everywhere.
-  useEffect(() => {
-    const update = () => {
-      const h = (window.visualViewport?.height ?? window.innerHeight);
-      document.documentElement.style.setProperty("--fh", `${h}px`);
-      document.documentElement.style.setProperty("--vh", `${h * 0.01}px`);
-    };
-    update();
-    window.addEventListener("resize", update);
-    window.visualViewport?.addEventListener("resize", update);
-    return () => {
-      window.removeEventListener("resize", update);
-      window.visualViewport?.removeEventListener("resize", update);
     };
   }, []);
 

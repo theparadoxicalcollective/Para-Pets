@@ -6,7 +6,7 @@ import { playClick, playGrab, playPlop } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { clientToStage, getDesignW, getStageScale, DESIGN_H } from "@/lib/stage";
+import { clientToStage, getDesignW, getStagePortalTarget, getStageScale, DESIGN_H } from "@/lib/stage";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
@@ -929,9 +929,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   });
 
   const updateDragGhostPosition = useCallback((x: number, y: number) => {
-    // The ghost is portaled to body and therefore uses viewport coordinates,
-    // independent of the scaled game-stage coordinate system.
-    dragPositionRef.current = { x, y };
+    // The ghost belongs to the portrait game frame. Convert client coordinates
+    // before positioning it in the transformed stage portal.
+    dragPositionRef.current = clientToStage(x, y);
     if (dragFrameRef.current != null) return;
     dragFrameRef.current = requestAnimationFrame(() => {
       dragFrameRef.current = null;
@@ -1793,7 +1793,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           {dragGhost.type === "edibles" && dragGhost.statBoostAmount != null && <span className="pet-care-drag-ghost__value">+{dragGhost.statBoostAmount}</span>}
           {dragGhost.type === "gift" && !!dragGhost.giftPoints && <span className="pet-care-drag-ghost__value">+{dragGhost.giftPoints}</span>}
           {dragGhost.displayQuantity > 1 && <span className="pet-care-drag-ghost__quantity">×{dragGhost.displayQuantity}</span>}
-        </div>, document.body,
+        </div>, getStagePortalTarget(),
       )}
 
       {/* Feed-stack popup */}

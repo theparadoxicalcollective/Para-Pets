@@ -10,6 +10,7 @@ import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
 import skullDefeatIcon from "@assets/Photoroom_20260705_103527_PM_1783426783499.png";
 import forestBgImg from "@assets/BFBD86D5-7E52-470D-949E-AC6D2FF39A5D_1783425029013.png";
+import { getStagePortalTarget } from "@/lib/stage";
 
 interface Opponent {
   userId: string;
@@ -1369,20 +1370,8 @@ export default function PvpBattlePage({
     };
   }, [draggingPotion, getArenaPos, consumePotion, cancelPotionDrag]);
 
-  // ── PORTAL ESCAPE ─────────────────────────────────────────────────────────
-  // The battle UI is portaled to <body> so it ESCAPES the App's phone-frame
-  // wrapper, which has `transform: translateZ(0) scale(frameScale)` applied.
-  // That transform creates a containing block for `position:fixed` children,
-  // which means without the portal our `fixed inset-0` would actually be
-  // clipped to the 390×844 phone frame on tablet/desktop AND every animation
-  // would be re-rasterized through the scale transform every frame (causing
-  // the glitchy/blurry sprite movement the user reported). Portaling moves
-  // the battle into <body>, where `fixed inset-0` truly fills the viewport
-  // at native resolution with no scale and no clip — the arena gets its own
-  // unconstrained page.
-  //
-  // Body scroll-lock is also applied so iOS Safari can't scroll the underlying
-  // page during a battle.
+  // Keep the battle portal inside the portrait stage. Portaling to body made
+  // its fixed background and pointer coordinate space span desktop gutters.
   useEffect(() => {
     const prev = {
       overflow: document.body.style.overflow,
@@ -1405,7 +1394,7 @@ export default function PvpBattlePage({
     // `document` has a chance to preventDefault. The PvP page is a fixed
     // single-screen layout with no scrollable regions, so disabling the
     // browser's native gesture system here is safe.
-    <div className="fixed inset-0 flex flex-col" style={{ zIndex: 10000, fontFamily: "Lora, serif", touchAction: "none" }}>
+    <div data-testid="pvp-battle-stage-overlay" className="fixed inset-0 flex flex-col" style={{ zIndex: 10000, fontFamily: "Lora, serif", touchAction: "none" }}>
       {/* Backdrop */}
       {/* Background image. Brightness was previously 0.42 which crushed the
           forest backdrop into a near-black silhouette — the user couldn't
@@ -2279,6 +2268,6 @@ export default function PvpBattlePage({
         </div>
       )}
     </div>,
-    document.body
+    getStagePortalTarget(),
   );
 }

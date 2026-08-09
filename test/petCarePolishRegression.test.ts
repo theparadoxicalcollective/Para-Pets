@@ -9,7 +9,8 @@ test("React is the only Pet Care drag owner and portals one ghost", () => {
   const source = page();
   assert.equal(existsSync("client/src/petCarePolish.ts"), false);
   assert.equal(existsSync("client/src/petCarePolishBootstrap.ts"), false);
-  assert.match(source, /createPortal\([\s\S]*?pet-care-drag-ghost[\s\S]*?document\.body/);
+  assert.match(source, /createPortal\([\s\S]*?pet-care-drag-ghost[\s\S]*?getStagePortalTarget\(\)/);
+  assert.match(source, /dragPositionRef\.current = clientToStage\(x, y\)/);
   assert.equal(source.match(/className="pet-care-drag-ghost"/g)?.length, 1);
   assert.match(source, /onLostPointerCapture=\{dragEnabled \? onItemPointerCancel/);
   assert.match(source, /cancelAnimationFrame\(dragFrameRef\.current\)/);
