@@ -1,5 +1,7 @@
 export const PET_CARE_VISIBLE_SLOTS = 6;
-export const PET_CARE_GESTURE_THRESHOLD_PX = 7;
+export const PET_CARE_GESTURE_THRESHOLD_PX = 10;
+export const PET_CARE_HORIZONTAL_INTENT_RATIO = 1.35;
+export const PET_CARE_UPWARD_INTENT_RATIO = 0.65;
 export const PET_CARE_DROP_PADDING_PX = 26;
 export const PET_CARE_DRAG_GHOST_SIZE_PX = 56;
 export const PET_CARE_DRAG_GHOST_FINGER_GAP_PX = 12;
@@ -21,12 +23,14 @@ export function classifyPetCareItemGesture(
   const absX = Math.abs(dx);
   const absY = Math.abs(dy);
   if (Math.hypot(dx, dy) < threshold) return "pending";
-  if (absX >= absY) return "horizontal-scroll";
-  // The pet is above the shelves. Only upward travel may pick up an item, but
-  // allow a natural diagonal thumb motion so the lower Gifts shelf is not
-  // noticeably harder to use than Edibles.
-  if (dy < 0 && absY >= absX * 1.08) return "vertical-item-drag";
-  return "horizontal-scroll";
+  // Confirm only strong directional intent. Keeping the diagonal middle band
+  // pending lets a small thumb wobble resolve naturally instead of making the
+  // first few pixels an irreversible shelf-scroll decision.
+  if (absX >= absY * PET_CARE_HORIZONTAL_INTENT_RATIO) return "horizontal-scroll";
+  // The pet is above the shelves. Upward travel may be substantially diagonal:
+  // pan-x on each item keeps the browser from taking the vertical component.
+  if (dy < 0 && absY >= absX * PET_CARE_UPWARD_INTENT_RATIO) return "vertical-item-drag";
+  return "pending";
 }
 
 export type PetCarePoint = { x: number; y: number };
@@ -56,7 +60,6 @@ export function createPetCareGestureController<T>() {
     move(pointerId: number, x: number, y: number) {
       if (!active || active.pointerId !== pointerId) return null;
       if (active.intent === "pending") active.intent = classifyPetCareItemGesture(x - active.startX, y - active.startY);
-      if (active.intent === "horizontal-scroll") active = null;
       return active;
     },
     consume(pointerId: number) {
