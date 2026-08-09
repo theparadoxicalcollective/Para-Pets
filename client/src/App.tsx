@@ -751,9 +751,11 @@ function GameStage({ children }: { children: ReactNode }) {
       root.setProperty("--stage-scale", String(next.scale));
       root.setProperty("--viewport-height", `${next.viewportHeight}px`);
       root.setProperty("--viewport-width", `${next.viewportWidth}px`);
-      root.setProperty("--fh", `${next.designHeight}px`);
-      root.setProperty("--vh", `${next.designHeight * 0.01}px`);
-      root.setProperty("--vw", `${next.designWidth * 0.01}px`);
+      root.setProperty("--fh", `${next.viewportHeight}px`);
+      root.setProperty("--vh", `${next.viewportHeight * 0.01}px`);
+      root.setProperty("--vw", `${next.viewportWidth * 0.01}px`);
+      root.setProperty("--stage-logical-width", `${next.designWidth}px`);
+      root.setProperty("--stage-logical-height", `${next.designHeight}px`);
     };
     update();
     window.addEventListener("resize", update);
@@ -783,7 +785,7 @@ function GameStage({ children }: { children: ReactNode }) {
           top: layout.top,
           width: layout.designWidth,
           height: layout.designHeight,
-          transform: `scale(${layout.scale})`,
+          transform: layout.scale === 1 ? "none" : `scale(${layout.scale})`,
           transformOrigin: "top left",
           overflow: "hidden",
           isolation: "isolate",

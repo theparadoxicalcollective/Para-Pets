@@ -6,7 +6,7 @@ import { playClick, playGrab, playPlop } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { clientToStage, getDesignW, getStagePortalTarget, getStageScale, DESIGN_H } from "@/lib/stage";
+import { clientToStage, clientToStagePortal, getDesignW, getStagePortalTarget, getStageScale, DESIGN_H } from "@/lib/stage";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
@@ -929,9 +929,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   });
 
   const updateDragGhostPosition = useCallback((x: number, y: number) => {
-    // The ghost belongs to the portrait game frame. Convert client coordinates
-    // before positioning it in the transformed stage portal.
-    dragPositionRef.current = clientToStage(x, y);
+    // Phones retain PR #151's body/client-coordinate drag ownership. Desktop
+    // converts only because its ghost lives in the transformed portrait stage.
+    dragPositionRef.current = clientToStagePortal(x, y);
     if (dragFrameRef.current != null) return;
     dragFrameRef.current = requestAnimationFrame(() => {
       dragFrameRef.current = null;

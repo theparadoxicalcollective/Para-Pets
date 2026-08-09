@@ -1,6 +1,5 @@
-// Authoritative cross-device game-frame geometry. All gameplay is authored in
-// logical pixels and the complete frame is uniformly scaled into the currently
-// visible viewport. Keep pointer math and rendering based on this same layout.
+// Mobile keeps the original, native viewport layout. The logical/scaled frame
+// is an additive presentation used only at the tablet breakpoint and above.
 export const DESIGN_W = 390;
 export const DESIGN_H = 844;
 export const WIDE_BREAKPOINT = 768;
@@ -25,7 +24,7 @@ export function isNarrowLayout(viewportWidth: number): boolean {
 }
 
 export function getDesignWidth(viewportWidth: number): number {
-  return DESIGN_W;
+  return isNarrowLayout(viewportWidth) ? Math.min(DESIGN_W, viewportWidth) : DESIGN_W;
 }
 
 /** Pure layout shared by the renderer, input conversion, and regression tests. */
@@ -38,20 +37,21 @@ export function calculateStageLayout(
   const viewportWidth = Math.max(1, visibleWidth);
   const viewportHeight = Math.max(1, visibleHeight);
   const designWidth = getDesignWidth(viewportWidth);
-  const maximumScale = isNarrowLayout(viewportWidth) ? 1 : MAX_STAGE_SCALE;
-  const scale = Math.min(viewportWidth / designWidth, viewportHeight / DESIGN_H, maximumScale);
+  const narrow = isNarrowLayout(viewportWidth);
+  const scale = narrow ? 1 : Math.min(viewportWidth / designWidth, viewportHeight / DESIGN_H, MAX_STAGE_SCALE);
   const renderedWidth = designWidth * scale;
-  const renderedHeight = DESIGN_H * scale;
+  const designHeight = narrow ? viewportHeight : DESIGN_H;
+  const renderedHeight = designHeight * scale;
   return {
     designWidth,
-    designHeight: DESIGN_H,
+    designHeight,
     viewportWidth,
     viewportHeight,
     scale,
     renderedWidth,
     renderedHeight,
     left: offsetLeft + Math.max(0, (viewportWidth - renderedWidth) / 2),
-    top: offsetTop + Math.max(0, (viewportHeight - renderedHeight) / 2),
+    top: narrow ? offsetTop : offsetTop + Math.max(0, (viewportHeight - renderedHeight) / 2),
   };
 }
 
@@ -100,7 +100,25 @@ export function renderedToLogical(layout: StageLayout, x: number, y: number) {
   return { x: (x - layout.left) / layout.scale, y: (y - layout.top) / layout.scale };
 }
 
-/** Portal gameplay UI here so fixed overlays remain inside the portrait frame. */
+export function clientToPortalPoint(layout: StageLayout, clientX: number, clientY: number) {
+  return isNarrowLayout(layout.viewportWidth)
+    ? { x: clientX, y: clientY }
+    : renderedToLogical(layout, clientX, clientY);
+}
+
+/**
+ * Preserve viewport-owned fixed overlays on phones. On larger screens the
+ * transformed portrait stage owns them so they do not spill into the gutters.
+ */
 export function getStagePortalTarget(): HTMLElement {
+  if (isNarrowLayout(getVisibleViewport().width)) return document.body;
   return document.getElementById("game-stage") ?? document.body;
+}
+
+/** Match coordinates to the adaptive portal target above. */
+export function clientToStagePortal(clientX: number, clientY: number): { x: number; y: number } {
+  if (typeof window === "undefined" || isNarrowLayout(getVisibleViewport().width)) {
+    return { x: clientX, y: clientY };
+  }
+  return clientToStage(clientX, clientY);
 }

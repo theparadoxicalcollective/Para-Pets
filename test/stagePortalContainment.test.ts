@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-test("gameplay portals remain contained by the portrait stage", () => {
+test("gameplay portals select body on mobile and the portrait stage on desktop", () => {
   const pvp = readFileSync("client/src/pages/PvpBattlePage.tsx", "utf8");
   const raid = readFileSync("client/src/pages/RaidBattlePage.tsx", "utf8");
   const petCare = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
@@ -11,9 +11,9 @@ test("gameplay portals remain contained by the portrait stage", () => {
   assert.match(pvp, /getStagePortalTarget\(\)/);
   assert.doesNotMatch(pvp, /<div data-testid="pvp-battle-stage-overlay"[\s\S]*?document\.body/);
 
-  assert.match(raid, /const ghost = clientToStage\(draggingPotion\.screenX, draggingPotion\.screenY\)/);
+  assert.match(raid, /const ghost = clientToStagePortal\(draggingPotion\.screenX, draggingPotion\.screenY\)/);
   assert.match(raid, /getStagePortalTarget\(\)/);
-  assert.match(petCare, /dragPositionRef\.current = clientToStage\(x, y\)/);
+  assert.match(petCare, /dragPositionRef\.current = clientToStagePortal\(x, y\)/);
   assert.match(petCare, /getStagePortalTarget\(\)/);
 });
 
