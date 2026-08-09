@@ -24,6 +24,16 @@ test("a horizontal wobble can remain pending and resolve into an upward drag", (
   }
 });
 
+test("a stationary release remains a tap while a shelf swipe does not", () => {
+  const controller = createPetCareGestureController<{ id: string }>();
+  controller.begin(5, 100, 200, { id: "apple" });
+  assert.equal(controller.consume(5)?.intent, "pending", "a release without travel is available to the tap fallback");
+
+  controller.begin(6, 100, 200, { id: "apple" });
+  controller.move(6, 125, 201);
+  assert.equal(controller.consume(6)?.intent, "horizontal-scroll", "a shelf swipe cannot accidentally select an item");
+});
+
 test("drop arbitration applies once inside the expanded pet and never outside", () => {
   const pet = { left: 100, right: 200, top: 80, bottom: 180 };
   const controller = createPetCareGestureController<string>();

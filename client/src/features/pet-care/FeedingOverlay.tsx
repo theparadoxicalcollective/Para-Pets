@@ -1112,9 +1112,15 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
 
   const onItemPointerUp = useCallback((e: React.PointerEvent) => {
     const d = dragRef.current;
-    if (!d || d.pid !== e.pointerId || !itemGestureControllerRef.current.consume(e.pointerId)) return;
+    if (!d || d.pid !== e.pointerId) return;
+    const gesture = itemGestureControllerRef.current.consume(e.pointerId);
+    if (!gesture) return;
     if (d.intent !== "vertical-item-drag") {
-      // Pointer was released before drag intent was established (tap or scroll).
+      // Match the Pet House's tap-versus-drag arbitration: a stationary
+      // pointer release selects the item, while a confirmed shelf swipe does
+      // not. Handling the tap here (instead of waiting for a synthetic click)
+      // keeps the fallback reliable after pointer capture on Android/iOS.
+      if (gesture.intent === "pending") selectCareItem(gesture.item);
       cleanupItemGesture();
       return;
     }
@@ -1131,7 +1137,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     // sufficient same-frame duplicate guard.
     cleanupItemGesture();
     void applyCareItem(d);
-  }, [applyCareItem, cleanupItemGesture, scheduleTimeout]);
+  }, [applyCareItem, cleanupItemGesture, scheduleTimeout, selectCareItem]);
 
   const onItemPointerCancel = useCallback((e: React.PointerEvent) => {
     if (dragRef.current?.pid !== e.pointerId) return;
