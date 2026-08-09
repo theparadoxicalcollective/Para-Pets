@@ -41,7 +41,10 @@ test("Haunted Woods reconciliation refreshes presentation without overwriting ad
   assert.match(source, /lower\(name\) IN \('phantom hollow', 'soul pond'\)/);
   assert.match(source, /versionedWorldAssetUrl/);
 
-  const conflictUpdate = source.slice(source.indexOf("ON CONFLICT (id) DO UPDATE SET"), source.indexOf("`;", source.indexOf("ON CONFLICT (id) DO UPDATE SET")));
+  const conflictUpdate = source.match(
+    /ON CONFLICT \(id\) DO UPDATE SET[\s\S]*?\n\s*`\);/,
+  )?.[0];
+  assert.ok(conflictUpdate, "canonical reconciliation upsert should be present");
   assert.doesNotMatch(conflictUpdate, /pos_x\s*=/);
   assert.doesNotMatch(conflictUpdate, /pos_y\s*=/);
   assert.doesNotMatch(conflictUpdate, /icon_size\s*=/);
