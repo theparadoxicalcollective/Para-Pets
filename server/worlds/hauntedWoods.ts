@@ -33,45 +33,39 @@ export async function reconcileHauntedWoodsWorld(): Promise<void> {
       FROM world_locations
       WHERE world_id = ${HAUNTED_WOODS_WORLD_ID}
         AND (id = ${SOUL_EXCHANGE_LOCATION.id}
-          OR lower(name) IN ('soul exchange', 'the soul exchange'))
+          OR lower(name) IN ('soul exchange', 'the soul exchange')
+          OR (id = ${LEGACY_SOUL_POND_LOCATION_ID} AND lower(name) IN ('phantom hollow', 'soul pond')))
       ORDER BY CASE WHEN id = ${SOUL_EXCHANGE_LOCATION.id} THEN 0 ELSE 1 END, created_at
     `);
     const existing = existingResult.rows as Array<any>;
     const canonical = existing.find(row => row.id === SOUL_EXCHANGE_LOCATION.id);
-    const duplicate = existing.find(row => row.id !== SOUL_EXCHANGE_LOCATION.id);
+    const duplicates = existing.filter(row => row.id !== SOUL_EXCHANGE_LOCATION.id);
     const snapshotResult = await tx.execute(sql`SELECT value FROM game_settings WHERE key = 'admin_pos_locs__haunted_woods' FOR UPDATE`);
     let snapshot: Array<{ id: string; posX: number; posY: number }> = [];
     try { snapshot = JSON.parse(String((snapshotResult.rows[0] as any)?.value || "[]")); } catch { snapshot = []; }
     const canonicalSnapshot = snapshot.find(entry => entry.id === SOUL_EXCHANGE_LOCATION.id);
-    const duplicateSnapshot = duplicate && snapshot.find(entry => entry.id === duplicate.id);
+    const duplicateIds = new Set(duplicates.map(row => row.id));
+    const duplicateWithSnapshot = duplicates.find(row => snapshot.some(entry => entry.id === row.id));
+    const layoutSource = duplicateWithSnapshot ?? duplicates[0];
+    const layoutSnapshot = layoutSource && snapshot.find(entry => entry.id === layoutSource.id);
 
     // A snapshot entry is the durable marker that an administrator established
     // placement. If the canonical row has none, preserve the staged/manual
     // portal's complete layout before retiring it.
     let migratedLayout: any = null;
-    if (duplicate && !canonicalSnapshot) {
-      const posX = duplicateSnapshot?.posX ?? duplicate.pos_x;
-      const posY = duplicateSnapshot?.posY ?? duplicate.pos_y;
-      if (canonical) {
-        await tx.execute(sql`UPDATE world_locations SET pos_x=${posX}, pos_y=${posY}, icon_size=${duplicate.icon_size}, sort_order=${duplicate.sort_order}, flipped=${duplicate.flipped} WHERE id=${SOUL_EXCHANGE_LOCATION.id}`);
-      }
-      migratedLayout = { posX, posY, iconSize: duplicate.icon_size, sortOrder: duplicate.sort_order, flipped: duplicate.flipped };
-      snapshot = snapshot.filter(entry => entry.id !== duplicate.id);
-      snapshot.push({ id: SOUL_EXCHANGE_LOCATION.id, posX: Number(posX), posY: Number(posY) });
-    } else if (duplicate) {
-      snapshot = snapshot.filter(entry => entry.id !== duplicate.id);
+    if (layoutSource && !canonicalSnapshot) {
+      const posX = layoutSnapshot?.posX ?? layoutSource.pos_x;
+      const posY = layoutSnapshot?.posY ?? layoutSource.pos_y;
+      migratedLayout = { posX, posY, iconSize: layoutSource.icon_size, sortOrder: layoutSource.sort_order, flipped: layoutSource.flipped };
+      if (canonical) await tx.execute(sql`UPDATE world_locations SET pos_x=${posX}, pos_y=${posY}, icon_size=${layoutSource.icon_size}, sort_order=${layoutSource.sort_order}, flipped=${layoutSource.flipped} WHERE id=${SOUL_EXCHANGE_LOCATION.id}`);
     }
-    if (duplicate || duplicateSnapshot) {
+    // Snapshot IDs are repaired in the same transaction, before duplicates
+    // disappear. A canonical entry remains the durable admin-placement marker.
+    if (duplicates.length) {
+      snapshot = snapshot.filter(entry => !duplicateIds.has(entry.id));
+      if (!canonicalSnapshot && migratedLayout) snapshot.push({ id: SOUL_EXCHANGE_LOCATION.id, posX: Number(migratedLayout.posX), posY: Number(migratedLayout.posY) });
       await tx.execute(sql`INSERT INTO game_settings(key,value) VALUES('admin_pos_locs__haunted_woods',${JSON.stringify(snapshot)}) ON CONFLICT(key) DO UPDATE SET value=excluded.value`);
     }
-    // Retire only the known obsolete placeholder. The name guard prevents an
-    // administrator-repurposed location from being deleted unexpectedly.
-    await tx.execute(sql`
-      DELETE FROM world_locations
-      WHERE id = ${LEGACY_SOUL_POND_LOCATION_ID}
-        AND world_id = ${HAUNTED_WOODS_WORLD_ID}
-        AND lower(name) IN ('phantom hollow', 'soul pond')
-    `);
     await tx.execute(sql`
       INSERT INTO world_locations (
         id, world_id, name, type, description,
@@ -111,7 +105,8 @@ export async function reconcileHauntedWoodsWorld(): Promise<void> {
       DELETE FROM world_locations
       WHERE world_id = ${HAUNTED_WOODS_WORLD_ID}
         AND id <> ${SOUL_EXCHANGE_LOCATION.id}
-        AND lower(name) IN ('soul exchange', 'the soul exchange')
+        AND ((id = ${LEGACY_SOUL_POND_LOCATION_ID} AND lower(name) IN ('phantom hollow', 'soul pond'))
+          OR lower(name) IN ('soul exchange', 'the soul exchange'))
     `);
   });
 
