@@ -1,70 +1,106 @@
-// Cross-device game frame constants + helpers.
-//
-// The whole game is authored at this fixed "phone" design size and uniformly
-// scaled (transform: scale) to fit any device by #game-stage in App.tsx. iPhone
-// 12 (390×844) renders at scale 1 — pixel-faithful. The current scale is
-// published on <html> as the CSS custom property `--stage-scale`.
+// Authoritative cross-device game-frame geometry. All gameplay is authored in
+// logical pixels and the complete frame is uniformly scaled into the currently
+// visible viewport. Keep pointer math and rendering based on this same layout.
 export const DESIGN_W = 390;
 export const DESIGN_H = 844;
-
-// On larger screens (tablets / desktop) the centered game frame is authored a
-// little wider so it doesn't look like a skinny phone stranded in a big window.
-// Narrow phone screens (portrait, < WIDE_BREAKPOINT) keep the original 390-wide
-// design untouched — they stay pixel-faithful exactly as before.
-export const WIDE_DESIGN_W = 470;
 export const WIDE_BREAKPOINT = 768;
+// Larger screens may present the same portrait composition a little larger,
+// but never turn it into a tablet/desktop layout or an enormous monitor UI.
+export const MAX_STAGE_SCALE = 1.1;
 
 export type StageLayout = {
-  designWidth: number; designHeight: number; scale: number;
-  renderedWidth: number; renderedHeight: number; left: number; top: number;
+  designWidth: number;
+  designHeight: number;
+  viewportWidth: number;
+  viewportHeight: number;
+  scale: number;
+  renderedWidth: number;
+  renderedHeight: number;
+  left: number;
+  top: number;
 };
 
-/** Pure shared layout used by GameStage and regression tests. */
-export function calculateStageLayout(visibleWidth: number, visibleHeight: number, offsetTop = 0): StageLayout {
-  const width = Math.max(1, visibleWidth);
-  const height = Math.max(1, visibleHeight);
-  const scale = Math.min(width / DESIGN_W, height / DESIGN_H, 1);
-  const renderedWidth = DESIGN_W * scale;
+export function isNarrowLayout(viewportWidth: number): boolean {
+  return viewportWidth < WIDE_BREAKPOINT;
+}
+
+export function getDesignWidth(viewportWidth: number): number {
+  return DESIGN_W;
+}
+
+/** Pure layout shared by the renderer, input conversion, and regression tests. */
+export function calculateStageLayout(
+  visibleWidth: number,
+  visibleHeight: number,
+  offsetTop = 0,
+  offsetLeft = 0,
+): StageLayout {
+  const viewportWidth = Math.max(1, visibleWidth);
+  const viewportHeight = Math.max(1, visibleHeight);
+  const designWidth = getDesignWidth(viewportWidth);
+  const maximumScale = isNarrowLayout(viewportWidth) ? 1 : MAX_STAGE_SCALE;
+  const scale = Math.min(viewportWidth / designWidth, viewportHeight / DESIGN_H, maximumScale);
+  const renderedWidth = designWidth * scale;
   const renderedHeight = DESIGN_H * scale;
   return {
-    designWidth: DESIGN_W, designHeight: DESIGN_H, scale, renderedWidth, renderedHeight,
-    left: Math.max(0, (width - renderedWidth) / 2), top: offsetTop,
+    designWidth,
+    designHeight: DESIGN_H,
+    viewportWidth,
+    viewportHeight,
+    scale,
+    renderedWidth,
+    renderedHeight,
+    left: offsetLeft + Math.max(0, (viewportWidth - renderedWidth) / 2),
+    top: offsetTop + Math.max(0, (viewportHeight - renderedHeight) / 2),
   };
 }
 
-// The live authored frame width for the current screen. Skinny phones -> 390;
-// roomy screens -> WIDE_DESIGN_W. Height is always DESIGN_H so vertical layout
-// (and the bottom nav landing point) is unchanged everywhere.
-export function getDesignW(): number {
-  if (typeof window === "undefined") return DESIGN_W;
-  return window.innerWidth >= WIDE_BREAKPOINT ? WIDE_DESIGN_W : DESIGN_W;
+export function getVisibleViewport(): { width: number; height: number; left: number; top: number } {
+  if (typeof window === "undefined") return { width: DESIGN_W, height: DESIGN_H, left: 0, top: 0 };
+  const viewport = window.visualViewport;
+  return {
+    width: viewport?.width ?? window.innerWidth,
+    height: viewport?.height ?? window.innerHeight,
+    left: viewport?.offsetLeft ?? 0,
+    top: viewport?.offsetTop ?? 0,
+  };
 }
 
-// Reads the live frame scale. Pointer deltas come back from the DOM in rendered
-// (scaled) pixels; divide by this to convert them into the design-space pixels
-// that map/drag transforms operate in, so dragging feels 1:1 on every device.
+export function getDesignW(): number {
+  return getDesignWidth(getVisibleViewport().width);
+}
+
 export function getStageScale(): number {
   if (typeof document === "undefined") return 1;
-  const v = parseFloat(
-    getComputedStyle(document.documentElement).getPropertyValue("--stage-scale"),
-  );
-  return v > 0 ? v : 1;
+  const stage = document.getElementById("game-stage");
+  if (stage) {
+    const logicalWidth = Number(stage.dataset.designWidth) || stage.offsetWidth;
+    const renderedWidth = stage.getBoundingClientRect().width;
+    if (logicalWidth > 0 && renderedWidth > 0) return renderedWidth / logicalWidth;
+  }
+  const value = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--stage-scale"));
+  return value > 0 ? value : 1;
 }
 
-// Converts a viewport point (e.g. from a pointer event or getBoundingClientRect)
-// into #game-stage LOCAL design-space coordinates. Particles rendered with
-// `position: fixed` inside #game-stage are contained by the stage's transform,
-// so their left/top are interpreted in design-space (pre-scale) px measured from
-// the stage's top-left — NOT in viewport px. On phones (scale 1, stage flush to
-// the left edge) viewport ≈ local so the raw values worked; on tablets/desktop
-// (stage centered with a left margin and scaled) raw viewport coords land the
-// particle too far to the right. Convert at spawn time to fix this everywhere.
 export function clientToStage(clientX: number, clientY: number): { x: number; y: number } {
   if (typeof document === "undefined") return { x: clientX, y: clientY };
-  const el = document.getElementById("game-stage");
-  if (!el) return { x: clientX, y: clientY };
-  const rect = el.getBoundingClientRect();
+  const stage = document.getElementById("game-stage");
+  if (!stage) return { x: clientX, y: clientY };
+  const rect = stage.getBoundingClientRect();
   const scale = getStageScale();
-  const s = scale > 0 ? scale : 1;
-  return { x: (clientX - rect.left) / s, y: (clientY - rect.top) / s };
+  return { x: (clientX - rect.left) / scale, y: (clientY - rect.top) / scale };
+}
+
+/** Pure inverse helpers make hit-testing independently regression-testable. */
+export function logicalToRendered(layout: StageLayout, x: number, y: number) {
+  return { x: layout.left + x * layout.scale, y: layout.top + y * layout.scale };
+}
+
+export function renderedToLogical(layout: StageLayout, x: number, y: number) {
+  return { x: (x - layout.left) / layout.scale, y: (y - layout.top) / layout.scale };
+}
+
+/** Portal gameplay UI here so fixed overlays remain inside the portrait frame. */
+export function getStagePortalTarget(): HTMLElement {
+  return document.getElementById("game-stage") ?? document.body;
 }

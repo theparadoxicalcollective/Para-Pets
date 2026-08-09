@@ -14,6 +14,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { getStageScale } from "@/lib/stage";
 import PetAnimator from "@/components/PetAnimator";
 import ElysianClearingCombat from "@/components/ElysianClearingCombat";
 import ClearingAdminResourcePanel from "@/components/clearing/ClearingAdminResourcePanel";
@@ -103,11 +104,14 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
     if ((e.target as HTMLElement).closest("button, a, input, select, textarea, [data-interactive]")) return;
     e.preventDefault();
     const rect = sceneRef.current.getBoundingClientRect();
+    const stageScale = getStageScale();
+    const logicalWidth = rect.width / stageScale;
+    const logicalHeight = rect.height / stageScale;
     const radius = JOYSTICK_SIZE / 2;
-    const x = Math.max(radius + JOYSTICK_EDGE_GAP, Math.min(rect.width - radius - JOYSTICK_EDGE_GAP, e.clientX - rect.left));
-    const y = Math.max(radius + JOYSTICK_EDGE_GAP, Math.min(rect.height - radius - JOYSTICK_EDGE_GAP, e.clientY - rect.top));
+    const x = Math.max(radius + JOYSTICK_EDGE_GAP, Math.min(logicalWidth - radius - JOYSTICK_EDGE_GAP, (e.clientX - rect.left) / stageScale));
+    const y = Math.max(radius + JOYSTICK_EDGE_GAP, Math.min(logicalHeight - radius - JOYSTICK_EDGE_GAP, (e.clientY - rect.top) / stageScale));
     setJoystickCenter({ x, y });
-    onJoystickPointerDown(e, { x: rect.left + x, y: rect.top + y });
+    onJoystickPointerDown(e, { x: rect.left + x * stageScale, y: rect.top + y * stageScale });
   }, [gameplayBlocked, resourcePanelOpen, onJoystickPointerDown]);
 
   useEffect(() => {

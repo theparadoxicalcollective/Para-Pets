@@ -10,6 +10,7 @@ import raidBg        from "@assets/F17D0472-325D-4FA4-B9E9-5B44668D2BC5_17838108
 import raidCloseImg  from "@assets/Photoroom_20260711_90748_PM_1783822223263.png";
 import starImg       from "@assets/Photoroom_20260331_20947_PM_1774984267132.png";
 import raidHpFrameImg from "@assets/Photoroom_20260711_31007_PM_1783820810778.png";
+import { clientToStage, getStagePortalTarget } from "@/lib/stage";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const POTION_LS_KEY    = "raid:potionSlots:v1";
@@ -805,13 +806,14 @@ export default function RaidBattlePage() {
       {draggingPotion && (() => {
         const slot = slotsRemaining[draggingPotion.slotIndex];
         if (!slot) return null;
+        const ghost = clientToStage(draggingPotion.screenX, draggingPotion.screenY);
         return createPortal(
-          <div className="fixed z-50 pointer-events-none" style={{ left: draggingPotion.screenX, top: draggingPotion.screenY, transform: "translate(-50%,-50%)" }}>
+          <div className="fixed z-50 pointer-events-none" style={{ left: ghost.x, top: ghost.y, transform: "translate(-50%,-50%)" }}>
             <div style={{ width: 52, height: 52, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(34,197,94,0.22)", border: "2px solid rgba(74,222,128,0.9)", boxShadow: "0 6px 20px rgba(0,0,0,0.6), 0 0 20px rgba(74,222,128,0.5)" }}>
               {slot.imageUrl ? <img src={slot.imageUrl} alt="" style={{ width: 36, height: 36, objectFit: "contain" }} /> : <span style={{ color: "#fff", fontWeight: "bold" }}>P</span>}
             </div>
           </div>,
-          document.body
+          getStagePortalTarget()
         );
       })()}
 
