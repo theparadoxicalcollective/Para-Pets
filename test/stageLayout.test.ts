@@ -5,6 +5,7 @@ import {
   clientToPortalPoint,
   DESIGN_H,
   DESIGN_W,
+  getStageTransform,
   logicalToRendered,
   MAX_STAGE_SCALE,
   renderedToLogical,
@@ -19,6 +20,7 @@ test("390x844 iPhone design remains pixel-faithful", () => {
   assert.equal(layout.renderedHeight, 844);
   assert.equal(layout.left, 0);
   assert.equal(layout.top, 0);
+  assert.equal(getStageTransform(layout), undefined, "native phones do not get a transformed containing block");
 });
 
 test("390x760 Safari visible viewport stays native and follows the usable height", () => {
@@ -31,6 +33,17 @@ test("390x760 Safari visible viewport stays native and follows the usable height
   assert.equal(layout.top, 0);
   assert.equal(layout.viewportHeight, 760);
   assert.ok(Math.abs(layout.viewportHeight * 0.01 - 7.6) < 1e-12);
+  assert.equal(getStageTransform(layout), undefined);
+});
+
+test("software keyboard height changes never introduce a phone stage transform", () => {
+  const beforeKeyboard = calculateStageLayout(390, 760);
+  const withKeyboard = calculateStageLayout(390, 420);
+  assert.equal(beforeKeyboard.scale, 1);
+  assert.equal(withKeyboard.scale, 1);
+  assert.equal(withKeyboard.designHeight, 420);
+  assert.equal(getStageTransform(beforeKeyboard), undefined);
+  assert.equal(getStageTransform(withKeyboard), undefined);
 });
 
 test("modern iPhone viewport remains an unscaled, top-aligned mobile stage", () => {
@@ -62,6 +75,7 @@ for (const [width, height] of [[1440, 900], [1920, 1080]] as const) {
     assert.equal(layout.designHeight, DESIGN_H);
     assert.equal(layout.left + layout.renderedWidth / 2, width / 2);
     assert.equal(layout.top + layout.renderedHeight / 2, height / 2);
+    assert.equal(getStageTransform(layout), `scale(${layout.scale})`);
   });
 }
 
