@@ -27,7 +27,10 @@ test("Soul Exchange portal is a lightweight purple mobile asset with reduced-mot
   assert.match(portal, /#8b5cf6/i);
   assert.match(portal, /prefers-reduced-motion:reduce/);
   assert.match(portal, /portal-breathe/);
-  assert.match(portal, /soul-mote/);
+  assert.match(portal, /portal-twinkle/);
+  assert.match(portal, /portal-shimmer/);
+  assert.ok((portal.match(/class="portal-sparkle"/g) ?? []).length >= 12);
+  assert.doesNotMatch(portal, /class="rune"|rune-drift|soul-mote/);
   assert.doesNotMatch(portal, /stroke-dasharray/i);
   assert.doesNotMatch(portal, /<ellipse[^>]+portal-shimmer/i);
   assert.doesNotMatch(portal, /<script/i);
