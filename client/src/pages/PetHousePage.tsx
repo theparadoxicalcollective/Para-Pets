@@ -763,6 +763,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
   // Popup for outdoor pet tap
   const [outdoorPopupPet, setOutdoorPopupPet] = useState<HousePet | null>(null);
+  // React Query's isPending flag updates on the next render. Keep a synchronous
+  // lock as well so two taps in the same frame can never submit two removals.
+  const removingPetRef = useRef<string | null>(null);
   // Last-moved pet / decor id — these render above their peers (higher z-index).
   const [topOutdoorPetId, setTopOutdoorPetId] = useState<string | null>(null);
   const [topOutdoorDecorId, setTopOutdoorDecorId] = useState<string | null>(null);
@@ -935,6 +938,16 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     },
     onError: () => toast({ title: "Error", description: "Could not remove this pet from your home.", variant: "destructive" }),
   });
+
+  const removePetFromHome = useCallback(async (inventoryId: string): Promise<void> => {
+    if (removingPetRef.current) return;
+    removingPetRef.current = inventoryId;
+    try {
+      await removePetFromSceneMutation.mutateAsync(inventoryId);
+    } finally {
+      removingPetRef.current = null;
+    }
+  }, [removePetFromSceneMutation]);
 
   const storeAllPetsMutation = useMutation({
     mutationFn: async () => {
@@ -1423,9 +1436,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           top={Math.max(58, (parsePetPct(outdoorPopupPet.posTop) ?? 0.5) * containerH - OUTDOOR_PET_SIZE / 2)}
           petName={outdoorPopupPet.nickname ?? outdoorPopupPet.name}
           pending={removePetFromSceneMutation.isPending && removePetFromSceneMutation.variables === outdoorPopupPet.inventoryId}
-          onRemove={() => {
-            if (!removePetFromSceneMutation.isPending) removePetFromSceneMutation.mutate(outdoorPopupPet.inventoryId);
-          }}
+          onRemove={() => { void removePetFromHome(outdoorPopupPet.inventoryId).catch(() => undefined); }}
         />
       )}
 
@@ -1827,10 +1838,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             onUpdateItem={(id, data) => updateDecorMutation.mutate({ id, ...data })}
             onRemoveItem={(id) => removeDecorMutation.mutate(id)}
             onMovePet={(inventoryId, xPct, yPct) => placePetMutation.mutate({ inventoryId, xPct, yPct, location: openInterior.buildingId })}
-            onRemovePet={async (inventoryId) => {
-              if (removePetFromSceneMutation.isPending) return;
-              await removePetFromSceneMutation.mutateAsync(inventoryId);
-            }}
+            onRemovePet={removePetFromHome}
             removingPetId={removePetFromSceneMutation.isPending ? (removePetFromSceneMutation.variables ?? null) : null}
             onClose={() => { setOpenInterior(null); interiorPanRef.current = null; }}
           />

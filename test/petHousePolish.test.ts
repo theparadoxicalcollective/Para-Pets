@@ -18,7 +18,9 @@ test("owner house pet taps expose only the placement-removal control", () => {
 
 test("house removal is retry-safe, refreshes placements, and never deletes inventory", () => {
   assert.match(ownerPage, /disabled=\{pending\}/);
-  assert.match(ownerPage, /if \(!removePetFromSceneMutation\.isPending\)/);
+  assert.match(ownerPage, /if \(removingPetRef\.current\) return/);
+  assert.match(ownerPage, /removingPetRef\.current = inventoryId/);
+  assert.match(ownerPage, /finally \{\s*removingPetRef\.current = null/);
   assert.match(ownerPage, /invalidateQueries\(\{ queryKey: \["\/api\/users", user\.id, "pets"\] \}\)/);
   assert.match(ownerPage, /Could not remove this pet from your home/);
 
