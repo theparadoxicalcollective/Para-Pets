@@ -12,3 +12,9 @@ export function initializeClearingEnemies<T extends ClearingSessionEnemy>(source
     return { ...enemy, engagedByPlayer:false, slot, x:home.x, y:home.y, homeX:home.x, homeY:home.y, targetX:home.x, targetY:home.y, velocityX:0, velocityY:0, visibleHalfWidth:visibleHeight(enemy.isBoss)*.4, state:"spawning" as const, facingLeft:false, nextActionAt:now+(delays[slot]??500) };
   });
 }
+
+/** Initial entry is revealed as one complete scene; staggered spawning remains
+ * available to respawns and boss transitions through initializeClearingEnemies. */
+export function initializeReadyClearingEnemies<T extends ClearingSessionEnemy>(source:T[],fallbackHomes:readonly {x:number;y:number}[],now:number,visibleHeight:(boss:boolean)=>number){
+  return initializeClearingEnemies(source,fallbackHomes,now,[],visibleHeight).map(enemy=>({...enemy,state:"roaming" as const,nextActionAt:now+1800+(enemy.slot%5)*240}));
+}
