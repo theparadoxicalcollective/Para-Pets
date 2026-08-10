@@ -10,6 +10,7 @@ import {
   PET_CARE_VISIBLE_SLOTS,
   pointInsideExpandedPetDropZone,
 } from "../client/src/lib/petCareInteractions";
+import { getPetCareFeedbackProfile } from "../client/src/lib/petCareSafeMode";
 
 test("pet-care gesture intent waits for the movement threshold", () => {
   assert.equal(PET_CARE_GESTURE_THRESHOLD_PX, 10);
@@ -106,9 +107,51 @@ test("safe visual mode keeps idle rendering and petting without heavy particle t
   assert.match(page, /onPointerMove=\{onPetPointerMove\}/);
   assert.match(page, /mode="idle"/);
   assert.match(page, /performanceStatic=\{safeMode\}/);
-  assert.match(page, /if \(!safeMode\) \{[\s\S]*?g\.heartTimer/);
+  const circleEffects = page.slice(page.indexOf("const triggerCircleEffects"), page.indexOf("const onPetPointerMove"));
+  assert.match(circleEffects, /g\.heartTimer = window\.setInterval\(tick, feedbackProfile\.pettingIntervalMs\)/);
+  assert.match(circleEffects, /burstHearts\(cur\.cx, cur\.cy \+ 30, feedbackProfile\.pettingHeartCount\)/);
+  assert.doesNotMatch(circleEffects.slice(0, circleEffects.indexOf("if (!safeMode)")), /burstSparkles/);
   assert.doesNotMatch(page, /pet-care-safe-static-pet/);
   assert.doesNotMatch(page, /<VisibleAssetImage[^>]*dragGhost/);
+});
+
+test("reduced visual mode retains lightweight hearts and gold success sparkles", () => {
+  const reduced = getPetCareFeedbackProfile(true);
+  const normal = getPetCareFeedbackProfile(false);
+  assert.ok(reduced.pettingHeartCount >= 3 && reduced.pettingHeartCount <= 5);
+  assert.ok(reduced.pettingHeartCount < normal.pettingHeartCount);
+  assert.ok(reduced.pettingIntervalMs > normal.pettingIntervalMs);
+  assert.ok(reduced.edibleSparkleCount > 0);
+  assert.ok(reduced.giftSparkleCount > reduced.edibleSparkleCount);
+
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
+  assert.match(page, /\{hearts\.map\(\(h\) => \(/);
+  assert.match(page, /\{sparkles\.map\(\(s\) => \(/);
+  assert.doesNotMatch(page, /!safeMode && hearts\.map/);
+  assert.doesNotMatch(page, /!safeMode && sparkles\.map/);
+  assert.match(page, /stopColor="#fffbe0"/);
+  assert.match(page, /stopColor="#ffd966"/);
+  assert.match(page, /stopColor="#c98a00"/);
+});
+
+test("food and gift celebrations run only in successful mutation callbacks", () => {
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
+  const gift = page.slice(page.indexOf("const giftMutation"), page.indexOf("const claimLoyaltyMutation"));
+  const feed = page.slice(page.indexOf("const feedMutation"), page.indexOf("const updateDragGhostPosition"));
+  for (const [block, sparkleCount, heartCount] of [
+    [gift, "giftSparkleCount", "giftHeartCount"],
+    [feed, "edibleSparkleCount", "edibleHeartCount"],
+  ] as const) {
+    const success = block.slice(block.indexOf("onSuccess:"), block.indexOf("onError:"));
+    const error = block.slice(block.indexOf("onError:"));
+    assert.match(success, new RegExp(`burstSparkles\\(bx, by, feedbackProfile\\.${sparkleCount}\\)`));
+    assert.match(success, new RegExp(`burstHearts\\(bx, by \\+ 30, feedbackProfile\\.${heartCount}\\)`));
+    assert.match(success, /setPetBounce\(true\)/);
+    assert.doesNotMatch(error, /burstSparkles|burstHearts|setPetBounce\(true\)/);
+  }
+
+  const invalidDrop = page.slice(page.indexOf("if (!validDrop)"), page.indexOf("void usePetCareItem(d)"));
+  assert.doesNotMatch(invalidDrop, /burstSparkles|burstHearts|success-visual-started/);
 });
 
 test("drop applies once only inside the pet and cancellation only resets state", () => {

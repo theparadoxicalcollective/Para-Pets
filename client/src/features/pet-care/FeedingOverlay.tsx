@@ -47,7 +47,7 @@ import { buildPetCareInventoryStacks, orderPetCareItemsByEffect } from "@/lib/pe
 import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
-import { clearPetCarePhase, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
+import { clearPetCarePhase, getPetCareFeedbackProfile, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
 
 /**
  * Pet Care feature boundary.
@@ -331,6 +331,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
   const runtime = useMemo(() => detectRuntimeMode(), []);
   const recoveredPhase = useMemo(() => readRecoverablePetCarePhase(window.localStorage), []);
   const { reducedVisualMode: safeMode, dragEnabled, emergencyInteractionFallback } = getPetCareRuntimeDecisions(runtime, window.location.search, !!recoveredPhase);
+  const feedbackProfile = useMemo(() => getPetCareFeedbackProfile(safeMode), [safeMode]);
   const interactionRef = useRef<{ id: string; itemType?: "edibles" | "gift" }>({ id: "mount" });
   const recordPhase = useCallback((phase: PetCarePhase, itemType = interactionRef.current.itemType) => {
     const record: PetCarePhaseRecord = {
@@ -723,18 +724,19 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     setPetCircling(true);
     const g = petGestureRef.current;
     if (!g) return;
-    // Keep petting and rewards enabled on iOS while avoiding the repeating
-    // particle timers that originally made the low-memory mode expensive.
+    // Hearts are essential interaction feedback. Reduced mode emits a small,
+    // throttled burst while retaining the low-memory protection against the
+    // aggressive secondary sparkle emitter.
+    if (g.heartTimer == null) {
+      const tick = () => {
+        const cur = petGestureRef.current;
+        if (!cur) return;
+        burstHearts(cur.cx, cur.cy + 30, feedbackProfile.pettingHeartCount);
+      };
+      tick();
+      g.heartTimer = window.setInterval(tick, feedbackProfile.pettingIntervalMs);
+    }
     if (!safeMode) {
-      if (g.heartTimer == null) {
-        const tick = () => {
-          const cur = petGestureRef.current;
-          if (!cur) return;
-          burstHearts(cur.cx, cur.cy + 30, 2);
-        };
-        tick();
-        g.heartTimer = window.setInterval(tick, 380);
-      }
       if (g.sparkleTimer == null) {
         const sparkleTick = () => {
           const cur = petGestureRef.current;
@@ -760,7 +762,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       }
       setPetCircling(false);
     }, 350);
-  }, [burstHearts, burstSparkles, safeMode, scheduleTimeout]);
+  }, [burstHearts, burstSparkles, feedbackProfile, safeMode, scheduleTimeout]);
 
   const onPetPointerMove = useCallback((e: React.PointerEvent) => {
     const g = petGestureRef.current;
@@ -852,11 +854,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       playPlop();
       qc.invalidateQueries({ queryKey: ["/api/inventory"] });
       recordPhase("success-visual-started");
+      setPetBounce(true);
+      scheduleTimeout(() => setPetBounce(false), safeMode ? 750 : 1100);
       if (!safeMode) {
         setPetGlow(true);
-        setPetBounce(true);
         scheduleTimeout(() => setPetGlow(false), 700);
-        scheduleTimeout(() => setPetBounce(false), 1100);
       }
       const id = ++floatIdRef.current;
       const box = petBoxRef.current?.getBoundingClientRect();
@@ -865,11 +867,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       const added = data?.loyaltyAdded ?? 0;
       setFloatTexts((arr) => [...arr, { id, x: cx, y: cy, text: `+${added} Loyalty` }]);
       scheduleTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
-      if (box && !safeMode) {
+      if (box) {
         const bx = box.left + box.width / 2;
         const by = box.top + box.height / 2;
-        burstHearts(bx, by + 30, 12);
-        burstSparkles(bx, by, 16);
+        burstHearts(bx, by + 30, feedbackProfile.giftHeartCount);
+        burstSparkles(bx, by, feedbackProfile.giftSparkleCount);
       }
     },
     onError: (err: any) => {
@@ -933,11 +935,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       void qc.invalidateQueries({ queryKey: ["/api/inventory"] });
       void qc.invalidateQueries({ queryKey: ["/api/quests/daily"] });
       recordPhase("success-visual-started");
+      setPetBounce(true);
+      scheduleTimeout(() => setPetBounce(false), safeMode ? 700 : 1100);
       if (!safeMode) {
         setPetGlow(true);
-        setPetBounce(true);
         scheduleTimeout(() => setPetGlow(false), 700);
-        scheduleTimeout(() => setPetBounce(false), 1100);
       }
       const fed = inventory.find((it) => it.id === variables.itemInventoryId);
       const qty = variables.quantity ?? 1;
@@ -948,11 +950,11 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       const cy = box ? box.top + box.height * 0.3 : window.innerHeight / 2;
       setFloatTexts((arr) => [...arr, { id, x: cx, y: cy, text: `+${amount} Feed pts` }]);
       scheduleTimeout(() => setFloatTexts((arr) => arr.filter((f) => f.id !== id)), 1400);
-      if (box && !safeMode) {
+      if (box) {
         const bx = box.left + box.width / 2;
         const by = box.top + box.height / 2;
-        burstSparkles(bx, by, 14);
-        burstHearts(bx, by + 30, 8);
+        burstSparkles(bx, by, feedbackProfile.edibleSparkleCount);
+        burstHearts(bx, by + 30, feedbackProfile.edibleHeartCount);
       }
     },
     onError: (err: any) => {
@@ -1332,7 +1334,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
             ? "drop-shadow(0 0 32px rgba(190,255,160,1)) drop-shadow(0 0 14px rgba(255,220,120,0.85)) drop-shadow(0 6px 16px rgba(0,0,0,0.55))"
             : "drop-shadow(0 0 18px rgba(190,255,160,0.55)) drop-shadow(0 0 8px rgba(255,220,120,0.35)) drop-shadow(0 6px 16px rgba(0,0,0,0.55))",
           transition: safeMode ? "none" : "filter 0.3s ease",
-          outline: safeMode && selectedCareItem ? "1px solid rgba(255,215,0,0.6)" : "none",
+          outline: safeMode && (petGlow || selectedCareItem) ? "2px solid rgba(255,215,0,0.75)" : "none",
+          outlineOffset: safeMode && petGlow ? "3px" : "0px",
           touchAction: "none",
         }}
         onPointerDown={onPetPointerDown}
@@ -1468,7 +1471,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       )}
 
       {/* Floating heart layer — appears when the pet is clicked or fed */}
-      {!safeMode && hearts.map((h) => (
+      {hearts.map((h) => (
         <div
           key={h.id}
           className="fixed pointer-events-none feed-heart-rise"
@@ -1503,7 +1506,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       ))}
 
       {/* Sparkle burst layer */}
-      {!safeMode && sparkles.map((s) => (
+      {sparkles.map((s) => (
         <div
           key={s.id}
           className="fixed pointer-events-none feed-sparkle"

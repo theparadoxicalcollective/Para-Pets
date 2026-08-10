@@ -41,6 +41,18 @@ export function getPetCareRuntimeDecisions(runtime: RuntimeMode, search: string,
   } as const;
 }
 
+/**
+ * Interactive confirmation is intentionally cheaper, not absent, in reduced
+ * visual mode. Keep this separate from decorative safe-mode decisions so iOS
+ * still communicates successful petting and item use without continuous or
+ * filter-heavy effects.
+ */
+export function getPetCareFeedbackProfile(reducedVisualMode: boolean) {
+  return reducedVisualMode
+    ? { pettingHeartCount: 4, edibleHeartCount: 4, edibleSparkleCount: 7, giftHeartCount: 5, giftSparkleCount: 9, pettingIntervalMs: 720 }
+    : { pettingHeartCount: 7, edibleHeartCount: 8, edibleSparkleCount: 14, giftHeartCount: 8, giftSparkleCount: 16, pettingIntervalMs: 380 };
+}
+
 export function readRecoverablePetCarePhase(storage: Pick<Storage, "getItem">, now = Date.now()) {
   try {
     const raw = storage.getItem(PET_CARE_PHASE_KEY);
