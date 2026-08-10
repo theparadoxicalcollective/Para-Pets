@@ -4,7 +4,7 @@ import { QueryClientProvider, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
-import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { lazyWithRetry as lazy } from "@/lib/lazyWithRetry";
 import { installPageLifecycleDiagnostics, stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { playClick, unlockAudio } from "@/lib/sounds";
@@ -743,6 +743,7 @@ function GameStage({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
+    let animationFrame = 0;
     const update = () => {
       const viewport = getVisibleViewport();
       const next = calculateStageLayout(viewport.width, viewport.height, viewport.top, viewport.left);
@@ -757,14 +758,25 @@ function GameStage({ children }: { children: ReactNode }) {
       root.setProperty("--stage-logical-width", `${next.designWidth}px`);
       root.setProperty("--stage-logical-height", `${next.designHeight}px`);
     };
+    const scheduleUpdate = () => {
+      cancelAnimationFrame(animationFrame);
+      animationFrame = requestAnimationFrame(update);
+    };
     update();
-    window.addEventListener("resize", update);
-    window.visualViewport?.addEventListener("resize", update);
-    window.visualViewport?.addEventListener("scroll", update);
+    window.addEventListener("resize", scheduleUpdate);
+    window.addEventListener("orientationchange", scheduleUpdate);
+    window.addEventListener("pageshow", scheduleUpdate);
+    document.addEventListener("visibilitychange", scheduleUpdate);
+    window.visualViewport?.addEventListener("resize", scheduleUpdate);
+    window.visualViewport?.addEventListener("scroll", scheduleUpdate);
     return () => {
-      window.removeEventListener("resize", update);
-      window.visualViewport?.removeEventListener("resize", update);
-      window.visualViewport?.removeEventListener("scroll", update);
+      cancelAnimationFrame(animationFrame);
+      window.removeEventListener("resize", scheduleUpdate);
+      window.removeEventListener("orientationchange", scheduleUpdate);
+      window.removeEventListener("pageshow", scheduleUpdate);
+      document.removeEventListener("visibilitychange", scheduleUpdate);
+      window.visualViewport?.removeEventListener("resize", scheduleUpdate);
+      window.visualViewport?.removeEventListener("scroll", scheduleUpdate);
     };
   }, []);
 
@@ -789,7 +801,12 @@ function GameStage({ children }: { children: ReactNode }) {
           transformOrigin: "top left",
           overflow: "hidden",
           isolation: "isolate",
-        }}
+          // Frame-relative viewport units remain logical pixels while the
+          // complete stage is uniformly scaled into the visual viewport.
+          "--fh": `${layout.designHeight}px`,
+          "--vh": `${layout.designHeight * 0.01}px`,
+          "--vw": `${layout.designWidth * 0.01}px`,
+        } as CSSProperties}
       >
         {children}
       </div>

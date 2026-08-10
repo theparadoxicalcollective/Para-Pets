@@ -21,18 +21,18 @@ test("390x844 iPhone design remains pixel-faithful", () => {
   assert.equal(layout.top, 0);
 });
 
-test("390x760 Safari visible viewport stays native and retains real viewport units", () => {
+test("390x760 Safari visual viewport scales the complete phone composition to fit", () => {
   const layout = calculateStageLayout(390, 760);
-  assert.equal(layout.scale, 1);
+  assert.equal(layout.scale, 760 / DESIGN_H);
   assert.equal(layout.designWidth, 390);
-  assert.equal(layout.designHeight, 760);
+  assert.equal(layout.designHeight, DESIGN_H);
   assert.equal(layout.renderedHeight, 760);
   assert.equal(layout.top, 0);
   assert.equal(layout.viewportHeight, 760);
   assert.ok(Math.abs(layout.viewportHeight * 0.01 - 7.6) < 1e-12);
 });
 
-test("modern iPhone viewport remains an unscaled, top-aligned mobile stage", () => {
+test("tall standalone iPhone viewport remains an unscaled, top-aligned mobile stage", () => {
   const layout = calculateStageLayout(393, 852, 12, 0);
   assert.equal(layout.scale, 1);
   assert.equal(layout.designWidth, 390);
@@ -41,11 +41,12 @@ test("modern iPhone viewport remains an unscaled, top-aligned mobile stage", () 
   assert.equal(layout.left, 1.5);
 });
 
-test("narrower phones retain responsive width without whole-app scaling", () => {
+test("narrower, shorter browser viewports scale the complete composition", () => {
   const layout = calculateStageLayout(360, 760);
   assert.equal(layout.designWidth, 360);
-  assert.equal(layout.scale, 1);
-  assert.equal(layout.renderedWidth, 360);
+  assert.equal(layout.designHeight, DESIGN_H);
+  assert.equal(layout.scale, 760 / DESIGN_H);
+  assert.equal(layout.renderedWidth, 360 * 760 / DESIGN_H);
 });
 
 test("mobile portal coordinates remain viewport coordinates used by DOM hit testing", () => {
@@ -73,7 +74,7 @@ for (const [width, height] of viewports) {
   test(`${width}x${height} contains the stage and round-trips gameplay hit coordinates`, () => {
     const layout = calculateStageLayout(width, height);
     assert.equal(layout.designWidth, width < 768 ? Math.min(DESIGN_W, width) : DESIGN_W);
-    assert.equal(layout.designHeight, width < 768 ? height : DESIGN_H);
+    assert.equal(layout.designHeight, width < 768 ? Math.max(DESIGN_H, height) : DESIGN_H);
     assert.ok(layout.renderedWidth <= width + Number.EPSILON);
     assert.ok(layout.renderedHeight <= height + Number.EPSILON);
     assert.ok(Math.abs(layout.renderedWidth / layout.designWidth - layout.scale) < 1e-12);
@@ -99,5 +100,7 @@ test("visual viewport offsets are included in rendered coordinates", () => {
   assert.equal(layout.top, 47);
   assert.ok(layout.left >= 3);
   const pointer = logicalToRendered(layout, 123, 456);
-  assert.deepEqual(renderedToLogical(layout, pointer.x, pointer.y), { x: 123, y: 456 });
+  const logical = renderedToLogical(layout, pointer.x, pointer.y);
+  assert.ok(Math.abs(logical.x - 123) < 1e-9);
+  assert.ok(Math.abs(logical.y - 456) < 1e-9);
 });
