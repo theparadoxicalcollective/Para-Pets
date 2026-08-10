@@ -112,6 +112,15 @@ export function clientToPortalPoint(layout: StageLayout, clientX: number, client
 }
 
 /**
+ * Do not create a transformed containing block for native phone layouts.
+ * Even an explicit `transform: none` is unnecessary there; omitting the
+ * property makes the phone coordinate ownership contract unambiguous.
+ */
+export function getStageTransform(layout: StageLayout): string | undefined {
+  return layout.scale === 1 ? undefined : `scale(${layout.scale})`;
+}
+
+/**
  * Preserve viewport-owned fixed overlays on phones. On larger screens the
  * transformed portrait stage owns them so they do not spill into the gutters.
  */

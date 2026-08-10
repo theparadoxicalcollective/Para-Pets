@@ -11,7 +11,7 @@ import { playClick, unlockAudio } from "@/lib/sounds";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
-import { calculateStageLayout, getVisibleViewport } from "@/lib/stage";
+import { calculateStageLayout, getStageTransform, getVisibleViewport } from "@/lib/stage";
 import homeBg from "@assets/bg_home_v2.png";
 
 // ── Eagerly imported (always or near-always needed at startup) ──────────────
@@ -797,7 +797,7 @@ function GameStage({ children }: { children: ReactNode }) {
           top: layout.top,
           width: layout.designWidth,
           height: layout.designHeight,
-          transform: layout.scale === 1 ? "none" : `scale(${layout.scale})`,
+          transform: getStageTransform(layout),
           transformOrigin: "top left",
           overflow: "hidden",
           isolation: "isolate",
