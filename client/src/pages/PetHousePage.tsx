@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { useLocation } from "wouter";
 import { MailOpen } from "lucide-react";
 import { playClick, playGrab, playPlop } from "@/lib/sounds";
 import { setNavHidden } from "@/lib/navVisibility";
@@ -7,8 +6,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { clientToStage, getDesignW, getStageScale, DESIGN_H } from "@/lib/stage";
 import { useToast } from "@/hooks/use-toast";
-import TopBar from "@/components/TopBar";
-import UserProfilePanel from "@/components/UserProfilePanel";
 import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import homeInventoryIcon from "@assets/icon_home_inventory.png";
@@ -22,7 +19,6 @@ import moodFaceHappy from "@assets/mood_face_happy.png";
 import moodFaceContent from "@assets/mood_face_content.png";
 import moodFaceSad from "@assets/mood_face_sad.png";
 import moodFaceHungry from "@assets/mood_face_hungry.png";
-import coinIconImg from "@assets/icon_coin.png";
 import LoadingScreen from "@/components/LoadingScreen";
 import GiftClaimModal from "@/components/GiftClaimModal";
 import { VisibleAssetImage } from "@/components/VisibleAssetImage";
@@ -349,7 +345,12 @@ function parsePetPct(s: string | null): number | null {
 // Per-user request: indoor and outdoor pet sizes were swapped. Outdoor pets
 // now use a single fixed size (formerly the indoor value), and indoor pets
 // pick up the per-pet randomized 100–130 range previously used outdoors.
-const OUTDOOR_PET_SIZE = 110;
+// Pet House presentation multipliers are deliberately local to this page so
+// PetAnimator and pets everywhere else retain their existing dimensions.
+export const PET_HOUSE_OUTDOOR_SCALE = 0.82;
+export const PET_HOUSE_INTERIOR_SCALE = 1;
+const RESPONSIVE_OUTDOOR_PET_SIZE = 110;
+const OUTDOOR_PET_SIZE = Math.round(RESPONSIVE_OUTDOOR_PET_SIZE * PET_HOUSE_OUTDOOR_SCALE);
 
 function randomGroundConfig(index: number) {
   const seed = index * 137.508;
@@ -360,9 +361,47 @@ function randomGroundConfig(index: number) {
 }
 
 // Indoor pets use a single fixed size for visual consistency.
-const INDOOR_PET_SIZE = 125;
+const RESPONSIVE_INDOOR_PET_SIZE = 125;
+const INDOOR_PET_SIZE = Math.round(RESPONSIVE_INDOOR_PET_SIZE * PET_HOUSE_INTERIOR_SCALE);
 function indoorPetSize(_index: number): number {
   return INDOOR_PET_SIZE;
+}
+
+function HousePetRemovalControl({ left, top, petName, pending, onRemove }: {
+  left: number;
+  top: number;
+  petName: string;
+  pending: boolean;
+  onRemove: () => void;
+}) {
+  return (
+    <div
+      data-testid="house-pet-removal-control"
+      className="absolute"
+      style={{ left, top, zIndex: 50, transform: "translate(-50%, -100%)", paddingBottom: 8 }}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        type="button"
+        data-testid="button-remove-pet-from-home"
+        aria-label={`Remove ${petName} from Home`}
+        disabled={pending}
+        onClick={onRemove}
+        style={{
+          minWidth: 148, minHeight: 44, padding: "9px 14px", borderRadius: 12,
+          background: "rgba(7, 28, 18, 0.94)",
+          border: "1px solid rgba(222, 184, 76, 0.72)",
+          boxShadow: "0 5px 18px rgba(0,0,0,0.55)", backdropFilter: "blur(7px)",
+          color: pending ? "rgba(247,224,157,0.55)" : "#f7e09d",
+          fontFamily: "Lora, serif", fontSize: 12, fontWeight: 700,
+          letterSpacing: "0.025em", cursor: pending ? "wait" : "pointer",
+        }}
+      >
+        {pending ? "Removing…" : "Remove from Home"}
+      </button>
+    </div>
+  );
 }
 
 // ── Interior Viewer ──────────────────────────────────────────────────────────
@@ -372,7 +411,7 @@ function indoorPetSize(_index: number): number {
 function InteriorViewer({
   url, placedItems, placedPets, panStateRef,
   leaveButtonX = 0.92, leaveButtonY = 0.06,
-  onUpdateItem, onRemoveItem, onMovePet, onRemovePet, onFeedPet, onClose,
+  onUpdateItem, onRemoveItem, onMovePet, onRemovePet, removingPetId, onClose,
 }: {
   url: string;
   placedItems: PlacedDecorItem[];
@@ -383,8 +422,8 @@ function InteriorViewer({
   onUpdateItem: (id: string, data: { xPct?: number; yPct?: number; size?: number; flipped?: boolean }) => void;
   onRemoveItem: (id: string) => void;
   onMovePet: (inventoryId: string, xPct: number, yPct: number) => void;
-  onRemovePet: (inventoryId: string) => void;
-  onFeedPet: (pet: HousePet) => void;
+  onRemovePet: (inventoryId: string) => Promise<void>;
+  removingPetId: string | null;
   onClose: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -619,7 +658,7 @@ function InteriorViewer({
             onClick={(e) => {
               e.stopPropagation();
               const drag = petDragRef.current;
-              if (!drag) setPopupPet(pet);
+              if (!drag) setPopupPet(current => current?.inventoryId === pet.inventoryId ? null : pet);
             }}
           >
             {(pet.hatchedImageUrl || pet.imageUrl) ? (
@@ -635,14 +674,23 @@ function InteriorViewer({
         );
       })}
 
-      {/* Pet popup — the new Care wreath */}
+      {/* Owner-only Pet House action; this intentionally bypasses normal pet UI. */}
       {popupPet && (
-        <CarePopup
+        <HousePetRemovalControl
+          left={Math.max(82, Math.min((containerRef.current?.clientWidth ?? 390) - 82, panX + (parsePetPct(popupPet.posLeft) ?? 0.5) * imgWidth))}
+          top={Math.max(58, (parsePetPct(popupPet.posTop) ?? 0.5) * containerH - INDOOR_PET_SIZE / 2)}
           petName={popupPet.nickname ?? popupPet.name}
-          zIndex={20}
-          onCare={() => { onFeedPet(popupPet); setPopupPet(null); }}
-          onCancel={() => setPopupPet(null)}
-          onReturn={() => { onRemovePet(popupPet.inventoryId); setPopupPet(null); }}
+          pending={removingPetId === popupPet.inventoryId}
+          onRemove={async () => {
+            if (removingPetId) return;
+            try {
+              await onRemovePet(popupPet.inventoryId);
+              setPopupPet(null);
+            } catch {
+              // The page mutation shows the standard destructive toast. Keep
+              // this selection open so the owner can retry.
+            }
+          }}
         />
       )}
 
@@ -675,8 +723,6 @@ function InteriorViewer({
 export default function PetHousePage({ user }: PetHousePageProps) {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [showProfile, setShowProfile] = useState(false);
-  const [currentUser, setCurrentUser] = useState(user);
   const [openInterior, setOpenInterior] = useState<{ url: string; buildingId: string; leaveButtonX: number; leaveButtonY: number } | null>(null);
   const interiorPanRef = useRef<{ panX: number; imgWidth: number; containerH: number } | null>(null);
   const [openInventory, setOpenInventory] = useState<"home" | "decor" | "pets" | null>(null);
@@ -717,7 +763,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
   // Popup for outdoor pet tap
   const [outdoorPopupPet, setOutdoorPopupPet] = useState<HousePet | null>(null);
-  const [, navigate] = useLocation();
+  // React Query's isPending flag updates on the next render. Keep a synchronous
+  // lock as well so two taps in the same frame can never submit two removals.
+  const removingPetRef = useRef<string | null>(null);
   // Last-moved pet / decor id — these render above their peers (higher z-index).
   const [topOutdoorPetId, setTopOutdoorPetId] = useState<string | null>(null);
   const [topOutdoorDecorId, setTopOutdoorDecorId] = useState<string | null>(null);
@@ -884,8 +932,22 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       const res = await apiRequest("DELETE", `/api/pet-house-positions/${inventoryId}`, {});
       if (!res.ok) throw new Error("Failed");
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/users", user.id, "pets"] }),
+    onSuccess: (_data, inventoryId) => {
+      setOutdoorPopupPet(current => current?.inventoryId === inventoryId ? null : current);
+      qc.invalidateQueries({ queryKey: ["/api/users", user.id, "pets"] });
+    },
+    onError: () => toast({ title: "Error", description: "Could not remove this pet from your home.", variant: "destructive" }),
   });
+
+  const removePetFromHome = useCallback(async (inventoryId: string): Promise<void> => {
+    if (removingPetRef.current) return;
+    removingPetRef.current = inventoryId;
+    try {
+      await removePetFromSceneMutation.mutateAsync(inventoryId);
+    } finally {
+      removingPetRef.current = null;
+    }
+  }, [removePetFromSceneMutation]);
 
   const storeAllPetsMutation = useMutation({
     mutationFn: async () => {
@@ -925,9 +987,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (petInvDragRef.current?.pid === e.pointerId) return;
     if (selectedPlacedId) setSelectedPlacedId(null);
+    if (outdoorPopupPet) setOutdoorPopupPet(null);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
-  }, [panX, selectedPlacedId]);
+  }, [panX, selectedPlacedId, outdoorPopupPet]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     // Pet inventory drag
@@ -1107,9 +1170,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
     setPetDragLive(null);
     if (!drag) return;
     if (!drag.moved) {
-      // Tap with no movement — show the popup for this pet
+      // In the owner's Pet House a tap selects only the placement-removal
+      // action; it never enters the normal pet menu or care route.
       const pet = pets.find(p => p.inventoryId === drag.inventoryId);
-      if (pet) setOutdoorPopupPet(pet);
+      if (pet) setOutdoorPopupPet(current => current?.inventoryId === pet.inventoryId ? null : pet);
       return;
     }
     if (imgWidth <= 0) return;
@@ -1365,14 +1429,14 @@ export default function PetHousePage({ user }: PetHousePageProps) {
         );
       })}
 
-      {/* Outdoor pet tap popup — Care wreath */}
+      {/* Owner-only placement action, clamped inside the scene on small screens. */}
       {outdoorPopupPet && (
-        <CarePopup
+        <HousePetRemovalControl
+          left={Math.max(82, Math.min((containerRef.current?.clientWidth ?? 390) - 82, panX + (parsePetPct(outdoorPopupPet.posLeft) ?? 0.5) * imgWidth))}
+          top={Math.max(58, (parsePetPct(outdoorPopupPet.posTop) ?? 0.5) * containerH - OUTDOOR_PET_SIZE / 2)}
           petName={outdoorPopupPet.nickname ?? outdoorPopupPet.name}
-          zIndex={40}
-          onCare={() => { const id = outdoorPopupPet.inventoryId; setOutdoorPopupPet(null); navigate(`/pet-care/${encodeURIComponent(id)}`); }}
-          onCancel={() => setOutdoorPopupPet(null)}
-          onReturn={() => { removePetFromSceneMutation.mutate(outdoorPopupPet.inventoryId); setOutdoorPopupPet(null); }}
+          pending={removePetFromSceneMutation.isPending && removePetFromSceneMutation.variables === outdoorPopupPet.inventoryId}
+          onRemove={() => { void removePetFromHome(outdoorPopupPet.inventoryId).catch(() => undefined); }}
         />
       )}
 
@@ -1416,13 +1480,6 @@ export default function PetHousePage({ user }: PetHousePageProps) {
           </div>
         );
       })}
-
-      {/* TopBar */}
-      <div className="absolute inset-0 flex flex-col" style={{ zIndex: 10, paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)", pointerEvents: "none" }}>
-        <div style={{ pointerEvents: "auto" }}>
-          <TopBar user={currentUser} onProfileClick={() => setShowProfile(true)} onUserUpdate={(u) => setCurrentUser(u)} />
-        </div>
-      </div>
 
       {/* Bottom inventory bar — left-aligned to avoid FloatingNav (bottom-right) */}
       <div
@@ -1781,15 +1838,11 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             onUpdateItem={(id, data) => updateDecorMutation.mutate({ id, ...data })}
             onRemoveItem={(id) => removeDecorMutation.mutate(id)}
             onMovePet={(inventoryId, xPct, yPct) => placePetMutation.mutate({ inventoryId, xPct, yPct, location: openInterior.buildingId })}
-            onRemovePet={(inventoryId) => removePetFromSceneMutation.mutate(inventoryId)}
-            onFeedPet={(pet) => navigate(`/pet-care/${encodeURIComponent(pet.inventoryId)}`)}
+            onRemovePet={removePetFromHome}
+            removingPetId={removePetFromSceneMutation.isPending ? (removePetFromSceneMutation.variables ?? null) : null}
             onClose={() => { setOpenInterior(null); interiorPanRef.current = null; }}
           />
         </ErrorBoundary>
-      )}
-
-      {showProfile && (
-        <UserProfilePanel user={currentUser} onClose={() => setShowProfile(false)} onUserUpdate={(u) => setCurrentUser(u)} />
       )}
 
       {openGiftModal && (
