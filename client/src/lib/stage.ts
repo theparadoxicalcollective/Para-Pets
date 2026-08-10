@@ -38,9 +38,15 @@ export function calculateStageLayout(
   const viewportHeight = Math.max(1, visibleHeight);
   const designWidth = getDesignWidth(viewportWidth);
   const narrow = isNarrowLayout(viewportWidth);
-  const scale = narrow ? 1 : Math.min(viewportWidth / designWidth, viewportHeight / DESIGN_H, MAX_STAGE_SCALE);
+  // Mobile browser chrome must reduce the rendered frame, not the logical game
+  // canvas. Otherwise pages reflow into Safari's shorter visual viewport and
+  // world maps using a cover fit lose part of their authored composition.
+  // Taller/standalone mobile viewports retain their existing native height.
+  const designHeight = narrow ? Math.max(DESIGN_H, viewportHeight) : DESIGN_H;
+  const scale = narrow
+    ? Math.min(1, viewportHeight / designHeight)
+    : Math.min(viewportWidth / designWidth, viewportHeight / designHeight, MAX_STAGE_SCALE);
   const renderedWidth = designWidth * scale;
-  const designHeight = narrow ? viewportHeight : DESIGN_H;
   const renderedHeight = designHeight * scale;
   return {
     designWidth,
