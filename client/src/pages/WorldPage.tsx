@@ -3,6 +3,7 @@ import { setNavHidden } from "@/lib/navVisibility";
 import { playChime, playTick, playShopBell, playMapTap } from "@/lib/sounds";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { DESIGN_H, getDesignW, getStageScale } from "@/lib/stage";
+import { calculateWorldFitScale } from "@/lib/worldViewport";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -178,6 +179,18 @@ const WORLD_FIXED_MAP_H: Record<string, number> = {
 // isMobilePhone kept as true to always enable pinch/scroll controls.
 const isMobilePhone = () => true;
 
+function isStandaloneDisplay(): boolean {
+  const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
+  return navigatorWithStandalone.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+}
+
+function shouldFitFullWorldComposition(): boolean {
+  const viewport = window.visualViewport;
+  return (viewport?.width ?? window.innerWidth) < 768
+    && !isStandaloneDisplay()
+    && (viewport?.height ?? window.innerHeight) < DESIGN_H;
+}
+
 const MURK_CAVE_ID = "a1b2c3d4-0001-4000-8000-000000000001";
 
 export default function WorldPage({ user, onContentReady }: WorldPageProps) {
@@ -317,16 +330,18 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const areaRef = useRef<HTMLDivElement>(null);
   const vpRef = useRef<HTMLDivElement>(null);
 
-  // Frame dimensions are the fixed phone-frame design size (#game-stage in
-  // App.tsx scales the whole frame uniformly to fit the device). The map must
-  // be laid out in this design space, NOT the real window, so it fills the
-  // frame identically on every device.
+  // The map measures its own viewport. Normal Safari may expose less height
+  // than the installed app because of browser chrome; that difference is
+  // handled by the map fit below, never by scaling the global game stage.
   const FRAME_W = getDesignW();
   const FRAME_H = DESIGN_H;
   const frameWRef = useRef(FRAME_W);
   const frameHRef = useRef(FRAME_H);
   const [frameW, setFrameW] = useState(FRAME_W);
   const [frameH, setFrameH] = useState(FRAME_H);
+  const [fitFullComposition, setFitFullComposition] = useState(
+    typeof window !== "undefined" && shouldFitFullWorldComposition(),
+  );
   // The frame's on-screen box is measured directly from vpRef (the real
   // rendered viewport element) rather than assumed from the 390/470×844
   // design constants. Phones happen to be close to 844 tall so this was
@@ -342,6 +357,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     const measure = () => {
       const w = el.clientWidth || getDesignW();
       const h = el.clientHeight || DESIGN_H;
+      setFitFullComposition(shouldFitFullWorldComposition());
       frameWRef.current = w;
       frameHRef.current = h;
       setFrameW((prev) => (prev !== w ? w : prev));
@@ -1261,23 +1277,23 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   }, []);
 
   const applyMapTransform = useCallback((x: number, y: number, _sc: number) => {
-    const coverSc = Math.max(frameWRef.current / MAP_W, frameHRef.current / mapHRef.current);
-    const { x: cx, y: cy } = clampTransform(x, y, coverSc);
-    mapTransformRef.current = { x: cx, y: cy, scale: coverSc };
+    const fitScale = calculateWorldFitScale(frameWRef.current, frameHRef.current, mapHRef.current, fitFullComposition);
+    const { x: cx, y: cy } = clampTransform(x, y, fitScale);
+    mapTransformRef.current = { x: cx, y: cy, scale: fitScale };
     setMapX(cx);
     setMapY(cy);
-    setMapScale(coverSc);
-  }, [clampTransform]);
+    setMapScale(fitScale);
+  }, [clampTransform, fitFullComposition]);
 
   useEffect(() => {
-    const coverSc = Math.max(frameWRef.current / MAP_W, frameHRef.current / mapHRef.current);
-    const ix = (frameWRef.current - MAP_W * coverSc) / 2;
-    const iy = (frameHRef.current - mapHRef.current * coverSc) / 2;
-    mapTransformRef.current = { x: ix, y: iy, scale: coverSc };
+    const fitScale = calculateWorldFitScale(frameWRef.current, frameHRef.current, mapHRef.current, fitFullComposition);
+    const ix = (frameWRef.current - MAP_W * fitScale) / 2;
+    const iy = (frameHRef.current - mapHRef.current * fitScale) / 2;
+    mapTransformRef.current = { x: ix, y: iy, scale: fitScale };
     setMapX(ix);
     setMapY(iy);
-    setMapScale(coverSc);
-  }, [worldId, mapH, frameW, frameH]);
+    setMapScale(fitScale);
+  }, [worldId, mapH, frameW, frameH, fitFullComposition]);
 
   const handleVpPointerDown = useCallback((e: React.PointerEvent) => {
     // Safety: clear any stale drag state that wasn't cleaned up (e.g. after pointerCancel)

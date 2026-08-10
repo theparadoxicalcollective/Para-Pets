@@ -38,13 +38,12 @@ export function calculateStageLayout(
   const viewportHeight = Math.max(1, visibleHeight);
   const designWidth = getDesignWidth(viewportWidth);
   const narrow = isNarrowLayout(viewportWidth);
-  // Mobile browser chrome must reduce the rendered frame, not the logical game
-  // canvas. Otherwise pages reflow into Safari's shorter visual viewport and
-  // world maps using a cover fit lose part of their authored composition.
-  // Taller/standalone mobile viewports retain their existing native height.
-  const designHeight = narrow ? Math.max(DESIGN_H, viewportHeight) : DESIGN_H;
+  // Phones own the real visual viewport. In particular, Safari chrome (and the
+  // software keyboard) must never turn the app into a transformed 390x844
+  // canvas: client coordinates, fixed UI, and DOM hit testing stay native.
+  const designHeight = narrow ? viewportHeight : DESIGN_H;
   const scale = narrow
-    ? Math.min(1, viewportHeight / designHeight)
+    ? 1
     : Math.min(viewportWidth / designWidth, viewportHeight / designHeight, MAX_STAGE_SCALE);
   const renderedWidth = designWidth * scale;
   const renderedHeight = designHeight * scale;

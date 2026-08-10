@@ -7,9 +7,9 @@ const pets=[
  {pet_shop_item_id:"legendary",name:"Legendary",rarity:5,egg_image_url:null,hatched_image_url:null,image_url:null},
 ];
 test("special mobs only pass the rare encounter roll",()=>{
- assert.equal(specialPetMobSpawnChance,.03);
- const below=[.029,0];let index=0;assert.equal(selectClearingSpecialMob(pets,()=>below[index++])?.pet_shop_item_id,"common");
- assert.equal(selectClearingSpecialMob(pets,()=>.03),undefined);
+ assert.equal(specialPetMobSpawnChance,.05);
+ const below=[.049,0];let index=0;assert.equal(selectClearingSpecialMob(pets,()=>below[index++])?.pet_shop_item_id,"common");
+ assert.equal(selectClearingSpecialMob(pets,()=>.05),undefined);
 });
 test("rarity weights strongly favor lower-rarity pets",()=>{
  const values=[.01,.5];let index=0;
