@@ -26,16 +26,16 @@ function shuffledHomes(random: () => number) {
  * Supplying a seeded random function keeps tests and replays deterministic.
  */
 export function layoutClearingEncounter(templates: Array<{ enemy_id?: string } | undefined>, random: () => number = Math.random) {
-  const counts = new Map<string, number>();
   const placements = new Map<string, ClusterPlacement>();
   const homes = shuffledHomes(random);
   let nextAnchor = 0;
+  const runByIndex:{clusterId:string;member:number;size:number}[]=[];
+  const runCounts=new Map<string,number>();
+  for(let start=0;start<templates.length;){const key=templates[start]?.enemy_id??"fallback";let end=start+1;while(end<templates.length&&(templates[end]?.enemy_id??"fallback")===key)end++;const run=runCounts.get(key)??0;runCounts.set(key,run+1);for(let index=start;index<end;index++)runByIndex[index]={clusterId:`${key}:${run}`,member:index-start,size:end-start};start=end;}
 
-  return templates.map(template => {
+  return templates.map((template,index) => {
     const key = template?.enemy_id ?? "fallback";
-    const occurrence = counts.get(key) ?? 0;
-    const clusterId = `${key}:${Math.floor(occurrence / 3)}`;
-    counts.set(key, occurrence + 1);
+    const {clusterId,member,size}=runByIndex[index]??{clusterId:`${key}:0`,member:0,size:1};
 
     if (!placements.has(clusterId)) {
       placements.set(clusterId, {
@@ -47,9 +47,8 @@ export function layoutClearingEncounter(templates: Array<{ enemy_id?: string } |
     }
 
     const placement = placements.get(clusterId)!;
-    const member = occurrence % 3;
-    const angle = placement.rotation + member * Math.PI * 2 / 3;
-    const radius = member === 0 ? randomUnit(random) * 9 : 21 + randomUnit(random) * 18;
+    const angle = placement.rotation + member * Math.PI * 2 / Math.max(1,size);
+    const radius = member === 0 ? randomUnit(random) * 9 : 18 + size*2 + randomUnit(random) * 14;
     return {
       x: clamp(placement.base.x + placement.jitterX + Math.cos(angle) * radius / 400, .10, .90),
       y: clamp(placement.base.y + placement.jitterY + Math.sin(angle) * radius / 800, .09, .91),

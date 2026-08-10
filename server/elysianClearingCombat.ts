@@ -51,14 +51,14 @@ export function scaleClearingEnemy(pet: ClearingPetStats) {
   };
 }
 
-/** Builds small same-species packs while retaining the existing boss chance.
+/** Builds a deterministic mix of solo creatures and same-species packs while retaining the existing boss chance.
  * This makes the population read as intentional encounters rather than eight
  * unrelated rolls, without changing combat stats or reward frequency. */
 export function selectClearingEncounterTemplates(count:number,templates:ClearingEnemyTemplate[],random=Math.random){
   const bosses=templates.filter(template=>template.is_boss),regulars=templates.filter(template=>!template.is_boss),selected:(ClearingEnemyTemplate|undefined)[]=[];
   const hasBoss=bosses.length>0&&random()<CLEARING_BALANCE.bossSpawnChance;
   let previousTemplate:ClearingEnemyTemplate|undefined;
-  while(selected.length<count-(hasBoss?1:0)){const choices=regulars.length>1?regulars.filter(template=>template!==previousTemplate):regulars,template=choices[Math.floor(random()*choices.length)],packSize=Math.min(2+Math.floor(random()*2),count-(hasBoss?1:0)-selected.length);for(let member=0;member<packSize;member++)selected.push(template);previousTemplate=template;}
+  while(selected.length<count-(hasBoss?1:0)){const choices=regulars.length>1?regulars.filter(template=>template!==previousTemplate):regulars,template=choices[Math.floor(random()*choices.length)],roll=random(),requested=roll<.18?1:roll<.43?2:roll<.72?3:roll<.93?4:5,packSize=Math.min(requested,count-(hasBoss?1:0)-selected.length);for(let member=0;member<packSize;member++)selected.push(template);previousTemplate=template;}
   if(hasBoss)selected.push(bosses[Math.floor(random()*bosses.length)]);
   return selected;
 }
