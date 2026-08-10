@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -426,7 +427,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
 
   // ── Quest-complete flash (shown for 3.5 s after tutorial finishes) ────────
   if (showReward) {
-    return (
+    return createPortal(
       <>
         <div style={{
           position: "fixed", inset: 0,
@@ -456,7 +457,8 @@ export default function BeginJourneyOverlay({ user }: Props) {
             }}>Claim your reward<br />in the Quest Log! 🎁</div>
           </div>
         </div>
-      </>
+      </>,
+      document.body,
     );
   }
 
@@ -486,7 +488,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const arrowLeft = pr ? cx - arrowW / 2 : undefined;
   const arrowFilter = "drop-shadow(0 0 10px rgba(212,168,67,0.95)) drop-shadow(0 0 24px rgba(212,168,67,0.6))";
 
-  return (
+  return createPortal(
     <>
       <style>{`
         .bj-step5 [data-bj="egg-drop-zone"]   { display: none !important; }
@@ -807,6 +809,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
         </div>
       )}
 
-    </>
+    </>,
+    document.body,
   );
 }

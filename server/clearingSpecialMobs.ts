@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 
 export type ClearingSpecialMobTemplate = { pet_shop_item_id:string; name:string; rarity:number; egg_image_url:string|null; hatched_image_url:string|null; image_url:string|null };
-export const specialPetMobSpawnChance = 0.03;
+export const specialPetMobSpawnChance = 0.05;
 
 /** Special mobs are intentionally uncommon, and each additional rarity star
  * makes a configured pet half as likely to be selected. */

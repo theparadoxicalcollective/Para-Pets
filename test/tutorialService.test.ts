@@ -204,6 +204,8 @@ test("the seven tutorial steps, wording, visuals, and failure recovery remain un
     "Tap to finish your journey!",
   ]) assert.ok(overlay.includes(label));
   assert.match(overlay, /tutorialArrow/);
+  assert.match(overlay, /createPortal/);
+  assert.match(overlay, /document\.body/);
   assert.doesNotMatch(overlay, /onError: \(\) => \{\s*bjSetStep\("done"\)/);
   assert.match(overlay, /potionGrantAttemptedRef\.current = true/);
   assert.match(app, /if \(bjGetStatus\(\) === "done"\) \{\s*bjSetStep\(6\)/);
