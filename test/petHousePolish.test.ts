@@ -10,7 +10,7 @@ const storage = readFileSync("server/storage.ts", "utf8");
 
 test("owner house pet taps expose only the placement-removal control", () => {
   assert.match(ownerPage, /data-testid="house-pet-removal-control"/);
-  assert.match(ownerPage, />\{pending \? "Removing…" : "Remove from Home"\}</);
+  assert.match(ownerPage, /\{pending \? "Removing…" : "Remove from Home"\}/);
   assert.match(ownerPage, /current\?\.inventoryId === pet\.inventoryId \? null : pet/);
   assert.doesNotMatch(ownerPage, /onCare=\{\(\) => \{ const id = outdoorPopupPet/);
   assert.doesNotMatch(ownerPage, /onFeedPet=\{/);
@@ -37,7 +37,7 @@ test("house removal is retry-safe, refreshes placements, and never deletes inven
 test("visitors cannot see an owner removal action and regular world pets retain their menu", () => {
   assert.doesNotMatch(visitorPage, /Remove from Home|button-remove-pet-from-home/);
   assert.match(visitorPage, /PetStatPopup/);
-  assert.match(worldPage, /setSelectedPlayer\(/);
+  assert.match(worldPage, /onSelectPlayer=\{setSelectedPlayerId\}/);
 });
 
 test("Pet House uses context-specific scales and mobile-friendly targets", () => {
