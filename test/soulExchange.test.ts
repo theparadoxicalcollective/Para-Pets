@@ -41,6 +41,15 @@ test("Soul Exchange UI supports multi-select, confirmation, and server-confirmed
   assert.ok(client.indexOf("if (!response.ok) throw") < client.indexOf("setPets(current => current.filter"));
 });
 
+test("Soul Exchange presents pets as game pieces with available pets first and unavailable pets greyed out", () => {
+  assert.match(client, /displayPets[\s\S]*Number\(b\.eligible\) - Number\(a\.eligible\)/);
+  assert.match(client, /data-soul-availability=\{pet\.eligible \? "available" : "unavailable"\}/);
+  assert.match(client, /grayscale saturate-0 opacity-35/);
+  assert.match(client, /pet\.eligible \? "drop-shadow/);
+  assert.match(client, /LockKeyhole/);
+  assert.doesNotMatch(client, /min-h-44 min-w-0 rounded-xl border p-2 text-center/);
+});
+
 test("Soul Exchange is narrow-screen safe and honors reduced motion", () => {
   assert.match(client, /overflow-x-hidden/);
   assert.match(client, /safe-area-inset-bottom/);
