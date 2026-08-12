@@ -38,8 +38,8 @@ test("Clearing movement tuning is smaller, slower, and gives idle enemies longer
   const config=fs.readFileSync("client/src/lib/elysianClearingCombatConfig.ts","utf8");
   assert.match(config,/normalEnemyVisibleHeight:\s*28/);
   assert.match(config,/bossEnemyVisibleHeight:\s*38/);
-  assert.match(config,/roamSpeedPixels:\s*18/);
-  assert.match(config,/roamPauseMs:\s*\{\s*min:\s*1800,\s*max:\s*4200\s*\}/);
+  assert.match(config,/roamSpeedPixels:\s*12/);
+  assert.match(config,/roamPauseMs:\s*\{\s*min:\s*2600,\s*max:\s*6200\s*\}/);
   assert.match(config,/maxStrikeTargets:\s*1/);
 });
 
