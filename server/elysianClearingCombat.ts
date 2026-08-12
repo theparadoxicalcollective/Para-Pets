@@ -36,6 +36,13 @@ type ClearingHitResult={status:"invalid"|"target_locked"|"defeated"|"direction"|
 export type ClearingAttackDiagnostic={enemyInstanceId:string;playerPosition:ClearingPoint;clientTargetPosition:ClearingPoint;serverEnemyPosition:ClearingPoint;edgeDistance:number;allowedRange:number;rejectionReason:string};
 
 type ClearingEnemyTemplate = {enemy_id:string;is_boss:boolean;name:string;image_url:string|null};
+export const ELYSIAN_CLEARING_FALLBACK_BOSS:ClearingEnemyTemplate={enemy_id:"elysian-bayou-wraith-boss",is_boss:true,name:"Bayou Wraith",image_url:"/world-assets/generated_images/enemy_bayou_wraith.png"};
+export function resolveClearingBossTemplate(templates:ClearingEnemyTemplate[]){
+  const configured=templates.find(template=>template.is_boss);
+  if(configured)return configured;
+  const wraith=templates.find(template=>template.name.toLowerCase()==="bayou wraith"||(template.image_url??"").includes("enemy_bayou_wraith.png"));
+  return wraith?{...wraith,is_boss:true}:ELYSIAN_CLEARING_FALLBACK_BOSS;
+}
 
 const sessions = new Map<string, ClearingSession>();
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -51,28 +58,26 @@ export function scaleClearingEnemy(pet: ClearingPetStats) {
   };
 }
 
-/** Builds a deterministic mix of solo creatures and same-species packs while retaining the existing boss chance.
- * This makes the population read as intentional encounters rather than eight
- * unrelated rolls, without changing combat stats or reward frequency. */
+/** Builds the regular Clearing population as readable same-species packs.
+ * Bosses are deliberately excluded here: the only boss path is the server-owned
+ * defeat threshold below, so a random roll can never bypass progression. */
 export function selectClearingEncounterTemplates(count:number,templates:ClearingEnemyTemplate[],random=Math.random){
-  const bosses=templates.filter(template=>template.is_boss),regulars=templates.filter(template=>!template.is_boss),selected:(ClearingEnemyTemplate|undefined)[]=[];
-  const hasBoss=bosses.length>0&&random()<CLEARING_BALANCE.bossSpawnChance;
+  const regulars=templates.filter(template=>!template.is_boss),selected:(ClearingEnemyTemplate|undefined)[]=[];
   let previousTemplate:ClearingEnemyTemplate|undefined;
-  while(selected.length<count-(hasBoss?1:0)){const choices=regulars.length>1?regulars.filter(template=>template!==previousTemplate):regulars,template=choices[Math.floor(random()*choices.length)],roll=random(),requested=roll<.18?1:roll<.43?2:roll<.72?3:roll<.93?4:5,packSize=Math.min(requested,count-(hasBoss?1:0)-selected.length);for(let member=0;member<packSize;member++)selected.push(template);previousTemplate=template;}
-  if(hasBoss)selected.push(bosses[Math.floor(random()*bosses.length)]);
+  while(selected.length<count){const choices=regulars.length>1?regulars.filter(template=>template!==previousTemplate):regulars,template=choices.length?choices[Math.floor(random()*choices.length)]:undefined,roll=random(),requested=roll<.18?1:roll<.43?2:roll<.72?3:roll<.93?4:5,packSize=Math.min(requested,count-selected.length);for(let member=0;member<packSize;member++)selected.push(template);previousTemplate=template;}
   return selected;
 }
 
 export function createClearingSession(userId: string, petId: string, stats: ClearingPetStats, now = Date.now(), random=Math.random, templates:ClearingEnemyTemplate[]=[], specialTemplates:ClearingSpecialMobTemplate[]=[]): ClearingSession {
   for (const [id, session] of sessions) if (session.expiresAt <= now || session.userId === userId) sessions.delete(id);
-  const scaled = scaleClearingEnemy(stats),special=selectClearingSpecialMob(specialTemplates,random),encounterTemplates=selectClearingEncounterTemplates(ELYSIAN_CLEARING_COMBAT.enemyCount,templates.some(template=>!template.is_boss)?templates.filter(template=>!template.is_boss):templates,random);if(special)encounterTemplates[encounterTemplates.length-1]=undefined;const encounterPositions=layoutClearingEncounter(encounterTemplates,random);
+  const scaled=scaleClearingEnemy(stats),special=selectClearingSpecialMob(specialTemplates,random),bossTemplate=resolveClearingBossTemplate(templates),regularTemplates=templates.filter(template=>!template.is_boss&&template.enemy_id!==bossTemplate.enemy_id),encounterTemplates=selectClearingEncounterTemplates(ELYSIAN_CLEARING_COMBAT.enemyCount,regularTemplates,random);if(special)encounterTemplates[encounterTemplates.length-1]=undefined;const encounterPositions=layoutClearingEncounter(encounterTemplates,random);
   const session: ClearingSession = {
     id: crypto.randomUUID(), userId, petId, expiresAt: now + ELYSIAN_CLEARING_COMBAT.sessionLifetimeMs,
     effectiveStats: { hp: stats.hp, atk: stats.atk, def: stats.def ?? 0 },
     clearingBossProgress:{regularDefeats:0,bossPhase:"regular",bossReadyAt:null},
-    bossTemplate:templates.find(template=>template.is_boss), regularTemplates:templates.filter(template=>!template.is_boss), scaledEnemy:scaled,
-    // A rolled special replaces the final encounter template (including a
-    // possible boss), so boss and special health multipliers never stack.
+    bossTemplate,regularTemplates,scaledEnemy:scaled,
+    // A rolled special replaces the final regular slot. The boss is created only
+    // after the server-owned regular-defeat threshold is reached.
     position:{x:.5,y:.7,updatedAt:now}, lockedTargetInstanceId:null,processedAttacks:new Map(), enemies: encounterTemplates.map((template,slot) => {const isBoss=Boolean(template?.is_boss),specialPetShopItemId=slot===encounterTemplates.length-1?special?.pet_shop_item_id:undefined,isSpecial=Boolean(specialPetShopItemId),healthMultiplier=isBoss?CLEARING_BALANCE.bossHealthMultiplier:isSpecial?CLEARING_BALANCE.specialPetMobHealthMultiplier:1,maxHealth=Math.round(scaled.maxHealth*healthMultiplier),spawn=encounterPositions[slot];return{
       instanceId: crypto.randomUUID(), slot, maxHealth, health:maxHealth,
       attack:Math.round(scaled.attack*(isBoss?CLEARING_BALANCE.bossDamageMultiplier:1)),isBoss,engagedByPlayer:false,templateId:template?.enemy_id,name:slot===encounterTemplates.length-1&&special?special.name:template?.name,imageUrl:slot===encounterTemplates.length-1&&special?(special.hatched_image_url||special.image_url):template?.image_url,specialPetShopItemId,specialRarity:slot===encounterTemplates.length-1?Number(special?.rarity||1):undefined, defeated: false, lastHitAt: 0, x:spawn?.x??.5, y:spawn?.y??.6, positionUpdatedAt:now,
