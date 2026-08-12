@@ -15,7 +15,6 @@ export const CLEARING_BALANCE = {
   // Percentage of the active pet's effective maximum HP removed per hit.
   // Bosses inherit the multiplier above (12% × 1.25 = 15%).
   enemyDamagePercent: 0.12,
-  bossSpawnChance: 0.05,
   regularChestGearChance: 0.30,
   bossChestGearChance: 0.65,
   regularChestMaxGearItems: 1,
