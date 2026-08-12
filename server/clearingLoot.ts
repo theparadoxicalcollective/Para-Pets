@@ -23,11 +23,17 @@ export function buildClearingLoot(pool:ClearingLootItem[],boss:boolean,random:Ra
  const settings=boss?CLEARING_BALANCE.boss:CLEARING_BALANCE.regular,target=integer(random,settings.itemCount);
  const selected:ClearingLootItem[]=[];
  const takeFrom=(source:ClearingLootItem[])=>{const remaining=source.filter(i=>!selected.some(s=>s.id===i.id));if(!remaining.length)return false;const groups=new Set(remaining.map(i=>i.rarity));const rarity=weightedRarity(groups,settings.weights,random);const candidates=remaining.filter(i=>i.rarity===rarity);selected.push(candidates[Math.min(candidates.length-1,Math.floor(random()*candidates.length))]);return true;};
+ const rareCandidates=[...gear,...nonGear].filter(i=>i.rarity==="rare");
+ // A boss chest always starts with one configured Rare reward when the world has
+ // one available. This happens before the normal weighted rolls so bad RNG can
+ // never turn a boss victory into an all-common/uncommon chest.
+ if(boss&&rareCandidates.length){selected.push(rareCandidates[Math.min(rareCandidates.length-1,Math.floor(random()*rareCandidates.length))]);}
  const gearChance=boss?CLEARING_BALANCE.bossChestGearChance:CLEARING_BALANCE.regularChestGearChance;
  const maxGear=boss?CLEARING_BALANCE.bossChestMaxGearItems:CLEARING_BALANCE.regularChestMaxGearItems;
- if(gear.length&&random()<gearChance){const gearTarget=Math.min(gear.length,target,maxGear===1?1:integer(random,[1,maxGear]));while(selected.length<gearTarget&&takeFrom(gear));}
+ const selectedGearCount=()=>selected.filter(item=>gear.some(candidate=>candidate.id===item.id)).length;
+ if(gear.length&&selected.length<target&&random()<gearChance){const gearTarget=Math.min(gear.length,target,maxGear===1?1:integer(random,[1,maxGear]));while(selected.length<target&&selectedGearCount()<gearTarget&&takeFrom(gear));}
  while(selected.length<target&&takeFrom(nonGear));
- return {items:selected,coins:integer(random,settings.coins),essence:integer(random,settings.essence),warning:selected.length<target?"Configured pool contained too few distinct items":null};
+ return {items:selected,coins:integer(random,settings.coins),essence:integer(random,settings.essence),warning:selected.length<target?"Configured pool contained too few distinct items":boss&&!rareCandidates.length?"Boss loot pool has no configured Rare item to guarantee":null};
 }
 export type EligibleLoot = { id:string; name:string; image_url:string|null; clearing_slot:ClearingEquipmentSlot; star_rarity:ClearingStarRarity; atk_boost:number|null; def_boost:number|null; health_boost:number|null };
 
