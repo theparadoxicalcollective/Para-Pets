@@ -21,7 +21,7 @@ test("short-lived Clearing effects are timer-cleaned and reduced-motion safe", (
 });
 
 test("roaming remains speed-bounded while adding curved steering and an alert beat", () => {
-  assert.match(config, /roamCurvePixels:\s*7/);
+  assert.match(config, /roamCurvePixels:\s*4/);
   assert.match(config, /alertDurationMs:\s*420/);
   assert.match(combat, /CFG\.roamSpeedPixels\*\(\.92\+\(e\.slot%5\)\*\.035\)/);
   assert.match(combat, /e\.state="alerting"/);
