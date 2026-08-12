@@ -1,6 +1,7 @@
 import type { Express, NextFunction, Request, Response } from "express";
 import type { Server } from "http";
 import { registerRoutes } from "../routes";
+import { registerDailyClaimRoutes } from "../routes/dailyClaim.routes";
 import { serveStatic } from "../static";
 import { pool } from "../db";
 import { reconcileHauntedWoodsWorld } from "../worlds/hauntedWoods";
@@ -28,6 +29,10 @@ async function runBackgroundInitialization(): Promise<void> {
 
 export async function runStartup({ app, httpServer, log }: StartupDependencies): Promise<void> {
   await runEssentialBoot();
+
+  // Register the focused daily-claim implementation before the legacy route
+  // monolith so these handlers own /api/daily-claim and its status endpoint.
+  registerDailyClaimRoutes(app);
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
