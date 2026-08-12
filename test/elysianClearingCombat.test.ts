@@ -43,10 +43,11 @@ test("Clearing regular, special, and boss health use bounded named multipliers",
   boss.defeated=true;boss.health=0;const regulars=completeClearingBossEncounter(bossSession.id,boss.instanceId,2_100,()=>0);assert.equal(regulars?.length,ELYSIAN_CLEARING_COMBAT.enemyCount);assert.ok(regulars?.every(enemy=>enemy.maxHealth===regular.maxHealth&&!enemy.isBoss));
 });
 
-test("boss damage remains a proportional fifteen percent of pet HP", () => {
-  const session = createClearingSession("boss-balance", "pet", { level: 1, hp: 2000, atk: 50 }, 1000, () => 0, bossTemplates);
+test("boss damage follows the configured proportional damage multiplier", () => {
+  const petHp = 2000;
+  const session = createClearingSession("boss-balance", "pet", { level: 1, hp: petHp, atk: 50 }, 1000, () => 0, bossTemplates);
   const boss = advanceBoss(session,"boss-balance");
-  assert.equal(boss?.attack, 300);
+  assert.equal(boss?.attack, Math.round(petHp * CLEARING_BALANCE.enemyDamagePercent * CLEARING_BALANCE.bossDamageMultiplier));
 });
 
 test("server combat sessions contain the configured distributed enemy population", () => {
