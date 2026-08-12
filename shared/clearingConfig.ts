@@ -11,9 +11,11 @@ export const CLEARING_BALANCE = {
   regularEnemyHealthPerPetDamage: 12,
   maxRegularEnemyHealth: 90_000,
   specialPetMobHealthMultiplier: 1.5,
-  bossHealthMultiplier: 2.5, bossDamageMultiplier: 1.25,
+  // Bosses should take meaningfully longer than a regular enemy and punish
+  // standing in melee range, while still staying recoverable with potions.
+  bossHealthMultiplier: 3.0, bossDamageMultiplier: 1.4,
   // Percentage of the active pet's effective maximum HP removed per hit.
-  // Bosses inherit the multiplier above (12% × 1.25 = 15%).
+  // Bosses inherit the multiplier above (12% × 1.4 = 16.8%).
   enemyDamagePercent: 0.12,
   regularChestGearChance: 0.30,
   bossChestGearChance: 0.65,
