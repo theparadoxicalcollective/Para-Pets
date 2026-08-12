@@ -10,9 +10,9 @@
 }
 
 .clearing-enemy[data-enemy-rank="boss"] .clearing-enemy-sprite.is-boss {
-  /* Phone Clearing pets are ~48px tall. The boss art renders ~72px tall after
-   * this scale, making it unmistakably larger without changing combat math. */
-  scale: 1.9;
+  /* Slightly larger than the first boss pass without letting the sprite dominate
+   * the playfield or changing server-side combat geometry. */
+  scale: 2.05;
   transform-origin: 50% 100%;
 }
 
@@ -26,19 +26,21 @@
   display: none !important;
 }
 
-/* Re-seat the boss health bar above the enlarged silhouette. */
+/* Keep the health bar clearly above the enlarged boss's head rather than
+ * overlapping the face/body as the sprite scales up. */
 .clearing-enemy[data-enemy-rank="boss"] > div.absolute {
-  left: -28% !important;
-  right: -28% !important;
-  top: -21px !important;
-  height: 3px !important;
+  left: -34% !important;
+  right: -34% !important;
+  top: -48px !important;
+  height: 4px !important;
+  box-shadow: 0 0 5px rgba(134, 239, 172, .42);
 }
 
 .clearing-enemy[data-enemy-rank="boss"] .clearing-target-ring {
-  left: -18%;
-  right: -18%;
-  bottom: -5%;
-  height: 28%;
+  left: -22%;
+  right: -22%;
+  bottom: -6%;
+  height: 30%;
 }
 
 /* During the boss's existing attack wind-up, conjure a glowing green orb.
