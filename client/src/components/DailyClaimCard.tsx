@@ -6,10 +6,9 @@ import { useToast } from "@/hooks/use-toast";
 import chestIcon       from "@assets/Photoroom_20260708_51809_PM_1783549272918.png";
 import chestOpenedIcon from "@assets/Photoroom_20260708_52007_PM_1783549272918.png";
 import coinIconImg     from "@assets/icon_coin.png";
+import essenceIconImg  from "@assets/Photoroom_20260709_24152_PM_1783626130265.png";
 import pvpTicketIcon   from "@assets/Photoroom_20260415_83701_PM_1776304592941.png";
 import raidTicketIcon  from "@assets/Photoroom_20260714_43330_PM_1784076584992.png";
-
-const BASIC_ROD_IMG = "/api/media/a55e45a9-a7ea-443b-bd53-24df70adb79b";
 
 interface ClaimStatus {
   canClaim: boolean;
@@ -17,9 +16,10 @@ interface ClaimStatus {
   lastClaimedAt: string | null;
 }
 
-const REWARD_COINS        = 500;
-const REWARD_TICKETS      = 10;
-const REWARD_RAID_TICKETS = 25;
+const REWARD_COINS        = 100;
+const REWARD_ESSENCE      = 100;
+const REWARD_TICKETS      = 5;
+const REWARD_RAID_TICKETS = 5;
 
 function parseUtc(ts: string | null): number | null {
   if (!ts) return null;
@@ -108,12 +108,16 @@ export default function DailyClaimCard({
       });
       await qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
       await qc.invalidateQueries({ queryKey: ["/api/inventory"] });
+      await qc.invalidateQueries({ queryKey: ["/api/pvp/tickets"] });
       setShowBurst(true);
+
+      const pvpGranted = data.pvpTickets ?? 0;
       const raidGranted = data.raidTickets ?? 0;
+      const pvpPart = pvpGranted > 0 ? ` · +${pvpGranted} PvP tickets` : " · PvP tickets full (100/100)";
       const raidPart = raidGranted > 0 ? ` · +${raidGranted} Raid tickets` : " · Raid tickets full (25/25)";
       toast({
         title: "Daily Reward Claimed!",
-        description: `+${REWARD_COINS} coins · Rod · +${REWARD_TICKETS} PvP tickets${raidPart}`,
+        description: `+${REWARD_COINS} coins · +${REWARD_ESSENCE} essence${pvpPart}${raidPart}`,
       });
     },
     onError: (err: any) => {
@@ -190,16 +194,16 @@ export default function DailyClaimCard({
                 +{REWARD_COINS}
               </span>
             </div>
-            {/* Fishing rod */}
-            <div className="flex items-center gap-1" data-testid="reward-fishing-rod">
+            {/* Essence */}
+            <div className="flex items-center gap-1" data-testid="reward-essence">
               <img
-                src={BASIC_ROD_IMG}
-                alt="Basic Fishing Rod"
+                src={essenceIconImg}
+                alt="Essence"
                 className="w-5 h-5 object-contain"
-                style={{ filter: "drop-shadow(0 0 4px rgba(127,191,176,0.45))" }}
+                style={{ filter: "drop-shadow(0 0 4px rgba(127,191,176,0.55))" }}
               />
-              <span className="font-fantasy text-[12px]" style={{ color: "#cfe6dc" }}>
-                Rod
+              <span className="font-fantasy text-[12px]" style={{ color: "#9fdcc9" }}>
+                +{REWARD_ESSENCE}
               </span>
             </div>
             {/* PvP tickets */}
