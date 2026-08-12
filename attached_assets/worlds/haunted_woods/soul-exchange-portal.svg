@@ -1,26 +1,56 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 520" role="img" aria-labelledby="title description">
   <title id="title">The Soul Exchange</title>
-  <desc id="description">A floating violet ritual light surrounded by soft, twinkling sparkles.</desc>
+  <desc id="description">A loose cluster of differently sized violet soul orbs glowing in the Haunted Woods.</desc>
   <defs>
-    <radialGradient id="aura"><stop offset="0" stop-color="#f5f3ff" stop-opacity=".86"/><stop offset=".28" stop-color="#d8b4fe" stop-opacity=".58"/><stop offset=".68" stop-color="#8b5cf6" stop-opacity=".2"/><stop offset="1" stop-color="#3b0764" stop-opacity="0"/></radialGradient>
-    <radialGradient id="floor"><stop offset="0" stop-color="#c4b5fd" stop-opacity=".5"/><stop offset=".5" stop-color="#8b5cf6" stop-opacity=".18"/><stop offset="1" stop-color="#3b0764" stop-opacity="0"/></radialGradient>
-    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <radialGradient id="orb" cx="38%" cy="32%" r="68%">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".98"/>
+      <stop offset=".18" stop-color="#f5d0fe" stop-opacity=".96"/>
+      <stop offset=".48" stop-color="#c084fc" stop-opacity=".88"/>
+      <stop offset=".78" stop-color="#8b5cf6" stop-opacity=".7"/>
+      <stop offset="1" stop-color="#581c87" stop-opacity=".18"/>
+    </radialGradient>
+    <radialGradient id="halo">
+      <stop offset="0" stop-color="#d8b4fe" stop-opacity=".52"/>
+      <stop offset=".42" stop-color="#a855f7" stop-opacity=".24"/>
+      <stop offset="1" stop-color="#6d28d9" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft-glow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+    <filter id="core-glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="2.4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
   <style>
-    .exchange-aura{transform-origin:210px 300px;animation:portal-breathe 3.6s ease-in-out infinite}.portal-sparkle{transform-box:fill-box;transform-origin:center;animation:portal-twinkle 3.4s ease-in-out infinite}.portal-sparkle:nth-child(2n){animation-delay:-1.1s;animation-duration:4.1s}.portal-sparkle:nth-child(3n){animation-delay:-2.3s;animation-duration:3.8s}.portal-sparkle:nth-child(5n){animation-delay:-.6s;animation-duration:4.6s}.portal-shimmer{transform-box:fill-box;transform-origin:center;animation:portal-shimmer 4.8s ease-in-out infinite}
-    @keyframes portal-breathe{0%,100%{opacity:.72;transform:scale(.94)}50%{opacity:1;transform:scale(1.04)}}@keyframes portal-twinkle{0%,18%,100%{opacity:.08;transform:translateY(5px) scale(.4) rotate(0)}48%{opacity:.82;transform:translateY(-5px) scale(1.05) rotate(18deg)}72%{opacity:.3;transform:translateY(-12px) scale(.72) rotate(32deg)}}@keyframes portal-shimmer{0%,100%{opacity:.12;transform:scale(.88)}50%{opacity:.42;transform:scale(1.06)}}
-    @media (prefers-reduced-motion:reduce){.exchange-aura,.portal-sparkle,.portal-shimmer{animation:none}.exchange-aura{opacity:.9}.portal-sparkle{opacity:.55}.portal-shimmer{opacity:.25}}
+    .soul-orb{transform-box:fill-box;transform-origin:center;animation:orb-drift 4.8s ease-in-out infinite}
+    .soul-orb:nth-of-type(2n){animation-delay:-1.3s;animation-duration:5.7s}
+    .soul-orb:nth-of-type(3n){animation-delay:-2.6s;animation-duration:4.2s}
+    .soul-orb:nth-of-type(5n){animation-delay:-.7s;animation-duration:6.1s}
+    .orb-halo{animation:halo-breathe 3.8s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+    @keyframes orb-drift{0%,100%{transform:translateY(5px) scale(.94);opacity:.72}50%{transform:translateY(-8px) scale(1.06);opacity:1}}
+    @keyframes halo-breathe{0%,100%{opacity:.42;transform:scale(.9)}50%{opacity:.76;transform:scale(1.12)}}
+    @media (prefers-reduced-motion:reduce){.soul-orb,.orb-halo{animation:none!important}.soul-orb{opacity:.9}.orb-halo{opacity:.55}}
   </style>
-  <path d="M38 440c60-42 284-42 344 0-67 51-277 51-344 0z" fill="url(#floor)"/>
-  <g class="exchange-aura">
-    <circle cx="210" cy="292" r="142" fill="url(#aura)"/>
-    <path d="M143 354c17-22 28-51 29-88 1-44 18-83 38-110 20 27 37 66 38 110 1 37 12 66 29 88-29-15-51-14-67 5-16-19-38-20-67-5z" fill="url(#aura)" opacity=".72" filter="url(#glow)"/>
-    <circle cx="210" cy="310" r="22" fill="#f5f3ff" opacity=".82" filter="url(#glow)"/>
-  </g>
+
   <g aria-hidden="true">
-    <circle class="portal-shimmer" cx="210" cy="292" r="74" fill="none" stroke="#d8b4fe" stroke-width="2" opacity=".24"/>
-    <path class="portal-sparkle" d="M92 230l5 11 11 5-11 5-5 11-5-11-11-5 11-5z" fill="#fff"/><path class="portal-sparkle" d="M320 273l6 13 13 6-13 6-6 13-6-13-13-6 13-6z" fill="#f5d0fe"/><path class="portal-sparkle" d="M272 154l4 9 9 4-9 4-4 9-4-9-9-4 9-4z" fill="#ddd6fe"/><path class="portal-sparkle" d="M151 126l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#fff"/>
-    <path class="portal-sparkle" d="M120 342l4 8 8 4-8 4-4 8-4-8-8-4 8-4z" fill="#c4b5fd"/><path class="portal-sparkle" d="M302 365l4 9 9 4-9 4-4 9-4-9-9-4 9-4z" fill="#ede9fe"/><path class="portal-sparkle" d="M165 408l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#f5d0fe"/><path class="portal-sparkle" d="M252 418l3 6 6 3-6 3-3 6-3-6-6-3 6-3z" fill="#a78bfa"/>
-    <path class="portal-sparkle" d="M78 320l2 4 4 2-4 2-2 4-2-4-4-2 4-2z" fill="#d8b4fe"/><path class="portal-sparkle" d="M340 324l2 4 4 2-4 2-2 4-2-4-4-2 4-2z" fill="#c4b5fd"/><path class="portal-sparkle" d="M118 175l2 4 4 2-4 2-2 4-2-4-4-2 4-2z" fill="#fff"/><path class="portal-sparkle" d="M307 200l2 4 4 2-4 2-2 4-2-4-4-2 4-2z" fill="#ddd6fe"/>
+    <circle class="orb-halo" cx="211" cy="285" r="92" fill="url(#halo)" filter="url(#soft-glow)"/>
+    <circle class="orb-halo" cx="128" cy="240" r="54" fill="url(#halo)" filter="url(#soft-glow)" opacity=".68"/>
+    <circle class="orb-halo" cx="304" cy="247" r="47" fill="url(#halo)" filter="url(#soft-glow)" opacity=".6"/>
+  </g>
+
+  <g filter="url(#core-glow)">
+    <circle class="soul-orb" cx="210" cy="286" r="44" fill="url(#orb)"/>
+    <circle class="soul-orb" cx="126" cy="239" r="27" fill="url(#orb)" opacity=".94"/>
+    <circle class="soul-orb" cx="302" cy="246" r="23" fill="url(#orb)" opacity=".9"/>
+    <circle class="soul-orb" cx="163" cy="174" r="17" fill="url(#orb)" opacity=".86"/>
+    <circle class="soul-orb" cx="264" cy="164" r="13" fill="url(#orb)" opacity=".8"/>
+    <circle class="soul-orb" cx="91" cy="316" r="12" fill="url(#orb)" opacity=".78"/>
+    <circle class="soul-orb" cx="329" cy="328" r="16" fill="url(#orb)" opacity=".84"/>
+    <circle class="soul-orb" cx="152" cy="373" r="10" fill="url(#orb)" opacity=".72"/>
+    <circle class="soul-orb" cx="273" cy="389" r="8" fill="url(#orb)" opacity=".7"/>
+    <circle class="soul-orb" cx="214" cy="126" r="7" fill="url(#orb)" opacity=".68"/>
+    <circle class="soul-orb" cx="76" cy="211" r="6" fill="url(#orb)" opacity=".64"/>
+    <circle class="soul-orb" cx="350" cy="201" r="7" fill="url(#orb)" opacity=".66"/>
   </g>
 </svg>
