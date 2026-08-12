@@ -1,0 +1,116 @@
+/* Elysian Clearing boss presentation polish.
+ * Keep boss-only visuals here so regular enemy movement/combat stays untouched. */
+
+/* The combat renderer previously applied an amber filter to the whole boss
+ * wrapper (including transparent canvas/UI). Remove that wrapper filter and
+ * apply the aura directly to the PNG art so CSS drop-shadow follows alpha. */
+.clearing-enemy[data-enemy-rank="boss"] {
+  filter: none !important;
+  overflow: visible;
+}
+
+.clearing-enemy[data-enemy-rank="boss"] .clearing-enemy-sprite.is-boss {
+  /* Phone Clearing pets are ~48px tall. The boss art renders ~72px tall after
+   * this scale, making it unmistakably larger without changing combat math. */
+  scale: 1.9;
+  transform-origin: 50% 100%;
+}
+
+.clearing-enemy[data-enemy-rank="boss"] .clearing-enemy-art {
+  transform-origin: 50% 100%;
+  animation: clearing-boss-green-aura 2100ms ease-in-out infinite;
+}
+
+/* Hide the generated "Boss · <name>" banner. Keep the target ring intact. */
+.clearing-enemy[data-enemy-rank="boss"] > span:not(.clearing-target-ring) {
+  display: none !important;
+}
+
+/* Re-seat the boss health bar above the enlarged silhouette. */
+.clearing-enemy[data-enemy-rank="boss"] > div.absolute {
+  left: -28% !important;
+  right: -28% !important;
+  top: -21px !important;
+  height: 3px !important;
+}
+
+.clearing-enemy[data-enemy-rank="boss"] .clearing-target-ring {
+  left: -18%;
+  right: -18%;
+  bottom: -5%;
+  height: 28%;
+}
+
+/* During the boss's existing attack wind-up, conjure a glowing green orb.
+ * The enemy wrapper already flips toward its facing direction, so this local
+ * left-to-right travel mirrors automatically when the boss faces left. */
+.clearing-enemy[data-enemy-rank="boss"].is-winding-up::before,
+.clearing-enemy[data-enemy-rank="boss"].is-winding-up::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 6;
+  border-radius: 999px;
+}
+
+.clearing-enemy[data-enemy-rank="boss"].is-winding-up::before {
+  width: 22px;
+  height: 22px;
+  left: 56%;
+  top: 38%;
+  background: radial-gradient(circle, rgba(187, 247, 208, .5) 0 18%, rgba(74, 222, 128, .24) 38%, rgba(34, 197, 94, 0) 72%);
+  filter: blur(1px);
+  animation: clearing-boss-orb-charge 650ms ease-out forwards;
+}
+
+.clearing-enemy[data-enemy-rank="boss"].is-winding-up::after {
+  width: 12px;
+  height: 12px;
+  left: 58%;
+  top: 40%;
+  background: radial-gradient(circle at 35% 32%, #f0fff4 0 14%, #bbf7d0 20%, #4ade80 43%, #16a34a 68%, rgba(21, 128, 61, .1) 78%);
+  box-shadow:
+    0 0 5px 2px rgba(187, 247, 208, .95),
+    0 0 12px 5px rgba(74, 222, 128, .72),
+    0 0 22px 8px rgba(22, 163, 74, .38);
+  animation: clearing-boss-magic-orb 650ms cubic-bezier(.2,.75,.22,1) forwards;
+}
+
+@keyframes clearing-boss-green-aura {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px rgba(187, 247, 208, .92)) drop-shadow(0 0 6px rgba(34, 197, 94, .62));
+  }
+  50% {
+    filter: drop-shadow(0 0 4px rgba(220, 252, 231, 1)) drop-shadow(0 0 10px rgba(74, 222, 128, .86));
+  }
+}
+
+@keyframes clearing-boss-orb-charge {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.3); }
+  35% { opacity: .9; transform: translate(-50%, -50%) scale(.8); }
+  100% { opacity: 0; transform: translate(48px, -54%) scale(1.25); }
+}
+
+@keyframes clearing-boss-magic-orb {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.35); }
+  22% { opacity: 1; transform: translate(-36%, -50%) scale(1.05); }
+  62% { opacity: 1; transform: translate(22px, -54%) scale(.92); }
+  100% { opacity: 0; transform: translate(58px, -58%) scale(.65); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clearing-enemy[data-enemy-rank="boss"] .clearing-enemy-art {
+    animation: none;
+    filter: drop-shadow(0 0 3px rgba(187, 247, 208, .95)) drop-shadow(0 0 8px rgba(34, 197, 94, .7));
+  }
+
+  .clearing-enemy[data-enemy-rank="boss"].is-winding-up::before {
+    display: none;
+  }
+
+  .clearing-enemy[data-enemy-rank="boss"].is-winding-up::after {
+    animation: none;
+    opacity: 1;
+    transform: translate(10px, -50%);
+  }
+}
