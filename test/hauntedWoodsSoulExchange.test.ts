@@ -21,18 +21,21 @@ test("Soul Exchange artwork is organized as permanent Haunted Woods assets", () 
   assert.equal(fs.existsSync("attached_assets/uploads/SoulExchangeBackground.png"), false);
 });
 
-test("Soul Exchange world marker is only differently sized glowing purple orbs", () => {
+test("Soul Exchange world marker uses translucent spectral wisps and sparkles instead of bubble orbs", () => {
   const portal = fs.readFileSync(assetPath(SOUL_EXCHANGE_LOCATION.iconAssetPath), "utf8");
   assert.match(portal, /viewBox="0 0 420 520"/);
   assert.match(portal, /#8b5cf6/i);
   assert.match(portal, /prefers-reduced-motion:reduce/);
-  assert.match(portal, /orb-drift/);
-  assert.match(portal, /halo-breathe/);
-  assert.ok((portal.match(/class="soul-orb"/g) ?? []).length >= 10);
-  const radii = [...portal.matchAll(/class="soul-orb"[^>]+r="(\d+)"/g)].map(match => Number(match[1]));
-  assert.ok(new Set(radii).size >= 6, "orbs should visibly vary in size");
-  assert.doesNotMatch(portal, /portal-sparkle|portal-shimmer|exchange-aura|class="rune"|rune-drift|soul-mote/);
-  assert.doesNotMatch(portal, /<path|<ellipse|stroke-dasharray/i);
+  assert.match(portal, /wisp-float/);
+  assert.match(portal, /sparkle-twinkle/);
+  assert.match(portal, /veil-breathe/);
+  assert.match(portal, /filter id="wisp-glow"/);
+  assert.match(portal, /filter id="spark-glow"/);
+  assert.ok((portal.match(/class="soul-wisp"/g) ?? []).length >= 6, "marker should have several independently drifting wisps");
+  assert.ok((portal.match(/class="soul-spark"/g) ?? []).length >= 12, "marker should have a field of star-like spectral sparkles");
+  assert.doesNotMatch(portal, /class="soul-orb"|orb-drift|halo-breathe/);
+  assert.doesNotMatch(portal, /<circle\b/i, "round bubble artwork should not return");
+  assert.match(portal, /<path\b/i);
   assert.doesNotMatch(portal, /<script/i);
   assert.doesNotMatch(portal, /(?:href|xlink:href)="https?:/i);
 });
