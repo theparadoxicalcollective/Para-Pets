@@ -19,6 +19,12 @@ test("session initialization preserves server coordinates, including later encou
   assert.deepEqual({x:invalid.x,y:invalid.y},CLEARING_ENCOUNTER_HOMES[0]);
 });
 
+test("bosses enter the Clearing already engaged while regular enemies remain passive",()=>{
+  const enemies=initializeClearingEnemies([{instanceId:"regular",isBoss:false,x:.4,y:.4},{instanceId:"boss",isBoss:true,x:.6,y:.4}],CLEARING_ENCOUNTER_HOMES,100,[0,0],()=>40);
+  assert.equal(enemies[0].engagedByPlayer,false);
+  assert.equal(enemies[1].engagedByPlayer,true);
+});
+
 test("later-cluster enemy is hittable at its server-provided displayed coordinate and distance remains enforced",()=>{
   const session=createClearingSession("cluster-user","pet",{level:1,hp:1000,atk:50},1000,()=>.4);
   const enemy=session.enemies[5];
@@ -58,6 +64,13 @@ test("combat renders every attack phase from the fixed body anchor instead of an
   const source=readFileSync("client/src/components/ElysianClearingCombat.tsx","utf8");
   assert.match(source,/const weaponPointer=petCombatCenter;/);
   assert.doesNotMatch(source,/const weaponPointer=weaponPointerPosition\(petCombatCenter/);
+});
+
+test("boss presentation keeps the health bar above the enlarged sprite",()=>{
+  const source=readFileSync("client/src/clearingBossPolish.css","utf8");
+  assert.match(source,/scale:\s*2\.05/);
+  assert.match(source,/top:\s*-48px\s*!important/);
+  assert.match(source,/data-enemy-rank="boss"/);
 });
 
 test("death effects are independently removed after duration under normal and reduced motion",()=>{
