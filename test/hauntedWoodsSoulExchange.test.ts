@@ -21,18 +21,18 @@ test("Soul Exchange artwork is organized as permanent Haunted Woods assets", () 
   assert.equal(fs.existsSync("attached_assets/uploads/SoulExchangeBackground.png"), false);
 });
 
-test("Soul Exchange portal is a lightweight purple mobile asset with reduced-motion support", () => {
+test("Soul Exchange world marker is only differently sized glowing purple orbs", () => {
   const portal = fs.readFileSync(assetPath(SOUL_EXCHANGE_LOCATION.iconAssetPath), "utf8");
   assert.match(portal, /viewBox="0 0 420 520"/);
   assert.match(portal, /#8b5cf6/i);
   assert.match(portal, /prefers-reduced-motion:reduce/);
-  assert.match(portal, /portal-breathe/);
-  assert.match(portal, /portal-twinkle/);
-  assert.match(portal, /portal-shimmer/);
-  assert.ok((portal.match(/class="portal-sparkle"/g) ?? []).length >= 12);
-  assert.doesNotMatch(portal, /class="rune"|rune-drift|soul-mote/);
-  assert.doesNotMatch(portal, /stroke-dasharray/i);
-  assert.doesNotMatch(portal, /<ellipse[^>]+portal-shimmer/i);
+  assert.match(portal, /orb-drift/);
+  assert.match(portal, /halo-breathe/);
+  assert.ok((portal.match(/class="soul-orb"/g) ?? []).length >= 10);
+  const radii = [...portal.matchAll(/class="soul-orb"[^>]+r="(\d+)"/g)].map(match => Number(match[1]));
+  assert.ok(new Set(radii).size >= 6, "orbs should visibly vary in size");
+  assert.doesNotMatch(portal, /portal-sparkle|portal-shimmer|exchange-aura|class="rune"|rune-drift|soul-mote/);
+  assert.doesNotMatch(portal, /<path|<ellipse|stroke-dasharray/i);
   assert.doesNotMatch(portal, /<script/i);
   assert.doesNotMatch(portal, /(?:href|xlink:href)="https?:/i);
 });
