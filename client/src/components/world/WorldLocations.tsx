@@ -1,4 +1,5 @@
-import { useEffect, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { createPortal } from "react-dom";
 import {
   Copy,
   FlipHorizontal,
@@ -7,6 +8,7 @@ import {
   Pencil,
   Plus,
   Trash2,
+  X,
 } from "lucide-react";
 
 export interface WorldLocationData {
@@ -57,6 +59,21 @@ function thumbUrl(
   return url;
 }
 
+function isScrollableHauntedCasino(
+  location: WorldLocationData,
+  worldId: string,
+): boolean {
+  return (
+    worldId === "haunted_woods" &&
+    /casino/i.test(location.name) &&
+    Boolean(location.bgUrl) &&
+    !location.isShop &&
+    location.type !== "fishing" &&
+    location.type !== "battle" &&
+    location.type !== "explore"
+  );
+}
+
 export default function WorldLocations({
   locations,
   worldId,
@@ -75,6 +92,8 @@ export default function WorldLocations({
 }: WorldLocationsProps) {
   const selectedLocId = selectedLocationId;
   const dragPos = dragPosition;
+  const [casinoScene, setCasinoScene] = useState<WorldLocationData | null>(null);
+  const casinoScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     locations.forEach((location) => {
@@ -84,6 +103,28 @@ export default function WorldLocations({
       }
     });
   }, [locations]);
+
+  useEffect(() => {
+    if (!casinoScene) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCasinoScene(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [casinoScene]);
+
+  const centerCasinoScene = () => {
+    window.requestAnimationFrame(() => {
+      const scroller = casinoScrollRef.current;
+      if (!scroller) return;
+      scroller.scrollLeft = Math.max(0, (scroller.scrollWidth - scroller.clientWidth) / 2);
+    });
+  };
 
   return (
     <div className="absolute inset-0">
@@ -302,6 +343,14 @@ export default function WorldLocations({
                 <div
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (isScrollableHauntedCasino(loc, worldId)) {
+                      if (isAdmin && selectedLocId !== loc.id) {
+                        onLocationClick(loc);
+                        return;
+                      }
+                      setCasinoScene(loc);
+                      return;
+                    }
                     onLocationClick(loc);
                   }}
                   style={{
@@ -450,6 +499,48 @@ export default function WorldLocations({
             </div>
           );
         })}
+
+      {casinoScene && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-[80] bg-[#05020a]"
+          data-testid="haunted-casino-scroll-view"
+          role="dialog"
+          aria-modal="true"
+          aria-label={casinoScene.name}
+        >
+          <div
+            ref={casinoScrollRef}
+            className="absolute inset-0 overflow-x-auto overflow-y-hidden"
+            style={{
+              WebkitOverflowScrolling: "touch",
+              touchAction: "pan-x",
+              overscrollBehaviorX: "contain",
+            }}
+          >
+            <div className="h-full min-w-full w-max">
+              <img
+                src={casinoScene.bgUrl || ""}
+                alt=""
+                draggable={false}
+                onLoad={centerCasinoScene}
+                className="block h-full w-auto max-w-none mx-auto select-none"
+              />
+            </div>
+          </div>
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-black/35 to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-black/35 to-transparent" />
+          <button
+            type="button"
+            aria-label="Close Haunted Casino"
+            onClick={() => setCasinoScene(null)}
+            className="absolute right-3 z-20 grid h-11 w-11 place-items-center rounded-full border border-violet-200/45 bg-black/65 text-violet-50 shadow-[0_0_18px_rgba(168,85,247,.35)] backdrop-blur-sm active:scale-95"
+            style={{ top: "max(12px, env(safe-area-inset-top))" }}
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

@@ -21,20 +21,21 @@ test("Soul Exchange artwork is organized as permanent Haunted Woods assets", () 
   assert.equal(fs.existsSync("attached_assets/uploads/SoulExchangeBackground.png"), false);
 });
 
-test("Soul Exchange world marker uses translucent spectral wisps and sparkles instead of bubble orbs", () => {
+test("Soul Exchange world marker matches the Clearing portal with violet rising lights instead of bubble orbs", () => {
   const portal = fs.readFileSync(assetPath(SOUL_EXCHANGE_LOCATION.iconAssetPath), "utf8");
   assert.match(portal, /viewBox="0 0 420 520"/);
-  assert.match(portal, /#8b5cf6/i);
+  assert.match(portal, /#a855f7/i);
   assert.match(portal, /prefers-reduced-motion:reduce/);
-  assert.match(portal, /wisp-float/);
-  assert.match(portal, /sparkle-twinkle/);
-  assert.match(portal, /veil-breathe/);
-  assert.match(portal, /filter id="wisp-glow"/);
-  assert.match(portal, /filter id="spark-glow"/);
-  assert.ok((portal.match(/class="soul-wisp"/g) ?? []).length >= 6, "marker should have several independently drifting wisps");
-  assert.ok((portal.match(/class="soul-spark"/g) ?? []).length >= 12, "marker should have a field of star-like spectral sparkles");
-  assert.doesNotMatch(portal, /class="soul-orb"|orb-drift|halo-breathe/);
-  assert.doesNotMatch(portal, /<circle\b/i, "round bubble artwork should not return");
+  assert.match(portal, /portal-rise/);
+  assert.match(portal, /portal-twinkle/);
+  assert.match(portal, /threshold-breathe/);
+  assert.match(portal, /filter id="threshold-blur"/);
+  assert.match(portal, /filter id="mote-glow"/);
+  assert.match(portal, /filter id="star-glow"/);
+  assert.ok((portal.match(/class="portal-mote"/g) ?? []).length >= 16, "marker should have a dense field of small rising magical lights");
+  assert.ok((portal.match(/class="portal-star"/g) ?? []).length >= 6, "marker should have several independently twinkling star sparks");
+  assert.doesNotMatch(portal, /class="soul-orb"|orb-drift|halo-breathe|class="soul-wisp"|wisp-float/);
+  assert.doesNotMatch(portal, /<circle\b/i, "large round bubble artwork should not return");
   assert.match(portal, /<path\b/i);
   assert.doesNotMatch(portal, /<script/i);
   assert.doesNotMatch(portal, /(?:href|xlink:href)="https?:/i);
@@ -83,6 +84,22 @@ test("Soul Exchange uses the shared scenic location flow and does not require an
     source,
     /else \{\s*setFishingLocation\(null\);\s*setShowShop\(false\);\s*setShowLocationView\(true\);\s*\}/s,
   );
+});
+
+test("Haunted Casino scenic background can pan horizontally without changing shop or combat locations", () => {
+  const source = fs.readFileSync("client/src/components/world/WorldLocations.tsx", "utf8");
+  assert.match(source, /function isScrollableHauntedCasino/);
+  assert.match(source, /worldId === "haunted_woods"/);
+  assert.match(source, /\/casino\/i\.test\(location\.name\)/);
+  assert.match(source, /!location\.isShop/);
+  assert.match(source, /location\.type !== "fishing"/);
+  assert.match(source, /location\.type !== "battle"/);
+  assert.match(source, /location\.type !== "explore"/);
+  assert.match(source, /data-testid="haunted-casino-scroll-view"/);
+  assert.match(source, /overflow-x-auto overflow-y-hidden/);
+  assert.match(source, /WebkitOverflowScrolling: "touch"/);
+  assert.match(source, /touchAction: "pan-x"/);
+  assert.match(source, /scrollLeft = Math\.max\(0, \(scroller\.scrollWidth - scroller\.clientWidth\) \/ 2\)/);
 });
 
 test("focused Haunted Woods reconciliation runs after legacy startup backfills", () => {
