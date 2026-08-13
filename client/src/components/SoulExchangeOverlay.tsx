@@ -85,7 +85,7 @@ export default function SoulExchangeOverlay({ backgroundUrl, onClose }: { backgr
       </header>
 
       <section aria-label="Magical Soul Exchange area" className={`soul-exchange-zone relative mx-auto flex h-24 w-36 flex-none items-center justify-center sm:h-32 sm:w-48 ${pulse ? "soul-exchange-success" : ""}`}>
-        <img src="/world-assets/worlds/haunted_woods/soul-exchange-portal.svg" alt="Glowing violet soul orbs" className="h-full w-full object-contain drop-shadow-[0_0_18px_rgba(168,85,247,.5)]" />
+        <img src="/world-assets/worlds/haunted_woods/soul-exchange-portal-v3.svg" alt="Violet portal lights and star sparks" className="h-full w-full object-contain drop-shadow-[0_0_18px_rgba(168,85,247,.5)]" />
         {gain !== null && <b aria-live="polite" className="absolute rounded-full border border-violet-100/60 bg-violet-100 px-4 py-2 text-violet-950 shadow-[0_0_25px_#c4b5fd]">+{gain.toLocaleString()} Essence</b>}
       </section>
 
