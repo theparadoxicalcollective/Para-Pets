@@ -1,4 +1,5 @@
-import { useEffect, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { createPortal } from "react-dom";
 import {
   Copy,
   FlipHorizontal,
@@ -7,6 +8,7 @@ import {
   Pencil,
   Plus,
   Trash2,
+  X,
 } from "lucide-react";
 
 export interface WorldLocationData {
@@ -57,6 +59,21 @@ function thumbUrl(
   return url;
 }
 
+function isScrollableHauntedCasino(
+  location: WorldLocationData,
+  worldId: string,
+): boolean {
+  return (
+    worldId === "haunted_woods" &&
+    /casino/i.test(location.name) &&
+    Boolean(location.bgUrl) &&
+    !location.isShop &&
+    location.type !== "fishing" &&
+    location.type !== "battle" &&
+    location.type !== "explore"
+  );
+}
+
 export default function WorldLocations({
   locations,
   worldId,
@@ -75,6 +92,8 @@ export default function WorldLocations({
 }: WorldLocationsProps) {
   const selectedLocId = selectedLocationId;
   const dragPos = dragPosition;
+  const [casinoScene, setCasinoScene] = useState<WorldLocationData | null>(null);
+  const casinoScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     locations.forEach((location) => {
@@ -85,118 +104,98 @@ export default function WorldLocations({
     });
   }, [locations]);
 
+  useEffect(() => {
+    if (!casinoScene) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCasinoScene(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [casinoScene]);
+
+  const centerCasinoScene = () => {
+    window.requestAnimationFrame(() => {
+      const scroller = casinoScrollRef.current;
+      if (!scroller) return;
+      scroller.scrollLeft = Math.max(0, (scroller.scrollWidth - scroller.clientWidth) / 2);
+    });
+  };
+
   return (
-    <div className="absolute inset-0">
-      {[...locations]
-        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-        .map((loc, i) => {
-          const pos =
-            dragPos?.id === loc.id
-              ? { x: dragPos.x, y: dragPos.y }
-              : { x: loc.posX, y: loc.posY };
-          const isDragging = draggingLocationId === loc.id;
-          const glow = loc.glowColor || accent;
-          return (
-            <div
-              key={loc.id}
-              data-testid={`location-${loc.id}`}
-              className="absolute loc-node flex flex-col items-center"
-              style={{
-                left: `${pos.x}%`,
-                top: `${pos.y}%`,
-                width: `${loc.iconSize || 300}px`,
-                cursor: isAdmin ? "grab" : "pointer",
-                zIndex: isDragging
-                  ? 200
-                  : selectedLocId === loc.id
-                    ? 150
-                    : loc.type === "fishing" && !loc.isShop
-                      ? 100 + i
-                      : 10 + i,
-              }}
-              onPointerDown={(e) => onPointerDown(e, loc)}
-            >
+    <>
+      <div className="absolute inset-0">
+        {[...locations]
+          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+          .map((loc, i) => {
+            const pos =
+              dragPos?.id === loc.id
+                ? { x: dragPos.x, y: dragPos.y }
+                : { x: loc.posX, y: loc.posY };
+            const isDragging = draggingLocationId === loc.id;
+            const glow = loc.glowColor || accent;
+            return (
               <div
-                className="relative w-full"
-                style={{ aspectRatio: "1", pointerEvents: "none" }}
+                key={loc.id}
+                data-testid={`location-${loc.id}`}
+                className="absolute loc-node flex flex-col items-center"
+                style={{
+                  left: `${pos.x}%`,
+                  top: `${pos.y}%`,
+                  width: `${loc.iconSize || 300}px`,
+                  cursor: isAdmin ? "grab" : "pointer",
+                  zIndex: isDragging
+                    ? 200
+                    : selectedLocId === loc.id
+                      ? 150
+                      : loc.type === "fishing" && !loc.isShop
+                        ? 100 + i
+                        : 10 + i,
+                }}
+                onPointerDown={(e) => onPointerDown(e, loc)}
               >
-                {/* Pulsing glow orb behind icon — all location types except haunted_woods */}
-                {(loc.iconUrl || (loc.type === "fishing" && !loc.isShop)) &&
-                  worldId !== "haunted_woods" && (
+                <div
+                  className="relative w-full"
+                  style={{ aspectRatio: "1", pointerEvents: "none" }}
+                >
+                  {/* Pulsing glow orb behind icon — all location types except haunted_woods */}
+                  {(loc.iconUrl || (loc.type === "fishing" && !loc.isShop)) &&
+                    worldId !== "haunted_woods" && (
+                      <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                          background:
+                            worldId === "swamp"
+                              ? `radial-gradient(circle, ${glow}22 0%, ${glow}0d 40%, transparent 62%)`
+                              : `radial-gradient(circle, ${glow}45 0%, ${glow}18 45%, transparent 70%)`,
+                          animation:
+                            worldId === "swamp"
+                              ? `swampGlowPulse ${3.2 + ((i * 0.38) % 1.4)}s ease-in-out infinite`
+                              : `locGlowPulse ${2.6 + ((i * 0.31) % 1.2)}s ease-in-out infinite`,
+                          animationDelay: `${(i * 0.45) % 2.5}s`,
+                          borderRadius: "50%",
+                          zIndex: 0,
+                        }}
+                      />
+                    )}
+                  {loc.iconUrl ||
+                  (loc.type === "fishing" &&
+                    !loc.isShop &&
+                    worldId === "volcanic") ? (
                     <div
-                      className="absolute inset-0 pointer-events-none"
-                      style={{
-                        background:
-                          worldId === "swamp"
-                            ? `radial-gradient(circle, ${glow}22 0%, ${glow}0d 40%, transparent 62%)`
-                            : `radial-gradient(circle, ${glow}45 0%, ${glow}18 45%, transparent 70%)`,
-                        animation:
-                          worldId === "swamp"
-                            ? `swampGlowPulse ${3.2 + ((i * 0.38) % 1.4)}s ease-in-out infinite`
-                            : `locGlowPulse ${2.6 + ((i * 0.31) % 1.2)}s ease-in-out infinite`,
-                        animationDelay: `${(i * 0.45) % 2.5}s`,
-                        borderRadius: "50%",
-                        zIndex: 0,
-                      }}
-                    />
-                  )}
-                {loc.iconUrl ||
-                (loc.type === "fishing" &&
-                  !loc.isShop &&
-                  worldId === "volcanic") ? (
-                  <div
-                    className="w-full h-full"
-                    style={
-                      loc.type === "fishing" &&
-                      !loc.isShop &&
-                      worldId !== "haunted_woods"
-                        ? { animation: "breathe 3s ease-in-out infinite" }
-                        : undefined
-                    }
-                  >
-                    <img
-                      src={
+                      className="w-full h-full"
+                      style={
                         loc.type === "fishing" &&
                         !loc.isShop &&
-                        worldId === "volcanic"
-                          ? "/world-assets/icon_fishing_volcanic.png?w=600"
-                          : thumbUrl(loc.iconUrl, 600)!
+                        worldId !== "haunted_woods"
+                          ? { animation: "breathe 3s ease-in-out infinite" }
+                          : undefined
                       }
-                      alt={loc.name}
-                      className="w-full h-full object-contain relative z-10"
-                      draggable={false}
-                      style={{
-                        filter:
-                          loc.type === "fishing" && !loc.isShop
-                            ? worldId === "volcanic"
-                              ? // Tight rim glow: 1–2 px shadow hugs the icon silhouette so
-                                // it reads as a shiny outline rather than a large square bloom.
-                                // Gold inner rim → orange mid → no far spread.
-                                "drop-shadow(0 2px 5px rgba(0,0,0,0.65)) drop-shadow(0 0 1.5px rgba(251,191,36,1)) drop-shadow(0 0 5px rgba(251,146,60,0.65))"
-                              : worldId === "swamp"
-                                ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1.5px rgba(167,243,208,0.9)) drop-shadow(0 0 5px rgba(45,212,191,0.5))"
-                                : worldId === "haunted_woods"
-                                  ? "drop-shadow(0 2px 5px rgba(0,0,0,0.65))"
-                                  : "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1.5px rgba(186,230,253,0.9)) drop-shadow(0 0 5px rgba(56,189,248,0.5))"
-                            : // Non-fishing location icons (shops, NPCs, etc.) get a subtle
-                              // rim using the location's own glow colour so each icon has
-                              // a hint of its own identity without a large bloom. Bayou
-                              // (swamp) world uses a unified deep-forest-teal rim so the
-                              // icons feel of-a-piece with the swamp atmosphere instead
-                              // of each shouting its own colour.
-                              worldId === "haunted_woods"
-                              ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55))"
-                              : worldId === "swamp"
-                                ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px rgba(45,138,120,0.85)) drop-shadow(0 0 4px rgba(20,83,75,0.55))"
-                                : `drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px ${glow}cc) drop-shadow(0 0 4px ${glow}55)`,
-                        transform: loc.flipped ? "scaleX(-1)" : undefined,
-                        transition: "filter 0.15s ease, transform 0.15s ease",
-                      }}
-                    />
-                    {/* Glow layer — same img with intense drop-shadow, opacity pulses.
-                              drop-shadow follows PNG transparency so only the icon outline glows.
-                              Haunted Woods skips this layer (top-crown gradient handles its glow). */}
-                    {worldId !== "haunted_woods" && (
+                    >
                       <img
                         src={
                           loc.type === "fishing" &&
@@ -205,251 +204,345 @@ export default function WorldLocations({
                             ? "/world-assets/icon_fishing_volcanic.png?w=600"
                             : thumbUrl(loc.iconUrl, 600)!
                         }
-                        aria-hidden
-                        className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                        alt={loc.name}
+                        className="w-full h-full object-contain relative z-10"
                         draggable={false}
                         style={{
                           filter:
-                            worldId === "swamp"
-                              ? `drop-shadow(0 0 3px ${glow}55) drop-shadow(0 0 6px ${glow}22)`
-                              : `drop-shadow(0 0 5px ${glow}) drop-shadow(0 0 12px ${glow}bb) drop-shadow(0 0 20px ${glow}66)`,
-                          opacity: worldId === "swamp" ? 0.1 : 0.15,
-                          animation:
-                            worldId === "swamp"
-                              ? `swampGlowRimPulse ${3.5 + ((i * 0.5) % 1.5)}s ease-in-out infinite`
-                              : `locGlowRimPulse ${3.0 + ((i * 0.41) % 1.6)}s ease-in-out infinite`,
-                          animationDelay: `${(i * 0.57) % 2.8}s`,
-                          zIndex: 11,
+                            loc.type === "fishing" && !loc.isShop
+                              ? worldId === "volcanic"
+                                ? // Tight rim glow: 1–2 px shadow hugs the icon silhouette so
+                                  // it reads as a shiny outline rather than a large square bloom.
+                                  // Gold inner rim → orange mid → no far spread.
+                                  "drop-shadow(0 2px 5px rgba(0,0,0,0.65)) drop-shadow(0 0 1.5px rgba(251,191,36,1)) drop-shadow(0 0 5px rgba(251,146,60,0.65))"
+                                : worldId === "swamp"
+                                  ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1.5px rgba(167,243,208,0.9)) drop-shadow(0 0 5px rgba(45,212,191,0.5))"
+                                  : worldId === "haunted_woods"
+                                    ? "drop-shadow(0 2px 5px rgba(0,0,0,0.65))"
+                                    : "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1.5px rgba(186,230,253,0.9)) drop-shadow(0 0 5px rgba(56,189,248,0.5))"
+                              : // Non-fishing location icons (shops, NPCs, etc.) get a subtle
+                                // rim using the location's own glow colour so each icon has
+                                // a hint of its own identity without a large bloom. Bayou
+                                // (swamp) world uses a unified deep-forest-teal rim so the
+                                // icons feel of-a-piece with the swamp atmosphere instead
+                                // of each shouting its own colour.
+                                worldId === "haunted_woods"
+                                ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55))"
+                                : worldId === "swamp"
+                                  ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px rgba(45,138,120,0.85)) drop-shadow(0 0 4px rgba(20,83,75,0.55))"
+                                  : `drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px ${glow}cc) drop-shadow(0 0 4px ${glow}55)`,
                           transform: loc.flipped ? "scaleX(-1)" : undefined,
+                          transition: "filter 0.15s ease, transform 0.15s ease",
                         }}
                       />
-                    )}
-                    {/* Floating bubbles — fishing spots only (not shop buildings), not in haunted_woods */}
-                    {loc.type === "fishing" &&
-                      !loc.isShop &&
-                      worldId !== "haunted_woods" && (
-                        <div
+                      {/* Glow layer — same img with intense drop-shadow, opacity pulses.
+                                drop-shadow follows PNG transparency so only the icon outline glows.
+                                Haunted Woods skips this layer (top-crown gradient handles its glow). */}
+                      {worldId !== "haunted_woods" && (
+                        <img
+                          src={
+                            loc.type === "fishing" &&
+                            !loc.isShop &&
+                            worldId === "volcanic"
+                              ? "/world-assets/icon_fishing_volcanic.png?w=600"
+                              : thumbUrl(loc.iconUrl, 600)!
+                          }
+                          aria-hidden
+                          className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                          draggable={false}
                           style={{
-                            position: "absolute",
-                            inset: 0,
-                            zIndex: 50,
-                            pointerEvents: "none",
-                            overflow: "visible",
+                            filter:
+                              worldId === "swamp"
+                                ? `drop-shadow(0 0 3px ${glow}55) drop-shadow(0 0 6px ${glow}22)`
+                                : `drop-shadow(0 0 5px ${glow}) drop-shadow(0 0 12px ${glow}bb) drop-shadow(0 0 20px ${glow}66)`,
+                            opacity: worldId === "swamp" ? 0.1 : 0.15,
+                            animation:
+                              worldId === "swamp"
+                                ? `swampGlowRimPulse ${3.5 + ((i * 0.5) % 1.5)}s ease-in-out infinite`
+                                : `locGlowRimPulse ${3.0 + ((i * 0.41) % 1.6)}s ease-in-out infinite`,
+                            animationDelay: `${(i * 0.57) % 2.8}s`,
+                            zIndex: 11,
+                            transform: loc.flipped ? "scaleX(-1)" : undefined,
                           }}
-                        >
-                          {[
-                            {
-                              left: "22%",
-                              bottom: "26%",
-                              size: 5,
-                              dur: "5.5s",
-                              delay: "0.0s",
-                            },
-                            {
-                              left: "50%",
-                              bottom: "20%",
-                              size: 6,
-                              dur: "5.2s",
-                              delay: "2.8s",
-                            },
-                            {
-                              left: "78%",
-                              bottom: "30%",
-                              size: 4,
-                              dur: "6.4s",
-                              delay: "1.2s",
-                            },
-                          ].map((b, bi) => (
-                            <div
-                              key={bi}
-                              style={{
-                                position: "absolute",
-                                bottom: b.bottom,
-                                left: b.left,
-                                width: b.size,
-                                height: b.size,
-                                borderRadius: "50%",
-                                background: `radial-gradient(circle at 35% 30%, ${glow}88, ${glow}30)`,
-                                border: `0.5px solid ${glow}55`,
-                                animation: `fishBubbleRise ${b.dur} ease-in-out ${b.delay} infinite`,
-                                willChange: "transform, opacity",
-                                pointerEvents: "none",
-                              }}
-                            />
-                          ))}
-                        </div>
+                        />
                       )}
-                  </div>
-                ) : (
+                      {/* Floating bubbles — fishing spots only (not shop buildings), not in haunted_woods */}
+                      {loc.type === "fishing" &&
+                        !loc.isShop &&
+                        worldId !== "haunted_woods" && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              zIndex: 50,
+                              pointerEvents: "none",
+                              overflow: "visible",
+                            }}
+                          >
+                            {[
+                              {
+                                left: "22%",
+                                bottom: "26%",
+                                size: 5,
+                                dur: "5.5s",
+                                delay: "0.0s",
+                              },
+                              {
+                                left: "50%",
+                                bottom: "20%",
+                                size: 6,
+                                dur: "5.2s",
+                                delay: "2.8s",
+                              },
+                              {
+                                left: "78%",
+                                bottom: "30%",
+                                size: 4,
+                                dur: "6.4s",
+                                delay: "1.2s",
+                              },
+                            ].map((b, bi) => (
+                              <div
+                                key={bi}
+                                style={{
+                                  position: "absolute",
+                                  bottom: b.bottom,
+                                  left: b.left,
+                                  width: b.size,
+                                  height: b.size,
+                                  borderRadius: "50%",
+                                  background: `radial-gradient(circle at 35% 30%, ${glow}88, ${glow}30)`,
+                                  border: `0.5px solid ${glow}55`,
+                                  animation: `fishBubbleRise ${b.dur} ease-in-out ${b.delay} infinite`,
+                                  willChange: "transform, opacity",
+                                  pointerEvents: "none",
+                                }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                    </div>
+                  ) : (
+                    <div
+                      className="w-full h-full rounded-full flex items-center justify-center relative z-10"
+                      style={{
+                        background: `radial-gradient(circle at 40% 35%, ${glow}40, ${glow}15)`,
+                        border: `1.5px solid ${glow}70`,
+                        boxShadow: `0 0 4px ${glow}55, 0 0 8px ${glow}25`,
+                      }}
+                    >
+                      <MapPin
+                        className="w-7 h-7"
+                        style={{
+                          color: glow,
+                          filter: `drop-shadow(0 0 3px ${glow}66)`,
+                        }}
+                      />
+                    </div>
+                  )}
+                  {/* Tight circular hit-zone — only the visible centre of the icon fires clicks */}
                   <div
-                    className="w-full h-full rounded-full flex items-center justify-center relative z-10"
-                    style={{
-                      background: `radial-gradient(circle at 40% 35%, ${glow}40, ${glow}15)`,
-                      border: `1.5px solid ${glow}70`,
-                      boxShadow: `0 0 4px ${glow}55, 0 0 8px ${glow}25`,
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isScrollableHauntedCasino(loc, worldId)) {
+                        if (isAdmin && selectedLocId !== loc.id) {
+                          onLocationClick(loc);
+                          return;
+                        }
+                        setCasinoScene(loc);
+                        return;
+                      }
+                      onLocationClick(loc);
                     }}
-                  >
-                    <MapPin
-                      className="w-7 h-7"
-                      style={{
-                        color: glow,
-                        filter: `drop-shadow(0 0 3px ${glow}66)`,
-                      }}
-                    />
-                  </div>
-                )}
-                {/* Tight circular hit-zone — only the visible centre of the icon fires clicks */}
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onLocationClick(loc);
-                  }}
-                  style={{
-                    position: "absolute",
-                    top: "20%",
-                    left: "20%",
-                    right: "20%",
-                    bottom: "20%",
-                    borderRadius: "50%",
-                    pointerEvents: "auto",
-                    cursor: isAdmin ? "grab" : "pointer",
-                    zIndex: 20,
-                  }}
-                />
+                    style={{
+                      position: "absolute",
+                      top: "20%",
+                      left: "20%",
+                      right: "20%",
+                      bottom: "20%",
+                      borderRadius: "50%",
+                      pointerEvents: "auto",
+                      cursor: isAdmin ? "grab" : "pointer",
+                      zIndex: 20,
+                    }}
+                  />
 
-                {isAdmin && selectedLocId === loc.id && (
-                  <div style={{ pointerEvents: "auto" }}>
-                    <button
-                      data-testid={`button-edit-location-${loc.id}`}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEditLocation(loc);
-                      }}
-                      className="absolute -top-5 -right-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
-                      style={{
-                        background: "rgba(45,106,79,0.95)",
-                        border: "2px solid rgba(127,255,212,0.7)",
-                        cursor: "pointer",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
-                      }}
-                    >
-                      <Pencil className="w-5 h-5 text-white" />
-                    </button>
-                    <button
-                      data-testid={`button-flip-location-${loc.id}`}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onFlipLocation(loc.id);
-                      }}
-                      className="absolute -bottom-5 -right-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
-                      style={{
-                        background: "rgba(0,80,180,0.95)",
-                        border: "2px solid rgba(100,180,255,0.7)",
-                        cursor: "pointer",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
-                      }}
-                    >
-                      <FlipHorizontal className="w-5 h-5 text-white" />
-                    </button>
-                    <button
-                      data-testid={`button-delete-location-${loc.id}`}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteLocation(loc);
-                      }}
-                      className="absolute -top-5 -left-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
-                      style={{
-                        background: "rgba(220,38,38,0.95)",
-                        border: "2px solid rgba(255,100,100,0.7)",
-                        cursor: "pointer",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
-                      }}
-                    >
-                      <Trash2 className="w-5 h-5 text-white" />
-                    </button>
-                    <button
-                      data-testid={`button-size-down-location-${loc.id}`}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const next = Math.max(64, (loc.iconSize || 300) - 10);
-                        onResizeLocation(loc.id, next);
-                      }}
-                      className="absolute -bottom-5 -left-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
-                      style={{
-                        background: "rgba(80,40,0,0.95)",
-                        border: "2px solid rgba(255,160,50,0.7)",
-                        cursor: "pointer",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
-                      }}
-                    >
-                      <Minus className="w-5 h-5 text-white" />
-                    </button>
-                    {loc.type === "fishing" && (
+                  {isAdmin && selectedLocId === loc.id && (
+                    <div style={{ pointerEvents: "auto" }}>
                       <button
-                        data-testid={`button-duplicate-location-${loc.id}`}
+                        data-testid={`button-edit-location-${loc.id}`}
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={(e) => {
                           e.stopPropagation();
-                          onDuplicateLocation(loc.id);
+                          onEditLocation(loc);
                         }}
-                        className="absolute top-1/2 -left-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
+                        className="absolute -top-5 -right-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
                         style={{
-                          transform: "translateY(-50%)",
-                          background: "rgba(80,0,140,0.95)",
-                          border: "2px solid rgba(180,100,255,0.8)",
+                          background: "rgba(45,106,79,0.95)",
+                          border: "2px solid rgba(127,255,212,0.7)",
                           cursor: "pointer",
                           boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
                         }}
                       >
-                        <Copy className="w-5 h-5 text-white" />
+                        <Pencil className="w-5 h-5 text-white" />
                       </button>
-                    )}
-                    <div
-                      className="absolute z-30 flex items-center justify-center"
-                      style={{
-                        bottom: "-28px",
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        background: "rgba(0,0,0,0.85)",
-                        border: "1px solid rgba(255,200,50,0.5)",
-                        borderRadius: "6px",
-                        padding: "2px 8px",
-                        pointerEvents: "none",
-                      }}
-                    >
-                      <span className="font-fantasy text-xs text-yellow-300">
-                        {loc.iconSize || 300}px
-                      </span>
+                      <button
+                        data-testid={`button-flip-location-${loc.id}`}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onFlipLocation(loc.id);
+                        }}
+                        className="absolute -bottom-5 -right-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
+                        style={{
+                          background: "rgba(0,80,180,0.95)",
+                          border: "2px solid rgba(100,180,255,0.7)",
+                          cursor: "pointer",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                        }}
+                      >
+                        <FlipHorizontal className="w-5 h-5 text-white" />
+                      </button>
+                      <button
+                        data-testid={`button-delete-location-${loc.id}`}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteLocation(loc);
+                        }}
+                        className="absolute -top-5 -left-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
+                        style={{
+                          background: "rgba(220,38,38,0.95)",
+                          border: "2px solid rgba(255,100,100,0.7)",
+                          cursor: "pointer",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                        }}
+                      >
+                        <Trash2 className="w-5 h-5 text-white" />
+                      </button>
+                      <button
+                        data-testid={`button-size-down-location-${loc.id}`}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const next = Math.max(64, (loc.iconSize || 300) - 10);
+                          onResizeLocation(loc.id, next);
+                        }}
+                        className="absolute -bottom-5 -left-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
+                        style={{
+                          background: "rgba(80,40,0,0.95)",
+                          border: "2px solid rgba(255,160,50,0.7)",
+                          cursor: "pointer",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                        }}
+                      >
+                        <Minus className="w-5 h-5 text-white" />
+                      </button>
+                      {loc.type === "fishing" && (
+                        <button
+                          data-testid={`button-duplicate-location-${loc.id}`}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDuplicateLocation(loc.id);
+                          }}
+                          className="absolute top-1/2 -left-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
+                          style={{
+                            transform: "translateY(-50%)",
+                            background: "rgba(80,0,140,0.95)",
+                            border: "2px solid rgba(180,100,255,0.8)",
+                            cursor: "pointer",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                          }}
+                        >
+                          <Copy className="w-5 h-5 text-white" />
+                        </button>
+                      )}
+                      <div
+                        className="absolute z-30 flex items-center justify-center"
+                        style={{
+                          bottom: "-28px",
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          background: "rgba(0,0,0,0.85)",
+                          border: "1px solid rgba(255,200,50,0.5)",
+                          borderRadius: "6px",
+                          padding: "2px 8px",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        <span className="font-fantasy text-xs text-yellow-300">
+                          {loc.iconSize || 300}px
+                        </span>
+                      </div>
+                      <button
+                        data-testid={`button-size-up-location-${loc.id}`}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const next = Math.min(500, (loc.iconSize || 300) + 10);
+                          onResizeLocation(loc.id, next);
+                        }}
+                        className="absolute top-1/2 -right-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
+                        style={{
+                          transform: "translateY(-50%)",
+                          background: "rgba(80,40,0,0.95)",
+                          border: "2px solid rgba(255,160,50,0.7)",
+                          cursor: "pointer",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+                        }}
+                      >
+                        <Plus className="w-5 h-5 text-white" />
+                      </button>
                     </div>
-                    <button
-                      data-testid={`button-size-up-location-${loc.id}`}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const next = Math.min(500, (loc.iconSize || 300) + 10);
-                        onResizeLocation(loc.id, next);
-                      }}
-                      className="absolute top-1/2 -right-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
-                      style={{
-                        transform: "translateY(-50%)",
-                        background: "rgba(80,40,0,0.95)",
-                        border: "2px solid rgba(255,160,50,0.7)",
-                        cursor: "pointer",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
-                      }}
-                    >
-                      <Plus className="w-5 h-5 text-white" />
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
+            );
+          })}
+      </div>
+
+      {casinoScene && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-[80] bg-[#05020a]"
+          data-testid="haunted-casino-scroll-view"
+          role="dialog"
+          aria-modal="true"
+          aria-label={casinoScene.name}
+        >
+          <div
+            ref={casinoScrollRef}
+            className="absolute inset-0 overflow-x-auto overflow-y-hidden"
+            style={{
+              WebkitOverflowScrolling: "touch",
+              touchAction: "pan-x",
+              overscrollBehaviorX: "contain",
+            }}
+          >
+            <div className="h-full min-w-full w-max">
+              <img
+                src={casinoScene.bgUrl || ""}
+                alt=""
+                draggable={false}
+                onLoad={centerCasinoScene}
+                className="block h-full w-auto max-w-none mx-auto select-none"
+              />
             </div>
-          );
-        })}
-    </div>
+          </div>
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-black/35 to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-black/35 to-transparent" />
+          <button
+            type="button"
+            aria-label="Close Haunted Casino"
+            onClick={() => setCasinoScene(null)}
+            className="absolute right-3 z-20 grid h-11 w-11 place-items-center rounded-full border border-violet-200/45 bg-black/65 text-violet-50 shadow-[0_0_18px_rgba(168,85,247,.35)] backdrop-blur-sm active:scale-95"
+            style={{ top: "max(12px, env(safe-area-inset-top))" }}
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
