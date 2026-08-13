@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 520" role="img" aria-labelledby="title description">
+  <title id="title">The Soul Exchange</title>
+  <desc id="description">A violet portal shimmer made from many small rising magical lights and star sparks.</desc>
+  <defs>
+    <radialGradient id="violet-floor" cx="50%" cy="82%" r="54%">
+      <stop offset="0" stop-color="#f5d0fe" stop-opacity=".42"/>
+      <stop offset=".24" stop-color="#c084fc" stop-opacity=".28"/>
+      <stop offset=".55" stop-color="#8b5cf6" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#581c87" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="portal-glow" x="-180%" y="-180%" width="460%" height="460%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3.2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="floor-blur" x="-30%" y="-70%" width="160%" height="240%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+  </defs>
+  <style>
+    .portal-floor{transform-box:fill-box;transform-origin:center;animation:floor-breathe 3.8s ease-in-out infinite}
+    .portal-light{transform-box:fill-box;transform-origin:center;animation:light-rise 3.5s ease-in-out infinite}
+    .portal-light:nth-of-type(2n){animation-delay:-.7s;animation-duration:4.1s}
+    .portal-light:nth-of-type(3n){animation-delay:-1.4s;animation-duration:3.1s}
+    .portal-light:nth-of-type(5n){animation-delay:-2.2s;animation-duration:4.6s}
+    @keyframes floor-breathe{0%,100%{opacity:.62;transform:scale(.94)}50%{opacity:1;transform:scale(1.04)}}
+    @keyframes light-rise{0%{opacity:.2;transform:translateY(18px) scale(.7)}38%{opacity:1}72%{opacity:.74}100%{opacity:.12;transform:translateY(-54px) scale(1.08)}}
+    @media (prefers-reduced-motion:reduce){.portal-floor,.portal-light{animation:none!important}.portal-floor{opacity:.8}.portal-light{opacity:.82}}
+  </style>
+
+  <path class="portal-floor" d="M74 407 C112 350 310 350 347 407 C321 449 100 451 74 407 Z" fill="url(#violet-floor)" filter="url(#floor-blur)"/>
+
+  <g fill="#f5d0fe" filter="url(#portal-glow)" aria-hidden="true">
+    <path class="portal-light" d="M104 378 l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" opacity=".72"/>
+    <path class="portal-light" d="M139 402 l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".86"/>
+    <path class="portal-light" d="M173 365 l4 11 11 4-11 4-4 11-4-11-11-4 11-4z"/>
+    <path class="portal-light" d="M208 414 l3 9 9 3-9 3-3 9-3-9-9-3 9-3z" opacity=".9"/>
+    <path class="portal-light" d="M244 377 l5 12 12 5-12 5-5 12-5-12-12-5 12-5z" opacity=".96"/>
+    <path class="portal-light" d="M283 406 l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".78"/>
+    <path class="portal-light" d="M318 371 l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" opacity=".7"/>
+    <path class="portal-light" d="M121 332 l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".7"/>
+    <path class="portal-light" d="M159 318 l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" opacity=".84"/>
+    <path class="portal-light" d="M196 340 l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".78"/>
+    <path class="portal-light" d="M229 307 l4 11 11 4-11 4-4 11-4-11-11-4 11-4z" opacity=".88"/>
+    <path class="portal-light" d="M266 337 l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".76"/>
+    <path class="portal-light" d="M301 316 l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" opacity=".82"/>
+    <path class="portal-light" d="M143 271 l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" opacity=".64"/>
+    <path class="portal-light" d="M182 286 l4 9 9 4-9 4-4 9-4-9-9-4 9-4z" opacity=".74"/>
+    <path class="portal-light" d="M216 251 l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".66"/>
+    <path class="portal-light" d="M252 276 l4 9 9 4-9 4-4 9-4-9-9-4 9-4z" opacity=".72"/>
+    <path class="portal-light" d="M287 255 l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" opacity=".62"/>
+    <path class="portal-light" d="M194 210 l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".58"/>
+    <path class="portal-light" d="M239 199 l4 9 9 4-9 4-4 9-4-9-9-4 9-4z" opacity=".6"/>
+  </g>
+</svg>
