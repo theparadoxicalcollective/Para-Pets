@@ -8,6 +8,8 @@ import {
   SOUL_EXCHANGE_LOCATION,
 } from "@shared/hauntedWoods";
 
+const HAUNTED_CASINO_LOCATION_ID = "e2f3a4b5-0001-4000-8000-000000000001";
+
 function versionedWorldAssetUrl(relativePath: string): string {
   const absolutePath = path.join(process.cwd(), "attached_assets", relativePath);
   if (!fs.existsSync(absolutePath)) {
@@ -100,6 +102,19 @@ export async function reconcileHauntedWoodsWorld(): Promise<void> {
       await tx.execute(sql`UPDATE world_locations SET pos_x=${migratedLayout.posX}, pos_y=${migratedLayout.posY}, icon_size=${migratedLayout.iconSize}, sort_order=${migratedLayout.sortOrder}, flipped=${migratedLayout.flipped} WHERE id=${SOUL_EXCHANGE_LOCATION.id}`);
     }
 
+    // PR #175's Casino scroller identifies the Haunted Casino by its location
+    // name. The original seed calls this exact location "The Spectral Grove"
+    // even though its description and artwork identify it as the haunted
+    // casino, so the scroller never activated in established databases.
+    // Normalize only the stable casino row; no position/art/background fields
+    // are touched.
+    await tx.execute(sql`
+      UPDATE world_locations
+      SET name = 'Haunted Casino'
+      WHERE world_id = ${HAUNTED_WOODS_WORLD_ID}
+        AND id = ${HAUNTED_CASINO_LOCATION_ID}
+    `);
+
     // Layout and its snapshot have been transferred above; deletion is last.
     await tx.execute(sql`
       DELETE FROM world_locations
@@ -110,5 +125,5 @@ export async function reconcileHauntedWoodsWorld(): Promise<void> {
     `);
   });
 
-  console.log("Haunted Woods: Soul Exchange portal reconciled.");
+  console.log("Haunted Woods: Soul Exchange portal and Casino presentation reconciled.");
 }
