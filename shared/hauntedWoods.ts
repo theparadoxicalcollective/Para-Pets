@@ -13,6 +13,6 @@ export const SOUL_EXCHANGE_LOCATION = {
   defaultIconSize: 300,
   defaultSortOrder: 10,
   glowColor: "#8b5cf6",
-  iconAssetPath: "worlds/haunted_woods/soul-exchange-portal.svg",
+  iconAssetPath: "worlds/haunted_woods/soul-exchange-portal-v3.svg",
   backgroundAssetPath: "worlds/haunted_woods/soul-exchange-background.jpg",
 } as const;
