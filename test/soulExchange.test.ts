@@ -34,25 +34,50 @@ test("Soul Exchange UI supports multi-select, confirmation, and server-confirmed
   assert.match(client, /Set<string>/);
   assert.match(client, /aria-pressed=\{isSelected\}/);
   assert.match(client, /petInventoryIds: selected\.map/);
-  assert.match(client, /Total: \{total\.toLocaleString\(\)\} Essence/);
+  assert.match(client, /\{total\.toLocaleString\(\)\} Essence/);
+  assert.match(client, />Exchange Selected</);
   assert.doesNotMatch(client, /draggable|onDrag|window\.confirm/);
   assert.match(client, /role="alertdialog"/);
   assert.match(client, /disabled=\{busy\}/);
   assert.ok(client.indexOf("if (!response.ok) throw") < client.indexOf("setPets(current => current.filter"));
 });
 
-test("Soul Exchange presents pets as game pieces with available pets first and unavailable pets greyed out", () => {
+test("Soul Exchange presents readable pet cards with available pets first and protected pets clearly dimmed", () => {
   assert.match(client, /displayPets[\s\S]*Number\(b\.eligible\) - Number\(a\.eligible\)/);
+  assert.match(client, /data-soul-card=\{pet\.eligible \? "available" : "unavailable"\}/);
   assert.match(client, /data-soul-availability=\{pet\.eligible \? "available" : "unavailable"\}/);
-  assert.match(client, /grayscale saturate-0 opacity-35/);
-  assert.match(client, /pet\.eligible \? "drop-shadow/);
+  assert.match(client, /brightness-75 saturate-\[\.75\] opacity-60/);
+  assert.match(client, /rounded-2xl border backdrop-blur/);
   assert.match(client, /LockKeyhole/);
-  assert.doesNotMatch(client, /min-h-44 min-w-0 rounded-xl border p-2 text-center/);
+  assert.doesNotMatch(client, /grayscale saturate-0 opacity-35/);
+});
+
+test("blocked Soul Exchange pets expose concise status and direct fix actions", () => {
+  assert.match(client, /Active Pet/);
+  assert.match(client, /Change Active Pet/);
+  assert.match(client, /Manage PvP Team/);
+  assert.match(client, /Remove Accessories/);
+  assert.match(client, /Open Market/);
+  assert.match(client, /Open Pet House/);
+  assert.match(client, /Open Clearing/);
+  assert.match(client, /navigate\(route\)/);
+  assert.match(client, /route: "\/pets"/);
+  assert.match(client, /route: "\/pvp"/);
+});
+
+test("Soul Exchange keeps decorative type on headings and simplifies the sticky exchange summary", () => {
+  assert.match(client, /font-fantasy[\s\S]*The Soul Exchange/);
+  assert.match(client, /font-fantasy[\s\S]*Choose Hatched Pets/);
+  assert.match(client, /\{eligibleCount\} Eligible/);
+  assert.match(client, /\{selected\.length\} Selected/);
+  assert.doesNotMatch(client, /Total: \{total\.toLocaleString/);
+  assert.doesNotMatch(client, /Greyed-out pets show what must be changed first/);
 });
 
 test("Soul Exchange is narrow-screen safe and honors reduced motion", () => {
   assert.match(client, /overflow-x-hidden/);
   assert.match(client, /safe-area-inset-bottom/);
   assert.match(client, /prefers-reduced-motion:reduce/);
+  assert.match(client, /soul-selected-mote/);
   assert.doesNotMatch(client, /<canvas|requestAnimationFrame|three\.js/i);
 });
