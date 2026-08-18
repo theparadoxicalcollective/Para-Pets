@@ -5,9 +5,10 @@ import test from "node:test";
 const overlay = readFileSync("client/src/components/BeginJourneyOverlay.tsx", "utf8");
 
 test("tutorial waits for confirmed active egg before leaving Select Egg", () => {
-  const handlerStart = overlay.indexOf("if (stepNum === 2) {");
+  const forwarderStart = overlay.indexOf("const handleForwarderClick");
+  const handlerStart = overlay.indexOf("if (stepNum === 2) {", forwarderStart);
   const handlerEnd = overlay.indexOf("if (stepNum === 6) {", handlerStart);
-  assert.ok(handlerStart >= 0 && handlerEnd > handlerStart);
+  assert.ok(forwarderStart >= 0 && handlerStart >= 0 && handlerEnd > handlerStart);
 
   const step2Handler = overlay.slice(handlerStart, handlerEnd);
   assert.match(step2Handler, /setStep2Selecting\(true\);\s*eggButton\.click\(\);\s*return;/);
