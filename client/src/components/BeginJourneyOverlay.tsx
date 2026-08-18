@@ -76,6 +76,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const [potionRect, setPotionRect]           = useState<TargetRect | null>(null);
   const [eggOnHomeRect, setEggOnHomeRect]     = useState<TargetRect | null>(null);
   const [eggReadyToHatch, setEggReadyToHatch] = useState(false);
+  const [step2Selecting, setStep2Selecting]   = useState(false);
   const [step5TapMode,    setStep5TapMode]    = useState(false);
   const [location, navigate] = useLocation();
   const queryClient = useQueryClient();
@@ -214,6 +215,31 @@ export default function BeginJourneyOverlay({ user }: Props) {
   // Keep ref synced so the poll closure always sees the latest invCheck
   useEffect(() => { invCheckRef.current = invCheck ?? []; }, [invCheck]);
 
+  // Step 2 must not advance until the active-pet mutation has actually
+  // succeeded and the auth cache confirms an unhatched egg is active.
+  useEffect(() => {
+    if (step !== 2 || location !== "/pets" || !invCheck) return;
+    const activeEgg = user?.activePetId
+      ? invCheck.find((i: any) => i.inventoryId === user.activePetId && i.type === "pet" && i.isHatched === false)
+      : null;
+    if (!activeEgg) return;
+    setStep2Selecting(false);
+    bjSetStep(3);
+    setStep(3);
+  }, [step, location, invCheck, user?.activePetId]);
+
+  // If the selection request fails or stalls, unlock the highlighted button so
+  // the player can retry instead of getting trapped in a permanent pending state.
+  useEffect(() => {
+    if (step !== 2) {
+      if (step2Selecting) setStep2Selecting(false);
+      return;
+    }
+    if (!step2Selecting) return;
+    const t = setTimeout(() => setStep2Selecting(false), 5000);
+    return () => clearTimeout(t);
+  }, [step, step2Selecting]);
+
   useEffect(() => {
     if (step !== 2 || location !== "/pets" || !invCheck) return;
     const hasAnyPet = invCheck.some(i => i.type === "pet");
@@ -347,14 +373,15 @@ export default function BeginJourneyOverlay({ user }: Props) {
     return () => clearTimeout(t);
   }, [step]);
 
-  // ── Step 4 rescue: show "Select Egg" if player has no active egg ──────────
+  // ── Step 4 rescue: show "Select Egg" only if the confirmed active egg disappeared ──
   useEffect(() => {
     if (step !== 4 || location !== "/") { setShowRescue(false); return; }
-    if (targetRect !== null) { setShowRescue(false); return; }
-    // No egg-tap target found — show rescue button after 1s
-    const t = setTimeout(() => setShowRescue(true), 1000);
+    if (targetRect !== null || user?.activePetId) { setShowRescue(false); return; }
+    // Step 2 now waits for confirmed selection, so a missing activePetId here is
+    // a genuine recovery case. Give rendering/network state extra time anyway.
+    const t = setTimeout(() => setShowRescue(true), 3000);
     return () => clearTimeout(t);
-  }, [step, location, targetRect]);
+  }, [step, location, targetRect, user?.activePetId]);
 
   // ── Grant starter egg ─────────────────────────────────────────────────────
   const handleGrantEgg = async () => {
@@ -373,20 +400,24 @@ export default function BeginJourneyOverlay({ user }: Props) {
     const stepNum = step as number;
 
     if (stepNum === 2) {
-      // If the active pet is already an unhatched egg, don't click the toggle
-      // (clicking would deactivate it and break the rest of the flow).
-      const eggAlreadyActive = user?.activePetId && invCheck &&
-        (invCheck as any[]).some((i: any) => i.inventoryId === user!.activePetId && i.isHatched === false);
-      if (!eggAlreadyActive) {
-        // Click the first UNHATCHED egg's select button specifically
-        const firstEgg = (invCheck as any[] | undefined)?.find(i => i.isHatched === false && i.type === "pet");
-        const eggSel = firstEgg
-          ? `[data-testid="button-select-pet-${firstEgg.shopItemId}"]`
-          : STEP_SELECTORS[2];
-        if (eggSel) { (document.querySelector(eggSel) as HTMLElement | null)?.click(); }
-      }
-      bjSetStep(3);
-      setStep(3);
+      const firstEgg = (invCheck as any[] | undefined)?.find(i => i.isHatched === false && i.type === "pet");
+      if (!firstEgg) return;
+
+      // If an unhatched egg is already active, the confirmation effect above
+      // advances the tutorial. Never click ACTIVE again because that toggles it off.
+      const eggAlreadyActive = user?.activePetId === firstEgg.inventoryId ||
+        (invCheck as any[]).some((i: any) =>
+          i.inventoryId === user?.activePetId && i.isHatched === false && i.type === "pet"
+        );
+      if (eggAlreadyActive || step2Selecting) return;
+
+      // Start selection, but stay on step 2 until /api/auth/me confirms success.
+      // This prevents fast taps on "back home" from outrunning the PATCH request.
+      const eggSel = `[data-testid="button-select-pet-${firstEgg.shopItemId}"]`;
+      const eggButton = document.querySelector(eggSel) as HTMLElement | null;
+      if (!eggButton) return;
+      setStep2Selecting(true);
+      eggButton.click();
       return;
     }
 
@@ -419,7 +450,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
       bjSetStep(next);
       setStep(next);
     }
-  }, [step, navigate, completeTutorialMutation]);
+  }, [step, invCheck, user?.activePetId, step2Selecting, navigate, completeTutorialMutation]);
 
   // ── Render guard ──────────────────────────────────────────────────────────
   // Keep mounted during reward flash even after step → "done"
