@@ -11,7 +11,15 @@ test("active-pet acknowledgement is emitted only after a successful PATCH", () =
   assert.ok(successCheck >= 0 && dispatch > successCheck);
   assert.match(queryClient, /method\.toUpperCase\(\) === "PATCH"/);
   assert.match(queryClient, /url === "\/api\/user\/active-pet"/);
-  assert.match(queryClient, /detail: \{ activePetId: typeof activePetId === "string" \? activePetId : null \}/);
+  assert.match(queryClient, /const activePetId = typeof requestedActivePetId === "string" \? requestedActivePetId : null/);
+  assert.match(queryClient, /detail: \{ activePetId \}/);
+});
+
+test("auth cache is synchronized before the tutorial acknowledgement fires", () => {
+  const cacheUpdate = queryClient.indexOf("queryClient.setQueryData([\"/api/auth/me\"]");
+  const dispatch = queryClient.indexOf("window.dispatchEvent(new CustomEvent(ACTIVE_PET_UPDATE_CONFIRMED_EVENT");
+  assert.ok(cacheUpdate >= 0 && dispatch > cacheUpdate);
+  assert.match(queryClient, /current \? \{ \.\.\.current, activePetId \} : current/);
 });
 
 test("Begin Journey advances step 2 from the confirmed active-pet acknowledgement", () => {
