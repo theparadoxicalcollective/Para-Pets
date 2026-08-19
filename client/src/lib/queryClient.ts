@@ -7,6 +7,8 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+export const ACTIVE_PET_UPDATE_CONFIRMED_EVENT = "para_active_pet_update_confirmed";
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -20,6 +22,28 @@ export async function apiRequest(
   });
 
   await throwIfResNotOk(res);
+
+  // Publish an acknowledgement only after the server has accepted the active-pet
+  // update. Keep the auth cache in sync first so Begin Journey can safely move
+  // to its next screen without outrunning PetInventory's mutation onSuccess.
+  if (
+    typeof window !== "undefined" &&
+    method.toUpperCase() === "PATCH" &&
+    url === "/api/user/active-pet" &&
+    data &&
+    typeof data === "object" &&
+    "activePetId" in data
+  ) {
+    const requestedActivePetId = (data as { activePetId?: unknown }).activePetId;
+    const activePetId = typeof requestedActivePetId === "string" ? requestedActivePetId : null;
+    queryClient.setQueryData(["/api/auth/me"], (current: any) =>
+      current ? { ...current, activePetId } : current
+    );
+    window.dispatchEvent(new CustomEvent(ACTIVE_PET_UPDATE_CONFIRMED_EVENT, {
+      detail: { activePetId },
+    }));
+  }
+
   return res;
 }
 
