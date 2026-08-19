@@ -7,6 +7,8 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+export const ACTIVE_PET_UPDATE_CONFIRMED_EVENT = "para_active_pet_update_confirmed";
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -20,6 +22,24 @@ export async function apiRequest(
   });
 
   await throwIfResNotOk(res);
+
+  // Publish an acknowledgement only after the server has accepted the active-pet
+  // update. Begin Journey uses this to advance its Select Egg step from the
+  // authoritative mutation success instead of waiting on a second cache/render hop.
+  if (
+    typeof window !== "undefined" &&
+    method.toUpperCase() === "PATCH" &&
+    url === "/api/user/active-pet" &&
+    data &&
+    typeof data === "object" &&
+    "activePetId" in data
+  ) {
+    const activePetId = (data as { activePetId?: unknown }).activePetId;
+    window.dispatchEvent(new CustomEvent(ACTIVE_PET_UPDATE_CONFIRMED_EVENT, {
+      detail: { activePetId: typeof activePetId === "string" ? activePetId : null },
+    }));
+  }
+
   return res;
 }
 
