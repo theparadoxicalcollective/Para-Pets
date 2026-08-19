@@ -24,8 +24,8 @@ export async function apiRequest(
   await throwIfResNotOk(res);
 
   // Publish an acknowledgement only after the server has accepted the active-pet
-  // update. Begin Journey uses this to advance its Select Egg step from the
-  // authoritative mutation success instead of waiting on a second cache/render hop.
+  // update. Keep the auth cache in sync first so Begin Journey can safely move
+  // to its next screen without outrunning PetInventory's mutation onSuccess.
   if (
     typeof window !== "undefined" &&
     method.toUpperCase() === "PATCH" &&
@@ -34,9 +34,13 @@ export async function apiRequest(
     typeof data === "object" &&
     "activePetId" in data
   ) {
-    const activePetId = (data as { activePetId?: unknown }).activePetId;
+    const requestedActivePetId = (data as { activePetId?: unknown }).activePetId;
+    const activePetId = typeof requestedActivePetId === "string" ? requestedActivePetId : null;
+    queryClient.setQueryData(["/api/auth/me"], (current: any) =>
+      current ? { ...current, activePetId } : current
+    );
     window.dispatchEvent(new CustomEvent(ACTIVE_PET_UPDATE_CONFIRMED_EVENT, {
-      detail: { activePetId: typeof activePetId === "string" ? activePetId : null },
+      detail: { activePetId },
     }));
   }
 
