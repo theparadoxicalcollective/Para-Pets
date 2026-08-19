@@ -1,3 +1,5 @@
+import { ACTIVE_PET_UPDATE_CONFIRMED_EVENT } from "@/lib/queryClient";
+
 // Begin Journey — tutorial quest state management (localStorage-backed)
 // Step-5 fake-mode flag: true when egg is already hatch-ready so drag uses a pretend animation
 let _step5FakeMode = false;
@@ -36,4 +38,22 @@ export function bjGetStatus(): "not_started" | "active" | "done" {
   if (v === "done") return "done";
   const n = parseInt(v, 10);
   return !isNaN(n) && n >= 0 && n < TOTAL_STEPS ? "active" : "not_started";
+}
+
+// Step 2 is special: the visual overlay forwards the tap to PetInventory, but
+// progression must be tied to the server-confirmed active-pet PATCH rather than
+// to React Query propagation timing. The shared API layer emits this event only
+// after a successful response. A null activePetId is a deselection and must never
+// advance the tutorial.
+if (typeof window !== "undefined") {
+  const tutorialWindow = window as Window & { __paraBjActivePetAckInstalled?: boolean };
+  if (!tutorialWindow.__paraBjActivePetAckInstalled) {
+    tutorialWindow.__paraBjActivePetAckInstalled = true;
+    window.addEventListener(ACTIVE_PET_UPDATE_CONFIRMED_EVENT, (event: Event) => {
+      const activePetId = (event as CustomEvent<{ activePetId?: string | null }>).detail?.activePetId;
+      if (bjGetStep() === 2 && activePetId) {
+        bjSetStep(3);
+      }
+    });
+  }
 }
