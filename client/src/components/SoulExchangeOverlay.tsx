@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronRight, LockKeyhole, Sparkles } from "lucide-react";
 import { useLocation } from "wouter";
+import { currencyAssets } from "@/lib/currencyAssets";
 import { setNavHidden } from "@/lib/navVisibility";
 import seButton from "@assets/uploads/SE-Button.png";
 import seEssenceBalance from "@assets/uploads/SE-EssenceBal.png";
@@ -28,8 +29,8 @@ const BLOCK_UI: Record<SoulExchangeBlock, BlockUi> = {
   active: { label: "Active Pet", actionLabel: "Change Active Pet", route: "/pets" },
   accessories: { label: "Accessories Equipped", actionLabel: "Remove Accessories", route: "/equip-accessories" },
   market: { label: "Marketplace Listing", actionLabel: "Open Market", route: "/market" },
-  pvp: { label: "In PvP Team", actionLabel: "Manage PvP Team", route: "/pvp" },
-  house: { label: "In Pet House", actionLabel: "Open Pet House", route: "/pet-house" },
+  pvp: { label: "PvP Team", actionLabel: "Manage PvP Team", route: "/pvp" },
+  house: { label: "Pet House", actionLabel: "Open Pet House", route: "/pet-house" },
   clearing: { label: "Clearing Rewards", actionLabel: "Open Clearing", route: "/explore/elysian-bayou-clearing" },
   cave: { label: "Cave Progress" },
 };
@@ -60,6 +61,7 @@ export default function SoulExchangeOverlay({
   const [essence, setEssence] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [confirm, setConfirm] = useState(false);
+  const [blockedPet, setBlockedPet] = useState<Pet | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [gain, setGain] = useState<number | null>(null);
@@ -96,6 +98,8 @@ export default function SoulExchangeOverlay({
   const total = selected.reduce((sum, pet) => sum + pet.essenceValue, 0);
   const eligibleCount = pets.filter(pet => pet.eligible).length;
   const sceneBackground = seBackground || backgroundUrl || "";
+  const blockedPetType = blockedPet ? getBlockedType(blockedPet.unavailableReason) : null;
+  const blockedPetUi = blockedPetType ? BLOCK_UI[blockedPetType] : null;
 
   const toggle = (pet: Pet) => {
     if (!pet.eligible || busy) return;
@@ -110,6 +114,7 @@ export default function SoulExchangeOverlay({
     if (!block) return;
     const route = BLOCK_UI[block].route;
     if (!route) return;
+    setBlockedPet(null);
     onClose();
     navigate(route);
   };
@@ -177,7 +182,7 @@ export default function SoulExchangeOverlay({
               src={seLogo}
               alt=""
               aria-hidden="true"
-              className="h-12 w-12 object-contain drop-shadow-[0_0_14px_rgba(168,85,247,.48)] sm:h-16 sm:w-16"
+              className="h-14 w-14 object-contain drop-shadow-[0_0_16px_rgba(168,85,247,.52)] min-[390px]:h-16 min-[390px]:w-16 sm:h-[4.5rem] sm:w-[4.5rem]"
             />
             <h1 className="font-fantasy text-[clamp(1.8rem,7vw,3.2rem)] font-black uppercase leading-[.95] tracking-[.045em] text-[#f6ead1] drop-shadow-[0_3px_10px_#000]">
               SOUL EXCHANGE
@@ -190,15 +195,6 @@ export default function SoulExchangeOverlay({
             <p className="mt-1.5 text-[11px] font-medium leading-relaxed text-violet-50/80 drop-shadow-[0_2px_4px_#000] min-[390px]:text-xs sm:text-sm">
               Release companions into the violet beyond.
             </p>
-          </div>
-
-          <div className="mt-1 flex min-h-11 items-center justify-end pr-1 sm:min-h-14">
-            <div className="relative w-[150px] min-[390px]:w-[170px] sm:w-[195px]" aria-label={`${essence.toLocaleString()} Essence`}>
-              <img src={seEssenceBalance} alt="" aria-hidden="true" className="w-full object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,.65)]" />
-              <span className="absolute bottom-0 left-[37%] right-[7%] top-0 flex items-center justify-center pl-1 text-[clamp(.95rem,4vw,1.35rem)] font-black text-[#f8e8c3] drop-shadow-[0_2px_3px_#000]">
-                {essence.toLocaleString()}
-              </span>
-            </div>
           </div>
 
           {gain !== null && (
@@ -222,10 +218,18 @@ export default function SoulExchangeOverlay({
                   {eligibleCount} Eligible
                 </span>
               </div>
-              <p className="mt-1.5 text-[10px] leading-relaxed text-violet-50/[.72] min-[390px]:text-[11px] sm:text-sm">
-                Select eligible pets to release permanently for Essence.
-                <span className="block">Protected pets show what to change first.</span>
-              </p>
+
+              <div className="mt-1.5 flex items-center gap-2.5">
+                <p className="min-w-0 flex-1 text-[10px] leading-relaxed text-violet-50/[.72] min-[390px]:text-[11px] sm:text-sm">
+                  Select eligible pets to release permanently for Essence.
+                </p>
+                <div className="relative w-[112px] shrink-0 min-[390px]:w-[124px] sm:w-[148px]" aria-label={`${essence.toLocaleString()} Essence`}>
+                  <img src={seEssenceBalance} alt="" aria-hidden="true" className="w-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,.55)]" />
+                  <span className="absolute bottom-0 left-[37%] right-[7%] top-0 flex items-center justify-center pl-1 text-[clamp(.72rem,3.2vw,1rem)] font-black text-[#f8e8c3] drop-shadow-[0_2px_3px_#000]">
+                    {essence.toLocaleString()}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {error && (
@@ -237,8 +241,6 @@ export default function SoulExchangeOverlay({
             <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
               {displayPets.map(pet => {
                 const isSelected = selectedIds.has(pet.inventoryId);
-                const blockedType = pet.eligible ? null : getBlockedType(pet.unavailableReason);
-                const blockedUi = blockedType ? BLOCK_UI[blockedType] : null;
                 const displayName = pet.nickname || pet.name;
 
                 return (
@@ -266,6 +268,17 @@ export default function SoulExchangeOverlay({
                       </>
                     )}
 
+                    {!pet.eligible && (
+                      <button
+                        type="button"
+                        onClick={() => setBlockedPet(pet)}
+                        aria-label={`Why ${displayName} is locked for exchange`}
+                        className="absolute right-[8%] top-[7%] z-40 grid h-7 w-7 place-items-center rounded-full border border-[#d8b46e]/70 bg-[#120c1c]/92 text-[#efd698] shadow-[0_0_12px_rgba(168,85,247,.4)] transition active:scale-95 sm:h-8 sm:w-8"
+                      >
+                        <LockKeyhole size={14} strokeWidth={2.4} />
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       aria-pressed={isSelected}
@@ -273,44 +286,36 @@ export default function SoulExchangeOverlay({
                       data-soul-availability={pet.eligible ? "available" : "unavailable"}
                       disabled={!pet.eligible || busy}
                       onClick={() => toggle(pet)}
-                      className={`group absolute inset-x-[7%] top-[7%] z-20 flex h-[65%] min-w-0 flex-col items-center justify-start text-center outline-none transition duration-200 focus-visible:ring-2 focus-visible:ring-amber-200 ${
+                      className={`group absolute inset-x-[7%] top-[8%] z-20 flex h-[64%] min-w-0 flex-col items-center justify-start text-center outline-none transition duration-200 focus-visible:ring-2 focus-visible:ring-amber-200 ${
                         pet.eligible ? "active:scale-[.985]" : "cursor-not-allowed"
                       }`}
                     >
                       <img
                         src={pet.imageUrl || ""}
                         alt=""
-                        className={`mt-[2%] h-[55%] w-[75%] object-contain transition duration-200 ${
+                        className={`mt-[7%] h-[63%] w-[84%] object-contain transition duration-200 ${
                           pet.eligible
                             ? "drop-shadow-[0_5px_6px_rgba(0,0,0,.85)] group-hover:scale-[1.03]"
                             : "brightness-75 saturate-[.75] opacity-60 drop-shadow-[0_4px_5px_rgba(0,0,0,.78)]"
                         }`}
                       />
-                      <b className={`mt-[2%] block w-[92%] truncate font-fantasy text-[11px] font-black leading-tight drop-shadow-[0_2px_3px_#000] min-[390px]:text-xs sm:text-base ${pet.eligible ? "text-violet-50" : "text-violet-100/[.72]"}`}>
-                        {displayName}
-                      </b>
-                      <span className={`mt-0.5 block text-[10px] leading-none min-[390px]:text-[11px] sm:text-sm ${pet.eligible ? "text-amber-300" : "text-amber-200/55"}`} aria-label={`${pet.rarity} star rarity`}>
-                        {"★".repeat(pet.rarity)}
-                      </span>
-                      <span className={`mt-1 block text-[10px] font-black min-[390px]:text-[11px] sm:text-sm ${pet.eligible ? "text-violet-50" : "text-violet-100/[.65]"}`}>
-                        {pet.essenceValue.toLocaleString()} Essence
-                      </span>
+                      <div className="mt-[1%] flex min-h-[25%] w-[94%] flex-col items-center justify-center">
+                        <b className={`block w-full truncate font-fantasy text-[11px] font-black leading-tight drop-shadow-[0_2px_3px_#000] min-[390px]:text-xs sm:text-base ${pet.eligible ? "text-violet-50" : "text-violet-100/[.72]"}`}>
+                          {displayName}
+                        </b>
+                        <span className={`mt-0.5 block text-[10px] leading-none min-[390px]:text-[11px] sm:text-sm ${pet.eligible ? "text-amber-300" : "text-amber-200/55"}`} aria-label={`${pet.rarity} star rarity`}>
+                          {"★".repeat(pet.rarity)}
+                        </span>
+                      </div>
                     </button>
 
                     <div className="absolute inset-x-[9%] bottom-[13.5%] z-20 flex h-[8%] items-center justify-center text-center">
-                      {pet.eligible ? (
-                        <span className={`text-[8px] font-black uppercase tracking-[.1em] min-[390px]:text-[9px] sm:text-xs ${isSelected ? "text-amber-200" : "text-violet-100/[.72]"}`}>
-                          {isSelected ? "Selected" : "Available"}
-                        </span>
-                      ) : (
-                        <span className="flex items-center justify-center gap-1 text-[8px] font-black uppercase tracking-[.08em] text-[#d9bd82] min-[390px]:text-[9px] sm:text-xs" title={pet.unavailableReason || undefined}>
-                          <LockKeyhole size={11} className="shrink-0" />
-                          {blockedUi?.label || "Unavailable"}
-                        </span>
-                      )}
+                      <span className={`text-[9px] font-black min-[390px]:text-[10px] sm:text-sm ${pet.eligible ? "text-[#f0ddba]" : "text-violet-100/[.72]"}`}>
+                        {pet.essenceValue.toLocaleString()} Essence
+                      </span>
                     </div>
 
-                    {pet.eligible ? (
+                    {pet.eligible && (
                       <button
                         type="button"
                         disabled={busy}
@@ -319,20 +324,6 @@ export default function SoulExchangeOverlay({
                       >
                         {isSelected ? "Selected" : "Select Pet"}
                       </button>
-                    ) : blockedUi?.route && blockedUi.actionLabel ? (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => openBlockAction(blockedType)}
-                        className="absolute bottom-[3.4%] left-[10%] right-[10%] z-30 flex h-[9.5%] items-center justify-center gap-0.5 truncate px-1 text-[8px] font-black text-violet-50 drop-shadow-[0_2px_3px_#000] transition active:scale-[.97] disabled:opacity-50 min-[390px]:text-[9px] sm:text-xs"
-                      >
-                        <span className="truncate">{blockedUi.actionLabel}</span>
-                        <ChevronRight size={12} className="shrink-0" />
-                      </button>
-                    ) : (
-                      <p className="absolute bottom-[3.5%] left-[10%] right-[10%] z-30 line-clamp-2 text-center text-[7px] leading-tight text-violet-100/[.58] min-[390px]:text-[8px] sm:text-[10px]">
-                        {pet.unavailableReason}
-                      </p>
                     )}
                   </article>
                 );
@@ -353,7 +344,7 @@ export default function SoulExchangeOverlay({
 
         <footer className="flex-none px-3 pb-1 sm:px-5">
           <div className="relative mx-auto flex min-h-[72px] w-full max-w-[700px] items-center gap-2 overflow-hidden rounded-xl border border-[#b98b49]/70 bg-[#070811]/95 px-2.5 py-2 shadow-[0_-8px_26px_rgba(0,0,0,.72),inset_0_0_18px_rgba(83,45,116,.12)] sm:min-h-[88px] sm:px-4">
-            <img src={seLogo} alt="" aria-hidden="true" className="h-11 w-11 shrink-0 object-contain opacity-90 drop-shadow-[0_0_12px_rgba(168,85,247,.38)] sm:h-14 sm:w-14" />
+            <img src={currencyAssets.essenceToken} alt="Essence" className="h-11 w-11 shrink-0 object-contain drop-shadow-[0_0_12px_rgba(74,222,128,.28)] sm:h-14 sm:w-14" />
             <div className="min-w-0 flex-1">
               <b className="block text-[11px] font-black text-violet-50 min-[390px]:text-xs sm:text-base">
                 {selected.length} Selected
@@ -370,13 +361,60 @@ export default function SoulExchangeOverlay({
               className="relative aspect-[3/1] w-[44%] max-w-[250px] shrink-0 transition active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-45"
             >
               <img src={seButton} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-fill" />
-              <span className="relative z-10 px-2 text-[9px] font-black uppercase tracking-[.025em] text-[#f1e5d0] drop-shadow-[0_2px_3px_#000] min-[390px]:text-[10px] sm:text-sm">
+              <span className="relative z-10 -translate-y-[2px] px-2 text-[9px] font-black uppercase tracking-[.025em] text-[#f1e5d0] drop-shadow-[0_2px_3px_#000] min-[390px]:text-[10px] sm:text-sm">
                 Exchange Selected
               </span>
             </button>
           </div>
         </footer>
       </main>
+
+      {blockedPet && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="soul-locked-title"
+          className="absolute inset-0 z-[135] flex items-center justify-center bg-black/82 p-4 backdrop-blur-sm"
+        >
+          <div className="w-full max-w-xs rounded-2xl border border-[#c69a54]/70 bg-[radial-gradient(circle_at_top,#2c123d,#090711_64%)] p-5 text-center shadow-[0_0_40px_rgba(109,40,217,.35)]">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-[#d8b46e]/70 bg-[#120c1c] text-[#efd698] shadow-[0_0_18px_rgba(168,85,247,.32)]">
+              <LockKeyhole size={22} />
+            </div>
+            <h2 id="soul-locked-title" className="mt-3 font-fantasy text-xl font-black text-[#ead3a3]">
+              Pet Locked for Exchange
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-violet-100/80">
+              <b className="text-violet-50">{blockedPet.nickname || blockedPet.name}</b> must be removed from
+              <span className="mt-2 block font-black uppercase tracking-[.06em] text-[#e7c987]">
+                {blockedPetUi?.label || blockedPet.unavailableReason || "its current protected use"}
+              </span>
+              before it can be exchanged.
+            </p>
+
+            <div className="mt-5 grid gap-2">
+              {blockedPetUi?.route && blockedPetUi.actionLabel && (
+                <button
+                  type="button"
+                  onClick={() => openBlockAction(blockedPetType)}
+                  className="relative min-h-12 overflow-hidden rounded-xl font-black text-[#f4e7cf] transition active:scale-[.98]"
+                >
+                  <img src={seButton} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-fill" />
+                  <span className="relative z-10 inline-flex -translate-y-[1px] items-center gap-1">
+                    {blockedPetUi.actionLabel}<ChevronRight size={15} />
+                  </span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setBlockedPet(null)}
+                className="min-h-10 rounded-xl border border-violet-200/25 bg-black/30 text-sm font-bold text-violet-100 transition active:scale-[.98]"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirm && selected.length > 0 && (
         <div
@@ -386,7 +424,7 @@ export default function SoulExchangeOverlay({
           className="absolute inset-0 z-[140] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
         >
           <div className="w-full max-w-sm rounded-2xl border border-[#c69a54]/70 bg-[radial-gradient(circle_at_top,#301044,#090711_62%)] p-5 text-center shadow-[0_0_42px_rgba(109,40,217,.38)]">
-            <img src={seLogo} alt="" aria-hidden="true" className="mx-auto mb-1 h-14 w-14 object-contain" />
+            <img src={currencyAssets.essenceToken} alt="Essence" className="mx-auto mb-1 h-14 w-14 object-contain" />
             <h2 id="soul-confirm-title" className="font-fantasy text-xl font-black text-[#ead3a3]">
               Release {selected.length} {selected.length === 1 ? "pet" : "pets"} to the Soul Exchange?
             </h2>
@@ -420,7 +458,7 @@ export default function SoulExchangeOverlay({
                 className="relative min-h-12 overflow-hidden rounded-xl font-black text-[#f4e7cf] disabled:opacity-50"
               >
                 <img src={seButton} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-fill" />
-                <span className="relative z-10">{busy ? "Exchanging…" : "Exchange Pets"}</span>
+                <span className="relative z-10 -translate-y-[1px]">{busy ? "Exchanging…" : "Exchange Pets"}</span>
               </button>
             </div>
           </div>
