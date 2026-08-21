@@ -1,0 +1,29 @@
+/* Soul Exchange card presentation tweaks.
+ * Keep these visual-only so selection, protected-pet locks, and exchange logic
+ * remain owned by SoulExchangeOverlay.tsx.
+ */
+
+/* The full upper card remains the selection target. Give the portrait/name
+ * stack a little more vertical room so the identity block sits naturally in
+ * the blank band beneath the circular portrait. */
+[data-soul-card] > [data-soul-availability] {
+  height: 70% !important;
+}
+
+[data-soul-card] > [data-soul-availability] > img {
+  margin-top: 7% !important;
+  width: 84% !important;
+  height: 60% !important;
+}
+
+[data-soul-card] > [data-soul-availability] > div {
+  margin-top: 7% !important;
+  min-height: 21% !important;
+}
+
+/* The entire card body already selects an eligible pet and the gold check
+ * communicates the selected state. Hide the redundant lower Select Pet /
+ * Selected label so the illustrated card art can breathe. */
+[data-soul-card="available"] > button:last-of-type {
+  display: none !important;
+}
