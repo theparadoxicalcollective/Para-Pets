@@ -21,9 +21,27 @@
   min-height: 21% !important;
 }
 
+/* Put rarity first, then the pet name, within the illustrated identity band. */
+[data-soul-card] > [data-soul-availability] > div > span {
+  order: 1;
+  margin-top: 0 !important;
+}
+
+[data-soul-card] > [data-soul-availability] > div > b {
+  order: 2;
+  margin-top: 2px;
+}
+
 /* The entire card body already selects an eligible pet and the gold check
  * communicates the selected state. Hide the redundant lower Select Pet /
  * Selected label so the illustrated card art can breathe. */
 [data-soul-card="available"] > button:last-of-type {
   display: none !important;
+}
+
+/* The uploaded SE button art sits slightly low around its type. Move only the
+ * Soul Exchange footer label three pixels farther upward than the existing
+ * -2px utility without changing the button artwork or hit target. */
+main:has(.soul-exchange-zone) > footer button > img + span {
+  transform: translateY(-5px) !important;
 }
