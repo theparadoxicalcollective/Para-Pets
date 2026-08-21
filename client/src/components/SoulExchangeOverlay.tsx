@@ -1,11 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronRight, LockKeyhole, Sparkles, X } from "lucide-react";
+import { Check, ChevronRight, LockKeyhole, Sparkles } from "lucide-react";
 import { useLocation } from "wouter";
-import { currencyAssets } from "@/lib/currencyAssets";
+import { setNavHidden } from "@/lib/navVisibility";
+import seButton from "@assets/uploads/SE-Button.png";
+import seEssenceBalance from "@assets/uploads/SE-EssenceBal.png";
+import seLogo from "@assets/uploads/SE-Logo.png";
+import sePetCard from "@assets/uploads/SE-PetCard.png";
+import seClose from "@assets/uploads/SE-Close.png";
+import seBackground from "@assets/uploads/SEBG1?url";
 
-type Pet = { inventoryId: string; name: string; nickname?: string | null; imageUrl?: string | null; rarity: number; essenceValue: number; eligible: boolean; unavailableReason?: string | null };
+type Pet = {
+  inventoryId: string;
+  name: string;
+  nickname?: string | null;
+  imageUrl?: string | null;
+  rarity: number;
+  essenceValue: number;
+  eligible: boolean;
+  unavailableReason?: string | null;
+};
+
 type SoulExchangeBlock = "egg" | "active" | "accessories" | "market" | "pvp" | "house" | "clearing" | "cave";
-
 type BlockUi = { label: string; actionLabel?: string; route?: string };
 
 const BLOCK_UI: Record<SoulExchangeBlock, BlockUi> = {
@@ -33,7 +48,13 @@ function getBlockedType(reason?: string | null): SoulExchangeBlock | null {
   return null;
 }
 
-export default function SoulExchangeOverlay({ backgroundUrl, onClose }: { backgroundUrl: string | null; onClose: () => void }) {
+export default function SoulExchangeOverlay({
+  backgroundUrl,
+  onClose,
+}: {
+  backgroundUrl: string | null;
+  onClose: () => void;
+}) {
   const [, navigate] = useLocation();
   const [pets, setPets] = useState<Pet[]>([]);
   const [essence, setEssence] = useState(0);
@@ -46,13 +67,25 @@ export default function SoulExchangeOverlay({ backgroundUrl, onClose }: { backgr
   const actionId = useRef<string | null>(null);
 
   useEffect(() => {
+    setNavHidden(true);
+    return () => setNavHidden(false);
+  }, []);
+
+  useEffect(() => {
     let active = true;
-    fetch("/api/soul-exchange/pets", { credentials: "include" }).then(async response => {
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.message || "Could not hear the waiting souls.");
-      if (active) { setPets(body.pets); setEssence(body.essence); }
-    }).catch(reason => active && setError(reason instanceof Error ? reason.message : "Could not hear the waiting souls."));
-    return () => { active = false; };
+    fetch("/api/soul-exchange/pets", { credentials: "include" })
+      .then(async response => {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.message || "Could not hear the waiting souls.");
+        if (active) {
+          setPets(body.pets);
+          setEssence(body.essence);
+        }
+      })
+      .catch(reason => active && setError(reason instanceof Error ? reason.message : "Could not hear the waiting souls."));
+    return () => {
+      active = false;
+    };
   }, []);
 
   const displayPets = useMemo(
@@ -62,6 +95,7 @@ export default function SoulExchangeOverlay({ backgroundUrl, onClose }: { backgr
   const selected = useMemo(() => pets.filter(pet => selectedIds.has(pet.inventoryId)), [pets, selectedIds]);
   const total = selected.reduce((sum, pet) => sum + pet.essenceValue, 0);
   const eligibleCount = pets.filter(pet => pet.eligible).length;
+  const sceneBackground = seBackground || backgroundUrl || "";
 
   const toggle = (pet: Pet) => {
     if (!pet.eligible || busy) return;
@@ -82,141 +116,350 @@ export default function SoulExchangeOverlay({ backgroundUrl, onClose }: { backgr
 
   const exchange = async () => {
     if (!selected.length || busy) return;
-    setBusy(true); setError("");
+    setBusy(true);
+    setError("");
     actionId.current ||= crypto.randomUUID();
+
     try {
       const response = await fetch("/api/soul-exchange/exchange", {
-        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ petInventoryIds: selected.map(pet => pet.inventoryId), exchangeActionId: actionId.current }),
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          petInventoryIds: selected.map(pet => pet.inventoryId),
+          exchangeActionId: actionId.current,
+        }),
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.message || "The ritual could not be completed.");
+
       const exchanged = new Set<string>(body.exchangedPets.map((pet: Pet) => pet.inventoryId));
-      setConfirm(false); setGain(body.essenceAwarded); setEssence(body.newEssenceBalance); setPulse(true);
+      setConfirm(false);
+      setGain(body.essenceAwarded);
+      setEssence(body.newEssenceBalance);
+      setPulse(true);
       setPets(current => current.filter(pet => !exchanged.has(pet.inventoryId)));
-      setSelectedIds(new Set()); actionId.current = null;
+      setSelectedIds(new Set());
+      actionId.current = null;
       window.setTimeout(() => setPulse(false), 700);
       window.setTimeout(() => setGain(null), 2200);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The ritual failed safely.");
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   };
 
-  return <div className="fixed inset-0 z-50 mx-auto max-w-3xl overflow-hidden bg-[#07020f] text-white">
-    {backgroundUrl && <>
-      <img aria-hidden="true" src={backgroundUrl} className="absolute inset-0 h-full w-full scale-110 object-cover opacity-30 blur-xl" />
-      <img src={backgroundUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-    </>}
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_24%,rgba(126,34,206,.04),rgba(7,2,15,.2)_38%,rgba(7,2,15,.94)_100%)]" />
-    <div className="absolute inset-x-0 bottom-0 h-[68%] bg-gradient-to-t from-[#07020f] via-[#0c0617]/95 to-[#0c0617]/35" />
+  return (
+    <div className="fixed inset-0 z-[120] overflow-hidden bg-[#05030b] text-white">
+      <img
+        src={sceneBackground}
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full object-cover object-center"
+      />
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(2,2,8,.18)_0%,rgba(3,2,10,.12)_32%,rgba(5,3,12,.7)_72%,rgba(3,2,8,.96)_100%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_34%,rgba(120,48,210,.08),transparent_42%)]" />
 
-    <main className="relative z-10 flex h-full min-w-0 flex-col overflow-hidden pb-[max(8px,env(safe-area-inset-bottom))] pt-[max(8px,env(safe-area-inset-top))]">
-      <header className="flex-none bg-gradient-to-b from-black/75 via-black/45 to-transparent px-4 pb-2 pt-1 sm:px-6">
-        <div className="flex items-start gap-3">
-          <h1 className="min-w-0 flex-1 font-fantasy text-[25px] font-black tracking-[.055em] text-violet-50 drop-shadow-[0_2px_8px_#000] sm:text-3xl">The Soul Exchange</h1>
-          <button onClick={onClose} aria-label="Close Soul Exchange" className="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-full border border-violet-100/45 bg-black/60 shadow-lg backdrop-blur-sm transition active:scale-95"><X /></button>
-        </div>
-        <div className="mt-1 flex items-center gap-3">
-          <p className="min-w-0 flex-1 text-xs font-medium leading-relaxed text-violet-50/90 drop-shadow-[0_1px_4px_#000] min-[390px]:text-sm">Release companions into the violet beyond.</p>
-          <span className="flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-amber-200/35 bg-black/60 px-2.5 font-black text-amber-100 shadow-[0_0_18px_rgba(139,92,246,.22)] backdrop-blur-sm">
-            <img src={currencyAssets.essenceToken} alt="Essence" className="h-7 w-7" />{essence.toLocaleString()}
-          </span>
-        </div>
-      </header>
+      <main className="relative z-10 mx-auto flex h-full w-full max-w-3xl min-w-0 flex-col overflow-hidden pb-[max(8px,env(safe-area-inset-bottom))] pt-[max(8px,env(safe-area-inset-top))]">
+        <header className="relative flex-none px-3 pb-1 pt-1 sm:px-5">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close Soul Exchange"
+            className="absolute right-3 top-1 z-30 h-12 w-12 transition active:scale-95 sm:right-5 sm:h-14 sm:w-14"
+          >
+            <img src={seClose} alt="" aria-hidden="true" className="h-full w-full object-contain drop-shadow-[0_3px_10px_rgba(0,0,0,.7)]" />
+          </button>
 
-      <section aria-label="Magical Soul Exchange area" className={`soul-exchange-zone relative mx-auto flex h-20 w-36 flex-none items-center justify-center sm:h-28 sm:w-48 ${pulse ? "soul-exchange-success" : ""}`}>
-        <div aria-hidden="true" className="absolute inset-x-2 bottom-0 h-10 rounded-[50%] bg-violet-500/15 blur-2xl" />
-        <img src="/world-assets/worlds/haunted_woods/soul-exchange-portal-v3.svg" alt="" className="relative h-full w-full object-contain opacity-90 drop-shadow-[0_0_18px_rgba(168,85,247,.5)]" />
-        {gain !== null && <b aria-live="polite" className="absolute rounded-full border border-violet-100/60 bg-violet-100 px-4 py-2 text-violet-950 shadow-[0_0_25px_#c4b5fd]">+{gain.toLocaleString()} Essence</b>}
-      </section>
-
-      <section className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 pb-3 sm:px-5">
-        <div className="sticky top-0 z-20 mb-3 rounded-xl border border-violet-300/20 bg-[#0b0613]/92 px-3 py-2.5 shadow-[0_8px_22px_rgba(7,2,15,.55)] backdrop-blur-md">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-fantasy text-base font-bold tracking-wide text-violet-50 sm:text-lg">Choose Hatched Pets</h2>
-            <span className="shrink-0 rounded-full border border-violet-300/20 bg-violet-400/10 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-violet-100">{eligibleCount} Eligible</span>
+          <div className={`soul-exchange-zone mx-auto flex w-[84%] max-w-xl flex-col items-center text-center ${pulse ? "soul-exchange-success" : ""}`}>
+            <img
+              src={seLogo}
+              alt=""
+              aria-hidden="true"
+              className="h-12 w-12 object-contain drop-shadow-[0_0_14px_rgba(168,85,247,.48)] sm:h-16 sm:w-16"
+            />
+            <h1 className="font-fantasy text-[clamp(1.8rem,7vw,3.2rem)] font-black uppercase leading-[.95] tracking-[.045em] text-[#f6ead1] drop-shadow-[0_3px_10px_#000]">
+              SOUL EXCHANGE
+            </h1>
+            <div aria-hidden="true" className="mt-1.5 flex w-[70%] items-center gap-2">
+              <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#c79b50] to-[#c79b50]" />
+              <span className="h-2 w-2 rotate-45 border border-[#d5aa62] bg-violet-600 shadow-[0_0_10px_#a855f7]" />
+              <span className="h-px flex-1 bg-gradient-to-l from-transparent via-[#c79b50] to-[#c79b50]" />
+            </div>
+            <p className="mt-1.5 text-[11px] font-medium leading-relaxed text-violet-50/80 drop-shadow-[0_2px_4px_#000] min-[390px]:text-xs sm:text-sm">
+              Release companions into the violet beyond.
+            </p>
           </div>
-          <p className="mt-1 text-xs leading-relaxed text-violet-100/80">Select eligible pets to release permanently for Essence. Protected pets show what to change first.</p>
-        </div>
-        {error && <p role="alert" className="mb-3 rounded-lg border border-rose-400/30 bg-red-950/90 p-2.5 text-sm text-red-100">{error}</p>}
 
-        <div className="grid grid-cols-2 gap-2.5 min-[520px]:grid-cols-3 sm:gap-4">
-          {displayPets.map(pet => {
-            const isSelected = selectedIds.has(pet.inventoryId);
-            const blockedType = pet.eligible ? null : getBlockedType(pet.unavailableReason);
-            const blockedUi = blockedType ? BLOCK_UI[blockedType] : null;
-            const displayName = pet.nickname || pet.name;
-            return <article
-              key={pet.inventoryId}
-              data-soul-card={pet.eligible ? "available" : "unavailable"}
-              className={`relative min-w-0 overflow-hidden rounded-2xl border backdrop-blur-[2px] transition duration-200 ${isSelected ? "border-amber-300/80 bg-[#171022]/92 shadow-[0_0_22px_rgba(251,191,36,.24),inset_0_0_18px_rgba(167,139,250,.13)]" : pet.eligible ? "border-violet-300/25 bg-[#100919]/82 shadow-[0_7px_18px_rgba(0,0,0,.3)]" : "border-violet-200/15 bg-[#09070d]/86 shadow-[0_6px_16px_rgba(0,0,0,.35)]"}`}
+          <div className="mt-1 flex min-h-11 items-center justify-end pr-1 sm:min-h-14">
+            <div className="relative w-[150px] min-[390px]:w-[170px] sm:w-[195px]" aria-label={`${essence.toLocaleString()} Essence`}>
+              <img src={seEssenceBalance} alt="" aria-hidden="true" className="w-full object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,.65)]" />
+              <span className="absolute bottom-0 left-[37%] right-[7%] top-0 flex items-center justify-center pl-1 text-[clamp(.95rem,4vw,1.35rem)] font-black text-[#f8e8c3] drop-shadow-[0_2px_3px_#000]">
+                {essence.toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          {gain !== null && (
+            <b
+              aria-live="polite"
+              className="absolute bottom-0 left-1/2 z-30 -translate-x-1/2 rounded-full border border-violet-200/60 bg-[#171020]/95 px-4 py-1.5 text-xs text-violet-50 shadow-[0_0_24px_rgba(168,85,247,.55)]"
             >
-              {isSelected && <>
-                <span aria-hidden="true" className="soul-selected-mote left-[24%] top-[46%]" />
-                <span aria-hidden="true" className="soul-selected-mote left-[52%] top-[41%] [animation-delay:.45s]" />
-                <span aria-hidden="true" className="soul-selected-mote left-[76%] top-[49%] [animation-delay:.9s]" />
-              </>}
+              +{gain.toLocaleString()} Essence
+            </b>
+          )}
+        </header>
+
+        <section className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 pb-3 sm:px-5">
+          <div className="mx-auto w-full max-w-[700px] rounded-2xl border border-[#b88b48]/70 bg-[#080912]/95 p-3 shadow-[0_12px_34px_rgba(0,0,0,.6),0_0_22px_rgba(88,28,135,.18),inset_0_0_26px_rgba(75,34,110,.11)] backdrop-blur-[2px] sm:p-4">
+            <div className="mb-3">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="min-w-0 font-fantasy text-[15px] font-black uppercase tracking-[.035em] text-[#e4c58b] min-[390px]:text-base sm:text-xl">
+                  CHOOSE HATCHED PETS
+                </h2>
+                <span className="shrink-0 rounded-full border border-violet-400/55 bg-[#24113a]/85 px-2.5 py-1 text-[9px] font-black uppercase tracking-[.08em] text-violet-100 shadow-[inset_0_0_12px_rgba(139,92,246,.18)] min-[390px]:text-[10px] sm:text-xs">
+                  {eligibleCount} Eligible
+                </span>
+              </div>
+              <p className="mt-1.5 text-[10px] leading-relaxed text-violet-50/[.72] min-[390px]:text-[11px] sm:text-sm">
+                Select eligible pets to release permanently for Essence.
+                <span className="block">Protected pets show what to change first.</span>
+              </p>
+            </div>
+
+            {error && (
+              <p role="alert" className="mb-3 rounded-lg border border-rose-400/30 bg-red-950/90 p-2.5 text-sm text-red-100">
+                {error}
+              </p>
+            )}
+
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
+              {displayPets.map(pet => {
+                const isSelected = selectedIds.has(pet.inventoryId);
+                const blockedType = pet.eligible ? null : getBlockedType(pet.unavailableReason);
+                const blockedUi = blockedType ? BLOCK_UI[blockedType] : null;
+                const displayName = pet.nickname || pet.name;
+
+                return (
+                  <article
+                    key={pet.inventoryId}
+                    data-soul-card={pet.eligible ? "available" : "unavailable"}
+                    className={`relative aspect-[3/4] min-w-0 overflow-hidden rounded-2xl border backdrop-blur transition duration-200 ${
+                      isSelected
+                        ? "border-amber-300/80 shadow-[0_0_24px_rgba(251,191,36,.26)]"
+                        : pet.eligible
+                          ? "border-violet-300/10 shadow-[0_7px_18px_rgba(0,0,0,.34)]"
+                          : "border-violet-200/5 shadow-[0_6px_16px_rgba(0,0,0,.42)]"
+                    }`}
+                  >
+                    <img src={sePetCard} alt="" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full object-fill" />
+
+                    {isSelected && (
+                      <>
+                        <span aria-hidden="true" className="soul-selected-mote left-[24%] top-[46%]" />
+                        <span aria-hidden="true" className="soul-selected-mote left-[52%] top-[41%] [animation-delay:.45s]" />
+                        <span aria-hidden="true" className="soul-selected-mote left-[76%] top-[49%] [animation-delay:.9s]" />
+                        <span className="absolute right-[8%] top-[7%] z-30 grid h-6 w-6 place-items-center rounded-full border border-amber-100/80 bg-amber-300 text-violet-950 shadow-[0_0_14px_#fcd34d] sm:h-7 sm:w-7">
+                          <Check size={16} strokeWidth={3} />
+                        </span>
+                      </>
+                    )}
+
+                    <button
+                      type="button"
+                      aria-pressed={isSelected}
+                      aria-label={`${displayName}, ${pet.rarity} star rarity, ${pet.essenceValue.toLocaleString()} Essence${pet.eligible ? "" : `. ${pet.unavailableReason || "Unavailable"}`}`}
+                      data-soul-availability={pet.eligible ? "available" : "unavailable"}
+                      disabled={!pet.eligible || busy}
+                      onClick={() => toggle(pet)}
+                      className={`group absolute inset-x-[7%] top-[7%] z-20 flex h-[65%] min-w-0 flex-col items-center justify-start text-center outline-none transition duration-200 focus-visible:ring-2 focus-visible:ring-amber-200 ${
+                        pet.eligible ? "active:scale-[.985]" : "cursor-not-allowed"
+                      }`}
+                    >
+                      <img
+                        src={pet.imageUrl || ""}
+                        alt=""
+                        className={`mt-[2%] h-[55%] w-[75%] object-contain transition duration-200 ${
+                          pet.eligible
+                            ? "drop-shadow-[0_5px_6px_rgba(0,0,0,.85)] group-hover:scale-[1.03]"
+                            : "brightness-75 saturate-[.75] opacity-60 drop-shadow-[0_4px_5px_rgba(0,0,0,.78)]"
+                        }`}
+                      />
+                      <b className={`mt-[2%] block w-[92%] truncate font-fantasy text-[11px] font-black leading-tight drop-shadow-[0_2px_3px_#000] min-[390px]:text-xs sm:text-base ${pet.eligible ? "text-violet-50" : "text-violet-100/[.72]"}`}>
+                        {displayName}
+                      </b>
+                      <span className={`mt-0.5 block text-[10px] leading-none min-[390px]:text-[11px] sm:text-sm ${pet.eligible ? "text-amber-300" : "text-amber-200/55"}`} aria-label={`${pet.rarity} star rarity`}>
+                        {"★".repeat(pet.rarity)}
+                      </span>
+                      <span className={`mt-1 block text-[10px] font-black min-[390px]:text-[11px] sm:text-sm ${pet.eligible ? "text-violet-50" : "text-violet-100/[.65]"}`}>
+                        {pet.essenceValue.toLocaleString()} Essence
+                      </span>
+                    </button>
+
+                    <div className="absolute inset-x-[9%] bottom-[13.5%] z-20 flex h-[8%] items-center justify-center text-center">
+                      {pet.eligible ? (
+                        <span className={`text-[8px] font-black uppercase tracking-[.1em] min-[390px]:text-[9px] sm:text-xs ${isSelected ? "text-amber-200" : "text-violet-100/[.72]"}`}>
+                          {isSelected ? "Selected" : "Available"}
+                        </span>
+                      ) : (
+                        <span className="flex items-center justify-center gap-1 text-[8px] font-black uppercase tracking-[.08em] text-[#d9bd82] min-[390px]:text-[9px] sm:text-xs" title={pet.unavailableReason || undefined}>
+                          <LockKeyhole size={11} className="shrink-0" />
+                          {blockedUi?.label || "Unavailable"}
+                        </span>
+                      )}
+                    </div>
+
+                    {pet.eligible ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => toggle(pet)}
+                        className="absolute bottom-[3.4%] left-[12%] right-[12%] z-30 flex h-[9.5%] items-center justify-center text-[9px] font-black text-violet-50 drop-shadow-[0_2px_3px_#000] transition active:scale-[.97] disabled:opacity-50 min-[390px]:text-[10px] sm:text-sm"
+                      >
+                        {isSelected ? "Selected" : "Select Pet"}
+                      </button>
+                    ) : blockedUi?.route && blockedUi.actionLabel ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => openBlockAction(blockedType)}
+                        className="absolute bottom-[3.4%] left-[10%] right-[10%] z-30 flex h-[9.5%] items-center justify-center gap-0.5 truncate px-1 text-[8px] font-black text-violet-50 drop-shadow-[0_2px_3px_#000] transition active:scale-[.97] disabled:opacity-50 min-[390px]:text-[9px] sm:text-xs"
+                      >
+                        <span className="truncate">{blockedUi.actionLabel}</span>
+                        <ChevronRight size={12} className="shrink-0" />
+                      </button>
+                    ) : (
+                      <p className="absolute bottom-[3.5%] left-[10%] right-[10%] z-30 line-clamp-2 text-center text-[7px] leading-tight text-violet-100/[.58] min-[390px]:text-[8px] sm:text-[10px]">
+                        {pet.unavailableReason}
+                      </p>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+
+            {!pets.length && (
+              <div className="mx-auto my-6 max-w-sm rounded-2xl border border-violet-300/15 bg-black/55 px-5 py-8 text-center text-violet-100 backdrop-blur-sm">
+                <Sparkles className="mx-auto mb-3 text-violet-300" />
+                <b>No souls are ready for exchange.</b>
+                <p className="mx-auto mt-2 text-sm leading-relaxed text-violet-100/70">
+                  Hatched pets that are not equipped, active, listed, or in use will appear here.
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <footer className="flex-none px-3 pb-1 sm:px-5">
+          <div className="relative mx-auto flex min-h-[72px] w-full max-w-[700px] items-center gap-2 overflow-hidden rounded-xl border border-[#b98b49]/70 bg-[#070811]/95 px-2.5 py-2 shadow-[0_-8px_26px_rgba(0,0,0,.72),inset_0_0_18px_rgba(83,45,116,.12)] sm:min-h-[88px] sm:px-4">
+            <img src={seLogo} alt="" aria-hidden="true" className="h-11 w-11 shrink-0 object-contain opacity-90 drop-shadow-[0_0_12px_rgba(168,85,247,.38)] sm:h-14 sm:w-14" />
+            <div className="min-w-0 flex-1">
+              <b className="block text-[11px] font-black text-violet-50 min-[390px]:text-xs sm:text-base">
+                {selected.length} Selected
+              </b>
+              <span className={`mt-0.5 block text-[11px] font-black min-[390px]:text-xs sm:text-base ${selected.length ? "text-[#e8c77f]" : "text-violet-200/55"}`}>
+                {total.toLocaleString()} Essence
+              </span>
+            </div>
+
+            <button
+              type="button"
+              disabled={!selected.length || busy}
+              onClick={() => setConfirm(true)}
+              className="relative aspect-[3/1] w-[44%] max-w-[250px] shrink-0 transition active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <img src={seButton} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-fill" />
+              <span className="relative z-10 px-2 text-[9px] font-black uppercase tracking-[.025em] text-[#f1e5d0] drop-shadow-[0_2px_3px_#000] min-[390px]:text-[10px] sm:text-sm">
+                Exchange Selected
+              </span>
+            </button>
+          </div>
+        </footer>
+      </main>
+
+      {confirm && selected.length > 0 && (
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="soul-confirm-title"
+          className="absolute inset-0 z-[140] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-[#c69a54]/70 bg-[radial-gradient(circle_at_top,#301044,#090711_62%)] p-5 text-center shadow-[0_0_42px_rgba(109,40,217,.38)]">
+            <img src={seLogo} alt="" aria-hidden="true" className="mx-auto mb-1 h-14 w-14 object-contain" />
+            <h2 id="soul-confirm-title" className="font-fantasy text-xl font-black text-[#ead3a3]">
+              Release {selected.length} {selected.length === 1 ? "pet" : "pets"} to the Soul Exchange?
+            </h2>
+            <p className="my-3 text-sm font-semibold text-rose-100">
+              This is permanent. These pets will leave your inventory.
+            </p>
+            <ul className="mx-auto mb-3 max-h-24 overflow-y-auto text-sm text-violet-200">
+              {selected.map(pet => (
+                <li key={pet.inventoryId}>
+                  {pet.nickname || pet.name} · {pet.rarity}★
+                </li>
+              ))}
+            </ul>
+            <p className="text-sm text-violet-100">
+              You will receive:
+              <b className="mt-1 block text-2xl text-amber-300">{total.toLocaleString()} Essence</b>
+            </p>
+            <div className="mt-5 grid grid-cols-2 gap-3">
               <button
                 type="button"
-                aria-pressed={isSelected}
-                aria-label={`${displayName}, ${pet.rarity} star rarity, ${pet.essenceValue.toLocaleString()} Essence${pet.eligible ? "" : `. ${pet.unavailableReason || "Unavailable"}`}`}
-                data-soul-availability={pet.eligible ? "available" : "unavailable"}
-                disabled={!pet.eligible || busy}
-                onClick={() => toggle(pet)}
-                className={`group relative flex w-full min-w-0 flex-col items-center px-2 pb-2.5 pt-3 text-center outline-none transition duration-200 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-200 ${pet.eligible ? "active:scale-[.98]" : "cursor-not-allowed"}`}
+                disabled={busy}
+                onClick={() => setConfirm(false)}
+                className="min-h-12 rounded-xl border border-violet-200/35 bg-black/30 font-bold text-violet-50 disabled:opacity-50"
               >
-                <span aria-hidden="true" className={`absolute top-3 h-24 w-24 max-w-[76%] rounded-full transition duration-200 ${isSelected ? "bg-violet-400/24 shadow-[0_0_26px_8px_rgba(192,132,252,.32)]" : pet.eligible ? "bg-violet-600/10 shadow-[0_0_18px_rgba(139,92,246,.18)]" : "bg-violet-200/[.04]"}`} />
-                <span aria-hidden="true" className={`absolute top-[92px] h-3 w-20 max-w-[65%] rounded-[50%] blur-sm ${isSelected ? "bg-amber-200/38" : pet.eligible ? "bg-violet-400/20" : "bg-slate-300/10"}`} />
-                {isSelected && <span className="absolute right-2.5 top-2 z-20 grid h-7 w-7 place-items-center rounded-full border border-amber-100/80 bg-amber-300 text-violet-950 shadow-[0_0_14px_#fcd34d]"><Check size={18} strokeWidth={3} /></span>}
-
-                <img
-                  src={pet.imageUrl || ""}
-                  alt=""
-                  className={`relative z-10 h-24 w-24 max-w-[78%] object-contain transition duration-200 ${pet.eligible ? "drop-shadow-[0_5px_6px_rgba(0,0,0,.85)] group-hover:scale-[1.03]" : "brightness-75 saturate-[.75] opacity-60 drop-shadow-[0_4px_5px_rgba(0,0,0,.75)]"}`}
-                />
-                <b className={`relative z-10 mt-1.5 block w-full truncate text-sm font-extrabold drop-shadow-[0_2px_3px_#000] min-[390px]:text-[15px] ${pet.eligible ? "text-violet-50" : "text-violet-100/70"}`}>{displayName}</b>
-                <span className={`relative z-10 mt-0.5 block text-sm leading-tight ${pet.eligible ? "text-amber-300" : "text-amber-200/50"}`} aria-label={`${pet.rarity} star rarity`}>{"★".repeat(pet.rarity)}</span>
-                <span className={`relative z-10 mt-1 block text-sm font-black ${pet.eligible ? "text-violet-50" : "text-violet-100/60"}`}>{pet.essenceValue.toLocaleString()} Essence</span>
+                Cancel
               </button>
-
-              {!pet.eligible && <div className="border-t border-violet-100/10 bg-black/20 px-2 pb-2.5 pt-2 text-center">
-                <div className="flex min-h-5 items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-[.08em] text-violet-100/75" title={pet.unavailableReason || undefined}>
-                  <LockKeyhole size={12} className="shrink-0" />{blockedUi?.label || "Unavailable"}
-                </div>
-                {blockedUi?.route && blockedUi.actionLabel ? <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => openBlockAction(blockedType)}
-                  className="mt-1.5 inline-flex min-h-8 w-full items-center justify-center gap-1 rounded-lg border border-violet-300/20 bg-violet-400/10 px-2 text-[11px] font-bold text-violet-50 transition hover:bg-violet-400/20 active:scale-[.98] disabled:opacity-50"
-                >
-                  {blockedUi.actionLabel}<ChevronRight size={13} />
-                </button> : <p className="mt-1 text-[10px] leading-snug text-violet-100/55">{pet.unavailableReason}</p>}
-              </div>}
-            </article>;
-          })}
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void exchange()}
+                className="relative min-h-12 overflow-hidden rounded-xl font-black text-[#f4e7cf] disabled:opacity-50"
+              >
+                <img src={seButton} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-fill" />
+                <span className="relative z-10">{busy ? "Exchanging…" : "Exchange Pets"}</span>
+              </button>
+            </div>
+          </div>
         </div>
+      )}
 
-        {!pets.length && <div className="mx-auto my-6 max-w-sm rounded-2xl border border-violet-300/15 bg-black/45 px-5 py-8 text-center text-violet-100 backdrop-blur-sm"><Sparkles className="mx-auto mb-3 text-violet-300" /><b>No souls are ready for exchange.</b><p className="mx-auto mt-2 text-sm leading-relaxed text-violet-100/70">Hatched pets that are not equipped, active, listed, or in use will appear here.</p></div>}
-      </section>
-
-      <div className="flex flex-none items-center gap-3 border-t border-violet-300/20 bg-[#07040b]/92 px-3 py-2.5 shadow-[0_-12px_30px_rgba(7,2,15,.8)] backdrop-blur-md sm:px-5">
-        <div className="min-w-0 flex-1">
-          <b className="block text-sm font-black text-violet-50">{selected.length} Selected</b>
-          <span className={`text-sm font-black ${selected.length ? "text-amber-300" : "text-violet-200/55"}`}>{total.toLocaleString()} Essence</span>
-        </div>
-        <button disabled={!selected.length || busy} onClick={() => setConfirm(true)} className="min-h-12 shrink-0 rounded-xl border border-amber-200/30 bg-gradient-to-r from-[#254c31] via-[#2f6240] to-[#254c31] px-4 text-sm font-black text-amber-50 shadow-[0_0_18px_rgba(217,170,65,.18)] transition active:scale-[.98] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-none disabled:bg-white/10 disabled:text-white/35 disabled:shadow-none sm:px-6">Exchange Selected</button>
-      </div>
-    </main>
-
-    {confirm && selected.length > 0 && <div role="alertdialog" aria-modal="true" aria-labelledby="soul-confirm-title" className="absolute inset-0 z-30 flex items-center justify-center bg-black/82 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-2xl border-2 border-violet-300/55 bg-[radial-gradient(circle_at_top,#351454,#160929_55%)] p-5 text-center shadow-[0_0_40px_#6d28d955]">
-        <h2 id="soul-confirm-title" className="font-fantasy text-xl font-black text-violet-100">Release {selected.length} {selected.length === 1 ? "pet" : "pets"} to the Soul Exchange?</h2>
-        <p className="my-3 text-sm font-semibold text-rose-100">This is permanent. These pets will leave your inventory.</p>
-        <ul className="mx-auto mb-3 max-h-24 overflow-y-auto text-sm text-violet-200">{selected.map(pet => <li key={pet.inventoryId}>{pet.nickname || pet.name} · {pet.rarity}★</li>)}</ul>
-        <p className="text-sm text-violet-100">You will receive:<b className="mt-1 block text-2xl text-amber-300">{total.toLocaleString()} Essence</b></p>
-        <div className="mt-5 grid grid-cols-2 gap-3"><button disabled={busy} onClick={() => setConfirm(false)} className="min-h-12 rounded-xl border border-violet-200/50 bg-black/20 font-bold">Cancel</button><button disabled={busy} onClick={() => void exchange()} className="min-h-12 rounded-xl border border-amber-200/30 bg-[#2f6240] font-black text-amber-50 shadow-[0_0_18px_rgba(217,170,65,.18)] disabled:opacity-50">{busy ? "Exchanging…" : "Exchange Pets"}</button></div>
-      </div>
-    </div>}
-    <style>{`@keyframes soul-success{50%{filter:brightness(1.65);transform:scale(1.08)}}@keyframes soul-mote{0%{opacity:0;transform:translate3d(0,10px,0) scale(.65)}32%{opacity:.95}100%{opacity:0;transform:translate3d(0,-46px,0) scale(1.15)}}.soul-exchange-success{animation:soul-success .65s ease-out}.soul-selected-mote{position:absolute;z-index:20;height:4px;width:4px;border-radius:9999px;background:#fef3c7;box-shadow:0 0 8px #fde68a,0 0 14px #a78bfa;animation:soul-mote 1.8s ease-in-out infinite;pointer-events:none}@media(prefers-reduced-motion:reduce){.soul-exchange-zone,.soul-exchange-success,.soul-selected-mote{animation:none!important;transition:none!important}.soul-exchange-zone *{transition:none!important}}`}</style>
-  </div>;
+      <style>{`
+        @keyframes soul-success {
+          50% { filter: brightness(1.45); transform: scale(1.035); }
+        }
+        @keyframes soul-mote {
+          0% { opacity: 0; transform: translate3d(0,10px,0) scale(.65); }
+          32% { opacity: .95; }
+          100% { opacity: 0; transform: translate3d(0,-42px,0) scale(1.15); }
+        }
+        .soul-exchange-success { animation: soul-success .65s ease-out; }
+        .soul-selected-mote {
+          position: absolute;
+          z-index: 20;
+          height: 4px;
+          width: 4px;
+          border-radius: 9999px;
+          background: #fef3c7;
+          box-shadow: 0 0 8px #fde68a, 0 0 14px #a78bfa;
+          animation: soul-mote 1.8s ease-in-out infinite;
+          pointer-events: none;
+        }
+        @media (prefers-reduced-motion:reduce) {
+          .soul-exchange-zone,
+          .soul-exchange-success,
+          .soul-selected-mote {
+            animation: none !important;
+            transition: none !important;
+          }
+          .soul-exchange-zone * {
+            transition: none !important;
+          }
+        }
+      `}</style>
+    </div>
+  );
 }
