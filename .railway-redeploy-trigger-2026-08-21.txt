@@ -1,0 +1,5 @@
+Railway redeploy trigger for Para Pets.
+
+Reason: Railway billing interruption left production showing the PR #176 deployment even though GitHub main includes PRs #177-#180.
+
+This file contains no runtime code and exists only to create a fresh main-branch commit for Railway deployment detection.
