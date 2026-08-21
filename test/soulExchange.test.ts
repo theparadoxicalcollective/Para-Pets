@@ -35,7 +35,7 @@ test("Soul Exchange UI supports multi-select, confirmation, and server-confirmed
   assert.match(client, /aria-pressed=\{isSelected\}/);
   assert.match(client, /petInventoryIds: selected\.map/);
   assert.match(client, /\{total\.toLocaleString\(\)\} Essence/);
-  assert.match(client, />Exchange Selected</);
+  assert.match(client, /Exchange Selected/);
   assert.doesNotMatch(client, /draggable|onDrag|window\.confirm/);
   assert.match(client, /role="alertdialog"/);
   assert.match(client, /disabled=\{busy\}/);
@@ -65,9 +65,25 @@ test("blocked Soul Exchange pets expose concise status and direct fix actions", 
   assert.match(client, /route: "\/pvp"/);
 });
 
+test("Soul Exchange uses the uploaded SE art and hides the global navigation for the full-screen scene", () => {
+  for (const asset of [
+    "SE-Button.png",
+    "SE-EssenceBal.png",
+    "SE-Logo.png",
+    "SE-PetCard.png",
+    "SE-Close.png",
+    "SEBG1?url",
+  ]) {
+    assert.match(client, new RegExp(asset.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  assert.match(client, /setNavHidden\(true\)/);
+  assert.match(client, /return \(\) => setNavHidden\(false\)/);
+  assert.doesNotMatch(client, /soul-exchange-portal-v3/);
+});
+
 test("Soul Exchange keeps decorative type on headings and simplifies the sticky exchange summary", () => {
-  assert.match(client, /font-fantasy[\s\S]*The Soul Exchange/);
-  assert.match(client, /font-fantasy[\s\S]*Choose Hatched Pets/);
+  assert.match(client, /font-fantasy[\s\S]*SOUL EXCHANGE/);
+  assert.match(client, /font-fantasy[\s\S]*CHOOSE HATCHED PETS/);
   assert.match(client, /\{eligibleCount\} Eligible/);
   assert.match(client, /\{selected\.length\} Selected/);
   assert.doesNotMatch(client, /Total: \{total\.toLocaleString/);
