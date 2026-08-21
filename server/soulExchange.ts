@@ -13,7 +13,7 @@ const blockMessage: Record<SoulExchangeBlock, string> = {
   market: "Listed pets cannot be exchanged. Remove this pet from the marketplace first.",
   pvp: "Pets in PvP teams cannot be exchanged. Remove this pet from your battle group first.",
   house: "Remove this pet from your house first.",
-  clearing: "Claim this pet's Clearing rewards first.",
+  clearing: "This pet is currently active in the Clearing.",
   cave: "This pet has persistent cave progression and cannot be exchanged.",
 };
 
@@ -29,7 +29,7 @@ function rarityAndValue(value: unknown) {
 function blockedReason(row: any): SoulExchangeBlock | null {
   return !row.isHatched ? "egg" : row.active ? "active" : row.accessories ? "accessories" :
     row.market ? "market" : row.pvp ? "pvp" : row.house ? "house" :
-      row.clearing ? "clearing" : row.cave ? "cave" : null;
+      row.cave ? "cave" : null;
 }
 
 const petStateSelect = sql`SELECT ui.id "inventoryId", ui.user_id "userId", ui.is_hatched "isHatched",
@@ -40,7 +40,6 @@ const petStateSelect = sql`SELECT ui.id "inventoryId", ui.user_id "userId", ui.i
   (ui.is_listed OR EXISTS(SELECT 1 FROM player_market_listings m WHERE m.inventory_id=ui.id AND m.status='active')) market,
   EXISTS(SELECT 1 FROM pvp_battle_groups g WHERE g.user_id=ui.user_id AND ui.id=ANY(g.pet_inventory_ids)) pvp,
   EXISTS(SELECT 1 FROM pet_house_positions h WHERE h.user_id=ui.user_id AND h.inventory_id=ui.id) house,
-  EXISTS(SELECT 1 FROM clearing_reward_chests c WHERE c.pet_inventory_id=ui.id) clearing,
   EXISTS(SELECT 1 FROM pet_cave_progress p WHERE p.pet_inventory_id=ui.id) cave
   FROM user_inventory ui JOIN shop_items si ON si.id=ui.shop_item_id JOIN users u ON u.id=ui.user_id`;
 
@@ -108,6 +107,13 @@ export async function exchangePets(userId: string, petInventoryIds: unknown, exc
       return { inventoryId: pet.inventoryId, shopItemId: pet.shopItemId, name: pet.nickname || pet.name, ...reward };
     });
     const total = exchangedPets.reduce((sum, pet) => sum + pet.essenceValue, 0);
+
+    // Clearing chests are short-lived rewards tied to the pet that earned them.
+    // They must not permanently lock a non-active pet out of Soul Exchange.
+    // Exchanging the pet permanently also discards any lingering/expired chest
+    // rows so the ON DELETE RESTRICT reference cannot block the ritual.
+    await tx.execute(sql`DELETE FROM clearing_reward_chests WHERE user_id=${userId} AND pet_inventory_id IN (${idList})`);
+
     const deleted = await tx.execute(sql`DELETE FROM user_inventory WHERE user_id=${userId} AND id IN (${idList}) RETURNING id`);
     if (deleted.rows.length !== ids.length) throw new SoulExchangeError("exchange_conflict", "A selected pet changed before the ritual completed.");
     const balance = await tx.execute(sql`UPDATE users SET essence=essence+${total} WHERE id=${userId} RETURNING essence`);
