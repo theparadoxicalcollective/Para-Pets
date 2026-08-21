@@ -52,8 +52,13 @@ test("Soul Exchange presents readable pet cards with available pets first and pr
   assert.doesNotMatch(client, /grayscale saturate-0 opacity-35/);
 });
 
-test("blocked Soul Exchange pets expose concise status and direct fix actions", () => {
-  assert.match(client, /Active Pet/);
+test("blocked Soul Exchange pets use a lock-only card affordance and explain the required fix in a popup", () => {
+  assert.match(client, /onClick=\{\(\) => setBlockedPet\(pet\)\}/);
+  assert.match(client, /Why \$\{displayName\} is locked for exchange/);
+  assert.match(client, /role="dialog"/);
+  assert.match(client, /Pet Locked for Exchange/);
+  assert.match(client, /must be removed from/);
+  assert.match(client, /blockedPetUi\?\.label/);
   assert.match(client, /Change Active Pet/);
   assert.match(client, /Manage PvP Team/);
   assert.match(client, /Remove Accessories/);
@@ -79,6 +84,15 @@ test("Soul Exchange uses the uploaded SE art and hides the global navigation for
   assert.match(client, /setNavHidden\(true\)/);
   assert.match(client, /return \(\) => setNavHidden\(false\)/);
   assert.doesNotMatch(client, /soul-exchange-portal-v3/);
+});
+
+test("Soul Exchange polish keeps the header logo unique, moves the balance into the chooser, and uses the green Essence token in the footer", () => {
+  assert.equal((client.match(/src=\{seLogo\}/g) || []).length, 1);
+  assert.match(client, /currencyAssets\.essenceToken/);
+  assert.match(client, /Select eligible pets to release permanently for Essence\./);
+  assert.doesNotMatch(client, /Protected pets show what to change first\./);
+  assert.match(client, /\{pet\.essenceValue\.toLocaleString\(\)\} Essence/);
+  assert.match(client, /-translate-y-\[2px\][\s\S]*Exchange Selected/);
 });
 
 test("Soul Exchange keeps decorative type on headings and simplifies the sticky exchange summary", () => {
