@@ -3,6 +3,7 @@ import App from "./App";
 import "./index.css";
 import "./petCarePolish.css";
 import "./clearingBossPolish.css";
+import "./soulExchangeCardPolish.css";
 
 function setAppHeight() {
   document.documentElement.style.setProperty("--app-height", `${window.innerHeight}px`);

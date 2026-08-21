@@ -1,13 +1,44 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 520" role="img" aria-labelledby="title description">
   <title id="title">The Soul Exchange</title>
-  <desc id="description">A violet portal shimmer made from many small rising magical lights and star sparks.</desc>
+  <desc id="description">A hovering violet soul flame surrounded by spectral rings, mist, and a dense field of rising magical lights.</desc>
   <defs>
-    <radialGradient id="violet-floor" cx="50%" cy="82%" r="54%">
+    <radialGradient id="aura" cx="50%" cy="48%" r="50%">
       <stop offset="0" stop-color="#f5d0fe" stop-opacity=".42"/>
       <stop offset=".24" stop-color="#c084fc" stop-opacity=".28"/>
-      <stop offset=".55" stop-color="#8b5cf6" stop-opacity=".12"/>
+      <stop offset=".58" stop-color="#7c3aed" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#2e1065" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="core" cx="48%" cy="42%" r="58%">
+      <stop offset="0" stop-color="#fff7ff"/>
+      <stop offset=".2" stop-color="#f0abfc"/>
+      <stop offset=".52" stop-color="#a855f7"/>
+      <stop offset=".82" stop-color="#6d28d9"/>
+      <stop offset="1" stop-color="#3b0764"/>
+    </radialGradient>
+    <radialGradient id="violet-floor" cx="50%" cy="82%" r="54%">
+      <stop offset="0" stop-color="#f5d0fe" stop-opacity=".34"/>
+      <stop offset=".3" stop-color="#8b5cf6" stop-opacity=".2"/>
       <stop offset="1" stop-color="#581c87" stop-opacity="0"/>
     </radialGradient>
+    <linearGradient id="flame" x1="35%" y1="100%" x2="68%" y2="0%">
+      <stop offset="0" stop-color="#fdf4ff"/>
+      <stop offset=".28" stop-color="#e879f9"/>
+      <stop offset=".62" stop-color="#a855f7"/>
+      <stop offset="1" stop-color="#6d28d9"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fde68a" stop-opacity=".95"/>
+      <stop offset=".3" stop-color="#c084fc" stop-opacity=".78"/>
+      <stop offset=".7" stop-color="#8b5cf6" stop-opacity=".68"/>
+      <stop offset="1" stop-color="#fde68a" stop-opacity=".9"/>
+    </linearGradient>
+    <filter id="soft-glow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="wide-glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
     <filter id="portal-glow" x="-180%" y="-180%" width="460%" height="460%">
       <feGaussianBlur in="SourceGraphic" stdDeviation="3.2" result="blur"/>
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
@@ -17,38 +48,92 @@
     </filter>
   </defs>
   <style>
+    .se-aura{transform-box:fill-box;transform-origin:center;animation:se-aura 3.4s ease-in-out infinite}
+    .se-ring{transform-box:fill-box;transform-origin:center;animation:se-spin 14s linear infinite}
+    .se-ring-back{transform-box:fill-box;transform-origin:center;animation:se-spin-rev 19s linear infinite}
+    .se-flame{transform-box:fill-box;transform-origin:50% 78%;animation:se-flame 2.7s ease-in-out infinite}
+    .se-orb{transform-box:fill-box;transform-origin:center;animation:se-hover 3.2s ease-in-out infinite}
+    .se-wisp{transform-box:fill-box;transform-origin:center;animation:se-wisp 4.4s ease-in-out infinite}
+    .se-wisp.w2{animation-delay:-1.8s;animation-duration:5.2s}
+    .se-mote{transform-box:fill-box;transform-origin:center;animation:se-mote 3.8s ease-in-out infinite}
+    .se-mote.m2{animation-delay:-.8s}.se-mote.m3{animation-delay:-1.7s}.se-mote.m4{animation-delay:-2.5s}.se-mote.m5{animation-delay:-3.1s}
     .portal-floor{transform-box:fill-box;transform-origin:center;animation:floor-breathe 3.8s ease-in-out infinite}
     .portal-light{transform-box:fill-box;transform-origin:center;animation:light-rise 3.5s ease-in-out infinite}
     .portal-light:nth-of-type(2n){animation-delay:-.7s;animation-duration:4.1s}
     .portal-light:nth-of-type(3n){animation-delay:-1.4s;animation-duration:3.1s}
     .portal-light:nth-of-type(5n){animation-delay:-2.2s;animation-duration:4.6s}
-    @keyframes floor-breathe{0%,100%{opacity:.62;transform:scale(.94)}50%{opacity:1;transform:scale(1.04)}}
-    @keyframes light-rise{0%{opacity:.2;transform:translateY(18px) scale(.7)}38%{opacity:1}72%{opacity:.74}100%{opacity:.12;transform:translateY(-54px) scale(1.08)}}
-    @media (prefers-reduced-motion:reduce){.portal-floor,.portal-light{animation:none!important}.portal-floor{opacity:.8}.portal-light{opacity:.82}}
+    @keyframes se-aura{0%,100%{opacity:.55;transform:scale(.92)}50%{opacity:1;transform:scale(1.08)}}
+    @keyframes se-spin{to{transform:rotate(360deg)}}
+    @keyframes se-spin-rev{to{transform:rotate(-360deg)}}
+    @keyframes se-hover{0%,100%{transform:translateY(7px)}50%{transform:translateY(-7px)}}
+    @keyframes se-flame{0%,100%{transform:scale(.96) skewX(-1deg);opacity:.9}50%{transform:scale(1.06) skewX(2deg);opacity:1}}
+    @keyframes se-wisp{0%{opacity:0;transform:translateY(26px) scale(.78)}32%{opacity:.72}100%{opacity:0;transform:translateY(-48px) scale(1.12)}}
+    @keyframes se-mote{0%{opacity:0;transform:translateY(20px) scale(.55)}35%{opacity:1}100%{opacity:0;transform:translateY(-70px) scale(1.05)}}
+    @keyframes floor-breathe{0%,100%{opacity:.55;transform:scale(.94)}50%{opacity:.9;transform:scale(1.04)}}
+    @keyframes light-rise{0%{opacity:.16;transform:translateY(18px) scale(.7)}38%{opacity:1}72%{opacity:.72}100%{opacity:.08;transform:translateY(-54px) scale(1.08)}}
+    @media (prefers-reduced-motion:reduce){.se-aura,.se-ring,.se-ring-back,.se-flame,.se-orb,.se-wisp,.se-mote,.portal-floor,.portal-light{animation:none!important}.se-aura,.portal-floor{opacity:.8}.se-wisp,.se-mote,.portal-light{opacity:.72}}
   </style>
 
-  <path class="portal-floor" d="M74 407 C112 350 310 350 347 407 C321 449 100 451 74 407 Z" fill="url(#violet-floor)" filter="url(#floor-blur)"/>
+  <path class="portal-floor" d="M72 408C112 356 308 356 348 408C318 447 102 447 72 408Z" fill="url(#violet-floor)" filter="url(#floor-blur)"/>
+  <ellipse class="se-aura" cx="210" cy="286" rx="150" ry="142" fill="url(#aura)" filter="url(#wide-glow)"/>
+  <ellipse cx="210" cy="414" rx="112" ry="34" fill="#7c3aed" opacity=".16" filter="url(#wide-glow)"/>
+
+  <g class="se-orb">
+    <g class="se-ring-back" fill="none" stroke="#7c3aed" stroke-width="3" opacity=".54" filter="url(#soft-glow)">
+      <ellipse cx="210" cy="280" rx="112" ry="116" stroke-dasharray="11 13"/>
+      <path d="M210 150l8 16 18 3-13 13 3 18-16-8-16 8 3-18-13-13 18-3z" fill="#c084fc" stroke="none" opacity=".9"/>
+      <path d="M210 410l6-12 13-2-9-10 2-13-12 6-12-6 2 13-9 10 13 2z" fill="#a855f7" stroke="none" opacity=".8"/>
+    </g>
+
+    <g class="se-ring" fill="none" stroke="url(#ring)" stroke-width="3.2" filter="url(#soft-glow)">
+      <ellipse cx="210" cy="280" rx="92" ry="96" stroke-dasharray="3 16" stroke-linecap="round"/>
+      <path d="M210 174v18M210 368v18M104 280h18M298 280h18" stroke-width="4" stroke-linecap="round"/>
+      <path d="M136 206l13 13M271 341l13 13M284 206l-13 13M149 341l-13 13" stroke-width="2.6" stroke-linecap="round"/>
+    </g>
+
+    <path d="M274 282a64 64 0 1 1-128 0 64 64 0 1 1 128 0Z" fill="url(#core)" opacity=".22" filter="url(#wide-glow)"/>
+    <path d="M264 282a54 54 0 1 1-108 0 54 54 0 1 1 108 0Z" fill="#3b0764" opacity=".7" stroke="#d8b4fe" stroke-opacity=".5" stroke-width="2"/>
+
+    <g class="se-flame" filter="url(#soft-glow)">
+      <path d="M211 348c-41-19-55-55-37-86 10-18 27-29 31-54 15 13 24 31 20 50 18-12 29-31 27-49 29 31 34 72 13 104-12 19-31 31-54 35z" fill="url(#flame)"/>
+      <path d="M210 328c-22-12-30-32-20-50 6-10 16-16 18-31 12 10 16 24 10 36 10-5 18-15 20-27 12 16 13 36 3 52-7 11-18 18-31 20z" fill="#fff7ff" opacity=".9"/>
+      <path d="M209 310c-9-6-12-15-8-24 3-6 8-10 9-18 8 7 10 16 5 24 6-2 10-7 13-13 3 13-3 25-19 31z" fill="#f5d0fe"/>
+    </g>
+  </g>
 
   <g fill="#f5d0fe" filter="url(#portal-glow)" aria-hidden="true">
-    <path class="portal-light" d="M104 378 l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" opacity=".72"/>
-    <path class="portal-light" d="M139 402 l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".86"/>
-    <path class="portal-light" d="M173 365 l4 11 11 4-11 4-4 11-4-11-11-4 11-4z"/>
-    <path class="portal-light" d="M208 414 l3 9 9 3-9 3-3 9-3-9-9-3 9-3z" opacity=".9"/>
-    <path class="portal-light" d="M244 377 l5 12 12 5-12 5-5 12-5-12-12-5 12-5z" opacity=".96"/>
-    <path class="portal-light" d="M283 406 l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".78"/>
-    <path class="portal-light" d="M318 371 l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" opacity=".7"/>
-    <path class="portal-light" d="M121 332 l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".7"/>
-    <path class="portal-light" d="M159 318 l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" opacity=".84"/>
-    <path class="portal-light" d="M196 340 l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".78"/>
-    <path class="portal-light" d="M229 307 l4 11 11 4-11 4-4 11-4-11-11-4 11-4z" opacity=".88"/>
-    <path class="portal-light" d="M266 337 l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".76"/>
-    <path class="portal-light" d="M301 316 l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" opacity=".82"/>
-    <path class="portal-light" d="M143 271 l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" opacity=".64"/>
-    <path class="portal-light" d="M182 286 l4 9 9 4-9 4-4 9-4-9-9-4 9-4z" opacity=".74"/>
-    <path class="portal-light" d="M216 251 l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".66"/>
-    <path class="portal-light" d="M252 276 l4 9 9 4-9 4-4 9-4-9-9-4 9-4z" opacity=".72"/>
-    <path class="portal-light" d="M287 255 l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" opacity=".62"/>
-    <path class="portal-light" d="M194 210 l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".58"/>
-    <path class="portal-light" d="M239 199 l4 9 9 4-9 4-4 9-4-9-9-4 9-4z" opacity=".6"/>
+    <path class="portal-light" d="M94 386l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".72"/>
+    <path class="portal-light" d="M122 420l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" opacity=".8"/>
+    <path class="portal-light" d="M150 367l3 8 8 3-8 3-3 8-3-8-8-3 8-3z"/>
+    <path class="portal-light" d="M177 414l2.5 7 7 2.5-7 2.5-2.5 7-2.5-7-7-2.5 7-2.5z" opacity=".86"/>
+    <path class="portal-light" d="M207 383l4 10 10 4-10 4-4 10-4-10-10-4 10-4z" opacity=".94"/>
+    <path class="portal-light" d="M239 421l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" opacity=".78"/>
+    <path class="portal-light" d="M271 374l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".84"/>
+    <path class="portal-light" d="M303 413l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" opacity=".76"/>
+    <path class="portal-light" d="M330 364l2.5 7 7 2.5-7 2.5-2.5 7-2.5-7-7-2.5 7-2.5z" opacity=".7"/>
+    <path class="portal-light" d="M112 330l2.5 7 7 2.5-7 2.5-2.5 7-2.5-7-7-2.5 7-2.5z" opacity=".68"/>
+    <path class="portal-light" d="M145 310l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".8"/>
+    <path class="portal-light" d="M177 338l2.5 7 7 2.5-7 2.5-2.5 7-2.5-7-7-2.5 7-2.5z" opacity=".72"/>
+    <path class="portal-light" d="M242 324l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".78"/>
+    <path class="portal-light" d="M276 345l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" opacity=".72"/>
+    <path class="portal-light" d="M307 316l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".82"/>
+    <path class="portal-light" d="M139 264l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" opacity=".62"/>
+    <path class="portal-light" d="M170 280l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" opacity=".7"/>
+    <path class="portal-light" d="M250 271l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" opacity=".68"/>
+    <path class="portal-light" d="M286 248l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" opacity=".6"/>
+    <path class="portal-light" d="M205 208l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" opacity=".58"/>
+  </g>
+
+  <g fill="#f5d0fe" filter="url(#soft-glow)" aria-hidden="true">
+    <path class="se-mote" d="M112 360l3 8 8 3-8 3-3 8-3-8-8-3 8-3z"/>
+    <path class="se-mote m2" d="M151 404l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" opacity=".82"/>
+    <path class="se-mote m3" d="M292 378l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" opacity=".9"/>
+    <path class="se-mote m4" d="M326 333l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" opacity=".76"/>
+    <path class="se-mote m5" d="M92 309l2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5z" opacity=".72"/>
+  </g>
+
+  <g fill="none" stroke="#c084fc" stroke-width="7" stroke-linecap="round" opacity=".38" filter="url(#soft-glow)" aria-hidden="true">
+    <path class="se-wisp" d="M141 390c-28-38 12-55 2-91-4-15-16-22-23-32"/>
+    <path class="se-wisp w2" d="M281 399c30-41-10-58 1-94 5-16 18-24 25-34"/>
   </g>
 </svg>

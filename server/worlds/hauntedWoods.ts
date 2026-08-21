@@ -98,7 +98,19 @@ export async function reconcileHauntedWoodsWorld(): Promise<void> {
         icon_url = EXCLUDED.icon_url,
         bg_url = EXCLUDED.bg_url
     `);
-    if (!canonical && migratedLayout) {
+
+    // The position snapshot is the authoritative record of an admin drag. A
+    // separate world seed/reconcile can touch the canonical row before this
+    // function runs, so merely noticing the snapshot is not enough: restore it
+    // explicitly every startup. This keeps the Soul Exchange anchored exactly
+    // where the admin placed it across deploys, restarts, and asset refreshes.
+    if (canonicalSnapshot) {
+      await tx.execute(sql`
+        UPDATE world_locations
+        SET pos_x = ${canonicalSnapshot.posX}, pos_y = ${canonicalSnapshot.posY}
+        WHERE id = ${SOUL_EXCHANGE_LOCATION.id}
+      `);
+    } else if (!canonical && migratedLayout) {
       await tx.execute(sql`UPDATE world_locations SET pos_x=${migratedLayout.posX}, pos_y=${migratedLayout.posY}, icon_size=${migratedLayout.iconSize}, sort_order=${migratedLayout.sortOrder}, flipped=${migratedLayout.flipped} WHERE id=${SOUL_EXCHANGE_LOCATION.id}`);
     }
 
