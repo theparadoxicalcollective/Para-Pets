@@ -1,0 +1,4 @@
+Railway redeploy trigger for Para Pets.
+
+This commit is intentionally tied to the admin Costume freeze investigation/fix in PR #194.
+Railway should deploy the merged main commit so production can be verified against the exact GitHub main revision.
