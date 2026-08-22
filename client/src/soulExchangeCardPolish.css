@@ -25,11 +25,13 @@
 [data-soul-card] > [data-soul-availability] > div > span {
   order: 1;
   margin-top: 0 !important;
+  font-size: 88% !important;
 }
 
 [data-soul-card] > [data-soul-availability] > div > b {
   order: 2;
   margin-top: 2px;
+  font-size: 90% !important;
 }
 
 /* The entire card body already selects an eligible pet and the gold check
@@ -39,9 +41,15 @@
   display: none !important;
 }
 
+/* Move each pet's Essence amount slightly lower into the lower information
+ * band without changing the button/card artwork or hit target. */
+[data-soul-card] > div[style*="bottom"] {
+  bottom: 10.5% !important;
+}
+
 /* The uploaded SE button art sits slightly low around its type. Move only the
- * Soul Exchange footer label three pixels farther upward than the existing
- * -2px utility without changing the button artwork or hit target. */
+ * Soul Exchange footer label another five pixels upward than the previous
+ * adjustment, without changing the button artwork or hit target. */
 main:has(.soul-exchange-zone) > footer button > img + span {
-  transform: translateY(-5px) !important;
+  transform: translateY(-10px) !important;
 }
