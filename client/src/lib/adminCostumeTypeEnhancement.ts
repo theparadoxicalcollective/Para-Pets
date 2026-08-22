@@ -9,13 +9,35 @@ function ensureCostumeOption(select: HTMLSelectElement): void {
   select.appendChild(option);
 }
 
+function syncCostumePriceField(select: HTMLSelectElement): void {
+  const form = select.closest("div.fixed") ?? select.parentElement?.parentElement?.parentElement;
+  const priceInput = form?.querySelector<HTMLInputElement>('[data-testid="input-item-price"]');
+  if (!priceInput) return;
+
+  const label = priceInput.parentElement?.querySelector("label");
+  const isCostume = select.value === COSTUME_VALUE;
+  if (label) label.textContent = isCostume ? "Costume Price" : "Price";
+  priceInput.required = isCostume;
+  priceInput.min = "0";
+}
+
+function installCostumePriceSync(select: HTMLSelectElement): void {
+  if (select.dataset.costumePriceSyncInstalled === "true") {
+    syncCostumePriceField(select);
+    return;
+  }
+  select.dataset.costumePriceSyncInstalled = "true";
+  select.addEventListener("change", () => syncCostumePriceField(select));
+  syncCostumePriceField(select);
+}
+
 function getDatabaseCards(): HTMLElement[] {
   return Array.from(document.querySelectorAll<HTMLElement>('[data-testid^="card-db-item-"]'));
 }
 
 function cardIsCostume(card: HTMLElement): boolean {
-  return Array.from(card.querySelectorAll("span")).some(
-    (span) => span.textContent?.trim().toLowerCase() === COSTUME_LABEL.toLowerCase(),
+  return Array.from(card.querySelectorAll("span, p")).some(
+    (node) => node.textContent?.trim().toLowerCase() === COSTUME_LABEL.toLowerCase(),
   );
 }
 
@@ -80,7 +102,7 @@ function addItemPickerCostumeFilter(): void {
   button.style.cssText = "background:rgba(0,0,0,0.25);border:1px solid rgba(212,160,23,0.12);color:#6a5840;cursor:pointer";
 
   button.addEventListener("click", () => {
-    const cards = Array.from(modal.querySelectorAll<HTMLElement>('[data-testid^="card"]'));
+    const cards = Array.from(modal.querySelectorAll<HTMLElement>('[data-testid^="button-pick-item-"]'));
     for (const card of cards) card.style.display = cardIsCostume(card) ? "" : "none";
     button.style.background = "rgba(192,132,252,0.13)";
     button.style.border = "1px solid rgba(192,132,252,0.55)";
@@ -93,6 +115,7 @@ function addItemPickerCostumeFilter(): void {
 function syncAdminCostumeControls(): void {
   for (const select of Array.from(document.querySelectorAll<HTMLSelectElement>('select[data-testid="select-item-type"]'))) {
     ensureCostumeOption(select);
+    installCostumePriceSync(select);
   }
   addDatabaseCostumeFilter();
   addItemPickerCostumeFilter();
