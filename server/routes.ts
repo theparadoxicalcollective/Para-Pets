@@ -49,6 +49,7 @@ import { registerClearingAdminRoutes } from "./routes/clearingAdmin.routes";
 import { registerClearingShopRoutes } from "./routes/clearingShop.routes";
 import { registerSoulExchangeRoutes } from "./routes/soulExchange.routes";
 import { registerCostumeAdminRoutes } from "./routes/costumeAdmin.routes";
+import { getEffectivePetLayer } from "@shared/petLayer";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -4636,7 +4637,12 @@ export async function registerRoutes(
       if (!template) return res.status(404).json({ message: "Template not found" });
 
       const parts = await storage.getPetTemplateParts((req.params.id as string));
-      const viewParts = parts.filter(p => p.view === view).sort((a, b) => a.zIndex - b.zIndex);
+      // Keep exported assembled art in the same semantic order as the admin
+      // and player renderers.  Explicit zIndex remains the fallback for any
+      // custom part key not covered by the canonical map.
+      const facing = view === "back" ? "left" : "front";
+      const viewParts = parts.filter(p => p.view === view)
+        .sort((a, b) => getEffectivePetLayer(a, facing) - getEffectivePetLayer(b, facing));
 
       if (viewParts.length === 0) {
         return res.status(400).json({ message: `No ${view} parts to assemble` });
