@@ -257,6 +257,12 @@ const ALL_PART_DEFS: PartDef[] = [
 
 const CANVAS_SIZE = 1000;
 
+function EditorTabs({ active, onChange }: { active: "parts" | "animation" | "costume"; onChange: (tab: "parts" | "animation" | "costume") => void }) {
+  return <nav aria-label="Pet editor" className="flex flex-wrap gap-2">
+    {(["parts", "animation", "costume"] as const).map(tab => <button key={tab} data-testid={`tab-pet-editor-${tab}`} onClick={() => onChange(tab)} className="rounded-md px-3 py-2 font-fantasy text-[10px] tracking-wider" style={{ background: active === tab ? "rgba(240,192,64,.24)" : "rgba(0,0,0,.3)", border: "1px solid rgba(240,192,64,.3)", color: active === tab ? "#f0c040" : "#a89878" }}>{tab.toUpperCase()}</button>)}
+  </nav>;
+}
+
 export default function PetDatabasePanel({
   initialTemplateId,
   onSelectedTemplateChange,
@@ -297,7 +303,9 @@ export default function PetDatabasePanel({
   const [gifExporting, setGifExporting] = useState(false);
   const [gifProgress, setGifProgress] = useState(0);
   const [gifAnim, setGifAnim] = useState<GifAnimation>("idle");
-  const [showCostumes, setShowCostumes] = useState(false);
+  // A template has one source of truth; these are focused editor surfaces for
+  // that same template, not separate pet/animation/costume records.
+  const [editorTab, setEditorTab] = useState<"parts" | "animation" | "costume">("parts");
   const [selectedCostumeId, setSelectedCostumeId] = useState<string | null>(null);
   const [draggingCostume, setDraggingCostume] = useState(false);
 
@@ -360,7 +368,9 @@ export default function PetDatabasePanel({
 
   const { data: costumeItems = [] } = useQuery<CostumeItem[]>({
     queryKey: ["/api/admin/costumes"],
-    enabled: !!selectedTemplateId,
+    // Costume media is intentionally lazy: the normal parts editor should not
+    // download the costume library.
+    enabled: !!selectedTemplateId && editorTab === "costume",
   });
   const { data: costumeDefinitions = [] } = useQuery<CostumeDefinition[]>({
     queryKey: ["/api/admin/costume-definitions", selectedTemplateId],
@@ -369,7 +379,7 @@ export default function PetDatabasePanel({
       if (!res.ok) throw new Error("Failed to load costume placements");
       return res.json();
     },
-    enabled: !!selectedTemplateId,
+    enabled: !!selectedTemplateId && editorTab === "costume",
   });
   // Reopening a template restores a saved placement into the same editor
   // surface; admins can then choose another piece from the selector.
@@ -740,8 +750,49 @@ export default function PetDatabasePanel({
     const linkedPet = getLinkedShopPet(templateDetail.id);
     const viewLabel = facingMode === "front" ? "Front View" : "Side View";
 
+    if (editorTab === "animation") return (
+      <div className="flex flex-col gap-3">
+        <EditorTabs active={editorTab} onChange={setEditorTab} />
+        <h3 className="font-fantasy text-[#f0c040] text-sm tracking-widest">{templateDetail.name} — Animation</h3>
+        <div className="rounded-lg p-3" style={{ background: "rgba(0,0,0,.25)", border: "1px solid rgba(74,222,128,.35)" }}>
+          <PetAnimatorCanvas petTemplateId={selectedTemplateId} size={500} fillContainer fps={60} />
+        </div>
+        <button data-testid="checkbox-can-fly" onClick={() => canFlyMutation.mutate({ id: templateDetail.id, canFly: !templateDetail.canFly })} className="w-full py-2 rounded-lg font-fantasy text-[11px]" style={{ background: "rgba(127,255,212,.16)", color: "#7fffd4" }}>
+          {templateDetail.canFly ? "Can Fly — On" : "Can Fly — Off"}
+        </button>
+        <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wider" style={{ color: "#a89878" }}>Animation profile
+          <select data-testid="select-animation-profile" value={normalizeAnimationProfile(templateDetail.idleStyle, templateDetail.canFly)} onChange={(event) => animationProfileMutation.mutate({ id: templateDetail.id, idleStyle: event.target.value as PetAnimationProfile })} className="rounded-lg px-2 py-2 text-xs" style={{ background: "rgba(0,0,0,.35)", color: "#e7d7b5" }}>
+            {PET_ANIMATION_PROFILES.map(profile => <option key={profile} value={profile}>{profile.replaceAll("_", " ")}</option>)}
+          </select>
+        </label>
+        <p className="text-xs" style={{ color: "#a89878" }}>Preview and animation settings use this pet template’s production renderer.</p>
+      </div>
+    );
+
+    if (editorTab === "costume") return (
+      <div className="flex flex-col gap-3">
+        <EditorTabs active={editorTab} onChange={setEditorTab} />
+        <h3 className="font-fantasy text-[#c084fc] text-sm tracking-widest">{templateDetail.name} — Costume</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="rounded-lg p-3 space-y-2" style={{ background: "rgba(52,28,72,.35)", border: "1px solid rgba(192,132,252,.35)" }}>
+            <p className="font-fantasy text-[9px]" style={{ color: "#c084fc" }}>COSTUME LIBRARY</p>
+            {costumeItems.map(item => <button key={item.id} onClick={() => setSelectedCostumeId(item.id)} className="w-full flex gap-2 p-2 rounded text-left" style={{ background: selectedCostumeId === item.id ? "rgba(192,132,252,.25)" : "rgba(0,0,0,.24)", color: "#e7d7b5" }}><img src={item.imageUrl ?? ""} alt="" className="w-8 h-8 object-contain" /><span className="text-xs truncate">{item.name}</span></button>)}
+            {!costumeItems.length && <p className="text-xs" style={{ color: "#a89878" }}>No saved Costume items yet.</p>}
+          </div>
+          <div ref={canvasRef} className="relative aspect-square rounded-lg" style={{ background: "rgba(0,0,0,.25)", overflow: "visible" }} onPointerMove={(event) => { if (!draggingCostume || !selectedCostumePlacement || !costumeAnchor) return; const rect = canvasRef.current?.getBoundingClientRect(); if (!rect) return; const scale = CANVAS_SIZE / rect.width; updateCostume({ posX: (event.clientX - rect.left) * scale - (costumeAnchor.posX + costumeAnchor.width * (costumeAnchor.pivotX ?? 50) / 100), posY: (event.clientY - rect.top) * scale - (costumeAnchor.posY + costumeAnchor.height * (costumeAnchor.pivotY ?? 50) / 100) }); }} onPointerUp={() => setDraggingCostume(false)}>
+            {viewParts.map(part => <img key={part.id} src={part.imageUrl} alt="" className="absolute object-contain pointer-events-none" style={{ left: `${part.posX / 10}%`, top: `${part.posY / 10}%`, width: `${part.width / 10}%`, height: `${part.height / 10}%`, zIndex: previewEffectiveZ(part) }} />)}
+            {selectedCostumeItem?.imageUrl && selectedCostumePlacement && costumeAnchor && <img data-testid={`canvas-costume-${selectedCostumeItem.id}`} src={selectedCostumeItem.imageUrl} alt={selectedCostumeItem.name} onPointerDown={event => { event.stopPropagation(); setDraggingCostume(true); event.currentTarget.setPointerCapture(event.pointerId); }} className="absolute object-contain" style={{ left: `${(costumeAnchor.posX + costumeAnchor.width * (costumeAnchor.pivotX ?? 50) / 100 + selectedCostumePlacement.posX - selectedCostumePlacement.width * selectedCostumePlacement.pivotX / 100) / 10}%`, top: `${(costumeAnchor.posY + costumeAnchor.height * (costumeAnchor.pivotY ?? 50) / 100 + selectedCostumePlacement.posY - selectedCostumePlacement.height * selectedCostumePlacement.pivotY / 100) / 10}%`, width: `${selectedCostumePlacement.width / 10}%`, height: `${selectedCostumePlacement.height / 10}%`, zIndex: selectedCostumePlacement.depth === "front" ? 100 : -1 }} />}
+          </div>
+          <div className="rounded-lg p-3 space-y-3" style={{ background: "rgba(52,28,72,.35)", border: "1px solid rgba(192,132,252,.35)" }}>
+            {selectedCostumeItem && selectedCostumePlacement ? <><label className="text-xs" style={{ color: "#a89878" }}>Anchor part<select value={selectedCostumePlacement.anchorPart} onChange={event => updateCostume({ anchorPart: event.target.value })} className="block w-full mt-1 p-2 rounded" style={{ background: "#201526", color: "#e7d7b5" }}>{costumeParts.map(part => <option key={part.partType} value={part.partType}>{part.label}</option>)}</select></label><div className="flex gap-2">{(["front", "back"] as const).map(depth => <button key={depth} onClick={() => updateCostume({ depth })} className="flex-1 p-2 rounded text-xs" style={{ background: selectedCostumePlacement.depth === depth ? "rgba(192,132,252,.3)" : "rgba(0,0,0,.25)", color: "#e7d7b5" }}>{depth.toUpperCase()}</button>)}</div><button onClick={() => updateCostume({})} className="w-full p-2 rounded text-xs" style={{ background: "rgba(192,132,252,.3)", color: "#fff" }}>Save placement</button></> : <p className="text-xs" style={{ color: "#a89878" }}>Select a costume to anchor, position, and save it.</p>}
+          </div>
+        </div>
+      </div>
+    );
+
     return (
       <div className="flex flex-col gap-3">
+        <EditorTabs active={editorTab} onChange={setEditorTab} />
         <div className="flex items-center gap-2 mb-1">
           <button
             data-testid="button-back-to-pet-list"
@@ -829,41 +880,7 @@ export default function PetDatabasePanel({
               {showAnimPreview ? "Pause" : "Animate"}
             </button>
           )}
-          <button
-            data-testid="button-costume"
-            onClick={() => setShowCostumes(open => !open)}
-            className="px-3 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider"
-            style={{ background: showCostumes ? "rgba(192,132,252,.22)" : "rgba(0,0,0,.3)", border: "1px solid rgba(192,132,252,.45)", color: "#c084fc", cursor: "pointer" }}
-          >COSTUME</button>
         </div>
-
-        {showCostumes && (
-          <div className="rounded-lg p-3 space-y-3" style={{ background: "rgba(52,28,72,.35)", border: "1px solid rgba(192,132,252,.35)" }}>
-            <p className="font-fantasy text-[9px] tracking-wider" style={{ color: "#c084fc" }}>SELECT A COSTUME</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-44 overflow-y-auto">
-              {costumeItems.map(item => <button key={item.id} data-testid={`button-select-costume-${item.id}`} onClick={() => setSelectedCostumeId(item.id)} className="flex items-center gap-2 p-2 rounded text-left" style={{ background: selectedCostumeId === item.id ? "rgba(192,132,252,.25)" : "rgba(0,0,0,.24)", border: "1px solid rgba(192,132,252,.25)", color: "#e7d7b5" }}>
-                {item.imageUrl && <img src={item.imageUrl} alt="" className="w-8 h-8 object-contain" />}
-                <span className="font-fantasy text-[9px] truncate">{item.name}</span>
-              </button>)}
-              {!costumeItems.length && <p className="col-span-full text-xs" style={{ color: "#a89878" }}>No saved Costume items yet.</p>}
-            </div>
-            {selectedCostumeItem && selectedCostumePlacement && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
-                <label className="font-fantasy text-[8px] tracking-wider" style={{ color: "#a89878" }}>ANCHOR PET PART
-                  <select value={selectedCostumePlacement.anchorPart} onChange={event => updateCostume({ anchorPart: event.target.value })} className="w-full mt-1 px-2 py-2 rounded text-xs" style={{ background: "#201526", color: "#e7d7b5" }}>
-                    {costumeParts.map(part => <option key={part.partType} value={part.partType}>{part.label}</option>)}
-                  </select>
-                </label>
-                <label className="font-fantasy text-[8px] tracking-wider" style={{ color: "#a89878" }}>SIZE ({Math.round(selectedCostumePlacement.width)}px)
-                  <input type="range" min="20" max="1000" value={selectedCostumePlacement.width} onChange={event => updateCostume({ width: Number(event.target.value), height: Number(event.target.value) })} className="w-full mt-2" />
-                </label>
-                <div className="flex rounded overflow-hidden" style={{ border: "1px solid rgba(192,132,252,.35)" }}>
-                  {(["front", "back"] as const).map(depth => <button key={depth} onClick={() => updateCostume({ depth })} className="flex-1 py-2 font-fantasy text-[9px]" style={{ background: selectedCostumePlacement.depth === depth ? "rgba(192,132,252,.3)" : "rgba(0,0,0,.25)", color: "#e7d7b5" }}>{depth.toUpperCase()}</button>)}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Canvas — click to select a part; use the D-pad below to reposition.
             Parts cannot be individually dragged so accidental moves are prevented.
