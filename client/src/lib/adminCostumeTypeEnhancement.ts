@@ -122,10 +122,33 @@ function syncAdminCostumeControls(): void {
 }
 
 let observer: MutationObserver | null = null;
+let syncScheduled = false;
+let syncing = false;
+
+function scheduleAdminCostumeSync(): void {
+  if (syncScheduled || syncing) return;
+  syncScheduled = true;
+  window.setTimeout(() => {
+    syncScheduled = false;
+    if (!observer || syncing) return;
+
+    // Do not observe our own DOM writes. React can also replace large portions of
+    // the admin tree while opening the Add/Edit Item dialog, so running a full-body
+    // query for every individual mutation can lock the main thread.
+    syncing = true;
+    observer.disconnect();
+    try {
+      syncAdminCostumeControls();
+    } finally {
+      syncing = false;
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+  }, 50);
+}
 
 export function installAdminCostumeTypeEnhancement(): void {
   if (observer) return;
   syncAdminCostumeControls();
-  observer = new MutationObserver(() => syncAdminCostumeControls());
+  observer = new MutationObserver(() => scheduleAdminCostumeSync());
   observer.observe(document.body, { childList: true, subtree: true });
 }
