@@ -43,7 +43,7 @@
 
 /* Move each pet's Essence amount slightly lower into the lower information
  * band without changing the button/card artwork or hit target. */
-[data-soul-card] > div[style*="bottom"] {
+[data-soul-card] > [data-soul-availability] + div {
   bottom: 10.5% !important;
 }
 
