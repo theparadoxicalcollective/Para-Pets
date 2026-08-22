@@ -44,6 +44,10 @@ export interface LayerablePetPart { partType: string; zIndex: number }
 export function getEffectivePetLayer(part: LayerablePetPart, facing: PetFacing = "front"): number {
   const base = basePetPartType(part.partType);
   if (isSecondaryHeadPart(part.partType)) return 4 + (PET_LAYER_ORDER[base] ?? 10) * 0.001;
+  // Only left/right side-facing templates use the special front-leg depth.
+  // "back" is a distinct template facing and must retain the same layer
+  // semantics as the runtime renderer; remapping it to left previously caused
+  // assembled art to disagree with PetAnimator.
   if ((facing === "left" || facing === "right") && base === "front_leg") return 21;
   return PET_LAYER_ORDER[base] ?? part.zIndex;
 }
