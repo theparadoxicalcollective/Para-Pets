@@ -3,6 +3,7 @@ export const itemTypeLabel = (type: unknown): string => {
   const known: Record<string, string> = {
     accessory: "Gear",
     clearing: "Clearing Gear",
+    costume: "Costumes",
     edibles: "Edibles",
     fishing: "Fishing",
     gift: "Gifts",
