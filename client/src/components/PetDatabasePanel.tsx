@@ -9,6 +9,7 @@ import { renderPetGif, type GifAnimation } from "@/lib/petGif";
 import { getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
 import PetAnimatorCanvas from "@/components/PetAnimatorCanvas";
 import { PET_ANIMATION_PROFILES, type PetAnimationProfile, normalizeAnimationProfile } from "@/lib/petAnimationConfig";
+import type { CostumePlacement } from "@shared/costumeFeature";
 
 interface PetTemplate {
   id: string;
@@ -42,6 +43,9 @@ interface PetTemplatePart {
 interface PetTemplateWithParts extends PetTemplate {
   parts: PetTemplatePart[];
 }
+
+interface CostumeItem { id: string; name: string; imageUrl: string | null; }
+interface CostumeDefinition { shopItemId: string; templateId: string; placements: CostumePlacement[]; }
 
 interface LinkedShopPet {
   id: string;
@@ -280,6 +284,7 @@ export default function PetDatabasePanel({
     onSelectedTemplateChange?.(selectedTemplateId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTemplateId]);
+  useEffect(() => setSelectedCostumeId(null), [selectedTemplateId]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newPetName, setNewPetName] = useState("");
   const [showRenameModal, setShowRenameModal] = useState(false);
@@ -292,6 +297,9 @@ export default function PetDatabasePanel({
   const [gifExporting, setGifExporting] = useState(false);
   const [gifProgress, setGifProgress] = useState(0);
   const [gifAnim, setGifAnim] = useState<GifAnimation>("idle");
+  const [showCostumes, setShowCostumes] = useState(false);
+  const [selectedCostumeId, setSelectedCostumeId] = useState<string | null>(null);
+  const [draggingCostume, setDraggingCostume] = useState(false);
 
   // Notify parent whenever the facing mode toggles (front ↔ side) so the
   // Test-Animator save preview can match.
@@ -350,6 +358,25 @@ export default function PetDatabasePanel({
     enabled: !!selectedTemplateId,
   });
 
+  const { data: costumeItems = [] } = useQuery<CostumeItem[]>({
+    queryKey: ["/api/admin/costumes"],
+    enabled: !!selectedTemplateId,
+  });
+  const { data: costumeDefinitions = [] } = useQuery<CostumeDefinition[]>({
+    queryKey: ["/api/admin/costume-definitions", selectedTemplateId],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/costume-definitions?templateId=${selectedTemplateId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load costume placements");
+      return res.json();
+    },
+    enabled: !!selectedTemplateId,
+  });
+  // Reopening a template restores a saved placement into the same editor
+  // surface; admins can then choose another piece from the selector.
+  useEffect(() => {
+    if (!selectedCostumeId && costumeDefinitions[0]) setSelectedCostumeId(costumeDefinitions[0].shopItemId);
+  }, [costumeDefinitions, selectedCostumeId]);
+
   // Sync facingMode from the loaded template's facing field or existing parts
   useEffect(() => {
     if (!templateDetail) return;
@@ -371,6 +398,15 @@ export default function PetDatabasePanel({
   const viewParts = (templateDetail?.parts || [])
     .filter(p => p.view === activeView)
     .sort((a, b) => previewEffectiveZ(a) - previewEffectiveZ(b));
+
+  const selectedCostumeItem = costumeItems.find(item => item.id === selectedCostumeId);
+  const selectedCostumeDefinition = costumeDefinitions.find(definition => definition.shopItemId === selectedCostumeId);
+  const selectedCostumePlacement = selectedCostumeId
+    ? selectedCostumeDefinition?.placements.find(placement => placement.view === (activeView === "back" ? "side" : "front"))
+      ?? { view: activeView === "back" ? "side" as const : "front" as const, anchorPart: viewParts[0]?.partType ?? "body", posX: 0, posY: 0, width: 300, height: 300, pivotX: 50, pivotY: 50, depth: "front" as const }
+    : undefined;
+  const costumeAnchor = viewParts.find(part => part.partType === selectedCostumePlacement?.anchorPart) ?? viewParts.find(part => part.partType === "body");
+  const costumeParts = viewParts.map(part => ({ partType: part.partType, label: ALL_PART_DEFS.find(def => def.key === part.partType)?.label ?? part.partType }));
 
   const createMutation = useMutation({
     mutationFn: async (name: string) => {
@@ -517,6 +553,29 @@ export default function PetDatabasePanel({
       toast({ title: "Error", description: "Failed to assemble", variant: "destructive" });
     },
   });
+
+  const saveCostumeMutation = useMutation({
+    mutationFn: async ({ itemId, placement }: { itemId: string; placement: CostumePlacement }) => {
+      const existing = costumeDefinitions.find(definition => definition.shopItemId === itemId)?.placements ?? [];
+      const placements = [...existing.filter(current => current.view !== placement.view), placement];
+      const res = await apiRequest("PUT", "/api/admin/costume-definitions", { shopItemId: itemId, templateId: selectedTemplateId, placements });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/costume-definitions", selectedTemplateId] });
+      toast({ title: "Costume saved", description: "Placement is stored in template coordinates." });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to save costume placement", variant: "destructive" }),
+  });
+
+  const defaultCostumePlacement = (): CostumePlacement => ({
+    view: activeView === "back" ? "side" : "front", anchorPart: costumeParts[0]?.partType ?? "body",
+    posX: 0, posY: 0, width: 300, height: 300, pivotX: 50, pivotY: 50, depth: "front",
+  });
+  const updateCostume = (changes: Partial<CostumePlacement>) => {
+    if (!selectedCostumeId) return;
+    saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: { ...(selectedCostumePlacement ?? defaultCostumePlacement()), ...changes } });
+  };
 
   const loadImageToCache = useCallback((imageUrl: string): Promise<HTMLCanvasElement> => {
     const cached = pixelCacheRef.current.get(imageUrl);
@@ -770,7 +829,41 @@ export default function PetDatabasePanel({
               {showAnimPreview ? "Pause" : "Animate"}
             </button>
           )}
+          <button
+            data-testid="button-costume"
+            onClick={() => setShowCostumes(open => !open)}
+            className="px-3 py-1.5 rounded-md font-fantasy text-[10px] tracking-wider"
+            style={{ background: showCostumes ? "rgba(192,132,252,.22)" : "rgba(0,0,0,.3)", border: "1px solid rgba(192,132,252,.45)", color: "#c084fc", cursor: "pointer" }}
+          >COSTUME</button>
         </div>
+
+        {showCostumes && (
+          <div className="rounded-lg p-3 space-y-3" style={{ background: "rgba(52,28,72,.35)", border: "1px solid rgba(192,132,252,.35)" }}>
+            <p className="font-fantasy text-[9px] tracking-wider" style={{ color: "#c084fc" }}>SELECT A COSTUME</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-44 overflow-y-auto">
+              {costumeItems.map(item => <button key={item.id} data-testid={`button-select-costume-${item.id}`} onClick={() => setSelectedCostumeId(item.id)} className="flex items-center gap-2 p-2 rounded text-left" style={{ background: selectedCostumeId === item.id ? "rgba(192,132,252,.25)" : "rgba(0,0,0,.24)", border: "1px solid rgba(192,132,252,.25)", color: "#e7d7b5" }}>
+                {item.imageUrl && <img src={item.imageUrl} alt="" className="w-8 h-8 object-contain" />}
+                <span className="font-fantasy text-[9px] truncate">{item.name}</span>
+              </button>)}
+              {!costumeItems.length && <p className="col-span-full text-xs" style={{ color: "#a89878" }}>No saved Costume items yet.</p>}
+            </div>
+            {selectedCostumeItem && selectedCostumePlacement && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+                <label className="font-fantasy text-[8px] tracking-wider" style={{ color: "#a89878" }}>ANCHOR PET PART
+                  <select value={selectedCostumePlacement.anchorPart} onChange={event => updateCostume({ anchorPart: event.target.value })} className="w-full mt-1 px-2 py-2 rounded text-xs" style={{ background: "#201526", color: "#e7d7b5" }}>
+                    {costumeParts.map(part => <option key={part.partType} value={part.partType}>{part.label}</option>)}
+                  </select>
+                </label>
+                <label className="font-fantasy text-[8px] tracking-wider" style={{ color: "#a89878" }}>SIZE ({Math.round(selectedCostumePlacement.width)}px)
+                  <input type="range" min="20" max="1000" value={selectedCostumePlacement.width} onChange={event => updateCostume({ width: Number(event.target.value), height: Number(event.target.value) })} className="w-full mt-2" />
+                </label>
+                <div className="flex rounded overflow-hidden" style={{ border: "1px solid rgba(192,132,252,.35)" }}>
+                  {(["front", "back"] as const).map(depth => <button key={depth} onClick={() => updateCostume({ depth })} className="flex-1 py-2 font-fantasy text-[9px]" style={{ background: selectedCostumePlacement.depth === depth ? "rgba(192,132,252,.3)" : "rgba(0,0,0,.25)", color: "#e7d7b5" }}>{depth.toUpperCase()}</button>)}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Canvas — click to select a part; use the D-pad below to reposition.
             Parts cannot be individually dragged so accidental moves are prevented.
@@ -790,6 +883,14 @@ export default function PetDatabasePanel({
             cursor: "default",
           }}
           onClick={handleCanvasClick}
+          onPointerMove={(event) => {
+            if (!draggingCostume || !selectedCostumePlacement || !costumeAnchor) return;
+            const rect = canvasRef.current?.getBoundingClientRect();
+            if (!rect) return;
+            const scale = CANVAS_SIZE / rect.width;
+            updateCostume({ posX: (event.clientX - rect.left) * scale - (costumeAnchor.posX + costumeAnchor.width * (costumeAnchor.pivotX ?? 50) / 100), posY: (event.clientY - rect.top) * scale - (costumeAnchor.posY + costumeAnchor.height * (costumeAnchor.pivotY ?? 50) / 100) });
+          }}
+          onPointerUp={() => setDraggingCostume(false)}
         >
           {/* Static positioning layer — always rendered so click-to-select works.
               Faded when animation preview is active so the animated canvas reads
@@ -831,6 +932,14 @@ export default function PetDatabasePanel({
                 </div>
               );
             })}
+            {selectedCostumeItem?.imageUrl && selectedCostumePlacement && costumeAnchor && (
+              <div
+                data-testid={`canvas-costume-${selectedCostumeItem.id}`}
+                className="absolute"
+                onPointerDown={(event) => { event.stopPropagation(); setDraggingCostume(true); setSelectedCostumeId(selectedCostumeItem.id); (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId); }}
+                style={{ left: `${((costumeAnchor.posX + costumeAnchor.width * (costumeAnchor.pivotX ?? 50) / 100 + selectedCostumePlacement.posX - selectedCostumePlacement.width * selectedCostumePlacement.pivotX / 100) / CANVAS_SIZE) * 100}%`, top: `${((costumeAnchor.posY + costumeAnchor.height * (costumeAnchor.pivotY ?? 50) / 100 + selectedCostumePlacement.posY - selectedCostumePlacement.height * selectedCostumePlacement.pivotY / 100) / CANVAS_SIZE) * 100}%`, width: `${selectedCostumePlacement.width / CANVAS_SIZE * 100}%`, height: `${selectedCostumePlacement.height / CANVAS_SIZE * 100}%`, zIndex: selectedCostumePlacement.depth === "front" ? 1000 : -1, cursor: "move", outline: draggingCostume ? "2px solid #c084fc" : "none" }}
+              ><img src={selectedCostumeItem.imageUrl} alt={selectedCostumeItem.name} className="w-full h-full object-contain pointer-events-none" draggable={false} /></div>
+            )}
           </div>
 
           {/* Live animated overlay — pointer-events: none so part clicks work. */}

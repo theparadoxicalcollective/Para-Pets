@@ -4,7 +4,6 @@ import "./index.css";
 import "./petCarePolish.css";
 import "./clearingBossPolish.css";
 import "./soulExchangeCardPolish.css";
-import { installAdminCostumeTypeEnhancement } from "./lib/adminCostumeTypeEnhancement";
 
 function setAppHeight() {
   document.documentElement.style.setProperty("--app-height", `${window.innerHeight}px`);
@@ -57,4 +56,3 @@ window.addEventListener("unhandledrejection", (e) => {
 });
 
 createRoot(document.getElementById("root")!).render(<App />);
-installAdminCostumeTypeEnhancement();
