@@ -309,9 +309,18 @@ export default function SoulExchangeOverlay({
                       </div>
                     </button>
 
-                    <div className="absolute inset-x-[9%] bottom-[13.5%] z-20 flex h-[8%] items-center justify-center text-center">
-                      <span className={`text-[9px] font-black min-[390px]:text-[10px] sm:text-sm ${pet.eligible ? "text-[#f0ddba]" : "text-violet-100/[.72]"}`}>
-                        {pet.essenceValue.toLocaleString()} Essence
+                    <div
+                      data-soul-essence
+                      className="absolute inset-x-[9%] bottom-[13.5%] z-20 flex h-[8%] items-center justify-center gap-1 text-center"
+                    >
+                      <img
+                        src={currencyAssets.essenceToken}
+                        alt=""
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5 shrink-0 object-contain drop-shadow-[0_0_5px_rgba(74,222,128,.22)] min-[390px]:h-4 min-[390px]:w-4 sm:h-5 sm:w-5"
+                      />
+                      <span className={`font-black leading-none ${pet.eligible ? "text-[#f0ddba]" : "text-violet-100/[.72]"} text-[10px] min-[390px]:text-[11px] sm:text-sm`}>
+                        {pet.essenceValue.toLocaleString()}
                       </span>
                     </div>
 
