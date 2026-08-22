@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 
+const shared = fs.readFileSync("shared/hauntedWoods.ts", "utf8");
 const reconcile = fs.readFileSync("server/worlds/hauntedWoods.ts", "utf8");
-const portal = fs.readFileSync("attached_assets/worlds/haunted_woods/soul-exchange-portal-v3.svg", "utf8");
+const portal = fs.readFileSync("attached_assets/worlds/haunted_woods/soul-exchange-portal-v4.svg", "utf8");
+const portalComponent = fs.readFileSync("client/src/components/world/SoulExchangePortal.tsx", "utf8");
 const cardPolish = fs.readFileSync("client/src/soulExchangeCardPolish.css", "utf8");
 const main = fs.readFileSync("client/src/main.tsx", "utf8");
 
@@ -13,12 +15,20 @@ test("Haunted Woods restores the admin-saved Soul Exchange position during recon
   assert.match(reconcile, /SET pos_x = \$\{canonicalSnapshot\.posX\}, pos_y = \$\{canonicalSnapshot\.posY\}/);
 });
 
-test("Haunted Woods Soul Exchange marker is a prominent animated soul flame", () => {
-  assert.match(portal, /class="se-flame"/);
-  assert.match(portal, /class="se-ring"/);
-  assert.match(portal, /class="se-mote/);
+test("Haunted Woods uses the transparent smoky Soul Exchange portal", () => {
+  assert.match(shared, /soul-exchange-portal-v4\.svg/);
+  assert.match(portal, /class="se-vortex"/);
+  assert.match(portal, /class="se-vortex-rev"/);
   assert.match(portal, /class="se-wisp/);
+  assert.match(portal, /class="se-spark/);
   assert.match(portal, /prefers-reduced-motion:reduce/);
+  assert.doesNotMatch(portal, /<rect[^>]+fill="(?:#|rgb)/i);
+});
+
+test("Soul Exchange portal wrapper keeps the map location in charge of drag and click behavior", () => {
+  assert.match(portalComponent, /pointer-events-none/);
+  assert.match(portalComponent, /soul-exchange-portal-v4\.svg/);
+  assert.match(portalComponent, /transition: "opacity \.35s ease, transform \.5s/);
 });
 
 test("Soul Exchange card polish hides the redundant lower selector and moves identity lower", () => {
