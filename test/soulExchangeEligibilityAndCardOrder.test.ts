@@ -21,8 +21,14 @@ test("Soul Exchange ignores stale Clearing reward rows but still protects active
   assert.match(server, /DELETE FROM clearing_reward_chests WHERE user_id=\$\{userId\} AND pet_inventory_id IN \(\$\{idList\}\)/);
 });
 
-test("Soul Exchange card identity shows stars above names and lifts the footer label three more pixels", () => {
-  assert.match(polish, /> div > span \{[\s\S]*order: 1/);
-  assert.match(polish, /> div > b \{[\s\S]*order: 2/);
-  assert.match(polish, /main:has\(\.soul-exchange-zone\) > footer button > img \+ span[\s\S]*translateY\(-5px\)/);
+test("Soul Exchange card identity stays compact and lifts the footer label five more pixels", () => {
+  const stars = /\[data-soul-card\] > \[data-soul-availability\] > div > span \{[\s\S]*?order: 1/;
+  const name = /\[data-soul-card\] > \[data-soul-availability\] > div > b \{[\s\S]*?order: 2/;
+
+  assert.match(polish, stars);
+  assert.match(polish, name);
+  assert.match(polish, /\[data-soul-card\] > \[data-soul-availability\] > div > span \{[\s\S]*?font-size: 88%/);
+  assert.match(polish, /\[data-soul-card\] > \[data-soul-availability\] > div > b \{[\s\S]*?font-size: 90%/);
+  assert.match(polish, /\[data-soul-card\] > \[data-soul-availability\] \+ div[\s\S]*bottom: 10\.5%/);
+  assert.match(polish, /main:has\(\.soul-exchange-zone\) > footer button > img \+ span[\s\S]*translateY\(-10px\)/);
 });

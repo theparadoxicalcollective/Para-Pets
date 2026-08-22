@@ -14,7 +14,7 @@ test("Soul Exchange artwork is organized as permanent Haunted Woods assets", () 
   assert.equal(HAUNTED_WOODS_WORLD_ID, "haunted_woods");
   assert.doesNotMatch(SOUL_EXCHANGE_LOCATION.iconAssetPath, /uploads/);
   assert.doesNotMatch(SOUL_EXCHANGE_LOCATION.backgroundAssetPath, /uploads/);
-  assert.match(SOUL_EXCHANGE_LOCATION.iconAssetPath, /soul-exchange-portal-v3\.svg$/);
+  assert.match(SOUL_EXCHANGE_LOCATION.iconAssetPath, /soul-exchange-portal-v4\.svg$/);
 
   const background = fs.readFileSync(assetPath(SOUL_EXCHANGE_LOCATION.backgroundAssetPath));
   assert.deepEqual([...background.subarray(0, 3)], [0xff, 0xd8, 0xff], "background should retain its original JPEG encoding");
@@ -22,19 +22,18 @@ test("Soul Exchange artwork is organized as permanent Haunted Woods assets", () 
   assert.equal(fs.existsSync("attached_assets/uploads/SoulExchangeBackground.png"), false);
 });
 
-test("Soul Exchange world marker matches the Clearing portal with violet rising lights instead of bubble orbs", () => {
+test("Soul Exchange world marker uses a transparent smoky violet vortex instead of the old sparkle marker", () => {
   const portal = fs.readFileSync(assetPath(SOUL_EXCHANGE_LOCATION.iconAssetPath), "utf8");
-  assert.match(portal, /viewBox="0 0 420 520"/);
-  assert.match(portal, /#8b5cf6/i);
+  assert.match(portal, /viewBox="0 0 600 440"/);
+  assert.match(portal, /#7c3aed/i);
   assert.match(portal, /prefers-reduced-motion:reduce/);
-  assert.match(portal, /light-rise/);
-  assert.match(portal, /floor-breathe/);
-  assert.match(portal, /filter id="portal-glow"/);
-  assert.match(portal, /filter id="floor-blur"/);
-  assert.ok((portal.match(/class="portal-light"/g) ?? []).length >= 18, "marker should have a dense field of small rising magical lights");
-  assert.doesNotMatch(portal, /class="soul-orb"|orb-drift|halo-breathe|class="soul-wisp"|wisp-float/);
-  assert.doesNotMatch(portal, /<circle\b/i, "large round bubble artwork should not return");
-  assert.match(portal, /<path\b/i);
+  assert.match(portal, /class="se-vortex"/);
+  assert.match(portal, /class="se-vortex-rev"/);
+  assert.match(portal, /class="se-wisp/);
+  assert.match(portal, /class="se-spark/);
+  assert.match(portal, /filter id="blur18"/);
+  assert.match(portal, /filter id="blur7"/);
+  assert.doesNotMatch(portal, /<rect[^>]+fill="(?:#|rgb)/i, "portal should remain transparent rather than adding a solid background");
   assert.doesNotMatch(portal, /<script/i);
   assert.doesNotMatch(portal, /(?:href|xlink:href)="https?:/i);
 });

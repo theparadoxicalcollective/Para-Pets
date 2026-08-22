@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 440" role="img" aria-labelledby="title desc">
+  <title id="title">Soul Exchange portal</title>
+  <desc id="desc">A transparent violet smoky vortex hovering over the Haunted Woods Soul Exchange.</desc>
+  <defs>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#d8b4fe" stop-opacity="0"/>
+      <stop offset=".55" stop-color="#a855f7" stop-opacity=".08"/>
+      <stop offset=".82" stop-color="#7c3aed" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#4c1d95" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="smoke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0" stop-color="#f5d0fe" stop-opacity=".22"/>
+      <stop offset=".22" stop-color="#c084fc" stop-opacity=".8"/>
+      <stop offset=".5" stop-color="#7c3aed" stop-opacity=".95"/>
+      <stop offset=".78" stop-color="#c084fc" stop-opacity=".7"/>
+      <stop offset="1" stop-color="#f5d0fe" stop-opacity=".2"/>
+    </linearGradient>
+    <linearGradient id="smoke2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0" stop-color="#e9d5ff" stop-opacity=".18"/>
+      <stop offset=".35" stop-color="#a855f7" stop-opacity=".72"/>
+      <stop offset=".7" stop-color="#6d28d9" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#e9d5ff" stop-opacity=".16"/>
+    </linearGradient>
+    <filter id="blur18" x="-30%" y="-70%" width="160%" height="240%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+    <filter id="blur7" x="-20%" y="-50%" width="140%" height="200%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <filter id="glow" x="-40%" y="-80%" width="180%" height="260%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <style>
+    .se-vortex{transform-box:fill-box;transform-origin:center;animation:se-vortex-spin 8.5s linear infinite}
+    .se-vortex-rev{transform-box:fill-box;transform-origin:center;animation:se-vortex-spin-rev 12s linear infinite}
+    .se-breathe{transform-box:fill-box;transform-origin:center;animation:se-breathe 3.2s ease-in-out infinite}
+    .se-wisp{transform-box:fill-box;transform-origin:center;animation:se-wisp-rise 4.2s ease-in-out infinite}
+    .se-wisp.w2{animation-delay:-1.4s;animation-duration:5s}
+    .se-wisp.w3{animation-delay:-2.7s;animation-duration:4.6s}
+    .se-spark{transform-box:fill-box;transform-origin:center;animation:se-spark 2.8s ease-in-out infinite}
+    .se-spark.s2{animation-delay:-.9s}.se-spark.s3{animation-delay:-1.8s}.se-spark.s4{animation-delay:-2.2s}
+    @keyframes se-vortex-spin{to{transform:rotate(360deg)}}
+    @keyframes se-vortex-spin-rev{to{transform:rotate(-360deg)}}
+    @keyframes se-breathe{0%,100%{opacity:.72;transform:scale(.94,.9)}50%{opacity:1;transform:scale(1.05,1.08)}}
+    @keyframes se-wisp-rise{0%{opacity:0;transform:translateY(20px) scale(.76)}28%{opacity:.8}100%{opacity:0;transform:translateY(-64px) scale(1.1)}}
+    @keyframes se-spark{0%,100%{opacity:.15;transform:translateY(5px) scale(.7)}45%{opacity:1}75%{opacity:.5}100%{transform:translateY(-18px) scale(1.05)}}
+    @media (prefers-reduced-motion:reduce){.se-vortex,.se-vortex-rev,.se-breathe,.se-wisp,.se-spark{animation:none!important}.se-breathe{opacity:.85}.se-wisp,.se-spark{opacity:.65}}
+  </style>
+
+  <ellipse class="se-breathe" cx="300" cy="220" rx="258" ry="150" fill="url(#halo)" filter="url(#blur18)"/>
+
+  <g class="se-vortex">
+    <ellipse cx="300" cy="220" rx="218" ry="112" fill="none" stroke="#7c3aed" stroke-opacity=".18" stroke-width="30" filter="url(#blur18)"/>
+    <ellipse cx="300" cy="220" rx="210" ry="106" fill="none" stroke="url(#smoke)" stroke-opacity=".72" stroke-width="22" filter="url(#blur7)"/>
+    <ellipse cx="300" cy="220" rx="194" ry="96" fill="none" stroke="url(#smoke)" stroke-width="9" stroke-linecap="round" stroke-dasharray="210 62 95 44" filter="url(#glow)"/>
+    <ellipse cx="300" cy="220" rx="166" ry="76" fill="none" stroke="#e9d5ff" stroke-opacity=".36" stroke-width="5" stroke-linecap="round" stroke-dasharray="120 48 76 38"/>
+  </g>
+
+  <g class="se-vortex-rev" opacity=".78">
+    <ellipse cx="300" cy="220" rx="226" ry="118" fill="none" stroke="url(#smoke2)" stroke-width="6" stroke-linecap="round" stroke-dasharray="96 54 148 72" filter="url(#blur7)"/>
+    <ellipse cx="300" cy="220" rx="178" ry="84" fill="none" stroke="#a855f7" stroke-opacity=".5" stroke-width="4" stroke-linecap="round" stroke-dasharray="55 38 110 46"/>
+  </g>
+
+  <g class="se-wisp" fill="none" stroke="#c084fc" stroke-linecap="round" opacity=".65">
+    <path d="M150 224 C176 184 194 254 226 211 C250 179 268 239 290 207" stroke-width="7" filter="url(#blur7)"/>
+    <path d="M310 234 C334 190 352 252 380 212 C406 178 430 238 456 203" stroke-width="6" filter="url(#blur7)"/>
+  </g>
+  <g class="se-wisp w2" fill="none" stroke="#e9d5ff" stroke-linecap="round" opacity=".5">
+    <path d="M180 244 C210 202 230 268 258 225 C284 187 302 250 326 218" stroke-width="4"/>
+  </g>
+  <g class="se-wisp w3" fill="none" stroke="#8b5cf6" stroke-linecap="round" opacity=".55">
+    <path d="M274 266 C292 232 314 274 334 240 C350 212 370 248 386 226" stroke-width="9" filter="url(#blur7)"/>
+  </g>
+
+  <ellipse cx="300" cy="220" rx="120" ry="53" fill="#120525" fill-opacity=".42" filter="url(#blur7)"/>
+  <ellipse cx="300" cy="220" rx="112" ry="48" fill="none" stroke="#f5d0fe" stroke-opacity=".12" stroke-width="2"/>
+
+  <g fill="#f5d0fe" filter="url(#glow)">
+    <circle class="se-spark" cx="172" cy="195" r="2.5"/>
+    <circle class="se-spark s2" cx="226" cy="150" r="2"/>
+    <circle class="se-spark s3" cx="394" cy="168" r="2.5"/>
+    <circle class="se-spark s4" cx="438" cy="226" r="2"/>
+    <circle class="se-spark" cx="350" cy="286" r="1.8"/>
+  </g>
+</svg>
