@@ -21,17 +21,18 @@
   min-height: 21% !important;
 }
 
-/* Put rarity first, then the pet name, within the illustrated identity band. */
+/* Keep rarity first, then the pet name, and make both compact enough that
+ * longer names do not crowd the card's lower Essence band. */
 [data-soul-card] > [data-soul-availability] > div > span {
   order: 1;
   margin-top: 0 !important;
-  font-size: 88% !important;
+  font-size: clamp(.5rem, 2.15vw, .72rem) !important;
 }
 
 [data-soul-card] > [data-soul-availability] > div > b {
   order: 2;
   margin-top: 2px;
-  font-size: 90% !important;
+  font-size: clamp(.56rem, 2.35vw, .78rem) !important;
 }
 
 /* The entire card body already selects an eligible pet and the gold check
@@ -41,15 +42,15 @@
   display: none !important;
 }
 
-/* Move each pet's Essence amount slightly lower into the lower information
- * band without changing the button/card artwork or hit target. */
-[data-soul-card] > [data-soul-availability] + div {
+/* Keep the per-pet Essence row in the lower information band. The component
+ * now renders the green Essence token followed by the numeric value. */
+[data-soul-card] > [data-soul-availability] + [data-soul-essence] {
   bottom: 10.5% !important;
 }
 
 /* The uploaded SE button art sits slightly low around its type. Move only the
- * Soul Exchange footer label another five pixels upward than the previous
- * adjustment, without changing the button artwork or hit target. */
+ * Soul Exchange footer label another few pixels upward without changing the
+ * button artwork or hit target. */
 main:has(.soul-exchange-zone) > footer button > img + span {
-  transform: translateY(-10px) !important;
+  transform: translateY(-15px) !important;
 }
