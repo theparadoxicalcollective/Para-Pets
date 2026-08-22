@@ -56,7 +56,7 @@ export const WORLD_OPTIONS = [
   { id: "haunted_woods", name: "Haunted Woods" },
 ];
 
-const NON_PET_TYPES = ["power_up", "accessory", "clearing", "potion", "special", "decor", "edibles", "fishing", "gift", "ingredient", "recipe"];
+const NON_PET_TYPES = ["power_up", "accessory", "costume", "clearing", "potion", "special", "decor", "edibles", "fishing", "gift", "ingredient", "recipe"];
 
 function formatTypeName(type: string): string {
   if (type === "power_up") return "Power Up";
@@ -73,6 +73,7 @@ export const ITEM_CATEGORIES = [
   { key: "fish",        label: "Fish",        color: "#22d3ee" },
   { key: "bait",        label: "Bait",        color: "#86efac" },
   { key: "accessories", label: "Accessories", color: "#f9a8d4" },
+  { key: "costumes",    label: "Costumes",    color: "#c084fc" },
   { key: "clearing",    label: "Clearing Equipment", color: "#5eead4" },
   { key: "power_ups",   label: "Power Ups",   color: "#fde68a" },
   { key: "decor",       label: "Decor",       color: "#d9f99d" },
@@ -143,6 +144,7 @@ export function getItemCategory(item: ShopItemFull): ItemCategoryKey {
     return "fish";
   }
   if (item.type === "accessory") return "accessories";
+  if (item.type === "costume") return "costumes";
   if (item.type === "clearing") return "clearing";
   if (item.type === "power_up" || item.type === "item") return "power_ups";
   if (item.type === "decor") return "decor";
@@ -877,7 +879,7 @@ function AdminItemForm({
           </div>
 
           <div>
-            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Price</label>
+            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">{type === "costume" ? "Costume Price" : "Price"}</label>
             <input
               data-testid="input-item-price"
               type="number"
