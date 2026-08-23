@@ -1,0 +1,7 @@
+/* Admin Pet Editor UI policy: animations remain part of the game/editor
+ * implementation, but the standalone Animation tab is intentionally not
+ * exposed from Add/Edit Pet Parts. Parts and Costume remain available.
+ */
+[data-testid="tab-pet-editor-animation"] {
+  display: none !important;
+}
