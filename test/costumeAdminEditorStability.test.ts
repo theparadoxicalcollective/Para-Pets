@@ -40,8 +40,7 @@ test("costume editor provides proportional sizing and offset-preserving direct d
   assert.doesNotMatch(editor, /input-costume-width|input-costume-height/);
   assert.match(editor, /const resizeCostume = \(nextSize: number\) =>/);
   assert.match(editor, /resizeCostumePlacement\(selectedCostumePlacement, nextSize\)/);
-  assert.match(pointerStart, /offsetX:/);
-  assert.match(pointerStart, /offsetY:/);
+  assert.match(pointerStart, /getCostumeDragOffset\(/);
   assert.match(pointerStart, /setPointerCapture\(event\.pointerId\)/);
   assert.match(editor, /onPointerCancel=\{\(event\) => endCostumeDrag\(event\.pointerId\)\}/);
   assert.match(editor, /onLostPointerCapture=\{\(event\) => endCostumeDrag\(event\.pointerId\)\}/);
