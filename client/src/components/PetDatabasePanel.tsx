@@ -969,9 +969,13 @@ export default function PetDatabasePanel({
             const rect = canvasRef.current?.getBoundingClientRect();
             if (!rect) return;
             const scale = CANVAS_SIZE / rect.width;
-            updateCostume({ posX: (event.clientX - rect.left) * scale - (costumeAnchor.posX + costumeAnchor.width * (costumeAnchor.pivotX ?? 50) / 100), posY: (event.clientY - rect.top) * scale - (costumeAnchor.posY + costumeAnchor.height * (costumeAnchor.pivotY ?? 50) / 100) });
+            updateCostumeDraft({
+              posX: (event.clientX - rect.left) * scale - (costumeAnchor.posX + costumeAnchor.width * (costumeAnchor.pivotX ?? 50) / 100),
+              posY: (event.clientY - rect.top) * scale - (costumeAnchor.posY + costumeAnchor.height * (costumeAnchor.pivotY ?? 50) / 100),
+            });
           }}
           onPointerUp={() => setDraggingCostume(false)}
+          onPointerCancel={() => setDraggingCostume(false)}
         >
           {/* Static positioning layer — always rendered so click-to-select works.
               Faded when animation preview is active so the animated canvas reads

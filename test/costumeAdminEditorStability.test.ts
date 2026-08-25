@@ -20,6 +20,7 @@ test("costume pointer movement only updates a local draft", () => {
   assert.doesNotMatch(pointerMove, /saveCostumeMutation\.mutate/);
   assert.match(editor, /setCostumeDraft\(current =>/);
   assert.match(editor, /setCostumeDraftDirty\(true\)/);
+  assert.doesNotMatch(editor, /\bupdateCostume\(/);
 });
 
 test("costume placement persists only from the explicit Save action", () => {
