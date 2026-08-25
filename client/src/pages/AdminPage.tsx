@@ -81,6 +81,12 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [watcherTab, setWatcherTab] = useState<"watcher" | "chat_filter">("watcher");
   const [purchasesTab, setPurchasesTab] = useState<"history" | "milestones">("history");
   const [partsOverlayTemplateId, setPartsOverlayTemplateId] = useState<string | null>(null);
+  const [partsOverlayDirty, setPartsOverlayDirty] = useState(false);
+  const closePartsOverlay = () => {
+    if (partsOverlayDirty && !window.confirm("Discard the unsaved costume placement?")) return;
+    setPartsOverlayDirty(false);
+    setPartsOverlayTemplateId(null);
+  };
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -793,7 +799,7 @@ export default function AdminPage({ user }: AdminPageProps) {
           >
             <button
               data-testid="button-close-pet-parts"
-              onClick={() => setPartsOverlayTemplateId(null)}
+              onClick={closePartsOverlay}
               className="font-fantasy text-[11px] tracking-wider"
               style={{
                 marginBottom: 12,
@@ -810,6 +816,7 @@ export default function AdminPage({ user }: AdminPageProps) {
             <PetDatabasePanel
               key={partsOverlayTemplateId}
               initialTemplateId={partsOverlayTemplateId}
+              onCostumeDirtyChange={setPartsOverlayDirty}
             />
           </div>
         </div>
