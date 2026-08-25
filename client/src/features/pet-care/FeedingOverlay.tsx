@@ -1334,8 +1334,6 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
             ? "drop-shadow(0 0 32px rgba(190,255,160,1)) drop-shadow(0 0 14px rgba(255,220,120,0.85)) drop-shadow(0 6px 16px rgba(0,0,0,0.55))"
             : "drop-shadow(0 0 18px rgba(190,255,160,0.55)) drop-shadow(0 0 8px rgba(255,220,120,0.35)) drop-shadow(0 6px 16px rgba(0,0,0,0.55))",
           transition: safeMode ? "none" : "filter 0.3s ease",
-          outline: safeMode && (petGlow || selectedCareItem) ? "2px solid rgba(255,215,0,0.75)" : "none",
-          outlineOffset: safeMode && petGlow ? "3px" : "0px",
           touchAction: "none",
         }}
         onPointerDown={onPetPointerDown}

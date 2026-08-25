@@ -11,7 +11,8 @@ const storage = readFileSync("server/storage.ts", "utf8");
 test("owner house pet taps expose only the placement-removal control", () => {
   assert.match(ownerPage, /data-testid="house-pet-removal-control"/);
   assert.match(ownerPage, /\{pending \? "Removing…" : "Remove from Home"\}/);
-  assert.match(ownerPage, /current\?\.inventoryId === pet\.inventoryId \? null : pet/);
+  assert.match(ownerPage, /setOutdoorPopupPetId\(current => current === drag\.inventoryId \? null : drag\.inventoryId\)/);
+  assert.match(ownerPage, /setPopupPetId\(current => current === pet\.inventoryId \? null : pet\.inventoryId\)/);
   assert.doesNotMatch(ownerPage, /onCare=\{\(\) => \{ const id = outdoorPopupPet/);
   assert.doesNotMatch(ownerPage, /onFeedPet=\{/);
 });

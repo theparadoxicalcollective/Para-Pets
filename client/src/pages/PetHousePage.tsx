@@ -421,7 +421,7 @@ function InteriorViewer({
   leaveButtonY?: number;
   onUpdateItem: (id: string, data: { xPct?: number; yPct?: number; size?: number; flipped?: boolean }) => void;
   onRemoveItem: (id: string) => void;
-  onMovePet: (inventoryId: string, xPct: number, yPct: number) => void;
+  onMovePet: (inventoryId: string, xPct: number, yPct: number) => Promise<void>;
   onRemovePet: (inventoryId: string) => Promise<void>;
   removingPetId: string | null;
   onClose: () => void;
@@ -436,13 +436,15 @@ function InteriorViewer({
   const [aspect, setAspect] = useState(16 / 9);
   const panStartRef = useRef<{ startX: number; startPanX: number; pid: number } | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
-  const [popupPet, setPopupPet] = useState<HousePet | null>(null);
+  const [popupPetId, setPopupPetId] = useState<string | null>(null);
   const [topPetId, setTopPetId] = useState<string | null>(null);
   const [topItemId, setTopItemId] = useState<string | null>(null);
   const itemDragRef = useRef<{ id: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
   const [itemDragLive, setItemDragLive] = useState<{ id: string; xPct: number; yPct: number } | null>(null);
   const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number } | null>(null);
   const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
+  const popupPet = placedPets.find(pet => pet.inventoryId === popupPetId) ?? null;
+  const popupPetLivePosition = popupPet && petDragLive?.inventoryId === popupPet.inventoryId ? petDragLive : null;
 
   // Recalc layout whenever aspect changes or container resizes
   useEffect(() => {
@@ -472,10 +474,10 @@ function InteriorViewer({
   const onContainerDown = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
     if (selectedItemId) setSelectedItemId(null);
-    if (popupPet) setPopupPet(null);
+    if (popupPetId) setPopupPetId(null);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
-  }, [panX, selectedItemId, popupPet]);
+  }, [panX, selectedItemId, popupPetId]);
 
   const onContainerMove = useCallback((e: React.PointerEvent) => {
     e.stopPropagation();
@@ -553,15 +555,27 @@ function InteriorViewer({
   const onPetUp = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
     petDragRef.current = null;
-    setPetDragLive(null);
-    if (!drag || imgWidthRef.current <= 0) return;
+    if (!drag || imgWidthRef.current <= 0) {
+      setPetDragLive(null);
+      return;
+    }
     const maxY = maxYForHeight(containerHRef.current);
     const newXPct = Math.max(0.02, Math.min(0.98, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidthRef.current));
     const newYPct = Math.max(0.02, Math.min(maxY, drag.startYPct + (e.clientY - drag.startPointerY) / containerHRef.current));
     if (Math.abs(newXPct - drag.startXPct) > 0.005 || Math.abs(newYPct - drag.startYPct) > 0.005) {
+      const finalPosition = { inventoryId: drag.inventoryId, xPct: newXPct, yPct: newYPct };
       setTopPetId(drag.inventoryId);
-      onMovePet(drag.inventoryId, newXPct, newYPct);
+      setPetDragLive(finalPosition);
+      void onMovePet(drag.inventoryId, newXPct, newYPct)
+        .catch(() => undefined)
+        .finally(() => setPetDragLive(current =>
+          current?.inventoryId === finalPosition.inventoryId &&
+          current.xPct === finalPosition.xPct &&
+          current.yPct === finalPosition.yPct ? null : current
+        ));
+      return;
     }
+    setPetDragLive(null);
   }, [onMovePet]);
 
   const displayedItems = useMemo(() =>
@@ -658,7 +672,7 @@ function InteriorViewer({
             onClick={(e) => {
               e.stopPropagation();
               const drag = petDragRef.current;
-              if (!drag) setPopupPet(current => current?.inventoryId === pet.inventoryId ? null : pet);
+              if (!drag) setPopupPetId(current => current === pet.inventoryId ? null : pet.inventoryId);
             }}
           >
             {(pet.hatchedImageUrl || pet.imageUrl) ? (
@@ -677,15 +691,15 @@ function InteriorViewer({
       {/* Owner-only Pet House action; this intentionally bypasses normal pet UI. */}
       {popupPet && (
         <HousePetRemovalControl
-          left={Math.max(82, Math.min((containerRef.current?.clientWidth ?? 390) - 82, panX + (parsePetPct(popupPet.posLeft) ?? 0.5) * imgWidth))}
-          top={Math.max(58, (parsePetPct(popupPet.posTop) ?? 0.5) * containerH - INDOOR_PET_SIZE / 2)}
+          left={Math.max(82, Math.min((containerRef.current?.clientWidth ?? 390) - 82, panX + (popupPetLivePosition?.xPct ?? parsePetPct(popupPet.posLeft) ?? 0.5) * imgWidth))}
+          top={Math.max(58, (popupPetLivePosition?.yPct ?? parsePetPct(popupPet.posTop) ?? 0.5) * containerH - INDOOR_PET_SIZE / 2)}
           petName={popupPet.nickname ?? popupPet.name}
           pending={removingPetId === popupPet.inventoryId}
           onRemove={async () => {
             if (removingPetId) return;
             try {
               await onRemovePet(popupPet.inventoryId);
-              setPopupPet(null);
+              setPopupPetId(null);
             } catch {
               // The page mutation shows the standard destructive toast. Keep
               // this selection open so the owner can retry.
@@ -761,8 +775,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   // Outdoor pet repositioning drag
   const petDragRef = useRef<{ inventoryId: string; startXPct: number; startYPct: number; startPointerX: number; startPointerY: number; pid: number; moved: boolean } | null>(null);
   const [petDragLive, setPetDragLive] = useState<{ inventoryId: string; xPct: number; yPct: number } | null>(null);
-  // Popup for outdoor pet tap
-  const [outdoorPopupPet, setOutdoorPopupPet] = useState<HousePet | null>(null);
+  // Popup selection stores only the inventory id; current pet data stays query-backed.
+  const [outdoorPopupPetId, setOutdoorPopupPetId] = useState<string | null>(null);
   // React Query's isPending flag updates on the next render. Keep a synchronous
   // lock as well so two taps in the same frame can never submit two removals.
   const removingPetRef = useRef<string | null>(null);
@@ -933,7 +947,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       if (!res.ok) throw new Error("Failed");
     },
     onSuccess: (_data, inventoryId) => {
-      setOutdoorPopupPet(current => current?.inventoryId === inventoryId ? null : current);
+      setOutdoorPopupPetId(current => current === inventoryId ? null : current);
       qc.invalidateQueries({ queryKey: ["/api/users", user.id, "pets"] });
     },
     onError: () => toast({ title: "Error", description: "Could not remove this pet from your home.", variant: "destructive" }),
@@ -987,10 +1001,10 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (petInvDragRef.current?.pid === e.pointerId) return;
     if (selectedPlacedId) setSelectedPlacedId(null);
-    if (outdoorPopupPet) setOutdoorPopupPet(null);
+    if (outdoorPopupPetId) setOutdoorPopupPetId(null);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     panStartRef.current = { startX: e.clientX, startPanX: panX, pid: e.pointerId };
-  }, [panX, selectedPlacedId, outdoorPopupPet]);
+  }, [panX, selectedPlacedId, outdoorPopupPetId]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     // Pet inventory drag
@@ -1167,24 +1181,37 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   const handlePetDragEnd = useCallback((e: React.PointerEvent) => {
     const drag = petDragRef.current;
     petDragRef.current = null;
-    setPetDragLive(null);
-    if (!drag) return;
-    if (!drag.moved) {
-      // In the owner's Pet House a tap selects only the placement-removal
-      // action; it never enters the normal pet menu or care route.
-      const pet = pets.find(p => p.inventoryId === drag.inventoryId);
-      if (pet) setOutdoorPopupPet(current => current?.inventoryId === pet.inventoryId ? null : pet);
+    if (!drag) {
+      setPetDragLive(null);
       return;
     }
-    if (imgWidth <= 0) return;
+    if (!drag.moved) {
+      setPetDragLive(null);
+      // In the owner's Pet House a tap selects only the placement-removal
+      // action; it never enters the normal pet menu or care route.
+      setOutdoorPopupPetId(current => current === drag.inventoryId ? null : drag.inventoryId);
+      return;
+    }
+    if (imgWidth <= 0) {
+      setPetDragLive(null);
+      return;
+    }
     const maxYPct = maxYForHeight(containerH);
-    setTopOutdoorPetId(drag.inventoryId);
-    updatePetPositionMutation.mutate({
+    const finalPosition = {
       inventoryId: drag.inventoryId,
       xPct: Math.max(0.05, Math.min(0.95, drag.startXPct + (e.clientX - drag.startPointerX) / imgWidth)),
       yPct: Math.max(0.05, Math.min(maxYPct, drag.startYPct + (e.clientY - drag.startPointerY) / containerH)),
-    });
-  }, [imgWidth, containerH, pets]);
+    };
+    setTopOutdoorPetId(drag.inventoryId);
+    setPetDragLive(finalPosition);
+    void updatePetPositionMutation.mutateAsync(finalPosition)
+      .catch(() => undefined)
+      .finally(() => setPetDragLive(current =>
+        current?.inventoryId === finalPosition.inventoryId &&
+        current.xPct === finalPosition.xPct &&
+        current.yPct === finalPosition.yPct ? null : current
+      ));
+  }, [imgWidth, containerH, updatePetPositionMutation]);
 
   // ── Inventory drag starters ────────────────────────────────────────────────
   const handleInvDragStart = useCallback((e: React.PointerEvent, decorItemId: string, imageUrl: string | null) => {
@@ -1264,6 +1291,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
   }, [handlePointerUp]);
 
   const outdoorPets = pets.filter(p => p.posLeft !== null && (p.location === "outside" || p.location === null));
+  const outdoorPopupPet = outdoorPets.find(pet => pet.inventoryId === outdoorPopupPetId) ?? null;
+  const outdoorPopupLivePosition = outdoorPopupPet && petDragLive?.inventoryId === outdoorPopupPet.inventoryId ? petDragLive : null;
 
   // Show loading screen on first load (before bundle data arrives)
   if (bundleLoading && activeBundle === undefined) {
@@ -1432,8 +1461,8 @@ export default function PetHousePage({ user }: PetHousePageProps) {
       {/* Owner-only placement action, clamped inside the scene on small screens. */}
       {outdoorPopupPet && (
         <HousePetRemovalControl
-          left={Math.max(82, Math.min((containerRef.current?.clientWidth ?? 390) - 82, panX + (parsePetPct(outdoorPopupPet.posLeft) ?? 0.5) * imgWidth))}
-          top={Math.max(58, (parsePetPct(outdoorPopupPet.posTop) ?? 0.5) * containerH - OUTDOOR_PET_SIZE / 2)}
+          left={Math.max(82, Math.min((containerRef.current?.clientWidth ?? 390) - 82, panX + (outdoorPopupLivePosition?.xPct ?? parsePetPct(outdoorPopupPet.posLeft) ?? 0.5) * imgWidth))}
+          top={Math.max(58, (outdoorPopupLivePosition?.yPct ?? parsePetPct(outdoorPopupPet.posTop) ?? 0.5) * containerH - OUTDOOR_PET_SIZE / 2)}
           petName={outdoorPopupPet.nickname ?? outdoorPopupPet.name}
           pending={removePetFromSceneMutation.isPending && removePetFromSceneMutation.variables === outdoorPopupPet.inventoryId}
           onRemove={() => { void removePetFromHome(outdoorPopupPet.inventoryId).catch(() => undefined); }}
@@ -1837,7 +1866,9 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             leaveButtonY={openInterior.leaveButtonY}
             onUpdateItem={(id, data) => updateDecorMutation.mutate({ id, ...data })}
             onRemoveItem={(id) => removeDecorMutation.mutate(id)}
-            onMovePet={(inventoryId, xPct, yPct) => placePetMutation.mutate({ inventoryId, xPct, yPct, location: openInterior.buildingId })}
+            onMovePet={async (inventoryId, xPct, yPct) => {
+              await placePetMutation.mutateAsync({ inventoryId, xPct, yPct, location: openInterior.buildingId });
+            }}
             onRemovePet={removePetFromHome}
             removingPetId={removePetFromSceneMutation.isPending ? (removePetFromSceneMutation.variables ?? null) : null}
             onClose={() => { setOpenInterior(null); interiorPanRef.current = null; }}
