@@ -1,18 +1,20 @@
-import { useRef, useState, useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import { Clock, Star, X, Zap } from "lucide-react";
 import { getNextZ } from "@/lib/layerManager";
-import type { ReactNode } from "react";
-import { Star, Clock, Zap } from "lucide-react";
 import PetAnimator from "@/components/PetAnimator";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import forestBg from "@assets/generated_images/powerup_forest_bg.png";
+import chamberClose from "@assets/generated_images/powerup_chamber/powerup_close.webp";
+import chamberSocketActive from "@assets/generated_images/powerup_chamber/powerup_socket_active.webp";
+import chamberSocketLocked from "@assets/generated_images/powerup_chamber/powerup_socket_locked.webp";
 
-// ── Inline success-animation configs (mirrors PowerUpOverlay) ──────────────
-const EFFECT_CONFIGS: Record<"stat" | "level" | "hatch", { color: string; rgb: string; icon: ReactNode; title: string; particleColors: readonly string[] }> = {
-  stat:  { color: "#4ade80", rgb: "74,222,128",  icon: <Zap style={{ width: 80, height: 80, color: "#4ade80", fill: "#4ade80", filter: "drop-shadow(0 0 18px rgba(74,222,128,0.9))" }} />, title: "POWER UP!", particleColors: ["#4ade80","#86efac","#bbf7d0","#22c55e","#fff"] },
-  level: { color: "#f0c040", rgb: "240,192,64",  icon: <Star style={{ width: 80, height: 80, color: "#f0c040", fill: "#f0c040", filter: "drop-shadow(0 0 18px rgba(240,192,64,0.9))" }} />, title: "LEVEL UP!",  particleColors: ["#f0c040","#fbbf24","#fde68a","#fcd34d","#fff"] },
-  hatch: { color: "#38bdf8", rgb: "56,189,248",  icon: <Clock style={{ width: 80, height: 80, color: "#38bdf8", filter: "drop-shadow(0 0 18px rgba(56,189,248,0.9))" }} />, title: "SPEED UP!",  particleColors: ["#38bdf8","#7dd3fc","#bae6fd","#0ea5e9","#c4b5fd"] },
-} as const;
+const EFFECTS: Record<"stat" | "level" | "hatch", { color: string; icon: ReactNode; title: string }> = {
+  stat: { color: "#4ade80", icon: <Zap size={70} fill="#4ade80" />, title: "POWER UP!" },
+  level: { color: "#f0c040", icon: <Star size={70} fill="#f0c040" />, title: "LEVEL UP!" },
+  hatch: { color: "#38bdf8", icon: <Clock size={70} />, title: "SPEED UP!" },
+};
 
 export interface PowerUpItem {
   inventoryId: string;
@@ -48,601 +50,196 @@ interface PetPowerUpModalProps {
   onClose: () => void;
 }
 
-// ── Web Audio synthetic power-up sound ──────────────────────────────────────
-function playPowerUpSound(type: "stat" | "level" | "hatch") {
-  try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
+const CSS = String.raw`
+.pum{position:fixed;inset:0;margin:auto;max-width:768px;background:#02090d;color:#effff7;overflow:hidden;isolation:isolate;font-family:Georgia,serif}.pum-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-4}.pum.power .pum-bg{filter:saturate(1.25) hue-rotate(12deg) brightness(.72)}.pum-shade{position:absolute;inset:0;z-index:-3;pointer-events:none;background:linear-gradient(#00111780,#00101410 35%,#00101252 70%,#00070bd9),radial-gradient(circle at 50% 40%,#23f7a219 0 30%,transparent 58%)}.pum-scroll{height:100%;overflow:auto;padding:max(env(safe-area-inset-top),10px) 12px max(env(safe-area-inset-bottom),16px);scrollbar-width:none}.pum-scroll::-webkit-scrollbar,.pum-items::-webkit-scrollbar{display:none}.pum-head{position:relative;text-align:center;min-height:112px;padding:5px 55px 0}.pum-title{margin:6px 0 4px;font-size:clamp(32px,10vw,58px);line-height:1;font-weight:700;letter-spacing:.08em;color:#f2cf67;text-shadow:0 2px #16200d,0 0 18px #f7d86b66}.power .pum-title{color:#baffdc;background:linear-gradient(#ecfff6,#78ffc0 52%,#1ecc81);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none;filter:drop-shadow(0 0 11px #35ffb36b)}.pum-sub{font-size:clamp(14px,3.8vw,19px);line-height:1.2;color:#b8e8ce}.pum-close{position:absolute;right:2px;top:0;width:52px;height:52px;border:0;background:#06251d;border-radius:50%;display:grid;place-items:center;color:#c8ffe3;z-index:3}.pum-close.asset{width:58px;height:58px;background:transparent}.pum-close.asset img{width:100%;height:100%;object-fit:contain}.pum-rule{max-width:470px;margin:0 auto 10px;padding:10px 18px;border:1px solid #af852f;border-radius:999px;background:#191a11dd;color:#ffe58a;text-align:center;font-weight:700;letter-spacing:.04em}.power .pum-rule{border-color:#66eaa3;background:linear-gradient(90deg,#05231bea,#0a3628f2,#05231bea);box-shadow:inset 0 0 18px #18cf7733,0 0 14px #1ff38a1c;color:#caffdf}.pum-stage{position:relative;max-width:550px;margin:auto;min-height:440px}.pum-mote{position:absolute;border-radius:50%;background:#75ffbd;box-shadow:0 0 14px #4bffad;opacity:.65;animation:pumMote 3.6s ease-in-out infinite}.pum-mote:nth-child(1){left:11%;top:24%;width:5px;height:5px}.pum-mote:nth-child(2){right:12%;top:35%;width:7px;height:7px;animation-delay:-1.2s}.pum-mote:nth-child(3){left:20%;top:58%;width:4px;height:4px;animation-delay:-2s}.pum-pet-zone{position:relative;width:min(70vw,330px);height:min(70vw,330px);margin:18px auto 0;display:grid;place-items:center;touch-action:none;transition:filter .2s,transform .2s}.pum-pet-zone.over{filter:drop-shadow(0 0 18px #5bffae);transform:scale(1.025)}.pum-rune{position:absolute;left:50%;bottom:2%;width:74%;aspect-ratio:1;transform:translateX(-50%) rotateX(63deg);border:2px solid #4affb6aa;border-radius:50%;box-shadow:0 0 18px #21e88c88,inset 0 0 28px #1de58a55;background:repeating-radial-gradient(circle,#32f7a111 0 9%,#60ffc533 10%,transparent 11% 19%);animation:pumPulse 2.1s ease-in-out infinite}.pum-rune:after{content:"✦";position:absolute;inset:18%;display:grid;place-items:center;border:1px solid #79ffd0aa;border-radius:50%;color:#8affd1;font-size:42px}.pum-pet{position:relative;z-index:3;width:88%;height:88%;display:grid;place-items:center;filter:drop-shadow(0 12px 10px #0009)}.pum-pet img{width:100%;height:100%;object-fit:contain}.pum-pet.bounce{animation:pumBounce .7s ease-out}.pum-pet.flash{animation:pumFlash .6s ease-out}.pum-sockets{position:absolute;inset:0;pointer-events:none;z-index:4}.pum-socket{position:absolute;width:62px;height:62px;left:50%;top:50%;transform:translate(-50%,-50%) translate(var(--sx),var(--sy));filter:drop-shadow(0 0 7px #1fff9566)}.pum-socket.on{animation:pumSocket 1.8s ease-in-out infinite}.pum-socket img{width:100%;height:100%;object-fit:contain}.pum-identity{position:relative;z-index:5;margin:-6px auto 8px;width:min(92%,500px);display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 14px;background:linear-gradient(90deg,transparent,#071c18e8 15% 85%,transparent);border-top:1px solid #b79746;border-bottom:1px solid #b79746;color:#f7d97b;font-size:clamp(21px,5.5vw,29px);text-align:center}.pum-level{font-size:.65em;padding:5px 10px;border:1px solid #3ecc86;border-radius:999px;color:#a9ffd0;background:#073226}.pum-stats{max-width:540px;margin:0 auto 12px;padding:12px 13px;border:1px solid #2d9a6c;border-radius:18px;background:linear-gradient(135deg,#071c1bea,#031311ee);box-shadow:inset 0 0 18px #1eaa6c1d,0 7px 18px #0007}.pum-stat{display:grid;grid-template-columns:54px 1fr 55px;align-items:center;gap:9px;margin:8px 0}.pum-stat b{font-family:system-ui,sans-serif;letter-spacing:.04em}.pum-stat.atk b,.pum-stat.atk .pum-val{color:#ff7979}.pum-stat.def b,.pum-stat.def .pum-val{color:#72adff}.pum-stat.hp b,.pum-stat.hp .pum-val{color:#58e891}.pum-track{height:11px;border:1px solid #41665d;border-radius:999px;background:#061310;overflow:hidden}.pum-fill{height:100%;border-radius:inherit;box-shadow:0 0 9px currentColor}.atk .pum-fill{background:#ef6464;color:#ef6464}.def .pum-fill{background:#5798f2;color:#5798f2}.hp .pum-fill{background:#42d77d;color:#42d77d}.pum-val{text-align:right;font-size:18px}.pum-tray{max-width:560px;margin:9px auto 0;padding:11px 8px 8px;border:1px solid #398b68;border-radius:16px;background:linear-gradient(#10231fec,#07100fef);box-shadow:inset 0 0 20px #27b87d1f,0 12px 22px #0008}.pum-items{display:flex;gap:8px;overflow-x:auto;overscroll-behavior-x:contain;padding:4px 3px 8px;scroll-snap-type:x proximity}.pum-item{position:relative;flex:0 0 78px;height:82px;border:1px solid #4d8e74;border-radius:13px;background:#081b17;display:grid;place-items:center;touch-action:none;user-select:none;scroll-snap-align:center;box-shadow:inset 0 0 12px #22c77a16}.pum-item:active{transform:scale(.96)}.pum-item.disabled{opacity:.42;filter:grayscale(.75)}.pum-item img{width:60px;height:60px;object-fit:contain;pointer-events:none}.pum-qty{position:absolute;right:3px;bottom:3px;min-width:23px;height:23px;padding:0 5px;display:grid;place-items:center;border-radius:999px;background:#07100f;border:1px solid #cfad55;color:#fff;font:700 12px system-ui}.pum-item-name{position:absolute;left:4px;right:4px;top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#d6f9e5;font:600 9px system-ui;text-align:center;opacity:.78}.pum-hint{text-align:center;color:#8effc5;font-weight:700;letter-spacing:.05em;padding:4px 0 1px;text-shadow:0 0 9px #2dff9a55}.pum-empty{text-align:center;color:#d3eadc;padding:18px 8px}.pum-buy{display:block;margin:7px auto 0;border:1px solid #cda63e;border-radius:999px;background:#1b2115;color:#ffe68a;padding:10px 18px;font-weight:700}.pum-ghost{position:fixed;z-index:9999;width:76px;height:76px;pointer-events:none;transform:translate(-50%,-50%);display:grid;place-items:center;border-radius:50%;background:#0a2d22dd;border:1px solid #60f4ac;box-shadow:0 0 20px #26e68a88}.pum-ghost img{width:62px;height:62px;object-fit:contain}.pum-spark{position:fixed;z-index:9998;pointer-events:none;width:8px;height:8px;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c);animation:pumSpark .72s ease-out forwards}.pum-success{position:absolute;inset:0;z-index:30;display:grid;place-items:center;background:#00110db8;backdrop-filter:blur(2px);animation:pumFade .18s ease-out}.pum-success-card{text-align:center;animation:pumPop .5s cubic-bezier(.2,1.5,.4,1);filter:drop-shadow(0 0 24px var(--c))}.pum-success-card svg{color:var(--c);filter:drop-shadow(0 0 15px var(--c))}.pum-success-title{font-size:clamp(38px,11vw,68px);font-weight:800;color:var(--c);text-shadow:0 0 22px var(--c);margin-top:8px}.pum-success-label{font:700 18px system-ui;color:white}.pum-legacy-stage{max-width:480px;margin:12px auto;display:grid;place-items:center}.pum-legacy-pet{width:min(76vw,360px);height:min(76vw,360px);display:grid;place-items:center;touch-action:none}.pum-legacy-pet img{width:100%;height:100%;object-fit:contain}.pum-legacy-stars{text-align:center;color:#ffd950;font-size:28px;letter-spacing:.12em;margin:-12px 0 5px}.pum-legacy .pum-tray{margin-top:18px;background:transparent;border-color:#a8863b55}.pum-legacy .pum-item{background:#14160fdd;border-color:#aa8c41}.pum-legacy .pum-hint{color:#f9d778}.pum-bag{width:54px;height:54px;object-fit:contain;display:block;margin:4px auto}.pum-placeholder{width:75%!important;height:75%!important;object-fit:contain;opacity:.7}
+@keyframes pumMote{50%{transform:translateY(-13px);opacity:1}}@keyframes pumPulse{50%{filter:brightness(1.35);box-shadow:0 0 28px #21e88ccc,inset 0 0 34px #1de58a88}}@keyframes pumSocket{50%{filter:drop-shadow(0 0 14px #5affb6);transform:translate(-50%,-50%) translate(var(--sx),var(--sy)) scale(1.06)}}@keyframes pumBounce{40%{transform:translateY(-14px) scale(1.04)}70%{transform:translateY(3px) scale(.98)}}@keyframes pumFlash{35%{filter:brightness(2) drop-shadow(0 0 22px #fff)}}@keyframes pumSpark{to{transform:translate(var(--dx),var(--dy)) scale(.1);opacity:0}}@keyframes pumFade{from{opacity:0}}@keyframes pumPop{from{transform:scale(.45);opacity:0}}@media(max-height:740px){.pum-head{min-height:94px}.pum-stage{min-height:390px}.pum-pet-zone{width:min(61vw,285px);height:min(61vw,285px);margin-top:10px}.pum-socket{width:55px;height:55px}.pum-stat{margin:5px 0}.pum-item{height:72px;flex-basis:70px}.pum-item img{width:52px;height:52px}}@media(prefers-reduced-motion:reduce){.pum *{animation-duration:.01ms!important;animation-iteration-count:1!important}}
+`;
 
-    const notes =
-      type === "level"  ? [523, 659, 784, 1047] :
-      type === "hatch"  ? [440, 554, 659, 880]  :
-                          [392, 523, 659, 784];
-
-    notes.forEach((freq, i) => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.09);
-      gain.gain.setValueAtTime(0,   ctx.currentTime + i * 0.09);
-      gain.gain.linearRampToValueAtTime(0.28, ctx.currentTime + i * 0.09 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.09 + 0.38);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(ctx.currentTime + i * 0.09);
-      osc.stop(ctx.currentTime + i * 0.09 + 0.38);
-    });
-
-    const sh     = ctx.createOscillator();
-    const shGain = ctx.createGain();
-    sh.type = "triangle";
-    sh.frequency.setValueAtTime(3400, ctx.currentTime);
-    sh.frequency.exponentialRampToValueAtTime(5200, ctx.currentTime + 0.35);
-    shGain.gain.setValueAtTime(0.09, ctx.currentTime);
-    shGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-    sh.connect(shGain);
-    shGain.connect(ctx.destination);
-    sh.start(ctx.currentTime);
-    sh.stop(ctx.currentTime + 0.5);
-  } catch {}
-}
-
-// ── Colour helpers ───────────────────────────────────────────────────────────
 function itemColor(item: PowerUpItem) {
-  if (item.type === "special") {
-    return item.specialType === "hatch_time" ? "#38bdf8" : "#f0c040";
-  }
-  switch (item.statBoostType) {
-    case "health": return "#4ade80";
-    case "atk":    return "#f87171";
-    case "def":    return "#60a5fa";
-    case "lvl":    return "#c084fc";
-    default:       return "#f0c040";
-  }
+  if (item.type === "special") return item.specialType === "hatch_time" ? "#38bdf8" : "#f0c040";
+  return item.statBoostType === "health" ? "#4ade80" : item.statBoostType === "atk" ? "#f87171" : item.statBoostType === "def" ? "#60a5fa" : "#f0c040";
 }
 
 function itemLabel(item: PowerUpItem) {
-  if (item.type === "special") {
-    return item.specialType === "hatch_time"
-      ? `-${item.specialAmount ?? "?"} min`
-      : `+${item.specialAmount ?? "?"} LVL pts`;
-  }
-  const amt = item.statBoostAmount ?? "?";
-  switch (item.statBoostType) {
-    case "health": return `+${amt} HP`;
-    case "atk":    return `+${amt} ATK`;
-    case "def":    return `+${amt} DEF`;
-    case "lvl":    return `+${amt} Feed pts`;
-    default:       return `+${amt}`;
-  }
+  const n = item.type === "special" ? item.specialAmount : item.statBoostAmount;
+  if (item.type === "special") return item.specialType === "hatch_time" ? `-${n ?? "?"} min` : `+${n ?? "?"} LVL pts`;
+  return item.statBoostType === "health" ? `+${n ?? "?"} HP` : `+${n ?? "?"} ${(item.statBoostType || "").toUpperCase()}`;
 }
 
-function itemSoundType(item: PowerUpItem): "stat" | "level" | "hatch" {
-  if (item.type === "special") {
-    return item.specialType === "hatch_time" ? "hatch" : "level";
-  }
-  if (item.statBoostType === "lvl") return "level";
-  return "stat";
+function usesSlot(item: PowerUpItem) {
+  return item.type !== "special" && item.statBoostType !== "lvl";
 }
 
-const ANIM_DURATION = 2400;
+export default function PetPowerUpModal(props: PetPowerUpModalProps) {
+  const {
+    petName, petImage, petTemplateId, rarity, petLevel, petAtk, petDef, petHealth,
+    itemsRemaining, items, isPending, title = "POWER UP", subtitle, showBuyButton = false,
+    successEffect, onUseItem, onSuccessAnimEnd, onClose,
+  } = props;
+  const isPower = title.trim().toUpperCase() === "POWER UP";
+  const zoneRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ item: PowerUpItem; x: number; y: number } | null>(null);
+  const [z] = useState(() => getNextZ());
+  const [drag, setDrag] = useState<{ item: PowerUpItem; x: number; y: number } | null>(null);
+  const [over, setOver] = useState(false);
+  const [petAnim, setPetAnim] = useState<"" | "bounce" | "flash">("");
+  const [sparks, setSparks] = useState<{ id: number; x: number; y: number; dx: number; dy: number; color: string }[]>([]);
+  const sparkId = useRef(0);
 
-// ── Component ────────────────────────────────────────────────────────────────
-export default function PetPowerUpModal({
-  petName, petImage, petTemplateId, rarity,
-  petLevel, petAtk, petDef, petHealth,
-  itemsRemaining, items, isPending,
-  title = "POWER UP", subtitle,
-  showBuyButton = false,
-  successEffect,
-  onUseItem, onSuccessAnimEnd, onClose,
-}: PetPowerUpModalProps) {
-  const petZoneRef    = useRef<HTMLDivElement>(null);
-  const draggingRef   = useRef<{ item: PowerUpItem; x: number; y: number } | null>(null);
-
-  const [myZ] = useState(() => getNextZ());
-  const [dragging,    setDragging]    = useState<{ item: PowerUpItem; x: number; y: number } | null>(null);
-  const [dragOverPet, setDragOverPet] = useState(false);
-  const [petAnim,     setPetAnim]     = useState<"none" | "bounce" | "flash">("none");
-  const [petGlow,     setPetGlow]     = useState<string | null>(null);
-  const [sparkles,    setSparkles]    = useState<{ id: number; x: number; y: number; color: string; angle: number }[]>([]);
-  const sparkIdRef = useRef(0);
-
-  useEffect(() => { draggingRef.current = dragging; }, [dragging]);
-
+  useEffect(() => { dragRef.current = drag; }, [drag]);
   useEffect(() => {
     if (!successEffect) return;
-    const t = setTimeout(onSuccessAnimEnd, ANIM_DURATION);
-    return () => clearTimeout(t);
+    const timer = window.setTimeout(onSuccessAnimEnd, 2400);
+    return () => window.clearTimeout(timer);
   }, [successEffect, onSuccessAnimEnd]);
 
-  useEffect(() => {
-    if (!dragging) return;
-    const stillInList = items.some(i => i.inventoryId === dragging.item.inventoryId);
-    if (!stillInList) {
-      setDragging(null);
-      setDragOverPet(false);
-    }
-  }, [items, dragging]);
+  const slotCount = Math.max(2, Math.min(10, Math.max(1, rarity) * 2));
+  const remainingVisual = itemsRemaining === Infinity ? slotCount : Math.max(0, Math.min(slotCount, itemsRemaining));
+  const socketPositions = useMemo(() => Array.from({ length: slotCount }, (_, i) => {
+    const angle = Math.PI * (.82 + (1.36 * i) / Math.max(1, slotCount - 1));
+    return { x: Math.cos(angle) * 150, y: Math.sin(angle) * 125 + 26 };
+  }), [slotCount]);
 
-  const animParticles = useMemo(() => {
-    if (!successEffect) return [];
-    const cfg = EFFECT_CONFIGS[successEffect.type];
-    return Array.from({ length: 24 }, (_, i) => {
-      const angle = (i / 24) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
-      const dist  = 70 + Math.random() * 110;
-      return {
-        px: Math.cos(angle) * dist,
-        py: Math.sin(angle) * dist,
-        size: 5 + Math.random() * 8,
-        delay: Math.random() * 0.2,
-        color: cfg.particleColors[Math.floor(Math.random() * cfg.particleColors.length)],
-      };
+  const disabled = useCallback((item: PowerUpItem) => {
+    if (isPending || item.quantity <= 0) return true;
+    return usesSlot(item) && itemsRemaining !== Infinity && itemsRemaining <= 0;
+  }, [isPending, itemsRemaining]);
+
+  const burst = useCallback((color: string) => {
+    const r = zoneRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const x = r.left + r.width / 2, y = r.top + r.height / 2;
+    const next = Array.from({ length: 16 }, (_, i) => {
+      const a = (i / 16) * Math.PI * 2;
+      return { id: sparkId.current++, x, y, dx: Math.cos(a) * (55 + Math.random() * 75), dy: Math.sin(a) * (55 + Math.random() * 75), color };
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [successEffect?.type]);
+    setSparks(next);
+    window.setTimeout(() => setSparks([]), 760);
+  }, []);
 
-  // ── Use an item ────────────────────────────────────────────────────────────
   const useItem = useCallback((item: PowerUpItem) => {
-    playPowerUpSound(itemSoundType(item));
-    const color = itemColor(item);
-
-    setPetGlow(color);
+    if (disabled(item)) return;
+    burst(itemColor(item));
     setPetAnim("bounce");
-    setTimeout(() => { setPetAnim("flash"); }, 300);
-    setTimeout(() => { setPetAnim("none"); setPetGlow(null); }, 900);
-
-    if (petZoneRef.current) {
-      const rect = petZoneRef.current.getBoundingClientRect();
-      const cx   = rect.left + rect.width / 2;
-      const cy   = rect.top  + rect.height / 2;
-      const burst = Array.from({ length: 16 }, (_, i) => ({
-        id: sparkIdRef.current++,
-        x: cx, y: cy,
-        color,
-        angle: (i / 16) * 360,
-      }));
-      setSparkles(burst);
-      setTimeout(() => setSparkles([]), 700);
-    }
-
+    window.setTimeout(() => setPetAnim("flash"), 260);
+    window.setTimeout(() => setPetAnim(""), 850);
     onUseItem(item);
-  }, [onUseItem]);
+  }, [disabled, burst, onUseItem]);
 
-  // ── Drag handlers ──────────────────────────────────────────────────────────
-  const handleItemPointerDown = useCallback((e: React.PointerEvent, item: PowerUpItem) => {
+  const pointInZone = useCallback((x: number, y: number) => {
+    const r = zoneRef.current?.getBoundingClientRect();
+    return !!r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }, []);
+
+  const onDown = useCallback((e: ReactPointerEvent<HTMLDivElement>, item: PowerUpItem) => {
+    if (disabled(item)) return;
     e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    setDragging({ item, x: e.clientX, y: e.clientY });
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDrag({ item, x: e.clientX, y: e.clientY });
+  }, [disabled]);
+  const onMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    e.preventDefault();
+    const next = { ...dragRef.current, x: e.clientX, y: e.clientY };
+    dragRef.current = next;
+    setDrag(next);
+    setOver(pointInZone(e.clientX, e.clientY));
+  }, [pointInZone]);
+  const clearDrag = useCallback(() => {
+    dragRef.current = null;
+    setDrag(null);
+    setOver(false);
   }, []);
+  const onUp = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const current = dragRef.current;
+    if (!current) return;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
+    if (pointInZone(e.clientX, e.clientY)) useItem(current.item);
+    clearDrag();
+  }, [clearDrag, pointInZone, useItem]);
 
-  const handleItemPointerMove = useCallback((e: React.PointerEvent) => {
-    if (!draggingRef.current) return;
-    const next = { ...draggingRef.current, x: e.clientX, y: e.clientY };
-    setDragging(next);
-    if (petZoneRef.current) {
-      const r = petZoneRef.current.getBoundingClientRect();
-      setDragOverPet(e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom);
-    }
-  }, []);
+  const pet = petTemplateId ? (
+    <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={1000} className="w-full" style={{ aspectRatio: "1/1", pointerEvents: "none" }} />
+  ) : petImage ? <img src={petImage} alt={petName} /> : <img src={petPawIcon} alt="" className="pum-placeholder" />;
 
-  const handleItemPointerUp = useCallback((e: React.PointerEvent) => {
-    const d = draggingRef.current;
-    if (!d) return;
-    if (petZoneRef.current) {
-      const r = petZoneRef.current.getBoundingClientRect();
-      if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
-        useItem(d.item);
-      }
-    }
-    setDragging(null);
-    setDragOverPet(false);
-  }, [useItem]);
-
-  const rarityStars = Array.from({ length: rarity }, (_, i) => i);
-  const animCfg = successEffect ? EFFECT_CONFIGS[successEffect.type] : null;
-
-  const slotsColor = itemsRemaining === Infinity ? "#fcd34d"
-    : itemsRemaining > 0 ? "#86efac"
-    : "#f87171";
-  const slotsBorder = itemsRemaining === Infinity ? "rgba(240,192,64,0.5)"
-    : itemsRemaining > 0 ? "rgba(134,239,172,0.5)"
-    : "rgba(248,113,113,0.5)";
-  const slotsBg = itemsRemaining === Infinity ? "rgba(30,20,5,0.85)"
-    : itemsRemaining > 0 ? "rgba(10,25,12,0.85)"
-    : "rgba(30,8,8,0.85)";
-
-  return (
-    <div
-      className="fixed inset-0 flex flex-col overflow-hidden"
-      style={{ zIndex: myZ, maxWidth: "768px", margin: "0 auto", left: 0, right: 0, overscrollBehavior: "none" }}
-    >
-      {/* ── Forest background ── */}
-      <div className="absolute inset-0 z-0">
-        <img src={forestBg} alt="" className="w-full h-full object-cover" style={{ objectPosition: "center top" }} />
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(1,8,20,0.45) 0%, rgba(2,10,24,0.35) 40%, rgba(3,12,28,0.78) 75%, rgba(1,6,16,0.96) 100%)" }} />
-      </div>
-
-      {/* ── Floating lights ── */}
-      {[
-        { left: "10%",  top: "55%", delay: "0s",    dur: 5.2, warm: false },
-        { left: "80%",  top: "48%", delay: "1.1s",  dur: 6.8, warm: true  },
-        { left: "22%",  top: "30%", delay: "2.3s",  dur: 4.9, warm: false },
-        { left: "68%",  top: "22%", delay: "0.6s",  dur: 7.1, warm: true  },
-        { left: "45%",  top: "60%", delay: "1.8s",  dur: 5.6, warm: false },
-        { left: "88%",  top: "35%", delay: "3.0s",  dur: 6.2, warm: true  },
-        { left: "55%",  top: "15%", delay: "0.4s",  dur: 8.0, warm: false },
-        { left: "32%",  top: "70%", delay: "2.7s",  dur: 5.0, warm: true  },
-        { left: "15%",  top: "20%", delay: "1.5s",  dur: 6.0, warm: false },
-        { left: "72%",  top: "65%", delay: "0.9s",  dur: 5.8, warm: true  },
-      ].map((o, i) => (
-        <div key={i} className="absolute z-[1] rounded-full pointer-events-none" style={{
-          left: o.left, top: o.top,
-          width: 4, height: 4,
-          background: o.warm ? "rgba(255,250,200,1)" : "rgba(220,245,255,1)",
-          filter: "blur(0.5px)",
-          animation: `puMOrb ${o.dur}s ${o.delay} ease-in-out infinite, ${o.warm ? "puMOrbWarm" : "puMOrbPulse"} ${o.dur * 0.8}s ${o.delay} ease-in-out infinite`,
-        }} />
-      ))}
-
-      {/* ── Inline success animation ── */}
-      {successEffect && animCfg && (
-        <div
-          className="absolute inset-0 z-[50] pointer-events-none overflow-hidden flex items-center justify-center"
-          style={{ animation: `puMOverlayFade ${ANIM_DURATION}ms ease-out forwards` }}
+  const itemTray = (
+    <div className="pum-tray">
+      {items.length ? <div className="pum-items">
+        {items.map(item => <div
+          key={item.inventoryId}
+          data-testid={`item-powerup-${item.inventoryId}`}
+          className={`pum-item ${disabled(item) ? "disabled" : ""}`}
+          title={`${item.name} • ${itemLabel(item)}`}
+          onPointerDown={e => onDown(e, item)}
+          onPointerMove={onMove}
+          onPointerUp={onUp}
+          onPointerCancel={clearDrag}
         >
-          <div className="absolute inset-0" style={{ background: `radial-gradient(ellipse at center, rgba(${animCfg.rgb},0.22) 0%, rgba(0,0,0,0.5) 100%)` }} />
-          <div className="absolute inset-0" style={{ background: `radial-gradient(circle at center, rgba(${animCfg.rgb},0.45) 0%, transparent 65%)`, animation: "puMFlash 0.5s ease-out forwards" }} />
-          {[0, 0.15, 0.3].map((delay, i) => (
-            <div key={i} className="absolute rounded-full" style={{ width: 60, height: 60, border: `3px solid rgba(${animCfg.rgb},${0.9 - i * 0.2})`, animation: `puMRingExpand 1.3s ${delay}s ease-out forwards`, opacity: 0 }} />
-          ))}
-          {Array.from({ length: 10 }, (_, i) => (
-            <div key={i} className="absolute" style={{ width: 2, height: 220, background: `linear-gradient(to bottom, transparent 0%, rgba(${animCfg.rgb},0.6) 40%, rgba(${animCfg.rgb},0.3) 70%, transparent 100%)`, ["--r" as any]: `${i * 36}deg`, transform: `rotate(${i * 36}deg)`, animation: `puMRayFade 1.0s ${i * 0.05}s ease-out forwards`, opacity: 0 }} />
-          ))}
-          {animParticles.map((p, i) => (
-            <div key={i} className="absolute rounded-full" style={{ width: p.size, height: p.size, background: p.color, boxShadow: `0 0 ${p.size * 2}px ${p.color}`, ["--px" as any]: `${p.px}px`, ["--py" as any]: `${p.py}px`, animation: `puMParticle 1.1s ${p.delay}s ease-out forwards`, opacity: 0 }} />
-          ))}
-          {Array.from({ length: 8 }, (_, i) => {
-            const a = (i / 8) * Math.PI * 2;
-            const d = 55 + Math.random() * 50;
-            return (
-              <div key={`star-${i}`} className="absolute font-bold" style={{ fontSize: 12 + Math.random() * 10, color: animCfg.particleColors[i % animCfg.particleColors.length], left: `calc(50% + ${Math.cos(a) * d}px)`, top: `calc(50% + ${Math.sin(a) * d}px)`, animation: `puMStar 1.2s ${i * 0.07}s ease-out forwards`, opacity: 0, transform: "translate(-50%,-50%)", filter: `drop-shadow(0 0 6px ${animCfg.color})` }}>✦</div>
-            );
-          })}
-          <div className="relative flex flex-col items-center gap-3 z-10" style={{ animation: "puMContentPop 0.6s ease-out both" }}>
-            <div style={{ fontSize: 72, lineHeight: 1, filter: `drop-shadow(0 0 20px rgba(${animCfg.rgb},0.9))` }}>{animCfg.icon}</div>
-            <div className="font-fantasy text-4xl font-bold tracking-wider" data-testid="text-power-up-success" style={{ color: animCfg.color, textShadow: `0 0 24px rgba(${animCfg.rgb},1), 0 0 48px rgba(${animCfg.rgb},0.5)` }}>{successEffect.label}</div>
-            <div className="font-fantasy text-sm tracking-[0.3em] uppercase" style={{ color: `rgba(${animCfg.rgb},0.8)`, textShadow: `0 0 12px rgba(${animCfg.rgb},0.6)` }}>{animCfg.title}</div>
-          </div>
+          <span className="pum-item-name">{itemLabel(item)}</span>
+          <img src={item.imageUrl || powerupBagIcon} alt={item.name} draggable={false} />
+          {item.quantity > 1 && <span className="pum-qty">{item.quantity}</span>}
+        </div>)}
+      </div> : <div className="pum-empty">No usable items in your bag.</div>}
+      {isPower && <div className="pum-hint">↖ Drag to infuse ↗</div>}
+      {showBuyButton && <button className="pum-buy" data-testid="button-buy-powerups" onClick={() => { window.location.href = "/world/swamp?shopHint=a1b2c3d4-0004-4000-8000-000000000004"; }}>Find Power Up Items</button>}
+    </div>
+  );
+
+  const stats = (
+    <div className="pum-stats" data-testid="section-pet-stats">
+      {[{ k: "atk", n: "ATK", v: petAtk, max: 200 }, { k: "def", n: "DEF", v: petDef, max: 200 }, { k: "hp", n: "HP", v: petHealth, max: 2500 }].map(s => (
+        <div key={s.k} className={`pum-stat ${s.k}`}>
+          <b>{s.n}</b>
+          <div className="pum-track" data-testid={`bar-stat-${s.k}`}><div className="pum-fill" style={{ width: `${Math.min(100, Math.max(3, s.v / s.max * 100))}%` }} /></div>
+          <span className="pum-val" data-testid={`text-stat-${s.k}`}>{s.v}</span>
         </div>
-      )}
-
-      {/* ── Header ── */}
-      <div className="relative z-[10] flex items-center justify-between px-4 pt-[18%] pb-2 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <img src={powerupBagIcon} alt="" style={{ width: 36, height: 36, objectFit: "contain" }} />
-          <div>
-            <h2 className="font-fantasy text-[#fcd34d] text-xl tracking-widest leading-none"
-              style={{ textShadow: "0 0 18px rgba(252,211,77,0.8), 0 0 40px rgba(252,211,77,0.3), 0 2px 8px rgba(0,0,0,0.9)" }}>
-              {title}
-            </h2>
-            <p className="font-fantasy text-[#86efac] text-[11px] tracking-wide mt-0.5"
-              style={{ textShadow: "0 0 10px rgba(134,239,172,0.5), 0 1px 4px rgba(0,0,0,0.9)" }}>
-              {subtitle ?? `Choose an item below to strengthen ${petName}`}
-            </p>
-          </div>
-        </div>
-        <button
-          data-testid="button-close-powerup-modal"
-          onClick={onClose}
-          className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-base flex-shrink-0"
-          style={{ background: "rgba(10,20,10,0.85)", border: "1.5px solid rgba(134,239,172,0.35)", color: "#86efac", cursor: "pointer", boxShadow: "0 0 12px rgba(134,239,172,0.15)" }}
-        >
-          ✕
-        </button>
-      </div>
-
-      {/* ── Slots remaining banner ── */}
-      <div className="relative z-[10] flex justify-center px-4 pb-1 flex-shrink-0">
-        <div className="px-5 py-1.5 rounded-full font-fantasy text-[11px] tracking-wider font-semibold"
-          style={{
-            background: slotsBg,
-            border: `1.5px solid ${slotsBorder}`,
-            color: slotsColor,
-            boxShadow: `0 0 16px ${slotsBorder}40, inset 0 1px 0 rgba(255,255,255,0.06)`,
-          }}>
-          {itemsRemaining === Infinity
-            ? "✦ No limit — use as many as you like!"
-            : itemsRemaining > 0
-              ? `✦ ${itemsRemaining} slot${itemsRemaining === 1 ? "" : "s"} remaining this level`
-              : "✕ No slots left — level up to continue!"}
-        </div>
-      </div>
-
-      {/* ── Pet zone ── */}
-      <div className="relative z-[10] flex flex-col items-center flex-shrink px-3 pb-1" style={{ flexShrink: 1, minHeight: 0 }}>
-        <div
-          ref={petZoneRef}
-          data-testid="zone-pet-drop"
-          className="relative flex items-center justify-center transition-all duration-300 w-full overflow-visible"
-          style={{
-            height: "min(340px, calc(42*var(--vh)))",
-            borderRadius: 20,
-            background: dragOverPet
-              ? `radial-gradient(ellipse at center, rgba(134,239,172,0.18) 0%, rgba(0,0,0,0.3) 100%)`
-              : petGlow
-              ? `radial-gradient(ellipse at center, ${petGlow}18 0%, transparent 70%)`
-              : "transparent",
-            border: dragOverPet
-              ? `2px dashed rgba(134,239,172,0.7)`
-              : petGlow
-              ? `2px solid ${petGlow}60`
-              : "2px solid transparent",
-            boxShadow: petGlow
-              ? `0 0 50px ${petGlow}50, 0 0 100px ${petGlow}20`
-              : dragOverPet
-              ? `0 0 40px rgba(134,239,172,0.3)`
-              : "none",
-            animation: dragOverPet ? "puMDropHint 1.2s ease-in-out infinite" : undefined,
-            "--glow": dragging ? itemColor(dragging.item) + "50" : "#86efac50",
-          } as any}
-        >
-          {petTemplateId ? (
-            <PetAnimator
-              petTemplateId={petTemplateId}
-              mode="idle"
-              view="front"
-              size={1000}
-              className="w-full"
-              style={{
-                aspectRatio: "1/1",
-                pointerEvents: "none",
-                animation: petAnim === "bounce" ? "puMBounce 0.6s ease-out forwards" :
-                           petAnim === "flash"  ? "puMFlash 0.5s ease-out forwards" : undefined,
-              }}
-            />
-          ) : petImage ? (
-            <img src={petImage} alt={petName} style={{ width: "85%", height: "85%", objectFit: "contain" }} />
-          ) : (
-            <img src={petPawIcon} alt="" style={{ width: "65%", height: "65%", objectFit: "contain", filter: "drop-shadow(0 4px 20px rgba(0,0,0,0.8))" }} />
-          )}
-
-          {/* Drop hint overlay */}
-          {dragging && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ borderRadius: 20, background: "rgba(0,20,5,0.5)" }}>
-              <div className="font-fantasy text-base tracking-widest font-bold" style={{ color: "#86efac", textShadow: "0 0 16px rgba(134,239,172,0.9)" }}>
-                ✦ DROP HERE ✦
-              </div>
-            </div>
-          )}
-
-          {/* Rarity stars */}
-          <div className="absolute bottom-2 flex gap-0.5 justify-center">
-            {rarityStars.map(i => (
-              <span key={i} style={{ fontSize: 13, color: "#fcd34d", textShadow: "0 0 8px rgba(252,211,77,0.8)" }}>★</span>
-            ))}
-          </div>
-        </div>
-
-        {/* Pet name + level */}
-        <div className="mt-1.5 flex items-center gap-2">
-          <div className="font-fantasy text-[13px] tracking-wider" style={{ color: "#fcd34d", textShadow: "0 0 12px rgba(252,211,77,0.4)" }}>{petName}</div>
-          <div className="font-fantasy text-[10px] px-2 py-0.5 rounded-full" style={{ color: "#86efac", background: "rgba(10,30,12,0.8)", border: "1px solid rgba(134,239,172,0.3)" }}>Lv.{petLevel}</div>
-        </div>
-
-        {/* Stat bars */}
-        <div
-          className="mt-2 w-full px-1 flex flex-col gap-1.5"
-          style={{ maxWidth: 300 }}
-          data-testid="section-pet-stats"
-        >
-          {([
-            { label: "ATK", value: petAtk,    color: "#f87171", rgb: "248,113,113", max: 200 },
-            { label: "DEF", value: petDef,    color: "#60a5fa", rgb: "96,165,250",  max: 200 },
-            { label: "HP",  value: petHealth, color: "#4ade80", rgb: "74,222,128",  max: 2500 },
-          ] as const).map(({ label, value, color, rgb, max }) => {
-            const pct = Math.min(100, Math.round((value / max) * 100));
-            return (
-              <div key={label} className="flex items-center gap-2">
-                <span
-                  className="font-fantasy text-[10px] font-bold tracking-widest w-7 text-right flex-shrink-0"
-                  style={{ color, textShadow: `0 0 8px rgba(${rgb},0.6)` }}
-                >
-                  {label}
-                </span>
-                <div
-                  className="flex-1 rounded-full overflow-hidden"
-                  style={{ height: 7, background: `rgba(${rgb},0.12)`, border: `1px solid rgba(${rgb},0.25)` }}
-                >
-                  <div
-                    data-testid={`bar-stat-${label.toLowerCase()}`}
-                    style={{
-                      width: `${pct}%`,
-                      height: "100%",
-                      background: `linear-gradient(90deg, rgba(${rgb},0.55) 0%, rgba(${rgb},1) 100%)`,
-                      boxShadow: `0 0 6px rgba(${rgb},0.7)`,
-                      borderRadius: "9999px",
-                      transition: "width 0.5s cubic-bezier(0.34,1.56,0.64,1)",
-                    }}
-                  />
-                </div>
-                <span
-                  className="font-fantasy text-[10px] tabular-nums w-10 flex-shrink-0"
-                  style={{ color: `rgba(${rgb},0.9)`, textShadow: `0 0 6px rgba(${rgb},0.4)` }}
-                  data-testid={`text-stat-${label.toLowerCase()}`}
-                >
-                  {value}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Item grid ── */}
-      <div className="relative z-[10] flex-1 min-h-0 overflow-y-auto px-3 pb-6" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(134,239,172,0.3) transparent" }}>
-        {items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 gap-4">
-            <img src={powerupBagIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain" }} />
-            {showBuyButton && (
-              <p className="font-fantasy text-[#86efac] text-sm text-center" style={{ textShadow: "0 0 8px rgba(134,239,172,0.3)" }}>You have no power-up items!</p>
-            )}
-            {showBuyButton && (
-              <button
-                data-testid="button-buy-powerups"
-                onClick={() => {
-                  onClose();
-                  setTimeout(() => {
-                    window.location.href = "/world/swamp?shopHint=a1b2c3d4-0004-4000-8000-000000000004";
-                  }, 120);
-                }}
-                style={{
-                  background: "linear-gradient(135deg, #1a5c1a 0%, #2d8c2d 100%)",
-                  border: "1px solid rgba(100,220,100,0.6)",
-                  color: "#dcfce7",
-                  fontFamily: "Lora, serif",
-                  fontSize: 12,
-                  fontWeight: 800,
-                  letterSpacing: "0.08em",
-                  cursor: "pointer",
-                  borderRadius: 8,
-                  padding: "8px 22px",
-                  boxShadow: "0 0 12px rgba(60,180,60,0.4)",
-                }}
-              >
-                Buy Power Ups
-              </button>
-            )}
-          </div>
-        ) : (
-          <>
-            {/* Instruction strip */}
-            <div className="flex items-center justify-center gap-2 mb-3 py-2 rounded-lg"
-              style={{ background: "rgba(10,25,12,0.7)", border: "1px solid rgba(134,239,172,0.15)" }}>
-              <span style={{ fontSize: 13, color: "#86efac" }}>✦</span>
-              <p className="font-fantasy text-[#86efac] text-[11px] tracking-wider">
-                Drag an item onto your pet to use it
-              </p>
-              <span style={{ fontSize: 13, color: "#86efac" }}>✦</span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2.5">
-              {items.map((item, idx) => {
-                const color   = itemColor(item);
-                const label   = itemLabel(item);
-                const isSlotItem = item.type !== "special" && item.statBoostType !== "lvl";
-                const locked  = isSlotItem && itemsRemaining !== Infinity && itemsRemaining <= 0;
-                return (
-                  <div
-                    key={item.inventoryId}
-                    data-testid={`item-powerup-${item.inventoryId}`}
-                    style={{ animation: `puMItemPop 0.3s ${idx * 0.04}s ease-out both`, touchAction: "none" }}
-                  >
-                    <div
-                      onPointerDown={locked || isPending ? undefined : (e) => handleItemPointerDown(e, item)}
-                      onPointerMove={handleItemPointerMove}
-                      onPointerUp={handleItemPointerUp}
-                      onPointerCancel={handleItemPointerUp}
-                      className="relative rounded-xl flex flex-col items-center gap-1.5 select-none overflow-hidden"
-                      style={{
-                        cursor: locked || isPending ? "not-allowed" : "grab",
-                        userSelect: "none",
-                        opacity: locked ? 0.45 : 1,
-                        padding: "10px 8px 8px",
-                        background: `linear-gradient(160deg, rgba(8,22,10,0.95) 0%, rgba(12,28,14,0.95) 100%)`,
-                        border: `1.5px solid ${locked ? "rgba(80,60,30,0.4)" : color + "55"}`,
-                        boxShadow: locked ? "none" : `0 2px 12px ${color}20, inset 0 1px 0 rgba(255,255,255,0.04)`,
-                      }}
-                    >
-                      {/* Item image */}
-                      <div className="relative w-14 h-14 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0"
-                        style={{ background: `radial-gradient(circle, ${color}22 0%, rgba(8,20,10,0.8) 100%)`, border: `1px solid ${color}40` }}>
-                        {item.imageUrl
-                          ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain p-0.5" />
-                          : <img src={powerupBagIcon} alt="" className="w-full h-full object-contain p-1" />
-                        }
-                      </div>
-
-                      {/* Name */}
-                      <span className="relative font-fantasy text-[9px] tracking-wide text-center leading-tight w-full truncate"
-                        style={{ color: "#d4b896" }}>
-                        {item.name}
-                      </span>
-
-                      {/* Stat badge */}
-                      <span className="relative font-fantasy text-[10px] font-bold tracking-wider px-2.5 py-0.5 rounded-full"
-                        style={{ background: `${color}22`, color, border: `1px solid ${color}55`, textShadow: `0 0 8px ${color}80` }}>
-                        {label}
-                      </span>
-
-                      {item.quantity > 1 && (
-                        <span
-                          className="absolute top-1.5 right-1.5 min-w-5 h-5 px-1 rounded-full flex items-center justify-center font-fantasy text-[10px] font-bold"
-                          style={{ background: "#173d22", color: "#d9f99d", border: "1px solid #86efac88" }}
-                          aria-label={`${item.quantity} available`}
-                        >
-                          ×{item.quantity}
-                        </span>
-                      )}
-
-                      {/* Locked indicator */}
-                      {locked && (
-                        <div className="relative w-full py-1.5 rounded-lg font-fantasy text-[10px] tracking-widest font-bold text-center"
-                          style={{ background: "rgba(40,30,15,0.7)", border: "1px solid rgba(80,60,20,0.4)", color: "#4a4030" }}>
-                          LOCKED
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* ── Floating drag ghost ── */}
-      {dragging && (
-        <div
-          className="fixed pointer-events-none z-[300] rounded-xl flex flex-col items-center gap-1.5"
-          style={{
-            left: dragging.x, top: dragging.y,
-            transform: "translate(-50%, -50%)",
-            background: `linear-gradient(160deg, rgba(8,22,10,0.97) 0%, rgba(12,30,14,0.97) 100%)`,
-            border: `2px solid ${itemColor(dragging.item)}`,
-            boxShadow: `0 0 24px ${itemColor(dragging.item)}80, 0 0 48px ${itemColor(dragging.item)}30`,
-            width: 76,
-            padding: "8px 6px 6px",
-            animation: "puMFloatCard 0.6s ease-in-out infinite",
-          }}
-        >
-          {dragging.item.imageUrl
-            ? <img src={dragging.item.imageUrl} alt={dragging.item.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
-            : <img src={powerupBagIcon} alt="" style={{ width: 44, height: 44, objectFit: "contain" }} />
-          }
-          <span className="font-fantasy text-[9px] text-center leading-tight w-full font-bold" style={{ color: itemColor(dragging.item), textShadow: `0 0 8px ${itemColor(dragging.item)}` }}>
-            {itemLabel(dragging.item)}
-          </span>
-        </div>
-      )}
-
-      {/* ── Sparkle burst ── */}
-      {sparkles.map(s => (
-        <div
-          key={s.id}
-          className="fixed pointer-events-none z-[250] rounded-full"
-          style={{
-            left: s.x, top: s.y,
-            width: 8, height: 8,
-            background: s.color,
-            boxShadow: `0 0 8px ${s.color}`,
-            ["--sx" as any]: `${Math.cos(s.angle * Math.PI / 180) * (60 + Math.random() * 60)}px`,
-            ["--sy" as any]: `${Math.sin(s.angle * Math.PI / 180) * (60 + Math.random() * 60)}px`,
-            animation: "puMSparkle 0.65s ease-out forwards",
-          }}
-        />
       ))}
     </div>
   );
+
+  const success = successEffect ? (() => {
+    const cfg = EFFECTS[successEffect.type];
+    return <div className="pum-success" data-testid="text-power-up-success"><div className="pum-success-card" style={{ "--c": cfg.color } as CSSProperties}>{cfg.icon}<div className="pum-success-title">{cfg.title}</div><div className="pum-success-label">{successEffect.label}</div></div></div>;
+  })() : null;
+
+  return <div className={`pum ${isPower ? "power" : "pum-legacy"}`} style={{ zIndex: z }} role="dialog" aria-modal="true" aria-label={title}>
+    <style>{CSS}</style>
+    <img src={forestBg} alt="" className="pum-bg" />
+    <div className="pum-shade" />
+    <div className="pum-scroll">
+      <header className="pum-head">
+        <h2 className="pum-title">{title}</h2>
+        {subtitle && <div className="pum-sub">{subtitle}</div>}
+        <button className={`pum-close ${isPower ? "asset" : ""}`} onClick={onClose} data-testid="button-close-powerup-modal" aria-label="Close">
+          {isPower ? <img src={chamberClose} alt="" /> : <X size={30} />}
+        </button>
+      </header>
+      <div className="pum-rule">{isPower ? `✦ ${Math.max(0, itemsRemaining)} enhancement${itemsRemaining === 1 ? "" : "s"} remaining` : itemsRemaining === Infinity ? "✦ No limit — use as many as you like!" : `✦ ${Math.max(0, itemsRemaining)} slots remaining this level`}</div>
+      {isPower ? <>
+        <section className="pum-stage">
+          <i className="pum-mote" /><i className="pum-mote" /><i className="pum-mote" />
+          <div ref={zoneRef} className={`pum-pet-zone ${over ? "over" : ""}`} data-testid="zone-pet-drop">
+            <div className="pum-rune" />
+            <div className={`pum-pet ${petAnim}`}>{pet}</div>
+            <div className="pum-sockets">{socketPositions.map((p, i) => <span key={i} className={`pum-socket ${i < remainingVisual ? "on" : ""}`} style={{ "--sx": `${p.x}px`, "--sy": `${p.y}px` } as CSSProperties}><img src={i < remainingVisual ? chamberSocketActive : chamberSocketLocked} alt="" /></span>)}</div>
+          </div>
+          <div className="pum-identity"><span>{petName}</span><span className="pum-level">Lv.{petLevel}</span></div>
+        </section>
+        {stats}
+        {itemTray}
+      </> : <>
+        <section className="pum-legacy-stage">
+          <div ref={zoneRef} className={`pum-legacy-pet pum-pet ${petAnim} ${over ? "over" : ""}`} data-testid="zone-pet-drop">{pet}</div>
+          <div className="pum-legacy-stars">{"★".repeat(Math.max(1, Math.min(5, rarity)))}</div>
+          <div className="pum-identity"><span>{petName}</span><span className="pum-level">Lv.{petLevel}</span></div>
+        </section>
+        {stats}
+        <img className="pum-bag" src={powerupBagIcon} alt="" />
+        {itemTray}
+      </>}
+    </div>
+    {drag && <div className="pum-ghost" style={{ left: drag.x, top: drag.y }}><img src={drag.item.imageUrl || powerupBagIcon} alt="" /></div>}
+    {sparks.map(s => <i key={s.id} className="pum-spark" style={{ left: s.x, top: s.y, "--c": s.color, "--dx": `${s.dx}px`, "--dy": `${s.dy}px` } as CSSProperties} />)}
+    {success}
+  </div>;
 }
