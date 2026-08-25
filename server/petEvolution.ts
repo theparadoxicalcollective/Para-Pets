@@ -17,18 +17,20 @@ export class PetEvolutionError extends Error {
 let evolutionStorageReady: Promise<void> | null = null;
 
 /**
- * The evolution tables are deliberately isolated from user_inventory so this
- * feature can be rolled out without changing the shape of every inventory
- * query in the game. FK cascade keeps the progress row tidy if a pet leaves
- * inventory through an existing feature.
+ * Evolution persistence is deliberately isolated from user_inventory so the
+ * feature can be introduced without widening every inventory query in the
+ * game. ON DELETE CASCADE cleans progress if the target pet later leaves the
+ * player's inventory through another supported feature.
  */
 export function ensureEvolutionStorage(): Promise<void> {
   if (!evolutionStorageReady) {
     evolutionStorageReady = (async () => {
+      // Keep the six-slot check literal in DDL. PostgreSQL utility statements
+      // cannot reliably use bind parameters inside CREATE TABLE constraints.
       await db.execute(sql`
         CREATE TABLE IF NOT EXISTS pet_evolution_progress (
           pet_inventory_id VARCHAR PRIMARY KEY REFERENCES user_inventory(id) ON DELETE CASCADE,
-          completed_slots INTEGER NOT NULL DEFAULT 0 CHECK (completed_slots BETWEEN 0 AND ${EVOLUTION_SLOT_COUNT}),
+          completed_slots INTEGER NOT NULL DEFAULT 0 CHECK (completed_slots BETWEEN 0 AND 6),
           current_points INTEGER NOT NULL DEFAULT 0 CHECK (current_points >= 0),
           updated_at TIMESTAMP NOT NULL DEFAULT now()
         )
@@ -67,6 +69,7 @@ const petStateSelect = sql`SELECT
   si.id "shopItemId",
   si.name,
   si.type,
+  si.pet_template_id "petTemplateId",
   COALESCE(si.star_rarity, si.rarity, 1) rarity,
   COALESCE(si.hatched_image_url, si.image_url) "imageUrl",
   (u.active_pet_id = ui.id) active,
@@ -110,6 +113,7 @@ function serializeFeeder(row: any) {
     name: row.nickname || row.name,
     rarity,
     imageUrl: row.imageUrl ?? null,
+    petTemplateId: row.petTemplateId ?? null,
     evolutionPoints: evolutionFeedPointsForRarity(rarity),
     eligible: !reason,
     unavailableReason: reason ? blockMessage[reason] : null,
@@ -155,6 +159,7 @@ export async function getActiveEvolutionState(userId: string) {
       name: target.nickname || target.name,
       rarity,
       imageUrl: target.imageUrl ?? null,
+      petTemplateId: target.petTemplateId ?? null,
     },
     slotCount: EVOLUTION_SLOT_COUNT,
     completedSlots,
@@ -210,8 +215,8 @@ export async function feedActivePetForEvolution(userId: string, feederPetIds: un
     if (!user) throw new PetEvolutionError("user_not_found", "Player not found.", 404);
     if (!user.active_pet_id) throw new PetEvolutionError("active_pet_not_found", "Choose an active pet before evolving.", 404);
 
-    // Lock the tables that can create references to feeder pets while this
-    // transaction validates and consumes them.
+    // Lock the tables that can create protected references while feeder pets
+    // are validated and consumed. This mirrors the Soul Exchange safety path.
     await tx.execute(sql`LOCK TABLE pet_equipped_accessories, player_market_listings, pvp_battle_groups,
       pet_house_positions, clearing_reward_chests, pet_cave_progress IN SHARE ROW EXCLUSIVE MODE`);
 
@@ -263,8 +268,8 @@ export async function feedActivePetForEvolution(userId: string, feederPetIds: un
     const pointsAwarded = feeders.reduce((sum, feeder) => sum + evolutionFeedPointsForRarity(feeder.rarity), 0);
     const next = applyEvolutionPoints(completedSlots, currentPoints, pointsAwarded, target.rarity);
 
-    // Clearing chest rows are temporary but use ON DELETE RESTRICT. Removing
-    // them here mirrors the Soul Exchange's safe pet-consumption behavior.
+    // Clearing chests are short-lived but use ON DELETE RESTRICT. Discarding
+    // them here lets an otherwise eligible feeder pet be consumed atomically.
     await tx.execute(sql`DELETE FROM clearing_reward_chests WHERE user_id = ${userId} AND pet_inventory_id IN (${idList})`);
     const deleted = await tx.execute(sql`DELETE FROM user_inventory WHERE user_id = ${userId} AND id IN (${idList}) RETURNING id`);
     if (deleted.rows.length !== ids.length) {
