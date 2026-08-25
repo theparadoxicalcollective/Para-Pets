@@ -1,7 +1,13 @@
 import type { Express } from "express";
 import { exchangePets, getSoulExchangeState, SoulExchangeError } from "../soulExchange";
+import { registerPetEvolutionRoutes } from "./petEvolution.routes";
 
 export function registerSoulExchangeRoutes(app: Express, { isAuthenticated }: { isAuthenticated: any }) {
+  // Pet Evolution is kept in its own route/service modules; this existing
+  // pet-consumption registration point wires it into the app without adding
+  // more feature code to the already-large root routes.ts file.
+  registerPetEvolutionRoutes(app, { isAuthenticated });
+
   app.get("/api/soul-exchange/pets", isAuthenticated, async (req: any, res) => {
     try { res.json(await getSoulExchangeState(req.user.id)); }
     catch (error) { console.error("[soul-exchange] quote failed", error); res.status(500).json({ message: "The souls are quiet. Please try again." }); }
