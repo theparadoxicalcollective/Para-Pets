@@ -256,10 +256,11 @@ const ALL_PART_DEFS: PartDef[] = [
 ].filter((v, i, a) => a.findIndex(x => x.key === v.key) === i);
 
 const CANVAS_SIZE = 1000;
+type EditorTab = "parts" | "costume";
 
-function EditorTabs({ active, onChange }: { active: "parts" | "animation" | "costume"; onChange: (tab: "parts" | "animation" | "costume") => void }) {
+function EditorTabs({ active, onChange }: { active: EditorTab; onChange: (tab: EditorTab) => void }) {
   return <nav aria-label="Pet editor" className="flex flex-wrap gap-2">
-    {(["parts", "animation", "costume"] as const).map(tab => <button key={tab} data-testid={`tab-pet-editor-${tab}`} onClick={() => onChange(tab)} className="rounded-md px-3 py-2 font-fantasy text-[10px] tracking-wider" style={{ background: active === tab ? "rgba(240,192,64,.24)" : "rgba(0,0,0,.3)", border: "1px solid rgba(240,192,64,.3)", color: active === tab ? "#f0c040" : "#a89878" }}>{tab.toUpperCase()}</button>)}
+    {(["parts", "costume"] as const).map(tab => <button key={tab} data-testid={`tab-pet-editor-${tab}`} onClick={() => onChange(tab)} className="rounded-md px-3 py-2 font-fantasy text-[10px] tracking-wider" style={{ background: active === tab ? "rgba(240,192,64,.24)" : "rgba(0,0,0,.3)", border: "1px solid rgba(240,192,64,.3)", color: active === tab ? "#f0c040" : "#a89878" }}>{tab.toUpperCase()}</button>)}
   </nav>;
 }
 
@@ -305,8 +306,10 @@ export default function PetDatabasePanel({
   const [gifAnim, setGifAnim] = useState<GifAnimation>("idle");
   // A template has one source of truth; these are focused editor surfaces for
   // that same template, not separate pet/animation/costume records.
-  const [editorTab, setEditorTab] = useState<"parts" | "animation" | "costume">("parts");
+  const [editorTab, setEditorTab] = useState<EditorTab>("parts");
   const [selectedCostumeId, setSelectedCostumeId] = useState<string | null>(null);
+  const [costumeDraft, setCostumeDraft] = useState<CostumePlacement | null>(null);
+  const [costumeDraftDirty, setCostumeDraftDirty] = useState(false);
   const [draggingCostume, setDraggingCostume] = useState(false);
 
   // Notify parent whenever the facing mode toggles (front ↔ side) so the
@@ -409,14 +412,43 @@ export default function PetDatabasePanel({
     .filter(p => p.view === activeView)
     .sort((a, b) => previewEffectiveZ(a) - previewEffectiveZ(b));
 
+  const currentCostumeView = activeView === "back" ? "side" as const : "front" as const;
   const selectedCostumeItem = costumeItems.find(item => item.id === selectedCostumeId);
   const selectedCostumeDefinition = costumeDefinitions.find(definition => definition.shopItemId === selectedCostumeId);
+  const savedCostumePlacement = selectedCostumeDefinition?.placements.find(placement => placement.view === currentCostumeView);
+  const costumeParts = viewParts.map(part => ({ partType: part.partType, label: ALL_PART_DEFS.find(def => def.key === part.partType)?.label ?? part.partType }));
+  const defaultCostumePlacement = (): CostumePlacement => ({
+    view: currentCostumeView,
+    anchorPart: costumeParts[0]?.partType ?? "body",
+    posX: 0,
+    posY: 0,
+    width: 300,
+    height: 300,
+    pivotX: 50,
+    pivotY: 50,
+    depth: "front",
+  });
   const selectedCostumePlacement = selectedCostumeId
-    ? selectedCostumeDefinition?.placements.find(placement => placement.view === (activeView === "back" ? "side" : "front"))
-      ?? { view: activeView === "back" ? "side" as const : "front" as const, anchorPart: viewParts[0]?.partType ?? "body", posX: 0, posY: 0, width: 300, height: 300, pivotX: 50, pivotY: 50, depth: "front" as const }
+    ? costumeDraft ?? savedCostumePlacement ?? defaultCostumePlacement()
     : undefined;
   const costumeAnchor = viewParts.find(part => part.partType === selectedCostumePlacement?.anchorPart) ?? viewParts.find(part => part.partType === "body");
-  const costumeParts = viewParts.map(part => ({ partType: part.partType, label: ALL_PART_DEFS.find(def => def.key === part.partType)?.label ?? part.partType }));
+
+  useEffect(() => {
+    if (!selectedCostumeId) {
+      setCostumeDraft(null);
+      setCostumeDraftDirty(false);
+      return;
+    }
+    if (costumeDraftDirty) return;
+    setCostumeDraft(savedCostumePlacement ?? defaultCostumePlacement());
+  }, [selectedTemplateId, selectedCostumeId, currentCostumeView, selectedCostumeDefinition]);
+
+  useEffect(() => {
+    if (!costumeDraftDirty) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [costumeDraftDirty]);
 
   const createMutation = useMutation({
     mutationFn: async (name: string) => {
@@ -571,20 +603,40 @@ export default function PetDatabasePanel({
       const res = await apiRequest("PUT", "/api/admin/costume-definitions", { shopItemId: itemId, templateId: selectedTemplateId, placements });
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      setCostumeDraft(variables.placement);
+      setCostumeDraftDirty(false);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/costume-definitions", selectedTemplateId] });
       toast({ title: "Costume saved", description: "Placement is stored in template coordinates." });
     },
     onError: () => toast({ title: "Error", description: "Failed to save costume placement", variant: "destructive" }),
   });
 
-  const defaultCostumePlacement = (): CostumePlacement => ({
-    view: activeView === "back" ? "side" : "front", anchorPart: costumeParts[0]?.partType ?? "body",
-    posX: 0, posY: 0, width: 300, height: 300, pivotX: 50, pivotY: 50, depth: "front",
-  });
-  const updateCostume = (changes: Partial<CostumePlacement>) => {
+  const updateCostumeDraft = (changes: Partial<CostumePlacement>) => {
     if (!selectedCostumeId) return;
-    saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: { ...(selectedCostumePlacement ?? defaultCostumePlacement()), ...changes } });
+    setCostumeDraft(current => ({ ...(current ?? selectedCostumePlacement ?? defaultCostumePlacement()), ...changes }));
+    setCostumeDraftDirty(true);
+  };
+  const saveCostumePlacement = () => {
+    if (!selectedCostumeId || !selectedCostumePlacement || !costumeDraftDirty) return;
+    saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: selectedCostumePlacement });
+  };
+  const discardCostumeDraft = () => {
+    setCostumeDraft(null);
+    setCostumeDraftDirty(false);
+    setDraggingCostume(false);
+  };
+  const selectCostume = (itemId: string) => {
+    if (itemId === selectedCostumeId) return;
+    if (costumeDraftDirty && !window.confirm("Discard the unsaved costume placement?")) return;
+    discardCostumeDraft();
+    setSelectedCostumeId(itemId);
+  };
+  const changeEditorTab = (tab: EditorTab) => {
+    if (tab === editorTab) return;
+    if (editorTab === "costume" && costumeDraftDirty && !window.confirm("Discard the unsaved costume placement?")) return;
+    if (editorTab === "costume") discardCostumeDraft();
+    setEditorTab(tab);
   };
 
   const loadImageToCache = useCallback((imageUrl: string): Promise<HTMLCanvasElement> => {
@@ -750,41 +802,53 @@ export default function PetDatabasePanel({
     const linkedPet = getLinkedShopPet(templateDetail.id);
     const viewLabel = facingMode === "front" ? "Front View" : "Side View";
 
-    if (editorTab === "animation") return (
-      <div className="flex flex-col gap-3">
-        <EditorTabs active={editorTab} onChange={setEditorTab} />
-        <h3 className="font-fantasy text-[#f0c040] text-sm tracking-widest">{templateDetail.name} — Animation</h3>
-        <div className="rounded-lg p-3" style={{ background: "rgba(0,0,0,.25)", border: "1px solid rgba(74,222,128,.35)" }}>
-          <PetAnimatorCanvas petTemplateId={selectedTemplateId} size={500} fillContainer fps={60} />
-        </div>
-        <button data-testid="checkbox-can-fly" onClick={() => canFlyMutation.mutate({ id: templateDetail.id, canFly: !templateDetail.canFly })} className="w-full py-2 rounded-lg font-fantasy text-[11px]" style={{ background: "rgba(127,255,212,.16)", color: "#7fffd4" }}>
-          {templateDetail.canFly ? "Can Fly — On" : "Can Fly — Off"}
-        </button>
-        <label className="flex flex-col gap-1 text-[10px] uppercase tracking-wider" style={{ color: "#a89878" }}>Animation profile
-          <select data-testid="select-animation-profile" value={normalizeAnimationProfile(templateDetail.idleStyle, templateDetail.canFly)} onChange={(event) => animationProfileMutation.mutate({ id: templateDetail.id, idleStyle: event.target.value as PetAnimationProfile })} className="rounded-lg px-2 py-2 text-xs" style={{ background: "rgba(0,0,0,.35)", color: "#e7d7b5" }}>
-            {PET_ANIMATION_PROFILES.map(profile => <option key={profile} value={profile}>{profile.replaceAll("_", " ")}</option>)}
-          </select>
-        </label>
-        <p className="text-xs" style={{ color: "#a89878" }}>Preview and animation settings use this pet template’s production renderer.</p>
-      </div>
-    );
-
     if (editorTab === "costume") return (
       <div className="flex flex-col gap-3">
-        <EditorTabs active={editorTab} onChange={setEditorTab} />
+        <EditorTabs active={editorTab} onChange={changeEditorTab} />
         <h3 className="font-fantasy text-[#c084fc] text-sm tracking-widest">{templateDetail.name} — Costume</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="rounded-lg p-3 space-y-2" style={{ background: "rgba(52,28,72,.35)", border: "1px solid rgba(192,132,252,.35)" }}>
             <p className="font-fantasy text-[9px]" style={{ color: "#c084fc" }}>COSTUME LIBRARY</p>
-            {costumeItems.map(item => <button key={item.id} onClick={() => setSelectedCostumeId(item.id)} className="w-full flex gap-2 p-2 rounded text-left" style={{ background: selectedCostumeId === item.id ? "rgba(192,132,252,.25)" : "rgba(0,0,0,.24)", color: "#e7d7b5" }}><img src={item.imageUrl ?? ""} alt="" className="w-8 h-8 object-contain" /><span className="text-xs truncate">{item.name}</span></button>)}
+            {costumeItems.map(item => <button key={item.id} onClick={() => selectCostume(item.id)} className="w-full flex gap-2 p-2 rounded text-left" style={{ background: selectedCostumeId === item.id ? "rgba(192,132,252,.25)" : "rgba(0,0,0,.24)", color: "#e7d7b5" }}><img src={item.imageUrl ?? ""} alt="" className="w-8 h-8 object-contain" /><span className="text-xs truncate">{item.name}</span></button>)}
             {!costumeItems.length && <p className="text-xs" style={{ color: "#a89878" }}>No saved Costume items yet.</p>}
           </div>
-          <div ref={canvasRef} className="relative aspect-square rounded-lg" style={{ background: "rgba(0,0,0,.25)", overflow: "visible" }} onPointerMove={(event) => { if (!draggingCostume || !selectedCostumePlacement || !costumeAnchor) return; const rect = canvasRef.current?.getBoundingClientRect(); if (!rect) return; const scale = CANVAS_SIZE / rect.width; updateCostume({ posX: (event.clientX - rect.left) * scale - (costumeAnchor.posX + costumeAnchor.width * (costumeAnchor.pivotX ?? 50) / 100), posY: (event.clientY - rect.top) * scale - (costumeAnchor.posY + costumeAnchor.height * (costumeAnchor.pivotY ?? 50) / 100) }); }} onPointerUp={() => setDraggingCostume(false)}>
+          <div
+            ref={canvasRef}
+            data-testid="costume-placement-canvas"
+            className="relative aspect-square rounded-lg"
+            style={{ background: "rgba(0,0,0,.25)", overflow: "visible", touchAction: "none" }}
+            onPointerMove={(event) => {
+              if (!draggingCostume || !selectedCostumePlacement || !costumeAnchor) return;
+              const rect = canvasRef.current?.getBoundingClientRect();
+              if (!rect) return;
+              const scale = CANVAS_SIZE / rect.width;
+              updateCostumeDraft({
+                posX: (event.clientX - rect.left) * scale - (costumeAnchor.posX + costumeAnchor.width * (costumeAnchor.pivotX ?? 50) / 100),
+                posY: (event.clientY - rect.top) * scale - (costumeAnchor.posY + costumeAnchor.height * (costumeAnchor.pivotY ?? 50) / 100),
+              });
+            }}
+            onPointerUp={() => setDraggingCostume(false)}
+            onPointerCancel={() => setDraggingCostume(false)}
+          >
             {viewParts.map(part => <img key={part.id} src={part.imageUrl} alt="" className="absolute object-contain pointer-events-none" style={{ left: `${part.posX / 10}%`, top: `${part.posY / 10}%`, width: `${part.width / 10}%`, height: `${part.height / 10}%`, zIndex: previewEffectiveZ(part) }} />)}
-            {selectedCostumeItem?.imageUrl && selectedCostumePlacement && costumeAnchor && <img data-testid={`canvas-costume-${selectedCostumeItem.id}`} src={selectedCostumeItem.imageUrl} alt={selectedCostumeItem.name} onPointerDown={event => { event.stopPropagation(); setDraggingCostume(true); event.currentTarget.setPointerCapture(event.pointerId); }} className="absolute object-contain" style={{ left: `${(costumeAnchor.posX + costumeAnchor.width * (costumeAnchor.pivotX ?? 50) / 100 + selectedCostumePlacement.posX - selectedCostumePlacement.width * selectedCostumePlacement.pivotX / 100) / 10}%`, top: `${(costumeAnchor.posY + costumeAnchor.height * (costumeAnchor.pivotY ?? 50) / 100 + selectedCostumePlacement.posY - selectedCostumePlacement.height * selectedCostumePlacement.pivotY / 100) / 10}%`, width: `${selectedCostumePlacement.width / 10}%`, height: `${selectedCostumePlacement.height / 10}%`, zIndex: selectedCostumePlacement.depth === "front" ? 100 : -1 }} />}
+            {selectedCostumeItem?.imageUrl && selectedCostumePlacement && costumeAnchor && <img data-testid={`canvas-costume-${selectedCostumeItem.id}`} src={selectedCostumeItem.imageUrl} alt={selectedCostumeItem.name} onPointerDown={event => { event.preventDefault(); event.stopPropagation(); setDraggingCostume(true); event.currentTarget.setPointerCapture(event.pointerId); }} onLostPointerCapture={() => setDraggingCostume(false)} className="absolute object-contain" style={{ left: `${(costumeAnchor.posX + costumeAnchor.width * (costumeAnchor.pivotX ?? 50) / 100 + selectedCostumePlacement.posX - selectedCostumePlacement.width * selectedCostumePlacement.pivotX / 100) / 10}%`, top: `${(costumeAnchor.posY + costumeAnchor.height * (costumeAnchor.pivotY ?? 50) / 100 + selectedCostumePlacement.posY - selectedCostumePlacement.height * selectedCostumePlacement.pivotY / 100) / 10}%`, width: `${selectedCostumePlacement.width / 10}%`, height: `${selectedCostumePlacement.height / 10}%`, zIndex: selectedCostumePlacement.depth === "front" ? 100 : -1, cursor: draggingCostume ? "grabbing" : "grab", touchAction: "none" }} />}
           </div>
           <div className="rounded-lg p-3 space-y-3" style={{ background: "rgba(52,28,72,.35)", border: "1px solid rgba(192,132,252,.35)" }}>
-            {selectedCostumeItem && selectedCostumePlacement ? <><label className="text-xs" style={{ color: "#a89878" }}>Anchor part<select value={selectedCostumePlacement.anchorPart} onChange={event => updateCostume({ anchorPart: event.target.value })} className="block w-full mt-1 p-2 rounded" style={{ background: "#201526", color: "#e7d7b5" }}>{costumeParts.map(part => <option key={part.partType} value={part.partType}>{part.label}</option>)}</select></label><div className="flex gap-2">{(["front", "back"] as const).map(depth => <button key={depth} onClick={() => updateCostume({ depth })} className="flex-1 p-2 rounded text-xs" style={{ background: selectedCostumePlacement.depth === depth ? "rgba(192,132,252,.3)" : "rgba(0,0,0,.25)", color: "#e7d7b5" }}>{depth.toUpperCase()}</button>)}</div><button onClick={() => updateCostume({})} className="w-full p-2 rounded text-xs" style={{ background: "rgba(192,132,252,.3)", color: "#fff" }}>Save placement</button></> : <p className="text-xs" style={{ color: "#a89878" }}>Select a costume to anchor, position, and save it.</p>}
+            {selectedCostumeItem && selectedCostumePlacement ? <>
+              <label className="text-xs" style={{ color: "#a89878" }}>Anchor part
+                <select value={selectedCostumePlacement.anchorPart} onChange={event => updateCostumeDraft({ anchorPart: event.target.value })} className="block w-full mt-1 p-2 rounded" style={{ background: "#201526", color: "#e7d7b5" }}>
+                  {costumeParts.map(part => <option key={part.partType} value={part.partType}>{part.label}</option>)}
+                </select>
+              </label>
+              <label className="block text-xs" style={{ color: "#a89878" }}>Width <span className="float-right">{Math.round(selectedCostumePlacement.width)}</span>
+                <input data-testid="input-costume-width" type="range" min="20" max="1000" step="5" value={selectedCostumePlacement.width} onChange={event => updateCostumeDraft({ width: Number(event.target.value) })} className="block w-full mt-1" />
+              </label>
+              <label className="block text-xs" style={{ color: "#a89878" }}>Height <span className="float-right">{Math.round(selectedCostumePlacement.height)}</span>
+                <input data-testid="input-costume-height" type="range" min="20" max="1000" step="5" value={selectedCostumePlacement.height} onChange={event => updateCostumeDraft({ height: Number(event.target.value) })} className="block w-full mt-1" />
+              </label>
+              <div className="flex gap-2">{(["front", "back"] as const).map(depth => <button key={depth} onClick={() => updateCostumeDraft({ depth })} className="flex-1 p-2 rounded text-xs" style={{ background: selectedCostumePlacement.depth === depth ? "rgba(192,132,252,.3)" : "rgba(0,0,0,.25)", color: "#e7d7b5" }}>{depth.toUpperCase()}</button>)}</div>
+              <button data-testid="button-save-costume-placement" onClick={saveCostumePlacement} disabled={!costumeDraftDirty || saveCostumeMutation.isPending} className="w-full p-2 rounded text-xs disabled:opacity-50" style={{ background: "rgba(192,132,252,.3)", color: "#fff" }}>{saveCostumeMutation.isPending ? "Saving…" : costumeDraftDirty ? "Save placement" : "Placement saved"}</button>
+            </> : <p className="text-xs" style={{ color: "#a89878" }}>Select a costume to anchor, position, and save it.</p>}
           </div>
         </div>
       </div>
@@ -792,7 +856,7 @@ export default function PetDatabasePanel({
 
     return (
       <div className="flex flex-col gap-3">
-        <EditorTabs active={editorTab} onChange={setEditorTab} />
+        <EditorTabs active={editorTab} onChange={changeEditorTab} />
         <div className="flex items-center gap-2 mb-1">
           <button
             data-testid="button-back-to-pet-list"
