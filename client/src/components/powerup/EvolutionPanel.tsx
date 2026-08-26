@@ -24,8 +24,6 @@ export default function EvolutionPanel({ enabled, fallbackRarity }: EvolutionPan
       .pup-evolution-skin { position:absolute; inset:0; z-index:8; pointer-events:none; }
       .pup-evolution-skin > .pupevo-orbit { inset:0 !important; }
       .pup-evolution-skin .pupevo-slot { width:clamp(66px,18vw,96px) !important; height:clamp(66px,18vw,96px) !important; pointer-events:auto !important; cursor:pointer; }
-      .pup-evolution-skin .pupevo-slot::after { content:""; position:absolute; inset:7%; z-index:4; border:1.5px solid rgba(117,241,187,.7); border-radius:50%; box-shadow:inset 0 0 7px rgba(80,230,160,.24),0 0 2px rgba(4,32,24,.95); pointer-events:none; }
-      .pup-evolution-skin .pupevo-slot.current::after { border-color:#9bffd0; box-shadow:inset 0 0 8px rgba(96,255,181,.38),0 0 5px rgba(77,243,165,.82); }
       /* Slot 1 starts at bottom-left, then progression travels clockwise. */
       .pup-evolution-skin .pupevo-slot:nth-of-type(1){left:24% !important;top:56% !important}
       .pup-evolution-skin .pupevo-slot:nth-of-type(2){left:12% !important;top:39% !important}
@@ -34,8 +32,9 @@ export default function EvolutionPanel({ enabled, fallbackRarity }: EvolutionPan
       .pup-evolution-skin .pupevo-slot:nth-of-type(5){left:88% !important;top:39% !important}
       .pup-evolution-skin .pupevo-slot:nth-of-type(6){left:76% !important;top:56% !important}
       .pup-evolution-skin .pupevo-slot:not(.locked)>img,
-      .pup-evolution-skin .pupevo-fill img { content:var(--pup-evo-unlocked) !important; }
-      .pup-evolution-skin .pupevo-slot.locked>img { content:var(--pup-evo-locked) !important; filter:none !important; opacity:1 !important; }
+      .pup-evolution-skin .pupevo-fill img { content:var(--pup-evo-unlocked) !important; filter:drop-shadow(0 0 1px #baffd7) drop-shadow(0 0 3px rgba(75,238,157,.72)) !important; }
+      .pup-evolution-skin .pupevo-slot.current>img { filter:drop-shadow(0 0 1px #d4ffe8) drop-shadow(0 0 5px rgba(83,255,176,.92)) !important; }
+      .pup-evolution-skin .pupevo-slot.locked>img { content:var(--pup-evo-locked) !important; filter:drop-shadow(0 0 1px rgba(152,240,201,.72)) drop-shadow(0 0 3px rgba(54,189,130,.52)) !important; opacity:1 !important; }
       .pup-evolution-skin .pupevo-slot.locked .pupevo-lock-badge { display:none !important; }
       @media(max-width:430px){
         .pup-evolution-skin .pupevo-slot { width:70px !important; height:70px !important; }
