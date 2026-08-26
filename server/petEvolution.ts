@@ -1,9 +1,12 @@
 import { sql } from "drizzle-orm";
 import { db } from "./db";
 import {
+  EVOLUTION_NODE_COIN_REWARD,
+  EVOLUTION_REWARD_SLOT_COUNT,
   EVOLUTION_SLOT_COUNT,
   applyEvolutionPoints,
   evolutionFeedPointsForRarity,
+  evolutionStatRewardForRarity,
   evolutionTargetForRarity,
   normalizePetRarity,
 } from "@shared/evolution";
@@ -32,8 +35,13 @@ export function ensureEvolutionStorage(): Promise<void> {
           pet_inventory_id VARCHAR PRIMARY KEY REFERENCES user_inventory(id) ON DELETE CASCADE,
           completed_slots INTEGER NOT NULL DEFAULT 0 CHECK (completed_slots BETWEEN 0 AND 6),
           current_points INTEGER NOT NULL DEFAULT 0 CHECK (current_points >= 0),
+          claimed_slots_mask INTEGER NOT NULL DEFAULT 0,
           updated_at TIMESTAMP NOT NULL DEFAULT now()
         )
+      `);
+      await db.execute(sql`
+        ALTER TABLE pet_evolution_progress
+        ADD COLUMN IF NOT EXISTS claimed_slots_mask INTEGER NOT NULL DEFAULT 0
       `);
       await db.execute(sql`
         CREATE TABLE IF NOT EXISTS pet_evolution_feed_actions (
@@ -136,12 +144,15 @@ export async function getActiveEvolutionState(userId: string) {
   await ensureEvolutionStorage();
   const target = await getActiveTarget(userId);
   const progress = await db.execute(sql`
-    SELECT completed_slots, current_points
+    SELECT completed_slots, current_points, claimed_slots_mask
     FROM pet_evolution_progress
     WHERE pet_inventory_id = ${target.inventoryId}
   `);
   const completedSlots = Number((progress.rows[0] as any)?.completed_slots ?? 0);
   const currentPoints = Number((progress.rows[0] as any)?.current_points ?? 0);
+  const claimedSlotsMask = Number((progress.rows[0] as any)?.claimed_slots_mask ?? 0);
+  const claimedSlots = Array.from({ length: EVOLUTION_REWARD_SLOT_COUNT }, (_, index) => index + 1)
+    .filter((slot) => (claimedSlotsMask & (1 << (slot - 1))) !== 0);
   const rarity = normalizePetRarity(target.rarity);
   const pointsRequired = evolutionTargetForRarity(rarity);
 
@@ -164,12 +175,117 @@ export async function getActiveEvolutionState(userId: string) {
     slotCount: EVOLUTION_SLOT_COUNT,
     completedSlots,
     currentPoints,
+    claimedSlots,
+    nodeCoinReward: EVOLUTION_NODE_COIN_REWARD,
+    nodeStatReward: evolutionStatRewardForRarity(rarity),
     pointsRequired,
     percent: completedSlots >= EVOLUTION_SLOT_COUNT ? 100 : Math.max(0, Math.min(100, (currentPoints / pointsRequired) * 100)),
     isComplete: completedSlots >= EVOLUTION_SLOT_COUNT,
     feeders,
     blockedPetCount: allFeeders.length - feeders.length,
   };
+}
+
+
+function validateRewardSlot(slotInput: unknown): number {
+  const slot = Number(slotInput);
+  if (!Number.isInteger(slot) || slot < 1 || slot > EVOLUTION_SLOT_COUNT) {
+    throw new PetEvolutionError("invalid_reward_slot", "Choose a valid completed evolution node.", 400);
+  }
+  if (slot === EVOLUTION_SLOT_COUNT) {
+    throw new PetEvolutionError("evolution_coming_soon", "Evolution Coming Soon", 409);
+  }
+  return slot;
+}
+
+export async function claimActiveEvolutionReward(userId: string, slotInput: unknown) {
+  await ensureEvolutionStorage();
+  const slot = validateRewardSlot(slotInput);
+
+  return db.transaction(async (tx) => {
+    const userResult = await tx.execute(sql`
+      SELECT id, active_pet_id
+      FROM users
+      WHERE id = ${userId}
+      FOR UPDATE
+    `);
+    const user = userResult.rows[0] as any;
+    if (!user) throw new PetEvolutionError("user_not_found", "Player not found.", 404);
+    if (!user.active_pet_id) throw new PetEvolutionError("active_pet_not_found", "Choose an active pet before claiming an evolution reward.", 404);
+
+    const targetResult = await tx.execute(sql`
+      SELECT ui.id, COALESCE(si.star_rarity, si.rarity, 1) rarity
+      FROM user_inventory ui
+      JOIN shop_items si ON si.id = ui.shop_item_id
+      WHERE ui.id = ${user.active_pet_id}
+        AND ui.user_id = ${userId}
+        AND ui.is_hatched = true
+        AND si.type = 'pet'
+      FOR UPDATE OF ui
+    `);
+    const target = targetResult.rows[0] as any;
+    if (!target) throw new PetEvolutionError("active_pet_not_found", "The active pet could not be found.", 404);
+
+    const progressResult = await tx.execute(sql`
+      SELECT completed_slots, claimed_slots_mask
+      FROM pet_evolution_progress
+      WHERE pet_inventory_id = ${target.id}
+      FOR UPDATE
+    `);
+    const progress = progressResult.rows[0] as any;
+    const completedSlots = Number(progress?.completed_slots ?? 0);
+    const claimedSlotsMask = Number(progress?.claimed_slots_mask ?? 0);
+    if (!progress || completedSlots < slot) {
+      throw new PetEvolutionError("reward_not_ready", "Complete this evolution node before claiming its reward.", 409);
+    }
+
+    const claimBit = 1 << (slot - 1);
+    if ((claimedSlotsMask & claimBit) !== 0) {
+      throw new PetEvolutionError("reward_already_claimed", "This evolution reward has already been collected.", 409);
+    }
+
+    const rarity = normalizePetRarity(target.rarity);
+    const statBoost = evolutionStatRewardForRarity(rarity);
+    const nextClaimedMask = claimedSlotsMask | claimBit;
+
+    await tx.execute(sql`
+      UPDATE pet_evolution_progress
+      SET claimed_slots_mask = ${nextClaimedMask}, updated_at = now()
+      WHERE pet_inventory_id = ${target.id}
+    `);
+    const playerUpdate = await tx.execute(sql`
+      UPDATE users
+      SET coins = coins + ${EVOLUTION_NODE_COIN_REWARD},
+          total_coins_earned = total_coins_earned + ${EVOLUTION_NODE_COIN_REWARD}
+      WHERE id = ${userId}
+      RETURNING coins
+    `);
+    const petUpdate = await tx.execute(sql`
+      UPDATE user_inventory
+      SET pet_atk = pet_atk + ${statBoost},
+          pet_def = pet_def + ${statBoost},
+          pet_health = pet_health + ${statBoost}
+      WHERE id = ${target.id} AND user_id = ${userId}
+      RETURNING pet_atk "petAtk", pet_def "petDef", pet_health "petHealth"
+    `);
+    if (!playerUpdate.rows[0] || !petUpdate.rows[0]) {
+      throw new Error("Evolution reward update failed");
+    }
+
+    const stats = petUpdate.rows[0] as any;
+    return {
+      success: true,
+      slot,
+      coinReward: EVOLUTION_NODE_COIN_REWARD,
+      statBoost,
+      newCoinBalance: Number((playerUpdate.rows[0] as any).coins),
+      petStats: {
+        atk: Number(stats.petAtk),
+        def: Number(stats.petDef),
+        health: Number(stats.petHealth),
+      },
+    };
+  });
 }
 
 function validateFeedRequest(feederPetIds: unknown, actionId: unknown): { ids: string[]; actionId: string } {
