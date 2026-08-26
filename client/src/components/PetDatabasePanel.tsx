@@ -876,7 +876,7 @@ export default function PetDatabasePanel({
     const viewLabel = facingMode === "front" ? "Front View" : "Side View";
 
     if (editorTab === "costume") return (
-      <div data-testid="pet-costume-editor" className="flex flex-col gap-3">
+      <div data-testid="pet-costume-editor" className="flex flex-col gap-3 pb-24 xl:pb-0">
         <EditorTabs active={editorTab} onChange={changeEditorTab} />
 
         <div className="rounded-lg px-3 py-3 space-y-3" style={{ background: "rgba(52,28,72,.28)", border: "1px solid rgba(192,132,252,.3)" }}>
@@ -908,29 +908,58 @@ export default function PetDatabasePanel({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(180px,.8fr)_minmax(320px,1.6fr)_minmax(220px,1fr)] gap-3 items-start">
-          <aside className="rounded-lg p-3 space-y-2" style={{ background: "rgba(52,28,72,.35)", border: "1px solid rgba(192,132,252,.35)" }}>
-            <p className="font-fantasy text-[9px]" style={{ color: "#c084fc" }}>COSTUME LIBRARY</p>
-            <p className="text-[11px]" style={{ color: "#a89878" }}>Select one item to place on this pet.</p>
-            <div className="space-y-2 max-h-52 xl:max-h-[520px] overflow-y-auto pr-1">
-              {costumeItems.map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => selectCostume(item.id)}
-                  disabled={saveCostumeMutation.isPending}
-                  aria-pressed={selectedCostumeId === item.id}
-                  className="w-full flex items-center gap-3 p-2.5 rounded-md text-left disabled:opacity-50"
-                  style={{ background: selectedCostumeId === item.id ? "rgba(192,132,252,.25)" : "rgba(0,0,0,.24)", border: selectedCostumeId === item.id ? "1px solid rgba(192,132,252,.5)" : "1px solid transparent", color: "#e7d7b5" }}
-                >
-                  <img src={item.imageUrl ?? ""} alt="" className="w-10 h-10 object-contain flex-none" draggable={false} />
-                  <span className="text-xs truncate">{item.name}</span>
-                </button>
-              ))}
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(210px,.9fr)_minmax(320px,1.6fr)_minmax(220px,1fr)] gap-3 items-start">
+          <aside className="order-1 rounded-xl p-3 space-y-3" style={{ background: "linear-gradient(180deg,rgba(52,28,72,.48),rgba(20,12,30,.72))", border: "1px solid rgba(192,132,252,.38)", boxShadow: "inset 0 0 18px rgba(192,132,252,.05)" }}>
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="font-fantasy text-[9px] tracking-widest" style={{ color: "#c084fc" }}>COSTUME VAULT</p>
+                <p className="mt-1 text-[10px]" style={{ color: "#a89878" }}>Choose artwork to place.</p>
+              </div>
+              <span className="rounded-full px-2 py-1 text-[9px] font-semibold" style={{ background: "rgba(192,132,252,.13)", border: "1px solid rgba(192,132,252,.3)", color: "#d8b4fe" }}>{costumeItems.length} ITEMS</span>
+            </div>
+            <label className="relative block">
+              <span className="sr-only">Search costume items</span>
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 pointer-events-none" style={{ color: "#c084fc" }} />
+              <input
+                data-testid="input-costume-search"
+                type="search"
+                value={costumeSearch}
+                onChange={event => setCostumeSearch(event.target.value)}
+                placeholder="Search costumes…"
+                className="w-full rounded-lg py-2 pl-8 pr-3 text-[11px] outline-none"
+                style={{ background: "rgba(0,0,0,.34)", border: "1px solid rgba(192,132,252,.28)", color: "#f3e8ff" }}
+              />
+            </label>
+            <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-2 gap-2 max-h-64 xl:max-h-[520px] overflow-y-auto pr-1" aria-label="Costume library">
+              {filteredCostumeItems.map(item => {
+                const selected = selectedCostumeId === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => selectCostume(item.id)}
+                    disabled={saveCostumeMutation.isPending}
+                    aria-pressed={selected}
+                    className="group min-w-0 rounded-xl p-2 text-center disabled:opacity-50 active:scale-95 transition-transform"
+                    style={{
+                      background: selected ? "linear-gradient(180deg,rgba(192,132,252,.28),rgba(88,28,135,.24))" : "rgba(0,0,0,.25)",
+                      border: selected ? "1px solid rgba(216,180,254,.72)" : "1px solid rgba(192,132,252,.16)",
+                      boxShadow: selected ? "0 0 14px rgba(192,132,252,.2),inset 0 0 10px rgba(216,180,254,.08)" : "none",
+                      color: "#e7d7b5",
+                    }}
+                  >
+                    <span className="mx-auto mb-1.5 grid h-14 w-full place-items-center rounded-lg" style={{ background: "radial-gradient(circle,rgba(192,132,252,.12),rgba(0,0,0,.12) 68%)" }}>
+                      {item.imageUrl ? <img src={item.imageUrl} alt="" className="h-12 w-12 object-contain" draggable={false} /> : <span className="text-lg" aria-hidden="true">✦</span>}
+                    </span>
+                    <span className="block truncate text-[9px] leading-tight">{item.name}</span>
+                  </button>
+                );
+              })}
             </div>
             {!costumeItems.length && <p className="text-xs" style={{ color: "#a89878" }}>No saved Costume items yet.</p>}
+            {!!costumeItems.length && !filteredCostumeItems.length && <p className="py-4 text-center text-xs" style={{ color: "#a89878" }}>No costumes match “{costumeSearch}”.</p>}
           </aside>
 
-          <section className="space-y-2">
+          <section className="order-3 xl:order-2 space-y-2">
             <p className="text-center text-[11px]" style={{ color: selectedCostumeItem ? "#d8b4fe" : "#a89878" }}>
               {selectedCostumeItem ? "Press and drag the costume to position it. It will not save until you tap Save placement." : "Select a costume from the library to begin."}
             </p>
@@ -993,7 +1022,7 @@ export default function PetDatabasePanel({
             </div>
           </section>
 
-          <aside className="rounded-lg p-3 space-y-4" style={{ background: "rgba(52,28,72,.35)", border: "1px solid rgba(192,132,252,.35)" }}>
+          <aside className="order-2 xl:order-3 rounded-xl p-3 space-y-4" style={{ background: "rgba(52,28,72,.35)", border: "1px solid rgba(192,132,252,.35)" }}>
             {selectedCostumeItem && selectedCostumePlacement ? (
               <>
                 <div>
@@ -1028,6 +1057,29 @@ export default function PetDatabasePanel({
                   />
                 </label>
                 <div>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="text-xs" style={{ color: "#a89878" }}>Rotation</p>
+                    <span data-testid="text-costume-rotation" className="text-[10px]" style={{ color: "#d8b4fe" }}>{Math.round(selectedCostumePlacement.rotation ?? 0)}°</span>
+                  </div>
+                  <input
+                    data-testid="input-costume-rotation"
+                    type="range"
+                    min="-180"
+                    max="180"
+                    step="1"
+                    value={selectedCostumePlacement.rotation ?? 0}
+                    disabled={saveCostumeMutation.isPending}
+                    onChange={event => rotateCostume(Number(event.target.value))}
+                    className="block w-full"
+                    style={{ accentColor: "#c084fc" }}
+                  />
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    <button type="button" aria-label="Rotate costume left 15 degrees" onClick={() => rotateCostume((selectedCostumePlacement.rotation ?? 0) - 15)} disabled={saveCostumeMutation.isPending} className="grid place-items-center rounded p-2 disabled:opacity-50" style={{ background: "rgba(0,0,0,.25)", border: "1px solid rgba(192,132,252,.25)", color: "#d8b4fe" }}><RotateCcw className="h-4 w-4" /></button>
+                    <button type="button" onClick={() => rotateCostume(0)} disabled={saveCostumeMutation.isPending} className="rounded p-2 text-[9px] disabled:opacity-50" style={{ background: "rgba(0,0,0,.25)", border: "1px solid rgba(192,132,252,.25)", color: "#d8b4fe" }}>RESET</button>
+                    <button type="button" aria-label="Rotate costume right 15 degrees" onClick={() => rotateCostume((selectedCostumePlacement.rotation ?? 0) + 15)} disabled={saveCostumeMutation.isPending} className="grid place-items-center rounded p-2 disabled:opacity-50" style={{ background: "rgba(0,0,0,.25)", border: "1px solid rgba(192,132,252,.25)", color: "#d8b4fe" }}><RotateCw className="h-4 w-4" /></button>
+                  </div>
+                </div>
+                <div>
                   <p className="mb-2 text-xs" style={{ color: "#a89878" }}>Layer</p>
                   <div className="grid grid-cols-2 gap-2">
                     {(["front", "back"] as const).map(depth => (
@@ -1054,15 +1106,22 @@ export default function PetDatabasePanel({
                     Discard unsaved changes
                   </button>
                 )}
-                <button
-                  data-testid="button-save-costume-placement"
-                  onClick={saveCostumePlacement}
-                  disabled={!costumeDraftDirty || saveCostumeMutation.isPending}
-                  className="w-full p-2.5 rounded text-xs disabled:opacity-50"
-                  style={{ background: "rgba(192,132,252,.3)", border: "1px solid rgba(192,132,252,.45)", color: "#fff" }}
+                <div
+                  data-testid="costume-save-dock"
+                  className="fixed left-4 right-4 z-[100000] mx-auto max-w-[688px] rounded-xl p-2 backdrop-blur-md xl:static xl:max-w-none xl:p-0"
+                  style={{ bottom: "max(12px, env(safe-area-inset-bottom))", background: "linear-gradient(180deg,rgba(28,16,38,.92),rgba(12,8,18,.96))", border: "1px solid rgba(192,132,252,.35)", boxShadow: "0 8px 28px rgba(0,0,0,.55),0 0 16px rgba(192,132,252,.12)" }}
                 >
-                  {saveCostumeMutation.isPending ? "Saving…" : costumeDraftDirty ? "Save placement" : "Placement saved"}
-                </button>
+                  <button
+                    data-testid="button-save-costume-placement"
+                    onClick={saveCostumePlacement}
+                    disabled={!canSaveCostumePlacement || saveCostumeMutation.isPending}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg p-3 text-xs font-semibold disabled:opacity-50"
+                    style={{ background: canSaveCostumePlacement ? "linear-gradient(135deg,rgba(126,34,206,.9),rgba(192,132,252,.72))" : "rgba(192,132,252,.16)", border: "1px solid rgba(216,180,254,.55)", color: "#fff", boxShadow: canSaveCostumePlacement ? "0 0 16px rgba(192,132,252,.24)" : "none" }}
+                  >
+                    <Save className="h-4 w-4" />
+                    {saveCostumeMutation.isPending ? "Saving…" : canSaveCostumePlacement ? "Save placement" : "Placement saved"}
+                  </button>
+                </div>
               </>
             ) : (
               <p className="text-xs" style={{ color: "#a89878" }}>Select a costume to anchor, drag, resize, and save it.</p>
