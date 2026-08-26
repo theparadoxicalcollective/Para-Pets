@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
-import { Clock, Star, X, Zap } from "lucide-react";
+import { Clock, Heart, Plus, Shield, Star, Sword, X, Zap } from "lucide-react";
 import { getNextZ } from "@/lib/layerManager";
 import PetAnimator from "@/components/PetAnimator";
 import EvolutionPanel from "@/components/powerup/EvolutionPanel";
@@ -50,22 +50,21 @@ interface PetPowerUpModalProps {
 }
 
 const CSS = String.raw`
-.pum{position:fixed;inset:0;left:0;right:0;width:100%;max-width:768px;margin:0 auto;box-sizing:border-box;background:#02090d;color:#effff7;overflow:hidden;overflow-x:hidden;overscroll-behavior-x:none;touch-action:pan-y;isolation:isolate;font-family:Georgia,serif}
-.pum *{box-sizing:border-box}.pum-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-4}.pum.power .pum-bg{filter:saturate(1.25) hue-rotate(12deg) brightness(.72)}.pum-shade{position:absolute;inset:0;z-index:-3;pointer-events:none;background:linear-gradient(#00111780,#00101410 35%,#00101252 70%,#00070bd9),radial-gradient(circle at 50% 38%,#23f7a219 0 29%,transparent 57%)}
-.pum-scroll{width:100%;height:100%;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;overscroll-behavior-x:none;touch-action:pan-y;padding:max(env(safe-area-inset-top),10px) 12px max(env(safe-area-inset-bottom),18px);scrollbar-width:none;-webkit-overflow-scrolling:touch}.pum-scroll::-webkit-scrollbar,.pum-items::-webkit-scrollbar{display:none}
-.pum-head{position:relative;text-align:center;min-height:102px;padding:5px 58px 0}.pum-title{margin:6px 0 4px;font-size:clamp(32px,10vw,56px);line-height:1;font-weight:700;letter-spacing:.08em;color:#f2cf67;text-shadow:0 2px #16200d,0 0 18px #f7d86b66}.power .pum-title{color:#baffdc;background:linear-gradient(#ecfff6,#78ffc0 52%,#1ecc81);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none;filter:drop-shadow(0 0 11px #35ffb36b)}.pum-sub{font-size:clamp(13px,3.6vw,18px);line-height:1.2;color:#b8e8ce}.pum-close{position:absolute;right:1px;top:0;width:52px;height:52px;border:0;background:#06251d;border-radius:50%;display:grid;place-items:center;color:#c8ffe3;z-index:3}.pum-close.asset{width:58px;height:58px;background:transparent}.pum-close.asset img{width:100%;height:100%;object-fit:contain}
-.pum-rule{max-width:470px;margin:0 auto 8px;padding:9px 15px;border:1px solid #af852f;border-radius:999px;background:#191a11dd;color:#ffe58a;text-align:center;font-weight:700;letter-spacing:.03em}.power .pum-rule{border-color:#66eaa3;background:linear-gradient(90deg,#05231bea,#0a3628f2,#05231bea);box-shadow:inset 0 0 18px #18cf7733,0 0 14px #1ff38a1c;color:#caffdf}
-.pum-stage{position:relative;width:100%;max-width:550px;margin:0 auto;min-height:350px;overflow:visible}.pum-mote{position:absolute;border-radius:50%;background:#75ffbd;box-shadow:0 0 14px #4bffad;opacity:.65;animation:pumMote 3.6s ease-in-out infinite}.pum-mote:nth-child(1){left:12%;top:25%;width:5px;height:5px}.pum-mote:nth-child(2){right:12%;top:34%;width:7px;height:7px;animation-delay:-1.2s}.pum-mote:nth-child(3){left:20%;top:60%;width:4px;height:4px;animation-delay:-2s}
-.pum-pet-zone{position:relative;width:min(76vw,350px);max-width:100%;aspect-ratio:1;margin:4px auto 0;display:grid;place-items:center;touch-action:pan-y;transition:filter .2s,transform .2s}.pum-pet-zone.over{filter:drop-shadow(0 0 18px #5bffae);transform:scale(1.025)}.pum-rune{position:absolute;left:50%;bottom:0;width:72%;aspect-ratio:1;transform:translateX(-50%) rotateX(63deg);border:2px solid #4affb6aa;border-radius:50%;box-shadow:0 0 18px #21e88c88,inset 0 0 28px #1de58a55;background:repeating-radial-gradient(circle,#32f7a111 0 9%,#60ffc533 10%,transparent 11% 19%);animation:pumPulse 2.1s ease-in-out infinite}.pum-rune:after{content:"✦";position:absolute;inset:18%;display:grid;place-items:center;border:1px solid #79ffd0aa;border-radius:50%;color:#8affd1;font-size:42px}
-.pum-pet{position:relative;z-index:3;width:92%;height:92%;display:grid;place-items:center;filter:drop-shadow(0 12px 10px #0009);pointer-events:none}.pum-pet>img{display:block;width:100%;height:100%;object-fit:contain}.pum-pet.bounce{animation:pumBounce .7s ease-out}.pum-pet.flash{animation:pumFlash .6s ease-out}.pum-identity{position:relative;z-index:5;margin:-4px auto 8px;width:min(94%,500px);display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 14px;background:linear-gradient(90deg,transparent,#071c18e8 15% 85%,transparent);border-top:1px solid #b79746;border-bottom:1px solid #b79746;color:#f7d97b;font-size:clamp(20px,5.3vw,28px);text-align:center}.pum-level{font-size:.65em;padding:5px 10px;border:1px solid #3ecc86;border-radius:999px;color:#a9ffd0;background:#073226}
-.pum-power-progress{width:100%;max-width:540px;margin:0 auto 10px;padding:11px 13px;border:1px solid #3c8f6b;border-radius:16px;background:linear-gradient(180deg,#092019ed,#05130fee);box-shadow:inset 0 0 18px #32df8514,0 7px 17px #0005}.pum-power-progress-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:6px;font:700 11px/1.2 system-ui,sans-serif;color:#c7ffe0;letter-spacing:.03em}.pum-power-progress-head span:last-child{color:#8ef3bd}.pum-power-track{height:11px;border-radius:999px;border:1px solid #427761;background:#03100c;overflow:hidden}.pum-power-track>i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#1f8f5e,#47e99b,#a6ffd4);box-shadow:0 0 9px #4dffae66;transition:width .3s ease}.pum-power-ticks{display:flex;justify-content:space-between;margin-top:4px;color:#719985;font:600 9px/1 system-ui,sans-serif}
-.pum-stats{width:100%;max-width:540px;margin:0 auto 10px;padding:12px 13px;border:1px solid #2d9a6c;border-radius:18px;background:linear-gradient(135deg,#071c1bea,#031311ee);box-shadow:inset 0 0 18px #1eaa6c1d,0 7px 18px #0007}.pum-stat{display:grid;grid-template-columns:54px minmax(0,1fr) 55px;align-items:center;gap:9px;margin:8px 0}.pum-stat b{font-family:system-ui,sans-serif;letter-spacing:.04em}.pum-stat.atk b,.pum-stat.atk .pum-val{color:#ff7979}.pum-stat.def b,.pum-stat.def .pum-val{color:#72adff}.pum-stat.hp b,.pum-stat.hp .pum-val{color:#58e891}.pum-track{height:11px;border:1px solid #41665d;border-radius:999px;background:#061310;overflow:hidden}.pum-fill{height:100%;border-radius:inherit;box-shadow:0 0 9px currentColor}.atk .pum-fill{background:#ef6464;color:#ef6464}.def .pum-fill{background:#5798f2;color:#5798f2}.hp .pum-fill{background:#42d77d;color:#42d77d}.pum-val{text-align:right;font-size:18px}
-.pum-tray{width:100%;max-width:560px;margin:9px auto 0;padding:11px 8px 8px;border:1px solid #398b68;border-radius:16px;background:linear-gradient(#10231fec,#07100fef);box-shadow:inset 0 0 20px #27b87d1f,0 12px 22px #0008}.pum-items{display:flex;gap:8px;width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;padding:4px 3px 8px;scroll-snap-type:x proximity}.pum-item{position:relative;flex:0 0 78px;height:82px;border:1px solid #4d8e74;border-radius:13px;background:#081b17;display:grid;place-items:center;touch-action:none;user-select:none;scroll-snap-align:center;box-shadow:inset 0 0 12px #22c77a16}.pum-item:active{transform:scale(.96)}.pum-item.disabled{opacity:.42;filter:grayscale(.75)}.pum-item img{width:60px;height:60px;object-fit:contain;pointer-events:none}.pum-qty{position:absolute;right:3px;bottom:3px;min-width:23px;height:23px;padding:0 5px;display:grid;place-items:center;border-radius:999px;background:#07100f;border:1px solid #cfad55;color:#fff;font:700 12px system-ui}.pum-item-name{position:absolute;left:4px;right:4px;top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#d6f9e5;font:600 9px system-ui;text-align:center;opacity:.78}.pum-hint{text-align:center;color:#8effc5;font-weight:700;letter-spacing:.05em;padding:4px 0 1px;text-shadow:0 0 9px #2dff9a55}.pum-empty{text-align:center;color:#d3eadc;padding:18px 8px}.pum-buy{display:block;margin:7px auto 0;border:1px solid #cda63e;border-radius:999px;background:#1b2115;color:#ffe68a;padding:10px 18px;font-weight:700}
-.pum-ghost{position:fixed;z-index:9999;width:76px;height:76px;pointer-events:none;transform:translate(-50%,-50%);display:grid;place-items:center;border-radius:50%;background:#0a2d22dd;border:1px solid #60f4ac;box-shadow:0 0 20px #26e68a88}.pum-ghost img{width:62px;height:62px;object-fit:contain}.pum-spark{position:fixed;z-index:9998;pointer-events:none;width:8px;height:8px;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c);animation:pumSpark .72s ease-out forwards}.pum-success{position:absolute;inset:0;z-index:30;display:grid;place-items:center;background:#00110db8;backdrop-filter:blur(2px);animation:pumFade .18s ease-out}.pum-success-card{text-align:center;animation:pumPop .5s cubic-bezier(.2,1.5,.4,1);filter:drop-shadow(0 0 24px var(--c))}.pum-success-card svg{color:var(--c);filter:drop-shadow(0 0 15px var(--c))}.pum-success-title{font-size:clamp(38px,11vw,68px);font-weight:800;color:var(--c);text-shadow:0 0 22px var(--c);margin-top:8px}.pum-success-label{font:700 18px system-ui;color:white}
-.pum-legacy-stage{width:100%;max-width:480px;margin:12px auto;display:grid;place-items:center}.pum-legacy-pet{width:min(76vw,360px);height:min(76vw,360px);display:grid;place-items:center;touch-action:pan-y}.pum-legacy-pet>img{width:100%;height:100%;object-fit:contain}.pum-legacy-stars{text-align:center;color:#ffd950;font-size:28px;letter-spacing:.12em;margin:-12px 0 5px}.pum-legacy .pum-tray{margin-top:18px;background:transparent;border-color:#a8863b55}.pum-legacy .pum-item{background:#14160fdd;border-color:#aa8c41}.pum-legacy .pum-hint{color:#f9d778}.pum-bag{width:54px;height:54px;object-fit:contain;display:block;margin:4px auto}.pum-placeholder{width:75%!important;height:75%!important;object-fit:contain;opacity:.7}
-@keyframes pumMote{50%{transform:translateY(-13px);opacity:1}}@keyframes pumPulse{50%{filter:brightness(1.35);box-shadow:0 0 28px #21e88ccc,inset 0 0 34px #1de58a88}}@keyframes pumBounce{40%{transform:translateY(-14px) scale(1.04)}70%{transform:translateY(3px) scale(.98)}}@keyframes pumFlash{35%{filter:brightness(2) drop-shadow(0 0 22px #fff)}}@keyframes pumSpark{to{transform:translate(var(--dx),var(--dy)) scale(.1);opacity:0}}@keyframes pumFade{from{opacity:0}}@keyframes pumPop{from{transform:scale(.45);opacity:0}}
-@media(max-width:430px){.pum-scroll{padding-left:8px;padding-right:8px}.pum-head{padding-left:50px;padding-right:50px}.pum-stage{min-height:330px}.pum-pet-zone{width:min(80vw,330px)}.pum-stat{grid-template-columns:50px minmax(0,1fr) 48px;gap:7px}.pum-power-progress,.pum-stats,.pum-tray{border-radius:14px}}
-@media(max-height:740px){.pum-head{min-height:88px}.pum-stage{min-height:305px}.pum-pet-zone{width:min(66vw,290px);margin-top:0}.pum-stat{margin:5px 0}.pum-item{height:72px;flex-basis:70px}.pum-item img{width:52px;height:52px}}
+.pum{position:fixed;inset:0;left:0;right:0;width:100%;max-width:768px;margin:0 auto;box-sizing:border-box;background:#02090d;color:#effff7;overflow:hidden;overflow-x:hidden;overscroll-behavior-x:none;touch-action:pan-y;isolation:isolate;font-family:Georgia,serif}.pum *{box-sizing:border-box}
+.pum-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;z-index:-5}.pum.power .pum-bg{filter:saturate(1.18) brightness(.7)}.pum-shade{position:absolute;inset:0;z-index:-4;pointer-events:none;background:linear-gradient(180deg,rgba(0,7,12,.28) 0%,rgba(0,14,17,.05) 35%,rgba(0,11,14,.2) 68%,rgba(0,5,8,.78) 100%),radial-gradient(ellipse at 50% 35%,rgba(38,246,165,.13),transparent 48%)}
+.pum-scroll{width:100%;height:100%;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;overscroll-behavior-x:none;touch-action:pan-y;padding:max(env(safe-area-inset-top),8px) 14px max(env(safe-area-inset-bottom),18px);scrollbar-width:none;-webkit-overflow-scrolling:touch}.pum-scroll::-webkit-scrollbar,.pum-items::-webkit-scrollbar{display:none}
+.pum-head{position:relative;text-align:center;min-height:132px;padding:5px 64px 0;display:flex;flex-direction:column;align-items:center}.pum-title{margin:5px 0 6px;font-size:clamp(42px,12vw,72px);line-height:.95;font-weight:800;letter-spacing:.06em;color:#baffdc;background:linear-gradient(#effff8 0%,#9cffce 42%,#36e592 74%,#21ae72 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 7px rgba(83,255,176,.72)) drop-shadow(0 2px 1px rgba(0,25,17,.9));white-space:nowrap}.pum-sub{max-width:430px;font-size:clamp(13px,3.6vw,18px);line-height:1.25;color:#e0f8de;text-shadow:0 2px 5px #00140e;margin:0 auto}.pum-close{position:absolute;right:0;top:0;width:54px;height:54px;border:0;background:#06251d;border-radius:50%;display:grid;place-items:center;color:#c8ffe3;z-index:10}.pum-close.asset{width:60px;height:60px;background:transparent;padding:0}.pum-close.asset img{width:100%;height:100%;object-fit:contain}.pum-bag-btn{position:absolute;left:0;top:1px;width:58px;height:58px;padding:0;border:0;background:rgba(5,20,16,.78);border-radius:50%;display:grid;place-items:center;z-index:10;box-shadow:0 0 0 1px rgba(205,166,62,.5),0 4px 16px #0008}.pum-bag-btn img{width:88%;height:88%;object-fit:contain;filter:drop-shadow(0 2px 5px #0008)}
+.pum-rule{position:relative;max-width:430px;margin:0 auto 5px;padding:9px 24px;border:1px solid #72d69f;border-radius:999px;background:linear-gradient(90deg,rgba(3,24,18,.95),rgba(8,48,34,.96),rgba(3,24,18,.95));color:#d9ffe8;text-align:center;font-weight:700;letter-spacing:.025em;box-shadow:inset 0 0 18px rgba(49,224,137,.16),0 0 16px rgba(49,224,137,.12)}.pum-rule:before,.pum-rule:after{content:"";position:absolute;top:50%;width:22px;height:1px;background:linear-gradient(90deg,transparent,#d5b75a)}.pum-rule:before{right:100%}.pum-rule:after{left:100%;transform:scaleX(-1)}
+.pum-stage{position:relative;width:100%;max-width:560px;height:322px;margin:0 auto;overflow:visible}.pum-stage-glow{position:absolute;left:50%;top:34%;width:76%;height:68%;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(ellipse,rgba(43,255,163,.16),rgba(17,137,101,.06) 48%,transparent 72%);filter:blur(2px);pointer-events:none}.pum-mote{position:absolute;border-radius:50%;background:#75ffbd;box-shadow:0 0 14px #4bffad;opacity:.7;animation:pumMote 3.6s ease-in-out infinite}.pum-mote.m1{left:14%;top:24%;width:5px;height:5px}.pum-mote.m2{right:13%;top:35%;width:7px;height:7px;animation-delay:-1.2s}.pum-mote.m3{left:22%;top:55%;width:4px;height:4px;animation-delay:-2s}
+.pum-pet-zone{position:relative;width:min(54vw,285px);height:min(54vw,285px);margin:8px auto 0;display:grid;place-items:center;touch-action:pan-y;transition:filter .2s,transform .2s;z-index:4}.pum-pet-zone.over{filter:drop-shadow(0 0 18px #5bffae);transform:scale(1.025)}.pum-rune{position:absolute;left:50%;bottom:-4%;width:92%;height:35%;transform:translateX(-50%);border:2px solid rgba(72,255,190,.74);border-radius:50%;box-shadow:0 0 17px rgba(33,232,140,.7),inset 0 0 22px rgba(29,229,138,.34);background:repeating-radial-gradient(ellipse,rgba(50,247,161,.07) 0 10%,rgba(96,255,197,.2) 11%,transparent 12% 20%);animation:pumPulse 2.1s ease-in-out infinite}.pum-rune:after{content:"✦";position:absolute;inset:17%;display:grid;place-items:center;border:1px solid rgba(121,255,208,.68);border-radius:50%;color:#8affd1;font-size:28px}.pum-pet{position:relative;z-index:4;width:100%;height:100%;display:grid;place-items:center;filter:drop-shadow(0 12px 10px #0009);pointer-events:none}.pum-pet>img{display:block;width:100%;height:100%;object-fit:contain}.pum-pet.bounce{animation:pumBounce .7s ease-out}.pum-pet.flash{animation:pumFlash .6s ease-out}.pum-placeholder{width:72%!important;height:72%!important;opacity:.72}
+.pum-identity{position:absolute;left:50%;bottom:0;transform:translateX(-50%);z-index:9;width:min(92%,500px);min-height:49px;display:flex;align-items:center;justify-content:center;gap:12px;padding:7px 18px;background:linear-gradient(90deg,rgba(2,12,11,.38),rgba(9,30,24,.96) 10% 90%,rgba(2,12,11,.38));border-top:1px solid #c39c45;border-bottom:1px solid #c39c45;color:#f7d97b;font-size:clamp(21px,5.5vw,30px);text-align:center;text-shadow:0 2px 4px #000}.pum-identity:before,.pum-identity:after{content:"";width:12px;height:12px;border:1px solid #c39c45;transform:rotate(45deg);background:#09251d;flex:0 0 auto}.pum-level{font:700 .62em/1 system-ui,sans-serif;padding:7px 11px;border:1px solid #43d28e;border-radius:999px;color:#b9ffda;background:#073226;white-space:nowrap}
+.pum-stat-card{width:100%;max-width:560px;margin:5px auto 9px;padding:10px 14px 12px;border:1px solid rgba(72,223,146,.72);border-radius:19px;background:linear-gradient(180deg,rgba(3,26,21,.95),rgba(3,15,14,.97));box-shadow:inset 0 0 24px rgba(39,200,119,.12),0 8px 22px #0007,0 0 12px rgba(45,230,141,.12);position:relative}.pum-stat-card:before,.pum-stat-card:after{content:"";position:absolute;inset:7px auto 7px;width:2px;background:linear-gradient(transparent,#49e6a0,transparent);opacity:.58}.pum-stat-card:before{left:5px}.pum-stat-card:after{right:5px}.pum-power-progress{padding:0 2px 9px;margin-bottom:6px;border-bottom:1px solid rgba(182,151,64,.38)}.pum-power-progress-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px;font:800 10px/1.2 system-ui,sans-serif;color:#d8ffe9;letter-spacing:.1em}.pum-power-progress-head span:last-child{color:#8ef3bd;letter-spacing:.02em;text-align:right}.pum-power-track{height:8px;border-radius:999px;border:1px solid #477663;background:#020d0a;overflow:hidden}.pum-power-track>i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#168354,#3be291,#a0ffd0);box-shadow:0 0 9px #4dffae66;transition:width .3s ease}.pum-power-ticks{display:flex;justify-content:space-between;margin-top:3px;color:#789d8c;font:600 8px/1 system-ui,sans-serif}.pum-stats{width:100%;padding:0 2px}.pum-stat{display:grid;grid-template-columns:70px minmax(0,1fr) 52px 29px;align-items:center;gap:8px;margin:7px 0}.pum-stat-label{display:flex;align-items:center;gap:6px;font:800 13px/1 system-ui,sans-serif;letter-spacing:.04em}.pum-stat-label svg{filter:drop-shadow(0 0 5px currentColor)}.pum-stat.atk .pum-stat-label,.pum-stat.atk .pum-val{color:#ff777d}.pum-stat.def .pum-stat-label,.pum-stat.def .pum-val{color:#77aefc}.pum-stat.hp .pum-stat-label,.pum-stat.hp .pum-val{color:#5deb91}.pum-track{height:10px;border:1px solid #48665e;border-radius:999px;background:#061310;overflow:hidden}.pum-fill{height:100%;border-radius:inherit;box-shadow:0 0 8px currentColor}.atk .pum-fill{background:linear-gradient(90deg,#d84f5b,#ff7b7d);color:#ef6464}.def .pum-fill{background:linear-gradient(90deg,#3b78d9,#6fa9ff);color:#5798f2}.hp .pum-fill{background:linear-gradient(90deg,#28a963,#54ef92);color:#42d77d}.pum-val{text-align:right;font-size:17px}.pum-stat-plus{width:27px;height:27px;padding:0;border-radius:50%;border:1px solid #caa33f;background:radial-gradient(circle,#164c36,#061d16 70%);color:#ffd86a;display:grid;place-items:center;box-shadow:0 0 8px rgba(68,232,151,.25);cursor:pointer}
+.pum-tray{position:relative;width:100%;max-width:580px;margin:9px auto 0;padding:12px 10px 9px;border:1px solid rgba(93,151,111,.7);border-radius:18px 18px 12px 12px;background:linear-gradient(180deg,rgba(15,35,29,.96),rgba(6,17,15,.98));box-shadow:inset 0 0 22px rgba(72,188,124,.12),0 10px 24px #0008}.pum-tray:before{content:"";position:absolute;left:7%;right:7%;top:-4px;height:7px;border-top:2px solid rgba(169,141,67,.62);border-radius:50%}.pum-items{display:flex;gap:7px;width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;padding:3px 2px 7px;scroll-snap-type:x proximity}.pum-item{position:relative;flex:0 0 72px;height:75px;border:1px solid #4d8e74;border-radius:11px;background:linear-gradient(145deg,#0b251d,#071712);display:grid;place-items:center;touch-action:none;user-select:none;scroll-snap-align:center;box-shadow:inset 0 0 12px #22c77a16}.pum-item:active{transform:scale(.96)}.pum-item.disabled{opacity:.42;filter:grayscale(.75)}.pum-item img{width:55px;height:55px;object-fit:contain;pointer-events:none}.pum-qty{position:absolute;right:2px;bottom:2px;min-width:21px;height:21px;padding:0 4px;display:grid;place-items:center;border-radius:999px;background:#07100f;border:1px solid #cfad55;color:#fff;font:700 11px system-ui}.pum-item-name{position:absolute;left:3px;right:3px;top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#d6f9e5;font:600 8px system-ui;text-align:center;opacity:.82}.pum-hint{text-align:center;color:#9cffc9;font-weight:700;letter-spacing:.05em;padding:3px 0 0;text-shadow:0 0 9px #2dff9a55}.pum-empty{text-align:center;color:#d3eadc;padding:17px 8px 13px;font-size:16px}.pum-buy{display:block;margin:7px auto 0;border:1px solid #cda63e;border-radius:999px;background:#1b2115;color:#ffe68a;padding:9px 17px;font-weight:700}
+.pum-ghost{position:fixed;z-index:9999;width:72px;height:72px;pointer-events:none;transform:translate(-50%,-50%);display:grid;place-items:center;border-radius:50%;background:#0a2d22dd;border:1px solid #60f4ac;box-shadow:0 0 20px #26e68a88}.pum-ghost img{width:58px;height:58px;object-fit:contain}.pum-spark{position:fixed;z-index:9998;pointer-events:none;width:8px;height:8px;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c);animation:pumSpark .72s ease-out forwards}.pum-success{position:absolute;inset:0;z-index:30;display:grid;place-items:center;background:#00110db8;backdrop-filter:blur(2px);animation:pumFade .18s ease-out}.pum-success-card{text-align:center;animation:pumPop .5s cubic-bezier(.2,1.5,.4,1);filter:drop-shadow(0 0 24px var(--c))}.pum-success-card svg{color:var(--c);filter:drop-shadow(0 0 15px var(--c))}.pum-success-title{font-size:clamp(38px,11vw,68px);font-weight:800;color:var(--c);text-shadow:0 0 22px var(--c);margin-top:8px}.pum-success-label{font:700 18px system-ui;color:white}
+.pum-legacy-stage{width:100%;max-width:480px;margin:12px auto;display:grid;place-items:center}.pum-legacy-pet{width:min(76vw,360px);height:min(76vw,360px);display:grid;place-items:center;touch-action:pan-y}.pum-legacy-pet>img{width:100%;height:100%;object-fit:contain}.pum-legacy-stars{text-align:center;color:#ffd950;font-size:28px;letter-spacing:.12em;margin:-12px 0 5px}.pum-legacy .pum-head{min-height:102px}.pum-legacy .pum-title{color:#f2cf67;background:none;-webkit-text-fill-color:initial;filter:none;text-shadow:0 2px #16200d,0 0 18px #f7d86b66}.pum-legacy .pum-stat-card{border-color:#8d7437}.pum-legacy .pum-tray{background:rgba(20,22,15,.92);border-color:#a8863b55}.pum-legacy .pum-item{background:#14160fdd;border-color:#aa8c41}.pum-legacy .pum-hint{color:#f9d778}.pum-bag{width:54px;height:54px;object-fit:contain;display:block;margin:4px auto}
+@keyframes pumMote{50%{transform:translateY(-13px);opacity:1}}@keyframes pumPulse{50%{filter:brightness(1.3);box-shadow:0 0 25px #21e88caa,inset 0 0 28px #1de58a77}}@keyframes pumBounce{40%{transform:translateY(-12px) scale(1.04)}70%{transform:translateY(3px) scale(.98)}}@keyframes pumFlash{35%{filter:brightness(2) drop-shadow(0 0 22px #fff)}}@keyframes pumSpark{to{transform:translate(var(--dx),var(--dy)) scale(.1);opacity:0}}@keyframes pumFade{from{opacity:0}}@keyframes pumPop{from{transform:scale(.45);opacity:0}}
+@media(max-width:430px){.pum-scroll{padding-left:10px;padding-right:10px}.pum-head{min-height:126px;padding-left:57px;padding-right:57px}.pum-bag-btn{width:52px;height:52px}.pum-close.asset{width:55px;height:55px}.pum-stage{height:302px}.pum-pet-zone{width:min(54vw,230px);height:min(54vw,230px);margin-top:9px}.pum-identity{min-height:45px}.pum-stat-card{padding:9px 10px 10px}.pum-stat{grid-template-columns:63px minmax(0,1fr) 43px 27px;gap:6px}.pum-stat-label{font-size:12px}.pum-stat-label svg{width:17px;height:17px}.pum-val{font-size:15px}.pum-item{flex-basis:68px;height:70px}.pum-item img{width:51px;height:51px}}
+@media(max-height:740px){.pum-head{min-height:112px}.pum-title{font-size:42px}.pum-sub{font-size:13px}.pum-rule{padding-top:7px;padding-bottom:7px}.pum-stage{height:278px}.pum-pet-zone{width:min(48vw,205px);height:min(48vw,205px)}.pum-identity{min-height:42px;font-size:20px}.pum-stat{margin:5px 0}.pum-tray{margin-top:7px}.pum-item{height:66px}.pum-item img{width:47px;height:47px}}
 @media(prefers-reduced-motion:reduce){.pum *{animation-duration:.01ms!important;animation-iteration-count:1!important}}
 `;
 
@@ -92,6 +91,8 @@ export default function PetPowerUpModal(props: PetPowerUpModalProps) {
   } = props;
   const isPower = title.trim().toUpperCase() === "POWER UP";
   const zoneRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const trayRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ item: PowerUpItem; x: number; y: number } | null>(null);
   const [z] = useState(() => getNextZ());
   const [drag, setDrag] = useState<{ item: PowerUpItem; x: number; y: number } | null>(null);
@@ -101,6 +102,7 @@ export default function PetPowerUpModal(props: PetPowerUpModalProps) {
   const sparkId = useRef(0);
 
   useEffect(() => { dragRef.current = drag; }, [drag]);
+  useEffect(() => { scrollRef.current?.scrollTo({ top: 0 }); }, []);
   useEffect(() => {
     if (!successEffect) return;
     const timer = window.setTimeout(onSuccessAnimEnd, 2400);
@@ -119,12 +121,7 @@ export default function PetPowerUpModal(props: PetPowerUpModalProps) {
     const y = r.top + r.height / 2;
     const next = Array.from({ length: 16 }, (_, i) => {
       const angle = (i / 16) * Math.PI * 2;
-      return {
-        id: sparkId.current++, x, y,
-        dx: Math.cos(angle) * (55 + Math.random() * 75),
-        dy: Math.sin(angle) * (55 + Math.random() * 75),
-        color,
-      };
+      return { id: sparkId.current++, x, y, dx: Math.cos(angle) * (55 + Math.random() * 75), dy: Math.sin(angle) * (55 + Math.random() * 75), color };
     });
     setSparks(next);
     window.setTimeout(() => setSparks([]), 760);
@@ -180,9 +177,10 @@ export default function PetPowerUpModal(props: PetPowerUpModalProps) {
     clearDrag();
   }, [clearDrag, pointInZone, useItem]);
 
-  // Prefer the pet's flattened hatched image when available. It is the most
-  // reliable representation inside a full-screen modal; layered templates are
-  // still used as a fallback for pets that do not have a flattened image.
+  const scrollToItems = useCallback(() => {
+    trayRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, []);
+
   const pet = petImage ? (
     <img src={petImage} alt={petName} draggable={false} />
   ) : petTemplateId ? (
@@ -192,7 +190,7 @@ export default function PetPowerUpModal(props: PetPowerUpModalProps) {
   );
 
   const itemTray = (
-    <div className="pum-tray">
+    <div className="pum-tray" ref={trayRef}>
       {items.length ? <div className="pum-items">
         {items.map((item) => <div
           key={item.inventoryId}
@@ -231,15 +229,23 @@ export default function PetPowerUpModal(props: PetPowerUpModalProps) {
     </section>
   ) : null;
 
+  const statRows = [
+    { k: "atk", n: "ATK", v: petAtk, max: 200, icon: <Sword size={19} /> },
+    { k: "def", n: "DEF", v: petDef, max: 200, icon: <Shield size={19} /> },
+    { k: "hp", n: "HP", v: petHealth, max: 2500, icon: <Heart size={19} fill="currentColor" /> },
+  ];
+
   const stats = (
-    <div className="pum-stats" data-testid="section-pet-stats">
-      {[{ k: "atk", n: "ATK", v: petAtk, max: 200 }, { k: "def", n: "DEF", v: petDef, max: 200 }, { k: "hp", n: "HP", v: petHealth, max: 2500 }].map((s) => (
-        <div key={s.k} className={`pum-stat ${s.k}`}>
-          <b>{s.n}</b>
+    <div className="pum-stat-card" data-testid="section-pet-stats">
+      {powerProgress}
+      <div className="pum-stats">
+        {statRows.map((s) => <div key={s.k} className={`pum-stat ${s.k}`}>
+          <div className="pum-stat-label">{s.icon}<b>{s.n}</b></div>
           <div className="pum-track" data-testid={`bar-stat-${s.k}`}><div className="pum-fill" style={{ width: `${Math.min(100, Math.max(3, s.v / s.max * 100))}%` }} /></div>
           <span className="pum-val" data-testid={`text-stat-${s.k}`}>{s.v}</span>
-        </div>
-      ))}
+          {isPower && <button type="button" className="pum-stat-plus" onClick={scrollToItems} aria-label={`Choose an item to increase ${s.n}`}><Plus size={17} strokeWidth={3} /></button>}
+        </div>)}
+      </div>
     </div>
   );
 
@@ -252,34 +258,35 @@ export default function PetPowerUpModal(props: PetPowerUpModalProps) {
     <style>{CSS}</style>
     <img src={forestBg} alt="" className="pum-bg" />
     <div className="pum-shade" />
-    <div className="pum-scroll">
+    <div ref={scrollRef} className="pum-scroll">
       <header className="pum-head">
+        {isPower && <button className="pum-bag-btn" type="button" onClick={scrollToItems} aria-label="Show Power Up items"><img src={powerupBagIcon} alt="" /></button>}
         <h2 className="pum-title">{title}</h2>
         {subtitle && <div className="pum-sub">{subtitle}</div>}
         <button className={`pum-close ${isPower ? "asset" : ""}`} onClick={onClose} data-testid="button-close-powerup-modal" aria-label="Close">
           {isPower ? <img src={chamberClose} alt="" /> : <X size={30} />}
         </button>
       </header>
-      <div className="pum-rule">{isPower ? `✦ ${Math.max(0, finiteRemaining)} regular power up${finiteRemaining === 1 ? "" : "s"} available` : itemsRemaining === Infinity ? "✦ No limit — use as many as you like!" : `✦ ${Math.max(0, itemsRemaining)} slots remaining this level`}</div>
+      <div className="pum-rule">{isPower ? `✦ ${Math.max(0, finiteRemaining)} enhancement${finiteRemaining === 1 ? "" : "s"} remaining` : itemsRemaining === Infinity ? "✦ No limit — use as many as you like!" : `✦ ${Math.max(0, itemsRemaining)} slots remaining this level`}</div>
 
       {isPower ? <>
         <section className="pum-stage">
-          <i className="pum-mote" /><i className="pum-mote" /><i className="pum-mote" />
+          <div className="pum-stage-glow" />
+          <i className="pum-mote m1" /><i className="pum-mote m2" /><i className="pum-mote m3" />
+          <EvolutionPanel enabled fallbackRarity={rarity} layout="orbit" />
           <div ref={zoneRef} className={`pum-pet-zone ${over ? "over" : ""}`} data-testid="zone-pet-drop">
             <div className="pum-rune" />
             <div className={`pum-pet ${petAnim}`}>{pet}</div>
           </div>
           <div className="pum-identity"><span>{petName}</span><span className="pum-level">Lv.{petLevel}</span></div>
         </section>
-        {powerProgress}
         {stats}
-        <EvolutionPanel enabled fallbackRarity={rarity} />
         {itemTray}
       </> : <>
         <section className="pum-legacy-stage">
           <div ref={zoneRef} className={`pum-legacy-pet pum-pet ${petAnim} ${over ? "over" : ""}`} data-testid="zone-pet-drop">{pet}</div>
           <div className="pum-legacy-stars">{"★".repeat(Math.max(1, Math.min(5, rarity)))}</div>
-          <div className="pum-identity"><span>{petName}</span><span className="pum-level">Lv.{petLevel}</span></div>
+          <div className="pum-identity" style={{ position: "relative", left: "auto", bottom: "auto", transform: "none" }}><span>{petName}</span><span className="pum-level">Lv.{petLevel}</span></div>
         </section>
         {stats}
         <img className="pum-bag" src={powerupBagIcon} alt="" />
