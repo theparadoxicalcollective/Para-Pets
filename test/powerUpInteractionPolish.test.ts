@@ -42,7 +42,9 @@ test("Evolution modal escapes the pet stacking context and only active nodes ope
   assert.match(evolutionSource, /createPortal/);
   assert.match(evolutionSource, /pageScroll\.style\.overflowY = "hidden"/);
   assert.match(evolutionSource, /if \(current\) setPickerOpen\(true\)/);
-  assert.match(evolutionSource, /showNodeMessage\(complete \? "Completed" : "Locked"\)/);
+  assert.match(evolutionSource, /if \(claimable\) void claimReward\(slot\)/);
+  assert.match(evolutionSource, /if \(evolutionReady\) showNodeMessage\("Evolution Coming Soon"\)/);
+  assert.match(evolutionSource, /showNodeMessage\(claimed \? "Reward Collected"/);
   assert.doesNotMatch(evolutionSource, /disabled=\{!current\}/);
   assert.match(evolutionSource, /align-items:center/);
 });
