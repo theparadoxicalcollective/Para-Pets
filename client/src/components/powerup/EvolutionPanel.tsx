@@ -23,21 +23,21 @@ export default function EvolutionPanel({ enabled, fallbackRarity }: EvolutionPan
     <style>{`
       .pup-evolution-skin { position:absolute; inset:0; z-index:8; pointer-events:none; }
       .pup-evolution-skin > .pupevo-orbit { inset:0 !important; }
-      .pup-evolution-skin .pupevo-slot { width:clamp(66px,18vw,96px) !important; height:clamp(66px,18vw,96px) !important; pointer-events:auto !important; cursor:pointer; }
+      .pup-evolution-skin .pupevo-slot { width:clamp(56px,15vw,82px) !important; height:clamp(56px,15vw,82px) !important; pointer-events:auto !important; cursor:pointer; }
       /* Slot 1 starts at bottom-left, then progression travels clockwise. */
-      .pup-evolution-skin .pupevo-slot:nth-of-type(1){left:24% !important;top:56% !important}
-      .pup-evolution-skin .pupevo-slot:nth-of-type(2){left:12% !important;top:39% !important}
-      .pup-evolution-skin .pupevo-slot:nth-of-type(3){left:29% !important;top:18% !important}
-      .pup-evolution-skin .pupevo-slot:nth-of-type(4){left:71% !important;top:18% !important}
-      .pup-evolution-skin .pupevo-slot:nth-of-type(5){left:88% !important;top:39% !important}
-      .pup-evolution-skin .pupevo-slot:nth-of-type(6){left:76% !important;top:56% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(1){left:13% !important;top:55% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(2){left:18% !important;top:36% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(3){left:37% !important;top:22% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(4){left:63% !important;top:22% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(5){left:82% !important;top:36% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(6){left:87% !important;top:55% !important}
       .pup-evolution-skin .pupevo-slot:not(.locked)>img,
       .pup-evolution-skin .pupevo-fill img { content:var(--pup-evo-unlocked) !important; filter:drop-shadow(0 0 1px #baffd7) drop-shadow(0 0 3px rgba(75,238,157,.72)) !important; }
       .pup-evolution-skin .pupevo-slot.current>img { filter:drop-shadow(0 0 1px #d4ffe8) drop-shadow(0 0 5px rgba(83,255,176,.92)) !important; }
       .pup-evolution-skin .pupevo-slot.locked>img { content:var(--pup-evo-locked) !important; filter:drop-shadow(0 0 1px rgba(152,240,201,.72)) drop-shadow(0 0 3px rgba(54,189,130,.52)) !important; opacity:1 !important; }
       .pup-evolution-skin .pupevo-slot.locked .pupevo-lock-badge { display:none !important; }
       @media(max-width:430px){
-        .pup-evolution-skin .pupevo-slot { width:70px !important; height:70px !important; }
+        .pup-evolution-skin .pupevo-slot { width:60px !important; height:60px !important; }
       }
     `}</style>
     <PowerUpEvolutionPanel enabled={enabled} fallbackRarity={fallbackRarity} />
