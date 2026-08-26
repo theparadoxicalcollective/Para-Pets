@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Lock, X } from "lucide-react";
+import { X } from "lucide-react";
 import { EVOLUTION_SLOT_COUNT, evolutionTargetForRarity } from "@shared/evolution";
-import socketActive from "@assets/PUP-Unlocked Evolution.png";
+import socketActive from "@assets/ui/power-up/evolution-icon-unlocked.png";
+import socketLocked from "@assets/ui/power-up/evolution-icon-locked.png";
 
 interface EvolutionFeederPet {
   inventoryId: string;
@@ -29,21 +31,20 @@ interface Props {
   fallbackRarity: number;
 }
 
-// Keep the six evolution sockets around the pet instead of collapsing them into a low arc.
-// The index order is unchanged so sequential unlocking/progression remains exactly the same.
+// Progression begins at the bottom-left socket and travels clockwise.
 const POSITIONS = [
-  { x: 31, y: 25 },
-  { x: 69, y: 25 },
-  { x: 11, y: 49 },
-  { x: 89, y: 49 },
-  { x: 18, y: 74 },
-  { x: 82, y: 74 },
+  { x: 23, y: 70 },
+  { x: 13, y: 49 },
+  { x: 29, y: 29 },
+  { x: 71, y: 29 },
+  { x: 87, y: 49 },
+  { x: 77, y: 70 },
 ] as const;
 
 const CSS = String.raw`
-.pupevo-sr{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}.pupevo-orbit{position:absolute;inset:0;z-index:8;pointer-events:none}.pupevo-slot{position:absolute;left:var(--x);top:var(--y);width:clamp(52px,14vw,78px);height:clamp(52px,14vw,78px);transform:translate(-50%,-50%);padding:0;border:0;background:transparent;pointer-events:none;-webkit-tap-highlight-color:transparent}.pupevo-slot.current{pointer-events:auto;cursor:pointer;filter:drop-shadow(0 0 8px rgba(71,255,173,.72)) drop-shadow(0 0 18px rgba(38,219,136,.28))}.pupevo-slot.complete{filter:drop-shadow(0 0 9px rgba(45,247,151,.48))}.pupevo-slot.locked{opacity:.96}.pupevo-slot>img,.pupevo-fill img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;image-rendering:auto}.pupevo-base{filter:grayscale(1) brightness(.5);opacity:.86}.pupevo-locked-base{filter:grayscale(1) brightness(.28) saturate(.35);opacity:.98}.pupevo-lock-badge{position:absolute;left:50%;top:50%;width:40%;height:40%;transform:translate(-50%,-50%);display:grid;place-items:center;border-radius:50%;background:rgba(3,12,11,.84);border:1px solid rgba(126,156,145,.78);color:#c5d2cd;box-shadow:0 2px 8px rgba(0,0,0,.72);pointer-events:none}.pupevo-lock-badge svg{width:68%;height:68%;stroke-width:2.3}.pupevo-fill{position:absolute;inset:0;overflow:hidden;filter:drop-shadow(0 0 7px rgba(77,255,173,.56));pointer-events:none}.pupevo-fill img{filter:saturate(1.08) brightness(1.04)}.pupevo-status{position:absolute;left:50%;bottom:8%;transform:translateX(-50%);max-width:68%;padding:3px 9px;border:1px solid #387b60;border-radius:999px;background:#04130fd4;color:#a5ddc0;text-align:center;font:700 9px/1.2 system-ui,sans-serif;pointer-events:none}.pupevo-status.error{color:#ffc0b4;border-color:#98564d;background:#1d0908e6}.pupage-enhance-art{clip-path:inset(9% 0 20% 0);filter:none!important;backface-visibility:hidden}.pupage-inventory-art{clip-path:inset(16% 0 19% 0);filter:none!important;backface-visibility:hidden}.pupage-inventory-hint{display:none!important}
-.pupevo-picker-backdrop{position:fixed;inset:0;z-index:10120;background:#000c;display:flex;align-items:flex-end;justify-content:center;padding:14px;box-sizing:border-box;backdrop-filter:blur(2px);pointer-events:auto}.pupevo-picker{position:relative;width:min(100%,560px);max-height:min(78vh,720px);overflow:hidden;border:1px solid #55b987;border-radius:22px;background:linear-gradient(180deg,#0b211b,#06110f);box-shadow:0 -12px 55px #000;display:flex;flex-direction:column;color:#dfffee}.pupevo-picker-head{padding:16px 50px 10px 16px;border-bottom:1px solid #22533f}.pupevo-picker-head h3{margin:0;color:#c8ffe1;font:700 20px/1.1 Georgia,serif}.pupevo-picker-head p{margin:5px 0 0;color:#9fc5b2;font:500 12px/1.35 system-ui,sans-serif}.pupevo-picker-close{position:absolute;right:12px;top:12px;width:36px;height:36px;border-radius:50%;border:1px solid #478267;background:#071711;color:#d7ffea;display:grid;place-items:center}.pupevo-feeders{overflow-y:auto;padding:10px 12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;overscroll-behavior:contain}.pupevo-feeder{position:relative;display:grid;grid-template-columns:58px 1fr;align-items:center;gap:8px;min-width:0;padding:8px;border:1px solid #2f604c;border-radius:13px;background:#081812;color:#dfffee;text-align:left}.pupevo-feeder.selected{border-color:#68f0ad;background:#0c2a1d;box-shadow:inset 0 0 14px rgba(41,216,129,.14)}.pupevo-feeder img{width:58px;height:58px;object-fit:contain}.pupevo-feeder-name{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 12px/1.2 system-ui,sans-serif}.pupevo-feeder-meta{display:block;margin-top:3px;color:#9ec9b4;font:600 10px/1.2 system-ui,sans-serif}.pupevo-check{position:absolute;right:6px;top:6px;width:18px;height:18px;border-radius:50%;border:1px solid #5a8d73;background:#06100d;color:#062012;font:900 12px/17px system-ui,sans-serif;text-align:center}.selected .pupevo-check{background:#6ff0ae;border-color:#adffd3}.pupevo-error{padding:8px 12px;color:#ffb4a8;font:600 11px/1.35 system-ui,sans-serif}.pupevo-empty{grid-column:1/-1;padding:25px 10px;text-align:center;color:#a6c9b8;font:600 12px/1.4 system-ui,sans-serif}.pupevo-picker-foot{padding:10px 12px 12px;border-top:1px solid #22533f;background:#06110f}.pupevo-total{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px;color:#c8ffe1;font:700 12px/1.2 system-ui,sans-serif}.pupevo-warning{margin:0 0 8px;color:#e5b9a8;font:600 10px/1.3 system-ui,sans-serif}.pupevo-feed{width:100%;min-height:44px;border-radius:999px;border:1px solid #67e8a9;background:linear-gradient(#147a51,#0b5538);color:#eafff3;font:800 13px/1 system-ui,sans-serif;letter-spacing:.04em}.pupevo-feed:disabled{opacity:.45}
-@media(max-width:430px){.pupevo-slot{width:55px;height:55px}.pupevo-feeders{grid-template-columns:1fr}.pupevo-picker-backdrop{padding:8px}}
+.pupevo-sr{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}.pupevo-orbit{position:absolute;inset:0;z-index:8;pointer-events:none}.pupevo-slot{position:absolute;left:var(--x);top:var(--y);width:clamp(52px,14vw,78px);height:clamp(52px,14vw,78px);transform:translate(-50%,-50%);padding:0;border:0;background:transparent;pointer-events:auto;cursor:pointer;-webkit-tap-highlight-color:transparent}.pupevo-slot.current{filter:drop-shadow(0 0 8px rgba(71,255,173,.72)) drop-shadow(0 0 18px rgba(38,219,136,.28))}.pupevo-slot.complete{filter:drop-shadow(0 0 9px rgba(45,247,151,.48))}.pupevo-slot.locked{opacity:.98}.pupevo-slot>img,.pupevo-fill img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;image-rendering:auto}.pupevo-base{filter:grayscale(1) brightness(.5);opacity:.86}.pupevo-locked-base{filter:none;opacity:1}.pupevo-fill{position:absolute;inset:0;overflow:hidden;filter:drop-shadow(0 0 7px rgba(77,255,173,.56));pointer-events:none}.pupevo-fill img{filter:saturate(1.08) brightness(1.04)}.pupevo-status{position:absolute;left:50%;bottom:8%;transform:translateX(-50%);max-width:68%;padding:3px 9px;border:1px solid #387b60;border-radius:999px;background:#04130fd4;color:#a5ddc0;text-align:center;font:700 9px/1.2 system-ui,sans-serif;pointer-events:none}.pupevo-status.error{color:#ffc0b4;border-color:#98564d;background:#1d0908e6}.pupage-enhance-art{clip-path:inset(9% 0 20% 0);filter:none!important;backface-visibility:hidden}.pupage-inventory-art{clip-path:inset(16% 0 19% 0);filter:none!important;backface-visibility:hidden}.pupage-inventory-hint{display:none!important}
+.pupevo-picker-backdrop{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:max(env(safe-area-inset-top),16px) 14px max(env(safe-area-inset-bottom),16px);box-sizing:border-box;backdrop-filter:blur(4px);overscroll-behavior:none}.pupevo-picker{position:relative;width:min(100%,560px);max-height:min(82dvh,720px);overflow:hidden;border:1px solid #55b987;border-radius:22px;background:linear-gradient(180deg,#0b211b,#06110f);box-shadow:0 18px 60px #000;display:flex;flex-direction:column;color:#dfffee}.pupevo-picker-head{padding:16px 50px 10px 16px;border-bottom:1px solid #22533f}.pupevo-picker-head h3{margin:0;color:#c8ffe1;font:700 20px/1.1 Georgia,serif}.pupevo-picker-head p{margin:5px 0 0;color:#9fc5b2;font:500 12px/1.35 system-ui,sans-serif}.pupevo-picker-close{position:absolute;right:12px;top:12px;width:36px;height:36px;border-radius:50%;border:1px solid #478267;background:#071711;color:#d7ffea;display:grid;place-items:center}.pupevo-feeders{overflow-y:auto;padding:10px 12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.pupevo-feeder{position:relative;display:grid;grid-template-columns:58px 1fr;align-items:center;gap:8px;min-width:0;padding:8px;border:1px solid #2f604c;border-radius:13px;background:#081812;color:#dfffee;text-align:left}.pupevo-feeder.selected{border-color:#68f0ad;background:#0c2a1d;box-shadow:inset 0 0 14px rgba(41,216,129,.14)}.pupevo-feeder img{width:58px;height:58px;object-fit:contain}.pupevo-feeder-name{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:700 12px/1.2 system-ui,sans-serif}.pupevo-feeder-meta{display:block;margin-top:3px;color:#9ec9b4;font:600 10px/1.2 system-ui,sans-serif}.pupevo-check{position:absolute;right:6px;top:6px;width:18px;height:18px;border-radius:50%;border:1px solid #5a8d73;background:#06100d;color:#062012;font:900 12px/17px system-ui,sans-serif;text-align:center}.selected .pupevo-check{background:#6ff0ae;border-color:#adffd3}.pupevo-error{padding:8px 12px;color:#ffb4a8;font:600 11px/1.35 system-ui,sans-serif}.pupevo-empty{grid-column:1/-1;padding:25px 10px;text-align:center;color:#a6c9b8;font:600 12px/1.4 system-ui,sans-serif}.pupevo-picker-foot{padding:10px 12px 12px;border-top:1px solid #22533f;background:#06110f}.pupevo-total{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px;color:#c8ffe1;font:700 12px/1.2 system-ui,sans-serif}.pupevo-warning{margin:0 0 8px;color:#e5b9a8;font:600 10px/1.3 system-ui,sans-serif}.pupevo-feed{width:100%;min-height:44px;border-radius:999px;border:1px solid #67e8a9;background:linear-gradient(#147a51,#0b5538);color:#eafff3;font:800 13px/1 system-ui,sans-serif;letter-spacing:.04em}.pupevo-feed:disabled{opacity:.45}.pupevo-node-message{position:fixed;left:50%;top:50%;z-index:100100;transform:translate(-50%,-50%);padding:10px 22px;border:1px solid #68d69c;border-radius:999px;background:rgba(4,25,19,.96);color:#e9fff2;box-shadow:0 8px 30px #000b,0 0 16px rgba(76,255,170,.22);font:800 16px/1.1 system-ui,sans-serif;letter-spacing:.025em;pointer-events:none}
+@media(max-width:430px){.pupevo-slot{width:55px;height:55px}.pupevo-feeders{grid-template-columns:1fr}.pupevo-picker-backdrop{padding:max(env(safe-area-inset-top),10px) 8px max(env(safe-area-inset-bottom),10px)}.pupevo-picker{max-height:84dvh}}
 `;
 
 function randomActionId() {
@@ -63,8 +64,10 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [nodeMessage, setNodeMessage] = useState<"Completed" | "Locked" | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [feeding, setFeeding] = useState(false);
+  const nodeMessageTimer = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
     if (!enabled) return;
@@ -84,6 +87,19 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
 
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => { if (!pickerOpen) setSelected(new Set()); }, [pickerOpen]);
+  useEffect(() => () => { if (nodeMessageTimer.current !== null) window.clearTimeout(nodeMessageTimer.current); }, []);
+  useEffect(() => {
+    if (!pickerOpen || typeof document === "undefined") return;
+    const pageScroll = document.querySelector<HTMLElement>(".pupage-scroll");
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousPageOverflow = pageScroll?.style.overflowY ?? "";
+    document.body.style.overflow = "hidden";
+    if (pageScroll) pageScroll.style.overflowY = "hidden";
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      if (pageScroll) pageScroll.style.overflowY = previousPageOverflow;
+    };
+  }, [pickerOpen]);
 
   const pointsRequired = state?.pointsRequired ?? evolutionTargetForRarity(fallbackRarity);
   const completedSlots = state?.completedSlots ?? 0;
@@ -92,6 +108,15 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
   const slotCount = Math.max(1, Math.min(EVOLUTION_SLOT_COUNT, state?.slotCount ?? EVOLUTION_SLOT_COUNT));
   const selectedPets = useMemo(() => (state?.feeders ?? []).filter((pet) => selected.has(pet.inventoryId)), [state?.feeders, selected]);
   const selectedPoints = selectedPets.reduce((sum, pet) => sum + pet.evolutionPoints, 0);
+
+  const showNodeMessage = useCallback((message: "Completed" | "Locked") => {
+    if (nodeMessageTimer.current !== null) window.clearTimeout(nodeMessageTimer.current);
+    setNodeMessage(message);
+    nodeMessageTimer.current = window.setTimeout(() => {
+      setNodeMessage(null);
+      nodeMessageTimer.current = null;
+    }, 1100);
+  }, []);
 
   const toggle = (id: string) => {
     setSelected((previous) => {
@@ -129,40 +154,8 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
 
   if (!enabled) return null;
 
-  return <>
-    <style>{CSS}</style>
-    <section className="pupevo-orbit" data-testid="section-pet-evolution" aria-label="Pet evolution progress">
-      {Array.from({ length: slotCount }, (_, index) => {
-        const complete = index < completedSlots;
-        const current = !state?.isComplete && index === completedSlots;
-        const locked = !complete && !current;
-        const fill = complete ? 100 : current ? currentPercent : 0;
-        const position = POSITIONS[index] ?? POSITIONS[POSITIONS.length - 1];
-        const style = { "--x": `${position.x}%`, "--y": `${position.y}%` } as React.CSSProperties;
-        return <button
-          key={index}
-          type="button"
-          className={`pupevo-slot ${complete ? "complete" : ""} ${current ? "current" : ""} ${locked ? "locked" : ""}`}
-          style={style}
-          onClick={() => current && setPickerOpen(true)}
-          disabled={!current}
-          aria-label={complete ? `Evolution slot ${index + 1} complete` : current ? `Evolution slot ${index + 1}, ${Math.round(fill)} percent filled. Tap to choose feeder pets.` : `Evolution slot ${index + 1} locked`}
-          data-testid={`button-evolution-slot-${index + 1}`}
-        >
-          {locked ? <>
-            <img className="pupevo-locked-base" src={socketActive} alt="" />
-            <span className="pupevo-lock-badge" aria-hidden="true"><Lock /></span>
-          </> : <>
-            <img className="pupevo-base" src={socketActive} alt="" />
-            <span className="pupevo-fill" style={{ clipPath: `inset(${100 - fill}% 0 0 0)` }}><img src={socketActive} alt="" /></span>
-          </>}
-        </button>;
-      })}
-      <span className="pupevo-sr" aria-live="polite">{state?.isComplete ? "Evolution track complete" : `Evolution slot ${Math.min(slotCount, completedSlots + 1)} of ${slotCount}: ${currentPoints} of ${pointsRequired} points`}</span>
-      {(loading || error) && <span className={`pupevo-status ${error ? "error" : ""}`}>{error || "Reading evolution energy…"}</span>}
-    </section>
-
-    {pickerOpen && <div className="pupevo-picker-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) setPickerOpen(false); }}>
+  const picker = pickerOpen && typeof document !== "undefined" ? createPortal(
+    <div className="pupevo-picker-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) setPickerOpen(false); }}>
       <div className="pupevo-picker" role="dialog" aria-modal="true" aria-label="Choose evolution feeder pets">
         <button className="pupevo-picker-close" type="button" onClick={() => setPickerOpen(false)} aria-label="Close evolution pet picker"><X size={21} /></button>
         <div className="pupevo-picker-head"><h3>Feed Pets for Evolution</h3><p>Current icon: {currentPoints}/{pointsRequired} pts. Select pets to convert into evolution points.</p></div>
@@ -183,6 +176,44 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
           <button className="pupevo-feed" type="button" disabled={!selectedPets.length || feeding} onClick={feed}>{feeding ? "Infusing…" : selectedPets.length ? `Feed ${selectedPets.length} Pet${selectedPets.length === 1 ? "" : "s"} (+${selectedPoints})` : "Select feeder pets"}</button>
         </div>
       </div>
-    </div>}
+    </div>,
+    document.body,
+  ) : null;
+
+  const nodeToast = nodeMessage && typeof document !== "undefined" ? createPortal(<div className="pupevo-node-message" role="status" aria-live="polite">{nodeMessage}</div>, document.body) : null;
+
+  return <>
+    <style>{CSS}</style>
+    <section className="pupevo-orbit" data-testid="section-pet-evolution" aria-label="Pet evolution progress">
+      {Array.from({ length: slotCount }, (_, index) => {
+        const complete = index < completedSlots;
+        const current = !state?.isComplete && index === completedSlots;
+        const locked = !complete && !current;
+        const fill = complete ? 100 : current ? currentPercent : 0;
+        const position = POSITIONS[index] ?? POSITIONS[POSITIONS.length - 1];
+        const style = { "--x": `${position.x}%`, "--y": `${position.y}%` } as React.CSSProperties;
+        return <button
+          key={index}
+          type="button"
+          className={`pupevo-slot ${complete ? "complete" : ""} ${current ? "current" : ""} ${locked ? "locked" : ""}`}
+          style={style}
+          onClick={() => {
+            if (current) setPickerOpen(true);
+            else showNodeMessage(complete ? "Completed" : "Locked");
+          }}
+          aria-label={complete ? `Evolution slot ${index + 1} complete` : current ? `Evolution slot ${index + 1}, ${Math.round(fill)} percent filled. Tap to choose feeder pets.` : `Evolution slot ${index + 1} locked`}
+          data-testid={`button-evolution-slot-${index + 1}`}
+        >
+          {locked ? <img className="pupevo-locked-base" src={socketLocked} alt="" /> : <>
+            <img className="pupevo-base" src={socketActive} alt="" />
+            <span className="pupevo-fill" style={{ clipPath: `inset(${100 - fill}% 0 0 0)` }}><img src={socketActive} alt="" /></span>
+          </>}
+        </button>;
+      })}
+      <span className="pupevo-sr" aria-live="polite">{state?.isComplete ? "Evolution track complete" : `Evolution slot ${Math.min(slotCount, completedSlots + 1)} of ${slotCount}: ${currentPoints} of ${pointsRequired} points`}</span>
+      {(loading || error) && <span className={`pupevo-status ${error ? "error" : ""}`}>{error || "Reading evolution energy…"}</span>}
+    </section>
+    {picker}
+    {nodeToast}
   </>;
 }
