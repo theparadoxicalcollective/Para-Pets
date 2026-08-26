@@ -22,25 +22,29 @@ test("Power Up places the item tray before stats and keeps copy layered over art
   const statsMarkup = powerUpSource.indexOf('<section className="pupage-stats"');
   assert.ok(inventoryMarkup >= 0 && statsMarkup >= 0 && inventoryMarkup < statsMarkup);
   assert.match(powerUpSource, /pupage-enhance-copy/);
+  assert.match(powerUpSource, /className="pupage-enhance-count"/);
+  assert.match(powerUpSource, />Enhancements Remain<\/span>/);
   assert.match(powerUpSource, /className="pupage-name"/);
   assert.match(powerUpSource, /pupage-level/);
   assert.match(powerUpSource, /pupage-stat-value/);
 });
 
 test("Evolution begins bottom-left and advances clockwise", () => {
-  assert.match(evolutionSkinSource, /nth-of-type\(1\)\{left:23% !important;top:70% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(2\)\{left:13% !important;top:49% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(3\)\{left:29% !important;top:29% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(4\)\{left:71% !important;top:29% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(5\)\{left:87% !important;top:49% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(6\)\{left:77% !important;top:70% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(1\)\{left:24% !important;top:61% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(2\)\{left:12% !important;top:43% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(3\)\{left:29% !important;top:22% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(4\)\{left:71% !important;top:22% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(5\)\{left:88% !important;top:43% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(6\)\{left:76% !important;top:61% !important\}/);
 });
 
 test("Evolution modal escapes the pet stacking context and only active nodes open feeding", () => {
   assert.match(evolutionSource, /createPortal/);
   assert.match(evolutionSource, /pageScroll\.style\.overflowY = "hidden"/);
   assert.match(evolutionSource, /if \(current\) setPickerOpen\(true\)/);
-  assert.match(evolutionSource, /showNodeMessage\(complete \? "Completed" : "Locked"\)/);
+  assert.match(evolutionSource, /if \(claimable\) void claimReward\(slot\)/);
+  assert.match(evolutionSource, /if \(evolutionReady\) showNodeMessage\("Evolution Coming Soon"\)/);
+  assert.match(evolutionSource, /showNodeMessage\(claimed \? "Reward Collected"/);
   assert.doesNotMatch(evolutionSource, /disabled=\{!current\}/);
   assert.match(evolutionSource, /align-items:center/);
 });

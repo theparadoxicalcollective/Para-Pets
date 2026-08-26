@@ -16,6 +16,17 @@ export const EVOLUTION_FEED_POINTS_BY_RARITY = Object.freeze({
   5: 1000,
 } as const);
 
+export const EVOLUTION_REWARD_SLOT_COUNT = EVOLUTION_SLOT_COUNT - 1;
+export const EVOLUTION_NODE_COIN_REWARD = 100;
+
+export const EVOLUTION_STAT_REWARD_BY_RARITY = Object.freeze({
+  1: 100,
+  2: 150,
+  3: 200,
+  4: 350,
+  5: 500,
+} as const);
+
 export type PetRarity = keyof typeof EVOLUTION_TARGET_BY_RARITY;
 
 export function normalizePetRarity(value: unknown): PetRarity {
@@ -28,6 +39,10 @@ export function evolutionTargetForRarity(value: unknown): number {
 
 export function evolutionFeedPointsForRarity(value: unknown): number {
   return EVOLUTION_FEED_POINTS_BY_RARITY[normalizePetRarity(value)];
+}
+
+export function evolutionStatRewardForRarity(value: unknown): number {
+  return EVOLUTION_STAT_REWARD_BY_RARITY[normalizePetRarity(value)];
 }
 
 export interface EvolutionProgressResult {

@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
+  EVOLUTION_NODE_COIN_REWARD,
   EVOLUTION_SLOT_COUNT,
   applyEvolutionPoints,
   evolutionFeedPointsForRarity,
+  evolutionStatRewardForRarity,
   evolutionTargetForRarity,
 } from "../shared/evolution";
 
@@ -18,6 +21,14 @@ test("feeder pets award the requested evolution points by rarity", () => {
   assert.deepEqual(
     [1, 2, 3, 4, 5].map((rarity) => evolutionFeedPointsForRarity(rarity)),
     [10, 15, 50, 100, 1000],
+  );
+});
+
+test("completed evolution nodes award coins and rarity-scaled all-stat boosts", () => {
+  assert.equal(EVOLUTION_NODE_COIN_REWARD, 100);
+  assert.deepEqual(
+    [1, 2, 3, 4, 5].map((rarity) => evolutionStatRewardForRarity(rarity)),
+    [100, 150, 200, 350, 500],
   );
 });
 
@@ -49,4 +60,20 @@ test("evolution progress caps at six completed icons", () => {
   assert.equal(result.currentPoints, 0);
   assert.equal(result.percent, 100);
   assert.equal(result.isComplete, true);
+});
+
+const evolutionServerSource = readFileSync("server/petEvolution.ts", "utf8");
+const evolutionRoutesSource = readFileSync("server/routes/petEvolution.routes.ts", "utf8");
+const evolutionClientSource = readFileSync("client/src/components/powerup/PowerUpEvolutionPanel.tsx", "utf8");
+
+test("node rewards are one-time atomic claims and the sixth node remains a future evolution action", () => {
+  assert.match(evolutionServerSource, /claimed_slots_mask/);
+  assert.match(evolutionServerSource, /SET coins = coins \+ \$\{EVOLUTION_NODE_COIN_REWARD\}/);
+  assert.match(evolutionServerSource, /pet_atk = pet_atk \+ \$\{statBoost\}/);
+  assert.match(evolutionServerSource, /pet_def = pet_def \+ \$\{statBoost\}/);
+  assert.match(evolutionServerSource, /pet_health = pet_health \+ \$\{statBoost\}/);
+  assert.match(evolutionRoutesSource, /\/api\/pet-evolution\/active\/claim/);
+  assert.match(evolutionClientSource, /pupevo-slot\.claimable/);
+  assert.match(evolutionClientSource, /pupevo-slot\.evolution-ready/);
+  assert.match(evolutionClientSource, /Evolution Coming Soon/);
 });
