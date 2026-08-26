@@ -58,8 +58,9 @@ function powerValue(item: PowerUpItem) {
 export default function PetPowerUpPage(props: PetUpgradeModalProps) {
   const { petName, petImage, petTemplateId, rarity, petLevel, petAtk, petDef, petHealth, itemsRemaining, items, isPending, showBuyButton = false, successEffect, onUseItem, onSuccessAnimEnd, onClose } = props;
   const [z] = useState(() => getNextZ());
+  const pageRef = useRef<HTMLDivElement>(null);
   const zoneRef = useRef<HTMLDivElement>(null);
-  const trayRef = useRef<HTMLElement>(null);
+  const statsCloseRef = useRef<HTMLButtonElement>(null);
   const dragRef = useRef<{ item: PowerUpItem; x: number; y: number } | null>(null);
   const [drag, setDrag] = useState<{ item: PowerUpItem; x: number; y: number } | null>(null);
   const [over, setOver] = useState(false);
@@ -69,6 +70,15 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
   const [statsOpen, setStatsOpen] = useState(false);
   const [itemOffset, setItemOffset] = useState(0);
   const sparkId = useRef(0);
+  const resetPagePosition = useCallback(() => { if (pageRef.current) pageRef.current.scrollTop = 0; }, []);
+  const openStats = useCallback(() => { resetPagePosition(); setStatsOpen(true); }, [resetPagePosition]);
+  const closeStats = useCallback(() => {
+    setStatsOpen(false);
+    window.requestAnimationFrame(() => {
+      resetPagePosition();
+      zoneRef.current?.focus({ preventScroll: true });
+    });
+  }, [resetPagePosition]);
 
   useEffect(() => {
     const bodyOverflow = document.body.style.overflow;
@@ -88,10 +98,12 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
   useEffect(() => { dragRef.current = drag; }, [drag]);
   useEffect(() => {
     if (!statsOpen) return;
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setStatsOpen(false); };
+    resetPagePosition();
+    window.requestAnimationFrame(() => statsCloseRef.current?.focus({ preventScroll: true }));
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") closeStats(); };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [statsOpen]);
+  }, [statsOpen, closeStats, resetPagePosition]);
   useEffect(() => {
     if (!successEffect) return;
     const timer = window.setTimeout(onSuccessAnimEnd, 2400);
@@ -115,7 +127,7 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
   const sortedItems = useMemo(() => [...items].filter((item) => !statFilter || item.statBoostType === statFilter).sort((a, b) => powerValue(a) - powerValue(b) || a.name.localeCompare(b.name)), [items, statFilter]);
   useEffect(() => { setItemOffset((previous) => Math.max(0, Math.min(previous, Math.max(0, sortedItems.length - ITEMS_PER_PAGE)))); }, [sortedItems.length]);
   const visibleItems = sortedItems.slice(itemOffset, itemOffset + ITEMS_PER_PAGE);
-  const openItems = useCallback((filter: StatFilter = null) => { setStatsOpen(false); setStatFilter(filter); setItemOffset(0); window.requestAnimationFrame(() => trayRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })); }, []);
+  const openItems = useCallback((filter: StatFilter = null) => { closeStats(); setStatFilter(filter); setItemOffset(0); }, [closeStats]);
 
   const pet = petImage ? <img src={petImage} alt={petName} draggable={false} /> : petTemplateId ? <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={700} className="w-full" style={{ aspectRatio: "1/1", pointerEvents: "none" }} /> : <img src={petPlaceholder} alt="" className="pupage-placeholder" draggable={false} />;
   const slotsPerLevel = rarity <= 2 ? 1 : rarity === 3 ? 2 : 3;
@@ -132,7 +144,7 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
 
   return <div className="pupage" style={{ zIndex: z }} role="dialog" aria-modal="true" aria-label="Power Up">
     <style>{CSS}</style><img src={pupBackground} alt="" className="pupage-bg" /><div className="pupage-vignette" />
-    <div className="pupage-scroll">
+    <div ref={pageRef} className="pupage-scroll">
       <header className="pupage-head">
         <img src={pupLogo} alt="Power Up" className="pupage-logo" />
         <button type="button" className="pupage-corner pupage-close" onClick={onClose} data-testid="button-close-powerup-modal" aria-label="Close Power Up"><img src={pupCloseButton} alt="" /></button>
@@ -144,11 +156,11 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
 
       <section className="pupage-stage">
         <img src={pupPlatform} alt="" className="pupage-platform" /><EvolutionPanel enabled fallbackRarity={rarity} layout="orbit" />
-        <div ref={zoneRef} className={`pupage-pet-zone ${over ? "over" : ""}`} data-testid="zone-pet-drop" role="button" tabIndex={0} aria-haspopup="dialog" aria-expanded={statsOpen} aria-label={`View ${petName} stats`} onClick={() => setStatsOpen(true)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setStatsOpen(true); } }}><div className={`pupage-pet ${petAnim}`}>{pet}</div></div>
+        <div ref={zoneRef} className={`pupage-pet-zone ${over ? "over" : ""}`} data-testid="zone-pet-drop" role="button" tabIndex={0} aria-haspopup="dialog" aria-expanded={statsOpen} aria-label={`View ${petName} stats`} onClick={openStats} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openStats(); } }}><div className={`pupage-pet ${petAnim}`}>{pet}</div></div>
         <div className="pupage-nameplate"><img src={pupNameLevelBar} alt="" className="pupage-nameplate-art" /><div className="pupage-name">{petName}</div><div className="pupage-level">Lv.{petLevel}</div></div>
       </section>
 
-      <section className="pupage-inventory" ref={trayRef} aria-label="Power Up item bar"><img src={pupItemBar} alt="" className="pupage-inventory-art" />
+      <section className="pupage-inventory" aria-label="Power Up item bar"><img src={pupItemBar} alt="" className="pupage-inventory-art" />
         <button type="button" className="pupage-arrow left" aria-label="Previous Power Up items" disabled={itemOffset <= 0} onClick={() => setItemOffset((value) => Math.max(0, value - ITEMS_PER_PAGE))}><ChevronLeft /></button>
         <button type="button" className="pupage-arrow right" aria-label="Next Power Up items" disabled={itemOffset + ITEMS_PER_PAGE >= sortedItems.length} onClick={() => setItemOffset((value) => Math.min(Math.max(0, sortedItems.length - ITEMS_PER_PAGE), value + ITEMS_PER_PAGE))}><ChevronRight /></button>
         {visibleItems.length ? <div className="pupage-items-window">{visibleItems.map((item) => <button type="button" key={item.inventoryId} data-testid={`item-powerup-${item.inventoryId}`} className={`pupage-item ${disabled(item) ? "disabled" : ""}`} title={`${item.name} • ${itemLabel(item)}`} onPointerDown={(event) => onPointerDown(event, item)} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={clearDrag} disabled={disabled(item)}><span className="pupage-item-caption">{itemLabel(item)}</span>{item.imageUrl && <img src={item.imageUrl} alt={item.name} draggable={false} />}{item.quantity > 1 && <span className="pupage-qty">{item.quantity}</span>}</button>)}</div> : <div className="pupage-empty">{statFilter ? `No ${filterLabel} Power Up items available.` : "No usable items in your bag."}</div>}
@@ -159,7 +171,7 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
     </div>
     {drag && <div className="pupage-ghost" style={{ left: drag.x, top: drag.y }}><img src={drag.item.imageUrl || petPlaceholder} alt="" /></div>}
     {sparks.map((spark) => <i key={spark.id} className="pupage-spark" style={{ left: spark.x, top: spark.y, "--c": spark.color, "--dx": `${spark.dx}px`, "--dy": `${spark.dy}px` } as CSSProperties} />)}
-    {statsOpen && <div className="pupage-stats-backdrop" onClick={() => setStatsOpen(false)}><div className="pupage-stats-modal" role="dialog" aria-modal="true" aria-label={`${petName} stats`} onClick={(event) => event.stopPropagation()}><button type="button" className="pupage-stats-close" onClick={() => setStatsOpen(false)} aria-label="Close pet stats"><img src={pupCloseButton} alt="" /></button><section className="pupage-stats" data-testid="section-pet-stats"><img src={pupStatBox} alt="Pet stats" className="pupage-stat-art" />{stats.map((stat) => <div key={stat.key} className={`pupage-stat-row ${stat.key}`}><span className="pupage-sr">{stat.label}</span><div className="pupage-stat-track" data-testid={`bar-stat-${stat.key}`}><div className="pupage-stat-fill" style={{ width: `${Math.min(100, Math.max(3, stat.value / stat.max * 100))}%` }} /></div><span className="pupage-stat-value" data-testid={`text-stat-${stat.key}`}>{stat.value}</span><button type="button" className="pupage-stat-plus" onClick={() => openItems(stat.filter)} aria-label={`Show Power Up items for ${stat.label}`}>+</button></div>)}</section></div></div>}
+    {statsOpen && <div className="pupage-stats-backdrop" onClick={closeStats}><div className="pupage-stats-modal" role="dialog" aria-modal="true" aria-label={`${petName} stats`} onClick={(event) => event.stopPropagation()}><button ref={statsCloseRef} type="button" className="pupage-stats-close" onClick={closeStats} aria-label="Close pet stats"><img src={pupCloseButton} alt="" /></button><section className="pupage-stats" data-testid="section-pet-stats"><img src={pupStatBox} alt="Pet stats" className="pupage-stat-art" />{stats.map((stat) => <div key={stat.key} className={`pupage-stat-row ${stat.key}`}><span className="pupage-sr">{stat.label}</span><div className="pupage-stat-track" data-testid={`bar-stat-${stat.key}`}><div className="pupage-stat-fill" style={{ width: `${Math.min(100, Math.max(3, stat.value / stat.max * 100))}%` }} /></div><span className="pupage-stat-value" data-testid={`text-stat-${stat.key}`}>{stat.value}</span><button type="button" className="pupage-stat-plus" onClick={() => openItems(stat.filter)} aria-label={`Show Power Up items for ${stat.label}`}>+</button></div>)}</section></div></div>}
     {successEffect && <div className="pupage-success" data-testid="text-power-up-success"><div className="pupage-success-card"><Zap size={70} fill="#4ade80" /><div className="pupage-success-title">POWER UP!</div><div className="pupage-success-label">{successEffect.label}</div></div></div>}
   </div>;
 }
