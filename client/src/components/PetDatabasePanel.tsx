@@ -1108,6 +1108,7 @@ export default function PetDatabasePanel({
                 )}
                 <div
                   data-testid="costume-save-dock"
+                  aria-live="polite"
                   className="fixed left-4 right-4 z-[100000] mx-auto max-w-[688px] rounded-xl p-2 backdrop-blur-md xl:static xl:max-w-none xl:p-0"
                   style={{ bottom: "max(12px, env(safe-area-inset-bottom))", background: "linear-gradient(180deg,rgba(28,16,38,.92),rgba(12,8,18,.96))", border: "1px solid rgba(192,132,252,.35)", boxShadow: "0 8px 28px rgba(0,0,0,.55),0 0 16px rgba(192,132,252,.12)" }}
                 >
