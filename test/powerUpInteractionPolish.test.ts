@@ -17,16 +17,28 @@ test("Power Up hides global navigation and keeps capacity above the pet stage", 
   assert.ok(capacityMarkup >= 0 && stageMarkup >= 0 && capacityMarkup < stageMarkup);
 });
 
-test("Power Up places the item tray before stats and keeps copy layered over artwork", () => {
-  const inventoryMarkup = powerUpSource.indexOf('<section className="pupage-inventory"');
-  const statsMarkup = powerUpSource.indexOf('<section className="pupage-stats"');
-  assert.ok(inventoryMarkup >= 0 && statsMarkup >= 0 && inventoryMarkup < statsMarkup);
+test("Power Up keeps the compact capacity and enhancement copy free of duplicate labels", () => {
+  assert.match(powerUpSource, /<span>{used} used<\/span><span>{capacity} total<\/span>/);
+  assert.doesNotMatch(powerUpSource, />POWER UP CAPACITY</);
+  assert.doesNotMatch(powerUpSource, /{remaining} available/);
+  assert.doesNotMatch(powerUpSource, /total through Lv\./);
   assert.match(powerUpSource, /pupage-enhance-copy/);
+  assert.match(powerUpSource, /flex-direction:row/);
   assert.match(powerUpSource, /className="pupage-enhance-count"/);
   assert.match(powerUpSource, />Remaining<\/span>/);
   assert.match(powerUpSource, /className="pupage-name"/);
   assert.match(powerUpSource, /pupage-level/);
+});
+
+test("Power Up opens pet stats in a modal instead of rendering them in the main flow", () => {
+  const inventoryMarkup = powerUpSource.indexOf('<section className="pupage-inventory"');
+  const modalMarkup = powerUpSource.indexOf('{statsOpen && <div className="pupage-stats-backdrop"');
+  assert.ok(inventoryMarkup >= 0 && modalMarkup > inventoryMarkup);
+  assert.match(powerUpSource, /onClick=\{\(\) => setStatsOpen\(true\)\}/);
+  assert.match(powerUpSource, /aria-haspopup="dialog"/);
+  assert.match(powerUpSource, /aria-label="Close pet stats"/);
   assert.match(powerUpSource, /pupage-stat-value/);
+  assert.match(powerUpSource, /if \(event\.key === "Escape"\) setStatsOpen\(false\)/);
 });
 
 test("Evolution begins bottom-left and advances clockwise", () => {
