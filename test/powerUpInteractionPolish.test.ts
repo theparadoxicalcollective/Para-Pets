@@ -17,6 +17,16 @@ test("Power Up hides global navigation and keeps capacity above the pet stage", 
   assert.ok(capacityMarkup >= 0 && stageMarkup >= 0 && capacityMarkup < stageMarkup);
 });
 
+test("Power Up places the item tray before stats and keeps copy layered over artwork", () => {
+  const inventoryMarkup = powerUpSource.indexOf('<section className="pupage-inventory"');
+  const statsMarkup = powerUpSource.indexOf('<section className="pupage-stats"');
+  assert.ok(inventoryMarkup >= 0 && statsMarkup >= 0 && inventoryMarkup < statsMarkup);
+  assert.match(powerUpSource, /pupage-enhance-copy/);
+  assert.match(powerUpSource, /className="pupage-name"/);
+  assert.match(powerUpSource, /pupage-level/);
+  assert.match(powerUpSource, /pupage-stat-value/);
+});
+
 test("Evolution begins bottom-left and advances clockwise", () => {
   assert.match(evolutionSkinSource, /nth-of-type\(1\)\{left:23% !important;top:70% !important\}/);
   assert.match(evolutionSkinSource, /nth-of-type\(2\)\{left:13% !important;top:49% !important\}/);
