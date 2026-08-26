@@ -170,7 +170,7 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
         <div className="pupevo-feeders">
           {(state?.feeders ?? []).length ? state!.feeders.map((pet) => {
             const checked = selected.has(pet.inventoryId);
-            return <buttton key={pet.inventoryId} type="button" className={`pupevo-feeder ${checked ? "selected" : ""}`} onClick={() => toggle(pet.inventoryId)} data-testid={`button-evolution-feeder-${pet.inventoryId}`}>
+            return <button key={pet.inventoryId} type="button" className={`pupevo-feeder ${checked ? "selected" : ""}`} onClick={() => toggle(pet.inventoryId)} data-testid={`button-evolution-feeder-${pet.inventoryId}`}>
               {pet.imageUrl ? <img src={pet.imageUrl} alt="" /> : <div style={{ width: 58, height: 58 }} />}
               <span style={{ minWidth: 0 }}><span className="pupevo-feeder-name">{pet.name}</span><span className="pupevo-feeder-meta">{"★".repeat(Math.max(1, Math.min(5, pet.rarity)))} · +{pet.evolutionPoints} evolution pts</span></span>
               <span className="pupevo-check">{checked ? "✓" : ""}</span>
