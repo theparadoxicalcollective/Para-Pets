@@ -5,6 +5,8 @@ import test from "node:test";
 const editor = readFileSync("client/src/components/PetDatabasePanel.tsx", "utf8");
 const adminPage = readFileSync("client/src/pages/AdminPage.tsx", "utf8");
 const indexHtml = readFileSync("client/index.html", "utf8");
+const costumeSchema = readFileSync("shared/costumeSchema.ts", "utf8");
+const bootMigrations = readFileSync("server/startup/migrations/runEssentialBoot.ts", "utf8");
 
 test("pet editor exposes native Parts and Costume tabs without a CSS hiding workaround", () => {
   assert.match(editor, /type EditorTab = "parts" \| "costume"/);
@@ -29,7 +31,10 @@ test("costume pointer movement only updates a local draft", () => {
 
 test("costume placement persists only from the explicit Save action", () => {
   assert.match(editor, /const saveCostumePlacement = \(\) => \{/);
-  assert.match(editor, /saveCostumeMutation\.mutate\(\{ itemId: selectedCostumeId, placement: selectedCostumePlacement \}\)/);
+  assert.match(editor, /saveCostumeMutation\.mutate\(\{ itemId: selectedCostumeId, placement: \{ \.\.\.selectedCostumePlacement, rotation:/);
+  assert.match(editor, /queryClient\.setQueryData<CostumeDefinition\[]>/);
+  assert.match(editor, /data-testid="costume-save-dock"/);
+  assert.match(editor, /fixed left-4 right-4/);
   assert.match(editor, /data-testid="button-save-costume-placement"/);
   assert.match(editor, /onClick=\{saveCostumePlacement\}/);
 });
@@ -67,3 +72,24 @@ test("costume controls cannot change the draft while a save is pending", () => {
   assert.match(editor, /if \(saveCostumeMutation\.isPending \|\| itemId === selectedCostumeId\) return/);
   assert.match(editor, /if \(saveCostumeMutation\.isPending \|\| tab === editorTab\) return/);
 });
+
+test("costume editor supports persisted rotation around the saved pivot", () => {
+  assert.match(editor, /data-testid="input-costume-rotation"/);
+  assert.match(editor, /const rotateCostume = \(degrees: number\)/);
+  assert.match(editor, /transform: `rotate\(\$\{selectedCostumePlacement\.rotation \?\? 0\}deg\)`/);
+  assert.match(editor, /transformOrigin: `\$\{selectedCostumePlacement\.pivotX\}% \$\{selectedCostumePlacement\.pivotY\}%`/);
+  assert.match(costumeSchema, /rotation: z\.number\(\)\.min\(-180\)\.max\(180\)\.default\(0\)/);
+});
+
+test("costume vault scales through search and a compact thumbnail grid", () => {
+  assert.match(editor, /data-testid="input-costume-search"/);
+  assert.match(editor, /filteredCostumeItems/);
+  assert.match(editor, /grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-2/);
+  assert.match(editor, /COSTUME VAULT/);
+});
+
+test("production boot creates the costume definition table used by the save route", () => {
+  assert.match(bootMigrations, /CREATE TABLE IF NOT EXISTS pet_costume_definitions/);
+  assert.match(bootMigrations, /CREATE UNIQUE INDEX IF NOT EXISTS pet_costume_definitions_item_template_uidx/);
+});
+
