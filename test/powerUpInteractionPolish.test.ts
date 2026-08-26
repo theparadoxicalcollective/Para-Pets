@@ -23,19 +23,19 @@ test("Power Up places the item tray before stats and keeps copy layered over art
   assert.ok(inventoryMarkup >= 0 && statsMarkup >= 0 && inventoryMarkup < statsMarkup);
   assert.match(powerUpSource, /pupage-enhance-copy/);
   assert.match(powerUpSource, /className="pupage-enhance-count"/);
-  assert.match(powerUpSource, />Enhancements Remain<\/span>/);
+  assert.match(powerUpSource, />Remaining<\/span>/);
   assert.match(powerUpSource, /className="pupage-name"/);
   assert.match(powerUpSource, /pupage-level/);
   assert.match(powerUpSource, /pupage-stat-value/);
 });
 
 test("Evolution begins bottom-left and advances clockwise", () => {
-  assert.match(evolutionSkinSource, /nth-of-type\(1\)\{left:24% !important;top:61% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(2\)\{left:12% !important;top:43% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(3\)\{left:29% !important;top:22% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(4\)\{left:71% !important;top:22% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(5\)\{left:88% !important;top:43% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(6\)\{left:76% !important;top:61% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(1\)\{left:24% !important;top:56% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(2\)\{left:12% !important;top:39% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(3\)\{left:29% !important;top:18% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(4\)\{left:71% !important;top:18% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(5\)\{left:88% !important;top:39% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(6\)\{left:76% !important;top:56% !important\}/);
 });
 
 test("Evolution modal escapes the pet stacking context and only active nodes open feeding", () => {
@@ -47,4 +47,7 @@ test("Evolution modal escapes the pet stacking context and only active nodes ope
   assert.match(evolutionSource, /showNodeMessage\(claimed \? "Reward Collected"/);
   assert.doesNotMatch(evolutionSource, /disabled=\{!current\}/);
   assert.match(evolutionSource, /align-items:center/);
+  assert.match(evolutionSource, /filter:drop-shadow\(0 0 5px rgba\(65,236,151,.28\)\)/);
+  assert.match(evolutionSource, /pupevo-slot\.current\{filter:drop-shadow\(0 0 10px/);
 });
+
