@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { CostumePlacement } from "../shared/costumeFeature";
+import { costumePlacementSchema } from "../shared/costumeSchema";
 import {
   getCostumeAnchorPoint,
   getCostumeCanvasPosition,
@@ -42,3 +43,11 @@ test("costume size control preserves proportions and clamps template size", () =
   assert.deepEqual(resizeCostumePlacement({ ...placement, width: 400, height: 200 }, 2_000), { width: 1000, height: 500 });
   assert.deepEqual(resizeCostumePlacement({ ...placement, width: 400, height: 200 }, 5), { width: 40, height: 20 });
 });
+
+test("costume placement rotation is backward compatible and bounded", () => {
+  const legacy = costumePlacementSchema.parse(placement);
+  assert.equal(legacy.rotation, 0);
+  assert.equal(costumePlacementSchema.parse({ ...placement, rotation: 45 }).rotation, 45);
+  assert.equal(costumePlacementSchema.safeParse({ ...placement, rotation: 181 }).success, false);
+});
+

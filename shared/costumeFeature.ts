@@ -45,6 +45,8 @@ export interface CostumePlacement {
   height: number;
   pivotX: number;
   pivotY: number;
+  /** Clockwise rotation in degrees around the saved pivot. Older placements default to 0. */
+  rotation?: number;
   depth: CostumeDepth;
 }
 

@@ -36,6 +36,18 @@ export async function runEssentialBoot(): Promise<void> {
       created_at TIMESTAMP NOT NULL DEFAULT now()
     ); ALTER TABLE soul_exchange_transactions ADD COLUMN IF NOT EXISTS exchanged_pets JSONB NOT NULL DEFAULT '[]'::jsonb;
     CREATE INDEX IF NOT EXISTS soul_exchange_transactions_user_created_idx ON soul_exchange_transactions(user_id,created_at DESC)`],
+    ["Costume definitions migration error (non-fatal):", sql`
+      CREATE TABLE IF NOT EXISTS pet_costume_definitions (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        shop_item_id VARCHAR NOT NULL,
+        template_id VARCHAR NOT NULL,
+        placements JSONB NOT NULL DEFAULT '[]'::jsonb,
+        created_at TIMESTAMP NOT NULL DEFAULT now(),
+        updated_at TIMESTAMP NOT NULL DEFAULT now()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS pet_costume_definitions_item_template_uidx
+        ON pet_costume_definitions(shop_item_id, template_id)
+    `],
     ["watcher_shoutouts_enabled migration error (non-fatal):", sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS watcher_shoutouts_enabled boolean NOT NULL DEFAULT true`],
     ["is_bot migration error (non-fatal):", sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_bot boolean NOT NULL DEFAULT false`],
     ["pvp_battle_groups.attack_power migration error (non-fatal):", sql`ALTER TABLE pvp_battle_groups ADD COLUMN IF NOT EXISTS attack_power integer NOT NULL DEFAULT 0`],

@@ -14,6 +14,7 @@ The editor must support:
 
 - selecting front or side view;
 - dragging the costume artwork in normalized/template coordinates;
+- proportional sizing and rotation around the saved pivot;
 - choosing the pet-part anchor the costume follows;
 - setting front/back depth;
 - saving the placement without changing the underlying pet part artwork.

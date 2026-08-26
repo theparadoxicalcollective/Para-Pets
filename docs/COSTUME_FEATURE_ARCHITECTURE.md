@@ -42,7 +42,8 @@ Extend the existing admin item database and pet template editor:
 - Add a Costume control to the pet parts editor.
 - List all saved costume items with image + name.
 - Place the selected costume over the pet.
-- Allow dragging and resizing using the existing editor coordinate system.
+- Allow dragging, proportional resizing, and rotation using the existing editor coordinate system.
+- Keep the save action reachable while editing on mobile.
 - Allow selecting the costume on the canvas to edit it.
 - Choose an anchor from the pet's existing part keys.
 - Toggle `Front` / `Back` depth.
