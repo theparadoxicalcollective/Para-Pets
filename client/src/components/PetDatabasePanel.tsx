@@ -4,7 +4,7 @@ import { getEffectivePetLayer } from "@/lib/petPartConfig";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readFileAsDataUrl } from "@/lib/utils";
-import { Plus, Trash2, X, ArrowLeft, Save, Layers, Link2, Pencil, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { Plus, Trash2, X, ArrowLeft, Save, Layers, Link2, Pencil, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Download, Search, RotateCcw, RotateCw } from "lucide-react";
 import { renderPetGif, type GifAnimation } from "@/lib/petGif";
 import { getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
 import { PET_ANIMATION_PROFILES, type PetAnimationProfile, normalizeAnimationProfile } from "@/lib/petAnimationConfig";
@@ -315,6 +315,7 @@ export default function PetDatabasePanel({
   // that same template, not separate pet/animation/costume records.
   const [editorTab, setEditorTab] = useState<EditorTab>("parts");
   const [selectedCostumeId, setSelectedCostumeId] = useState<string | null>(null);
+  const [costumeSearch, setCostumeSearch] = useState("");
   const [costumeDraft, setCostumeDraft] = useState<CostumePlacement | null>(null);
   const [costumeDraftDirty, setCostumeDraftDirty] = useState(false);
   const [draggingCostume, setDraggingCostume] = useState(false);
@@ -426,6 +427,10 @@ export default function PetDatabasePanel({
     .sort((a, b) => previewEffectiveZ(a) - previewEffectiveZ(b));
 
   const currentCostumeView = activeView === "back" ? "side" as const : "front" as const;
+  const normalizedCostumeSearch = costumeSearch.trim().toLowerCase();
+  const filteredCostumeItems = [...costumeItems]
+    .filter(item => !normalizedCostumeSearch || item.name.toLowerCase().includes(normalizedCostumeSearch))
+    .sort((a, b) => a.name.localeCompare(b.name));
   const selectedCostumeItem = costumeItems.find(item => item.id === selectedCostumeId);
   const selectedCostumeDefinition = costumeDefinitions.find(definition => definition.shopItemId === selectedCostumeId);
   const savedCostumePlacement = selectedCostumeDefinition?.placements.find(placement => placement.view === currentCostumeView);
@@ -439,6 +444,7 @@ export default function PetDatabasePanel({
     height: 300,
     pivotX: 50,
     pivotY: 50,
+    rotation: 0,
     depth: "front",
   });
   const selectedCostumePlacement = selectedCostumeId
@@ -447,6 +453,7 @@ export default function PetDatabasePanel({
   const costumeAnchor = viewParts.find(part => part.partType === selectedCostumePlacement?.anchorPart) ?? viewParts.find(part => part.partType === "body");
   const costumeAnchorPoint = getCostumeAnchorPoint(costumeAnchor);
   const costumeCanvasPosition = getCostumeCanvasPosition(costumeAnchor, selectedCostumePlacement);
+  const canSaveCostumePlacement = !!selectedCostumePlacement && (costumeDraftDirty || !savedCostumePlacement);
 
   useEffect(() => {
     if (!selectedCostumeId) {
@@ -618,13 +625,17 @@ export default function PetDatabasePanel({
       const res = await apiRequest("PUT", "/api/admin/costume-definitions", { shopItemId: itemId, templateId: selectedTemplateId, placements });
       return res.json();
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (data: CostumeDefinition, variables) => {
       setCostumeDraft(variables.placement);
       setCostumeDraftDirty(false);
+      queryClient.setQueryData<CostumeDefinition[]>(["/api/admin/costume-definitions", selectedTemplateId], current => [
+        ...(current ?? []).filter(definition => definition.shopItemId !== data.shopItemId),
+        data,
+      ]);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/costume-definitions", selectedTemplateId] });
-      toast({ title: "Costume saved", description: "Placement is stored in template coordinates." });
+      toast({ title: "Costume saved", description: `${selectedCostumeItem?.name ?? "Costume"} placement saved for the ${currentCostumeView} view.` });
     },
-    onError: () => toast({ title: "Error", description: "Failed to save costume placement", variant: "destructive" }),
+    onError: (error: Error) => toast({ title: "Could not save costume", description: error.message || "Failed to save costume placement", variant: "destructive" }),
   });
 
   const updateCostumeDraft = (changes: Partial<CostumePlacement>) => {
@@ -670,9 +681,10 @@ export default function PetDatabasePanel({
     if (!selectedCostumePlacement) return;
     updateCostumeDraft(resizeCostumePlacement(selectedCostumePlacement, nextSize));
   };
+  const rotateCostume = (degrees: number) => updateCostumeDraft({ rotation: Math.max(-180, Math.min(180, degrees)) });
   const saveCostumePlacement = () => {
-    if (!selectedCostumeId || !selectedCostumePlacement || !costumeDraftDirty) return;
-    saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: selectedCostumePlacement });
+    if (!selectedCostumeId || !selectedCostumePlacement || !canSaveCostumePlacement || saveCostumeMutation.isPending) return;
+    saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: { ...selectedCostumePlacement, rotation: selectedCostumePlacement.rotation ?? 0 } });
   };
   const discardCostumeDraft = () => {
     costumeDragRef.current = null;
@@ -966,6 +978,8 @@ export default function PetDatabasePanel({
                     top: `${(costumeCanvasPosition.top / CANVAS_SIZE) * 100}%`,
                     width: `${(selectedCostumePlacement.width / CANVAS_SIZE) * 100}%`,
                     height: `${(selectedCostumePlacement.height / CANVAS_SIZE) * 100}%`,
+                    transform: `rotate(${selectedCostumePlacement.rotation ?? 0}deg)`,
+                    transformOrigin: `${selectedCostumePlacement.pivotX}% ${selectedCostumePlacement.pivotY}%`,
                     zIndex: selectedCostumePlacement.depth === "front" ? 10000 : 0,
                     cursor: draggingCostume ? "grabbing" : "grab",
                     outline: draggingCostume ? "2px solid rgba(192,132,252,.85)" : "1px dashed rgba(192,132,252,.45)",
