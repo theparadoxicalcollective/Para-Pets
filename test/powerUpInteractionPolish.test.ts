@@ -17,6 +17,21 @@ test("Power Up hides global navigation and keeps capacity above the pet stage", 
   assert.ok(capacityMarkup >= 0 && stageMarkup >= 0 && capacityMarkup < stageMarkup);
 });
 
+test("Power Up locks the viewport and keeps the compact controls readable", () => {
+  assert.match(powerUpSource, /pupage-scroll\{height:100%;width:100%;overflow:hidden/);
+  assert.match(powerUpSource, /document\.body\.style\.overflow = "hidden"/);
+  assert.match(powerUpSource, /pupage-cap-track\{height:11px/);
+  assert.match(powerUpSource, /pupage-enhance\{position:relative;width:min\(58%,310px\)/);
+  assert.match(powerUpSource, /pupage-enhance-count\{color:#72f2a8/);
+  assert.match(powerUpSource, /pupage-corner\{position:absolute;top:0;width:38px;height:38px/);
+  assert.match(powerUpSource, /pupage-nameplate\{position:absolute;left:50%;bottom:-1px;width:min\(74%,410px\)/);
+  assert.match(powerUpSource, /pupage-item:not\(\.disabled\)::before/);
+  assert.match(powerUpSource, /pupage-item-caption\{[^}]*color:#70efa8[^}]*border-radius:999px/);
+  assert.match(powerUpSource, /pupage-items-window\{[^}]*top:24%;height:49%/);
+  assert.match(evolutionSkinSource, /pupevo-slot::after \{[^}]*border:1\.5px solid/);
+  assert.match(evolutionSkinSource, /pupevo-slot\.current::after/);
+});
+
 test("Power Up keeps the compact capacity and enhancement copy free of duplicate labels", () => {
   assert.match(powerUpSource, /<span>{used} used<\/span><span>{capacity} total<\/span>/);
   assert.doesNotMatch(powerUpSource, />POWER UP CAPACITY</);

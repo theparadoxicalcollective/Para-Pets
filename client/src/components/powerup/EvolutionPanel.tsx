@@ -24,6 +24,8 @@ export default function EvolutionPanel({ enabled, fallbackRarity }: EvolutionPan
       .pup-evolution-skin { position:absolute; inset:0; z-index:8; pointer-events:none; }
       .pup-evolution-skin > .pupevo-orbit { inset:0 !important; }
       .pup-evolution-skin .pupevo-slot { width:clamp(66px,18vw,96px) !important; height:clamp(66px,18vw,96px) !important; pointer-events:auto !important; cursor:pointer; }
+      .pup-evolution-skin .pupevo-slot::after { content:""; position:absolute; inset:7%; z-index:4; border:1.5px solid rgba(117,241,187,.7); border-radius:50%; box-shadow:inset 0 0 7px rgba(80,230,160,.24),0 0 2px rgba(4,32,24,.95); pointer-events:none; }
+      .pup-evolution-skin .pupevo-slot.current::after { border-color:#9bffd0; box-shadow:inset 0 0 8px rgba(96,255,181,.38),0 0 5px rgba(77,243,165,.82); }
       /* Slot 1 starts at bottom-left, then progression travels clockwise. */
       .pup-evolution-skin .pupevo-slot:nth-of-type(1){left:24% !important;top:56% !important}
       .pup-evolution-skin .pupevo-slot:nth-of-type(2){left:12% !important;top:39% !important}
