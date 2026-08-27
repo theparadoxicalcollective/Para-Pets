@@ -1494,6 +1494,26 @@ export default function PetDatabasePanel({
           onPointerUp={(event) => endPartDrag(event.pointerId)}
           onPointerCancel={(event) => endPartDrag(event.pointerId)}
         >
+          <div
+            data-testid="pet-part-center-guide-horizontal"
+            aria-hidden
+            className="pointer-events-none absolute left-0 top-1/2 w-full -translate-y-1/2"
+            style={{
+              zIndex: 30000,
+              borderTop: "1px dashed rgba(240,192,64,0.72)",
+              filter: "drop-shadow(0 0 2px rgba(43,220,157,0.7))",
+            }}
+          />
+          <div
+            data-testid="pet-part-center-guide-vertical"
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-0 h-full -translate-x-1/2"
+            style={{
+              zIndex: 30000,
+              borderLeft: "1px dashed rgba(240,192,64,0.72)",
+              filter: "drop-shadow(0 0 2px rgba(43,220,157,0.7))",
+            }}
+          />
           <div>
             {viewParts.map(part => {
               const isSelected = selectedPartId === part.id;
