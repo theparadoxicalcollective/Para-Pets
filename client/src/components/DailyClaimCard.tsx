@@ -2,9 +2,8 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { chestAssets } from "@/lib/chestAssets";
 
-import chestIcon       from "@assets/Photoroom_20260708_51809_PM_1783549272918.png";
-import chestOpenedIcon from "@assets/Photoroom_20260708_52007_PM_1783549272918.png";
 import coinIconImg     from "@assets/icon_coin.png";
 import essenceIconImg  from "@assets/Photoroom_20260709_24152_PM_1783626130265.png";
 import pvpTicketIcon   from "@assets/Photoroom_20260415_83701_PM_1776304592941.png";
@@ -64,7 +63,7 @@ function ClaimBurst({ onDone }: { onDone: () => void }) {
         }}
       />
       <img
-        src={chestOpenedIcon}
+        src={chestAssets.opened}
         alt=""
         style={{
           width: 120, height: 120, objectFit: "contain",
@@ -137,7 +136,7 @@ export default function DailyClaimCard({
   const { label: countdownLabel, done } = useCountdown(status?.nextClaimAt ?? null);
   const canClaim  = !!status && (status.canClaim || done);
   const claimed   = !!status && !status.canClaim && !done;
-  const activeImg = (claimed || showBurst) ? chestOpenedIcon : chestIcon;
+  const activeImg = (claimed || showBurst) ? chestAssets.opened : chestAssets.closed;
 
   return (
     <div
