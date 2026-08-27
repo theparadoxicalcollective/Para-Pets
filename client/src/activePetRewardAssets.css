@@ -6,6 +6,45 @@
   background-image: url("../../attached_assets/uploads/ActivePetBG.png") !important;
 }
 
+/* Active Pet presentation polish.
+ * Use the individual `translate` property so the page's existing inline
+ * transform/press/petting animations keep working unchanged.
+ */
+#root .h-screen-frame:has([data-testid="display-active-pet"]) [data-testid="button-open-pet-actions"] {
+  translate: 0 clamp(20px, 2.8vh, 28px);
+  filter:
+    drop-shadow(0 3px 2px rgba(0, 0, 0, .72))
+    drop-shadow(0 0 3px rgba(218, 255, 229, .26))
+    drop-shadow(0 0 9px rgba(76, 190, 125, .18));
+}
+
+/* Bring the rarity stars down with the pet, pull them closer together, and
+ * deepen the arc slightly so they wrap more naturally around the pet's head.
+ */
+#root .h-screen-frame:has([data-testid="display-active-pet"]) [data-testid="display-pet-rarity-stars"] {
+  translate: 0 clamp(14px, 2vh, 20px);
+}
+
+#root .h-screen-frame:has([data-testid="display-active-pet"]) [data-testid="display-pet-rarity-stars"] img[alt="star"] {
+  width: 60px !important;
+  height: 60px !important;
+  margin: 0 -2px !important;
+}
+
+#root .h-screen-frame:has([data-testid="display-active-pet"]) [data-testid="display-pet-rarity-stars"] img[alt="star"]:nth-of-type(1),
+#root .h-screen-frame:has([data-testid="display-active-pet"]) [data-testid="display-pet-rarity-stars"] img[alt="star"]:nth-of-type(5) {
+  transform: translateY(4px) !important;
+}
+
+#root .h-screen-frame:has([data-testid="display-active-pet"]) [data-testid="display-pet-rarity-stars"] img[alt="star"]:nth-of-type(2),
+#root .h-screen-frame:has([data-testid="display-active-pet"]) [data-testid="display-pet-rarity-stars"] img[alt="star"]:nth-of-type(4) {
+  transform: translateY(-8px) !important;
+}
+
+#root .h-screen-frame:has([data-testid="display-active-pet"]) [data-testid="display-pet-rarity-stars"] img[alt="star"]:nth-of-type(3) {
+  transform: translateY(-16px) !important;
+}
+
 /* Power Up evolution-node reward state artwork.
  * The existing node classes already encode whether a completed reward is
  * waiting to be claimed or has been collected, so the canonical chest art
