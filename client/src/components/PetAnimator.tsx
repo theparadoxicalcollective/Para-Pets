@@ -6,7 +6,7 @@ import { getCostumeCanvasPosition } from "@/lib/costumePlacement";
 import { getEffectivePetLayer } from "@/lib/petPartConfig";
 import { FULL_BOUNDS, getAlphaBoundsSync } from "@/lib/alphaBounds";
 import { alphaAdjustedPivot } from "@/lib/petAnimationConfig";
-import type { CostumePlacement } from "@shared/costumeFeature";
+import { getWingReplacementPartTypes, type CostumePlacement } from "@shared/costumeFeature";
 
 interface PetPart {
   id: string;
@@ -538,6 +538,17 @@ export default function PetAnimator({
   const innerSize = fillFull ? effectiveSize / partScale : size;
   const innerOffset = fillFull ? -((innerSize - effectiveSize) / 2) : 0;
   const equipped = costumeData?.equipped ?? [];
+  const hiddenWingPartTypes = useMemo(() => {
+    const hidden = new Set<string>();
+    const costumeView = resolvedView === "back" ? "side" : "front";
+    for (const costume of equipped) {
+      for (const placement of costume.placements) {
+        if (placement.view !== costumeView) continue;
+        for (const partType of getWingReplacementPartTypes(placement.anchorPart)) hidden.add(partType);
+      }
+    }
+    return hidden;
+  }, [costumeData?.equipped, resolvedView]);
   const renderCostumes = !!resolvedPetInventoryId && equipped.length > 0 && viewParts.length > 0;
   const hasAboveHead = viewParts.some(part => basePartType(part.partType) === "above_head");
 
@@ -588,6 +599,7 @@ export default function PetAnimator({
           fitVisible={fitVisible}
           expression={expression}
           performanceStatic={performanceStatic}
+          hiddenPartTypes={hiddenWingPartTypes}
           style={{ width: "100%", height: "100%" }}
         />
       </div>
