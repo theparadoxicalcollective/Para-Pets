@@ -1,6 +1,6 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { Component, memo, useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import type { CSSProperties, ErrorInfo, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { Star, X } from "lucide-react";
 import { getNextZ } from "@/lib/layerManager";
 import PetAnimator from "@/components/PetAnimator";
@@ -36,6 +36,31 @@ type StableLevelUpPetProps = {
 
 interface LevelUpTemplateData {
   parts: Array<{ id: string; imageUrl: string }>;
+}
+
+class LevelUpPetErrorBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode; resetKey: string },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[PetLevelUpPage:pet-render]", error, info.componentStack);
+  }
+
+  componentDidUpdate(previous: Readonly<{ children: ReactNode; fallback: ReactNode; resetKey: string }>) {
+    if (this.state.failed && previous.resetKey !== this.props.resetKey) {
+      this.setState({ failed: false });
+    }
+  }
+
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
 }
 
 /**
@@ -175,13 +200,22 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     clearDrag();
   }, [clearDrag, pointInZone, useItem]);
 
+  const petFallback = petImage
+    ? <img src={petImage} alt={petName} draggable={false} decoding="async" data-testid="img-levelup-pet-render-fallback" />
+    : <img src={petPlaceholder} alt="" className="lupage-placeholder" draggable={false} />;
+
   const pet = (
-    <StableLevelUpPet
-      petName={petName}
-      petImage={petImage}
-      petTemplateId={petTemplateId}
-      petInventoryId={petInventoryId}
-    />
+    <LevelUpPetErrorBoundary
+      resetKey={`${petInventoryId}:${petTemplateId ?? "still"}`}
+      fallback={petFallback}
+    >
+      <StableLevelUpPet
+        petName={petName}
+        petImage={petImage}
+        petTemplateId={petTemplateId}
+        petInventoryId={petInventoryId}
+      />
+    </LevelUpPetErrorBoundary>
   );
 
   const stats = [
