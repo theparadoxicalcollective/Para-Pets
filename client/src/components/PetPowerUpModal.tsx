@@ -11,13 +11,15 @@ export type { PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
  * the PUP artwork/layout cannot leak into the Level Up page. This adapter only
  * chooses which independent page to mount.
  *
- * Both pages already have the canonical idle PetAnimator as their fallback.
- * When template data is available, suppress the legacy flattened pet image so
- * those existing renderers are actually used. Pets without a template keep the
- * current still-image fallback, so older/partial inventory records remain safe.
+ * Power Up deliberately prefers the layered idle renderer when template data
+ * exists. Level Up keeps the already-available flattened pet image because its
+ * drag interaction re-renders frequently and the layered renderer made that
+ * page unstable on mobile. Legacy pets still retain each page's fallback.
  */
 export default function PetPowerUpModal(props: PetUpgradeModalProps) {
   const isLevelUp = props.title?.trim().toUpperCase() === "LEVEL UP";
-  const displayProps = props.petTemplateId ? { ...props, petImage: null } : props;
-  return isLevelUp ? <PetLevelUpPage {...displayProps} /> : <PetPowerUpPage {...displayProps} />;
+  if (isLevelUp) return <PetLevelUpPage {...props} />;
+
+  const powerUpProps = props.petTemplateId ? { ...props, petImage: null } : props;
+  return <PetPowerUpPage {...powerUpProps} />;
 }
