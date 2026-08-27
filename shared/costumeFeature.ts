@@ -11,7 +11,7 @@ export const COSTUME_SLOT_COUNT = 3 as const;
 
 /** One fitted costume can be duplicated three times on the same pet template. */
 export const COSTUME_MAX_DUPLICATES_PER_PET = 3 as const;
-/** Original artwork + the three allowed duplicates. */
+/** Original artwork + the three allowed duplicates. These are visual placements, not extra inventory copies. */
 export const COSTUME_MAX_PLACEMENT_INSTANCES = 4 as const;
 
 /** Number of costume slots available without spending coins. */
