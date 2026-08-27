@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { playHit, playPlayerHurt, playBattleVictory, playDefeat } from "@/lib/sounds";
 import { ArrowLeft, X } from "lucide-react";
 import type { BattlePotionSlot } from "@/components/BattleArena";
+import { PvpLivePetCanvas, PvpPetCanvasPrewarm } from "@/components/pvp/PvpLivePetCanvas";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
 import skullDefeatIcon from "@assets/Photoroom_20260705_103527_PM_1783426783499.png";
@@ -1454,6 +1455,9 @@ export default function PvpBattlePage({
       )}
       {phase === "countdown" && (
         <div className="flex-1 flex items-center justify-center relative z-10">
+          <PvpPetCanvasPrewarm
+            templateIds={pets.flatMap((pet) => pet.petTemplateId ? [pet.petTemplateId] : [])}
+          />
           <div className="text-6xl font-black text-white" style={{ textShadow: "0 0 40px rgba(239,68,68,0.8)" }}>
             {countdown > 0 ? countdown : "FIGHT!"}
           </div>
@@ -1647,22 +1651,15 @@ export default function PvpBattlePage({
                   </div>
                 )}
 
-                {/* Sprite — PvP renders pets as plain <img> tags using
-                    the shop_item.imageUrl (the full-body PNG admins
-                    upload for every pet). No PetAnimatorCanvas, no
-                    per-frame redraw loop, no FPS throttle — just the
-                    GPU compositing one small image per pet. The
-                    canvas approach was originally added to prevent
-                    iOS GPU crashes from the part-based <img> renderer
-                    (12 textures × N pets), but a SINGLE <img> per pet
-                    has none of that risk and runs essentially for
-                    free. All "alive" feel comes from CSS effects on
-                    impact / charge / defeat instead of idle motion.
-                    The enemy gets a horizontal flip via scaleX(-1) so
-                    it faces the player. The wrapper is
-                    `position: relative` so any absolute children
-                    (X_X hit overlay) resolve to THIS box, not to the
-                    outer flex column. */}
+                {/* Sprite — live template pets use the memory-safe one-canvas
+                    renderer so breathing, blinking, ears, tails, wings, and
+                    other idle part motion can run without promoting every
+                    transparent body part to its own iOS GPU texture. The
+                    battle's outer wrapper still owns charge/lunge positioning,
+                    hit testing, bars, and KO state. Legacy pets without a
+                    template — plus knocked-out player pets — keep the existing
+                    single-image path so the downed pose and fallbacks remain
+                    unchanged. The enemy flip stays on the parent wrapper. */}
                 {/* Skill-ready gold ring — semi-transparent circle that
                     pulses around the pet when its mana is full and a
                     skill is available. Uses box-shadow so the glow
@@ -1745,7 +1742,17 @@ export default function PvpBattlePage({
                     transition: "transform 0.45s cubic-bezier(0.34, 1.32, 0.64, 1)",
                   }}
                 >
-                  {pet.imageUrl ? (
+                  {pet.petTemplateId && !isDead ? (
+                    <PvpLivePetCanvas
+                      petTemplateId={pet.petTemplateId}
+                      fallbackImageUrl={pet.imageUrl}
+                      size={size}
+                      isPlayer={pet.isPlayer}
+                      isHit={isHit}
+                      isSkillReady={isSkillReady}
+                      crowded={sideCount >= 4}
+                    />
+                  ) : pet.imageUrl ? (
                     <img
                       src={pet.imageUrl}
                       alt=""
