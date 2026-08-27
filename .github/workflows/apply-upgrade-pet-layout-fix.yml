@@ -1,0 +1,33 @@
+name: Apply upgrade pet layout fix
+
+on:
+  push:
+    branches: [fix/costume-above-head-duplicate]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[upgrade-pet-layout-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/costume-above-head-duplicate
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch upgrade pet sizing
+        run: python scripts/patch_upgrade_pet_layout.py
+      - name: Remove one-shot helpers
+        run: |
+          rm scripts/patch_upgrade_pet_layout.py
+          rm .github/workflows/apply-upgrade-pet-layout-fix.yml
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add client/src/components/PetPowerUpPage.tsx client/src/components/PetLevelUpPage.tsx test/upgradeAnimatedPetLayout.test.ts scripts/patch_upgrade_pet_layout.py .github/workflows/apply-upgrade-pet-layout-fix.yml
+          git commit -m "Keep animated upgrade pets inside pet zone [upgrade-pet-layout-patched]"
+          git push origin HEAD:fix/costume-above-head-duplicate
