@@ -22,7 +22,7 @@ test("Power Up locks the viewport and keeps the compact controls readable", () =
   assert.match(powerUpSource, /document\.body\.style\.overflow = "hidden"/);
   assert.match(powerUpSource, /pupage-cap-track\{height:11px/);
   assert.match(powerUpSource, /pupage-enhance\{position:relative;width:min\(50%,270px\)/);
-  assert.match(powerUpSource, /pupage-enhance-copy\{[^}]*align-items:center[^}]*transform:translateY\(1px\)/);
+  assert.match(powerUpSource, /pupage-enhance-copy\{[^}]*align-items:center[^}]*transform:translateY\(-4px\)/);
   assert.match(powerUpSource, /pupage-enhance-count\{color:#72f2a8/);
   assert.match(powerUpSource, /pupage-corner\{position:absolute;top:0;width:38px;height:38px/);
   assert.match(powerUpSource, /pupage-nameplate\{position:absolute;left:50%;bottom:-1px;width:min\(68%,370px\)/);
@@ -67,14 +67,14 @@ test("Power Up opens pet stats in a modal instead of rendering them in the main 
   assert.doesNotMatch(powerUpSource, /scrollIntoView/);
 });
 
-test("Evolution begins bottom-left and advances clockwise in a compact high arc", () => {
+test("Evolution begins bottom-left and advances clockwise around the pet", () => {
   assert.match(evolutionSkinSource, /pupevo-slot \{ width:clamp\(52px,14vw,76px\)/);
-  assert.match(evolutionSkinSource, /nth-of-type\(1\)\{left:20% !important;top:50% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(2\)\{left:12% !important;top:31% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(3\)\{left:34% !important;top:16% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(4\)\{left:66% !important;top:16% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(5\)\{left:88% !important;top:31% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(6\)\{left:80% !important;top:50% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(1\)\{left:26% !important;top:56% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(2\)\{left:10% !important;top:35% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(3\)\{left:34% !important;top:15% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(4\)\{left:66% !important;top:15% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(5\)\{left:90% !important;top:35% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(6\)\{left:74% !important;top:56% !important\}/);
   assert.match(evolutionSkinSource, /@media\(max-width:430px\)[\s\S]*width:54px !important; height:54px !important/);
 });
 
@@ -84,7 +84,10 @@ test("Evolution modal escapes the pet stacking context and only active nodes ope
   assert.match(evolutionSource, /if \(current\) setPickerOpen\(true\)/);
   assert.match(evolutionSource, /if \(claimable\) void claimReward\(slot\)/);
   assert.match(evolutionSource, /if \(evolutionReady\) showNodeMessage\("Evolution Coming Soon"\)/);
-  assert.match(evolutionSource, /showNodeMessage\(claimed \? "Reward Collected"/);
+  assert.match(evolutionSource, /else showNodeMessage\(complete \? "Completed" : "Locked"\)/);
+  assert.doesNotMatch(evolutionSource, /showNodeMessage\(claimed \? "Reward Collected"/);
+  assert.match(evolutionSource, /CONNECTOR_PATHS\.map\(\(path, index\) => index < completedSlots/);
+  assert.match(evolutionSource, /className="pupevo-link-glow"/);
   assert.doesNotMatch(evolutionSource, /disabled=\{!current\}/);
   assert.match(evolutionSource, /align-items:center/);
   assert.match(evolutionSource, /filter:drop-shadow\(0 0 5px rgba\(65,236,151,.28\)\)/);
