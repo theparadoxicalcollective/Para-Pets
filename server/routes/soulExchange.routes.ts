@@ -1,12 +1,13 @@
 import type { Express } from "express";
 import { exchangePets, getSoulExchangeState, SoulExchangeError } from "../soulExchange";
 import { registerPetEvolutionRoutes } from "./petEvolution.routes";
+import { registerHauntedCasinoRoutes } from "./hauntedCasino.routes";
 
 export function registerSoulExchangeRoutes(app: Express, { isAuthenticated }: { isAuthenticated: any }) {
-  // Pet Evolution is kept in its own route/service modules; this existing
-  // pet-consumption registration point wires it into the app without adding
-  // more feature code to the already-large root routes.ts file.
+  // Haunted Woods feature routes share this small registration point so the
+  // already-large root routes.ts file does not need more feature-specific code.
   registerPetEvolutionRoutes(app, { isAuthenticated });
+  registerHauntedCasinoRoutes(app, { isAuthenticated });
 
   app.get("/api/soul-exchange/pets", isAuthenticated, async (req: any, res) => {
     try { res.json(await getSoulExchangeState(req.user.id)); }
