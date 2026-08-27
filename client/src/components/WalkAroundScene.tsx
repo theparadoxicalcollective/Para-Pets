@@ -168,7 +168,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
           }}
         >
           <div className={`clearing-pet-presentation ${isMoving ? "is-moving" : ""} ${specialReady ? "is-special-ready" : ""}`} style={{transform:`scaleX(${facingLeft !== naturalFacingLeft ? -1 : 1})`}}>
-            <PetAnimator petTemplateId={petTemplateId} mode="static" size={petSize} fitVisible />
+            <PetAnimator petTemplateId={petTemplateId} petInventoryId={activePetInventoryId ?? undefined} mode="static" size={petSize} fitVisible />
           </div>
         </div>
       )}
