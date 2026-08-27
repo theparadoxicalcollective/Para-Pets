@@ -8,6 +8,7 @@ const routes = readFileSync("server/routes/costumePlayer.routes.ts", "utf8");
 const boot = readFileSync("server/startup/migrations/runEssentialBoot.ts", "utf8");
 const schema = readFileSync("shared/costumeSchema.ts", "utf8");
 const marketplace = readFileSync("server/marketplace/transactions.ts", "utf8");
+const adminEditor = readFileSync("client/src/components/PetDatabasePanel.tsx", "utf8");
 
 test("Costumes appear beneath accessories on the existing equipment page", () => {
   assert.match(accessoryPage, /import PetCostumeEquipmentSection/);
@@ -54,6 +55,19 @@ test("Stacked costume copies are counted and unequipped individually", () => {
   assert.match(routes, /equipped-costume-counts/);
   assert.match(section, /item\.quantity > \(equippedCounts\[item\.inventoryId\]/);
   assert.match(routes, /eq\(petEquippedCostumes\.id, equippedCostumeId\)/);
+});
+
+test("A pet cannot equip two costumes attached to the same saved layer", () => {
+  assert.match(routes, /requestedLayers = new Set/);
+  assert.match(routes, /requestedLayers\.has\(placement\.anchorPart\)/);
+  assert.match(routes, /another costume on the same pet layer/);
+  assert.match(routes, /eq\(userInventory\.id, petInventoryId\)[\s\S]*?\.for\("update"\)/);
+});
+
+test("Admin costume library marks pieces already fitted for the selected pet", () => {
+  assert.match(adminEditor, /const fittedForPet = costumeDefinitions\.some/);
+  assert.match(adminEditor, /data-testid={`costume-fitted-\$\{item\.id\}`}/);
+  assert.match(adminEditor, /Placement saved for this pet/);
 });
 
 test("Marketplace refuses to list or transfer an equipped costume", () => {
