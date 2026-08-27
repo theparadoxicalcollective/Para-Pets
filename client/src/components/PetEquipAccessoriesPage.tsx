@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
+import PetCostumeEquipmentSection from "@/components/PetCostumeEquipmentSection";
 import gemCrystalIcon from "@assets/generated_images/icon_gem_crystal.png";
 import homeBg from "@assets/bg_home_v2.png";
 
@@ -441,6 +442,13 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
             </div>
           )}
         </div>
+
+        <PetCostumeEquipmentSection
+          petInventoryId={petInventoryId}
+          petName={petName}
+          rarityColor={rc}
+          userCoins={user?.coins ?? 0}
+        />
       </div>
 
       {unequipConfirm && (
