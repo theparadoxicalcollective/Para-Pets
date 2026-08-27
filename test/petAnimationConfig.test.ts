@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { alphaAdjustedPivot, earMotion, normalizeAnimationProfile } from "../client/src/lib/petAnimationConfig";
+import { alphaAdjustedPivot, earMotion, getHeadBobCssPercent, normalizeAnimationProfile } from "../client/src/lib/petAnimationConfig";
 import { getEffectivePetLayer, isHeadGroupPart } from "../client/src/lib/petPartConfig";
 
 test("normal ears mirror with rotation-only shared motion", () => {
@@ -23,4 +23,12 @@ test("multi-head grouping and layers are canonical", () => {
 test("legacy profiles and padded PNG pivots normalize safely", () => {
   assert.equal(normalizeAnimationProfile(null, true), "standard_flying");
   assert.deepEqual(alphaAdjustedPivot(50, 100, { left: 0.2, top: 0.1, width: 0.4, height: 0.7 }, { x: 0.5, y: 1 }), { x: 0.4, y: 0.7999999999999999 });
+});
+
+
+test("head bob follows actual body rise without a seam-opening minimum", () => {
+  assert.equal(getHeadBobCssPercent({ bodyHeight: 400, alphaHeight: 0.8 }), "-0.38%");
+  assert.equal(getHeadBobCssPercent({ bodyHeight: 1000, alphaHeight: 1 }), "-0.75%");
+  assert.equal(getHeadBobCssPercent({ bodyHeight: 100, alphaHeight: 0.5 }), "-0.06%");
+  assert.equal(getHeadBobCssPercent({}), "-0.35%");
 });
