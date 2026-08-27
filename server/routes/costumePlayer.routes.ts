@@ -1,0 +1,186 @@
+import type { Express, Request, Response } from "express";
+import { and, eq, sql } from "drizzle-orm";
+import { requireAuthenticated } from "../auth";
+import { db } from "../db";
+import { storage } from "../storage";
+import { shopItems, userInventory, users } from "@shared/schema";
+import {
+  petCostumeDefinitions,
+  petCostumeSlotUnlocks,
+  petEquippedCostumes,
+} from "@shared/costumeSchema";
+import {
+  COSTUME_SLOT_COUNT,
+  getCostumeSlotUnlockCost,
+  getUnlockedCostumeSlotCount,
+} from "@shared/costumeFeature";
+
+async function ownedPet(petInventoryId: string, userId: string) {
+  const pet = await storage.getInventoryItemById(petInventoryId);
+  if (!pet || pet.userId !== userId) return null;
+  const item = await storage.getShopItem(pet.shopItemId);
+  if (!item || item.type !== "pet") return null;
+  return { pet, item };
+}
+
+export function registerCostumePlayerRoutes(app: Express) {
+  app.get("/api/user/equipped-costume-ids", requireAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as { id: string };
+      const rows = await db.select({ id: petEquippedCostumes.costumeInventoryId })
+        .from(petEquippedCostumes)
+        .innerJoin(userInventory, eq(userInventory.id, petEquippedCostumes.petInventoryId))
+        .where(eq(userInventory.userId, user.id));
+      return res.json(rows.map((row) => row.id));
+    } catch (error) {
+      console.error("[costumes] equipped ids failed", error);
+      return res.status(500).json({ message: "Failed to load equipped costumes" });
+    }
+  });
+
+  app.get("/api/pet/:petInventoryId/costumes", requireAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as { id: string };
+      const petInventoryId = String(req.params.petInventoryId);
+      if (!await ownedPet(petInventoryId, user.id)) return res.status(404).json({ message: "Pet not found" });
+
+      const [unlock] = await db.select().from(petCostumeSlotUnlocks)
+        .where(eq(petCostumeSlotUnlocks.petInventoryId, petInventoryId))
+        .limit(1);
+      const equipped = await db.select({
+        id: petEquippedCostumes.id,
+        slot: petEquippedCostumes.slot,
+        costumeInventoryId: petEquippedCostumes.costumeInventoryId,
+        name: shopItems.name,
+        imageUrl: shopItems.imageUrl,
+      }).from(petEquippedCostumes)
+        .innerJoin(userInventory, eq(userInventory.id, petEquippedCostumes.costumeInventoryId))
+        .innerJoin(shopItems, eq(shopItems.id, userInventory.shopItemId))
+        .where(eq(petEquippedCostumes.petInventoryId, petInventoryId));
+
+      return res.json({ equipped, extraSlots: unlock?.extraSlots ?? 0 });
+    } catch (error) {
+      console.error("[costumes] player load failed", error);
+      return res.status(500).json({ message: "Failed to load pet costumes" });
+    }
+  });
+
+  app.post("/api/pet/:petInventoryId/costumes/equip", requireAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as { id: string };
+      const petInventoryId = String(req.params.petInventoryId);
+      const costumeInventoryId = typeof req.body?.costumeInventoryId === "string" ? req.body.costumeInventoryId : "";
+      const slot = Number(req.body?.slot);
+      if (!costumeInventoryId || !Number.isInteger(slot) || slot < 1 || slot > COSTUME_SLOT_COUNT) {
+        return res.status(400).json({ message: "A valid costume and slot are required" });
+      }
+
+      const target = await ownedPet(petInventoryId, user.id);
+      if (!target) return res.status(404).json({ message: "Pet not found" });
+      if (!target.pet.isHatched) return res.status(400).json({ message: "Pet has not hatched yet" });
+      if (!target.item.petTemplateId) return res.status(400).json({ message: "This pet cannot wear costumes yet" });
+
+      const costumeInventory = await storage.getInventoryItemById(costumeInventoryId);
+      if (!costumeInventory || costumeInventory.userId !== user.id) return res.status(404).json({ message: "Costume not found" });
+      const costumeItem = await storage.getShopItem(costumeInventory.shopItemId);
+      if (!costumeItem || costumeItem.type !== "costume") return res.status(400).json({ message: "Item is not a costume" });
+
+      const [unlock] = await db.select().from(petCostumeSlotUnlocks)
+        .where(eq(petCostumeSlotUnlocks.petInventoryId, petInventoryId))
+        .limit(1);
+      if (slot > getUnlockedCostumeSlotCount(unlock?.extraSlots ?? 0)) {
+        return res.status(400).json({ message: "That costume slot is locked" });
+      }
+
+      const [definition] = await db.select({ id: petCostumeDefinitions.id })
+        .from(petCostumeDefinitions)
+        .where(and(
+          eq(petCostumeDefinitions.shopItemId, costumeItem.id),
+          eq(petCostumeDefinitions.templateId, target.item.petTemplateId),
+        ))
+        .limit(1);
+      if (!definition) return res.status(400).json({ message: "This costume has not been fitted for this pet yet" });
+
+      const [existingCostume] = await db.select().from(petEquippedCostumes)
+        .where(eq(petEquippedCostumes.costumeInventoryId, costumeInventoryId))
+        .limit(1);
+      if (existingCostume) return res.status(400).json({ message: "That costume is already equipped" });
+      const [occupied] = await db.select().from(petEquippedCostumes)
+        .where(and(eq(petEquippedCostumes.petInventoryId, petInventoryId), eq(petEquippedCostumes.slot, slot)))
+        .limit(1);
+      if (occupied) return res.status(400).json({ message: "That costume slot is already occupied" });
+
+      const [equipped] = await db.insert(petEquippedCostumes).values({
+        petInventoryId,
+        costumeInventoryId,
+        slot,
+      }).returning();
+      return res.json({ equipped });
+    } catch (error: any) {
+      console.error("[costumes] equip failed", error);
+      return res.status(400).json({ message: error?.message || "Failed to equip costume" });
+    }
+  });
+
+  app.post("/api/pet/:petInventoryId/costumes/unequip", requireAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as { id: string };
+      const petInventoryId = String(req.params.petInventoryId);
+      const costumeInventoryId = typeof req.body?.costumeInventoryId === "string" ? req.body.costumeInventoryId : "";
+      if (!costumeInventoryId) return res.status(400).json({ message: "Costume is required" });
+      if (!await ownedPet(petInventoryId, user.id)) return res.status(404).json({ message: "Pet not found" });
+
+      const [removed] = await db.delete(petEquippedCostumes).where(and(
+        eq(petEquippedCostumes.petInventoryId, petInventoryId),
+        eq(petEquippedCostumes.costumeInventoryId, costumeInventoryId),
+      )).returning();
+      if (!removed) return res.status(404).json({ message: "Costume is not equipped on this pet" });
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("[costumes] unequip failed", error);
+      return res.status(500).json({ message: "Failed to unequip costume" });
+    }
+  });
+
+  app.post("/api/pet/:petInventoryId/costumes/unlock", requireAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const user = req.user as { id: string };
+      const petInventoryId = String(req.params.petInventoryId);
+      if (!await ownedPet(petInventoryId, user.id)) return res.status(404).json({ message: "Pet not found" });
+
+      const result = await db.transaction(async (tx) => {
+        const [account] = await tx.select({ coins: users.coins }).from(users)
+          .where(eq(users.id, user.id)).for("update");
+        if (!account) throw new Error("Player not found");
+
+        const [unlock] = await tx.select().from(petCostumeSlotUnlocks)
+          .where(eq(petCostumeSlotUnlocks.petInventoryId, petInventoryId))
+          .limit(1);
+        const extraSlots = unlock?.extraSlots ?? 0;
+        const unlockedCount = getUnlockedCostumeSlotCount(extraSlots);
+        if (unlockedCount >= COSTUME_SLOT_COUNT) throw new Error("All costume slots are already unlocked");
+        const cost = getCostumeSlotUnlockCost(unlockedCount + 1);
+        if (account.coins < cost) throw new Error("Not enough coins");
+
+        const [updatedUser] = await tx.update(users)
+          .set({ coins: sql`${users.coins} - ${cost}` })
+          .where(eq(users.id, user.id))
+          .returning({ coins: users.coins });
+        if (!updatedUser) throw new Error("Could not update player coins");
+        await tx.insert(petCostumeSlotUnlocks).values({
+          petInventoryId,
+          extraSlots: extraSlots + 1,
+        }).onConflictDoUpdate({
+          target: petCostumeSlotUnlocks.petInventoryId,
+          set: { extraSlots: extraSlots + 1, updatedAt: new Date() },
+        });
+        return { extraSlots: extraSlots + 1, coins: updatedUser.coins, cost };
+      });
+      return res.json(result);
+    } catch (error: any) {
+      const message = error?.message || "Failed to unlock costume slot";
+      const status = message === "Not enough coins" || message.includes("already unlocked") ? 400 : 500;
+      return res.status(status).json({ message });
+    }
+  });
+}
