@@ -302,16 +302,25 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
           <div
             key={pet.inventoryId}
             data-testid={`visit-pet-interior-${pet.inventoryId}`}
-            className="absolute pet-idle-squish"
+            className="absolute"
             style={{ zIndex: 7, left: panX + xPct * imgWidth, top: yPct * containerH, width: INTERIOR_PET_SIZE, height: INTERIOR_PET_SIZE, transform: "translate(-50%, -50%)", cursor: "pointer", pointerEvents: "auto" }}
             onPointerDown={e => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); onPetClick(pet); }}
           >
-            {(pet.hatchedImageUrl || pet.imageUrl) ? (
+            {pet.petTemplateId ? (
+              <PetAnimator
+                petTemplateId={pet.petTemplateId}
+                mode="house"
+                size={INTERIOR_PET_SIZE}
+                fillContainer
+                style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
+              />
+            ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
                 src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
                 alt={pet.nickname ?? pet.name}
                 draggable={false}
+                className="pet-idle-squish"
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
               />
             ) : null}
