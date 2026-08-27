@@ -141,6 +141,17 @@ const ALTERNATE_ANIMS = new Set([
   "petAboveHeadBounceMarionette", "petIdleLeftLegMarionette", "petIdleRightLegMarionette",
 ]);
 
+const PET_ATTACHMENT_SEAM_GUARD = `
+@keyframes petIdleHead {
+  from { transform: translateY(0%); }
+  to { transform: translateY(max(var(--pet-head-bob, -0.8%), -0.8%)); }
+}
+@keyframes petIdleHeadSide {
+  from { transform: translateY(0) rotate(0deg); }
+  to { transform: translateY(max(var(--pet-head-bob, -0.8%), -0.8%)) rotate(0.7deg); }
+}
+`;
+
 function basePartType(partType: string) {
   return partType.replace(/^h[23]_/, "");
 }
@@ -149,6 +160,13 @@ function stableDelay(id: string) {
   let h = 0;
   for (let i = 0; i < id.length; i += 1) h = (h * 31 + id.charCodeAt(i)) >>> 0;
   return `-${((h % 1500) / 1000).toFixed(2)}s`;
+}
+
+function syncAnimationDelay(delay: string, elapsedSeconds: number) {
+  if (!Number.isFinite(elapsedSeconds) || elapsedSeconds <= 0) return delay;
+  const match = delay.trim().match(/^(-?[\d.]+)s$/);
+  if (!match) return delay;
+  return `${(Number(match[1]) - elapsedSeconds).toFixed(3)}s`;
 }
 
 function buildAnimation(animName: string, duration: string, delay: string) {
@@ -278,8 +296,23 @@ function getHeadWrapperMotion(groupType: "head" | "h2_head" | "h3_head", mode: P
   return { animation, duration, delay };
 }
 
+function computeHeadBob(bodyPart: PetPart | undefined, canFly: boolean) {
+  if (!bodyPart) return "-0.80%";
+  const bodyAlpha = getAlphaBoundsSync(bodyPart.imageUrl) ?? FULL_BOUNDS;
+  const visibleBodyHeight = bodyPart.height * bodyAlpha.height;
+  let topRiseFraction = 1;
+  if (canFly) {
+    const pivotY = (bodyPart.pivotY ?? 50) / 100;
+    const originYFraction = bodyAlpha.top + bodyAlpha.height * pivotY;
+    topRiseFraction = Math.max(0, Math.min(1, originYFraction));
+  }
+  const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 2.2 * topRiseFraction;
+  const minBob = canFly ? 0.25 : 0.5;
+  return `-${Math.min(1.2, Math.max(minBob, bodyTopRisePct)).toFixed(2)}%`;
+}
+
 function CostumeLayer({
-  depth, costumes, viewParts, mode, resolvedView, facing, canFly, idleStyle, bodyDelay, headBob,
+  depth, costumes, viewParts, mode, resolvedView, facing, canFly, idleStyle, bodyDelay, headBob, motionElapsedSeconds,
 }: {
   depth: "front" | "back";
   costumes: EquippedCostume[];
@@ -291,6 +324,7 @@ function CostumeLayer({
   idleStyle: string | null;
   bodyDelay: string;
   headBob: string;
+  motionElapsedSeconds: number;
 }) {
   const sortedParts = useMemo(() => [...viewParts].sort((a, b) => getEffectivePetLayer(a, facing) - getEffectivePetLayer(b, facing)), [viewParts, facing]);
   const bodyPart = sortedParts.find(part => part.partType === "body");
@@ -333,7 +367,8 @@ function CostumeLayer({
       const groupType = headGroupType(anchor.partType);
       const groupIndex = Math.max(0, headTypes.indexOf(groupType ?? "head"));
       const groupDelay = `${HEAD_GROUP_DELAYS[Math.min(groupIndex, HEAD_GROUP_DELAYS.length - 1)] ?? 0}s`;
-      const partDelay = groupType ? groupDelay : (isBodyBreathAnimation(animName) || isTailIdleAnimation(animName) ? bodyDelay : wingDelay.get(anchor.id) ?? stableDelay(anchor.id));
+      const basePartDelay = groupType ? groupDelay : (isBodyBreathAnimation(animName) || isTailIdleAnimation(animName) ? bodyDelay : wingDelay.get(anchor.id) ?? stableDelay(anchor.id));
+      const partDelay = syncAnimationDelay(basePartDelay, motionElapsedSeconds);
       const duration = getDuration(anchor.partType, mode);
       const origin = partOrigin(anchor, animName, bodyPart, canFly);
       const placementInstance = placement.instance ?? 1;
@@ -383,13 +418,14 @@ function CostumeLayer({
       if (!groupType) return <div key={placementKey}>{anchorNode}</div>;
 
       const wrapper = getHeadWrapperMotion(groupType, mode, resolvedView, bodyDelay);
+      const wrapperDelay = syncAnimationDelay(wrapper.delay, motionElapsedSeconds);
       return (
         <div
           key={placementKey}
           data-testid={`costume-head-group-${groupType}-${placementInstance}`}
           style={{
             position: "absolute", inset: 0, width: "100%", height: "100%",
-            animation: wrapper.animation ? buildAnimation(wrapper.animation, wrapper.duration, wrapper.delay) : undefined,
+            animation: wrapper.animation ? buildAnimation(wrapper.animation, wrapper.duration, wrapperDelay) : undefined,
             willChange: wrapper.animation ? "transform" : undefined,
             pointerEvents: "none",
             ...(mode === "idle" ? ({ "--pet-head-bob": headBob } as React.CSSProperties) : {}),
@@ -405,7 +441,7 @@ function CostumeLayer({
 }
 
 function AboveHeadTopLayer({
-  viewParts, mode, resolvedView, facing, canFly, idleStyle, bodyDelay, headBob,
+  viewParts, mode, resolvedView, facing, canFly, idleStyle, bodyDelay, headBob, motionElapsedSeconds,
 }: {
   viewParts: PetPart[];
   mode: PetAnimatorProps["mode"];
@@ -415,6 +451,7 @@ function AboveHeadTopLayer({
   idleStyle: string | null;
   bodyDelay: string;
   headBob: string;
+  motionElapsedSeconds: number;
 }) {
   const sortedParts = useMemo(() => [...viewParts].sort((a, b) => getEffectivePetLayer(a, facing) - getEffectivePetLayer(b, facing)), [viewParts, facing]);
   const bodyPart = sortedParts.find(part => part.partType === "body");
@@ -427,10 +464,12 @@ function AboveHeadTopLayer({
     const groupDelay = `${HEAD_GROUP_DELAYS[Math.min(groupIndex, HEAD_GROUP_DELAYS.length - 1)] ?? 0}s`;
     const animName = anchorAnimation(part, mode, resolvedView, idleStyle);
     const isMarionetteAboveHead = mode === "idle" && idleStyle === "marionette" && animName === "petAboveHeadBounceMarionette";
-    const partDelay = isMarionetteAboveHead ? bodyDelay : groupDelay;
+    const basePartDelay = isMarionetteAboveHead ? bodyDelay : groupDelay;
+    const partDelay = syncAnimationDelay(basePartDelay, motionElapsedSeconds);
     const partDuration = isMarionetteAboveHead ? "4.5s" : getDuration(part.partType, mode);
     const origin = partOrigin(part, animName, bodyPart, canFly);
     const wrapper = getHeadWrapperMotion(groupType, mode, resolvedView, bodyDelay);
+    const wrapperDelay = syncAnimationDelay(wrapper.delay, motionElapsedSeconds);
 
     return (
       <div
@@ -438,7 +477,7 @@ function AboveHeadTopLayer({
         data-testid={`above-head-top-group-${groupType}`}
         style={{
           position: "absolute", inset: 0, width: "100%", height: "100%",
-          animation: wrapper.animation ? buildAnimation(wrapper.animation, wrapper.duration, wrapper.delay) : undefined,
+          animation: wrapper.animation ? buildAnimation(wrapper.animation, wrapper.duration, wrapperDelay) : undefined,
           willChange: wrapper.animation ? "transform" : undefined,
           pointerEvents: "none",
           ...(mode === "idle" ? ({ "--pet-head-bob": headBob } as React.CSSProperties) : {}),
@@ -482,6 +521,7 @@ export default function PetAnimator({
 }: PetAnimatorProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [measuredSize, setMeasuredSize] = useState(size);
+  const motionEpochRef = useRef<{ templateId: string; startedAt: number } | null>(null);
 
   useLayoutEffect(() => {
     if (!(fillContainer || fitVisible)) return;
@@ -519,6 +559,17 @@ export default function PetAnimator({
     staleTime: 0,
   });
 
+  if (templateData && motionEpochRef.current?.templateId !== petTemplateId) {
+    motionEpochRef.current = {
+      templateId: petTemplateId,
+      startedAt: typeof performance !== "undefined" ? performance.now() : Date.now(),
+    };
+  }
+  const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const motionElapsedSeconds = templateData && motionEpochRef.current
+    ? Math.max(0, (now - motionEpochRef.current.startedAt) / 1000)
+    : 0;
+
   const allParts = templateData?.parts ?? [];
   const facing = templateData?.facing ?? "front";
   const frontCount = allParts.filter(part => part.view === "front").length;
@@ -528,8 +579,7 @@ export default function PetAnimator({
   const bodyPart = viewParts.find(part => part.partType === "body");
   const bodyDelay = bodyPart ? stableDelay(bodyPart.id) : "0s";
   const canFly = !!templateData?.canFly;
-  const bodyTopRisePct = bodyPart ? (bodyPart.height / CANVAS_SIZE) * 2.2 * (canFly ? Math.max(0.25, (bodyPart.pivotY ?? 50) / 100) : 1) : 0.8;
-  const headBob = `-${Math.min(1.2, Math.max(canFly ? 0.25 : 0.5, bodyTopRisePct)).toFixed(2)}%`;
+  const headBob = computeHeadBob(bodyPart, canFly);
 
   const isLargeStyle = viewParts.some(part => part.width >= 500 || part.height >= 500);
   const partScale = isLargeStyle ? 0.3 : 1;
@@ -570,6 +620,7 @@ export default function PetAnimator({
           idleStyle={templateData?.idleStyle ?? null}
           bodyDelay={bodyDelay}
           headBob={headBob}
+          motionElapsedSeconds={motionElapsedSeconds}
         />
       </div>
     </div>
@@ -603,6 +654,7 @@ export default function PetAnimator({
           style={{ width: "100%", height: "100%" }}
         />
       </div>
+      <style data-testid="pet-animation-seam-guard">{PET_ATTACHMENT_SEAM_GUARD}</style>
       {renderCostumes && costumeLayer("front")}
       {renderCostumes && hasAboveHead && (
         <div
@@ -620,6 +672,7 @@ export default function PetAnimator({
               idleStyle={templateData?.idleStyle ?? null}
               bodyDelay={bodyDelay}
               headBob={headBob}
+              motionElapsedSeconds={motionElapsedSeconds}
             />
           </div>
         </div>
