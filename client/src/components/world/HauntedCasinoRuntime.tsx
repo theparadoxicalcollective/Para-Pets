@@ -152,6 +152,7 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
           tabIndex={0}
           aria-label={spot.label}
           data-testid={`haunted-casino-hotspot-${spot.id}`}
+          data-casino-admin={isAdmin ? "true" : "false"}
           onPointerDown={(event) => onPointerDown(event, spot)}
           onPointerMove={onPointerMove}
           onPointerUp={(event) => onPointerUp(event, spot)}
@@ -251,6 +252,114 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
 }
 
 /**
+ * iOS can treat a transparent interactive child above an overflow scroller as
+ * the gesture owner. Native pan-x alone therefore is not enough when a swipe
+ * starts on one of the invisible player hotspots. This small fallback performs
+ * the horizontal pan on the scroller itself and suppresses the synthetic click
+ * only when the finger actually moved. Admin hotspots opt out so their drag
+ * placement keeps working exactly as before.
+ */
+function installCasinoPanFallback(scroller: HTMLElement): () => void {
+  scroller.style.overflowX = "scroll";
+  scroller.style.overflowY = "hidden";
+  scroller.style.touchAction = "pan-x";
+  scroller.style.overscrollBehaviorX = "contain";
+  scroller.style.setProperty("-webkit-overflow-scrolling", "touch");
+
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let startScrollLeft = 0;
+  let horizontalPan = false;
+  let lastPanAt = 0;
+
+  const isAdminHotspotTarget = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) return false;
+    return target.closest('[data-casino-admin="true"]') != null;
+  };
+
+  const onTouchStart = (event: TouchEvent) => {
+    if (event.touches.length !== 1 || isAdminHotspotTarget(event.target)) return;
+    const touch = event.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    startScrollLeft = scroller.scrollLeft;
+    horizontalPan = false;
+  };
+
+  const onTouchMove = (event: TouchEvent) => {
+    if (event.touches.length !== 1 || isAdminHotspotTarget(event.target)) return;
+    const touch = event.touches[0];
+    const dx = touch.clientX - touchStartX;
+    const dy = touch.clientY - touchStartY;
+    if (!horizontalPan && Math.abs(dx) > 5 && Math.abs(dx) > Math.abs(dy)) horizontalPan = true;
+    if (!horizontalPan) return;
+    scroller.scrollLeft = startScrollLeft - dx;
+    if (event.cancelable) event.preventDefault();
+  };
+
+  const finishTouch = () => {
+    if (horizontalPan) lastPanAt = Date.now();
+    horizontalPan = false;
+  };
+
+  // Desktop/tablet pointer fallback also lets players click-drag the floor.
+  let pointerDragging = false;
+  let pointerStartX = 0;
+  let pointerScrollLeft = 0;
+  let pointerMoved = false;
+  const onPointerDown = (event: PointerEvent) => {
+    if (event.pointerType !== "mouse" || event.button !== 0 || isAdminHotspotTarget(event.target)) return;
+    pointerDragging = true;
+    pointerMoved = false;
+    pointerStartX = event.clientX;
+    pointerScrollLeft = scroller.scrollLeft;
+  };
+  const onPointerMove = (event: PointerEvent) => {
+    if (!pointerDragging || event.pointerType !== "mouse") return;
+    const dx = event.clientX - pointerStartX;
+    if (Math.abs(dx) > 4) pointerMoved = true;
+    if (!pointerMoved) return;
+    scroller.scrollLeft = pointerScrollLeft - dx;
+    event.preventDefault();
+  };
+  const finishPointer = () => {
+    if (pointerMoved) lastPanAt = Date.now();
+    pointerDragging = false;
+    pointerMoved = false;
+  };
+
+  const suppressClickAfterPan = (event: MouseEvent) => {
+    if (Date.now() - lastPanAt > 320) return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  scroller.addEventListener("touchstart", onTouchStart, { passive: true });
+  scroller.addEventListener("touchmove", onTouchMove, { passive: false });
+  scroller.addEventListener("touchend", finishTouch, { passive: true });
+  scroller.addEventListener("touchcancel", finishTouch, { passive: true });
+  scroller.addEventListener("pointerdown", onPointerDown);
+  scroller.addEventListener("pointermove", onPointerMove);
+  scroller.addEventListener("pointerup", finishPointer);
+  scroller.addEventListener("pointercancel", finishPointer);
+  scroller.addEventListener("pointerleave", finishPointer);
+  scroller.addEventListener("click", suppressClickAfterPan, true);
+
+  return () => {
+    scroller.removeEventListener("touchstart", onTouchStart);
+    scroller.removeEventListener("touchmove", onTouchMove);
+    scroller.removeEventListener("touchend", finishTouch);
+    scroller.removeEventListener("touchcancel", finishTouch);
+    scroller.removeEventListener("pointerdown", onPointerDown);
+    scroller.removeEventListener("pointermove", onPointerMove);
+    scroller.removeEventListener("pointerup", finishPointer);
+    scroller.removeEventListener("pointercancel", finishPointer);
+    scroller.removeEventListener("pointerleave", finishPointer);
+    scroller.removeEventListener("click", suppressClickAfterPan, true);
+  };
+}
+
+/**
  * WorldLocations already owns the full-screen Haunted Casino scroller. This
  * enhancer mounts a React interaction layer directly over the rendered casino
  * image, so hotspots scroll with the art without coupling casino game logic to
@@ -260,10 +369,12 @@ export function enhanceHauntedCasinoRoot(rootElement: HTMLElement): void {
   if (rootElement.dataset.hauntedCasinoEnhanced === "1") return;
   const image = rootElement.querySelector("img");
   const scene = image?.parentElement as HTMLElement | null;
-  if (!(image instanceof HTMLImageElement) || !scene) return;
+  const scroller = scene?.parentElement as HTMLElement | null;
+  if (!(image instanceof HTMLImageElement) || !scene || !scroller) return;
 
   rootElement.dataset.hauntedCasinoEnhanced = "1";
   if (window.getComputedStyle(scene).position === "static") scene.style.position = "relative";
+  const removePanFallback = installCasinoPanFallback(scroller);
 
   const host = document.createElement("div");
   host.dataset.testid = "haunted-casino-hotspot-layer";
@@ -293,6 +404,7 @@ export function enhanceHauntedCasinoRoot(rootElement: HTMLElement): void {
     lifecycleObserver.disconnect();
     resizeObserver?.disconnect();
     image.removeEventListener("load", syncGeometry);
+    removePanFallback();
     reactRoot.unmount();
     if (currencyDirty) window.setTimeout(() => window.location.reload(), 0);
   });

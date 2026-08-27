@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   DEFAULT_HAUNTED_CASINO_HOTSPOTS,
   HAUNTED_CASINO_BETS,
+  HAUNTED_SLOT_SYMBOL_WEIGHTS,
   evaluateHauntedSlotResult,
 } from "../shared/hauntedCasino";
 
@@ -36,8 +37,14 @@ test("Haunted Casino starts with exactly the five requested interactive areas", 
   assert.ok(DEFAULT_HAUNTED_CASINO_HOTSPOTS.every((spot) => spot.size >= 6));
 });
 
-test("Slaughter Slots payout table rewards matches without making every spin a win", () => {
+test("Slaughter Slots keeps challenging reel weights and supports database item prize categories", () => {
   assert.deepEqual(HAUNTED_CASINO_BETS, [10, 25, 50, 100, 250]);
+  assert.deepEqual(
+    HAUNTED_SLOT_SYMBOL_WEIGHTS.map((entry) => entry.id),
+    ["coin", "essence", "edible", "fish", "loot", "skull"],
+  );
+  assert.ok((HAUNTED_SLOT_SYMBOL_WEIGHTS.find((entry) => entry.id === "loot")?.weight ?? 99) < (HAUNTED_SLOT_SYMBOL_WEIGHTS.find((entry) => entry.id === "edible")?.weight ?? 0));
+  assert.ok((HAUNTED_SLOT_SYMBOL_WEIGHTS.find((entry) => entry.id === "skull")?.weight ?? 99) < (HAUNTED_SLOT_SYMBOL_WEIGHTS.find((entry) => entry.id === "coin")?.weight ?? 0));
 
   const jackpot = evaluateHauntedSlotResult(["skull", "skull", "skull"], 25);
   assert.equal(jackpot.tier, "jackpot");
@@ -45,11 +52,18 @@ test("Slaughter Slots payout table rewards matches without making every spin a w
   assert.equal(jackpot.essence, 125);
   assert.equal(jackpot.pvpTickets, 5);
 
-  const koi = evaluateHauntedSlotResult(["koi", "koi", "koi"], 50);
-  assert.equal(koi.itemName, "Red Mood Koi");
-  assert.equal(koi.coins, 150);
+  const edible = evaluateHauntedSlotResult(["edible", "edible", "edible"], 50);
+  assert.equal(edible.tier, "triple");
+  assert.equal(edible.itemCategory, "edible");
 
-  const pair = evaluateHauntedSlotResult(["coin", "coin", "potion"], 100);
+  const fish = evaluateHauntedSlotResult(["fish", "fish", "fish"], 50);
+  assert.equal(fish.itemCategory, "fish");
+
+  const loot = evaluateHauntedSlotResult(["loot", "loot", "loot"], 50);
+  assert.equal(loot.itemCategory, "loot");
+  assert.equal(loot.coins, 100);
+
+  const pair = evaluateHauntedSlotResult(["coin", "coin", "edible"], 100);
   assert.equal(pair.tier, "pair");
   assert.equal(pair.coins, 125);
 
@@ -58,7 +72,7 @@ test("Slaughter Slots payout table rewards matches without making every spin a w
   assert.equal(secret.coins, 50);
   assert.equal(secret.essence, 50);
 
-  const miss = evaluateHauntedSlotResult(["coin", "potion", "koi"], 25);
+  const miss = evaluateHauntedSlotResult(["coin", "edible", "fish"], 25);
   assert.equal(miss.tier, "miss");
   assert.equal(miss.coins, 0);
   assert.equal(miss.essence, 0);
@@ -74,6 +88,7 @@ test("Casino background reconcile points the stable location at HauntedCasinoMai
 test("Casino runtime keeps player circles invisible while exposing admin drag and resize controls", () => {
   const runtime = fs.readFileSync("client/src/components/world/HauntedCasinoRuntime.tsx", "utf8");
   assert.match(runtime, /haunted-casino-hotspot-\$\{spot\.id\}/);
+  assert.match(runtime, /data-casino-admin=\{isAdmin \? "true" : "false"\}/);
   assert.match(runtime, /border: isAdmin \?/);
   assert.match(runtime, /background: isAdmin \?/);
   assert.match(runtime, /setPointerCapture/);
@@ -84,27 +99,71 @@ test("Casino runtime keeps player circles invisible while exposing admin drag an
   assert.match(runtime, /spot\.id === "slots"/);
 });
 
-test("Casino runtime mounts over the existing full-height horizontal scroller", () => {
-  const nav = fs.readFileSync("client/src/lib/navVisibility.ts", "utf8");
+test("Casino floor has an iOS-safe horizontal pan fallback that does not turn swipes into hotspot taps", () => {
+  const runtime = fs.readFileSync("client/src/components/world/HauntedCasinoRuntime.tsx", "utf8");
   const worldLocations = fs.readFileSync("client/src/components/world/WorldLocations.tsx", "utf8");
-  assert.match(nav, /enhanceHauntedCasinoRoot/);
   assert.match(worldLocations, /data-testid="haunted-casino-scroll-view"/);
   assert.match(worldLocations, /overflow-x-auto overflow-y-hidden/);
-  assert.match(worldLocations, /className="block h-full w-auto max-w-none mx-auto select-none"/);
+  assert.match(worldLocations, /WebkitOverflowScrolling: "touch"/);
+  assert.match(runtime, /function installCasinoPanFallback/);
+  assert.match(runtime, /scroller\.scrollLeft = startScrollLeft - dx/);
+  assert.match(runtime, /touchmove", onTouchMove, \{ passive: false \}/);
+  assert.match(runtime, /if \(event\.cancelable\) event\.preventDefault\(\)/);
+  assert.match(runtime, /suppressClickAfterPan/);
+  assert.match(runtime, /Date\.now\(\) - lastPanAt > 320/);
+  assert.match(runtime, /isAdminHotspotTarget/);
 });
 
-test("Slaughter Slots uses the supplied machine controls and server-authoritative spin endpoint", () => {
+test("Slaughter Slots uses the standalone essence token and translucent purple reel glass", () => {
   const client = fs.readFileSync("client/src/components/world/SlaughterSlotsOverlay.tsx", "utf8");
+  const currencyAssets = fs.readFileSync("client/src/lib/currencyAssets.ts", "utf8");
+  assert.match(client, /currencyAssets\.essenceToken/);
+  assert.match(currencyAssets, /essenceToken/);
+  assert.match(currencyAssets, /23958_PM_1783626016795\.png/);
+  assert.match(client, /rgba\(105,45,158,\.52\)/);
+  assert.match(client, /backdrop-blur-\[3px\]/);
+  assert.doesNotMatch(client, /bg-\[#e8dcc6\]/i);
+});
+
+test("Slaughter Slots puts hold/max in the long machine bar and bet controls in the small bar", () => {
+  const client = fs.readFileSync("client/src/components/world/SlaughterSlotsOverlay.tsx", "utf8");
+  for (const filename of ASSETS.slice(1)) assert.match(client, new RegExp(filename.replace(".", "\\.")));
+  assert.match(client, /top: "60\.2%"/);
+  assert.match(client, /Maximum coins to spend while holding/);
+  assert.match(client, /onPointerDown=\{beginHold\}/);
+  assert.match(client, /tap = 1 spin/);
+  assert.match(client, /gross-wager safety limit/);
+  assert.match(client, /holdSpentRef\.current \+= stake/);
+  assert.match(client, /top: "71\.7%"/);
+  assert.match(client, /aria-label="Decrease bet"/);
+  assert.match(client, /aria-label="Increase bet"/);
+  assert.match(client, /Max wager reached/);
+});
+
+test("Slaughter Slots wagers and payouts use the player's real global coin wallet", () => {
   const server = fs.readFileSync("server/hauntedCasino.ts", "utf8");
   const routes = fs.readFileSync("server/routes/hauntedCasino.routes.ts", "utf8");
-
-  for (const filename of ASSETS.slice(1)) assert.match(client, new RegExp(filename.replace(".", "\\.")));
-  assert.match(client, /top: "max\(24px, calc\(env\(safe-area-inset-top\) \+ 12px\)\)"/);
-  assert.match(client, /There is no auto-spin|there is no auto-spin/i);
-  assert.match(routes, /\/api\/haunted-casino\/slots\/spin/);
-  assert.match(server, /crypto\.randomInt/);
+  assert.match(server, /SELECT coins, essence FROM users WHERE id = \$\{userId\}/);
   assert.match(server, /FOR UPDATE/);
-  assert.match(server, /coins = coins - \$\{bet\} \+ \$\{reward\.coins\}/);
-  assert.match(server, /Red Mood Koi/);
-  assert.match(server, /PVP_TICKET_CAP = 100/);
+  assert.match(server, /UPDATE users[\s\S]*coins = coins - \$\{bet\} \+ \$\{reward\.coins\}/);
+  assert.match(server, /no casino-only balance/i);
+  assert.match(routes, /\/api\/haunted-casino\/slots\/spin/);
+  assert.match(routes, /spinHauntedSlots\(user\.id, req\.body\?\.bet\)/);
+  assert.doesNotMatch(routes, /req\.body\?\.(?:reward|reels|itemId|shopItemId)/);
+});
+
+test("Casino item prizes come from the live catalog, exclude pets and eggs, and sharply weight down rare items", () => {
+  const server = fs.readFileSync("server/hauntedCasino.ts", "utf8");
+  assert.match(server, /FROM shop_items/);
+  assert.match(server, /type <> 'pet'/);
+  assert.match(server, /pet_template_id IS NULL/);
+  assert.match(server, /egg_image_url IS NULL/);
+  assert.match(server, /hatch_time IS NULL/);
+  assert.match(server, /type = 'fishing' AND COALESCE\(fishing_type, ''\) <> 'fish'/);
+  assert.match(server, /item\.type === "edibles"/);
+  assert.match(server, /item\.fishing_type === "fish"/);
+  assert.match(server, /\[0, 100, 45, 18, 6, 2\]\[rarity\]/);
+  assert.match(server, /price >= 1000/);
+  assert.match(server, /pickPrizeItem/);
+  assert.match(server, /grantPrizeItem/);
 });
