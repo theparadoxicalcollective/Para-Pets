@@ -27,7 +27,7 @@ test("Level Up keeps an isolated animated pet with a loading fallback", () => {
   assert.match(level, /mode="idle"/);
   assert.match(level, /refetchOnWindowFocus: false/);
   assert.match(level, /data-testid="img-levelup-pet-fallback"/);
-  assert.doesNotMatch(level, /petInventoryId=\{/);
+  assert.match(level, /petInventoryId=\{petInventoryId\}/);
   assert.doesNotMatch(level, /performanceStatic/);
 });
 
