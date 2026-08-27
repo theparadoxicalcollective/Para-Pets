@@ -31,7 +31,7 @@ test("costume pointer movement only updates a local draft", () => {
 
 test("costume placement persists only from the explicit Save action", () => {
   assert.match(editor, /const saveCostumePlacement = \(\) => \{/);
-  assert.match(editor, /saveCostumeMutation\.mutate\(\{ itemId: selectedCostumeId, placement: \{ \.\.\.selectedCostumePlacement, rotation:/);
+  assert.match(editor, /saveCostumeMutation\.mutate\(\{ itemId: selectedCostumeId, placement: \{ \.\.\.selectedCostumePlacement, instance: selectedCostumeInstance, rotation:/);
   assert.match(editor, /queryClient\.setQueryData<CostumeDefinition\[]>/);
   assert.match(editor, /data-testid="costume-save-dock"/);
   assert.match(editor, /fixed left-4 right-4/);
@@ -47,8 +47,8 @@ test("costume editor provides proportional sizing and offset-preserving direct d
   assert.match(editor, /resizeCostumePlacement\(selectedCostumePlacement, nextSize\)/);
   assert.match(pointerStart, /getCostumeDragOffset\(/);
   assert.match(pointerStart, /setPointerCapture\(event\.pointerId\)/);
-  assert.match(editor, /onPointerCancel=\{\(event\) => endCostumeDrag\(event\.pointerId\)\}/);
-  assert.match(editor, /onLostPointerCapture=\{\(event\) => endCostumeDrag\(event\.pointerId\)\}/);
+  assert.match(editor, /onPointerCancel=\{isActive \? \(event\) => endCostumeDrag\(event\.pointerId\) : undefined\}/);
+  assert.match(editor, /onLostPointerCapture=\{isActive \? \(event\) => endCostumeDrag\(event\.pointerId\) : undefined\}/);
   assert.match(editor, /draggable=\{false\}/);
 });
 
@@ -76,8 +76,8 @@ test("costume controls cannot change the draft while a save is pending", () => {
 test("costume editor supports persisted rotation around the saved pivot", () => {
   assert.match(editor, /data-testid="input-costume-rotation"/);
   assert.match(editor, /const rotateCostume = \(degrees: number\)/);
-  assert.match(editor, /transform: `rotate\(\$\{selectedCostumePlacement\.rotation \?\? 0\}deg\) scaleX\(\$\{selectedCostumePlacement\.flipX \? -1 : 1\}\)`/);
-  assert.match(editor, /transformOrigin: `\$\{selectedCostumePlacement\.pivotX\}% \$\{selectedCostumePlacement\.pivotY\}%`/);
+  assert.match(editor, /transform: `rotate\(\$\{placement\.rotation \?\? 0\}deg\) scaleX\(\$\{placement\.flipX \? -1 : 1\}\)`/);
+  assert.match(editor, /transformOrigin: `\$\{placement\.pivotX\}% \$\{placement\.pivotY\}%`/);
   assert.match(costumeSchema, /rotation: z\.number\(\)\.min\(-180\)\.max\(180\)\.default\(0\)/);
 });
 
