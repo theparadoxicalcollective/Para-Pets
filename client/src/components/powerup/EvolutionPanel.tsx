@@ -25,12 +25,12 @@ export default function EvolutionPanel({ enabled, fallbackRarity }: EvolutionPan
       .pup-evolution-skin > .pupevo-orbit { inset:0 !important; }
       .pup-evolution-skin .pupevo-slot { width:clamp(52px,14vw,76px) !important; height:clamp(52px,14vw,76px) !important; pointer-events:auto !important; cursor:pointer; }
       /* Slot 1 starts at bottom-left, then progression travels clockwise. */
-      .pup-evolution-skin .pupevo-slot:nth-of-type(1){left:13% !important;top:50% !important}
-      .pup-evolution-skin .pupevo-slot:nth-of-type(2){left:18% !important;top:31% !important}
-      .pup-evolution-skin .pupevo-slot:nth-of-type(3){left:37% !important;top:17% !important}
-      .pup-evolution-skin .pupevo-slot:nth-of-type(4){left:63% !important;top:17% !important}
-      .pup-evolution-skin .pupevo-slot:nth-of-type(5){left:82% !important;top:31% !important}
-      .pup-evolution-skin .pupevo-slot:nth-of-type(6){left:87% !important;top:50% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(1){left:20% !important;top:50% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(2){left:12% !important;top:31% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(3){left:34% !important;top:16% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(4){left:66% !important;top:16% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(5){left:88% !important;top:31% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(6){left:80% !important;top:50% !important}
       .pup-evolution-skin .pupevo-slot:not(.locked)>img,
       .pup-evolution-skin .pupevo-fill img { content:var(--pup-evo-unlocked) !important; filter:drop-shadow(0 0 1px #baffd7) drop-shadow(0 0 3px rgba(75,238,157,.72)) !important; }
       .pup-evolution-skin .pupevo-slot.current>img { filter:drop-shadow(0 0 1px #d4ffe8) drop-shadow(0 0 5px rgba(83,255,176,.92)) !important; }
