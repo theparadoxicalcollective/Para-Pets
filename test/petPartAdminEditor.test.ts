@@ -36,6 +36,8 @@ test("admin Parts and Evolution editors expose direct drag, proportional size, a
   assert.match(editor, /data-testid="input-part-rotation"/);
   assert.match(editor, /rotation: clampPetPartRotation/);
   assert.match(editor, /Layer order unchanged · z/);
+  assert.match(editor, /data-testid="pet-part-center-guide-horizontal"/);
+  assert.match(editor, /data-testid="pet-part-center-guide-vertical"/);
   assert.match(editor, /const previewEffectiveZ = \(p: \{ zIndex: number \}\): number => p\.zIndex/);
 });
 
