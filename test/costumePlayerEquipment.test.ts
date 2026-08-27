@@ -6,6 +6,8 @@ const section = readFileSync("client/src/components/PetCostumeEquipmentSection.t
 const accessoryPage = readFileSync("client/src/components/PetEquipAccessoriesPage.tsx", "utf8");
 const routes = readFileSync("server/routes/costumePlayer.routes.ts", "utf8");
 const boot = readFileSync("server/startup/migrations/runEssentialBoot.ts", "utf8");
+const schema = readFileSync("shared/costumeSchema.ts", "utf8");
+const marketplace = readFileSync("server/marketplace/transactions.ts", "utf8");
 
 test("Costumes appear beneath accessories on the existing equipment page", () => {
   assert.match(accessoryPage, /import PetCostumeEquipmentSection/);
@@ -25,23 +27,46 @@ test("Player costume controls use the shared slot count and unlock prices", () =
   assert.match(section, /\/api\/pet\/\$\{petInventoryId\}\/costumes\/unequip/);
   assert.match(section, /\/api\/pet\/\$\{petInventoryId\}\/costumes\/unlock/);
   assert.match(section, /item\.type === "costume"/);
+  assert.match(section, /EquippedCostumePreview/);
+  assert.match(section, /getCostumeCanvasPosition/);
+  assert.match(accessoryPage, /depth="back"/);
+  assert.match(accessoryPage, /depth="front"/);
 });
 
 test("Costume APIs validate pet ownership, item ownership, slots, and fitted definitions", () => {
   assert.match(routes, /requireAuthenticated/);
   assert.match(routes, /pet\.userId !== userId/);
-  assert.match(routes, /costumeInventory\.userId !== user\.id/);
+  assert.match(routes, /eq\(userInventory\.userId, user\.id\)/);
   assert.match(routes, /costumeItem\.type !== "costume"/);
   assert.match(routes, /slot < 1 \|\| slot > COSTUME_SLOT_COUNT/);
   assert.match(routes, /This costume has not been fitted for this pet yet/);
   assert.match(routes, /getUnlockedCostumeSlotCount/);
   assert.match(routes, /\.for\("update"\)/);
+  assert.match(routes, /costumeInventory\.isListed/);
+  assert.match(routes, /copyIndex >= costumeInventory\.quantity/);
+  assert.match(routes, /petCostumeDefinitions\.placements/);
+  assert.match(routes, /petTemplateParts\.partType/);
+});
+
+test("Stacked costume copies are counted and unequipped individually", () => {
+  assert.match(schema, /copyIndex: integer\("copy_index"\)/);
+  assert.match(schema, /pet_equipped_costumes_inventory_copy_unique/);
+  assert.match(routes, /equipped-costume-counts/);
+  assert.match(section, /item\.quantity > \(equippedCounts\[item\.inventoryId\]/);
+  assert.match(routes, /eq\(petEquippedCostumes\.id, equippedCostumeId\)/);
+});
+
+test("Marketplace refuses to list or transfer an equipped costume", () => {
+  assert.match(marketplace, /Unequip this costume before listing it/);
+  assert.match(marketplace, /Listed costume is still equipped/);
 });
 
 test("Production boot creates both player costume persistence tables safely", () => {
   assert.match(boot, /CREATE TABLE IF NOT EXISTS pet_costume_slot_unlocks/);
   assert.match(boot, /extra_slots INTEGER NOT NULL DEFAULT 0 CHECK\(extra_slots BETWEEN 0 AND 2\)/);
   assert.match(boot, /CREATE TABLE IF NOT EXISTS pet_equipped_costumes/);
-  assert.match(boot, /costume_inventory_id VARCHAR NOT NULL UNIQUE/);
+  assert.match(boot, /copy_index INTEGER NOT NULL DEFAULT 0/);
+  assert.match(boot, /UNIQUE\(costume_inventory_id, copy_index\)/);
+  assert.match(boot, /DROP CONSTRAINT IF EXISTS pet_equipped_costumes_costume_inventory_id_key/);
   assert.match(boot, /UNIQUE\(pet_inventory_id, slot\)/);
 });
