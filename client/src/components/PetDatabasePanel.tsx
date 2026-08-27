@@ -266,7 +266,6 @@ type EditorTab = "parts" | "costume";
 
 function EditorTabs({ active, onChange }: { active: EditorTab; onChange: (tab: EditorTab) => void }) {
   return <>
-    <style>{`[data-testid="overlay-pet-parts"] { padding-top: max(20px, calc(env(safe-area-inset-top) + 14px)) !important; }`}</style>
     <nav aria-label="Pet editor" className="flex flex-wrap gap-2">
       {(["parts", "costume"] as const).map(tab => <button key={tab} data-testid={`tab-pet-editor-${tab}`} onClick={() => onChange(tab)} className="rounded-md px-3 py-2 font-fantasy text-[10px] tracking-wider" style={{ background: active === tab ? "rgba(240,192,64,.24)" : "rgba(0,0,0,.3)", border: "1px solid rgba(240,192,64,.3)", color: active === tab ? "#f0c040" : "#a89878" }}>{tab.toUpperCase()}</button>)}
     </nav>
