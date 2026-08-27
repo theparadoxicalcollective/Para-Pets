@@ -33,6 +33,25 @@ test("costume artwork inherits its configured pet-part motion instead of using a
   assert.match(animator, /transform: `rotate\(\$\{placement\.rotation \?\? 0\}deg\) scaleX\(\$\{placement\.flipX \? -1 : 1\}\)`/);
 });
 
+test("late-loading costume layers stay phase-locked to the pet animation clock", () => {
+  assert.match(animator, /function syncAnimationDelay/);
+  assert.match(animator, /const motionEpochRef = useRef/);
+  assert.match(animator, /motionEpochRef\.current = \{/);
+  assert.match(animator, /const motionElapsedSeconds = templateData && motionEpochRef\.current/);
+  assert.match(animator, /const partDelay = syncAnimationDelay\(basePartDelay, motionElapsedSeconds\)/);
+  assert.match(animator, /const wrapperDelay = syncAnimationDelay\(wrapper\.delay, motionElapsedSeconds\)/);
+  assert.match(animator, /motionElapsedSeconds=\{motionElapsedSeconds\}/);
+});
+
+test("head-mounted costumes use the same alpha-aware bob geometry and seam-safe lift as the pet", () => {
+  assert.match(animator, /function computeHeadBob/);
+  assert.match(animator, /const bodyAlpha = getAlphaBoundsSync\(bodyPart\.imageUrl\) \?\? FULL_BOUNDS/);
+  assert.match(animator, /const visibleBodyHeight = bodyPart\.height \* bodyAlpha\.height/);
+  assert.match(animator, /const originYFraction = bodyAlpha\.top \+ bodyAlpha\.height \* pivotY/);
+  assert.match(animator, /data-testid="pet-animation-seam-guard"/);
+  assert.match(animator, /max\(var\(--pet-head-bob, -0\.8%\), -0\.8%\)/);
+});
+
 test("animated costume renderer draws every fitted duplicate for the current view and depth", () => {
   assert.match(animator, /costume\.placements\.filter\(item => item\.view === costumeView && item\.depth === depth\)/);
   assert.match(animator, /placements\.map\(\(placement\) =>/);
