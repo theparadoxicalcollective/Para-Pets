@@ -25,13 +25,25 @@ test("costume artwork inherits its configured pet-part motion instead of using a
   assert.match(animator, /transform: `rotate\(\$\{placement\.rotation \?\? 0\}deg\)`/);
 });
 
-test("head-mounted costumes inherit both head-group motion and the anchored face-part motion", () => {
+test("head-mounted costumes inherit the same head-group wrapper motion as the pet", () => {
   assert.match(animator, /function headGroupType/);
+  assert.match(animator, /function getHeadWrapperMotion/);
+  assert.match(animator, /animation = resolvedView === "back" \? "petIdleHeadSide" : "petIdleHead"/);
+  assert.match(animator, /animation = "petIdleHeadSway"/);
+  assert.match(animator, /animation = "petIdleHeadSwayAlt"/);
   assert.match(animator, /data-testid={`costume-head-group-\$\{groupType\}`}/);
-  assert.match(animator, /wrapperAnim = resolvedView === "back" \? "petIdleHeadSide" : "petIdleHead"/);
-  assert.match(animator, /wrapperAnim = "petIdleHeadSway"/);
-  assert.match(animator, /wrapperAnim = "petIdleHeadSwayAlt"/);
   assert.match(animator, /"--pet-head-bob": headBob/);
+});
+
+test("above-head pet layers always render over costume pieces", () => {
+  assert.match(animator, /basePartType\(part\.partType\) === "above_head"/);
+  assert.match(animator, /function AboveHeadTopLayer/);
+  assert.match(animator, /data-testid="pet-animator-above-head-top"/);
+  assert.match(animator, /zIndex: 3/);
+  assert.match(animator, /renderCostumes && costumeLayer\("front"\)/);
+  assert.match(animator, /renderCostumes && hasAboveHead/);
+  assert.match(animator, /data-testid={`above-head-top-\$\{part\.partType\}`}/);
+  assert.match(animator, /name === "petAboveHeadBounce"\) name = "petAboveHeadBounceMarionette"/);
 });
 
 test("active-pet and equipment surfaces resolve the owned pet without dressing unrelated renderers", () => {
