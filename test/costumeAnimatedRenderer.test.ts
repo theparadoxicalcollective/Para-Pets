@@ -69,7 +69,7 @@ test("owned-pet surfaces pass inventory identity explicitly without dressing unr
   assert.match(feeding, /petInventoryId=\{pet\.inventoryId\}/);
   assert.match(house, /petInventoryId=\{pet\.inventoryId\}/);
   assert.match(walk, /petInventoryId=\{activePetInventoryId \?\? undefined\}/);
-  assert.match(world, /petInventoryId=\{pet\.userId === user\.id \? pet\.inventoryId : undefined\}/);
+  assert.match(world, /petInventoryId=\{isOwn \? pet\.inventoryId : undefined\}/);
   assert.match(level, /petInventoryId=\{petInventoryId\}/);
   assert.match(power, /petInventoryId=\{petInventoryId\}/);
   assert.match(globalLevel, /petInventoryId=\{petInventoryId \?\? undefined\}/);
