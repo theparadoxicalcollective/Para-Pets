@@ -1,0 +1,43 @@
+name: Apply costume typecheck fix
+
+on:
+  push:
+    branches:
+      - codex/fix-animated-costume-rendering
+    paths:
+      - .github/workflows/apply-costume-typecheck-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/fix-animated-costume-rendering
+          fetch-depth: 0
+      - name: Fix nullable costume image narrowing
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path("client/src/components/PetAnimator.tsx")
+          text = p.read_text()
+          old = '            src={costume.imageUrl}\n            alt=""\n            draggable={false}\n            data-testid={`costume-piece-${costume.id}-${placementInstance}`}\n'
+          new = '            src={costume.imageUrl ?? undefined}\n            alt=""\n            draggable={false}\n            data-testid={`costume-piece-${costume.id}-${placementInstance}`}\n'
+          if text.count(old) != 1:
+              raise SystemExit(f"Expected one animated costume image match, found {text.count(old)}")
+          p.write_text(text.replace(old, new, 1))
+          Path(".github/workflows/apply-costume-typecheck-fix.yml").unlink()
+          PY
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Fix costume image type narrowing"
+          git push origin HEAD:codex/fix-animated-costume-rendering
