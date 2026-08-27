@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { getWingReplacementPartTypes } from "../shared/costumeFeature";
 
 const animator = readFileSync("client/src/components/PetAnimator.tsx", "utf8");
 const animatorCore = readFileSync("client/src/components/PetAnimatorCore.tsx", "utf8");
@@ -37,6 +38,19 @@ test("animated costume renderer draws every fitted duplicate for the current vie
   assert.match(animator, /placements\.map\(\(placement\) =>/);
   assert.match(animator, /const placementInstance = placement\.instance \?\? 1/);
   assert.match(animator, /costume-piece-\$\{costume\.id\}-\$\{placementInstance\}/);
+});
+
+test("wing costumes hide the original wing and its mirrored pair only", () => {
+  assert.deepEqual(getWingReplacementPartTypes("left_wing"), ["left_wing", "right_wing"]);
+  assert.deepEqual(getWingReplacementPartTypes("wing_set2_right"), ["wing_set2_left", "wing_set2_right"]);
+  assert.deepEqual(getWingReplacementPartTypes("front_wing_2"), ["front_wing_2", "back_wing_2"]);
+  assert.deepEqual(getWingReplacementPartTypes("h2_head_wing_left"), ["h2_head_wing_left", "h2_head_wing_right"]);
+  assert.deepEqual(getWingReplacementPartTypes("body"), []);
+  assert.deepEqual(getWingReplacementPartTypes("left_ear"), []);
+  assert.match(animator, /hiddenWingPartTypes = useMemo/);
+  assert.match(animator, /getWingReplacementPartTypes\(placement\.anchorPart\)/);
+  assert.match(animator, /hiddenPartTypes=\{hiddenWingPartTypes\}/);
+  assert.match(animatorCore, /filter\(part => !hiddenPartTypes\?\.has\(part\.partType\)\)/);
 });
 
 test("head-mounted costumes inherit the same head-group wrapper motion as the pet", () => {
