@@ -56,7 +56,8 @@ test("head-mounted costumes use the same alpha-aware bob geometry and seam-safe 
 });
 
 test("animated costume renderer draws every fitted duplicate for the current view and depth", () => {
-  assert.match(animator, /costume\.placements\.filter\(item => item\.view === costumeView && item\.depth === depth\)/);
+  assert.match(animator, /Array\.isArray\(costume\.placements\)/);
+  assert.match(animator, /\.filter\(item => item && item\.view === costumeView && item\.depth === depth\)/);
   assert.match(animator, /placements\.map\(\(placement\) =>/);
   assert.match(animator, /const placementInstance = placement\.instance \?\? 1/);
   assert.match(animator, /costume-piece-\$\{costume\.id\}-\$\{placementInstance\}/);

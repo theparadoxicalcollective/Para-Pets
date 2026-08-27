@@ -50,6 +50,7 @@ const PetInventoryPage   = lazy(() => import("@/pages/PetInventoryPage"));
 const BagInventoryPage   = lazy(() => import("@/pages/BagInventoryPage"));
 const EquipAccessoriesPage = lazy(() => import("@/pages/EquipAccessoriesPage"));
 const PetCarePage          = lazy(() => import("@/pages/PetCarePage"));
+const PetLevelUpRoute       = lazy(() => import("@/pages/PetLevelUpRoute"));
 const MoltenBlocksPage     = lazy(() => import("@/pages/MoltenBlocksPage"));
 const LavaCrawlPage        = lazy(() => import("@/pages/LavaCrawlPage"));
 const FriendsPage          = lazy(() => import("@/pages/FriendsPage"));
@@ -219,6 +220,7 @@ function shouldHideNav(path: string) {
   if (path.startsWith("/reset-password/")) return true;
   if (path.startsWith("/visit/")) return true;
   if (path.startsWith("/pet-care/")) return true;
+  if (path.startsWith("/pet-level-up/")) return true;
   return false;
 }
 
@@ -459,7 +461,8 @@ function AppRouter() {
     location === "/forum" ||
     location === "/founders" ||
     location === "/admin" ||
-    location.startsWith("/visit/");
+    location.startsWith("/visit/") ||
+    location.startsWith("/pet-level-up/");
 
   if (isFullScreenPath || !user) {
     return (
@@ -478,6 +481,9 @@ function AppRouter() {
           </Route>
           <Route path="/visit/:userId">
             {user ? <VisitPetHousePage /> : <Redirect to="/auth" />}
+          </Route>
+          <Route path="/pet-level-up/:inventoryId">
+            {user ? <PetLevelUpRoute /> : <Redirect to="/auth" />}
           </Route>
           <Route><Redirect to={user ? "/" : "/auth"} /></Route>
         </Switch>

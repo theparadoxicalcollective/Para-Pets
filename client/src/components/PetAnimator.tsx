@@ -37,7 +37,7 @@ interface EquippedCostume {
   costumeInventoryId: string;
   name: string;
   imageUrl: string | null;
-  placements: CostumePlacement[];
+  placements?: CostumePlacement[] | null;
 }
 
 interface CostumeResponse {
@@ -356,7 +356,8 @@ function CostumeLayer({
 
   const renderCostume = (costume: EquippedCostume) => {
     const costumeView = resolvedView === "back" ? "side" : "front";
-    const placements = costume.placements.filter(item => item.view === costumeView && item.depth === depth);
+    const placements = (Array.isArray(costume.placements) ? costume.placements : [])
+      .filter(item => item && item.view === costumeView && item.depth === depth);
     if (!costume.imageUrl || placements.length === 0) return null;
 
     return <>{placements.map((placement) => {
@@ -577,7 +578,7 @@ export default function PetAnimator({
     ? Math.max(0, (now - motionEpochRef.current.startedAt) / 1000)
     : 0;
 
-  const allParts = templateData?.parts ?? [];
+  const allParts = Array.isArray(templateData?.parts) ? templateData.parts : [];
   const facing = templateData?.facing ?? "front";
   const frontCount = allParts.filter(part => part.view === "front").length;
   const backCount = allParts.filter(part => part.view === "back").length;
@@ -594,13 +595,16 @@ export default function PetAnimator({
   const effectiveSize = fillFull ? measuredSize : size;
   const innerSize = fillFull ? effectiveSize / partScale : size;
   const innerOffset = fillFull ? -((innerSize - effectiveSize) / 2) : 0;
-  const equipped = costumeData?.equipped ?? [];
+  const equipped = Array.isArray(costumeData?.equipped)
+    ? costumeData.equipped.filter((costume) => costume && typeof costume === "object")
+    : [];
   const hiddenWingPartTypes = useMemo(() => {
     const hidden = new Set<string>();
     const costumeView = resolvedView === "back" ? "side" : "front";
     for (const costume of equipped) {
-      for (const placement of costume.placements) {
-        if (placement.view !== costumeView) continue;
+      const placements = Array.isArray(costume.placements) ? costume.placements : [];
+      for (const placement of placements) {
+        if (!placement || placement.view !== costumeView) continue;
         for (const partType of getWingReplacementPartTypes(placement.anchorPart)) hidden.add(partType);
       }
     }
