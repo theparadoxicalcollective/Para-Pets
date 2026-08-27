@@ -574,12 +574,10 @@ const ANIMATION_STYLES = `
     from { transform: rotate(2deg); }
     to   { transform: rotate(-2deg); }
   }
-  /* Body breathing — alternates between rest and inhale peak.
-     Halved from scale(1.024, 1.046) to scale(1.012, 1.022) so the
-     breath reads as a gentle rise rather than an obvious swell.
-     The head-bob formula factor is updated to match (2.2 = 100×
-     the new Y-scale delta of 0.022) so the head still leads the
-     body top by a consistent ~0 % (no overshoot guarantee holds). */
+  /* Body breathing — alternates between rest and inhale peak. Every
+     body-attached idle layer reads the same shared profile values so seams
+     remain closed, and the head-bob helper derives its rise from this exact
+     scale instead of a stale hard-coded percentage. */
   @keyframes petIdleBody {
     from { transform: scale(1, 1); }
     to   { transform: scale(${DEFAULT_PET_ANIMATION.body.scaleX}, ${DEFAULT_PET_ANIMATION.body.scaleY}); }
