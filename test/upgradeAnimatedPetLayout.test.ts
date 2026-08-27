@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const modal = readFileSync("client/src/components/PetPowerUpModal.tsx", "utf8");
+const home = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 const power = readFileSync("client/src/components/PetPowerUpPage.tsx", "utf8");
 const level = readFileSync("client/src/components/PetLevelUpPage.tsx", "utf8");
 
@@ -12,20 +12,23 @@ test("Power Up animated pet stays inside its existing pet zone", () => {
   assert.doesNotMatch(power, /<PetAnimator[^>]*size=\{700\}/);
 });
 
-test("Level Up keeps the flattened pet image and a static optimized fallback", () => {
-  assert.match(level, /const StableLevelUpPet = memo/);
-  assert.match(level, /if \(petImage\)/);
-  assert.match(level, /data-testid="img-levelup-pet-static"/);
-  assert.match(level, /mode="static"/);
-  assert.match(level, /performanceStatic/);
-  assert.doesNotMatch(level, /mode="idle"/);
-  assert.doesNotMatch(level, /petInventoryId=\{/);
+test("Level Up is mounted directly as its own page", () => {
+  assert.match(home, /import PetLevelUpPage from "@\/components\/PetLevelUpPage"/);
+  assert.match(home, /import PetPowerUpPage from "@\/components\/PetPowerUpPage"/);
+  assert.match(home, /activePetModal === "level_up"[\s\S]*<PetLevelUpPage/);
+  assert.match(home, /activePetModal === "power_up"[\s\S]*<PetPowerUpPage/);
+  assert.doesNotMatch(home, /PetPowerUpModal/);
 });
 
-test("upgrade adapter only suppresses the still image for Power Up", () => {
-  assert.match(modal, /if \(isLevelUp\) return <PetLevelUpPage \{\.\.\.props\} \/>/);
-  assert.match(modal, /powerUpProps = props\.petTemplateId \? \{ \.\.\.props, petImage: null \} : props/);
-  assert.match(modal, /<PetPowerUpPage \{\.\.\.powerUpProps\} \/>/);
+test("Level Up keeps an isolated animated pet with a loading fallback", () => {
+  assert.match(level, /const StableLevelUpPet = memo/);
+  assert.match(level, /queryKey: \["\/api\/pet-template-parts", petTemplateId\]/);
+  assert.match(level, /templateData\?\.parts\?\.length/);
+  assert.match(level, /mode="idle"/);
+  assert.match(level, /refetchOnWindowFocus: false/);
+  assert.match(level, /data-testid="img-levelup-pet-fallback"/);
+  assert.doesNotMatch(level, /petInventoryId=\{/);
+  assert.doesNotMatch(level, /performanceStatic/);
 });
 
 test("Level Up clears transient animation timers when it closes", () => {
