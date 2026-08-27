@@ -29,7 +29,6 @@ import PlayerAvatarButton from "@/components/PlayerAvatarButton";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import PetAnimator from "@/components/PetAnimator";
 import PetPowerUpPage from "@/components/PetPowerUpPage";
-import PetLevelUpPage from "@/components/PetLevelUpPage";
 import type { PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
 import PowerUpOverlay from "@/components/PowerUpOverlay";
 import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
@@ -146,7 +145,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     const ids = new Set(newOnes.map((n) => n.id));
     setTimeout(() => setRingSparkles((s) => s.filter((x) => !ids.has(x.id))), 1200);
   }, []);
-  const [activePetModal, setActivePetModal] = useState<"power_up" | "level_up" | null>(null);
+  const [activePetModal, setActivePetModal] = useState<"power_up" | null>(null);
   const [powerUpFromQuest, setPowerUpFromQuest] = useState(false);
   const [questGuideMode, setQuestGuideMode] = useState<"powerup" | "feed" | null>(null);
   const [petModalSuccess, setPetModalSuccess] = useState<{ type: "stat" | "level" | "hatch"; label: string } | null>(null);
@@ -1711,7 +1710,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                     "button-action-level-up",
                     { left: "78%", top: "36%", width: "22%", height: "22%" },
                     "#fcd34d",
-                    () => { setShowActionMenu(false); setActivePetModal("level_up"); },
+                    () => {
+                      setShowActionMenu(false);
+                      const id = activePetForModal?.inventoryId;
+                      if (id) navigate(`/pet-level-up/${encodeURIComponent(id)}`);
+                    },
                   )}
                   {makeBtn(
                     "Equip Accessories",
@@ -1916,29 +1919,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           onUseItem={handleModalUseItem}
           onSuccessAnimEnd={() => setPetModalSuccess(null)}
           onClose={() => { setActivePetModal(null); setPowerUpFromQuest(false); }}
-        />
-      )}
-
-      {/* ── Level Up modal ── */}
-      {activePetModal === "level_up" && activePetForModal && (
-        <PetLevelUpPage
-          petName={activePetForModal.petNickname || activePetForModal.name}
-          petInventoryId={activePetForModal.inventoryId}
-          petImage={activePetForModal.hatchedImageUrl || activePetForModal.imageUrl}
-          petTemplateId={activePetForModal.petTemplateId}
-          rarity={activePetForModal.rarity || 1}
-          petLevel={activePetForModal.petLevel}
-          petAtk={activePetForModal.petAtk ?? 50}
-          petDef={activePetForModal.petDef ?? 50}
-          petHealth={activePetForModal.petHealth ?? 1000}
-          itemsRemaining={Infinity}
-          items={levelItems}
-          isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
-          subtitle={`Drag an XP item onto ${activePetForModal.petNickname || activePetForModal.name} to gain levels`}
-          successEffect={petModalSuccess}
-          onUseItem={handleModalUseItem}
-          onSuccessAnimEnd={() => setPetModalSuccess(null)}
-          onClose={() => setActivePetModal(null)}
         />
       )}
 
