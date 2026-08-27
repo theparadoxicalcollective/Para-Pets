@@ -47,7 +47,7 @@ test("costume editor provides proportional sizing and offset-preserving direct d
   assert.match(editor, /resizeCostumePlacement\(selectedCostumePlacement, nextSize\)/);
   assert.match(pointerStart, /getCostumeDragOffset\(/);
   assert.match(pointerStart, /setPointerCapture\(event\.pointerId\)/);
-  assert.match(editor, /onPointerCancel=\{isActive \? \(event\) => endCostumeDrag\(event\.pointerId\) : undefined\}/);
+  assert.match(editor, /onPointerCancel=\{\(event\) => endCostumeDrag\(event\.pointerId\)\}/);
   assert.match(editor, /onLostPointerCapture=\{isActive \? \(event\) => endCostumeDrag\(event\.pointerId\) : undefined\}/);
   assert.match(editor, /draggable=\{false\}/);
 });
@@ -90,7 +90,7 @@ test("costume editor supports a persisted horizontal flip", () => {
 });
 
 test("admin pet editing respects mobile safe areas and authored part stacking", () => {
-  assert.match(editor, /safe-area-inset-top/);
+  assert.match(adminPage, /paddingTop: "max\(20px, calc\(env\(safe-area-inset-top\) \+ 14px\)\)"/);
   assert.match(editor, /const previewEffectiveZ = \(p: \{ zIndex: number \}\): number => p\.zIndex/);
   assert.match(editor, /basePetPartType\(part\.partType\) === "above_head" \? 20000/);
 });
