@@ -1,11 +1,11 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import PetAnimatorCore from "@/components/PetAnimatorCore";
 import { apiRequest } from "@/lib/queryClient";
 import { getCostumeCanvasPosition } from "@/lib/costumePlacement";
 import { getEffectivePetLayer } from "@/lib/petPartConfig";
-import { FULL_BOUNDS, getAlphaBoundsSync } from "@/lib/alphaBounds";
-import { alphaAdjustedPivot } from "@/lib/petAnimationConfig";
+import { FULL_BOUNDS, getAlphaBounds, getAlphaBoundsSync } from "@/lib/alphaBounds";
+import { alphaAdjustedPivot, getHeadBobCssPercent } from "@/lib/petAnimationConfig";
 import { getWingReplacementPartTypes, type CostumePlacement } from "@shared/costumeFeature";
 
 interface PetPart {
@@ -528,8 +528,24 @@ export default function PetAnimator({
   const bodyPart = viewParts.find(part => part.partType === "body");
   const bodyDelay = bodyPart ? stableDelay(bodyPart.id) : "0s";
   const canFly = !!templateData?.canFly;
-  const bodyTopRisePct = bodyPart ? (bodyPart.height / CANVAS_SIZE) * 2.2 * (canFly ? Math.max(0.25, (bodyPart.pivotY ?? 50) / 100) : 1) : 0.8;
-  const headBob = `-${Math.min(1.2, Math.max(canFly ? 0.25 : 0.5, bodyTopRisePct)).toFixed(2)}%`;
+  const viewPartImageKey = viewParts.map(part => part.imageUrl).join("|");
+  const [, bumpAlphaVersion] = useState(0);
+  useEffect(() => {
+    let active = true;
+    Promise.all(viewParts.map(part => getAlphaBounds(part.imageUrl))).then(() => {
+      if (active) bumpAlphaVersion(version => version + 1);
+    });
+    return () => { active = false; };
+  }, [viewPartImageKey]);
+  const bodyAlpha = bodyPart ? (getAlphaBoundsSync(bodyPart.imageUrl) ?? FULL_BOUNDS) : FULL_BOUNDS;
+  const headBob = getHeadBobCssPercent({
+    bodyHeight: bodyPart?.height,
+    alphaTop: bodyAlpha.top,
+    alphaHeight: bodyAlpha.height,
+    pivotY: bodyPart?.pivotY ?? 50,
+    canFly,
+    canvasSize: CANVAS_SIZE,
+  });
 
   const isLargeStyle = viewParts.some(part => part.width >= 500 || part.height >= 500);
   const partScale = isLargeStyle ? 0.3 : 1;
