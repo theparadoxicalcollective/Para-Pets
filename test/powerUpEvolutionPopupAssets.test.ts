@@ -37,6 +37,17 @@ test("Evolution pet cards scroll independently and show gold stars and points", 
   assert.match(popupSource, /pet\.evolutionPoints\.toLocaleString\(\).*pts/);
   assert.match(popupSource, /aria-pressed=\{checked\}/);
   assert.match(popupSource, /pupevo-feeder\.selected \.pupevo-selecting\{[^}]*drop-shadow/);
+  assert.match(popupSource, /pupevo-feeder\+\.pupevo-feeder\{margin-top:-6%\}/);
+  assert.match(popupSource, /pupevo-feeder\.selected::after\{[^}]*background:linear-gradient\(135deg,#087743,#25d87d\)/);
+});
+
+test("Evolution popup exposes progress and keeps its warning and confirmation aligned", () => {
+  assert.match(popupSource, /className="pupevo-picker-progress" role="progressbar"/);
+  assert.match(popupSource, /style=\{\{ width: `\$\{currentPercent\}%` \}\}/);
+  assert.match(popupSource, />Pets used for evolution are permanently consumed\.<\/p>/);
+  assert.match(popupSource, /pupevo-warning\{position:static/);
+  assert.match(popupSource, /pupevo-feed\{left:8%;right:18%;bottom:9\.5%/);
+  assert.match(popupSource, /selectedPets\.length === 1 \? "Confirm Pet"/);
 });
 
 test("Evolution popup close control cannot move the locked Power Up background", () => {
