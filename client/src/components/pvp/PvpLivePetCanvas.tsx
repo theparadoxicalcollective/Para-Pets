@@ -1,8 +1,14 @@
 import { memo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import PetAnimatorCanvas from "@/components/PetAnimatorCanvas";
+
+interface TemplateData {
+  parts: Array<{ id: string; imageUrl: string }>;
+}
 
 interface PvpLivePetCanvasProps {
   petTemplateId: string;
+  fallbackImageUrl: string | null;
   size: number;
   isPlayer: boolean;
   isHit: boolean;
@@ -25,12 +31,33 @@ interface PvpLivePetCanvasProps {
  */
 function PvpLivePetCanvasInner({
   petTemplateId,
+  fallbackImageUrl,
   size,
   isPlayer,
   isHit,
   isSkillReady,
   crowded = false,
 }: PvpLivePetCanvasProps) {
+  const { data: templateData, isError } = useQuery<TemplateData>({
+    queryKey: ["/api/pet-template-parts", petTemplateId],
+    queryFn: async () => {
+      const response = await fetch(`/api/pet-template-parts/${petTemplateId}`, { credentials: "include" });
+      if (!response.ok) throw new Error("Failed to load PvP pet template");
+      return response.json();
+    },
+    staleTime: Infinity,
+  });
+
+  const hasLiveParts = !!templateData?.parts?.length && !isError;
+  const animation = isHit
+    ? "pSquish 0.32s ease-out"
+    : isSkillReady
+      ? "skillGlowImg 1.2s ease-in-out infinite"
+      : undefined;
+  const filter = isPlayer
+    ? "drop-shadow(0 0 10px rgba(74,222,128,0.5))"
+    : "drop-shadow(0 0 10px rgba(239,68,68,0.45))";
+
   return (
     <div
       className="pointer-events-none"
@@ -38,26 +65,29 @@ function PvpLivePetCanvasInner({
         width: size,
         height: size,
         position: "relative",
-        animation: isHit
-          ? "pSquish 0.32s ease-out"
-          : isSkillReady
-            ? "skillGlowImg 1.2s ease-in-out infinite"
-            : undefined,
+        animation,
         transformOrigin: "50% 100%",
-        filter: isPlayer
-          ? "drop-shadow(0 0 10px rgba(74,222,128,0.5))"
-          : "drop-shadow(0 0 10px rgba(239,68,68,0.45))",
+        filter,
         WebkitUserSelect: "none",
         userSelect: "none",
         WebkitTouchCallout: "none",
       }}
     >
-      <PetAnimatorCanvas
-        petTemplateId={petTemplateId}
-        size={size}
-        fitVisible
-        fps={crowded ? 24 : 30}
-      />
+      {hasLiveParts ? (
+        <PetAnimatorCanvas
+          petTemplateId={petTemplateId}
+          size={size}
+          fitVisible
+          fps={crowded ? 24 : 30}
+        />
+      ) : fallbackImageUrl ? (
+        <img
+          src={fallbackImageUrl}
+          alt=""
+          draggable={false}
+          style={{ width: size, height: size, objectFit: "contain" }}
+        />
+      ) : null}
     </div>
   );
 }
