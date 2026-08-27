@@ -8,6 +8,7 @@ import {
   users,
   type PlayerMarketListing,
 } from "@shared/schema";
+import { petEquippedCostumes } from "@shared/costumeSchema";
 
 type MarketTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -57,6 +58,11 @@ export async function createInventoryListing(input: { actorId: string; inventory
     if (!inventory || inventory.userId !== input.actorId) throw new MarketplaceError("item_not_owned", "Item not found in your inventory");
     if (inventory.isListed) throw new MarketplaceError("conflict", "Item is already listed");
     if (inventory.quantity < 1) throw new MarketplaceError("invalid_quantity", "Invalid inventory quantity");
+    const [equippedCostume] = await tx.select({ id: petEquippedCostumes.id })
+      .from(petEquippedCostumes)
+      .where(eq(petEquippedCostumes.costumeInventoryId, inventory.id))
+      .limit(1);
+    if (equippedCostume) throw new MarketplaceError("conflict", "Unequip this costume before listing it");
     const [item] = await tx.select().from(shopItems).where(eq(shopItems.id, inventory.shopItemId));
     if (!item) throw new MarketplaceError("unsupported_item", "Item data not found");
     if (item.type === "pet" && inventory.isHatched) {
@@ -116,6 +122,11 @@ export async function buyListing(input: { actorId: string; listingId: string }):
     if (debit.length !== 1) throw new MarketplaceError("insufficient_funds", "Not enough coins");
     const [escrow] = await tx.select().from(userInventory).where(eq(userInventory.id, listing.inventoryId)).for("update");
     if (!escrow || escrow.userId !== listing.sellerId || !escrow.isListed) throw new MarketplaceError("conflict", "Listed item is no longer in escrow");
+    const [equippedCostume] = await tx.select({ id: petEquippedCostumes.id })
+      .from(petEquippedCostumes)
+      .where(eq(petEquippedCostumes.costumeInventoryId, escrow.id))
+      .limit(1);
+    if (equippedCostume) throw new MarketplaceError("conflict", "Listed costume is still equipped");
     if (listing.itemType === "fish") {
       await tx.insert(playerFishInventory).values({ userId: input.actorId, shopItemId: escrow.shopItemId });
       const removed = await tx.delete(userInventory).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true))).returning();
@@ -172,3 +183,4 @@ export async function collectProceeds(input: { actorId: string; listingId: strin
     return { coinsEarned: listing.price, newBalance: credited.coins };
   });
 }
+

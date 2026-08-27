@@ -16,17 +16,19 @@ export const petCostumeSlotUnlocks = pgTable("pet_costume_slot_unlocks", {
 
 /**
  * A physical costume inventory item equipped to one pet and one slot.
- * The inventory item is unique so a single owned costume cannot be equipped
- * to multiple pets at the same time.
+ * Each physical copy in a possibly stacked inventory row can be equipped once.
+ * copyIndex reserves a specific copy without splitting inventory stacks.
  */
 export const petEquippedCostumes = pgTable("pet_equipped_costumes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   petInventoryId: varchar("pet_inventory_id").notNull(),
-  costumeInventoryId: varchar("costume_inventory_id").notNull().unique(),
+  costumeInventoryId: varchar("costume_inventory_id").notNull(),
+  copyIndex: integer("copy_index").notNull().default(0),
   slot: integer("slot").notNull(),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 }, (table) => [
   unique("pet_equipped_costumes_pet_slot_unique").on(table.petInventoryId, table.slot),
+  unique("pet_equipped_costumes_inventory_copy_unique").on(table.costumeInventoryId, table.copyIndex),
 ]);
 
 /**
@@ -68,3 +70,4 @@ export const insertPetCostumeDefinitionSchema = createInsertSchema(petCostumeDef
 export type PetCostumeSlotUnlock = typeof petCostumeSlotUnlocks.$inferSelect;
 export type PetEquippedCostume = typeof petEquippedCostumes.$inferSelect;
 export type PetCostumeDefinition = typeof petCostumeDefinitions.$inferSelect;
+

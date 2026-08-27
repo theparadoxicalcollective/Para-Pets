@@ -29,7 +29,7 @@ test("Power Up locks the viewport and keeps the compact controls readable", () =
   assert.match(powerUpSource, /pupage-nameplate\{position:absolute;left:50%;bottom:-1px;width:min\(68%,370px\)/);
   assert.match(powerUpSource, /pupage-nameplate-art\{[^}]*transform:translateX\(8%\)/);
   assert.match(powerUpSource, /pupage-name\{position:absolute;left:21%;right:25%[^}]*color:#c6ffe1/);
-  assert.match(powerUpSource, /pupage-level\{position:absolute;right:-4\.5%;top:53%/);
+  assert.match(powerUpSource, /pupage-level\{position:absolute;right:-1\.5%;top:53%/);
   assert.doesNotMatch(powerUpSource, /pupage-item:not\(\.disabled\)::before/);
   assert.match(powerUpSource, /pupage-item:not\(\.disabled\) img\{filter:drop-shadow/);
   assert.match(powerUpSource, /pupage-item-caption\{[^}]*text-overflow:clip[^}]*color:#70efa8[^}]*border-radius:999px/);
@@ -62,6 +62,12 @@ test("Power Up opens pet stats in a modal instead of rendering them in the main 
   assert.match(powerUpSource, /aria-haspopup="dialog"/);
   assert.match(powerUpSource, /aria-label="Close pet stats"/);
   assert.match(powerUpSource, /pupage-stat-value/);
+  assert.match(powerUpSource, /className="pupage-stat-label"[^>]*>\{stat\.label\}<\/span>/);
+  assert.match(powerUpSource, /pupage-stat-row\.atk\{top:22%\}/);
+  assert.match(powerUpSource, /pupage-stat-row\.def\{top:40%\}/);
+  assert.match(powerUpSource, /pupage-stat-row\.hp\{top:59%\}/);
+  assert.match(powerUpSource, /grid-template-columns:minmax\(0,1fr\) 45px 38px/);
+  assert.match(powerUpSource, /@media\(max-width:430px\)[^\n]*right:9%;grid-template-columns:minmax\(0,1fr\) 38px 34px;gap:2px/);
   assert.match(powerUpSource, /if \(event\.key === "Escape"\) closeStats\(\)/);
   assert.match(powerUpSource, /scrollTop = 0/);
   assert.match(powerUpSource, /focus\(\{ preventScroll: true \}\)/);
