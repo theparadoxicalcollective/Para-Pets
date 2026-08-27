@@ -11,6 +11,7 @@ interface LevelUpEvent {
   newLevel: number;
   petName?: string;
   petTemplateId?: string | null;
+  petInventoryId?: string | null;
 }
 
 export default function GlobalLevelUpOverlay() {
@@ -18,10 +19,10 @@ export default function GlobalLevelUpOverlay() {
   const counterRef = useRef(0);
 
   useEffect(() => {
-    return onLevelUp(({ newLevel, petName, petTemplateId }) => {
+    return onLevelUp(({ newLevel, petName, petTemplateId, petInventoryId }) => {
       playLevelUp();
       const id = ++counterRef.current;
-      setEvents(prev => [...prev, { id, newLevel, petName, petTemplateId }]);
+      setEvents(prev => [...prev, { id, newLevel, petName, petTemplateId, petInventoryId }]);
       setTimeout(() => {
         setEvents(prev => prev.filter(e => e.id !== id));
       }, DURATION_MS);
@@ -37,13 +38,13 @@ export default function GlobalLevelUpOverlay() {
   return (
     <>
       {events.map(evt => (
-        <LevelUpBurst key={evt.id} newLevel={evt.newLevel} petName={evt.petName} petTemplateId={evt.petTemplateId} />
+        <LevelUpBurst key={evt.id} newLevel={evt.newLevel} petName={evt.petName} petTemplateId={evt.petTemplateId} petInventoryId={evt.petInventoryId} />
       ))}
     </>
   );
 }
 
-function LevelUpBurst({ newLevel, petName, petTemplateId }: { newLevel: number; petName?: string; petTemplateId?: string | null }) {
+function LevelUpBurst({ newLevel, petName, petTemplateId, petInventoryId }: { newLevel: number; petName?: string; petTemplateId?: string | null; petInventoryId?: string | null }) {
   const rings = [0, 0.12, 0.26];
   const rays = Array.from({ length: 12 }, (_, i) => i);
   const stars = Array.from({ length: 10 }, (_, i) => {
@@ -114,6 +115,7 @@ function LevelUpBurst({ newLevel, petName, petTemplateId }: { newLevel: number; 
             <div style={{ width: 200, height: 200, filter: "drop-shadow(0 0 24px rgba(240,192,64,0.9))", animation: "glvlGlow 0.8s 0.3s ease-in-out infinite" }}>
               <PetAnimator
                 petTemplateId={petTemplateId}
+                petInventoryId={petInventoryId ?? undefined}
                 mode="idle"
                 view="front"
                 size={200}

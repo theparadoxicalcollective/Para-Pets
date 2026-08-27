@@ -6,7 +6,7 @@ import { getCostumeCanvasPosition } from "@/lib/costumePlacement";
 import { getEffectivePetLayer } from "@/lib/petPartConfig";
 import { FULL_BOUNDS, getAlphaBoundsSync } from "@/lib/alphaBounds";
 import { alphaAdjustedPivot } from "@/lib/petAnimationConfig";
-import type { CostumePlacement } from "@shared/costumeFeature";
+import { getWingReplacementPartTypes, type CostumePlacement } from "@shared/costumeFeature";
 
 interface PetPart {
   id: string;
@@ -45,10 +45,6 @@ interface CostumeResponse {
   extraSlots: number;
 }
 
-interface AuthUser {
-  activePetId: string | null;
-}
-
 export interface PetAnimatorProps {
   petTemplateId: string;
   mode: "idle" | "walk" | "zoom" | "house" | "static" | "sleep" | "petting";
@@ -60,7 +56,7 @@ export interface PetAnimatorProps {
   className?: string;
   style?: React.CSSProperties;
   performanceStatic?: boolean;
-  /** Optional explicit owner-pet id. Existing callers can omit it; the active-pet and equipment surfaces resolve it automatically. */
+  /** Explicit owned-pet inventory id. Required whenever equipped costumes should render. */
   petInventoryId?: string;
 }
 
@@ -485,21 +481,7 @@ export default function PetAnimator({
   petInventoryId,
 }: PetAnimatorProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const [ownedPetSurface, setOwnedPetSurface] = useState(!!petInventoryId);
   const [measuredSize, setMeasuredSize] = useState(size);
-
-  useLayoutEffect(() => {
-    const wrapper = wrapperRef.current;
-    if (!wrapper) return;
-    const parent = wrapper.parentElement;
-    const equipmentPreviews = parent ? Array.from(parent.querySelectorAll<HTMLElement>(":scope > [data-testid^='costume-preview-']")) : [];
-    const activePetSurface = !!wrapper.closest("[data-testid='display-active-pet']");
-    setOwnedPetSurface(!!petInventoryId || equipmentPreviews.length > 0 || activePetSurface);
-
-    const previousDisplays = equipmentPreviews.map(node => node.style.display);
-    equipmentPreviews.forEach(node => { node.style.display = "none"; });
-    return () => equipmentPreviews.forEach((node, index) => { node.style.display = previousDisplays[index] ?? ""; });
-  }, [petInventoryId, petTemplateId]);
 
   useLayoutEffect(() => {
     if (!(fillContainer || fitVisible)) return;
@@ -517,11 +499,7 @@ export default function PetAnimator({
     return () => observer.disconnect();
   }, [fillContainer, fitVisible]);
 
-  const { data: authUser } = useQuery<AuthUser>({
-    queryKey: ["/api/auth/me"],
-    enabled: ownedPetSurface && !petInventoryId,
-  });
-  const resolvedPetInventoryId = petInventoryId ?? (ownedPetSurface ? authUser?.activePetId ?? null : null);
+  const resolvedPetInventoryId = petInventoryId ?? null;
 
   const { data: templateData } = useQuery<TemplateData>({
     queryKey: ["/api/pet-template-parts", petTemplateId],
@@ -560,6 +538,17 @@ export default function PetAnimator({
   const innerSize = fillFull ? effectiveSize / partScale : size;
   const innerOffset = fillFull ? -((innerSize - effectiveSize) / 2) : 0;
   const equipped = costumeData?.equipped ?? [];
+  const hiddenWingPartTypes = useMemo(() => {
+    const hidden = new Set<string>();
+    const costumeView = resolvedView === "back" ? "side" : "front";
+    for (const costume of equipped) {
+      for (const placement of costume.placements) {
+        if (placement.view !== costumeView) continue;
+        for (const partType of getWingReplacementPartTypes(placement.anchorPart)) hidden.add(partType);
+      }
+    }
+    return hidden;
+  }, [costumeData?.equipped, resolvedView]);
   const renderCostumes = !!resolvedPetInventoryId && equipped.length > 0 && viewParts.length > 0;
   const hasAboveHead = viewParts.some(part => basePartType(part.partType) === "above_head");
 
@@ -610,6 +599,7 @@ export default function PetAnimator({
           fitVisible={fitVisible}
           expression={expression}
           performanceStatic={performanceStatic}
+          hiddenPartTypes={hiddenWingPartTypes}
           style={{ width: "100%", height: "100%" }}
         />
       </div>

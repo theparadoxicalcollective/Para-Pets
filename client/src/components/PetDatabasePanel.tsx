@@ -34,6 +34,7 @@ interface PetTemplate {
 interface PetTemplatePart {
   id: string;
   templateId: string;
+  form: "base" | "evolution";
   partType: string;
   view: string;
   imageUrl: string;
@@ -48,6 +49,7 @@ interface PetTemplatePart {
 
 interface PetTemplateWithParts extends PetTemplate {
   parts: PetTemplatePart[];
+  evolutionParts: PetTemplatePart[];
 }
 
 interface CostumeItem { id: string; name: string; imageUrl: string | null; }
@@ -262,12 +264,12 @@ const ALL_PART_DEFS: PartDef[] = [
 ].filter((v, i, a) => a.findIndex(x => x.key === v.key) === i);
 
 const CANVAS_SIZE = 1000;
-type EditorTab = "parts" | "costume";
+type EditorTab = "parts" | "evolution" | "costume";
 
 function EditorTabs({ active, onChange }: { active: EditorTab; onChange: (tab: EditorTab) => void }) {
   return <>
     <nav aria-label="Pet editor" className="flex flex-wrap gap-2">
-      {(["parts", "costume"] as const).map(tab => <button key={tab} data-testid={`tab-pet-editor-${tab}`} onClick={() => onChange(tab)} className="rounded-md px-3 py-2 font-fantasy text-[10px] tracking-wider" style={{ background: active === tab ? "rgba(240,192,64,.24)" : "rgba(0,0,0,.3)", border: "1px solid rgba(240,192,64,.3)", color: active === tab ? "#f0c040" : "#a89878" }}>{tab.toUpperCase()}</button>)}
+      {(["parts", "evolution", "costume"] as const).map(tab => <button key={tab} data-testid={`tab-pet-editor-${tab}`} onClick={() => onChange(tab)} className="rounded-md px-3 py-2 font-fantasy text-[10px] tracking-wider" style={{ background: active === tab ? "rgba(240,192,64,.24)" : "rgba(0,0,0,.3)", border: "1px solid rgba(240,192,64,.3)", color: active === tab ? "#f0c040" : "#a89878" }}>{tab.toUpperCase()}</button>)}
     </nav>
   </>;
 }
@@ -313,8 +315,8 @@ export default function PetDatabasePanel({
   const [gifExporting, setGifExporting] = useState(false);
   const [gifProgress, setGifProgress] = useState(0);
   const [gifAnim, setGifAnim] = useState<GifAnimation>("idle");
-  // A template has one source of truth; these are focused editor surfaces for
-  // that same template, not separate pet/animation/costume records.
+  // Base and evolution artwork are separate layer stacks on one template.
+  // Costume placement remains a third focused authoring surface.
   const [editorTab, setEditorTab] = useState<EditorTab>("parts");
   const [selectedCostumeId, setSelectedCostumeId] = useState<string | null>(null);
   const [selectedCostumeInstance, setSelectedCostumeInstance] = useState(1);
@@ -424,7 +426,10 @@ export default function PetDatabasePanel({
   // This is the authoring surface, so preview the exact saved stack.
   // Runtime animation grouping can still use its semantic layers separately.
   const previewEffectiveZ = (p: { zIndex: number }): number => p.zIndex;
-  const viewParts = (templateDetail?.parts || [])
+  const activeParts = editorTab === "evolution"
+    ? (templateDetail?.evolutionParts ?? [])
+    : (templateDetail?.parts ?? []);
+  const viewParts = activeParts
     .filter(p => p.view === activeView)
     .sort((a, b) => previewEffectiveZ(a) - previewEffectiveZ(b));
 
@@ -575,8 +580,9 @@ export default function PetDatabasePanel({
   });
 
   const addPartMutation = useMutation({
-    mutationFn: async (data: { templateId: string; partType: string; view: string; imageData: string; zIndex: number; pivotX?: number; pivotY?: number; posX?: number; posY?: number; width?: number; height?: number }) => {
+    mutationFn: async (data: { templateId: string; form: "base" | "evolution"; partType: string; view: string; imageData: string; zIndex: number; pivotX?: number; pivotY?: number; posX?: number; posY?: number; width?: number; height?: number }) => {
       const res = await apiRequest("POST", `/api/admin/pet-templates/${data.templateId}/part`, {
+        form: data.form,
         partType: data.partType,
         view: data.view,
         imageData: data.imageData,
@@ -795,6 +801,7 @@ export default function PetDatabasePanel({
     if (saveCostumeMutation.isPending || tab === editorTab) return;
     if (editorTab === "costume" && costumeDraftDirty && !window.confirm("Discard the unsaved costume placement?")) return;
     if (editorTab === "costume") discardCostumeDraft();
+    setSelectedPartId(null);
     setEditorTab(tab);
   };
 
@@ -955,11 +962,11 @@ export default function PetDatabasePanel({
 
   // Has parts in the OTHER view (the one not currently active)
   const otherView = activeView === "front" ? "back" : "front";
-  const hasOtherViewParts = (templateDetail?.parts || []).some(p => p.view === otherView);
+  const hasOtherViewParts = activeParts.some(p => p.view === otherView);
 
   if (selectedTemplateId && templateDetail) {
     const linkedPet = getLinkedShopPet(templateDetail.id);
-    const viewLabel = facingMode === "front" ? "Front View" : "Side View";
+    const viewLabel = `${editorTab === "evolution" ? "Evolution · " : ""}${facingMode === "front" ? "Front View" : "Side View"}`;
 
     if (editorTab === "costume") return (
       <div data-testid="pet-costume-editor" className="flex flex-col gap-3 pb-24 xl:pb-0">
@@ -1311,8 +1318,14 @@ export default function PetDatabasePanel({
     );
 
     return (
-      <div className="flex flex-col gap-3">
+      <div data-testid={editorTab === "evolution" ? "pet-evolution-editor" : "pet-parts-editor"} className="flex flex-col gap-3">
         <EditorTabs active={editorTab} onChange={changeEditorTab} />
+        {editorTab === "evolution" && (
+          <div data-testid="evolution-parts-notice" className="rounded-lg px-3 py-2" style={{ background: "rgba(192,132,252,.08)", border: "1px solid rgba(192,132,252,.3)" }}>
+            <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#c084fc" }}>EVOLUTION ARTWORK</p>
+            <p className="mt-1 text-[10px]" style={{ color: "#a89878" }}>Upload and arrange the evolved pet layers here. These files are stored separately from the normal pet and will not activate until the full evolution process is added.</p>
+          </div>
+        )}
         <div className="flex items-center gap-2 mb-1">
           <button
             data-testid="button-back-to-pet-list"
@@ -1732,7 +1745,7 @@ export default function PetDatabasePanel({
           </select>
         </label>
 
-        {!testMode && (
+        {editorTab === "parts" && !testMode && (
           <div className="flex gap-2">
             <button
               data-testid="button-assemble-save"
@@ -1755,7 +1768,7 @@ export default function PetDatabasePanel({
           </div>
         )}
 
-        {!testMode && (templateDetail.frontAssembledUrl || templateDetail.backAssembledUrl) && (
+        {editorTab === "parts" && !testMode && (templateDetail.frontAssembledUrl || templateDetail.backAssembledUrl) && (
           <div className="mt-1">
             <p className="font-fantasy text-[9px] text-[#a89878] tracking-wider mb-2 text-center">Assembled Preview</p>
             <div className="flex justify-center gap-4">
@@ -1840,6 +1853,7 @@ export default function PetDatabasePanel({
 
                   addPartMutation.mutate({
                     templateId: selectedTemplateId!,
+                    form: editorTab === "evolution" ? "evolution" : "base",
                     partType: uploadPartType!,
                     view: isBackFull ? "back" : activeView,
                     imageData: dataUrl,

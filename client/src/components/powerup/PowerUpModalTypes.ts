@@ -13,6 +13,7 @@ export interface PowerUpItem {
 
 export interface PetUpgradeModalProps {
   petName: string;
+  petInventoryId: string;
   petImage: string | null;
   petTemplateId: string | null;
   rarity: number;

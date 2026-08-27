@@ -17,7 +17,11 @@ test("Costumes appear beneath accessories on the existing equipment page", () =>
   assert.ok(accessories >= 0 && costumes > accessories);
   assert.match(section, /data-testid="section-costume-equipment"/);
   assert.match(section, /COSTUMES/);
-  assert.match(section, /YOUR COSTUMES — TAP TO EQUIP/);
+  assert.match(section, /TAP AN EMPTY SLOT TO CHOOSE A COSTUME/);
+  assert.match(section, /setSelectedSlot\(slot\)/);
+  assert.match(section, /data-testid="costume-slot-inventory"/);
+  assert.match(section, /slot: selectedSlot/);
+  assert.doesNotMatch(section, /nextEmptySlot/);
   assert.match(section, /Array\.from\(\{ length: COSTUME_SLOT_COUNT \}/);
 });
 
@@ -28,10 +32,9 @@ test("Player costume controls use the shared slot count and unlock prices", () =
   assert.match(section, /\/api\/pet\/\$\{petInventoryId\}\/costumes\/unequip/);
   assert.match(section, /\/api\/pet\/\$\{petInventoryId\}\/costumes\/unlock/);
   assert.match(section, /item\.type === "costume"/);
-  assert.match(section, /EquippedCostumePreview/);
-  assert.match(section, /getCostumeCanvasPosition/);
-  assert.match(accessoryPage, /depth="back"/);
-  assert.match(accessoryPage, /depth="front"/);
+  assert.match(accessoryPage, /petInventoryId=\{petInventoryId\}/);
+  assert.doesNotMatch(section, /EquippedCostumePreview/);
+  assert.doesNotMatch(accessoryPage, /depth="back"|depth="front"/);
 });
 
 test("Costume APIs validate pet ownership, item ownership, slots, and fitted definitions", () => {

@@ -28,7 +28,7 @@ function labelFor(item: PowerUpItem) {
 
 export default function PetLevelUpPage(props: PetUpgradeModalProps) {
   const {
-    petName, petImage, petTemplateId, rarity, petLevel, petAtk, petDef, petHealth,
+    petName, petInventoryId, petImage, petTemplateId, rarity, petLevel, petAtk, petDef, petHealth,
     itemsRemaining, items, isPending, subtitle, showBuyButton = false,
     successEffect, onUseItem, onSuccessAnimEnd, onClose,
   } = props;
@@ -104,7 +104,7 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
   }, [clearDrag, pointInZone, useItem]);
 
   const pet = petImage ? <img src={petImage} alt={petName} draggable={false} /> : petTemplateId ? (
-    <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={700} className="w-full" style={{ aspectRatio: "1/1", pointerEvents: "none" }} />
+    <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="idle" view="front" size={700} className="w-full" style={{ aspectRatio: "1/1", pointerEvents: "none" }} />
   ) : <img src={petPlaceholder} alt="" className="lupage-placeholder" draggable={false} />;
 
   const stats = [

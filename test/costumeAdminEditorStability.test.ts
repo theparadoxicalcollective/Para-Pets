@@ -8,16 +8,32 @@ const adminPage = readFileSync("client/src/pages/AdminPage.tsx", "utf8");
 const indexHtml = readFileSync("client/index.html", "utf8");
 const costumeSchema = readFileSync("shared/costumeSchema.ts", "utf8");
 const bootMigrations = readFileSync("server/startup/migrations/runEssentialBoot.ts", "utf8");
+const schema = readFileSync("shared/schema.ts", "utf8");
+const storage = readFileSync("server/storage.ts", "utf8");
+const routes = readFileSync("server/routes.ts", "utf8");
 
-test("pet editor exposes native Parts and Costume tabs without a CSS hiding workaround", () => {
-  assert.match(editor, /type EditorTab = "parts" \| "costume"/);
-  assert.match(editor, /\(\["parts", "costume"\] as const\)\.map/);
+test("pet editor exposes native Parts, Evolution, and Costume tabs without a CSS hiding workaround", () => {
+  assert.match(editor, /type EditorTab = "parts" \| "evolution" \| "costume"/);
+  assert.match(editor, /\(\["parts", "evolution", "costume"\] as const\)\.map/);
   assert.doesNotMatch(editor, /tab-pet-editor-animation/);
   assert.doesNotMatch(editor, /button-toggle-anim-preview/);
   assert.doesNotMatch(editor, /\bshowAnimPreview\b/);
   assert.doesNotMatch(editor, /<PetAnimatorCanvas/);
   assert.doesNotMatch(indexHtml, /adminPetEditor\.css/);
   assert.equal(existsSync("client/src/adminPetEditor.css"), false);
+});
+
+test("evolution artwork is authored in a separate, non-runtime pet part form", () => {
+  assert.match(editor, /data-testid=\{editorTab === "evolution" \? "pet-evolution-editor" : "pet-parts-editor"\}/);
+  assert.match(editor, /const activeParts = editorTab === "evolution"/);
+  assert.match(editor, /form: editorTab === "evolution" \? "evolution" : "base"/);
+  assert.match(editor, /will not activate until the full evolution process is added/);
+  assert.match(schema, /form: text\("form"\)\.notNull\(\)\.default\("base"\)/);
+  assert.match(storage, /getPetTemplateParts\(templateId: string, form: "base" \| "evolution" = "base"\)/);
+  assert.match(routes, /storage\.getPetTemplateParts\(templateId, "evolution"\)/);
+  assert.match(routes, /form must be base or evolution/);
+  assert.match(bootMigrations, /ALTER TABLE pet_template_parts ADD COLUMN IF NOT EXISTS form TEXT NOT NULL DEFAULT 'base'/);
+  assert.doesNotMatch(editor, /editorTab === "evolution"[\s\S]{0,120}assembleMutation\.mutate/);
 });
 
 test("costume pointer movement only updates a local draft", () => {

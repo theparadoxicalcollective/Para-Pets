@@ -1431,6 +1431,7 @@ export default function PetHousePage({ user }: PetHousePageProps) {
             {pet.petTemplateId ? (
               <PetAnimator
                 petTemplateId={pet.petTemplateId}
+                petInventoryId={pet.inventoryId}
                 mode="static"
                 size={cfg.size}
                 fillContainer

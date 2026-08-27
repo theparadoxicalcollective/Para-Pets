@@ -44,6 +44,8 @@ interface PetAnimatorProps {
   style?: React.CSSProperties;
   /** Pet Care-only low-memory rendering: fixed parts, without image analysis or observers. */
   performanceStatic?: boolean;
+  /** Pet part types replaced by equipped costume artwork. Only the wrapper supplies this. */
+  hiddenPartTypes?: ReadonlySet<string>;
 }
 
 // Face-part substitutions for non-neutral expressions. Returns the desired
@@ -1350,7 +1352,7 @@ function buildHeadGroups(parts: PetPart[]): { head: PetPart; faceParts: PetPart[
   return groups;
 }
 
-export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, fillContainer = false, fitVisible = false, expression = "neutral", className = "", style: externalStyle, performanceStatic = false }: PetAnimatorProps) {
+export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, fillContainer = false, fitVisible = false, expression = "neutral", className = "", style: externalStyle, performanceStatic = false, hiddenPartTypes }: PetAnimatorProps) {
   // Stable random blink offset per instance — spreads eye animations across the
   // full 4 s blink cycle so pets don't all blink at the same time.
   const blinkOffset = useRef(`-${(Math.random() * 4).toFixed(2)}s`);
@@ -1402,7 +1404,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     staleTime: Infinity,
   });
 
-  const allParts = templateData?.parts || [];
+  const allParts = (templateData?.parts || []).filter(part => !hiddenPartTypes?.has(part.partType));
 
   // Alpha-bounds scan: walk every part image once, compute the tightest
   // non-transparent rectangle, and force a re-render when the scan

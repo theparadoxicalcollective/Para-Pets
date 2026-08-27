@@ -56,7 +56,7 @@ function powerValue(item: PowerUpItem) {
 }
 
 export default function PetPowerUpPage(props: PetUpgradeModalProps) {
-  const { petName, petImage, petTemplateId, rarity, petLevel, petAtk, petDef, petHealth, itemsRemaining, items, isPending, showBuyButton = false, successEffect, onUseItem, onSuccessAnimEnd, onClose } = props;
+  const { petName, petInventoryId, petImage, petTemplateId, rarity, petLevel, petAtk, petDef, petHealth, itemsRemaining, items, isPending, showBuyButton = false, successEffect, onUseItem, onSuccessAnimEnd, onClose } = props;
   const [z] = useState(() => getNextZ());
   const pageRef = useRef<HTMLDivElement>(null);
   const zoneRef = useRef<HTMLDivElement>(null);
@@ -129,7 +129,7 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
   const visibleItems = sortedItems.slice(itemOffset, itemOffset + ITEMS_PER_PAGE);
   const openItems = useCallback((filter: StatFilter = null) => { closeStats(); setStatFilter(filter); setItemOffset(0); }, [closeStats]);
 
-  const pet = petImage ? <img src={petImage} alt={petName} draggable={false} /> : petTemplateId ? <PetAnimator petTemplateId={petTemplateId} mode="idle" view="front" size={700} className="w-full" style={{ aspectRatio: "1/1", pointerEvents: "none" }} /> : <img src={petPlaceholder} alt="" className="pupage-placeholder" draggable={false} />;
+  const pet = petImage ? <img src={petImage} alt={petName} draggable={false} /> : petTemplateId ? <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="idle" view="front" size={700} className="w-full" style={{ aspectRatio: "1/1", pointerEvents: "none" }} /> : <img src={petPlaceholder} alt="" className="pupage-placeholder" draggable={false} />;
   const slotsPerLevel = rarity <= 2 ? 1 : rarity === 3 ? 2 : 3;
   const capacity = Math.max(1, petLevel || 1) * slotsPerLevel;
   const remaining = itemsRemaining === Infinity ? capacity : Math.max(0, Math.min(capacity, itemsRemaining));

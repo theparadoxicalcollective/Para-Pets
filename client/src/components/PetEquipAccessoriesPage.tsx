@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
-import PetCostumeEquipmentSection, { EquippedCostumePreview } from "@/components/PetCostumeEquipmentSection";
+import PetCostumeEquipmentSection from "@/components/PetCostumeEquipmentSection";
 import gemCrystalIcon from "@assets/generated_images/icon_gem_crystal.png";
 import homeBg from "@assets/bg_home_v2.png";
 
@@ -341,15 +341,13 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
                 pointerEvents: "none",
               }}
             />
-            <EquippedCostumePreview petInventoryId={petInventoryId} depth="back" />
             {petTemplateId ? (
-              <PetAnimator petTemplateId={petTemplateId} mode="idle" size={220} fillContainer style={{ ...PET_PREVIEW_DROPSHADOW_STYLE, position: "relative", zIndex: 2 }} />
+              <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="idle" size={220} fillContainer style={{ ...PET_PREVIEW_DROPSHADOW_STYLE, position: "relative", zIndex: 2 }} />
             ) : petImage ? (
               <img src={petImage} alt={petName} className="w-full h-full object-contain" style={{ position: "relative", zIndex: 2, filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.7)) drop-shadow(0 0 14px rgba(22,163,74,0.22))" }} />
             ) : (
               <div className="w-full h-full rounded-2xl" style={{ background: "rgba(255,255,255,0.04)" }} />
             )}
-            <EquippedCostumePreview petInventoryId={petInventoryId} depth="front" />
           </div>
         </div>
 
