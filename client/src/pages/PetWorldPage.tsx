@@ -3901,6 +3901,7 @@ function WorldRoamingPet({
               ) : pet.petTemplateId ? (
                 <PetAnimator
                   petTemplateId={pet.petTemplateId}
+                  petInventoryId={pet.userId === user.id ? pet.inventoryId : undefined}
                   mode="idle"
                   size={sz}
                   style={{
