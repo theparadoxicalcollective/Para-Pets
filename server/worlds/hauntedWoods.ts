@@ -9,6 +9,7 @@ import {
 } from "@shared/hauntedWoods";
 
 const HAUNTED_CASINO_LOCATION_ID = "e2f3a4b5-0001-4000-8000-000000000001";
+const HAUNTED_CASINO_BACKGROUND_PATH = "uploads/HauntedCasinoMainBG.png";
 
 function versionedWorldAssetUrl(relativePath: string): string {
   const absolutePath = path.join(process.cwd(), "attached_assets", relativePath);
@@ -28,6 +29,7 @@ function versionedWorldAssetUrl(relativePath: string): string {
 export async function reconcileHauntedWoodsWorld(): Promise<void> {
   const portalIconUrl = versionedWorldAssetUrl(SOUL_EXCHANGE_LOCATION.iconAssetPath);
   const backgroundUrl = versionedWorldAssetUrl(SOUL_EXCHANGE_LOCATION.backgroundAssetPath);
+  const casinoBackgroundUrl = versionedWorldAssetUrl(HAUNTED_CASINO_BACKGROUND_PATH);
 
   await db.transaction(async (tx) => {
     const existingResult = await tx.execute(sql`
@@ -114,15 +116,13 @@ export async function reconcileHauntedWoodsWorld(): Promise<void> {
       await tx.execute(sql`UPDATE world_locations SET pos_x=${migratedLayout.posX}, pos_y=${migratedLayout.posY}, icon_size=${migratedLayout.iconSize}, sort_order=${migratedLayout.sortOrder}, flipped=${migratedLayout.flipped} WHERE id=${SOUL_EXCHANGE_LOCATION.id}`);
     }
 
-    // PR #175's Casino scroller identifies the Haunted Casino by its location
-    // name. The original seed calls this exact location "The Spectral Grove"
-    // even though its description and artwork identify it as the haunted
-    // casino, so the scroller never activated in established databases.
-    // Normalize only the stable casino row; no position/art/background fields
-    // are touched.
+    // Keep the stable Casino row wired to the new full-height, horizontally
+    // pannable scene. Position/icon layout remains admin-owned; only its
+    // presentation name/background are reconciled from source-controlled art.
     await tx.execute(sql`
       UPDATE world_locations
-      SET name = 'Haunted Casino'
+      SET name = 'Haunted Casino',
+          bg_url = ${casinoBackgroundUrl}
       WHERE world_id = ${HAUNTED_WOODS_WORLD_ID}
         AND id = ${HAUNTED_CASINO_LOCATION_ID}
     `);
