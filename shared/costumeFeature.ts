@@ -44,7 +44,7 @@ export type CostumeAnchorPart = string;
 export interface CostumePlacement {
   view: CostumeView;
   anchorPart: CostumeAnchorPart;
-  /** 1 is the original fitted piece; 2-4 are admin-created visual duplicates. */
+  /** 1 is the original fitted piece; 2-4 are admin-created visual duplicates. Front/side placements reuse the same instance number. */
   instance?: number;
   posX: number;
   posY: number;
