@@ -6,6 +6,13 @@ const animator = readFileSync("client/src/components/PetAnimator.tsx", "utf8");
 const animatorCore = readFileSync("client/src/components/PetAnimatorCore.tsx", "utf8");
 const equipment = readFileSync("client/src/components/PetEquipAccessoriesPage.tsx", "utf8");
 const home = readFileSync("client/src/pages/HomePage.tsx", "utf8");
+const feeding = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
+const house = readFileSync("client/src/pages/PetHousePage.tsx", "utf8");
+const world = readFileSync("client/src/pages/PetWorldPage.tsx", "utf8");
+const walk = readFileSync("client/src/components/WalkAroundScene.tsx", "utf8");
+const level = readFileSync("client/src/components/PetLevelUpPage.tsx", "utf8");
+const power = readFileSync("client/src/components/PetPowerUpPage.tsx", "utf8");
+const globalLevel = readFileSync("client/src/components/GlobalLevelUpOverlay.tsx", "utf8");
 
 test("costume rendering is centralized around the existing pet animator", () => {
   assert.match(animator, /import PetAnimatorCore from "@\/components\/PetAnimatorCore"/);
@@ -53,17 +60,22 @@ test("above-head pet layers always render over costume pieces", () => {
   assert.match(animator, /name === "petAboveHeadBounce"\) name = "petAboveHeadBounceMarionette"/);
 });
 
-test("active-pet and equipment surfaces resolve the owned pet without dressing unrelated renderers", () => {
-  assert.match(home, /data-testid="display-active-pet"/);
-  assert.match(animator, /closest\("\[data-testid='display-active-pet'\]"\)/);
-  assert.match(animator, /querySelectorAll<HTMLElement>\(":scope > \[data-testid\^='costume-preview-'\]"\)/);
-  assert.match(animator, /resolvedPetInventoryId = petInventoryId \?\? \(ownedPetSurface \? authUser\?\.activePetId/);
+test("owned-pet surfaces pass inventory identity explicitly without dressing unrelated renderers", () => {
+  assert.match(animator, /const resolvedPetInventoryId = petInventoryId \?\? null/);
   assert.match(animator, /enabled: !!resolvedPetInventoryId/);
-  assert.match(equipment, /<EquippedCostumePreview petInventoryId=\{petInventoryId\} depth="back" \/>/);
-  assert.match(equipment, /<EquippedCostumePreview petInventoryId=\{petInventoryId\} depth="front" \/>/);
+  assert.doesNotMatch(animator, /closest\(|querySelectorAll<HTMLElement>|activePetId/);
+  assert.match(home, /petInventoryId=\{activePet\.inventoryId\}/);
+  assert.match(equipment, /petInventoryId=\{petInventoryId\}/);
+  assert.match(feeding, /petInventoryId=\{pet\.inventoryId\}/);
+  assert.match(house, /petInventoryId=\{pet\.inventoryId\}/);
+  assert.match(walk, /petInventoryId=\{activePetInventoryId \?\? undefined\}/);
+  assert.match(world, /petInventoryId=\{pet\.userId === user\.id \? pet\.inventoryId : undefined\}/);
+  assert.match(level, /petInventoryId=\{petInventoryId\}/);
+  assert.match(power, /petInventoryId=\{petInventoryId\}/);
+  assert.match(globalLevel, /petInventoryId=\{petInventoryId \?\? undefined\}/);
 });
 
-test("legacy equipment overlays are hidden before paint so costumes are drawn only once", () => {
-  assert.match(animator, /equipmentPreviews\.forEach\(node => \{ node\.style\.display = "none"; \}\)/);
-  assert.match(animator, /previousDisplays/);
+test("the equipment page uses only the shared animated renderer", () => {
+  assert.doesNotMatch(equipment, /EquippedCostumePreview|depth="back"|depth="front"/);
+  assert.match(equipment, /<PetAnimator[\s\S]*?petInventoryId=\{petInventoryId\}/);
 });
