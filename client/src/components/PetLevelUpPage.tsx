@@ -31,6 +31,7 @@ type StableLevelUpPetProps = {
   petName: string;
   petImage: string | null;
   petTemplateId: string | null;
+  petInventoryId: string;
 };
 
 interface LevelUpTemplateData {
@@ -42,12 +43,13 @@ interface LevelUpTemplateData {
  * the Level Up page. Template parts are preloaded through the shared query
  * cache while the still composite remains visible; the animator mounts only
  * after a complete parts payload is ready. It then stays mounted while drag
- * coordinates change, and it skips the separate costume request on this page.
+ * coordinates change. Its owner-only costume query is cached inside the memoized renderer.
  */
 const StableLevelUpPet = memo(function StableLevelUpPet({
   petName,
   petImage,
   petTemplateId,
+  petInventoryId,
 }: StableLevelUpPetProps) {
   const { data: templateData, isError } = useQuery<LevelUpTemplateData>({
     queryKey: ["/api/pet-template-parts", petTemplateId],
@@ -66,6 +68,7 @@ const StableLevelUpPet = memo(function StableLevelUpPet({
     return (
       <PetAnimator
         petTemplateId={petTemplateId}
+        petInventoryId={petInventoryId}
         mode="idle"
         view="front"
         size={350}
@@ -85,7 +88,7 @@ const StableLevelUpPet = memo(function StableLevelUpPet({
 
 export default function PetLevelUpPage(props: PetUpgradeModalProps) {
   const {
-    petName, petImage, petTemplateId, rarity, petLevel, petAtk, petDef, petHealth,
+    petName, petInventoryId, petImage, petTemplateId, rarity, petLevel, petAtk, petDef, petHealth,
     itemsRemaining, items, isPending, subtitle, showBuyButton = false,
     successEffect, onUseItem, onSuccessAnimEnd, onClose,
   } = props;
@@ -177,6 +180,7 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
       petName={petName}
       petImage={petImage}
       petTemplateId={petTemplateId}
+      petInventoryId={petInventoryId}
     />
   );
 
