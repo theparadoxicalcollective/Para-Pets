@@ -675,12 +675,21 @@ function InteriorViewer({
               if (!drag) setPopupPetId(current => current === pet.inventoryId ? null : pet.inventoryId);
             }}
           >
-            {(pet.hatchedImageUrl || pet.imageUrl) ? (
+            {pet.petTemplateId ? (
+              <PetAnimator
+                petTemplateId={pet.petTemplateId}
+                petInventoryId={pet.inventoryId}
+                mode={livePos ? "static" : "house"}
+                size={petSize}
+                fillContainer
+                style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }}
+              />
+            ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
                 src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
                 alt={pet.nickname ?? pet.name}
                 draggable={false}
-                className="pet-idle-squish"
+                className={livePos ? undefined : "pet-idle-squish"}
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
               />
             ) : null}

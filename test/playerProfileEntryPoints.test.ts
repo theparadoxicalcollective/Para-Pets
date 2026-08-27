@@ -101,3 +101,12 @@ test("admin item form saves a bounded accessory star rarity", () => {
   assert.match(form, /Math\.max\(1, Math\.min\(5, parseInt\(starRarity\) \|\| 1\)\)/);
   assert.match(schema, /Accessory star rarity must be from 1 through 5/);
 });
+
+test("shared player card animates template pets idly with a still-image fallback", () => {
+  const source = read("client/src/components/PlayerDetailPanel.tsx");
+  assert.match(source, /import PetAnimator from "@\/components\/PetAnimator"/);
+  assert.match(source, /profile\.activePet\.petTemplateId \? \(/);
+  assert.match(source, /mode="idle"/);
+  assert.match(source, /fitVisible/);
+  assert.match(source, /\) : petImg \? \(/);
+});

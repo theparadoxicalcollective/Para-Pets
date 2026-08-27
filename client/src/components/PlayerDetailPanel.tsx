@@ -7,6 +7,7 @@ import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import petHouseIcon from "@assets/generated_images/nav_icon_home.png";
 import aquariumIcon from "@assets/icon_fishbowl.png";
 import RoleBadge from "@/components/RoleBadge";
+import PetAnimator from "@/components/PetAnimator";
 import { AquariumPage } from "@/pages/AquariumPage";
 
 interface PvpStats {
@@ -479,7 +480,16 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                     ))}
 
                     <div className="col-start-2 row-start-1 flex h-[142px] w-full min-w-0 items-center justify-center min-[380px]:h-[158px]" data-testid="img-active-pet">
-                      {petImg ? (
+                      {profile.activePet.petTemplateId ? (
+                        <PetAnimator
+                          petTemplateId={profile.activePet.petTemplateId}
+                          mode="idle"
+                          size={158}
+                          fillContainer
+                          fitVisible
+                          style={{ filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.78))" }}
+                        />
+                      ) : petImg ? (
                         <img src={petImg} alt="" className="w-full h-full object-contain"
                           style={{ filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.78))" }} />
                       ) : (
