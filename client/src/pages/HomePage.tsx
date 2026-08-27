@@ -28,7 +28,9 @@ import UserProfilePanel from "@/components/UserProfilePanel";
 import PlayerAvatarButton from "@/components/PlayerAvatarButton";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import PetAnimator from "@/components/PetAnimator";
-import PetPowerUpModal, { PowerUpItem } from "@/components/PetPowerUpModal";
+import PetPowerUpPage from "@/components/PetPowerUpPage";
+import PetLevelUpPage from "@/components/PetLevelUpPage";
+import type { PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
 import PowerUpOverlay from "@/components/PowerUpOverlay";
 import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import raidHpFrameImg from "@assets/Photoroom_20260711_31007_PM_1783820810778.png";
@@ -1895,7 +1897,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
       {/* ── Power Up modal ── */}
       {activePetModal === "power_up" && activePetForModal && (
-        <PetPowerUpModal
+        <PetPowerUpPage
           petName={activePetForModal.petNickname || activePetForModal.name}
           petInventoryId={activePetForModal.inventoryId}
           petImage={activePetForModal.hatchedImageUrl || activePetForModal.imageUrl}
@@ -1908,7 +1910,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           itemsRemaining={(() => { const r = activePetForModal.rarity || 1; const slotsPerLvl = r <= 2 ? 1 : r === 3 ? 2 : 3; return Math.max(0, (activePetForModal.petLevel || 1) * slotsPerLvl - (activePetForModal.itemsUsedThisLevel || 0)); })()}
           items={statBoostItems}
           isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
-          title="POWER UP"
           subtitle={`Drag an item onto ${activePetForModal.petNickname || activePetForModal.name} to boost their stats`}
           showBuyButton={powerUpFromQuest}
           successEffect={petModalSuccess}
@@ -1920,7 +1921,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
       {/* ── Level Up modal ── */}
       {activePetModal === "level_up" && activePetForModal && (
-        <PetPowerUpModal
+        <PetLevelUpPage
           petName={activePetForModal.petNickname || activePetForModal.name}
           petInventoryId={activePetForModal.inventoryId}
           petImage={activePetForModal.hatchedImageUrl || activePetForModal.imageUrl}
@@ -1933,7 +1934,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           itemsRemaining={Infinity}
           items={levelItems}
           isPending={powerUpMutation.isPending || useSpecialMutation.isPending}
-          title="LEVEL UP"
           subtitle={`Drag an XP item onto ${activePetForModal.petNickname || activePetForModal.name} to gain levels`}
           successEffect={petModalSuccess}
           onUseItem={handleModalUseItem}
