@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { Star, X } from "lucide-react";
 import { getNextZ } from "@/lib/layerManager";
@@ -26,6 +27,65 @@ function labelFor(item: PowerUpItem) {
   return item.name;
 }
 
+type StableLevelUpPetProps = {
+  petName: string;
+  petImage: string | null;
+  petTemplateId: string | null;
+  petInventoryId: string;
+};
+
+interface LevelUpTemplateData {
+  parts: Array<{ id: string; imageUrl: string }>;
+}
+
+/**
+ * Keep the animated pet isolated from the high-frequency drag state owned by
+ * the Level Up page. Template parts are preloaded through the shared query
+ * cache while the still composite remains visible; the animator mounts only
+ * after a complete parts payload is ready. It then stays mounted while drag
+ * coordinates change. Its owner-only costume query is cached inside the memoized renderer.
+ */
+const StableLevelUpPet = memo(function StableLevelUpPet({
+  petName,
+  petImage,
+  petTemplateId,
+  petInventoryId,
+}: StableLevelUpPetProps) {
+  const { data: templateData, isError } = useQuery<LevelUpTemplateData>({
+    queryKey: ["/api/pet-template-parts", petTemplateId],
+    queryFn: async () => {
+      const response = await fetch(`/api/pet-template-parts/${petTemplateId}`, { credentials: "include" });
+      if (!response.ok) throw new Error("Failed to load Level Up pet template");
+      return response.json();
+    },
+    enabled: !!petTemplateId,
+    staleTime: Infinity,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+
+  if (petTemplateId && templateData?.parts?.length && !isError) {
+    return (
+      <PetAnimator
+        petTemplateId={petTemplateId}
+        petInventoryId={petInventoryId}
+        mode="idle"
+        view="front"
+        size={350}
+        fillContainer
+        className="w-full h-full"
+        style={{ width: "100%", height: "100%", pointerEvents: "none" }}
+      />
+    );
+  }
+
+  if (petImage) {
+    return <img src={petImage} alt={petName} draggable={false} decoding="async" data-testid="img-levelup-pet-fallback" />;
+  }
+
+  return <img src={petPlaceholder} alt="" className="lupage-placeholder" draggable={false} />;
+});
+
 export default function PetLevelUpPage(props: PetUpgradeModalProps) {
   const {
     petName, petInventoryId, petImage, petTemplateId, rarity, petLevel, petAtk, petDef, petHealth,
@@ -40,7 +100,19 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
   const [petAnim, setPetAnim] = useState<"" | "bounce" | "flash">("");
   const [sparks, setSparks] = useState<{ id: number; x: number; y: number; dx: number; dy: number }[]>([]);
   const sparkId = useRef(0);
+  const transientTimers = useRef<number[]>([]);
+  const scheduleTransient = useCallback((callback: () => void, delay: number) => {
+    const timer = window.setTimeout(() => {
+      transientTimers.current = transientTimers.current.filter((id) => id !== timer);
+      callback();
+    }, delay);
+    transientTimers.current.push(timer);
+  }, []);
 
+  useEffect(() => () => {
+    transientTimers.current.forEach((timer) => window.clearTimeout(timer));
+    transientTimers.current = [];
+  }, []);
   useEffect(() => { dragRef.current = drag; }, [drag]);
   useEffect(() => {
     if (!successEffect) return;
@@ -64,13 +136,13 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
         const angle = (i / 14) * Math.PI * 2;
         return { id: sparkId.current++, x, y, dx: Math.cos(angle) * (55 + Math.random() * 70), dy: Math.sin(angle) * (55 + Math.random() * 70) };
       }));
-      window.setTimeout(() => setSparks([]), 760);
+      scheduleTransient(() => setSparks([]), 760);
     }
     setPetAnim("bounce");
-    window.setTimeout(() => setPetAnim("flash"), 260);
-    window.setTimeout(() => setPetAnim(""), 850);
+    scheduleTransient(() => setPetAnim("flash"), 260);
+    scheduleTransient(() => setPetAnim(""), 850);
     onUseItem(item);
-  }, [disabled, onUseItem]);
+  }, [disabled, onUseItem, scheduleTransient]);
 
   const onPointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>, item: PowerUpItem) => {
     if (disabled(item)) return;
@@ -103,9 +175,14 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     clearDrag();
   }, [clearDrag, pointInZone, useItem]);
 
-  const pet = petImage ? <img src={petImage} alt={petName} draggable={false} /> : petTemplateId ? (
-    <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="idle" view="front" size={350} fillContainer className="w-full h-full" style={{ width: "100%", height: "100%", pointerEvents: "none" }} />
-  ) : <img src={petPlaceholder} alt="" className="lupage-placeholder" draggable={false} />;
+  const pet = (
+    <StableLevelUpPet
+      petName={petName}
+      petImage={petImage}
+      petTemplateId={petTemplateId}
+      petInventoryId={petInventoryId}
+    />
+  );
 
   const stats = [
     { key: "atk", label: "ATK", value: petAtk, max: 200 },

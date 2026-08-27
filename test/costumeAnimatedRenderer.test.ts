@@ -14,6 +14,9 @@ const walk = readFileSync("client/src/components/WalkAroundScene.tsx", "utf8");
 const level = readFileSync("client/src/components/PetLevelUpPage.tsx", "utf8");
 const power = readFileSync("client/src/components/PetPowerUpPage.tsx", "utf8");
 const globalLevel = readFileSync("client/src/components/GlobalLevelUpOverlay.tsx", "utf8");
+const playerCard = readFileSync("client/src/components/PlayerDetailPanel.tsx", "utf8");
+const visitHouse = readFileSync("client/src/pages/VisitPetHousePage.tsx", "utf8");
+const costumeRoutes = readFileSync("server/routes/costumePlayer.routes.ts", "utf8");
 
 test("costume rendering is centralized around the existing pet animator", () => {
   assert.match(animator, /import PetAnimatorCore from "@\/components\/PetAnimatorCore"/);
@@ -119,4 +122,19 @@ test("owned-pet surfaces pass inventory identity explicitly without dressing unr
 test("the equipment page uses only the shared animated renderer", () => {
   assert.doesNotMatch(equipment, /EquippedCostumePreview|depth="back"|depth="front"/);
   assert.match(equipment, /<PetAnimator[\s\S]*?petInventoryId=\{petInventoryId\}/);
+});
+
+test("public animated pet surfaces render equipped costumes through read-only access", () => {
+  assert.match(animator, /costumeAccess\?: "owner" \| "public"/);
+  assert.match(animator, /costumeAccess === "public" \? "\/public" : ""/);
+  assert.match(playerCard, /petInventoryId=\{profile\.activePet\.inventoryId\}/);
+  assert.match(playerCard, /costumeAccess="public"/);
+  assert.match(visitHouse, /petInventoryId=\{pet\.inventoryId\}/);
+  assert.ok((visitHouse.match(/costumeAccess="public"/g) ?? []).length >= 3);
+  assert.match(costumeRoutes, /\/api\/pet\/:petInventoryId\/costumes\/public/);
+  const publicRouteStart = costumeRoutes.indexOf('app.get("/api/pet/:petInventoryId/costumes/public"');
+  const publicRouteEnd = costumeRoutes.indexOf('app.get("/api/pet/:petInventoryId/costumes"', publicRouteStart);
+  const publicRoute = costumeRoutes.slice(publicRouteStart, publicRouteEnd);
+  assert.ok(publicRouteStart >= 0 && publicRouteEnd > publicRouteStart);
+  assert.doesNotMatch(publicRoute, /ownedPet\(petInventoryId/);
 });

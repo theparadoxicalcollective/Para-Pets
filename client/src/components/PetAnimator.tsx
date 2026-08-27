@@ -56,8 +56,10 @@ export interface PetAnimatorProps {
   className?: string;
   style?: React.CSSProperties;
   performanceStatic?: boolean;
-  /** Explicit owned-pet inventory id. Required whenever equipped costumes should render. */
+  /** Explicit pet inventory id. Required whenever equipped costumes should render. */
   petInventoryId?: string;
+  /** Public display mode uses the read-only costume endpoint for another player's pet. */
+  costumeAccess?: "owner" | "public";
 }
 
 const CANVAS_SIZE = 1000;
@@ -518,6 +520,7 @@ export default function PetAnimator({
   style,
   performanceStatic = false,
   petInventoryId,
+  costumeAccess = "owner",
 }: PetAnimatorProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [measuredSize, setMeasuredSize] = useState(size);
@@ -553,10 +556,14 @@ export default function PetAnimator({
   });
 
   const { data: costumeData } = useQuery<CostumeResponse>({
-    queryKey: ["/api/pet", resolvedPetInventoryId, "costumes"],
-    queryFn: async () => (await apiRequest("GET", `/api/pet/${resolvedPetInventoryId}/costumes`)).json(),
+    queryKey: ["/api/pet", resolvedPetInventoryId, "costumes", costumeAccess],
+    queryFn: async () => {
+      const suffix = costumeAccess === "public" ? "/public" : "";
+      return (await apiRequest("GET", `/api/pet/${resolvedPetInventoryId}/costumes${suffix}`)).json();
+    },
     enabled: !!resolvedPetInventoryId,
-    staleTime: 0,
+    staleTime: costumeAccess === "public" ? 60_000 : 0,
+    refetchOnWindowFocus: false,
   });
 
   if (templateData && motionEpochRef.current?.templateId !== petTemplateId) {

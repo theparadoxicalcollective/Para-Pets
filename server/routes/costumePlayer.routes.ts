@@ -43,6 +43,53 @@ export function registerCostumePlayerRoutes(app: Express) {
     }
   });
 
+  app.get("/api/pet/:petInventoryId/costumes/public", requireAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const petInventoryId = String(req.params.petInventoryId);
+      const pet = await storage.getInventoryItemById(petInventoryId);
+      if (!pet || !pet.isHatched) return res.status(404).json({ message: "Pet not found" });
+      const item = await storage.getShopItem(pet.shopItemId);
+      if (!item || item.type !== "pet" || !item.petTemplateId) {
+        return res.status(404).json({ message: "Pet costume display not found" });
+      }
+
+      const equipped = await db.select({
+        id: petEquippedCostumes.id,
+        slot: petEquippedCostumes.slot,
+        copyIndex: petEquippedCostumes.copyIndex,
+        costumeInventoryId: petEquippedCostumes.costumeInventoryId,
+        name: shopItems.name,
+        imageUrl: shopItems.imageUrl,
+        placements: petCostumeDefinitions.placements,
+      }).from(petEquippedCostumes)
+        .innerJoin(userInventory, eq(userInventory.id, petEquippedCostumes.costumeInventoryId))
+        .innerJoin(shopItems, eq(shopItems.id, userInventory.shopItemId))
+        .innerJoin(petCostumeDefinitions, and(
+          eq(petCostumeDefinitions.shopItemId, shopItems.id),
+          eq(petCostumeDefinitions.templateId, item.petTemplateId),
+        ))
+        .where(eq(petEquippedCostumes.petInventoryId, petInventoryId));
+
+      const anchors = await db.select({
+        partType: petTemplateParts.partType,
+        posX: petTemplateParts.posX,
+        posY: petTemplateParts.posY,
+        width: petTemplateParts.width,
+        height: petTemplateParts.height,
+        pivotX: petTemplateParts.pivotX,
+        pivotY: petTemplateParts.pivotY,
+      }).from(petTemplateParts).where(and(
+        eq(petTemplateParts.templateId, item.petTemplateId),
+        eq(petTemplateParts.view, "front"),
+      ));
+
+      return res.json({ equipped, anchors, extraSlots: 0 });
+    } catch (error) {
+      console.error("[costumes] public display load failed", error);
+      return res.status(500).json({ message: "Failed to load displayed pet costumes" });
+    }
+  });
+
   app.get("/api/pet/:petInventoryId/costumes", requireAuthenticated, async (req: Request, res: Response) => {
     try {
       const user = req.user as { id: string };

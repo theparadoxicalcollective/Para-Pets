@@ -87,3 +87,14 @@ test("Production boot creates both player costume persistence tables safely", ()
   assert.match(boot, /DROP CONSTRAINT IF EXISTS pet_equipped_costumes_costume_inventory_id_key/);
   assert.match(boot, /UNIQUE\(pet_inventory_id, slot\)/);
 });
+
+test("public costume display is read-only and does not require pet ownership", () => {
+  assert.match(routes, /app\.get\("\/api\/pet\/:petInventoryId\/costumes\/public"/);
+  assert.match(routes, /petEquippedCostumes\.petInventoryId, petInventoryId/);
+  assert.match(routes, /return res\.json\(\{ equipped, anchors, extraSlots: 0 \}\)/);
+  const publicRoute = routes.slice(
+    routes.indexOf('app.get("/api/pet/:petInventoryId/costumes/public"'),
+    routes.indexOf('app.get("/api/pet/:petInventoryId/costumes"', routes.indexOf('app.get("/api/pet/:petInventoryId/costumes/public"')),
+  );
+  assert.doesNotMatch(publicRoute, /ownedPet|\.post\(|\.delete\(|\.update\(/);
+});
