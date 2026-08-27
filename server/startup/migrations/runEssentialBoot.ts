@@ -27,6 +27,11 @@ export async function runEssentialBoot(): Promise<void> {
   } catch (err) { console.error("media_blobs table setup error (non-fatal):", err); }
 
   const migrations: Array<[string, ReturnType<typeof sql>]> = [
+    ["Pet evolution artwork form migration error (non-fatal):", sql`
+      ALTER TABLE pet_template_parts ADD COLUMN IF NOT EXISTS form TEXT NOT NULL DEFAULT 'base';
+      CREATE INDEX IF NOT EXISTS pet_template_parts_template_form_idx
+        ON pet_template_parts(template_id, form)
+    `],
     ["Soul Exchange history migration error (non-fatal):", sql`CREATE TABLE IF NOT EXISTS soul_exchange_transactions (
       exchange_action_id UUID PRIMARY KEY, user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       pet_inventory_id VARCHAR NOT NULL, shop_item_id VARCHAR NOT NULL REFERENCES shop_items(id) ON DELETE RESTRICT,
