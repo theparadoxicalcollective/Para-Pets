@@ -1,0 +1,33 @@
+name: Apply costume above-head duplicate fix
+
+on:
+  push:
+    branches: [fix/costume-above-head-duplicate]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[costume-above-head-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/costume-above-head-duplicate
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch renderer and regression test
+        run: python scripts/patch_costume_above_head.py
+      - name: Remove one-shot helpers
+        run: |
+          rm scripts/patch_costume_above_head.py
+          rm .github/workflows/apply-costume-above-head-fix.yml
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add client/src/components/PetAnimator.tsx test/costumeAnimatedRenderer.test.ts scripts/patch_costume_above_head.py .github/workflows/apply-costume-above-head-fix.yml
+          git commit -m "Fix costume above-head duplication [costume-above-head-patched]"
+          git push origin HEAD:fix/costume-above-head-duplicate
