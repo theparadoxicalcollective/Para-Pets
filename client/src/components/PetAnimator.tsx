@@ -372,7 +372,7 @@ function CostumeLayer({
             width: `${localWidth}%`,
             height: `${localHeight}%`,
             objectFit: "contain",
-            transform: `rotate(${placement.rotation ?? 0}deg)`,
+            transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flipX ? -1 : 1})`,
             transformOrigin: `${placement.pivotX}% ${placement.pivotY}%`,
             pointerEvents: "none",
           }}

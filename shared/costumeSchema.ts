@@ -58,6 +58,7 @@ export const costumePlacementSchema = z.object({
   pivotX: z.number(),
   pivotY: z.number(),
   rotation: z.number().min(-180).max(180).default(0),
+  flipX: z.boolean().default(false),
   depth: z.enum(["front", "back"]),
 });
 

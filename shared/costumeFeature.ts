@@ -47,6 +47,8 @@ export interface CostumePlacement {
   pivotY: number;
   /** Clockwise rotation in degrees around the saved pivot. Older placements default to 0. */
   rotation?: number;
+  /** Mirror the costume artwork horizontally before rotation. Older placements default to false. */
+  flipX?: boolean;
   depth: CostumeDepth;
 }
 

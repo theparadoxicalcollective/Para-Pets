@@ -76,9 +76,23 @@ test("costume controls cannot change the draft while a save is pending", () => {
 test("costume editor supports persisted rotation around the saved pivot", () => {
   assert.match(editor, /data-testid="input-costume-rotation"/);
   assert.match(editor, /const rotateCostume = \(degrees: number\)/);
-  assert.match(editor, /transform: `rotate\(\$\{selectedCostumePlacement\.rotation \?\? 0\}deg\)`/);
+  assert.match(editor, /transform: `rotate\(\$\{selectedCostumePlacement\.rotation \?\? 0\}deg\) scaleX\(\$\{selectedCostumePlacement\.flipX \? -1 : 1\}\)`/);
   assert.match(editor, /transformOrigin: `\$\{selectedCostumePlacement\.pivotX\}% \$\{selectedCostumePlacement\.pivotY\}%`/);
   assert.match(costumeSchema, /rotation: z\.number\(\)\.min\(-180\)\.max\(180\)\.default\(0\)/);
+});
+
+test("costume editor supports a persisted horizontal flip", () => {
+  assert.match(editor, /data-testid="button-flip-costume-horizontal"/);
+  assert.match(editor, /const flipCostume = \(\) =>/);
+  assert.match(editor, /flipX: false/);
+  assert.match(editor, /flipX: selectedCostumePlacement\.flipX \?\? false/);
+  assert.match(costumeSchema, /flipX: z\.boolean\(\)\.default\(false\)/);
+});
+
+test("admin pet editing respects mobile safe areas and authored part stacking", () => {
+  assert.match(editor, /safe-area-inset-top/);
+  assert.match(editor, /const previewEffectiveZ = \(p: \{ zIndex: number \}\): number => p\.zIndex/);
+  assert.match(editor, /basePetPartType\(part\.partType\) === "above_head" \? 20000/);
 });
 
 test("costume vault scales through search and a compact thumbnail grid", () => {

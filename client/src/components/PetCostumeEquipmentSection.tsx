@@ -53,7 +53,7 @@ export function EquippedCostumePreview({ petInventoryId, depth }: { petInventory
         top: `${position.top / 10}%`,
         width: `${placement.width / 10}%`,
         height: `${placement.height / 10}%`,
-        transform: `rotate(${placement.rotation ?? 0}deg)`,
+        transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flipX ? -1 : 1})`,
         transformOrigin: `${placement.pivotX}% ${placement.pivotY}%`,
       }} />;
     })}

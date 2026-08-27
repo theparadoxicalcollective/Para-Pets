@@ -22,7 +22,7 @@ test("costume artwork inherits its configured pet-part motion instead of using a
   assert.match(animator, /animation: animName \? buildAnimation\(animName, duration, partDelay\) : undefined/);
   assert.match(animator, /transformOrigin: origin/);
   assert.match(animator, /const localLeft = \(\(position\.left - anchor\.posX\) \/ anchor\.width\) \* 100/);
-  assert.match(animator, /transform: `rotate\(\$\{placement\.rotation \?\? 0\}deg\)`/);
+  assert.match(animator, /transform: `rotate\(\$\{placement\.rotation \?\? 0\}deg\) scaleX\(\$\{placement\.flipX \? -1 : 1\}\)`/);
 });
 
 test("head-mounted costumes inherit the same head-group wrapper motion as the pet", () => {

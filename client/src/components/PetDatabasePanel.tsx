@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getEffectivePetLayer } from "@/lib/petPartConfig";
+import { basePetPartType } from "@/lib/petPartConfig";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readFileAsDataUrl } from "@/lib/utils";
@@ -265,9 +265,12 @@ const CANVAS_SIZE = 1000;
 type EditorTab = "parts" | "costume";
 
 function EditorTabs({ active, onChange }: { active: EditorTab; onChange: (tab: EditorTab) => void }) {
-  return <nav aria-label="Pet editor" className="flex flex-wrap gap-2">
-    {(["parts", "costume"] as const).map(tab => <button key={tab} data-testid={`tab-pet-editor-${tab}`} onClick={() => onChange(tab)} className="rounded-md px-3 py-2 font-fantasy text-[10px] tracking-wider" style={{ background: active === tab ? "rgba(240,192,64,.24)" : "rgba(0,0,0,.3)", border: "1px solid rgba(240,192,64,.3)", color: active === tab ? "#f0c040" : "#a89878" }}>{tab.toUpperCase()}</button>)}
-  </nav>;
+  return <>
+    <style>{`[data-testid="overlay-pet-parts"] { padding-top: max(20px, calc(env(safe-area-inset-top) + 14px)) !important; }`}</style>
+    <nav aria-label="Pet editor" className="flex flex-wrap gap-2">
+      {(["parts", "costume"] as const).map(tab => <button key={tab} data-testid={`tab-pet-editor-${tab}`} onClick={() => onChange(tab)} className="rounded-md px-3 py-2 font-fantasy text-[10px] tracking-wider" style={{ background: active === tab ? "rgba(240,192,64,.24)" : "rgba(0,0,0,.3)", border: "1px solid rgba(240,192,64,.3)", color: active === tab ? "#f0c040" : "#a89878" }}>{tab.toUpperCase()}</button>)}
+    </nav>
+  </>;
 }
 
 export default function PetDatabasePanel({
@@ -418,10 +421,9 @@ export default function PetDatabasePanel({
     }
   }, [templateDetail?.id, templateDetail?.facing]);
 
-  // Static preview, animated preview, and click selection all use production layering.
-  const previewFacing = templateDetail?.facing ?? "front";
-  const previewEffectiveZ = (p: { partType: string; zIndex: number }): number =>
-    getEffectivePetLayer(p, previewFacing);
+  // This is the authoring surface, so preview the exact saved stack.
+  // Runtime animation grouping can still use its semantic layers separately.
+  const previewEffectiveZ = (p: { zIndex: number }): number => p.zIndex;
   const viewParts = (templateDetail?.parts || [])
     .filter(p => p.view === activeView)
     .sort((a, b) => previewEffectiveZ(a) - previewEffectiveZ(b));
@@ -445,6 +447,7 @@ export default function PetDatabasePanel({
     pivotX: 50,
     pivotY: 50,
     rotation: 0,
+    flipX: false,
     depth: "front",
   });
   const selectedCostumePlacement = selectedCostumeId
@@ -682,9 +685,13 @@ export default function PetDatabasePanel({
     updateCostumeDraft(resizeCostumePlacement(selectedCostumePlacement, nextSize));
   };
   const rotateCostume = (degrees: number) => updateCostumeDraft({ rotation: Math.max(-180, Math.min(180, degrees)) });
+  const flipCostume = () => {
+    if (!selectedCostumePlacement) return;
+    updateCostumeDraft({ flipX: !(selectedCostumePlacement.flipX ?? false) });
+  };
   const saveCostumePlacement = () => {
     if (!selectedCostumeId || !selectedCostumePlacement || !canSaveCostumePlacement || saveCostumeMutation.isPending) return;
-    saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: { ...selectedCostumePlacement, rotation: selectedCostumePlacement.rotation ?? 0 } });
+    saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: { ...selectedCostumePlacement, rotation: selectedCostumePlacement.rotation ?? 0, flipX: selectedCostumePlacement.flipX ?? false } });
   };
   const discardCostumeDraft = () => {
     costumeDragRef.current = null;
@@ -1002,7 +1009,7 @@ export default function PetDatabasePanel({
                     top: `${(part.posY / CANVAS_SIZE) * 100}%`,
                     width: `${(part.width / CANVAS_SIZE) * 100}%`,
                     height: `${(part.height / CANVAS_SIZE) * 100}%`,
-                    zIndex: previewEffectiveZ(part) + 1000,
+                    zIndex: basePetPartType(part.partType) === "above_head" ? 20000 : previewEffectiveZ(part) + 1000,
                   }}
                 />
               ))}
@@ -1017,7 +1024,7 @@ export default function PetDatabasePanel({
                     top: `${(costumeCanvasPosition.top / CANVAS_SIZE) * 100}%`,
                     width: `${(selectedCostumePlacement.width / CANVAS_SIZE) * 100}%`,
                     height: `${(selectedCostumePlacement.height / CANVAS_SIZE) * 100}%`,
-                    transform: `rotate(${selectedCostumePlacement.rotation ?? 0}deg)`,
+                    transform: `rotate(${selectedCostumePlacement.rotation ?? 0}deg) scaleX(${selectedCostumePlacement.flipX ? -1 : 1})`,
                     transformOrigin: `${selectedCostumePlacement.pivotX}% ${selectedCostumePlacement.pivotY}%`,
                     zIndex: selectedCostumePlacement.depth === "front" ? 10000 : 0,
                     cursor: draggingCostume ? "grabbing" : "grab",
@@ -1089,6 +1096,22 @@ export default function PetDatabasePanel({
                     <button type="button" aria-label="Rotate costume right 15 degrees" onClick={() => rotateCostume((selectedCostumePlacement.rotation ?? 0) + 15)} disabled={saveCostumeMutation.isPending} className="grid place-items-center rounded p-2 disabled:opacity-50" style={{ background: "rgba(0,0,0,.25)", border: "1px solid rgba(192,132,252,.25)", color: "#d8b4fe" }}><RotateCw className="h-4 w-4" /></button>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  data-testid="button-flip-costume-horizontal"
+                  aria-pressed={!!selectedCostumePlacement.flipX}
+                  onClick={flipCostume}
+                  disabled={saveCostumeMutation.isPending}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg p-2.5 text-[10px] font-semibold tracking-wider disabled:opacity-50"
+                  style={{
+                    background: selectedCostumePlacement.flipX ? "rgba(192,132,252,.30)" : "rgba(0,0,0,.25)",
+                    border: "1px solid rgba(192,132,252,.28)",
+                    color: selectedCostumePlacement.flipX ? "#f3e8ff" : "#d8b4fe",
+                  }}
+                >
+                  <span aria-hidden="true" style={{ fontSize: 16, lineHeight: 1 }}>↔</span>
+                  {selectedCostumePlacement.flipX ? "FLIPPED HORIZONTALLY" : "FLIP HORIZONTAL"}
+                </button>
                 <div>
                   <p className="mb-2 text-xs" style={{ color: "#a89878" }}>Layer</p>
                   <div className="grid grid-cols-2 gap-2">
