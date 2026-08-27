@@ -1,0 +1,143 @@
+name: Apply admin costume follow-up
+
+on:
+  push:
+    branches:
+      - codex/fix-animated-costume-rendering
+    paths:
+      - .github/workflows/apply-admin-costume-followup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/fix-animated-costume-rendering
+          fetch-depth: 0
+      - name: Apply focused source edits
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected exactly one match in {path}, found {count}: {old[:100]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          # Shared costume contract: persisted horizontal mirror, backwards-compatible default.
+          replace_once(
+              "shared/costumeFeature.ts",
+              '  /** Clockwise rotation in degrees around the saved pivot. Older placements default to 0. */\n  rotation?: number;\n  depth: CostumeDepth;',
+              '  /** Clockwise rotation in degrees around the saved pivot. Older placements default to 0. */\n  rotation?: number;\n  /** Mirror the costume artwork horizontally before rotation. Older placements default to false. */\n  flipX?: boolean;\n  depth: CostumeDepth;',
+          )
+          replace_once(
+              "shared/costumeSchema.ts",
+              '  rotation: z.number().min(-180).max(180).default(0),\n  depth: z.enum(["front", "back"]),',
+              '  rotation: z.number().min(-180).max(180).default(0),\n  flipX: z.boolean().default(false),\n  depth: z.enum(["front", "back"]),',
+          )
+
+          # Runtime costume rendering honors the saved mirror.
+          replace_once(
+              "client/src/components/PetAnimator.tsx",
+              '            transform: `rotate(${placement.rotation ?? 0}deg)`,',
+              '            transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flipX ? -1 : 1})`,',
+          )
+          replace_once(
+              "client/src/components/PetCostumeEquipmentSection.tsx",
+              '        transform: `rotate(${placement.rotation ?? 0}deg)`,',
+              '        transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flipX ? -1 : 1})`,',
+          )
+
+          editor = "client/src/components/PetDatabasePanel.tsx"
+
+          # Admin preview should honor the exact author-authored zIndex rather than
+          # re-normalizing it through the runtime animation-layer helper.
+          replace_once(
+              editor,
+              'import { getEffectivePetLayer } from "@/lib/petPartConfig";',
+              'import { basePetPartType } from "@/lib/petPartConfig";',
+          )
+          replace_once(
+              editor,
+              '''function EditorTabs({ active, onChange }: { active: EditorTab; onChange: (tab: EditorTab) => void }) {\n  return <nav aria-label="Pet editor" className="flex flex-wrap gap-2">\n    {(["parts", "costume"] as const).map(tab => <button key={tab} data-testid={`tab-pet-editor-${tab}`} onClick={() => onChange(tab)} className="rounded-md px-3 py-2 font-fantasy text-[10px] tracking-wider" style={{ background: active === tab ? "rgba(240,192,64,.24)" : "rgba(0,0,0,.3)", border: "1px solid rgba(240,192,64,.3)", color: active === tab ? "#f0c040" : "#a89878" }}>{tab.toUpperCase()}</button>)}\n  </nav>;\n}''',
+              '''function EditorTabs({ active, onChange }: { active: EditorTab; onChange: (tab: EditorTab) => void }) {\n  return <>\n    <style>{`[data-testid="overlay-pet-parts"] { padding-top: max(20px, calc(env(safe-area-inset-top) + 14px)) !important; }`}</style>\n    <nav aria-label="Pet editor" className="flex flex-wrap gap-2">\n      {(["parts", "costume"] as const).map(tab => <button key={tab} data-testid={`tab-pet-editor-${tab}`} onClick={() => onChange(tab)} className="rounded-md px-3 py-2 font-fantasy text-[10px] tracking-wider" style={{ background: active === tab ? "rgba(240,192,64,.24)" : "rgba(0,0,0,.3)", border: "1px solid rgba(240,192,64,.3)", color: active === tab ? "#f0c040" : "#a89878" }}>{tab.toUpperCase()}</button>)}\n    </nav>\n  </>;\n}''',
+          )
+          replace_once(
+              editor,
+              '''  // Static preview, animated preview, and click selection all use production layering.\n  const previewFacing = templateDetail?.facing ?? "front";\n  const previewEffectiveZ = (p: { partType: string; zIndex: number }): number =>\n    getEffectivePetLayer(p, previewFacing);''',
+              '''  // This is the authoring surface, so preview the exact saved stack.\n  // Runtime animation grouping can still use its semantic layers separately.\n  const previewEffectiveZ = (p: { zIndex: number }): number => p.zIndex;''',
+          )
+          replace_once(
+              editor,
+              '    rotation: 0,\n    depth: "front",',
+              '    rotation: 0,\n    flipX: false,\n    depth: "front",',
+          )
+          replace_once(
+              editor,
+              '  const rotateCostume = (degrees: number) => updateCostumeDraft({ rotation: Math.max(-180, Math.min(180, degrees)) });\n  const saveCostumePlacement = () => {',
+              '  const rotateCostume = (degrees: number) => updateCostumeDraft({ rotation: Math.max(-180, Math.min(180, degrees)) });\n  const flipCostume = () => {\n    if (!selectedCostumePlacement) return;\n    updateCostumeDraft({ flipX: !(selectedCostumePlacement.flipX ?? false) });\n  };\n  const saveCostumePlacement = () => {',
+          )
+          replace_once(
+              editor,
+              '    saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: { ...selectedCostumePlacement, rotation: selectedCostumePlacement.rotation ?? 0 } });',
+              '    saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: { ...selectedCostumePlacement, rotation: selectedCostumePlacement.rotation ?? 0, flipX: selectedCostumePlacement.flipX ?? false } });',
+          )
+          replace_once(
+              editor,
+              '                    zIndex: previewEffectiveZ(part) + 1000,',
+              '                    zIndex: basePetPartType(part.partType) === "above_head" ? 20000 : previewEffectiveZ(part) + 1000,',
+          )
+          replace_once(
+              editor,
+              '                    transform: `rotate(${selectedCostumePlacement.rotation ?? 0}deg)`,',
+              '                    transform: `rotate(${selectedCostumePlacement.rotation ?? 0}deg) scaleX(${selectedCostumePlacement.flipX ? -1 : 1})`,',
+          )
+          replace_once(
+              editor,
+              '''                  </div>\n                </div>\n                <div>\n                  <p className="mb-2 text-xs" style={{ color: "#a89878" }}>Layer</p>''',
+              '''                  </div>\n                </div>\n                <button\n                  type="button"\n                  data-testid="button-flip-costume-horizontal"\n                  aria-pressed={!!selectedCostumePlacement.flipX}\n                  onClick={flipCostume}\n                  disabled={saveCostumeMutation.isPending}\n                  className="flex w-full items-center justify-center gap-2 rounded-lg p-2.5 text-[10px] font-semibold tracking-wider disabled:opacity-50"\n                  style={{\n                    background: selectedCostumePlacement.flipX ? "rgba(192,132,252,.30)" : "rgba(0,0,0,.25)",\n                    border: "1px solid rgba(192,132,252,.28)",\n                    color: selectedCostumePlacement.flipX ? "#f3e8ff" : "#d8b4fe",\n                  }}\n                >\n                  <span aria-hidden="true" style={{ fontSize: 16, lineHeight: 1 }}>↔</span>\n                  {selectedCostumePlacement.flipX ? "FLIPPED HORIZONTALLY" : "FLIP HORIZONTAL"}\n                </button>\n                <div>\n                  <p className="mb-2 text-xs" style={{ color: "#a89878" }}>Layer</p>''',
+          )
+
+          # Existing admin stability tests now verify flip persistence, safe-area placement,
+          # exact authoring z-order, and the protected above-head rule.
+          tests = "test/costumeAdminEditorStability.test.ts"
+          replace_once(
+              tests,
+              '  assert.match(editor, /transform: `rotate\\(\\$\\{selectedCostumePlacement\\.rotation \\?\\? 0\\}deg\\)`/);',
+              '  assert.match(editor, /transform: `rotate\\(\\$\\{selectedCostumePlacement\\.rotation \\?\\? 0\\}deg\\) scaleX\\(\\$\\{selectedCostumePlacement\\.flipX \\? -1 : 1\\}\\)`/);',
+          )
+          p = Path(tests)
+          text = p.read_text()
+          marker = '''test("costume vault scales through search and a compact thumbnail grid", () => {'''
+          insert = '''test("costume editor supports a persisted horizontal flip", () => {\n  assert.match(editor, /data-testid="button-flip-costume-horizontal"/);\n  assert.match(editor, /const flipCostume = \\(\\) =>/);\n  assert.match(editor, /flipX: false/);\n  assert.match(editor, /flipX: selectedCostumePlacement\\.flipX \\?\\? false/);\n  assert.match(costumeSchema, /flipX: z\\.boolean\\(\\)\\.default\\(false\\)/);\n});\n\ntest("admin pet editing respects mobile safe areas and authored part stacking", () => {\n  assert.match(editor, /safe-area-inset-top/);\n  assert.match(editor, /const previewEffectiveZ = \\(p: \\{ zIndex: number \\}\\): number => p\\.zIndex/);\n  assert.match(editor, /basePetPartType\\(part\\.partType\\) === "above_head" \\? 20000/);\n});\n\n'''
+          if marker not in text:
+              raise SystemExit("Could not find admin test insertion marker")
+          p.write_text(text.replace(marker, insert + marker, 1))
+
+          animated_tests = "test/costumeAnimatedRenderer.test.ts"
+          replace_once(
+              animated_tests,
+              '  assert.match(animator, /transform: `rotate\\(\\$\\{placement\\.rotation \\?\\? 0\\}deg\\)`/);',
+              '  assert.match(animator, /transform: `rotate\\(\\$\\{placement\\.rotation \\?\\? 0\\}deg\\) scaleX\\(\\$\\{placement\\.flipX \\? -1 : 1\\}\\)`/);',
+          )
+
+          # Remove this one-shot workflow from the branch in the same commit.
+          Path(".github/workflows/apply-admin-costume-followup.yml").unlink()
+          PY
+      - name: Commit follow-up
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Fix admin costume transforms and mobile editor layout"
+          git push origin HEAD:codex/fix-animated-costume-rendering
