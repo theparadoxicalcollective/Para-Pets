@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { getAlphaBounds, getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
 import { PET_LAYER_ORDER, getEffectivePetLayer } from "@/lib/petPartConfig";
-import { DEFAULT_PET_ANIMATION, alphaAdjustedPivot } from "@/lib/petAnimationConfig";
+import { DEFAULT_PET_ANIMATION, alphaAdjustedPivot, getHeadBobCssPercent } from "@/lib/petAnimationConfig";
 
 interface PetPart {
   id: string;
@@ -684,24 +684,24 @@ const ANIMATION_STYLES = `
   }
   /* Arms — body breath scale PLUS a very subtle ±1.5° rotation so the
      arm reads as alive without overpowering the calm idle pose.
-     Same scale as petIdleBody (scale(1, 1) → scale(1.012, 1.022)) so
+     Same scale as petIdleBody so
      the shoulder stays glued to the chest on inhale; same 4.5 s period
      (getPartDuration) so rotation peaks exactly when the body is fully
      inhaled. Phase-locked via bodyBreathDelay so body + arms always
      inhale together. */
   @keyframes petIdleLeftArmBreath {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.012, 1.022); }
+    to   { transform: scale(${DEFAULT_PET_ANIMATION.body.scaleX}, ${DEFAULT_PET_ANIMATION.body.scaleY}); }
   }
   @keyframes petIdleRightArmBreath {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.012, 1.022); }
+    to   { transform: scale(${DEFAULT_PET_ANIMATION.body.scaleX}, ${DEFAULT_PET_ANIMATION.body.scaleY}); }
   }
   /* Side-facing front arm — pure scale matching petIdleBody so the arm
      stays glued to the chest silhouette on every inhale/exhale. */
   @keyframes petIdleFrontArmBreath {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.012, 1.022); }
+    to   { transform: scale(${DEFAULT_PET_ANIMATION.body.scaleX}, ${DEFAULT_PET_ANIMATION.body.scaleY}); }
   }
   /* Paired flippers (e.g. Bayou Turtle) — body breathing scale PLUS a
      subtle inward translateX so both flippers paddle toward the body on
@@ -711,11 +711,11 @@ const ANIMATION_STYLES = `
      which reads as a gentle sculling motion without leaving the silhouette. */
   @keyframes petIdleFlipperLeft {
     from { transform: scale(1, 1) translateX(0%); }
-    to   { transform: scale(1.012, 1.022) translateX(1.5%); }
+    to   { transform: scale(${DEFAULT_PET_ANIMATION.body.scaleX}, ${DEFAULT_PET_ANIMATION.body.scaleY}) translateX(1%); }
   }
   @keyframes petIdleFlipperRight {
     from { transform: scale(1, 1) translateX(0%); }
-    to   { transform: scale(1.012, 1.022) translateX(-1.5%); }
+    to   { transform: scale(${DEFAULT_PET_ANIMATION.body.scaleX}, ${DEFAULT_PET_ANIMATION.body.scaleY}) translateX(-1%); }
   }
   /* body_2 layer breathing — identical scale shape to petIdleBody but
      intentionally NOT in isBodyBreathAnim so it keeps its own per-part
@@ -725,7 +725,7 @@ const ANIMATION_STYLES = `
      for shell underlayers, secondary torso pieces, etc. */
   @keyframes petIdleBody2 {
     from { transform: scale(1, 1); }
-    to   { transform: scale(1.012, 1.022); }
+    to   { transform: scale(${DEFAULT_PET_ANIMATION.body.scaleX}, ${DEFAULT_PET_ANIMATION.body.scaleY}); }
   }
   /* Ground head: small left/right tilt instead of upward bob. Reduced
      from ±0.6deg → ±0.4deg so the head reads as a barely-there sway
@@ -1734,54 +1734,20 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     }
   }
 
-  // Per-pet head-bob amount (in %) for the petIdleHead keyframe. Computed
-  // from the body's ALPHA-TRIMMED visible height so the head's lift
-  // TRACKS the body's actual top rise on this particular template — the
-  // head and the body's top edge now move together rather than the head
-  // leading by a fixed extra amount, which prevents the "head flying off
-  // the body" perception that big front-facing pets (Black Forest Dragon,
-  // Seer Rabbit) showed at the previous +0.6 % lead.
-  //
-  //   bodyTopRise % = (visibleBodyHeight / CANVAS_SIZE) × 2.2
-  //                   ── because petIdleBody scales scale(1, 1.022) at feet,
-  //                      so the body's top edge rises by 2.2 % × the visible
-  //                      body's fraction of the canvas
-  //   headBobPct    = bodyTopRisePct           (no lead — head matches body)
-  //   clamp         = [0.5 %, 1.2 %]   (lower than body's max rise of
-  //                                     ~2.2 % so head NEVER overshoots
-  //                                     the body's top; min keeps bob
-  //                                     barely visible on tiny-body pets)
-  //
-  // Net effect: head bob ≤ body's actual top rise for ALL pets, so the
-  // head can only ever sink slightly into the body's silhouette at peak
-  // inhale — never fly above it.
-  //
-  // The wrapper uses this via the --pet-head-bob CSS variable (see the
-  // petIdleHead keyframe). Re-evaluates whenever bumpAlphaVersion fires
-  // after the body's alpha scan resolves, so cold-cache renders settle
-  // onto the correct value within a frame or two of mount.
-  let headBobCssPct: string | undefined;
-  if (bodyPartForBreath) {
-    const bodyAb = getAlphaBoundsSync(bodyPartForBreath.imageUrl) ?? FULL_BOUNDS;
-    const visibleBodyHeight = bodyPartForBreath.height * bodyAb.height; // 0..CANVAS_SIZE
-    // For ground pets the body inflates from "50% 100%" (feet), so the top
-    // edge rises by the FULL 4.6% of body height. For flying pets the body
-    // inflates around its hover pivot — top edge only rises by the fraction
-    // of the body that sits ABOVE the pivot (≈ pivotY-from-top of the
-    // alpha-trimmed body). Without this scale, flying pets' heads were
-    // bobbing far higher than the body's actual top, producing the
-    // "head floating off the body" effect on flying pets.
-    let topRiseFraction = 1.0;
-    if (canFly) {
-      const bpyFrac = (bodyPartForBreath.pivotY ?? 50) / 100;
-      const originYFrac = bodyAb.top + bodyAb.height * bpyFrac;
-      topRiseFraction = Math.max(0, Math.min(1, originYFrac));
-    }
-    const bodyTopRisePct = (visibleBodyHeight / CANVAS_SIZE) * 2.2 * topRiseFraction;
-    const minBob = canFly ? 0.25 : 0.5;
-    const clamped = Math.min(1.2, Math.max(minBob, bodyTopRisePct));
-    headBobCssPct = `-${clamped.toFixed(2)}%`;
-  }
+  // Use the same alpha-trimmed body-rise calculation as the costume wrapper.
+  // The value is derived from the current body scale instead of an older hard-
+  // coded stretch, so the head and anything mounted to it move as one unit.
+  const headBodyAlpha = bodyPartForBreath
+    ? (getAlphaBoundsSync(bodyPartForBreath.imageUrl) ?? FULL_BOUNDS)
+    : FULL_BOUNDS;
+  const headBobCssPct = getHeadBobCssPercent({
+    bodyHeight: bodyPartForBreath?.height,
+    alphaTop: headBodyAlpha.top,
+    alphaHeight: headBodyAlpha.height,
+    pivotY: bodyPartForBreath?.pivotY ?? 50,
+    canFly,
+    canvasSize: CANVAS_SIZE,
+  });
 
   // Helper: render a single part image with given animation (or none).
   // `transformOriginOverride` lets callers override the part's pivot-based
