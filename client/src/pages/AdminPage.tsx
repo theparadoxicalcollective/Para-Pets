@@ -788,6 +788,7 @@ export default function AdminPage({ user }: AdminPageProps) {
             background: "rgba(0,0,0,0.92)",
             overflowY: "auto",
             padding: "16px",
+            paddingTop: "max(20px, calc(env(safe-area-inset-top) + 14px))",
           }}
         >
           <div

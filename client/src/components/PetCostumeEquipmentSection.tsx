@@ -43,20 +43,24 @@ export function EquippedCostumePreview({ petInventoryId, depth }: { petInventory
   });
 
   return <div aria-hidden data-testid={`costume-preview-${depth}`} className="absolute inset-0 pointer-events-none" style={{ zIndex: depth === "front" ? 3 : 1 }}>
-    {(data?.equipped ?? []).map((costume) => {
-      const placement = costume.placements.find((item) => item.view === "front" && item.depth === depth);
-      const anchor = placement ? data?.anchors.find((item) => item.partType === placement.anchorPart) : undefined;
-      const position = getCostumeCanvasPosition(anchor, placement);
-      if (!placement || !position || !costume.imageUrl) return null;
-      return <img key={costume.id} src={costume.imageUrl} alt="" className="absolute object-contain" style={{
-        left: `${position.left / 10}%`,
-        top: `${position.top / 10}%`,
-        width: `${placement.width / 10}%`,
-        height: `${placement.height / 10}%`,
-        transform: `rotate(${placement.rotation ?? 0}deg)`,
-        transformOrigin: `${placement.pivotX}% ${placement.pivotY}%`,
-      }} />;
-    })}
+    {(data?.equipped ?? []).flatMap((costume) =>
+      costume.placements
+        .filter((placement) => placement.view === "front" && placement.depth === depth)
+        .map((placement) => {
+          const anchor = data?.anchors.find((item) => item.partType === placement.anchorPart);
+          const position = getCostumeCanvasPosition(anchor, placement);
+          if (!position || !costume.imageUrl) return null;
+          const placementInstance = placement.instance ?? 1;
+          return <img key={`${costume.id}-${depth}-${placementInstance}`} src={costume.imageUrl} alt="" className="absolute object-contain" style={{
+            left: `${position.left / 10}%`,
+            top: `${position.top / 10}%`,
+            width: `${placement.width / 10}%`,
+            height: `${placement.height / 10}%`,
+            transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flipX ? -1 : 1})`,
+            transformOrigin: `${placement.pivotX}% ${placement.pivotY}%`,
+          }} />;
+        })
+    )}
   </div>;
 }
 

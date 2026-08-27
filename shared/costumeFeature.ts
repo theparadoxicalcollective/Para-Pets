@@ -9,6 +9,11 @@
 
 export const COSTUME_SLOT_COUNT = 3 as const;
 
+/** One fitted costume can be duplicated three times on the same pet template. */
+export const COSTUME_MAX_DUPLICATES_PER_PET = 3 as const;
+/** Original artwork + the three allowed duplicates. These are visual placements, not extra inventory copies. */
+export const COSTUME_MAX_PLACEMENT_INSTANCES = 4 as const;
+
 /** Number of costume slots available without spending coins. */
 export const COSTUME_BASE_SLOTS = 1 as const;
 
@@ -39,6 +44,8 @@ export type CostumeAnchorPart = string;
 export interface CostumePlacement {
   view: CostumeView;
   anchorPart: CostumeAnchorPart;
+  /** 1 is the original fitted piece; 2-4 are admin-created visual duplicates. Front/side placements reuse the same instance number. */
+  instance?: number;
   posX: number;
   posY: number;
   width: number;
@@ -47,6 +54,8 @@ export interface CostumePlacement {
   pivotY: number;
   /** Clockwise rotation in degrees around the saved pivot. Older placements default to 0. */
   rotation?: number;
+  /** Mirror the costume artwork horizontally before rotation. Older placements default to false. */
+  flipX?: boolean;
   depth: CostumeDepth;
 }
 

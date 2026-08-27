@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
+import { costumePlacementsSchema } from "../shared/costumeSchema";
 
 const editor = readFileSync("client/src/components/PetDatabasePanel.tsx", "utf8");
 const adminPage = readFileSync("client/src/pages/AdminPage.tsx", "utf8");
@@ -31,7 +32,7 @@ test("costume pointer movement only updates a local draft", () => {
 
 test("costume placement persists only from the explicit Save action", () => {
   assert.match(editor, /const saveCostumePlacement = \(\) => \{/);
-  assert.match(editor, /saveCostumeMutation\.mutate\(\{ itemId: selectedCostumeId, placement: \{ \.\.\.selectedCostumePlacement, rotation:/);
+  assert.match(editor, /saveCostumeMutation\.mutate\(\{ itemId: selectedCostumeId, placement: \{ \.\.\.selectedCostumePlacement, instance: selectedCostumeInstance, rotation:/);
   assert.match(editor, /queryClient\.setQueryData<CostumeDefinition\[]>/);
   assert.match(editor, /data-testid="costume-save-dock"/);
   assert.match(editor, /fixed left-4 right-4/);
@@ -48,7 +49,7 @@ test("costume editor provides proportional sizing and offset-preserving direct d
   assert.match(pointerStart, /getCostumeDragOffset\(/);
   assert.match(pointerStart, /setPointerCapture\(event\.pointerId\)/);
   assert.match(editor, /onPointerCancel=\{\(event\) => endCostumeDrag\(event\.pointerId\)\}/);
-  assert.match(editor, /onLostPointerCapture=\{\(event\) => endCostumeDrag\(event\.pointerId\)\}/);
+  assert.match(editor, /onLostPointerCapture=\{isActive \? \(event\) => endCostumeDrag\(event\.pointerId\) : undefined\}/);
   assert.match(editor, /draggable=\{false\}/);
 });
 
@@ -76,9 +77,74 @@ test("costume controls cannot change the draft while a save is pending", () => {
 test("costume editor supports persisted rotation around the saved pivot", () => {
   assert.match(editor, /data-testid="input-costume-rotation"/);
   assert.match(editor, /const rotateCostume = \(degrees: number\)/);
-  assert.match(editor, /transform: `rotate\(\$\{selectedCostumePlacement\.rotation \?\? 0\}deg\)`/);
-  assert.match(editor, /transformOrigin: `\$\{selectedCostumePlacement\.pivotX\}% \$\{selectedCostumePlacement\.pivotY\}%`/);
+  assert.match(editor, /transform: `rotate\(\$\{placement\.rotation \?\? 0\}deg\) scaleX\(\$\{placement\.flipX \? -1 : 1\}\)`/);
+  assert.match(editor, /transformOrigin: `\$\{placement\.pivotX\}% \$\{placement\.pivotY\}%`/);
   assert.match(costumeSchema, /rotation: z\.number\(\)\.min\(-180\)\.max\(180\)\.default\(0\)/);
+});
+
+test("costume editor supports a persisted horizontal flip", () => {
+  assert.match(editor, /data-testid="button-flip-costume-horizontal"/);
+  assert.match(editor, /const flipCostume = \(\) =>/);
+  assert.match(editor, /flipX: false/);
+  assert.match(editor, /flipX: selectedCostumePlacement\.flipX \?\? false/);
+  assert.match(costumeSchema, /flipX: z\.boolean\(\)\.default\(false\)/);
+});
+
+test("admin pet editing respects mobile safe areas and authored part stacking", () => {
+  assert.match(adminPage, /paddingTop: "max\(20px, calc\(env\(safe-area-inset-top\) \+ 14px\)\)"/);
+  assert.match(editor, /const previewEffectiveZ = \(p: \{ zIndex: number \}\): number => p\.zIndex/);
+  assert.match(editor, /basePetPartType\(part\.partType\) === "above_head" \? 20000/);
+});
+
+test("admin can fit one costume artwork as an original plus at most three duplicates", () => {
+  assert.match(editor, /COSTUME_MAX_PLACEMENT_INSTANCES/);
+  assert.match(editor, /data-testid="button-duplicate-costume-piece"/);
+  assert.match(editor, /data-testid="costume-copy-selector"/);
+  assert.match(editor, /`COPY \${instance - 1}`/);
+  assert.match(editor, /instance: selectedCostumeInstance/);
+  assert.match(editor, /current\.view !== placement\.view \|\| \(current\.instance \?\? 1\) !== placementInstance/);
+  assert.match(editor, /Original \+ up to 3 duplicates per pet/);
+  assert.match(editor, /data-testid="button-remove-costume-copy"/);
+  assert.match(costumeSchema, /instance: z\.number\(\)\.int\(\)\.min\(1\)\.max\(COSTUME_MAX_PLACEMENT_INSTANCES\)\.default\(1\)/);
+});
+
+test("costume anchor selector lists every uploaded pet layer and marks opposite-view layers unavailable", () => {
+  assert.match(editor, /uploadedPartTypes = Array\.from\(new Set\(\(templateDetail\?\.parts \?\? \[\]\)\.map/);
+  assert.match(editor, /availableInCurrentView: currentViewPartTypes\.has\(partType\)/);
+  assert.match(editor, /disabled=\{!part\.availableInCurrentView\}/);
+  assert.match(editor, /part\.views\.map/);
+});
+
+test("server accepts three duplicates, rejects a fourth, and preserves flip defaults", () => {
+  const placement = {
+    view: "front" as const,
+    anchorPart: "body",
+    posX: 10,
+    posY: 20,
+    width: 100,
+    height: 100,
+    pivotX: 50,
+    pivotY: 50,
+    rotation: 0,
+    depth: "front" as const,
+  };
+  const allowed = costumePlacementsSchema.safeParse([
+    { ...placement, instance: 1 },
+    { ...placement, instance: 2, anchorPart: "head", flipX: true },
+    { ...placement, instance: 3, anchorPart: "left_ear" },
+    { ...placement, instance: 4, anchorPart: "right_ear" },
+    { ...placement, view: "side", instance: 1 },
+  ]);
+  assert.equal(allowed.success, true);
+  if (allowed.success) {
+    assert.equal(allowed.data[0].flipX, false);
+    assert.equal(allowed.data[1].flipX, true);
+  }
+  assert.equal(costumePlacementsSchema.safeParse([{ ...placement, instance: 5 }]).success, false);
+  assert.equal(costumePlacementsSchema.safeParse([
+    { ...placement, instance: 2 },
+    { ...placement, instance: 2, anchorPart: "head" },
+  ]).success, false);
 });
 
 test("costume vault scales through search and a compact thumbnail grid", () => {
