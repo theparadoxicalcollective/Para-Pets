@@ -601,6 +601,20 @@ export default function PetAnimator({
   }, [costumeData?.equipped, resolvedView]);
   const renderCostumes = !!resolvedPetInventoryId && equipped.length > 0 && viewParts.length > 0;
   const hasAboveHead = viewParts.some(part => basePartType(part.partType) === "above_head");
+  // Above-head parts are intentionally re-rendered in the z=3 top layer while
+  // costumes are visible so crowns/halos/hats stay above front costume pieces.
+  // Hide those exact source parts from PetAnimatorCore at the same time.
+  // Otherwise the same artwork exists twice and the two copies drift apart
+  // after a refetch/re-render restarts the late top-layer animation phase.
+  const hiddenCorePartTypes = useMemo(() => {
+    const hidden = new Set(hiddenWingPartTypes);
+    if (renderCostumes && hasAboveHead) {
+      for (const part of viewParts) {
+        if (basePartType(part.partType) === "above_head") hidden.add(part.partType);
+      }
+    }
+    return hidden;
+  }, [hiddenWingPartTypes, renderCostumes, hasAboveHead, viewParts]);
 
   const costumeLayer = (depth: "front" | "back") => (
     <div
@@ -650,7 +664,7 @@ export default function PetAnimator({
           fitVisible={fitVisible}
           expression={expression}
           performanceStatic={performanceStatic}
-          hiddenPartTypes={hiddenWingPartTypes}
+          hiddenPartTypes={hiddenCorePartTypes}
           style={{ width: "100%", height: "100%" }}
         />
       </div>

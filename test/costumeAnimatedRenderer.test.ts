@@ -68,8 +68,16 @@ test("wing costumes hide the original wing and its mirrored pair only", () => {
   assert.deepEqual(getWingReplacementPartTypes("left_ear"), []);
   assert.match(animator, /hiddenWingPartTypes = useMemo/);
   assert.match(animator, /getWingReplacementPartTypes\(placement\.anchorPart\)/);
-  assert.match(animator, /hiddenPartTypes=\{hiddenWingPartTypes\}/);
+  assert.match(animator, /hiddenPartTypes=\{hiddenCorePartTypes\}/);
   assert.match(animatorCore, /filter\(part => !hiddenPartTypes\?\.has\(part\.partType\)\)/);
+});
+
+test("above-head source parts are hidden from the core while the top costume layer is active", () => {
+  assert.match(animator, /const hiddenCorePartTypes = useMemo/);
+  assert.match(animator, /if \(renderCostumes && hasAboveHead\)/);
+  assert.match(animator, /basePartType\(part\.partType\) === "above_head"\) hidden\.add\(part\.partType\)/);
+  assert.match(animator, /hiddenPartTypes=\{hiddenCorePartTypes\}/);
+  assert.match(animator, /data-testid="pet-animator-above-head-top"/);
 });
 
 test("head-mounted costumes inherit the same head-group wrapper motion as the pet", () => {
