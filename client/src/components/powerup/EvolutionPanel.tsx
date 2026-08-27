@@ -22,15 +22,15 @@ export default function EvolutionPanel({ enabled, fallbackRarity }: EvolutionPan
   return <div className="pup-evolution-skin" style={style}>
     <style>{`
       .pup-evolution-skin { position:absolute; inset:0; z-index:8; pointer-events:none; }
-      .pup-evolution-skin > .pupevo-orbit { inset:0 !important; }
+      .pup-evolution-skin > .pupevo-orbit { inset:0 auto !important; left:50% !important; width:min(100%,455px) !important; transform:translateX(-50%); }
       .pup-evolution-skin .pupevo-slot { width:clamp(52px,14vw,76px) !important; height:clamp(52px,14vw,76px) !important; pointer-events:auto !important; cursor:pointer; }
       /* Slot 1 starts at bottom-left, then progression travels clockwise. */
-      .pup-evolution-skin .pupevo-slot:nth-of-type(1){left:26% !important;top:56% !important}
-      .pup-evolution-skin .pupevo-slot:nth-of-type(2){left:10% !important;top:35% !important}
-      .pup-evolution-skin .pupevo-slot:nth-of-type(3){left:34% !important;top:15% !important}
-      .pup-evolution-skin .pupevo-slot:nth-of-type(4){left:66% !important;top:15% !important}
-      .pup-evolution-skin .pupevo-slot:nth-of-type(5){left:90% !important;top:35% !important}
-      .pup-evolution-skin .pupevo-slot:nth-of-type(6){left:74% !important;top:56% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(1){left:35% !important;top:63% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(2){left:20% !important;top:37% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(3){left:35% !important;top:11% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(4){left:65% !important;top:11% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(5){left:80% !important;top:37% !important}
+      .pup-evolution-skin .pupevo-slot:nth-of-type(6){left:65% !important;top:63% !important}
       .pup-evolution-skin .pupevo-slot:not(.locked)>img,
       .pup-evolution-skin .pupevo-fill img { content:var(--pup-evo-unlocked) !important; filter:drop-shadow(0 0 1px #baffd7) drop-shadow(0 0 3px rgba(75,238,157,.72)) !important; }
       .pup-evolution-skin .pupevo-slot.current>img { filter:drop-shadow(0 0 1px #d4ffe8) drop-shadow(0 0 5px rgba(83,255,176,.92)) !important; }
