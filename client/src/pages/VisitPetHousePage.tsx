@@ -97,7 +97,7 @@ function PetStatPopup({ pet, onClose }: { pet: VisitedPet; onClose: () => void }
             overflow: "hidden",
           }}>
             {pet.petTemplateId ? (
-              <PetAnimator petTemplateId={pet.petTemplateId} mode="static" size={68} fillContainer />
+              <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.inventoryId} costumeAccess="public" mode="static" size={68} fillContainer />
             ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
               <img src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""} alt={displayName} draggable={false} style={{ width: 68, height: 68, objectFit: "contain" }} />
             ) : (
@@ -310,6 +310,8 @@ function InteriorViewerVisit({ url, placedItems, placedPets, leaveButtonX = 0.92
             {pet.petTemplateId ? (
               <PetAnimator
                 petTemplateId={pet.petTemplateId}
+                petInventoryId={pet.inventoryId}
+                costumeAccess="public"
                 mode="house"
                 size={INTERIOR_PET_SIZE}
                 fillContainer
@@ -539,7 +541,7 @@ export default function VisitPetHousePage() {
             onClick={(e) => { e.stopPropagation(); setSelectedPet(pet); }}
           >
             {pet.petTemplateId ? (
-              <PetAnimator petTemplateId={pet.petTemplateId} mode="static" size={cfg.size} fillContainer className="pet-idle-squish" style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }} />
+              <PetAnimator petTemplateId={pet.petTemplateId} petInventoryId={pet.inventoryId} costumeAccess="public" mode="static" size={cfg.size} fillContainer className="pet-idle-squish" style={{ filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.5))" }} />
             ) : (pet.hatchedImageUrl || pet.imageUrl) ? (
               <img
                 src={pet.hatchedImageUrl ?? pet.imageUrl ?? ""}
