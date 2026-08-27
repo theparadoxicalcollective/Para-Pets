@@ -933,13 +933,16 @@ export default function PetDatabasePanel({
             <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-2 gap-2 max-h-64 xl:max-h-[520px] overflow-y-auto pr-1" aria-label="Costume library">
               {filteredCostumeItems.map(item => {
                 const selected = selectedCostumeId === item.id;
+                const fittedForPet = costumeDefinitions.some(definition =>
+                  definition.shopItemId === item.id && definition.placements.length > 0
+                );
                 return (
                   <button
                     key={item.id}
                     onClick={() => selectCostume(item.id)}
                     disabled={saveCostumeMutation.isPending}
                     aria-pressed={selected}
-                    className="group min-w-0 rounded-xl p-2 text-center disabled:opacity-50 active:scale-95 transition-transform"
+                    className="group relative min-w-0 rounded-xl p-2 text-center disabled:opacity-50 active:scale-95 transition-transform"
                     style={{
                       background: selected ? "linear-gradient(180deg,rgba(192,132,252,.28),rgba(88,28,135,.24))" : "rgba(0,0,0,.25)",
                       border: selected ? "1px solid rgba(216,180,254,.72)" : "1px solid rgba(192,132,252,.16)",
@@ -947,6 +950,13 @@ export default function PetDatabasePanel({
                       color: "#e7d7b5",
                     }}
                   >
+                    {fittedForPet && <span
+                      data-testid={`costume-fitted-${item.id}`}
+                      aria-label="Placement saved for this pet"
+                      title="Placement saved for this pet"
+                      className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full"
+                      style={{ background: "#39f58a", border: "1px solid rgba(220,255,232,.9)", boxShadow: "0 0 8px rgba(57,245,138,.95)" }}
+                    />}
                     <span className="mx-auto mb-1.5 grid h-14 w-full place-items-center rounded-lg" style={{ background: "radial-gradient(circle,rgba(192,132,252,.12),rgba(0,0,0,.12) 68%)" }}>
                       {item.imageUrl ? <img src={item.imageUrl} alt="" className="h-12 w-12 object-contain" draggable={false} /> : <span className="text-lg" aria-hidden="true">✦</span>}
                     </span>
