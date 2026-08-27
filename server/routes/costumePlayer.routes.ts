@@ -3,7 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { requireAuthenticated } from "../auth";
 import { db } from "../db";
 import { storage } from "../storage";
-import { shopItems, userInventory, users } from "@shared/schema";
+import { petTemplateParts, shopItems, userInventory, users } from "@shared/schema";
 import {
   petCostumeDefinitions,
   petCostumeSlotUnlocks,
@@ -24,16 +24,20 @@ async function ownedPet(petInventoryId: string, userId: string) {
 }
 
 export function registerCostumePlayerRoutes(app: Express) {
-  app.get("/api/user/equipped-costume-ids", requireAuthenticated, async (req: Request, res: Response) => {
+  app.get("/api/user/equipped-costume-counts", requireAuthenticated, async (req: Request, res: Response) => {
     try {
       const user = req.user as { id: string };
-      const rows = await db.select({ id: petEquippedCostumes.costumeInventoryId })
+      const rows = await db.select({
+        id: petEquippedCostumes.costumeInventoryId,
+        count: sql<number>`count(*)::int`,
+      })
         .from(petEquippedCostumes)
         .innerJoin(userInventory, eq(userInventory.id, petEquippedCostumes.petInventoryId))
-        .where(eq(userInventory.userId, user.id));
-      return res.json(rows.map((row) => row.id));
+        .where(eq(userInventory.userId, user.id))
+        .groupBy(petEquippedCostumes.costumeInventoryId);
+      return res.json(Object.fromEntries(rows.map((row) => [row.id, Number(row.count)])));
     } catch (error) {
-      console.error("[costumes] equipped ids failed", error);
+      console.error("[costumes] equipped counts failed", error);
       return res.status(500).json({ message: "Failed to load equipped costumes" });
     }
   });
@@ -42,7 +46,9 @@ export function registerCostumePlayerRoutes(app: Express) {
     try {
       const user = req.user as { id: string };
       const petInventoryId = String(req.params.petInventoryId);
-      if (!await ownedPet(petInventoryId, user.id)) return res.status(404).json({ message: "Pet not found" });
+      const target = await ownedPet(petInventoryId, user.id);
+      if (!target) return res.status(404).json({ message: "Pet not found" });
+      if (!target.item.petTemplateId) return res.status(400).json({ message: "This pet cannot wear costumes yet" });
 
       const [unlock] = await db.select().from(petCostumeSlotUnlocks)
         .where(eq(petCostumeSlotUnlocks.petInventoryId, petInventoryId))
@@ -50,15 +56,34 @@ export function registerCostumePlayerRoutes(app: Express) {
       const equipped = await db.select({
         id: petEquippedCostumes.id,
         slot: petEquippedCostumes.slot,
+        copyIndex: petEquippedCostumes.copyIndex,
         costumeInventoryId: petEquippedCostumes.costumeInventoryId,
         name: shopItems.name,
         imageUrl: shopItems.imageUrl,
+        placements: petCostumeDefinitions.placements,
       }).from(petEquippedCostumes)
         .innerJoin(userInventory, eq(userInventory.id, petEquippedCostumes.costumeInventoryId))
         .innerJoin(shopItems, eq(shopItems.id, userInventory.shopItemId))
+        .innerJoin(petCostumeDefinitions, and(
+          eq(petCostumeDefinitions.shopItemId, shopItems.id),
+          eq(petCostumeDefinitions.templateId, target.item.petTemplateId),
+        ))
         .where(eq(petEquippedCostumes.petInventoryId, petInventoryId));
 
-      return res.json({ equipped, extraSlots: unlock?.extraSlots ?? 0 });
+      const anchors = await db.select({
+        partType: petTemplateParts.partType,
+        posX: petTemplateParts.posX,
+        posY: petTemplateParts.posY,
+        width: petTemplateParts.width,
+        height: petTemplateParts.height,
+        pivotX: petTemplateParts.pivotX,
+        pivotY: petTemplateParts.pivotY,
+      }).from(petTemplateParts).where(and(
+        eq(petTemplateParts.templateId, target.item.petTemplateId),
+        eq(petTemplateParts.view, "front"),
+      ));
+
+      return res.json({ equipped, anchors, extraSlots: unlock?.extraSlots ?? 0 });
     } catch (error) {
       console.error("[costumes] player load failed", error);
       return res.status(500).json({ message: "Failed to load pet costumes" });
@@ -80,41 +105,45 @@ export function registerCostumePlayerRoutes(app: Express) {
       if (!target.pet.isHatched) return res.status(400).json({ message: "Pet has not hatched yet" });
       if (!target.item.petTemplateId) return res.status(400).json({ message: "This pet cannot wear costumes yet" });
 
-      const costumeInventory = await storage.getInventoryItemById(costumeInventoryId);
-      if (!costumeInventory || costumeInventory.userId !== user.id) return res.status(404).json({ message: "Costume not found" });
-      const costumeItem = await storage.getShopItem(costumeInventory.shopItemId);
-      if (!costumeItem || costumeItem.type !== "costume") return res.status(400).json({ message: "Item is not a costume" });
+      const equipped = await db.transaction(async (tx) => {
+        const [costumeInventory] = await tx.select().from(userInventory)
+          .where(and(eq(userInventory.id, costumeInventoryId), eq(userInventory.userId, user.id)))
+          .for("update");
+        if (!costumeInventory) throw new Error("Costume not found");
+        if (costumeInventory.isListed) throw new Error("Remove this costume from the marketplace before equipping it");
+        const [costumeItem] = await tx.select().from(shopItems)
+          .where(eq(shopItems.id, costumeInventory.shopItemId)).limit(1);
+        if (!costumeItem || costumeItem.type !== "costume") throw new Error("Item is not a costume");
 
-      const [unlock] = await db.select().from(petCostumeSlotUnlocks)
-        .where(eq(petCostumeSlotUnlocks.petInventoryId, petInventoryId))
-        .limit(1);
-      if (slot > getUnlockedCostumeSlotCount(unlock?.extraSlots ?? 0)) {
-        return res.status(400).json({ message: "That costume slot is locked" });
-      }
+        const [unlock] = await tx.select().from(petCostumeSlotUnlocks)
+          .where(eq(petCostumeSlotUnlocks.petInventoryId, petInventoryId)).limit(1);
+        if (slot > getUnlockedCostumeSlotCount(unlock?.extraSlots ?? 0)) throw new Error("That costume slot is locked");
 
-      const [definition] = await db.select({ id: petCostumeDefinitions.id })
-        .from(petCostumeDefinitions)
-        .where(and(
-          eq(petCostumeDefinitions.shopItemId, costumeItem.id),
-          eq(petCostumeDefinitions.templateId, target.item.petTemplateId),
-        ))
-        .limit(1);
-      if (!definition) return res.status(400).json({ message: "This costume has not been fitted for this pet yet" });
+        const [definition] = await tx.select({ id: petCostumeDefinitions.id })
+          .from(petCostumeDefinitions).where(and(
+            eq(petCostumeDefinitions.shopItemId, costumeItem.id),
+            eq(petCostumeDefinitions.templateId, target.item.petTemplateId),
+          )).limit(1);
+        if (!definition) throw new Error("This costume has not been fitted for this pet yet");
 
-      const [existingCostume] = await db.select().from(petEquippedCostumes)
-        .where(eq(petEquippedCostumes.costumeInventoryId, costumeInventoryId))
-        .limit(1);
-      if (existingCostume) return res.status(400).json({ message: "That costume is already equipped" });
-      const [occupied] = await db.select().from(petEquippedCostumes)
-        .where(and(eq(petEquippedCostumes.petInventoryId, petInventoryId), eq(petEquippedCostumes.slot, slot)))
-        .limit(1);
-      if (occupied) return res.status(400).json({ message: "That costume slot is already occupied" });
+        const existingCopies = await tx.select({ copyIndex: petEquippedCostumes.copyIndex })
+          .from(petEquippedCostumes)
+          .where(eq(petEquippedCostumes.costumeInventoryId, costumeInventoryId));
+        const usedCopies = new Set(existingCopies.map((row) => row.copyIndex));
+        let copyIndex = 0;
+        while (usedCopies.has(copyIndex)) copyIndex += 1;
+        if (copyIndex >= costumeInventory.quantity) throw new Error("Every copy in this costume stack is already equipped");
 
-      const [equipped] = await db.insert(petEquippedCostumes).values({
-        petInventoryId,
-        costumeInventoryId,
-        slot,
-      }).returning();
+        const [occupied] = await tx.select().from(petEquippedCostumes)
+          .where(and(eq(petEquippedCostumes.petInventoryId, petInventoryId), eq(petEquippedCostumes.slot, slot)))
+          .limit(1);
+        if (occupied) throw new Error("That costume slot is already occupied");
+
+        const [inserted] = await tx.insert(petEquippedCostumes).values({
+          petInventoryId, costumeInventoryId, copyIndex, slot,
+        }).returning();
+        return inserted;
+      });
       return res.json({ equipped });
     } catch (error: any) {
       console.error("[costumes] equip failed", error);
@@ -126,13 +155,13 @@ export function registerCostumePlayerRoutes(app: Express) {
     try {
       const user = req.user as { id: string };
       const petInventoryId = String(req.params.petInventoryId);
-      const costumeInventoryId = typeof req.body?.costumeInventoryId === "string" ? req.body.costumeInventoryId : "";
-      if (!costumeInventoryId) return res.status(400).json({ message: "Costume is required" });
+      const equippedCostumeId = typeof req.body?.equippedCostumeId === "string" ? req.body.equippedCostumeId : "";
+      if (!equippedCostumeId) return res.status(400).json({ message: "Costume is required" });
       if (!await ownedPet(petInventoryId, user.id)) return res.status(404).json({ message: "Pet not found" });
 
       const [removed] = await db.delete(petEquippedCostumes).where(and(
         eq(petEquippedCostumes.petInventoryId, petInventoryId),
-        eq(petEquippedCostumes.costumeInventoryId, costumeInventoryId),
+        eq(petEquippedCostumes.id, equippedCostumeId),
       )).returning();
       if (!removed) return res.status(404).json({ message: "Costume is not equipped on this pet" });
       return res.json({ success: true });
