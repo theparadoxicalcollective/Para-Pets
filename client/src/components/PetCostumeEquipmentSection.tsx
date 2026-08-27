@@ -72,6 +72,7 @@ interface Props {
 }
 
 export default function PetCostumeEquipmentSection({ petInventoryId, petName, rarityColor, userCoins }: Props) {
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const [removeCostume, setRemoveCostume] = useState<EquippedCostume | null>(null);
   const [unlockSlot, setUnlockSlot] = useState<number | null>(null);
   const { toast } = useToast();
@@ -104,7 +105,11 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
   const equip = useMutation({
     mutationFn: async ({ costumeInventoryId, slot }: { costumeInventoryId: string; slot: number }) =>
       (await apiRequest("POST", `/api/pet/${petInventoryId}/costumes/equip`, { costumeInventoryId, slot })).json(),
-    onSuccess: () => refresh(),
+    onSuccess: () => {
+      setSelectedSlot(null);
+      refresh();
+      toast({ title: "Costume equipped!" });
+    },
     onError: (error: any) => toast({
       title: "Could not equip costume",
       description: error?.message || "This costume could not be equipped.",
@@ -141,13 +146,6 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
     }),
   });
 
-  const nextEmptySlot = () => {
-    for (let slot = 1; slot <= unlockedCount; slot += 1) {
-      if (!equipped.some((costume) => costume.slot === slot)) return slot;
-    }
-    return null;
-  };
-
   const requestLockedSlot = (slot: number) => {
     if (slot !== unlockedCount + 1) {
       toast({ title: "Unlock the previous costume slot first." });
@@ -175,7 +173,7 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
           const costume = equipped.find((item) => item.slot === slot);
           const price = getCostumeSlotUnlockCost(slot);
           return (
-            <button key={slot} type="button" data-testid={`slot-costume-${slot}`} onClick={() => locked ? requestLockedSlot(slot) : costume ? setRemoveCostume(costume) : undefined}
+            <button key={slot} type="button" data-testid={`slot-costume-${slot}`} onClick={() => locked ? requestLockedSlot(slot) : costume ? setRemoveCostume(costume) : setSelectedSlot(slot)}
               className="rounded-xl min-h-[92px] p-2 flex flex-col items-center justify-center gap-1 transition-all active:scale-95"
               style={{
                 background: costume ? "rgba(16,28,20,0.92)" : "rgba(3,10,7,0.78)",
@@ -196,31 +194,54 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
                 <div className="w-12 h-12 rounded-lg grid place-items-center grayscale opacity-40" style={{ border: "1px solid rgba(167,139,250,.35)", background: "radial-gradient(circle,rgba(139,92,246,.18),transparent 70%)" }}>
                   <Sparkles size={22} style={{ color: "#c4b5fd" }} />
                 </div>
-                <span className="font-fantasy text-[7px]" style={{ color: "rgba(216,200,255,.48)" }}>EMPTY</span>
+                <span className="font-fantasy text-[7px]" style={{ color: "rgba(216,200,255,.62)" }}>TAP TO CHOOSE</span>
               </>}
             </button>
           );
         })}
       </div>
 
-      <p className="font-fantasy text-[8px] tracking-widest mb-3" style={{ color: "rgba(216,200,255,.55)" }}>YOUR COSTUMES — TAP TO EQUIP</p>
-      {available.length ? <div className="grid grid-cols-3 gap-2">
-        {available.map((item) => <button key={item.inventoryId} type="button" data-testid={`bag-costume-${item.inventoryId}`} onClick={() => {
-          const slot = nextEmptySlot();
-          if (slot) equip.mutate({ costumeInventoryId: item.inventoryId, slot });
-          else toast({ title: "All unlocked costume slots are full", description: "Remove a costume or unlock another slot." });
-        }} className="rounded-xl p-2 flex flex-col items-center gap-1 active:scale-95" style={{
-          background: "rgba(7,14,11,.9)",
-          border: "1px solid rgba(139,92,246,.26)",
-          cursor: "pointer",
-        }}>
-          <div className="w-12 h-12 rounded-lg overflow-hidden grid place-items-center" style={{ background: "rgba(0,0,0,.48)" }}>
-            {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" /> : <Sparkles size={24} style={{ color: "#c4b5fd" }} />}
+      <p className="font-fantasy text-[8px] tracking-widest text-center" style={{ color: "rgba(216,200,255,.55)" }}>
+        TAP AN EMPTY SLOT TO CHOOSE A COSTUME
+      </p>
+
+      {selectedSlot && <div className="fixed inset-0 z-[260] grid place-items-center px-5 py-8" style={{ background: "rgba(2,5,3,.94)" }}>
+        <div className="w-full max-w-[380px] max-h-full overflow-y-auto rounded-2xl p-5" style={{ background: "#07120d", border: "1px solid rgba(167,139,250,.45)", boxShadow: "0 0 30px rgba(124,58,237,.18)" }}>
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <p className="font-fantasy text-sm" style={{ color: "#ddd6fe" }}>Choose Costume</p>
+              <p className="mt-1 font-fantasy text-[9px]" style={{ color: "rgba(200,220,200,.58)" }}>Equip to slot {selectedSlot}</p>
+            </div>
+            <button type="button" aria-label="Close costume inventory" onClick={() => setSelectedSlot(null)} className="rounded-lg px-3 py-2 text-xs" style={{ color: "#c4b5fd", border: "1px solid rgba(167,139,250,.28)" }}>CLOSE</button>
           </div>
-          <span className="font-fantasy text-[7px] w-full truncate" style={{ color: "rgba(230,220,255,.78)" }}>{item.name}</span>
-          {item.quantity - (equippedCounts[item.inventoryId] ?? 0) > 1 && <span className="font-fantasy text-[7px]" style={{ color: "#a7f3d0" }}>×{item.quantity - (equippedCounts[item.inventoryId] ?? 0)}</span>}
-        </button>)}
-      </div> : <p className="font-fantasy text-[10px] text-center py-5" style={{ color: "rgba(255,255,255,.25)" }}>No available costumes in your bag</p>}
+          {available.length ? (
+            <div className="grid grid-cols-3 gap-2" data-testid="costume-slot-inventory">
+              {available.map((item) => {
+                const remaining = item.quantity - (equippedCounts[item.inventoryId] ?? 0);
+                return (
+                  <button
+                    key={item.inventoryId}
+                    type="button"
+                    data-testid={`bag-costume-${item.inventoryId}`}
+                    disabled={equip.isPending}
+                    onClick={() => equip.mutate({ costumeInventoryId: item.inventoryId, slot: selectedSlot })}
+                    className="rounded-xl p-2 flex flex-col items-center gap-1 active:scale-95 disabled:opacity-45"
+                    style={{ background: "rgba(7,14,11,.9)", border: "1px solid rgba(139,92,246,.26)", cursor: equip.isPending ? "wait" : "pointer" }}
+                  >
+                    <div className="w-12 h-12 rounded-lg overflow-hidden grid place-items-center" style={{ background: "rgba(0,0,0,.48)" }}>
+                      {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" /> : <Sparkles size={24} style={{ color: "#c4b5fd" }} />}
+                    </div>
+                    <span className="font-fantasy text-[7px] w-full truncate" style={{ color: "rgba(230,220,255,.78)" }}>{item.name}</span>
+                    {remaining > 1 && <span className="font-fantasy text-[7px]" style={{ color: "#a7f3d0" }}>×{remaining}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="font-fantasy text-[10px] text-center py-8" style={{ color: "rgba(255,255,255,.32)" }}>No available costumes in your bag</p>
+          )}
+        </div>
+      </div>}
 
       {removeCostume && <div className="fixed inset-0 z-[260] grid place-items-center px-8" style={{ background: "rgba(2,5,3,.94)" }}>
         <div className="w-full max-w-[320px] rounded-2xl p-6 text-center" style={{ background: "#07120d", border: "1px solid rgba(167,139,250,.45)" }}>
