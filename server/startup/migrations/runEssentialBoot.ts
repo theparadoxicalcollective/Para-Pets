@@ -59,11 +59,17 @@ export async function runEssentialBoot(): Promise<void> {
       CREATE TABLE IF NOT EXISTS pet_equipped_costumes (
         id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
         pet_inventory_id VARCHAR NOT NULL REFERENCES user_inventory(id) ON DELETE CASCADE,
-        costume_inventory_id VARCHAR NOT NULL UNIQUE REFERENCES user_inventory(id) ON DELETE CASCADE,
+        costume_inventory_id VARCHAR NOT NULL REFERENCES user_inventory(id) ON DELETE CASCADE,
+        copy_index INTEGER NOT NULL DEFAULT 0 CHECK(copy_index >= 0),
         slot INTEGER NOT NULL CHECK(slot BETWEEN 1 AND 3),
         created_at TIMESTAMP NOT NULL DEFAULT now(),
-        CONSTRAINT pet_equipped_costumes_pet_slot_unique UNIQUE(pet_inventory_id, slot)
-      )
+        CONSTRAINT pet_equipped_costumes_pet_slot_unique UNIQUE(pet_inventory_id, slot),
+        CONSTRAINT pet_equipped_costumes_inventory_copy_unique UNIQUE(costume_inventory_id, copy_index)
+      );
+      ALTER TABLE pet_equipped_costumes ADD COLUMN IF NOT EXISTS copy_index INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE pet_equipped_costumes DROP CONSTRAINT IF EXISTS pet_equipped_costumes_costume_inventory_id_key;
+      CREATE UNIQUE INDEX IF NOT EXISTS pet_equipped_costumes_inventory_copy_uidx
+        ON pet_equipped_costumes(costume_inventory_id, copy_index)
     `],
     ["watcher_shoutouts_enabled migration error (non-fatal):", sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS watcher_shoutouts_enabled boolean NOT NULL DEFAULT true`],
     ["is_bot migration error (non-fatal):", sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_bot boolean NOT NULL DEFAULT false`],
