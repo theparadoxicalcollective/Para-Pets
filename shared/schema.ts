@@ -374,6 +374,9 @@ export const petTemplates = pgTable("pet_templates", {
 export const petTemplateParts = pgTable("pet_template_parts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   templateId: varchar("template_id").notNull(),
+  // Base artwork remains the default for every existing row. Evolution rows
+  // are authored separately and are not selected by runtime renderers yet.
+  form: text("form").notNull().default("base"),
   partType: text("part_type").notNull(),
   view: text("view").notNull().default("front"),
   imageUrl: text("image_url").notNull(),
