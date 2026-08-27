@@ -3,7 +3,6 @@ import { Lock, Sparkles } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { getCostumeCanvasPosition, type CostumeAnchorGeometry } from "@/lib/costumePlacement";
 import type { CostumePlacement } from "@shared/costumeFeature";
 import {
   COSTUME_SLOT_COUNT,
@@ -31,37 +30,7 @@ interface EquippedCostume {
 
 interface CostumeResponse {
   equipped: EquippedCostume[];
-  anchors: Array<CostumeAnchorGeometry & { partType: string }>;
   extraSlots: number;
-}
-
-export function EquippedCostumePreview({ petInventoryId, depth }: { petInventoryId: string; depth: "front" | "back" }) {
-  const { data } = useQuery<CostumeResponse>({
-    queryKey: ["/api/pet", petInventoryId, "costumes"],
-    queryFn: async () => (await apiRequest("GET", `/api/pet/${petInventoryId}/costumes`)).json(),
-    staleTime: 0,
-  });
-
-  return <div aria-hidden data-testid={`costume-preview-${depth}`} className="absolute inset-0 pointer-events-none" style={{ zIndex: depth === "front" ? 3 : 1 }}>
-    {(data?.equipped ?? []).flatMap((costume) =>
-      costume.placements
-        .filter((placement) => placement.view === "front" && placement.depth === depth)
-        .map((placement) => {
-          const anchor = data?.anchors.find((item) => item.partType === placement.anchorPart);
-          const position = getCostumeCanvasPosition(anchor, placement);
-          if (!position || !costume.imageUrl) return null;
-          const placementInstance = placement.instance ?? 1;
-          return <img key={`${costume.id}-${depth}-${placementInstance}`} src={costume.imageUrl} alt="" className="absolute object-contain" style={{
-            left: `${position.left / 10}%`,
-            top: `${position.top / 10}%`,
-            width: `${placement.width / 10}%`,
-            height: `${placement.height / 10}%`,
-            transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flipX ? -1 : 1})`,
-            transformOrigin: `${placement.pivotX}% ${placement.pivotY}%`,
-          }} />;
-        })
-    )}
-  </div>;
 }
 
 interface Props {
