@@ -3,6 +3,8 @@ import { Lock, Sparkles } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { getCostumeCanvasPosition, type CostumeAnchorGeometry } from "@/lib/costumePlacement";
+import type { CostumePlacement } from "@shared/costumeFeature";
 import {
   COSTUME_SLOT_COUNT,
   getCostumeSlotUnlockCost,
@@ -14,19 +16,48 @@ interface InventoryCostume {
   name: string;
   type: string;
   imageUrl: string | null;
+  quantity: number;
 }
 
 interface EquippedCostume {
   id: string;
   slot: number;
+  copyIndex: number;
   costumeInventoryId: string;
   name: string;
   imageUrl: string | null;
+  placements: CostumePlacement[];
 }
 
 interface CostumeResponse {
   equipped: EquippedCostume[];
+  anchors: Array<CostumeAnchorGeometry & { partType: string }>;
   extraSlots: number;
+}
+
+export function EquippedCostumePreview({ petInventoryId, depth }: { petInventoryId: string; depth: "front" | "back" }) {
+  const { data } = useQuery<CostumeResponse>({
+    queryKey: ["/api/pet", petInventoryId, "costumes"],
+    queryFn: async () => (await apiRequest("GET", `/api/pet/${petInventoryId}/costumes`)).json(),
+    staleTime: 0,
+  });
+
+  return <div aria-hidden data-testid={`costume-preview-${depth}`} className="absolute inset-0 pointer-events-none" style={{ zIndex: depth === "front" ? 3 : 1 }}>
+    {(data?.equipped ?? []).map((costume) => {
+      const placement = costume.placements.find((item) => item.view === "front" && item.depth === depth);
+      const anchor = placement ? data?.anchors.find((item) => item.partType === placement.anchorPart) : undefined;
+      const position = getCostumeCanvasPosition(anchor, placement);
+      if (!placement || !position || !costume.imageUrl) return null;
+      return <img key={costume.id} src={costume.imageUrl} alt="" className="absolute object-contain" style={{
+        left: `${position.left / 10}%`,
+        top: `${position.top / 10}%`,
+        width: `${placement.width / 10}%`,
+        height: `${placement.height / 10}%`,
+        transform: `rotate(${placement.rotation ?? 0}deg)`,
+        transformOrigin: `${placement.pivotX}% ${placement.pivotY}%`,
+      }} />;
+    })}
+  </div>;
 }
 
 interface Props {
@@ -54,15 +85,15 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
     queryKey: ["/api/inventory"],
     staleTime: 0,
   });
-  const { data: equippedIds = [] } = useQuery<string[]>({
-    queryKey: ["/api/user/equipped-costume-ids"],
+  const { data: equippedCounts = {} } = useQuery<Record<string, number>>({
+    queryKey: ["/api/user/equipped-costume-counts"],
     staleTime: 0,
   });
-  const available = inventory.filter((item) => item.type === "costume" && !equippedIds.includes(item.inventoryId));
+  const available = inventory.filter((item) => item.type === "costume" && item.quantity > (equippedCounts[item.inventoryId] ?? 0));
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/pet", petInventoryId, "costumes"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/user/equipped-costume-ids"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/user/equipped-costume-counts"] });
     queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
   };
 
@@ -78,8 +109,8 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
   });
 
   const unequip = useMutation({
-    mutationFn: async (costumeInventoryId: string) =>
-      (await apiRequest("POST", `/api/pet/${petInventoryId}/costumes/unequip`, { costumeInventoryId })).json(),
+    mutationFn: async (equippedCostumeId: string) =>
+      (await apiRequest("POST", `/api/pet/${petInventoryId}/costumes/unequip`, { equippedCostumeId })).json(),
     onSuccess: () => {
       setRemoveCostume(null);
       refresh();
@@ -183,6 +214,7 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
             {item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" /> : <Sparkles size={24} style={{ color: "#c4b5fd" }} />}
           </div>
           <span className="font-fantasy text-[7px] w-full truncate" style={{ color: "rgba(230,220,255,.78)" }}>{item.name}</span>
+          {item.quantity - (equippedCounts[item.inventoryId] ?? 0) > 1 && <span className="font-fantasy text-[7px]" style={{ color: "#a7f3d0" }}>×{item.quantity - (equippedCounts[item.inventoryId] ?? 0)}</span>}
         </button>)}
       </div> : <p className="font-fantasy text-[10px] text-center py-5" style={{ color: "rgba(255,255,255,.25)" }}>No available costumes in your bag</p>}
 
@@ -192,7 +224,7 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
           <p className="font-fantasy text-[11px] mb-5" style={{ color: "rgba(200,220,200,.58)" }}>Remove {removeCostume.name} from {petName}?</p>
           <div className="flex gap-3">
             <button type="button" onClick={() => setRemoveCostume(null)} className="flex-1 py-3 rounded-xl" style={{ color: "#aaa", border: "1px solid #ffffff18" }}>CANCEL</button>
-            <button type="button" onClick={() => unequip.mutate(removeCostume.costumeInventoryId)} className="flex-1 py-3 rounded-xl" style={{ color: "#fca5a5", border: "1px solid #f8717155" }}>UNEQUIP</button>
+            <button type="button" onClick={() => unequip.mutate(removeCostume.id)} className="flex-1 py-3 rounded-xl" style={{ color: "#fca5a5", border: "1px solid #f8717155" }}>UNEQUIP</button>
           </div>
         </div>
       </div>}
