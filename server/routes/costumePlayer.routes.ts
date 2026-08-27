@@ -13,6 +13,7 @@ import {
   COSTUME_SLOT_COUNT,
   getCostumeSlotUnlockCost,
   getUnlockedCostumeSlotCount,
+  type CostumePlacement,
 } from "@shared/costumeFeature";
 
 async function ownedPet(petInventoryId: string, userId: string) {
@@ -107,6 +108,11 @@ export function registerCostumePlayerRoutes(app: Express) {
       const templateId = target.item.petTemplateId;
 
       const equipped = await db.transaction(async (tx) => {
+        const [lockedPet] = await tx.select({ id: userInventory.id }).from(userInventory)
+          .where(and(eq(userInventory.id, petInventoryId), eq(userInventory.userId, user.id)))
+          .for("update");
+        if (!lockedPet) throw new Error("Pet not found");
+
         const [costumeInventory] = await tx.select().from(userInventory)
           .where(and(eq(userInventory.id, costumeInventoryId), eq(userInventory.userId, user.id)))
           .for("update");
@@ -120,12 +126,34 @@ export function registerCostumePlayerRoutes(app: Express) {
           .where(eq(petCostumeSlotUnlocks.petInventoryId, petInventoryId)).limit(1);
         if (slot > getUnlockedCostumeSlotCount(unlock?.extraSlots ?? 0)) throw new Error("That costume slot is locked");
 
-        const [definition] = await tx.select({ id: petCostumeDefinitions.id })
+        const [definition] = await tx.select({
+          id: petCostumeDefinitions.id,
+          placements: petCostumeDefinitions.placements,
+        })
           .from(petCostumeDefinitions).where(and(
             eq(petCostumeDefinitions.shopItemId, costumeItem.id),
             eq(petCostumeDefinitions.templateId, templateId),
           )).limit(1);
         if (!definition) throw new Error("This costume has not been fitted for this pet yet");
+
+        const requestedLayers = new Set((definition.placements as CostumePlacement[]).map((placement) => placement.anchorPart));
+        const equippedLayers = await tx.select({
+          name: shopItems.name,
+          placements: petCostumeDefinitions.placements,
+        }).from(petEquippedCostumes)
+          .innerJoin(userInventory, eq(userInventory.id, petEquippedCostumes.costumeInventoryId))
+          .innerJoin(shopItems, eq(shopItems.id, userInventory.shopItemId))
+          .innerJoin(petCostumeDefinitions, and(
+            eq(petCostumeDefinitions.shopItemId, shopItems.id),
+            eq(petCostumeDefinitions.templateId, templateId),
+          ))
+          .where(eq(petEquippedCostumes.petInventoryId, petInventoryId));
+        const layerConflict = equippedLayers.find((equippedCostume) =>
+          (equippedCostume.placements as CostumePlacement[]).some((placement) => requestedLayers.has(placement.anchorPart))
+        );
+        if (layerConflict) {
+          throw new Error(`Unequip ${layerConflict.name} before equipping another costume on the same pet layer`);
+        }
 
         const existingCopies = await tx.select({ copyIndex: petEquippedCostumes.copyIndex })
           .from(petEquippedCostumes)
