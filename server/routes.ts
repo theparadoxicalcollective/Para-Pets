@@ -48,7 +48,7 @@ import { registerClearingEquipmentRoutes } from "./routes/clearingEquipment.rout
 import { registerClearingAdminRoutes } from "./routes/clearingAdmin.routes";
 import { registerClearingShopRoutes } from "./routes/clearingShop.routes";
 import { registerSoulExchangeRoutes } from "./routes/soulExchange.routes";
-import { registerCostumeAdminRoutes } from "./routes/costumeAdmin.routes";
+import { registerCostumeAdminRoutes } from "./routes/costumeAdmin.routes";\nimport { registerCostumePlayerRoutes } from "./routes/costumePlayer.routes";
 import { getEffectivePetLayer } from "@shared/petLayer";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -821,7 +821,7 @@ export async function registerRoutes(
   registerSoulExchangeRoutes(app, { isAuthenticated });
   registerClearingEquipmentRoutes(app, { db, storage, isAuthenticated });
   registerClearingAdminRoutes(app, { db, isAdmin });
-  registerCostumeAdminRoutes(app);
+  registerCostumeAdminRoutes(app);\n  registerCostumePlayerRoutes(app);
 
   const marketplaceRouteDependencies: MarketplaceRouteDependencies = {
     storage,
