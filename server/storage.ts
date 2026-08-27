@@ -177,8 +177,8 @@ export interface IStorage {
   createPetTemplate(name: string): Promise<PetTemplate>;
   updatePetTemplate(id: string, data: Partial<PetTemplate>): Promise<PetTemplate>;
   deletePetTemplate(id: string): Promise<void>;
-  getPetTemplateParts(templateId: string): Promise<PetTemplatePart[]>;
-  createPetTemplatePart(data: { templateId: string; partType: string; view: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number; pivotX?: number; pivotY?: number }): Promise<PetTemplatePart>;
+  getPetTemplateParts(templateId: string, form?: "base" | "evolution"): Promise<PetTemplatePart[]>;
+  createPetTemplatePart(data: { templateId: string; form?: "base" | "evolution"; partType: string; view: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number; pivotX?: number; pivotY?: number }): Promise<PetTemplatePart>;
   updatePetTemplatePart(id: string, data: Partial<PetTemplatePart>): Promise<PetTemplatePart>;
   deletePetTemplatePart(id: string): Promise<void>;
   deletePetTemplatePartsByTemplate(templateId: string): Promise<void>;
@@ -1206,13 +1206,17 @@ export class DatabaseStorage implements IStorage {
     await db.delete(petTemplates).where(eq(petTemplates.id, id));
   }
 
-  async getPetTemplateParts(templateId: string): Promise<PetTemplatePart[]> {
-    return db.select().from(petTemplateParts).where(eq(petTemplateParts.templateId, templateId));
+  async getPetTemplateParts(templateId: string, form: "base" | "evolution" = "base"): Promise<PetTemplatePart[]> {
+    return db.select().from(petTemplateParts).where(and(
+      eq(petTemplateParts.templateId, templateId),
+      eq(petTemplateParts.form, form),
+    ));
   }
 
-  async createPetTemplatePart(data: { templateId: string; partType: string; view: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number; pivotX?: number; pivotY?: number }): Promise<PetTemplatePart> {
+  async createPetTemplatePart(data: { templateId: string; form?: "base" | "evolution"; partType: string; view: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number; pivotX?: number; pivotY?: number }): Promise<PetTemplatePart> {
     const [p] = await db.insert(petTemplateParts).values({
       templateId: data.templateId,
+      form: data.form ?? "base",
       partType: data.partType,
       view: data.view,
       imageUrl: data.imageUrl,
