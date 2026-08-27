@@ -22,9 +22,11 @@ test("Power Up locks the viewport and keeps the compact controls readable", () =
   assert.match(powerUpSource, /document\.body\.style\.overflow = "hidden"/);
   assert.match(powerUpSource, /pupage-cap-track\{height:11px/);
   assert.match(powerUpSource, /pupage-enhance\{position:relative;width:min\(50%,270px\)/);
+  assert.match(powerUpSource, /pupage-enhance-copy\{[^}]*align-items:center[^}]*transform:translateY\(1px\)/);
   assert.match(powerUpSource, /pupage-enhance-count\{color:#72f2a8/);
   assert.match(powerUpSource, /pupage-corner\{position:absolute;top:0;width:38px;height:38px/);
   assert.match(powerUpSource, /pupage-nameplate\{position:absolute;left:50%;bottom:-1px;width:min\(68%,370px\)/);
+  assert.match(powerUpSource, /pupage-nameplate-art\{[^}]*transform:translateX\(8%\)/);
   assert.doesNotMatch(powerUpSource, /pupage-item:not\(\.disabled\)::before/);
   assert.match(powerUpSource, /pupage-item:not\(\.disabled\) img\{filter:drop-shadow/);
   assert.match(powerUpSource, /pupage-item-caption\{[^}]*text-overflow:clip[^}]*color:#70efa8[^}]*border-radius:999px/);
@@ -42,7 +44,7 @@ test("Power Up keeps the compact capacity and enhancement copy free of duplicate
   assert.doesNotMatch(powerUpSource, /{remaining} available/);
   assert.doesNotMatch(powerUpSource, /total through Lv\./);
   assert.match(powerUpSource, /pupage-enhance-copy/);
-  assert.match(powerUpSource, /flex-direction:row;align-items:baseline/);
+  assert.match(powerUpSource, /flex-direction:row;align-items:center/);
   assert.match(powerUpSource, /className="pupage-enhance-count"/);
   assert.match(powerUpSource, />Remaining<\/span>/);
   assert.match(powerUpSource, /className="pupage-name"/);
@@ -63,13 +65,15 @@ test("Power Up opens pet stats in a modal instead of rendering them in the main 
   assert.doesNotMatch(powerUpSource, /scrollIntoView/);
 });
 
-test("Evolution begins bottom-left and advances clockwise", () => {
-  assert.match(evolutionSkinSource, /nth-of-type\(1\)\{left:13% !important;top:55% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(2\)\{left:18% !important;top:36% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(3\)\{left:37% !important;top:22% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(4\)\{left:63% !important;top:22% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(5\)\{left:82% !important;top:36% !important\}/);
-  assert.match(evolutionSkinSource, /nth-of-type\(6\)\{left:87% !important;top:55% !important\}/);
+test("Evolution begins bottom-left and advances clockwise in a compact high arc", () => {
+  assert.match(evolutionSkinSource, /pupevo-slot \{ width:clamp\(52px,14vw,76px\)/);
+  assert.match(evolutionSkinSource, /nth-of-type\(1\)\{left:13% !important;top:50% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(2\)\{left:18% !important;top:31% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(3\)\{left:37% !important;top:17% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(4\)\{left:63% !important;top:17% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(5\)\{left:82% !important;top:31% !important\}/);
+  assert.match(evolutionSkinSource, /nth-of-type\(6\)\{left:87% !important;top:50% !important\}/);
+  assert.match(evolutionSkinSource, /@media\(max-width:430px\)[\s\S]*width:54px !important; height:54px !important/);
 });
 
 test("Evolution modal escapes the pet stacking context and only active nodes open feeding", () => {
