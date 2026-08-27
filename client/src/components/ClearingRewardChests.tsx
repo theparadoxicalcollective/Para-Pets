@@ -3,12 +3,11 @@ import type { ClearingRewardChest } from "@shared/clearingEquipment";
 import { currencyAssets } from "@/lib/currencyAssets";
 import { queryClient } from "@/lib/queryClient";
 import { worldYToDepth } from "@/lib/clearingWorldPresentation";
-import closedChestUrl from "@assets/generated_images/icon_gift_treasure.png";
-import openedChestUrl from "@assets/hub_chest_opened.png";
+import { chestAssets } from "@/lib/chestAssets";
 
 export type ClearingChestPresentationState = "closed" | "opening" | "opened";
 export function chestSparkleTier(rarity:number){return rarity>=5?"legendary":rarity>=4?"epic":rarity>=3?"rare":"none";}
-export function chestImageForState(state: ClearingChestPresentationState){return state === "closed" ? closedChestUrl : openedChestUrl;}
+export function chestImageForState(state: ClearingChestPresentationState){return state === "closed" ? chestAssets.closed : chestAssets.opened;}
 
 const FALLBACK_UNOPENED_CHEST_TTL_MS = 30_000;
 const OPENED_CHEST_DISPLAY_MS = 3200;

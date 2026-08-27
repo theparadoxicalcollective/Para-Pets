@@ -4,6 +4,7 @@ import "./index.css";
 import "./petCarePolish.css";
 import "./clearingBossPolish.css";
 import "./soulExchangeCardPolish.css";
+import "./activePetRewardAssets.css";
 
 function setAppHeight() {
   document.documentElement.style.setProperty("--app-height", `${window.innerHeight}px`);

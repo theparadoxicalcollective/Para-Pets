@@ -1,0 +1,38 @@
+/* Active Pet page artwork override.
+ * Keep this selector scoped to the home page's active-pet display so other
+ * full-screen pages that still use bg_home_v2.png are not changed.
+ */
+#root .h-screen-frame:has([data-testid="display-active-pet"]) {
+  background-image: url("../../attached_assets/uploads/ActivePetBG.png") !important;
+}
+
+/* Power Up evolution-node reward state artwork.
+ * The existing node classes already encode whether a completed reward is
+ * waiting to be claimed or has been collected, so the canonical chest art
+ * can sit over the node without changing any reward/claim behavior.
+ */
+.pupevo-slot.claimable:not(.evolution-ready)::after,
+.pupevo-slot.claimed:not(.evolution-ready)::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 5;
+  width: 56%;
+  height: 56%;
+  transform: translate(-50%, -50%);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .72));
+}
+
+.pupevo-slot.claimable:not(.evolution-ready)::after {
+  background-image: url("../../attached_assets/uploads/ClosedChest.png");
+}
+
+.pupevo-slot.claimed:not(.evolution-ready)::after {
+  background-image: url("../../attached_assets/uploads/OpenedChest.png");
+  opacity: .9;
+}
