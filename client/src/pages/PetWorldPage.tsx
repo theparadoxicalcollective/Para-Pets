@@ -3881,27 +3881,10 @@ function WorldRoamingPet({
                 transition: "transform 0.1s ease",
               }}
             >
-              {isOwn && petImg ? (
-                /* Own pet renders as the pet's still image so it always shows up
-                   on Keeper's Central even if the part-based animator hasn't
-                   loaded. The squish-on-move comes from kcPetWalkBounce on the
-                   parent wrapper; no idle bounce here so it sits still when not
-                   walking. */
-                <img
-                  src={petImg}
-                  alt={displayName}
-                  draggable={false}
-                  style={{
-                    width: sz, height: sz,
-                    objectFit: "contain",
-                    pointerEvents: "none",
-                    transformOrigin: "center bottom",
-                  }}
-                />
-              ) : pet.petTemplateId ? (
+              {pet.petTemplateId ? (
                 <PetAnimator
                   petTemplateId={pet.petTemplateId}
-                  petInventoryId={pet.userId === user.id ? pet.inventoryId : undefined}
+                  petInventoryId={isOwn ? pet.inventoryId : undefined}
                   mode="idle"
                   size={sz}
                   style={{
@@ -3914,11 +3897,13 @@ function WorldRoamingPet({
                   src={petImg}
                   alt={displayName}
                   draggable={false}
-                  className="pet-idle-squish"
+                  className={isOwn ? undefined : "pet-idle-squish"}
                   style={{
-                    width: sz, height: sz,
+                    width: sz,
+                    height: sz,
                     objectFit: "contain",
                     pointerEvents: "none",
+                    transformOrigin: "center bottom",
                   }}
                 />
               ) : null}
