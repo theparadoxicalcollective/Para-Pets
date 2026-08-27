@@ -4504,9 +4504,13 @@ export async function registerRoutes(
 
   app.get("/api/admin/pet-templates/:id", isAdmin, async (req, res) => {
     try {
-      const template = await storage.getPetTemplate((req.params.id as string));
+      const templateId = req.params.id as string;
+      const [template, parts, evolutionParts] = await Promise.all([
+        storage.getPetTemplate(templateId),
+        storage.getPetTemplateParts(templateId, "base"),
+        storage.getPetTemplateParts(templateId, "evolution"),
+      ]);
       if (!template) return res.status(404).json({ message: "Template not found" });
-      const parts = await storage.getPetTemplateParts((req.params.id as string));
       // Strip base64 — return URL refs instead, matching the list endpoint.
       const { frontAssembled, backAssembled, ...rest } = template;
       return res.json({
@@ -4516,6 +4520,7 @@ export async function registerRoutes(
         frontAssembledUrl: frontAssembled ? `/api/pet-template-image/${template.id}/front` : null,
         backAssembledUrl:  backAssembled  ? `/api/pet-template-image/${template.id}/back`  : null,
         parts,
+        evolutionParts,
       });
     } catch (err) {
       console.error("Get pet template error:", err);
@@ -4573,13 +4578,18 @@ export async function registerRoutes(
 
   app.post("/api/admin/pet-templates/:id/part", isAdmin, async (req, res) => {
     try {
-      const { partType, view, imageData, posX, posY, width, height, zIndex, pivotX, pivotY } = req.body;
+      const { form, partType, view, imageData, posX, posY, width, height, zIndex, pivotX, pivotY } = req.body;
       if (!partType || !view || !imageData) {
         return res.status(400).json({ message: "partType, view, and imageData are required" });
+      }
+      const normalizedForm = form === undefined ? "base" : form;
+      if (normalizedForm !== "base" && normalizedForm !== "evolution") {
+        return res.status(400).json({ message: "form must be base or evolution" });
       }
       const imageUrl = await processWorldImage(imageData, 1000);
       const part = await storage.createPetTemplatePart({
         templateId: (req.params.id as string),
+        form: normalizedForm,
         partType,
         view,
         imageUrl,
