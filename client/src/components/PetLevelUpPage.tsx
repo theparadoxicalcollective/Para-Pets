@@ -104,7 +104,7 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
   }, [clearDrag, pointInZone, useItem]);
 
   const pet = petImage ? <img src={petImage} alt={petName} draggable={false} /> : petTemplateId ? (
-    <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="idle" view="front" size={700} className="w-full" style={{ aspectRatio: "1/1", pointerEvents: "none" }} />
+    <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="idle" view="front" size={350} fillContainer className="w-full h-full" style={{ width: "100%", height: "100%", pointerEvents: "none" }} />
   ) : <img src={petPlaceholder} alt="" className="lupage-placeholder" draggable={false} />;
 
   const stats = [
