@@ -606,10 +606,6 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     .filter(i => i.type === "power_up" && i.statBoostType !== "lvl")
     .map(toModalItem);
 
-  const levelItems = inventory
-    .filter(i => (i.type === "power_up" && i.statBoostType === "lvl") || (i.type === "special" && i.specialType === "level"))
-    .map(toModalItem);
-
   const activePetForModal = activePet ?? frozenActivePetRef.current;
 
   const powerUpMutation = useMutation({
