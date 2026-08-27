@@ -104,6 +104,7 @@ export function registerCostumePlayerRoutes(app: Express) {
       if (!target) return res.status(404).json({ message: "Pet not found" });
       if (!target.pet.isHatched) return res.status(400).json({ message: "Pet has not hatched yet" });
       if (!target.item.petTemplateId) return res.status(400).json({ message: "This pet cannot wear costumes yet" });
+      const templateId = target.item.petTemplateId;
 
       const equipped = await db.transaction(async (tx) => {
         const [costumeInventory] = await tx.select().from(userInventory)
@@ -122,7 +123,7 @@ export function registerCostumePlayerRoutes(app: Express) {
         const [definition] = await tx.select({ id: petCostumeDefinitions.id })
           .from(petCostumeDefinitions).where(and(
             eq(petCostumeDefinitions.shopItemId, costumeItem.id),
-            eq(petCostumeDefinitions.templateId, target.item.petTemplateId),
+            eq(petCostumeDefinitions.templateId, templateId),
           )).limit(1);
         if (!definition) throw new Error("This costume has not been fitted for this pet yet");
 
