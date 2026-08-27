@@ -365,7 +365,7 @@ function CostumeLayer({
           }}
         >
           <img
-            src={costume.imageUrl}
+            src={costume.imageUrl ?? undefined}
             alt=""
             draggable={false}
             data-testid={`costume-piece-${costume.id}-${placementInstance}`}
