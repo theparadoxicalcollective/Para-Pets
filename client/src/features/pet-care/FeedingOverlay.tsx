@@ -1373,6 +1373,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           {pet.petTemplateId ? (
             <PetAnimator
               petTemplateId={pet.petTemplateId}
+              petInventoryId={pet.inventoryId}
               mode="idle"
               view="front"
               size={300}
