@@ -85,3 +85,31 @@ export function getCostumeSlotUnlockCost(slot: number): number {
 export function getUnlockedCostumeSlotCount(extraSlots: number): number {
   return Math.min(COSTUME_SLOT_COUNT, COSTUME_BASE_SLOTS + Math.max(0, extraSlots));
 }
+
+
+/**
+ * A costume fitted to a wing replaces the pet's original wing artwork.
+ * Return both sides of a recognized pair so mirrored wing layers disappear
+ * together. Non-wing anchors return an empty list and never hide pet parts.
+ */
+export function getWingReplacementPartTypes(anchorPart: string): string[] {
+  const sidePair = anchorPart.match(/^(left|right)_wing(_\d+)?$/);
+  if (sidePair) {
+    const suffix = sidePair[2] ?? "";
+    return [`left_wing${suffix}`, `right_wing${suffix}`];
+  }
+
+  const setPair = anchorPart.match(/^(wing_set\d+)_(left|right)$/);
+  if (setPair) return [`${setPair[1]}_left`, `${setPair[1]}_right`];
+
+  const headPair = anchorPart.match(/^((?:h[23]_)?head_wing)_(left|right)$/);
+  if (headPair) return [`${headPair[1]}_left`, `${headPair[1]}_right`];
+
+  const depthPair = anchorPart.match(/^(front|back)_wing(_\d+)?$/);
+  if (depthPair) {
+    const suffix = depthPair[2] ?? "";
+    return [`front_wing${suffix}`, `back_wing${suffix}`];
+  }
+
+  return anchorPart.includes("wing") ? [anchorPart] : [];
+}
