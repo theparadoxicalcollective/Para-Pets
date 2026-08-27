@@ -27,6 +27,9 @@ export async function runEssentialBoot(): Promise<void> {
   } catch (err) { console.error("media_blobs table setup error (non-fatal):", err); }
 
   const migrations: Array<[string, ReturnType<typeof sql>]> = [
+    ["Pet part rotation migration error (non-fatal):", sql`
+      ALTER TABLE pet_template_parts ADD COLUMN IF NOT EXISTS rotation INTEGER NOT NULL DEFAULT 0
+    `],
     ["Pet evolution artwork form migration error (non-fatal):", sql`
       ALTER TABLE pet_template_parts ADD COLUMN IF NOT EXISTS form TEXT NOT NULL DEFAULT 'base';
       CREATE INDEX IF NOT EXISTS pet_template_parts_template_form_idx

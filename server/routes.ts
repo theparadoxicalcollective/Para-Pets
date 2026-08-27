@@ -4578,7 +4578,7 @@ export async function registerRoutes(
 
   app.post("/api/admin/pet-templates/:id/part", isAdmin, async (req, res) => {
     try {
-      const { form, partType, view, imageData, posX, posY, width, height, zIndex, pivotX, pivotY } = req.body;
+      const { form, partType, view, imageData, posX, posY, width, height, zIndex, pivotX, pivotY, rotation } = req.body;
       if (!partType || !view || !imageData) {
         return res.status(400).json({ message: "partType, view, and imageData are required" });
       }
@@ -4600,6 +4600,7 @@ export async function registerRoutes(
         zIndex: typeof zIndex === "number" ? zIndex : 0,
         pivotX: typeof pivotX === "number" ? Math.max(0, Math.min(100, pivotX)) : 50,
         pivotY: typeof pivotY === "number" ? Math.max(0, Math.min(100, pivotY)) : 50,
+        rotation: typeof rotation === "number" ? Math.max(-180, Math.min(180, Math.round(rotation))) : 0,
       });
       return res.status(201).json(part);
     } catch (err) {
@@ -4610,7 +4611,7 @@ export async function registerRoutes(
 
   app.patch("/api/admin/pet-template-parts/:partId", isAdmin, async (req, res) => {
     try {
-      const { posX, posY, width, height, zIndex, pivotX, pivotY } = req.body;
+      const { posX, posY, width, height, zIndex, pivotX, pivotY, rotation } = req.body;
       const updates: Record<string, any> = {};
       if (typeof posX === "number") updates.posX = posX;
       if (typeof posY === "number") updates.posY = posY;
@@ -4619,6 +4620,7 @@ export async function registerRoutes(
       if (typeof zIndex === "number") updates.zIndex = zIndex;
       if (typeof pivotX === "number") updates.pivotX = Math.max(0, Math.min(100, pivotX));
       if (typeof pivotY === "number") updates.pivotY = Math.max(0, Math.min(100, pivotY));
+      if (typeof rotation === "number") updates.rotation = Math.max(-180, Math.min(180, Math.round(rotation)));
       const updated = await storage.updatePetTemplatePart((req.params.partId as string), updates);
       templatePartsCache.clear();
       return res.json(updated);
@@ -4663,7 +4665,7 @@ export async function registerRoutes(
       const cw = Math.min(canvasWidth, 1000);
       const ch = Math.min(canvasHeight, 1000);
 
-      const composites: { input: Buffer; left: number; top: number; width: number; height: number }[] = [];
+      const composites: { input: Buffer; left: number; top: number }[] = [];
 
       for (const part of viewParts) {
         let buf: Buffer;
@@ -4676,23 +4678,35 @@ export async function registerRoutes(
           const base64Data = part.imageUrl.replace(/^data:image\/\w+;base64,/, "");
           buf = Buffer.from(base64Data, "base64");
         }
-        const resized = await sharp(buf)
-          .resize(Math.max(1, Math.round(part.width)), Math.max(1, Math.round(part.height)), { fit: "fill" })
-          .png()
-          .toBuffer();
-        composites.push({
-          input: resized,
-          left: Math.max(0, Math.round(part.posX)),
-          top: Math.max(0, Math.round(part.posY)),
-          width: Math.round(part.width),
-          height: Math.round(part.height),
-        });
+
+        const width = Math.max(1, Math.round(part.width));
+        const height = Math.max(1, Math.round(part.height));
+        const resized = await sharp(buf).resize(width, height, { fit: "fill" }).png().toBuffer();
+        const rotation = Math.max(-180, Math.min(180, part.rotation ?? 0));
+
+        if (rotation === 0) {
+          composites.push({
+            input: resized,
+            left: Math.max(0, Math.round(part.posX)),
+            top: Math.max(0, Math.round(part.posY)),
+          });
+          continue;
+        }
+
+        // A full-canvas SVG keeps the authored pivot fixed while allowing the
+        // rotated pixels to extend beyond the part's original rectangle.
+        const left = Math.round(part.posX);
+        const top = Math.round(part.posY);
+        const pivotX = left + width * ((part.pivotX ?? 50) / 100);
+        const pivotY = top + height * ((part.pivotY ?? 50) / 100);
+        const overlaySvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${cw}" height="${ch}" viewBox="0 0 ${cw} ${ch}"><image href="data:image/png;base64,${resized.toString("base64")}" x="${left}" y="${top}" width="${width}" height="${height}" transform="rotate(${rotation} ${pivotX} ${pivotY})"/></svg>`;
+        composites.push({ input: await sharp(Buffer.from(overlaySvg)).png().toBuffer(), left: 0, top: 0 });
       }
 
       const assembled = await sharp({
         create: { width: cw, height: ch, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
       })
-        .composite(composites.map(c => ({ input: c.input, left: c.left, top: c.top })))
+        .composite(composites)
         .png()
         .toBuffer();
 

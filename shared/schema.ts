@@ -387,6 +387,8 @@ export const petTemplateParts = pgTable("pet_template_parts", {
   zIndex: integer("z_index").notNull().default(0),
   pivotX: integer("pivot_x").notNull().default(50),
   pivotY: integer("pivot_y").notNull().default(50),
+  // Authored, static rotation. Runtime animation adds its own motion on top.
+  rotation: integer("rotation").notNull().default(0),
 });
 
 export const petEquippedAccessories = pgTable("pet_equipped_accessories", {

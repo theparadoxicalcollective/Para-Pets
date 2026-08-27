@@ -21,7 +21,7 @@ import { DEFAULT_PET_ANIMATION, alphaAdjustedPivot, earMotion, normalizeAnimatio
 interface PetPart {
   id: string; templateId: string; partType: string; view: string; imageUrl: string;
   posX: number; posY: number; width: number; height: number; zIndex: number;
-  pivotX: number; pivotY: number;
+  pivotX: number; pivotY: number; rotation: number;
 }
 
 const CANVAS_SIZE = 1000;
@@ -733,6 +733,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         // head-group parts we still call evalAnim so eyes blink and
         // ears sway, then layer the shared head bob on top.
         const anim = evalAnim(part.partType, sec, blinkRef.current, idleStyleRef.current ?? undefined);
+        const authoredRot = ((part.rotation ?? 0) * Math.PI) / 180;
         const rot = anim.rot;
         const op = anim.op;
         if (ANIM_ONLY_PARTS.has(part.partType) && op <= 0) continue;
@@ -821,7 +822,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         const sx = anim.sx ?? 1;
         const sy = anim.sy ?? 1;
         const hasScale = sx !== 1 || sy !== 1;
-        const hasTransform = (rot + headNodRot) !== 0 || dx !== 0 || dy !== 0 || hasScale || wrapperRot !== 0;
+        const hasTransform = (authoredRot + rot + headNodRot) !== 0 || dx !== 0 || dy !== 0 || hasScale || wrapperRot !== 0;
 
         ctx.save();
         ctx.globalAlpha = op;
@@ -841,7 +842,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
           // translations (secondary heads) or vertical bob /
           // above-head float / part-specific ty.
           ctx.translate(px + dx, py + dy);
-          if ((rot + headNodRot) !== 0) ctx.rotate(rot + headNodRot);
+          if ((authoredRot + rot + headNodRot) !== 0) ctx.rotate(authoredRot + rot + headNodRot);
           if (hasScale) ctx.scale(sx, sy);
           ctx.translate(-px, -py);
         }

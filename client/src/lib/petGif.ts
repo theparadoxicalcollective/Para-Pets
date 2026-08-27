@@ -31,6 +31,7 @@ interface PetPart {
   zIndex: number;
   pivotX: number;
   pivotY: number;
+  rotation: number;
 }
 
 export type GifAnimation = "idle" | "petting" | "sleep";
@@ -378,7 +379,7 @@ function drawPart(
   ctx.save();
   ctx.globalAlpha = xform.opacity;
   ctx.translate(pivotPx + xform.tx, pivotPy + xform.ty);
-  ctx.rotate((xform.rotate * Math.PI) / 180);
+  ctx.rotate((((part.rotation ?? 0) + xform.rotate) * Math.PI) / 180);
   ctx.scale(xform.scaleX, xform.scaleY);
   ctx.translate(-pivotPx, -pivotPy);
   ctx.drawImage(img, px, py, pw, ph);
