@@ -85,7 +85,7 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
     setOpeningSoon(spot.label);
   };
 
-  const onPointerDown = (event: ReactPointerEvent<HTMLButtonElement>, spot: HauntedCasinoHotspot) => {
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>, spot: HauntedCasinoHotspot) => {
     if (!isAdmin) return;
     event.preventDefault();
     event.stopPropagation();
@@ -99,7 +99,7 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
     };
   };
 
-  const onPointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (!isAdmin || !drag || drag.pointerId !== event.pointerId) return;
     const layer = event.currentTarget.parentElement;
@@ -112,7 +112,7 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
     setHotspots((current) => replaceHotspot(current, drag.id, { x, y }));
   };
 
-  const onPointerUp = (event: ReactPointerEvent<HTMLButtonElement>, spot: HauntedCasinoHotspot) => {
+  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>, spot: HauntedCasinoHotspot) => {
     if (!isAdmin) return;
     event.preventDefault();
     event.stopPropagation();
@@ -146,9 +146,10 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
   return (
     <>
       {hotspots.map((spot) => (
-        <button
+        <div
           key={spot.id}
-          type="button"
+          role="button"
+          tabIndex={0}
           aria-label={spot.label}
           data-testid={`haunted-casino-hotspot-${spot.id}`}
           onPointerDown={(event) => onPointerDown(event, spot)}
@@ -160,7 +161,13 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
             event.stopPropagation();
             if (!isAdmin) openHotspot(spot);
           }}
-          className="absolute rounded-full"
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            event.stopPropagation();
+            openHotspot(spot);
+          }}
+          className="absolute rounded-full outline-none"
           style={{
             left: `${spot.x}%`,
             top: `${spot.y}%`,
@@ -202,7 +209,7 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
               </span>
             </>
           )}
-        </button>
+        </div>
       ))}
 
       {isAdmin && saveFailed && (
