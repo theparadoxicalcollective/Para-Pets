@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
+import { costumePlacementsSchema } from "../shared/costumeSchema";
 
 const editor = readFileSync("client/src/components/PetDatabasePanel.tsx", "utf8");
 const adminPage = readFileSync("client/src/pages/AdminPage.tsx", "utf8");
@@ -112,6 +113,38 @@ test("costume anchor selector lists every uploaded pet layer and marks opposite-
   assert.match(editor, /availableInCurrentView: currentViewPartTypes\.has\(partType\)/);
   assert.match(editor, /disabled=\{!part\.availableInCurrentView\}/);
   assert.match(editor, /part\.views\.map/);
+});
+
+test("server accepts three duplicates, rejects a fourth, and preserves flip defaults", () => {
+  const placement = {
+    view: "front" as const,
+    anchorPart: "body",
+    posX: 10,
+    posY: 20,
+    width: 100,
+    height: 100,
+    pivotX: 50,
+    pivotY: 50,
+    rotation: 0,
+    depth: "front" as const,
+  };
+  const allowed = costumePlacementsSchema.safeParse([
+    { ...placement, instance: 1 },
+    { ...placement, instance: 2, anchorPart: "head", flipX: true },
+    { ...placement, instance: 3, anchorPart: "left_ear" },
+    { ...placement, instance: 4, anchorPart: "right_ear" },
+    { ...placement, view: "side", instance: 1 },
+  ]);
+  assert.equal(allowed.success, true);
+  if (allowed.success) {
+    assert.equal(allowed.data[0].flipX, false);
+    assert.equal(allowed.data[1].flipX, true);
+  }
+  assert.equal(costumePlacementsSchema.safeParse([{ ...placement, instance: 5 }]).success, false);
+  assert.equal(costumePlacementsSchema.safeParse([
+    { ...placement, instance: 2 },
+    { ...placement, instance: 2, anchorPart: "head" },
+  ]).success, false);
 });
 
 test("costume vault scales through search and a compact thumbnail grid", () => {
