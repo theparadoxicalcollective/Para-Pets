@@ -10,11 +10,17 @@ const schema = readFileSync("shared/costumeSchema.ts", "utf8");
 const marketplace = readFileSync("server/marketplace/transactions.ts", "utf8");
 const adminEditor = readFileSync("client/src/components/PetDatabasePanel.tsx", "utf8");
 
-test("Costumes appear beneath accessories on the existing equipment page", () => {
+test("The Closet uses the supplied artwork and keeps accessory and costume controls together", () => {
+  assert.match(accessoryPage, /ClosetBG\.png/);
+  assert.match(accessoryPage, /ClosetCloseButton\.png/);
+  assert.match(accessoryPage, /THE CLOSET/);
+  assert.match(accessoryPage, /aria-label="Accessory slots"/);
+  assert.match(accessoryPage, /data-testid="accessory-bag-drawer"/);
   assert.match(accessoryPage, /import PetCostumeEquipmentSection/);
-  const accessories = accessoryPage.indexOf("YOUR ACCESSORIES");
+  const accessories = accessoryPage.indexOf('aria-label="Accessory slots"');
   const costumes = accessoryPage.indexOf("<PetCostumeEquipmentSection");
   assert.ok(accessories >= 0 && costumes > accessories);
+  assert.match(accessoryPage, /closetMode/);
   assert.match(section, /data-testid="section-costume-equipment"/);
   assert.match(section, /COSTUMES/);
   assert.match(section, /TAP AN EMPTY SLOT TO CHOOSE A COSTUME/);

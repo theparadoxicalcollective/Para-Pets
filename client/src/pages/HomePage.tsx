@@ -1713,7 +1713,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                     },
                   )}
                   {makeBtn(
-                    "Equip Accessories",
+                    "The Closet",
                     "button-action-equip-accessories",
                     { left: "36%", top: "73%", width: "26%", height: "21%" },
                     "#c084fc",
