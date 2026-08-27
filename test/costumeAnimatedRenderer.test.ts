@@ -61,6 +61,17 @@ test("head-mounted costumes inherit the same head-group wrapper motion as the pe
   assert.match(animator, /animation = "petIdleHeadSwayAlt"/);
   assert.match(animator, /data-testid={`costume-head-group-\$\{groupType\}-\$\{placementInstance\}`}/);
   assert.match(animator, /"--pet-head-bob": headBob/);
+  assert.match(animator, /getHeadBobCssPercent/);
+  assert.match(animatorCore, /getHeadBobCssPercent/);
+  assert.match(animator, /Promise\.all\(viewParts\.map\(part => getAlphaBounds\(part\.imageUrl\)\)\)/);
+});
+
+test("body-attached layers use the same subtle idle scale as the body", () => {
+  assert.doesNotMatch(animatorCore, /scale\(1\.012, 1\.022\)/);
+  assert.match(animatorCore, /petIdleLeftArmBreath[\s\S]*?DEFAULT_PET_ANIMATION\.body\.scaleX/);
+  assert.match(animatorCore, /petIdleFlipperLeft[\s\S]*?DEFAULT_PET_ANIMATION\.body\.scaleY/);
+  assert.match(animatorCore, /translateX\(1%\)/);
+  assert.match(animatorCore, /translateX\(-1%\)/);
 });
 
 test("above-head pet layers always render over costume pieces", () => {
