@@ -483,6 +483,8 @@ export default function PlayerDetailPanel({ userId, currentUserId, onClose, pvpS
                       {profile.activePet.petTemplateId ? (
                         <PetAnimator
                           petTemplateId={profile.activePet.petTemplateId}
+                          petInventoryId={profile.activePet.inventoryId}
+                          costumeAccess="public"
                           mode="idle"
                           size={158}
                           fillContainer
