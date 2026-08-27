@@ -42,20 +42,20 @@ interface Props {
 
 // Progression begins at the bottom-left socket and travels clockwise.
 const POSITIONS = [
-  { x: 26, y: 56 },
-  { x: 10, y: 35 },
-  { x: 34, y: 15 },
-  { x: 66, y: 15 },
-  { x: 90, y: 35 },
-  { x: 74, y: 56 },
+  { x: 35, y: 63 },
+  { x: 20, y: 37 },
+  { x: 35, y: 11 },
+  { x: 65, y: 11 },
+  { x: 80, y: 37 },
+  { x: 65, y: 63 },
 ] as const;
 
 const CONNECTOR_PATHS = [
-  "M26 56 Q12 51 10 35",
-  "M10 35 Q17 17 34 15",
-  "M34 15 Q50 7 66 15",
-  "M66 15 Q83 17 90 35",
-  "M90 35 Q88 51 74 56",
+  "M35 63 Q22 57 20 37",
+  "M20 37 Q22 17 35 11",
+  "M35 11 Q50 3 65 11",
+  "M65 11 Q78 17 80 37",
+  "M80 37 Q78 57 65 63",
 ] as const;
 
 const CSS = String.raw`
@@ -77,12 +77,14 @@ const REFINEMENT_CSS = String.raw`
 .pupevo-picker-head p{margin-top:3px}
 .pupevo-feeders{gap:0}
 .pupevo-feeder+.pupevo-feeder{margin-top:-6%}
+.pupevo-feeder-pet{left:5.5%;top:8%;width:22%;height:70%}
+.pupevo-feeder-info{top:28%}
 .pupevo-feeder.selected::after{content:"";position:absolute;right:5.2%;top:50%;z-index:3;width:9.5%;aspect-ratio:1;transform:translateY(-50%);clip-path:polygon(50% 8%,92% 50%,50% 92%,8% 50%);background:linear-gradient(135deg,#087743,#25d87d);border:1px solid #82ffc0;filter:drop-shadow(0 0 5px rgba(39,238,142,.9));pointer-events:none}
 .pupevo-selecting{z-index:4}
-.pupevo-checkmark{z-index:5}
-.pupevo-feed{left:8%;right:18%;bottom:9.5%;padding:0 8% 0 18%}
-.pupevo-feed-icon{left:4%;width:14%}
-.pupevo-warning{position:static;width:88%;margin:3px auto 0;color:#e8c5b7;font-size:clamp(8px,2.1vw,11px);line-height:1.25}
+.pupevo-feed{left:8%;right:18%;bottom:9.5%;display:flex;align-items:center;justify-content:center;gap:4px;padding:0}
+.pupevo-feed-icon{position:static;width:9%;transform:none}
+.pupevo-warning{left:6%;right:6%;bottom:-3.5%;width:auto;margin:0;color:#e8c5b7;font-size:clamp(8px,2.1vw,11px);line-height:1.25}
+.pupevo-node-message.local{position:absolute;left:50%;top:50%;z-index:8;width:max-content;max-width:88px;transform:translate(-50%,-50%);padding:4px 7px;border-radius:999px;font-size:8px;line-height:1.1;letter-spacing:0;box-shadow:0 3px 10px #000a,0 0 8px rgba(76,255,170,.22)}
 @keyframes pupevoLinkGlow{0%,100%{opacity:.7}50%{opacity:1;stroke-width:1}}
 @media(prefers-reduced-motion:reduce){.pupevo-link-glow{animation:none}}
 `;
@@ -104,7 +106,7 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [nodeMessage, setNodeMessage] = useState<string | null>(null);
+  const [nodeMessage, setNodeMessage] = useState<{ message: string; slot?: number } | null>(null);
   const [claimingSlot, setClaimingSlot] = useState<number | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [feeding, setFeeding] = useState(false);
@@ -182,16 +184,16 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
   );
   const projectedNodes = Math.max(0, projectedProgress.completedSlots - completedSlots);
   const projectedSummary = !selectedPoints
-    ? `${Math.max(0, pointsRequired - currentPoints).toLocaleString()} pts needed for this node`
+    ? ""
     : projectedProgress.isComplete
       ? "Completes the evolution track"
       : projectedNodes > 0
         ? `${projectedNodes} node${projectedNodes === 1 ? "" : "s"} completed · ${projectedProgress.currentPoints.toLocaleString()} pts carry forward`
         : `${Math.max(0, pointsRequired - projectedProgress.currentPoints).toLocaleString()} pts still needed`;
 
-  const showNodeMessage = useCallback((message: string) => {
+  const showNodeMessage = useCallback((message: string, slot?: number) => {
     if (nodeMessageTimer.current !== null) window.clearTimeout(nodeMessageTimer.current);
-    setNodeMessage(message);
+    setNodeMessage({ message, slot });
     nodeMessageTimer.current = window.setTimeout(() => {
       setNodeMessage(null);
       nodeMessageTimer.current = null;
@@ -266,7 +268,7 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
   const picker = pickerOpen && typeof document !== "undefined" ? createPortal(
     <div className="pupevo-picker-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) closePicker(); }}>
       <div className="pupevo-picker-wrap" onPointerDown={(event) => event.stopPropagation()}>
-      <div className="pupevo-picker" role="dialog" aria-modal="true" aria-label="Choose evolution feeder pets" onPointerDown={(event) => event.stopPropagation()}>
+      <div className="pupevo-picker" role="dialog" aria-modal="true" aria-label="Choose evolution feeder pets" aria-describedby="pupevo-consumption-warning" onPointerDown={(event) => event.stopPropagation()}>
         <img className="pupevo-picker-art" src={popupMain} alt="" />
         <img className="pupevo-picker-decor" src={popupDecor} alt="" />
         <button ref={pickerCloseRef} className="pupevo-picker-close" type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); closePicker(); }} aria-label="Close evolution pet picker"><img src={popupClose} alt="" /></button>
@@ -289,26 +291,27 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
                 <span className="pupevo-feeder-points">{pet.evolutionPoints.toLocaleString()} pts</span>
               </span>
               <img className="pupevo-selecting" src={popupSelecting} alt="" />
-              <span className="pupevo-checkmark" aria-hidden="true">✓</span>
             </button>;
           }) : <div className="pupevo-empty">No eligible feeder pets are available. Pets in the market, house, PvP teams, with accessories, eggs, and protected cave pets are excluded.</div>}
         </div>
         <div className="pupevo-points" aria-live="polite">
           <img className="pupevo-points-art" src={popupPointsBar} alt="" />
-          <div className="pupevo-total"><strong>{selectedPoints.toLocaleString()} pts selected</strong><span>{projectedSummary}</span></div>
+          <div className="pupevo-total"><strong>{selectedPoints.toLocaleString()} pts selected</strong>{projectedSummary ? <span>{projectedSummary}</span> : null}</div>
         </div>
         <button className="pupevo-feed" type="button" disabled={!selectedPets.length || feeding} onClick={feed}>
           <img className="pupevo-feed-icon" src={popupSelected} alt="" />
-          <span>{feeding ? "Infusing…" : selectedPets.length === 1 ? "Confirm Pet" : selectedPets.length > 1 ? `Confirm ${selectedPets.length} Pets` : "Select feeder pets"}</span>
+          <span>{feeding ? "Infusing…" : selectedPets.length ? "Confirm" : "Select feeder pets"}</span>
         </button>
+        <p id="pupevo-consumption-warning" className="pupevo-warning">Pets used for evolution are permanently consumed.</p>
       </div>
-      <p className="pupevo-warning">Pets used for evolution are permanently consumed.</p>
       </div>
     </div>,
     document.body,
   ) : null;
 
-  const nodeToast = nodeMessage && typeof document !== "undefined" ? createPortal(<div className="pupevo-node-message" role="status" aria-live="polite">{nodeMessage}</div>, document.body) : null;
+  const nodeToast = nodeMessage && nodeMessage.slot === undefined && typeof document !== "undefined"
+    ? createPortal(<div className="pupevo-node-message" role="status" aria-live="polite">{nodeMessage.message}</div>, document.body)
+    : null;
 
   return <>
     <style>{CSS}{REFINEMENT_CSS}</style>
@@ -340,7 +343,8 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
             if (claimable) void claimReward(slot);
             else if (evolutionReady) showNodeMessage("Evolution Coming Soon");
             else if (current) setPickerOpen(true);
-            else showNodeMessage(complete ? "Completed" : "Locked");
+            else if (complete) showNodeMessage("Completed", slot);
+            else showNodeMessage("Locked");
           }}
           aria-busy={claimingSlot === slot}
           aria-label={claimable ? `Evolution slot ${slot} reward ready. Tap to claim ${rewardLabel}.` : evolutionReady ? "Evolution slot 6 complete. Evolution Coming Soon." : claimed ? `Evolution slot ${slot} reward collected` : current ? `Evolution slot ${slot}, ${Math.round(fill)} percent filled. Tap to choose feeder pets.` : `Evolution slot ${slot} locked`}
@@ -350,6 +354,7 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
             <img className="pupevo-base" src={socketActive} alt="" />
             <span className="pupevo-fill" style={{ clipPath: `inset(${100 - fill}% 0 0 0)` }}><img src={socketActive} alt="" /></span>
           </>}
+          {nodeMessage?.slot === slot ? <span className="pupevo-node-message local" role="status" aria-live="polite">{nodeMessage.message}</span> : null}
         </button>;
       })}
       <span className="pupevo-sr" aria-live="polite">{state?.isComplete ? "Evolution track complete" : `Evolution slot ${Math.min(slotCount, completedSlots + 1)} of ${slotCount}: ${currentPoints} of ${pointsRequired} points`}</span>
