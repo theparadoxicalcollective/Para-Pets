@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { Star, X } from "lucide-react";
 import { getNextZ } from "@/lib/layerManager";
@@ -32,34 +33,51 @@ type StableLevelUpPetProps = {
   petTemplateId: string | null;
 };
 
+interface LevelUpTemplateData {
+  parts: Array<{ id: string; imageUrl: string }>;
+}
+
 /**
- * Keep the pet renderer isolated from the high-frequency drag state owned by
- * the Level Up page. The flattened hatched image is the normal path. A pet
- * without one can still render from its parts, but only in static,
- * performance-optimized mode and without the extra costume request.
+ * Keep the animated pet isolated from the high-frequency drag state owned by
+ * the Level Up page. Template parts are preloaded through the shared query
+ * cache while the still composite remains visible; the animator mounts only
+ * after a complete parts payload is ready. It then stays mounted while drag
+ * coordinates change, and it skips the separate costume request on this page.
  */
 const StableLevelUpPet = memo(function StableLevelUpPet({
   petName,
   petImage,
   petTemplateId,
 }: StableLevelUpPetProps) {
-  if (petImage) {
-    return <img src={petImage} alt={petName} draggable={false} decoding="async" data-testid="img-levelup-pet-static" />;
-  }
+  const { data: templateData, isError } = useQuery<LevelUpTemplateData>({
+    queryKey: ["/api/pet-template-parts", petTemplateId],
+    queryFn: async () => {
+      const response = await fetch(`/api/pet-template-parts/${petTemplateId}`, { credentials: "include" });
+      if (!response.ok) throw new Error("Failed to load Level Up pet template");
+      return response.json();
+    },
+    enabled: !!petTemplateId,
+    staleTime: Infinity,
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
 
-  if (petTemplateId) {
+  if (petTemplateId && templateData?.parts?.length && !isError) {
     return (
       <PetAnimator
         petTemplateId={petTemplateId}
-        mode="static"
+        mode="idle"
         view="front"
         size={350}
         fillContainer
-        performanceStatic
         className="w-full h-full"
         style={{ width: "100%", height: "100%", pointerEvents: "none" }}
       />
     );
+  }
+
+  if (petImage) {
+    return <img src={petImage} alt={petName} draggable={false} decoding="async" data-testid="img-levelup-pet-fallback" />;
   }
 
   return <img src={petPlaceholder} alt="" className="lupage-placeholder" draggable={false} />;
