@@ -1,0 +1,213 @@
+name: Apply costume multi-placement follow-up
+
+on:
+  push:
+    branches:
+      - codex/fix-animated-costume-rendering
+    paths:
+      - .github/workflows/apply-costume-multi-placement-followup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/fix-animated-costume-rendering
+          fetch-depth: 0
+      - name: Apply multi-placement costume changes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"Expected exactly one match in {path}, found {count}: {old[:120]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          feature = "shared/costumeFeature.ts"
+          replace_once(
+              feature,
+              'export const COSTUME_SLOT_COUNT = 3 as const;\n',
+              'export const COSTUME_SLOT_COUNT = 3 as const;\n\n/** One fitted costume can be duplicated three times on the same pet template. */\nexport const COSTUME_MAX_DUPLICATES_PER_PET = 3 as const;\n/** Original artwork + the three allowed duplicates. */\nexport const COSTUME_MAX_PLACEMENT_INSTANCES = 4 as const;\n',
+          )
+          replace_once(
+              feature,
+              '  anchorPart: CostumeAnchorPart;\n  posX: number;',
+              '  anchorPart: CostumeAnchorPart;\n  /** 1 is the original fitted piece; 2-4 are admin-created visual duplicates. */\n  instance?: number;\n  posX: number;',
+          )
+
+          schema = "shared/costumeSchema.ts"
+          replace_once(
+              schema,
+              'import { z } from "zod";\n',
+              'import { z } from "zod";\nimport { COSTUME_MAX_PLACEMENT_INSTANCES } from "./costumeFeature";\n',
+          )
+          replace_once(
+              schema,
+              '  anchorPart: z.string().min(1),\n  posX: z.number(),',
+              '  anchorPart: z.string().min(1),\n  instance: z.number().int().min(1).max(COSTUME_MAX_PLACEMENT_INSTANCES).default(1),\n  posX: z.number(),',
+          )
+          replace_once(
+              schema,
+              'export const costumePlacementsSchema = z.array(costumePlacementSchema);',
+              '''export const costumePlacementsSchema = z.array(costumePlacementSchema).superRefine((placements, ctx) => {\n  const seen = new Set<string>();\n  placements.forEach((placement, index) => {\n    const key = `${placement.view}:${placement.instance}`;\n    if (seen.has(key)) {\n      ctx.addIssue({\n        code: z.ZodIssueCode.custom,\n        path: [index, "instance"],\n        message: "Each costume copy can only have one placement per view",\n      });\n    }\n    seen.add(key);\n  });\n});''',
+          )
+
+          editor = "client/src/components/PetDatabasePanel.tsx"
+          replace_once(
+              editor,
+              'import type { CostumePlacement } from "@shared/costumeFeature";',
+              'import { COSTUME_MAX_PLACEMENT_INSTANCES, type CostumePlacement } from "@shared/costumeFeature";',
+          )
+          replace_once(
+              editor,
+              '  useEffect(() => setSelectedCostumeId(null), [selectedTemplateId]);',
+              '  useEffect(() => { setSelectedCostumeId(null); setSelectedCostumeInstance(1); }, [selectedTemplateId]);',
+          )
+          replace_once(
+              editor,
+              '  const [selectedCostumeId, setSelectedCostumeId] = useState<string | null>(null);\n  const [costumeSearch, setCostumeSearch] = useState("");',
+              '  const [selectedCostumeId, setSelectedCostumeId] = useState<string | null>(null);\n  const [selectedCostumeInstance, setSelectedCostumeInstance] = useState(1);\n  const [costumeSearch, setCostumeSearch] = useState("");',
+          )
+
+          old_derived = '''  const selectedCostumeItem = costumeItems.find(item => item.id === selectedCostumeId);\n  const selectedCostumeDefinition = costumeDefinitions.find(definition => definition.shopItemId === selectedCostumeId);\n  const savedCostumePlacement = selectedCostumeDefinition?.placements.find(placement => placement.view === currentCostumeView);\n  const costumeParts = viewParts.map(part => ({ partType: part.partType, label: ALL_PART_DEFS.find(def => def.key === part.partType)?.label ?? part.partType }));\n  const defaultCostumePlacement = (): CostumePlacement => ({\n    view: currentCostumeView,\n    anchorPart: costumeParts.find(part => part.partType === "body")?.partType ?? costumeParts[0]?.partType ?? "body",\n    posX: 0,\n    posY: 0,\n    width: 300,\n    height: 300,\n    pivotX: 50,\n    pivotY: 50,\n    rotation: 0,\n    flipX: false,\n    depth: "front",\n  });\n  const selectedCostumePlacement = selectedCostumeId\n    ? costumeDraft ?? savedCostumePlacement ?? defaultCostumePlacement()\n    : undefined;\n  const costumeAnchor = viewParts.find(part => part.partType === selectedCostumePlacement?.anchorPart) ?? viewParts.find(part => part.partType === "body");\n  const costumeAnchorPoint = getCostumeAnchorPoint(costumeAnchor);\n  const costumeCanvasPosition = getCostumeCanvasPosition(costumeAnchor, selectedCostumePlacement);\n  const canSaveCostumePlacement = !!selectedCostumePlacement && (costumeDraftDirty || !savedCostumePlacement);'''
+          new_derived = '''  const selectedCostumeItem = costumeItems.find(item => item.id === selectedCostumeId);\n  const selectedCostumeDefinition = costumeDefinitions.find(definition => definition.shopItemId === selectedCostumeId);\n  const savedCostumeInstances = Array.from(new Set(\n    (selectedCostumeDefinition?.placements ?? []).map(placement => placement.instance ?? 1),\n  )).sort((a, b) => a - b);\n  const costumeInstances = Array.from(new Set([\n    1,\n    ...savedCostumeInstances,\n    ...(costumeDraft ? [costumeDraft.instance ?? selectedCostumeInstance] : []),\n  ])).sort((a, b) => a - b);\n  const savedCostumePlacement = selectedCostumeDefinition?.placements.find(placement =>\n    placement.view === currentCostumeView && (placement.instance ?? 1) === selectedCostumeInstance\n  );\n  const currentViewPartTypes = new Set(viewParts.map(part => part.partType));\n  const uploadedPartTypes = Array.from(new Set((templateDetail?.parts ?? []).map(part => part.partType)));\n  const costumeParts = uploadedPartTypes.map(partType => {\n    const matching = (templateDetail?.parts ?? []).filter(part => part.partType === partType);\n    const views = Array.from(new Set(matching.map(part => part.view)));\n    return {\n      partType,\n      label: ALL_PART_DEFS.find(def => def.key === partType)?.label ?? partType,\n      availableInCurrentView: currentViewPartTypes.has(partType),\n      views,\n    };\n  });\n  const defaultCostumePlacement = (): CostumePlacement => ({\n    view: currentCostumeView,\n    anchorPart: costumeParts.find(part => part.partType === "body" && part.availableInCurrentView)?.partType\n      ?? costumeParts.find(part => part.availableInCurrentView)?.partType\n      ?? "body",\n    instance: selectedCostumeInstance,\n    posX: 0,\n    posY: 0,\n    width: 300,\n    height: 300,\n    pivotX: 50,\n    pivotY: 50,\n    rotation: 0,\n    flipX: false,\n    depth: "front",\n  });\n  const selectedCostumePlacement = selectedCostumeId\n    ? costumeDraft ?? savedCostumePlacement ?? defaultCostumePlacement()\n    : undefined;\n  const costumeAnchor = viewParts.find(part => part.partType === selectedCostumePlacement?.anchorPart) ?? viewParts.find(part => part.partType === "body");\n  const costumeAnchorPoint = getCostumeAnchorPoint(costumeAnchor);\n  const costumeCanvasPosition = getCostumeCanvasPosition(costumeAnchor, selectedCostumePlacement);\n  const canSaveCostumePlacement = !!selectedCostumePlacement && (costumeDraftDirty || !savedCostumePlacement);\n  const nextCostumeInstance = Array.from({ length: COSTUME_MAX_PLACEMENT_INSTANCES }, (_, index) => index + 1)\n    .find(instance => !costumeInstances.includes(instance));\n  const canDuplicateCostumePlacement = !!selectedCostumeItem && !!savedCostumePlacement && !costumeDraftDirty && nextCostumeInstance !== undefined;'''
+          replace_once(editor, old_derived, new_derived)
+
+          replace_once(
+              editor,
+              '  }, [selectedTemplateId, selectedCostumeId, currentCostumeView, selectedCostumeDefinition]);',
+              '  }, [selectedTemplateId, selectedCostumeId, selectedCostumeInstance, currentCostumeView, selectedCostumeDefinition]);',
+          )
+
+          replace_once(
+              editor,
+              '''      const existing = costumeDefinitions.find(definition => definition.shopItemId === itemId)?.placements ?? [];\n      const placements = [...existing.filter(current => current.view !== placement.view), placement];''',
+              '''      const existing = costumeDefinitions.find(definition => definition.shopItemId === itemId)?.placements ?? [];\n      const placementInstance = placement.instance ?? 1;\n      const normalizedPlacement = { ...placement, instance: placementInstance };\n      const placements = [\n        ...existing.filter(current => current.view !== placement.view || (current.instance ?? 1) !== placementInstance),\n        normalizedPlacement,\n      ];''',
+          )
+
+          save_success_marker = '''  const updateCostumeDraft = (changes: Partial<CostumePlacement>) => {'''
+          remove_mutation = '''  const removeCostumeInstanceMutation = useMutation({\n    mutationFn: async ({ itemId, instance }: { itemId: string; instance: number }) => {\n      const existing = costumeDefinitions.find(definition => definition.shopItemId === itemId)?.placements ?? [];\n      const placements = existing.filter(placement => (placement.instance ?? 1) !== instance);\n      const res = await apiRequest("PUT", "/api/admin/costume-definitions", { shopItemId: itemId, templateId: selectedTemplateId, placements });\n      return res.json();\n    },\n    onSuccess: (data: CostumeDefinition) => {\n      setSelectedCostumeInstance(1);\n      setCostumeDraft(null);\n      setCostumeDraftDirty(false);\n      queryClient.setQueryData<CostumeDefinition[]>(["/api/admin/costume-definitions", selectedTemplateId], current => [\n        ...(current ?? []).filter(definition => definition.shopItemId !== data.shopItemId),\n        data,\n      ]);\n      queryClient.invalidateQueries({ queryKey: ["/api/admin/costume-definitions", selectedTemplateId] });\n      toast({ title: "Costume copy removed" });\n    },\n    onError: (error: Error) => toast({ title: "Could not remove costume copy", description: error.message || "Failed to remove costume copy", variant: "destructive" }),\n  });\n\n'''
+          p = Path(editor)
+          text = p.read_text()
+          if text.count(save_success_marker) != 1:
+              raise SystemExit("Could not find costume mutation insertion marker")
+          p.write_text(text.replace(save_success_marker, remove_mutation + save_success_marker, 1))
+
+          replace_once(
+              editor,
+              '''  const flipCostume = () => {\n    if (!selectedCostumePlacement) return;\n    updateCostumeDraft({ flipX: !(selectedCostumePlacement.flipX ?? false) });\n  };\n  const saveCostumePlacement = () => {''',
+              '''  const flipCostume = () => {\n    if (!selectedCostumePlacement) return;\n    updateCostumeDraft({ flipX: !(selectedCostumePlacement.flipX ?? false) });\n  };\n  const duplicateCostumePlacement = () => {\n    if (!canDuplicateCostumePlacement || !selectedCostumePlacement || nextCostumeInstance === undefined) return;\n    setSelectedCostumeInstance(nextCostumeInstance);\n    setCostumeDraft({\n      ...selectedCostumePlacement,\n      instance: nextCostumeInstance,\n      posX: selectedCostumePlacement.posX + 24,\n      posY: selectedCostumePlacement.posY + 24,\n    });\n    setCostumeDraftDirty(true);\n  };\n  const saveCostumePlacement = () => {''',
+          )
+          replace_once(
+              editor,
+              '    saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: { ...selectedCostumePlacement, rotation: selectedCostumePlacement.rotation ?? 0, flipX: selectedCostumePlacement.flipX ?? false } });',
+              '    saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: { ...selectedCostumePlacement, instance: selectedCostumeInstance, rotation: selectedCostumePlacement.rotation ?? 0, flipX: selectedCostumePlacement.flipX ?? false } });',
+          )
+          replace_once(
+              editor,
+              '''  const discardCostumeDraft = () => {\n    costumeDragRef.current = null;\n    setCostumeDraft(null);\n    setCostumeDraftDirty(false);\n    setDraggingCostume(false);\n  };''',
+              '''  const discardCostumeDraft = () => {\n    costumeDragRef.current = null;\n    setCostumeDraft(null);\n    setCostumeDraftDirty(false);\n    setDraggingCostume(false);\n    if (!savedCostumePlacement && selectedCostumeInstance !== 1) {\n      setSelectedCostumeInstance(savedCostumeInstances[0] ?? 1);\n    }\n  };''',
+          )
+          replace_once(
+              editor,
+              '''    discardCostumeDraft();\n    setSelectedCostumeId(itemId);\n  };\n  const changeCostumeView''',
+              '''    discardCostumeDraft();\n    setSelectedCostumeId(itemId);\n    setSelectedCostumeInstance(1);\n  };\n  const selectCostumeInstance = (instance: number) => {\n    if (saveCostumeMutation.isPending || removeCostumeInstanceMutation.isPending || instance === selectedCostumeInstance) return;\n    if (costumeDraftDirty && !window.confirm("Discard the unsaved costume placement?")) return;\n    discardCostumeDraft();\n    setSelectedCostumeInstance(instance);\n  };\n  const removeSelectedCostumeInstance = () => {\n    if (!selectedCostumeId || selectedCostumeInstance === 1 || !savedCostumePlacement || costumeDraftDirty || removeCostumeInstanceMutation.isPending) return;\n    if (!window.confirm(`Remove Copy ${selectedCostumeInstance - 1} from this pet? This removes its front and side placement.`)) return;\n    removeCostumeInstanceMutation.mutate({ itemId: selectedCostumeId, instance: selectedCostumeInstance });\n  };\n  const changeCostumeView''',
+          )
+
+          # Show every saved/current copy together on the placement canvas.
+          p = Path(editor)
+          text = p.read_text()
+          start = text.index('              {selectedCostumeItem?.imageUrl && selectedCostumePlacement && costumeCanvasPosition && (')
+          end_marker = '              )}\n            </div>\n          </section>'
+          end = text.index(end_marker, start) + len('              )}')
+          new_canvas = '''              {selectedCostumeItem?.imageUrl && costumeInstances.map(instance => {\n                const isActive = instance === selectedCostumeInstance;\n                const placement = isActive\n                  ? selectedCostumePlacement\n                  : selectedCostumeDefinition?.placements.find(current => current.view === currentCostumeView && (current.instance ?? 1) === instance);\n                const anchor = placement ? viewParts.find(part => part.partType === placement.anchorPart) : undefined;\n                const position = getCostumeCanvasPosition(anchor, placement);\n                if (!placement || !position) return null;\n                return (\n                  <div\n                    key={`${selectedCostumeItem.id}-${currentCostumeView}-${instance}`}\n                    data-testid={`canvas-costume-${selectedCostumeItem.id}-${instance}`}\n                    className="absolute"\n                    onPointerDown={isActive ? startCostumeDrag : undefined}\n                    onLostPointerCapture={isActive ? (event) => endCostumeDrag(event.pointerId) : undefined}\n                    style={{\n                      left: `${(position.left / CANVAS_SIZE) * 100}%`,\n                      top: `${(position.top / CANVAS_SIZE) * 100}%`,\n                      width: `${(placement.width / CANVAS_SIZE) * 100}%`,\n                      height: `${(placement.height / CANVAS_SIZE) * 100}%`,\n                      transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flipX ? -1 : 1})`,\n                      transformOrigin: `${placement.pivotX}% ${placement.pivotY}%`,\n                      zIndex: placement.depth === "front" ? 10000 + instance : instance,\n                      cursor: isActive ? (draggingCostume ? "grabbing" : "grab") : "default",\n                      outline: isActive ? (draggingCostume ? "2px solid rgba(192,132,252,.85)" : "1px dashed rgba(192,132,252,.45)") : "none",\n                      outlineOffset: "2px",\n                      touchAction: isActive ? "none" : "auto",\n                      pointerEvents: isActive ? "auto" : "none",\n                    }}\n                  >\n                    <img src={selectedCostumeItem.imageUrl!} alt={`${selectedCostumeItem.name} ${instance === 1 ? "original" : `copy ${instance - 1}`}`} className="w-full h-full object-contain pointer-events-none" draggable={false} />\n                  </div>\n                );\n              })}'''
+          p.write_text(text[:start] + new_canvas + text[end:])
+
+          # Insert copy controls below the selected costume heading.
+          p = Path(editor)
+          text = p.read_text()
+          marker = '''                <label className="block text-xs" style={{ color: "#a89878" }}>\n                  Anchor part'''
+          copy_controls = '''                <div className="rounded-lg p-2.5" style={{ background: "rgba(0,0,0,.2)", border: "1px solid rgba(192,132,252,.2)" }}>\n                  <div className="mb-2 flex items-center justify-between gap-2">\n                    <p className="text-[9px] font-semibold tracking-wider" style={{ color: "#d8b4fe" }}>PLACED PIECES</p>\n                    <button\n                      type="button"\n                      data-testid="button-duplicate-costume-piece"\n                      aria-label="Duplicate costume piece"\n                      title={canDuplicateCostumePlacement ? "Duplicate this fitted piece" : nextCostumeInstance === undefined ? "Maximum of 3 duplicates reached" : "Save this placement before duplicating it"}\n                      onClick={duplicateCostumePlacement}\n                      disabled={!canDuplicateCostumePlacement || saveCostumeMutation.isPending || removeCostumeInstanceMutation.isPending}\n                      className="grid h-8 w-8 place-items-center rounded-full text-lg font-semibold disabled:opacity-35"\n                      style={{ background: "rgba(192,132,252,.18)", border: "1px solid rgba(216,180,254,.42)", color: "#f3e8ff" }}\n                    >\n                      +\n                    </button>\n                  </div>\n                  <div data-testid="costume-copy-selector" className="flex flex-wrap gap-1.5">\n                    {costumeInstances.map(instance => (\n                      <button\n                        key={instance}\n                        type="button"\n                        data-testid={`button-costume-instance-${instance}`}\n                        onClick={() => selectCostumeInstance(instance)}\n                        disabled={saveCostumeMutation.isPending || removeCostumeInstanceMutation.isPending}\n                        className="rounded-md px-2 py-1 text-[8px] font-semibold tracking-wider disabled:opacity-50"\n                        style={{\n                          background: selectedCostumeInstance === instance ? "rgba(192,132,252,.3)" : "rgba(0,0,0,.28)",\n                          border: selectedCostumeInstance === instance ? "1px solid rgba(216,180,254,.65)" : "1px solid rgba(192,132,252,.2)",\n                          color: selectedCostumeInstance === instance ? "#f3e8ff" : "#bca7c8",\n                        }}\n                      >\n                        {instance === 1 ? "ORIGINAL" : `COPY ${instance - 1}`}\n                      </button>\n                    ))}\n                  </div>\n                  <div className="mt-2 flex items-center justify-between gap-2">\n                    <p className="text-[8px]" style={{ color: "#8f8198" }}>Original + up to 3 duplicates per pet.</p>\n                    {selectedCostumeInstance > 1 && savedCostumePlacement && !costumeDraftDirty && (\n                      <button\n                        type="button"\n                        data-testid="button-remove-costume-copy"\n                        onClick={removeSelectedCostumeInstance}\n                        disabled={removeCostumeInstanceMutation.isPending || saveCostumeMutation.isPending}\n                        className="rounded px-2 py-1 text-[8px] disabled:opacity-50"\n                        style={{ border: "1px solid rgba(248,113,113,.28)", color: "#fca5a5", background: "rgba(127,29,29,.12)" }}\n                      >\n                        REMOVE COPY\n                      </button>\n                    )}\n                  </div>\n                </div>\n                <label className="block text-xs" style={{ color: "#a89878" }}>\n                  Anchor part'''
+          if text.count(marker) != 1:
+              raise SystemExit("Could not find anchor control marker")
+          p.write_text(text.replace(marker, copy_controls, 1))
+
+          # Replace anchor options so all uploaded layers are visible; opposite-view-only
+          # layers remain visible but disabled until the admin switches to that view.
+          replace_once(
+              editor,
+              '{costumeParts.map(part => <option key={part.partType} value={part.partType}>{part.label}</option>)}',
+              '''{costumeParts.map(part => (\n                      <option key={part.partType} value={part.partType} disabled={!part.availableInCurrentView}>\n                        {part.label}{part.availableInCurrentView ? "" : ` — ${part.views.map(view => view === "back" ? "side" : view).join("/")} only`}\n                      </option>\n                    ))}''',
+          )
+
+          # Animated renderer: render every placement matching this view/depth.
+          animator = "client/src/components/PetAnimator.tsx"
+          p = Path(animator)
+          text = p.read_text()
+          start = text.index('  const renderCostume = (costume: EquippedCostume) => {')
+          end = text.index('\n  return <>{costumes.map(renderCostume)}</>;', start)
+          new_render = '''  const renderCostume = (costume: EquippedCostume) => {\n    const costumeView = resolvedView === "back" ? "side" : "front";\n    const placements = costume.placements.filter(item => item.view === costumeView && item.depth === depth);\n    if (!costume.imageUrl || placements.length === 0) return null;\n\n    return <>{placements.map((placement) => {\n      const anchor = sortedParts.find(part => part.partType === placement.anchorPart);\n      if (!anchor || anchor.width <= 0 || anchor.height <= 0) return null;\n      const position = getCostumeCanvasPosition(anchor, placement);\n      if (!position) return null;\n\n      const animName = anchorAnimation(anchor, mode, resolvedView, idleStyle);\n      const groupType = headGroupType(anchor.partType);\n      const groupIndex = Math.max(0, headTypes.indexOf(groupType ?? "head"));\n      const groupDelay = `${HEAD_GROUP_DELAYS[Math.min(groupIndex, HEAD_GROUP_DELAYS.length - 1)] ?? 0}s`;\n      const partDelay = groupType ? groupDelay : (isBodyBreathAnimation(animName) || isTailIdleAnimation(animName) ? bodyDelay : wingDelay.get(anchor.id) ?? stableDelay(anchor.id));\n      const duration = getDuration(anchor.partType, mode);\n      const origin = partOrigin(anchor, animName, bodyPart, canFly);\n      const placementInstance = placement.instance ?? 1;\n      const placementKey = `${costume.id}-${costumeView}-${depth}-${placementInstance}`;\n\n      const localLeft = ((position.left - anchor.posX) / anchor.width) * 100;\n      const localTop = ((position.top - anchor.posY) / anchor.height) * 100;\n      const localWidth = (placement.width / anchor.width) * 100;\n      const localHeight = (placement.height / anchor.height) * 100;\n\n      const anchorNode = (\n        <div\n          data-testid={`costume-anchor-${placement.anchorPart}-${placementInstance}`}\n          style={{\n            position: "absolute",\n            left: `${(anchor.posX / CANVAS_SIZE) * 100}%`,\n            top: `${(anchor.posY / CANVAS_SIZE) * 100}%`,\n            width: `${(anchor.width / CANVAS_SIZE) * 100}%`,\n            height: `${(anchor.height / CANVAS_SIZE) * 100}%`,\n            transformOrigin: origin,\n            animation: animName ? buildAnimation(animName, duration, partDelay) : undefined,\n            willChange: animName ? "transform" : undefined,\n            overflow: "visible",\n            pointerEvents: "none",\n          }}\n        >\n          <img\n            src={costume.imageUrl}\n            alt=""\n            draggable={false}\n            data-testid={`costume-piece-${costume.id}-${placementInstance}`}\n            style={{\n              position: "absolute",\n              left: `${localLeft}%`,\n              top: `${localTop}%`,\n              width: `${localWidth}%`,\n              height: `${localHeight}%`,\n              objectFit: "contain",\n              transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flipX ? -1 : 1})`,\n              transformOrigin: `${placement.pivotX}% ${placement.pivotY}%`,\n              pointerEvents: "none",\n            }}\n          />\n        </div>\n      );\n\n      if (!groupType) return <div key={placementKey}>{anchorNode}</div>;\n\n      const wrapper = getHeadWrapperMotion(groupType, mode, resolvedView, bodyDelay);\n      return (\n        <div\n          key={placementKey}\n          data-testid={`costume-head-group-${groupType}-${placementInstance}`}\n          style={{\n            position: "absolute", inset: 0, width: "100%", height: "100%",\n            animation: wrapper.animation ? buildAnimation(wrapper.animation, wrapper.duration, wrapper.delay) : undefined,\n            willChange: wrapper.animation ? "transform" : undefined,\n            pointerEvents: "none",\n            ...(mode === "idle" ? ({ "--pet-head-bob": headBob } as React.CSSProperties) : {}),\n          }}\n        >\n          {anchorNode}\n        </div>\n      );\n    })}</>;\n  };\n'''
+          p.write_text(text[:start] + new_render + text[end:])
+
+          # Legacy preview also shows every fitted visual instance if it is ever used.
+          preview = "client/src/components/PetCostumeEquipmentSection.tsx"
+          p = Path(preview)
+          text = p.read_text()
+          start = text.index('export function EquippedCostumePreview(')
+          end = text.index('\ninterface Props {', start)
+          new_preview = '''export function EquippedCostumePreview({ petInventoryId, depth }: { petInventoryId: string; depth: "front" | "back" }) {\n  const { data } = useQuery<CostumeResponse>({\n    queryKey: ["/api/pet", petInventoryId, "costumes"],\n    queryFn: async () => (await apiRequest("GET", `/api/pet/${petInventoryId}/costumes`)).json(),\n    staleTime: 0,\n  });\n\n  return <div aria-hidden data-testid={`costume-preview-${depth}`} className="absolute inset-0 pointer-events-none" style={{ zIndex: depth === "front" ? 3 : 1 }}>\n    {(data?.equipped ?? []).flatMap((costume) =>\n      costume.placements\n        .filter((placement) => placement.view === "front" && placement.depth === depth)\n        .map((placement) => {\n          const anchor = data?.anchors.find((item) => item.partType === placement.anchorPart);\n          const position = getCostumeCanvasPosition(anchor, placement);\n          if (!position || !costume.imageUrl) return null;\n          const placementInstance = placement.instance ?? 1;\n          return <img key={`${costume.id}-${depth}-${placementInstance}`} src={costume.imageUrl} alt="" className="absolute object-contain" style={{\n            left: `${position.left / 10}%`,\n            top: `${position.top / 10}%`,\n            width: `${placement.width / 10}%`,\n            height: `${placement.height / 10}%`,\n            transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flipX ? -1 : 1})`,\n            transformOrigin: `${placement.pivotX}% ${placement.pivotY}%`,\n          }} />;\n        })\n    )}\n  </div>;\n}\n'''
+          p.write_text(text[:start] + new_preview + text[end:])
+
+          # Tests for the requested behavior.
+          tests = "test/costumeAdminEditorStability.test.ts"
+          p = Path(tests)
+          text = p.read_text()
+          marker = 'test("costume vault scales through search and a compact thumbnail grid", () => {'
+          insert = '''test("admin can fit one costume artwork as an original plus at most three duplicates", () => {\n  assert.match(editor, /COSTUME_MAX_PLACEMENT_INSTANCES/);\n  assert.match(editor, /data-testid="button-duplicate-costume-piece"/);\n  assert.match(editor, /data-testid="costume-copy-selector"/);\n  assert.match(editor, /`COPY \\${instance - 1}`/);\n  assert.match(editor, /instance: selectedCostumeInstance/);\n  assert.match(editor, /current\\.view !== placement\\.view \\|\\| \\(current\\.instance \\?\\? 1\\) !== placementInstance/);\n  assert.match(editor, /Original \\+ up to 3 duplicates per pet/);\n  assert.match(editor, /data-testid="button-remove-costume-copy"/);\n  assert.match(costumeSchema, /instance: z\\.number\\(\\)\\.int\\(\\)\\.min\\(1\\)\\.max\\(COSTUME_MAX_PLACEMENT_INSTANCES\\)\\.default\\(1\\)/);\n});\n\ntest("costume anchor selector lists every uploaded pet layer and marks opposite-view layers unavailable", () => {\n  assert.match(editor, /uploadedPartTypes = Array\\.from\\(new Set\\(\\(templateDetail\\?\\.parts \\?\\? \\[\\]\\)\\.map/);\n  assert.match(editor, /availableInCurrentView: currentViewPartTypes\\.has\\(partType\\)/);\n  assert.match(editor, /disabled=\\{!part\\.availableInCurrentView\\}/);\n  assert.match(editor, /part\\.views\\.map/);\n});\n\n'''
+          if text.count(marker) != 1:
+              raise SystemExit("Could not find admin test insertion marker")
+          p.write_text(text.replace(marker, insert + marker, 1))
+
+          animated_tests = "test/costumeAnimatedRenderer.test.ts"
+          p = Path(animated_tests)
+          text = p.read_text()
+          marker = 'test("head-mounted costumes inherit the same head-group wrapper motion as the pet", () => {'
+          insert = '''test("animated costume renderer draws every fitted duplicate for the current view and depth", () => {\n  assert.match(animator, /costume\\.placements\\.filter\\(item => item\\.view === costumeView && item\\.depth === depth\\)/);\n  assert.match(animator, /placements\\.map\\(\\(placement\\) =>/);\n  assert.match(animator, /const placementInstance = placement\\.instance \\?\\? 1/);\n  assert.match(animator, /costume-piece-\\$\\{costume\\.id\\}-\\$\\{placementInstance\\}/);\n});\n\n'''
+          if text.count(marker) != 1:
+              raise SystemExit("Could not find animated test insertion marker")
+          p.write_text(text.replace(marker, insert + marker, 1))
+
+          # Existing source-contract tests refer to the old test-id without instance.
+          p = Path(animated_tests)
+          text = p.read_text()
+          text = text.replace(
+              'assert.match(animator, /data-testid={`costume-anchor-\\$\\{placement\\.anchorPart\\}`}/);',
+              'assert.match(animator, /data-testid={`costume-anchor-\\$\\{placement\\.anchorPart\\}-\\$\\{placementInstance\\}`}/);',
+          )
+          text = text.replace(
+              'assert.match(animator, /data-testid={`costume-head-group-\\$\\{groupType\\}`}/);',
+              'assert.match(animator, /data-testid={`costume-head-group-\\$\\{groupType\\}-\\$\\{placementInstance\\}`}/);',
+          )
+          p.write_text(text)
+
+          # One-shot helper should never remain in the PR diff.
+          Path(".github/workflows/apply-costume-multi-placement-followup.yml").unlink()
+          PY
+      - name: Commit follow-up
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Add bounded multi-placement costume editing"
+          git push origin HEAD:codex/fix-animated-costume-rendering
