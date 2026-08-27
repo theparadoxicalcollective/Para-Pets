@@ -16,6 +16,13 @@ import {
   getDraggedCostumePosition,
   resizeCostumePlacement,
 } from "@/lib/costumePlacement";
+import {
+  clampPetPartRotation,
+  getDraggedPetPartPosition,
+  getPetPartDragOffset,
+  getUnrotatedPetPartPoint,
+  resizePetPartTransform,
+} from "@/lib/petPartPlacement";
 
 interface PetTemplate {
   id: string;
@@ -45,6 +52,7 @@ interface PetTemplatePart {
   zIndex: number;
   pivotX: number;
   pivotY: number;
+  rotation: number;
 }
 
 interface PetTemplateWithParts extends PetTemplate {
@@ -310,6 +318,10 @@ export default function PetDatabasePanel({
   const [renameName, setRenameName] = useState("");
   const [uploadPartType, setUploadPartType] = useState<string | null>(null);
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
+  const [partDraft, setPartDraft] = useState<(Pick<PetTemplatePart, "posX" | "posY" | "width" | "height" | "pivotX" | "pivotY" | "rotation"> & { partId: string }) | null>(null);
+  const [draggingPartId, setDraggingPartId] = useState<string | null>(null);
+  const partDraftRef = useRef<typeof partDraft>(null);
+  const partDragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
   const [nudgeStep, setNudgeStep] = useState<1 | 5 | 10>(1);
   const [facingMode, setFacingMode] = useState<"front" | "side">("front");
   const [gifExporting, setGifExporting] = useState(false);
@@ -431,6 +443,7 @@ export default function PetDatabasePanel({
     : (templateDetail?.parts ?? []);
   const viewParts = activeParts
     .filter(p => p.view === activeView)
+    .map(part => partDraft?.partId === part.id ? { ...part, ...partDraft } : part)
     .sort((a, b) => previewEffectiveZ(a) - previewEffectiveZ(b));
 
   const currentCostumeView = activeView === "back" ? "side" as const : "front" as const;
@@ -607,11 +620,15 @@ export default function PetDatabasePanel({
   });
 
   const updatePartMutation = useMutation({
-    mutationFn: async ({ partId, ...data }: { partId: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number; pivotX?: number; pivotY?: number }) => {
+    mutationFn: async ({ partId, ...data }: { partId: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number; pivotX?: number; pivotY?: number; rotation?: number }) => {
       const res = await apiRequest("PATCH", `/api/admin/pet-template-parts/${partId}`, data);
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      if (partDraftRef.current?.partId === variables.partId) {
+        partDraftRef.current = null;
+        setPartDraft(null);
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
       queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts", selectedTemplateId] });
       queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts"] });
@@ -627,6 +644,8 @@ export default function PetDatabasePanel({
       queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts", selectedTemplateId] });
       queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts"] });
       setSelectedPartId(null);
+      partDraftRef.current = null;
+      setPartDraft(null);
       toast({ title: "Removed", description: "Part removed" });
     },
   });
@@ -877,60 +896,119 @@ export default function PetDatabasePanel({
     );
   }, []);
 
-  // Click on canvas to select a part (pixel-accurate hit test). Parts can no
-  // longer be individually dragged — use the "Move All" D-pad below instead.
-  const handleCanvasClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  // Pixel-accurate selection still respects transparent padding, but the
+  // selected part can now be dragged directly like a costume placement.
+  const handleCanvasClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (draggingPartId) return;
     const canvasEl = canvasRef.current;
     if (!canvasEl) return;
     const rect = canvasEl.getBoundingClientRect();
     const scale = rect.width / CANVAS_SIZE;
-    const canvasX = (e.clientX - rect.left) / scale;
-    const canvasY = (e.clientY - rect.top) / scale;
-    if (canvasX < 0 || canvasX > CANVAS_SIZE || canvasY < 0 || canvasY > CANVAS_SIZE) return;
-    // Hit-test top-to-bottom by zIndex, picking the first opaque part under the click
+    const point = { x: (event.clientX - rect.left) / scale, y: (event.clientY - rect.top) / scale };
+    if (point.x < 0 || point.x > CANVAS_SIZE || point.y < 0 || point.y > CANVAS_SIZE) return;
+
     const sorted = [...viewParts].sort((a, b) => previewEffectiveZ(b) - previewEffectiveZ(a));
     for (const part of sorted) {
-      if (canvasX < part.posX || canvasX > part.posX + part.width ||
-          canvasY < part.posY || canvasY > part.posY + part.height) continue;
-      const relX = (canvasX - part.posX) / part.width;
-      const relY = (canvasY - part.posY) / part.height;
+      const unrotated = getUnrotatedPetPartPoint(point, part);
+      if (unrotated.x < part.posX || unrotated.x > part.posX + part.width ||
+          unrotated.y < part.posY || unrotated.y > part.posY + part.height) continue;
+      const relX = (unrotated.x - part.posX) / part.width;
+      const relY = (unrotated.y - part.posY) / part.height;
       if (!isOpaqueSyncAt(part.imageUrl, relX, relY)) continue;
       setSelectedPartId(part.id);
       return;
     }
-    // Missed all parts — deselect
     setSelectedPartId(null);
-  }, [viewParts, isOpaqueSyncAt]);
+  }, [draggingPartId, viewParts, isOpaqueSyncAt]);
 
-  // Move every part in the current view by the same delta. This shifts the
-  // entire pet composition without changing relative part positions.
-  // All PATCH requests fire in parallel; a single invalidation fires only
-  // after every request has settled, avoiding the race condition that occurs
-  // when multiple sequential `mutate()` calls each trigger their own
-  // invalidation+refetch mid-flight and cause viewParts to show partial state.
-  const nudgeAll = useCallback(async (dx: number, dy: number) => {
-    if (viewParts.length === 0) return;
-    const snapshot = viewParts;
-    await Promise.all(
-      snapshot.map(part =>
-        apiRequest("PATCH", `/api/admin/pet-template-parts/${part.id}`, {
-          posX: part.posX + dx,
-          posY: part.posY + dy,
-        })
-      )
+  const makePartDraft = (part: PetTemplatePart) => ({
+    partId: part.id,
+    posX: part.posX,
+    posY: part.posY,
+    width: part.width,
+    height: part.height,
+    pivotX: part.pivotX,
+    pivotY: part.pivotY,
+    rotation: part.rotation ?? 0,
+  });
+
+  const setEditablePartDraft = (next: NonNullable<typeof partDraft>) => {
+    partDraftRef.current = next;
+    setPartDraft(next);
+  };
+
+  const commitPartDraft = () => {
+    const draft = partDraftRef.current;
+    if (!draft || updatePartMutation.isPending) return;
+    updatePartMutation.mutate(draft);
+  };
+
+  const startPartDrag = (event: React.PointerEvent<HTMLDivElement>, part: PetTemplatePart) => {
+    if (updatePartMutation.isPending) return;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedPartId(part.id);
+    const scale = CANVAS_SIZE / rect.width;
+    const pointer = { x: (event.clientX - rect.left) * scale, y: (event.clientY - rect.top) * scale };
+    const draft = makePartDraft(part);
+    const offset = getPetPartDragOffset(pointer, draft);
+    setEditablePartDraft(draft);
+    partDragRef.current = { pointerId: event.pointerId, offsetX: offset.x, offsetY: offset.y };
+    setDraggingPartId(part.id);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const movePartDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = partDragRef.current;
+    const draft = partDraftRef.current;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!drag || !draft || drag.pointerId !== event.pointerId || !rect || rect.width <= 0) return;
+    event.preventDefault();
+    const scale = CANVAS_SIZE / rect.width;
+    const position = getDraggedPetPartPosition(
+      { x: (event.clientX - rect.left) * scale, y: (event.clientY - rect.top) * scale },
+      { x: drag.offsetX, y: drag.offsetY },
     );
+    setEditablePartDraft({ ...draft, ...position });
+  };
+
+  const endPartDrag = (pointerId?: number) => {
+    if (pointerId !== undefined && partDragRef.current?.pointerId !== pointerId) return;
+    const hadDrag = !!partDragRef.current;
+    partDragRef.current = null;
+    setDraggingPartId(null);
+    if (hadDrag) commitPartDraft();
+  };
+
+  const updateSelectedPartDraft = (changes: Partial<NonNullable<typeof partDraft>>) => {
+    if (!selectedPart || updatePartMutation.isPending) return;
+    const current = partDraftRef.current?.partId === selectedPart.id ? partDraftRef.current : makePartDraft(selectedPart);
+    setEditablePartDraft({ ...current, ...changes, partId: selectedPart.id });
+  };
+
+  const saveSelectedPartTransform = (changes: Partial<NonNullable<typeof partDraft>>) => {
+    if (!selectedPart || updatePartMutation.isPending) return;
+    const current = partDraftRef.current?.partId === selectedPart.id ? partDraftRef.current : makePartDraft(selectedPart);
+    const next = { ...current, ...changes, partId: selectedPart.id };
+    setEditablePartDraft(next);
+    updatePartMutation.mutate(next);
+  };
+
+  const nudgeAll = useCallback(async (dx: number, dy: number) => {
+    if (viewParts.length === 0 || updatePartMutation.isPending) return;
+    const snapshot = viewParts;
+    await Promise.all(snapshot.map(part =>
+      apiRequest("PATCH", `/api/admin/pet-template-parts/${part.id}`, {
+        posX: part.posX + dx,
+        posY: part.posY + dy,
+      })
+    ));
     queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
     queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts", selectedTemplateId] });
     queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts"] });
-  }, [viewParts, queryClient, selectedTemplateId]);
-
-  const resizePart = useCallback((delta: number) => {
-    const part = viewParts.find(p => p.id === selectedPartId);
-    if (!part) return;
-    const newW = Math.max(4, part.width + delta);
-    const newH = Math.max(4, part.height + delta);
-    updatePartMutation.mutate({ partId: part.id, width: newW, height: newH });
-  }, [selectedPartId, viewParts, updatePartMutation]);
+  }, [viewParts, queryClient, selectedTemplateId, updatePartMutation.isPending]);
 
   const handleExportGif = async () => {
     if (!viewParts.length || !selectedTemplateId) return;
@@ -1095,6 +1173,8 @@ export default function PetDatabasePanel({
                     top: `${(part.posY / CANVAS_SIZE) * 100}%`,
                     width: `${(part.width / CANVAS_SIZE) * 100}%`,
                     height: `${(part.height / CANVAS_SIZE) * 100}%`,
+                    transform: `rotate(${part.rotation ?? 0}deg)`,
+                    transformOrigin: `${part.pivotX}% ${part.pivotY}%`,
                     zIndex: basePetPartType(part.partType) === "above_head" ? 20000 : previewEffectiveZ(part) + 1000,
                   }}
                 />
@@ -1395,7 +1475,7 @@ export default function PetDatabasePanel({
           </span>
         </div>
 
-        {/* Static parts canvas — click to select a part and use the controls below to reposition it. */}
+        {/* Direct manipulation canvas — click a visible part, then drag it into place. */}
         <div
           ref={canvasRef}
           className="relative mx-auto rounded-lg"
@@ -1404,10 +1484,15 @@ export default function PetDatabasePanel({
             aspectRatio: "1",
             overflow: "visible",
             background: "repeating-conic-gradient(rgba(255,255,255,0.03) 0% 25%, transparent 0% 50%) 0 0 / 20px 20px",
-            border: "2px dashed rgba(240,192,64,0.25)",
+            border: draggingPartId ? "2px solid rgba(240,192,64,0.7)" : "2px dashed rgba(240,192,64,0.25)",
             cursor: "default",
+            touchAction: "none",
+            isolation: "isolate",
           }}
           onClick={handleCanvasClick}
+          onPointerMove={movePartDrag}
+          onPointerUp={(event) => endPartDrag(event.pointerId)}
+          onPointerCancel={(event) => endPartDrag(event.pointerId)}
         >
           <div>
             {viewParts.map(part => {
@@ -1423,11 +1508,17 @@ export default function PetDatabasePanel({
                     width: `${(part.width / CANVAS_SIZE) * 100}%`,
                     height: `${(part.height / CANVAS_SIZE) * 100}%`,
                     zIndex: previewEffectiveZ(part),
-                    pointerEvents: "none",
+                    transform: `rotate(${part.rotation ?? 0}deg)`,
+                    transformOrigin: `${part.pivotX}% ${part.pivotY}%`,
+                    pointerEvents: isSelected ? "auto" : "none",
+                    touchAction: isSelected ? "none" : "auto",
+                    cursor: isSelected ? (draggingPartId === part.id ? "grabbing" : "grab") : "default",
                     outline: isSelected ? "2px solid rgba(240,192,64,0.8)" : "none",
                     outlineOffset: "2px",
                     borderRadius: "4px",
                   }}
+                  onPointerDown={isSelected ? (event) => startPartDrag(event, part) : undefined}
+                  onLostPointerCapture={isSelected ? (event) => endPartDrag(event.pointerId) : undefined}
                 >
                   <img
                     src={part.imageUrl}
@@ -1450,101 +1541,120 @@ export default function PetDatabasePanel({
           </div>
         </div>
 
-        {/* Move All D-pad — always visible when parts exist. Moves the entire
-            pet composition (all parts in this view) by the step amount. */}
-        {viewParts.length > 0 && (
-          <div
-            className="flex flex-col gap-2 px-3 py-3 rounded-lg"
-            style={{ background: "rgba(240,192,64,0.08)", border: "1px solid rgba(240,192,64,0.2)" }}
+        {selectedPart && (
+          <section
+            data-testid="selected-part-transform-panel"
+            className="rounded-xl p-3 space-y-4"
+            style={{ background: "linear-gradient(180deg,rgba(127,255,212,.08),rgba(0,0,0,.22))", border: "1px solid rgba(127,255,212,.28)" }}
           >
-            <div className="flex items-center justify-between">
-              <span className="font-fantasy text-[9px] tracking-wider" style={{ color: "#a89878" }}>Move All Parts</span>
-              <div className="flex items-center gap-1.5">
-                <span className="font-fantasy text-[8px] tracking-wider" style={{ color: "#6a5840" }}>Step:</span>
-                {([1, 5, 10] as const).map(s => (
-                  <button
-                    key={s}
-                    data-testid={`button-nudge-step-${s}`}
-                    onClick={() => setNudgeStep(s)}
-                    className="rounded-md font-fantasy text-[9px] tracking-wider transition-all active:scale-95"
-                    style={{
-                      padding: "2px 8px",
-                      background: nudgeStep === s ? "rgba(240,192,64,0.25)" : "rgba(0,0,0,0.3)",
-                      border: nudgeStep === s ? "1px solid rgba(240,192,64,0.6)" : "1px solid rgba(240,192,64,0.15)",
-                      color: nudgeStep === s ? "#f0c040" : "#6a5840",
-                      cursor: "pointer",
-                    }}
-                  >{s}px</button>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-fantasy text-[9px] tracking-widest" style={{ color: "#7fbfb0" }}>PART TRANSFORM</p>
+                <p className="mt-1 truncate font-fantasy text-xs capitalize" style={{ color: "#f0c040" }}>{selectedPart.partType}</p>
+                <p className="mt-1 text-[10px]" style={{ color: "#a89878" }}>Drag the highlighted artwork on the canvas. Size and rotation save when released.</p>
+              </div>
+              <button
+                data-testid="button-delete-selected-part"
+                onClick={() => deletePartMutation.mutate(selectedPart.id)}
+                className="grid h-8 w-8 flex-none place-items-center rounded-full"
+                style={{ background: "rgba(220,38,38,.25)", border: "1px solid rgba(248,113,113,.35)", color: "#fca5a5" }}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
+            <div>
+              <div className="mb-2 flex items-center justify-between text-[10px]">
+                <span style={{ color: "#a89878" }}>Size (proportional)</span>
+                <span style={{ color: "#e7d7b5" }}>{selectedPart.width} × {selectedPart.height}</span>
+              </div>
+              <input
+                data-testid="input-part-size"
+                type="range"
+                min={4}
+                max={1000}
+                step={1}
+                value={selectedPart.width}
+                disabled={updatePartMutation.isPending}
+                onChange={(event) => {
+                  const resized = resizePetPartTransform(selectedPart, Number(event.target.value));
+                  updateSelectedPartDraft({ width: resized.width, height: resized.height });
+                }}
+                onPointerUp={commitPartDraft}
+                onKeyUp={commitPartDraft}
+                onBlur={commitPartDraft}
+                className="block w-full"
+                style={{ accentColor: "#f0c040" }}
+              />
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button data-testid="button-size-decrease" onClick={() => {
+                  const resized = resizePetPartTransform(selectedPart, selectedPart.width - nudgeStep);
+                  saveSelectedPartTransform({ width: resized.width, height: resized.height });
+                }} disabled={updatePartMutation.isPending} className="rounded p-2 text-sm disabled:opacity-50" style={{ background: "rgba(0,0,0,.25)", border: "1px solid rgba(240,192,64,.25)", color: "#f0c040" }}>− Smaller</button>
+                <button data-testid="button-size-increase" onClick={() => {
+                  const resized = resizePetPartTransform(selectedPart, selectedPart.width + nudgeStep);
+                  saveSelectedPartTransform({ width: resized.width, height: resized.height });
+                }} disabled={updatePartMutation.isPending} className="rounded p-2 text-sm disabled:opacity-50" style={{ background: "rgba(0,0,0,.25)", border: "1px solid rgba(240,192,64,.25)", color: "#f0c040" }}>+ Larger</button>
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-2 flex items-center justify-between text-[10px]">
+                <span style={{ color: "#a89878" }}>Rotation</span>
+                <span style={{ color: "#e7d7b5" }}>{selectedPart.rotation ?? 0}°</span>
+              </div>
+              <input
+                data-testid="input-part-rotation"
+                type="range"
+                min={-180}
+                max={180}
+                step={1}
+                value={selectedPart.rotation ?? 0}
+                disabled={updatePartMutation.isPending}
+                onChange={(event) => updateSelectedPartDraft({ rotation: clampPetPartRotation(Number(event.target.value)) })}
+                onPointerUp={commitPartDraft}
+                onKeyUp={commitPartDraft}
+                onBlur={commitPartDraft}
+                className="block w-full"
+                style={{ accentColor: "#f0c040" }}
+              />
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                <button type="button" aria-label="Rotate part left 15 degrees" onClick={() => saveSelectedPartTransform({ rotation: clampPetPartRotation((selectedPart.rotation ?? 0) - 15) })} disabled={updatePartMutation.isPending} className="grid place-items-center rounded p-2 disabled:opacity-50" style={{ background: "rgba(0,0,0,.25)", border: "1px solid rgba(240,192,64,.25)", color: "#f0c040" }}><RotateCcw className="h-4 w-4" /></button>
+                <button type="button" onClick={() => saveSelectedPartTransform({ rotation: 0 })} disabled={updatePartMutation.isPending} className="rounded p-2 text-[9px] disabled:opacity-50" style={{ background: "rgba(0,0,0,.25)", border: "1px solid rgba(240,192,64,.25)", color: "#f0c040" }}>RESET</button>
+                <button type="button" aria-label="Rotate part right 15 degrees" onClick={() => saveSelectedPartTransform({ rotation: clampPetPartRotation((selectedPart.rotation ?? 0) + 15) })} disabled={updatePartMutation.isPending} className="grid place-items-center rounded p-2 disabled:opacity-50" style={{ background: "rgba(0,0,0,.25)", border: "1px solid rgba(240,192,64,.25)", color: "#f0c040" }}><RotateCw className="h-4 w-4" /></button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg px-2.5 py-2 text-[9px]" style={{ background: "rgba(0,0,0,.2)", color: "#a89878" }}>
+              <span>Position: {selectedPart.posX}, {selectedPart.posY}</span>
+              <span>Layer order unchanged · z {selectedPart.zIndex}</span>
+            </div>
+          </section>
+        )}
+
+        {viewParts.length > 0 && (
+          <details className="rounded-lg px-3 py-2" style={{ background: "rgba(240,192,64,.06)", border: "1px solid rgba(240,192,64,.18)" }}>
+            <summary className="cursor-pointer font-fantasy text-[9px] tracking-wider" style={{ color: "#a89878" }}>MOVE WHOLE PET</summary>
+            <div className="mt-3 flex items-center justify-between">
+              <span className="font-fantasy text-[8px]" style={{ color: "#6a5840" }}>Step</span>
+              <div className="flex gap-1.5">
+                {([1, 5, 10] as const).map(step => (
+                  <button key={step} data-testid={`button-nudge-step-${step}`} onClick={() => setNudgeStep(step)} className="rounded px-2 py-1 font-fantasy text-[9px]" style={{ background: nudgeStep === step ? "rgba(240,192,64,.25)" : "rgba(0,0,0,.25)", border: "1px solid rgba(240,192,64,.25)", color: nudgeStep === step ? "#f0c040" : "#6a5840" }}>{step}px</button>
                 ))}
               </div>
             </div>
-
-            <div className="flex items-center justify-center">
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 40px)", gridTemplateRows: "repeat(3, 40px)", gap: 4 }}>
-                <div />
-                <button
-                  data-testid="button-nudge-up"
-                  onClick={() => nudgeAll(0, -nudgeStep)}
-                  className="flex items-center justify-center rounded-lg transition-all active:scale-90"
-                  style={{ background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
-                ><ChevronUp className="w-5 h-5" /></button>
-                <div />
-
-                <button
-                  data-testid="button-nudge-left"
-                  onClick={() => nudgeAll(-nudgeStep, 0)}
-                  className="flex items-center justify-center rounded-lg transition-all active:scale-90"
-                  style={{ background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
-                ><ChevronLeft className="w-5 h-5" /></button>
-                <div className="flex items-center justify-center rounded-lg" style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(240,192,64,0.1)" }}>
-                  <span className="font-fantasy text-[8px]" style={{ color: "#6a5840" }}>↕↔</span>
-                </div>
-                <button
-                  data-testid="button-nudge-right"
-                  onClick={() => nudgeAll(nudgeStep, 0)}
-                  className="flex items-center justify-center rounded-lg transition-all active:scale-90"
-                  style={{ background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
-                ><ChevronRight className="w-5 h-5" /></button>
-
-                <div />
-                <button
-                  data-testid="button-nudge-down"
-                  onClick={() => nudgeAll(0, nudgeStep)}
-                  className="flex items-center justify-center rounded-lg transition-all active:scale-90"
-                  style={{ background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
-                ><ChevronDown className="w-5 h-5" /></button>
-                <div />
-              </div>
+            <div className="mx-auto mt-3 grid w-fit grid-cols-3 gap-1">
+              <span />
+              <button data-testid="button-nudge-up" onClick={() => nudgeAll(0, -nudgeStep)} disabled={updatePartMutation.isPending} className="grid h-10 w-10 place-items-center rounded-lg disabled:opacity-50" style={{ background: "rgba(240,192,64,.12)", border: "1px solid rgba(240,192,64,.3)", color: "#f0c040" }}><ChevronUp className="h-5 w-5" /></button>
+              <span />
+              <button data-testid="button-nudge-left" onClick={() => nudgeAll(-nudgeStep, 0)} disabled={updatePartMutation.isPending} className="grid h-10 w-10 place-items-center rounded-lg disabled:opacity-50" style={{ background: "rgba(240,192,64,.12)", border: "1px solid rgba(240,192,64,.3)", color: "#f0c040" }}><ChevronLeft className="h-5 w-5" /></button>
+              <span className="grid h-10 w-10 place-items-center rounded-lg text-[9px]" style={{ background: "rgba(0,0,0,.2)", color: "#6a5840" }}>↕↔</span>
+              <button data-testid="button-nudge-right" onClick={() => nudgeAll(nudgeStep, 0)} disabled={updatePartMutation.isPending} className="grid h-10 w-10 place-items-center rounded-lg disabled:opacity-50" style={{ background: "rgba(240,192,64,.12)", border: "1px solid rgba(240,192,64,.3)", color: "#f0c040" }}><ChevronRight className="h-5 w-5" /></button>
+              <span />
+              <button data-testid="button-nudge-down" onClick={() => nudgeAll(0, nudgeStep)} disabled={updatePartMutation.isPending} className="grid h-10 w-10 place-items-center rounded-lg disabled:opacity-50" style={{ background: "rgba(240,192,64,.12)", border: "1px solid rgba(240,192,64,.3)", color: "#f0c040" }}><ChevronDown className="h-5 w-5" /></button>
+              <span />
             </div>
-          </div>
-        )}
-
-
-        {/* Selected-part size control — only shown when a part is clicked */}
-        {selectedPart && (
-          <div
-            className="flex items-center justify-between px-3 py-2 rounded-lg"
-            style={{ background: "rgba(127,255,212,0.05)", border: "1px solid rgba(127,255,212,0.2)" }}
-          >
-            <span className="font-fantasy text-[9px] tracking-wider" style={{ color: "#7fbfb0" }}>
-              Resize: <span style={{ color: "#f0c040" }}>{selectedPart.partType}</span>
-              <span style={{ color: "#6a5840" }}> ({selectedPart.width}×{selectedPart.height})</span>
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                data-testid="button-size-decrease"
-                onClick={() => resizePart(-nudgeStep)}
-                className="flex items-center justify-center rounded-lg font-bold transition-all active:scale-90"
-                style={{ width: 32, height: 32, fontSize: 18, background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
-              >−</button>
-              <button
-                data-testid="button-size-increase"
-                onClick={() => resizePart(nudgeStep)}
-                className="flex items-center justify-center rounded-lg font-bold transition-all active:scale-90"
-                style={{ width: 32, height: 32, fontSize: 18, background: "rgba(240,192,64,0.12)", border: "1px solid rgba(240,192,64,0.3)", color: "#f0c040", cursor: "pointer" }}
-              >+</button>
-            </div>
-          </div>
+          </details>
         )}
 
         {/* Facing direction selector — mutually exclusive toggle */}
@@ -1651,10 +1761,20 @@ export default function PetDatabasePanel({
                           )}
                         </button>
                       </div>
-                      {/* One delete button per uploaded part */}
+                      {/* Existing uploads can be selected for direct canvas editing or deleted. */}
                       {matchingParts.map((mp, idx) => (
-                        <button
-                          key={mp.id}
+                        <div key={mp.id} className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            data-testid={`button-edit-part-${pt.key}-${idx}`}
+                            onClick={() => setSelectedPartId(mp.id)}
+                            className="grid h-7 w-7 place-items-center rounded"
+                            style={{ background: selectedPartId === mp.id ? "rgba(127,255,212,.2)" : "rgba(0,0,0,.25)", border: "1px solid rgba(127,255,212,.25)", color: "#7fbfb0" }}
+                            title={`Edit ${pt.label} #${idx + 1}`}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          <button
                           data-testid={`button-delete-part-${pt.key}-${idx}`}
                           onClick={() => deletePartMutation.mutate(mp.id)}
                           className="flex items-center gap-1 px-1.5 py-1 rounded font-fantasy text-[8px] tracking-wider transition-all active:scale-95"
@@ -1668,7 +1788,8 @@ export default function PetDatabasePanel({
                         >
                           <Trash2 className="w-2.5 h-2.5" />
                           {matchingParts.length > 1 && <span>#{idx + 1}</span>}
-                        </button>
+                          </button>
+                        </div>
                       ))}
                     </div>
                   );
@@ -1680,34 +1801,7 @@ export default function PetDatabasePanel({
           })}
         </div>
 
-        {selectedPart && (
-          <div
-            className="flex items-center justify-between px-3 py-2 rounded-lg"
-            style={{ background: "rgba(240,192,64,0.08)", border: "1px solid rgba(240,192,64,0.2)" }}
-          >
-            <div className="flex items-center gap-2">
-              <span className="font-fantasy text-[#f0c040] text-xs tracking-wider capitalize">{selectedPart.partType}</span>
-              {(() => {
-                const ptInfo = ALL_PART_DEFS.find(p => p.key === selectedPart.partType);
-                const layerLabel = ptInfo?.layer === "back" ? "Behind Body" : ptInfo?.layer === "body" ? "Body Layer" : "In Front";
-                const layerColor = ptInfo?.layer === "back" ? "#ff9966" : ptInfo?.layer === "body" ? "#7fbfb0" : "#66ccff";
-                return (
-                  <span className="font-fantasy text-[7px] tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${layerColor}40`, color: layerColor }}>
-                    {layerLabel}
-                  </span>
-                );
-              })()}
-            </div>
-            <button
-              data-testid="button-delete-selected-part"
-              onClick={() => deletePartMutation.mutate(selectedPart.id)}
-              className="w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(220,38,38,0.3)", cursor: "pointer", color: "#fca5a5" }}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
+
 
         {/* Single Can-Fly toggle, sitting just above the Save button so it's
             always visible regardless of which part group is expanded. */}

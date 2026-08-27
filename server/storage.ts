@@ -178,7 +178,7 @@ export interface IStorage {
   updatePetTemplate(id: string, data: Partial<PetTemplate>): Promise<PetTemplate>;
   deletePetTemplate(id: string): Promise<void>;
   getPetTemplateParts(templateId: string, form?: "base" | "evolution"): Promise<PetTemplatePart[]>;
-  createPetTemplatePart(data: { templateId: string; form?: "base" | "evolution"; partType: string; view: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number; pivotX?: number; pivotY?: number }): Promise<PetTemplatePart>;
+  createPetTemplatePart(data: { templateId: string; form?: "base" | "evolution"; partType: string; view: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number; pivotX?: number; pivotY?: number; rotation?: number }): Promise<PetTemplatePart>;
   updatePetTemplatePart(id: string, data: Partial<PetTemplatePart>): Promise<PetTemplatePart>;
   deletePetTemplatePart(id: string): Promise<void>;
   deletePetTemplatePartsByTemplate(templateId: string): Promise<void>;
@@ -1213,7 +1213,7 @@ export class DatabaseStorage implements IStorage {
     ));
   }
 
-  async createPetTemplatePart(data: { templateId: string; form?: "base" | "evolution"; partType: string; view: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number; pivotX?: number; pivotY?: number }): Promise<PetTemplatePart> {
+  async createPetTemplatePart(data: { templateId: string; form?: "base" | "evolution"; partType: string; view: string; imageUrl: string; posX?: number; posY?: number; width?: number; height?: number; zIndex?: number; pivotX?: number; pivotY?: number; rotation?: number }): Promise<PetTemplatePart> {
     const [p] = await db.insert(petTemplateParts).values({
       templateId: data.templateId,
       form: data.form ?? "base",
@@ -1227,6 +1227,7 @@ export class DatabaseStorage implements IStorage {
       zIndex: data.zIndex ?? 0,
       pivotX: data.pivotX ?? 50,
       pivotY: data.pivotY ?? 50,
+      rotation: data.rotation ?? 0,
     }).returning();
     return p;
   }

@@ -21,6 +21,7 @@ interface PetPart {
   zIndex: number;
   pivotX: number;
   pivotY: number;
+  rotation: number;
 }
 
 interface TemplateData {
@@ -392,6 +393,7 @@ function CostumeLayer({
             width: `${(anchor.width / CANVAS_SIZE) * 100}%`,
             height: `${(anchor.height / CANVAS_SIZE) * 100}%`,
             transformOrigin: origin,
+            rotate: `${anchor.rotation ?? 0}deg`,
             animation: animName ? buildAnimation(animName, duration, partDelay) : undefined,
             willChange: animName ? "transform" : undefined,
             overflow: "visible",
@@ -498,6 +500,7 @@ function AboveHeadTopLayer({
             width: `${(part.width / CANVAS_SIZE) * 100}%`,
             height: `${(part.height / CANVAS_SIZE) * 100}%`,
             transformOrigin: origin,
+            rotate: `${part.rotation ?? 0}deg`,
             animation: animName ? buildAnimation(animName, partDuration, partDelay) : undefined,
             willChange: animName ? "transform" : undefined,
             imageRendering: "auto",

@@ -17,6 +17,7 @@ interface PetPart {
   zIndex: number;
   pivotX: number;
   pivotY: number;
+  rotation: number;
 }
 
 interface PetAnimatorProps {
@@ -1914,6 +1915,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           height: `${heightPct}%`,
           zIndex: layerZ,
           transformOrigin: resolvedOrigin ?? `${originX.toFixed(2)}% ${originY.toFixed(2)}%`,
+          rotate: `${part.rotation ?? 0}deg`,
           // Animation shorthand picked by buildAnimationCss: 2-keyframe
           // motion (wings, ears, tail, body, etc.) gets `alternate` +
           // sine bezier so it's a true sine wave with no internal
@@ -1964,7 +1966,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             const layerZ = partZ ?? LAYER_ORDER[part.partType] ?? part.zIndex;
             return (
               <img key={part.id} src={part.imageUrl} alt={part.partType} draggable={false}
-                style={{ position: "absolute", left: `${leftPct}%`, top: `${topPct}%`, width: `${widthPct}%`, height: `${heightPct}%`, zIndex: layerZ, imageRendering: "auto", pointerEvents: "none" }}
+                style={{ position: "absolute", left: `${leftPct}%`, top: `${topPct}%`, width: `${widthPct}%`, height: `${heightPct}%`, zIndex: layerZ, rotate: `${part.rotation ?? 0}deg`, transformOrigin: `${part.pivotX ?? 50}% ${part.pivotY ?? 50}%`, imageRendering: "auto", pointerEvents: "none" }}
               />
             );
           }
