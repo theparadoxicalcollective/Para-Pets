@@ -8,7 +8,6 @@ import type { PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { fireLevelUp } from "@/lib/levelUpEvents";
-import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 
 interface InventoryItem {
   inventoryId: string;
