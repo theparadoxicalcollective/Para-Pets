@@ -623,7 +623,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         : "Power Up!";
       setPetModalSuccess({ type: item?.statBoostType === "lvl" ? "level" : "stat", label: boostLabel });
       if (data?.petLevel && activePetForModal && data.petLevel > activePetForModal.petLevel) {
-        fireLevelUp(data.petLevel, activePetForModal.petNickname || activePetForModal.name, activePetForModal.petTemplateId);
+        fireLevelUp(data.petLevel, activePetForModal.petNickname || activePetForModal.name, activePetForModal.petTemplateId, activePetForModal.inventoryId);
       }
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/quests/daily"] });
@@ -646,7 +646,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       const effectType: "stat" | "level" | "hatch" = isHatchTime ? "hatch" : "level";
       setPetModalSuccess({ type: effectType, label });
       if (data?.petLevel && activePetForModal && data.petLevel > activePetForModal.petLevel) {
-        fireLevelUp(data.petLevel, activePetForModal.petNickname || activePetForModal.name, activePetForModal.petTemplateId);
+        fireLevelUp(data.petLevel, activePetForModal.petNickname || activePetForModal.name, activePetForModal.petTemplateId, activePetForModal.inventoryId);
       }
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
     },
@@ -1296,7 +1296,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                       >
                         {activePet.petTemplateId ? (
                           <div className="w-full flex items-center justify-center">
-                            <PetAnimator petTemplateId={activePet.petTemplateId} mode="idle" view="front" size={1000} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
+                            <PetAnimator petTemplateId={activePet.petTemplateId} petInventoryId={activePet.inventoryId} mode="idle" view="front" size={1000} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
                           </div>
                         ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
                           <div style={{ paddingTop: "calc(8*var(--vh))", width: "100%" }}>
@@ -1897,6 +1897,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       {activePetModal === "power_up" && activePetForModal && (
         <PetPowerUpModal
           petName={activePetForModal.petNickname || activePetForModal.name}
+          petInventoryId={activePetForModal.inventoryId}
           petImage={activePetForModal.hatchedImageUrl || activePetForModal.imageUrl}
           petTemplateId={activePetForModal.petTemplateId}
           rarity={activePetForModal.rarity || 1}
@@ -1921,6 +1922,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       {activePetModal === "level_up" && activePetForModal && (
         <PetPowerUpModal
           petName={activePetForModal.petNickname || activePetForModal.name}
+          petInventoryId={activePetForModal.inventoryId}
           petImage={activePetForModal.hatchedImageUrl || activePetForModal.imageUrl}
           petTemplateId={activePetForModal.petTemplateId}
           rarity={activePetForModal.rarity || 1}
