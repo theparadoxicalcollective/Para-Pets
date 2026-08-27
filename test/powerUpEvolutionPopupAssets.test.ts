@@ -39,15 +39,22 @@ test("Evolution pet cards scroll independently and show gold stars and points", 
   assert.match(popupSource, /pupevo-feeder\.selected \.pupevo-selecting\{[^}]*drop-shadow/);
   assert.match(popupSource, /pupevo-feeder\+\.pupevo-feeder\{margin-top:-6%\}/);
   assert.match(popupSource, /pupevo-feeder\.selected::after\{[^}]*background:linear-gradient\(135deg,#087743,#25d87d\)/);
+  assert.match(popupSource, /pupevo-feeder-pet\{left:5\.5%;top:8%;width:22%;height:70%\}/);
+  assert.match(popupSource, /pupevo-feeder-info\{top:28%\}/);
+  assert.doesNotMatch(popupSource, /className="pupevo-checkmark"/);
 });
 
 test("Evolution popup exposes progress and keeps its warning and confirmation aligned", () => {
   assert.match(popupSource, /className="pupevo-picker-progress" role="progressbar"/);
   assert.match(popupSource, /style=\{\{ width: `\$\{currentPercent\}%` \}\}/);
   assert.match(popupSource, />Pets used for evolution are permanently consumed\.<\/p>/);
-  assert.match(popupSource, /pupevo-warning\{position:static/);
-  assert.match(popupSource, /pupevo-feed\{left:8%;right:18%;bottom:9\.5%/);
-  assert.match(popupSource, /selectedPets\.length === 1 \? "Confirm Pet"/);
+  assert.match(popupSource, /aria-describedby="pupevo-consumption-warning"/);
+  assert.match(popupSource, /id="pupevo-consumption-warning" className="pupevo-warning"/);
+  assert.match(popupSource, /pupevo-warning\{left:6%;right:6%;bottom:-3\.5%/);
+  assert.match(popupSource, /pupevo-feed\{left:8%;right:18%;bottom:9\.5%;display:flex/);
+  assert.match(popupSource, /pupevo-feed-icon\{position:static;width:9%;transform:none\}/);
+  assert.match(popupSource, /selectedPets\.length \? "Confirm" : "Select feeder pets"/);
+  assert.match(popupSource, /const projectedSummary = !selectedPoints\s+\? ""/);
 });
 
 test("Evolution popup close control cannot move the locked Power Up background", () => {
