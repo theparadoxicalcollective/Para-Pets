@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { boolean, integer, jsonb, pgTable, text, timestamp, unique, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { COSTUME_MAX_PLACEMENT_INSTANCES } from "./costumeFeature";
 
 /**
  * One row per pet that has purchased additional costume capacity.
@@ -51,6 +52,7 @@ export const petCostumeDefinitions = pgTable("pet_costume_definitions", {
 export const costumePlacementSchema = z.object({
   view: z.enum(["front", "side"]),
   anchorPart: z.string().min(1),
+  instance: z.number().int().min(1).max(COSTUME_MAX_PLACEMENT_INSTANCES).default(1),
   posX: z.number(),
   posY: z.number(),
   width: z.number().positive(),
@@ -62,7 +64,20 @@ export const costumePlacementSchema = z.object({
   depth: z.enum(["front", "back"]),
 });
 
-export const costumePlacementsSchema = z.array(costumePlacementSchema);
+export const costumePlacementsSchema = z.array(costumePlacementSchema).superRefine((placements, ctx) => {
+  const seen = new Set<string>();
+  placements.forEach((placement, index) => {
+    const key = `${placement.view}:${placement.instance}`;
+    if (seen.has(key)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [index, "instance"],
+        message: "Each costume copy can only have one placement per view",
+      });
+    }
+    seen.add(key);
+  });
+});
 
 export const insertPetCostumeDefinitionSchema = createInsertSchema(petCostumeDefinitions).extend({
   placements: costumePlacementsSchema,

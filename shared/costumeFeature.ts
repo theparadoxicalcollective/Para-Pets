@@ -9,6 +9,11 @@
 
 export const COSTUME_SLOT_COUNT = 3 as const;
 
+/** One fitted costume can be duplicated three times on the same pet template. */
+export const COSTUME_MAX_DUPLICATES_PER_PET = 3 as const;
+/** Original artwork + the three allowed duplicates. */
+export const COSTUME_MAX_PLACEMENT_INSTANCES = 4 as const;
+
 /** Number of costume slots available without spending coins. */
 export const COSTUME_BASE_SLOTS = 1 as const;
 
@@ -39,6 +44,8 @@ export type CostumeAnchorPart = string;
 export interface CostumePlacement {
   view: CostumeView;
   anchorPart: CostumeAnchorPart;
+  /** 1 is the original fitted piece; 2-4 are admin-created visual duplicates. */
+  instance?: number;
   posX: number;
   posY: number;
   width: number;

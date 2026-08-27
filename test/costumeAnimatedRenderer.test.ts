@@ -18,11 +18,18 @@ test("costume rendering is centralized around the existing pet animator", () => 
 
 test("costume artwork inherits its configured pet-part motion instead of using a static page overlay", () => {
   assert.match(animator, /const anchor = sortedParts\.find\(part => part\.partType === placement\.anchorPart\)/);
-  assert.match(animator, /data-testid={`costume-anchor-\$\{placement\.anchorPart\}`}/);
+  assert.match(animator, /data-testid={`costume-anchor-\$\{placement\.anchorPart\}-\$\{placementInstance\}`}/);
   assert.match(animator, /animation: animName \? buildAnimation\(animName, duration, partDelay\) : undefined/);
   assert.match(animator, /transformOrigin: origin/);
   assert.match(animator, /const localLeft = \(\(position\.left - anchor\.posX\) \/ anchor\.width\) \* 100/);
   assert.match(animator, /transform: `rotate\(\$\{placement\.rotation \?\? 0\}deg\) scaleX\(\$\{placement\.flipX \? -1 : 1\}\)`/);
+});
+
+test("animated costume renderer draws every fitted duplicate for the current view and depth", () => {
+  assert.match(animator, /costume\.placements\.filter\(item => item\.view === costumeView && item\.depth === depth\)/);
+  assert.match(animator, /placements\.map\(\(placement\) =>/);
+  assert.match(animator, /const placementInstance = placement\.instance \?\? 1/);
+  assert.match(animator, /costume-piece-\$\{costume\.id\}-\$\{placementInstance\}/);
 });
 
 test("head-mounted costumes inherit the same head-group wrapper motion as the pet", () => {
@@ -31,7 +38,7 @@ test("head-mounted costumes inherit the same head-group wrapper motion as the pe
   assert.match(animator, /animation = resolvedView === "back" \? "petIdleHeadSide" : "petIdleHead"/);
   assert.match(animator, /animation = "petIdleHeadSway"/);
   assert.match(animator, /animation = "petIdleHeadSwayAlt"/);
-  assert.match(animator, /data-testid={`costume-head-group-\$\{groupType\}`}/);
+  assert.match(animator, /data-testid={`costume-head-group-\$\{groupType\}-\$\{placementInstance\}`}/);
   assert.match(animator, /"--pet-head-bob": headBob/);
 });
 

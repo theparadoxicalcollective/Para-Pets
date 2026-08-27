@@ -95,6 +95,25 @@ test("admin pet editing respects mobile safe areas and authored part stacking", 
   assert.match(editor, /basePetPartType\(part\.partType\) === "above_head" \? 20000/);
 });
 
+test("admin can fit one costume artwork as an original plus at most three duplicates", () => {
+  assert.match(editor, /COSTUME_MAX_PLACEMENT_INSTANCES/);
+  assert.match(editor, /data-testid="button-duplicate-costume-piece"/);
+  assert.match(editor, /data-testid="costume-copy-selector"/);
+  assert.match(editor, /`COPY \${instance - 1}`/);
+  assert.match(editor, /instance: selectedCostumeInstance/);
+  assert.match(editor, /current\.view !== placement\.view \|\| \(current\.instance \?\? 1\) !== placementInstance/);
+  assert.match(editor, /Original \+ up to 3 duplicates per pet/);
+  assert.match(editor, /data-testid="button-remove-costume-copy"/);
+  assert.match(costumeSchema, /instance: z\.number\(\)\.int\(\)\.min\(1\)\.max\(COSTUME_MAX_PLACEMENT_INSTANCES\)\.default\(1\)/);
+});
+
+test("costume anchor selector lists every uploaded pet layer and marks opposite-view layers unavailable", () => {
+  assert.match(editor, /uploadedPartTypes = Array\.from\(new Set\(\(templateDetail\?\.parts \?\? \[\]\)\.map/);
+  assert.match(editor, /availableInCurrentView: currentViewPartTypes\.has\(partType\)/);
+  assert.match(editor, /disabled=\{!part\.availableInCurrentView\}/);
+  assert.match(editor, /part\.views\.map/);
+});
+
 test("costume vault scales through search and a compact thumbnail grid", () => {
   assert.match(editor, /data-testid="input-costume-search"/);
   assert.match(editor, /filteredCostumeItems/);

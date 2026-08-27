@@ -324,80 +324,85 @@ function CostumeLayer({
 
   const renderCostume = (costume: EquippedCostume) => {
     const costumeView = resolvedView === "back" ? "side" : "front";
-    const placement = costume.placements.find(item => item.view === costumeView && item.depth === depth);
-    if (!placement || !costume.imageUrl) return null;
-    const anchor = sortedParts.find(part => part.partType === placement.anchorPart);
-    if (!anchor || anchor.width <= 0 || anchor.height <= 0) return null;
-    const position = getCostumeCanvasPosition(anchor, placement);
-    if (!position) return null;
+    const placements = costume.placements.filter(item => item.view === costumeView && item.depth === depth);
+    if (!costume.imageUrl || placements.length === 0) return null;
 
-    const animName = anchorAnimation(anchor, mode, resolvedView, idleStyle);
-    const groupType = headGroupType(anchor.partType);
-    const groupIndex = Math.max(0, headTypes.indexOf(groupType ?? "head"));
-    const groupDelay = `${HEAD_GROUP_DELAYS[Math.min(groupIndex, HEAD_GROUP_DELAYS.length - 1)] ?? 0}s`;
-    const partDelay = groupType ? groupDelay : (isBodyBreathAnimation(animName) || isTailIdleAnimation(animName) ? bodyDelay : wingDelay.get(anchor.id) ?? stableDelay(anchor.id));
-    const duration = getDuration(anchor.partType, mode);
-    const origin = partOrigin(anchor, animName, bodyPart, canFly);
+    return <>{placements.map((placement) => {
+      const anchor = sortedParts.find(part => part.partType === placement.anchorPart);
+      if (!anchor || anchor.width <= 0 || anchor.height <= 0) return null;
+      const position = getCostumeCanvasPosition(anchor, placement);
+      if (!position) return null;
 
-    const localLeft = ((position.left - anchor.posX) / anchor.width) * 100;
-    const localTop = ((position.top - anchor.posY) / anchor.height) * 100;
-    const localWidth = (placement.width / anchor.width) * 100;
-    const localHeight = (placement.height / anchor.height) * 100;
+      const animName = anchorAnimation(anchor, mode, resolvedView, idleStyle);
+      const groupType = headGroupType(anchor.partType);
+      const groupIndex = Math.max(0, headTypes.indexOf(groupType ?? "head"));
+      const groupDelay = `${HEAD_GROUP_DELAYS[Math.min(groupIndex, HEAD_GROUP_DELAYS.length - 1)] ?? 0}s`;
+      const partDelay = groupType ? groupDelay : (isBodyBreathAnimation(animName) || isTailIdleAnimation(animName) ? bodyDelay : wingDelay.get(anchor.id) ?? stableDelay(anchor.id));
+      const duration = getDuration(anchor.partType, mode);
+      const origin = partOrigin(anchor, animName, bodyPart, canFly);
+      const placementInstance = placement.instance ?? 1;
+      const placementKey = `${costume.id}-${costumeView}-${depth}-${placementInstance}`;
 
-    const anchorNode = (
-      <div
-        data-testid={`costume-anchor-${placement.anchorPart}`}
-        style={{
-          position: "absolute",
-          left: `${(anchor.posX / CANVAS_SIZE) * 100}%`,
-          top: `${(anchor.posY / CANVAS_SIZE) * 100}%`,
-          width: `${(anchor.width / CANVAS_SIZE) * 100}%`,
-          height: `${(anchor.height / CANVAS_SIZE) * 100}%`,
-          transformOrigin: origin,
-          animation: animName ? buildAnimation(animName, duration, partDelay) : undefined,
-          willChange: animName ? "transform" : undefined,
-          overflow: "visible",
-          pointerEvents: "none",
-        }}
-      >
-        <img
-          src={costume.imageUrl}
-          alt=""
-          draggable={false}
-          data-testid={`costume-piece-${costume.id}`}
+      const localLeft = ((position.left - anchor.posX) / anchor.width) * 100;
+      const localTop = ((position.top - anchor.posY) / anchor.height) * 100;
+      const localWidth = (placement.width / anchor.width) * 100;
+      const localHeight = (placement.height / anchor.height) * 100;
+
+      const anchorNode = (
+        <div
+          data-testid={`costume-anchor-${placement.anchorPart}-${placementInstance}`}
           style={{
             position: "absolute",
-            left: `${localLeft}%`,
-            top: `${localTop}%`,
-            width: `${localWidth}%`,
-            height: `${localHeight}%`,
-            objectFit: "contain",
-            transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flipX ? -1 : 1})`,
-            transformOrigin: `${placement.pivotX}% ${placement.pivotY}%`,
+            left: `${(anchor.posX / CANVAS_SIZE) * 100}%`,
+            top: `${(anchor.posY / CANVAS_SIZE) * 100}%`,
+            width: `${(anchor.width / CANVAS_SIZE) * 100}%`,
+            height: `${(anchor.height / CANVAS_SIZE) * 100}%`,
+            transformOrigin: origin,
+            animation: animName ? buildAnimation(animName, duration, partDelay) : undefined,
+            willChange: animName ? "transform" : undefined,
+            overflow: "visible",
             pointerEvents: "none",
           }}
-        />
-      </div>
-    );
+        >
+          <img
+            src={costume.imageUrl}
+            alt=""
+            draggable={false}
+            data-testid={`costume-piece-${costume.id}-${placementInstance}`}
+            style={{
+              position: "absolute",
+              left: `${localLeft}%`,
+              top: `${localTop}%`,
+              width: `${localWidth}%`,
+              height: `${localHeight}%`,
+              objectFit: "contain",
+              transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flipX ? -1 : 1})`,
+              transformOrigin: `${placement.pivotX}% ${placement.pivotY}%`,
+              pointerEvents: "none",
+            }}
+          />
+        </div>
+      );
 
-    if (!groupType) return <div key={costume.id}>{anchorNode}</div>;
+      if (!groupType) return <div key={placementKey}>{anchorNode}</div>;
 
-    const wrapper = getHeadWrapperMotion(groupType, mode, resolvedView, bodyDelay);
-    return (
-      <div
-        key={costume.id}
-        data-testid={`costume-head-group-${groupType}`}
-        style={{
-          position: "absolute", inset: 0, width: "100%", height: "100%",
-          animation: wrapper.animation ? buildAnimation(wrapper.animation, wrapper.duration, wrapper.delay) : undefined,
-          willChange: wrapper.animation ? "transform" : undefined,
-          pointerEvents: "none",
-          ...(mode === "idle" ? ({ "--pet-head-bob": headBob } as React.CSSProperties) : {}),
-        }}
-      >
-        {anchorNode}
-      </div>
-    );
+      const wrapper = getHeadWrapperMotion(groupType, mode, resolvedView, bodyDelay);
+      return (
+        <div
+          key={placementKey}
+          data-testid={`costume-head-group-${groupType}-${placementInstance}`}
+          style={{
+            position: "absolute", inset: 0, width: "100%", height: "100%",
+            animation: wrapper.animation ? buildAnimation(wrapper.animation, wrapper.duration, wrapper.delay) : undefined,
+            willChange: wrapper.animation ? "transform" : undefined,
+            pointerEvents: "none",
+            ...(mode === "idle" ? ({ "--pet-head-bob": headBob } as React.CSSProperties) : {}),
+          }}
+        >
+          {anchorNode}
+        </div>
+      );
+    })}</>;
   };
 
   return <>{costumes.map(renderCostume)}</>;

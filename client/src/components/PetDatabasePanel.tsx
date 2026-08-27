@@ -8,7 +8,7 @@ import { Plus, Trash2, X, ArrowLeft, Save, Layers, Link2, Pencil, ChevronUp, Che
 import { renderPetGif, type GifAnimation } from "@/lib/petGif";
 import { getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
 import { PET_ANIMATION_PROFILES, type PetAnimationProfile, normalizeAnimationProfile } from "@/lib/petAnimationConfig";
-import type { CostumePlacement } from "@shared/costumeFeature";
+import { COSTUME_MAX_PLACEMENT_INSTANCES, type CostumePlacement } from "@shared/costumeFeature";
 import {
   getCostumeAnchorPoint,
   getCostumeCanvasPosition,
@@ -302,7 +302,7 @@ export default function PetDatabasePanel({
     onSelectedTemplateChange?.(selectedTemplateId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTemplateId]);
-  useEffect(() => setSelectedCostumeId(null), [selectedTemplateId]);
+  useEffect(() => { setSelectedCostumeId(null); setSelectedCostumeInstance(1); }, [selectedTemplateId]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newPetName, setNewPetName] = useState("");
   const [showRenameModal, setShowRenameModal] = useState(false);
@@ -318,6 +318,7 @@ export default function PetDatabasePanel({
   // that same template, not separate pet/animation/costume records.
   const [editorTab, setEditorTab] = useState<EditorTab>("parts");
   const [selectedCostumeId, setSelectedCostumeId] = useState<string | null>(null);
+  const [selectedCostumeInstance, setSelectedCostumeInstance] = useState(1);
   const [costumeSearch, setCostumeSearch] = useState("");
   const [costumeDraft, setCostumeDraft] = useState<CostumePlacement | null>(null);
   const [costumeDraftDirty, setCostumeDraftDirty] = useState(false);
@@ -435,11 +436,35 @@ export default function PetDatabasePanel({
     .sort((a, b) => a.name.localeCompare(b.name));
   const selectedCostumeItem = costumeItems.find(item => item.id === selectedCostumeId);
   const selectedCostumeDefinition = costumeDefinitions.find(definition => definition.shopItemId === selectedCostumeId);
-  const savedCostumePlacement = selectedCostumeDefinition?.placements.find(placement => placement.view === currentCostumeView);
-  const costumeParts = viewParts.map(part => ({ partType: part.partType, label: ALL_PART_DEFS.find(def => def.key === part.partType)?.label ?? part.partType }));
+  const savedCostumeInstances = Array.from(new Set(
+    (selectedCostumeDefinition?.placements ?? []).map(placement => placement.instance ?? 1),
+  )).sort((a, b) => a - b);
+  const costumeInstances = Array.from(new Set([
+    1,
+    ...savedCostumeInstances,
+    ...(costumeDraft ? [costumeDraft.instance ?? selectedCostumeInstance] : []),
+  ])).sort((a, b) => a - b);
+  const savedCostumePlacement = selectedCostumeDefinition?.placements.find(placement =>
+    placement.view === currentCostumeView && (placement.instance ?? 1) === selectedCostumeInstance
+  );
+  const currentViewPartTypes = new Set(viewParts.map(part => part.partType));
+  const uploadedPartTypes = Array.from(new Set((templateDetail?.parts ?? []).map(part => part.partType)));
+  const costumeParts = uploadedPartTypes.map(partType => {
+    const matching = (templateDetail?.parts ?? []).filter(part => part.partType === partType);
+    const views = Array.from(new Set(matching.map(part => part.view)));
+    return {
+      partType,
+      label: ALL_PART_DEFS.find(def => def.key === partType)?.label ?? partType,
+      availableInCurrentView: currentViewPartTypes.has(partType),
+      views,
+    };
+  });
   const defaultCostumePlacement = (): CostumePlacement => ({
     view: currentCostumeView,
-    anchorPart: costumeParts.find(part => part.partType === "body")?.partType ?? costumeParts[0]?.partType ?? "body",
+    anchorPart: costumeParts.find(part => part.partType === "body" && part.availableInCurrentView)?.partType
+      ?? costumeParts.find(part => part.availableInCurrentView)?.partType
+      ?? "body",
+    instance: selectedCostumeInstance,
     posX: 0,
     posY: 0,
     width: 300,
@@ -457,6 +482,9 @@ export default function PetDatabasePanel({
   const costumeAnchorPoint = getCostumeAnchorPoint(costumeAnchor);
   const costumeCanvasPosition = getCostumeCanvasPosition(costumeAnchor, selectedCostumePlacement);
   const canSaveCostumePlacement = !!selectedCostumePlacement && (costumeDraftDirty || !savedCostumePlacement);
+  const nextCostumeInstance = Array.from({ length: COSTUME_MAX_PLACEMENT_INSTANCES }, (_, index) => index + 1)
+    .find(instance => !costumeInstances.includes(instance));
+  const canDuplicateCostumePlacement = !!selectedCostumeItem && !!savedCostumePlacement && !costumeDraftDirty && nextCostumeInstance !== undefined;
 
   useEffect(() => {
     if (!selectedCostumeId) {
@@ -466,7 +494,7 @@ export default function PetDatabasePanel({
     }
     if (costumeDraftDirty) return;
     setCostumeDraft(savedCostumePlacement ?? defaultCostumePlacement());
-  }, [selectedTemplateId, selectedCostumeId, currentCostumeView, selectedCostumeDefinition]);
+  }, [selectedTemplateId, selectedCostumeId, selectedCostumeInstance, currentCostumeView, selectedCostumeDefinition]);
 
   useEffect(() => {
     if (!costumeDraftDirty) return;
@@ -624,7 +652,12 @@ export default function PetDatabasePanel({
   const saveCostumeMutation = useMutation({
     mutationFn: async ({ itemId, placement }: { itemId: string; placement: CostumePlacement }) => {
       const existing = costumeDefinitions.find(definition => definition.shopItemId === itemId)?.placements ?? [];
-      const placements = [...existing.filter(current => current.view !== placement.view), placement];
+      const placementInstance = placement.instance ?? 1;
+      const normalizedPlacement = { ...placement, instance: placementInstance };
+      const placements = [
+        ...existing.filter(current => current.view !== placement.view || (current.instance ?? 1) !== placementInstance),
+        normalizedPlacement,
+      ];
       const res = await apiRequest("PUT", "/api/admin/costume-definitions", { shopItemId: itemId, templateId: selectedTemplateId, placements });
       return res.json();
     },
@@ -639,6 +672,27 @@ export default function PetDatabasePanel({
       toast({ title: "Costume saved", description: `${selectedCostumeItem?.name ?? "Costume"} placement saved for the ${currentCostumeView} view.` });
     },
     onError: (error: Error) => toast({ title: "Could not save costume", description: error.message || "Failed to save costume placement", variant: "destructive" }),
+  });
+
+  const removeCostumeInstanceMutation = useMutation({
+    mutationFn: async ({ itemId, instance }: { itemId: string; instance: number }) => {
+      const existing = costumeDefinitions.find(definition => definition.shopItemId === itemId)?.placements ?? [];
+      const placements = existing.filter(placement => (placement.instance ?? 1) !== instance);
+      const res = await apiRequest("PUT", "/api/admin/costume-definitions", { shopItemId: itemId, templateId: selectedTemplateId, placements });
+      return res.json();
+    },
+    onSuccess: (data: CostumeDefinition) => {
+      setSelectedCostumeInstance(1);
+      setCostumeDraft(null);
+      setCostumeDraftDirty(false);
+      queryClient.setQueryData<CostumeDefinition[]>(["/api/admin/costume-definitions", selectedTemplateId], current => [
+        ...(current ?? []).filter(definition => definition.shopItemId !== data.shopItemId),
+        data,
+      ]);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/costume-definitions", selectedTemplateId] });
+      toast({ title: "Costume copy removed" });
+    },
+    onError: (error: Error) => toast({ title: "Could not remove costume copy", description: error.message || "Failed to remove costume copy", variant: "destructive" }),
   });
 
   const updateCostumeDraft = (changes: Partial<CostumePlacement>) => {
@@ -689,21 +743,47 @@ export default function PetDatabasePanel({
     if (!selectedCostumePlacement) return;
     updateCostumeDraft({ flipX: !(selectedCostumePlacement.flipX ?? false) });
   };
+  const duplicateCostumePlacement = () => {
+    if (!canDuplicateCostumePlacement || !selectedCostumePlacement || nextCostumeInstance === undefined) return;
+    setSelectedCostumeInstance(nextCostumeInstance);
+    setCostumeDraft({
+      ...selectedCostumePlacement,
+      instance: nextCostumeInstance,
+      posX: selectedCostumePlacement.posX + 24,
+      posY: selectedCostumePlacement.posY + 24,
+    });
+    setCostumeDraftDirty(true);
+  };
   const saveCostumePlacement = () => {
     if (!selectedCostumeId || !selectedCostumePlacement || !canSaveCostumePlacement || saveCostumeMutation.isPending) return;
-    saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: { ...selectedCostumePlacement, rotation: selectedCostumePlacement.rotation ?? 0, flipX: selectedCostumePlacement.flipX ?? false } });
+    saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: { ...selectedCostumePlacement, instance: selectedCostumeInstance, rotation: selectedCostumePlacement.rotation ?? 0, flipX: selectedCostumePlacement.flipX ?? false } });
   };
   const discardCostumeDraft = () => {
     costumeDragRef.current = null;
     setCostumeDraft(null);
     setCostumeDraftDirty(false);
     setDraggingCostume(false);
+    if (!savedCostumePlacement && selectedCostumeInstance !== 1) {
+      setSelectedCostumeInstance(savedCostumeInstances[0] ?? 1);
+    }
   };
   const selectCostume = (itemId: string) => {
     if (saveCostumeMutation.isPending || itemId === selectedCostumeId) return;
     if (costumeDraftDirty && !window.confirm("Discard the unsaved costume placement?")) return;
     discardCostumeDraft();
     setSelectedCostumeId(itemId);
+    setSelectedCostumeInstance(1);
+  };
+  const selectCostumeInstance = (instance: number) => {
+    if (saveCostumeMutation.isPending || removeCostumeInstanceMutation.isPending || instance === selectedCostumeInstance) return;
+    if (costumeDraftDirty && !window.confirm("Discard the unsaved costume placement?")) return;
+    discardCostumeDraft();
+    setSelectedCostumeInstance(instance);
+  };
+  const removeSelectedCostumeInstance = () => {
+    if (!selectedCostumeId || selectedCostumeInstance === 1 || !savedCostumePlacement || costumeDraftDirty || removeCostumeInstanceMutation.isPending) return;
+    if (!window.confirm(`Remove Copy ${selectedCostumeInstance - 1} from this pet? This removes its front and side placement.`)) return;
+    removeCostumeInstanceMutation.mutate({ itemId: selectedCostumeId, instance: selectedCostumeInstance });
   };
   const changeCostumeView = (mode: "front" | "side") => {
     if (saveCostumeMutation.isPending || mode === facingMode) return;
@@ -1013,29 +1093,40 @@ export default function PetDatabasePanel({
                   }}
                 />
               ))}
-              {selectedCostumeItem?.imageUrl && selectedCostumePlacement && costumeCanvasPosition && (
-                <div
-                  data-testid={`canvas-costume-${selectedCostumeItem.id}`}
-                  className="absolute"
-                  onPointerDown={startCostumeDrag}
-                  onLostPointerCapture={(event) => endCostumeDrag(event.pointerId)}
-                  style={{
-                    left: `${(costumeCanvasPosition.left / CANVAS_SIZE) * 100}%`,
-                    top: `${(costumeCanvasPosition.top / CANVAS_SIZE) * 100}%`,
-                    width: `${(selectedCostumePlacement.width / CANVAS_SIZE) * 100}%`,
-                    height: `${(selectedCostumePlacement.height / CANVAS_SIZE) * 100}%`,
-                    transform: `rotate(${selectedCostumePlacement.rotation ?? 0}deg) scaleX(${selectedCostumePlacement.flipX ? -1 : 1})`,
-                    transformOrigin: `${selectedCostumePlacement.pivotX}% ${selectedCostumePlacement.pivotY}%`,
-                    zIndex: selectedCostumePlacement.depth === "front" ? 10000 : 0,
-                    cursor: draggingCostume ? "grabbing" : "grab",
-                    outline: draggingCostume ? "2px solid rgba(192,132,252,.85)" : "1px dashed rgba(192,132,252,.45)",
-                    outlineOffset: "2px",
-                    touchAction: "none",
-                  }}
-                >
-                  <img src={selectedCostumeItem.imageUrl} alt={selectedCostumeItem.name} className="w-full h-full object-contain pointer-events-none" draggable={false} />
-                </div>
-              )}
+              {selectedCostumeItem?.imageUrl && costumeInstances.map(instance => {
+                const isActive = instance === selectedCostumeInstance;
+                const placement = isActive
+                  ? selectedCostumePlacement
+                  : selectedCostumeDefinition?.placements.find(current => current.view === currentCostumeView && (current.instance ?? 1) === instance);
+                const anchor = placement ? viewParts.find(part => part.partType === placement.anchorPart) : undefined;
+                const position = getCostumeCanvasPosition(anchor, placement);
+                if (!placement || !position) return null;
+                return (
+                  <div
+                    key={`${selectedCostumeItem.id}-${currentCostumeView}-${instance}`}
+                    data-testid={`canvas-costume-${selectedCostumeItem.id}-${instance}`}
+                    className="absolute"
+                    onPointerDown={isActive ? startCostumeDrag : undefined}
+                    onLostPointerCapture={isActive ? (event) => endCostumeDrag(event.pointerId) : undefined}
+                    style={{
+                      left: `${(position.left / CANVAS_SIZE) * 100}%`,
+                      top: `${(position.top / CANVAS_SIZE) * 100}%`,
+                      width: `${(placement.width / CANVAS_SIZE) * 100}%`,
+                      height: `${(placement.height / CANVAS_SIZE) * 100}%`,
+                      transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flipX ? -1 : 1})`,
+                      transformOrigin: `${placement.pivotX}% ${placement.pivotY}%`,
+                      zIndex: placement.depth === "front" ? 10000 + instance : instance,
+                      cursor: isActive ? (draggingCostume ? "grabbing" : "grab") : "default",
+                      outline: isActive ? (draggingCostume ? "2px solid rgba(192,132,252,.85)" : "1px dashed rgba(192,132,252,.45)") : "none",
+                      outlineOffset: "2px",
+                      touchAction: isActive ? "none" : "auto",
+                      pointerEvents: isActive ? "auto" : "none",
+                    }}
+                  >
+                    <img src={selectedCostumeItem.imageUrl!} alt={`${selectedCostumeItem.name} ${instance === 1 ? "original" : `copy ${instance - 1}`}`} className="w-full h-full object-contain pointer-events-none" draggable={false} />
+                  </div>
+                );
+              })}
             </div>
           </section>
 
@@ -1046,6 +1137,57 @@ export default function PetDatabasePanel({
                   <p className="font-fantasy text-[9px]" style={{ color: "#c084fc" }}>PLACEMENT CONTROLS</p>
                   <p className="mt-1 text-[11px] truncate" style={{ color: "#e7d7b5" }}>{selectedCostumeItem.name}</p>
                 </div>
+                <div className="rounded-lg p-2.5" style={{ background: "rgba(0,0,0,.2)", border: "1px solid rgba(192,132,252,.2)" }}>
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="text-[9px] font-semibold tracking-wider" style={{ color: "#d8b4fe" }}>PLACED PIECES</p>
+                    <button
+                      type="button"
+                      data-testid="button-duplicate-costume-piece"
+                      aria-label="Duplicate costume piece"
+                      title={canDuplicateCostumePlacement ? "Duplicate this fitted piece" : nextCostumeInstance === undefined ? "Maximum of 3 duplicates reached" : "Save this placement before duplicating it"}
+                      onClick={duplicateCostumePlacement}
+                      disabled={!canDuplicateCostumePlacement || saveCostumeMutation.isPending || removeCostumeInstanceMutation.isPending}
+                      className="grid h-8 w-8 place-items-center rounded-full text-lg font-semibold disabled:opacity-35"
+                      style={{ background: "rgba(192,132,252,.18)", border: "1px solid rgba(216,180,254,.42)", color: "#f3e8ff" }}
+                    >
+                      +
+                    </button>
+                  </div>
+                  <div data-testid="costume-copy-selector" className="flex flex-wrap gap-1.5">
+                    {costumeInstances.map(instance => (
+                      <button
+                        key={instance}
+                        type="button"
+                        data-testid={`button-costume-instance-${instance}`}
+                        onClick={() => selectCostumeInstance(instance)}
+                        disabled={saveCostumeMutation.isPending || removeCostumeInstanceMutation.isPending}
+                        className="rounded-md px-2 py-1 text-[8px] font-semibold tracking-wider disabled:opacity-50"
+                        style={{
+                          background: selectedCostumeInstance === instance ? "rgba(192,132,252,.3)" : "rgba(0,0,0,.28)",
+                          border: selectedCostumeInstance === instance ? "1px solid rgba(216,180,254,.65)" : "1px solid rgba(192,132,252,.2)",
+                          color: selectedCostumeInstance === instance ? "#f3e8ff" : "#bca7c8",
+                        }}
+                      >
+                        {instance === 1 ? "ORIGINAL" : `COPY ${instance - 1}`}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <p className="text-[8px]" style={{ color: "#8f8198" }}>Original + up to 3 duplicates per pet.</p>
+                    {selectedCostumeInstance > 1 && savedCostumePlacement && !costumeDraftDirty && (
+                      <button
+                        type="button"
+                        data-testid="button-remove-costume-copy"
+                        onClick={removeSelectedCostumeInstance}
+                        disabled={removeCostumeInstanceMutation.isPending || saveCostumeMutation.isPending}
+                        className="rounded px-2 py-1 text-[8px] disabled:opacity-50"
+                        style={{ border: "1px solid rgba(248,113,113,.28)", color: "#fca5a5", background: "rgba(127,29,29,.12)" }}
+                      >
+                        REMOVE COPY
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <label className="block text-xs" style={{ color: "#a89878" }}>
                   Anchor part
                   <select
@@ -1055,7 +1197,11 @@ export default function PetDatabasePanel({
                     className="block w-full mt-1 p-2.5 rounded"
                     style={{ background: "#201526", color: "#e7d7b5", border: "1px solid rgba(192,132,252,.25)" }}
                   >
-                    {costumeParts.map(part => <option key={part.partType} value={part.partType}>{part.label}</option>)}
+                    {costumeParts.map(part => (
+                      <option key={part.partType} value={part.partType} disabled={!part.availableInCurrentView}>
+                        {part.label}{part.availableInCurrentView ? "" : ` — ${part.views.map(view => view === "back" ? "side" : view).join("/")} only`}
+                      </option>
+                    ))}
                   </select>
                 </label>
                 <label className="block text-xs" style={{ color: "#a89878" }}>
