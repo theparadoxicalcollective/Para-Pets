@@ -132,5 +132,9 @@ test("public animated pet surfaces render equipped costumes through read-only ac
   assert.match(visitHouse, /petInventoryId=\{pet\.inventoryId\}/);
   assert.ok((visitHouse.match(/costumeAccess="public"/g) ?? []).length >= 3);
   assert.match(costumeRoutes, /\/api\/pet\/:petInventoryId\/costumes\/public/);
-  assert.doesNotMatch(costumeRoutes, /costumes\/public[\s\S]*ownedPet\(petInventoryId/);
+  const publicRouteStart = costumeRoutes.indexOf('app.get("/api/pet/:petInventoryId/costumes/public"');
+  const publicRouteEnd = costumeRoutes.indexOf('app.get("/api/pet/:petInventoryId/costumes"', publicRouteStart);
+  const publicRoute = costumeRoutes.slice(publicRouteStart, publicRouteEnd);
+  assert.ok(publicRouteStart >= 0 && publicRouteEnd > publicRouteStart);
+  assert.doesNotMatch(publicRoute, /ownedPet\(petInventoryId/);
 });
