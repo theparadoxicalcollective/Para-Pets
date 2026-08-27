@@ -18,6 +18,7 @@
     "downlevelIteration": true,
     "types": ["node", "vite/client"],
     "paths": {
+      "@/components/PetAnimator": ["./client/src/components/PetAnimatorDisplay.tsx"],
       "@/*": ["./client/src/*"],
       "@shared/*": ["./shared/*"]
     }
