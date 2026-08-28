@@ -6,6 +6,7 @@ import { serveStatic } from "../static";
 import { pool } from "../db";
 import { reconcileHauntedWoodsWorld } from "../worlds/hauntedWoods";
 import { runEssentialBoot } from "./migrations/runEssentialBoot";
+import { repairAccessoryEquipmentIntegrity } from "./migrations/repairAccessoryEquipmentIntegrity";
 import { runNonCriticalStartup } from "./backfills/runNonCriticalStartup";
 import { tagSquirrelFoxAnimationProfile } from "./backfills/tagSquirrelFoxAnimationProfile";
 import { withStartupAdvisoryLock } from "./advisoryLock";
@@ -34,6 +35,12 @@ async function runBackgroundInitialization(): Promise<void> {
 
 export async function runStartup({ app, httpServer, log }: StartupDependencies): Promise<void> {
   await runEssentialBoot();
+
+  // Accessory ownership/equipment is persisted player state and must be valid
+  // before any inventory or Closet route can answer. Older versions allowed
+  // stacked accessory rows and duplicate equipment references, so repair and
+  // constrain that state synchronously before registering routes.
+  await repairAccessoryEquipmentIntegrity();
 
   // Register the focused daily-claim implementation before the legacy route
   // monolith so these handlers own /api/daily-claim and its status endpoint.
