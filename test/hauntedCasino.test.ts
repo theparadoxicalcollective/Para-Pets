@@ -130,7 +130,7 @@ test("Slaughter Slots separates spin, hold limit, and bet controls clearly", () 
   for (const filename of ASSETS.slice(1, -1)) assert.match(client, new RegExp(filename.replace(".", "\\.")));
   assert.match(client, /top: "60\.2%"/);
   assert.match(client, /Spin once, or hold to keep spinning/);
-  assert.match(client, />SPIN</);
+  assert.match(client, /\{spinning \? "SPINNING" : "SPIN"\}/);
   assert.match(client, /Tap once · hold to repeat/);
   assert.match(client, />Hold limit</);
   assert.match(client, /Maximum coins to spend while holding/);
