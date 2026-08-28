@@ -20,11 +20,13 @@ interface EquippedAccessory {
   healthBoost: number | null;
 }
 
-interface BagItem {
+interface InventoryAccessory {
   inventoryId: string;
   name: string;
   type: string;
   imageUrl: string | null;
+  isListed: boolean;
+  quantity: number;
   atkBoost: number | null;
   defBoost: number | null;
   healthBoost: number | null;
@@ -38,7 +40,6 @@ interface AuthUser {
 interface AccessoriesResponse {
   equipped: EquippedAccessory[];
   extraSlots: number;
-  availableAccessories: BagItem[];
 }
 
 interface Props {
@@ -76,19 +77,35 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
   const qc = useQueryClient();
 
   const { data: user } = useQuery<AuthUser>({ queryKey: ["/api/auth/me"], staleTime: 0 });
-  const { data: accessoriesData } = useQuery<AccessoriesResponse>({
+  const {
+    data: accessoriesData,
+    isLoading: accessoriesLoading,
+    isError: accessoriesError,
+  } = useQuery<AccessoriesResponse>({
     queryKey: ["/api/pet", petInventoryId, "accessories"],
     queryFn: async () => (await apiRequest("GET", `/api/pet/${petInventoryId}/accessories`)).json(),
     staleTime: 0,
   });
+  const { data: inventory = [], isLoading: inventoryLoading, isError: inventoryError } = useQuery<InventoryAccessory[]>({
+    queryKey: ["/api/inventory"],
+    staleTime: 0,
+  });
+  const { data: allEquippedIds = [], isLoading: equippedIdsLoading, isError: equippedIdsError } = useQuery<string[]>({
+    queryKey: ["/api/user/equipped-accessory-ids"],
+    staleTime: 0,
+  });
+
   const equippedAccessories = accessoriesData?.equipped ?? [];
   const extraSlots = accessoriesData?.extraSlots ?? 0;
   const maxSlots = 3 + extraSlots;
-
-  // Available accessories arrive with the equipped slots in one authoritative
-  // response. This prevents a stale global equipped-id cache from keeping a
-  // successfully unequipped accessory hidden from the Closet bag.
-  const bagAccessories = accessoriesData?.availableAccessories ?? [];
+  const equippedAccessoryIdSet = new Set(allEquippedIds);
+  const bagAccessories = inventory.filter((item) =>
+    !item.isListed &&
+    item.type?.trim().toLowerCase() === "accessory" &&
+    !equippedAccessoryIdSet.has(item.inventoryId),
+  );
+  const bagLoading = accessoriesLoading || inventoryLoading || equippedIdsLoading;
+  const bagError = accessoriesError || inventoryError || equippedIdsError;
 
   const refreshAccessories = () => {
     qc.invalidateQueries({ queryKey: ["/api/pet", petInventoryId, "accessories"] });
@@ -99,15 +116,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
   const equipMutation = useMutation({
     mutationFn: async (accessoryInventoryId: string) =>
       (await apiRequest("POST", `/api/pet/${petInventoryId}/equip`, { accessoryInventoryId })).json(),
-    onSuccess: (_data, accessoryInventoryId) => {
-      qc.setQueryData<AccessoriesResponse>(["/api/pet", petInventoryId, "accessories"], (current) =>
-        current
-          ? {
-              ...current,
-              availableAccessories: (current.availableAccessories ?? []).filter((item) => item.inventoryId !== accessoryInventoryId),
-            }
-          : current,
-      );
+    onSuccess: () => {
       refreshAccessories();
     },
     onError: () => toast({ title: "Failed to equip", description: "Could not equip that accessory", variant: "destructive" }),
@@ -120,26 +129,14 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       qc.setQueryData<string[]>(["/api/user/equipped-accessory-ids"], (current = []) =>
         current.filter((id) => id !== accessoryInventoryId),
       );
-      qc.setQueryData<AccessoriesResponse>(["/api/pet", petInventoryId, "accessories"], (current) => {
-        if (!current) return current;
-        const removed = current.equipped.find((item) => item.accessoryInventoryId === accessoryInventoryId);
-        const availableAccessories = current.availableAccessories ?? [];
-        return {
-          ...current,
-          equipped: current.equipped.filter((item) => item.accessoryInventoryId !== accessoryInventoryId),
-          availableAccessories: removed && !availableAccessories.some((item) => item.inventoryId === accessoryInventoryId)
-            ? [{
-                inventoryId: removed.accessoryInventoryId,
-                name: removed.name,
-                type: "accessory",
-                imageUrl: removed.imageUrl,
-                atkBoost: removed.atkBoost,
-                defBoost: removed.defBoost,
-                healthBoost: removed.healthBoost,
-              }, ...availableAccessories]
-            : availableAccessories,
-        };
-      });
+      qc.setQueryData<AccessoriesResponse>(["/api/pet", petInventoryId, "accessories"], (current) =>
+        current
+          ? {
+              ...current,
+              equipped: current.equipped.filter((item) => item.accessoryInventoryId !== accessoryInventoryId),
+            }
+          : current,
+      );
       setUnequipConfirm(null);
       setBagOpen(true);
       refreshAccessories();
@@ -327,8 +324,12 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
             <button type="button" aria-label="Close accessory bag" onClick={() => setBagOpen(false)} className="grid h-8 w-8 place-items-center rounded-full" style={{ color: "#d8ba72", border: "1px solid rgba(202,164,76,.3)", background: "rgba(0,0,0,.22)" }}><X size={16} /></button>
           </div>
           <div className="flex-1 overflow-y-auto p-3">
-            {bagAccessories.length === 0 ? (
-              <p className="grid h-full place-items-center text-center font-fantasy" style={{ color: "rgba(215,235,220,.38)", fontSize: 10 }}>No accessories in your bag</p>
+            {bagLoading ? (
+              <p className="grid h-full place-items-center text-center font-fantasy" style={{ color: "rgba(215,235,220,.52)", fontSize: 10 }}>Loading accessories…</p>
+            ) : bagError ? (
+              <p className="grid h-full place-items-center px-4 text-center font-fantasy" style={{ color: "rgba(255,190,170,.72)", fontSize: 10 }}>Could not load accessories. Close and reopen the Closet to retry.</p>
+            ) : bagAccessories.length === 0 ? (
+              <p className="grid h-full place-items-center text-center font-fantasy" style={{ color: "rgba(215,235,220,.38)", fontSize: 10 }}>No available accessories in your bag</p>
             ) : (
               <div className="grid grid-cols-4 gap-2">
                 {bagAccessories.map((item) => (
