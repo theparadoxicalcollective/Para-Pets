@@ -54,16 +54,30 @@ test("both inventories render the repository jar asset with gifts first and unit
   const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   assert.match(page, /import petCareJar from "@assets\/uploads\/Jar\.png"/);
   assert.match(page, /const PET_CARE_JAR_VISUAL_CAPACITY = 48;/);
+  assert.match(page, /const PET_CARE_JAR_COLUMNS = 6;/);
   assert.match(page, /item: \{ \.\.\.entry\.item, quantity: 1, displayQuantity: 1 \}/);
   assert.match(page, /data-pet-care-inventory-jar="true"/);
   assert.match(page, /data-testid=\{`pet-care-\$\{kind\}-jar`\}/);
   assert.match(page, /src=\{petCareJar\}/);
+  assert.match(page, /opacity: 0\.7/);
+  assert.match(page, /width: "min\(100%, clamp\(150px, 23dvh, 214px\)\)"/);
   const giftJar = page.indexOf('<PetCareItemShelf kind="gifts"');
   const edibleJar = page.indexOf('<PetCareItemShelf kind="edibles"');
   assert.ok(giftJar >= 0, "gift jar must render");
   assert.ok(edibleJar > giftJar, "gift jar must render before edible jar");
   assert.doesNotMatch(page, /pet-care-item-shelf__quantity/);
   assert.doesNotMatch(page, /"--pet-care-visible-slots"/);
+});
+
+test("jar releases compact into gravity-like columns from the floor upward", () => {
+  const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
+  assert.match(page, /const droppedInsideJar =/);
+  assert.match(page, /if \(!active\.hasMoved \|\| !droppedInsideJar/);
+  assert.match(page, /columns\[petCareJarColumnForLeft\(position\.left\)\]\.push\(visual\)/);
+  assert.match(page, /columns\[targetColumn\]\.push\(releasedVisual\)/);
+  assert.match(page, /PET_CARE_JAR_FLOOR - stackIndex \* PET_CARE_JAR_ROW_GAP/);
+  assert.match(page, /top \$\{PET_CARE_JAR_SETTLE_MS\}ms cubic-bezier/);
+  assert.match(page, /playPlop\(\)/);
 });
 
 test("care items capture on pointerdown and release during cleanup", () => {
