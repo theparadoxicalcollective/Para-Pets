@@ -2183,6 +2183,7 @@ export async function registerRoutes(
         FROM user_inventory ui
         JOIN shop_items si ON si.id = ui.shop_item_id
         WHERE ui.user_id = ${user.id}
+          AND ui.is_listed = false
           AND si.type = 'accessory'
           AND NOT EXISTS (
             SELECT 1
@@ -2215,6 +2216,12 @@ export async function registerRoutes(
       if (!accInv || accInv.userId !== user.id) return res.status(404).json({ message: "Accessory not found" });
       const accShopItem = await storage.getShopItem(accInv.shopItemId);
       if (!accShopItem || accShopItem.type !== "accessory") return res.status(400).json({ message: "Item is not an accessory" });
+      if (accInv.isListed) return res.status(400).json({ message: "Listed accessories cannot be equipped" });
+      const [equippedElsewhere] = await db.select({ petInventoryId: petEquippedAccessories.petInventoryId })
+        .from(petEquippedAccessories)
+        .where(eq(petEquippedAccessories.accessoryInventoryId, accessoryInventoryId))
+        .limit(1);
+      if (equippedElsewhere) return res.status(409).json({ message: "That accessory is already equipped to a pet" });
       const currentEquipped = await storage.getPetEquippedAccessories(inventoryId);
       // Read extra slots from the pet's own fresh DB row, not the stale Passport session
       const maxSlots = 3 + (petInv.accessoryExtraSlots ?? 0);
