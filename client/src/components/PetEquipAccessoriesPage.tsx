@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Lock, PackageOpen, X } from "lucide-react";
+import { Lock, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -107,7 +107,13 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
   const unequipMutation = useMutation({
     mutationFn: async (accessoryInventoryId: string) =>
       (await apiRequest("POST", `/api/pet/${petInventoryId}/unequip`, { accessoryInventoryId })).json(),
-    onSuccess: () => {
+    onSuccess: (_data, accessoryInventoryId) => {
+      qc.setQueryData<string[]>(["/api/user/equipped-accessory-ids"], (current = []) =>
+        current.filter((id) => id !== accessoryInventoryId),
+      );
+      qc.setQueryData<AccessoriesResponse>(["/api/pet", petInventoryId, "accessories"], (current) =>
+        current ? { ...current, equipped: current.equipped.filter((item) => item.accessoryInventoryId !== accessoryInventoryId) } : current,
+      );
       setUnequipConfirm(null);
       refreshAccessories();
     },
@@ -227,9 +233,8 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
     <div className="fixed inset-0 z-[200] overflow-hidden" style={{ maxWidth: 768, margin: "0 auto", background: "#020503" }}>
       <img src={closetBackground} alt="" aria-hidden className="absolute inset-0 h-full w-full" style={{ objectFit: "fill", pointerEvents: "none", userSelect: "none" }} />
 
-      <header className="absolute left-1/2 z-[4] -translate-x-1/2 text-center" style={{ top: "5.2%", width: "62%" }}>
-        <h1 className="font-fantasy font-bold tracking-[0.22em]" style={{ color: "#d4a94c", fontSize: "clamp(13px, 4.1vw, 20px)", textShadow: "0 2px 3px #000, 0 0 12px rgba(29,225,170,.28)" }}>THE CLOSET</h1>
-        <p className="mt-1 truncate font-fantasy tracking-[0.12em]" style={{ color: "rgba(197,235,205,.58)", fontSize: "clamp(7px, 2vw, 10px)" }}>{petName}</p>
+      <header className="absolute left-1/2 z-[4] -translate-x-1/2 text-center" style={{ top: "5.4%", width: "64%" }}>
+        <h1 data-testid="closet-pet-name" className="truncate font-fantasy font-bold tracking-[0.14em]" style={{ color: "#d4a94c", fontSize: "clamp(15px, 4.8vw, 23px)", textShadow: "0 2px 3px #000, 0 0 12px rgba(29,225,170,.28)" }}>{petName}</h1>
       </header>
 
       <button
@@ -238,7 +243,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         aria-label="Close The Closet"
         onClick={onClose}
         className="absolute z-[6] transition-transform active:scale-90"
-        style={{ top: "2.2%", right: "2.8%", width: "13%", aspectRatio: "1", background: "transparent", border: 0, padding: 0, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
+        style={{ top: "3.1%", right: "3.2%", width: "11.5%", aspectRatio: "1", background: "transparent", border: 0, padding: 0, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
       >
         <img src={closetCloseButton} alt="" className="h-full w-full object-contain" style={{ filter: "drop-shadow(0 3px 6px rgba(0,0,0,.75))" }} />
       </button>
@@ -284,9 +289,6 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         closetMode
       />
 
-      <button type="button" data-testid="button-open-accessory-bag" onClick={() => setBagOpen(true)} className="absolute left-1/2 z-[4] flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-1.5 font-fantasy tracking-[0.13em] active:scale-95" style={{ top: "73.8%", color: "#d6b15b", fontSize: "clamp(7px, 2vw, 10px)", background: "rgba(8,15,10,.72)", border: "1px solid rgba(202,164,76,.32)", boxShadow: "0 2px 8px rgba(0,0,0,.55)", cursor: "pointer" }}>
-        <PackageOpen size={14} /> ACCESSORY BAG
-      </button>
 
       {bagOpen && (
         <aside className="absolute bottom-[1.4%] left-[3.5%] right-[3.5%] z-[12] flex h-[26%] flex-col overflow-hidden rounded-2xl" data-testid="accessory-bag-drawer" style={{ background: "linear-gradient(180deg,rgba(7,24,16,.97),rgba(3,12,8,.98))", border: "1.5px solid rgba(202,164,76,.5)", boxShadow: "0 -8px 28px rgba(0,0,0,.7), inset 0 0 24px rgba(0,0,0,.45)" }}>
