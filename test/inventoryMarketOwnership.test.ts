@@ -28,12 +28,12 @@ test("market pet listing uses one atomic request", () => {
   assert.doesNotMatch(market, /revert-to-egg/);
 });
 
-test("market artwork fields retain the corrected card alignment", () => {
-  assert.match(market, /data-market-card-field="pet-rarity"[\s\S]*?top: "10%", left: "34%"/);
+test("market artwork fields retain the requested card alignment", () => {
+  assert.match(market, /data-market-card-field="pet-rarity"[\s\S]*?top: "10%", left: "29%", right: "13%"/);
   assert.match(market, /data-market-card-field="pet-name"[\s\S]*?top: "65%"/);
-  assert.match(market, /data-market-card-field="item-image"[\s\S]*?top: "12%"/);
-  assert.match(market, /data-market-card-field="item-name"[\s\S]*?top: "55%"/);
-  assert.match(market, /data-market-card-field="item-display"[\s\S]*?top: "70%"/);
-  assert.match(market, /data-market-card-field="price"[\s\S]*?bottom: "12%"/);
-  assert.match(market, /data-testid="market-search-frame"[\s\S]*?height: 58/);
+  assert.match(market, /data-market-card-field="item-image"[\s\S]*?top: "13%"/);
+  assert.match(market, /data-market-card-field="item-name"[\s\S]*?top: "54\.5%"/);
+  assert.match(market, /data-market-card-field="item-display"[\s\S]*?top: "68%"/);
+  assert.match(market, /data-market-card-field="price"[\s\S]*?bottom: "12\.5%"/);
+  assert.match(market, /data-testid="market-search-frame"[\s\S]*?height: 64[\s\S]*?center\/100% auto no-repeat/);
 });
