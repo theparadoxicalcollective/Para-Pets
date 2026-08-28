@@ -4,6 +4,7 @@ import test from "node:test";
 
 const section = readFileSync("client/src/components/PetCostumeEquipmentSection.tsx", "utf8");
 const accessoryPage = readFileSync("client/src/components/PetEquipAccessoriesPage.tsx", "utf8");
+const petDetailPage = readFileSync("client/src/components/PetDetailPage.tsx", "utf8");
 const routes = readFileSync("server/routes/costumePlayer.routes.ts", "utf8");
 const appRoutes = readFileSync("server/routes.ts", "utf8");
 const boot = readFileSync("server/startup/migrations/runEssentialBoot.ts", "utf8");
@@ -17,7 +18,7 @@ test("The Closet uses the supplied artwork and keeps accessory and costume contr
   assert.match(accessoryPage, /ClosetCloseButton\.png/);
   assert.doesNotMatch(accessoryPage, />THE CLOSET</);
   assert.match(accessoryPage, /data-testid="closet-pet-name"/);
-  assert.match(accessoryPage, /data-testid="closet-pet-preview"[\s\S]*?left: "19%", top: "16\.2%", width: "56%", height: "39\.5%"/);
+  assert.match(accessoryPage, /data-testid="closet-pet-preview"[\s\S]*?left: "19%", top: "21\.2%", width: "56%", height: "39\.5%"/);
   assert.match(accessoryPage, /aria-label="Accessory slots"/);
   assert.match(accessoryPage, /data-testid="accessory-bag-drawer"/);
   assert.doesNotMatch(accessoryPage, /data-testid="button-open-accessory-bag"/);
@@ -127,6 +128,16 @@ test("The accessory bag uses the same player inventory flow as costumes", () => 
   assert.doesNotMatch(appRoutes, /availableAccessories,/);
   assert.match(accessoryPage, /Loading accessories…/);
   assert.match(accessoryPage, /Could not load accessories/);
+});
+
+test("Accessory availability is refreshed before the Closet decides the bag is empty", () => {
+  assert.match(accessoryPage, /isFetching: equippedIdsFetching/);
+  assert.match(accessoryPage, /refetch: refetchEquippedIds/);
+  assert.match(accessoryPage, /isRefetchError: equippedIdsRefetchError/);
+  assert.match(accessoryPage, /refetchOnMount: "always"/);
+  assert.match(accessoryPage, /void refetchEquippedIds\(\)/);
+  assert.match(accessoryPage, /equippedIdsLoading \|\| equippedIdsFetching/);
+  assert.equal((petDetailPage.match(/queryKey: \["\/api\/user\/equipped-accessory-ids"\]/g) ?? []).length, 2);
 });
 
 test("Unequipping immediately restores the accessory and opens the bag", () => {

@@ -155,6 +155,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pet", pet.inventoryId, "accessories"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/equipped-accessory-ids"] });
       setAccessoryFlash("equip");
       setTimeout(() => setAccessoryFlash(null), 700);
       setShowAccessoryPicker(false);
@@ -173,6 +174,7 @@ export default function PetDetailPage({ pet, onClose, onUpdate, userCoins, onUse
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/pet", pet.inventoryId, "accessories"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/equipped-accessory-ids"] });
       setAccessoryFlash("unequip");
       setTimeout(() => setAccessoryFlash(null), 600);
       onUpdate();
