@@ -2167,38 +2167,11 @@ export async function registerRoutes(
       if (!petInv || petInv.userId !== user.id) return res.status(404).json({ message: "Pet not found" });
       const equipped = await storage.getPetEquippedAccessories(inventoryId);
 
-      // Use the same joined player-inventory source as /api/inventory so the
-      // Closet cannot drift from the accessories the player actually owns.
-      // Only valid equipment rows attached to one of this player's current
-      // pets hide an accessory; orphaned legacy rows no longer empty the bag.
-      const [playerInventoryRows, equippedAccessoryRows] = await Promise.all([
-        storage.getUserInventoryWithItems(user.id),
-        db.select({ id: petEquippedAccessories.accessoryInventoryId })
-          .from(petEquippedAccessories)
-          .innerJoin(userInventory, eq(petEquippedAccessories.petInventoryId, userInventory.id))
-          .where(eq(userInventory.userId, user.id)),
-      ]);
-      const equippedAccessoryIds = new Set(equippedAccessoryRows.map(row => row.id));
-      const availableAccessories = playerInventoryRows
-        .filter(({ inventory, shopItem }) =>
-          !inventory.isListed &&
-          shopItem?.type?.trim().toLowerCase() === "accessory" &&
-          !equippedAccessoryIds.has(inventory.id),
-        )
-        .map(({ inventory, shopItem }) => ({
-          inventoryId: inventory.id,
-          name: shopItem!.name,
-          type: "accessory",
-          imageUrl: shopItem!.imageUrl,
-          atkBoost: shopItem!.atkBoost ?? null,
-          defBoost: shopItem!.defBoost ?? null,
-          healthBoost: shopItem!.healthBoost ?? null,
-        }));
-
+      // Keep this endpoint focused on the selected pet. The Closet reads
+      // available items from /api/inventory, matching the working costume flow.
       return res.json({
         equipped,
         extraSlots: petInv.accessoryExtraSlots ?? 0,
-        availableAccessories,
       });
     } catch (err) {
       return res.status(500).json({ message: "Failed to get accessories" });
@@ -2217,7 +2190,9 @@ export async function registerRoutes(
       const accInv = await storage.getInventoryItemById(accessoryInventoryId);
       if (!accInv || accInv.userId !== user.id) return res.status(404).json({ message: "Accessory not found" });
       const accShopItem = await storage.getShopItem(accInv.shopItemId);
-      if (!accShopItem || accShopItem.type !== "accessory") return res.status(400).json({ message: "Item is not an accessory" });
+      if (!accShopItem || accShopItem.type?.trim().toLowerCase() !== "accessory") {
+        return res.status(400).json({ message: "Item is not an accessory" });
+      }
       if (accInv.isListed) return res.status(400).json({ message: "Listed accessories cannot be equipped" });
       const [equippedElsewhere] = await db.select({ petInventoryId: petEquippedAccessories.petInventoryId })
         .from(petEquippedAccessories)
