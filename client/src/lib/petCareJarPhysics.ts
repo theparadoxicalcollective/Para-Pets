@@ -21,11 +21,14 @@ type PetCareJarSeedBody = {
   rotation: number;
 };
 
-const GRAVITY = 920;
-const LINEAR_DAMPING = 0.992;
-const ANGULAR_DAMPING = 0.985;
-const WALL_RESTITUTION = 0.2;
-const BODY_RESTITUTION = 0.16;
+const GRAVITY = 760;
+const LINEAR_DAMPING = 0.975;
+const ANGULAR_DAMPING = 0.92;
+const WALL_RESTITUTION = 0.12;
+const BODY_RESTITUTION = 0.08;
+const MAX_LINEAR_SPEED = 280;
+const MAX_VERTICAL_SPEED = 340;
+const MAX_ANGULAR_SPEED = 42;
 const FLOOR_Y = 0.86;
 const CEILING_Y = 0.1;
 
@@ -71,7 +74,7 @@ export function createPetCareJarBodies(
     vx: ((index % 3) - 1) * 7,
     vy: 4 + (index % 4) * 2,
     angle: seed.rotation,
-    angularVelocity: ((index % 5) - 2) * 5,
+    angularVelocity: ((index % 5) - 2) * 1.5,
     radius,
   }));
 }
@@ -90,19 +93,19 @@ export function constrainPetCareJarBody(
   } else if (body.y > floor) {
     body.y = floor;
     if (body.vy > 0) body.vy = bounce ? -body.vy * WALL_RESTITUTION : 0;
-    body.vx *= 0.86;
-    body.angularVelocity *= 0.8;
+    body.vx *= 0.72;
+    body.angularVelocity *= 0.5;
   }
 
   const { minX, maxX } = wallRange(body, bounds);
   if (body.x < minX) {
     body.x = minX;
     if (body.vx < 0) body.vx = bounce ? -body.vx * WALL_RESTITUTION : 0;
-    body.angularVelocity += 10;
+    body.angularVelocity = clamp(body.angularVelocity + 3, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED);
   } else if (body.x > maxX) {
     body.x = maxX;
     if (body.vx > 0) body.vx = bounce ? -body.vx * WALL_RESTITUTION : 0;
-    body.angularVelocity -= 10;
+    body.angularVelocity = clamp(body.angularVelocity - 3, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED);
   }
   return body;
 }
@@ -117,9 +120,9 @@ export function movePetCareJarBody(
 ) {
   body.x = x;
   body.y = y;
-  body.vx = clamp(vx, -900, 900);
-  body.vy = clamp(vy, -900, 900);
-  body.angularVelocity = clamp(body.vx * 0.16, -160, 160);
+  body.vx = clamp(vx, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED);
+  body.vy = clamp(vy, -MAX_VERTICAL_SPEED, MAX_VERTICAL_SPEED);
+  body.angularVelocity = clamp(body.vx * 0.1, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED);
   return constrainPetCareJarBody(body, bounds, false);
 }
 
@@ -155,12 +158,12 @@ function resolveBodyCollisions(bodies: PetCareJarBody[], heldKey: string | null)
         if (!firstHeld) {
           first.vx -= impulse * nx;
           first.vy -= impulse * ny;
-          first.angularVelocity -= relativeVelocityX * 0.035;
+          first.angularVelocity = clamp(first.angularVelocity - relativeVelocityX * 0.012, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED);
         }
         if (!secondHeld) {
           second.vx += impulse * nx;
           second.vy += impulse * ny;
-          second.angularVelocity += relativeVelocityX * 0.035;
+          second.angularVelocity = clamp(second.angularVelocity + relativeVelocityX * 0.012, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED);
         }
       }
     }
@@ -181,7 +184,9 @@ export function stepPetCareJarPhysics(
   for (let substep = 0; substep < substeps; substep += 1) {
     for (const body of bodies) {
       if (body.key === heldKey) continue;
-      body.vy += GRAVITY * step;
+      body.vy = clamp(body.vy + GRAVITY * step, -MAX_VERTICAL_SPEED, MAX_VERTICAL_SPEED);
+      body.vx = clamp(body.vx, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED);
+      body.angularVelocity = clamp(body.angularVelocity, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED);
       body.x += body.vx * step;
       body.y += body.vy * step;
       body.angle += body.angularVelocity * step;
