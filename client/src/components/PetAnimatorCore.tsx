@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { getAlphaBounds, getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
 import { PET_LAYER_ORDER, getEffectivePetLayer } from "@/lib/petPartConfig";
 import { DEFAULT_PET_ANIMATION, alphaAdjustedPivot } from "@/lib/petAnimationConfig";
+import { normalizePetParts } from "@/lib/petRenderSafety";
 
 interface PetPart {
   id: string;
@@ -45,6 +46,8 @@ interface PetAnimatorProps {
   style?: React.CSSProperties;
   /** Pet Care-only low-memory rendering: fixed parts, without image analysis or observers. */
   performanceStatic?: boolean;
+  /** Preserve CSS animation while avoiding observers, canvas scans, and compositor hints. */
+  lowMemory?: boolean;
   /** Pet part types replaced by equipped costume artwork. Only the wrapper supplies this. */
   hiddenPartTypes?: ReadonlySet<string>;
 }
@@ -1353,7 +1356,7 @@ function buildHeadGroups(parts: PetPart[]): { head: PetPart; faceParts: PetPart[
   return groups;
 }
 
-export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, fillContainer = false, fitVisible = false, expression = "neutral", className = "", style: externalStyle, performanceStatic = false, hiddenPartTypes }: PetAnimatorProps) {
+export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, fillContainer = false, fitVisible = false, expression = "neutral", className = "", style: externalStyle, performanceStatic = false, lowMemory = false, hiddenPartTypes }: PetAnimatorProps) {
   // Stable random blink offset per instance — spreads eye animations across the
   // full 4 s blink cycle so pets don't all blink at the same time.
   const blinkOffset = useRef(`-${(Math.random() * 4).toFixed(2)}s`);
@@ -1379,7 +1382,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     if (s > 0) setMeasuredSize((prev) => (Math.abs(prev - s) > 0.5 ? s : prev));
   }, [fillContainer, performanceStatic]);
   useEffect(() => {
-    if (!fillContainer || performanceStatic) return;
+    if (!fillContainer || performanceStatic || lowMemory) return;
     const el = wrapperRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver((entries) => {
@@ -1392,7 +1395,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [fillContainer, performanceStatic]);
+  }, [fillContainer, performanceStatic, lowMemory]);
 
   const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean; idleStyle?: string | null }>({
     queryKey: ["/api/pet-template-parts", petTemplateId],
@@ -1405,7 +1408,10 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     staleTime: Infinity,
   });
 
-  const allParts = (templateData?.parts || []).filter(part => !hiddenPartTypes?.has(part.partType));
+  const allParts = useMemo(
+    () => normalizePetParts(templateData?.parts).filter(part => !hiddenPartTypes?.has(part.partType)),
+    [templateData?.parts, hiddenPartTypes],
+  );
 
   // Alpha-bounds scan: walk every part image once, compute the tightest
   // non-transparent rectangle, and force a re-render when the scan
@@ -1415,7 +1421,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   // any of the same part images get the corrected pivot for free.
   const [, bumpAlphaVersion] = useReducer((x: number) => x + 1, 0);
   useEffect(() => {
-    if (performanceStatic || !allParts.length) return;
+    if (performanceStatic || lowMemory || !allParts.length) return;
     let cancelled = false;
     let pending = 0;
     for (const p of allParts) {
@@ -1431,7 +1437,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       });
     }
     return () => { cancelled = true; };
-  }, [allParts, performanceStatic]);
+  }, [allParts, performanceStatic, lowMemory]);
   // Flying pets keep the original head-bob idle so they look like they're
   // hovering. Ground pets switch to the head-tilt-only variant so they
   // don't read as "floating off the ground".
@@ -1866,7 +1872,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     // tail") becomes e.g. 50/82 if there's 18 % transparent padding
     // below the visible tail. Falls back to the raw pivot until the
     // async alpha scan resolves and the parent re-renders.
-    const ab = performanceStatic ? FULL_BOUNDS : (getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS);
+    const ab = performanceStatic || lowMemory ? FULL_BOUNDS : (getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS);
     const visiblePivot = alphaAdjustedPivot(part.pivotX, part.pivotY, ab, { x: 0.5, y: 0.5 });
     const originX = visiblePivot.x * 100;
     const originY = visiblePivot.y * 100;
@@ -1927,7 +1933,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
           // for transformed images, which subpixel-snaps and causes
           // visible micro-stutter on top of the keyframe issues we just
           // fixed.
-          willChange: animName ? "transform" : undefined,
+          willChange: animName && !lowMemory ? "transform" : undefined,
           opacity: extraOpacity !== undefined ? extraOpacity : (isAnimOnly ? 0 : 1),
           imageRendering: "auto",
           pointerEvents: "none",
@@ -2182,7 +2188,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
                 width: "100%", height: "100%",
                 animation: wrapperAnim ? buildAnimationCss(wrapperAnim, wrapperDuration, wrapperDelay) : undefined,
                 transformOrigin: wrapperOrigin,
-                willChange: wrapperAnim ? "transform" : undefined,
+                willChange: wrapperAnim && !lowMemory ? "transform" : undefined,
                 zIndex: headWrapperZ,
                 pointerEvents: "none",
                 ...(headBobVarStyle ?? {}),
