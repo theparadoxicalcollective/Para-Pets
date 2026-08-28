@@ -1,22 +1,23 @@
-import { useState, useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { playChime, playClick, playTick } from "@/lib/sounds";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
-import { queryClient } from "@/lib/queryClient";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import fishInvIcon from "@assets/icon_fish_inventory.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 import coinIconImg from "@assets/icon_coin.png";
 import homeIconImg from "@assets/icon_home_new.png";
-import bgHome from "@assets/bg_home_v2.png";
+import marketBg from "@assets/uploads/MarketBG.png";
+import marketSearchBar from "@assets/uploads/MarketSearchBar.png";
+import marketItemCard from "@assets/uploads/MarketItemCard.png";
+import marketTabs from "@assets/uploads/MarketTabs.png";
+import marketPetCard from "@assets/uploads/MarketPetCard.png";
 
-// ── Main browse tabs ──────────────────────────────────────────────────────────
 type MainTab = "all" | "pets" | "items" | "fish";
 
-// Sub-filters shown under the "Items" main tab
 const ITEMS_SUB_FILTERS = [
   { label: "All Items", value: "items" },
   { label: "Power-Ups", value: "power_up" },
@@ -43,6 +44,9 @@ interface Listing {
   buyerId: string | null;
   createdAt: string;
   effectSummary?: string;
+  description?: string | null;
+  rarity?: number | null;
+  speciesName?: string | null;
 }
 
 interface InventoryItem {
@@ -77,6 +81,7 @@ interface PetEggDetails {
   health: number;
   atk: number;
   def: number;
+  rarity?: number | null;
 }
 
 interface ItemDetails {
@@ -87,17 +92,43 @@ interface ItemDetails {
   description: string | null;
 }
 
+const gold = "#f6c95d";
+const cream = "#fff3cf";
+const green = "#9df3a8";
+const purple = "#e5c9ff";
+
 function CoinIcon({ size = 14 }: { size?: number }) {
-  return (
-    <img src={coinIconImg} alt="coins" style={{ width: size, height: size, objectFit: "contain", display: "inline-block", verticalAlign: "middle" }} />
-  );
+  return <img src={coinIconImg} alt="coins" style={{ width: size, height: size, objectFit: "contain", display: "inline-block", verticalAlign: "middle" }} />;
 }
 
 function formatCoins(n: number) {
   return n.toLocaleString();
 }
 
-function ItemCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
+function clampRarity(value?: number | null) {
+  if (!value || Number.isNaN(value)) return 1;
+  return Math.min(5, Math.max(1, Math.round(value)));
+}
+
+function stars(value?: number | null) {
+  return "★".repeat(clampRarity(value));
+}
+
+function artButtonStyle(active: boolean): React.CSSProperties {
+  return {
+    border: "none",
+    background: `url(${marketTabs}) center/100% 100% no-repeat`,
+    color: active ? cream : "rgba(255,243,207,.66)",
+    fontFamily: "Georgia, serif",
+    fontWeight: active ? 700 : 500,
+    textShadow: active ? "0 0 9px rgba(255,225,130,.65), 0 1px 2px #160326" : "0 1px 2px #160326",
+    filter: active ? "brightness(1.2) drop-shadow(0 0 8px rgba(190,61,255,.45))" : "brightness(.72)",
+    cursor: "pointer",
+    transition: "filter .15s ease, transform .15s ease",
+  };
+}
+
+function MarketCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
   listing: Listing;
   isMine: boolean;
   user: any;
@@ -105,208 +136,74 @@ function ItemCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
   onCollect?: (listing: Listing) => void;
   onCancel?: (listing: Listing) => void;
 }) {
-  if (isMine && listing.status === "sold") {
-    return (
-      <div
-        data-testid={`card-market-sold-${listing.id}`}
-        style={{
-          background: "linear-gradient(135deg, rgba(20,40,20,0.95) 0%, rgba(30,55,30,0.95) 100%)",
-          border: "2px solid rgba(250,200,50,0.7)",
-          borderRadius: 14,
-          padding: "14px 12px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 8,
-          minHeight: 140,
-          position: "relative",
-          boxShadow: "0 0 18px rgba(250,200,50,0.25)",
-        }}
-      >
-        <img src={coinIconImg} alt="coins" style={{ width: 40, height: 40, objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(250,200,50,0.8))" }} />
-        <p style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 13, textAlign: "center", fontWeight: 700 }}>
-          +{formatCoins(listing.price)} coins
-        </p>
-        <p style={{ color: "rgba(200,180,100,0.7)", fontSize: 10, textAlign: "center" }}>{listing.itemName} sold!</p>
-        <button
-          data-testid={`button-collect-${listing.id}`}
-          onClick={() => onCollect?.(listing)}
-          style={{
-            background: "linear-gradient(135deg, rgba(250,200,50,0.35) 0%, rgba(180,140,20,0.35) 100%)",
-            border: "1.5px solid rgba(250,200,50,0.6)",
-            borderRadius: 8,
-            padding: "7px 14px",
-            color: "#f0c040",
-            fontFamily: "Georgia, serif",
-            fontSize: 12,
-            cursor: "pointer",
-            width: "100%",
-          }}
-        >
-          Collect Coins
-        </button>
-      </div>
-    );
-  }
-
-  if (isMine && listing.status === "active") {
-    return (
-      <div
-        data-testid={`card-market-active-${listing.id}`}
-        style={{
-          background: "linear-gradient(135deg, rgba(10,30,15,0.95) 0%, rgba(20,50,25,0.95) 100%)",
-          border: "2px solid rgba(74,222,128,0.35)",
-          borderRadius: 14,
-          padding: "12px 10px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 6,
-          minHeight: 140,
-          position: "relative",
-        }}
-      >
-        {listing.itemType === "pet_egg" && (
-          <span style={{ position: "absolute", top: 5, left: 6, fontSize: 8, color: "rgba(180,140,255,0.8)", fontFamily: "Georgia, serif", background: "rgba(60,20,100,0.7)", borderRadius: 4, padding: "1px 4px" }}>🥚 Egg</span>
-        )}
-        {listing.itemImageUrl ? (
-          <img
-            src={listing.itemImageUrl}
-            alt={listing.itemName}
-            style={{ width: 52, height: 52, objectFit: "contain", marginTop: listing.itemType === "pet_egg" ? 8 : 0 }}
-          />
-        ) : (
-          <div style={{ width: 52, height: 52, background: "rgba(74,222,128,0.07)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <img src={powerupBagIcon} alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
-          </div>
-        )}
-        <span style={{ color: "#c8f0c8", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>{listing.itemName}</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-          <CoinIcon size={11} />
-          <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 11, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
-        </div>
-        <button
-          data-testid={`button-cancel-${listing.id}`}
-          onClick={() => onCancel?.(listing)}
-          style={{
-            background: "rgba(80,20,20,0.5)",
-            border: "1px solid rgba(220,80,80,0.35)",
-            borderRadius: 7,
-            padding: "5px 10px",
-            color: "rgba(220,120,120,0.8)",
-            fontFamily: "Georgia, serif",
-            fontSize: 10,
-            cursor: "pointer",
-            width: "100%",
-            marginTop: "auto",
-          }}
-        >
-          Cancel
-        </button>
-      </div>
-    );
-  }
-
-  // Browse listing card
-  const isPetEgg = listing.itemType === "pet_egg";
+  const isPet = listing.itemType === "pet_egg";
   const isOwn = listing.sellerId === user?.id;
   const isAdmin = !!user?.isAdmin;
+  const cardArt = isPet ? marketPetCard : marketItemCard;
+
+  if (isMine && listing.status === "sold") {
+    return (
+      <div data-testid={`card-market-sold-${listing.id}`} style={{ minHeight: 218, padding: "30px 20px 22px", background: `url(${marketItemCard}) center/100% 100% no-repeat`, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center", filter: "drop-shadow(0 7px 12px rgba(0,0,0,.42))" }}>
+        <img src={coinIconImg} alt="" style={{ width: 52, height: 52, objectFit: "contain", filter: "drop-shadow(0 0 10px rgba(255,195,50,.7))" }} />
+        <div style={{ color: gold, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: 16, marginTop: 5 }}>+{formatCoins(listing.price)}</div>
+        <div style={{ color: cream, fontFamily: "Georgia, serif", fontSize: 11, margin: "5px 0 11px", maxWidth: 150 }}>{listing.itemName} sold!</div>
+        <button data-testid={`button-collect-${listing.id}`} onClick={() => onCollect?.(listing)} style={{ ...artButtonStyle(true), width: "82%", minHeight: 37, fontSize: 11 }}>Collect Coins</button>
+      </div>
+    );
+  }
+
   return (
     <div
-      data-testid={`card-market-listing-${listing.id}`}
+      data-testid={isMine ? `card-market-active-${listing.id}` : `card-market-listing-${listing.id}`}
       style={{
-        background: isPetEgg
-          ? "linear-gradient(135deg, rgba(30,10,50,0.95) 0%, rgba(50,20,80,0.95) 100%)"
-          : "linear-gradient(135deg, rgba(10,30,15,0.95) 0%, rgba(20,50,25,0.95) 100%)",
-        border: `2px solid ${isPetEgg ? "rgba(180,130,255,0.4)" : "rgba(74,222,128,0.2)"}`,
-        borderRadius: 14,
-        padding: "12px 10px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 5,
-        minHeight: 140,
         position: "relative",
+        minHeight: 246,
+        aspectRatio: isPet ? "2 / 3" : "2 / 3",
+        background: `url(${cardArt}) center/100% 100% no-repeat`,
+        filter: "drop-shadow(0 8px 12px rgba(0,0,0,.48))",
+        overflow: "hidden",
       }}
     >
-      {isPetEgg && (
-        <span style={{ position: "absolute", top: 5, left: 6, fontSize: 8, color: "rgba(200,160,255,0.9)", fontFamily: "Georgia, serif", background: "rgba(60,20,100,0.8)", borderRadius: 4, padding: "1px 5px" }}>🥚 Pet Egg</span>
-      )}
       <button
         data-testid={`button-detail-${listing.id}`}
         onClick={!isOwn ? () => onDetail?.(listing) : undefined}
-        style={{
-          background: "none", border: "none", padding: 0,
-          cursor: !isOwn ? "pointer" : "default",
-          marginTop: isPetEgg ? 10 : 0,
-          display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
-          width: "100%",
-        }}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0, background: "transparent", cursor: !isOwn ? "pointer" : "default", padding: 0, color: "inherit" }}
       >
-        <div>
-          {listing.itemImageUrl ? (
-            <img
-              src={listing.itemImageUrl}
-              alt={listing.itemName}
-              style={{ width: 52, height: 52, objectFit: "contain", display: "block" }}
-            />
-          ) : (
-            <div style={{ width: 52, height: 52, background: "rgba(74,222,128,0.07)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <img src={powerupBagIcon} alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
+        {isPet ? (
+          <>
+            <div style={{ position: "absolute", top: "12%", left: "16%", right: "16%", textAlign: "center", color: gold, fontFamily: "Georgia, serif", fontSize: "clamp(9px, 2.2vw, 12px)", fontWeight: 700, textShadow: "0 1px 2px #25002f" }}>
+              {stars(listing.rarity)}
             </div>
-          )}
-        </div>
-        <span style={{ color: isPetEgg ? "#d4b8ff" : "#c8f0c8", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>{listing.itemName}</span>
-        {/* Effect summary badge */}
-        {listing.effectSummary && !isPetEgg && (
-          <span style={{
-            color: "#a3e635",
-            fontSize: 8,
-            fontFamily: "Georgia, serif",
-            textAlign: "center",
-            lineHeight: 1.2,
-            background: "rgba(74,222,128,0.1)",
-            borderRadius: 4,
-            padding: "2px 5px",
-            border: "1px solid rgba(74,222,128,0.18)",
-            maxWidth: "100%",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}>
-            {listing.effectSummary}
-          </span>
+            <div style={{ position: "absolute", top: "24%", left: "18%", right: "18%", height: "36%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {listing.itemImageUrl ? <img src={listing.itemImageUrl} alt={listing.itemName} style={{ maxWidth: "82%", maxHeight: "92%", objectFit: "contain", filter: "drop-shadow(0 5px 10px rgba(193,93,255,.42))" }} /> : <img src={eggMagicIcon} alt="" style={{ width: "58%", opacity: .7 }} />}
+            </div>
+            <div style={{ position: "absolute", top: "66%", left: "13%", right: "13%", height: "10%", display: "flex", alignItems: "center", justifyContent: "center", color: cream, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "clamp(9px, 2.4vw, 13px)", lineHeight: 1.05, textAlign: "center", textShadow: "0 1px 2px #200026" }}>
+              {listing.speciesName || listing.itemName}
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ position: "absolute", top: "10%", left: "20%", right: "20%", height: "34%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {listing.itemImageUrl ? <img src={listing.itemImageUrl} alt={listing.itemName} style={{ maxWidth: "82%", maxHeight: "94%", objectFit: "contain", filter: "drop-shadow(0 5px 8px rgba(40,255,110,.22))" }} /> : <img src={powerupBagIcon} alt="" style={{ width: "55%", opacity: .65 }} />}
+            </div>
+            <div style={{ position: "absolute", top: "49%", left: "12%", right: "12%", minHeight: "9%", display: "flex", alignItems: "center", justifyContent: "center", color: cream, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "clamp(9px, 2.35vw, 13px)", lineHeight: 1.05, textAlign: "center", textShadow: "0 1px 2px #04220e" }}>
+              {listing.itemName}
+            </div>
+            <div style={{ position: "absolute", top: "62%", left: "17%", right: "17%", minHeight: "10%", display: "flex", alignItems: "center", justifyContent: "center", color: "#d8ffdd", fontFamily: "Georgia, serif", fontSize: "clamp(7px, 1.85vw, 10px)", lineHeight: 1.08, textAlign: "center", textShadow: "0 1px 2px #04220e", overflow: "hidden" }}>
+              {listing.effectSummary || listing.description || "Market item"}
+            </div>
+          </>
         )}
-        <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-          <CoinIcon size={11} />
-          <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 11, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
+
+        <div style={{ position: "absolute", left: "18%", right: "15%", bottom: "8%", height: "10%", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, color: gold, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "clamp(9px, 2.4vw, 13px)", textShadow: "0 1px 2px #2f1500" }}>
+          <CoinIcon size={13} /> {formatCoins(listing.price)}
         </div>
-        {/* Seller name — only visible to admins */}
-        {isAdmin && listing.sellerName && (
-          <span style={{ color: "rgba(150,200,150,0.4)", fontSize: 8 }}>{listing.sellerName}</span>
-        )}
+
+        {isAdmin && listing.sellerName && <div style={{ position: "absolute", left: "12%", right: "12%", bottom: "2.4%", textAlign: "center", color: "rgba(255,255,255,.45)", fontSize: 7 }}>by {listing.sellerName}</div>}
       </button>
-      {!isOwn && (
-        <button
-          data-testid={`button-buy-${listing.id}`}
-          onClick={() => onDetail?.(listing)}
-          style={{
-            marginTop: "auto",
-            width: "100%",
-            background: isPetEgg
-              ? "linear-gradient(135deg, rgba(140,80,220,0.35) 0%, rgba(100,40,180,0.35) 100%)"
-              : "linear-gradient(135deg, rgba(74,222,128,0.3) 0%, rgba(40,160,80,0.3) 100%)",
-            border: `1px solid ${isPetEgg ? "rgba(180,130,255,0.5)" : "rgba(74,222,128,0.5)"}`,
-            borderRadius: 7,
-            padding: "5px 10px",
-            color: isPetEgg ? "#c8a0ff" : "#4ade80",
-            fontFamily: "Georgia, serif",
-            fontSize: 10,
-            cursor: "pointer",
-          }}
-        >
-          {isPetEgg ? "View" : "Buy"}
-        </button>
+
+      {isMine && listing.status === "active" && (
+        <button data-testid={`button-cancel-${listing.id}`} onClick={() => onCancel?.(listing)} style={{ position: "absolute", right: 8, top: 8, zIndex: 3, border: "1px solid rgba(255,165,165,.35)", background: "rgba(45,0,18,.78)", color: "#ffb8c5", borderRadius: 8, padding: "4px 7px", fontSize: 8, cursor: "pointer" }}>Cancel</button>
       )}
     </div>
   );
@@ -314,791 +211,124 @@ function ItemCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
 
 function EmptySlot({ onSell }: { onSell: () => void }) {
   return (
-    <button
-      data-testid="button-empty-slot"
-      onClick={onSell}
-      style={{
-        background: "rgba(20,50,25,0.6)",
-        border: "2px dashed rgba(74,222,128,0.3)",
-        borderRadius: 14,
-        minHeight: 140,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 6,
-        cursor: "pointer",
-        transition: "all 0.15s",
-        width: "100%",
-      }}
-    >
-      <span style={{ color: "rgba(74,222,128,0.6)", fontSize: 28, lineHeight: 1 }}>+</span>
-      <span style={{ color: "rgba(74,222,128,0.5)", fontFamily: "Georgia, serif", fontSize: 10 }}>List Item</span>
+    <button data-testid="button-empty-slot" onClick={onSell} style={{ minHeight: 246, aspectRatio: "2 / 3", border: 0, background: `url(${marketItemCard}) center/100% 100% no-repeat`, opacity: .62, filter: "grayscale(.2) drop-shadow(0 8px 12px rgba(0,0,0,.35))", cursor: "pointer", color: cream, fontFamily: "Georgia, serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5 }}>
+      <span style={{ fontSize: 32, textShadow: "0 0 10px rgba(120,255,150,.5)" }}>+</span>
+      <span style={{ fontSize: 11 }}>List Item</span>
     </button>
   );
 }
 
-// ── Revert to Egg confirmation modal ─────────────────────────────────────────
-function RevertToEggModal({ petName, onRevert, onCancel, isPending }: {
-  petName: string;
-  onRevert: () => void;
-  onCancel: () => void;
-  isPending: boolean;
-}) {
+function RevertToEggModal({ petName, onRevert, onCancel, isPending }: { petName: string; onRevert: () => void; onCancel: () => void; isPending: boolean }) {
   return (
-    <div
-      style={{
-        position: "fixed", inset: 0, zIndex: 300,
-        background: "rgba(0,0,0,0.85)", backdropFilter: "blur(6px)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "20px 16px",
-      }}
-      onClick={onCancel}
-    >
-      <div
-        style={{
-          background: "linear-gradient(160deg, rgba(20,8,40,0.98) 0%, rgba(40,15,70,0.98) 100%)",
-          border: "2px solid rgba(180,130,255,0.6)",
-          borderRadius: 20,
-          padding: "28px 22px",
-          width: "100%",
-          maxWidth: 340,
-          boxShadow: "0 0 50px rgba(120,60,200,0.35), 0 0 20px rgba(0,0,0,0.9)",
-          textAlign: "center",
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div style={{ fontSize: 48, marginBottom: 10, filter: "drop-shadow(0 0 12px rgba(180,130,255,0.7))" }}>🥚</div>
-        <h2 style={{
-          color: "#c8a0ff",
-          fontFamily: "Georgia, serif",
-          fontSize: 19,
-          margin: "0 0 10px",
-          textShadow: "0 0 12px rgba(180,130,255,0.5)",
-        }}>
-          Revert to Egg
-        </h2>
-        <p style={{
-          color: "rgba(200,170,255,0.85)",
-          fontFamily: "Georgia, serif",
-          fontSize: 13,
-          lineHeight: 1.6,
-          margin: "0 0 8px",
-        }}>
-          <em>"{petName}"</em> shall be sealed within its egg once more to continue the listing.
-        </p>
-        <p style={{
-          color: "rgba(180,140,255,0.6)",
-          fontSize: 11,
-          fontFamily: "Georgia, serif",
-          margin: "0 0 22px",
-          fontStyle: "italic",
-        }}>
-          All equipped accessories shall be unequipped. Stats are preserved within the egg.
-        </p>
-        <div style={{ display: "flex", gap: 12 }}>
-          <button
-            data-testid="button-revert-cancel"
-            onClick={onCancel}
-            style={{
-              flex: 1,
-              background: "rgba(40,20,60,0.6)",
-              border: "1.5px solid rgba(120,80,180,0.4)",
-              borderRadius: 10,
-              padding: "11px",
-              color: "rgba(180,140,255,0.65)",
-              fontFamily: "Georgia, serif",
-              fontSize: 13,
-              cursor: "pointer",
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            data-testid="button-revert-confirm"
-            disabled={isPending}
-            onClick={onRevert}
-            style={{
-              flex: 1,
-              background: "linear-gradient(135deg, rgba(140,80,220,0.5) 0%, rgba(100,40,180,0.5) 100%)",
-              border: "1.5px solid rgba(180,130,255,0.7)",
-              borderRadius: 10,
-              padding: "11px",
-              color: "#c8a0ff",
-              fontFamily: "Georgia, serif",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: isPending ? "not-allowed" : "pointer",
-              textShadow: "0 0 8px rgba(180,130,255,0.5)",
-            }}
-          >
-            {isPending ? "Reverting..." : "⟳ Revert"}
-          </button>
+    <div onClick={onCancel} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,.82)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 330, padding: "25px 22px", borderRadius: 20, border: "2px solid rgba(211,151,255,.55)", background: "linear-gradient(165deg,#180522,#2d0b49)", boxShadow: "0 0 45px rgba(180,50,255,.25)", textAlign: "center" }}>
+        <img src={eggMagicIcon} alt="" style={{ width: 62, height: 62, objectFit: "contain" }} />
+        <h2 style={{ color: purple, fontFamily: "Georgia, serif", fontSize: 18, margin: "8px 0" }}>Revert to Egg</h2>
+        <p style={{ color: "rgba(239,220,255,.75)", fontFamily: "Georgia, serif", fontSize: 12, lineHeight: 1.5 }}>“{petName}” will return to egg form before being listed. Stats remain preserved and equipped accessories are removed.</p>
+        <div style={{ display: "flex", gap: 9, marginTop: 16 }}>
+          <button onClick={onCancel} style={{ flex: 1, borderRadius: 10, padding: 10, background: "rgba(0,0,0,.25)", border: "1px solid rgba(255,255,255,.18)", color: "#dbcfea", cursor: "pointer" }}>Cancel</button>
+          <button data-testid="button-revert-confirm" disabled={isPending} onClick={onRevert} style={{ flex: 1, borderRadius: 10, padding: 10, background: "rgba(142,70,209,.42)", border: "1px solid rgba(220,170,255,.5)", color: purple, cursor: isPending ? "not-allowed" : "pointer" }}>{isPending ? "Reverting…" : "Revert"}</button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Pet Egg Detail popup (browse tab) ────────────────────────────────────────
-function PetEggDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins, isAdmin }: {
-  listing: Listing;
-  onClose: () => void;
-  onBuy: () => void;
-  isBuyPending: boolean;
-  userCoins: number;
-  isAdmin: boolean;
-}) {
-  const detailsQuery = useQuery<PetEggDetails>({
-    queryKey: ["/api/market/listing", listing.id, "pet-details"],
-    queryFn: () => fetch(`/api/market/listing/${listing.id}/pet-details`).then(r => r.json()),
-  });
-
+function PetEggDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins, isAdmin }: { listing: Listing; onClose: () => void; onBuy: () => void; isBuyPending: boolean; userCoins: number; isAdmin: boolean }) {
+  const detailsQuery = useQuery<PetEggDetails>({ queryKey: ["/api/market/listing", listing.id, "pet-details"], queryFn: () => fetch(`/api/market/listing/${listing.id}/pet-details`).then(r => r.json()) });
   const d = detailsQuery.data;
   const canAfford = userCoins >= listing.price;
-
   return (
-    <div
-      style={{
-        position: "fixed", inset: 0, zIndex: 300,
-        background: "rgba(0,0,0,0.85)", backdropFilter: "blur(6px)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "20px 16px",
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: "linear-gradient(170deg, rgba(12,4,28,0.99) 0%, rgba(28,8,56,0.99) 55%, rgba(10,28,14,0.99) 100%)",
-          border: "2px solid rgba(212,160,23,0.55)",
-          borderRadius: 22,
-          padding: "28px 22px 22px",
-          width: "100%",
-          maxWidth: 320,
-          boxShadow: "0 0 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(212,160,23,0.15)",
-          textAlign: "center",
-          position: "relative",
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <button
-          onClick={onClose}
-          style={{ position: "absolute", top: 12, right: 14, background: "none", border: "none", color: "rgba(212,160,23,0.5)", fontSize: 18, cursor: "pointer", lineHeight: 1 }}
-        >
-          ✕
-        </button>
-
-        <p style={{ color: "rgba(212,160,23,0.55)", fontFamily: "Georgia, serif", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 14px" }}>
-          Pet Egg
-        </p>
-
-        {detailsQuery.isLoading ? (
-          <p style={{ color: "rgba(212,160,23,0.5)", fontFamily: "Georgia, serif", fontSize: 13, padding: "30px 0" }}>Consulting the oracle…</p>
-        ) : d ? (
-          <>
-            <div style={{ marginBottom: 14 }}>
-              {d.eggImageUrl ? (
-                <img src={d.eggImageUrl} alt={d.speciesName} style={{ width: 96, height: 96, objectFit: "contain", filter: "drop-shadow(0 4px 18px rgba(212,160,23,0.35))" }} />
-              ) : (
-                <div style={{ fontSize: 72, lineHeight: 1 }}>🥚</div>
-              )}
-            </div>
-
-            {d.petNickname && (
-              <p style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 17, fontWeight: 700, margin: "0 0 3px", textShadow: "0 0 10px rgba(240,192,64,0.3)" }}>
-                "{d.petNickname}"
-              </p>
-            )}
-            <p style={{ color: "rgba(212,160,23,0.7)", fontFamily: "Georgia, serif", fontSize: 12, margin: "0 0 16px", fontStyle: "italic" }}>
-              {d.speciesName}
-            </p>
-
-            <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.3), transparent)", marginBottom: 14 }} />
-
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ color: "rgba(212,160,23,0.5)", fontFamily: "Georgia, serif", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>Level</div>
-              <div style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 26, fontWeight: 700, lineHeight: 1 }}>{d.level}</div>
-            </div>
-
-            <div style={{
-              display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16,
-              background: "rgba(0,0,0,0.35)", borderRadius: 14, padding: "12px 8px",
-              border: "1px solid rgba(74,222,128,0.18)",
-            }}>
-              {[
-                { label: "HP", value: d.health, color: "#f87171" },
-                { label: "ATK", value: d.atk, color: "#fbbf24" },
-                { label: "DEF", value: d.def, color: "#60a5fa" },
-              ].map(s => (
-                <div key={s.label} style={{ textAlign: "center" }}>
-                  <div style={{ color: "rgba(150,200,150,0.55)", fontSize: 9, fontFamily: "Georgia, serif", marginBottom: 3, letterSpacing: "0.08em" }}>{s.label}</div>
-                  <div style={{ color: s.color, fontFamily: "Georgia, serif", fontSize: 16, fontWeight: 700 }}>{s.value}</div>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(74,222,128,0.25), transparent)", marginBottom: 14 }} />
-
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 4 }}>
-              <CoinIcon size={16} />
-              <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 20, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
-            </div>
-            {isAdmin && listing.sellerName && (
-              <p style={{ color: "rgba(150,200,150,0.45)", fontSize: 10, margin: "0 0 14px", fontFamily: "Georgia, serif" }}>
-                Sold by {listing.sellerName}
-              </p>
-            )}
-            {!isAdmin && <div style={{ marginBottom: 14 }} />}
-
-            {!canAfford && (
-              <p style={{ color: "#f87171", fontSize: 11, margin: "0 0 10px", fontFamily: "Georgia, serif" }}>
-                Not enough coins (you have {formatCoins(userCoins)})
-              </p>
-            )}
-
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={onClose}
-                style={{ flex: 1, background: "rgba(0,0,0,0.35)", border: "1px solid rgba(212,160,23,0.2)", borderRadius: 11, padding: "11px", color: "rgba(212,160,23,0.5)", fontFamily: "Georgia, serif", fontSize: 13, cursor: "pointer" }}
-              >
-                Cancel
-              </button>
-              <button
-                data-testid="button-confirm-buy"
-                disabled={!canAfford || isBuyPending}
-                onClick={(e) => { burstGoldenOrbs(e.clientX, e.clientY); onBuy(); }}
-                style={{
-                  flex: 2,
-                  background: canAfford
-                    ? "linear-gradient(135deg, rgba(74,222,128,0.35) 0%, rgba(40,160,80,0.35) 100%)"
-                    : "rgba(0,0,0,0.25)",
-                  border: `1.5px solid ${canAfford ? "rgba(74,222,128,0.6)" : "rgba(74,180,100,0.15)"}`,
-                  borderRadius: 11, padding: "11px",
-                  color: canAfford ? "#4ade80" : "rgba(74,180,100,0.35)",
-                  fontFamily: "Georgia, serif", fontSize: 14, fontWeight: 700,
-                  cursor: canAfford && !isBuyPending ? "pointer" : "not-allowed",
-                  letterSpacing: "0.04em",
-                }}
-              >
-                {isBuyPending ? "Buying…" : "Buy Egg"}
-              </button>
-            </div>
-          </>
-        ) : (
-          <p style={{ color: "rgba(220,80,80,0.7)", fontFamily: "Georgia, serif", fontSize: 12, padding: "10px 0" }}>Could not load egg details.</p>
-        )}
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 350, background: "rgba(0,0,0,.84)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 330, minHeight: 450, position: "relative", background: `url(${marketPetCard}) center/100% 100% no-repeat`, padding: "66px 44px 58px", boxSizing: "border-box", textAlign: "center", filter: "drop-shadow(0 12px 28px rgba(0,0,0,.75))" }}>
+        <button onClick={onClose} style={{ position: "absolute", top: 24, right: 28, border: 0, background: "rgba(20,0,28,.72)", color: purple, borderRadius: 12, width: 27, height: 27, cursor: "pointer" }}>×</button>
+        {detailsQuery.isLoading ? <p style={{ color: purple, marginTop: 130, fontFamily: "Georgia, serif" }}>Loading…</p> : d ? <>
+          <div style={{ color: gold, fontSize: 16, letterSpacing: 1 }}>{stars(d.rarity ?? listing.rarity)}</div>
+          <div style={{ height: 150, display: "flex", alignItems: "center", justifyContent: "center" }}>{d.eggImageUrl ? <img src={d.eggImageUrl} alt={d.speciesName} style={{ maxWidth: 120, maxHeight: 130, objectFit: "contain", filter: "drop-shadow(0 6px 15px rgba(180,80,255,.45))" }} /> : <img src={eggMagicIcon} alt="" style={{ width: 90 }} />}</div>
+          <div style={{ color: cream, fontFamily: "Georgia, serif", fontSize: 17, fontWeight: 700 }}>{d.speciesName}</div>
+          {d.petNickname && <div style={{ color: purple, fontFamily: "Georgia, serif", fontSize: 12, marginTop: 3 }}>“{d.petNickname}”</div>}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 4, margin: "12px 0", color: "#e6d9ee", fontSize: 9 }}><span>Lv {d.level}</span><span>HP {d.health}</span><span>ATK {d.atk}</span><span>DEF {d.def}</span></div>
+          <div style={{ color: gold, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}><CoinIcon size={17} />{formatCoins(listing.price)}</div>
+          {isAdmin && listing.sellerName && <div style={{ color: "rgba(255,255,255,.45)", fontSize: 9, marginTop: 2 }}>by {listing.sellerName}</div>}
+          {!canAfford && <p style={{ color: "#ff9da6", fontSize: 10 }}>Not enough coins</p>}
+          <button data-testid="button-confirm-buy" disabled={!canAfford || isBuyPending} onClick={e => { burstGoldenOrbs(e.clientX, e.clientY); onBuy(); }} style={{ ...artButtonStyle(canAfford), width: "100%", minHeight: 40, marginTop: 10, opacity: canAfford ? 1 : .5 }}>{isBuyPending ? "Buying…" : "Buy Egg"}</button>
+        </> : <p style={{ color: "#ff9da6", marginTop: 130 }}>Could not load egg details.</p>}
       </div>
     </div>
   );
 }
 
-// ── Sell Item Modal ───────────────────────────────────────────────────────────
-function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFish, onSubmitPet, isPending, isPetPending }: {
-  inventory: InventoryItem[];
-  fishInventory: FishItem[];
-  onClose: () => void;
-  onSubmit: (inventoryId: string, price: number) => void;
-  onSubmitFish: (fishInventoryId: string, price: number) => void;
-  onSubmitPet: (inventoryId: string, price: number) => void;
-  isPending: boolean;
-  isPetPending: boolean;
-}) {
+function ItemDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins, isAdmin }: { listing: Listing; onClose: () => void; onBuy: () => void; isBuyPending: boolean; userCoins: number; isAdmin: boolean }) {
+  const detailsQuery = useQuery<ItemDetails>({ queryKey: ["/api/market/listing", listing.id, "item-details"], queryFn: () => fetch(`/api/market/listing/${listing.id}/item-details`).then(r => r.json()) });
+  const d = detailsQuery.data;
+  const canAfford = userCoins >= listing.price;
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 350, background: "rgba(0,0,0,.84)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 330, minHeight: 450, position: "relative", background: `url(${marketItemCard}) center/100% 100% no-repeat`, padding: "58px 45px 58px", boxSizing: "border-box", textAlign: "center", filter: "drop-shadow(0 12px 28px rgba(0,0,0,.75))" }}>
+        <button onClick={onClose} style={{ position: "absolute", top: 24, right: 28, border: 0, background: "rgba(0,22,9,.72)", color: green, borderRadius: 12, width: 27, height: 27, cursor: "pointer" }}>×</button>
+        <div style={{ height: 155, display: "flex", alignItems: "center", justifyContent: "center" }}>{listing.itemImageUrl ? <img src={listing.itemImageUrl} alt={listing.itemName} style={{ maxWidth: 120, maxHeight: 135, objectFit: "contain", filter: "drop-shadow(0 6px 12px rgba(70,255,120,.25))" }} /> : <img src={powerupBagIcon} alt="" style={{ width: 85 }} />}</div>
+        <div style={{ color: cream, fontFamily: "Georgia, serif", fontSize: 17, fontWeight: 700 }}>{listing.itemName}</div>
+        <div style={{ margin: "10px 0", minHeight: 52, display: "flex", flexDirection: "column", justifyContent: "center", gap: 4, color: "#dbffe0", fontFamily: "Georgia, serif", fontSize: 11, lineHeight: 1.35 }}>
+          {detailsQuery.isLoading ? "Loading…" : d?.effects?.length ? d.effects.map((effect, i) => <span key={i}>✦ {effect}</span>) : (d?.description || listing.description || "A useful market item.")}
+        </div>
+        <div style={{ color: gold, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}><CoinIcon size={17} />{formatCoins(listing.price)}</div>
+        {isAdmin && listing.sellerName && <div style={{ color: "rgba(255,255,255,.45)", fontSize: 9, marginTop: 2 }}>by {listing.sellerName}</div>}
+        {!canAfford && <p style={{ color: "#ff9da6", fontSize: 10 }}>Not enough coins</p>}
+        <button data-testid="button-confirm-buy" disabled={!canAfford || isBuyPending} onClick={e => { burstGoldenOrbs(e.clientX, e.clientY); onBuy(); }} style={{ ...artButtonStyle(canAfford), width: "100%", minHeight: 40, marginTop: 12, opacity: canAfford ? 1 : .5 }}>{isBuyPending ? "Buying…" : "Buy Now"}</button>
+      </div>
+    </div>
+  );
+}
+
+function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFish, onSubmitPet, isPending, isPetPending }: { inventory: InventoryItem[]; fishInventory: FishItem[]; onClose: () => void; onSubmit: (inventoryId: string, price: number) => void; onSubmitFish: (fishInventoryId: string, price: number) => void; onSubmitPet: (inventoryId: string, price: number) => void; isPending: boolean; isPetPending: boolean }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedIsFish, setSelectedIsFish] = useState(false);
-  const [selectedIsPet, setSelectedIsPet] = useState(false);
+  const [kind, setKind] = useState<"items" | "fish" | "pets">("items");
   const [price, setPrice] = useState("");
   const [showRevert, setShowRevert] = useState(false);
-  const [sellTab, setSellTab] = useState<"items" | "fish" | "pets">("items");
+  const regular = inventory.filter(i => i.type !== "pet" && !i.isListed);
+  const pets = inventory.filter(i => i.type === "pet" && !i.isListed);
+  const fish = fishInventory.filter(i => !i.inAquarium);
+  const selectedItem = kind === "fish" ? fish.find(i => i.id === selectedId) : kind === "pets" ? pets.find(i => i.id === selectedId) : regular.find(i => i.id === selectedId);
+  const priceNum = parseInt(price, 10);
+  const valid = Number.isFinite(priceNum) && priceNum >= 1 && priceNum <= 1000000;
+  const selectedPet = kind === "pets" ? selectedItem as InventoryItem | undefined : undefined;
+  const list = kind === "fish" ? fish : kind === "pets" ? pets : regular;
 
-  const regularSellable = inventory.filter(i => i.type !== "pet" && !i.isListed);
-  const petSellable = inventory.filter(i => i.type === "pet" && !i.isListed);
-  const fishSellable = fishInventory.filter(f => !f.inAquarium);
+  const nameFor = (item: any) => kind === "fish" ? item.item?.name || "Fish" : item.petNickname || item.name;
+  const imageFor = (item: any) => kind === "fish" ? item.item?.imageUrl : kind === "pets" ? (item.isHatched ? item.hatchedImageUrl || item.imageUrl : item.eggImageUrl || item.imageUrl) : item.imageUrl;
 
-  const selectedItem = selectedIsFish
-    ? fishSellable.find(f => f.id === selectedId)
-    : selectedIsPet
-      ? petSellable.find(i => i.id === selectedId)
-      : regularSellable.find(i => i.id === selectedId);
-
-  const selectedName = selectedIsFish
-    ? (selectedItem as FishItem | undefined)?.item?.name ?? "Unknown"
-    : selectedIsPet
-      ? ((selectedItem as InventoryItem | undefined)?.petNickname || (selectedItem as InventoryItem | undefined)?.name) ?? ""
-      : (selectedItem as InventoryItem | undefined)?.name ?? "";
-
-  const priceNum = parseInt(price.replace(/,/g, ""), 10);
-  const priceValid = !isNaN(priceNum) && priceNum >= 1 && priceNum <= 1000000;
-
-  function handleListForSale() {
-    if (!selectedItem || !priceValid) return;
-    if (selectedIsPet) {
-      setShowRevert(true);
-      return;
-    }
-    if (selectedIsFish) onSubmitFish(selectedItem.id, priceNum);
-    else onSubmit(selectedItem.id, priceNum);
+  function submit() {
+    if (!selectedId || !valid) return;
+    if (kind === "pets") return setShowRevert(true);
+    if (kind === "fish") onSubmitFish(selectedId, priceNum); else onSubmit(selectedId, priceNum);
   }
 
-  const selectedPet = selectedIsPet ? (selectedItem as InventoryItem | undefined) : undefined;
-  const petDisplayName = selectedPet?.petNickname || selectedPet?.name || "this pet";
-
   return (
-    <div
-      style={{
-        position: "fixed", inset: 0, zIndex: 200,
-        background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "20px 16px",
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: "linear-gradient(135deg, rgba(10,30,15,0.98) 0%, rgba(20,50,25,0.98) 100%)",
-          border: "2px solid rgba(74,222,128,0.45)",
-          borderRadius: 18,
-          padding: "22px 18px",
-          width: "100%",
-          maxWidth: 380,
-          maxHeight: "calc(80*var(--vh))",
-          overflowY: "auto",
-          boxShadow: "0 0 40px rgba(0,0,0,0.8), 0 0 20px rgba(74,222,128,0.1)",
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <h2 style={{ color: "#4ade80", fontFamily: "Georgia, serif", fontSize: 18, margin: 0 }}>List Item for Sale</h2>
-          <button onClick={() => { playClick(); onClose(); }} style={{ background: "none", border: "none", color: "rgba(150,200,150,0.7)", fontSize: 20, cursor: "pointer" }}>✕</button>
-        </div>
-
-        {/* Filter tabs */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-          {([
-            { key: "items" as const, icon: powerupBagIcon, label: "Items", count: regularSellable.length, activeColor: "#4ade80", activeBg: "rgba(74,222,128,0.15)", activeBorder: "rgba(74,222,128,0.55)" },
-            { key: "fish"  as const, icon: fishInvIcon,    label: "Fish",  count: fishSellable.length,    activeColor: "#67e8f9", activeBg: "rgba(103,232,249,0.12)", activeBorder: "rgba(103,232,249,0.5)" },
-            { key: "pets"  as const, icon: eggMagicIcon,   label: "Pets",  count: petSellable.length,     activeColor: "#c084fc", activeBg: "rgba(192,132,252,0.15)", activeBorder: "rgba(192,132,252,0.55)" },
-          ]).map(tab => {
-            const active = sellTab === tab.key;
-            return (
-              <button
-                key={tab.key}
-                data-testid={`button-sell-tab-${tab.key}`}
-                onClick={() => {
-                  if (sellTab !== tab.key) {
-                    setSellTab(tab.key);
-                    playTick();
-                    setSelectedId(null);
-                    setSelectedIsFish(false);
-                    setSelectedIsPet(false);
-                  }
-                }}
-                style={{
-                  flex: 1,
-                  background: active ? tab.activeBg : "rgba(0,0,0,0.2)",
-                  border: `1px solid ${active ? tab.activeBorder : "rgba(74,180,100,0.15)"}`,
-                  borderRadius: 8, padding: "6px 4px",
-                  color: active ? tab.activeColor : "rgba(150,200,150,0.45)",
-                  fontFamily: "Georgia, serif", fontSize: 11, cursor: "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                }}
-              >
-                <img src={tab.icon} alt="" style={{ width: 16, height: 16, objectFit: "contain", opacity: active ? 1 : 0.45 }} />
-                {tab.label}
-                <span style={{
-                  background: "rgba(0,0,0,0.25)", borderRadius: 8, padding: "1px 5px",
-                  fontSize: 10, color: active ? tab.activeColor : "rgba(150,200,150,0.35)",
-                }}>
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {regularSellable.length === 0 && fishSellable.length === 0 && petSellable.length === 0 ? (
-          <p style={{ color: "rgba(150,200,150,0.5)", textAlign: "center", fontFamily: "Georgia, serif", fontSize: 13, padding: "20px 0" }}>No sellable items in inventory</p>
-        ) : (
-          <>
-            {sellTab === "items" && (
-              regularSellable.length === 0 ? (
-                <p style={{ color: "rgba(150,200,150,0.4)", textAlign: "center", fontFamily: "Georgia, serif", fontSize: 12, padding: "16px 0" }}>No items to sell</p>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16, maxHeight: 280, overflowY: "auto" }}>
-                  {regularSellable.map(item => (
-                    <button
-                      key={item.id}
-                      data-testid={`button-select-item-${item.id}`}
-                      onClick={() => { setSelectedId(item.id); setSelectedIsFish(false); setSelectedIsPet(false); playClick(); }}
-                      style={{
-                        background: selectedId === item.id && !selectedIsFish && !selectedIsPet ? "rgba(74,222,128,0.2)" : "rgba(20,50,25,0.7)",
-                        border: `2px solid ${selectedId === item.id && !selectedIsFish && !selectedIsPet ? "rgba(74,222,128,0.7)" : "rgba(74,180,100,0.25)"}`,
-                        borderRadius: 10, padding: 8, cursor: "pointer",
-                        display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-                      }}
-                    >
-                      {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
-                      ) : (
-                        <div style={{ width: 44, height: 44, background: "rgba(74,222,128,0.1)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <img src={powerupBagIcon} alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
-                        </div>
-                      )}
-                      <span style={{ color: "#c8f0c8", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>{item.name}</span>
-                    </button>
-                  ))}
-                </div>
-              )
-            )}
-
-            {sellTab === "fish" && (
-              fishSellable.length === 0 ? (
-                <p style={{ color: "rgba(150,200,150,0.4)", textAlign: "center", fontFamily: "Georgia, serif", fontSize: 12, padding: "16px 0" }}>No fish to sell</p>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 16, maxHeight: 280, overflowY: "auto" }}>
-                  {fishSellable.map(fish => (
-                    <button
-                      key={fish.id}
-                      data-testid={`button-select-fish-${fish.id}`}
-                      onClick={() => { setSelectedId(fish.id); setSelectedIsFish(true); setSelectedIsPet(false); playClick(); }}
-                      style={{
-                        background: selectedId === fish.id && selectedIsFish ? "rgba(103,232,249,0.15)" : "rgba(10,30,40,0.7)",
-                        border: `2px solid ${selectedId === fish.id && selectedIsFish ? "rgba(103,232,249,0.7)" : "rgba(74,180,200,0.25)"}`,
-                        borderRadius: 10, padding: 8, cursor: "pointer",
-                        display: "flex", flexDirection: "column", alignItems: "center", gap: 4, position: "relative",
-                      }}
-                    >
-                      {fish.item?.imageUrl ? (
-                        <img src={fish.item.imageUrl} alt={fish.item.name} style={{ width: 44, height: 44, objectFit: "contain" }} />
-                      ) : (
-                        <div style={{ width: 44, height: 44, background: "rgba(74,200,222,0.1)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🐟</div>
-                      )}
-                      <span style={{ color: "#a0e8f0", fontSize: 9, fontFamily: "Georgia, serif", textAlign: "center", lineHeight: 1.2 }}>{fish.item?.name ?? "Fish"}</span>
-                      <span style={{ position: "absolute", top: 3, right: 3, fontSize: 8, color: "rgba(127,200,255,0.7)" }}>🎣</span>
-                    </button>
-                  ))}
-                </div>
-              )
-            )}
-
-            {sellTab === "pets" && (
-              petSellable.length === 0 ? (
-                <p style={{ color: "rgba(150,200,150,0.4)", textAlign: "center", fontFamily: "Georgia, serif", fontSize: 12, padding: "16px 0" }}>No pets to sell</p>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginBottom: 16, maxHeight: 300, overflowY: "auto" }}>
-                  {petSellable.map(pet => {
-                    const isSelected = selectedId === pet.id && selectedIsPet;
-                    const displayImg = pet.isHatched
-                      ? (pet.hatchedImageUrl || pet.imageUrl)
-                      : (pet.eggImageUrl || pet.imageUrl);
-                    return (
-                      <button
-                        key={pet.id}
-                        data-testid={`button-select-pet-${pet.id}`}
-                        onClick={() => { setSelectedId(pet.id); setSelectedIsFish(false); setSelectedIsPet(true); playClick(); }}
-                        style={{
-                          background: isSelected ? "rgba(140,80,220,0.25)" : "rgba(30,10,50,0.7)",
-                          border: `2px solid ${isSelected ? "rgba(180,130,255,0.7)" : "rgba(140,80,200,0.25)"}`,
-                          borderRadius: 10, padding: "8px 10px", cursor: "pointer",
-                          display: "flex", flexDirection: "row", alignItems: "center", gap: 10,
-                          position: "relative", textAlign: "left",
-                        }}
-                      >
-                        <div style={{ flexShrink: 0, width: 52, height: 52, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          {displayImg ? (
-                            <img src={displayImg} alt={pet.name} style={{ width: 52, height: 52, objectFit: "contain" }} />
-                          ) : (
-                            <div style={{ width: 52, height: 52, background: "rgba(140,80,220,0.15)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🥚</div>
-                          )}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
-                          <span style={{ color: "#d4b8ff", fontSize: 10, fontFamily: "Georgia, serif", lineHeight: 1.2, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {pet.petNickname || pet.name}
-                          </span>
-                          {pet.isHatched ? (
-                            <>
-                              <span style={{ color: "rgba(192,132,252,0.7)", fontSize: 9, fontFamily: "Georgia, serif" }}>
-                                Lv.{pet.petLevel ?? 1}
-                              </span>
-                              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                                <span style={{ fontSize: 8, color: "#f87171", fontFamily: "Georgia, serif" }}>HP {pet.petHealth ?? "—"}</span>
-                                <span style={{ fontSize: 8, color: "#fb923c", fontFamily: "Georgia, serif" }}>ATK {pet.petAtk ?? "—"}</span>
-                                <span style={{ fontSize: 8, color: "#60a5fa", fontFamily: "Georgia, serif" }}>DEF {pet.petDef ?? "—"}</span>
-                              </div>
-                            </>
-                          ) : (
-                            <span style={{ fontSize: 8, color: "rgba(180,130,255,0.55)", fontFamily: "Georgia, serif" }}>🥚 Egg</span>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )
-            )}
-          </>
-        )}
-
-        {selectedItem && (
-          <div style={{ marginBottom: 16 }}>
-            <p style={{ color: "rgba(150,200,150,0.8)", fontSize: 11, marginBottom: 8 }}>
-              Selling: <span style={{ color: selectedIsPet ? "#c8a0ff" : "#4ade80", fontWeight: 700 }}>
-                {selectedName}{selectedIsPet && !selectedPet?.isHatched ? " (Egg)" : ""}
-              </span>
-            </p>
-            {selectedIsPet && selectedPet?.isHatched && (
-              <p style={{ color: "rgba(180,140,255,0.6)", fontSize: 10, fontFamily: "Georgia, serif", fontStyle: "italic", marginBottom: 8 }}>
-                Pet will be reverted to egg before listing.
-              </p>
-            )}
-            <label style={{ color: "rgba(150,200,150,0.8)", fontSize: 11, display: "block", marginBottom: 6 }}>
-              Set Price (max 1,000,000 coins)
-            </label>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <CoinIcon size={16} />
-              <input
-                data-testid="input-listing-price"
-                type="number"
-                min={1}
-                max={1000000}
-                value={price}
-                onChange={e => setPrice(e.target.value)}
-                placeholder="Enter price..."
-                style={{
-                  flex: 1,
-                  background: "rgba(0,0,0,0.4)",
-                  border: `1px solid ${priceValid || !price ? "rgba(74,222,128,0.35)" : "rgba(220,80,80,0.6)"}`,
-                  borderRadius: 8, padding: "8px 10px",
-                  color: "#d4f0d4", fontFamily: "Georgia, serif", fontSize: 14, outline: "none",
-                }}
-              />
-            </div>
-            {price && !priceValid && (
-              <p style={{ color: "#f87171", fontSize: 10, marginTop: 4 }}>Price must be between 1 and 1,000,000</p>
-            )}
-          </div>
-        )}
-
-        <button
-          data-testid="button-confirm-listing"
-          disabled={!selectedItem || !priceValid || isPending || isPetPending}
-          onClick={handleListForSale}
-          style={{
-            width: "100%",
-            background: selectedItem && priceValid
-              ? selectedIsPet
-                ? "linear-gradient(135deg, rgba(140,80,220,0.4) 0%, rgba(100,40,180,0.4) 100%)"
-                : "linear-gradient(135deg, rgba(74,222,128,0.4) 0%, rgba(40,160,80,0.4) 100%)"
-              : "rgba(50,80,55,0.4)",
-            border: `1px solid ${selectedItem && priceValid ? (selectedIsPet ? "rgba(180,130,255,0.6)" : "rgba(74,222,128,0.6)") : "rgba(74,180,100,0.2)"}`,
-            borderRadius: 10, padding: "10px",
-            color: selectedItem && priceValid ? (selectedIsPet ? "#c8a0ff" : "#4ade80") : "rgba(74,180,100,0.4)",
-            fontFamily: "Georgia, serif", fontSize: 14,
-            cursor: selectedItem && priceValid && !isPending && !isPetPending ? "pointer" : "not-allowed",
-          }}
-        >
-          {isPending || isPetPending ? "Listing..." : "List for Sale"}
-        </button>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,.78)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 390, maxHeight: "82vh", overflowY: "auto", borderRadius: 20, padding: 18, background: "linear-gradient(160deg,rgba(14,6,27,.98),rgba(20,52,25,.98))", border: "2px solid rgba(214,166,58,.42)", boxShadow: "0 0 40px rgba(0,0,0,.7)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}><h2 style={{ margin: 0, color: cream, fontFamily: "Georgia, serif", fontSize: 18 }}>List Item for Sale</h2><button onClick={onClose} style={{ border: 0, background: "transparent", color: cream, fontSize: 20, cursor: "pointer" }}>×</button></div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, marginBottom: 12 }}>{([['items', powerupBagIcon, regular.length], ['fish', fishInvIcon, fish.length], ['pets', eggMagicIcon, pets.length]] as const).map(([key, icon, count]) => <button key={key} data-testid={`button-sell-tab-${key}`} onClick={() => { setKind(key); setSelectedId(null); playTick(); }} style={{ ...artButtonStyle(kind === key), minHeight: 40, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, fontSize: 10 }}><img src={icon} alt="" style={{ width: 15, height: 15, objectFit: "contain" }} />{key === 'items' ? 'Items' : key === 'fish' ? 'Fish' : 'Pets'} ({count})</button>)}</div>
+        {list.length ? <div style={{ display: "grid", gridTemplateColumns: kind === "pets" ? "repeat(2,1fr)" : "repeat(3,1fr)", gap: 8, maxHeight: 300, overflowY: "auto", padding: 2 }}>{list.map((item: any) => <button key={item.id} onClick={() => { setSelectedId(item.id); playClick(); }} style={{ borderRadius: 10, border: selectedId === item.id ? "2px solid #e9c164" : "1px solid rgba(255,255,255,.14)", background: selectedId === item.id ? "rgba(174,95,218,.18)" : "rgba(0,0,0,.22)", color: cream, minHeight: 92, padding: 7, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}><div style={{ height: 54, display: "flex", alignItems: "center", justifyContent: "center" }}>{imageFor(item) ? <img src={imageFor(item)} alt="" style={{ maxWidth: 56, maxHeight: 54, objectFit: "contain" }} /> : <img src={powerupBagIcon} alt="" style={{ width: 38, opacity: .6 }} />}</div><span style={{ fontFamily: "Georgia, serif", fontSize: 9, textAlign: "center" }}>{nameFor(item)}</span></button>)}</div> : <div style={{ color: "rgba(255,255,255,.5)", fontFamily: "Georgia, serif", textAlign: "center", padding: 25 }}>No {kind} to sell.</div>}
+        {selectedItem && <div style={{ marginTop: 14 }}><label style={{ display: "block", color: "rgba(255,255,255,.75)", fontSize: 11, marginBottom: 5 }}>Price (1–1,000,000 coins)</label><div style={{ display: "flex", alignItems: "center", gap: 6 }}><CoinIcon size={18} /><input data-testid="input-listing-price" type="number" min={1} max={1000000} value={price} onChange={e => setPrice(e.target.value)} placeholder="Enter price" style={{ flex: 1, borderRadius: 9, border: `1px solid ${valid || !price ? "rgba(225,190,90,.4)" : "#ff7d89"}`, background: "rgba(0,0,0,.3)", padding: "9px 11px", color: cream, outline: "none" }} /></div></div>}
+        <button data-testid="button-confirm-listing" disabled={!selectedItem || !valid || isPending || isPetPending} onClick={submit} style={{ ...artButtonStyle(!!selectedItem && valid), width: "100%", minHeight: 42, marginTop: 14, opacity: selectedItem && valid ? 1 : .5 }}>{isPending || isPetPending ? "Listing…" : "List for Sale"}</button>
       </div>
-
-      {showRevert && selectedPet && (
-        <RevertToEggModal
-          petName={petDisplayName}
-          isPending={isPetPending}
-          onRevert={() => {
-            if (selectedPet && priceValid) {
-              onSubmitPet(selectedPet.id, priceNum);
-            }
-          }}
-          onCancel={() => setShowRevert(false)}
-        />
-      )}
+      {showRevert && selectedPet && <RevertToEggModal petName={selectedPet.petNickname || selectedPet.name} isPending={isPetPending} onCancel={() => setShowRevert(false)} onRevert={() => valid && onSubmitPet(selectedPet.id, priceNum)} />}
     </div>
   );
 }
 
-// ── Item Detail + Buy popup (browse tab, non-pet-egg items) ──────────────────
-const ITEM_TYPE_LABELS: Record<string, string> = {
-  power_up: "Power-Up",
-  edibles: "Edible",
-  potion: "Potion",
-  special: "Special",
-  accessory: "Accessory",
-  fish: "Fish",
-  bait: "Fishing Bait",
-  pole: "Fishing Rod",
-  ingredient: "Ingredient",
-};
-
-function ItemDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins, isAdmin }: {
-  listing: Listing;
-  onClose: () => void;
-  onBuy: () => void;
-  isBuyPending: boolean;
-  userCoins: number;
-  isAdmin: boolean;
-}) {
-  const detailsQuery = useQuery<ItemDetails>({
-    queryKey: ["/api/market/listing", listing.id, "item-details"],
-    queryFn: () => fetch(`/api/market/listing/${listing.id}/item-details`).then(r => r.json()),
-  });
-
-  const d = detailsQuery.data;
-  const canAfford = userCoins >= listing.price;
-  const typeLabel = ITEM_TYPE_LABELS[listing.itemType] ?? listing.itemType;
-
-  return (
-    <div
-      style={{
-        position: "fixed", inset: 0, zIndex: 300,
-        background: "rgba(0,0,0,0.85)", backdropFilter: "blur(6px)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "20px 16px",
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          background: "linear-gradient(170deg, rgba(6,22,10,0.99) 0%, rgba(10,35,16,0.99) 60%, rgba(8,24,12,0.99) 100%)",
-          border: "2px solid rgba(212,160,23,0.5)",
-          borderRadius: 22,
-          padding: "28px 22px 22px",
-          width: "100%",
-          maxWidth: 320,
-          boxShadow: "0 0 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(212,160,23,0.12)",
-          textAlign: "center",
-          position: "relative",
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <button
-          onClick={onClose}
-          style={{ position: "absolute", top: 12, right: 14, background: "none", border: "none", color: "rgba(212,160,23,0.5)", fontSize: 18, cursor: "pointer", lineHeight: 1 }}
-        >
-          ✕
-        </button>
-
-        <p style={{ color: "rgba(212,160,23,0.55)", fontFamily: "Georgia, serif", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", margin: "0 0 14px" }}>
-          {typeLabel}
-        </p>
-
-        <div style={{ marginBottom: 14 }}>
-          {listing.itemImageUrl ? (
-            <img src={listing.itemImageUrl} alt={listing.itemName} style={{ width: 88, height: 88, objectFit: "contain", filter: "drop-shadow(0 4px 16px rgba(74,222,128,0.2))" }} />
-          ) : (
-            <img src={powerupBagIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", opacity: 0.7 }} />
-          )}
-        </div>
-
-        <p style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 17, fontWeight: 700, margin: "0 0 14px", textShadow: "0 0 10px rgba(240,192,64,0.25)" }}>
-          {listing.itemName}
-        </p>
-
-        <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(74,222,128,0.3), transparent)", marginBottom: 14 }} />
-
-        {detailsQuery.isLoading ? (
-          <p style={{ color: "rgba(150,200,150,0.4)", fontFamily: "Georgia, serif", fontSize: 12, margin: "0 0 14px" }}>Loading…</p>
-        ) : d && d.effects.length > 0 ? (
-          <div style={{ marginBottom: 14 }}>
-            <p style={{ color: "rgba(150,200,150,0.5)", fontFamily: "Georgia, serif", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>Effect</p>
-            {d.effects.map((effect, i) => (
-              <div key={i} style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                background: "rgba(74,222,128,0.08)", border: "1px solid rgba(74,222,128,0.2)",
-                borderRadius: 10, padding: "8px 14px", marginBottom: i < d.effects.length - 1 ? 6 : 0,
-              }}>
-                <span style={{ color: "#4ade80", fontSize: 13 }}>✦</span>
-                <span style={{ color: "#d4f0d4", fontFamily: "Georgia, serif", fontSize: 14, fontWeight: 700 }}>{effect}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ marginBottom: 14 }}>
-            <div style={{
-              background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)",
-              borderRadius: 10, padding: "10px 14px",
-            }}>
-              <span style={{ color: "rgba(150,200,150,0.5)", fontFamily: "Georgia, serif", fontSize: 12, fontStyle: "italic" }}>
-                {d?.description ?? "A useful market item."}
-              </span>
-            </div>
-          </div>
-        )}
-
-        <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.25), transparent)", marginBottom: 14 }} />
-
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 4 }}>
-          <CoinIcon size={16} />
-          <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 20, fontWeight: 700 }}>{formatCoins(listing.price)}</span>
-        </div>
-        {isAdmin && listing.sellerName && (
-          <p style={{ color: "rgba(150,200,150,0.4)", fontSize: 10, margin: "0 0 14px", fontFamily: "Georgia, serif" }}>
-            Sold by {listing.sellerName}
-          </p>
-        )}
-        {!isAdmin && <div style={{ marginBottom: 14 }} />}
-
-        {!canAfford && (
-          <p style={{ color: "#f87171", fontSize: 11, margin: "0 0 10px", fontFamily: "Georgia, serif" }}>
-            Not enough coins (you have {formatCoins(userCoins)})
-          </p>
-        )}
-
-        <div style={{ display: "flex", gap: 10 }}>
-          <button
-            onClick={onClose}
-            style={{ flex: 1, background: "rgba(0,0,0,0.35)", border: "1px solid rgba(212,160,23,0.18)", borderRadius: 11, padding: "11px", color: "rgba(212,160,23,0.5)", fontFamily: "Georgia, serif", fontSize: 13, cursor: "pointer" }}
-          >
-            Cancel
-          </button>
-          <button
-            data-testid="button-confirm-buy"
-            disabled={!canAfford || isBuyPending}
-            onClick={(e) => { burstGoldenOrbs(e.clientX, e.clientY); onBuy(); }}
-            style={{
-              flex: 2,
-              background: canAfford
-                ? "linear-gradient(135deg, rgba(74,222,128,0.35) 0%, rgba(40,160,80,0.35) 100%)"
-                : "rgba(0,0,0,0.25)",
-              border: `1.5px solid ${canAfford ? "rgba(74,222,128,0.6)" : "rgba(74,180,100,0.15)"}`,
-              borderRadius: 11, padding: "11px",
-              color: canAfford ? "#4ade80" : "rgba(74,180,100,0.35)",
-              fontFamily: "Georgia, serif", fontSize: 14, fontWeight: 700,
-              cursor: canAfford && !isBuyPending ? "pointer" : "not-allowed",
-              letterSpacing: "0.04em",
-            }}
-          >
-            {isBuyPending ? "Buying…" : "Buy Now"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Main page ─────────────────────────────────────────────────────────────────
 export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUpdate?: (u: any) => void }) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"browse" | "myshop">("browse");
   const [search, setSearch] = useState("");
-
-  // Browse filter state: main tab + items sub-filter
   const [mainTab, setMainTab] = useState<MainTab>("all");
   const [itemsSubFilter, setItemsSubFilter] = useState("items");
-
   const [showSellModal, setShowSellModal] = useState(false);
   const [detailTarget, setDetailTarget] = useState<Listing | null>(null);
-
   const isAdmin = !!user?.isAdmin;
 
-  // Compute the itemType to send to the API
-  const effectiveItemType = (() => {
-    if (mainTab === "all") return "all";
-    if (mainTab === "pets") return "pet_egg";
-    if (mainTab === "fish") return "fish";
-    // mainTab === "items"
-    return itemsSubFilter; // "items" or specific sub-type
-  })();
+  const effectiveItemType = mainTab === "all" ? "all" : mainTab === "pets" ? "pet_egg" : mainTab === "fish" ? "fish" : itemsSubFilter;
 
   const marketQuery = useQuery<Listing[]>({
     queryKey: ["/api/market", search, effectiveItemType],
@@ -1111,397 +341,71 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
     refetchInterval: 15000,
   });
 
-  const myListingsQuery = useQuery<Listing[]>({
-    queryKey: ["/api/market/my-listings"],
-    enabled: activeTab === "myshop",
-  });
+  const myListingsQuery = useQuery<Listing[]>({ queryKey: ["/api/market/my-listings"], enabled: activeTab === "myshop" });
+  const inventoryQuery = useQuery<InventoryItem[]>({ queryKey: ["/api/inventory"], enabled: showSellModal });
+  const fishInventoryQuery = useQuery<FishItem[]>({ queryKey: ["/api/fishing/inventory"], enabled: showSellModal });
 
-  const inventoryQuery = useQuery<InventoryItem[]>({
-    queryKey: ["/api/inventory"],
-    enabled: showSellModal,
-  });
-
-  const fishInventoryQuery = useQuery<FishItem[]>({
-    queryKey: ["/api/fishing/inventory"],
-    enabled: showSellModal,
-  });
-
-  const listMutation = useMutation({
-    mutationFn: ({ inventoryId, price }: { inventoryId: string; price: number }) =>
-      apiRequest("POST", "/api/market/list", { inventoryId, price }),
-    onSuccess: () => {
-      setShowSellModal(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/market"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      toast({ title: "Listed!", description: "Your item is now on the market." });
-    },
-    onError: (e: any) => toast({ title: "Failed to list item", description: e.message, variant: "destructive" }),
-  });
-
-  const listFishMutation = useMutation({
-    mutationFn: ({ fishInventoryId, price }: { fishInventoryId: string; price: number }) =>
-      apiRequest("POST", "/api/market/list-fish", { fishInventoryId, price }),
-    onSuccess: () => {
-      setShowSellModal(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/market"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
-      toast({ title: "Fish listed!", description: "Your fish is now on the market." });
-    },
-    onError: (e: any) => toast({ title: "Failed to list fish", description: e.message, variant: "destructive" }),
-  });
-
-  const revertAndListMutation = useMutation({
-    mutationFn: async ({ inventoryId, price }: { inventoryId: string; price: number }) => {
-      await apiRequest("POST", `/api/pet/${inventoryId}/revert-to-egg`, {});
-      return apiRequest("POST", "/api/market/list", { inventoryId, price });
-    },
-    onSuccess: () => {
-      setShowSellModal(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      toast({ title: "Pet egg listed!", description: "Your pet egg is now on the market." });
-    },
-    onError: (e: any) => toast({ title: "Failed to list pet egg", description: e.message, variant: "destructive" }),
-  });
-
-  const buyMutation = useMutation({
-    mutationFn: (listingId: string) => apiRequest("POST", `/api/market/${listingId}/buy`, {}),
-    onSuccess: async () => {
-      setDetailTarget(null);
-      queryClient.invalidateQueries({ queryKey: ["/api/market"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
-      const updatedUser = await fetch("/api/auth/me").then(r => r.json());
-      onUserUpdate?.(updatedUser);
-      playChime();
-      toast({ title: "Purchase complete!", description: "Check your inventory." });
-    },
-    onError: (e: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/market"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
-      toast({ title: "Purchase failed", description: e.message, variant: "destructive" });
-    },
-  });
-
-  const collectMutation = useMutation({
-    mutationFn: (listingId: string) => apiRequest("POST", `/api/market/${listingId}/collect`, {}),
-    onSuccess: async (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
-      const updatedUser = await fetch("/api/auth/me").then(r => r.json());
-      onUserUpdate?.(updatedUser);
-      toast({ title: `+${formatCoins((data as any).coinsEarned)} coins collected!` });
-    },
-    onError: (e: any) => toast({ title: "Failed to collect", description: e.message, variant: "destructive" }),
-  });
-
-  const cancelMutation = useMutation({
-    mutationFn: (listingId: string) => apiRequest("DELETE", `/api/market/${listingId}`, {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/market"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
-      toast({ title: "Listing cancelled", description: "Your item is back in inventory." });
-    },
-    onError: (e: any) => toast({ title: "Failed to cancel", description: e.message, variant: "destructive" }),
-  });
-
-  const buySlotMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/market/buy-slot", {}),
-    onSuccess: async () => {
-      const updatedUser = await fetch("/api/auth/me").then(r => r.json());
-      onUserUpdate?.(updatedUser);
-      toast({ title: "New slot unlocked!", description: "You now have an extra listing slot." });
-    },
-    onError: (e: any) => toast({ title: "Failed to buy slot", description: e.message, variant: "destructive" }),
-  });
+  const listMutation = useMutation({ mutationFn: ({ inventoryId, price }: { inventoryId: string; price: number }) => apiRequest("POST", "/api/market/list", { inventoryId, price }), onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); toast({ title: "Listed!", description: "Your item is now on the market." }); }, onError: (e: any) => toast({ title: "Failed to list item", description: e.message, variant: "destructive" }) });
+  const listFishMutation = useMutation({ mutationFn: ({ fishInventoryId, price }: { fishInventoryId: string; price: number }) => apiRequest("POST", "/api/market/list-fish", { fishInventoryId, price }), onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); toast({ title: "Fish listed!", description: "Your fish is now on the market." }); }, onError: (e: any) => toast({ title: "Failed to list fish", description: e.message, variant: "destructive" }) });
+  const revertAndListMutation = useMutation({ mutationFn: async ({ inventoryId, price }: { inventoryId: string; price: number }) => { await apiRequest("POST", `/api/pet/${inventoryId}/revert-to-egg`, {}); return apiRequest("POST", "/api/market/list", { inventoryId, price }); }, onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); toast({ title: "Pet egg listed!", description: "Your pet egg is now on the market." }); }, onError: (e: any) => toast({ title: "Failed to list pet egg", description: e.message, variant: "destructive" }) });
+  const buyMutation = useMutation({ mutationFn: (listingId: string) => apiRequest("POST", `/api/market/${listingId}/buy`, {}), onSuccess: async () => { setDetailTarget(null); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); const updatedUser = await fetch("/api/auth/me").then(r => r.json()); onUserUpdate?.(updatedUser); playChime(); toast({ title: "Purchase complete!", description: "Check your inventory." }); }, onError: (e: any) => { queryClient.invalidateQueries({ queryKey: ["/api/market"] }); toast({ title: "Purchase failed", description: e.message, variant: "destructive" }); } });
+  const collectMutation = useMutation({ mutationFn: (listingId: string) => apiRequest("POST", `/api/market/${listingId}/collect`, {}), onSuccess: async (data: any) => { queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); const updatedUser = await fetch("/api/auth/me").then(r => r.json()); onUserUpdate?.(updatedUser); toast({ title: `+${formatCoins(data.coinsEarned)} coins collected!` }); }, onError: (e: any) => toast({ title: "Failed to collect", description: e.message, variant: "destructive" }) });
+  const cancelMutation = useMutation({ mutationFn: (listingId: string) => apiRequest("DELETE", `/api/market/${listingId}`, {}), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); toast({ title: "Listing cancelled", description: "Your item is back in inventory." }); }, onError: (e: any) => toast({ title: "Failed to cancel", description: e.message, variant: "destructive" }) });
+  const buySlotMutation = useMutation({ mutationFn: () => apiRequest("POST", "/api/market/buy-slot", {}), onSuccess: async () => { const updatedUser = await fetch("/api/auth/me").then(r => r.json()); onUserUpdate?.(updatedUser); toast({ title: "New slot unlocked!" }); }, onError: (e: any) => toast({ title: "Failed to buy slot", description: e.message, variant: "destructive" }) });
 
   const totalSlots = 25 + (user?.marketExtraSlots ?? 0);
   const myListings = myListingsQuery.data ?? [];
   const activeOrPending = myListings.filter(l => l.status === "active" || l.status === "sold");
-  const usedSlots = activeOrPending.length;
-  const emptySlots = Math.max(0, totalSlots - usedSlots);
+  const emptySlots = Math.max(0, totalSlots - activeOrPending.length);
+  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value), []);
 
-  const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value);
-  }, []);
-
-  const accentGreen = "#4ade80";
-
-  // Main tab config
-  const MAIN_TABS: { value: MainTab; label: string; color: string; activeBg: string; activeBorder: string }[] = [
-    { value: "all",   label: "All",   color: accentGreen,    activeBg: "rgba(74,222,128,0.18)",  activeBorder: accentGreen },
-    { value: "pets",  label: "Pets",  color: "#c084fc",      activeBg: "rgba(192,132,252,0.18)", activeBorder: "#c084fc" },
-    { value: "items", label: "Items", color: "#fbbf24",      activeBg: "rgba(251,191,36,0.15)",  activeBorder: "#fbbf24" },
-    { value: "fish",  label: "Fish",  color: "#67e8f9",      activeBg: "rgba(103,232,249,0.15)", activeBorder: "#67e8f9" },
-  ];
+  const mainTabs = useMemo(() => ([{ value: "all", label: "All" }, { value: "pets", label: "Pets" }, { value: "items", label: "Items" }, { value: "fish", label: "Fish" }] as { value: MainTab; label: string }[]), []);
 
   return (
-    <div
-      style={{
-        minHeight: "calc(100*var(--vh))",
-        width: "100%",
-        position: "relative",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          position: "absolute", inset: 0, zIndex: 0,
-          backgroundImage: `url(${bgHome})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-          filter: "brightness(0.45)",
-        }}
-      />
-      <div style={{ position: "absolute", inset: 0, zIndex: 1, background: "linear-gradient(to bottom, rgba(5,20,10,0.7) 0%, rgba(5,15,8,0.4) 40%, rgba(5,15,8,0.85) 100%)" }} />
+    <div style={{ minHeight: "calc(100*var(--vh))", width: "100%", position: "relative", overflow: "hidden", background: "#100018" }}>
+      <div style={{ position: "absolute", inset: 0, background: `url(${marketBg}) center top/cover no-repeat`, zIndex: 0 }} />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom,rgba(11,0,20,.16),rgba(8,0,16,.26) 52%,rgba(5,0,10,.7))", zIndex: 1 }} />
 
-      <div style={{ position: "relative", zIndex: 2, display: "flex", flexDirection: "column", height: "calc(100*var(--vh))" }}>
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px 0", paddingTop: "max(env(safe-area-inset-top, 0px) + 12px, 52px)" }}>
-          <button
-            data-testid="button-back-home"
-            onClick={() => navigate("/")}
-            style={{ background: "rgba(10,30,15,0.8)", border: "1.5px solid rgba(74,222,128,0.35)", borderRadius: 10, padding: 0, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: 44, height: 44, overflow: "hidden", flexShrink: 0 }}
-          >
-            <img src={homeIconImg} alt="Home" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-          </button>
-          <div style={{ textAlign: "center" }}>
-            <h1 style={{ color: accentGreen, fontFamily: "Georgia, serif", fontSize: 20, margin: 0, textShadow: "0 0 15px rgba(74,222,128,0.5)" }}>
-              Player Market
-            </h1>
-          </div>
-          <button
-            data-testid="button-market-coin-shop"
-            onClick={() => navigate("/coins")}
-            style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(10,30,15,0.8)", border: "1px solid rgba(212,160,23,0.4)", borderRadius: 10, padding: "6px 10px", cursor: "pointer" }}
-          >
-            <CoinIcon size={14} />
-            <span style={{ color: "#f0c040", fontFamily: "Georgia, serif", fontSize: 13, fontWeight: 700 }} data-testid="text-market-coins">
-              {formatCoins(user?.coins ?? 0)}
-            </span>
-            <span style={{ color: "#d4a017", fontFamily: "Georgia, serif", fontSize: 10, fontWeight: 700 }}>+</span>
-          </button>
+      <div style={{ position: "relative", zIndex: 2, height: "calc(100*var(--vh))", display: "flex", flexDirection: "column", maxWidth: 760, margin: "0 auto" }}>
+        <div style={{ padding: "max(calc(env(safe-area-inset-top,0px) + 10px),46px) 13px 0", display: "grid", gridTemplateColumns: "46px 1fr auto", gap: 8, alignItems: "center" }}>
+          <button data-testid="button-back-home" onClick={() => navigate("/")} style={{ width: 43, height: 43, padding: 0, border: "1px solid rgba(255,205,90,.38)", borderRadius: 12, background: "rgba(23,3,37,.74)", overflow: "hidden", cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,.4)" }}><img src={homeIconImg} alt="Home" style={{ width: "100%", height: "100%", objectFit: "cover" }} /></button>
+          <h1 style={{ margin: 0, textAlign: "center", color: cream, fontFamily: "Georgia, serif", fontSize: 22, letterSpacing: .4, textShadow: "0 0 14px #b832ff,0 2px 3px #190021" }}>Player Market</h1>
+          <button data-testid="button-market-coin-shop" onClick={() => navigate("/coins")} style={{ display: "flex", alignItems: "center", gap: 5, minHeight: 39, borderRadius: 12, border: "1px solid rgba(255,205,90,.4)", background: "rgba(23,3,37,.76)", padding: "5px 9px", color: gold, fontFamily: "Georgia, serif", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,.4)" }}><CoinIcon size={15} /><span data-testid="text-market-coins">{formatCoins(user?.coins ?? 0)}</span><span>+</span></button>
         </div>
 
-        {/* Market / List Items switch */}
-        <div style={{ display: "flex", gap: 0, margin: "14px 16px 0", background: "rgba(5,20,10,0.7)", borderRadius: 12, border: "1px solid rgba(74,222,128,0.2)", overflow: "hidden" }}>
-          {(["browse", "myshop"] as const).map(tab => (
-            <button
-              key={tab}
-              data-testid={`button-tab-${tab}`}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                flex: 1, padding: "10px 0", border: "none", cursor: "pointer",
-                background: activeTab === tab ? "rgba(74,222,128,0.18)" : "transparent",
-                color: activeTab === tab ? accentGreen : "rgba(150,200,150,0.55)",
-                fontFamily: "Georgia, serif", fontSize: 13, fontWeight: activeTab === tab ? 700 : 400,
-                borderBottom: activeTab === tab ? `2px solid ${accentGreen}` : "2px solid transparent",
-                transition: "all 0.15s",
-              }}
-            >
-              {tab === "browse" ? "Market" : "List Items"}
-            </button>
-          ))}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9, margin: "11px 14px 0" }}>
+          <button data-testid="button-tab-browse" onClick={() => setActiveTab("browse")} style={{ ...artButtonStyle(activeTab === "browse"), minHeight: 42, fontSize: 13 }}>Market</button>
+          <button data-testid="button-tab-myshop" onClick={() => setActiveTab("myshop")} style={{ ...artButtonStyle(activeTab === "myshop"), minHeight: 42, fontSize: 13 }}>List Items</button>
         </div>
 
-        {activeTab === "browse" && (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", padding: "12px 16px 0" }}>
-            {/* Search bar */}
-            <input
-              data-testid="input-market-search"
-              type="text"
-              placeholder={isAdmin ? "Search items or sellers..." : "Search items..."}
-              value={search}
-              onChange={handleSearch}
-              style={{
-                width: "100%", background: "rgba(10,30,15,0.85)", border: "1.5px solid rgba(74,222,128,0.3)", borderRadius: 10,
-                padding: "10px 14px", color: "#d4f0d4", fontFamily: "Georgia, serif", fontSize: 13, outline: "none", marginBottom: 10,
-                boxSizing: "border-box",
-              }}
-            />
-
-            {/* Main category tabs: All | Pets | Items | Fish */}
-            <div style={{ display: "flex", gap: 6, marginBottom: 8, flexShrink: 0 }}>
-              {MAIN_TABS.map(tab => {
-                const active = mainTab === tab.value;
-                return (
-                  <button
-                    key={tab.value}
-                    data-testid={`button-main-tab-${tab.value}`}
-                    onClick={() => {
-                      setMainTab(tab.value);
-                      playTick();
-                      if (tab.value !== "items") setItemsSubFilter("items");
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: "8px 4px",
-                      background: active ? tab.activeBg : "rgba(10,30,15,0.7)",
-                      border: `1.5px solid ${active ? tab.activeBorder : "rgba(74,180,100,0.2)"}`,
-                      borderRadius: 10,
-                      color: active ? tab.color : "rgba(150,200,150,0.55)",
-                      fontFamily: "Georgia, serif",
-                      fontSize: 12,
-                      fontWeight: active ? 700 : 400,
-                      cursor: "pointer",
-                      transition: "all 0.12s",
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
+        {activeTab === "browse" ? (
+          <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "8px 13px 0" }}>
+            <div style={{ position: "relative", minHeight: 48, marginBottom: 7, background: `url(${marketSearchBar}) center/100% 100% no-repeat`, filter: "drop-shadow(0 4px 7px rgba(0,0,0,.35))" }}>
+              <input data-testid="input-market-search" type="text" value={search} onChange={handleSearch} placeholder={isAdmin ? "Search items or sellers…" : "Search the market…"} style={{ position: "absolute", inset: "9px 16% 9px 12%", width: "72%", boxSizing: "border-box", border: 0, outline: 0, background: "transparent", color: cream, fontFamily: "Georgia, serif", fontSize: 13, textShadow: "0 1px 2px #1d0028" }} />
             </div>
 
-            {/* Items sub-filter pills — shown only when "Items" tab is active */}
-            {mainTab === "items" && (
-              <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 6, marginBottom: 8, flexShrink: 0 }}>
-                {ITEMS_SUB_FILTERS.map(sf => {
-                  const active = itemsSubFilter === sf.value;
-                  return (
-                    <button
-                      key={sf.value}
-                      data-testid={`button-sub-filter-${sf.value}`}
-                      onClick={() => { setItemsSubFilter(sf.value); playTick(); }}
-                      style={{
-                        whiteSpace: "nowrap",
-                        padding: "5px 10px",
-                        background: active ? "rgba(251,191,36,0.2)" : "rgba(10,30,15,0.7)",
-                        border: `1.5px solid ${active ? "rgba(251,191,36,0.7)" : "rgba(150,140,80,0.2)"}`,
-                        borderRadius: 18,
-                        color: active ? "#fbbf24" : "rgba(180,170,120,0.6)",
-                        fontFamily: "Georgia, serif",
-                        fontSize: 10,
-                        cursor: "pointer",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {sf.label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 5, marginBottom: 6 }}>{mainTabs.map(tab => <button key={tab.value} data-testid={`button-main-tab-${tab.value}`} onClick={() => { setMainTab(tab.value); playTick(); if (tab.value !== "items") setItemsSubFilter("items"); }} style={{ ...artButtonStyle(mainTab === tab.value), minHeight: 34, fontSize: 10 }}>{tab.label}</button>)}</div>
 
-            {/* Listings grid */}
-            <div style={{ flex: 1, overflowY: "auto", paddingBottom: 16 }}>
-              {marketQuery.isLoading ? (
-                <div style={{ textAlign: "center", paddingTop: 40, color: "rgba(150,200,150,0.5)", fontFamily: "Georgia, serif", fontSize: 14 }}>Loading market...</div>
-              ) : !marketQuery.data?.length ? (
-                <div style={{ textAlign: "center", paddingTop: 40, color: "rgba(150,200,150,0.4)", fontFamily: "Georgia, serif", fontSize: 14 }}>
-                  {search || mainTab !== "all" ? "No listings match your search." : "The market is empty. Be the first to sell!"}
-                </div>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-                  {marketQuery.data.map(listing => (
-                    <ItemCard
-                      key={listing.id}
-                      listing={listing}
-                      isMine={false}
-                      user={user}
-                      onDetail={setDetailTarget}
-                    />
-                  ))}
-                </div>
-              )}
+            {mainTab === "items" && <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 5, marginBottom: 5 }}>{ITEMS_SUB_FILTERS.map(sf => <button key={sf.value} data-testid={`button-sub-filter-${sf.value}`} onClick={() => { setItemsSubFilter(sf.value); playTick(); }} style={{ ...artButtonStyle(itemsSubFilter === sf.value), minWidth: 82, minHeight: 30, padding: "0 8px", fontSize: 8.5, flexShrink: 0 }}>{sf.label}</button>)}</div>}
+
+            <div style={{ flex: 1, overflowY: "auto", padding: "3px 2px 20px", scrollbarWidth: "none" }}>
+              {marketQuery.isLoading ? <div style={{ textAlign: "center", color: purple, fontFamily: "Georgia, serif", paddingTop: 50 }}>Loading market…</div> : !marketQuery.data?.length ? <div style={{ textAlign: "center", color: "rgba(255,235,255,.62)", fontFamily: "Georgia, serif", paddingTop: 50 }}>{search || mainTab !== "all" ? "No listings match your search." : "The market is empty. Be the first to sell!"}</div> : <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 9 }}>{marketQuery.data.map(listing => <MarketCard key={listing.id} listing={listing} isMine={false} user={user} onDetail={setDetailTarget} />)}</div>}
             </div>
           </div>
-        )}
-
-        {activeTab === "myshop" && (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", padding: "12px 16px 0" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexShrink: 0 }}>
-              <div>
-                <p style={{ color: "rgba(150,200,150,0.7)", fontSize: 11, margin: 0 }}>
-                  Slots: <span style={{ color: accentGreen, fontWeight: 700 }}>{usedSlots}/{totalSlots}</span>
-                  {totalSlots < 50 && <span style={{ color: "rgba(150,200,150,0.5)", fontSize: 10 }}> (max 50)</span>}
-                </p>
-              </div>
-              {totalSlots < 50 && (
-                <button
-                  data-testid="button-buy-slot"
-                  onClick={() => buySlotMutation.mutate()}
-                  disabled={buySlotMutation.isPending || (user?.coins ?? 0) < 300}
-                  style={{
-                    background: (user?.coins ?? 0) >= 300 ? "rgba(74,222,128,0.15)" : "rgba(50,70,55,0.3)",
-                    border: `1px solid ${(user?.coins ?? 0) >= 300 ? "rgba(74,222,128,0.45)" : "rgba(74,180,100,0.2)"}`,
-                    borderRadius: 10, padding: "6px 12px",
-                    cursor: (user?.coins ?? 0) >= 300 ? "pointer" : "not-allowed",
-                    display: "flex", alignItems: "center", gap: 5,
-                  }}
-                >
-                  <CoinIcon size={12} />
-                  <span style={{ color: (user?.coins ?? 0) >= 300 ? accentGreen : "rgba(74,180,100,0.4)", fontFamily: "Georgia, serif", fontSize: 11 }}>
-                    +1 Slot (300)
-                  </span>
-                </button>
-              )}
+        ) : (
+          <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "9px 13px 0" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 7 }}>
+              <div style={{ color: cream, fontFamily: "Georgia, serif", fontSize: 11, textShadow: "0 1px 2px #190021" }}>Slots: <b style={{ color: gold }}>{activeOrPending.length}/{totalSlots}</b>{totalSlots < 50 ? " · max 50" : ""}</div>
+              {totalSlots < 50 && <button data-testid="button-buy-slot" disabled={buySlotMutation.isPending || (user?.coins ?? 0) < 300} onClick={() => buySlotMutation.mutate()} style={{ ...artButtonStyle((user?.coins ?? 0) >= 300), minHeight: 32, minWidth: 112, fontSize: 9, opacity: (user?.coins ?? 0) >= 300 ? 1 : .5 }}><CoinIcon size={11} /> +1 Slot (300)</button>}
             </div>
-            <div style={{ flex: 1, overflowY: "auto", paddingBottom: 16 }}>
-              {myListingsQuery.isLoading ? (
-                <div style={{ textAlign: "center", paddingTop: 40, color: "rgba(150,200,150,0.5)", fontFamily: "Georgia, serif", fontSize: 14 }}>Loading your shop...</div>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-                  {myListings.map(listing => (
-                    <ItemCard
-                      key={listing.id}
-                      listing={listing}
-                      isMine={true}
-                      user={user}
-                      onCollect={l => { if (!collectMutation.isPending) collectMutation.mutate(l.id); }}
-                      onCancel={l => { if (!cancelMutation.isPending) cancelMutation.mutate(l.id); }}
-                    />
-                  ))}
-                  {Array.from({ length: emptySlots }).map((_, i) => (
-                    <EmptySlot key={`empty-${i}`} onSell={() => setShowSellModal(true)} />
-                  ))}
-                </div>
-              )}
-            </div>
+            <div style={{ flex: 1, overflowY: "auto", padding: "3px 2px 20px", scrollbarWidth: "none" }}>{myListingsQuery.isLoading ? <div style={{ textAlign: "center", color: purple, fontFamily: "Georgia, serif", paddingTop: 50 }}>Loading your shop…</div> : <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 9 }}>{myListings.map(listing => <MarketCard key={listing.id} listing={listing} isMine user={user} onCollect={l => !collectMutation.isPending && collectMutation.mutate(l.id)} onCancel={l => !cancelMutation.isPending && cancelMutation.mutate(l.id)} />)}{Array.from({ length: emptySlots }).map((_, i) => <EmptySlot key={i} onSell={() => setShowSellModal(true)} />)}</div>}</div>
           </div>
         )}
       </div>
 
-      {showSellModal && (
-        <SellItemModal
-          inventory={inventoryQuery.data ?? []}
-          fishInventory={fishInventoryQuery.data ?? []}
-          onClose={() => setShowSellModal(false)}
-          onSubmit={(inventoryId, price) => listMutation.mutate({ inventoryId, price })}
-          onSubmitFish={(fishInventoryId, price) => listFishMutation.mutate({ fishInventoryId, price })}
-          onSubmitPet={(inventoryId, price) => revertAndListMutation.mutate({ inventoryId, price })}
-          isPending={listMutation.isPending || listFishMutation.isPending}
-          isPetPending={revertAndListMutation.isPending}
-        />
-      )}
-
-      {detailTarget && detailTarget.itemType === "pet_egg" && (
-        <PetEggDetailModal
-          listing={detailTarget}
-          onClose={() => setDetailTarget(null)}
-          onBuy={() => buyMutation.mutate(detailTarget.id)}
-          isBuyPending={buyMutation.isPending}
-          userCoins={user?.coins ?? 0}
-          isAdmin={isAdmin}
-        />
-      )}
-
-      {detailTarget && detailTarget.itemType !== "pet_egg" && (
-        <ItemDetailModal
-          listing={detailTarget}
-          onClose={() => setDetailTarget(null)}
-          onBuy={() => buyMutation.mutate(detailTarget.id)}
-          isBuyPending={buyMutation.isPending}
-          userCoins={user?.coins ?? 0}
-          isAdmin={isAdmin}
-        />
-      )}
+      {showSellModal && <SellItemModal inventory={inventoryQuery.data ?? []} fishInventory={fishInventoryQuery.data ?? []} onClose={() => setShowSellModal(false)} onSubmit={(inventoryId, price) => listMutation.mutate({ inventoryId, price })} onSubmitFish={(fishInventoryId, price) => listFishMutation.mutate({ fishInventoryId, price })} onSubmitPet={(inventoryId, price) => revertAndListMutation.mutate({ inventoryId, price })} isPending={listMutation.isPending || listFishMutation.isPending} isPetPending={revertAndListMutation.isPending} />}
+      {detailTarget?.itemType === "pet_egg" && <PetEggDetailModal listing={detailTarget} onClose={() => setDetailTarget(null)} onBuy={() => buyMutation.mutate(detailTarget.id)} isBuyPending={buyMutation.isPending} userCoins={user?.coins ?? 0} isAdmin={isAdmin} />}
+      {detailTarget && detailTarget.itemType !== "pet_egg" && <ItemDetailModal listing={detailTarget} onClose={() => setDetailTarget(null)} onBuy={() => buyMutation.mutate(detailTarget.id)} isBuyPending={buyMutation.isPending} userCoins={user?.coins ?? 0} isAdmin={isAdmin} />}
     </div>
   );
 }
