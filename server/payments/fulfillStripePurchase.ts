@@ -47,6 +47,29 @@ export async function executeStripePurchaseFulfillment(
 const paymentIntentId = (session: TrustedCheckoutSession) =>
   typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null;
 
+async function resolveEggBonusShopItemId(tx: any, bonus: NonNullable<CoinPackage["eggBonus"]>): Promise<string> {
+  const matches = bonus.shopItemId
+    ? await tx.execute(sql`
+        SELECT id FROM shop_items
+        WHERE id = ${bonus.shopItemId} AND type = 'pet'
+        FOR SHARE
+      `)
+    : bonus.shopItemName
+      ? await tx.execute(sql`
+          SELECT id FROM shop_items
+          WHERE name = ${bonus.shopItemName} AND type = 'pet'
+          ORDER BY id
+          LIMIT 2
+          FOR SHARE
+        `)
+      : null;
+
+  if (!matches || matches.rows.length !== 1) {
+    throw new Error(`Coin package ${bonus.itemName} reward does not resolve to exactly one live pet`);
+  }
+  return String((matches.rows[0] as { id: string }).id);
+}
+
 export async function fulfillStripePurchase(
   session: TrustedCheckoutSession,
   options: { expectedUserId?: string; eventId?: string } = {},
@@ -77,10 +100,12 @@ export async function fulfillStripePurchase(
         if (!user.rows[0]) throw new StripePurchaseError("unknown_player", "Mapped player does not exist");
         await tx.execute(sql`UPDATE users SET coins = coins + ${coins}, total_coins_earned = total_coins_earned + ${coins} WHERE id = ${userId}`);
 
+        let bonusShopItemId: string | null = null;
         if (pack.eggBonus) {
+          bonusShopItemId = await resolveEggBonusShopItemId(tx, pack.eggBonus);
           await tx.execute(sql`
             INSERT INTO user_inventory (user_id, shop_item_id, hatch_started_at)
-            VALUES (${userId}, ${pack.eggBonus.shopItemId}, NOW())
+            VALUES (${userId}, ${bonusShopItemId}, NOW())
           `);
         }
 
@@ -123,7 +148,7 @@ export async function fulfillStripePurchase(
         const completed = await tx.execute(sql`
           UPDATE coin_purchases SET fulfillment_status = 'fulfilled', fulfilled_at = NOW(), updated_at = NOW(),
             stripe_event_id = COALESCE(${eventId ?? null}, stripe_event_id),
-            result_metadata = ${JSON.stringify({ coins, baseCoins: pack.coins, eggBonus: pack.eggBonus?.shopItemId ?? null, communityCoins })}::jsonb
+            result_metadata = ${JSON.stringify({ coins, baseCoins: pack.coins, eggBonus: bonusShopItemId, communityCoins })}::jsonb
           WHERE stripe_session_id = ${session.id} AND fulfillment_status = 'processing'
           RETURNING id
         `);
