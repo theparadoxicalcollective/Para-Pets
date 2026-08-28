@@ -1569,15 +1569,24 @@ export async function registerRoutes(
   app.patch("/api/user/active-pet", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      if (!req.body || !Object.prototype.hasOwnProperty.call(req.body, "activePetId")) {
+        return res.status(400).json({ message: "activePetId is required" });
+      }
       const { activePetId } = req.body;
+      if (activePetId !== null && (typeof activePetId !== "string" || !activePetId.trim())) {
+        return res.status(400).json({ message: "activePetId must be a pet inventory id or null" });
+      }
 
       if (activePetId !== null) {
         const invItem = await storage.getInventoryItemById(activePetId);
         if (!invItem || invItem.userId !== user.id) {
           return res.status(400).json({ message: "You don't own this pet" });
         }
+        if (invItem.isListed) {
+          return res.status(409).json({ message: "Remove this pet from the Player Market before making it active" });
+        }
         const shopItem = await storage.getShopItem(invItem.shopItemId);
-        if (!shopItem || shopItem.type !== "pet") {
+        if (!shopItem || shopItem.type.trim().toLowerCase() !== "pet") {
           return res.status(400).json({ message: "This item is not a pet" });
         }
       }
