@@ -6,7 +6,8 @@ import { getCostumeCanvasPosition } from "@/lib/costumePlacement";
 import { getEffectivePetLayer } from "@/lib/petPartConfig";
 import { FULL_BOUNDS, getAlphaBoundsSync } from "@/lib/alphaBounds";
 import { alphaAdjustedPivot } from "@/lib/petAnimationConfig";
-import { getWingReplacementPartTypes, type CostumePlacement } from "@shared/costumeFeature";
+import { getWingReplacementPartTypes, normalizeCostumePlacements, type CostumePlacement } from "@shared/costumeFeature";
+import { normalizePetParts } from "@/lib/petRenderSafety";
 
 interface PetPart {
   id: string;
@@ -57,6 +58,8 @@ export interface PetAnimatorProps {
   className?: string;
   style?: React.CSSProperties;
   performanceStatic?: boolean;
+  /** Preserve animation while avoiding observers/image-analysis work on memory-constrained devices. */
+  lowMemory?: boolean;
   /** Explicit pet inventory id. Required whenever equipped costumes should render. */
   petInventoryId?: string;
   /** Public display mode uses the read-only costume endpoint for another player's pet. */
@@ -557,6 +560,7 @@ export default function PetAnimator({
   className = "",
   style,
   performanceStatic = false,
+  lowMemory = false,
   petInventoryId,
   costumeAccess = "owner",
 }: PetAnimatorProps) {
@@ -574,11 +578,11 @@ export default function PetAnimator({
       if (next > 0) setMeasuredSize(prev => Math.abs(prev - next) > 0.5 ? next : prev);
     };
     measure();
-    if (typeof ResizeObserver === "undefined") return;
+    if (lowMemory || typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
     observer.observe(node);
     return () => observer.disconnect();
-  }, [fillContainer, fitVisible]);
+  }, [fillContainer, fitVisible, lowMemory]);
 
   const resolvedPetInventoryId = petInventoryId ?? null;
 
@@ -615,7 +619,7 @@ export default function PetAnimator({
     ? Math.max(0, (now - motionEpochRef.current.startedAt) / 1000)
     : 0;
 
-  const allParts = Array.isArray(templateData?.parts) ? templateData.parts : [];
+  const allParts = normalizePetParts(templateData?.parts);
   const facing = templateData?.facing ?? "front";
   const frontCount = allParts.filter(part => part.view === "front").length;
   const backCount = allParts.filter(part => part.view === "back").length;
@@ -633,7 +637,9 @@ export default function PetAnimator({
   const innerSize = fillFull ? effectiveSize / partScale : size;
   const innerOffset = fillFull ? -((innerSize - effectiveSize) / 2) : 0;
   const equipped = Array.isArray(costumeData?.equipped)
-    ? costumeData.equipped.filter((costume) => costume && typeof costume === "object")
+    ? costumeData.equipped
+        .filter((costume) => costume && typeof costume === "object")
+        .map((costume) => ({ ...costume, placements: normalizeCostumePlacements(costume.placements) }))
     : [];
   const hiddenWingPartTypes = useMemo(() => {
     const hidden = new Set<string>();
@@ -714,6 +720,7 @@ export default function PetAnimator({
           fitVisible={fitVisible}
           expression={expression}
           performanceStatic={performanceStatic}
+          lowMemory={lowMemory}
           hiddenPartTypes={hiddenCorePartTypes}
           style={{ width: "100%", height: "100%" }}
         />
