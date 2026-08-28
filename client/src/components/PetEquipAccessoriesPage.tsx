@@ -95,6 +95,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
     isLoading: equippedIdsLoading,
     isFetching: equippedIdsFetching,
     isError: equippedIdsError,
+    isRefetchError: equippedIdsRefetchError,
     refetch: refetchEquippedIds,
   } = useQuery<string[]>({
     queryKey: ["/api/user/equipped-accessory-ids"],
@@ -113,7 +114,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
     !equippedAccessoryIdSet.has(item.inventoryId),
   );
   const bagLoading = accessoriesLoading || inventoryLoading || equippedIdsLoading || equippedIdsFetching;
-  const bagError = accessoriesError || inventoryError || equippedIdsError;
+  const bagError = accessoriesError || inventoryError || equippedIdsError || equippedIdsRefetchError;
 
   const openAccessoryBag = () => {
     setBagOpen(true);
