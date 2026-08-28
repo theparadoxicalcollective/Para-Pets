@@ -9,7 +9,6 @@ import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import fishInvIcon from "@assets/icon_fish_inventory.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
 import coinIconImg from "@assets/icon_coin.png";
-import homeIconImg from "@assets/icon_home_new.png";
 import marketBg from "@assets/uploads/MarketBG.png";
 import marketSearchBar from "@assets/uploads/MarketSearchBar.png";
 import marketItemCard from "@assets/uploads/MarketItemCard.png";
@@ -171,32 +170,32 @@ function MarketCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
       >
         {isPet ? (
           <>
-            <div style={{ position: "absolute", top: "12%", left: "16%", right: "16%", textAlign: "center", color: gold, fontFamily: "Georgia, serif", fontSize: "clamp(9px, 2.2vw, 12px)", fontWeight: 700, textShadow: "0 1px 2px #25002f" }}>
+            <div data-market-card-field="pet-rarity" style={{ position: "absolute", top: "10%", left: "34%", right: "8%", textAlign: "center", color: gold, fontFamily: "Georgia, serif", fontSize: "clamp(9px, 2.2vw, 12px)", fontWeight: 700, textShadow: "0 1px 2px #25002f" }}>
               {stars(listing.rarity)}
             </div>
             <div style={{ position: "absolute", top: "24%", left: "18%", right: "18%", height: "36%", display: "flex", alignItems: "center", justifyContent: "center" }}>
               {listing.itemImageUrl ? <img src={listing.itemImageUrl} alt={listing.itemName} style={{ maxWidth: "82%", maxHeight: "92%", objectFit: "contain", filter: "drop-shadow(0 5px 10px rgba(193,93,255,.42))" }} /> : <img src={eggMagicIcon} alt="" style={{ width: "58%", opacity: .7 }} />}
             </div>
-            <div style={{ position: "absolute", top: "66%", left: "13%", right: "13%", height: "10%", display: "flex", alignItems: "center", justifyContent: "center", color: cream, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "clamp(9px, 2.4vw, 13px)", lineHeight: 1.05, textAlign: "center", textShadow: "0 1px 2px #200026" }}>
+            <div data-market-card-field="pet-name" style={{ position: "absolute", top: "65%", left: "13%", right: "13%", height: "10%", display: "flex", alignItems: "center", justifyContent: "center", color: cream, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "clamp(9px, 2.4vw, 13px)", lineHeight: 1.05, textAlign: "center", textShadow: "0 1px 2px #200026" }}>
               {listing.speciesName || listing.itemName}
             </div>
           </>
         ) : (
           <>
-            <div style={{ position: "absolute", top: "10%", left: "20%", right: "20%", height: "34%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div data-market-card-field="item-image" style={{ position: "absolute", top: "12%", left: "20%", right: "20%", height: "34%", display: "flex", alignItems: "center", justifyContent: "center" }}>
               {listing.itemImageUrl ? <img src={listing.itemImageUrl} alt={listing.itemName} style={{ maxWidth: "82%", maxHeight: "94%", objectFit: "contain", filter: "drop-shadow(0 5px 8px rgba(40,255,110,.22))" }} /> : <img src={powerupBagIcon} alt="" style={{ width: "55%", opacity: .65 }} />}
             </div>
-            <div style={{ position: "absolute", top: "49%", left: "12%", right: "12%", minHeight: "9%", display: "flex", alignItems: "center", justifyContent: "center", color: cream, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "clamp(9px, 2.35vw, 13px)", lineHeight: 1.05, textAlign: "center", textShadow: "0 1px 2px #04220e" }}>
+            <div data-market-card-field="item-name" style={{ position: "absolute", top: "55%", left: "12%", right: "12%", minHeight: "9%", display: "flex", alignItems: "center", justifyContent: "center", color: cream, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "clamp(9px, 2.35vw, 13px)", lineHeight: 1.05, textAlign: "center", textShadow: "0 1px 2px #04220e" }}>
               {listing.itemName}
             </div>
-            <div style={{ position: "absolute", top: "62%", left: "17%", right: "17%", minHeight: "10%", display: "flex", alignItems: "center", justifyContent: "center", color: "#d8ffdd", fontFamily: "Georgia, serif", fontSize: "clamp(7px, 1.85vw, 10px)", lineHeight: 1.08, textAlign: "center", textShadow: "0 1px 2px #04220e", overflow: "hidden" }}>
+            <div data-market-card-field="item-display" style={{ position: "absolute", top: "70%", left: "17%", right: "17%", minHeight: "10%", display: "flex", alignItems: "center", justifyContent: "center", color: "#d8ffdd", fontFamily: "Georgia, serif", fontSize: "clamp(7px, 1.85vw, 10px)", lineHeight: 1.08, textAlign: "center", textShadow: "0 1px 2px #04220e", overflow: "hidden" }}>
               {listing.effectSummary || listing.description || "Market item"}
             </div>
           </>
         )}
 
-        <div style={{ position: "absolute", left: "18%", right: "15%", bottom: "8%", height: "10%", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, color: gold, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "clamp(9px, 2.4vw, 13px)", textShadow: "0 1px 2px #2f1500" }}>
-          <CoinIcon size={13} /> {formatCoins(listing.price)}
+        <div data-market-card-field="price" style={{ position: "absolute", left: "18%", right: "15%", bottom: "12%", height: "10%", display: "flex", alignItems: "center", justifyContent: "center", color: gold, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "clamp(9px, 2.4vw, 13px)", textShadow: "0 1px 2px #2f1500" }}>
+          {formatCoins(listing.price)}
         </div>
 
         {isAdmin && listing.sellerName && <div style={{ position: "absolute", left: "12%", right: "12%", bottom: "2.4%", textAlign: "center", color: "rgba(255,255,255,.45)", fontSize: 7 }}>by {listing.sellerName}</div>}
@@ -377,7 +376,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
 
       <div style={{ position: "relative", zIndex: 2, height: "calc(100*var(--vh))", display: "flex", flexDirection: "column", maxWidth: 760, margin: "0 auto" }}>
         <div style={{ padding: "max(calc(env(safe-area-inset-top,0px) + 10px),46px) 13px 0", display: "grid", gridTemplateColumns: "46px 1fr auto", gap: 8, alignItems: "center" }}>
-          <button data-testid="button-back-home" onClick={() => navigate("/")} style={{ width: 43, height: 43, padding: 0, border: "1px solid rgba(255,205,90,.38)", borderRadius: 12, background: "rgba(23,3,37,.74)", overflow: "hidden", cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,.4)" }}><img src={homeIconImg} alt="Home" style={{ width: "100%", height: "100%", objectFit: "cover" }} /></button>
+          <button aria-label="Back" data-testid="button-back-home" onClick={() => navigate("/")} style={{ width: 43, height: 43, padding: 0, border: "1px solid rgba(255,205,90,.46)", borderRadius: 12, background: "linear-gradient(145deg,rgba(20,74,39,.9),rgba(13,35,28,.94))", color: cream, cursor: "pointer", boxShadow: "inset 0 0 0 1px rgba(103,255,148,.12),0 4px 12px rgba(0,0,0,.4),0 0 9px rgba(86,238,129,.16)", fontFamily: "Georgia, serif", fontSize: 27, fontWeight: 700, lineHeight: 1, textShadow: "0 1px 2px #07130b,0 0 7px rgba(255,222,120,.45)" }}>←</button>
           <h1 style={{ margin: 0, textAlign: "center", color: cream, fontFamily: "Georgia, serif", fontSize: 22, letterSpacing: .4, textShadow: "0 0 14px #b832ff,0 2px 3px #190021" }}>Player Market</h1>
           <button data-testid="button-market-coin-shop" onClick={() => navigate("/coins")} style={{ display: "flex", alignItems: "center", gap: 5, minHeight: 39, borderRadius: 12, border: "1px solid rgba(255,205,90,.4)", background: "rgba(23,3,37,.76)", padding: "5px 9px", color: gold, fontFamily: "Georgia, serif", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,.4)" }}><CoinIcon size={15} /><span data-testid="text-market-coins">{formatCoins(user?.coins ?? 0)}</span><span>+</span></button>
         </div>
@@ -389,8 +388,8 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
 
         {activeTab === "browse" ? (
           <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "8px 13px 0" }}>
-            <div style={{ position: "relative", minHeight: 48, marginBottom: 7, background: `url(${marketSearchBar}) center/100% 100% no-repeat`, filter: "drop-shadow(0 4px 7px rgba(0,0,0,.35))" }}>
-              <input data-testid="input-market-search" type="text" value={search} onChange={handleSearch} placeholder={isAdmin ? "Search items or sellers…" : "Search the market…"} style={{ position: "absolute", inset: "9px 16% 9px 12%", width: "72%", boxSizing: "border-box", border: 0, outline: 0, background: "transparent", color: cream, fontFamily: "Georgia, serif", fontSize: 13, textShadow: "0 1px 2px #1d0028" }} />
+            <div data-testid="market-search-frame" style={{ position: "relative", height: 58, flexShrink: 0, marginBottom: 7, background: `url(${marketSearchBar}) center/100% 100% no-repeat`, filter: "drop-shadow(0 4px 7px rgba(0,0,0,.35))" }}>
+              <input data-testid="input-market-search" type="text" value={search} onChange={handleSearch} placeholder={isAdmin ? "Search items or sellers…" : "Search the market…"} style={{ position: "absolute", inset: "11px 16% 11px 12%", width: "72%", boxSizing: "border-box", border: 0, outline: 0, background: "transparent", color: cream, fontFamily: "Georgia, serif", fontSize: 13, textShadow: "0 1px 2px #1d0028" }} />
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 5, marginBottom: 6 }}>{mainTabs.map(tab => <button key={tab.value} data-testid={`button-main-tab-${tab.value}`} onClick={() => { setMainTab(tab.value); playTick(); if (tab.value !== "items") setItemsSubFilter("items"); }} style={{ ...artButtonStyle(mainTab === tab.value), minHeight: 34, fontSize: 10 }}>{tab.label}</button>)}</div>
