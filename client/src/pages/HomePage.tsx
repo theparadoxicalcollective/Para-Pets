@@ -33,6 +33,8 @@ import type { PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
 import PowerUpOverlay from "@/components/PowerUpOverlay";
 import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import raidHpFrameImg from "@assets/Photoroom_20260711_31007_PM_1783820810778.png";
+import { detectRuntimeMode } from "@/lib/runtimeMode";
+import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 
 interface HomePageProps {
   user: {
@@ -84,6 +86,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [showProfile, setShowProfile] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState(user);
+  const [lowMemoryPetRenderer] = useState(() => shouldUseLowMemoryPetRenderer(detectRuntimeMode()));
   // Gate sparkle orbs on the pet container having real height.
   // Uses a continuous ResizeObserver (no disconnect) so if the container
   // briefly collapses during skeleton→pet transition, the orbs hide instantly
@@ -1074,7 +1077,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             )}
 
             {/* Rarity sparkle lights (3/4/5 star) — gated until container has real height */}
-            {orbsReady && activePet && (activePet.rarity || 0) >= 3 && (() => {
+            {orbsReady && !activePetModal && activePet && (activePet.rarity || 0) >= 3 && (() => {
               const rarity = activePet.rarity || 0;
               const is5 = rarity >= 5;
               const is4 = rarity >= 4;
@@ -1291,9 +1294,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         className="w-full flex items-center justify-center"
                         data-testid="button-open-pet-actions"
                       >
-                        {activePet.petTemplateId ? (
+                        {activePetModal === "power_up" ? null : activePet.petTemplateId ? (
                           <div className="w-full flex items-center justify-center">
-                            <PetAnimator petTemplateId={activePet.petTemplateId} petInventoryId={activePet.inventoryId} mode="idle" view="front" size={1000} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
+                            <PetAnimator petTemplateId={activePet.petTemplateId} petInventoryId={activePet.inventoryId} mode="idle" view="front" size={1000} lowMemory={lowMemoryPetRenderer} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
                           </div>
                         ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
                           <div style={{ paddingTop: "calc(8*var(--vh))", width: "100%" }}>
