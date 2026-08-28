@@ -2167,36 +2167,38 @@ export async function registerRoutes(
       if (!petInv || petInv.userId !== user.id) return res.status(404).json({ message: "Pet not found" });
       const equipped = await storage.getPetEquippedAccessories(inventoryId);
 
-      // Build the Closet bag from the database in the same request as the
-      // equipped slots. The client previously combined two separately cached
-      // endpoints, so a stale equipped-id list could hide an accessory even
-      // after the unequip row had already been deleted.
-      const availableRows = await db.execute(sql`
-        SELECT
-          ui.id AS "inventoryId",
-          si.name AS "name",
-          si.type AS "type",
-          si.image_url AS "imageUrl",
-          si.atk_boost AS "atkBoost",
-          si.def_boost AS "defBoost",
-          si.health_boost AS "healthBoost"
-        FROM user_inventory ui
-        JOIN shop_items si ON si.id = ui.shop_item_id
-        WHERE ui.user_id = ${user.id}
-          AND ui.is_listed = false
-          AND si.type = 'accessory'
-          AND NOT EXISTS (
-            SELECT 1
-            FROM pet_equipped_accessories pea
-            WHERE pea.accessory_inventory_id = ui.id
-          )
-        ORDER BY ui.acquired_at DESC, ui.id
-      `);
+      // Use the same joined player-inventory source as /api/inventory so the
+      // Closet cannot drift from the accessories the player actually owns.
+      // Only valid equipment rows attached to one of this player's current
+      // pets hide an accessory; orphaned legacy rows no longer empty the bag.
+      const [playerInventoryRows, equippedAccessoryRows] = await Promise.all([
+        storage.getUserInventoryWithItems(user.id),
+        db.select({ id: petEquippedAccessories.accessoryInventoryId })
+          .from(petEquippedAccessories)
+          .innerJoin(userInventory, eq(petEquippedAccessories.petInventoryId, userInventory.id))
+          .where(eq(userInventory.userId, user.id)),
+      ]);
+      const equippedAccessoryIds = new Set(equippedAccessoryRows.map(row => row.id));
+      const availableAccessories = playerInventoryRows
+        .filter(({ inventory, shopItem }) =>
+          !inventory.isListed &&
+          shopItem?.type?.trim().toLowerCase() === "accessory" &&
+          !equippedAccessoryIds.has(inventory.id),
+        )
+        .map(({ inventory, shopItem }) => ({
+          inventoryId: inventory.id,
+          name: shopItem!.name,
+          type: "accessory",
+          imageUrl: shopItem!.imageUrl,
+          atkBoost: shopItem!.atkBoost ?? null,
+          defBoost: shopItem!.defBoost ?? null,
+          healthBoost: shopItem!.healthBoost ?? null,
+        }));
 
       return res.json({
         equipped,
         extraSlots: petInv.accessoryExtraSlots ?? 0,
-        availableAccessories: availableRows.rows,
+        availableAccessories,
       });
     } catch (err) {
       return res.status(500).json({ message: "Failed to get accessories" });
