@@ -31,6 +31,14 @@ function marketplaceHttpStatus(error: MarketplaceError): number {
   return 400;
 }
 
+function normalizeRarity(shopItem: any): number {
+  const candidates = [shopItem?.rarity, shopItem?.starRarity, shopItem?.stars, shopItem?.rating];
+  const raw = candidates.find((value) => value != null);
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return 1;
+  return Math.min(5, Math.max(1, Math.round(parsed)));
+}
+
 /** Register marketplace routes in phases so their ordering among legacy routes stays unchanged. */
 export function registerMarketplaceRoutes(
   app: Express,
@@ -117,6 +125,7 @@ export function registerMarketplaceRoutes(
           health: invItem.petHealth,
           atk: invItem.petAtk,
           def: invItem.petDef,
+          rarity: normalizeRarity(shopItem),
         });
       } catch (err) {
         return res.status(500).json({ message: "Failed to fetch pet details" });
@@ -179,7 +188,13 @@ export function registerMarketplaceRoutes(
       const enriched = listings.map(listing => {
         const shopItem = shopItemMap.get(listing.shopItemId);
         const effectSummary = computeEffectSummary(shopItem, listing.itemType);
-        const base: any = { ...listing, effectSummary };
+        const base: any = {
+          ...listing,
+          effectSummary,
+          description: shopItem?.description ?? null,
+          speciesName: listing.itemType === "pet_egg" ? (shopItem?.name ?? listing.itemName) : null,
+          rarity: listing.itemType === "pet_egg" ? normalizeRarity(shopItem) : null,
+        };
         if (!user.isAdmin) delete base.sellerName;
         return base;
       });
@@ -219,7 +234,7 @@ export function registerMarketplaceRoutes(
       return res.json(await createFishListing({ actorId: user.id, fishInventoryId, price }));
     } catch (err: any) {
       if (err instanceof MarketplaceError) return res.status(marketplaceHttpStatus(err)).json({ message: err.message, code: err.code });
-      console.error("Fish marketplace listing transaction failed:", err);
+      console.error("Fish marketplace listing failed:", err);
       return res.status(500).json({ message: "Failed to list fish", code: "transaction_failure" });
     }
   });
