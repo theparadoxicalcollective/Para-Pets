@@ -49,7 +49,7 @@ function jarHalfWidth(normalizedY: number) {
 
 function wallRange(body: PetCareJarBody, bounds: PetCareJarBounds) {
   const normalizedY = clamp(body.y / bounds.height, CEILING_Y, FLOOR_Y);
-  const artworkHalfWidth = bounds.width * 0.105;
+  const artworkHalfWidth = bounds.width * 0.135;
   const inset = Math.max(body.radius, artworkHalfWidth);
   const halfWidth = jarHalfWidth(normalizedY) * bounds.width;
   return {
@@ -81,7 +81,7 @@ export function constrainPetCareJarBody(
   bounds: PetCareJarBounds,
   bounce = true,
 ) {
-  const artworkHalfHeight = bounds.width * 0.105;
+  const artworkHalfHeight = bounds.width * 0.135;
   const ceiling = bounds.height * CEILING_Y + artworkHalfHeight;
   const floor = bounds.height * FLOOR_Y - artworkHalfHeight;
   if (body.y < ceiling) {
