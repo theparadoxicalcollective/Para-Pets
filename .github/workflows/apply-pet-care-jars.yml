@@ -67,11 +67,14 @@ jobs:
           function buildPetCareJarVisuals(items: PetCareShelfItem[]): PetCareJarVisual[] {
             const entries = items.map((item) => ({
               item,
-              remaining: Math.max(1, Math.floor(Number(item.displayQuantity ?? item.quantity ?? 1))),
+              remaining: Math.max(0, Math.floor(Number(item.displayQuantity ?? item.quantity ?? 1))),
               ordinal: 0,
             }));
             const units: Array<{ item: PetCareShelfItem; ordinal: number; key: string }> = [];
 
+            // Round-robin the stacks so a large pile of one item does not hide
+            // every other collectible. Each rendered unit still consumes only
+            // one server-side item when it is dropped on the pet.
             while (units.length < PET_CARE_JAR_VISUAL_CAPACITY) {
               let added = false;
               for (const entry of entries) {
@@ -181,7 +184,8 @@ jobs:
             return (
               <section
                 className={`pet-care-item-jar pet-care-item-jar--${kind}`}
-                data-testid={`pet-care-${kind}-jar`}
+                data-testid={`pet-care-${kind}-shelf`}
+                data-pet-care-inventory-jar="true"
                 aria-label={`${title.toLowerCase()} inventory jar`}
                 style={{
                   position: "relative",
@@ -224,6 +228,7 @@ jobs:
                 >
                   <div
                     ref={jarContentsRef}
+                    data-testid={`pet-care-${kind}-jar`}
                     style={{
                       position: "absolute",
                       left: "8%",
@@ -332,54 +337,56 @@ jobs:
           component = "\n".join(line[10:] if line.startswith("          ") else line for line in component.splitlines())
           text = text[:start] + component + text[end:]
 
-          old_pointer_start = '''  const onItemPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, item: PetCareShelfItem) => {
-            e.stopPropagation();
-            if (isApplyingItemRef.current || !item?.id || (item.quantity ?? 0) <= 0) return;'''
-          new_pointer_start = '''  const onItemPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, item: PetCareShelfItem) => {
-            e.stopPropagation();
-            if (isApplyingItemRef.current || dragRef.current || !item?.id || (item.quantity ?? 0) <= 0) return false;'''
-          if old_pointer_start not in text:
+          old_guard = '    if (isApplyingItemRef.current || !item?.id || (item.quantity ?? 0) <= 0) return;'
+          new_guard = '    if (isApplyingItemRef.current || dragRef.current || !item?.id || (item.quantity ?? 0) <= 0) return false;'
+          if old_guard not in text:
               raise SystemExit("Could not locate item pointer-down guard")
-          text = text.replace(old_pointer_start, new_pointer_start, 1)
+          text = text.replace(old_guard, new_guard, 1)
 
-          old_pointer_end = '''    captureTargetRef.current = captureTarget;
-            setDragGhost(null);
-          }, [recordPhase]);'''
-          new_pointer_end = '''    captureTargetRef.current = captureTarget;
-            setDragGhost(null);
-            return true;
-          }, [recordPhase]);'''
+          old_pointer_end = '    captureTargetRef.current = captureTarget;\n    setDragGhost(null);\n  }, [recordPhase]);'
+          new_pointer_end = '    captureTargetRef.current = captureTarget;\n    setDragGhost(null);\n    return true;\n  }, [recordPhase]);'
           if old_pointer_end not in text:
               raise SystemExit("Could not locate item pointer-down completion")
           text = text.replace(old_pointer_end, new_pointer_end, 1)
 
-          old_shelves = '''        <PetCareItemShelf kind="edibles" items={edibles} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} onPageChange={() => setSelectedCareItem(null)} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
-                <PetCareItemShelf kind="gifts" items={gifts} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} onPageChange={() => setSelectedCareItem(null)} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />'''
-          new_shelves = '''        <div
-                  className="pet-care-inventory-jars"
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "flex-end",
-                    justifyContent: "center",
-                    gap: "clamp(6px, 2.2vw, 14px)",
-                    padding: "0 clamp(4px, 1.5vw, 10px)",
-                    boxSizing: "border-box",
-                  }}
-                >
-                  <PetCareItemShelf kind="gifts" items={gifts} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} onPageChange={() => setSelectedCareItem(null)} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
-                  <PetCareItemShelf kind="edibles" items={edibles} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} onPageChange={() => setSelectedCareItem(null)} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
-                </div>'''
-          if old_shelves not in text:
-              raise SystemExit("Could not locate bottom Pet Care shelf pair")
-          text = text.replace(old_shelves, new_shelves, 1)
+          inventory_marker = 'className="absolute left-0 right-0 pet-care-inventory-section"'
+          inventory_start = text.find(inventory_marker)
+          if inventory_start == -1:
+              raise SystemExit("Could not locate Pet Care inventory section")
+          shelf_start = text.find('        <PetCareItemShelf kind="edibles"', inventory_start)
+          gift_start = text.find('        <PetCareItemShelf kind="gifts"', shelf_start)
+          if shelf_start == -1 or gift_start == -1:
+              raise SystemExit("Could not locate the Pet Care shelf pair")
+          shelf_end = text.find('\n', gift_start)
+          if shelf_end == -1:
+              raise SystemExit("Could not locate end of Pet Care shelf pair")
+          replacement = '''        <div
+            className="pet-care-inventory-jars"
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "center",
+              gap: "clamp(6px, 2.2vw, 14px)",
+              padding: "0 clamp(4px, 1.5vw, 10px)",
+              boxSizing: "border-box",
+            }}
+          >
+            <PetCareItemShelf kind="gifts" items={gifts} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} onPageChange={() => setSelectedCareItem(null)} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
+            <PetCareItemShelf kind="edibles" items={edibles} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} onPageChange={() => setSelectedCareItem(null)} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
+          </div>'''
+          text = text[:shelf_start] + replacement + text[shelf_end:]
 
           text = text.replace(
               'Drag any edible from the bottom strip onto your pet to fill its hunger meter and lift its mood. You can also tap an item, then tap your pet.',
               'Drag any edible from the edible jar onto your pet to fill its hunger meter and lift its mood. You can also tap an item, then tap your pet.',
               1,
           )
-          text = text.replace('/* ── Bottom item strip — edibles + gifts ──────────────────────────── */', '/* ── Bottom inventory jars — gifts + edibles ─────────────────────── */', 1)
+          text = text.replace(
+              '      {/* ── Bottom item strip — edibles + gifts ──────────────────────────── */}\n      {/* Items are compact image-only chips (no card boxes). Shelf arrows page\n          through six slots without competing with item pointer gestures. The\n          strip remains capped so it never overlaps the status bars. */}',
+              '      {/* ── Bottom inventory jars — gifts + edibles ─────────────────────── */}\n      {/* Each collected unit gets a tiny visual so the jars fill from the bottom\n          up. The transparent jar art stays above the contents like real glass. */}',
+              1,
+          )
 
           path.write_text(text)
           PY
