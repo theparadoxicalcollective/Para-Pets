@@ -1,4 +1,4 @@
-import type { RuntimeMode } from "@/lib/runtimeMode";
+import type { RuntimeMode } from "./runtimeMode";
 
 export type RenderablePetPart = {
   id: string;
