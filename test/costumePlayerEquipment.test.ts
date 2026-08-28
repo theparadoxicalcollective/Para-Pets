@@ -133,6 +133,7 @@ test("The accessory bag uses the same player inventory flow as costumes", () => 
 test("Accessory availability is refreshed before the Closet decides the bag is empty", () => {
   assert.match(accessoryPage, /isFetching: equippedIdsFetching/);
   assert.match(accessoryPage, /refetch: refetchEquippedIds/);
+  assert.match(accessoryPage, /isRefetchError: equippedIdsRefetchError/);
   assert.match(accessoryPage, /refetchOnMount: "always"/);
   assert.match(accessoryPage, /void refetchEquippedIds\(\)/);
   assert.match(accessoryPage, /equippedIdsLoading \|\| equippedIdsFetching/);
