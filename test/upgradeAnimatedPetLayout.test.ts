@@ -11,6 +11,7 @@ const level = readFileSync("client/src/components/PetLevelUpPage.tsx", "utf8");
 test("Power Up animated pet stays inside its existing pet zone", () => {
   assert.match(power, /<PetAnimator[\s\S]*?size=\{350\}[\s\S]*?fillContainer/);
   assert.match(power, /className="w-full h-full"/);
+  assert.match(power, /const pet = petTemplateId \? <PetAnimator[\s\S]*?: petImage \? <img/);
   assert.doesNotMatch(power, /<PetAnimator[^>]*size=\{700\}/);
 });
 

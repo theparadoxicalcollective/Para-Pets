@@ -226,7 +226,7 @@ function headGroupType(partType: string): "head" | "h2_head" | "h3_head" | null 
   return prefix ? `${prefix[1]}_head` as "h2_head" | "h3_head" : "head";
 }
 
-function anchorAnimation(part: PetPart, mode: PetAnimatorProps["mode"], resolvedView: "front" | "back", idleStyle: string | null) {
+function anchorAnimation(part: PetPart, mode: PetAnimatorProps["mode"], resolvedView: "front" | "back", idleStyle: string | null, canFly: boolean) {
   const base = basePartType(part.partType);
   if (mode === "static") return null;
   if (headGroupType(part.partType) && (base === "head" || base === "hair_center" || base === "eyes" || base === "eyes_closed" || base === "mouth" || base === "mouth_closed")) return null;
@@ -243,7 +243,7 @@ function anchorAnimation(part: PetPart, mode: PetAnimatorProps["mode"], resolved
     if (mode === "zoom" && base === "back_wing") return "petZoomRightWing";
     return name ?? null;
   }
-  if (mode === "idle" && (base === "front_leg" || base === "back_leg")) return null;
+  if (mode === "idle" && !canFly && ["left_leg", "right_leg", "front_leg", "back_leg"].includes(base)) return null;
   let name = IDLE_ANIMS[base] ?? "petIdleBody";
   if (resolvedView === "back") {
     if (base === "tail") name = "petIdleSideTail";
@@ -367,7 +367,7 @@ function CostumeLayer({
       const position = getCostumeCanvasPosition(anchor, placement);
       if (!position) return null;
 
-      const animName = anchorAnimation(anchor, mode, resolvedView, idleStyle);
+      const animName = anchorAnimation(anchor, mode, resolvedView, idleStyle, canFly);
       const groupType = headGroupType(anchor.partType);
       const groupIndex = Math.max(0, headTypes.indexOf(groupType ?? "head"));
       const groupDelay = `${HEAD_GROUP_DELAYS[Math.min(groupIndex, HEAD_GROUP_DELAYS.length - 1)] ?? 0}s`;
@@ -467,7 +467,7 @@ function AboveHeadTopLayer({
     const groupType = headGroupType(part.partType) ?? "head";
     const groupIndex = Math.max(0, headTypes.indexOf(groupType));
     const groupDelay = `${HEAD_GROUP_DELAYS[Math.min(groupIndex, HEAD_GROUP_DELAYS.length - 1)] ?? 0}s`;
-    const animName = anchorAnimation(part, mode, resolvedView, idleStyle);
+    const animName = anchorAnimation(part, mode, resolvedView, idleStyle, canFly);
     const isMarionetteAboveHead = mode === "idle" && idleStyle === "marionette" && animName === "petAboveHeadBounceMarionette";
     const basePartDelay = isMarionetteAboveHead ? bodyDelay : groupDelay;
     const partDelay = syncAnimationDelay(basePartDelay, motionElapsedSeconds);

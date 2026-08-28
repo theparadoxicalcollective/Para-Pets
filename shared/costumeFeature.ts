@@ -7,7 +7,7 @@
  * existing accessory system.
  */
 
-export const COSTUME_SLOT_COUNT = 3 as const;
+export const COSTUME_SLOT_COUNT = 5 as const;
 
 /** One fitted costume can be duplicated three times on the same pet template. */
 export const COSTUME_MAX_DUPLICATES_PER_PET = 3 as const;
@@ -15,15 +15,15 @@ export const COSTUME_MAX_DUPLICATES_PER_PET = 3 as const;
 export const COSTUME_MAX_PLACEMENT_INSTANCES = 4 as const;
 
 /** Number of costume slots available without spending coins. */
-export const COSTUME_BASE_SLOTS = 1 as const;
+export const COSTUME_BASE_SLOTS = 3 as const;
 
-/** Coin cost to unlock costume slot 2. */
-export const COSTUME_SLOT_2_COST = 5_000 as const;
+/** Coin cost to unlock the first paid costume slot. */
+export const COSTUME_SLOT_4_COST = 5_000 as const;
 
-/** Coin cost to unlock costume slot 3. */
-export const COSTUME_SLOT_3_COST = 10_000 as const;
+/** Coin cost to unlock the second paid costume slot. */
+export const COSTUME_SLOT_5_COST = 10_000 as const;
 
-export const COSTUME_SLOT_UNLOCK_COSTS = [0, COSTUME_SLOT_2_COST, COSTUME_SLOT_3_COST] as const;
+export const COSTUME_SLOT_UNLOCK_COSTS = [0, 0, 0, COSTUME_SLOT_4_COST, COSTUME_SLOT_5_COST] as const;
 
 export type CostumeView = "front" | "side";
 export type CostumeDepth = "front" | "back";

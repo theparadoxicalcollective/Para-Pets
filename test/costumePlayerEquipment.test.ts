@@ -9,13 +9,17 @@ const boot = readFileSync("server/startup/migrations/runEssentialBoot.ts", "utf8
 const schema = readFileSync("shared/costumeSchema.ts", "utf8");
 const marketplace = readFileSync("server/marketplace/transactions.ts", "utf8");
 const adminEditor = readFileSync("client/src/components/PetDatabasePanel.tsx", "utf8");
+const costumeFeature = readFileSync("shared/costumeFeature.ts", "utf8");
 
 test("The Closet uses the supplied artwork and keeps accessory and costume controls together", () => {
   assert.match(accessoryPage, /ClosetBG\.png/);
   assert.match(accessoryPage, /ClosetCloseButton\.png/);
-  assert.match(accessoryPage, /THE CLOSET/);
+  assert.doesNotMatch(accessoryPage, />THE CLOSET</);
+  assert.match(accessoryPage, /data-testid="closet-pet-name"/);
   assert.match(accessoryPage, /aria-label="Accessory slots"/);
   assert.match(accessoryPage, /data-testid="accessory-bag-drawer"/);
+  assert.doesNotMatch(accessoryPage, /data-testid="button-open-accessory-bag"/);
+  assert.match(accessoryPage, /OPEN BAG/);
   assert.match(accessoryPage, /import PetCostumeEquipmentSection/);
   const accessories = accessoryPage.indexOf('aria-label="Accessory slots"');
   const costumes = accessoryPage.indexOf("<PetCostumeEquipmentSection");
@@ -31,7 +35,12 @@ test("The Closet uses the supplied artwork and keeps accessory and costume contr
   assert.match(section, /Array\.from\(\{ length: COSTUME_SLOT_COUNT \}/);
 });
 
-test("Player costume controls use the shared slot count and unlock prices", () => {
+test("Player costume controls use five slots with three free and two paid", () => {
+  assert.match(costumeFeature, /COSTUME_SLOT_COUNT = 5/);
+  assert.match(costumeFeature, /COSTUME_BASE_SLOTS = 3/);
+  assert.match(costumeFeature, /COSTUME_SLOT_UNLOCK_COSTS = \[0, 0, 0, COSTUME_SLOT_4_COST, COSTUME_SLOT_5_COST\]/);
+  assert.match(costumeFeature, /COSTUME_SLOT_4_COST = 5_000/);
+  assert.match(costumeFeature, /COSTUME_SLOT_5_COST = 10_000/);
   assert.match(section, /getUnlockedCostumeSlotCount/);
   assert.match(section, /getCostumeSlotUnlockCost/);
   assert.match(section, /\/api\/pet\/\$\{petInventoryId\}\/costumes\/equip/);
@@ -103,4 +112,12 @@ test("public costume display is read-only and does not require pet ownership", (
     routes.indexOf('app.get("/api/pet/:petInventoryId/costumes"', routes.indexOf('app.get("/api/pet/:petInventoryId/costumes/public"')),
   );
   assert.doesNotMatch(publicRoute, /ownedPet|\.post\(|\.delete\(|\.update\(/);
+});
+
+
+test("Unequipping immediately restores the accessory to the bag inventory", () => {
+  assert.match(accessoryPage, /onSuccess: \(_data, accessoryInventoryId\)/);
+  assert.match(accessoryPage, /setQueryData<string\[]>\(\["\/api\/user\/equipped-accessory-ids"\]/);
+  assert.match(accessoryPage, /current\.filter\(\(id\) => id !== accessoryInventoryId\)/);
+  assert.match(accessoryPage, /item\.accessoryInventoryId !== accessoryInventoryId/);
 });
