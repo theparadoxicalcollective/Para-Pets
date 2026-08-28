@@ -5,6 +5,7 @@ import {
   playerMarketListings,
   shopItems,
   userInventory,
+  petEquippedAccessories,
   users,
   type PlayerMarketListing,
 } from "@shared/schema";
@@ -49,7 +50,7 @@ async function assertSlotAvailable(tx: MarketTx, sellerId: string, extraSlots: n
   }
 }
 
-export async function createInventoryListing(input: { actorId: string; inventoryId: string; price: number }): Promise<PlayerMarketListing> {
+export async function createInventoryListing(input: { actorId: string; inventoryId: string; price: number; preparePetEgg?: boolean }): Promise<PlayerMarketListing> {
   assertPrice(input.price);
   return db.transaction(async (tx) => {
     const actor = await lockUser(tx, input.actorId);
@@ -65,13 +66,29 @@ export async function createInventoryListing(input: { actorId: string; inventory
     if (equippedCostume) throw new MarketplaceError("conflict", "Unequip this costume before listing it");
     const [item] = await tx.select().from(shopItems).where(eq(shopItems.id, inventory.shopItemId));
     if (!item) throw new MarketplaceError("unsupported_item", "Item data not found");
-    if (item.type === "pet" && inventory.isHatched) {
-      throw new MarketplaceError("unsupported_item", "Hatch your pet into an egg first before listing — use the Revert to Egg option.");
+    if (input.preparePetEgg && item.type !== "pet") {
+      throw new MarketplaceError("unsupported_item", "Only pets can use the pet listing flow");
+    }
+    if (item.type === "pet" && inventory.isHatched && !input.preparePetEgg) {
+      throw new MarketplaceError("unsupported_item", "Use the pet listing flow to safely return this pet to egg form.");
     }
     await assertSlotAvailable(tx, input.actorId, Number(actor.market_extra_slots ?? 0));
-    const updated = await tx.update(userInventory).set({ isListed: true })
+
+    const preparingPetEgg = item.type === "pet" && !!input.preparePetEgg;
+    if (preparingPetEgg) {
+      // Equipment belongs to the seller and must never follow a listed pet.
+      await tx.delete(petEquippedAccessories)
+        .where(eq(petEquippedAccessories.petInventoryId, inventory.id));
+    }
+    const updated = await tx.update(userInventory).set(preparingPetEgg
+      ? { isListed: true, isHatched: false, hatchStartedAt: null }
+      : { isListed: true })
       .where(and(eq(userInventory.id, inventory.id), eq(userInventory.userId, input.actorId), eq(userInventory.isListed, false))).returning();
     if (updated.length !== 1) throw new MarketplaceError("conflict", "Item is already listed");
+    if (preparingPetEgg) {
+      await tx.update(users).set({ activePetId: null })
+        .where(and(eq(users.id, input.actorId), eq(users.activePetId, inventory.id)));
+    }
     const itemType = item.type === "pet" ? "pet_egg" : item.type === "fishing" && item.fishingType ? item.fishingType : item.type;
     const [listing] = await tx.insert(playerMarketListings).values({
       sellerId: input.actorId, sellerName: actor.username, inventoryId: inventory.id,
@@ -132,10 +149,13 @@ export async function buyListing(input: { actorId: string; listingId: string }):
       const removed = await tx.delete(userInventory).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true))).returning();
       if (removed.length !== 1) throw new MarketplaceError("conflict", "Fish transfer conflicted");
     } else {
-      const hatchStartedAt = listing.itemType === "pet_egg"
-        ? new Date(Date.now() - (((await tx.select({ hatchTime: shopItems.hatchTime }).from(shopItems).where(eq(shopItems.id, escrow.shopItemId)))[0]?.hatchTime ?? 24) * 3_600_000 + 2_000))
-        : escrow.hatchStartedAt;
-      const moved = await tx.update(userInventory).set({ userId: input.actorId, isListed: false, hatchStartedAt })
+      const isPetEgg = listing.itemType === "pet_egg";
+      const moved = await tx.update(userInventory).set({
+        userId: input.actorId,
+        isListed: false,
+        hatchStartedAt: isPetEgg ? new Date() : escrow.hatchStartedAt,
+        isHatched: isPetEgg ? false : escrow.isHatched,
+      })
         .where(and(eq(userInventory.id, escrow.id), eq(userInventory.userId, listing.sellerId), eq(userInventory.isListed, true))).returning();
       if (moved.length !== 1) throw new MarketplaceError("conflict", "Item transfer conflicted");
     }
@@ -159,7 +179,12 @@ export async function cancelListing(input: { actorId: string; listingId: string 
       await tx.insert(playerFishInventory).values({ userId: input.actorId, shopItemId: escrow.shopItemId });
       await tx.delete(userInventory).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true)));
     } else {
-      await tx.update(userInventory).set({ isListed: false }).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true)));
+      const isPetEgg = listing.itemType === "pet_egg";
+      await tx.update(userInventory).set({
+        isListed: false,
+        hatchStartedAt: isPetEgg ? new Date() : escrow.hatchStartedAt,
+        isHatched: isPetEgg ? false : escrow.isHatched,
+      }).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true)));
     }
     const removed = await tx.delete(playerMarketListings).where(and(eq(playerMarketListings.id, listing.id), eq(playerMarketListings.status, "active"))).returning();
     if (removed.length !== 1) throw new MarketplaceError("conflict", "Cancellation conflicted");
