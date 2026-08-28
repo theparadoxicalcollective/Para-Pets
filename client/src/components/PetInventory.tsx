@@ -22,7 +22,6 @@ import statHpIcon from "@assets/generated_images/icon_stat_hp.png";
 import petCardFrameImg from "@assets/generated_images/pet_card_frame.png";
 import petCardTextureImg from "@assets/generated_images/pet_card_texture.png";
 import petInvDividerImg from "@assets/generated_images/pet_inventory_divider.png";
-import PetDetailPage from "./PetDetailPage";
 import { itemTypeLabel, itemTypeOptions } from "@/lib/itemTypeFilters";
 
 function getRarityStyle(rarity: number | null): { border: string; glow: string; bg: string; starColor: string; borderOpacity: number; glowStrength: number } {
@@ -65,6 +64,7 @@ interface InventoryItem {
   healthRestored: number | null;
   hatchStartedAt: string | null;
   isHatched: boolean;
+  isListed: boolean;
   petHealth: number;
   petAtk: number;
   petDef: number;
@@ -91,8 +91,6 @@ interface PetInventoryProps {
 
 export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, pageMode }: PetInventoryProps) {
   const [showBag, setShowBag] = useState(defaultTab === "bag");
-  const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
-  const frozenSelectedPetRef = useRef<any | null>(null);
   const [speedUpTargetId, setSpeedUpTargetId] = useState<string | null>(null);
   const [dragging, setDragging] = useState<{ item: InventoryItem; x: number; y: number } | null>(null);
   const [sheetDragOver, setSheetDragOver] = useState(false);
@@ -111,6 +109,10 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
 
   const { data: inventory = [], isLoading } = useQuery<InventoryItem[]>({
     queryKey: ["/api/inventory"],
+    staleTime: 0,
+  });
+  const { data: equippedAccessoryIds = [] } = useQuery<string[]>({
+    queryKey: ["/api/user/equipped-accessory-ids"],
     staleTime: 0,
   });
 
@@ -252,12 +254,15 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
     document.addEventListener("pointerup", onUp);
   };
 
-  const pets = inventory.filter((item) => item.type === "pet");
-  const bagItems = inventory.filter((item) => item.type !== "pet" && item.fishingType !== "fish");
-  const hatchTimeItems = inventory.filter(i => i.type === "special" && i.specialType === "hatch_time");
-  const livePet = selectedPetId ? (inventory.find((item) => item.inventoryId === selectedPetId) ?? null) : null;
-  if (livePet) frozenSelectedPetRef.current = livePet;
-  const selectedPet = selectedPetId ? (frozenSelectedPetRef.current ?? livePet) : null;
+  const equippedAccessoryIdSet = new Set(equippedAccessoryIds);
+  const pets = inventory.filter((item) => item.type === "pet" && !item.isListed);
+  const bagItems = inventory.filter((item) =>
+    !item.isListed &&
+    item.type !== "pet" &&
+    item.fishingType !== "fish" &&
+    (item.type !== "accessory" || !equippedAccessoryIdSet.has(item.inventoryId)),
+  );
+  const hatchTimeItems = bagItems.filter(i => i.type === "special" && i.specialType === "hatch_time");
   const speedUpTargetPet = speedUpTargetId ? (inventory.find(i => i.inventoryId === speedUpTargetId) ?? null) : null;
 
   const handlePetToggle = (inventoryId: string) => {
@@ -406,7 +411,6 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
                 onToggle={handlePetToggle}
                 onEggSpeedUp={(id) => setSpeedUpTargetId(id)}
                 isDragging={!!dragging}
-                onPetClick={(pet) => pet.isHatched && setSelectedPetId(pet.inventoryId)}
                 isPending={setActivePetMutation.isPending}
                 pendingPetId={setActivePetMutation.variables ?? null}
               />
@@ -581,17 +585,6 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
         </div>
       )}
 
-      {selectedPet && (
-        <PetDetailPage
-          pet={selectedPet}
-          onClose={() => { frozenSelectedPetRef.current = null; setSelectedPetId(null); }}
-          onUpdate={() => {
-            queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-          }}
-          userCoins={user.coins}
-          onUserUpdate={onUserUpdate}
-        />
-      )}
     </>
   );
 }
@@ -664,7 +657,6 @@ function PetView({
   pets,
   activePetId,
   onToggle,
-  onPetClick,
   onEggSpeedUp,
   isPending,
   pendingPetId,
@@ -673,7 +665,6 @@ function PetView({
   pets: InventoryItem[];
   activePetId: string | null;
   onToggle: (id: string) => void;
-  onPetClick: (pet: InventoryItem) => void;
   onEggSpeedUp?: (petInvId: string) => void;
   isPending: boolean;
   pendingPetId: string | null;
@@ -765,8 +756,6 @@ function PetView({
             hatchCheckMutation.mutate(pet.inventoryId);
           } else if (isEgg && !hatchReady) {
             onEggSpeedUp?.(pet.inventoryId);
-          } else {
-            onPetClick(pet);
           }
         };
 

@@ -226,6 +226,24 @@ export function registerMarketplaceRoutes(
     }
   });
 
+  app.post("/api/market/list-pet", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const { inventoryId, price } = req.body ?? {};
+      if (typeof inventoryId !== "string" || price == null) return res.status(400).json({ message: "inventoryId and price required" });
+      return res.json(await createInventoryListing({
+        actorId: user.id,
+        inventoryId,
+        price,
+        preparePetEgg: true,
+      }));
+    } catch (err: any) {
+      if (err instanceof MarketplaceError) return res.status(marketplaceHttpStatus(err)).json({ message: err.message, code: err.code });
+      console.error("Pet marketplace listing transaction failed:", err);
+      return res.status(500).json({ message: "Failed to list pet egg", code: "transaction_failure" });
+    }
+  });
+
   app.post("/api/market/list-fish", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;

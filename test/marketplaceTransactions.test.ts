@@ -9,6 +9,7 @@ const client = readFileSync("client/src/pages/MarketPage.tsx", "utf8");
 test("each public marketplace mutation is registered exactly once", () => {
   for (const route of [
     'app.post("/api/market/list"',
+    'app.post("/api/market/list-pet"',
     'app.post("/api/market/list-fish"',
     'app.post("/api/market/:listingId/buy"',
     'app.post("/api/market/:listingId/collect"',
@@ -35,6 +36,17 @@ test("transactions lock authoritative rows and keep all core writes in one bound
 
 test("browser callers submit identifiers and player-selected list price only", () => {
   assert.match(client, /\/api\/market\/list", \{ inventoryId, price \}/);
+  assert.match(client, /\/api\/market\/list-pet", \{ inventoryId, price \}/);
   assert.match(client, /\/api\/market\/list-fish", \{ fishInventoryId, price \}/);
+  assert.doesNotMatch(client, /revert-to-egg/);
   assert.doesNotMatch(client, /\/api\/market[^\n]*(sellerId|buyerId|ownerId|coinsEarned|newBalance)/);
+});
+
+test("pet market escrow owns the complete revert and hatch lifecycle", () => {
+  assert.match(service, /preparePetEgg\?: boolean/);
+  assert.match(service, /tx\.delete\(petEquippedAccessories\)[\s\S]*?petInventoryId, inventory\.id/);
+  assert.match(service, /isListed: true, isHatched: false, hatchStartedAt: null/);
+  assert.match(service, /hatchStartedAt: isPetEgg \? new Date\(\) : escrow\.hatchStartedAt/);
+  assert.doesNotMatch(service, /Date\.now\(\) -/);
+  assert.match(routes, /createInventoryListing\(\{[\s\S]*?preparePetEgg: true/);
 });
