@@ -45,13 +45,9 @@ export async function repairAccessoryEquipmentIntegrity(): Promise<void> {
           RETURN NEW;
         END IF;
 
-        -- Marketplace escrow stays one row while listed. If a historical
-        -- listed stack returns to inventory it is normalized on that update.
-        IF COALESCE(NEW.is_listed, false) THEN
-          RETURN NEW;
-        END IF;
-
         IF TG_OP = 'INSERT' THEN
+          -- Even marketplace escrow represents exactly one physical copy.
+          // Any extra legacy quantity becomes separate, unlisted ownership rows.
           extra_count := GREATEST(COALESCE(NEW.quantity, 1) - 1, 0);
           NEW.quantity := 1;
         ELSIF COALESCE(OLD.is_listed, false)
@@ -85,15 +81,15 @@ export async function repairAccessoryEquipmentIntegrity(): Promise<void> {
       FOR EACH ROW EXECUTE FUNCTION enforce_individual_accessory_inventory_rows();
     `);
 
-    // Normalize any legacy stacks that escaped the previous migration (for
-    // example because their shop item type contained capitalization/spaces).
+    // Normalize every legacy stack, including a listed row. A market listing
+    // may escrow one copy only; any additional legacy quantity is returned to
+    // the same owner as separate unlisted physical copies.
     await tx.execute(sql`
       WITH stacked AS (
         SELECT ui.id, ui.user_id, ui.shop_item_id, ui.acquired_at, ui.quantity
         FROM user_inventory ui
         INNER JOIN shop_items si ON si.id = ui.shop_item_id
         WHERE lower(btrim(si.type)) = 'accessory'
-          AND ui.is_listed = false
           AND COALESCE(ui.quantity, 1) > 1
       ), inserted_copies AS (
         INSERT INTO user_inventory (user_id, shop_item_id, acquired_at, is_listed, quantity)
@@ -157,12 +153,11 @@ export async function repairAccessoryEquipmentIntegrity(): Promise<void> {
     `);
 
     // Legacy versions allowed the same physical inventory id on multiple pets.
-    // PR #253 already split stacked accessory quantities into individual rows,
-    // so first remap duplicate equipment rows onto an unused physical copy of
-    // the same shop item. This preserves a player's legitimate multi-copy
-    // equipment instead of arbitrarily unequipping pets. If there truly are
-    // more equipped rows than owned copies, remove only the impossible extras
-    // and roll back their stat contribution.
+    // The stack repair above creates individual rows first, so remap duplicate
+    // equipment rows onto an unused physical copy of the same shop item. This
+    // preserves legitimate multi-copy equipment instead of arbitrarily
+    // unequipping pets. If there truly are more equipped rows than owned copies,
+    // remove only the impossible extras and roll back their stat contribution.
     await tx.execute(sql`
       DO $repair_accessory_duplicates$
       DECLARE
@@ -262,7 +257,10 @@ export async function repairAccessoryEquipmentIntegrity(): Promise<void> {
           WHERE id = dup.pet_inventory_id;
 
           SELECT candidate INTO replacement_slot
-          FROM generate_series(0, GREATEST(COALESCE(max_slots, 3) - 1, 0)) candidate
+          FROM generate_series(
+            0,
+            GREATEST(COALESCE(max_slots, 3) - 1, 0)
+          ) AS slots(candidate)
           WHERE NOT EXISTS (
             SELECT 1
             FROM pet_equipped_accessories occupied
