@@ -13,7 +13,9 @@ test("player inventory hides escrowed pets and globally equipped accessories", (
 });
 
 test("Closet returns unequipped inventory once and prevents cross-pet reuse", () => {
-  assert.match(routes, /AND ui\.is_listed = false[\s\S]*?NOT EXISTS \([\s\S]*?accessory_inventory_id = ui\.id/);
+  assert.match(routes, /storage\.getUserInventoryWithItems\(user\.id\)/);
+  assert.match(routes, /innerJoin\(userInventory, eq\(petEquippedAccessories\.petInventoryId, userInventory\.id\)\)/);
+  assert.match(routes, /shopItem\?\.type\?\.trim\(\)\.toLowerCase\(\) === "accessory"/);
   assert.match(routes, /petEquippedAccessories\.accessoryInventoryId, accessoryInventoryId/);
   assert.match(routes, /That accessory is already equipped to a pet/);
 });
@@ -29,11 +31,11 @@ test("market pet listing uses one atomic request", () => {
 });
 
 test("market artwork fields retain the corrected card alignment", () => {
-  assert.match(market, /data-market-card-field="pet-rarity"[\s\S]*?top: "6%", left: "42%"/);
-  assert.match(market, /data-market-card-field="pet-name"[\s\S]*?top: "61%"/);
-  assert.match(market, /data-market-card-field="item-image"[\s\S]*?top: "16%"/);
-  assert.match(market, /data-market-card-field="item-name"[\s\S]*?top: "58%"/);
-  assert.match(market, /data-market-card-field="item-display"[\s\S]*?top: "72%"/);
-  assert.match(market, /data-market-card-field="price"[\s\S]*?bottom: "15%"/);
-  assert.match(market, /data-testid="market-search-frame"[\s\S]*?height: 64/);
+  assert.match(market, /data-market-card-field="pet-rarity"[\s\S]*?top: "10%", left: "34%"/);
+  assert.match(market, /data-market-card-field="pet-name"[\s\S]*?top: "65%"/);
+  assert.match(market, /data-market-card-field="item-image"[\s\S]*?top: "12%"/);
+  assert.match(market, /data-market-card-field="item-name"[\s\S]*?top: "55%"/);
+  assert.match(market, /data-market-card-field="item-display"[\s\S]*?top: "70%"/);
+  assert.match(market, /data-market-card-field="price"[\s\S]*?bottom: "12%"/);
+  assert.match(market, /data-testid="market-search-frame"[\s\S]*?height: 58/);
 });
