@@ -64,6 +64,11 @@ export async function createInventoryListing(input: { actorId: string; inventory
       .where(eq(petEquippedCostumes.costumeInventoryId, inventory.id))
       .limit(1);
     if (equippedCostume) throw new MarketplaceError("conflict", "Unequip this costume before listing it");
+    const [equippedAccessory] = await tx.select({ id: petEquippedAccessories.id })
+      .from(petEquippedAccessories)
+      .where(eq(petEquippedAccessories.accessoryInventoryId, inventory.id))
+      .limit(1);
+    if (equippedAccessory) throw new MarketplaceError("conflict", "Unequip this accessory before listing it");
     const [item] = await tx.select().from(shopItems).where(eq(shopItems.id, inventory.shopItemId));
     if (!item) throw new MarketplaceError("unsupported_item", "Item data not found");
     if (input.preparePetEgg && item.type !== "pet") {
