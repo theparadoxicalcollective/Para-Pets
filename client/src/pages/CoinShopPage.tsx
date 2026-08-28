@@ -15,6 +15,7 @@ import coinPack2500 from "@assets/Photoroom_20260629_101901_PM_1782789946363.png
 import coinPack5000 from "@assets/Photoroom_20260629_102055_PM_1782789968022.png";
 import coinPack10000 from "@assets/Photoroom_20260629_102138_PM_1782789980383.png";
 import limitedBannerImg from "@assets/Photoroom_20260617_64201_AM_1781696551801.png";
+import midnightJugglerEggImg from "@assets/limited_eggs/midnight_juggler_egg.webp";
 
 interface CoinShopProps {
   user: {
@@ -35,6 +36,10 @@ interface CoinPack {
   coins: number;
   priceUsd: number;
   label: string;
+  eggBonus?: {
+    itemName: string;
+    itemImageUrl?: string;
+  };
 }
 
 interface PacksResponse {
@@ -54,10 +59,10 @@ function imageForCoins(coins: number): string {
   return coinPack10000;                       // pack 6 (50000)
 }
 
-// Limited-offer bonus eggs for $50 and $100 bundles.
-const LIMITED_BONUS: Record<number, { name: string; eggUrl: string }> = {
-  20000: { name: "Cerberus Serpent Egg", eggUrl: "/api/media/9b08c13d-262e-4251-b8ac-47ff0b44d30c" },
-  50000: { name: "The Paradox Egg",     eggUrl: "/api/media/e5019d66-d5a1-4f56-a7e6-e4f9bae5baee" },
+// Package-specific promotional art. The reward name itself comes from the
+// server-owned package configuration so checkout, fulfillment, and UI cannot drift.
+const LIMITED_BONUS_ART: Record<string, string> = {
+  pack_v2_20000: midnightJugglerEggImg,
 };
 
 interface PackStyle { glow: string; border: string; outerGlow: string; }
@@ -851,7 +856,12 @@ export default function CoinShopPage({ user }: CoinShopProps) {
               const packImage = imageForCoins(pack.coins);
               const { glow: glowColor, border: borderColor, outerGlow } = styleForCoins(pack.coins);
 
-              const bonus = LIMITED_BONUS[pack.coins];
+              const bonus = pack.eggBonus
+                ? {
+                    name: pack.eggBonus.itemName,
+                    eggUrl: LIMITED_BONUS_ART[pack.id] ?? pack.eggBonus.itemImageUrl,
+                  }
+                : null;
               return (
                 <button
                   key={pack.id}
@@ -923,7 +933,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                   </div>
 
                   {/* Egg pop-piece: floating outside the card at bottom-right */}
-                  {bonus && (
+                  {bonus?.eggUrl && (
                     <>
                       <img
                         src={bonus.eggUrl}
