@@ -16,25 +16,28 @@ test("React is the only Pet Care drag owner and portals one ghost", () => {
   assert.match(source, /cancelAnimationFrame\(dragFrameRef\.current\)/);
 });
 
-test("exact stack source hides without removing its shelf slot", () => {
+test("jar visuals keep stable unit identity while preserving stack selection", () => {
   const source = page();
-  const styles = css();
-  assert.match(source, /data-pet-care-drag-source=\{draggingStackId === item\.stackId/);
-  assert.match(source, /key=\{item\.stackId\}/);
-  assert.match(source, /draggingStackId=\{dragGhost\?\.stackId \?\? null\}/);
-  assert.match(styles, /data-pet-care-drag-source="true"[\s\S]*?pet-care-item-shelf__visible-artwork[\s\S]*?visibility: hidden/);
+  assert.match(source, /key: `\$\{entry\.item\.stackId\}::\$\{ordinal\}`/);
+  assert.match(source, /key=\{visual\.key\}/);
+  assert.match(source, /data-pet-care-stack-id=\{visual\.item\.stackId\}/);
+  assert.match(source, /const isSelected = selectedStackId === visual\.item\.stackId/);
+  assert.doesNotMatch(source, /data-pet-care-drag-source/);
 });
 
-test("stack quantity is React-owned presentation while a drag remains one item", () => {
+test("stack quantity expands into one-consumable jar visuals", () => {
   const source = page();
-  assert.match(source, /item\.displayQuantity > 1 && <span className="pet-care-item-shelf__quantity">×\{item\.displayQuantity\}/);
+  assert.match(source, /remaining: Math\.max\(0, Math\.floor\(Number\(item\.displayQuantity \?\? item\.quantity \?\? 1\)\)\)/);
+  assert.match(source, /item: \{ \.\.\.entry\.item, quantity: 1, displayQuantity: 1 \}/);
+  assert.match(source, /while \(units\.length < PET_CARE_JAR_VISUAL_CAPACITY\)/);
+  assert.doesNotMatch(source, /pet-care-item-shelf__quantity/);
   assert.doesNotMatch(source, /MutationObserver|getQueryCache\(\)\.subscribe|data-pet-care-stack-quantity/);
   assert.match(source, /feedMutation\.mutateAsync\(\{ itemInventoryId: drag\.inventoryId \}\)/);
 });
 
 test("normal mode arbitrates pointer taps and drags while explicit fallback retains clicks", () => {
   const source = page();
-  assert.match(source, /onClick=\{!dragEnabled \? \(\) => onItemClick\(item\) : undefined\}/);
+  assert.match(source, /onClick=\{!dragEnabled \? \(\) => onItemClick\(visual\.item\) : undefined\}/);
   assert.match(source, /onClick=\{applySelectedCareItem\}/);
   assert.match(source, /gesture\.intent === "pending"\) selectCareItem\(gesture\.item\)/);
   assert.match(source, /data-pet-care-emergency-input-fallback/);

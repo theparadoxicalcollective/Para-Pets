@@ -7,7 +7,6 @@ import {
   PET_CARE_DRAG_GHOST_FINGER_GAP_PX,
   PET_CARE_DRAG_GHOST_SIZE_PX,
   PET_CARE_GESTURE_THRESHOLD_PX,
-  PET_CARE_VISIBLE_SLOTS,
   pointInsideExpandedPetDropZone,
 } from "../client/src/lib/petCareInteractions";
 import { getPetCareFeedbackProfile } from "../client/src/lib/petCareSafeMode";
@@ -17,11 +16,11 @@ test("pet-care gesture intent waits for the movement threshold", () => {
   assert.equal(classifyPetCareItemGesture(4, -4), "pending");
 });
 
-test("horizontal travel starts an item drag now that shelves use paging", () => {
+test("horizontal travel starts an item drag", () => {
   assert.equal(classifyPetCareItemGesture(28, -8), "vertical-item-drag");
 });
 
-test("upward diagonal travel selects item dragging without stealing shelf scrolls", () => {
+test("upward diagonal travel selects item dragging", () => {
   assert.equal(classifyPetCareItemGesture(0, -12), "vertical-item-drag");
   assert.equal(classifyPetCareItemGesture(8, -12), "vertical-item-drag");
   assert.equal(classifyPetCareItemGesture(12, -10), "vertical-item-drag");
@@ -51,33 +50,20 @@ test("expanded pet drop zone accepts padded edges and rejects outside points", (
   assert.equal(pointInsideExpandedPetDropZone({ x: 89, y: 150 }, rect, 10), false);
 });
 
-test("both inventories share the reusable six-slot shelf without old panels", () => {
-  assert.equal(PET_CARE_VISIBLE_SLOTS, 6);
+test("both inventories render the repository jar asset with gifts first and unit visuals", () => {
   const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
-  const css = readFileSync("client/src/index.css", "utf8");
-  assert.match(page, /<PetCareItemShelf kind="edibles"/);
-  assert.match(page, /<PetCareItemShelf kind="gifts"/);
-  assert.match(page, /"--pet-care-visible-slots": PET_CARE_VISIBLE_SLOTS/);
-  assert.match(page, /pet-care-item-shelf--\$\{kind\}/);
-  const viewportRule = css.match(/\.pet-care-item-shelf__viewport\s*\{([\s\S]*?)\}/)?.[1] ?? "";
-  assert.match(viewportRule, /right:\s*var\(--pet-care-shelf-frame-inset\)/);
-  assert.match(viewportRule, /left:\s*var\(--pet-care-shelf-frame-inset\)/);
-  assert.match(viewportRule, /padding-inline:\s*0/);
-  const itemRule = css.match(/\.pet-care-item-shelf__item\s*\{([\s\S]*?)\}/)?.[1] ?? "";
-  assert.match(itemRule, /flex:\s*0 0 calc\(100% \/ var\(--pet-care-visible-slots\)\);/);
-  assert.doesNotMatch(itemRule, /pet-care-shelf-frame-inset/);
-  const titleRule = css.match(/\.pet-care-item-shelf__title\s*\{([\s\S]*?)\}/)?.[1] ?? "";
-  assert.match(titleRule, /position:\s*absolute/);
-  assert.match(titleRule, /left:\s*50%/);
-  assert.match(titleRule, /bottom:\s*4%/);
-  assert.match(titleRule, /translateX\(-50%\)/);
-  assert.doesNotMatch(page, /pet-care-item-shelf__heading/);
-  assert.match(page, /pet-care-item-shelf__art-crop pet-care-item-shelf__art-crop--front/);
-  assert.doesNotMatch(page, /pet-care-item-shelf__name/);
-  assert.doesNotMatch(page, /border: "1\.5px solid rgba\(120,210,90,0\.38\)"/);
-  assert.doesNotMatch(page, /border: "1\.5px solid rgba\(240,140,200,0\.38\)"/);
-  const edibleShelfRule = css.match(/\.pet-care-item-shelf--edibles\s*\{([\s\S]*?)\}/)?.[1] ?? "";
-  assert.match(edibleShelfRule, /transform:\s*translateY\(clamp\(-8px, -1\.2vh, -4px\)\)/);
+  assert.match(page, /import petCareJar from "@assets\/uploads\/Jar\.png"/);
+  assert.match(page, /const PET_CARE_JAR_VISUAL_CAPACITY = 48;/);
+  assert.match(page, /item: \{ \.\.\.entry\.item, quantity: 1, displayQuantity: 1 \}/);
+  assert.match(page, /data-pet-care-inventory-jar="true"/);
+  assert.match(page, /data-testid=\{`pet-care-\$\{kind\}-jar`\}/);
+  assert.match(page, /src=\{petCareJar\}/);
+  const giftJar = page.indexOf('<PetCareItemShelf kind="gifts"');
+  const edibleJar = page.indexOf('<PetCareItemShelf kind="edibles"');
+  assert.ok(giftJar >= 0, "gift jar must render");
+  assert.ok(edibleJar > giftJar, "gift jar must render before edible jar");
+  assert.doesNotMatch(page, /pet-care-item-shelf__quantity/);
+  assert.doesNotMatch(page, /"--pet-care-visible-slots"/);
 });
 
 test("care items capture on pointerdown and release during cleanup", () => {
@@ -93,8 +79,9 @@ test("care items capture on pointerdown and release during cleanup", () => {
   assert.match(cleanup, /releasePointerCapture/);
   assert.match(page, /playGrab\(\)/);
   assert.match(page, /playPlop\(\)/);
-  assert.match(page, /style=\{\{ touchAction: "none" \}\}/);
-  assert.match(page, /data-testid=\{`\$\{isEdible[\s\S]*style=\{\{ touchAction: "none" \}\}/);
+  assert.match(page, /className="pet-care-item-jar__item"/);
+  assert.match(page, /data-pet-care-stack-id=\{visual\.item\.stackId\}/);
+  assert.match(page, /touchAction: "none"/);
 });
 
 test("safe visual mode keeps idle rendering and petting without heavy particle timers", () => {
@@ -102,7 +89,7 @@ test("safe visual mode keeps idle rendering and petting without heavy particle t
   assert.match(page, /onPointerDown=\{dragEnabled \?/);
   assert.match(page, /onPointerMove=\{dragEnabled \? onItemPointerMove/);
   assert.match(page, /\{dragEnabled && dragGhost && createPortal\(/);
-  assert.match(page, /onClick=\{!dragEnabled \? \(\) => onItemClick\(item\) : undefined\}/);
+  assert.match(page, /onClick=\{!dragEnabled \? \(\) => onItemClick\(visual\.item\) : undefined\}/);
   assert.match(page, /onPointerDown=\{onPetPointerDown\}/);
   assert.match(page, /onPointerMove=\{onPetPointerMove\}/);
   assert.match(page, /mode="idle"/);
