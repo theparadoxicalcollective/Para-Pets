@@ -7,7 +7,8 @@ test("Pet Care jars retain effect ordering while expanding stacks into unit visu
   assert.match(page, /orderPetCareItemsByEffect\([\s\S]*?it\.type === "edibles"[\s\S]*?"edibles"/);
   assert.match(page, /orderPetCareItemsByEffect\([\s\S]*?it\.type === "gift"[\s\S]*?"gifts"/);
   assert.match(page, /const PET_CARE_JAR_VISUAL_CAPACITY = 48;/);
-  assert.match(page, /const PET_CARE_JAR_COLUMNS = 6;/);
+  assert.match(page, /createPetCareJarBodies/);
+  assert.match(page, /stepPetCareJarPhysics/);
   assert.match(page, /function buildPetCareJarVisuals\(items: PetCareShelfItem\[\]\)/);
   assert.match(page, /item: \{ \.\.\.entry\.item, quantity: 1, displayQuantity: 1 \}/);
   assert.match(page, /onPointerDown=\{dragEnabled \? \(event\) => beginJarMove\(event, visual\) : undefined\}/);
@@ -88,6 +89,6 @@ test("Pet Care hunger follows the server care-stat scale and updates from feed r
   assert.match(feed, /return await res\.json\(\)/);
   assert.match(feed, /qc\.setQueryData\(\["\/api\/inventory"\]/);
   assert.match(feed, /totalFeedPoints/);
-  assert.match(css, /width: min\(calc\(86% - var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\), 340px\)/);
+  assert.match(css, /width: min\(calc\(78% - var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\), 312px\)/);
   assert.match(css, /transform: translateX\(calc\(\(var\(--pet-care-usable-left\) - var\(--pet-care-scene-right\)\) \/ 2\)\)/);
 });
