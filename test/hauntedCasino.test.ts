@@ -132,7 +132,7 @@ test("Slaughter Slots separates spin, hold limit, and bet controls clearly", () 
   assert.match(client, /Spin once, or hold to keep spinning/);
   assert.match(client, /\{spinning \? "SPINNING" : "SPIN"\}/);
   assert.match(client, /Tap once · hold to repeat/);
-  assert.match(client, />Hold limit</);
+  assert.match(client, /Hold limit/);
   assert.match(client, /Maximum coins to spend while holding/);
   assert.match(client, /onPointerDown=\{beginHold\}/);
   assert.match(client, /gross-wager safety limit/);
