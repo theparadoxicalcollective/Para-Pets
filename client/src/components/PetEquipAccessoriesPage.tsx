@@ -90,9 +90,17 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
     queryKey: ["/api/inventory"],
     staleTime: 0,
   });
-  const { data: allEquippedIds = [], isLoading: equippedIdsLoading, isError: equippedIdsError } = useQuery<string[]>({
+  const {
+    data: allEquippedIds = [],
+    isLoading: equippedIdsLoading,
+    isFetching: equippedIdsFetching,
+    isError: equippedIdsError,
+    refetch: refetchEquippedIds,
+  } = useQuery<string[]>({
     queryKey: ["/api/user/equipped-accessory-ids"],
+    queryFn: async () => (await apiRequest("GET", "/api/user/equipped-accessory-ids")).json(),
     staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const equippedAccessories = accessoriesData?.equipped ?? [];
@@ -104,8 +112,13 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
     item.type?.trim().toLowerCase() === "accessory" &&
     !equippedAccessoryIdSet.has(item.inventoryId),
   );
-  const bagLoading = accessoriesLoading || inventoryLoading || equippedIdsLoading;
+  const bagLoading = accessoriesLoading || inventoryLoading || equippedIdsLoading || equippedIdsFetching;
   const bagError = accessoriesError || inventoryError || equippedIdsError;
+
+  const openAccessoryBag = () => {
+    setBagOpen(true);
+    void refetchEquippedIds();
+  };
 
   const refreshAccessories = () => {
     qc.invalidateQueries({ queryKey: ["/api/pet", petInventoryId, "accessories"] });
@@ -138,8 +151,8 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
           : current,
       );
       setUnequipConfirm(null);
-      setBagOpen(true);
       refreshAccessories();
+      openAccessoryBag();
     },
     onError: () => toast({ title: "Failed to unequip", description: "Could not remove that accessory", variant: "destructive" }),
   });
@@ -167,7 +180,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
     }
     const occupied = equippedAccessories.find((item) => item.slot === slot);
     if (occupied) setUnequipConfirm(occupied);
-    else setBagOpen(true);
+    else openAccessoryBag();
   }
 
   function handleDrop(event: React.DragEvent, slot: number) {
@@ -272,7 +285,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         <img src={closetCloseButton} alt="" className="h-full w-full object-contain" style={{ filter: "drop-shadow(0 3px 6px rgba(0,0,0,.75))" }} />
       </button>
 
-      <div data-testid="closet-pet-preview" className="absolute z-[2] flex items-end justify-center" style={{ left: "19%", top: "16.2%", width: "56%", height: "39.5%" }}>
+      <div data-testid="closet-pet-preview" className="absolute z-[2] flex items-end justify-center" style={{ left: "19%", top: "21.2%", width: "56%", height: "39.5%" }}>
         <div className="relative" style={{ width: "90%", height: "84%" }}>
           {petTemplateId ? (
             <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="idle" size={250} fillContainer style={{ ...PET_PREVIEW_DROPSHADOW_STYLE, position: "relative", zIndex: 2 }} />
@@ -283,7 +296,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       </div>
 
       <section className="absolute z-[4]" aria-label="Accessory slots" style={{ left: "5.5%", top: "60.1%", width: "89%", height: "12.2%" }}>
-        <button type="button" onClick={() => setBagOpen(true)} className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap font-fantasy tracking-[0.16em]" style={{ bottom: "102%", color: "rgba(215,239,213,.78)", fontSize: "clamp(7px, 1.9vw, 10px)", textShadow: "0 2px 4px #000", background: "rgba(2,12,8,.48)", border: "1px solid rgba(97,202,144,.18)", borderRadius: 999, padding: "4px 10px", cursor: "pointer" }}>
+        <button type="button" onClick={openAccessoryBag} className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap font-fantasy tracking-[0.16em]" style={{ bottom: "102%", color: "rgba(215,239,213,.78)", fontSize: "clamp(7px, 1.9vw, 10px)", textShadow: "0 2px 4px #000", background: "rgba(2,12,8,.48)", border: "1px solid rgba(97,202,144,.18)", borderRadius: 999, padding: "4px 10px", cursor: "pointer" }}>
           ACCESSORIES · {equippedAccessories.length}/{maxSlots} · OPEN BAG
         </button>
         <div className="grid h-full grid-cols-5" style={{ gap: "1.7%" }}>
