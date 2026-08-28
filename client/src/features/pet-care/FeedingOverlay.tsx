@@ -26,6 +26,7 @@ import moodFaceHungry from "@assets/mood_face_hungry.png";
 import coinIconImg from "@assets/icon_coin.png";
 import LoadingScreen from "@/components/LoadingScreen";
 import GiftClaimModal from "@/components/GiftClaimModal";
+import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import loyaltyRewardIcon from "@assets/Photoroom_20260703_72612_AM_1783081617614.png";
 import petCareJar from "@assets/uploads/Jar.png";
@@ -85,7 +86,13 @@ function logUnexpectedPetCareMutationError(context: string, error: unknown) {
 }
 
 const PET_CARE_JAR_VISUAL_CAPACITY = 48;
-const PET_CARE_JAR_COLUMNS = 7;
+const PET_CARE_JAR_COLUMNS = 6;
+const PET_CARE_JAR_LEFT_EDGE = 16;
+const PET_CARE_JAR_RIGHT_EDGE = 84;
+const PET_CARE_JAR_FLOOR = 82;
+const PET_CARE_JAR_CEILING = 18;
+const PET_CARE_JAR_ROW_GAP = 10.4;
+const PET_CARE_JAR_SETTLE_MS = 540;
 
 type PetCareJarVisual = {
   key: string;
@@ -107,6 +114,22 @@ function petCareJarSeed(value: string) {
 
 function clampPetCareJarPercent(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function petCareJarColumnForLeft(left: number) {
+  const span = PET_CARE_JAR_RIGHT_EDGE - PET_CARE_JAR_LEFT_EDGE;
+  return Math.round(
+    clampPetCareJarPercent(
+      ((left - PET_CARE_JAR_LEFT_EDGE) / span) * (PET_CARE_JAR_COLUMNS - 1),
+      0,
+      PET_CARE_JAR_COLUMNS - 1,
+    ),
+  );
+}
+
+function petCareJarColumnCenter(column: number) {
+  const span = PET_CARE_JAR_RIGHT_EDGE - PET_CARE_JAR_LEFT_EDGE;
+  return PET_CARE_JAR_LEFT_EDGE + (span * column) / (PET_CARE_JAR_COLUMNS - 1);
 }
 
 function buildPetCareJarVisuals(items: PetCareShelfItem[]): PetCareJarVisual[] {
@@ -142,14 +165,14 @@ function buildPetCareJarVisuals(items: PetCareShelfItem[]): PetCareJarVisual[] {
     const rowStart = row * PET_CARE_JAR_COLUMNS;
     const rowCount = Math.min(PET_CARE_JAR_COLUMNS, units.length - rowStart);
     const seed = petCareJarSeed(unit.key);
-    const jitterX = ((seed & 0xff) / 255 - 0.5) * 5;
-    const jitterY = (((seed >>> 8) & 0xff) / 255 - 0.5) * 4;
+    const jitterX = ((seed & 0xff) / 255 - 0.5) * 4;
+    const jitterY = (((seed >>> 8) & 0xff) / 255 - 0.5) * 3;
     const rotation = (((seed >>> 16) & 0xff) / 255 - 0.5) * 24;
     const centeredColumn = column - (rowCount - 1) / 2;
     return {
       ...unit,
-      left: clampPetCareJarPercent(50 + centeredColumn * 11.4 + jitterX, 13, 87),
-      top: clampPetCareJarPercent(80 - row * 9.6 + jitterY, 20, 82),
+      left: clampPetCareJarPercent(50 + centeredColumn * 13.6 + jitterX, PET_CARE_JAR_LEFT_EDGE, PET_CARE_JAR_RIGHT_EDGE),
+      top: clampPetCareJarPercent(PET_CARE_JAR_FLOOR - row * PET_CARE_JAR_ROW_GAP + jitterY, PET_CARE_JAR_CEILING, PET_CARE_JAR_FLOOR),
       rotation,
     };
   });
@@ -169,10 +192,8 @@ function PetCareItemShelf({
   onItemPointerDown: (event: React.PointerEvent<HTMLDivElement>, item: PetCareShelfItem) => boolean;
   onItemClick: (item: PetCareShelfItem) => void;
   selectedStackId: string | null;
-  draggingStackId: string | null;
   safeMode: boolean;
   dragEnabled: boolean;
-  onPageChange: () => void;
 }) {
   const isEdible = kind === "edibles";
   const title = isEdible ? "EDIBLES" : "GIFTS";
@@ -187,9 +208,16 @@ function PetCareItemShelf({
     originTop: number;
     left: number;
     top: number;
+    hasMoved: boolean;
     element: HTMLDivElement;
   } | null>(null);
   const [movedPositions, setMovedPositions] = useState<Record<string, { left: number; top: number }>>({});
+  const [settlingKeys, setSettlingKeys] = useState<Set<string>>(() => new Set());
+  const settleTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (settleTimerRef.current != null) window.clearTimeout(settleTimerRef.current);
+  }, []);
 
   const beginJarMove = (event: React.PointerEvent<HTMLDivElement>, visual: PetCareJarVisual) => {
     if (!dragEnabled) return;
@@ -205,6 +233,7 @@ function PetCareItemShelf({
       originTop: current.top,
       left: current.left,
       top: current.top,
+      hasMoved: false,
       element: event.currentTarget,
     };
   };
@@ -225,18 +254,80 @@ function PetCareItemShelf({
     );
     active.left = left;
     active.top = top;
+    if (Math.hypot(event.clientX - active.startX, event.clientY - active.startY) >= 10) {
+      active.hasMoved = true;
+    }
     active.element.style.left = `${left}%`;
     active.element.style.top = `${top}%`;
   };
 
   const endJarMove = (event: React.PointerEvent<HTMLDivElement>) => {
     const active = localDragRef.current;
+    const bounds = jarContentsRef.current?.getBoundingClientRect();
     if (!active || active.pointerId !== event.pointerId) return;
-    setMovedPositions((current) => ({
-      ...current,
-      [active.key]: { left: active.left, top: active.top },
-    }));
     localDragRef.current = null;
+
+    const droppedInsideJar = !!bounds
+      && event.clientX >= bounds.left
+      && event.clientX <= bounds.right
+      && event.clientY >= bounds.top
+      && event.clientY <= bounds.bottom;
+    if (!active.hasMoved || !droppedInsideJar || !bounds?.width) return;
+
+    const releasedLeft = clampPetCareJarPercent(
+      ((event.clientX - bounds.left) / bounds.width) * 100,
+      PET_CARE_JAR_LEFT_EDGE,
+      PET_CARE_JAR_RIGHT_EDGE,
+    );
+    const targetColumn = petCareJarColumnForLeft(releasedLeft);
+
+    // Re-pack every column from the floor up. This closes any hole left when
+    // a piece is picked up and makes the released piece land on top of the
+    // pile, like the lightweight physics jars used on livestreams.
+    const columns = Array.from({ length: PET_CARE_JAR_COLUMNS }, () => [] as PetCareJarVisual[]);
+    for (const visual of visuals) {
+      if (visual.key === active.key) continue;
+      const position = movedPositions[visual.key] ?? { left: visual.left, top: visual.top };
+      columns[petCareJarColumnForLeft(position.left)].push(visual);
+    }
+    for (const column of columns) {
+      column.sort((a, b) => {
+        const aTop = (movedPositions[a.key] ?? { top: a.top }).top;
+        const bTop = (movedPositions[b.key] ?? { top: b.top }).top;
+        return bTop - aTop;
+      });
+    }
+    const releasedVisual = visuals.find((visual) => visual.key === active.key);
+    if (releasedVisual) columns[targetColumn].push(releasedVisual);
+
+    const next: Record<string, { left: number; top: number }> = {};
+    columns.forEach((column, columnIndex) => {
+      column.forEach((visual, stackIndex) => {
+        const seed = petCareJarSeed(`${visual.key}:settled:${columnIndex}`);
+        const jitterX = ((seed & 0xff) / 255 - 0.5) * 4;
+        const jitterY = (((seed >>> 8) & 0xff) / 255 - 0.5) * 2.4;
+        next[visual.key] = {
+          left: clampPetCareJarPercent(
+            petCareJarColumnCenter(columnIndex) + jitterX,
+            PET_CARE_JAR_LEFT_EDGE,
+            PET_CARE_JAR_RIGHT_EDGE,
+          ),
+          top: clampPetCareJarPercent(
+            PET_CARE_JAR_FLOOR - stackIndex * PET_CARE_JAR_ROW_GAP + jitterY,
+            PET_CARE_JAR_CEILING,
+            PET_CARE_JAR_FLOOR,
+          ),
+        };
+      });
+    });
+    setMovedPositions(next);
+    setSettlingKeys(new Set(Object.keys(next)));
+    if (settleTimerRef.current != null) window.clearTimeout(settleTimerRef.current);
+    settleTimerRef.current = window.setTimeout(() => {
+      setSettlingKeys(new Set());
+      settleTimerRef.current = null;
+    }, PET_CARE_JAR_SETTLE_MS);
+    playPlop();
   };
 
   return (
@@ -278,7 +369,7 @@ function PetCareItemShelf({
       <div
         style={{
           position: "relative",
-          width: "min(100%, clamp(132px, 20dvh, 190px))",
+          width: "min(100%, clamp(150px, 23dvh, 214px))",
           aspectRatio: "1 / 1",
           filter: safeMode ? "none" : "drop-shadow(0 9px 10px rgba(0,0,0,0.36))",
         }}
@@ -301,6 +392,7 @@ function PetCareItemShelf({
           {visuals.map((visual) => {
             const position = movedPositions[visual.key] ?? { left: visual.left, top: visual.top };
             const isSelected = selectedStackId === visual.item.stackId;
+            const isSettling = settlingKeys.has(visual.key);
             return (
               <div
                 key={visual.key}
@@ -318,10 +410,13 @@ function PetCareItemShelf({
                   position: "absolute",
                   left: `${position.left}%`,
                   top: `${position.top}%`,
-                  width: "22%",
+                  width: "27%",
                   aspectRatio: "1 / 1",
                   transform: `translate(-50%, -50%) rotate(${visual.rotation}deg)`,
                   transformOrigin: "50% 50%",
+                  transition: isSettling
+                    ? `left 220ms ease-out, top ${PET_CARE_JAR_SETTLE_MS}ms cubic-bezier(0.18, 0.78, 0.26, 1.08)`
+                    : "none",
                   cursor: dragEnabled ? "grab" : "pointer",
                   touchAction: "none",
                   userSelect: "none",
@@ -332,20 +427,9 @@ function PetCareItemShelf({
                     : "drop-shadow(0 2px 2px rgba(0,0,0,0.45))",
                 }}
               >
-                {visual.item.imageUrl && (
-                  <img
-                    src={visual.item.imageUrl}
-                    alt={visual.item.name}
-                    draggable={false}
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "contain",
-                      pointerEvents: "none",
-                    }}
-                  />
-                )}
+                {visual.item.imageUrl && (safeMode
+                  ? <img className="pet-care-item-jar__art" src={visual.item.imageUrl} alt={visual.item.name} draggable={false} />
+                  : <VisibleAssetImage className="pet-care-item-jar__art" src={visual.item.imageUrl} alt={visual.item.name} />)}
               </div>
             );
           })}
@@ -381,6 +465,7 @@ function PetCareItemShelf({
             width: "100%",
             height: "100%",
             objectFit: "contain",
+            opacity: 0.7,
             pointerEvents: "none",
             userSelect: "none",
           }}
@@ -1896,9 +1981,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         style={{
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 10px)",
           background: "linear-gradient(0deg, rgba(6,14,6,0.78) 0%, rgba(6,14,6,0.3) 70%, rgba(6,14,6,0) 100%)",
-          paddingTop: 12,
-          paddingLeft: 10,
-          paddingRight: 10,
+          paddingTop: 6,
+          paddingLeft: 4,
+          paddingRight: 4,
         }}
       >
         {/* Hunger shares the inventory column's normal flow, guaranteeing a
@@ -1912,20 +1997,20 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           safeMode={safeMode}
         />
         <div
-  className="pet-care-inventory-jars"
-  style={{
-    width: "100%",
-    display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "center",
-    gap: "clamp(6px, 2.2vw, 14px)",
-    padding: "0 clamp(4px, 1.5vw, 10px)",
-    boxSizing: "border-box",
-  }}
->
-  <PetCareItemShelf kind="gifts" items={gifts} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} onPageChange={() => setSelectedCareItem(null)} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
-  <PetCareItemShelf kind="edibles" items={edibles} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} onPageChange={() => setSelectedCareItem(null)} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
-</div>
+          className="pet-care-inventory-jars"
+          style={{
+            width: "100%",
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            gap: "clamp(0px, 0.5vw, 4px)",
+            padding: 0,
+            boxSizing: "border-box",
+          }}
+        >
+          <PetCareItemShelf kind="gifts" items={gifts} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} selectedStackId={selectedCareItem?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
+          <PetCareItemShelf kind="edibles" items={edibles} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} selectedStackId={selectedCareItem?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
+        </div>
       </div>
 
       {/* ── Feed hint overlay ───────────────────────────────────────────────
