@@ -39,6 +39,24 @@ const cache = new Map<string, AlphaBounds>();
 const inflight = new Map<string, Promise<AlphaBounds>>();
 
 const SCAN_SIZE = 64;
+const MAX_CONCURRENT_SCANS = 2;
+let activeScans = 0;
+const scanQueue: Array<() => void> = [];
+
+function withScanSlot<T>(task: () => Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const start = () => {
+      activeScans += 1;
+      task().then(resolve, reject).finally(() => {
+        activeScans -= 1;
+        scanQueue.shift()?.();
+      });
+    };
+    if (activeScans < MAX_CONCURRENT_SCANS) start();
+    else scanQueue.push(start);
+  });
+}
+
 /** Below this alpha value a pixel is considered transparent. */
 const ALPHA_THRESHOLD = 8;
 
@@ -70,8 +88,10 @@ export function getAlphaBounds(url: string, srcImg?: HTMLImageElement): Promise<
   // poison the cache permanently and silently revert every part on
   // that URL to the old (wrong) full-bbox pivot for the rest of the
   // session.
-  const promise = scan(url, srcImg)
-    .catch(() => scan(url, undefined))
+  // Decoding many full-size transparent PNG layers at once can terminate
+  // WebKit's browser process. Keep analysis deduplicated and globally bounded.
+  const promise = withScanSlot(() => scan(url, srcImg)
+    .catch(() => scan(url, undefined)))
     .then(bounds => {
       cache.set(url, bounds);
       inflight.delete(url);
