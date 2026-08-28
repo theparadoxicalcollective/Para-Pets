@@ -117,21 +117,21 @@ test("public costume display is read-only and does not require pet ownership", (
 });
 
 
-test("The accessory bag is sourced from the same authoritative response as equipped slots", () => {
-  assert.match(appRoutes, /storage\.getUserInventoryWithItems\(user\.id\)/);
-  assert.match(appRoutes, /shopItem\?\.type\?\.trim\(\)\.toLowerCase\(\) === "accessory"/);
-  assert.match(appRoutes, /innerJoin\(userInventory, eq\(petEquippedAccessories\.petInventoryId, userInventory\.id\)\)/);
-  assert.match(appRoutes, /availableAccessories,/);
-  assert.match(accessoryPage, /accessoriesData\?\.availableAccessories \?\? \[\]/);
-  assert.doesNotMatch(accessoryPage, /const \{ data: allEquippedIds/);
-  assert.doesNotMatch(accessoryPage, /const \{ data: inventory/);
+test("The accessory bag uses the same player inventory flow as costumes", () => {
+  assert.match(accessoryPage, /queryKey: \["\/api\/inventory"\]/);
+  assert.match(accessoryPage, /queryKey: \["\/api\/user\/equipped-accessory-ids"\]/);
+  assert.match(accessoryPage, /!item\.isListed/);
+  assert.match(accessoryPage, /item\.type\?\.trim\(\)\.toLowerCase\(\) === "accessory"/);
+  assert.match(accessoryPage, /!equippedAccessoryIdSet\.has\(item\.inventoryId\)/);
+  assert.doesNotMatch(appRoutes, /availableAccessories,/);
+  assert.match(accessoryPage, /Loading accessories…/);
+  assert.match(accessoryPage, /Could not load accessories/);
 });
 
 test("Unequipping immediately restores the accessory and opens the bag", () => {
   assert.match(accessoryPage, /onSuccess: \(_data, accessoryInventoryId\)/);
-  assert.match(accessoryPage, /const removed = current\.equipped\.find/);
-  assert.match(accessoryPage, /inventoryId: removed\.accessoryInventoryId/);
-  assert.match(accessoryPage, /availableAccessories: removed/);
-  assert.match(accessoryPage, /setBagOpen\(true\)/);
+  assert.match(accessoryPage, /current\.filter\(\(id\) => id !== accessoryInventoryId\)/);
   assert.match(accessoryPage, /item\.accessoryInventoryId !== accessoryInventoryId/);
+  assert.match(accessoryPage, /setBagOpen\(true\)/);
+  assert.doesNotMatch(accessoryPage, /availableAccessories/);
 });
