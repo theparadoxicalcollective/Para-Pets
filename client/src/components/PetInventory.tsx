@@ -128,7 +128,9 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
       // or other AppRouter guards to flash for one render cycle.
       onUserUpdate({ activePetId: data.activePetId ?? null });
       queryClient.setQueryData(["/api/auth/me"], (current: any) => current ? { ...current, activePetId: data.activePetId ?? null } : current);
-      void queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      // apiRequest already acknowledged the confirmed switch in the shared auth
+      // cache. Avoid an immediate background auth refetch during this render-
+      // intensive transition; the normal auth interval will reconcile later.
       // Suppress toast during tutorial — the overlay guides the player and a
       // "Pet Selected" popup mid-quest is jarring / breaks immersion.
       if (bjGetStatus() !== "active") {
