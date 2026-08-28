@@ -52,3 +52,20 @@ test("dragging cannot move item artwork beyond the shaped jar interior", () => {
   assert.ok(body.y > 0);
   assert.ok(leftBound < body.x);
 });
+
+test("fast jar drags are capped and released rotation settles", () => {
+  const [body] = createPetCareJarBodies(
+    [{ key: "treat", left: 50, top: 45, rotation: 0 }],
+    bounds,
+  );
+  movePetCareJarBody(body, bounds, bounds.width / 2, bounds.height / 2, 5000, -5000);
+  assert.ok(Math.abs(body.vx) <= 280);
+  assert.ok(Math.abs(body.vy) <= 340);
+  assert.ok(Math.abs(body.angularVelocity) <= 42);
+
+  for (let frame = 0; frame < 360; frame += 1) {
+    stepPetCareJarPhysics([body], bounds, 1 / 60);
+  }
+  assert.equal(body.vx, 0);
+  assert.equal(body.angularVelocity, 0);
+});
