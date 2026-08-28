@@ -48,13 +48,14 @@ test("marketplace extraction registers every legacy route once in original order
     ["GET", "/api/market"],
     ["GET", "/api/market/my-listings"],
     ["POST", "/api/market/list"],
+    ["POST", "/api/market/list-pet"],
     ["POST", "/api/market/list-fish"],
     ["POST", "/api/market/:listingId/buy"],
     ["POST", "/api/market/:listingId/collect"],
     ["DELETE", "/api/market/:listingId"],
     ["POST", "/api/market/buy-slot"],
   ]);
-  assert.equal(new Set(routes.map(({ method, path }) => `${method} ${path}`)).size, 10);
+  assert.equal(new Set(routes.map(({ method, path }) => `${method} ${path}` )).size, 11);
   assert.ok(routes.every(route => route.handlers[0] === authenticated));
   assert.ok(routes.every(route => route.handlers.length === 2));
 });
@@ -80,4 +81,23 @@ test("marketplace domain failures retain their HTTP status and response contract
   await route.handlers[1]({ user: { id: "player" }, params: { listingId: "listing-1" } } as any, res, () => undefined);
   assert.equal(res.statusCode, 403);
   assert.deepEqual(res.body, { message: "Only the seller can cancel this listing", code: "wrong_owner" });
+});
+
+test("pet listing route prepares the egg inside the transaction service", async () => {
+  const calls: unknown[] = [];
+  const routes = setup({
+    createInventoryListing: async (input: unknown) => { calls.push(input); return { id: "listing-pet" }; },
+  });
+  const route = routes.find(candidate => candidate.path === "/api/market/list-pet")!;
+  const res = response();
+  await route.handlers[1]({
+    user: { id: "seller" },
+    body: { inventoryId: "pet-1", price: 250 },
+  } as any, res, () => undefined);
+  assert.deepEqual(calls, [{
+    actorId: "seller",
+    inventoryId: "pet-1",
+    price: 250,
+    preparePetEgg: true,
+  }]);
 });
