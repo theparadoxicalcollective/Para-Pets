@@ -29,7 +29,7 @@ import GiftClaimModal from "@/components/GiftClaimModal";
 import { VisibleAssetImage } from "@/components/VisibleAssetImage";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import loyaltyRewardIcon from "@assets/Photoroom_20260703_72612_AM_1783081617614.png";
-import petCareItemShelf from "@assets/ui/pet-care/item-shelf.png";
+import petCareJar from "@assets/uploads/Jar.png";
 import hungerMeterFrame from "@assets/ui/pet-care/hunger-meter-frame.png";
 import moodMeterFrame from "@assets/ui/pet-care/mood-meter-frame.png";
 import loyaltyMeterFrame from "@assets/ui/pet-care/loyalty-meter-frame.png";
@@ -38,7 +38,6 @@ import {
   createPetCareGestureController,
   PET_CARE_DROP_PADDING_PX,
   PET_CARE_DRAG_GHOST_SIZE_PX,
-  PET_CARE_VISIBLE_SLOTS,
   getPetCareDragGhostTransform,
   pointInsideExpandedPetDropZone,
   type PetCareItemGestureIntent,
@@ -86,20 +85,91 @@ function logUnexpectedPetCareMutationError(context: string, error: unknown) {
   }
 }
 
+const PET_CARE_JAR_VISUAL_CAPACITY = 48;
+const PET_CARE_JAR_COLUMNS = 7;
+
+type PetCareJarVisual = {
+  key: string;
+  item: PetCareShelfItem;
+  ordinal: number;
+  left: number;
+  top: number;
+  rotation: number;
+};
+
+function petCareJarSeed(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function clampPetCareJarPercent(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function buildPetCareJarVisuals(items: PetCareShelfItem[]): PetCareJarVisual[] {
+  const entries = items.map((item) => ({
+    item,
+    remaining: Math.max(0, Math.floor(Number(item.displayQuantity ?? item.quantity ?? 1))),
+    ordinal: 0,
+  }));
+  const units: Array<{ item: PetCareShelfItem; ordinal: number; key: string }> = [];
+
+  // Round-robin the stacks so a large pile of one item does not hide
+  // every other collectible. Each rendered unit still consumes only
+  // one server-side item when it is dropped on the pet.
+  while (units.length < PET_CARE_JAR_VISUAL_CAPACITY) {
+    let added = false;
+    for (const entry of entries) {
+      if (entry.remaining <= 0 || units.length >= PET_CARE_JAR_VISUAL_CAPACITY) continue;
+      const ordinal = entry.ordinal;
+      const key = `${entry.item.stackId}::${ordinal}`;
+      units.push({
+        key,
+        ordinal,
+        item: { ...entry.item, quantity: 1, displayQuantity: 1 },
+      });
+      entry.ordinal += 1;
+      entry.remaining -= 1;
+      added = true;
+    }
+    if (!added) break;
+  }
+
+  return units.map((unit, index) => {
+    const row = Math.floor(index / PET_CARE_JAR_COLUMNS);
+    const column = index % PET_CARE_JAR_COLUMNS;
+    const rowStart = row * PET_CARE_JAR_COLUMNS;
+    const rowCount = Math.min(PET_CARE_JAR_COLUMNS, units.length - rowStart);
+    const seed = petCareJarSeed(unit.key);
+    const jitterX = ((seed & 0xff) / 255 - 0.5) * 5;
+    const jitterY = (((seed >>> 8) & 0xff) / 255 - 0.5) * 4;
+    const rotation = (((seed >>> 16) & 0xff) / 255 - 0.5) * 24;
+    const centeredColumn = column - (rowCount - 1) / 2;
+    return {
+      ...unit,
+      left: clampPetCareJarPercent(50 + centeredColumn * 11.4 + jitterX, 13, 87),
+      top: clampPetCareJarPercent(80 - row * 9.6 + jitterY, 20, 82),
+      rotation,
+    };
+  });
+}
+
 function PetCareItemShelf({
   kind,
   items,
   onItemPointerDown,
   onItemClick,
   selectedStackId,
-  draggingStackId,
   safeMode,
   dragEnabled,
-  onPageChange,
 }: {
   kind: "edibles" | "gifts";
   items: PetCareShelfItem[];
-  onItemPointerDown: (event: React.PointerEvent<HTMLDivElement>, item: PetCareShelfItem) => void;
+  onItemPointerDown: (event: React.PointerEvent<HTMLDivElement>, item: PetCareShelfItem) => boolean;
   onItemClick: (item: PetCareShelfItem) => void;
   selectedStackId: string | null;
   draggingStackId: string | null;
@@ -109,86 +179,205 @@ function PetCareItemShelf({
 }) {
   const isEdible = kind === "edibles";
   const title = isEdible ? "EDIBLES" : "GIFTS";
-  const [page, setPage] = useState(0);
-  const pageCount = Math.max(1, Math.ceil(items.length / PET_CARE_VISIBLE_SLOTS));
-  const currentPage = Math.min(page, pageCount - 1);
-  const visibleItems = items.slice(
-    currentPage * PET_CARE_VISIBLE_SLOTS,
-    (currentPage + 1) * PET_CARE_VISIBLE_SLOTS,
-  );
+  const visuals = useMemo(() => buildPetCareJarVisuals(items), [items]);
+  const jarContentsRef = useRef<HTMLDivElement>(null);
+  const localDragRef = useRef<{
+    pointerId: number;
+    key: string;
+    startX: number;
+    startY: number;
+    originLeft: number;
+    originTop: number;
+  } | null>(null);
+  const [movedPositions, setMovedPositions] = useState<Record<string, { left: number; top: number }>>({});
 
-  useEffect(() => {
-    if (page !== currentPage) setPage(currentPage);
-  }, [currentPage, page]);
+  const beginJarMove = (event: React.PointerEvent<HTMLDivElement>, visual: PetCareJarVisual) => {
+    if (!dragEnabled) return;
+    const started = onItemPointerDown(event, visual.item);
+    if (!started) return;
+    const current = movedPositions[visual.key] ?? { left: visual.left, top: visual.top };
+    localDragRef.current = {
+      pointerId: event.pointerId,
+      key: visual.key,
+      startX: event.clientX,
+      startY: event.clientY,
+      originLeft: current.left,
+      originTop: current.top,
+    };
+  };
 
-  const changePage = (nextPage: number) => {
-    setPage(nextPage);
-    onPageChange();
+  const moveJarItem = (event: React.PointerEvent<HTMLDivElement>) => {
+    const active = localDragRef.current;
+    const bounds = jarContentsRef.current?.getBoundingClientRect();
+    if (!active || active.pointerId !== event.pointerId || !bounds?.width || !bounds?.height) return;
+    const left = clampPetCareJarPercent(
+      active.originLeft + ((event.clientX - active.startX) / bounds.width) * 100,
+      12,
+      88,
+    );
+    const top = clampPetCareJarPercent(
+      active.originTop + ((event.clientY - active.startY) / bounds.height) * 100,
+      18,
+      83,
+    );
+    setMovedPositions((current) => ({ ...current, [active.key]: { left, top } }));
+  };
+
+  const endJarMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (localDragRef.current?.pointerId === event.pointerId) localDragRef.current = null;
   };
 
   return (
     <section
-      className={`pet-care-item-shelf pet-care-item-shelf--${kind}`}
+      className={`pet-care-item-jar pet-care-item-jar--${kind}`}
       data-testid={`pet-care-${kind}-shelf`}
-      style={{ "--pet-care-visible-slots": PET_CARE_VISIBLE_SLOTS } as React.CSSProperties}
+      data-pet-care-inventory-jar="true"
+      aria-label={`${title.toLowerCase()} inventory jar`}
+      style={{
+        position: "relative",
+        flex: "1 1 0",
+        minWidth: 0,
+        maxWidth: 250,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-end",
+      }}
     >
-      <div className="pet-care-item-shelf__stage">
-        <div className="pet-care-item-shelf__art-crop" aria-hidden="true">
-          <img className="pet-care-item-shelf__art" src={petCareItemShelf} alt="" draggable={false} />
+      <span
+        aria-hidden="true"
+        style={{
+position: "absolute",
+top: 0,
+left: "50%",
+transform: "translateX(-50%)",
+zIndex: 6,
+color: "#fff0b2",
+fontFamily: "Lora, Georgia, serif",
+fontSize: "clamp(9px, 2.6vw, 12px)",
+fontWeight: 900,
+letterSpacing: "0.14em",
+textShadow: "0 2px 5px rgba(0,0,0,0.95), 0 0 8px rgba(255,215,120,0.55)",
+pointerEvents: "none",
+        }}
+      >
+        {title}
+      </span>
+      <div
+        style={{
+position: "relative",
+width: "100%",
+aspectRatio: "1 / 1",
+maxHeight: "clamp(132px, 20dvh, 190px)",
+filter: safeMode ? "none" : "drop-shadow(0 9px 10px rgba(0,0,0,0.36))",
+        }}
+      >
+        <div
+ref={jarContentsRef}
+data-testid={`pet-care-${kind}-jar`}
+style={{
+  position: "absolute",
+  left: "8%",
+  right: "8%",
+  top: "21%",
+  bottom: "8%",
+  zIndex: 1,
+  overflow: "hidden",
+  borderRadius: "38% 38% 43% 43% / 28% 28% 38% 38%",
+  touchAction: "none",
+}}
+        >
+{visuals.map((visual) => {
+  const position = movedPositions[visual.key] ?? { left: visual.left, top: visual.top };
+  const isSelected = selectedStackId === visual.item.stackId;
+  return (
+    <div
+      key={visual.key}
+      className="pet-care-item-jar__item"
+      onPointerDown={dragEnabled ? (event) => beginJarMove(event, visual) : undefined}
+      onPointerMove={dragEnabled ? moveJarItem : undefined}
+      onPointerUp={dragEnabled ? endJarMove : undefined}
+      onPointerCancel={dragEnabled ? endJarMove : undefined}
+      onLostPointerCapture={dragEnabled ? endJarMove : undefined}
+      onClick={!dragEnabled ? () => onItemClick(visual.item) : undefined}
+      data-pet-care-stack-id={visual.item.stackId}
+      data-testid={`${isEdible ? "edible" : "gift"}-item-${visual.item.id}${visual.ordinal === 0 ? "" : `-${visual.ordinal}`}`}
+      title={dragEnabled ? `Drag ${visual.item.name} to your pet` : `Select ${visual.item.name}`}
+      style={{
+        position: "absolute",
+        left: `${position.left}%`,
+        top: `${position.top}%`,
+        width: "22%",
+        aspectRatio: "1 / 1",
+        transform: `translate(-50%, -50%) rotate(${visual.rotation}deg)`,
+        transformOrigin: "50% 50%",
+        cursor: dragEnabled ? "grab" : "pointer",
+        touchAction: "none",
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        zIndex: 2 + Math.floor((100 - position.top) / 10),
+        filter: isSelected
+          ? "drop-shadow(0 0 5px #fff4a8) drop-shadow(0 0 9px rgba(139,255,106,0.9))"
+          : "drop-shadow(0 2px 2px rgba(0,0,0,0.45))",
+      }}
+    >
+      {visual.item.imageUrl && (safeMode ? (
+        <img
+          src={visual.item.imageUrl}
+          alt={visual.item.name}
+          draggable={false}
+          style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }}
+        />
+      ) : (
+        <VisibleAssetImage
+          className="pet-care-item-shelf__normalized-image"
+          src={visual.item.imageUrl}
+          alt={visual.item.name}
+        />
+      ))}
+    </div>
+  );
+})}
+{visuals.length === 0 && (
+  <span
+    data-testid={`text-no-${kind}`}
+    style={{
+      position: "absolute",
+      left: "50%",
+      top: "63%",
+      transform: "translate(-50%, -50%)",
+      color: "rgba(236,248,235,0.58)",
+      fontFamily: "Lora, Georgia, serif",
+      fontSize: "clamp(9px, 2.5vw, 12px)",
+      fontStyle: "italic",
+      whiteSpace: "nowrap",
+      pointerEvents: "none",
+    }}
+  >
+    Empty
+  </span>
+)}
         </div>
-        <div className="pet-care-item-shelf__viewport">
-          {visibleItems.map((item) => (
-            <div
-              key={item.stackId}
-              className={`pet-care-item-shelf__item${selectedStackId === item.stackId ? " pet-care-item-shelf__item--selected" : ""}`}
-              onPointerDown={dragEnabled ? (event) => onItemPointerDown(event, item) : undefined}
-              onClick={!dragEnabled ? () => onItemClick(item) : undefined}
-              data-pet-care-drag-source={draggingStackId === item.stackId ? "true" : undefined}
-              data-pet-care-stack-id={item.stackId}
-              data-testid={`${isEdible ? "edible" : "gift"}-item-${item.id}`}
-              style={{ touchAction: "none" }}
-            >
-              <div className="pet-care-item-shelf__visible-artwork">
-                {item.imageUrl && (safeMode
-                  ? <img className="pet-care-item-shelf__normalized-image" src={item.imageUrl} alt={item.name} draggable={false} style={{ objectFit: "contain" }} />
-                  : <VisibleAssetImage className="pet-care-item-shelf__normalized-image" src={item.imageUrl} alt={item.name} />)}
-                {isEdible && item.statBoostAmount != null && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--edible">+{item.statBoostAmount}</span>}
-                {!isEdible && !!item.giftPoints && <span className="pet-care-item-shelf__value pet-care-item-shelf__value--gift">+{item.giftPoints}</span>}
-                {item.displayQuantity > 1 && <span className="pet-care-item-shelf__quantity">×{item.displayQuantity}</span>}
-              </div>
-            </div>
-          ))}
-        </div>
-        <button
-          type="button"
-          className="pet-care-item-shelf__arrow pet-care-item-shelf__arrow--previous"
-          onClick={() => changePage(currentPage - 1)}
-          disabled={currentPage === 0}
-          aria-label={`Previous ${kind}`}
-        >‹</button>
-        <button
-          type="button"
-          className="pet-care-item-shelf__arrow pet-care-item-shelf__arrow--next"
-          onClick={() => changePage(currentPage + 1)}
-          disabled={currentPage >= pageCount - 1}
-          aria-label={`Next ${kind}`}
-        >›</button>
-        <div className="pet-care-item-shelf__art-crop pet-care-item-shelf__art-crop--front" aria-hidden="true">
-          <img className="pet-care-item-shelf__art" src={petCareItemShelf} alt="" draggable={false} />
-        </div>
-        {items.length === 0 && (
-          <span className="pet-care-item-shelf__empty" data-testid={`text-no-${kind}`}>
-            No {kind}
-          </span>
-        )}
-        <span className="pet-care-item-shelf__title">
-          {title}
-        </span>
+        <img
+src={petCareJar}
+alt=""
+aria-hidden="true"
+draggable={false}
+style={{
+  position: "absolute",
+  inset: 0,
+  zIndex: 4,
+  width: "100%",
+  height: "100%",
+  objectFit: "contain",
+  pointerEvents: "none",
+  userSelect: "none",
+}}
+        />
       </div>
     </section>
   );
 }
-
 // ── Feeding Overlay ──────────────────────────────────────────────────────────
 // Full-screen magical-rainforest scene where a player drags edibles from the
 // bottom strip onto the pet to feed it. Each successful drop calls the existing
@@ -1017,7 +1206,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
 
   const onItemPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>, item: PetCareShelfItem) => {
     e.stopPropagation();
-    if (isApplyingItemRef.current || !item?.id || (item.quantity ?? 0) <= 0) return;
+    if (isApplyingItemRef.current || dragRef.current || !item?.id || (item.quantity ?? 0) <= 0) return false;
     interactionRef.current = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, itemType: item.type === "gift" ? "gift" : "edibles" };
     recordPhase("pointer-down");
     dragRef.current = {
@@ -1040,6 +1229,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     capturedPointerRef.current = e.pointerId;
     captureTargetRef.current = captureTarget;
     setDragGhost(null);
+    return true;
   }, [recordPhase]);
 
   const usePetCareItem = useCallback(async (drag: NonNullable<typeof dragRef.current>) => {
@@ -1651,7 +1841,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
               <div className="pb-3" style={{ borderBottom: "1px solid rgba(180,255,160,0.15)" }}>
                 <p style={{ color: "#c8ff90", fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 4 }}>FEED</p>
                 <p style={{ color: "#aac8a0", fontSize: 11, lineHeight: 1.55 }}>
-                      {dragEnabled ? "Drag any edible from the bottom strip onto your pet to fill its hunger meter and lift its mood. You can also tap an item, then tap your pet." : "Tap an edible, then tap your pet to fill its hunger meter and lift its mood."}
+                      {dragEnabled ? "Drag any edible from the edible jar onto your pet to fill its hunger meter and lift its mood. You can also tap an item, then tap your pet." : "Tap an edible, then tap your pet to fill its hunger meter and lift its mood."}
                 </p>
               </div>
               <div className="pb-3" style={{ borderBottom: "1px solid rgba(180,255,160,0.15)" }}>
@@ -1686,10 +1876,9 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
         </div>
       )}
 
-      {/* ── Bottom item strip — edibles + gifts ──────────────────────────── */}
-      {/* Items are compact image-only chips (no card boxes). Shelf arrows page
-          through six slots without competing with item pointer gestures. The
-          strip remains capped so it never overlaps the status bars. */}
+      {/* ── Bottom inventory jars — gifts + edibles ─────────────────────── */}
+      {/* Each collected unit gets a tiny visual so the jars fill from the bottom
+          up. The transparent jar art stays above the contents like real glass. */}
       <div
         className="absolute left-0 right-0 pet-care-inventory-section"
         style={{
@@ -1710,8 +1899,21 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
           xpBoostPct={(livePet as any).xpBoostPct ?? 0}
           safeMode={safeMode}
         />
-        <PetCareItemShelf kind="edibles" items={edibles} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} onPageChange={() => setSelectedCareItem(null)} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
-        <PetCareItemShelf kind="gifts" items={gifts} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} onPageChange={() => setSelectedCareItem(null)} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
+        <div
+  className="pet-care-inventory-jars"
+  style={{
+    width: "100%",
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "center",
+    gap: "clamp(6px, 2.2vw, 14px)",
+    padding: "0 clamp(4px, 1.5vw, 10px)",
+    boxSizing: "border-box",
+  }}
+>
+  <PetCareItemShelf kind="gifts" items={gifts} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} onPageChange={() => setSelectedCareItem(null)} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
+  <PetCareItemShelf kind="edibles" items={edibles} onItemPointerDown={onItemPointerDown} onItemClick={selectCareItem} onPageChange={() => setSelectedCareItem(null)} selectedStackId={selectedCareItem?.stackId ?? null} draggingStackId={dragGhost?.stackId ?? null} safeMode={safeMode} dragEnabled={dragEnabled} />
+</div>
       </div>
 
       {/* ── Feed hint overlay ───────────────────────────────────────────────
