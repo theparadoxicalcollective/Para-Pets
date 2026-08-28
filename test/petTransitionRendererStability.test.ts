@@ -28,7 +28,7 @@ test("shared pet renderer removes malformed authored layers", () => {
     { id: "ok", templateId: "pet", partType: "body", view: "front", imageUrl: "/body.png", posX: "4", posY: null, width: "200", height: 180, zIndex: "3", pivotX: null, pivotY: undefined, rotation: "bad" },
   ]), [{
     id: "ok", templateId: "pet", partType: "body", view: "front", imageUrl: "/body.png",
-    posX: 4, posY: 0, width: 200, height: 180, zIndex: 3, pivotX: 0, pivotY: 0, rotation: 0,
+    posX: 4, posY: 0, width: 200, height: 180, zIndex: 3, pivotX: 0, pivotY: 50, rotation: 0,
   }]);
 });
 
@@ -39,7 +39,7 @@ test("legacy costume JSON is normalized before route and renderer use", () => {
     { view: "front", depth: "back", anchorPart: "head", width: "120", height: 80, posX: "4", posY: 5, pivotX: null, pivotY: undefined, instance: 99 },
   ]), [{
     view: "front", depth: "back", anchorPart: "head", width: 120, height: 80,
-    posX: 4, posY: 5, pivotX: 0, pivotY: 0, instance: 4, rotation: 0, flipX: false,
+    posX: 4, posY: 5, pivotX: 0, pivotY: 50, instance: 4, rotation: 0, flipX: false,
   }]);
 });
 
