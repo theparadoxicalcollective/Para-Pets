@@ -170,31 +170,31 @@ function MarketCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
       >
         {isPet ? (
           <>
-            <div data-market-card-field="pet-rarity" style={{ position: "absolute", top: "10%", left: "34%", right: "8%", textAlign: "center", color: gold, fontFamily: "Georgia, serif", fontSize: "clamp(9px, 2.2vw, 12px)", fontWeight: 700, textShadow: "0 1px 2px #25002f" }}>
+            <div data-market-card-field="pet-rarity" style={{ position: "absolute", top: "6%", left: "42%", right: "4%", textAlign: "center", color: gold, fontFamily: "Georgia, serif", fontSize: "clamp(9px, 2.2vw, 12px)", fontWeight: 700, textShadow: "0 1px 2px #25002f" }}>
               {stars(listing.rarity)}
             </div>
             <div style={{ position: "absolute", top: "24%", left: "18%", right: "18%", height: "36%", display: "flex", alignItems: "center", justifyContent: "center" }}>
               {listing.itemImageUrl ? <img src={listing.itemImageUrl} alt={listing.itemName} style={{ maxWidth: "82%", maxHeight: "92%", objectFit: "contain", filter: "drop-shadow(0 5px 10px rgba(193,93,255,.42))" }} /> : <img src={eggMagicIcon} alt="" style={{ width: "58%", opacity: .7 }} />}
             </div>
-            <div data-market-card-field="pet-name" style={{ position: "absolute", top: "65%", left: "13%", right: "13%", height: "10%", display: "flex", alignItems: "center", justifyContent: "center", color: cream, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "clamp(9px, 2.4vw, 13px)", lineHeight: 1.05, textAlign: "center", textShadow: "0 1px 2px #200026" }}>
+            <div data-market-card-field="pet-name" style={{ position: "absolute", top: "61%", left: "13%", right: "13%", height: "10%", display: "flex", alignItems: "center", justifyContent: "center", color: cream, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "clamp(9px, 2.4vw, 13px)", lineHeight: 1.05, textAlign: "center", textShadow: "0 1px 2px #200026" }}>
               {listing.speciesName || listing.itemName}
             </div>
           </>
         ) : (
           <>
-            <div data-market-card-field="item-image" style={{ position: "absolute", top: "12%", left: "20%", right: "20%", height: "34%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div data-market-card-field="item-image" style={{ position: "absolute", top: "16%", left: "20%", right: "20%", height: "34%", display: "flex", alignItems: "center", justifyContent: "center" }}>
               {listing.itemImageUrl ? <img src={listing.itemImageUrl} alt={listing.itemName} style={{ maxWidth: "82%", maxHeight: "94%", objectFit: "contain", filter: "drop-shadow(0 5px 8px rgba(40,255,110,.22))" }} /> : <img src={powerupBagIcon} alt="" style={{ width: "55%", opacity: .65 }} />}
             </div>
-            <div data-market-card-field="item-name" style={{ position: "absolute", top: "55%", left: "12%", right: "12%", minHeight: "9%", display: "flex", alignItems: "center", justifyContent: "center", color: cream, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "clamp(9px, 2.35vw, 13px)", lineHeight: 1.05, textAlign: "center", textShadow: "0 1px 2px #04220e" }}>
+            <div data-market-card-field="item-name" style={{ position: "absolute", top: "58%", left: "12%", right: "12%", minHeight: "9%", display: "flex", alignItems: "center", justifyContent: "center", color: cream, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "clamp(9px, 2.35vw, 13px)", lineHeight: 1.05, textAlign: "center", textShadow: "0 1px 2px #04220e" }}>
               {listing.itemName}
             </div>
-            <div data-market-card-field="item-display" style={{ position: "absolute", top: "70%", left: "17%", right: "17%", minHeight: "10%", display: "flex", alignItems: "center", justifyContent: "center", color: "#d8ffdd", fontFamily: "Georgia, serif", fontSize: "clamp(7px, 1.85vw, 10px)", lineHeight: 1.08, textAlign: "center", textShadow: "0 1px 2px #04220e", overflow: "hidden" }}>
+            <div data-market-card-field="item-display" style={{ position: "absolute", top: "72%", left: "17%", right: "17%", minHeight: "10%", display: "flex", alignItems: "center", justifyContent: "center", color: "#d8ffdd", fontFamily: "Georgia, serif", fontSize: "clamp(7px, 1.85vw, 10px)", lineHeight: 1.08, textAlign: "center", textShadow: "0 1px 2px #04220e", overflow: "hidden" }}>
               {listing.effectSummary || listing.description || "Market item"}
             </div>
           </>
         )}
 
-        <div data-market-card-field="price" style={{ position: "absolute", left: "18%", right: "15%", bottom: "12%", height: "10%", display: "flex", alignItems: "center", justifyContent: "center", color: gold, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "clamp(9px, 2.4vw, 13px)", textShadow: "0 1px 2px #2f1500" }}>
+        <div data-market-card-field="price" style={{ position: "absolute", left: "18%", right: "15%", bottom: "15%", height: "10%", display: "flex", alignItems: "center", justifyContent: "center", color: gold, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "clamp(9px, 2.4vw, 13px)", textShadow: "0 1px 2px #2f1500" }}>
           {formatCoins(listing.price)}
         </div>
 
@@ -346,7 +346,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
 
   const listMutation = useMutation({ mutationFn: ({ inventoryId, price }: { inventoryId: string; price: number }) => apiRequest("POST", "/api/market/list", { inventoryId, price }), onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); toast({ title: "Listed!", description: "Your item is now on the market." }); }, onError: (e: any) => toast({ title: "Failed to list item", description: e.message, variant: "destructive" }) });
   const listFishMutation = useMutation({ mutationFn: ({ fishInventoryId, price }: { fishInventoryId: string; price: number }) => apiRequest("POST", "/api/market/list-fish", { fishInventoryId, price }), onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); toast({ title: "Fish listed!", description: "Your fish is now on the market." }); }, onError: (e: any) => toast({ title: "Failed to list fish", description: e.message, variant: "destructive" }) });
-  const revertAndListMutation = useMutation({ mutationFn: async ({ inventoryId, price }: { inventoryId: string; price: number }) => { await apiRequest("POST", `/api/pet/${inventoryId}/revert-to-egg`, {}); return apiRequest("POST", "/api/market/list", { inventoryId, price }); }, onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); toast({ title: "Pet egg listed!", description: "Your pet egg is now on the market." }); }, onError: (e: any) => toast({ title: "Failed to list pet egg", description: e.message, variant: "destructive" }) });
+  const listPetMutation = useMutation({ mutationFn: ({ inventoryId, price }: { inventoryId: string; price: number }) => apiRequest("POST", "/api/market/list-pet", { inventoryId, price }), onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/user/equipped-accessory-ids"] }); toast({ title: "Pet egg listed!", description: "Your pet is safely held by the market until it is bought or returned." }); }, onError: (e: any) => toast({ title: "Failed to list pet egg", description: e.message, variant: "destructive" }) });
   const buyMutation = useMutation({ mutationFn: (listingId: string) => apiRequest("POST", `/api/market/${listingId}/buy`, {}), onSuccess: async () => { setDetailTarget(null); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); const updatedUser = await fetch("/api/auth/me").then(r => r.json()); onUserUpdate?.(updatedUser); playChime(); toast({ title: "Purchase complete!", description: "Check your inventory." }); }, onError: (e: any) => { queryClient.invalidateQueries({ queryKey: ["/api/market"] }); toast({ title: "Purchase failed", description: e.message, variant: "destructive" }); } });
   const collectMutation = useMutation({
     mutationFn: (listingId: string) => apiRequest("POST", `/api/market/${listingId}/collect`, {}),
@@ -388,7 +388,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
 
         {activeTab === "browse" ? (
           <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "8px 13px 0" }}>
-            <div data-testid="market-search-frame" style={{ position: "relative", height: 58, flexShrink: 0, marginBottom: 7, background: `url(${marketSearchBar}) center/100% 100% no-repeat`, filter: "drop-shadow(0 4px 7px rgba(0,0,0,.35))" }}>
+            <div data-testid="market-search-frame" style={{ position: "relative", height: 64, flexShrink: 0, marginBottom: 7, background: `url(${marketSearchBar}) center/100% 100% no-repeat`, filter: "drop-shadow(0 4px 7px rgba(0,0,0,.35))" }}>
               <input data-testid="input-market-search" type="text" value={search} onChange={handleSearch} placeholder={isAdmin ? "Search items or sellers…" : "Search the market…"} style={{ position: "absolute", inset: "11px 16% 11px 12%", width: "72%", boxSizing: "border-box", border: 0, outline: 0, background: "transparent", color: cream, fontFamily: "Georgia, serif", fontSize: 13, textShadow: "0 1px 2px #1d0028" }} />
             </div>
 
@@ -411,7 +411,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
         )}
       </div>
 
-      {showSellModal && <SellItemModal inventory={inventoryQuery.data ?? []} fishInventory={fishInventoryQuery.data ?? []} onClose={() => setShowSellModal(false)} onSubmit={(inventoryId, price) => listMutation.mutate({ inventoryId, price })} onSubmitFish={(fishInventoryId, price) => listFishMutation.mutate({ fishInventoryId, price })} onSubmitPet={(inventoryId, price) => revertAndListMutation.mutate({ inventoryId, price })} isPending={listMutation.isPending || listFishMutation.isPending} isPetPending={revertAndListMutation.isPending} />}
+      {showSellModal && <SellItemModal inventory={inventoryQuery.data ?? []} fishInventory={fishInventoryQuery.data ?? []} onClose={() => setShowSellModal(false)} onSubmit={(inventoryId, price) => listMutation.mutate({ inventoryId, price })} onSubmitFish={(fishInventoryId, price) => listFishMutation.mutate({ fishInventoryId, price })} onSubmitPet={(inventoryId, price) => listPetMutation.mutate({ inventoryId, price })} isPending={listMutation.isPending || listFishMutation.isPending} isPetPending={listPetMutation.isPending} />}
       {detailTarget?.itemType === "pet_egg" && <PetEggDetailModal listing={detailTarget} onClose={() => setDetailTarget(null)} onBuy={() => buyMutation.mutate(detailTarget.id)} isBuyPending={buyMutation.isPending} userCoins={user?.coins ?? 0} isAdmin={isAdmin} />}
       {detailTarget && detailTarget.itemType !== "pet_egg" && <ItemDetailModal listing={detailTarget} onClose={() => setDetailTarget(null)} onBuy={() => buyMutation.mutate(detailTarget.id)} isBuyPending={buyMutation.isPending} userCoins={user?.coins ?? 0} isAdmin={isAdmin} />}
     </div>
