@@ -6,7 +6,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
-import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, userHouseBundles as userHouseBundlesTable, users as usersTable, coinPurchases, deletedAccounts, petAnimationProfileSchema } from "@shared/schema";
+import { insertUserSchema, updateUsernameSchema, insertShopItemSchema, rewardBundles, rewardBundleItems, userRewards, userInventory, houseBundles as houseBundlesTable, userHouseBundles as userHouseBundlesTable, users as usersTable, coinPurchases, deletedAccounts, petAnimationProfileSchema, petEquippedAccessories } from "@shared/schema";
 import { executeRewardClaim } from "./rewardClaim";
 import { executeDailyQuestClaim } from "./dailyQuestClaim";
 import { registerQuestRoutes } from "./routes/quest.routes";
