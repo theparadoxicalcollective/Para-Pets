@@ -47,6 +47,7 @@ import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareFeedbackProfile, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
+import { createPetCareJarBodies, movePetCareJarBody, stepPetCareJarPhysics, type PetCareJarBody } from "@/lib/petCareJarPhysics";
 
 /**
  * Pet Care feature boundary.
@@ -86,13 +87,6 @@ function logUnexpectedPetCareMutationError(context: string, error: unknown) {
 }
 
 const PET_CARE_JAR_VISUAL_CAPACITY = 48;
-const PET_CARE_JAR_COLUMNS = 6;
-const PET_CARE_JAR_LEFT_EDGE = 16;
-const PET_CARE_JAR_RIGHT_EDGE = 84;
-const PET_CARE_JAR_FLOOR = 82;
-const PET_CARE_JAR_CEILING = 18;
-const PET_CARE_JAR_ROW_GAP = 10.4;
-const PET_CARE_JAR_SETTLE_MS = 540;
 
 type PetCareJarVisual = {
   key: string;
@@ -116,22 +110,6 @@ function clampPetCareJarPercent(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function petCareJarColumnForLeft(left: number) {
-  const span = PET_CARE_JAR_RIGHT_EDGE - PET_CARE_JAR_LEFT_EDGE;
-  return Math.round(
-    clampPetCareJarPercent(
-      ((left - PET_CARE_JAR_LEFT_EDGE) / span) * (PET_CARE_JAR_COLUMNS - 1),
-      0,
-      PET_CARE_JAR_COLUMNS - 1,
-    ),
-  );
-}
-
-function petCareJarColumnCenter(column: number) {
-  const span = PET_CARE_JAR_RIGHT_EDGE - PET_CARE_JAR_LEFT_EDGE;
-  return PET_CARE_JAR_LEFT_EDGE + (span * column) / (PET_CARE_JAR_COLUMNS - 1);
-}
-
 function buildPetCareJarVisuals(items: PetCareShelfItem[]): PetCareJarVisual[] {
   const entries = items.map((item) => ({
     item,
@@ -140,8 +118,8 @@ function buildPetCareJarVisuals(items: PetCareShelfItem[]): PetCareJarVisual[] {
   }));
   const units: Array<{ item: PetCareShelfItem; ordinal: number; key: string }> = [];
 
-  // Mix stacks in rounds so one large stack does not visually bury all
-  // other collectibles. Every rendered piece still consumes one item.
+  // Mix stacks in rounds so one large stack does not visually bury all other
+  // collectibles. Each rendered physics body still represents one item.
   while (units.length < PET_CARE_JAR_VISUAL_CAPACITY) {
     let added = false;
     for (const entry of entries) {
@@ -159,20 +137,21 @@ function buildPetCareJarVisuals(items: PetCareShelfItem[]): PetCareJarVisual[] {
     if (!added) break;
   }
 
+  const columns = Math.min(7, Math.max(4, Math.ceil(Math.sqrt(units.length || 1))));
   return units.map((unit, index) => {
-    const row = Math.floor(index / PET_CARE_JAR_COLUMNS);
-    const column = index % PET_CARE_JAR_COLUMNS;
-    const rowStart = row * PET_CARE_JAR_COLUMNS;
-    const rowCount = Math.min(PET_CARE_JAR_COLUMNS, units.length - rowStart);
+    const row = Math.floor(index / columns);
+    const column = index % columns;
+    const rowStart = row * columns;
+    const rowCount = Math.min(columns, units.length - rowStart);
     const seed = petCareJarSeed(unit.key);
-    const jitterX = ((seed & 0xff) / 255 - 0.5) * 4;
-    const jitterY = (((seed >>> 8) & 0xff) / 255 - 0.5) * 3;
-    const rotation = (((seed >>> 16) & 0xff) / 255 - 0.5) * 24;
+    const jitterX = ((seed & 0xff) / 255 - 0.5) * 3;
+    const jitterY = (((seed >>> 8) & 0xff) / 255 - 0.5) * 2;
+    const rotation = (((seed >>> 16) & 0xff) / 255 - 0.5) * 72;
     const centeredColumn = column - (rowCount - 1) / 2;
     return {
       ...unit,
-      left: clampPetCareJarPercent(50 + centeredColumn * 13.6 + jitterX, PET_CARE_JAR_LEFT_EDGE, PET_CARE_JAR_RIGHT_EDGE),
-      top: clampPetCareJarPercent(PET_CARE_JAR_FLOOR - row * PET_CARE_JAR_ROW_GAP + jitterY, PET_CARE_JAR_CEILING, PET_CARE_JAR_FLOOR),
+      left: clampPetCareJarPercent(50 + centeredColumn * (62 / Math.max(1, columns - 1)) + jitterX, 18, 82),
+      top: clampPetCareJarPercent(79 - row * 8.6 + jitterY, 20, 79),
       rotation,
     };
   });
@@ -199,135 +178,132 @@ function PetCareItemShelf({
   const title = isEdible ? "EDIBLES" : "GIFTS";
   const visuals = useMemo(() => buildPetCareJarVisuals(items), [items]);
   const jarContentsRef = useRef<HTMLDivElement>(null);
+  const itemElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const bodiesRef = useRef<PetCareJarBody[]>([]);
+  const heldKeyRef = useRef<string | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   const localDragRef = useRef<{
     pointerId: number;
     key: string;
     startX: number;
     startY: number;
-    originLeft: number;
-    originTop: number;
-    left: number;
-    top: number;
+    lastX: number;
+    lastY: number;
+    lastTime: number;
     hasMoved: boolean;
-    element: HTMLDivElement;
   } | null>(null);
-  const [movedPositions, setMovedPositions] = useState<Record<string, { left: number; top: number }>>({});
-  const [settlingKeys, setSettlingKeys] = useState<Set<string>>(() => new Set());
-  const settleTimerRef = useRef<number | null>(null);
+
+  const paintBodies = useCallback(() => {
+    const height = jarContentsRef.current?.getBoundingClientRect().height ?? 1;
+    for (const body of bodiesRef.current) {
+      const element = itemElementsRef.current.get(body.key);
+      if (!element) continue;
+      element.style.left = `${body.x}px`;
+      element.style.top = `${body.y}px`;
+      element.style.transform = `translate(-50%, -50%) rotate(${body.angle}deg)`;
+      element.style.zIndex = String(10 + Math.round((body.y / height) * 80));
+    }
+  }, []);
+
+  const startPhysics = useCallback(() => {
+    if (animationFrameRef.current != null) return;
+    let lastTime = performance.now();
+    let quietFrames = 0;
+    const tick = (now: number) => {
+      const boundsElement = jarContentsRef.current;
+      if (!boundsElement) {
+        animationFrameRef.current = null;
+        return;
+      }
+      const rect = boundsElement.getBoundingClientRect();
+      const moving = stepPetCareJarPhysics(
+        bodiesRef.current,
+        { width: rect.width, height: rect.height },
+        (now - lastTime) / 1000,
+        heldKeyRef.current,
+      );
+      lastTime = now;
+      paintBodies();
+      quietFrames = moving ? 0 : quietFrames + 1;
+      if (moving || heldKeyRef.current || quietFrames < 8) {
+        animationFrameRef.current = window.requestAnimationFrame(tick);
+      } else {
+        animationFrameRef.current = null;
+      }
+    };
+    animationFrameRef.current = window.requestAnimationFrame(tick);
+  }, [paintBodies]);
+
+  useEffect(() => {
+    const initializeFrame = window.requestAnimationFrame(() => {
+      const rect = jarContentsRef.current?.getBoundingClientRect();
+      if (!rect?.width || !rect?.height) return;
+      bodiesRef.current = createPetCareJarBodies(visuals, { width: rect.width, height: rect.height });
+      paintBodies();
+      if (dragEnabled && !safeMode) startPhysics();
+    });
+    return () => window.cancelAnimationFrame(initializeFrame);
+  }, [dragEnabled, paintBodies, safeMode, startPhysics, visuals]);
 
   useEffect(() => () => {
-    if (settleTimerRef.current != null) window.clearTimeout(settleTimerRef.current);
+    if (animationFrameRef.current != null) window.cancelAnimationFrame(animationFrameRef.current);
   }, []);
 
   const beginJarMove = (event: React.PointerEvent<HTMLDivElement>, visual: PetCareJarVisual) => {
     if (!dragEnabled) return;
     const started = onItemPointerDown(event, visual.item);
     if (!started) return;
-    const current = movedPositions[visual.key] ?? { left: visual.left, top: visual.top };
+    const body = bodiesRef.current.find((candidate) => candidate.key === visual.key);
+    if (!body) return;
+    heldKeyRef.current = visual.key;
     localDragRef.current = {
       pointerId: event.pointerId,
       key: visual.key,
       startX: event.clientX,
       startY: event.clientY,
-      originLeft: current.left,
-      originTop: current.top,
-      left: current.left,
-      top: current.top,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      lastTime: performance.now(),
       hasMoved: false,
-      element: event.currentTarget,
     };
+    startPhysics();
   };
 
   const moveJarItem = (event: React.PointerEvent<HTMLDivElement>) => {
     const active = localDragRef.current;
-    const bounds = jarContentsRef.current?.getBoundingClientRect();
-    if (!active || active.pointerId !== event.pointerId || !bounds?.width || !bounds?.height) return;
-    const left = clampPetCareJarPercent(
-      active.originLeft + ((event.clientX - active.startX) / bounds.width) * 100,
-      12,
-      88,
+    const rect = jarContentsRef.current?.getBoundingClientRect();
+    const body = bodiesRef.current.find((candidate) => candidate.key === active?.key);
+    if (!active || active.pointerId !== event.pointerId || !rect?.width || !rect?.height || !body) return;
+    const now = performance.now();
+    const elapsed = Math.max(0.008, (now - active.lastTime) / 1000);
+    movePetCareJarBody(
+      body,
+      { width: rect.width, height: rect.height },
+      event.clientX - rect.left,
+      event.clientY - rect.top,
+      (event.clientX - active.lastX) / elapsed,
+      (event.clientY - active.lastY) / elapsed,
     );
-    const top = clampPetCareJarPercent(
-      active.originTop + ((event.clientY - active.startY) / bounds.height) * 100,
-      18,
-      83,
-    );
-    active.left = left;
-    active.top = top;
-    if (Math.hypot(event.clientX - active.startX, event.clientY - active.startY) >= 10) {
-      active.hasMoved = true;
-    }
-    active.element.style.left = `${left}%`;
-    active.element.style.top = `${top}%`;
+    active.lastX = event.clientX;
+    active.lastY = event.clientY;
+    active.lastTime = now;
+    if (Math.hypot(event.clientX - active.startX, event.clientY - active.startY) >= 10) active.hasMoved = true;
+    paintBodies();
   };
 
   const endJarMove = (event: React.PointerEvent<HTMLDivElement>) => {
     const active = localDragRef.current;
-    const bounds = jarContentsRef.current?.getBoundingClientRect();
     if (!active || active.pointerId !== event.pointerId) return;
     localDragRef.current = null;
-
-    const droppedInsideJar = !!bounds
-      && event.clientX >= bounds.left
-      && event.clientX <= bounds.right
-      && event.clientY >= bounds.top
-      && event.clientY <= bounds.bottom;
-    if (!active.hasMoved || !droppedInsideJar || !bounds?.width) return;
-
-    const releasedLeft = clampPetCareJarPercent(
-      ((event.clientX - bounds.left) / bounds.width) * 100,
-      PET_CARE_JAR_LEFT_EDGE,
-      PET_CARE_JAR_RIGHT_EDGE,
-    );
-    const targetColumn = petCareJarColumnForLeft(releasedLeft);
-
-    // Re-pack every column from the floor up. This closes any hole left when
-    // a piece is picked up and makes the released piece land on top of the
-    // pile, like the lightweight physics jars used on livestreams.
-    const columns = Array.from({ length: PET_CARE_JAR_COLUMNS }, () => [] as PetCareJarVisual[]);
-    for (const visual of visuals) {
-      if (visual.key === active.key) continue;
-      const position = movedPositions[visual.key] ?? { left: visual.left, top: visual.top };
-      columns[petCareJarColumnForLeft(position.left)].push(visual);
-    }
-    for (const column of columns) {
-      column.sort((a, b) => {
-        const aTop = (movedPositions[a.key] ?? { top: a.top }).top;
-        const bTop = (movedPositions[b.key] ?? { top: b.top }).top;
-        return bTop - aTop;
-      });
-    }
-    const releasedVisual = visuals.find((visual) => visual.key === active.key);
-    if (releasedVisual) columns[targetColumn].push(releasedVisual);
-
-    const next: Record<string, { left: number; top: number }> = {};
-    columns.forEach((column, columnIndex) => {
-      column.forEach((visual, stackIndex) => {
-        const seed = petCareJarSeed(`${visual.key}:settled:${columnIndex}`);
-        const jitterX = ((seed & 0xff) / 255 - 0.5) * 4;
-        const jitterY = (((seed >>> 8) & 0xff) / 255 - 0.5) * 2.4;
-        next[visual.key] = {
-          left: clampPetCareJarPercent(
-            petCareJarColumnCenter(columnIndex) + jitterX,
-            PET_CARE_JAR_LEFT_EDGE,
-            PET_CARE_JAR_RIGHT_EDGE,
-          ),
-          top: clampPetCareJarPercent(
-            PET_CARE_JAR_FLOOR - stackIndex * PET_CARE_JAR_ROW_GAP + jitterY,
-            PET_CARE_JAR_CEILING,
-            PET_CARE_JAR_FLOOR,
-          ),
-        };
-      });
-    });
-    setMovedPositions(next);
-    setSettlingKeys(new Set(Object.keys(next)));
-    if (settleTimerRef.current != null) window.clearTimeout(settleTimerRef.current);
-    settleTimerRef.current = window.setTimeout(() => {
-      setSettlingKeys(new Set());
-      settleTimerRef.current = null;
-    }, PET_CARE_JAR_SETTLE_MS);
-    playPlop();
+    heldKeyRef.current = null;
+    const rect = jarContentsRef.current?.getBoundingClientRect();
+    const droppedInsideJar = !!rect
+      && event.clientX >= rect.left
+      && event.clientX <= rect.right
+      && event.clientY >= rect.top
+      && event.clientY <= rect.bottom;
+    if (active.hasMoved && droppedInsideJar) playPlop();
+    startPhysics();
   };
 
   return (
@@ -340,7 +316,7 @@ function PetCareItemShelf({
         position: "relative",
         flex: "1 1 0",
         minWidth: 0,
-        maxWidth: 250,
+        maxWidth: 270,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -369,7 +345,7 @@ function PetCareItemShelf({
       <div
         style={{
           position: "relative",
-          width: "min(100%, clamp(150px, 23dvh, 214px))",
+          width: "min(calc(100% + 14px), clamp(164px, 25dvh, 232px))",
           aspectRatio: "1 / 1",
           filter: safeMode ? "none" : "drop-shadow(0 9px 10px rgba(0,0,0,0.36))",
         }}
@@ -390,13 +366,16 @@ function PetCareItemShelf({
           }}
         >
           {visuals.map((visual) => {
-            const position = movedPositions[visual.key] ?? { left: visual.left, top: visual.top };
             const isSelected = selectedStackId === visual.item.stackId;
-            const isSettling = settlingKeys.has(visual.key);
             return (
               <div
                 key={visual.key}
+                ref={(element) => {
+                  if (element) itemElementsRef.current.set(visual.key, element);
+                  else itemElementsRef.current.delete(visual.key);
+                }}
                 className="pet-care-item-jar__item"
+                data-pet-care-physics-body="true"
                 onPointerDown={dragEnabled ? (event) => beginJarMove(event, visual) : undefined}
                 onPointerMove={dragEnabled ? moveJarItem : undefined}
                 onPointerUp={dragEnabled ? endJarMove : undefined}
@@ -408,20 +387,18 @@ function PetCareItemShelf({
                 title={dragEnabled ? `Drag ${visual.item.name} to your pet` : `Select ${visual.item.name}`}
                 style={{
                   position: "absolute",
-                  left: `${position.left}%`,
-                  top: `${position.top}%`,
+                  left: `${visual.left}%`,
+                  top: `${visual.top}%`,
                   width: "27%",
                   aspectRatio: "1 / 1",
                   transform: `translate(-50%, -50%) rotate(${visual.rotation}deg)`,
                   transformOrigin: "50% 50%",
-                  transition: isSettling
-                    ? `left 220ms ease-out, top ${PET_CARE_JAR_SETTLE_MS}ms cubic-bezier(0.18, 0.78, 0.26, 1.08)`
-                    : "none",
+                  transition: "none",
                   cursor: dragEnabled ? "grab" : "pointer",
                   touchAction: "none",
                   userSelect: "none",
                   WebkitUserSelect: "none",
-                  zIndex: 2 + Math.floor((100 - position.top) / 10),
+                  zIndex: 10 + Math.round(visual.top),
                   filter: isSelected
                     ? "drop-shadow(0 0 5px #fff4a8) drop-shadow(0 0 9px rgba(139,255,106,0.9))"
                     : "drop-shadow(0 2px 2px rgba(0,0,0,0.45))",
