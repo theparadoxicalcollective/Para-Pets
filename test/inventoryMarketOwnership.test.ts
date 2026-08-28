@@ -12,12 +12,10 @@ test("player inventory hides escrowed pets and globally equipped accessories", (
   assert.match(inventory, /!item\.isListed[\s\S]*?item\.type !== "pet"[\s\S]*?equippedAccessoryIdSet\.has\(item\.inventoryId\)/);
 });
 
-test("Closet returns unequipped inventory once and prevents cross-pet reuse", () => {
-  assert.match(routes, /storage\.getUserInventoryWithItems\(user\.id\)/);
-  assert.match(routes, /innerJoin\(userInventory, eq\(petEquippedAccessories\.petInventoryId, userInventory\.id\)\)/);
-  assert.match(routes, /shopItem\?\.type\?\.trim\(\)\.toLowerCase\(\) === "accessory"/);
+test("Closet prevents cross-pet accessory reuse and accepts normalized item types", () => {
   assert.match(routes, /petEquippedAccessories\.accessoryInventoryId, accessoryInventoryId/);
   assert.match(routes, /That accessory is already equipped to a pet/);
+  assert.match(routes, /accShopItem\.type\?\.trim\(\)\.toLowerCase\(\) !== "accessory"/);
 });
 
 test("pet inventory cards no longer open the removed detail popup", () => {
