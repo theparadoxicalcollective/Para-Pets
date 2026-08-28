@@ -68,7 +68,7 @@ function bodyBreath(sec: number): AnimResult {
   return { op: 1, rot: 0, sx: 1 + w * (DEFAULT_PET_ANIMATION.body.scaleX - 1), sy: 1 + w * (DEFAULT_PET_ANIMATION.body.scaleY - 1) };
 }
 
-function evalAnim(partType: string, sec: number, blinkOff: number, idleStyle?: string): AnimResult {
+function evalAnim(partType: string, sec: number, blinkOff: number, idleStyle?: string, canFly = false): AnimResult {
   // Strip multi-head prefix so h2_/h3_ duplicates pick up the same
   // animation as the base part (h2_left_wing flaps like left_wing,
   // h3_back_arm breathes like back_arm, etc.). Mirrors lookupAnim()
@@ -144,17 +144,16 @@ function evalAnim(partType: string, sec: number, blinkOff: number, idleStyle?: s
     case "back_arm":
       return isMarionette ? { op: 1, rot: 0, sx: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.008, sy: 1 + (1 + sinWave(sec, 4.5)) * 0.5 * 0.016 } : bodyBreath(sec);
     case "left_leg":
-      // Marionette: pendulum sway at 3.7 s, mirrored with right_leg.
-      // Non-marionette: static (same as front/back_leg below).
-      return isMarionette ? { op: 1, rot: sinWave(sec, 3.7) * 0.5 * D2R } : { op: 1, rot: 0 };
+      if (!canFly) return { op: 1, rot: 0 };
+      return isMarionette ? { op: 1, rot: sinWave(sec, 3.7) * 0.5 * D2R } : bodyBreath(sec);
     case "right_leg":
-      return isMarionette ? { op: 1, rot: -sinWave(sec, 3.7) * 0.5 * D2R } : { op: 1, rot: 0 };
+      if (!canFly) return { op: 1, rot: 0 };
+      return isMarionette ? { op: 1, rot: -sinWave(sec, 3.7) * 0.5 * D2R } : bodyBreath(sec);
 
     case "front_leg":
     case "back_leg":
-      // Side-facing legs are kept static — they do not scale with the body
-      // so feet stay planted on the ground during idle breathing.
-      return { op: 1, rot: 0 };
+      // Ground-pet feet stay planted; admin-marked flying pets move with the hover.
+      return canFly ? bodyBreath(sec) : { op: 1, rot: 0 };
 
     // Shoulders breathe with the body so the whole torso group expands
     // and contracts together. Mirrors the img-renderer's IDLE_ANIMATIONS
@@ -327,6 +326,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
   const t0Ref     = useRef(0);
   const blinkRef     = useRef(Math.random() * 4);
   const idleStyleRef = useRef<string | null>(null);
+  const canFlyRef = useRef(false);
   const partsRef  = useRef<{ part: PetPart; img: HTMLImageElement }[]>([]);
   const readyRef  = useRef(false);
   // World-space (1000-unit) point the body's breathe-scale pivots around.
@@ -376,6 +376,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
     const allParts = templateData.parts;
     const facing = templateData.facing ?? "front";
     const canFly = !!templateData.canFly;
+    canFlyRef.current = canFly;
     idleStyleRef.current = templateData.idleStyle ?? null;
     const frontCount = allParts.filter(p => p.view === "front").length;
     const backCount  = allParts.filter(p => p.view === "back").length;
@@ -732,7 +733,7 @@ function PetAnimatorCanvasInner({ petTemplateId, size, fillContainer = false, fi
         // Heads route through evalAnim("head") above; for individual
         // head-group parts we still call evalAnim so eyes blink and
         // ears sway, then layer the shared head bob on top.
-        const anim = evalAnim(part.partType, sec, blinkRef.current, idleStyleRef.current ?? undefined);
+        const anim = evalAnim(part.partType, sec, blinkRef.current, idleStyleRef.current ?? undefined, canFlyRef.current);
         const authoredRot = ((part.rotation ?? 0) * Math.PI) / 180;
         const rot = anim.rot;
         const op = anim.op;
