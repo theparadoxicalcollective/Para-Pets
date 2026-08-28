@@ -13,6 +13,10 @@ test("Pet Care jars retain effect ordering while expanding stacks into unit visu
   assert.match(page, /item: \{ \.\.\.entry\.item, quantity: 1, displayQuantity: 1 \}/);
   assert.match(page, /onPointerDown=\{dragEnabled \? \(event\) => beginJarMove\(event, visual\) : undefined\}/);
   assert.match(page, /VisibleAssetImage className="pet-care-item-jar__art"/);
+  assert.match(page, /data-pet-care-jar-boundary="true"/);
+  assert.match(page, /sourceJarBounds/);
+  assert.match(page, /outsideSourceJar/);
+  assert.match(page, /!d\.hasExitedSourceJar && outsideSourceJar/);
   assert.doesNotMatch(page, /pet-care-item-shelf__quantity/);
   assert.doesNotMatch(page, /pet-care-item-shelf__value--edible/);
   assert.doesNotMatch(page, /pet-care-item-shelf__value--gift/);

@@ -343,6 +343,7 @@ function PetCareItemShelf({
         {title}
       </span>
       <div
+        data-pet-care-jar-boundary="true"
         style={{
           position: "relative",
           width: "min(calc(100% + 14px), clamp(164px, 25dvh, 232px))",
@@ -697,6 +698,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     startX: number;
     startY: number;
     intent: PetCareItemGestureIntent;
+    sourceJarBounds?: { left: number; right: number; top: number; bottom: number } | null;
+    hasExitedSourceJar?: boolean;
   } | null>(null);
   const itemGestureControllerRef = useRef(createPetCareGestureController<PetCareShelfItem>());
   const [dragGhost, setDragGhost] = useState<PetCareShelfItem | null>(null);
@@ -1283,6 +1286,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     if (isApplyingItemRef.current || dragRef.current || !item?.id || (item.quantity ?? 0) <= 0) return false;
     interactionRef.current = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, itemType: item.type === "gift" ? "gift" : "edibles" };
     recordPhase("pointer-down");
+    const sourceJarRect = e.currentTarget.closest<HTMLElement>("[data-pet-care-jar-boundary='true']")?.getBoundingClientRect();
     dragRef.current = {
       inventoryId: item.id,
       imageUrl: item.imageUrl,
@@ -1296,6 +1300,13 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       startX: e.clientX,
       startY: e.clientY,
       intent: "pending",
+      sourceJarBounds: sourceJarRect ? {
+        left: sourceJarRect.left,
+        right: sourceJarRect.right,
+        top: sourceJarRect.top,
+        bottom: sourceJarRect.bottom,
+      } : null,
+      hasExitedSourceJar: false,
     };
     itemGestureControllerRef.current.begin(e.pointerId, e.clientX, e.clientY, item);
     const captureTarget = e.currentTarget;
@@ -1394,11 +1405,20 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       // Store the first drag position before mounting the ghost so it cannot
       // briefly render at the viewport origin.
       updateDragGhostPosition(point.clientX, point.clientY);
-      setDragGhost(gesture.item);
     }
     if (d.intent !== "vertical-item-drag") return;
     e.preventDefault();
     updateDragGhostPosition(point.clientX, point.clientY);
+    const sourceJar = d.sourceJarBounds;
+    const outsideSourceJar = !sourceJar
+      || point.clientX < sourceJar.left
+      || point.clientX > sourceJar.right
+      || point.clientY < sourceJar.top
+      || point.clientY > sourceJar.bottom;
+    if (!d.hasExitedSourceJar && outsideSourceJar) {
+      d.hasExitedSourceJar = true;
+      setDragGhost(gesture.item);
+    }
     const box = petBoxRef.current?.getBoundingClientRect();
     const nextGlow = !!box && pointInsideExpandedPetDropZone({ x: point.clientX, y: point.clientY }, box);
     setPetGlow((current) => current === nextGlow ? current : nextGlow);

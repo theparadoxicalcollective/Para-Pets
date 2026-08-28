@@ -5,6 +5,7 @@ import test from "node:test";
 const section = readFileSync("client/src/components/PetCostumeEquipmentSection.tsx", "utf8");
 const accessoryPage = readFileSync("client/src/components/PetEquipAccessoriesPage.tsx", "utf8");
 const routes = readFileSync("server/routes/costumePlayer.routes.ts", "utf8");
+const appRoutes = readFileSync("server/routes.ts", "utf8");
 const boot = readFileSync("server/startup/migrations/runEssentialBoot.ts", "utf8");
 const schema = readFileSync("shared/costumeSchema.ts", "utf8");
 const marketplace = readFileSync("server/marketplace/transactions.ts", "utf8");
@@ -33,6 +34,7 @@ test("The Closet uses the supplied artwork and keeps accessory and costume contr
   assert.match(section, /slot: selectedSlot/);
   assert.doesNotMatch(section, /nextEmptySlot/);
   assert.match(section, /Array\.from\(\{ length: COSTUME_SLOT_COUNT \}/);
+  assert.doesNotMatch(section, /gridColumnStart/);
 });
 
 test("Player costume controls use five slots with three free and two paid", () => {
@@ -115,9 +117,21 @@ test("public costume display is read-only and does not require pet ownership", (
 });
 
 
-test("Unequipping immediately restores the accessory to the bag inventory", () => {
+test("The accessory bag is sourced from the same authoritative response as equipped slots", () => {
+  assert.match(appRoutes, /availableAccessories: availableRows\.rows/);
+  assert.match(appRoutes, /si\.type = 'accessory'/);
+  assert.match(appRoutes, /NOT EXISTS/);
+  assert.match(appRoutes, /pea\.accessory_inventory_id = ui\.id/);
+  assert.match(accessoryPage, /accessoriesData\?\.availableAccessories \?\? \[\]/);
+  assert.doesNotMatch(accessoryPage, /const \{ data: allEquippedIds/);
+  assert.doesNotMatch(accessoryPage, /const \{ data: inventory/);
+});
+
+test("Unequipping immediately restores the accessory and opens the bag", () => {
   assert.match(accessoryPage, /onSuccess: \(_data, accessoryInventoryId\)/);
-  assert.match(accessoryPage, /setQueryData<string\[]>\(\["\/api\/user\/equipped-accessory-ids"\]/);
-  assert.match(accessoryPage, /current\.filter\(\(id\) => id !== accessoryInventoryId\)/);
+  assert.match(accessoryPage, /const removed = current\.equipped\.find/);
+  assert.match(accessoryPage, /inventoryId: removed\.accessoryInventoryId/);
+  assert.match(accessoryPage, /availableAccessories: removed/);
+  assert.match(accessoryPage, /setBagOpen\(true\)/);
   assert.match(accessoryPage, /item\.accessoryInventoryId !== accessoryInventoryId/);
 });

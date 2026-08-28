@@ -2166,7 +2166,37 @@ export async function registerRoutes(
       const petInv = await storage.getInventoryItemById(inventoryId);
       if (!petInv || petInv.userId !== user.id) return res.status(404).json({ message: "Pet not found" });
       const equipped = await storage.getPetEquippedAccessories(inventoryId);
-      return res.json({ equipped, extraSlots: petInv.accessoryExtraSlots ?? 0 });
+
+      // Build the Closet bag from the database in the same request as the
+      // equipped slots. The client previously combined two separately cached
+      // endpoints, so a stale equipped-id list could hide an accessory even
+      // after the unequip row had already been deleted.
+      const availableRows = await db.execute(sql`
+        SELECT
+          ui.id AS "inventoryId",
+          si.name AS "name",
+          si.type AS "type",
+          si.image_url AS "imageUrl",
+          si.atk_boost AS "atkBoost",
+          si.def_boost AS "defBoost",
+          si.health_boost AS "healthBoost"
+        FROM user_inventory ui
+        JOIN shop_items si ON si.id = ui.shop_item_id
+        WHERE ui.user_id = ${user.id}
+          AND si.type = 'accessory'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM pet_equipped_accessories pea
+            WHERE pea.accessory_inventory_id = ui.id
+          )
+        ORDER BY ui.acquired_at DESC, ui.id
+      `);
+
+      return res.json({
+        equipped,
+        extraSlots: petInv.accessoryExtraSlots ?? 0,
+        availableAccessories: availableRows.rows,
+      });
     } catch (err) {
       return res.status(500).json({ message: "Failed to get accessories" });
     }

@@ -38,6 +38,7 @@ interface AuthUser {
 interface AccessoriesResponse {
   equipped: EquippedAccessory[];
   extraSlots: number;
+  availableAccessories: BagItem[];
 }
 
 interface Props {
@@ -84,12 +85,10 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
   const extraSlots = accessoriesData?.extraSlots ?? 0;
   const maxSlots = 3 + extraSlots;
 
-  const { data: allEquippedIds = [] } = useQuery<string[]>({
-    queryKey: ["/api/user/equipped-accessory-ids"],
-    staleTime: 0,
-  });
-  const { data: inventory = [] } = useQuery<BagItem[]>({ queryKey: ["/api/inventory"], staleTime: 0 });
-  const bagAccessories = inventory.filter((item) => item.type === "accessory" && !allEquippedIds.includes(item.inventoryId));
+  // Available accessories arrive with the equipped slots in one authoritative
+  // response. This prevents a stale global equipped-id cache from keeping a
+  // successfully unequipped accessory hidden from the Closet bag.
+  const bagAccessories = accessoriesData?.availableAccessories ?? [];
 
   const refreshAccessories = () => {
     qc.invalidateQueries({ queryKey: ["/api/pet", petInventoryId, "accessories"] });
@@ -100,7 +99,17 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
   const equipMutation = useMutation({
     mutationFn: async (accessoryInventoryId: string) =>
       (await apiRequest("POST", `/api/pet/${petInventoryId}/equip`, { accessoryInventoryId })).json(),
-    onSuccess: refreshAccessories,
+    onSuccess: (_data, accessoryInventoryId) => {
+      qc.setQueryData<AccessoriesResponse>(["/api/pet", petInventoryId, "accessories"], (current) =>
+        current
+          ? {
+              ...current,
+              availableAccessories: (current.availableAccessories ?? []).filter((item) => item.inventoryId !== accessoryInventoryId),
+            }
+          : current,
+      );
+      refreshAccessories();
+    },
     onError: () => toast({ title: "Failed to equip", description: "Could not equip that accessory", variant: "destructive" }),
   });
 
@@ -111,10 +120,28 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       qc.setQueryData<string[]>(["/api/user/equipped-accessory-ids"], (current = []) =>
         current.filter((id) => id !== accessoryInventoryId),
       );
-      qc.setQueryData<AccessoriesResponse>(["/api/pet", petInventoryId, "accessories"], (current) =>
-        current ? { ...current, equipped: current.equipped.filter((item) => item.accessoryInventoryId !== accessoryInventoryId) } : current,
-      );
+      qc.setQueryData<AccessoriesResponse>(["/api/pet", petInventoryId, "accessories"], (current) => {
+        if (!current) return current;
+        const removed = current.equipped.find((item) => item.accessoryInventoryId === accessoryInventoryId);
+        const availableAccessories = current.availableAccessories ?? [];
+        return {
+          ...current,
+          equipped: current.equipped.filter((item) => item.accessoryInventoryId !== accessoryInventoryId),
+          availableAccessories: removed && !availableAccessories.some((item) => item.inventoryId === accessoryInventoryId)
+            ? [{
+                inventoryId: removed.accessoryInventoryId,
+                name: removed.name,
+                type: "accessory",
+                imageUrl: removed.imageUrl,
+                atkBoost: removed.atkBoost,
+                defBoost: removed.defBoost,
+                healthBoost: removed.healthBoost,
+              }, ...availableAccessories]
+            : availableAccessories,
+        };
+      });
       setUnequipConfirm(null);
+      setBagOpen(true);
       refreshAccessories();
     },
     onError: () => toast({ title: "Failed to unequip", description: "Could not remove that accessory", variant: "destructive" }),
