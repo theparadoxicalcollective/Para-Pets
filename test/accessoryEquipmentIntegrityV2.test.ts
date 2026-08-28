@@ -32,7 +32,8 @@ test("database prevents one accessory copy or pet slot from being equipped twice
 });
 
 test("current accessory API still rejects cross-pet reuse and global bag filtering reads equipment ids", () => {
-  assert.match(routes, /WHERE ui\.user_id = \$\{user\.id\}[\s\S]*?equipped-accessory-ids/);
+  assert.match(routes, /app\.get\("\/api\/user\/equipped-accessory-ids"/);
+  assert.match(routes, /SELECT pea\.accessory_inventory_id AS id[\s\S]*?WHERE ui\.user_id = \$\{user\.id\}/);
   assert.match(routes, /petEquippedAccessories\.accessoryInventoryId, accessoryInventoryId/);
   assert.match(routes, /That accessory is already equipped to a pet/);
 });
