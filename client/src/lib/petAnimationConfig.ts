@@ -1,6 +1,6 @@
 import { basePetPartType, EAR_PART_TYPES, HAIR_PART_TYPES } from "./petPartConfig";
 
-export const PET_ANIMATION_PROFILES = ["standard_ground", "standard_flying", "bat", "marionette"] as const;
+export const PET_ANIMATION_PROFILES = ["standard_ground", "standard_flying", "bat", "marionette", "squirrel_fox"] as const;
 export type PetAnimationProfile = typeof PET_ANIMATION_PROFILES[number];
 
 export const DEFAULT_PET_ANIMATION = {
@@ -14,7 +14,7 @@ export const DEFAULT_PET_ANIMATION = {
 } as const;
 
 export function normalizeAnimationProfile(value: unknown, canFly = false): PetAnimationProfile {
-  if (value === "bat" || value === "marionette" || value === "standard_ground" || value === "standard_flying") return value;
+  if (value === "bat" || value === "marionette" || value === "squirrel_fox" || value === "standard_ground" || value === "standard_flying") return value;
   return canFly ? "standard_flying" : "standard_ground";
 }
 
