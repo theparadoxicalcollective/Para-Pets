@@ -95,7 +95,10 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
   const [dragging, setDragging] = useState<{ item: InventoryItem; x: number; y: number } | null>(null);
   const [sheetDragOver, setSheetDragOver] = useState(false);
   const eggDropRef = useRef<HTMLDivElement>(null);
+  const pointerGestureAbortRef = useRef<AbortController | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => () => pointerGestureAbortRef.current?.abort(), []);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -181,6 +184,9 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
 
   const handleSheetItemPointerDown = (e: React.PointerEvent, item: InventoryItem, petInvId: string) => {
     e.preventDefault();
+    pointerGestureAbortRef.current?.abort();
+    const gestureController = new AbortController();
+    pointerGestureAbortRef.current = gestureController;
     const startX = e.clientX, startY = e.clientY;
     let dragActive = false;
     const onMove = (ev: PointerEvent) => {
@@ -203,8 +209,8 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
     };
     const onUp = (ev: PointerEvent) => {
       if (ev.pointerId !== e.pointerId) return;
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
+      gestureController.abort();
+      if (pointerGestureAbortRef.current === gestureController) pointerGestureAbortRef.current = null;
       setSheetDragOver(false);
       if (dragActive) {
         const dropRect = eggDropRef.current?.getBoundingClientRect();
@@ -217,12 +223,23 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
         setDragging(null);
       }
     };
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
+    const onCancel = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      gestureController.abort();
+      if (pointerGestureAbortRef.current === gestureController) pointerGestureAbortRef.current = null;
+      setSheetDragOver(false);
+      setDragging(null);
+    };
+    document.addEventListener("pointermove", onMove, { signal: gestureController.signal });
+    document.addEventListener("pointerup", onUp, { signal: gestureController.signal });
+    document.addEventListener("pointercancel", onCancel, { signal: gestureController.signal });
   };
 
   const handleItemPointerDown = (e: React.PointerEvent, item: InventoryItem) => {
     if (item.type !== "special") return;
+    pointerGestureAbortRef.current?.abort();
+    const gestureController = new AbortController();
+    pointerGestureAbortRef.current = gestureController;
     const startX = e.clientX, startY = e.clientY;
     let dragActive = false;
     const onMove = (ev: PointerEvent) => {
@@ -239,8 +256,8 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
     };
     const onUp = (ev: PointerEvent) => {
       if (ev.pointerId !== e.pointerId) return;
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
+      gestureController.abort();
+      if (pointerGestureAbortRef.current === gestureController) pointerGestureAbortRef.current = null;
       if (dragActive) {
         const target = document.elementFromPoint(ev.clientX, ev.clientY);
         const petEl = target?.closest("[data-pet-inv-id]") as HTMLElement | null;
@@ -252,8 +269,15 @@ export default function PetInventory({ user, onClose, onUserUpdate, defaultTab, 
         }
       }
     };
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup", onUp);
+    const onCancel = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      gestureController.abort();
+      if (pointerGestureAbortRef.current === gestureController) pointerGestureAbortRef.current = null;
+      setDragging(null);
+    };
+    document.addEventListener("pointermove", onMove, { signal: gestureController.signal });
+    document.addEventListener("pointerup", onUp, { signal: gestureController.signal });
+    document.addEventListener("pointercancel", onCancel, { signal: gestureController.signal });
   };
 
   const equippedAccessoryIdSet = new Set(equippedAccessoryIds);
