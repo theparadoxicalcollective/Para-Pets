@@ -7,6 +7,7 @@ import { pool } from "../db";
 import { reconcileHauntedWoodsWorld } from "../worlds/hauntedWoods";
 import { runEssentialBoot } from "./migrations/runEssentialBoot";
 import { runNonCriticalStartup } from "./backfills/runNonCriticalStartup";
+import { tagSquirrelFoxAnimationProfile } from "./backfills/tagSquirrelFoxAnimationProfile";
 import { withStartupAdvisoryLock } from "./advisoryLock";
 
 interface StartupDependencies {
@@ -18,6 +19,10 @@ interface StartupDependencies {
 async function runBackgroundInitialization(): Promise<void> {
   try {
     await runNonCriticalStartup();
+    // Runs after the legacy non-critical migrations so pet_templates.idle_style
+    // is guaranteed to exist. The update is idempotent and only targets the
+    // Forest Squirrel Fox template, leaving every other pet profile untouched.
+    await tagSquirrelFoxAnimationProfile();
   } finally {
     // The legacy backfill understands older Haunted Woods databases. The
     // focused reconciliation runs afterward—even if an unrelated legacy task
