@@ -104,7 +104,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         current
           ? {
               ...current,
-              availableAccessories: current.availableAccessories.filter((item) => item.inventoryId !== accessoryInventoryId),
+              availableAccessories: (current.availableAccessories ?? []).filter((item) => item.inventoryId !== accessoryInventoryId),
             }
           : current,
       );
