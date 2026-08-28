@@ -1,4 +1,3 @@
-import type { CostumePlacement } from "@shared/costumeFeature";
 import type { RuntimeMode } from "@/lib/runtimeMode";
 
 export type RenderablePetPart = {
@@ -66,43 +65,6 @@ export function normalizePetParts(value: unknown): RenderablePetPart[] {
       pivotX: finiteNumber(part.pivotX, 50),
       pivotY: finiteNumber(part.pivotY, 50),
       rotation: finiteNumber(part.rotation, 0),
-    }];
-  });
-}
-
-/**
- * Costume placements predate the current editor contract. Filter impossible
- * records and normalize optional fields before renderer or server conflict code
- * reads them.
- */
-export function normalizeCostumePlacements(value: unknown): CostumePlacement[] {
-  if (!Array.isArray(value)) return [];
-
-  return value.flatMap((candidate) => {
-    const placement = record(candidate);
-    if (!placement) return [];
-
-    const view = placement.view === "front" || placement.view === "side" ? placement.view : null;
-    const depth = placement.depth === "front" || placement.depth === "back" ? placement.depth : null;
-    const anchorPart = typeof placement.anchorPart === "string" ? placement.anchorPart.trim() : "";
-    const width = positiveNumber(placement.width);
-    const height = positiveNumber(placement.height);
-    if (!view || !depth || !anchorPart || width === null || height === null) return [];
-
-    const rawInstance = Math.trunc(finiteNumber(placement.instance, 1));
-    return [{
-      view,
-      depth,
-      anchorPart,
-      instance: Math.max(1, Math.min(4, rawInstance)),
-      posX: finiteNumber(placement.posX, 0),
-      posY: finiteNumber(placement.posY, 0),
-      width,
-      height,
-      pivotX: finiteNumber(placement.pivotX, 50),
-      pivotY: finiteNumber(placement.pivotY, 50),
-      rotation: finiteNumber(placement.rotation, 0),
-      flipX: placement.flipX === true,
     }];
   });
 }
