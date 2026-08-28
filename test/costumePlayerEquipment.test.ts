@@ -118,10 +118,10 @@ test("public costume display is read-only and does not require pet ownership", (
 
 
 test("The accessory bag is sourced from the same authoritative response as equipped slots", () => {
-  assert.match(appRoutes, /availableAccessories: availableRows\.rows/);
-  assert.match(appRoutes, /si\.type = 'accessory'/);
-  assert.match(appRoutes, /NOT EXISTS/);
-  assert.match(appRoutes, /pea\.accessory_inventory_id = ui\.id/);
+  assert.match(appRoutes, /storage\.getUserInventoryWithItems\(user\.id\)/);
+  assert.match(appRoutes, /shopItem\?\.type\?\.trim\(\)\.toLowerCase\(\) === "accessory"/);
+  assert.match(appRoutes, /innerJoin\(userInventory, eq\(petEquippedAccessories\.petInventoryId, userInventory\.id\)\)/);
+  assert.match(appRoutes, /availableAccessories,/);
   assert.match(accessoryPage, /accessoriesData\?\.availableAccessories \?\? \[\]/);
   assert.doesNotMatch(accessoryPage, /const \{ data: allEquippedIds/);
   assert.doesNotMatch(accessoryPage, /const \{ data: inventory/);
