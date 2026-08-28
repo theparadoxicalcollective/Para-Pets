@@ -60,7 +60,7 @@ test("URL cache reuses successful analysis and failed analysis", async () => {
   assert.equal(failures, 1);
 });
 
-test("jar items preserve full artwork inside the movable unit target", () => {
+test("jar items normalize transparent artwork inside the larger movable target", () => {
   const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   const jarStart = page.indexOf("function PetCareItemShelf(");
   const jarEnd = page.indexOf("// ── Feeding Overlay", jarStart);
@@ -71,10 +71,9 @@ test("jar items preserve full artwork inside the movable unit target", () => {
   assert.match(jar, /data-pet-care-stack-id=\{visual\.item\.stackId\}/);
   assert.match(jar, /onPointerDown=\{dragEnabled \? \(event\) => beginJarMove\(event, visual\) : undefined\}/);
   assert.match(jar, /onClick=\{!dragEnabled \? \(\) => onItemClick\(visual\.item\) : undefined\}/);
-  assert.match(jar, /src=\{visual\.item\.imageUrl\}/);
-  assert.match(jar, /objectFit: "contain"/);
-  assert.match(jar, /pointerEvents: "none"/);
-  assert.doesNotMatch(jar, /VisibleAssetImage/);
+  assert.match(jar, /VisibleAssetImage className="pet-care-item-jar__art"/);
+  assert.match(jar, /<img className="pet-care-item-jar__art"/);
+  assert.match(jar, /width: "27%"/);
   assert.doesNotMatch(jar, /pet-care-item-shelf__quantity/);
   assert.doesNotMatch(jar, /pet-care-item-shelf__value/);
 });
