@@ -47,7 +47,7 @@ export async function repairAccessoryEquipmentIntegrity(): Promise<void> {
 
         IF TG_OP = 'INSERT' THEN
           -- Even marketplace escrow represents exactly one physical copy.
-          // Any extra legacy quantity becomes separate, unlisted ownership rows.
+          -- Any extra legacy quantity becomes separate, unlisted ownership rows.
           extra_count := GREATEST(COALESCE(NEW.quantity, 1) - 1, 0);
           NEW.quantity := 1;
         ELSIF COALESCE(OLD.is_listed, false)
