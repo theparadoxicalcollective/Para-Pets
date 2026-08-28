@@ -53,7 +53,7 @@ import DailyClaimCard from "@/components/DailyClaimCard";
 import hubParaPet    from "@assets/generated_images/hub_para_pet_transparent.png";
 import paradoxStatue from "@assets/Photoroom_20260619_64226_PM_1781913135212.png";
 import noticeGoFishing from "@assets/64255BCE-2B6A-4A95-8654-145262B126FA_1781352994250.png";
-import noticeLimited   from "@assets/6CD8FBAA-D30B-4D07-BBD7-493429B3C8C2_1783646983253.png";
+import noticeLimited   from "@assets/uploads/135C7FD3-0D53-4F08-A8C8-DE9505762C08.jpeg";
 import noticeExplore   from "@assets/49FB9020-1DB5-487E-9B92-EC15E9240ABD_1781303869686.png";
 import forumBtnImg     from "@assets/Photoroom_20260708_100323_PM_1783566697221.png";
 
