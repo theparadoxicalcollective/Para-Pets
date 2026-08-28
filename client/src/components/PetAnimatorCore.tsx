@@ -2041,10 +2041,11 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
             const animName = lookupAnim(PETTING_ANIMATIONS, part.partType);
             return renderPartImg(part, animName ?? null, undefined, wingDelay, tailOrigin ?? bodyOrigin, partZ);
           }
-          // Side-facing legs are static in idle — they must NOT fall through
-          // to the `|| anims.body` body-breath fallback below, which would make
-          // them scale with the torso and visibly grow with every inhale.
-          if (mode === "idle" && (part.partType === "front_leg" || part.partType === "back_leg")) {
+          // Ground-pet legs stay planted during idle. Flying/floating pets retain
+          // the normal hover motion selected by the admin `canFly` setting.
+          const idlePartType = part.partType.replace(/^h[23]_/, "");
+          const isIdleLeg = ["left_leg", "right_leg", "front_leg", "back_leg"].includes(idlePartType);
+          if (mode === "idle" && !canFly && isIdleLeg) {
             return renderPartImg(part, null, undefined, undefined, undefined, partZ);
           }
           const anims = mode === "idle" ? idleAnimMap : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
