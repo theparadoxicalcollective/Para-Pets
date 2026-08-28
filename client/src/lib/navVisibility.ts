@@ -16,6 +16,11 @@ function isHauntedCasinoOpen(): boolean {
   return Boolean(getHauntedCasinoRoot());
 }
 
+function isPlayerMarketOpen(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.location.pathname === "/market";
+}
+
 function enhanceCasinoIfPresent(): void {
   const root = getHauntedCasinoRoot();
   if (root) enhanceHauntedCasinoRoot(root);
@@ -57,7 +62,7 @@ function subscribe(cb: () => void) {
 }
 
 function getSnapshot() {
-  return hidden || isHauntedCasinoOpen();
+  return hidden || isHauntedCasinoOpen() || isPlayerMarketOpen();
 }
 
 function getServerSnapshot() {
