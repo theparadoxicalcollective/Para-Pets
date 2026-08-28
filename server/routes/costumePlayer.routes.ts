@@ -14,7 +14,6 @@ import {
   getCostumeSlotUnlockCost,
   getUnlockedCostumeSlotCount,
   normalizeCostumePlacements,
-  type CostumePlacement,
 } from "@shared/costumeFeature";
 
 async function ownedPet(petInventoryId: string, userId: string) {
