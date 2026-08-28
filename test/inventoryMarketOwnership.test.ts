@@ -5,6 +5,7 @@ import test from "node:test";
 const inventory = readFileSync("client/src/components/PetInventory.tsx", "utf8");
 const market = readFileSync("client/src/pages/MarketPage.tsx", "utf8");
 const routes = readFileSync("server/routes.ts", "utf8");
+const essentialBoot = readFileSync("server/startup/migrations/runEssentialBoot.ts", "utf8");
 
 test("player inventory hides escrowed pets and globally equipped accessories", () => {
   assert.match(inventory, /queryKey: \["\/api\/user\/equipped-accessory-ids"\]/);
@@ -16,6 +17,22 @@ test("Closet prevents cross-pet accessory reuse and accepts normalized item type
   assert.match(routes, /petEquippedAccessories\.accessoryInventoryId, accessoryInventoryId/);
   assert.match(routes, /That accessory is already equipped to a pet/);
   assert.match(routes, /accShopItem\.type\?\.trim\(\)\.toLowerCase\(\) !== "accessory"/);
+});
+
+test("accessories are enforced as individual physical inventory copies", () => {
+  assert.match(essentialBoot, /CREATE OR REPLACE FUNCTION enforce_individual_accessory_inventory_rows/);
+  assert.match(essentialBoot, /BEFORE INSERT ON user_inventory/);
+  assert.match(essentialBoot, /BEFORE UPDATE OF quantity, is_listed, user_id ON user_inventory/);
+  assert.match(essentialBoot, /item_type IS DISTINCT FROM 'accessory'/);
+  assert.match(essentialBoot, /extra_count := COALESCE\(NEW\.quantity, 1\) - COALESCE\(OLD\.quantity, 1\)/);
+});
+
+test("legacy accessory stacks preserve the equipped row and expose remaining copies", () => {
+  assert.match(essentialBoot, /si\.type = 'accessory'/);
+  assert.match(essentialBoot, /ui\.is_listed = false/);
+  assert.match(essentialBoot, /COALESCE\(ui\.quantity, 1\) > 1/);
+  assert.match(essentialBoot, /CROSS JOIN LATERAL generate_series\(2, s\.quantity\)/);
+  assert.match(essentialBoot, /UPDATE user_inventory ui[\s\S]*?SET quantity = 1[\s\S]*?WHERE ui\.id = s\.id/);
 });
 
 test("pet inventory cards no longer open the removed detail popup", () => {
