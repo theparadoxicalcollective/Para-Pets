@@ -698,8 +698,8 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     startX: number;
     startY: number;
     intent: PetCareItemGestureIntent;
-    sourceJarBounds: { left: number; right: number; top: number; bottom: number } | null;
-    hasExitedSourceJar: boolean;
+    sourceJarBounds?: { left: number; right: number; top: number; bottom: number } | null;
+    hasExitedSourceJar?: boolean;
   } | null>(null);
   const itemGestureControllerRef = useRef(createPetCareGestureController<PetCareShelfItem>());
   const [dragGhost, setDragGhost] = useState<PetCareShelfItem | null>(null);
