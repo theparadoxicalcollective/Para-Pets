@@ -79,6 +79,89 @@ export async function runEssentialBoot(): Promise<void> {
       CREATE UNIQUE INDEX IF NOT EXISTS pet_equipped_costumes_inventory_copy_uidx
         ON pet_equipped_costumes(costume_inventory_id, copy_index)
     `],
+    ["Accessory physical-copy inventory migration error (non-fatal):", sql`
+      -- Accessories are equippable physical copies, but legacy inventory code
+      -- stacked duplicate copies into one user_inventory row. Equipment stores
+      -- that row id, so equipping one copy made every copy in the stack look
+      -- equipped. Enforce one inventory row per accessory copy at the database
+      -- boundary so every acquisition path follows the same ownership model.
+      CREATE OR REPLACE FUNCTION enforce_individual_accessory_inventory_rows()
+      RETURNS trigger
+      LANGUAGE plpgsql
+      AS $function$
+      DECLARE
+        item_type TEXT;
+        extra_count INTEGER := 0;
+      BEGIN
+        SELECT type INTO item_type FROM shop_items WHERE id = NEW.shop_item_id;
+        IF item_type IS DISTINCT FROM 'accessory' THEN
+          RETURN NEW;
+        END IF;
+
+        -- A listed row is marketplace escrow. Do not split it while listed;
+        -- it will be normalized atomically when it returns to an owner.
+        IF COALESCE(NEW.is_listed, false) THEN
+          RETURN NEW;
+        END IF;
+
+        IF TG_OP = 'INSERT' THEN
+          extra_count := GREATEST(COALESCE(NEW.quantity, 1) - 1, 0);
+          NEW.quantity := 1;
+        ELSIF COALESCE(OLD.is_listed, false) AND NOT COALESCE(NEW.is_listed, false) AND COALESCE(NEW.quantity, 1) > 1 THEN
+          -- Legacy listed stacks are split when cancelled or transferred to
+          -- a buyer. The original row remains the canonical first copy.
+          extra_count := COALESCE(NEW.quantity, 1) - 1;
+          NEW.quantity := 1;
+        ELSIF COALESCE(NEW.quantity, 1) > COALESCE(OLD.quantity, 1) THEN
+          -- Existing application code may still try quantity = quantity + N.
+          -- Turn only the increment into new physical rows and leave this
+          -- row as the already-existing physical copy.
+          extra_count := COALESCE(NEW.quantity, 1) - COALESCE(OLD.quantity, 1);
+          NEW.quantity := COALESCE(OLD.quantity, 1);
+        END IF;
+
+        IF extra_count > 0 THEN
+          INSERT INTO user_inventory (user_id, shop_item_id, acquired_at, is_listed, quantity)
+          SELECT NEW.user_id, NEW.shop_item_id, COALESCE(NEW.acquired_at, now()), false, 1
+          FROM generate_series(1, extra_count);
+        END IF;
+
+        RETURN NEW;
+      END
+      $function$;
+
+      DROP TRIGGER IF EXISTS user_inventory_accessory_copy_insert_trg ON user_inventory;
+      CREATE TRIGGER user_inventory_accessory_copy_insert_trg
+      BEFORE INSERT ON user_inventory
+      FOR EACH ROW EXECUTE FUNCTION enforce_individual_accessory_inventory_rows();
+
+      DROP TRIGGER IF EXISTS user_inventory_accessory_copy_update_trg ON user_inventory;
+      CREATE TRIGGER user_inventory_accessory_copy_update_trg
+      BEFORE UPDATE OF quantity, is_listed, user_id ON user_inventory
+      FOR EACH ROW EXECUTE FUNCTION enforce_individual_accessory_inventory_rows();
+
+      -- Repair historical unlisted stacks now. Preserve the original row id
+      -- because pet_equipped_accessories may already reference it; only the
+      -- remaining copies receive fresh ids and become available in the bag.
+      WITH stacked AS (
+        SELECT ui.id, ui.user_id, ui.shop_item_id, ui.acquired_at, ui.quantity
+        FROM user_inventory ui
+        INNER JOIN shop_items si ON si.id = ui.shop_item_id
+        WHERE si.type = 'accessory'
+          AND ui.is_listed = false
+          AND COALESCE(ui.quantity, 1) > 1
+      ), inserted_copies AS (
+        INSERT INTO user_inventory (user_id, shop_item_id, acquired_at, is_listed, quantity)
+        SELECT s.user_id, s.shop_item_id, s.acquired_at, false, 1
+        FROM stacked s
+        CROSS JOIN LATERAL generate_series(2, s.quantity)
+        RETURNING id
+      )
+      UPDATE user_inventory ui
+      SET quantity = 1
+      FROM stacked s
+      WHERE ui.id = s.id;
+    `],
     ["watcher_shoutouts_enabled migration error (non-fatal):", sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS watcher_shoutouts_enabled boolean NOT NULL DEFAULT true`],
     ["is_bot migration error (non-fatal):", sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_bot boolean NOT NULL DEFAULT false`],
     ["pvp_battle_groups.attack_power migration error (non-fatal):", sql`ALTER TABLE pvp_battle_groups ADD COLUMN IF NOT EXISTS attack_power integer NOT NULL DEFAULT 0`],
