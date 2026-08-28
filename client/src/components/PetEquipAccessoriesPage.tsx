@@ -272,7 +272,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         <img src={closetCloseButton} alt="" className="h-full w-full object-contain" style={{ filter: "drop-shadow(0 3px 6px rgba(0,0,0,.75))" }} />
       </button>
 
-      <div className="absolute z-[2] flex items-end justify-center" style={{ left: "22%", top: "18.2%", width: "56%", height: "39.5%" }}>
+      <div data-testid="closet-pet-preview" className="absolute z-[2] flex items-end justify-center" style={{ left: "19%", top: "16.2%", width: "56%", height: "39.5%" }}>
         <div className="relative" style={{ width: "90%", height: "84%" }}>
           {petTemplateId ? (
             <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="idle" size={250} fillContainer style={{ ...PET_PREVIEW_DROPSHADOW_STYLE, position: "relative", zIndex: 2 }} />
