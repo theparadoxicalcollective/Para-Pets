@@ -4,7 +4,14 @@ export type CoinPackage = {
   priceUsd: number;
   label: string;
   currency: "usd";
-  eggBonus?: { shopItemId: string; itemName: string; itemImageUrl: string };
+  eggBonus?: {
+    // Existing rewards may use an immutable id. Name-based rewards are resolved
+    // against the live pet catalog during fulfillment, never trusted from the client.
+    shopItemId?: string;
+    shopItemName?: string;
+    itemName: string;
+    itemImageUrl?: string;
+  };
 };
 
 // This is the single server-owned source of truth used by checkout and fulfillment.
@@ -14,7 +21,7 @@ export const COIN_PACKAGES: readonly CoinPackage[] = [
   { id: "pack_v2_1000", coins: 1000, priceUsd: 5, label: "1,000 Coins", currency: "usd" },
   { id: "pack_v2_2500", coins: 2500, priceUsd: 10, label: "2,500 Coins", currency: "usd" },
   { id: "pack_v2_7500", coins: 7500, priceUsd: 25, label: "7,500 Coins", currency: "usd" },
-  { id: "pack_v2_20000", coins: 20000, priceUsd: 50, label: "20,000 Coins", currency: "usd", eggBonus: { shopItemId: "23378190-8dcc-4145-9e10-f501cb42df2d", itemName: "Cerberus Serpent Egg", itemImageUrl: "/api/media/9b08c13d-262e-4251-b8ac-47ff0b44d30c" } },
+  { id: "pack_v2_20000", coins: 20000, priceUsd: 50, label: "20,000 Coins", currency: "usd", eggBonus: { shopItemName: "Midnight Juggler", itemName: "Midnight Juggler Egg" } },
   { id: "pack_v2_50000", coins: 50000, priceUsd: 100, label: "50,000 Coins", currency: "usd", eggBonus: { shopItemId: "670e8ef5-b67d-4be4-b340-3e652327975f", itemName: "The Paradox Egg", itemImageUrl: "/api/media/e5019d66-d5a1-4f56-a7e6-e4f9bae5baee" } },
 ] as const;
 
