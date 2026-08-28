@@ -155,6 +155,40 @@ const PET_ATTACHMENT_SEAM_GUARD = `
 }
 `;
 
+// Forest Squirrel Fox has very tall ears and an oversized tail, so the generic
+// idle amplitudes read as separation instead of a soft living pose. Keep this
+// profile completely opt-in: only templates tagged `idleStyle=squirrel_fox`
+// receive the calmer base-pinned mirrored ear sway and slower tail sweep.
+const SQUIRREL_FOX_IDLE_GUARD = `
+@keyframes petSquirrelFoxLeftEar {
+  from { transform: rotate(-0.45deg); }
+  to   { transform: rotate(0.45deg); }
+}
+@keyframes petSquirrelFoxRightEar {
+  from { transform: rotate(0.45deg); }
+  to   { transform: rotate(-0.45deg); }
+}
+@keyframes petSquirrelFoxTail {
+  from { transform: rotate(-2.5deg); }
+  to   { transform: rotate(2.5deg); }
+}
+.pet-profile-squirrel-fox img[alt="left_ear"],
+.pet-profile-squirrel-fox img[alt="left_ear_2"] {
+  transform-origin: 50% 100% !important;
+  animation: petSquirrelFoxLeftEar 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate !important;
+}
+.pet-profile-squirrel-fox img[alt="right_ear"],
+.pet-profile-squirrel-fox img[alt="right_ear_2"] {
+  transform-origin: 50% 100% !important;
+  animation: petSquirrelFoxRightEar 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate !important;
+}
+.pet-profile-squirrel-fox img[alt="tail"],
+.pet-profile-squirrel-fox img[alt="tail_2"],
+.pet-profile-squirrel-fox img[alt="tail_3"] {
+  animation: petSquirrelFoxTail 3.3s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate !important;
+}
+`;
+
 function basePartType(partType: string) {
   return partType.replace(/^h[23]_/, "");
 }
@@ -654,10 +688,12 @@ export default function PetAnimator({
     </div>
   );
 
+  const profileClass = mode === "idle" && templateData?.idleStyle === "squirrel_fox" ? "pet-profile-squirrel-fox" : "";
+
   return (
     <div
       ref={wrapperRef}
-      className={className}
+      className={`${className} ${profileClass}`.trim()}
       data-testid="pet-animator-with-costumes"
       style={{
         width: fillContainer ? "100%" : size,
@@ -682,7 +718,7 @@ export default function PetAnimator({
           style={{ width: "100%", height: "100%" }}
         />
       </div>
-      <style data-testid="pet-animation-seam-guard">{PET_ATTACHMENT_SEAM_GUARD}</style>
+      <style data-testid="pet-animation-seam-guard">{`${PET_ATTACHMENT_SEAM_GUARD}\n${SQUIRREL_FOX_IDLE_GUARD}`}</style>
       {renderCostumes && costumeLayer("front")}
       {renderCostumes && hasAboveHead && (
         <div
