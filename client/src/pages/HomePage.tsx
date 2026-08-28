@@ -162,6 +162,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [homeDragOver, setHomeDragOver] = useState(false);
   const [homeDragging, setHomeDragging] = useState<{ item: InventoryItem; x: number; y: number } | null>(null);
   const homeEggDropRef = useRef<HTMLDivElement>(null);
+  const homeGestureAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => homeGestureAbortRef.current?.abort(), []);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportSubject, setSupportSubject] = useState("");
   const [supportMessage, setSupportMessage] = useState("");
@@ -668,6 +670,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
   const handleHomeSheetItemPointerDown = (e: React.PointerEvent, item: InventoryItem) => {
     if (!activePet) return;
+    homeGestureAbortRef.current?.abort();
+    const gestureController = new AbortController();
+    homeGestureAbortRef.current = gestureController;
 
     // ── Tutorial step 5 ────────────────────────────────────────────────────────
     // The normal drop-zone rect check fails during the tutorial because
@@ -692,9 +697,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
       const onUp = (ev: PointerEvent) => {
         if (ev.pointerId !== pid) return;
-        document.removeEventListener("pointermove", onMove);
-        document.removeEventListener("pointerup",   onUp);
-        document.removeEventListener("pointercancel", onUp);
+        gestureController.abort();
+        if (homeGestureAbortRef.current === gestureController) homeGestureAbortRef.current = null;
         setHomeDragging(null);
         setHomeDragOver(false);
 
@@ -709,9 +713,16 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         }
       };
 
-      document.addEventListener("pointermove", onMove);
-      document.addEventListener("pointerup",   onUp);
-      document.addEventListener("pointercancel", onUp);
+      const onCancel = (ev: PointerEvent) => {
+        if (ev.pointerId !== pid) return;
+        gestureController.abort();
+        if (homeGestureAbortRef.current === gestureController) homeGestureAbortRef.current = null;
+        setHomeDragging(null);
+        setHomeDragOver(false);
+      };
+      document.addEventListener("pointermove", onMove, { signal: gestureController.signal });
+      document.addEventListener("pointerup", onUp, { signal: gestureController.signal });
+      document.addEventListener("pointercancel", onCancel, { signal: gestureController.signal });
       return;
     }
 
@@ -739,8 +750,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     };
     const onUp = (ev: PointerEvent) => {
       if (ev.pointerId !== e.pointerId) return;
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup",   onUp);
+      gestureController.abort();
+      if (homeGestureAbortRef.current === gestureController) homeGestureAbortRef.current = null;
       setHomeDragOver(false);
       if (!dragActive) {
         // Tap: e.preventDefault() suppresses onClick on mobile — fire directly
@@ -759,8 +770,16 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       }
       setHomeDragging(null);
     };
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup",   onUp);
+    const onCancel = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      gestureController.abort();
+      if (homeGestureAbortRef.current === gestureController) homeGestureAbortRef.current = null;
+      setHomeDragOver(false);
+      setHomeDragging(null);
+    };
+    document.addEventListener("pointermove", onMove, { signal: gestureController.signal });
+    document.addEventListener("pointerup", onUp, { signal: gestureController.signal });
+    document.addEventListener("pointercancel", onCancel, { signal: gestureController.signal });
   };
 
   const petLoading = currentUser.activePetId && inventoryLoading;
