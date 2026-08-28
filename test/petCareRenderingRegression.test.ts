@@ -2,14 +2,17 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-test("Pet Care shelves retain effect labels and order items by their bar increase", () => {
+test("Pet Care jars retain effect ordering while expanding stacks into unit visuals", () => {
   const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   assert.match(page, /orderPetCareItemsByEffect\([\s\S]*?it\.type === "edibles"[\s\S]*?"edibles"/);
   assert.match(page, /orderPetCareItemsByEffect\([\s\S]*?it\.type === "gift"[\s\S]*?"gifts"/);
-  assert.match(page, /pet-care-item-shelf__quantity/);
-  assert.match(page, /pet-care-item-shelf__value--edible/);
-  assert.match(page, /pet-care-item-shelf__value--gift/);
-  assert.match(page, /onPointerDown=\{dragEnabled \? \(event\) => onItemPointerDown\(event, item\) : undefined\}/);
+  assert.match(page, /const PET_CARE_JAR_VISUAL_CAPACITY = 48;/);
+  assert.match(page, /function buildPetCareJarVisuals\(items: PetCareShelfItem\[\]\)/);
+  assert.match(page, /item: \{ \.\.\.entry\.item, quantity: 1, displayQuantity: 1 \}/);
+  assert.match(page, /onPointerDown=\{dragEnabled \? \(event\) => beginJarMove\(event, visual\) : undefined\}/);
+  assert.doesNotMatch(page, /pet-care-item-shelf__quantity/);
+  assert.doesNotMatch(page, /pet-care-item-shelf__value--edible/);
+  assert.doesNotMatch(page, /pet-care-item-shelf__value--gift/);
 });
 
 test("Pet Care uses the original scene and decorative asset meters", () => {
