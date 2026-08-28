@@ -4,11 +4,18 @@ import test from "node:test";
 
 const inventory = readFileSync("client/src/components/PetInventory.tsx", "utf8");
 const market = readFileSync("client/src/pages/MarketPage.tsx", "utf8");
+const routes = readFileSync("server/routes.ts", "utf8");
 
 test("player inventory hides escrowed pets and globally equipped accessories", () => {
   assert.match(inventory, /queryKey: \["\/api\/user\/equipped-accessory-ids"\]/);
   assert.match(inventory, /item\.type === "pet" && !item\.isListed/);
   assert.match(inventory, /!item\.isListed[\s\S]*?item\.type !== "pet"[\s\S]*?equippedAccessoryIdSet\.has\(item\.inventoryId\)/);
+});
+
+test("Closet returns unequipped inventory once and prevents cross-pet reuse", () => {
+  assert.match(routes, /AND ui\.is_listed = false[\s\S]*?NOT EXISTS \([\s\S]*?accessory_inventory_id = ui\.id/);
+  assert.match(routes, /petEquippedAccessories\.accessoryInventoryId, accessoryInventoryId/);
+  assert.match(routes, /That accessory is already equipped to a pet/);
 });
 
 test("pet inventory cards no longer open the removed detail popup", () => {
