@@ -4,6 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PetAnimator from "@/components/PetAnimator";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import { detectRuntimeMode } from "@/lib/runtimeMode";
+import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import PetCostumeEquipmentSection from "@/components/PetCostumeEquipmentSection";
 import gemCrystalIcon from "@assets/generated_images/icon_gem_crystal.png";
 import closetBackground from "@assets/uploads/ClosetBG.png";
@@ -63,6 +66,7 @@ const SLOT_COST = 3000;
 const TOTAL_SLOTS = 5;
 
 export default function PetEquipAccessoriesPage({ petInventoryId, petName, petImage, petTemplateId, rarity, onClose }: Props) {
+  const [lowMemory] = useState(() => shouldUseLowMemoryPetRenderer(detectRuntimeMode()));
   const [unequipConfirm, setUnequipConfirm] = useState<EquippedAccessory | null>(null);
   const [unlockConfirm, setUnlockConfirm] = useState(false);
   const [bagOpen, setBagOpen] = useState(false);
@@ -289,7 +293,13 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
       <div data-testid="closet-pet-preview" className="absolute z-[2] flex items-end justify-center" style={{ left: "19%", top: "21.2%", width: "56%", height: "39.5%" }}>
         <div className="relative" style={{ width: "90%", height: "84%" }}>
           {petTemplateId ? (
-            <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="idle" size={250} fillContainer style={{ ...PET_PREVIEW_DROPSHADOW_STYLE, position: "relative", zIndex: 2 }} />
+            <ErrorBoundary
+              context="PetEquipAccessoriesPage.PetAnimator"
+              resetKey={`${petInventoryId}:${petTemplateId}`}
+              fallback={petImage ? <img src={petImage} alt={petName} className="h-full w-full object-contain" style={PET_PREVIEW_DROPSHADOW_STYLE} /> : null}
+            >
+              <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="idle" size={250} fillContainer lowMemory={lowMemory} style={{ ...PET_PREVIEW_DROPSHADOW_STYLE, position: "relative", zIndex: 2 }} />
+            </ErrorBoundary>
           ) : petImage ? (
             <img src={petImage} alt={petName} className="h-full w-full object-contain" style={PET_PREVIEW_DROPSHADOW_STYLE} />
           ) : null}
