@@ -8,6 +8,8 @@ import type { PetUpgradeModalProps, PowerUpItem } from "@/components/powerup/Pow
 import bagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import petPlaceholder from "@assets/generated_images/icon_pet_placeholder.png";
 import forestBg from "@assets/generated_images/powerup_forest_bg.png";
+import { detectRuntimeMode } from "@/lib/runtimeMode";
+import { normalizePetParts, shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 
 const CSS = String.raw`
 .lupage{position:fixed;inset:0;width:100%;max-width:768px;margin:0 auto;overflow:hidden;background:#060a09;color:#fff8d9;isolation:isolate;font-family:Georgia,serif;touch-action:pan-y}.lupage *{box-sizing:border-box}.lupage-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-3;filter:saturate(.92) brightness(.68)}.lupage-shade{position:absolute;inset:0;z-index:-2;background:linear-gradient(rgba(4,10,8,.25),rgba(4,8,7,.08) 42%,rgba(3,6,5,.72));pointer-events:none}.lupage-scroll{height:100%;overflow-y:auto;overflow-x:hidden;padding:max(env(safe-area-inset-top),10px) 12px max(env(safe-area-inset-bottom),18px);scrollbar-width:none;-webkit-overflow-scrolling:touch}.lupage-scroll::-webkit-scrollbar,.lupage-items::-webkit-scrollbar{display:none}
@@ -32,6 +34,7 @@ type StableLevelUpPetProps = {
   petImage: string | null;
   petTemplateId: string | null;
   petInventoryId: string;
+  lowMemory: boolean;
 };
 
 interface LevelUpTemplateData {
@@ -75,6 +78,7 @@ const StableLevelUpPet = memo(function StableLevelUpPet({
   petImage,
   petTemplateId,
   petInventoryId,
+  lowMemory,
 }: StableLevelUpPetProps) {
   const { data: templateData, isError } = useQuery<LevelUpTemplateData>({
     queryKey: ["/api/pet-template-parts", petTemplateId],
@@ -89,7 +93,7 @@ const StableLevelUpPet = memo(function StableLevelUpPet({
     refetchOnWindowFocus: false,
   });
 
-  if (petTemplateId && templateData?.parts?.length && !isError) {
+  if (petTemplateId && normalizePetParts(templateData?.parts).length > 0 && !isError) {
     return (
       <PetAnimator
         petTemplateId={petTemplateId}
@@ -98,6 +102,7 @@ const StableLevelUpPet = memo(function StableLevelUpPet({
         view="front"
         size={350}
         fillContainer
+        lowMemory={lowMemory}
         className="w-full h-full"
         style={{ width: "100%", height: "100%", pointerEvents: "none" }}
       />
@@ -118,6 +123,7 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     successEffect, onUseItem, onSuccessAnimEnd, onClose,
   } = props;
   const [z] = useState(() => getNextZ());
+  const [lowMemory] = useState(() => shouldUseLowMemoryPetRenderer(detectRuntimeMode()));
   const zoneRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ item: PowerUpItem; x: number; y: number } | null>(null);
   const [drag, setDrag] = useState<{ item: PowerUpItem; x: number; y: number } | null>(null);
@@ -157,8 +163,9 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     if (r) {
       const x = r.left + r.width / 2;
       const y = r.top + r.height / 2;
-      setSparks(Array.from({ length: 14 }, (_, i) => {
-        const angle = (i / 14) * Math.PI * 2;
+      const count = lowMemory ? 6 : 14;
+      setSparks(Array.from({ length: count }, (_, i) => {
+        const angle = (i / count) * Math.PI * 2;
         return { id: sparkId.current++, x, y, dx: Math.cos(angle) * (55 + Math.random() * 70), dy: Math.sin(angle) * (55 + Math.random() * 70) };
       }));
       scheduleTransient(() => setSparks([]), 760);
@@ -167,7 +174,7 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     scheduleTransient(() => setPetAnim("flash"), 260);
     scheduleTransient(() => setPetAnim(""), 850);
     onUseItem(item);
-  }, [disabled, onUseItem, scheduleTransient]);
+  }, [disabled, lowMemory, onUseItem, scheduleTransient]);
 
   const onPointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>, item: PowerUpItem) => {
     if (disabled(item)) return;
@@ -214,6 +221,7 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
         petImage={petImage}
         petTemplateId={petTemplateId}
         petInventoryId={petInventoryId}
+        lowMemory={lowMemory}
       />
     </LevelUpPetErrorBoundary>
   );
@@ -224,7 +232,7 @@ export default function PetLevelUpPage(props: PetUpgradeModalProps) {
     { key: "hp", label: "HP", value: petHealth, max: 2500 },
   ];
 
-  return <div className="lupage" style={{ zIndex: z }} role="dialog" aria-modal="true" aria-label="Level Up">
+  return <div className="lupage" style={{ zIndex: z }} data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Level Up">
     <style>{CSS}</style>
     <img src={forestBg} alt="" className="lupage-bg" />
     <div className="lupage-shade" />
