@@ -129,7 +129,7 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
   const visibleItems = sortedItems.slice(itemOffset, itemOffset + ITEMS_PER_PAGE);
   const openItems = useCallback((filter: StatFilter = null) => { closeStats(); setStatFilter(filter); setItemOffset(0); }, [closeStats]);
 
-  const pet = petImage ? <img src={petImage} alt={petName} draggable={false} /> : petTemplateId ? <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="idle" view="front" size={350} fillContainer className="w-full h-full" style={{ width: "100%", height: "100%", pointerEvents: "none" }} /> : <img src={petPlaceholder} alt="" className="pupage-placeholder" draggable={false} />;
+  const pet = petTemplateId ? <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="idle" view="front" size={350} fillContainer className="w-full h-full" style={{ width: "100%", height: "100%", pointerEvents: "none" }} /> : petImage ? <img src={petImage} alt={petName} draggable={false} /> : <img src={petPlaceholder} alt="" className="pupage-placeholder" draggable={false} />;
   const slotsPerLevel = rarity <= 2 ? 1 : rarity === 3 ? 2 : 3;
   const capacity = Math.max(1, petLevel || 1) * slotsPerLevel;
   const remaining = itemsRemaining === Infinity ? capacity : Math.max(0, Math.min(capacity, itemsRemaining));
