@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { executeStripePurchaseFulfillment, type FulfillmentOperations, type TrustedCheckoutSession } from "../server/payments/fulfillStripePurchase";
 import { StripePurchaseError } from "../server/payments/errors";
+import { coinPackageById } from "../server/payments/config";
 
 const paid = (overrides: Partial<TrustedCheckoutSession> = {}): TrustedCheckoutSession => ({
   id: "cs_paid_1", payment_status: "paid", status: "complete", amount_total: 500,
@@ -92,6 +93,24 @@ test("limited egg, community reward, and milestone progress are each applied onc
   await executeStripePurchaseFulfillment(session, fake);
   await executeStripePurchaseFulfillment(session, fake);
   assert.deepEqual([fake.coins, fake.eggs, fake.progress, fake.community], [26600, 1, 5000, 1]);
+});
+
+test("$50 package advertises Midnight Juggler and fulfillment validates a live pet before delivery", () => {
+  const pack = coinPackageById("pack_v2_20000");
+  assert.equal(pack?.eggBonus?.shopItemName, "Midnight Juggler");
+  assert.equal(pack?.eggBonus?.itemName, "Midnight Juggler Egg");
+
+  const fulfillment = readFileSync("server/payments/fulfillStripePurchase.ts", "utf8");
+  assert.match(fulfillment, /FROM shop_items[\s\S]*type = 'pet'/);
+  assert.match(fulfillment, /matches\.rows\.length !== 1/);
+  assert.match(fulfillment, /VALUES \(\$\{userId\}, \$\{bonusShopItemId\}, NOW\(\)\)/);
+});
+
+test("coin shop renders the server-owned bonus name with Midnight Juggler promotional art", () => {
+  const shop = readFileSync("client/src/pages/CoinShopPage.tsx", "utf8");
+  assert.match(shop, /pack\.eggBonus\.itemName/);
+  assert.match(shop, /pack_v2_20000: midnightJugglerEggImg/);
+  assert.doesNotMatch(shop, /Cerberus Serpent Egg/);
 });
 
 test("post-commit notification failure cannot repeat fulfillment", async () => {
