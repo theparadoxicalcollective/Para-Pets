@@ -4,6 +4,7 @@
   "exclude": [],
   "compilerOptions": {
     "noEmit": true,
-    "incremental": false
+    "incremental": false,
+    "types": ["node", "vite/client", "passport"]
   }
 }
