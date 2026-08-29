@@ -52,7 +52,7 @@ test("market artwork fields retain the requested card alignment", () => {
   assert.match(market, /data-market-card-field="item-name"[\s\S]*?top: "54\.5%"/);
   assert.match(market, /data-market-card-field="item-display"[\s\S]*?top: "calc\(64% \+ 6px\)"/);
   assert.match(market, /listing\.description\?\.trim\(\) \|\| itemTypeLabel\(listing\.itemType\)/);
-  assert.match(market, /data-testid="button-collect-\$\{listing\.id\}"[\s\S]*?top: "61%"/);
+  assert.match(market, /data-testid=\{`button-collect-\$\{listing\.id\}`\}[\s\S]*?top: "61%"/);
   assert.match(market, /data-market-card-field="sold-coin-amount"[\s\S]*?top: "calc\(61% \+ 41px\)"/);
   assert.match(market, /data-market-card-field="price"[\s\S]*?bottom: "12\.5%"/);
   assert.match(market, /data-testid="market-search-frame"[\s\S]*?height: 64[\s\S]*?center\/100% auto no-repeat/);
