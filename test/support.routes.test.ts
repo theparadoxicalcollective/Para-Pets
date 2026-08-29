@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { requireAdmin, requireAuthenticated } from "../server/auth";
 import { registerSupportRoutes } from "../server/routes/support.routes";
-import { storage } from "../server/storage";
 
 type RegisteredRoute = { method: string; path: string; handlers: Function[] };
 
@@ -23,14 +22,15 @@ function registerRoutes() {
     patch(path: string, ...handlers: Function[]) { routes.push({ method: "PATCH", path, handlers }); },
     delete(path: string, ...handlers: Function[]) { routes.push({ method: "DELETE", path, handlers }); },
   };
-  const messages = [{ id: "owner-message", username: "owner", subject: "Private", message: "Only owner" }];
+  const createdAt = new Date("2026-01-01T00:00:00.000Z");
+  const messages = [{ id: "owner-message", username: "owner", subject: "Private", message: "Only owner", createdAt }];
   const calls: Array<[string, string]> = [];
   registerSupportRoutes(app as any, {
     storage: {
       getAllSupportMessages: async () => [],
       markSupportMessageRead: async () => {},
       deleteSupportMessage: async () => {},
-      createAdminMessage: async () => ({ id: "reply" }),
+      createAdminMessage: async (username: string, subject: string, message: string) => ({ id: "reply", username, subject, message, createdAt }),
       getAdminMessagesByUsername: async (username: string) => messages.filter(message => message.username === username),
       deleteAdminMessageForUsername: async (id: string, username: string) => {
         calls.push([id, username]);
@@ -75,7 +75,7 @@ test("players fetch only their own admin messages and anonymous users are reject
 
   const owner = response();
   await handler({ isAuthenticated: () => true, user: { username: "owner" } } as any, owner as any);
-  assert.deepEqual(owner.result.body, [{ id: "owner-message", username: "owner", subject: "Private", message: "Only owner" }]);
+  assert.deepEqual(owner.result.body, [{ id: "owner-message", username: "owner", subject: "Private", message: "Only owner", createdAt }]);
 });
 
 test("players can delete only owned admin messages and preserve missing-message behavior", async () => {
