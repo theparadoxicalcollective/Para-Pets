@@ -12,6 +12,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
 import { calculateStageLayout, getStageTransform, getVisibleViewport } from "@/lib/stage";
+import { detectRuntimeMode } from "@/lib/runtimeMode";
+import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import homeBg from "@assets/bg_home_v2.png";
 
 // ── Eagerly imported (always or near-always needed at startup) ──────────────
@@ -325,6 +327,8 @@ function AppRouter() {
   useEffect(() => {
     if (!user || isPreloaded) return;
 
+    const lowMemoryPreload = shouldUseLowMemoryPetRenderer(detectRuntimeMode());
+
     // Hard cap: never block the player for more than 4 seconds total.
     const timeout = setTimeout(() => setIsPreloaded(true), 4000);
 
@@ -360,7 +364,7 @@ function AppRouter() {
             .then((data: any) => {
               if (!data) return;
               queryClient.setQueryData(["/api/pet-template-parts", activePetItem.petTemplateId], data);
-              if (Array.isArray(data.parts)) {
+              if (!lowMemoryPreload && Array.isArray(data.parts)) {
                 data.parts.forEach((p: any) => { if (p.imageUrl) preloadImage(p.imageUrl); });
               }
             })
@@ -492,17 +496,18 @@ function AppRouter() {
   }
 
   // ── Game layout ────────────────────────────────────────────────────────────
-  // HomePage is permanently mounted as the base layer so navigating back to "/"
-  // is instant — no unmount/remount gap, no blank-screen flash.
-  // All other game pages render as absolute overlays on top of it.
+  // Full-screen pages own the stage while open. Keeping the entire HomePage
+  // mounted behind them retained its animated pet, decoded images, effects,
+  // queries, and timers; that overlap was enough to terminate WebKit during
+  // pet and item transitions. Suspense already provides an opaque loading
+  // screen, so Home can safely unmount until the player returns.
   return (
     <>
-      {/* Base: always mounted. Hidden (not unmounted) when any overlay is active so
-          navigating home is instant and the home background never bleeds through
-          the brief gap between Suspense's LoadingScreen and an overlay painting. */}
-      <div style={{ position: "absolute", inset: 0, isolation: "isolate", visibility: location !== "/" ? "hidden" : "visible" }}>
-        <HomePage user={user} isOverlayActive={location !== "/"} />
-      </div>
+      {location === "/" && (
+        <div style={{ position: "absolute", inset: 0, isolation: "isolate" }}>
+          <HomePage user={user} isOverlayActive={false} />
+        </div>
+      )}
 
       {/* Game overlays — each fades in quickly to smooth page-to-page transitions.
           A single <Suspense> wraps every overlay so lazy chunks load without

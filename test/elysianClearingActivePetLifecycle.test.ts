@@ -69,5 +69,6 @@ test("pet selection waits for server confirmation and preserves the auth user ca
   assert.match(inventory, /disabled=\{isPending\}/);
   assert.match(inventory, /UPDATING…/);
   assert.match(inventory, /\{ \.\.\.current, activePetId:/);
-  assert.match(inventory, /invalidateQueries\(\{ queryKey: \["\/api\/auth\/me"\] \}\)/);
+  assert.match(inventory, /setQueryData\(\["\/api\/auth\/me"\][\s\S]*?activePetId:/);
+  assert.doesNotMatch(inventory, /invalidateQueries\(\{ queryKey: \["\/api\/auth\/me"\] \}\)/);
 });

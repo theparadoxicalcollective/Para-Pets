@@ -13,7 +13,7 @@ import {
   COSTUME_SLOT_COUNT,
   getCostumeSlotUnlockCost,
   getUnlockedCostumeSlotCount,
-  type CostumePlacement,
+  normalizeCostumePlacements,
 } from "@shared/costumeFeature";
 
 async function ownedPet(petInventoryId: string, userId: string) {
@@ -83,7 +83,11 @@ export function registerCostumePlayerRoutes(app: Express) {
         eq(petTemplateParts.view, "front"),
       ));
 
-      return res.json({ equipped, anchors, extraSlots: 0 });
+      return res.json({
+        equipped: equipped.map((costume) => ({ ...costume, placements: normalizeCostumePlacements(costume.placements) })),
+        anchors,
+        extraSlots: 0,
+      });
     } catch (error) {
       console.error("[costumes] public display load failed", error);
       return res.status(500).json({ message: "Failed to load displayed pet costumes" });
@@ -131,7 +135,11 @@ export function registerCostumePlayerRoutes(app: Express) {
         eq(petTemplateParts.view, "front"),
       ));
 
-      return res.json({ equipped, anchors, extraSlots: unlock?.extraSlots ?? 0 });
+      return res.json({
+        equipped: equipped.map((costume) => ({ ...costume, placements: normalizeCostumePlacements(costume.placements) })),
+        anchors,
+        extraSlots: unlock?.extraSlots ?? 0,
+      });
     } catch (error) {
       console.error("[costumes] player load failed", error);
       return res.status(500).json({ message: "Failed to load pet costumes" });
@@ -183,7 +191,9 @@ export function registerCostumePlayerRoutes(app: Express) {
           )).limit(1);
         if (!definition) throw new Error("This costume has not been fitted for this pet yet");
 
-        const requestedLayers = new Set((definition.placements as CostumePlacement[]).map((placement) => placement.anchorPart));
+        const requestedPlacements = normalizeCostumePlacements(definition.placements);
+        if (requestedPlacements.length === 0) throw new Error("This costume fitting is incomplete");
+        const requestedLayers = new Set(requestedPlacements.map((placement) => placement.anchorPart));
         const equippedLayers = await tx.select({
           name: shopItems.name,
           placements: petCostumeDefinitions.placements,
@@ -196,7 +206,8 @@ export function registerCostumePlayerRoutes(app: Express) {
           ))
           .where(eq(petEquippedCostumes.petInventoryId, petInventoryId));
         const layerConflict = equippedLayers.find((equippedCostume) =>
-          (equippedCostume.placements as CostumePlacement[]).some((placement) => requestedLayers.has(placement.anchorPart))
+          normalizeCostumePlacements(equippedCostume.placements)
+            .some((placement) => requestedLayers.has(placement.anchorPart))
         );
         if (layerConflict) {
           throw new Error(`Unequip ${layerConflict.name} before equipping another costume on the same pet layer`);

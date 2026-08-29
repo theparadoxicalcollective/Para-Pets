@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import { getNextZ } from "@/lib/layerManager";
 import { setNavHidden } from "@/lib/navVisibility";
 import PetAnimator from "@/components/PetAnimator";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import EvolutionPanel from "@/components/powerup/EvolutionPanel";
 import type { PetUpgradeModalProps, PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
 import petPlaceholder from "@assets/generated_images/icon_pet_placeholder.png";
@@ -15,6 +16,8 @@ import pupNameLevelBar from "@assets/ui/power-up/pet-name-level-bar.png";
 import pupLogo from "@assets/ui/power-up/power-up-logo.png";
 import pupCloseButton from "@assets/ui/power-up/close-page-icon.png";
 import pupStatBox from "@assets/ui/power-up/stat-box.png";
+import { detectRuntimeMode } from "@/lib/runtimeMode";
+import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 
 const ITEMS_PER_PAGE = 5;
 type StatFilter = "atk" | "def" | "health" | null;
@@ -58,6 +61,7 @@ function powerValue(item: PowerUpItem) {
 export default function PetPowerUpPage(props: PetUpgradeModalProps) {
   const { petName, petInventoryId, petImage, petTemplateId, rarity, petLevel, petAtk, petDef, petHealth, itemsRemaining, items, isPending, showBuyButton = false, successEffect, onUseItem, onSuccessAnimEnd, onClose } = props;
   const [z] = useState(() => getNextZ());
+  const [lowMemory] = useState(() => shouldUseLowMemoryPetRenderer(detectRuntimeMode()));
   const pageRef = useRef<HTMLDivElement>(null);
   const zoneRef = useRef<HTMLDivElement>(null);
   const statsCloseRef = useRef<HTMLButtonElement>(null);
@@ -70,6 +74,14 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
   const [statsOpen, setStatsOpen] = useState(false);
   const [itemOffset, setItemOffset] = useState(0);
   const sparkId = useRef(0);
+  const transientTimers = useRef<number[]>([]);
+  const scheduleTransient = useCallback((callback: () => void, delay: number) => {
+    const timer = window.setTimeout(() => {
+      transientTimers.current = transientTimers.current.filter((id) => id !== timer);
+      callback();
+    }, delay);
+    transientTimers.current.push(timer);
+  }, []);
   const resetPagePosition = useCallback(() => { if (pageRef.current) pageRef.current.scrollTop = 0; }, []);
   const openStats = useCallback(() => { resetPagePosition(); setStatsOpen(true); }, [resetPagePosition]);
   const closeStats = useCallback(() => {
@@ -80,6 +92,10 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
     });
   }, [resetPagePosition]);
 
+  useEffect(() => () => {
+    transientTimers.current.forEach((timer) => window.clearTimeout(timer));
+    transientTimers.current = [];
+  }, []);
   useEffect(() => {
     const bodyOverflow = document.body.style.overflow;
     const rootOverflow = document.documentElement.style.overflow;
@@ -115,10 +131,18 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
   const burst = useCallback((color: string) => {
     const r = zoneRef.current?.getBoundingClientRect(); if (!r) return;
     const x = r.left + r.width / 2, y = r.top + r.height / 2;
-    const next = Array.from({ length: 16 }, (_, i) => { const angle = (i / 16) * Math.PI * 2; return { id: sparkId.current++, x, y, dx: Math.cos(angle) * (58 + Math.random() * 72), dy: Math.sin(angle) * (58 + Math.random() * 72), color }; });
-    setSparks(next); window.setTimeout(() => setSparks([]), 760);
-  }, []);
-  const useItem = useCallback((item: PowerUpItem) => { if (disabled(item)) return; burst(itemColor(item)); setPetAnim("bounce"); window.setTimeout(() => setPetAnim("flash"), 260); window.setTimeout(() => setPetAnim(""), 850); onUseItem(item); }, [burst, disabled, onUseItem]);
+    const count = lowMemory ? 6 : 16;
+    const next = Array.from({ length: count }, (_, i) => { const angle = (i / count) * Math.PI * 2; return { id: sparkId.current++, x, y, dx: Math.cos(angle) * (58 + Math.random() * 72), dy: Math.sin(angle) * (58 + Math.random() * 72), color }; });
+    setSparks(next); scheduleTransient(() => setSparks([]), 760);
+  }, [lowMemory, scheduleTransient]);
+  const useItem = useCallback((item: PowerUpItem) => {
+    if (disabled(item)) return;
+    burst(itemColor(item));
+    setPetAnim("bounce");
+    scheduleTransient(() => setPetAnim("flash"), 260);
+    scheduleTransient(() => setPetAnim(""), 850);
+    onUseItem(item);
+  }, [burst, disabled, onUseItem, scheduleTransient]);
   const onPointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>, item: PowerUpItem) => { if (disabled(item)) return; event.preventDefault(); event.stopPropagation(); try { event.currentTarget.setPointerCapture(event.pointerId); } catch {} const next = { item, x: event.clientX, y: event.clientY }; dragRef.current = next; setDrag(next); }, [disabled]);
   const onPointerMove = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => { if (!dragRef.current) return; event.preventDefault(); event.stopPropagation(); const next = { ...dragRef.current, x: event.clientX, y: event.clientY }; dragRef.current = next; setDrag(next); setOver(pointInZone(event.clientX, event.clientY)); }, [pointInZone]);
   const clearDrag = useCallback(() => { dragRef.current = null; setDrag(null); setOver(false); }, []);
@@ -129,7 +153,18 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
   const visibleItems = sortedItems.slice(itemOffset, itemOffset + ITEMS_PER_PAGE);
   const openItems = useCallback((filter: StatFilter = null) => { closeStats(); setStatFilter(filter); setItemOffset(0); }, [closeStats]);
 
-  const pet = petTemplateId ? <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="idle" view="front" size={350} fillContainer className="w-full h-full" style={{ width: "100%", height: "100%", pointerEvents: "none" }} /> : petImage ? <img src={petImage} alt={petName} draggable={false} /> : <img src={petPlaceholder} alt="" className="pupage-placeholder" draggable={false} />;
+  const petFallback = petImage
+    ? <img src={petImage} alt={petName} draggable={false} decoding="async" data-testid="img-powerup-pet-fallback" />
+    : <img src={petPlaceholder} alt="" className="pupage-placeholder" draggable={false} />;
+  const pet = petTemplateId ? (
+    <ErrorBoundary
+      context="PetPowerUpPage.PetAnimator"
+      resetKey={`${petInventoryId}:${petTemplateId}`}
+      fallback={petFallback}
+    >
+      <PetAnimator petTemplateId={petTemplateId} petInventoryId={petInventoryId} mode="idle" view="front" size={350} fillContainer lowMemory={lowMemory} className="w-full h-full" style={{ width: "100%", height: "100%", pointerEvents: "none" }} />
+    </ErrorBoundary>
+  ) : petFallback;
   const slotsPerLevel = rarity <= 2 ? 1 : rarity === 3 ? 2 : 3;
   const capacity = Math.max(1, petLevel || 1) * slotsPerLevel;
   const remaining = itemsRemaining === Infinity ? capacity : Math.max(0, Math.min(capacity, itemsRemaining));
@@ -142,7 +177,7 @@ export default function PetPowerUpPage(props: PetUpgradeModalProps) {
   ];
   const filterLabel = statFilter === "health" ? "HP" : statFilter?.toUpperCase();
 
-  return <div className="pupage" style={{ zIndex: z }} role="dialog" aria-modal="true" aria-label="Power Up">
+  return <div className="pupage" style={{ zIndex: z }} data-low-memory={lowMemory ? "true" : "false"} role="dialog" aria-modal="true" aria-label="Power Up">
     <style>{CSS}</style><img src={pupBackground} alt="" className="pupage-bg" /><div className="pupage-vignette" />
     <div ref={pageRef} className="pupage-scroll">
       <header className="pupage-head">

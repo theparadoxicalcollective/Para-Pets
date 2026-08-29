@@ -92,7 +92,47 @@ export function getUnlockedCostumeSlotCount(extraSlots: number): number {
  * Return both sides of a recognized pair so mirrored wing layers disappear
  * together. Non-wing anchors return an empty list and never hide pet parts.
  */
+function finitePlacementNumber(value: unknown, fallback: number): number {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+}
+
+/** Normalize legacy/admin-authored placement JSON before any renderer or route reads it. */
+export function normalizeCostumePlacements(value: unknown): CostumePlacement[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return [];
+    const placement = candidate as Record<string, unknown>;
+    const view = placement.view === "front" || placement.view === "side" ? placement.view : null;
+    const depth = placement.depth === "front" || placement.depth === "back" ? placement.depth : null;
+    const anchorPart = typeof placement.anchorPart === "string" ? placement.anchorPart.trim() : "";
+    const width = finitePlacementNumber(placement.width, 0);
+    const height = finitePlacementNumber(placement.height, 0);
+    if (!view || !depth || !anchorPart || width <= 0 || height <= 0) return [];
+
+    return [{
+      view,
+      depth,
+      anchorPart,
+      instance: Math.max(1, Math.min(
+        COSTUME_MAX_PLACEMENT_INSTANCES,
+        Math.trunc(finitePlacementNumber(placement.instance, 1)),
+      )),
+      posX: finitePlacementNumber(placement.posX, 0),
+      posY: finitePlacementNumber(placement.posY, 0),
+      width,
+      height,
+      pivotX: finitePlacementNumber(placement.pivotX, 50),
+      pivotY: finitePlacementNumber(placement.pivotY, 50),
+      rotation: finitePlacementNumber(placement.rotation, 0),
+      flipX: placement.flipX === true,
+    }];
+  });
+}
+
 export function getWingReplacementPartTypes(anchorPart: string): string[] {
+  if (typeof anchorPart !== "string" || !anchorPart) return [];
   const sidePair = anchorPart.match(/^(left|right)_wing(_\d+)?$/);
   if (sidePair) {
     const suffix = sidePair[2] ?? "";

@@ -33,6 +33,8 @@ import type { PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
 import PowerUpOverlay from "@/components/PowerUpOverlay";
 import questArrowImg from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 import raidHpFrameImg from "@assets/Photoroom_20260711_31007_PM_1783820810778.png";
+import { detectRuntimeMode } from "@/lib/runtimeMode";
+import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 
 interface HomePageProps {
   user: {
@@ -84,6 +86,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [showProfile, setShowProfile] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState(user);
+  const [lowMemoryPetRenderer] = useState(() => shouldUseLowMemoryPetRenderer(detectRuntimeMode()));
   // Gate sparkle orbs on the pet container having real height.
   // Uses a continuous ResizeObserver (no disconnect) so if the container
   // briefly collapses during skeleton→pet transition, the orbs hide instantly
@@ -159,6 +162,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [homeDragOver, setHomeDragOver] = useState(false);
   const [homeDragging, setHomeDragging] = useState<{ item: InventoryItem; x: number; y: number } | null>(null);
   const homeEggDropRef = useRef<HTMLDivElement>(null);
+  const homeGestureAbortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => homeGestureAbortRef.current?.abort(), []);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportSubject, setSupportSubject] = useState("");
   const [supportMessage, setSupportMessage] = useState("");
@@ -665,6 +670,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
   const handleHomeSheetItemPointerDown = (e: React.PointerEvent, item: InventoryItem) => {
     if (!activePet) return;
+    homeGestureAbortRef.current?.abort();
+    const gestureController = new AbortController();
+    homeGestureAbortRef.current = gestureController;
 
     // ── Tutorial step 5 ────────────────────────────────────────────────────────
     // The normal drop-zone rect check fails during the tutorial because
@@ -689,9 +697,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
       const onUp = (ev: PointerEvent) => {
         if (ev.pointerId !== pid) return;
-        document.removeEventListener("pointermove", onMove);
-        document.removeEventListener("pointerup",   onUp);
-        document.removeEventListener("pointercancel", onUp);
+        gestureController.abort();
+        if (homeGestureAbortRef.current === gestureController) homeGestureAbortRef.current = null;
         setHomeDragging(null);
         setHomeDragOver(false);
 
@@ -706,9 +713,16 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         }
       };
 
-      document.addEventListener("pointermove", onMove);
-      document.addEventListener("pointerup",   onUp);
-      document.addEventListener("pointercancel", onUp);
+      const onCancel = (ev: PointerEvent) => {
+        if (ev.pointerId !== pid) return;
+        gestureController.abort();
+        if (homeGestureAbortRef.current === gestureController) homeGestureAbortRef.current = null;
+        setHomeDragging(null);
+        setHomeDragOver(false);
+      };
+      document.addEventListener("pointermove", onMove, { signal: gestureController.signal });
+      document.addEventListener("pointerup", onUp, { signal: gestureController.signal });
+      document.addEventListener("pointercancel", onCancel, { signal: gestureController.signal });
       return;
     }
 
@@ -736,8 +750,8 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     };
     const onUp = (ev: PointerEvent) => {
       if (ev.pointerId !== e.pointerId) return;
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup",   onUp);
+      gestureController.abort();
+      if (homeGestureAbortRef.current === gestureController) homeGestureAbortRef.current = null;
       setHomeDragOver(false);
       if (!dragActive) {
         // Tap: e.preventDefault() suppresses onClick on mobile — fire directly
@@ -756,8 +770,16 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       }
       setHomeDragging(null);
     };
-    document.addEventListener("pointermove", onMove);
-    document.addEventListener("pointerup",   onUp);
+    const onCancel = (ev: PointerEvent) => {
+      if (ev.pointerId !== e.pointerId) return;
+      gestureController.abort();
+      if (homeGestureAbortRef.current === gestureController) homeGestureAbortRef.current = null;
+      setHomeDragOver(false);
+      setHomeDragging(null);
+    };
+    document.addEventListener("pointermove", onMove, { signal: gestureController.signal });
+    document.addEventListener("pointerup", onUp, { signal: gestureController.signal });
+    document.addEventListener("pointercancel", onCancel, { signal: gestureController.signal });
   };
 
   const petLoading = currentUser.activePetId && inventoryLoading;
@@ -1074,7 +1096,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
             )}
 
             {/* Rarity sparkle lights (3/4/5 star) — gated until container has real height */}
-            {orbsReady && activePet && (activePet.rarity || 0) >= 3 && (() => {
+            {orbsReady && !activePetModal && activePet && (activePet.rarity || 0) >= 3 && (() => {
               const rarity = activePet.rarity || 0;
               const is5 = rarity >= 5;
               const is4 = rarity >= 4;
@@ -1291,9 +1313,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         className="w-full flex items-center justify-center"
                         data-testid="button-open-pet-actions"
                       >
-                        {activePet.petTemplateId ? (
+                        {activePetModal === "power_up" ? null : activePet.petTemplateId ? (
                           <div className="w-full flex items-center justify-center">
-                            <PetAnimator petTemplateId={activePet.petTemplateId} petInventoryId={activePet.inventoryId} mode="idle" view="front" size={1000} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
+                            <PetAnimator petTemplateId={activePet.petTemplateId} petInventoryId={activePet.inventoryId} mode="idle" view="front" size={1000} lowMemory={lowMemoryPetRenderer} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
                           </div>
                         ) : (activePet.hatchedImageUrl || activePet.imageUrl) ? (
                           <div style={{ paddingTop: "calc(8*var(--vh))", width: "100%" }}>

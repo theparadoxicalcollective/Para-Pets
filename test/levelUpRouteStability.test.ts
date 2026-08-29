@@ -24,7 +24,7 @@ test("Level Up keeps a still-pet fallback if the animated renderer throws", () =
 });
 
 test("animated costume rendering tolerates incomplete API data", () => {
-  assert.match(animatorSource, /Array\.isArray\(templateData\?\.parts\)/);
+  assert.match(animatorSource, /normalizePetParts\(templateData\?\.parts\)/);
   assert.match(animatorSource, /Array\.isArray\(costumeData\?\.equipped\)/);
-  assert.match(animatorSource, /Array\.isArray\(costume\.placements\)/);
+  assert.match(animatorSource, /normalizeCostumePlacements\(costume\.placements\)/);
 });
