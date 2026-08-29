@@ -4,7 +4,6 @@
   "exclude": [],
   "compilerOptions": {
     "noEmit": true,
-    "incremental": false,
-    "tsBuildInfoFile": null
+    "incremental": false
   }
 }
