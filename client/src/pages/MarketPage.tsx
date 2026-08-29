@@ -165,7 +165,7 @@ function MarketCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
 
   if (isMine && listing.status === "sold") {
     return (
-      <div data-testid={`card-market-sold-${listing.id}`} style={{ position: "relative", minHeight: 218, padding: "30px 20px 22px", boxSizing: "border-box", background: `url(${marketItemCard}) center/100% 100% no-repeat`, textAlign: "center", filter: "drop-shadow(0 7px 12px rgba(0,0,0,.42))" }}>
+      <div data-testid={`card-market-sold-${listing.id}`} data-market-collect-ready="true" style={{ position: "relative", minHeight: 218, padding: "30px 20px 22px", boxSizing: "border-box", background: `url(${marketItemCard}) center/100% 100% no-repeat`, textAlign: "center", filter: "drop-shadow(0 7px 12px rgba(0,0,0,.42))", animation: "marketCollectGlow 1.8s ease-in-out infinite" }}>
         <img src={coinIconImg} alt="" style={{ position: "absolute", top: "18%", left: "50%", width: 52, height: 52, objectFit: "contain", transform: "translateX(-50%)", filter: "brightness(1.08) saturate(1.1) drop-shadow(0 0 12px rgba(255,195,50,.78))" }} />
         <div style={{ position: "absolute", top: "49%", left: "11%", right: "11%", color: cream, fontFamily: "Georgia, serif", fontSize: 11, fontWeight: 600, textShadow: cardCopyShadow }}>{listing.itemName} sold!</div>
         <button data-testid={`button-collect-${listing.id}`} onClick={() => onCollect?.(listing)} style={{ ...artButtonStyle(true), position: "absolute", top: "61%", left: "9%", width: "82%", minHeight: 37, fontSize: 11 }}>Collect Coins</button>
@@ -193,7 +193,7 @@ function MarketCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
       >
         {isPet ? (
           <>
-            <div data-market-card-field="pet-rarity" style={{ position: "absolute", top: "10%", left: "29%", right: "13%", transform: "translateX(-40px)", textAlign: "center", color: gold, fontFamily: "Georgia, serif", fontSize: "clamp(9px, 2.2vw, 12px)", fontWeight: 700, letterSpacing: ".5px", textShadow: "0 1px 2px #25002f, 0 0 7px rgba(255,213,91,.38)" }}>
+            <div data-market-card-field="pet-rarity" style={{ position: "absolute", top: "10%", left: "29%", right: "13%", transform: "translateX(-52px)", textAlign: "center", color: gold, fontFamily: "Georgia, serif", fontSize: "clamp(9px, 2.2vw, 12px)", fontWeight: 700, letterSpacing: ".5px", textShadow: "0 1px 2px #25002f, 0 0 7px rgba(255,213,91,.38)" }}>
               {stars(listing.rarity)}
             </div>
             <div style={{ position: "absolute", top: "24%", left: "18%", right: "18%", height: "36%", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -233,9 +233,10 @@ function MarketCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
 
 function EmptySlot({ onSell }: { onSell: () => void }) {
   return (
-    <button data-testid="button-empty-slot" onClick={onSell} style={{ minHeight: 246, aspectRatio: "2 / 3", border: 0, background: `url(${marketItemCard}) center/100% 100% no-repeat`, opacity: .62, filter: "grayscale(.2) drop-shadow(0 8px 12px rgba(0,0,0,.35))", cursor: "pointer", color: cream, fontFamily: "Georgia, serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5 }}>
-      <span style={{ fontSize: 32, textShadow: "0 0 10px rgba(120,255,150,.5)" }}>+</span>
-      <span style={{ fontSize: 11 }}>List Item</span>
+    <button data-testid="button-empty-slot" onClick={onSell} style={{ position: "relative", minHeight: 246, aspectRatio: "2 / 3", overflow: "hidden", border: 0, background: "transparent", cursor: "pointer", color: "#fff7d8", fontFamily: "Georgia, serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5 }}>
+      <span aria-hidden="true" data-market-empty-card-art style={{ position: "absolute", inset: 0, background: `url(${marketItemCard}) center/100% 100% no-repeat`, filter: "grayscale(.82) brightness(.5)", opacity: .72 }} />
+      <span style={{ position: "relative", zIndex: 1, fontSize: 32, fontWeight: 700, textShadow: "0 1px 3px #000, 0 0 11px rgba(255,225,130,.72)" }}>+</span>
+      <span style={{ position: "relative", zIndex: 1, fontSize: 12, fontWeight: 700, letterSpacing: ".04em", textShadow: "0 1px 3px #000, 0 0 10px rgba(255,225,130,.78)" }}>List Item</span>
     </button>
   );
 }
@@ -394,6 +395,15 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
 
   return (
     <div style={{ minHeight: "calc(100*var(--vh))", width: "100%", position: "relative", overflow: "hidden", background: "#100018" }}>
+      <style>{`
+        @keyframes marketCollectGlow {
+          0%, 100% { filter: brightness(1) drop-shadow(0 7px 12px rgba(0,0,0,.42)) drop-shadow(0 0 5px rgba(246,201,93,.28)); }
+          50% { filter: brightness(1.1) drop-shadow(0 7px 12px rgba(0,0,0,.42)) drop-shadow(0 0 16px rgba(246,201,93,.88)); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [data-market-collect-ready="true"] { animation: none !important; filter: brightness(1.06) drop-shadow(0 0 11px rgba(246,201,93,.72)) !important; }
+        }
+      `}</style>
       <div style={{ position: "absolute", inset: 0, background: `url(${marketBg}) center top/cover no-repeat`, zIndex: 0 }} />
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom,rgba(11,0,20,.16),rgba(8,0,16,.26) 52%,rgba(5,0,10,.7))", zIndex: 1 }} />
 
