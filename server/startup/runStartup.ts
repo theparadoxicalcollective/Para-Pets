@@ -2,6 +2,7 @@ import type { Express, NextFunction, Request, Response } from "express";
 import type { Server } from "http";
 import { registerRoutes } from "../routes";
 import { registerDailyClaimRoutes } from "../routes/dailyClaim.routes";
+import { registerClientDiagnosticsRoutes } from "../routes/clientDiagnostics.routes";
 import { serveStatic } from "../static";
 import { pool } from "../db";
 import { reconcileHauntedWoodsWorld } from "../worlds/hauntedWoods";
@@ -41,6 +42,12 @@ export async function runStartup({ app, httpServer, log }: StartupDependencies):
   // stacked accessory rows and duplicate equipment references, so repair and
   // constrain that state synchronously before registering routes.
   await repairAccessoryEquipmentIntegrity();
+
+  // Register focused infrastructure routes before the legacy route monolith.
+  // Diagnostics must exist in production even if the failing feature is owned
+  // by a later route module, and it intentionally accepts both authenticated
+  // and unauthenticated browser failures.
+  registerClientDiagnosticsRoutes(app);
 
   // Register the focused daily-claim implementation before the legacy route
   // monolith so these handlers own /api/daily-claim and its status endpoint.

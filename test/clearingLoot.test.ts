@@ -1,9 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { CLEARING_LOOT, normalizeEligibleLoot, rollClearingRarity, selectClearingLoot } from "../server/clearingLoot";
+import { CLEARING_LOOT, normalizeEligibleLoot, rollClearingRarity, selectClearingLoot, type EligibleLoot } from "../server/clearingLoot";
 import { updateClearingPosition, createClearingSession } from "../server/elysianClearingCombat";
 
-const item=(stars:number,id=`item-${stars}`)=>({id,name:id,image_url:null,clearing_slot:"weapon",star_rarity:stars,atk_boost:stars,def_boost:0,health_boost:0});
+const item = (stars: EligibleLoot["star_rarity"], id = `item-${stars}`): EligibleLoot => ({
+  id,
+  name: id,
+  image_url: null,
+  clearing_slot: "weapon",
+  star_rarity: stars,
+  atk_boost: stars,
+  def_boost: 0,
+  health_boost: 0,
+});
 
 test("Clearing equipment uses the exact six percent drop probability",()=>assert.equal(CLEARING_LOOT.equipmentChance,.06));
 test("rarity rolls are deterministic and match all configured bands",()=>{

@@ -79,3 +79,36 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// Mutable player-owned state must not inherit the app-wide `staleTime: Infinity`
+// policy. These query prefixes are shared by Home, Pet Inventory, The Closet,
+// Market and upgrade flows, so a stale cache here can make one screen disagree
+// with another even after the server mutation succeeded. Keep static authored
+// content long-lived, but make ownership/auth state periodically re-validatable.
+const MUTABLE_PLAYER_STATE_STALE_MS = 15_000;
+const mutablePlayerQueryPrefixes = [
+  ["/api/auth/me"],
+  ["/api/inventory"],
+  ["/api/user/equipped-accessory-ids"],
+] as const;
+
+for (const queryKey of mutablePlayerQueryPrefixes) {
+  queryClient.setQueryDefaults(queryKey, {
+    staleTime: MUTABLE_PLAYER_STATE_STALE_MS,
+    refetchOnWindowFocus: true,
+    retry: false,
+  });
+}
+
+/**
+ * One shared invalidation boundary for mutations that change player ownership.
+ * Feature code can call this instead of remembering several independent cache
+ * keys. The refetch remains scoped to the three mutable player-state families.
+ */
+export async function invalidatePlayerOwnershipState(): Promise<void> {
+  await Promise.all(
+    mutablePlayerQueryPrefixes.map((queryKey) =>
+      queryClient.invalidateQueries({ queryKey: [...queryKey] })
+    )
+  );
+}
