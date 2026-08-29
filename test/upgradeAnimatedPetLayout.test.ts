@@ -11,7 +11,8 @@ const level = readFileSync("client/src/components/PetLevelUpPage.tsx", "utf8");
 test("Power Up animated pet stays inside its existing pet zone", () => {
   assert.match(power, /<PetAnimator[\s\S]*?size=\{350\}[\s\S]*?fillContainer/);
   assert.match(power, /className="w-full h-full"/);
-  assert.match(power, /const pet = petTemplateId \? <PetAnimator[\s\S]*?: petImage \? <img/);
+  assert.match(power, /const petFallback = petImage[\s\S]*?data-testid="img-powerup-pet-fallback"/);
+  assert.match(power, /const pet = petTemplateId \? \([\s\S]*?<ErrorBoundary[\s\S]*?<PetAnimator[\s\S]*?\) : petFallback/);
   assert.doesNotMatch(power, /<PetAnimator[^>]*size=\{700\}/);
 });
 
@@ -30,7 +31,7 @@ test("Level Up is mounted as its own full-screen route", () => {
 test("Level Up keeps an isolated animated pet with a loading fallback", () => {
   assert.match(level, /const StableLevelUpPet = memo/);
   assert.match(level, /queryKey: \["\/api\/pet-template-parts", petTemplateId\]/);
-  assert.match(level, /templateData\?\.parts\?\.length/);
+  assert.match(level, /normalizePetParts\(templateData\?\.parts\)\.length > 0/);
   assert.match(level, /mode="idle"/);
   assert.match(level, /refetchOnWindowFocus: false/);
   assert.match(level, /data-testid="img-levelup-pet-fallback"/);
