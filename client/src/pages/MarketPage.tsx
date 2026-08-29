@@ -113,6 +113,12 @@ function stars(value?: number | null) {
   return "★".repeat(clampRarity(value));
 }
 
+function itemTypeLabel(type: string) {
+  return type
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, character => character.toUpperCase());
+}
+
 function artButtonStyle(active: boolean): React.CSSProperties {
   return {
     border: "none",
@@ -124,6 +130,21 @@ function artButtonStyle(active: boolean): React.CSSProperties {
     filter: active ? "brightness(1.2) drop-shadow(0 0 8px rgba(190,61,255,.45))" : "brightness(.72)",
     cursor: "pointer",
     transition: "filter .15s ease, transform .15s ease",
+  };
+}
+
+function subFilterButtonStyle(active: boolean): React.CSSProperties {
+  return {
+    border: 0,
+    borderBottom: active ? `2px solid ${gold}` : "2px solid transparent",
+    borderRadius: 0,
+    background: "transparent",
+    color: active ? cream : "rgba(255,243,207,.66)",
+    fontFamily: "Georgia, serif",
+    fontWeight: active ? 700 : 500,
+    textShadow: active ? "0 0 7px rgba(255,225,130,.55)" : "0 1px 2px #160326",
+    cursor: "pointer",
+    transition: "color .15s ease, border-color .15s ease, text-shadow .15s ease",
   };
 }
 
@@ -170,7 +191,7 @@ function MarketCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
       >
         {isPet ? (
           <>
-            <div data-market-card-field="pet-rarity" style={{ position: "absolute", top: "10%", left: "29%", right: "13%", textAlign: "center", color: gold, fontFamily: "Georgia, serif", fontSize: "clamp(9px, 2.2vw, 12px)", fontWeight: 700, textShadow: "0 1px 2px #25002f" }}>
+            <div data-market-card-field="pet-rarity" style={{ position: "absolute", top: "10%", left: "29%", right: "13%", transform: "translateX(-28px)", textAlign: "center", color: gold, fontFamily: "Georgia, serif", fontSize: "clamp(9px, 2.2vw, 12px)", fontWeight: 700, textShadow: "0 1px 2px #25002f" }}>
               {stars(listing.rarity)}
             </div>
             <div style={{ position: "absolute", top: "24%", left: "18%", right: "18%", height: "36%", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -188,8 +209,8 @@ function MarketCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
             <div data-market-card-field="item-name" style={{ position: "absolute", top: "54.5%", left: "12%", right: "12%", minHeight: "9%", display: "flex", alignItems: "center", justifyContent: "center", color: cream, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: "clamp(9px, 2.35vw, 13px)", lineHeight: 1.05, textAlign: "center", textShadow: "0 1px 2px #04220e" }}>
               {listing.itemName}
             </div>
-            <div data-market-card-field="item-display" style={{ position: "absolute", top: "68%", left: "17%", right: "17%", minHeight: "10%", display: "flex", alignItems: "center", justifyContent: "center", color: "#d8ffdd", fontFamily: "Georgia, serif", fontSize: "clamp(7px, 1.85vw, 10px)", lineHeight: 1.08, textAlign: "center", textShadow: "0 1px 2px #04220e", overflow: "hidden" }}>
-              {listing.effectSummary || listing.description || "Market item"}
+            <div data-market-card-field="item-display" style={{ position: "absolute", top: "64%", left: "17%", right: "17%", minHeight: "10%", display: "flex", alignItems: "center", justifyContent: "center", color: "#d8ffdd", fontFamily: "Georgia, serif", fontSize: "clamp(7px, 1.85vw, 10px)", lineHeight: 1.08, textAlign: "center", textShadow: "0 1px 2px #04220e", overflow: "hidden" }}>
+              {listing.description?.trim() || itemTypeLabel(listing.itemType)}
             </div>
           </>
         )}
@@ -394,7 +415,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 5, marginBottom: 6 }}>{mainTabs.map(tab => <button key={tab.value} data-testid={`button-main-tab-${tab.value}`} onClick={() => { setMainTab(tab.value); playTick(); if (tab.value !== "items") setItemsSubFilter("items"); }} style={{ ...artButtonStyle(mainTab === tab.value), minHeight: 34, fontSize: 10 }}>{tab.label}</button>)}</div>
 
-            {mainTab === "items" && <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 5, marginBottom: 5 }}>{ITEMS_SUB_FILTERS.map(sf => <button key={sf.value} data-testid={`button-sub-filter-${sf.value}`} onClick={() => { setItemsSubFilter(sf.value); playTick(); }} style={{ ...artButtonStyle(itemsSubFilter === sf.value), minWidth: 82, minHeight: 30, padding: "0 8px", fontSize: 8.5, flexShrink: 0 }}>{sf.label}</button>)}</div>}
+            {mainTab === "items" && <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 5, marginBottom: 5 }}>{ITEMS_SUB_FILTERS.map(sf => <button key={sf.value} data-testid={`button-sub-filter-${sf.value}`} onClick={() => { setItemsSubFilter(sf.value); playTick(); }} style={{ ...subFilterButtonStyle(itemsSubFilter === sf.value), minWidth: 82, minHeight: 30, padding: "0 8px", fontSize: 8.5, flexShrink: 0 }}>{sf.label}</button>)}</div>}
 
             <div style={{ flex: 1, overflowY: "auto", padding: "3px 2px 20px", scrollbarWidth: "none" }}>
               {marketQuery.isLoading ? <div style={{ textAlign: "center", color: purple, fontFamily: "Georgia, serif", paddingTop: 50 }}>Loading market…</div> : !marketQuery.data?.length ? <div style={{ textAlign: "center", color: "rgba(255,235,255,.62)", fontFamily: "Georgia, serif", paddingTop: 50 }}>{search || mainTab !== "all" ? "No listings match your search." : "The market is empty. Be the first to sell!"}</div> : <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 9 }}>{marketQuery.data.map(listing => <MarketCard key={listing.id} listing={listing} isMine={false} user={user} onDetail={setDetailTarget} />)}</div>}
