@@ -59,11 +59,6 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-function parseBudget(value: string): number {
-  const parsed = Number(value.replace(/[^0-9]/g, ""));
-  return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0;
-}
-
 function SymbolFace({ symbol, spinning }: { symbol: SlotSymbol | undefined; spinning: boolean }) {
   if (!symbol) return <span className="text-white/40 text-xs">?</span>;
   const src = symbol.imageUrl || STATIC_FALLBACKS[symbol.id];
@@ -98,17 +93,12 @@ export default function SlaughterSlotsOverlay({
   const [reels, setReels] = useState(DEFAULT_REELS);
   const [spinning, setSpinning] = useState(false);
   const [holding, setHolding] = useState(false);
-  const [holdSpent, setHoldSpent] = useState(0);
-  const [budgetInput, setBudgetInput] = useState("0");
-  const [holdNotice, setHoldNotice] = useState<string | null>(null);
   const [result, setResult] = useState<SpinResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const spinTimerRef = useRef<number | null>(null);
   const stateRef = useRef<SlotState | null>(null);
   const betRef = useRef(10);
-  const budgetLimitRef = useRef(0);
-  const holdSpentRef = useRef(0);
   const holdingRef = useRef(false);
   const spinInFlightRef = useRef(false);
 
@@ -131,9 +121,6 @@ export default function SlaughterSlotsOverlay({
         const initialBetIndex = affordable >= 0 ? affordable : 0;
         setBetIndex(initialBetIndex);
         betRef.current = data.betOptions[initialBetIndex] ?? 10;
-        const defaultBudget = Math.min(data.balances.coins, 250);
-        setBudgetInput(String(defaultBudget));
-        budgetLimitRef.current = defaultBudget;
       })
       .catch((reason) => {
         if (!cancelled) setError(reason instanceof Error ? reason.message : "Slots could not be loaded");
@@ -169,17 +156,13 @@ export default function SlaughterSlotsOverlay({
 
   const bet = state?.betOptions[betIndex] ?? 10;
   betRef.current = bet;
-  const enteredBudget = parseBudget(budgetInput);
-  budgetLimitRef.current = enteredBudget;
-  const remainingHoldBudget = Math.max(0, enteredBudget - holdSpent);
   const canSpin = Boolean(state && !spinInFlightRef.current && state.balances.coins >= bet);
-  const canStartHold = canSpin && enteredBudget >= bet;
+  const canStartHold = canSpin;
 
   const moveBet = (delta: number) => {
     if (!state || spinning || holding) return;
     setResult(null);
     setError(null);
-    setHoldNotice(null);
     setBetIndex((current) => Math.max(0, Math.min(state.betOptions.length - 1, current + delta)));
   };
 
@@ -264,27 +247,11 @@ export default function SlaughterSlotsOverlay({
   const runHoldLoop = async () => {
     while (holdingRef.current) {
       const stake = betRef.current;
-      const limit = budgetLimitRef.current;
       const wallet = stateRef.current?.balances.coins ?? 0;
-
-      if (holdSpentRef.current + stake > limit) {
-        setHoldNotice("Max wager reached — release and set a new limit to continue.");
-        break;
-      }
-      if (wallet < stake) {
-        setHoldNotice("Your coin balance is below the current bet.");
-        break;
-      }
+      if (wallet < stake) break;
 
       const completed = await spinOnce();
-      if (!completed) break;
-
-      // The hold cap is a gross-wager safety limit. Winnings do not reset or
-      // increase it, so holding the button can never silently spend more than
-      // the exact amount the player chose for this hold session.
-      holdSpentRef.current += stake;
-      setHoldSpent(holdSpentRef.current);
-      if (!holdingRef.current) break;
+      if (!completed || !holdingRef.current) break;
       await sleep(180);
     }
     holdingRef.current = false;
@@ -294,17 +261,10 @@ export default function SlaughterSlotsOverlay({
   const beginHold = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     const currentWallet = stateRef.current?.balances.coins ?? 0;
-    const requestedLimit = parseBudget(budgetInput);
-    const safeLimit = Math.min(requestedLimit, currentWallet);
-    if (safeLimit !== requestedLimit) setBudgetInput(String(safeLimit));
-    budgetLimitRef.current = safeLimit;
-    if (safeLimit < betRef.current || currentWallet < betRef.current || holdingRef.current) return;
+    if (currentWallet < betRef.current || holdingRef.current) return;
 
     event.preventDefault();
     try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
-    setHoldNotice(null);
-    holdSpentRef.current = 0;
-    setHoldSpent(0);
     holdingRef.current = true;
     setHolding(true);
     void runHoldLoop();
@@ -317,13 +277,6 @@ export default function SlaughterSlotsOverlay({
     stopHold();
   };
 
-  const clampBudgetToWallet = () => {
-    const wallet = stateRef.current?.balances.coins ?? 0;
-    const next = Math.min(parseBudget(budgetInput), wallet);
-    setBudgetInput(String(next));
-    budgetLimitRef.current = next;
-  };
-
   const rewardTone = result?.reward.tier === "jackpot"
     ? "text-yellow-200 border-yellow-300/70 shadow-[0_0_28px_rgba(250,204,21,.35)]"
     : result?.reward.tier === "miss"
@@ -332,7 +285,7 @@ export default function SlaughterSlotsOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-[96] overflow-y-auto bg-[#08040d] text-white"
+      className="fixed inset-0 z-[96] overflow-hidden bg-[#08040d] text-white"
       data-testid="slaughter-slots-overlay"
       role="dialog"
       aria-modal="true"
@@ -384,22 +337,21 @@ export default function SlaughterSlotsOverlay({
         <img src={slotCloseButton} alt="" draggable={false} className="block w-full h-auto select-none" />
       </button>
 
-      <div className="relative z-[98] min-h-full w-full max-w-[720px] mx-auto flex flex-col items-center px-3 pb-8" style={{ paddingTop: "max(20px, env(safe-area-inset-top))" }}>
-        <img
-          src={slaughterSlotsLogo}
-          alt="Slaughter Slots"
-          draggable={false}
-          className="select-none object-contain mt-1"
-          style={{ width: "min(72vw, 430px)", maxHeight: "18vh" }}
-        />
-
-        <div className="mt-1 flex items-center justify-center gap-3 sm:gap-5 rounded-full border border-amber-300/25 bg-black/45 px-4 py-1.5 text-xs sm:text-sm backdrop-blur-sm">
+      <div className="relative z-[98] h-full min-h-0 w-full max-w-[720px] mx-auto flex flex-col items-center overflow-hidden px-3 pb-2" style={{ paddingTop: "max(10px, env(safe-area-inset-top))" }}>
+        <div className="relative z-[12] flex shrink-0 items-center justify-center gap-3 sm:gap-5 rounded-full border border-amber-300/25 bg-black/45 px-4 py-1.5 text-xs sm:text-sm backdrop-blur-sm">
           <span className="flex items-center gap-1.5"><img src={currencyAssets.coin} alt="Coins" className="h-5 w-5 object-contain" />{state?.balances.coins ?? "—"}</span>
           <span className="h-4 w-px bg-white/15" />
           <span className="flex items-center gap-1.5"><img src={currencyAssets.essenceToken} alt="Essence" className="h-5 w-5 object-contain" />{state?.balances.essence ?? "—"}</span>
         </div>
 
-        <div className="relative mt-2 w-full" style={{ maxWidth: 520 }}>
+        <div data-testid="slaughter-slots-machine-stage" className="relative mt-0 w-full shrink-0" style={{ maxWidth: 520, width: "min(100%, calc((100dvh - 150px) * .67))" }}>
+          <img
+            src={slaughterSlotsLogo}
+            alt="Slaughter Slots"
+            draggable={false}
+            className="pointer-events-none absolute left-1/2 top-0 z-[5] select-none object-contain"
+            style={{ width: "94%", maxHeight: "19vh", transform: "translate(-50%, -8%)" }}
+          />
           <img
             src={slotMachineHandle}
             alt=""
@@ -412,7 +364,7 @@ export default function SlaughterSlotsOverlay({
               width: "27%",
               zIndex: 0,
               transformOrigin: "42% 82%",
-              animation: spinning ? "slaughterHandlePull .78s cubic-bezier(.25,.8,.25,1) infinite" : undefined,
+              animation: spinning ? "slaughterHandlePull .78s cubic-bezier(.25,.8,.25,1) 1" : undefined,
             }}
           />
           <img
@@ -442,117 +394,66 @@ export default function SlaughterSlotsOverlay({
             ))}
           </div>
 
-          {/* The machine's long control bar has one unmistakable primary action.
-              A tap runs one spin; keeping the same button pressed repeats safely. */}
+          {/* Bet moves into the machine's upper control bar. */}
           <div
-            className="absolute z-[6] flex items-stretch gap-[2.5%]"
-            style={{ left: "18%", top: "60.2%", width: "64%", height: "8.8%" }}
+            data-testid="slaughter-slots-bet-control"
+            className="absolute z-[7] flex items-center justify-center gap-[2.5%] rounded-[18%] border border-amber-300/25 bg-black/42 px-[2%] shadow-[inset_0_0_12px_rgba(0,0,0,.58)]"
+            style={{ left: "26.5%", top: "60.2%", width: "47%", height: "8.8%" }}
           >
-            <button
-              type="button"
-              aria-label="Spin once, or hold to keep spinning"
-              onPointerDown={beginHold}
-              onPointerUp={finishHold}
-              onPointerCancel={finishHold}
-              onLostPointerCapture={() => stopHold()}
-              disabled={!canStartHold}
-              className="relative flex flex-[1.55] flex-col items-center justify-center overflow-hidden rounded-[14%] border border-amber-300/55 bg-gradient-to-b from-emerald-950/95 to-black/85 px-1 disabled:opacity-40 select-none active:scale-[.98] transition-transform"
-              style={{
-                touchAction: "none",
-                boxShadow: holding
-                  ? "inset 0 0 20px rgba(34,197,94,.4), 0 0 15px rgba(250,204,21,.3)"
-                  : "inset 0 0 16px rgba(0,0,0,.7), 0 0 8px rgba(250,204,21,.14)",
-                animation: holding ? "slaughterHoldPulse .86s ease-in-out infinite" : undefined,
-              }}
-            >
-              <span className="font-fantasy text-[clamp(11px,2.9vw,17px)] leading-none tracking-[.16em] text-amber-100">
-                {spinning ? "SPINNING" : "SPIN"}
-              </span>
-              <span className="mt-1 text-[clamp(5px,1.35vw,8px)] font-semibold uppercase tracking-[.08em] text-emerald-100/80">
-                Tap once · hold to repeat
-              </span>
-            </button>
-
-            <label className="flex flex-[.9] flex-col items-center justify-center rounded-[14%] border border-violet-200/30 bg-black/60 px-1 shadow-[inset_0_0_14px_rgba(88,28,135,.42)]">
-              <span className="text-[clamp(6px,1.55vw,9px)] font-semibold uppercase tracking-[.1em] text-violet-100/80">
-                Hold limit
-              </span>
-              <span className="mt-0.5 flex w-full items-center justify-center gap-0.5">
-                <img src={currencyAssets.coin} alt="" className="h-[1em] w-[1em] shrink-0 object-contain" />
-                <input
-                  aria-label="Maximum coins to spend while holding"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  type="number"
-                  min={0}
-                  max={state?.balances.coins ?? 0}
-                  step={1}
-                  value={budgetInput}
-                  disabled={!state || holding || spinning}
-                  onFocus={(event) => event.currentTarget.select()}
-                  onChange={(event) => setBudgetInput(event.target.value.replace(/[^0-9]/g, ""))}
-                  onBlur={clampBudgetToWallet}
-                  className="w-[70%] min-w-0 bg-transparent text-center font-fantasy text-[clamp(9px,2.5vw,14px)] text-amber-100 outline-none disabled:opacity-70"
-                />
-              </span>
-            </label>
-          </div>
-
-          {/* Bet controls sit in their own centered panel instead of competing
-              with the primary spin control. */}
-          <div
-            className="absolute z-[7] flex items-center justify-center gap-[2.5%] rounded-[18%] border border-amber-300/20 bg-black/35 px-[2%] shadow-[inset_0_0_12px_rgba(0,0,0,.58)]"
-            style={{ left: "26.5%", top: "71.25%", width: "47%", height: "7.7%" }}
-          >
-            <button
-              type="button"
-              aria-label="Decrease bet"
-              onClick={() => moveBet(-1)}
-              disabled={!state || spinning || holding || betIndex <= 0}
-              className="h-[84%] aspect-square shrink-0 disabled:opacity-25 active:scale-90 transition-transform"
-              style={{ background: "transparent", border: 0, padding: "2%" }}
-            >
+            <button type="button" aria-label="Decrease bet" onClick={() => moveBet(-1)} disabled={!state || spinning || holding || betIndex <= 0} className="h-[84%] aspect-square shrink-0 disabled:opacity-25 active:scale-90 transition-transform" style={{ background: "transparent", border: 0, padding: "2%" }}>
               <img src={slotMinusButton} alt="" className="block h-full w-full object-contain" draggable={false} />
             </button>
-
             <div className="flex min-w-0 flex-1 flex-col items-center justify-center leading-none">
-              <span className="text-[clamp(7px,1.7vw,10px)] font-semibold uppercase tracking-[.2em] text-amber-100/80">
-                Bet
-              </span>
+              <span className="text-[clamp(7px,1.7vw,10px)] font-semibold uppercase tracking-[.2em] text-amber-100/90">Bet</span>
               <span className="mt-1 flex items-center justify-center gap-0.5 font-fantasy text-[clamp(10px,2.8vw,16px)] text-amber-50">
                 <img src={currencyAssets.coin} alt="" className="h-[1.05em] w-[1.05em] object-contain" />{bet}
               </span>
             </div>
-
-            <button
-              type="button"
-              aria-label="Increase bet"
-              onClick={() => moveBet(1)}
-              disabled={!state || spinning || holding || betIndex >= (state?.betOptions.length ?? 1) - 1}
-              className="h-[84%] aspect-square shrink-0 disabled:opacity-25 active:scale-90 transition-transform"
-              style={{ background: "transparent", border: 0, padding: "2%" }}
-            >
+            <button type="button" aria-label="Increase bet" onClick={() => moveBet(1)} disabled={!state || spinning || holding || betIndex >= (state?.betOptions.length ?? 1) - 1} className="h-[84%] aspect-square shrink-0 disabled:opacity-25 active:scale-90 transition-transform" style={{ background: "transparent", border: 0, padding: "2%" }}>
               <img src={slotPlusButton} alt="" className="block h-full w-full object-contain" draggable={false} />
             </button>
           </div>
+
+          {/* Spin now occupies the centered lower control panel. */}
+          <button
+            data-testid="slaughter-slots-spin-control"
+            type="button"
+            aria-label="Spin once, or hold to keep spinning"
+            onPointerDown={beginHold}
+            onPointerUp={finishHold}
+            onPointerCancel={finishHold}
+            onLostPointerCapture={() => stopHold()}
+            disabled={!canStartHold}
+            className="absolute z-[7] flex flex-col items-center justify-center overflow-hidden rounded-[18%] border border-amber-300/55 bg-gradient-to-b from-emerald-950/95 to-black/85 px-1 disabled:opacity-40 select-none active:scale-[.98] transition-transform"
+            style={{
+              left: "26.5%",
+              top: "71.25%",
+              width: "47%",
+              height: "7.7%",
+              touchAction: "none",
+              boxShadow: holding
+                ? "inset 0 0 20px rgba(34,197,94,.4), 0 0 15px rgba(250,204,21,.3)"
+                : "inset 0 0 16px rgba(0,0,0,.7), 0 0 8px rgba(250,204,21,.14)",
+              animation: holding ? "slaughterHoldPulse .86s ease-in-out infinite" : undefined,
+            }}
+          >
+            <span className="font-fantasy text-[clamp(11px,2.9vw,17px)] leading-none tracking-[.16em] text-amber-100">{spinning ? "SPINNING" : "SPIN"}</span>
+            <span className="mt-1 text-[clamp(5px,1.35vw,8px)] font-semibold uppercase tracking-[.08em] text-emerald-100/80">Tap once · hold to repeat</span>
+          </button>
         </div>
 
-        <div className="mt-1 min-h-[18px] text-center text-[10px] sm:text-xs text-violet-100/80" aria-live="polite">
-          {holding ? `Hold wager: ${holdSpent} / ${enteredBudget} coins · ${remainingHoldBudget} remaining` : null}
+        <div className="mt-0 min-h-[16px] shrink-0 text-center text-[9px] sm:text-xs text-violet-100/80" aria-live="polite">
+          {holding ? "Auto spin active — release to stop" : null}
         </div>
 
         {!spinning && state && state.balances.coins < bet && (
-          <div className="mt-1 text-xs text-rose-200">Not enough coins for this bet.</div>
+          <div className="mt-0 text-xs text-rose-200">Not enough coins for this bet.</div>
         )}
-        {!spinning && state && enteredBudget < bet && (
-          <div className="mt-1 text-xs text-amber-200">MAX must be at least the current bet to spin.</div>
-        )}
-        {holdNotice && <div className="mt-1 text-xs text-amber-100">{holdNotice}</div>}
-        {error && <div className="mt-2 max-w-md rounded-lg border border-rose-300/30 bg-rose-950/45 px-3 py-2 text-center text-sm text-rose-100">{error}</div>}
+        {error && <div className="mt-1 max-w-md rounded-lg border border-rose-300/30 bg-rose-950/45 px-3 py-1.5 text-center text-xs text-rose-100">{error}</div>}
 
         {result && !spinning && (
-          <div className={`mt-3 w-full max-w-[480px] rounded-xl border bg-black/55 px-4 py-3 text-center ${rewardTone}`}>
-            <div className="font-fantasy text-base sm:text-lg">{result.reward.message}</div>
+          <div className={`mt-1 w-full max-w-[480px] shrink-0 rounded-xl border bg-black/55 px-3 py-1.5 text-center ${rewardTone}`}>
+            <div className="font-fantasy text-sm sm:text-base">{result.reward.message}</div>
             <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs sm:text-sm">
               {result.reward.coins > 0 && <span>+{result.reward.coins} coins</span>}
               {result.reward.essence > 0 && <span>+{result.reward.essence} essence</span>}
@@ -568,9 +469,9 @@ export default function SlaughterSlotsOverlay({
           </div>
         )}
 
-        <div className="mt-4 w-full max-w-[500px] rounded-xl border border-violet-200/15 bg-black/35 px-3 py-2 text-center text-[10px] sm:text-xs leading-relaxed text-violet-100/75">
-          Bets and winnings use your normal Para Pets coin balance. Tap SPIN once or keep it pressed to repeat; HOLD LIMIT is the most total coins that hold session may wager, even if you win coins back. Three edible, fish, or mystery symbols can award real non-pet catalog items. Higher-rarity and higher-value items have sharply lower prize weights.
-        </div>
+        <p className="sr-only">
+          Bets and winnings use the normal Para Pets coin balance. Tap SPIN once or keep it pressed to repeat. Release the button to stop automatic spins.
+        </p>
       </div>
     </div>
   );

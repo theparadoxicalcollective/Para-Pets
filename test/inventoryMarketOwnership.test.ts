@@ -46,7 +46,7 @@ test("market pet listing uses one atomic request", () => {
 });
 
 test("market artwork fields retain the requested card alignment", () => {
-  assert.match(market, /data-market-card-field="pet-rarity"[\s\S]*?top: "10%", left: "29%", right: "13%", transform: "translateX\(-40px\)"/);
+  assert.match(market, /data-market-card-field="pet-rarity"[\s\S]*?top: "10%", left: "29%", right: "13%", transform: "translateX\(-52px\)"/);
   assert.match(market, /data-market-card-field="pet-name"[\s\S]*?top: "65%"/);
   assert.match(market, /data-market-card-field="item-image"[\s\S]*?top: "13%"/);
   assert.match(market, /data-market-card-field="item-name"[\s\S]*?top: "54\.5%"/);
@@ -55,6 +55,9 @@ test("market artwork fields retain the requested card alignment", () => {
   assert.match(market, /data-testid=\{`button-collect-\$\{listing\.id\}`\}[\s\S]*?top: "61%"/);
   assert.match(market, /data-market-card-field="sold-coin-amount"[\s\S]*?top: "calc\(61% \+ 41px\)"/);
   assert.match(market, /data-market-card-field="price"[\s\S]*?bottom: "12\.5%"/);
+  assert.match(market, /data-market-collect-ready="true"[\s\S]*?marketCollectGlow 1\.8s/);
+  assert.match(market, /data-market-empty-card-art[\s\S]*?grayscale\(\.82\) brightness\(\.5\)/);
+  assert.match(market, /List Item<\/span>/);
   assert.match(market, /data-testid="market-search-frame"[\s\S]*?height: 64[\s\S]*?center\/100% auto no-repeat/);
 });
 

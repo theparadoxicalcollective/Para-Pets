@@ -125,23 +125,18 @@ test("Slaughter Slots uses the standalone essence token and translucent purple r
   assert.doesNotMatch(client, /bg-\[#e8dcc6\]/i);
 });
 
-test("Slaughter Slots separates spin, hold limit, and bet controls clearly", () => {
+test("Slaughter Slots centers bet and spin controls without a hold-limit panel", () => {
   const client = fs.readFileSync("client/src/components/world/SlaughterSlotsOverlay.tsx", "utf8");
   for (const filename of ASSETS.slice(1, -1)) assert.match(client, new RegExp(filename.replace(".", "\\.")));
-  assert.match(client, /top: "60\.2%"/);
+  assert.match(client, /data-testid="slaughter-slots-bet-control"[\s\S]*?top: "60\.2%"/);
+  assert.match(client, /data-testid="slaughter-slots-spin-control"[\s\S]*?top: "71\.25%"/);
   assert.match(client, /Spin once, or hold to keep spinning/);
   assert.match(client, /\{spinning \? "SPINNING" : "SPIN"\}/);
   assert.match(client, /Tap once · hold to repeat/);
-  assert.match(client, /Hold limit/);
-  assert.match(client, /Maximum coins to spend while holding/);
   assert.match(client, /onPointerDown=\{beginHold\}/);
-  assert.match(client, /gross-wager safety limit/);
-  assert.match(client, /holdSpentRef\.current \+= stake/);
-  assert.match(client, /top: "71\.25%"/);
   assert.match(client, /aria-label="Decrease bet"/);
   assert.match(client, /aria-label="Increase bet"/);
-  assert.match(client, /Max wager reached/);
-  assert.doesNotMatch(client, /change MAX before holding/);
+  assert.doesNotMatch(client, /Hold limit|Maximum coins to spend while holding|gross-wager safety limit|holdSpentRef|budgetLimitRef|MAX must be/);
 });
 
 test("Slaughter Slots raises reel content and uses a slower staged stop", () => {
@@ -154,6 +149,18 @@ test("Slaughter Slots raises reel content and uses a slower staged stop", () => 
   assert.match(client, /slaughterSymbolRoll/);
   assert.doesNotMatch(client, /}, 72\);/);
   assert.doesNotMatch(client, /Math\.max\(0, 900 -/);
+  assert.match(client, /slaughterHandlePull \.78s cubic-bezier\(\.25,\.8,\.25,1\) 1/);
+  assert.doesNotMatch(client, /slaughterHandlePull[^"\n]*infinite/);
+});
+
+test("Slaughter Slots keeps its logo, machine, and controls inside the viewport", () => {
+  const client = fs.readFileSync("client/src/components/world/SlaughterSlotsOverlay.tsx", "utf8");
+  assert.match(client, /overflow-hidden bg-\[#08040d\]/);
+  assert.match(client, /data-testid="slaughter-slots-machine-stage"/);
+  assert.match(client, /100dvh - 150px/);
+  assert.match(client, /width: "94%"/);
+  assert.match(client, /transform: "translate\(-50%, -8%\)"/);
+  assert.doesNotMatch(client, /overflow-y-auto bg-\[#08040d\]/);
 });
 
 test("Slaughter Slots wagers and payouts use the player's real global coin wallet", () => {
