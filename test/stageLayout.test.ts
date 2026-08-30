@@ -9,6 +9,7 @@ import {
   logicalToRendered,
   MAX_STAGE_SCALE,
   renderedToLogical,
+  resolveMobileBrowserHeight,
 } from "../client/src/lib/stage";
 
 test("390x844 iPhone design remains pixel-faithful", () => {
@@ -21,6 +22,21 @@ test("390x844 iPhone design remains pixel-faithful", () => {
   assert.equal(layout.left, 0);
   assert.equal(layout.top, 0);
   assert.equal(getStageTransform(layout), undefined, "native phones do not get a transformed containing block");
+});
+
+test("mobile browser toolbar shrinkage does not create a false short game viewport", () => {
+  assert.equal(resolveMobileBrowserHeight(667, 564), 667);
+  assert.equal(resolveMobileBrowserHeight(760, 680), 760);
+});
+
+test("mobile browser keyboard reduction still uses the visual viewport", () => {
+  assert.equal(resolveMobileBrowserHeight(760, 420), 420);
+  assert.equal(resolveMobileBrowserHeight(915, 520), 520);
+});
+
+test("matching PWA-style viewport measurements remain unchanged", () => {
+  assert.equal(resolveMobileBrowserHeight(844, 844), 844);
+  assert.equal(resolveMobileBrowserHeight(915, 915), 915);
 });
 
 test("390x760 Safari visible viewport stays native and follows the usable height", () => {
