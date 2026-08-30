@@ -4,6 +4,7 @@ import {
   constrainPetCareJarBody,
   createPetCareJarBodies,
   movePetCareJarBody,
+  reconcilePetCareJarBodies,
   stepPetCareJarPhysics,
 } from "../client/src/lib/petCareJarPhysics";
 
@@ -68,4 +69,54 @@ test("fast jar drags are capped and released rotation settles", () => {
   }
   assert.equal(body.vx, 0);
   assert.equal(body.angularVelocity, 0);
+});
+
+test("inventory changes preserve surviving jar bodies and remove only consumed units", () => {
+  const bodies = createPetCareJarBodies(
+    [
+      { key: "apple::0", left: 30, top: 55, rotation: 0 },
+      { key: "apple::1", left: 60, top: 55, rotation: 0 },
+    ],
+    bounds,
+  );
+  bodies[1].x = 112;
+  bodies[1].y = 82;
+  bodies[1].vx = 14;
+  bodies[1].angle = 23;
+
+  const reconciled = reconcilePetCareJarBodies(
+    bodies,
+    [{ key: "apple::1", left: 20, top: 25, rotation: -30 }],
+    bounds,
+  );
+
+  assert.equal(reconciled.length, 1);
+  assert.equal(reconciled[0].key, "apple::1");
+  assert.equal(reconciled[0].x, 112);
+  assert.equal(reconciled[0].y, 82);
+  assert.equal(reconciled[0].vx, 14);
+  assert.equal(reconciled[0].angle, 23);
+});
+
+test("new inventory units join without reseeding existing jar bodies", () => {
+  const existing = createPetCareJarBodies(
+    [{ key: "gift::0", left: 50, top: 60, rotation: 4 }],
+    bounds,
+  );
+  existing[0].x = 90;
+  existing[0].angle = 16;
+
+  const reconciled = reconcilePetCareJarBodies(
+    existing,
+    [
+      { key: "gift::0", left: 20, top: 20, rotation: -20 },
+      { key: "gift::1", left: 70, top: 30, rotation: 11 },
+    ],
+    bounds,
+  );
+
+  assert.equal(reconciled[0].x, 90);
+  assert.equal(reconciled[0].angle, 16);
+  assert.equal(reconciled[1].key, "gift::1");
+  assert.equal(reconciled[1].x, 140);
 });

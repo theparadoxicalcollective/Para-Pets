@@ -47,7 +47,7 @@ import { finitePetCareStat, parsePetCareInventory } from "@/lib/petCareData";
 import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { clearPetCarePhase, getPetCareFeedbackProfile, getPetCareRuntimeDecisions, readRecoverablePetCarePhase, reportRecoveredPetCarePhase, sanitizePetCareRoute, writePetCarePhase, type PetCarePhase, type PetCarePhaseRecord } from "@/lib/petCareSafeMode";
-import { createPetCareJarBodies, movePetCareJarBody, stepPetCareJarPhysics, type PetCareJarBody } from "@/lib/petCareJarPhysics";
+import { movePetCareJarBody, reconcilePetCareJarBodies, stepPetCareJarPhysics, type PetCareJarBody } from "@/lib/petCareJarPhysics";
 
 /**
  * Pet Care feature boundary.
@@ -238,7 +238,7 @@ function PetCareItemShelf({
     const initializeFrame = window.requestAnimationFrame(() => {
       const rect = jarContentsRef.current?.getBoundingClientRect();
       if (!rect?.width || !rect?.height) return;
-      bodiesRef.current = createPetCareJarBodies(visuals, { width: rect.width, height: rect.height });
+      bodiesRef.current = reconcilePetCareJarBodies(bodiesRef.current, visuals, { width: rect.width, height: rect.height });
       paintBodies();
       if (dragEnabled && !safeMode) startPhysics();
     });
@@ -1252,6 +1252,7 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
     if (releaseCapture && capturedPointer != null && captureTarget?.hasPointerCapture?.(capturedPointer)) {
       captureTarget.releasePointerCapture(capturedPointer);
     }
+    if (captureTarget) captureTarget.style.visibility = "";
     capturedPointerRef.current = null;
     captureTargetRef.current = null;
     dragRef.current = null;
@@ -1417,6 +1418,10 @@ export function FeedingOverlay({ pet, user, onUserUpdate, onClose, feedHint = fa
       || point.clientY > sourceJar.bottom;
     if (!d.hasExitedSourceJar && outsideSourceJar) {
       d.hasExitedSourceJar = true;
+      // The portal ghost becomes the single visible copy outside the glass.
+      // Keep the physics body alive but hide its jar artwork until cleanup so
+      // an invalid drop can return it to the exact position it left behind.
+      if (captureTargetRef.current) captureTargetRef.current.style.visibility = "hidden";
       setDragGhost(gesture.item);
     }
     const box = petBoxRef.current?.getBoundingClientRect();
