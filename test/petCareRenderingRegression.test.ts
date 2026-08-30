@@ -7,7 +7,7 @@ test("Pet Care jars retain effect ordering while expanding stacks into unit visu
   assert.match(page, /orderPetCareItemsByEffect\([\s\S]*?it\.type === "edibles"[\s\S]*?"edibles"/);
   assert.match(page, /orderPetCareItemsByEffect\([\s\S]*?it\.type === "gift"[\s\S]*?"gifts"/);
   assert.match(page, /const PET_CARE_JAR_VISUAL_CAPACITY = 48;/);
-  assert.match(page, /createPetCareJarBodies/);
+  assert.match(page, /reconcilePetCareJarBodies/);
   assert.match(page, /stepPetCareJarPhysics/);
   assert.match(page, /function buildPetCareJarVisuals\(items: PetCareShelfItem\[\]\)/);
   assert.match(page, /item: \{ \.\.\.entry\.item, quantity: 1, displayQuantity: 1 \}/);
