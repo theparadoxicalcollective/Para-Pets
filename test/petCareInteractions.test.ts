@@ -54,7 +54,7 @@ test("both inventories render the repository jar asset with gifts first and unit
   const page = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");
   assert.match(page, /import petCareJar from "@assets\/uploads\/Jar\.png"/);
   assert.match(page, /const PET_CARE_JAR_VISUAL_CAPACITY = 48;/);
-  assert.match(page, /createPetCareJarBodies/);
+  assert.match(page, /reconcilePetCareJarBodies/);
   assert.match(page, /data-pet-care-physics-body="true"/);
   assert.match(page, /item: \{ \.\.\.entry\.item, quantity: 1, displayQuantity: 1 \}/);
   assert.match(page, /data-pet-care-inventory-jar="true"/);
