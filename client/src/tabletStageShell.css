@@ -4,10 +4,14 @@
  * query, so their native mobile layout remains untouched.
  */
 @media (min-width: 768px) {
-  div:has(> #game-stage) {
-    background:
-      radial-gradient(circle at 50% 35%, rgba(73, 104, 55, 0.32), transparent 46%),
-      linear-gradient(180deg, #07120b 0%, #0b1b10 48%, #050905 100%) !important;
+  .game-stage-shell {
+    background-color: #050c08 !important;
+    background-image:
+      linear-gradient(180deg, rgba(2, 8, 5, 0.06), rgba(2, 8, 5, 0.24)),
+      var(--desktop-stage-background-image) !important;
+    background-position: center center !important;
+    background-size: cover !important;
+    background-repeat: no-repeat !important;
   }
 
   #game-stage {

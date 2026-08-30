@@ -15,6 +15,7 @@ import { calculateStageLayout, getStageTransform, getVisibleViewport } from "@/l
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import homeBg from "@assets/bg_home_v2.png";
+import mainGameBg from "@assets/uploads/MainGameBG.png";
 
 // ── Eagerly imported (always or near-always needed at startup) ──────────────
 import HomePage from "@/pages/HomePage";
@@ -793,10 +794,12 @@ function GameStage({ children }: { children: ReactNode }) {
 
   return (
     <div
+      className="game-stage-shell"
       style={{
         position: "fixed", inset: 0,
         background: "#050c08",
-      }}
+        "--desktop-stage-background-image": `url(${mainGameBg})`,
+      } as CSSProperties}
     >
       <div
         id="game-stage"
