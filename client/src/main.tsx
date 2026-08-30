@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import App from "./App";
+import RootEntry from "./RootEntry";
 import { detectRuntimeMode } from "./lib/runtimeMode";
 import "./index.css";
 import "./tabletStageShell.css";
@@ -7,6 +7,7 @@ import "./petCarePolish.css";
 import "./clearingBossPolish.css";
 import "./soulExchangeCardPolish.css";
 import "./activePetRewardAssets.css";
+import "./hubPageOverrides.css";
 
 declare const __BUILD_ID__: string;
 
@@ -108,4 +109,4 @@ window.addEventListener("unhandledrejection", (e) => {
   storeError(msg, "unhandledrejection", "unhandledrejection");
 });
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(<RootEntry />);
