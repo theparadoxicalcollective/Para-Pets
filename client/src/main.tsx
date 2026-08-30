@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { detectRuntimeMode } from "./lib/runtimeMode";
 import "./index.css";
+import "./tabletStageShell.css";
 import "./petCarePolish.css";
 import "./clearingBossPolish.css";
 import "./soulExchangeCardPolish.css";
