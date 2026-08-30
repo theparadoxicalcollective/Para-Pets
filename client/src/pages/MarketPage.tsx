@@ -32,7 +32,6 @@ const ITEMS_SUB_FILTERS = [
 interface Listing {
   id: string;
   sellerId: string;
-  sellerName?: string;
   inventoryId: string;
   shopItemId: string;
   itemName: string;
@@ -160,7 +159,6 @@ function MarketCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
 }) {
   const isPet = listing.itemType === "pet_egg";
   const isOwn = listing.sellerId === user?.id;
-  const isAdmin = !!user?.isAdmin;
   const cardArt = isPet ? marketPetCard : marketItemCard;
 
   if (isMine && listing.status === "sold") {
@@ -221,7 +219,6 @@ function MarketCard({ listing, isMine, user, onDetail, onCollect, onCancel }: {
           {formatCoins(listing.price)}
         </div>
 
-        {isAdmin && listing.sellerName && <div style={{ position: "absolute", left: "12%", right: "12%", bottom: "2.4%", textAlign: "center", color: "rgba(255,255,255,.45)", fontSize: 7 }}>by {listing.sellerName}</div>}
       </button>
 
       {isMine && listing.status === "active" && (
@@ -257,7 +254,7 @@ function RevertToEggModal({ petName, onRevert, onCancel, isPending }: { petName:
   );
 }
 
-function PetEggDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins, isAdmin }: { listing: Listing; onClose: () => void; onBuy: () => void; isBuyPending: boolean; userCoins: number; isAdmin: boolean }) {
+function PetEggDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }: { listing: Listing; onClose: () => void; onBuy: () => void; isBuyPending: boolean; userCoins: number }) {
   const detailsQuery = useQuery<PetEggDetails>({ queryKey: ["/api/market/listing", listing.id, "pet-details"], queryFn: () => fetch(`/api/market/listing/${listing.id}/pet-details`).then(r => r.json()) });
   const d = detailsQuery.data;
   const canAfford = userCoins >= listing.price;
@@ -272,7 +269,6 @@ function PetEggDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins, i
           {d.petNickname && <div style={{ color: purple, fontFamily: "Georgia, serif", fontSize: 12, marginTop: 3 }}>“{d.petNickname}”</div>}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 4, margin: "12px 0", color: "#e6d9ee", fontSize: 9 }}><span>Lv {d.level}</span><span>HP {d.health}</span><span>ATK {d.atk}</span><span>DEF {d.def}</span></div>
           <div style={{ color: gold, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}><CoinIcon size={17} />{formatCoins(listing.price)}</div>
-          {isAdmin && listing.sellerName && <div style={{ color: "rgba(255,255,255,.45)", fontSize: 9, marginTop: 2 }}>by {listing.sellerName}</div>}
           {!canAfford && <p style={{ color: "#ff9da6", fontSize: 10 }}>Not enough coins</p>}
           <button data-testid="button-confirm-buy" disabled={!canAfford || isBuyPending} onClick={e => { burstGoldenOrbs(e.clientX, e.clientY); onBuy(); }} style={{ ...artButtonStyle(canAfford), width: "100%", minHeight: 40, marginTop: 10, opacity: canAfford ? 1 : .5 }}>{isBuyPending ? "Buying…" : "Buy Egg"}</button>
         </> : <p style={{ color: "#ff9da6", marginTop: 130 }}>Could not load egg details.</p>}
@@ -281,7 +277,7 @@ function PetEggDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins, i
   );
 }
 
-function ItemDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins, isAdmin }: { listing: Listing; onClose: () => void; onBuy: () => void; isBuyPending: boolean; userCoins: number; isAdmin: boolean }) {
+function ItemDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins }: { listing: Listing; onClose: () => void; onBuy: () => void; isBuyPending: boolean; userCoins: number }) {
   const detailsQuery = useQuery<ItemDetails>({ queryKey: ["/api/market/listing", listing.id, "item-details"], queryFn: () => fetch(`/api/market/listing/${listing.id}/item-details`).then(r => r.json()) });
   const d = detailsQuery.data;
   const canAfford = userCoins >= listing.price;
@@ -295,7 +291,6 @@ function ItemDetailModal({ listing, onClose, onBuy, isBuyPending, userCoins, isA
           {detailsQuery.isLoading ? "Loading…" : d?.effects?.length ? d.effects.map((effect, i) => <span key={i}>✦ {effect}</span>) : (d?.description || listing.description || "A useful market item.")}
         </div>
         <div style={{ color: gold, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}><CoinIcon size={17} />{formatCoins(listing.price)}</div>
-        {isAdmin && listing.sellerName && <div style={{ color: "rgba(255,255,255,.45)", fontSize: 9, marginTop: 2 }}>by {listing.sellerName}</div>}
         {!canAfford && <p style={{ color: "#ff9da6", fontSize: 10 }}>Not enough coins</p>}
         <button data-testid="button-confirm-buy" disabled={!canAfford || isBuyPending} onClick={e => { burstGoldenOrbs(e.clientX, e.clientY); onBuy(); }} style={{ ...artButtonStyle(canAfford), width: "100%", minHeight: 40, marginTop: 12, opacity: canAfford ? 1 : .5 }}>{isBuyPending ? "Buying…" : "Buy Now"}</button>
       </div>
@@ -349,7 +344,6 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
   const [itemsSubFilter, setItemsSubFilter] = useState("items");
   const [showSellModal, setShowSellModal] = useState(false);
   const [detailTarget, setDetailTarget] = useState<Listing | null>(null);
-  const isAdmin = !!user?.isAdmin;
 
   const effectiveItemType = mainTab === "all" ? "all" : mainTab === "pets" ? "pet_egg" : mainTab === "fish" ? "fish" : itemsSubFilter;
 
@@ -422,7 +416,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
         {activeTab === "browse" ? (
           <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "8px 13px 0" }}>
             <div data-testid="market-search-frame" style={{ position: "relative", height: 64, flexShrink: 0, marginBottom: 7, background: `url(${marketSearchBar}) center/100% auto no-repeat`, filter: "drop-shadow(0 4px 7px rgba(0,0,0,.35))" }}>
-              <input data-testid="input-market-search" type="text" value={search} onChange={handleSearch} placeholder={isAdmin ? "Search items or sellers…" : "Search the market…"} style={{ position: "absolute", inset: "11px 16% 11px 12%", width: "72%", boxSizing: "border-box", border: 0, outline: 0, background: "transparent", color: cream, fontFamily: "Georgia, serif", fontSize: 13, textShadow: "0 1px 2px #1d0028" }} />
+              <input data-testid="input-market-search" type="text" value={search} onChange={handleSearch} placeholder="Search the market…" style={{ position: "absolute", inset: "11px 16% 11px 12%", width: "72%", boxSizing: "border-box", border: 0, outline: 0, background: "transparent", color: cream, fontFamily: "Georgia, serif", fontSize: 13, textShadow: "0 1px 2px #1d0028" }} />
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 5, marginBottom: 6 }}>{mainTabs.map(tab => <button key={tab.value} data-testid={`button-main-tab-${tab.value}`} onClick={() => { setMainTab(tab.value); playTick(); if (tab.value !== "items") setItemsSubFilter("items"); }} style={{ ...artButtonStyle(mainTab === tab.value), minHeight: 34, fontSize: 10 }}>{tab.label}</button>)}</div>
@@ -445,8 +439,8 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
       </div>
 
       {showSellModal && <SellItemModal inventory={inventoryQuery.data ?? []} fishInventory={fishInventoryQuery.data ?? []} onClose={() => setShowSellModal(false)} onSubmit={(inventoryId, price) => listMutation.mutate({ inventoryId, price })} onSubmitFish={(fishInventoryId, price) => listFishMutation.mutate({ fishInventoryId, price })} onSubmitPet={(inventoryId, price) => listPetMutation.mutate({ inventoryId, price })} isPending={listMutation.isPending || listFishMutation.isPending} isPetPending={listPetMutation.isPending} />}
-      {detailTarget?.itemType === "pet_egg" && <PetEggDetailModal listing={detailTarget} onClose={() => setDetailTarget(null)} onBuy={() => buyMutation.mutate(detailTarget.id)} isBuyPending={buyMutation.isPending} userCoins={user?.coins ?? 0} isAdmin={isAdmin} />}
-      {detailTarget && detailTarget.itemType !== "pet_egg" && <ItemDetailModal listing={detailTarget} onClose={() => setDetailTarget(null)} onBuy={() => buyMutation.mutate(detailTarget.id)} isBuyPending={buyMutation.isPending} userCoins={user?.coins ?? 0} isAdmin={isAdmin} />}
+      {detailTarget?.itemType === "pet_egg" && <PetEggDetailModal listing={detailTarget} onClose={() => setDetailTarget(null)} onBuy={() => buyMutation.mutate(detailTarget.id)} isBuyPending={buyMutation.isPending} userCoins={user?.coins ?? 0} />}
+      {detailTarget && detailTarget.itemType !== "pet_egg" && <ItemDetailModal listing={detailTarget} onClose={() => setDetailTarget(null)} onBuy={() => buyMutation.mutate(detailTarget.id)} isBuyPending={buyMutation.isPending} userCoins={user?.coins ?? 0} />}
     </div>
   );
 }
