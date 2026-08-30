@@ -3423,10 +3423,20 @@ export async function registerRoutes(
     }
   });
 
+  // Bundled map artwork revisions invalidate only older saved overrides. Once an
+  // admin uploads a background against this version, that intentional override
+  // is used normally on every device.
+  const MAP_BACKGROUND_ASSET_VERSION = "new-map-2026-08-30";
+
   app.get("/api/settings/map-background", async (_req, res) => {
     try {
-      const bgUrl = await storage.getGameSetting("map_background");
-      return res.json({ bgUrl });
+      const [bgUrl, savedVersion] = await Promise.all([
+        storage.getGameSetting("map_background"),
+        storage.getGameSetting("map_background_asset_version"),
+      ]);
+      return res.json({
+        bgUrl: savedVersion === MAP_BACKGROUND_ASSET_VERSION ? bgUrl : null,
+      });
     } catch (err) {
       console.error("Get map background error:", err);
       return res.status(500).json({ message: "Failed to get map background" });
@@ -3437,11 +3447,17 @@ export async function registerRoutes(
     try {
       const { imageData } = req.body;
       if (!imageData) {
-        await storage.setGameSetting("map_background", "");
+        await Promise.all([
+          storage.setGameSetting("map_background", ""),
+          storage.setGameSetting("map_background_asset_version", MAP_BACKGROUND_ASSET_VERSION),
+        ]);
         return res.json({ bgUrl: null });
       }
       const processed = await processWorldImage(imageData, 2000);
-      await storage.setGameSetting("map_background", processed);
+      await Promise.all([
+        storage.setGameSetting("map_background", processed),
+        storage.setGameSetting("map_background_asset_version", MAP_BACKGROUND_ASSET_VERSION),
+      ]);
       return res.json({ bgUrl: processed });
     } catch (err: any) {
       console.error("Set map background error:", err);
