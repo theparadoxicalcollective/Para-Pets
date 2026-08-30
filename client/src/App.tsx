@@ -4,7 +4,7 @@ import { QueryClientProvider, useMutation } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
-import { Suspense, useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { lazyWithRetry as lazy } from "@/lib/lazyWithRetry";
 import { installPageLifecycleDiagnostics, stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { playClick, unlockAudio } from "@/lib/sounds";
@@ -12,6 +12,13 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
 import { calculateStageLayout, getStageTransform, getVisibleViewport } from "@/lib/stage";
+import {
+  DESKTOP_COMPANION_URL,
+  getDesktopCompanionPlacement,
+  isDesktopCompanionRuntime,
+  isEmbeddedDesktopCompanion,
+  shouldShowDesktopCompanionForPath,
+} from "@/lib/desktopCompanion";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import homeBg from "@assets/bg_home_v2.png";
@@ -749,6 +756,8 @@ function DesktopNotice() {
 }
 
 function GameStage({ children }: { children: ReactNode }) {
+  const [location, navigate] = useLocation();
+  const desktopHubFrame = useRef<HTMLIFrameElement>(null);
   const [layout, setLayout] = useState(() => {
     const viewport = getVisibleViewport();
     return calculateStageLayout(viewport.width, viewport.height, viewport.top, viewport.left);
@@ -792,6 +801,64 @@ function GameStage({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const companionPlacement = getDesktopCompanionPlacement(layout);
+  const showDesktopHub = Boolean(
+    companionPlacement
+      && isDesktopCompanionRuntime()
+      && !isEmbeddedDesktopCompanion()
+      && shouldShowDesktopCompanionForPath(location),
+  );
+
+  // The Hub runs in its own same-origin frame so its state and scrolling cannot
+  // interfere with the game. Route selections in that frame are handed to the
+  // main game window, then the companion resets back to the Hub.
+  useEffect(() => {
+    if (!showDesktopHub) return;
+    const handleCompanionNavigation = (event: MessageEvent) => {
+      if (
+        event.origin !== window.location.origin
+        || event.source !== desktopHubFrame.current?.contentWindow
+        || event.data?.type !== "para-pets:desktop-companion-navigate"
+        || typeof event.data?.href !== "string"
+      ) return;
+
+      const target = new URL(event.data.href, window.location.origin);
+      if (target.origin !== window.location.origin || target.pathname === "/hub") return;
+      desktopHubFrame.current?.contentWindow?.location.replace(DESKTOP_COMPANION_URL);
+      navigate(`${target.pathname}${target.search}${target.hash}`);
+    };
+    window.addEventListener("message", handleCompanionNavigation);
+    return () => window.removeEventListener("message", handleCompanionNavigation);
+  }, [navigate, showDesktopHub]);
+
+  // Wouter uses history.pushState for in-app links. When this app is the Hub
+  // companion, report those route changes to the parent game window.
+  useEffect(() => {
+    if (!isEmbeddedDesktopCompanion() || window.parent === window) return;
+    const announceRoute = () => {
+      window.parent.postMessage({
+        type: "para-pets:desktop-companion-navigate",
+        href: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+      }, window.location.origin);
+    };
+    const originalPushState = window.history.pushState.bind(window.history);
+    const originalReplaceState = window.history.replaceState.bind(window.history);
+    window.history.pushState = (data: any, unused: string, url?: string | URL | null) => {
+      originalPushState(data, unused, url);
+      announceRoute();
+    };
+    window.history.replaceState = (data: any, unused: string, url?: string | URL | null) => {
+      originalReplaceState(data, unused, url);
+      announceRoute();
+    };
+    window.addEventListener("popstate", announceRoute);
+    return () => {
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
+      window.removeEventListener("popstate", announceRoute);
+    };
+  }, []);
+
   return (
     <div
       className="game-stage-shell"
@@ -801,6 +868,37 @@ function GameStage({ children }: { children: ReactNode }) {
         "--desktop-stage-background-image": `url(${mainGameBg})`,
       } as CSSProperties}
     >
+      {showDesktopHub && companionPlacement && (
+        <div
+          className="desktop-hub-companion"
+          style={{
+            position: "absolute",
+            left: companionPlacement.left,
+            top: companionPlacement.top,
+            width: layout.designWidth,
+            height: layout.designHeight,
+            transform: getStageTransform(layout),
+            transformOrigin: "top left",
+          }}
+        >
+          <iframe
+            ref={desktopHubFrame}
+            title="Para Pets Hub"
+            src={DESKTOP_COMPANION_URL}
+            loading="eager"
+            onLoad={(event) => {
+              // Covers full-document redirects; Wouter SPA links use postMessage above.
+              try {
+                const frameLocation = event.currentTarget.contentWindow?.location;
+                if (!frameLocation || frameLocation.pathname === "/hub") return;
+                const next = `${frameLocation.pathname}${frameLocation.search}${frameLocation.hash}`;
+                frameLocation.replace(DESKTOP_COMPANION_URL);
+                navigate(next);
+              } catch (_) {}
+            }}
+          />
+        </div>
+      )}
       <div
         id="game-stage"
         data-design-width={layout.designWidth}
