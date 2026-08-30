@@ -1,0 +1,57 @@
+/* Hub-only presentation overrides. Keep the existing hub content/layout intact while
+   reusing the sign-in artwork and adding contrast for detailed background art. */
+[data-testid="para-pets-hub-page"] {
+  background-color: #020604 !important;
+  background-image:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.22) 0%, rgba(0, 0, 0, 0.38) 48%, rgba(0, 0, 0, 0.58) 100%),
+    url("../../attached_assets/uploads/SignInPageBG.png") !important;
+  background-size: cover !important;
+  background-position: center top !important;
+  background-repeat: no-repeat !important;
+}
+
+/* Keep the title/mascot readable without hiding the artwork behind them. */
+[data-testid="para-pets-hub-page"] > .relative.flex.flex-col.items-center {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.56) 0%, rgba(0, 0, 0, 0.28) 72%, transparent 100%);
+}
+
+/* The hub is intentionally one cohesive glass-dark content surface so every
+   existing section, image, leaderboard row, and label stays readable while the
+   new detailed forest background remains visible around it. */
+[data-testid="hub-main"] {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-radius: 24px 24px 0 0;
+  background: rgba(0, 0, 0, 0.48);
+  border: 1px solid rgba(212, 168, 67, 0.10);
+  border-bottom: 0;
+  box-shadow: 0 -10px 38px rgba(0, 0, 0, 0.28), 0 18px 44px rgba(0, 0, 0, 0.42);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+
+/* Slightly deepen local section contrast without changing their dimensions. */
+[data-testid="hub-main"] [data-testid="notice-carousel"],
+[data-testid="hub-main"] [data-testid="contribution-leaderboard"],
+[data-testid="hub-main"] [data-testid="team-section"] {
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+@media (max-width: 520px) {
+  [data-testid="hub-main"] {
+    border-radius: 20px 20px 0 0;
+    background: rgba(0, 0, 0, 0.52);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  [data-testid="hub-main"] {
+    background: rgba(0, 0, 0, 0.74);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
