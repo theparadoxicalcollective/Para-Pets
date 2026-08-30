@@ -1,3 +1,8 @@
+/* Small cross-page presentation fixes tied to the sign-in/hub refresh. */
+.auth-paw-footer {
+  bottom: 34px !important;
+}
+
 /* Hub-only presentation overrides. Keep the existing hub content/layout intact while
    reusing the sign-in artwork and adding contrast for detailed background art. */
 [data-testid="para-pets-hub-page"] {
@@ -40,6 +45,10 @@
 }
 
 @media (max-width: 520px) {
+  .auth-paw-footer {
+    bottom: 32px !important;
+  }
+
   [data-testid="hub-main"] {
     border-radius: 20px 20px 0 0;
     background: rgba(0, 0, 0, 0.52);
