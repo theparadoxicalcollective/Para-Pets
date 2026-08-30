@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import PlayerAvatarButton from "@/components/PlayerAvatarButton";
+import signInPageBg from "@assets/uploads/SignInPageBG.png";
 
 import heroBanner        from "@assets/hub_hero_banner.png";
 import mascot            from "@assets/Photoroom_20260502_90936_AM_1777731667331.png";
@@ -1352,21 +1353,20 @@ export default function ParaPetsHubPage() {
     <>
       <div
         data-testid="para-pets-hub-page"
-        className="para-pets-hub-scrollbar fixed inset-0 overflow-y-auto"
+        className="para-pets-hub-page para-pets-hub-scrollbar fixed inset-0 overflow-y-auto"
         style={{
           zIndex: 9000,
-          background: "#030e05",
-          backgroundImage: [
-            "radial-gradient(ellipse 85% 45% at 10% 5%,  rgba(8,50,15,0.7) 0%,transparent 55%)",
-            "radial-gradient(ellipse 70% 45% at 90% 88%, rgba(15,65,12,0.55) 0%,transparent 55%)",
-            "radial-gradient(ellipse 50% 35% at 50% 45%, rgba(180,140,30,0.05) 0%,transparent 55%)",
-          ].join(","),
+          backgroundColor: "#020705",
+          backgroundImage: `linear-gradient(180deg, rgba(0, 6, 4, 0.18) 0%, rgba(0, 5, 3, 0.48) 100%), url(${signInPageBg})`,
+          backgroundPosition: "center top",
+          backgroundSize: "cover",
+          backgroundRepeat: "no-repeat",
         }}
       >
         <StarField />
 
         {/* ── Hero: Title + Pet + Buttons ───────────────────────────────────── */}
-        <div className="relative flex flex-col items-center px-5 pt-10 pb-4 text-center overflow-hidden">
+        <div className="hub-hero-surface relative flex flex-col items-center px-5 pt-10 pb-4 text-center overflow-hidden">
           {/* Soft ambient glow behind the pet */}
           <div style={{
             position: "absolute", top: "12%", left: "50%", transform: "translateX(-50%)",
@@ -1429,7 +1429,7 @@ export default function ParaPetsHubPage() {
                 </button>
               )}
               <Link
-                href={user ? "/" : "/auth"}
+                href="/"
                 data-testid="button-hero-play-game"
                 className="font-fantasy tracking-widest transition-all active:scale-95"
                 style={{
@@ -1454,19 +1454,21 @@ export default function ParaPetsHubPage() {
         <main className="relative max-w-3xl mx-auto px-5 pb-28" data-testid="hub-main" style={{ zIndex: 1 }}>
 
           {/* ── Pets of the Realm banner ───────────────────────────────────── */}
-          <div className="pt-6 pb-2">
+          <div className="hub-section-surface pt-6 pb-2 px-3">
             <PetsBanner />
           </div>
 
           {/* ── Daily Rewards ──────────────────────────────────────────────── */}
-          <div className="mt-4">
+          <div className="hub-section-surface mt-4 p-3">
             <DailyClaimCard user={user} />
           </div>
 
           <GoldDivider />
 
           {/* ── Notice carousel ───────────────────────────────────────────── */}
-          <NoticeCarousel user={user} />
+          <div className="hub-section-surface p-3">
+            <NoticeCarousel user={user} />
+          </div>
 
           <GoldDivider />
 
@@ -1474,7 +1476,7 @@ export default function ParaPetsHubPage() {
           <Link
             href="/forum"
             data-testid="link-forum"
-            className="flex flex-col items-center gap-0 transition-all active:scale-[0.97] cursor-pointer"
+            className="hub-section-surface flex flex-col items-center gap-0 py-4 transition-all active:scale-[0.97] cursor-pointer"
             style={{ textDecoration: "none" }}
           >
             <img
@@ -1491,7 +1493,9 @@ export default function ParaPetsHubPage() {
           <GoldDivider />
 
           {/* ── Realm Benefactors leaderboard ─────────────────────────────── */}
-          <ContributionLeaderboard currentUserId={user?.id} onSelectPlayer={setSelectedPlayerId} />
+          <div className="hub-section-surface p-3">
+            <ContributionLeaderboard currentUserId={user?.id} onSelectPlayer={setSelectedPlayerId} />
+          </div>
 
           <GoldDivider />
 
@@ -1499,7 +1503,7 @@ export default function ParaPetsHubPage() {
           <Link
             href="/founders"
             data-testid="link-founders"
-            className="flex flex-col items-center gap-1 transition-all active:scale-[0.97] cursor-pointer"
+            className="hub-section-surface flex flex-col items-center gap-1 py-4 transition-all active:scale-[0.97] cursor-pointer"
             style={{ textDecoration: "none" }}
           >
             <img
@@ -1529,7 +1533,7 @@ export default function ParaPetsHubPage() {
 
           {/* ── Game Guardians ─────────────────────────────────────────────── */}
           {team && team.length > 0 && (
-            <div data-testid="team-section" className="flex flex-col items-center gap-4 mb-2">
+            <div data-testid="team-section" className="hub-section-surface flex flex-col items-center gap-4 mb-2 py-5 px-3">
               <div className="flex flex-col items-center gap-0.5">
                 <h2 className="font-fantasy text-sm tracking-widest"
                   style={{ color: "#d4a843", textShadow: "0 0 12px rgba(212,168,67,0.4)", letterSpacing: "0.2em" }}>
@@ -1609,7 +1613,7 @@ export default function ParaPetsHubPage() {
           <GoldDivider />
 
           {/* ── Social Corner ──────────────────────────────────────────────── */}
-          <div className="flex flex-col items-center gap-5 mb-6" data-testid="social-corner">
+          <div className="hub-section-surface flex flex-col items-center gap-5 mb-6 py-5 px-3" data-testid="social-corner">
 
             {/* Section heading */}
             <div className="flex flex-col items-center gap-0.5">
