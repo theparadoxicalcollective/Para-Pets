@@ -6,6 +6,7 @@ export const WIDE_BREAKPOINT = 768;
 // Larger screens may present the same portrait composition a little larger,
 // but never turn it into a tablet/desktop layout or an enormous monitor UI.
 export const MAX_STAGE_SCALE = 1.1;
+export const MOBILE_KEYBOARD_MIN_DELTA = 180;
 
 export type StageLayout = {
   designWidth: number;
@@ -27,6 +28,21 @@ export function getDesignWidth(viewportWidth: number): number {
   return isNarrowLayout(viewportWidth) ? Math.min(DESIGN_W, viewportWidth) : DESIGN_W;
 }
 
+/**
+ * Mobile browsers can temporarily report a visualViewport that is shorter than
+ * the actual page viewport just because browser chrome is expanded. Treating
+ * that toolbar delta as the game height leaves a black strip below the stage.
+ * A software keyboard creates a much larger reduction, and that one should be
+ * respected so focused fields remain usable.
+ */
+export function resolveMobileBrowserHeight(layoutHeight: number, visualHeight: number): number {
+  const layout = Math.max(1, layoutHeight);
+  const visual = Math.max(1, visualHeight);
+  const delta = Math.max(0, layout - visual);
+  const keyboardThreshold = Math.max(MOBILE_KEYBOARD_MIN_DELTA, layout * 0.22);
+  return delta >= keyboardThreshold ? visual : layout;
+}
+
 /** Pure layout shared by the renderer, input conversion, and regression tests. */
 export function calculateStageLayout(
   visibleWidth: number,
@@ -38,9 +54,8 @@ export function calculateStageLayout(
   const viewportHeight = Math.max(1, visibleHeight);
   const designWidth = getDesignWidth(viewportWidth);
   const narrow = isNarrowLayout(viewportWidth);
-  // Phones own the real visual viewport. Safari and Chromium both resize their
-  // usable viewport as browser chrome/keyboard state changes, so phone layouts
-  // must stay native rather than becoming a transformed 390x844 canvas.
+  // Phones own the real viewport and are never transformed into a fixed canvas.
+  // This preserves the iPhone layout while allowing browser/PWA height changes.
   const designHeight = narrow ? viewportHeight : DESIGN_H;
   const scale = narrow
     ? 1
@@ -60,18 +75,45 @@ export function calculateStageLayout(
   };
 }
 
+function isStandaloneWebApp(): boolean {
+  if (typeof window === "undefined") return false;
+  const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
+  return navigatorWithStandalone.standalone === true
+    || window.matchMedia?.("(display-mode: standalone)").matches === true;
+}
+
 export function getVisibleViewport(): { width: number; height: number; left: number; top: number } {
   if (typeof window === "undefined") return { width: DESIGN_W, height: DESIGN_H, left: 0, top: 0 };
+
   const viewport = window.visualViewport;
-  // Chromium Android reliably exposes visualViewport, including the address-bar
-  // and keyboard-adjusted usable area. Older Android WebViews may not, so keep
-  // the innerWidth/innerHeight fallback. Clamp offsets because some embedded
-  // browsers briefly report tiny negative values during toolbar animation.
+  const layoutWidth = Math.max(1, window.innerWidth);
+  const layoutHeight = Math.max(1, window.innerHeight);
+  if (!viewport) return { width: layoutWidth, height: layoutHeight, left: 0, top: 0 };
+
+  const standalone = isStandaloneWebApp();
+  const narrow = isNarrowLayout(layoutWidth);
+
+  // Installed web apps already have the desired full-screen behavior, so keep
+  // their visualViewport contract exactly as-is. Normal phone browsers instead
+  // use innerHeight for ordinary toolbar changes, falling back to visualViewport
+  // only when the much larger keyboard reduction is present.
+  if (narrow && !standalone) {
+    const visualHeight = Math.max(1, viewport.height);
+    const resolvedHeight = resolveMobileBrowserHeight(layoutHeight, visualHeight);
+    const keyboardOwnsViewport = resolvedHeight === visualHeight && visualHeight < layoutHeight;
+    return {
+      width: layoutWidth,
+      height: resolvedHeight,
+      left: keyboardOwnsViewport ? Math.max(0, viewport.offsetLeft) : 0,
+      top: keyboardOwnsViewport ? Math.max(0, viewport.offsetTop) : 0,
+    };
+  }
+
   return {
-    width: Math.max(1, viewport?.width ?? window.innerWidth),
-    height: Math.max(1, viewport?.height ?? window.innerHeight),
-    left: Math.max(0, viewport?.offsetLeft ?? 0),
-    top: Math.max(0, viewport?.offsetTop ?? 0),
+    width: Math.max(1, viewport.width || layoutWidth),
+    height: Math.max(1, viewport.height || layoutHeight),
+    left: Math.max(0, viewport.offsetLeft || 0),
+    top: Math.max(0, viewport.offsetTop || 0),
   };
 }
 
