@@ -101,6 +101,8 @@ test("care items capture on pointerdown and release during cleanup", () => {
   assert.match(page, /className="pet-care-item-jar__item"/);
   assert.match(page, /data-pet-care-stack-id=\{visual\.item\.stackId\}/);
   assert.match(page, /touchAction: "none"/);
+  assert.match(page, /captureTargetRef\.current\.style\.visibility = "hidden"/);
+  assert.match(page, /captureTarget\.style\.visibility = ""/);
 });
 
 test("safe visual mode keeps idle rendering and petting without heavy particle timers", () => {
