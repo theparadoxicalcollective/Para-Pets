@@ -36,6 +36,28 @@ test("390x760 Safari visible viewport stays native and follows the usable height
   assert.equal(getStageTransform(layout), undefined);
 });
 
+test("Android Chrome phone viewport stays native like iPhone", () => {
+  const layout = calculateStageLayout(412, 915);
+  assert.equal(layout.scale, 1);
+  assert.equal(layout.designWidth, DESIGN_W);
+  assert.equal(layout.designHeight, 915);
+  assert.equal(layout.renderedWidth, DESIGN_W);
+  assert.equal(layout.renderedHeight, 915);
+  assert.equal(layout.left, 11);
+  assert.equal(layout.top, 0);
+  assert.equal(getStageTransform(layout), undefined);
+});
+
+test("Android browser chrome and keyboard height changes never introduce scaling", () => {
+  for (const height of [915, 820, 760, 470]) {
+    const layout = calculateStageLayout(412, height);
+    assert.equal(layout.scale, 1);
+    assert.equal(layout.designHeight, height);
+    assert.equal(layout.top, 0);
+    assert.equal(getStageTransform(layout), undefined);
+  }
+});
+
 test("software keyboard height changes never introduce a phone stage transform", () => {
   const beforeKeyboard = calculateStageLayout(390, 760);
   const withKeyboard = calculateStageLayout(390, 420);
