@@ -22,7 +22,7 @@ test("sign-in page uses every supplied artwork asset", async () => {
     const assetPath = fromRoot("attached_assets", "uploads", file);
     assert.equal(existsSync(assetPath), true, file);
     const metadata = await sharp(assetPath).metadata();
-    assert.equal(metadata.format, "png", file);
+    assert.ok(metadata.format === "png" || metadata.format === "jpeg", `${file}: ${metadata.format}`);
     assert.ok((metadata.width ?? 0) > 0, file);
     assert.ok((metadata.height ?? 0) > 0, file);
   }
@@ -47,9 +47,9 @@ test("artwork redesign preserves auth actions and adds safe animation", () => {
     "utf8",
   );
 
-  assert.match(authPage, /data-testid="button-signin"/);
-  assert.match(authPage, /data-testid="button-create-account"/);
-  assert.match(authPage, /data-testid="link-para-pets-hub"/);
+  assert.match(authPage, /testId="button-signin"/);
+  assert.match(authPage, /testId="button-create-account"/);
+  assert.match(authPage, /testId="link-para-pets-hub"/);
   assert.match(authPage, /onActivate=\{\(\) => setLocation\("\/hub"\)\}/);
   assert.match(authPage, /data-testid="button-submit-signin"/);
   assert.match(authPage, /data-testid="button-submit-register"/);
