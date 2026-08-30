@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import raidIconImg from "@assets/Photoroom_20260711_52200_PM_1783810844517.png";
 import worldMapBg from "@assets/uploads/NewMap.png";
+import mapTitleImg from "@assets/uploads/82D43EE2-34D6-4A00-8F76-48C68D2CA798.png";
 import worldFrostpeak from "@assets/uploads/NewFrost.png";
 import worldSkyRealm from "@assets/uploads/NewSkyRealm.png";
 import worldVolcanic from "@assets/uploads/NewVolcanic.png";
@@ -418,30 +419,21 @@ export default function MapPage({ user }: MapPageProps) {
         }}
       >
         <div className="flex-1 relative overflow-y-auto overflow-x-hidden map-scroll">
-          <div className="flex flex-col items-center pt-2 pb-1 relative z-10" data-testid="text-map-title">
-            <div className="flex items-center gap-2 mb-0.5">
-              <div style={{ width: "32px", height: "1px", background: "linear-gradient(to right, transparent, rgba(240,192,64,0.6))" }} />
-              <span className="font-fantasy text-[9px] tracking-[0.5em] uppercase" style={{ color: "rgba(220,170,50,0.65)", letterSpacing: "0.55em" }}>The World of</span>
-              <div style={{ width: "32px", height: "1px", background: "linear-gradient(to left, transparent, rgba(240,192,64,0.6))" }} />
-            </div>
-            <h2
-              className="font-fantasy text-center font-bold uppercase"
+          <div
+            className="flex items-center justify-center pt-2 pb-1 relative z-10"
+            data-testid="text-map-title"
+          >
+            <img
+              src={mapTitleImg}
+              alt="The World of Veridia"
+              className="block h-auto object-contain"
+              draggable={false}
               style={{
-                fontSize: "clamp(26px, calc(7.5*var(--vw)), 42px)",
-                letterSpacing: "0.25em",
-                lineHeight: 1,
-                color: "#fff6c8",
-                textShadow:
-                  "0 0 8px rgba(255,220,80,0.95), 0 0 20px rgba(240,192,64,0.8), 0 0 45px rgba(240,160,40,0.55), 0 0 90px rgba(220,140,20,0.3), 0 3px 6px rgba(0,0,0,1)",
+                width: "min(88%, 460px)",
+                maxHeight: "clamp(62px, calc(18 * var(--vw)), 112px)",
+                filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.72))",
               }}
-            >
-              Veridia
-            </h2>
-            <div className="flex items-center gap-1.5 mt-1">
-              <div style={{ width: "50px", height: "1px", background: "linear-gradient(to right, transparent, rgba(240,192,64,0.45))" }} />
-              <span style={{ color: "rgba(240,192,64,0.4)", fontSize: "8px" }}>✦</span>
-              <div style={{ width: "50px", height: "1px", background: "linear-gradient(to left, transparent, rgba(240,192,64,0.45))" }} />
-            </div>
+            />
           </div>
 
           {isLoading ? (
