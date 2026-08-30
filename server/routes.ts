@@ -3757,11 +3757,17 @@ export async function registerRoutes(
       const world = await storage.getWorld((req.params.worldId as string));
       if (!world) return res.status(404).json({ message: "World not found" });
 
-      const { name, glowColor, iconData, bgData, skyImageData, groundImageData } = req.body;
+      const { name, glowColor, iconData, bgData, skyImageData, groundImageData, iconSize } = req.body;
       const updates: Record<string, any> = {};
 
       if (name && typeof name === "string" && name.trim()) updates.name = name.trim();
       if (glowColor && typeof glowColor === "string") updates.glowColor = glowColor;
+      if (iconSize !== undefined) {
+        if (typeof iconSize !== "number" || !Number.isFinite(iconSize)) {
+          return res.status(400).json({ message: "iconSize must be a finite number" });
+        }
+        updates.iconSize = Math.max(16, Math.min(46, Math.round(iconSize)));
+      }
 
       if (iconData) {
         updates.iconUrl = await processWorldImage(iconData, 500);
