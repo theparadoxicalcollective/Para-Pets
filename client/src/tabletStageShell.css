@@ -1,0 +1,22 @@
+/*
+ * Tablet/desktop presentation shell only.
+ * Phones (including iPhone/Android standalone web apps) never enter this media
+ * query, so their native mobile layout remains untouched.
+ */
+@media (min-width: 768px) {
+  div:has(> #game-stage) {
+    background:
+      radial-gradient(circle at 50% 35%, rgba(73, 104, 55, 0.32), transparent 46%),
+      linear-gradient(180deg, #07120b 0%, #0b1b10 48%, #050905 100%) !important;
+  }
+
+  #game-stage {
+    box-sizing: border-box;
+    border: 3px solid rgba(222, 178, 62, 0.9);
+    border-radius: 18px;
+    box-shadow:
+      0 0 0 1px rgba(255, 231, 154, 0.28),
+      0 0 34px rgba(198, 148, 30, 0.28),
+      0 24px 60px rgba(0, 0, 0, 0.55);
+  }
+}
