@@ -1,9 +1,43 @@
 /*
  * Tablet/desktop presentation shell only.
- * Phones (including iPhone/Android standalone web apps) never enter this media
- * query, so their native mobile layout remains untouched.
+ * Phones (including iPhone/Android standalone web apps) keep their native
+ * mobile layout and are never opted into the desktop presentation by width.
  */
+
+/* Shared desktop/tablet presentation. */
 @media (min-width: 768px) {
+  .game-stage-shell {
+    background-color: #050c08 !important;
+    background-image:
+      linear-gradient(180deg, rgba(2, 8, 5, 0.06), rgba(2, 8, 5, 0.24)),
+      var(--desktop-stage-background-image) !important;
+    background-position: center center !important;
+    background-size: cover !important;
+    background-repeat: no-repeat !important;
+  }
+
+  #game-stage {
+    box-sizing: border-box;
+    border: 3px solid rgba(222, 178, 62, 0.9);
+    border-radius: 18px;
+    box-shadow:
+      0 0 0 1px rgba(255, 231, 154, 0.28),
+      0 0 34px rgba(198, 148, 30, 0.28),
+      0 24px 60px rgba(0, 0, 0, 0.55);
+  }
+}
+
+/*
+ * Installed desktop PWAs can report a narrower standalone viewport than the
+ * normal browser window. Width alone would therefore drop them out of the
+ * desktop presentation even though they are still running on a computer.
+ *
+ * A fine pointer + hover capability identifies the desktop-style installed app
+ * without opting touch-first phone/tablet PWAs into this rule. This gives the
+ * installed computer version the same outer artwork and gold frame as the
+ * desktop browser even when its window is narrower than 768px.
+ */
+@media (display-mode: standalone) and (hover: hover) and (pointer: fine) {
   .game-stage-shell {
     background-color: #050c08 !important;
     background-image:
