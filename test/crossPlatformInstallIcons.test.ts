@@ -15,6 +15,8 @@ test("the uploaded game artwork drives every install icon surface", async () => 
   const manifest = JSON.parse(
     readFileSync(fromRoot("client", "public", "manifest.json"), "utf8")
   );
+  assert.equal(manifest.name, "Para Pets");
+  assert.equal(manifest.short_name, "Para Pets");
   assert.deepEqual(manifest.icons, [
     { src: "/pwa-icon-192.png?v=4", sizes: "192x192", type: "image/png", purpose: "any" },
     { src: "/pwa-icon-512.png?v=4", sizes: "512x512", type: "image/png", purpose: "any" },
@@ -40,5 +42,7 @@ test("the uploaded game artwork drives every install icon surface", async () => 
   const html = readFileSync(fromRoot("client", "index.html"), "utf8");
   assert.match(html, /apple-touch-icon\.png\?v=4/);
   assert.match(html, /pwa-icon-512\.png\?v=4/);
-  assert.match(html, /manifest\.json\?v=4/);
+  assert.match(html, /manifest\.json\?v=5/);
+  assert.match(html, /name="application-name" content="Para Pets"/);
+  assert.match(html, /name="apple-mobile-web-app-title" content="Para Pets"/);
 });
