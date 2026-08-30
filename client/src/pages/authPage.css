@@ -67,7 +67,7 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  margin-top: clamp(12px, calc(2.2 * var(--vh)), 22px);
+  margin-top: clamp(26px, calc(4.2 * var(--vh)), 40px);
 }
 
 .auth-title-logo {
@@ -87,14 +87,14 @@
   display: block;
   width: min(72%, 270px);
   max-height: 46px;
-  margin-top: -5px;
+  margin-top: 1px;
   object-fit: contain;
   filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.65));
   opacity: 0.96;
 }
 
 .auth-tagline {
-  margin: 2px 0 0;
+  margin: clamp(8px, calc(1.4 * var(--vh)), 13px) 0 0;
   padding: 7px 18px;
   border: 1px solid rgba(205, 166, 67, 0.18);
   border-radius: 999px;
@@ -117,7 +117,8 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  margin-top: clamp(10px, calc(2.1 * var(--vh)), 18px);
+  gap: clamp(2px, calc(0.7 * var(--vh)), 7px);
+  margin-top: clamp(26px, calc(4.2 * var(--vh)), 40px);
 }
 
 .auth-artwork-button {
@@ -151,8 +152,8 @@
 }
 
 .auth-hub-art-button {
-  width: min(80%, 310px);
-  margin-top: 2px;
+  width: min(64%, 240px);
+  margin-top: clamp(8px, calc(1.4 * var(--vh)), 14px);
 }
 
 .auth-artwork-button:hover:not(:disabled),

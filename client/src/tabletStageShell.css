@@ -24,36 +24,3 @@
       0 24px 60px rgba(0, 0, 0, 0.55);
   }
 }
-
-
-/*
- * The Hub companion is intentionally stricter than the tablet stage shell:
- * desktop pointer + hover, a wide viewport, and a JS device/fit check are all
- * required. It is never created on phones, tablets, or cramped desktop windows.
- */
-@media (min-width: 1180px) and (hover: hover) and (pointer: fine) {
-  .desktop-hub-companion {
-    z-index: 1;
-    overflow: hidden;
-    isolation: isolate;
-    background: #06110c;
-    border-radius: 18px;
-    outline: 3px solid rgba(222, 178, 62, 0.9);
-    box-shadow:
-      0 0 0 4px rgba(255, 231, 154, 0.16),
-      0 0 34px rgba(198, 148, 30, 0.24),
-      0 24px 60px rgba(0, 0, 0, 0.55);
-  }
-
-  .desktop-hub-companion iframe {
-    display: block;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    background: #06110c;
-  }
-
-  #game-stage {
-    z-index: 2;
-  }
-}
