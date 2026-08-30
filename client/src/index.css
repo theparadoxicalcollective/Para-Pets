@@ -4034,3 +4034,40 @@ img[data-interactive], button img, a img {
 .clearing-action-button:active:not(:disabled),
 .clearing-action-button[aria-pressed="true"] { filter: brightness(1.08); box-shadow: 0 0 11px rgba(201,168,76,.42), 0 2px 4px rgba(0,0,0,.62); }
 .clearing-action-button:disabled { filter: saturate(.55); cursor: not-allowed; }
+
+
+/* Para Pets Hub scrollbar — dark forest track with an antique-gold handle.
+   Scoped to the Hub so game screens and inventory scrollers remain unchanged. */
+.para-pets-hub-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #a88432 #07150f;
+}
+
+.para-pets-hub-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.para-pets-hub-scrollbar::-webkit-scrollbar-track {
+  background: linear-gradient(180deg, #06110c 0%, #0b2017 50%, #06110c 100%);
+  border-left: 1px solid rgba(212, 168, 67, 0.14);
+}
+
+.para-pets-hub-scrollbar::-webkit-scrollbar-thumb {
+  min-height: 48px;
+  border: 2px solid #07150f;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #d4a843 0%, #8a6828 52%, #c59638 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 232, 157, 0.22),
+    0 0 8px rgba(212, 168, 67, 0.16);
+}
+
+.para-pets-hub-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #ebc763 0%, #a37a30 52%, #d4a843 100%);
+}
+
+@media (max-width: 767px) {
+  .para-pets-hub-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+}

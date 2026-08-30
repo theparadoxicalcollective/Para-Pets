@@ -1352,7 +1352,7 @@ export default function ParaPetsHubPage() {
     <>
       <div
         data-testid="para-pets-hub-page"
-        className="fixed inset-0 overflow-y-auto"
+        className="para-pets-hub-scrollbar fixed inset-0 overflow-y-auto"
         style={{
           zIndex: 9000,
           background: "#030e05",
