@@ -4,14 +4,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import raidIconImg from "@assets/Photoroom_20260711_52200_PM_1783810844517.png";
-import worldFrostpeak from "@assets/world_frostpeak_v2.png";
-import worldSkyRealm from "@assets/world_sky_realm_v3.png";
-import worldVolcanic from "@assets/world_volcanic_v3.png";
-import worldLostIsland from "@assets/world_lost_island.png";
-import worldDesert from "@assets/world_desert_v3.png";
-import worldEnchantedGrove from "@assets/world_enchanted_grove_v2.png";
-import worldHauntedWoods from "@assets/world_haunted_woods_v3.png";
-import worldSwamp from "@assets/world_swamp_v5.png";
+import worldMapBg from "@assets/uploads/NewMap.png";
+import mapTitleImg from "@assets/uploads/82D43EE2-34D6-4A00-8F76-48C68D2CA798.png";
+import worldFrostpeak from "@assets/uploads/NewFrost.png";
+import worldSkyRealm from "@assets/uploads/NewSkyRealm.png";
+import worldVolcanic from "@assets/uploads/NewVolcanic.png";
+import worldLostIsland from "@assets/uploads/NewLostIsland.png";
+import worldDesert from "@assets/uploads/NewDesert.png";
+import worldEnchantedGrove from "@assets/uploads/NewGrove.png";
+import worldHauntedWoods from "@assets/uploads/NewHauntedWoods.png";
+import worldSwamp from "@assets/uploads/NewBayou.png";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import { Plus, X, Trash2, Pencil, ImageIcon } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
@@ -144,6 +146,36 @@ export default function MapPage({ user }: MapPageProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/worlds"] });
     },
   });
+
+  const sizeMutation = useMutation({
+    mutationFn: async ({ worldId, iconSize }: { worldId: string; iconSize: number }) => {
+      const res = await apiRequest("PATCH", `/api/admin/worlds/${worldId}`, { iconSize });
+      return res.json();
+    },
+    onMutate: async ({ worldId, iconSize }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/worlds"] });
+      const previous = queryClient.getQueryData<WorldData[]>(["/api/worlds"]);
+      queryClient.setQueryData<WorldData[]>(["/api/worlds"], (current = []) =>
+        current.map((world) => world.id === worldId ? { ...world, iconSize } : world)
+      );
+      return { previous };
+    },
+    onError: (_err, _variables, context) => {
+      if (context?.previous) queryClient.setQueryData(["/api/worlds"], context.previous);
+      toast({ title: "Error", description: "Failed to resize world icon", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/worlds"] });
+    },
+  });
+
+  const resizeWorld = (event: React.MouseEvent<HTMLButtonElement>, world: WorldData, amount: number) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const currentSize = Number.isFinite(world.iconSize) ? world.iconSize : 30;
+    const iconSize = Math.max(16, Math.min(46, currentSize + amount));
+    if (iconSize !== currentSize) sizeMutation.mutate({ worldId: world.id, iconSize });
+  };
 
   const createWorldMutation = useMutation({
     mutationFn: async (data: { name: string; iconData: string | null; bgData: string | null; glowColor: string }) => {
@@ -360,17 +392,15 @@ export default function MapPage({ user }: MapPageProps) {
         }}
       />
 
-      {mapBgData?.bgUrl && (
-        <div
-          className="absolute inset-0 z-[1] pointer-events-none"
-          style={{
-            backgroundImage: `url(${mapBgData.bgUrl})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            opacity: 0.35,
-          }}
-        />
-      )}
+      <div
+        className="absolute inset-0 z-[1] pointer-events-none"
+        style={{
+          backgroundImage: `url(${mapBgData?.bgUrl || worldMapBg})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center top",
+          backgroundRepeat: "no-repeat",
+        }}
+      />
 
       <style>{`
         .world-node { transition: filter 0.2s ease; touch-action: none; }
@@ -389,30 +419,21 @@ export default function MapPage({ user }: MapPageProps) {
         }}
       >
         <div className="flex-1 relative overflow-y-auto overflow-x-hidden map-scroll">
-          <div className="flex flex-col items-center pt-2 pb-1 relative z-10" data-testid="text-map-title">
-            <div className="flex items-center gap-2 mb-0.5">
-              <div style={{ width: "32px", height: "1px", background: "linear-gradient(to right, transparent, rgba(240,192,64,0.6))" }} />
-              <span className="font-fantasy text-[9px] tracking-[0.5em] uppercase" style={{ color: "rgba(220,170,50,0.65)", letterSpacing: "0.55em" }}>The World of</span>
-              <div style={{ width: "32px", height: "1px", background: "linear-gradient(to left, transparent, rgba(240,192,64,0.6))" }} />
-            </div>
-            <h2
-              className="font-fantasy text-center font-bold uppercase"
+          <div
+            className="flex items-center justify-center pt-2 pb-1 relative z-10"
+            data-testid="text-map-title"
+          >
+            <img
+              src={mapTitleImg}
+              alt="The World of Veridia"
+              className="block h-auto object-contain"
+              draggable={false}
               style={{
-                fontSize: "clamp(26px, calc(7.5*var(--vw)), 42px)",
-                letterSpacing: "0.25em",
-                lineHeight: 1,
-                color: "#fff6c8",
-                textShadow:
-                  "0 0 8px rgba(255,220,80,0.95), 0 0 20px rgba(240,192,64,0.8), 0 0 45px rgba(240,160,40,0.55), 0 0 90px rgba(220,140,20,0.3), 0 3px 6px rgba(0,0,0,1)",
+                width: "min(88%, 460px)",
+                maxHeight: "clamp(62px, calc(18 * var(--vw)), 112px)",
+                filter: "drop-shadow(0 3px 8px rgba(0,0,0,0.72))",
               }}
-            >
-              Veridia
-            </h2>
-            <div className="flex items-center gap-1.5 mt-1">
-              <div style={{ width: "50px", height: "1px", background: "linear-gradient(to right, transparent, rgba(240,192,64,0.45))" }} />
-              <span style={{ color: "rgba(240,192,64,0.4)", fontSize: "8px" }}>✦</span>
-              <div style={{ width: "50px", height: "1px", background: "linear-gradient(to left, transparent, rgba(240,192,64,0.45))" }} />
-            </div>
+            />
           </div>
 
           {isLoading ? (
@@ -481,7 +502,7 @@ export default function MapPage({ user }: MapPageProps) {
                       style={{
                         left: `${pos.x}%`,
                         top: `${pos.y}%`,
-                        width: "30%",
+                        width: `${Math.max(16, Math.min(46, Number.isFinite(w.iconSize) ? w.iconSize : 30))}%`,
                         cursor: currentUser.isAdmin ? "grab" : locked ? "default" : "pointer",
                         zIndex: isDragging ? 50 : 10 + i,
                         animation: isDragging ? "none" : `map-floatWorld ${3 + (i % 3) * 0.5}s ease-in-out infinite`,
@@ -490,6 +511,54 @@ export default function MapPage({ user }: MapPageProps) {
                       onPointerDown={(e) => handlePointerDown(e, w)}
                       onClick={() => handleWorldClick(w)}
                     >
+                      {currentUser.isAdmin && (
+                        <div
+                          className="absolute z-40 flex items-center gap-1"
+                          style={{ top: "-10px", left: "50%", transform: "translateX(-50%)" }}
+                          onPointerDown={(event) => event.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            aria-label={`Decrease ${w.name} icon size`}
+                            data-testid={`button-decrease-world-size-${w.id}`}
+                            onClick={(event) => resizeWorld(event, w, -2)}
+                            className="flex items-center justify-center rounded-full font-bold"
+                            style={{
+                              width: "clamp(26px, calc(7 * var(--vw)), 32px)",
+                              height: "clamp(26px, calc(7 * var(--vw)), 32px)",
+                              color: "#fff6c8",
+                              background: "rgba(12, 10, 24, 0.92)",
+                              border: "1px solid rgba(240, 192, 64, 0.8)",
+                              boxShadow: "0 2px 8px rgba(0,0,0,0.7)",
+                              fontSize: "18px",
+                              lineHeight: 1,
+                              touchAction: "manipulation",
+                            }}
+                          >
+                            −
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Increase ${w.name} icon size`}
+                            data-testid={`button-increase-world-size-${w.id}`}
+                            onClick={(event) => resizeWorld(event, w, 2)}
+                            className="flex items-center justify-center rounded-full font-bold"
+                            style={{
+                              width: "clamp(26px, calc(7 * var(--vw)), 32px)",
+                              height: "clamp(26px, calc(7 * var(--vw)), 32px)",
+                              color: "#fff6c8",
+                              background: "rgba(12, 10, 24, 0.92)",
+                              border: "1px solid rgba(240, 192, 64, 0.8)",
+                              boxShadow: "0 2px 8px rgba(0,0,0,0.7)",
+                              fontSize: "18px",
+                              lineHeight: 1,
+                              touchAction: "manipulation",
+                            }}
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
                       <div className="relative w-full" style={{ aspectRatio: "1" }}>
                         <div
                           className="absolute inset-[-10%] rounded-full pointer-events-none"
