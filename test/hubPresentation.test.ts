@@ -37,3 +37,20 @@ test("sign-in landing spacing and Hub button use the refined proportions", () =>
   assert.match(css, /width: min\(64%, 240px\)/);
   assert.match(css, /margin-top: clamp\(8px, calc\(1\.4 \* var\(--vh\)\), 14px\)/);
 });
+
+
+test("root launch, Hub background, and translucent Hub sections stay consistent", () => {
+  const app = readFileSync(fromRoot("client", "src", "App.tsx"), "utf8");
+  const hub = readFileSync(fromRoot("client", "src", "pages", "ParaPetsHubPage.tsx"), "utf8");
+  const indexCss = readFileSync(fromRoot("client", "src", "index.css"), "utf8");
+  const authCss = readFileSync(fromRoot("client", "src", "pages", "authPage.css"), "utf8");
+
+  assert.match(app, /if \(!user && location === "\/"\)/);
+  assert.doesNotMatch(app, /<Redirect to="\/auth" \/>/);
+  assert.match(hub, /SignInPageBG\.png/);
+  assert.match(hub, /href="\/"[\s\S]*data-testid="button-hero-play-game"/);
+  assert.ok((hub.match(/hub-section-surface/g) ?? []).length >= 7);
+  assert.match(indexCss, /\.hub-section-surface/);
+  assert.match(indexCss, /rgba\(0, 0, 0, 0\.74\)/);
+  assert.match(authCss, /\.auth-paw-footer[\s\S]*bottom: 44px/);
+});
