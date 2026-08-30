@@ -489,19 +489,19 @@ function AppRouter() {
           <Route path="/privacy"><PrivacyPolicyPage user={user ?? null} /></Route>
           <Route path="/hub"><ParaPetsHubPage /></Route>
           <Route path="/forum">
-            {user ? <ForumPage /> : <Redirect to="/auth" />}
+            {user ? <ForumPage /> : <Redirect to="/" />}
           </Route>
           <Route path="/founders"><FoundersPage /></Route>
           <Route path="/admin">
             {user?.isAdmin ? <AdminPage user={user} /> : <Redirect to="/" />}
           </Route>
           <Route path="/visit/:userId">
-            {user ? <VisitPetHousePage /> : <Redirect to="/auth" />}
+            {user ? <VisitPetHousePage /> : <Redirect to="/" />}
           </Route>
           <Route path="/pet-level-up/:inventoryId">
-            {user ? <PetLevelUpRoute /> : <Redirect to="/auth" />}
+            {user ? <PetLevelUpRoute /> : <Redirect to="/" />}
           </Route>
-          <Route><Redirect to={user ? "/" : "/auth"} /></Route>
+          <Route><Redirect to="/" /></Route>
         </Switch>
       </Suspense>
     );
