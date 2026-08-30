@@ -23,7 +23,7 @@ test("the normal Hub route, artwork button, and themed scrollbar remain", () => 
   const hub = readFileSync(fromRoot("client", "src", "pages", "ParaPetsHubPage.tsx"), "utf8");
   const indexCss = readFileSync(fromRoot("client", "src", "index.css"), "utf8");
 
-  assert.match(app, /<Route path="\/hub" component=\{ParaPetsHubPage\}/);
+  assert.match(app, /<Route path="\\/hub"><ParaPetsHubPage \\/><\\/Route>/);
   assert.match(auth, /onActivate=\{\(\) => setLocation\("\/hub"\)\}/);
   assert.match(hub, /para-pets-hub-scrollbar fixed inset-0 overflow-y-auto/);
   assert.match(indexCss, /\.para-pets-hub-scrollbar::\-webkit-scrollbar-thumb/);
