@@ -259,7 +259,7 @@
 .auth-paw-footer {
   position: absolute;
   left: 50%;
-  bottom: 16px;
+  bottom: 44px;
   z-index: 1;
   display: block;
   width: min(86%, 330px);
