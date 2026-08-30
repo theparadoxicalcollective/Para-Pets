@@ -3,9 +3,10 @@
 export const DESIGN_W = 390;
 export const DESIGN_H = 844;
 export const WIDE_BREAKPOINT = 768;
-// Larger screens may present the same portrait composition a little larger,
-// but never turn it into a tablet/desktop layout or an enormous monitor UI.
-export const MAX_STAGE_SCALE = 1.1;
+// Tablets and desktops render the exact phone composition as one uniformly
+// scaled portrait stage. The cap keeps very large monitors from making the
+// phone window enormous while allowing tablets to use much more of the screen.
+export const MAX_STAGE_SCALE = 1.5;
 export const MOBILE_KEYBOARD_MIN_DELTA = 180;
 
 export type StageLayout = {
@@ -55,7 +56,8 @@ export function calculateStageLayout(
   const designWidth = getDesignWidth(viewportWidth);
   const narrow = isNarrowLayout(viewportWidth);
   // Phones own the real viewport and are never transformed into a fixed canvas.
-  // This preserves the iPhone layout while allowing browser/PWA height changes.
+  // Tablets/desktops keep the same 390x844 layout and scale the whole stage as
+  // one unit, so internal UI positions never change between device classes.
   const designHeight = narrow ? viewportHeight : DESIGN_H;
   const scale = narrow
     ? 1
