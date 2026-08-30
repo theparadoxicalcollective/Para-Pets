@@ -136,7 +136,6 @@ export function registerMarketplaceRoutes(
 
   app.get("/api/market", isAuthenticated, async (req, res) => {
     try {
-      const user = req.user as any;
       const search = req.query.search as string | undefined;
       const itemType = req.query.itemType as string | undefined;
       const orderAsc = !!(itemType && itemType !== "all");
@@ -195,7 +194,7 @@ export function registerMarketplaceRoutes(
           speciesName: listing.itemType === "pet_egg" ? (shopItem?.name ?? listing.itemName) : null,
           rarity: listing.itemType === "pet_egg" ? normalizeRarity(shopItem) : null,
         };
-        if (!user.isAdmin) delete base.sellerName;
+        delete base.sellerName;
         return base;
       });
       return res.json(enriched);
