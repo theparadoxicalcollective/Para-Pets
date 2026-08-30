@@ -14,7 +14,7 @@ import petsIcon from "@assets/generated_images/nav_icon_pets.png";
 import marketIcon from "@assets/generated_images/nav_icon_market.png";
 import fishbowlIcon from "@assets/icon_fishbowl.png";
 import globeIcon from "@assets/icon_globe_world.webp";
-import bagIcon from "@assets/icon_bag.png";
+import cardsIcon from "@/assets/cards-placeholder.svg";
 import friendsNavIcon from "@assets/Photoroom_20260622_114621_AM_1782146930993.png";
 import { QuillBadge } from "@/components/QuillBadge";
 import mapIcon from "@assets/generated_images/nav_icon_map_v3.png";
@@ -78,7 +78,7 @@ const LEFT_ITEMS = [
 
 // ── Right column: Home, Pet House, Market, Aquarium, Keeper's Central, Pet Bag, Friends
 const RIGHT_ITEMS = [
-  { id: "bag",      label: "Bag",     icon: bagIcon        },
+  { id: "cards",    label: "Cards",   icon: cardsIcon      },
   { id: "friends",  label: "Friends", icon: friendsNavIcon },
   { id: "pethouse", label: "House",   icon: petHouseIcon   },
   { id: "market",   label: "Market",  icon: marketIcon     },
@@ -251,7 +251,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     if (id === "market")   { setTimeout(() => navigate("/market"), NAV_DELAY); return; }
     if (id === "aquarium") { setTimeout(() => openPanel(() => setShowAquarium(true)), NAV_DELAY); return; }
     if (id === "keepers")  { setTimeout(() => openPanel(() => setShowKeepers(true)), NAV_DELAY); return; }
-    if (id === "bag")      { setTimeout(() => navigate("/bag"), NAV_DELAY); return; }
+    if (id === "cards")    { setTimeout(() => navigate("/cards"), NAV_DELAY); return; }
     if (id === "friends")  { setTimeout(() => navigate("/friends"), NAV_DELAY); return; }
   };
 
