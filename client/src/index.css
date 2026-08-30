@@ -4071,3 +4071,34 @@ img[data-interactive], button img, a img {
     width: 6px;
   }
 }
+
+
+/* Hub: reuse the sign-in forest while keeping detailed art readable. */
+.para-pets-hub-page {
+  background-attachment: local;
+}
+
+.hub-hero-surface {
+  margin: 12px 12px 0;
+  border: 1px solid rgba(212, 168, 67, 0.18);
+  border-radius: 22px;
+  background: linear-gradient(160deg, rgba(0, 0, 0, 0.7), rgba(2, 13, 9, 0.58));
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 232, 142, 0.05);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.hub-section-surface {
+  border: 1px solid rgba(212, 168, 67, 0.15);
+  border-radius: 18px;
+  background: linear-gradient(160deg, rgba(0, 0, 0, 0.74), rgba(2, 12, 8, 0.62));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 232, 142, 0.04);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+@media (max-width: 420px) {
+  .hub-hero-surface {
+    margin-inline: 8px;
+  }
+}
