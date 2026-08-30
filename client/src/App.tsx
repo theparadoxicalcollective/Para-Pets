@@ -469,6 +469,17 @@ function AppRouter() {
     location.startsWith("/visit/") ||
     location.startsWith("/pet-level-up/");
 
+  // An installed app launches at the manifest root. Keep unauthenticated
+  // players on that root URL while presenting the same sign-in experience,
+  // rather than rewriting the saved app address to /auth.
+  if (!user && location === "/") {
+    return (
+      <Suspense fallback={<LoadingScreen label="Loading…" />}>
+        <AuthPage />
+      </Suspense>
+    );
+  }
+
   if (isFullScreenPath || !user) {
     return (
       <Suspense fallback={<LoadingScreen label="Loading…" />}>
