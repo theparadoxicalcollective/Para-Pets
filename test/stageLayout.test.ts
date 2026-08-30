@@ -106,6 +106,17 @@ test("mobile portal coordinates remain viewport coordinates used by DOM hit test
   assert.deepEqual(clientToPortalPoint(layout, 198, 420), { x: 198, y: 420 });
 });
 
+test("portrait tablet uniformly enlarges the phone stage without changing logical dimensions", () => {
+  const layout = calculateStageLayout(768, 1024);
+  assert.equal(layout.designWidth, DESIGN_W);
+  assert.equal(layout.designHeight, DESIGN_H);
+  assert.ok(layout.scale > 1.2 && layout.scale < 1.22);
+  assert.equal(layout.renderedHeight, 1024);
+  assert.equal(layout.left + layout.renderedWidth / 2, 384);
+  assert.equal(layout.top, 0);
+  assert.equal(getStageTransform(layout), `scale(${layout.scale})`);
+});
+
 for (const [width, height] of [[1440, 900], [1920, 1080]] as const) {
   test(`${width}x${height} uses the centered desktop portrait presentation`, () => {
     const layout = calculateStageLayout(width, height);
