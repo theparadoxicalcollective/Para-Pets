@@ -1,16 +1,80 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, type CSSProperties } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { useLocation, Link } from "wouter";
+import { useLocation } from "wouter";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import bgImg from "@assets/bg_login.png";
 import warnRedPng from "@assets/Photoroom_20260705_105636_PM_1783310667789.png";
-import signInBtn from "@assets/btn_signin_v2.png";
-import createAccountBtn from "@assets/btn_create_v2.png";
+import signInPageBg from "@assets/uploads/SignInPageBG.png";
+import paraPetsTitleLogo from "@assets/uploads/ParaPetsTitleLogo.png";
+import paraPetsHubButton from "@assets/uploads/ParaPetsHubButton.png";
+import createAccountBtn from "@assets/uploads/CreateAccount.png";
+import signInBtn from "@assets/uploads/SignIn.png";
+import decorDivider from "@assets/uploads/DecorDivider.png";
+import pawPrintDecorDivider from "@assets/uploads/PawPrintDecorDivider.png";
+import "./authPage.css";
 import MaintenancePage from "@/pages/MaintenancePage";
 
 type Mode = "landing" | "login" | "register" | "forgot" | "support";
+
+type AuthArtworkButtonProps = {
+  src: string;
+  alt: string;
+  testId: string;
+  className?: string;
+  onActivate: () => void;
+};
+
+const SPARK_DIRECTIONS = [
+  [-54, -30], [-18, -48], [22, -46], [55, -24],
+  [58, 18], [20, 43], [-22, 46], [-56, 20],
+] as const;
+
+function AuthArtworkButton({
+  src,
+  alt,
+  testId,
+  className = "",
+  onActivate,
+}: AuthArtworkButtonProps) {
+  const [burst, setBurst] = useState(0);
+  const [activating, setActivating] = useState(false);
+
+  const activate = () => {
+    if (activating) return;
+    setActivating(true);
+    setBurst(value => value + 1);
+    window.setTimeout(onActivate, 170);
+  };
+
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      aria-label={alt}
+      onClick={activate}
+      disabled={activating}
+      className={`auth-artwork-button ${className}`}
+    >
+      <img src={src} alt="" aria-hidden="true" draggable={false} />
+      {burst > 0 && (
+        <span key={burst} className="auth-sparkle-burst" aria-hidden="true">
+          {SPARK_DIRECTIONS.map(([x, y], index) => (
+            <i
+              key={index}
+              style={{
+                "--spark-x": `${x}px`,
+                "--spark-y": `${y}px`,
+                "--spark-delay": `${index * 18}ms`,
+              } as CSSProperties}
+            />
+          ))}
+        </span>
+      )}
+    </button>
+  );
+}
+
 
 function resizeImageTo500(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -253,17 +317,14 @@ export default function AuthPage() {
   }
 
   return (
-    <div
-      className="relative h-screen-frame w-full overflow-hidden flex flex-col items-center"
-      style={{
-        backgroundImage: `url(${bgImg})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }}
-    >
-      {/* Lighter vignette — let the forest breathe */}
-      <div className="absolute inset-0 z-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.08) 45%, rgba(3,10,5,0.7) 100%)" }} />
+    <div className="auth-page-root relative h-screen-frame w-full overflow-hidden flex flex-col items-center">
+      <img
+        src={signInPageBg}
+        alt=""
+        aria-hidden="true"
+        className="auth-page-background absolute inset-0 h-full w-full object-cover"
+      />
+      <div className="auth-page-vignette absolute inset-0 z-0" />
 
       <div
         className="relative z-10 flex flex-col items-center w-full h-full"
@@ -271,105 +332,61 @@ export default function AuthPage() {
       >
         {mode === "landing" ? (
           /* ══════════════════════ LANDING SCREEN ══════════════════════ */
-          <div className="flex flex-col items-center h-full w-full px-6 pt-10 pb-8 animate-slide-up">
-
-            {/* ── Age recommendation badge — top of screen ── */}
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              background: "rgba(10,6,2,0.6)",
-              border: "1px solid rgba(200,160,50,0.25)",
-              borderRadius: 20,
-              padding: "5px 14px",
-              backdropFilter: "blur(6px)",
-            }}>
-              <span style={{ color: "rgba(200,160,50,0.55)", fontSize: 9 }}>✦</span>
-              <span style={{
-                fontFamily: "Lora, serif",
-                fontSize: 11,
-                color: "rgba(220,195,140,0.8)",
-                letterSpacing: "0.08em",
-              }}>Best enjoyed by players 18+</span>
-              <span style={{ color: "rgba(200,160,50,0.55)", fontSize: 9 }}>✦</span>
+          <div className="auth-landing animate-slide-up" data-testid="auth-landing">
+            <div className="auth-ambient-sparkles" aria-hidden="true">
+              <span style={{ left: "9%", top: "18%", animationDelay: "0s" }}>✦</span>
+              <span style={{ right: "11%", top: "13%", animationDelay: "1.1s" }}>✧</span>
+              <span style={{ left: "14%", top: "47%", animationDelay: "2.2s" }}>✦</span>
+              <span style={{ right: "12%", top: "55%", animationDelay: "0.7s" }}>✧</span>
+              <span style={{ left: "20%", bottom: "13%", animationDelay: "1.7s" }}>✦</span>
+              <span style={{ right: "20%", bottom: "17%", animationDelay: "2.7s" }}>✧</span>
             </div>
 
-            {/* ── Title + tagline + buttons — one connected block ── */}
-            <div className="flex flex-col items-center w-full mt-6">
-              <div className="relative">
-                <span className="title-sparkle absolute -top-5 -left-6 text-2xl select-none" style={{ animationDelay: "0s" }}>✦</span>
-                <span className="title-sparkle absolute -top-5 -right-6 text-2xl select-none" style={{ animationDelay: "1.2s" }}>✦</span>
-                <span className="title-sparkle absolute -bottom-4 -left-9 text-sm select-none" style={{ animationDelay: "0.5s" }}>✦</span>
-                <span className="title-sparkle absolute -bottom-4 -right-9 text-sm select-none" style={{ animationDelay: "1.8s" }}>✦</span>
-                <div
-                  className="px-6 py-2 rounded-xl"
-                  style={{
-                    background: "rgba(4,12,7,0.58)",
-                    backdropFilter: "blur(6px)",
-                    border: "1px solid rgba(200,160,50,0.18)",
-                  }}
-                >
-                  <h1 className="para-pets-title select-none text-center">Para Pets</h1>
-                </div>
-              </div>
-              <p
-                className="font-fantasy text-[#f0e8d4] text-center text-sm tracking-wide mt-6 leading-relaxed px-5 py-2 rounded-xl"
-                style={{
-                  background: "rgba(4,12,7,0.58)",
-                  backdropFilter: "blur(6px)",
-                  border: "1px solid rgba(200,160,50,0.18)",
-                }}
-              >
-                A world of magical companions awaits
-              </p>
+            <div className="auth-age-badge">
+              <span aria-hidden="true">✦</span>
+              <span>Best enjoyed by players 18+</span>
+              <span aria-hidden="true">✦</span>
+            </div>
 
-              {/* Buttons — directly below tagline */}
-              <button
-                data-testid="button-signin"
-                onClick={() => setMode("login")}
-                className="w-[68%] max-w-[270px] mx-auto mt-8 block transition-transform duration-150 active:scale-95"
-                style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
-              >
-                <img
-                  src={signInBtn} alt="Sign In"
-                  className="w-full h-auto object-contain block"
-                  style={{ filter: "drop-shadow(0 0 14px rgba(240,160,48,0.7)) drop-shadow(0 4px 10px rgba(0,0,0,0.95))" }}
-                />
-              </button>
-              <button
-                data-testid="button-create-account"
-                onClick={() => setMode("register")}
-                className="w-[68%] max-w-[270px] mx-auto -mt-3 block transition-transform duration-150 active:scale-95"
-                style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
-              >
-                <img
-                  src={createAccountBtn} alt="Create Account"
-                  className="w-full h-auto object-contain block"
-                  style={{ filter: "drop-shadow(0 0 14px rgba(240,160,48,0.7)) drop-shadow(0 4px 10px rgba(0,0,0,0.95))" }}
-                />
-              </button>
+            <div className="auth-brand-block">
+              <img
+                src={paraPetsTitleLogo}
+                alt="Para Pets"
+                className="auth-title-logo"
+                draggable={false}
+              />
+              <img
+                src={decorDivider}
+                alt=""
+                aria-hidden="true"
+                className="auth-decor-divider"
+                draggable={false}
+              />
+              <p className="auth-tagline">A world of magical companions awaits</p>
+            </div>
 
-              {/* Para Pets Hub — pulsing gold-teal excitement */}
-              <Link
-                data-testid="link-para-pets-hub"
-                href="/hub"
-                className="w-[82%] max-w-[320px] mx-auto mt-4 flex items-center justify-center gap-3 py-3.5 rounded-2xl font-fantasy tracking-widest transition-all duration-150 active:scale-95"
-                style={{
-                  fontSize: "1rem",
-                  background: "linear-gradient(135deg, rgba(0,130,100,0.9) 0%, rgba(0,80,60,0.92) 50%, rgba(0,110,85,0.9) 100%)",
-                  border: "2px solid rgba(0,235,185,0.75)",
-                  color: "#afffea",
-                  boxShadow: "0 0 28px rgba(0,220,170,0.55), 0 0 10px rgba(0,220,170,0.3), inset 0 1px 0 rgba(180,255,230,0.2), 0 4px 20px rgba(0,0,0,0.75)",
-                  textShadow: "0 0 18px rgba(0,240,190,0.95), 0 0 6px rgba(0,240,190,0.6)",
-                  backdropFilter: "blur(8px)",
-                  textDecoration: "none",
-                  animation: "hub-pulse 2.6s ease-in-out infinite",
-                }}
-              >
-                <span style={{ fontSize: "1em", opacity: 0.9, animation: "title-sparkle 2s ease-in-out infinite" }}>✦</span>
-                Para Pets Hub
-                <span style={{ fontSize: "1em", opacity: 0.9, animation: "title-sparkle 2s ease-in-out infinite", animationDelay: "1s" }}>✦</span>
-              </Link>
+            <div className="auth-landing-actions">
+              <AuthArtworkButton
+                src={signInBtn}
+                alt="Sign In"
+                testId="button-signin"
+                className="auth-primary-art-button"
+                onActivate={() => setMode("login")}
+              />
+              <AuthArtworkButton
+                src={createAccountBtn}
+                alt="Create Account"
+                testId="button-create-account"
+                className="auth-primary-art-button"
+                onActivate={() => setMode("register")}
+              />
+              <AuthArtworkButton
+                src={paraPetsHubButton}
+                alt="Open Para Pets Hub"
+                testId="link-para-pets-hub"
+                className="auth-hub-art-button"
+                onActivate={() => setLocation("/hub")}
+              />
             </div>
           </div>
 
@@ -377,11 +394,10 @@ export default function AuthPage() {
           /* ══════════════════ FORM SCREENS ══════════════════ */
           <div className="flex flex-col items-center justify-center w-full min-h-full px-5 py-6 overflow-y-auto">
 
-            {/* Compact title above form */}
-            <div className="relative mb-5 text-center">
-              <span className="title-sparkle absolute -top-3 -left-4 text-base select-none" style={{ animationDelay: "0s" }}>✦</span>
-              <span className="title-sparkle absolute -top-3 -right-4 text-base select-none" style={{ animationDelay: "1s" }}>✦</span>
-              <h1 className="para-pets-title select-none" style={{ fontSize: "clamp(1.9rem, calc(9*var(--vw)), 2.9rem)" }}>Para Pets</h1>
+            {/* Shared artwork header keeps every auth mode visually connected. */}
+            <div className="auth-form-brand">
+              <img src={paraPetsTitleLogo} alt="Para Pets" className="auth-form-logo" draggable={false} />
+              <img src={decorDivider} alt="" aria-hidden="true" className="auth-form-divider" draggable={false} />
             </div>
 
           {/* ── LOGIN / REGISTER PANEL ── */}
@@ -917,6 +933,14 @@ export default function AuthPage() {
 
         </div>
         )}
+
+        <img
+          src={pawPrintDecorDivider}
+          alt=""
+          aria-hidden="true"
+          className="auth-paw-footer"
+          draggable={false}
+        />
 
         {/* Footer */}
         <div className="absolute bottom-3 left-0 right-0 text-center pointer-events-none">
