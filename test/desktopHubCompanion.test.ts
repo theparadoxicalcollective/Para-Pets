@@ -61,9 +61,14 @@ test("desktop shell keeps the Hub companion behind desktop-only guards", () => {
   const repoRoot = path.resolve(import.meta.dirname, "..");
   const app = readFileSync(path.join(repoRoot, "client", "src", "App.tsx"), "utf8");
   const css = readFileSync(path.join(repoRoot, "client", "src", "tabletStageShell.css"), "utf8");
+  const hub = readFileSync(path.join(repoRoot, "client", "src", "pages", "ParaPetsHubPage.tsx"), "utf8");
+  const indexCss = readFileSync(path.join(repoRoot, "client", "src", "index.css"), "utf8");
   assert.match(app, /className="desktop-hub-companion"/);
   assert.match(app, /isDesktopCompanionRuntime\(\)/);
   assert.match(css, /min-width: 1180px/);
   assert.match(css, /hover: hover/);
   assert.match(css, /pointer: fine/);
+  assert.match(hub, /para-pets-hub-scrollbar fixed inset-0 overflow-y-auto/);
+  assert.match(indexCss, /\.para-pets-hub-scrollbar::\-webkit-scrollbar-thumb/);
+  assert.match(indexCss, /scrollbar-color: #a88432 #07150f/);
 });
