@@ -79,6 +79,31 @@ export function createPetCareJarBodies(
   }));
 }
 
+/**
+ * Reconciles inventory-backed bodies without rebuilding the entire jar.
+ * Surviving keys keep their live position and momentum, consumed keys vanish,
+ * and only newly added units receive a seeded starting position.
+ */
+export function reconcilePetCareJarBodies(
+  currentBodies: readonly PetCareJarBody[],
+  seeds: PetCareJarSeedBody[],
+  bounds: PetCareJarBounds,
+): PetCareJarBody[] {
+  const currentByKey = new Map(currentBodies.map((body) => [body.key, body]));
+  return createPetCareJarBodies(seeds, bounds).map((seededBody) => {
+    const current = currentByKey.get(seededBody.key);
+    if (!current) return seededBody;
+    return constrainPetCareJarBody(
+      {
+        ...current,
+        radius: seededBody.radius,
+      },
+      bounds,
+      false,
+    );
+  });
+}
+
 export function constrainPetCareJarBody(
   body: PetCareJarBody,
   bounds: PetCareJarBounds,
