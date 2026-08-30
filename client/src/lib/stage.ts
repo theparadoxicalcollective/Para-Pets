@@ -38,9 +38,9 @@ export function calculateStageLayout(
   const viewportHeight = Math.max(1, visibleHeight);
   const designWidth = getDesignWidth(viewportWidth);
   const narrow = isNarrowLayout(viewportWidth);
-  // Phones own the real visual viewport. In particular, Safari chrome (and the
-  // software keyboard) must never turn the app into a transformed 390x844
-  // canvas: client coordinates, fixed UI, and DOM hit testing stay native.
+  // Phones own the real visual viewport. Safari and Chromium both resize their
+  // usable viewport as browser chrome/keyboard state changes, so phone layouts
+  // must stay native rather than becoming a transformed 390x844 canvas.
   const designHeight = narrow ? viewportHeight : DESIGN_H;
   const scale = narrow
     ? 1
@@ -63,11 +63,15 @@ export function calculateStageLayout(
 export function getVisibleViewport(): { width: number; height: number; left: number; top: number } {
   if (typeof window === "undefined") return { width: DESIGN_W, height: DESIGN_H, left: 0, top: 0 };
   const viewport = window.visualViewport;
+  // Chromium Android reliably exposes visualViewport, including the address-bar
+  // and keyboard-adjusted usable area. Older Android WebViews may not, so keep
+  // the innerWidth/innerHeight fallback. Clamp offsets because some embedded
+  // browsers briefly report tiny negative values during toolbar animation.
   return {
-    width: viewport?.width ?? window.innerWidth,
-    height: viewport?.height ?? window.innerHeight,
-    left: viewport?.offsetLeft ?? 0,
-    top: viewport?.offsetTop ?? 0,
+    width: Math.max(1, viewport?.width ?? window.innerWidth),
+    height: Math.max(1, viewport?.height ?? window.innerHeight),
+    left: Math.max(0, viewport?.offsetLeft ?? 0),
+    top: Math.max(0, viewport?.offsetTop ?? 0),
   };
 }
 
