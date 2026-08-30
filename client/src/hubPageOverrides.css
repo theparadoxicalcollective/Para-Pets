@@ -3,6 +3,12 @@
   bottom: 34px !important;
 }
 
+/* The hub Play Game action already routes logged-out players into the sign-in flow,
+   so the extra Sign In button above it is redundant. */
+[data-testid="button-hub-hero-signin"] {
+  display: none !important;
+}
+
 /* Hub-only presentation overrides. Keep the existing hub content/layout intact while
    reusing the sign-in artwork and adding contrast for detailed background art. */
 [data-testid="para-pets-hub-page"] {
