@@ -17,6 +17,8 @@ test("the uploaded game artwork drives every install icon surface", async () => 
   );
   assert.equal(manifest.name, "Para Pets");
   assert.equal(manifest.short_name, "Para Pets");
+  assert.equal(manifest.start_url, "/");
+  assert.equal(manifest.scope, "/");
   assert.deepEqual(manifest.icons, [
     { src: "/pwa-icon-192.png?v=4", sizes: "192x192", type: "image/png", purpose: "any" },
     { src: "/pwa-icon-512.png?v=4", sizes: "512x512", type: "image/png", purpose: "any" },
@@ -45,4 +47,8 @@ test("the uploaded game artwork drives every install icon surface", async () => 
   assert.match(html, /manifest\.json\?v=5/);
   assert.match(html, /name="application-name" content="Para Pets"/);
   assert.match(html, /name="apple-mobile-web-app-title" content="Para Pets"/);
+
+  const app = readFileSync(fromRoot("client", "src", "App.tsx"), "utf8");
+  assert.match(app, /if \(!user && location === "\/"\)/);
+  assert.match(app, /<AuthPage \/>/);
 });
