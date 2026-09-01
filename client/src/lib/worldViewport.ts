@@ -1,22 +1,25 @@
 const WORLD_MAP_WIDTH = 1080;
 
 /**
- * Fit world artwork consistently across normal mobile browsers and installed
- * web-app mode. Browser chrome must not switch worlds into a letterboxed
- * "contain" presentation, because that creates a large empty band above the
- * map and makes the world appear vertically displaced compared with the PWA.
+ * World maps are authored as full-screen compositions. Fit every world by its
+ * height so the complete vertical composition stays locked to the viewport
+ * instead of using a "cover" scale that zooms/crops tall replacement maps.
  *
- * Keep the legacy fourth argument for call-site compatibility while the world
- * page owns its viewport lifecycle; the fit itself is intentionally always
- * cover.
+ * WorldPage centers the resulting map and clamps movement against the viewport.
+ * With mapHeight * scale === frameHeight there is no vertical overflow to pan
+ * or scroll through, so players see one fixed-height world composition while
+ * admin location coordinates remain percentage-based in the same map space.
+ *
+ * Keep frameWidth and the legacy fourth argument for call-site compatibility;
+ * future replacement maps can use this same behavior without per-world logic.
  */
 export function calculateWorldFitScale(
-  frameWidth: number,
+  _frameWidth: number,
   frameHeight: number,
   mapHeight: number,
   _fitFullComposition: boolean,
 ): number {
-  const widthScale = frameWidth / WORLD_MAP_WIDTH;
-  const heightScale = frameHeight / mapHeight;
-  return Math.max(widthScale, heightScale);
+  if (!Number.isFinite(frameHeight) || frameHeight <= 0) return 1;
+  if (!Number.isFinite(mapHeight) || mapHeight <= 0) return 1;
+  return frameHeight / mapHeight;
 }
