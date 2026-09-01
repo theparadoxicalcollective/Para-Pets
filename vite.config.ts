@@ -1,6 +1,5 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
-import fs from "node:fs";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { execFileSync } from "node:child_process";
@@ -10,72 +9,39 @@ const buildId = process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA
   catch { return "development"; }
 })();
 
-const CANONICAL_WORLD_MAP_PNGS: Record<string, string> = {
-  swamp: "attached_assets/uploads/ElysianBayouMap.png",
-  volcanic: "attached_assets/uploads/EmbercraftPeakMap.png",
-  haunted_woods: "attached_assets/uploads/ShadowfenMap.png",
-};
-
-function readPngMapHeight(assetPath: string): number {
-  const absolutePath = path.resolve(import.meta.dirname, assetPath);
-  const fd = fs.openSync(absolutePath, "r");
-  try {
-    const header = Buffer.alloc(24);
-    const bytesRead = fs.readSync(fd, header, 0, header.length, 0);
-    if (bytesRead < 24 || header.toString("ascii", 1, 4) !== "PNG") {
-      throw new Error(`Expected PNG world map asset: ${assetPath}`);
-    }
-    const width = header.readUInt32BE(16);
-    const height = header.readUInt32BE(20);
-    if (!width || !height) throw new Error(`Invalid PNG dimensions for ${assetPath}`);
-    return Math.round(1080 * height / width);
-  } finally {
-    fs.closeSync(fd);
-  }
-}
-
-const CANONICAL_WORLD_MAP_HEIGHTS = Object.fromEntries(
-  Object.entries(CANONICAL_WORLD_MAP_PNGS).map(([worldId, assetPath]) => [
-    worldId,
-    readPngMapHeight(assetPath),
-  ]),
-) as Record<string, number>;
+const WORLD_MAP_DESIGN_W = 924;
+const WORLD_MAP_DESIGN_H = 1703;
 
 /**
- * WorldPage is a large legacy page whose hotspot coordinate system depends on
- * MAP_W=1080 plus a fixed design-space height. The three new canonical maps
- * are taller PNGs than the art they replace. Reading their IHDR dimensions at
- * build/dev startup keeps the map canvas at the exact native aspect ratio,
- * preventing background-size: cover from cropping the artwork while keeping
- * hotspot positions percentage-based across devices.
+ * WorldPage is a large legacy page whose location placement math is already
+ * percentage-based, so we can safely standardize its design-space dimensions
+ * without rewriting location/destination behavior. Every inside-world map is
+ * treated as one fixed 924×1703 portrait composition, matching the new source
+ * artwork format and preventing variable per-world canvas widths/heights from
+ * reintroducing horizontal overflow.
  */
-function canonicalWorldMapHeightPlugin(): Plugin {
+function fixedWorldMapCanvasPlugin(): Plugin {
   return {
-    name: "canonical-world-map-native-heights",
+    name: "fixed-world-map-924x1703",
     enforce: "pre",
     transform(code, id) {
       const normalizedId = id.split("?")[0].replace(/\\/g, "/");
       if (!normalizedId.endsWith("/client/src/pages/WorldPage.tsx")) return null;
 
+      let next = code;
+      next = next.replace(/const MAP_W = \d+;/, `const MAP_W = ${WORLD_MAP_DESIGN_W};`);
+      next = next.replace(/const MAP_H_DEFAULT = \d+;/, `const MAP_H_DEFAULT = ${WORLD_MAP_DESIGN_H};`);
+
       const blockPattern = /(const WORLD_FIXED_MAP_H:\s*Record<string,\s*number>\s*=\s*\{)([\s\S]*?)(\n\};)/;
-      const match = blockPattern.exec(code);
+      const match = blockPattern.exec(next);
       if (!match) throw new Error("Could not locate WORLD_FIXED_MAP_H in WorldPage.tsx");
 
-      let body = match[2];
-      for (const [worldId, mapHeight] of Object.entries(CANONICAL_WORLD_MAP_HEIGHTS)) {
-        const linePattern = new RegExp(`(^\\s*${worldId}:\\s*)\\d+`, "m");
-        if (!linePattern.test(body)) {
-          throw new Error(`Could not locate ${worldId} in WORLD_FIXED_MAP_H`);
-        }
-        body = body.replace(linePattern, `$1${mapHeight}`);
-      }
-
+      const body = match[2].replace(/(^\s*[a-z_]+:\s*)\d+/gm, `$1${WORLD_MAP_DESIGN_H}`);
       const start = match.index;
       const end = start + match[0].length;
-      return {
-        code: code.slice(0, start) + match[1] + body + match[3] + code.slice(end),
-        map: null,
-      };
+      next = next.slice(0, start) + match[1] + body + match[3] + next.slice(end);
+
+      return { code: next, map: null };
     },
   };
 }
@@ -83,7 +49,7 @@ function canonicalWorldMapHeightPlugin(): Plugin {
 export default defineConfig({
   define: { __BUILD_ID__: JSON.stringify(buildId) },
   plugins: [
-    canonicalWorldMapHeightPlugin(),
+    fixedWorldMapCanvasPlugin(),
     react(),
     runtimeErrorOverlay(),
     ...(process.env.NODE_ENV !== "production" &&

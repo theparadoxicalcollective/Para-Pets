@@ -2,22 +2,28 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { calculateWorldFitScale } from "../client/src/lib/worldViewport";
 
-test("short Safari world view uses the same cover presentation as the installed app", () => {
-  const scale = calculateWorldFitScale(390, 760, 1621, true);
-  assert.equal(scale, 760 / 1621);
-  assert.ok(1080 * scale >= 390);
-  assert.ok(1621 * scale >= 760);
+const MAP_W = 924;
+const MAP_H = 1703;
+
+test("phone browser fits the entire 924x1703 world composition", () => {
+  const frameW = 390;
+  const frameH = 760;
+  const scale = calculateWorldFitScale(frameW, frameH, MAP_H, true);
+  assert.equal(scale, Math.min(frameW / MAP_W, frameH / MAP_H));
+  assert.ok(MAP_W * scale <= frameW + 0.000001);
+  assert.ok(MAP_H * scale <= frameH + 0.000001);
 });
 
-test("standalone portrait world view preserves the cover presentation", () => {
-  const scale = calculateWorldFitScale(390, 844, 1621, false);
-  assert.equal(scale, 844 / 1621);
-  assert.ok(1080 * scale >= 390);
-  assert.ok(1621 * scale >= 844);
+test("standalone portrait view cannot overflow horizontally or vertically", () => {
+  const frameW = 390;
+  const frameH = 844;
+  const scale = calculateWorldFitScale(frameW, frameH, MAP_H, false);
+  assert.ok(MAP_W * scale <= frameW + 0.000001);
+  assert.ok(MAP_H * scale <= frameH + 0.000001);
 });
 
-test("browser display mode cannot change a world's fit for the same viewport", () => {
-  const browser = calculateWorldFitScale(390, 760, 1440, true);
-  const installed = calculateWorldFitScale(390, 760, 1440, false);
+test("browser display mode does not change fixed world fit", () => {
+  const browser = calculateWorldFitScale(390, 760, MAP_H, true);
+  const installed = calculateWorldFitScale(390, 760, MAP_H, false);
   assert.equal(browser, installed);
 });
