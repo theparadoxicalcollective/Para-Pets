@@ -11,6 +11,7 @@ import {
   recordClearingRegularDefeat,
   respawnClearingEnemy,
   scaleClearingEnemy,
+  selectClearingBlessing,
   updateClearingEnemyPositions,
   updateClearingPosition,
 } from "../elysianClearingCombat";
@@ -130,6 +131,7 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
       const eggDrops = await getSpecialEggDrops(db, { userId: user.id, sessionId: session.id, clearingId: ELYSIAN_CLEARING_COMBAT.locationId });
       return res.json({
         sessionId: session.id,
+        huntBlessing: session.huntBlessing,
         loadout,
         pet: { inventoryId: pet.id, maxHealth: stats.hp, attack: scaleClearingEnemy(stats).petDamage, defense: stats.def },
         enemies: session.enemies.map(({ lastHitAt: _lastHitAt, positionUpdatedAt: _positionUpdatedAt, ...enemy }) => enemy),
@@ -145,6 +147,15 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
       });
       return res.status(503).json({ code: "CLEARING_TEMPORARILY_UNAVAILABLE", message: "The Clearing is temporarily unavailable" });
     }
+  });
+
+  app.post("/api/explore/elysian-clearing/blessing", isAuthenticated, (req, res) => {
+    const { sessionId, huntId, blessing } = req.body ?? {};
+    if (typeof sessionId !== "string" || typeof huntId !== "string") return res.status(400).json({ message: "Invalid blessing request" });
+    const user = req.user as any;
+    const selected = selectClearingBlessing({ sessionId, huntId, blessing, userId: user.id, petId: user.activePetId });
+    if (!selected) return res.status(409).json({ message: "This blessing is no longer available for this hunt" });
+    return res.json({ huntBlessing: selected });
   });
 
   app.post("/api/explore/elysian-clearing/boss/advance", isAuthenticated, (req, res) => {
@@ -286,7 +297,7 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
 
       const primary = hits[0];
       if (!primary) return res.status(409).json({ code: "CLEARING_NO_TARGET", message: "No enemy could be struck" });
-      return res.json({ ...primary, hits, lockedTargetInstanceId: session.lockedTargetInstanceId });
+      return res.json({ ...primary, hits, huntBlessing: session.huntBlessing, lockedTargetInstanceId: session.lockedTargetInstanceId });
     } catch (error: any) {
       console.error("Clearing attack failed", { userId: user.id, code: error?.code ?? "unknown" });
       return res.status(500).json({ code: "CLEARING_ATTACK_FAILED", message: "The Clearing attack could not be completed" });

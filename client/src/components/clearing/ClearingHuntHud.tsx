@@ -1,3 +1,4 @@
+import { CLEARING_BLESSINGS, type ClearingBlessingId } from "@shared/clearingBlessings";
 import { useState } from "react";
 import { CLEARING_BOSS_ENCOUNTER } from "@shared/clearingConfig";
 import type { ClearingHuntSummary } from "@/lib/clearingHuntSummary";
@@ -7,11 +8,14 @@ interface Props {
   phase: "regular" | "preparing" | "active";
   complete: boolean;
   hunt: ClearingHuntSummary;
+  blessing?: ClearingBlessingId | null;
+  blessingAvailable?: boolean;
+  onChooseBlessing?: () => void;
   onContinue: () => void;
   onReturn: () => void;
 }
 
-export default function ClearingHuntHud({ regularDefeats, phase, complete, hunt, onContinue, onReturn }: Props) {
+export default function ClearingHuntHud({ regularDefeats, phase, complete, hunt, blessing, blessingAvailable, onChooseBlessing, onContinue, onReturn }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const target = CLEARING_BOSS_ENCOUNTER.regularDefeatThreshold;
   const progress = complete || phase !== "regular" ? target : Math.min(target, Math.max(0, regularDefeats));
@@ -27,6 +31,8 @@ export default function ClearingHuntHud({ regularDefeats, phase, complete, hunt,
       <div role="progressbar" aria-label="Progress toward the Clearing boss" aria-valuemin={0} aria-valuemax={target} aria-valuenow={progress} className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/40">
         <div className="h-full rounded-full bg-amber-300 transition-[width] motion-reduce:transition-none" style={{ width: `${progress / target * 100}%` }} />
       </div>
+      {!complete && blessing && <p className="mt-2 text-[11px] text-emerald-100" title={CLEARING_BLESSINGS[blessing].description}>{CLEARING_BLESSINGS[blessing].name} · This hunt</p>}
+      {!complete && blessingAvailable && <button type="button" className="mt-2 min-h-11 w-full rounded-lg bg-amber-300 px-2 text-xs font-bold text-emerald-950" onClick={onChooseBlessing}>Choose your blessing</button>}
       {complete && !collapsed && <div id="clearing-hunt-results" className="mt-3 max-h-[42dvh] overflow-y-auto border-t border-amber-300/20 pt-3">
         <p className="text-center font-fantasy text-base text-amber-200">{hunt.bossName || "Clearing boss"} defeated</p>
         <dl className="mt-3 grid grid-cols-2 gap-2 text-center text-xs">

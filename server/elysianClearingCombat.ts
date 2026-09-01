@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { CLEARING_BLESSING_DEFEATS, clearingBlessedBasicDamage, isClearingBlessing, type ClearingHuntBlessingState } from "@shared/clearingBlessings";
 import { CLEARING_BALANCE, CLEARING_BOSS_ENCOUNTER } from "@shared/clearingConfig";
 import { selectClearingSpecialMob, type ClearingSpecialMobTemplate } from "./clearingSpecialMobs";
 import { CLEARING_AIM_GEOMETRY, CLEARING_PET_COMBAT_RADIUS, clearingCollisionGapDistance, clearingDistanceToRay, clearingHitboxEdgeDistance, clearingPointInDirection, isFiniteClearingPoint, normalizeClearingDirection, type ClearingDirection, type ClearingPoint } from "@shared/clearingCombatGeometry";
@@ -31,7 +32,7 @@ export interface ClearingEnemyRecord {
 }
 export type ClearingBossPhase = "regular" | "preparing" | "active";
 export interface ClearingBossProgress { regularDefeats:number; bossPhase:ClearingBossPhase; bossReadyAt:number|null }
-export interface ClearingSession { id: string; userId: string; petId: string; expiresAt: number; effectiveStats: { hp: number; atk: number; def: number }; enemies: ClearingEnemyRecord[]; position:{x:number;y:number;updatedAt:number}; worldPixels?:{width:number;height:number}; lockedTargetInstanceId:string|null; processedAttacks:Map<string,ClearingHitResult>; clearingBossProgress:ClearingBossProgress; bossTemplate?:ClearingEnemyTemplate; regularTemplates:ClearingEnemyTemplate[]; scaledEnemy:ReturnType<typeof scaleClearingEnemy> }
+export interface ClearingSession { huntBlessing:ClearingHuntBlessingState; id: string; userId: string; petId: string; expiresAt: number; effectiveStats: { hp: number; atk: number; def: number }; enemies: ClearingEnemyRecord[]; position:{x:number;y:number;updatedAt:number}; worldPixels?:{width:number;height:number}; lockedTargetInstanceId:string|null; processedAttacks:Map<string,ClearingHitResult>; clearingBossProgress:ClearingBossProgress; bossTemplate?:ClearingEnemyTemplate; regularTemplates:ClearingEnemyTemplate[]; scaledEnemy:ReturnType<typeof scaleClearingEnemy> }
 type ClearingHitResult={status:"invalid"|"target_locked"|"defeated"|"direction"|"desync"|"range"|"hit"|"killed";enemy?:ClearingEnemyRecord;damage?:number;lockedTargetInstanceId?:string|null;diagnostic?:ClearingAttackDiagnostic};
 export type ClearingAttackDiagnostic={enemyInstanceId:string;playerPosition:ClearingPoint;clientTargetPosition:ClearingPoint;serverEnemyPosition:ClearingPoint;edgeDistance:number;allowedRange:number;rejectionReason:string};
 
@@ -74,6 +75,7 @@ export function createClearingSession(userId: string, petId: string, stats: Clea
   const scaled=scaleClearingEnemy(scalingStats),special=selectClearingSpecialMob(specialTemplates,random),bossTemplate=resolveClearingBossTemplate(templates),regularTemplates=templates.filter(template=>!template.is_boss&&template.enemy_id!==bossTemplate.enemy_id),encounterTemplates=selectClearingEncounterTemplates(ELYSIAN_CLEARING_COMBAT.enemyCount,regularTemplates,random);if(special)encounterTemplates[encounterTemplates.length-1]=undefined;const encounterPositions=layoutClearingEncounter(encounterTemplates,random);
   const session: ClearingSession = {
     id: crypto.randomUUID(), userId, petId, expiresAt: now + ELYSIAN_CLEARING_COMBAT.sessionLifetimeMs,
+    huntBlessing: { huntId: crypto.randomUUID(), selected: null },
     effectiveStats: { hp: stats.hp, atk: stats.atk, def: stats.def ?? 0 },
     clearingBossProgress:{regularDefeats:0,bossPhase:"regular",bossReadyAt:null},
     bossTemplate,regularTemplates,scaledEnemy:scaled,
@@ -117,7 +119,18 @@ export function completeClearingBossEncounter(sessionId:string,instanceId:string
   if(!session||!boss?.isBoss||!boss.defeated||session.clearingBossProgress.bossPhase!=="active")return null;
   const templates=selectClearingEncounterTemplates(ELYSIAN_CLEARING_COMBAT.enemyCount,session.regularTemplates,random),positions=layoutClearingEncounter(templates,random);
   session.enemies=templates.map((template,slot)=>{const spawn=positions[slot],maxHealth=session.scaledEnemy.maxHealth;return{instanceId:crypto.randomUUID(),slot,maxHealth,health:maxHealth,attack:session.scaledEnemy.attack,defeated:false,lastHitAt:0,x:spawn?.x??.5,y:spawn?.y??.6,positionUpdatedAt:now,isBoss:false,engagedByPlayer:false,templateId:template?.enemy_id,name:template?.name,imageUrl:template?.image_url};});
+  session.huntBlessing={huntId:crypto.randomUUID(),selected:null};
   session.clearingBossProgress={regularDefeats:0,bossPhase:"regular",bossReadyAt:null};session.lockedTargetInstanceId=null;return session.enemies;
+}
+
+/** A choice belongs to one server-created hunt. Retrying it cannot stack or change it. */
+export function selectClearingBlessing(input: { sessionId: string; userId: string; petId: string; huntId: string; blessing: unknown; now?: number }) {
+  const session = sessions.get(input.sessionId);
+  if (!session || session.userId !== input.userId || session.petId !== input.petId || session.expiresAt <= (input.now ?? Date.now())) return null;
+  if (session.huntBlessing.huntId !== input.huntId || !isClearingBlessing(input.blessing) || session.clearingBossProgress.regularDefeats < CLEARING_BLESSING_DEFEATS) return null;
+  if (session.huntBlessing.selected && session.huntBlessing.selected !== input.blessing) return null;
+  session.huntBlessing = { huntId: input.huntId, selected: input.blessing };
+  return session.huntBlessing;
 }
 
 export function getClearingSession(sessionId:string){return sessions.get(sessionId)??null;}
@@ -182,7 +195,7 @@ export function applyClearingHit(input: { sessionId: string; instanceId: string;
   session.lockedTargetInstanceId=enemy.instanceId;
   enemy.lastHitAt = now;
   const previousHealth=enemy.health;
-  enemy.health = Math.max(0, enemy.health - clamp(Math.round(input.petDamage ?? session.effectiveStats.atk), 20, 5_000));
+  enemy.health = Math.max(0, enemy.health - clamp(Math.round(input.petDamage ?? clearingBlessedBasicDamage(session.effectiveStats.atk, session.huntBlessing.selected)), 20, 5_000));
   enemy.engagedByPlayer = enemy.health > 0;
   enemy.defeated = enemy.health === 0;
   if(enemy.defeated&&session.lockedTargetInstanceId===enemy.instanceId)session.lockedTargetInstanceId=null;
