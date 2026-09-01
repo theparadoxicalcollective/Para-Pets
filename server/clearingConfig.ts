@@ -5,7 +5,7 @@ export async function getClearingConfig(db:any, worldId:string) {
   const [world,drops,enemies,specialMobs]=await Promise.all([
     db.execute(sql`SELECT id,name FROM worlds WHERE id=${worldId}`),
     db.execute(sql`SELECT d.id,d.world_id,d.shop_item_id,d.rarity,s.name,s.image_url,s.type,s.world_id AS item_world_id,s.star_rarity,s.clearing_slot,s.atk_boost,s.def_boost,s.health_boost FROM clearing_world_drops d JOIN shop_items s ON s.id=d.shop_item_id WHERE d.world_id=${worldId} ORDER BY s.name`),
-    db.execute(sql`SELECT a.id,a.world_id,a.enemy_id,a.is_boss,a.sort_order,e.name,e.image_url FROM clearing_world_enemies a JOIN enemies e ON e.id=a.enemy_id WHERE a.world_id=${worldId} ORDER BY a.sort_order,e.name`),
+    db.execute(sql`SELECT a.id,a.world_id,a.enemy_id,a.is_boss,a.sort_order,e.name,e.image_url,CASE WHEN a.is_boss THEN 'boss' WHEN t.value='mini_boss' THEN 'mini_boss' ELSE 'regular' END AS enemy_type FROM clearing_world_enemies a JOIN enemies e ON e.id=a.enemy_id LEFT JOIN game_settings t ON t.key='clearing-enemy-type:'||a.id WHERE a.world_id=${worldId} ORDER BY a.sort_order,e.name`),
     db.execute(sql`SELECT a.id,a.world_id,a.pet_shop_item_id,s.name,s.rarity,s.egg_image_url,s.hatched_image_url,s.image_url FROM clearing_world_special_mobs a JOIN shop_items s ON s.id=a.pet_shop_item_id WHERE a.world_id=${worldId} ORDER BY s.rarity,s.name`),
   ]);
   return {world:world.rows[0]??null,drops:drops.rows.map((r:any)=>({...r,effective_rarity:effectiveClearingRarity(r.rarity,Number(r.star_rarity||0))})),enemies:enemies.rows,specialMobs:specialMobs.rows,missingEnemies:enemies.rows.length===0,hasBossWithoutRare:enemies.rows.some((e:any)=>e.is_boss)&&!drops.rows.some((d:any)=>effectiveClearingRarity(d.rarity,Number(d.star_rarity||0))==="rare")};

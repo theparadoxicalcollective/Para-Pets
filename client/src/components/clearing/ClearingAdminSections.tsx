@@ -1,3 +1,4 @@
+import { CLEARING_ENEMY_TYPES, CLEARING_ENEMY_TYPE_LABELS, resolveClearingEnemyType, type ClearingEnemyType } from "@shared/clearingEnemyTypes";
 import { useMemo, useState, type ReactNode } from "react";
 import { Plus, Search, Trash2, X } from "lucide-react";
 import { itemTypeLabel, itemTypeOptions } from "@/lib/itemTypeFilters";
@@ -183,12 +184,14 @@ export function ClearingAddItemModal({
   items,
   onClose,
   render,
+  controls,
 }: {
   title: string;
   searchLabel: string;
   items: any[];
   onClose: () => void;
   render: (item: any) => ReactNode;
+  controls?: ReactNode;
 }) {
   const [search, setSearch] = useState("");
   const [type, setType] = useState("all");
@@ -213,8 +216,8 @@ export function ClearingAddItemModal({
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="max-h-[85dvh] w-full max-w-2xl overflow-hidden rounded-2xl border border-amber-500/60 bg-[#21170e] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-amber-800/40 px-3 py-2.5 sm:p-4">
+      <div className="flex max-h-[85dvh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-amber-500/60 bg-[#21170e] shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-amber-800/40 px-3 py-2.5 sm:p-4">
           <h3 className="font-fantasy text-lg font-black text-amber-100 sm:text-xl">
             {title}
           </h3>
@@ -228,8 +231,9 @@ export function ClearingAddItemModal({
           </button>
         </div>
 
-        <div className="p-3 sm:p-4">
-          <label className="text-sm font-bold text-amber-200">
+        <div className="flex min-h-0 flex-col p-3 sm:p-4">
+          {controls && <div className="shrink-0">{controls}</div>}
+          <label className="shrink-0 text-sm font-bold text-amber-200">
             {searchLabel}
             <span className="relative mt-1 block">
               <Search className="absolute left-3 top-3 h-5 w-5 text-stone-400" />
@@ -243,7 +247,7 @@ export function ClearingAddItemModal({
           </label>
 
           {types.length > 1 && (
-            <div className="mt-2 flex gap-2 overflow-x-auto pb-1" aria-label="Filter catalog by item type">
+            <div className="mt-2 flex shrink-0 gap-2 overflow-x-auto pb-1" aria-label="Filter catalog by item type">
               <button
                 type="button"
                 aria-pressed={type === "all"}
@@ -274,12 +278,12 @@ export function ClearingAddItemModal({
             </div>
           )}
 
-          <p className="mt-1.5 text-xs text-stone-400">
+          <p className="mt-1.5 shrink-0 text-xs text-stone-400">
             {filtered.length} result{filtered.length === 1 ? "" : "s"}
             {type !== "all" ? ` · ${itemTypeLabel(type)}` : ""}
           </p>
 
-          <div className="mt-2 max-h-[55dvh] space-y-2 overflow-y-auto pr-1">
+          <div className="mt-2 min-h-0 max-h-[55dvh] space-y-2 overflow-y-auto pr-1">
             {filtered.map(render)}
             {filtered.length === 0 && (
               <p className="rounded-xl border border-dashed border-amber-700/40 p-8 text-center text-stone-400">
@@ -423,117 +427,72 @@ export function ClearingDropsAdmin({
   );
 }
 
-export function ClearingEnemiesAdmin({
-  worldId,
-  config,
-  catalog,
-  busy,
-  act,
-}: {
-  worldId: string;
-  config: ClearingConfig;
-  catalog: any[];
-  busy: boolean;
-  act: Act;
+export function ClearingEnemiesAdmin({ worldId, config, catalog, busy, act }: {
+  worldId: string; config: ClearingConfig; catalog: any[]; busy: boolean; act: Act;
 }) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<ClearingEnemyType | "all">("all");
+  const [addType, setAddType] = useState<ClearingEnemyType>("regular");
   const assigned = new Set(config.enemies.map((item) => item.enemy_id));
   const available = catalog.filter((item) => !assigned.has(item.id));
   const hasRare = config.drops.some((drop) => drop.effective_rarity === "rare");
-
-  return (
-    <AdminList
-      title="Assigned Enemies"
-      count={config.enemies.length}
-      addLabel="Add Enemy"
-      onAdd={() => setOpen(true)}
-      empty="No enemies are assigned."
-    >
-      {config.enemies.map((enemy) => (
-        <ClearingAssignmentCard
-          key={enemy.id}
-          image={enemy.image_url}
-          name={enemy.name}
-          details={enemy.is_boss ? "Boss encounter" : "Regular encounter"}
-          actions={
-            <>
-              <label className="flex min-w-0 flex-1 items-center justify-between gap-2 text-xs font-bold sm:flex-none">
-                <span>Encounter</span>
-                <select
-                  aria-label={`${enemy.name} encounter status`}
-                  className={`${inlineSelect} min-w-[7rem]`}
-                  value={enemy.is_boss ? "boss" : "regular"}
-                  disabled={busy}
-                  onChange={(event) =>
-                    act({
-                      method: "PATCH",
-                      url: `/api/admin/clearing/enemies/${enemy.id}`,
-                      body: { isBoss: event.target.value === "boss" },
-                      success: `${enemy.name} updated.`,
-                    })
-                  }
-                >
-                  <option value="regular">Regular</option>
-                  <option value="boss" disabled={!hasRare}>
-                    Boss
-                  </option>
-                </select>
-              </label>
-              <button
-                type="button"
-                className={`${iconButton} border-red-500/50 bg-red-950`}
-                disabled={busy}
-                onClick={() =>
-                  confirmRemove(enemy.name, () =>
-                    act({
-                      method: "DELETE",
-                      url: `/api/admin/clearing/enemies/${enemy.id}`,
-                      success: `${enemy.name} removed.`,
-                    }),
-                  )
-                }
-              >
-                <Trash2 className="h-4 w-4" />
-                <span className="sr-only">Remove {enemy.name}</span>
-              </button>
-            </>
-          }
-        />
-      ))}
-
-      {!hasRare && (
-        <p className="rounded-lg border border-amber-600/50 bg-amber-950/40 p-2.5 text-xs leading-5 text-amber-100">
-          Configure an effective Rare drop before enabling a boss.
-        </p>
-      )}
-
-      {open && (
-        <ClearingAddItemModal
-          title="Add Enemy"
-          searchLabel="Search enemies by name"
-          items={available}
-          onClose={() => setOpen(false)}
-          render={(enemy) => (
-            <Picker
-              key={enemy.id}
-              item={enemy}
-              detail="Added as a Regular enemy"
-              disabled={busy}
-              label="Add"
-              onClick={() =>
-                act({
-                  method: "POST",
-                  url: `/api/admin/clearing/worlds/${worldId}/enemies`,
-                  body: { enemyId: enemy.id, isBoss: false },
-                  success: `${enemy.name} added.`,
-                })
-              }
-            />
-          )}
-        />
-      )}
-    </AdminList>
+  const counts = Object.fromEntries(CLEARING_ENEMY_TYPES.map(type => [type, config.enemies.filter(enemy => resolveClearingEnemyType(enemy) === type).length]));
+  const visible = config.enemies.filter(enemy =>
+    (filter === "all" || resolveClearingEnemyType(enemy) === filter) &&
+    enemy.name.toLowerCase().includes(search.trim().toLowerCase()),
   );
+  const options = <>
+    <option value="regular">Regular</option>
+    <option value="mini_boss">Mini boss</option>
+    <option value="boss" disabled={!hasRare}>Boss</option>
+  </>;
+
+  return <AdminList title="Assigned Enemies" count={config.enemies.length} addLabel="Add Enemy"
+    onAdd={() => { setAddType("regular"); setOpen(true); }} empty="No enemies are assigned.">
+    <div className="flex flex-wrap gap-1.5" aria-label="Enemy roster counts">
+      {CLEARING_ENEMY_TYPES.map(type => <span key={type} className="rounded-full border border-amber-700/50 bg-black/25 px-2.5 py-1 text-xs text-amber-100">{CLEARING_ENEMY_TYPE_LABELS[type]}: {counts[type]}</span>)}
+    </div>
+    <p className="text-xs leading-5 text-stone-300">Assignments apply when players enter a new Clearing session. Special pets stay in the Special tab and appear randomly.</p>
+    <p className="rounded-lg bg-amber-950/45 px-2.5 py-2 text-xs leading-5 text-amber-200">Mini boss saves a roster classification for the upcoming encounter update. For now, these enemies use regular combat and rewards.</p>
+    {counts.boss > 1 && <p className="text-xs leading-5 text-amber-200">Only the first configured boss is currently used in hunts. Boss rotation is planned for the encounter update.</p>}
+    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem]">
+      <label className="text-xs font-bold text-amber-200">Search assigned enemies
+        <input type="search" value={search} onChange={event => setSearch(event.target.value)} className={`${field} mt-1`} />
+      </label>
+      <label className="text-xs font-bold text-amber-200">Filter by enemy type
+        <select value={filter} onChange={event => setFilter(event.target.value as ClearingEnemyType | "all")} className={`${field} mt-1`}>
+          <option value="all">All types</option>
+          {CLEARING_ENEMY_TYPES.map(type => <option key={type} value={type}>{CLEARING_ENEMY_TYPE_LABELS[type]}</option>)}
+        </select>
+      </label>
+    </div>
+    <p className="text-xs text-stone-400" role="status">Showing {visible.length} of {config.enemies.length} enemies</p>
+    {visible.map(enemy => <ClearingAssignmentCard key={enemy.id} image={enemy.image_url} name={enemy.name}
+      details={resolveClearingEnemyType(enemy) === "mini_boss" ? "Mini boss · Encounter behavior coming soon" : `${CLEARING_ENEMY_TYPE_LABELS[resolveClearingEnemyType(enemy)]} encounter`}
+      actions={<>
+        <label className="flex min-w-0 flex-1 items-center justify-between gap-2 text-xs font-bold sm:flex-none">
+          <span>Enemy type</span>
+          <select aria-label={`${enemy.name} enemy type`} className={`${inlineSelect} min-w-[7rem]`} value={resolveClearingEnemyType(enemy)} disabled={busy}
+            onChange={event => act({ method: "PATCH", url: `/api/admin/clearing/enemies/${enemy.id}`, body: { enemyType: event.target.value }, success: `${enemy.name} updated.` })}>
+            {options}
+          </select>
+        </label>
+        <button type="button" className={`${iconButton} border-red-500/50 bg-red-950`} disabled={busy}
+          onClick={() => confirmRemove(enemy.name, () => act({ method: "DELETE", url: `/api/admin/clearing/enemies/${enemy.id}`, success: `${enemy.name} removed.` }))}>
+          <Trash2 className="h-4 w-4" /><span className="sr-only">Remove {enemy.name}</span>
+        </button>
+      </>} />)}
+    {!!config.enemies.length && !visible.length && <Empty text="No enemies match this search and type." />}
+    {!hasRare && <p className="rounded-lg border border-amber-600/50 bg-amber-950/40 p-2.5 text-xs leading-5 text-amber-100">Configure an effective Rare drop before enabling a boss.</p>}
+    {open && <ClearingAddItemModal title="Add Enemy" searchLabel="Search enemies by name" items={available} onClose={() => setOpen(false)}
+      controls={<label className="mb-3 block text-sm font-bold text-amber-200">Add as enemy type
+        <select value={addType} disabled={busy} onChange={event => setAddType(event.target.value as ClearingEnemyType)} className={`${field} mt-1`}>{options}</select>
+      </label>}
+      render={enemy => <Picker key={enemy.id} item={enemy} detail={`Add as ${CLEARING_ENEMY_TYPE_LABELS[addType]}`} disabled={busy || (addType === "boss" && !hasRare)} label="Add"
+        onClick={() => act({ method: "POST", url: `/api/admin/clearing/worlds/${worldId}/enemies`, body: { enemyId: enemy.id, enemyType: addType }, success: `${enemy.name} added.` })} />}
+    />}
+  </AdminList>;
 }
 
 export function ClearingSpecialMobsAdmin({
@@ -672,7 +631,7 @@ function AdminListHeader({
         <h3 className="truncate text-base font-black text-amber-100 sm:text-lg">{title}</h3>
         <p className="text-xs text-stone-400">{count} configured</p>
       </div>
-      <button type="button" className={`${button} shrink-0`} onClick={onAdd}>
+      <button type="button" aria-label={addLabel} className={`${button} shrink-0`} onClick={onAdd}>
         <Plus className="h-4 w-4" />
         <span className="hidden sm:inline">{addLabel}</span>
         <span className="sm:hidden">Add</span>
