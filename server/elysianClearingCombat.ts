@@ -68,9 +68,10 @@ export function selectClearingEncounterTemplates(count:number,templates:Clearing
   return selected;
 }
 
-export function createClearingSession(userId: string, petId: string, stats: ClearingPetStats, now = Date.now(), random=Math.random, templates:ClearingEnemyTemplate[]=[], specialTemplates:ClearingSpecialMobTemplate[]=[]): ClearingSession {
+export function createClearingSession(userId: string, petId: string, stats: ClearingPetStats, now = Date.now(), random=Math.random, templates:ClearingEnemyTemplate[]=[], specialTemplates:ClearingSpecialMobTemplate[]=[], scalingStats:ClearingPetStats=stats): ClearingSession {
   for (const [id, session] of sessions) if (session.expiresAt <= now || session.userId === userId) sessions.delete(id);
-  const scaled=scaleClearingEnemy(stats),special=selectClearingSpecialMob(specialTemplates,random),bossTemplate=resolveClearingBossTemplate(templates),regularTemplates=templates.filter(template=>!template.is_boss&&template.enemy_id!==bossTemplate.enemy_id),encounterTemplates=selectClearingEncounterTemplates(ELYSIAN_CLEARING_COMBAT.enemyCount,regularTemplates,random);if(special)encounterTemplates[encounterTemplates.length-1]=undefined;const encounterPositions=layoutClearingEncounter(encounterTemplates,random);
+  // Gear improves this encounter rather than increasing enemy stats alongside it.
+  const scaled=scaleClearingEnemy(scalingStats),special=selectClearingSpecialMob(specialTemplates,random),bossTemplate=resolveClearingBossTemplate(templates),regularTemplates=templates.filter(template=>!template.is_boss&&template.enemy_id!==bossTemplate.enemy_id),encounterTemplates=selectClearingEncounterTemplates(ELYSIAN_CLEARING_COMBAT.enemyCount,regularTemplates,random);if(special)encounterTemplates[encounterTemplates.length-1]=undefined;const encounterPositions=layoutClearingEncounter(encounterTemplates,random);
   const session: ClearingSession = {
     id: crypto.randomUUID(), userId, petId, expiresAt: now + ELYSIAN_CLEARING_COMBAT.sessionLifetimeMs,
     effectiveStats: { hp: stats.hp, atk: stats.atk, def: stats.def ?? 0 },
