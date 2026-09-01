@@ -124,16 +124,21 @@ export default function WorldLocations({
     <div className="absolute inset-0">
       <style>{`
         @keyframes worldHotspotSparklePulse {
-          0%, 100% { opacity: .42; transform: scale(.82); }
-          50% { opacity: .9; transform: scale(1.08); }
+          0%, 100% { opacity: .72; transform: translate(-50%, -50%) scale(.88); }
+          50% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
         }
         @keyframes worldHotspotSparkleTwinkle {
-          0%, 100% { opacity: .25; transform: translate(-50%, -50%) scale(.65) rotate(0deg); }
-          50% { opacity: .95; transform: translate(-50%, -50%) scale(1.15) rotate(45deg); }
+          0%, 100% { opacity: .18; transform: translate(-50%, -50%) scale(.5) rotate(0deg); }
+          45% { opacity: 1; transform: translate(-50%, -50%) scale(1.25) rotate(45deg); }
+        }
+        @keyframes worldHotspotSparkleCore {
+          0%, 100% { opacity: .78; transform: translate(-50%, -50%) scale(.82); }
+          50% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
         }
         @media (prefers-reduced-motion: reduce) {
           .world-hotspot-sparkle-pulse,
-          .world-hotspot-sparkle-twinkle { animation: none !important; }
+          .world-hotspot-sparkle-twinkle,
+          .world-hotspot-sparkle-core { animation: none !important; }
         }
       `}</style>
 
@@ -147,7 +152,7 @@ export default function WorldLocations({
           const isDragging = draggingLocationId === loc.id;
           const isSelected = selectedLocId === loc.id;
           const hotspotSize = loc.iconSize || 300;
-          const sparkleSize = Math.max(18, Math.min(42, hotspotSize * 0.12));
+          const sparkleSize = Math.max(30, Math.min(56, hotspotSize * 0.16));
 
           return (
             <div
@@ -246,49 +251,56 @@ export default function WorldLocations({
                     <span
                       data-testid={`location-sparkle-${loc.id}`}
                       aria-hidden="true"
-                      className="world-hotspot-sparkle-pulse absolute left-1/2 top-1/2 block rounded-full"
+                      className="world-hotspot-sparkle-pulse absolute left-1/2 top-1/2 block"
                       style={{
                         width: `${sparkleSize}px`,
                         height: `${sparkleSize}px`,
                         transform: "translate(-50%, -50%)",
-                        animation: `worldHotspotSparklePulse ${2.8 + ((i * 0.37) % 1.3)}s ease-in-out infinite`,
-                        animationDelay: `${(i * 0.43) % 1.8}s`,
-                        background: "radial-gradient(circle, rgba(255,247,196,.88) 0%, rgba(255,216,92,.42) 26%, rgba(255,186,35,.13) 55%, transparent 75%)",
-                        boxShadow: "0 0 8px rgba(255,214,90,.28), 0 0 18px rgba(255,185,40,.12)",
+                        animation: `worldHotspotSparklePulse ${2.4 + ((i * 0.29) % 1.1)}s ease-in-out infinite`,
+                        animationDelay: `${(i * 0.37) % 1.6}s`,
+                        filter: "drop-shadow(0 0 5px rgba(255,235,156,.95)) drop-shadow(0 0 12px rgba(255,190,44,.72))",
                       }}
                     >
+                      <span
+                        data-testid={`location-sparkle-core-${loc.id}`}
+                        className="world-hotspot-sparkle-core absolute left-1/2 top-1/2 block"
+                        style={{
+                          width: Math.max(12, sparkleSize * 0.42),
+                          height: Math.max(12, sparkleSize * 0.42),
+                          transform: "translate(-50%, -50%)",
+                          clipPath: "polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%)",
+                          background: "linear-gradient(135deg, #fffce8 8%, #ffe68a 45%, #ffb51f 100%)",
+                          boxShadow: "0 0 8px rgba(255,239,166,.95)",
+                          animation: `worldHotspotSparkleCore ${1.65 + ((i * 0.17) % 0.55)}s ease-in-out infinite`,
+                        }}
+                      />
                       {[
-                        { left: "50%", top: "14%", size: 3.5, delay: 0 },
-                        { left: "82%", top: "42%", size: 2.5, delay: 0.55 },
-                        { left: "67%", top: "78%", size: 3, delay: 1.05 },
-                        { left: "28%", top: "73%", size: 2.25, delay: 0.25 },
-                        { left: "16%", top: "38%", size: 2.75, delay: 0.8 },
+                        { left: "50%", top: "5%", size: 5.5, delay: 0 },
+                        { left: "84%", top: "22%", size: 3.5, delay: 0.45 },
+                        { left: "94%", top: "56%", size: 4.5, delay: 0.9 },
+                        { left: "72%", top: "87%", size: 3.25, delay: 0.2 },
+                        { left: "35%", top: "94%", size: 4, delay: 0.7 },
+                        { left: "7%", top: "69%", size: 3.5, delay: 1.05 },
+                        { left: "12%", top: "31%", size: 4.75, delay: 0.35 },
+                        { left: "35%", top: "18%", size: 2.75, delay: 0.8 },
                       ].map((spark, sparkIndex) => (
                         <span
                           key={sparkIndex}
+                          data-testid={`location-sparkle-particle-${loc.id}-${sparkIndex}`}
                           className="world-hotspot-sparkle-twinkle absolute block"
                           style={{
                             left: spark.left,
                             top: spark.top,
                             width: spark.size,
                             height: spark.size,
-                            borderRadius: "1px",
-                            background: "rgba(255, 240, 166, .95)",
-                            boxShadow: "0 0 4px rgba(255, 218, 95, .7)",
-                            animation: `worldHotspotSparkleTwinkle 2.2s ease-in-out ${spark.delay}s infinite`,
+                            transform: "translate(-50%, -50%)",
+                            clipPath: "polygon(50% 0%, 64% 36%, 100% 50%, 64% 64%, 50% 100%, 36% 64%, 0% 50%, 36% 36%)",
+                            background: "#fff1a8",
+                            boxShadow: "0 0 5px rgba(255, 211, 80, .9)",
+                            animation: `worldHotspotSparkleTwinkle 1.9s ease-in-out ${spark.delay}s infinite`,
                           }}
                         />
                       ))}
-                      <span
-                        className="absolute left-1/2 top-1/2 block rounded-full"
-                        style={{
-                          width: Math.max(3, sparkleSize * 0.16),
-                          height: Math.max(3, sparkleSize * 0.16),
-                          transform: "translate(-50%, -50%)",
-                          background: "rgba(255, 249, 218, .96)",
-                          boxShadow: "0 0 5px rgba(255, 226, 126, .85)",
-                        }}
-                      />
                     </span>
                   </button>
                 )}
