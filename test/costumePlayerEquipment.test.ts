@@ -29,8 +29,8 @@ test("The Closet uses the supplied artwork and keeps accessory and costume contr
   assert.ok(accessories >= 0 && costumes > accessories);
   assert.match(accessoryPage, /closetMode/);
   assert.match(section, /data-testid="section-costume-equipment"/);
-  assert.match(section, /COSTUMES/);
-  assert.match(section, /TAP AN EMPTY SLOT TO CHOOSE A COSTUME/);
+  assert.match(section, /ADORNMENTS/);
+  assert.match(section, /TAP AN EMPTY SLOT TO CHOOSE AN ADORNMENT/);
   assert.match(section, /setSelectedSlot\(slot\)/);
   assert.match(section, /data-testid="costume-slot-inventory"/);
   assert.match(section, /slot: selectedSlot/);
