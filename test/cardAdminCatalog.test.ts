@@ -39,7 +39,7 @@ test("border editor uses one persisted percentage layout per rarity", () => {
   assert.match(preview, /left: `\$\{metrics\.x\}%`/);
   assert.match(preview, /top: `\$\{metrics\.y\}%`/);
   assert.match(adminPanel, /button-save-card-border-layout/);
-  assert.match(routes, /PUT", "\/api\/admin\/card-border-layouts\/:rarity"/);
+  assert.match(routes, /app\.put\("\/api\/admin\/card-border-layouts\/:rarity", isAdmin/);
 });
 
 test("card APIs are admin-protected and durable", () => {
