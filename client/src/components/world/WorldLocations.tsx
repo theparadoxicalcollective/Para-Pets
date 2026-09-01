@@ -3,7 +3,6 @@ import { createPortal } from "react-dom";
 import {
   Copy,
   FlipHorizontal,
-  MapPin,
   Minus,
   Pencil,
   Plus,
@@ -49,16 +48,6 @@ interface WorldLocationsProps {
   onDuplicateLocation: (locationId: string) => void;
 }
 
-function thumbUrl(
-  url: string | null | undefined,
-  width: number,
-): string | null {
-  if (!url) return null;
-  if (url.startsWith("/world-assets/"))
-    return url.split("?")[0] + `?w=${width}`;
-  return url;
-}
-
 function isScrollableHauntedCasino(
   location: WorldLocationData,
   worldId: string,
@@ -96,15 +85,6 @@ export default function WorldLocations({
   const casinoScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    locations.forEach((location) => {
-      if (location.iconUrl) {
-        const image = new Image();
-        image.src = thumbUrl(location.iconUrl, 600)!;
-      }
-    });
-  }, [locations]);
-
-  useEffect(() => {
     if (!casinoScene) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -126,8 +106,37 @@ export default function WorldLocations({
     });
   };
 
+  const activateLocation = (loc: WorldLocationData) => {
+    if (isScrollableHauntedCasino(loc, worldId)) {
+      // Admins keep the existing first-tap-select behavior so a hotspot can be
+      // moved/resized safely. Once selected, the next tap opens the casino.
+      if (isAdmin && selectedLocId !== loc.id) {
+        onLocationClick(loc);
+        return;
+      }
+      setCasinoScene(loc);
+      return;
+    }
+    onLocationClick(loc);
+  };
+
   return (
     <div className="absolute inset-0">
+      <style>{`
+        @keyframes worldHotspotSparklePulse {
+          0%, 100% { opacity: .42; transform: scale(.82); }
+          50% { opacity: .9; transform: scale(1.08); }
+        }
+        @keyframes worldHotspotSparkleTwinkle {
+          0%, 100% { opacity: .25; transform: translate(-50%, -50%) scale(.65) rotate(0deg); }
+          50% { opacity: .95; transform: translate(-50%, -50%) scale(1.15) rotate(45deg); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .world-hotspot-sparkle-pulse,
+          .world-hotspot-sparkle-twinkle { animation: none !important; }
+        }
+      `}</style>
+
       {[...locations]
         .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
         .map((loc, i) => {
@@ -136,7 +145,10 @@ export default function WorldLocations({
               ? { x: dragPos.x, y: dragPos.y }
               : { x: loc.posX, y: loc.posY };
           const isDragging = draggingLocationId === loc.id;
-          const glow = loc.glowColor || accent;
+          const isSelected = selectedLocId === loc.id;
+          const hotspotSize = loc.iconSize || 300;
+          const sparkleSize = Math.max(18, Math.min(42, hotspotSize * 0.12));
+
           return (
             <div
               key={loc.id}
@@ -145,11 +157,11 @@ export default function WorldLocations({
               style={{
                 left: `${pos.x}%`,
                 top: `${pos.y}%`,
-                width: `${loc.iconSize || 300}px`,
+                width: `${hotspotSize}px`,
                 cursor: isAdmin ? "grab" : "pointer",
                 zIndex: isDragging
                   ? 200
-                  : selectedLocId === loc.id
+                  : isSelected
                     ? 150
                     : loc.type === "fishing" && !loc.isShop
                       ? 100 + i
@@ -161,215 +173,131 @@ export default function WorldLocations({
                 className="relative w-full"
                 style={{ aspectRatio: "1", pointerEvents: "none" }}
               >
-                {/* Pulsing glow orb behind icon — all location types except haunted_woods */}
-                {(loc.iconUrl || (loc.type === "fishing" && !loc.isShop)) &&
-                  worldId !== "haunted_woods" && (
-                    <div
-                      className="absolute inset-0 pointer-events-none"
-                      style={{
-                        background:
-                          worldId === "swamp"
-                            ? `radial-gradient(circle, ${glow}22 0%, ${glow}0d 40%, transparent 62%)`
-                            : `radial-gradient(circle, ${glow}45 0%, ${glow}18 45%, transparent 70%)`,
-                        animation:
-                          worldId === "swamp"
-                            ? `swampGlowPulse ${3.2 + ((i * 0.38) % 1.4)}s ease-in-out infinite`
-                            : `locGlowPulse ${2.6 + ((i * 0.31) % 1.2)}s ease-in-out infinite`,
-                        animationDelay: `${(i * 0.45) % 2.5}s`,
-                        borderRadius: "50%",
-                        zIndex: 0,
-                      }}
-                    />
-                  )}
-                {loc.iconUrl ||
-                (loc.type === "fishing" &&
-                  !loc.isShop &&
-                  worldId === "volcanic") ? (
-                  <div
-                    className="w-full h-full"
-                    style={
-                      loc.type === "fishing" &&
-                      !loc.isShop &&
-                      worldId !== "haunted_woods"
-                        ? { animation: "breathe 3s ease-in-out infinite" }
-                        : undefined
-                    }
-                  >
-                    <img
-                      src={
-                        loc.type === "fishing" &&
-                        !loc.isShop &&
-                        worldId === "volcanic"
-                          ? "/world-assets/icon_fishing_volcanic.png?w=600"
-                          : thumbUrl(loc.iconUrl, 600)!
-                      }
-                      alt={loc.name}
-                      className="w-full h-full object-contain relative z-10"
-                      draggable={false}
-                      style={{
-                        filter:
-                          loc.type === "fishing" && !loc.isShop
-                            ? worldId === "volcanic"
-                              ? // Tight rim glow: 1–2 px shadow hugs the icon silhouette so
-                                // it reads as a shiny outline rather than a large square bloom.
-                                // Gold inner rim → orange mid → no far spread.
-                                "drop-shadow(0 2px 5px rgba(0,0,0,0.65)) drop-shadow(0 0 1.5px rgba(251,191,36,1)) drop-shadow(0 0 5px rgba(251,146,60,0.65))"
-                              : worldId === "swamp"
-                                ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1.5px rgba(167,243,208,0.9)) drop-shadow(0 0 5px rgba(45,212,191,0.5))"
-                                : worldId === "haunted_woods"
-                                  ? "drop-shadow(0 2px 5px rgba(0,0,0,0.65))"
-                                  : "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1.5px rgba(186,230,253,0.9)) drop-shadow(0 0 5px rgba(56,189,248,0.5))"
-                            : // Non-fishing location icons (shops, NPCs, etc.) get a subtle
-                              // rim using the location's own glow colour so each icon has
-                              // a hint of its own identity without a large bloom. Bayou
-                              // (swamp) world uses a unified deep-forest-teal rim so the
-                              // icons feel of-a-piece with the swamp atmosphere instead
-                              // of each shouting its own colour.
-                              worldId === "haunted_woods"
-                              ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55))"
-                              : worldId === "swamp"
-                                ? "drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px rgba(45,138,120,0.85)) drop-shadow(0 0 4px rgba(20,83,75,0.55))"
-                                : `drop-shadow(0 2px 5px rgba(0,0,0,0.55)) drop-shadow(0 0 1px ${glow}cc) drop-shadow(0 0 4px ${glow}55)`,
-                        transform: loc.flipped ? "scaleX(-1)" : undefined,
-                        transition: "filter 0.15s ease, transform 0.15s ease",
-                      }}
-                    />
-                    {/* Glow layer — same img with intense drop-shadow, opacity pulses.
-                              drop-shadow follows PNG transparency so only the icon outline glows.
-                              Haunted Woods skips this layer (top-crown gradient handles its glow). */}
-                    {worldId !== "haunted_woods" && (
-                      <img
-                        src={
-                          loc.type === "fishing" &&
-                          !loc.isShop &&
-                          worldId === "volcanic"
-                            ? "/world-assets/icon_fishing_volcanic.png?w=600"
-                            : thumbUrl(loc.iconUrl, 600)!
-                        }
-                        aria-hidden
-                        className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-                        draggable={false}
-                        style={{
-                          filter:
-                            worldId === "swamp"
-                              ? `drop-shadow(0 0 3px ${glow}55) drop-shadow(0 0 6px ${glow}22)`
-                              : `drop-shadow(0 0 5px ${glow}) drop-shadow(0 0 12px ${glow}bb) drop-shadow(0 0 20px ${glow}66)`,
-                          opacity: worldId === "swamp" ? 0.1 : 0.15,
-                          animation:
-                            worldId === "swamp"
-                              ? `swampGlowRimPulse ${3.5 + ((i * 0.5) % 1.5)}s ease-in-out infinite`
-                              : `locGlowRimPulse ${3.0 + ((i * 0.41) % 1.6)}s ease-in-out infinite`,
-                          animationDelay: `${(i * 0.57) % 2.8}s`,
-                          zIndex: 11,
-                          transform: loc.flipped ? "scaleX(-1)" : undefined,
-                        }}
-                      />
-                    )}
-                    {/* Floating bubbles — fishing spots only (not shop buildings), not in haunted_woods */}
-                    {loc.type === "fishing" &&
-                      !loc.isShop &&
-                      worldId !== "haunted_woods" && (
-                        <div
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            zIndex: 50,
-                            pointerEvents: "none",
-                            overflow: "visible",
-                          }}
-                        >
-                          {[
-                            {
-                              left: "22%",
-                              bottom: "26%",
-                              size: 5,
-                              dur: "5.5s",
-                              delay: "0.0s",
-                            },
-                            {
-                              left: "50%",
-                              bottom: "20%",
-                              size: 6,
-                              dur: "5.2s",
-                              delay: "2.8s",
-                            },
-                            {
-                              left: "78%",
-                              bottom: "30%",
-                              size: 4,
-                              dur: "6.4s",
-                              delay: "1.2s",
-                            },
-                          ].map((b, bi) => (
-                            <div
-                              key={bi}
-                              style={{
-                                position: "absolute",
-                                bottom: b.bottom,
-                                left: b.left,
-                                width: b.size,
-                                height: b.size,
-                                borderRadius: "50%",
-                                background: `radial-gradient(circle at 35% 30%, ${glow}88, ${glow}30)`,
-                                border: `0.5px solid ${glow}55`,
-                                animation: `fishBubbleRise ${b.dur} ease-in-out ${b.delay} infinite`,
-                                willChange: "transform, opacity",
-                                pointerEvents: "none",
-                              }}
-                            />
-                          ))}
-                        </div>
-                      )}
-                  </div>
-                ) : (
-                  <div
-                    className="w-full h-full rounded-full flex items-center justify-center relative z-10"
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    data-testid={`admin-location-hotspot-${loc.id}`}
+                    aria-label={`Select ${loc.name} hotspot`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      activateLocation(loc);
+                    }}
+                    className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl px-3 text-center select-none"
                     style={{
-                      background: `radial-gradient(circle at 40% 35%, ${glow}40, ${glow}15)`,
-                      border: `1.5px solid ${glow}70`,
-                      boxShadow: `0 0 4px ${glow}55, 0 0 8px ${glow}25`,
+                      pointerEvents: "auto",
+                      touchAction: "none",
+                      cursor: isSelected ? "grab" : "pointer",
+                      color: "#fff3bd",
+                      background: isSelected
+                        ? "rgba(55, 35, 4, 0.78)"
+                        : "rgba(30, 22, 5, 0.58)",
+                      border: isSelected
+                        ? "2px solid rgba(255, 215, 105, 0.95)"
+                        : "1.5px dashed rgba(255, 215, 105, 0.72)",
+                      boxShadow: isSelected
+                        ? `0 0 0 1px ${accent}55, 0 0 18px rgba(255, 202, 72, 0.38), inset 0 0 18px rgba(255, 202, 72, 0.12)`
+                        : "0 0 10px rgba(255, 202, 72, 0.2), inset 0 0 12px rgba(255, 202, 72, 0.06)",
+                      backdropFilter: "blur(1.5px)",
+                      WebkitBackdropFilter: "blur(1.5px)",
                     }}
                   >
-                    <MapPin
-                      className="w-7 h-7"
+                    <span
+                      className="font-fantasy font-semibold"
                       style={{
-                        color: glow,
-                        filter: `drop-shadow(0 0 3px ${glow}66)`,
+                        fontSize: `${Math.max(12, Math.min(22, hotspotSize * 0.075))}px`,
+                        lineHeight: 1.05,
+                        textShadow: "0 1px 3px rgba(0,0,0,.9)",
+                        maxWidth: "88%",
+                        overflowWrap: "anywhere",
                       }}
-                    />
-                  </div>
+                    >
+                      {loc.name}
+                    </span>
+                    <span
+                      className="mt-1 uppercase tracking-[0.16em]"
+                      style={{
+                        fontSize: `${Math.max(7, Math.min(10, hotspotSize * 0.032))}px`,
+                        color: "rgba(255, 226, 145, .72)",
+                      }}
+                    >
+                      hotspot
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    data-testid={`player-location-hotspot-${loc.id}`}
+                    aria-label={`Open ${loc.name}`}
+                    title={loc.name}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      activateLocation(loc);
+                    }}
+                    className="absolute inset-0 z-20 rounded-full"
+                    style={{
+                      pointerEvents: "auto",
+                      cursor: "pointer",
+                      touchAction: "manipulation",
+                      background: "transparent",
+                      border: 0,
+                      padding: 0,
+                    }}
+                  >
+                    <span
+                      data-testid={`location-sparkle-${loc.id}`}
+                      aria-hidden="true"
+                      className="world-hotspot-sparkle-pulse absolute left-1/2 top-1/2 block rounded-full"
+                      style={{
+                        width: `${sparkleSize}px`,
+                        height: `${sparkleSize}px`,
+                        transform: "translate(-50%, -50%)",
+                        animation: `worldHotspotSparklePulse ${2.8 + ((i * 0.37) % 1.3)}s ease-in-out infinite`,
+                        animationDelay: `${(i * 0.43) % 1.8}s`,
+                        background: "radial-gradient(circle, rgba(255,247,196,.88) 0%, rgba(255,216,92,.42) 26%, rgba(255,186,35,.13) 55%, transparent 75%)",
+                        boxShadow: "0 0 8px rgba(255,214,90,.28), 0 0 18px rgba(255,185,40,.12)",
+                      }}
+                    >
+                      {[
+                        { left: "50%", top: "14%", size: 3.5, delay: 0 },
+                        { left: "82%", top: "42%", size: 2.5, delay: 0.55 },
+                        { left: "67%", top: "78%", size: 3, delay: 1.05 },
+                        { left: "28%", top: "73%", size: 2.25, delay: 0.25 },
+                        { left: "16%", top: "38%", size: 2.75, delay: 0.8 },
+                      ].map((spark, sparkIndex) => (
+                        <span
+                          key={sparkIndex}
+                          className="world-hotspot-sparkle-twinkle absolute block"
+                          style={{
+                            left: spark.left,
+                            top: spark.top,
+                            width: spark.size,
+                            height: spark.size,
+                            borderRadius: "1px",
+                            background: "rgba(255, 240, 166, .95)",
+                            boxShadow: "0 0 4px rgba(255, 218, 95, .7)",
+                            animation: `worldHotspotSparkleTwinkle 2.2s ease-in-out ${spark.delay}s infinite`,
+                          }}
+                        />
+                      ))}
+                      <span
+                        className="absolute left-1/2 top-1/2 block rounded-full"
+                        style={{
+                          width: Math.max(3, sparkleSize * 0.16),
+                          height: Math.max(3, sparkleSize * 0.16),
+                          transform: "translate(-50%, -50%)",
+                          background: "rgba(255, 249, 218, .96)",
+                          boxShadow: "0 0 5px rgba(255, 226, 126, .85)",
+                        }}
+                      />
+                    </span>
+                  </button>
                 )}
-                {/* Tight circular hit-zone — only the visible centre of the icon fires clicks */}
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (isScrollableHauntedCasino(loc, worldId)) {
-                      if (isAdmin && selectedLocId !== loc.id) {
-                        onLocationClick(loc);
-                        return;
-                      }
-                      setCasinoScene(loc);
-                      return;
-                    }
-                    onLocationClick(loc);
-                  }}
-                  style={{
-                    position: "absolute",
-                    top: "20%",
-                    left: "20%",
-                    right: "20%",
-                    bottom: "20%",
-                    borderRadius: "50%",
-                    pointerEvents: "auto",
-                    cursor: isAdmin ? "grab" : "pointer",
-                    zIndex: 20,
-                  }}
-                />
 
-                {isAdmin && selectedLocId === loc.id && (
+                {isAdmin && isSelected && (
                   <div style={{ pointerEvents: "auto" }}>
                     <button
                       data-testid={`button-edit-location-${loc.id}`}
+                      aria-label={`Edit ${loc.name}`}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -387,6 +315,8 @@ export default function WorldLocations({
                     </button>
                     <button
                       data-testid={`button-flip-location-${loc.id}`}
+                      aria-label={`Flip saved art for ${loc.name}`}
+                      title="Keeps the saved legacy image flip setting"
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -404,6 +334,7 @@ export default function WorldLocations({
                     </button>
                     <button
                       data-testid={`button-delete-location-${loc.id}`}
+                      aria-label={`Delete ${loc.name}`}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -421,10 +352,11 @@ export default function WorldLocations({
                     </button>
                     <button
                       data-testid={`button-size-down-location-${loc.id}`}
+                      aria-label={`Make ${loc.name} hotspot smaller`}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
-                        const next = Math.max(64, (loc.iconSize || 300) - 10);
+                        const next = Math.max(64, hotspotSize - 10);
                         onResizeLocation(loc.id, next);
                       }}
                       className="absolute -bottom-5 -left-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
@@ -440,6 +372,7 @@ export default function WorldLocations({
                     {loc.type === "fishing" && (
                       <button
                         data-testid={`button-duplicate-location-${loc.id}`}
+                        aria-label={`Duplicate ${loc.name}`}
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -471,15 +404,16 @@ export default function WorldLocations({
                       }}
                     >
                       <span className="font-fantasy text-xs text-yellow-300">
-                        {loc.iconSize || 300}px
+                        {hotspotSize}px
                       </span>
                     </div>
                     <button
                       data-testid={`button-size-up-location-${loc.id}`}
+                      aria-label={`Make ${loc.name} hotspot larger`}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
-                        const next = Math.min(500, (loc.iconSize || 300) + 10);
+                        const next = Math.min(500, hotspotSize + 10);
                         onResizeLocation(loc.id, next);
                       }}
                       className="absolute top-1/2 -right-5 z-30 w-10 h-10 rounded-full flex items-center justify-center"
