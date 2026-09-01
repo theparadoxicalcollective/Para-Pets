@@ -5,6 +5,7 @@ import { registerDailyClaimRoutes } from "../routes/dailyClaim.routes";
 import { registerClientDiagnosticsRoutes } from "../routes/clientDiagnostics.routes";
 import { serveStatic } from "../static";
 import { pool } from "../db";
+import { reconcileCanonicalWorldMaps } from "../worlds/canonicalWorldMaps";
 import { reconcileHauntedWoodsWorld } from "../worlds/hauntedWoods";
 import { runEssentialBoot } from "./migrations/runEssentialBoot";
 import { repairAccessoryEquipmentIntegrity } from "./migrations/repairAccessoryEquipmentIntegrity";
@@ -31,6 +32,12 @@ async function runBackgroundInitialization(): Promise<void> {
     // fails—so canonical world locations and source-controlled assets have the
     // final word without replacing admin-controlled placement values.
     await reconcileHauntedWoodsWorld();
+
+    // Apply the current source-controlled world-map art after every legacy
+    // background backfill. This updates only the world background URLs; the
+    // world IDs, locations, hotspot placement, and destination behavior remain
+    // untouched. Volcanic keeps its existing one-shot/admin-safe semantics.
+    await reconcileCanonicalWorldMaps();
   }
 }
 
