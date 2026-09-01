@@ -1,29 +1,26 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateWorldFitScale } from "../client/src/lib/worldViewport";
+import { calculateWorldFitScale, WORLD_MAP_HEIGHT, WORLD_MAP_WIDTH } from "../client/src/lib/worldViewport";
 
-const MAP_W = 924;
-const MAP_H = 1703;
-
-test("phone browser fits the entire 924x1703 world composition", () => {
+test("phone browser fits the full world height and permits horizontal overflow", () => {
   const frameW = 390;
   const frameH = 760;
-  const scale = calculateWorldFitScale(frameW, frameH, MAP_H, true);
-  assert.equal(scale, Math.min(frameW / MAP_W, frameH / MAP_H));
-  assert.ok(MAP_W * scale <= frameW + 0.000001);
-  assert.ok(MAP_H * scale <= frameH + 0.000001);
+  const scale = calculateWorldFitScale(frameW, frameH, WORLD_MAP_HEIGHT, true);
+  assert.equal(scale, frameH / WORLD_MAP_HEIGHT);
+  assert.ok(Math.abs(WORLD_MAP_HEIGHT * scale - frameH) < 0.000001);
+  assert.ok(WORLD_MAP_WIDTH * scale > frameW);
 });
 
-test("standalone portrait view cannot overflow horizontally or vertically", () => {
+test("standalone portrait view keeps the full vertical composition visible", () => {
   const frameW = 390;
   const frameH = 844;
-  const scale = calculateWorldFitScale(frameW, frameH, MAP_H, false);
-  assert.ok(MAP_W * scale <= frameW + 0.000001);
-  assert.ok(MAP_H * scale <= frameH + 0.000001);
+  const scale = calculateWorldFitScale(frameW, frameH, WORLD_MAP_HEIGHT, false);
+  assert.ok(Math.abs(WORLD_MAP_HEIGHT * scale - frameH) < 0.000001);
+  assert.ok(WORLD_MAP_WIDTH * scale > frameW);
 });
 
-test("browser display mode does not change fixed world fit", () => {
-  const browser = calculateWorldFitScale(390, 760, MAP_H, true);
-  const installed = calculateWorldFitScale(390, 760, MAP_H, false);
+test("browser display mode does not change height-fit scaling", () => {
+  const browser = calculateWorldFitScale(390, 760, WORLD_MAP_HEIGHT, true);
+  const installed = calculateWorldFitScale(390, 760, WORLD_MAP_HEIGHT, false);
   assert.equal(browser, installed);
 });
