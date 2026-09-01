@@ -118,13 +118,14 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
         });
       }
 
-      const effective = calculateClearingStats(resolveClearingPetBaseStats(pet), loadout.totals);
+      const baseStats = resolveClearingPetBaseStats(pet);
+      const effective = calculateClearingStats(baseStats, loadout.totals);
       const stats = { level: pet.petLevel || 1, ...effective, rarity: pet.rarity };
       const configured = await db.execute(sql`SELECT a.enemy_id,a.is_boss,e.name,e.image_url FROM clearing_world_enemies a JOIN enemies e ON e.id=a.enemy_id WHERE a.world_id='swamp' ORDER BY a.sort_order`);
       const special = await db.execute(sql`SELECT a.pet_shop_item_id,s.name,COALESCE(s.rarity,1) rarity,s.egg_image_url,s.hatched_image_url,s.image_url FROM clearing_world_special_mobs a JOIN shop_items s ON s.id=a.pet_shop_item_id WHERE a.world_id='swamp' AND s.type='pet'`);
       if (!configured.rows.length) console.warn("No Clearing enemies configured for swamp; using temporary Elysian fallback");
 
-      const session = createClearingSession(user.id, pet.id, stats, Date.now(), Math.random, configured.rows as any, special.rows as any);
+      const session = createClearingSession(user.id, pet.id, stats, Date.now(), Math.random, configured.rows as any, special.rows as any, { ...stats, ...baseStats });
       const chests = await getClearingRewardChests(db, { userId: user.id, sessionId: session.id, clearingId: ELYSIAN_CLEARING_COMBAT.locationId });
       const eggDrops = await getSpecialEggDrops(db, { userId: user.id, sessionId: session.id, clearingId: ELYSIAN_CLEARING_COMBAT.locationId });
       return res.json({
@@ -349,3 +350,4 @@ export function registerElysianClearingCombatRoutes(app: Express, deps: { db: an
     return res.status(204).end();
   });
 }
+
