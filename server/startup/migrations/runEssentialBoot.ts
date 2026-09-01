@@ -27,6 +27,41 @@ export async function runEssentialBoot(): Promise<void> {
   } catch (err) { console.error("media_blobs table setup error (non-fatal):", err); }
 
   const migrations: Array<[string, ReturnType<typeof sql>]> = [
+    ["Card catalog and border layout migration error (non-fatal):", sql`
+      CREATE TABLE IF NOT EXISTS card_definitions (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        artwork_url TEXT NOT NULL,
+        rarity INTEGER NOT NULL CHECK (rarity BETWEEN 1 AND 5),
+        created_at TIMESTAMP NOT NULL DEFAULT now(),
+        updated_at TIMESTAMP NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS card_definitions_rarity_created_idx
+        ON card_definitions(rarity, created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS card_border_layouts (
+        rarity INTEGER PRIMARY KEY CHECK (rarity BETWEEN 1 AND 5),
+        name_x REAL NOT NULL DEFAULT 13 CHECK (name_x BETWEEN 0 AND 100),
+        name_y REAL NOT NULL DEFAULT 6 CHECK (name_y BETWEEN 0 AND 100),
+        name_width REAL NOT NULL DEFAULT 74 CHECK (name_width BETWEEN 4 AND 100),
+        name_height REAL NOT NULL DEFAULT 10 CHECK (name_height BETWEEN 4 AND 100),
+        name_font_size REAL NOT NULL DEFAULT 14 CHECK (name_font_size BETWEEN 6 AND 32),
+        description_x REAL NOT NULL DEFAULT 13 CHECK (description_x BETWEEN 0 AND 100),
+        description_y REAL NOT NULL DEFAULT 76 CHECK (description_y BETWEEN 0 AND 100),
+        description_width REAL NOT NULL DEFAULT 74 CHECK (description_width BETWEEN 4 AND 100),
+        description_height REAL NOT NULL DEFAULT 16 CHECK (description_height BETWEEN 4 AND 100),
+        description_font_size REAL NOT NULL DEFAULT 10 CHECK (description_font_size BETWEEN 6 AND 32),
+        updated_at TIMESTAMP NOT NULL DEFAULT now(),
+        CHECK (name_x + name_width <= 100),
+        CHECK (name_y + name_height <= 100),
+        CHECK (description_x + description_width <= 100),
+        CHECK (description_y + description_height <= 100)
+      );
+      INSERT INTO card_border_layouts (rarity)
+      SELECT generated.rarity FROM generate_series(1, 5) AS generated(rarity)
+      ON CONFLICT (rarity) DO NOTHING;
+    `],
     ["Pet part rotation migration error (non-fatal):", sql`
       ALTER TABLE pet_template_parts ADD COLUMN IF NOT EXISTS rotation INTEGER NOT NULL DEFAULT 0
     `],
