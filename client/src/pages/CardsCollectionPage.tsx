@@ -11,8 +11,6 @@ import fourStarButton from "@assets/uploads/4StarButton.png";
 import fiveStarButton from "@assets/uploads/5StarButton.png";
 import closeButton from "@assets/uploads/ClosetCloseButton.png";
 
-const PLACEHOLDER_SLOTS = Array.from({ length: 4 }, (_, index) => index);
-
 const RARITY_FILTERS = [
   { rarity: 1, src: oneStarButton, label: "1 star" },
   { rarity: 2, src: twoStarButton, label: "2 stars" },
@@ -330,25 +328,24 @@ export default function CardsCollectionPage() {
             boxShadow: "inset 0 0 26px rgba(0,0,0,.18), 0 10px 24px rgba(0,0,0,.12)",
           }}
         >
-          {PLACEHOLDER_SLOTS.map(slot => (
-            <div
-              key={slot}
-              data-testid={`card-collection-placeholder-${slot + 1}`}
-              aria-hidden="true"
-              style={{
-                minWidth: 0,
-                lineHeight: 0,
-                filter: "drop-shadow(0 6px 7px rgba(0,0,0,.32))",
-              }}
-            >
-              <img
-                src={emptyCard}
-                alt=""
-                draggable={false}
-                style={{ display: "block", width: "100%", height: "auto", margin: 0, objectFit: "contain", userSelect: "none" }}
-              />
-            </div>
-          ))}
+          {/* A single muted empty slot keeps space open for the future owned-card collection. */}
+          <div
+            data-testid="card-collection-placeholder-1"
+            aria-hidden="true"
+            style={{
+              minWidth: 0,
+              lineHeight: 0,
+              filter: "grayscale(1) brightness(.7) drop-shadow(0 6px 7px rgba(0,0,0,.32))",
+              opacity: 0.55,
+            }}
+          >
+            <img
+              src={emptyCard}
+              alt=""
+              draggable={false}
+              style={{ display: "block", width: "100%", height: "auto", margin: 0, objectFit: "contain", userSelect: "none" }}
+            />
+          </div>
         </section>
 
         <img
