@@ -9,6 +9,7 @@ import coinIconImg from "@assets/icon_coin.png";
 import giftIconImg from "@assets/Photoroom_20260708_52007_PM_1783549272918.png";
 
 interface RewardItem {
+  quantity?: number;
   id: string;
   name: string;
   type: string;
@@ -17,6 +18,7 @@ interface RewardItem {
 }
 
 interface PendingReward {
+  bundleId?: string;
   rewardId: string;
   bundleName: string;
   bundleMessage: string | null;
@@ -57,8 +59,8 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
   });
 
   const stackedRewards: StackedReward[] = rewards.reduce<StackedReward[]>((acc, reward) => {
-    const bundleKey = reward.bundleName + (reward.bundleMessage ?? "");
-    const existing = acc.find(s => s.bundleName === reward.bundleName && s.bundleMessage === reward.bundleMessage);
+    const bundleKey = reward.bundleId ?? reward.rewardId;
+    const existing = acc.find(s => s.bundleId === bundleKey);
     if (existing) {
       existing.rewardIds.push(reward.rewardId);
     } else {
@@ -95,6 +97,7 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
         if (data.user) onUserUpdate(data.user);
         queryClient.invalidateQueries({ queryKey: ["/api/rewards/pending"] });
         queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/cards"] });
         queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
 
         const skipped: { name: string }[] = data.skippedPets ?? [];
@@ -109,6 +112,10 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
         }
         setClaimingBundleId(null);
       }, 800);
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["/api/cards"] });
+      void queryClient.invalidateQueries({ queryKey: ["/api/rewards/pending"] });
     },
     onError: (err: any) => {
       toast({ title: "Failed", description: err?.message || "Could not claim reward", variant: "destructive" });
@@ -254,9 +261,9 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
                         {(() => {
                           const grouped: { item: RewardItem; count: number }[] = [];
                           for (const item of stacked.items) {
-                            const existing = grouped.find(g => g.item.id === item.id);
-                            if (existing) existing.count++;
-                            else grouped.push({ item, count: 1 });
+                            const existing = grouped.find(g => g.item.id === item.id && g.item.type === item.type);
+                            if (existing) existing.count += item.quantity ?? 1;
+                            else grouped.push({ item, count: item.quantity ?? 1 });
                           }
                           return (
                             <div className="grid grid-cols-5 gap-1.5">

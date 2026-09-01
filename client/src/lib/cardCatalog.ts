@@ -11,6 +11,7 @@ export interface CardDefinition {
   id: string;
   name: string;
   description: string;
+  secondDescription: string;
   artworkUrl: string;
   rarity: CardRarity;
   createdAt: string;
@@ -64,4 +65,14 @@ export function getCardBorderLayout(
 ): CardBorderLayout {
   return layouts?.find((layout) => layout.rarity === rarity)
     ?? defaultCardBorderLayout(rarity);
+}
+
+export interface OwnedCard extends CardDefinition {
+  quantity: number;
+  firstRewardClaimed: boolean;
+}
+export interface CardCollection {
+  cards: OwnedCard[];
+  totalCards: number;
+  layouts: CardBorderLayout[];
 }

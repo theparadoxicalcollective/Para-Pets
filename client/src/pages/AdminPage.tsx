@@ -16,6 +16,7 @@ import EnemyDatabasePanel from "@/components/EnemyDatabasePanel";
 import ClearingAdminPanel from "@/components/ClearingAdminPanel";
 import HomeBundleSection from "@/components/HomeBundleSection";
 import CardAdminPanel from "@/components/CardAdminPanel";
+import RewardCardPicker, { type SelectedRewardCard } from "@/components/RewardCardPicker";
 
 import adminIconMembers from "@assets/admin_icon_members.png";
 import adminIconRewards from "@assets/admin_icon_rewards_new.png";
@@ -1307,6 +1308,7 @@ function WelcomeBundleSection() {
 }
 
 function RewardBundleSection({ members }: { members: MemberUser[] }) {
+  const [selectedCards, setSelectedCards] = useState<SelectedRewardCard[]>([]);
   const [bundleName, setBundleName] = useState("");
   const [bundleMessage, setBundleMessage] = useState("");
   const [coinAmount, setCoinAmount] = useState("");
@@ -1341,6 +1343,7 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
         message: bundleMessage.trim() || undefined,
         coinAmount: parseInt(coinAmount) || 0,
         shopItemIds,
+        cards: selectedCards,
       };
       if (targetMode === "select") {
         payload.targetUserIds = selectedUserIds;
@@ -1354,8 +1357,9 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
       setBundleMessage("");
       setCoinAmount("");
       setSelectedItems([]);
+      setSelectedCards([]);
       setSelectedUserIds([]);
-      setTargetMode("all");
+      setTargetMode("select");
     },
     onError: (err: any) => {
       toast({ title: "Failed", description: err?.message || "Could not send bundle", variant: "destructive" });
@@ -1368,8 +1372,8 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
       return;
     }
     const coins = parseInt(coinAmount) || 0;
-    if (coins === 0 && selectedItems.length === 0) {
-      toast({ title: "Empty bundle", description: "Add coins or items to the bundle", variant: "destructive" });
+    if (coins === 0 && selectedItems.length === 0 && selectedCards.length === 0) {
+      toast({ title: "Empty bundle", description: "Add coins, items, or cards to the bundle", variant: "destructive" });
       return;
     }
     if (targetMode === "select" && selectedUserIds.length === 0) {
@@ -1400,7 +1404,7 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
   const totalItemCount = selectedItems.reduce((sum, e) => sum + (e.qty || 1), 0);
 
   const filteredMembers = userSearch
-    ? members.filter(m => m.username.toLowerCase().includes(userSearch.toLowerCase()) || m.email.toLowerCase().includes(userSearch.toLowerCase()))
+    ? members.filter(m => m.username.toLowerCase().includes(userSearch.trim().toLowerCase()))
     : members;
 
   const inputStyle = { background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" };
@@ -1531,6 +1535,8 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
             )}
           </div>
 
+          <RewardCardPicker selected={selectedCards} onChange={setSelectedCards} />
+
           <div>
             <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Recipients</label>
             <div className="flex gap-2 mb-2">
@@ -1569,7 +1575,7 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
                   type="text"
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
-                  placeholder="Search by name or email..."
+                  placeholder="Search by in-game name..."
                   className="w-full px-3 py-2 rounded-md font-sans text-xs outline-none mb-2"
                   style={inputStyle}
                 />
@@ -1603,7 +1609,6 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
                           {isSelected && <span className="text-[#7fffd4] text-[8px]">✓</span>}
                         </div>
                         <span className="font-fantasy text-[#f0c040] text-[10px] truncate">{m.username}</span>
-                        <span className="font-fantasy text-[#6a5840] text-[8px] truncate">{m.email}</span>
                       </button>
                     );
                   })}

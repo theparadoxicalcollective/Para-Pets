@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import CardPreview from "@/components/CardPreview";
+import CardDetailDialog from "@/components/CardDetailDialog";
+import { getCardBorderLayout, type CardCollection } from "@/lib/cardCatalog";
 import { setNavHidden } from "@/lib/navVisibility";
 
 import emptyCard from "@assets/uploads/EmptyCard.png";
@@ -26,6 +32,29 @@ export default function CardsCollectionPage() {
   const [, navigate] = useLocation();
   const [rarityFilter, setRarityFilter] = useState<number | null>(null);
   const [sortMode, setSortMode] = useState("rarity");
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { data, isLoading, isError, refetch } = useQuery<CardCollection>({ queryKey: ["/api/cards"] });
+  const cards = data?.cards ?? [];
+  const layouts = data?.layouts ?? [];
+  const selectedCard = cards.find(card => card.id === selectedCardId);
+  const visibleCards = cards.filter(card => rarityFilter === null || card.rarity === rarityFilter)
+    .sort((a, b) => sortMode === "name" ? a.name.localeCompare(b.name) : b.rarity - a.rarity || a.name.localeCompare(b.name));
+  const claimReward = useMutation({
+    mutationFn: async (cardId: string) => (await apiRequest("POST", `/api/cards/${cardId}/claim`)).json(),
+    onSuccess: (_result, cardId) => {
+      queryClient.setQueryData<CardCollection>(["/api/cards"], current => current ? {
+        ...current, cards: current.cards.map(card => card.id === cardId ? { ...card, firstRewardClaimed: true } : card),
+      } : current);
+      toast({ title: "+100 coins", description: "First collection reward claimed!" });
+    },
+    onError: (error: Error) => toast({ title: "Could not claim reward", description: error.message, variant: "destructive" }),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["/api/cards"] });
+      void queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    },
+  });
 
   useEffect(() => {
     setNavHidden(true);
@@ -178,7 +207,7 @@ export default function CardsCollectionPage() {
               Your Collection
             </div>
             <div style={{ fontSize: "clamp(11px, 3vw, 13px)", color: "#88cf91", letterSpacing: ".02em" }}>
-              0 / 0 cards collected
+              {cards.length} / {data?.totalCards ?? 0} cards collected
             </div>
           </section>
 
@@ -292,7 +321,7 @@ export default function CardsCollectionPage() {
               boxSizing: "border-box",
             }}
           >
-            {rarityFilter ? `${rarityFilter}★ (0)` : "All (0)"}
+            {rarityFilter ? `${rarityFilter}★ (${visibleCards.length})` : `All (${cards.length})`}
           </div>
         </section>
 
@@ -328,24 +357,24 @@ export default function CardsCollectionPage() {
             boxShadow: "inset 0 0 26px rgba(0,0,0,.18), 0 10px 24px rgba(0,0,0,.12)",
           }}
         >
-          {/* A single muted empty slot keeps space open for the future owned-card collection. */}
-          <div
-            data-testid="card-collection-placeholder-1"
-            aria-hidden="true"
-            style={{
-              minWidth: 0,
-              lineHeight: 0,
-              filter: "grayscale(1) brightness(.7) drop-shadow(0 6px 7px rgba(0,0,0,.32))",
-              opacity: 0.55,
-            }}
-          >
-            <img
-              src={emptyCard}
-              alt=""
-              draggable={false}
-              style={{ display: "block", width: "100%", height: "auto", margin: 0, objectFit: "contain", userSelect: "none" }}
-            />
-          </div>
+          {isLoading && <p className="col-span-2 py-5 text-center text-sm" role="status">Loading cards…</p>}
+          {isError && <div className="col-span-2 py-5 text-center" role="alert"><p>Could not load your cards.</p><button type="button" onClick={() => refetch()} className="mt-2 underline">Try again</button></div>}
+          {!isLoading && !isError && visibleCards.length === 0 && <>
+            <div data-testid="card-collection-placeholder-1" aria-hidden="true" style={{ minWidth: 0, opacity: .55, filter: "grayscale(1) brightness(.7)" }}>
+              <img src={emptyCard} alt="" draggable={false} style={{ display: "block", width: "100%" }} />
+            </div>
+            <p className="col-span-2 text-center text-xs text-amber-100/60">{rarityFilter ? "No cards of this rarity yet." : "Collected cards will appear here."}</p>
+          </>}
+          {visibleCards.map(card => <article key={card.id} data-testid={`owned-card-${card.id}`} className="relative min-w-0">
+            <button type="button" aria-label={`View ${card.name}`} onClick={() => setSelectedCardId(card.id)} className="block w-full rounded-lg focus-visible:outline focus-visible:outline-amber-200">
+              <CardPreview rarity={card.rarity} artworkUrl={card.artworkUrl} name={card.name} description={card.description} layout={getCardBorderLayout(layouts, card.rarity)} />
+            </button>
+            {card.quantity > 1 && <span aria-label={`${card.quantity} copies`} className="pointer-events-none absolute right-1 top-1 rounded-full border border-amber-200/60 bg-[#102419] px-2 py-1 text-xs font-bold">×{card.quantity}</span>}
+            {!card.firstRewardClaimed && <button type="button" aria-label={`Claim 100 coins for ${card.name}`} disabled={claimReward.isPending} onClick={() => claimReward.mutate(card.id)}
+              className="relative mx-auto -mt-2 mb-2 block rounded-full border border-amber-200/70 bg-[#5e420f] px-3 py-2 text-xs font-bold text-amber-100 shadow-lg disabled:opacity-50">
+              {claimReward.isPending && claimReward.variables === card.id ? "Claiming…" : "+100 coins"}
+            </button>}
+          </article>)}
         </section>
 
         <img
@@ -368,6 +397,8 @@ export default function CardsCollectionPage() {
           }}
         />
       </div>
+      {selectedCard && <CardDetailDialog key={selectedCard.id} card={selectedCard} layouts={layouts} onClose={() => setSelectedCardId(null)}
+        onClaim={() => claimReward.mutate(selectedCard.id)} claiming={claimReward.isPending} />}
     </main>
   );
 }

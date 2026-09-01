@@ -13,6 +13,7 @@ interface CardPreviewProps {
   description: string;
   layout: CardBorderLayout;
   editable?: boolean;
+  onDescriptionClick?: () => void;
   selectedField?: CardLayoutField;
   onSelectField?: (field: CardLayoutField) => void;
   onLayoutChange?: (layout: CardBorderLayout) => void;
@@ -24,6 +25,14 @@ interface DragState {
   offsetY: number;
 }
 
+const RARITY_TEXT_STYLES: Record<CardRarity, { name: string; description: string }> = {
+  1: { name: "#4a4032", description: "#5b5143" },
+  2: { name: "#244d32", description: "#355f42" },
+  3: { name: "#234f73", description: "#356681" },
+  4: { name: "#573b72", description: "#6b4c81" },
+  5: { name: "#7a3d18", description: "#7f5528" },
+};
+
 export default function CardPreview({
   rarity,
   artworkUrl,
@@ -31,6 +40,7 @@ export default function CardPreview({
   description,
   layout,
   editable = false,
+  onDescriptionClick,
   selectedField = "name",
   onSelectField,
   onLayoutChange,
@@ -93,6 +103,8 @@ export default function CardPreview({
     const isName = field === "name";
     const metrics = fieldMetrics(field);
     const selected = editable && selectedField === field;
+    const clickable = !editable && !isName && !!onDescriptionClick;
+    const rarityTextStyle = RARITY_TEXT_STYLES[rarity];
     return (
       <div
         data-testid={`card-layout-box-${field}`}
@@ -100,7 +112,16 @@ export default function CardPreview({
         onPointerMove={moveDrag}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        onClick={() => onSelectField?.(field)}
+        role={clickable ? "button" : undefined}
+        tabIndex={clickable ? 0 : undefined}
+        aria-label={clickable ? `Read full description of ${name}` : undefined}
+        onKeyDown={event => {
+          if (clickable && (event.key === "Enter" || event.key === " ")) {
+            event.preventDefault();
+            onDescriptionClick?.();
+          }
+        }}
+        onClick={() => clickable ? onDescriptionClick?.() : onSelectField?.(field)}
         style={{
           position: "absolute",
           left: `${metrics.x}%`,
@@ -115,17 +136,17 @@ export default function CardPreview({
           boxSizing: "border-box",
           overflow: "hidden",
           textAlign: "center",
-          color: isName ? "#fff8d5" : "#f7e8be",
+          color: isName ? rarityTextStyle.name : rarityTextStyle.description,
           fontFamily: isName ? "'Cinzel', 'Palatino Linotype', serif" : "Georgia, serif",
           fontWeight: isName ? 700 : 500,
           fontSize: `${isName ? layout.nameFontSize : layout.descriptionFontSize}px`,
           lineHeight: isName ? 1.05 : 1.18,
           letterSpacing: isName ? ".05em" : "normal",
-          textShadow: "0 1px 3px #000, 0 0 4px rgba(0,0,0,.85)",
+          textShadow: "0 1px 0 rgba(255,255,255,.58), 0 0 2px rgba(255,244,205,.28)",
           border: editable ? `1.5px dashed ${selected ? "#7cf5b2" : "rgba(255,224,128,.78)"}` : "none",
           background: editable ? (selected ? "rgba(22,90,58,.34)" : "rgba(8,8,5,.22)") : "transparent",
           boxShadow: editable && selected ? "0 0 10px rgba(124,245,178,.42)" : "none",
-          cursor: editable ? "grab" : "default",
+          cursor: editable ? "grab" : clickable ? "pointer" : "default",
           touchAction: editable ? "none" : "auto",
           userSelect: "none",
         }}

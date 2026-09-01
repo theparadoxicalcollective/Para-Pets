@@ -51,6 +51,8 @@ import { registerSoulExchangeRoutes } from "./routes/soulExchange.routes";
 import { registerCostumeAdminRoutes } from "./routes/costumeAdmin.routes";
 import { registerCostumePlayerRoutes } from "./routes/costumePlayer.routes";
 import { registerCardAdminRoutes } from "./routes/cardAdmin.routes";
+import { registerCardCollectionRoutes } from "./routes/cardCollection.routes";
+import { grantBundleCards, parseBundleCards } from "./cards";
 import { getEffectivePetLayer } from "@shared/petLayer";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -4807,6 +4809,7 @@ export async function registerRoutes(
   }
 
   registerCardAdminRoutes(app, { db, isAdmin, processCardImage: processWorldImage });
+  registerCardCollectionRoutes(app, { db, isAuthenticated });
 
   function processShopItemImage(imageData: string): Promise<string> {
     return processWorldImage(imageData, 2000);
@@ -4930,34 +4933,42 @@ export async function registerRoutes(
   app.post("/api/admin/reward-bundle", isAdmin, async (req, res) => {
     try {
       const { name, coinAmount, shopItemIds, targetUserIds, message } = req.body;
-      if (!name || (!coinAmount && (!shopItemIds || shopItemIds.length === 0))) {
-        return res.status(400).json({ message: "Bundle must have a name and at least coins or items" });
+      let cards;
+      try { cards = parseBundleCards(req.body.cards); }
+      catch (error: any) { return res.status(400).json({ message: error.message }); }
+      if (!name || (!coinAmount && (!shopItemIds || shopItemIds.length === 0) && cards.length === 0)) {
+        return res.status(400).json({ message: "Bundle must have a name and at least coins, items, or cards" });
       }
+      if (targetUserIds !== undefined && (!Array.isArray(targetUserIds) || targetUserIds.length === 0)) {
+        return res.status(400).json({ message: "Select at least one recipient" });
+      }
+      let recipients: string[];
+      if (targetUserIds) recipients = [...new Set<string>(targetUserIds)];
+      else recipients = (await storage.getAllUsers()).filter(u => !u.isAdmin).map(u => u.id);
 
-      const bundle = await storage.createRewardBundle(name, coinAmount || 0, message || null);
-
-      if (shopItemIds && shopItemIds.length > 0) {
-        for (const itemId of shopItemIds) {
-          await storage.addRewardBundleItem(bundle.id, itemId);
+      const bundle = await db.transaction(async tx => {
+        // Validate card references before issuing any rewards. Keep bundle contents
+        // and recipient records atomic so partial sends cannot omit cards.
+        for (const card of cards) {
+          const found = await tx.execute(sql`SELECT id FROM card_definitions WHERE id = ${card.cardId} FOR SHARE`);
+          if (!found.rows.length) throw Object.assign(new Error("Card no longer exists; refresh the catalog"), { status: 400 });
         }
-      }
-
-      let recipients: string[] = [];
-      if (targetUserIds && targetUserIds.length > 0) {
-        recipients = targetUserIds;
-      } else {
-        const allUsers = await storage.getAllUsers();
-        recipients = allUsers.filter(u => !u.isAdmin).map(u => u.id);
-      }
-
-      for (const userId of recipients) {
-        await storage.createUserReward(userId, bundle.id);
-      }
+        const created = await tx.insert(rewardBundles).values({ name, coinAmount: coinAmount || 0, message: message || null }).returning();
+        const bundle = created[0];
+        for (const itemId of shopItemIds ?? []) {
+          await tx.insert(rewardBundleItems).values({ bundleId: bundle.id, shopItemId: itemId });
+        }
+        for (const card of cards) {
+          await tx.execute(sql`INSERT INTO reward_bundle_cards (bundle_id, card_id, quantity) VALUES (${bundle.id}, ${card.cardId}, ${card.quantity})`);
+        }
+        for (const userId of recipients) await tx.insert(userRewards).values({ userId, bundleId: bundle.id });
+        return bundle;
+      });
 
       return res.status(201).json({ bundle, recipientCount: recipients.length });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Create reward bundle error:", err);
-      return res.status(500).json({ message: "Failed to create reward bundle" });
+      return res.status(err.status === 400 ? 400 : 500).json({ message: err.status === 400 ? err.message : "Failed to create reward bundle" });
     }
   });
 
@@ -5012,12 +5023,18 @@ export async function registerRoutes(
           const shopItem = await storage.getShopItem(bi.shopItemId);
           return shopItem ? { id: shopItem.id, name: shopItem.name, type: shopItem.type, imageUrl: shopItem.imageUrl, eggImageUrl: shopItem.eggImageUrl } : null;
         }));
+        const cards = bundle ? (await db.execute(sql`SELECT c.id, c.name, c.artwork_url, b.quantity
+          FROM reward_bundle_cards b JOIN card_definitions c ON c.id = b.card_id WHERE b.bundle_id = ${bundle.id}`)).rows : [];
         return {
+          bundleId: reward.bundleId,
           rewardId: reward.id,
           bundleName: bundle?.name || "Unknown",
           bundleMessage: bundle?.message || null,
           coinAmount: bundle?.coinAmount || 0,
-          items: itemDetails.filter(Boolean),
+          items: [
+            ...itemDetails.filter(Boolean),
+            ...cards.map((card: any) => ({ id: card.id, name: card.name, type: "card", imageUrl: card.artwork_url, eggImageUrl: null, quantity: Number(card.quantity) })),
+          ],
           createdAt: reward.createdAt,
         };
       }));
@@ -5059,6 +5076,7 @@ export async function registerRoutes(
           reserve: async () => true, // row lock plus the final conditional update is the reservation.
           grantCoins: async () => { if (Number(bundle.coin_amount) > 0) await tx.execute(sql`UPDATE users SET coins = coins + ${Number(bundle.coin_amount)}, total_coins_earned = total_coins_earned + ${Number(bundle.coin_amount)} WHERE id = ${user.id}`); },
           grantItems: async () => {
+            await grantBundleCards(tx, user.id, reward.bundle_id);
             for (const item of items) {
               if (item.fishing_type === "bait") {
                 const updated = await tx.execute(sql`UPDATE user_inventory SET quantity = quantity + ${BAIT_CHARGES_PER_BUNDLE} WHERE id = (SELECT id FROM user_inventory WHERE user_id = ${user.id} AND shop_item_id = ${item.shop_item_id} ORDER BY id LIMIT 1) RETURNING id`);
