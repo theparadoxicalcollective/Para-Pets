@@ -9,7 +9,11 @@ test("costume wrapper measures logical stage dimensions instead of transformed b
 
   const measurementBlock = animator.match(/const measure = \(\) => \{[\s\S]*?\n    \};/);
   assert.ok(measurementBlock, "expected PetAnimator measurement block");
-  assert.doesNotMatch(measurementBlock[0], /getBoundingClientRect\(/);
+  const executableMeasurement = measurementBlock[0]
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("//"))
+    .join("\n");
+  assert.doesNotMatch(executableMeasurement, /\.getBoundingClientRect\s*\(/);
 });
 
 test("costume layers remain in the shared 1000x1000 template coordinate system", () => {
