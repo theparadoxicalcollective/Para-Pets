@@ -5,6 +5,6 @@ export function isCostumeItemType(type: unknown): type is typeof COSTUME_ITEM_TY
 }
 
 export function getItemTypeLabel(type: string): string {
-  if (type === COSTUME_ITEM_TYPE) return "Costume";
+  if (type === COSTUME_ITEM_TYPE) return "Adornment";
   return type.replace(/[_-]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
 }

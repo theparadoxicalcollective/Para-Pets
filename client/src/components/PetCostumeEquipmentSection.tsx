@@ -66,26 +66,26 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
   const equip = useMutation({
     mutationFn: async ({ costumeInventoryId, slot }: { costumeInventoryId: string; slot: number }) =>
       (await apiRequest("POST", `/api/pet/${petInventoryId}/costumes/equip`, { costumeInventoryId, slot })).json(),
-    onSuccess: () => { setSelectedSlot(null); refresh(); toast({ title: "Costume equipped!" }); },
-    onError: (error: any) => toast({ title: "Could not equip costume", description: error?.message || "This costume could not be equipped.", variant: "destructive" }),
+    onSuccess: () => { setSelectedSlot(null); refresh(); toast({ title: "Adornment equipped!" }); },
+    onError: (error: any) => toast({ title: "Could not equip adornment", description: error?.message || "This adornment could not be equipped.", variant: "destructive" }),
   });
 
   const unequip = useMutation({
     mutationFn: async (equippedCostumeId: string) =>
       (await apiRequest("POST", `/api/pet/${petInventoryId}/costumes/unequip`, { equippedCostumeId })).json(),
     onSuccess: () => { setRemoveCostume(null); refresh(); },
-    onError: (error: any) => toast({ title: "Could not unequip costume", description: error?.message || "This costume could not be removed.", variant: "destructive" }),
+    onError: (error: any) => toast({ title: "Could not unequip adornment", description: error?.message || "This adornment could not be removed.", variant: "destructive" }),
   });
 
   const unlock = useMutation({
     mutationFn: async () => (await apiRequest("POST", `/api/pet/${petInventoryId}/costumes/unlock`, {})).json(),
-    onSuccess: () => { setUnlockSlot(null); queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] }); refresh(); toast({ title: "Costume slot unlocked!" }); },
-    onError: (error: any) => toast({ title: "Could not unlock costume slot", description: error?.message || "The slot could not be unlocked.", variant: "destructive" }),
+    onSuccess: () => { setUnlockSlot(null); queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] }); refresh(); toast({ title: "Adornment slot unlocked!" }); },
+    onError: (error: any) => toast({ title: "Could not unlock adornment slot", description: error?.message || "The slot could not be unlocked.", variant: "destructive" }),
   });
 
   const requestLockedSlot = (slot: number) => {
     if (slot !== unlockedCount + 1) {
-      toast({ title: "Unlock the previous costume slot first." });
+      toast({ title: "Unlock the previous adornment slot first." });
       return;
     }
     setUnlockSlot(slot);
@@ -94,12 +94,12 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
   return (
     <section
       data-testid="section-costume-equipment"
-      aria-label="Costume slots"
+      aria-label="Adornment slots"
       className={closetMode ? "absolute z-[4]" : "mx-5 mb-8 rounded-2xl p-4"}
       style={closetMode ? { left: "11.5%", top: "80.1%", width: "77%", height: "11.8%" } : { background: "rgba(4,11,8,.88)", border: "1px solid rgba(167,139,250,.3)" }}
     >
       <div className={closetMode ? "absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-center" : "mb-3 flex items-center justify-between"} style={closetMode ? { bottom: "104%" } : undefined}>
-        <p className="font-fantasy tracking-[0.16em]" style={{ color: "rgba(226,207,157,.82)", fontSize: closetMode ? "clamp(7px, 1.9vw, 10px)" : 9, textShadow: "0 2px 4px #000" }}>COSTUMES · {equipped.length}/{unlockedCount}</p>
+        <p className="font-fantasy tracking-[0.16em]" style={{ color: "rgba(226,207,157,.82)", fontSize: closetMode ? "clamp(7px, 1.9vw, 10px)" : 9, textShadow: "0 2px 4px #000" }}>ADORNMENTS · {equipped.length}/{unlockedCount}</p>
       </div>
 
       <div className={closetMode ? "grid h-full grid-cols-5" : "grid grid-cols-3 gap-2"} style={closetMode ? { gap: "1.7%" } : undefined}>
@@ -113,7 +113,7 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
               key={slot}
               type="button"
               data-testid={`slot-costume-${slot}`}
-              aria-label={locked ? `Unlock costume slot ${slot}` : costume ? `Unequip ${costume.name}` : `Choose costume for slot ${slot}`}
+              aria-label={locked ? `Unlock adornment slot ${slot}` : costume ? `Unequip ${costume.name}` : `Choose adornment for slot ${slot}`}
               onClick={() => locked ? requestLockedSlot(slot) : costume ? setRemoveCostume(costume) : setSelectedSlot(slot)}
               className="relative flex min-w-0 flex-col items-center justify-center overflow-hidden rounded-xl transition-transform active:scale-95"
               style={closetMode ? { background: "transparent", border: "2px solid transparent", padding: 3, cursor: "pointer" } : { minHeight: 92, padding: 8, background: costume ? "rgba(16,28,20,.92)" : "rgba(3,10,7,.78)", border: `1.5px solid ${locked ? "rgba(80,90,82,.35)" : costume ? rarityColor + "88" : "rgba(139,92,246,.32)"}`, cursor: "pointer" }}
@@ -126,21 +126,21 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
         })}
       </div>
 
-      <p className={closetMode ? "sr-only" : "mt-4 text-center font-fantasy text-[8px] tracking-widest"} style={{ color: "rgba(216,200,255,.55)" }}>TAP AN EMPTY SLOT TO CHOOSE A COSTUME</p>
+      <p className={closetMode ? "sr-only" : "mt-4 text-center font-fantasy text-[8px] tracking-widest"} style={{ color: "rgba(216,200,255,.55)" }}>TAP AN EMPTY SLOT TO CHOOSE AN ADORNMENT</p>
 
       {selectedSlot && <div className="fixed inset-0 z-[260] grid place-items-center px-5 py-8" style={{ background: "rgba(2,5,3,.94)" }}>
         <div className="max-h-full w-full max-w-[380px] overflow-y-auto rounded-2xl p-5" style={{ background: "#07120d", border: "1px solid rgba(202,164,76,.48)", boxShadow: "0 0 30px rgba(0,0,0,.72)" }}>
-          <div className="mb-4 flex items-start justify-between gap-3"><div><p className="font-fantasy text-sm" style={{ color: "#ead9a8" }}>Choose Costume</p><p className="mt-1 font-fantasy text-[9px]" style={{ color: "rgba(200,220,200,.58)" }}>Equip to slot {selectedSlot}</p></div><button type="button" aria-label="Close costume inventory" onClick={() => setSelectedSlot(null)} className="rounded-lg px-3 py-2 text-xs" style={{ color: "#dfc27d", border: "1px solid rgba(202,164,76,.32)" }}>CLOSE</button></div>
+          <div className="mb-4 flex items-start justify-between gap-3"><div><p className="font-fantasy text-sm" style={{ color: "#ead9a8" }}>Choose Adornment</p><p className="mt-1 font-fantasy text-[9px]" style={{ color: "rgba(200,220,200,.58)" }}>Equip to slot {selectedSlot}</p></div><button type="button" aria-label="Close adornment inventory" onClick={() => setSelectedSlot(null)} className="rounded-lg px-3 py-2 text-xs" style={{ color: "#dfc27d", border: "1px solid rgba(202,164,76,.32)" }}>CLOSE</button></div>
           {available.length ? <div className="grid grid-cols-3 gap-2" data-testid="costume-slot-inventory">{available.map((item) => {
             const remaining = item.quantity - (equippedCounts[item.inventoryId] ?? 0);
             return <button key={item.inventoryId} type="button" data-testid={`bag-costume-${item.inventoryId}`} disabled={equip.isPending} onClick={() => equip.mutate({ costumeInventoryId: item.inventoryId, slot: selectedSlot })} className="flex flex-col items-center gap-1 rounded-xl p-2 active:scale-95 disabled:opacity-45" style={{ background: "rgba(7,14,11,.9)", border: "1px solid rgba(202,164,76,.26)" }}><div className="grid h-12 w-12 place-items-center overflow-hidden rounded-lg" style={{ background: "rgba(0,0,0,.48)" }}>{item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="h-full w-full object-contain" /> : <Sparkles size={24} style={{ color: "#dfc27d" }} />}</div><span className="w-full truncate font-fantasy text-[7px]" style={{ color: "rgba(239,226,194,.8)" }}>{item.name}</span>{remaining > 1 && <span className="font-fantasy text-[7px]" style={{ color: "#a7f3d0" }}>×{remaining}</span>}</button>;
-          })}</div> : <p className="py-8 text-center font-fantasy text-[10px]" style={{ color: "rgba(255,255,255,.32)" }}>No available costumes in your bag</p>}
+          })}</div> : <p className="py-8 text-center font-fantasy text-[10px]" style={{ color: "rgba(255,255,255,.32)" }}>No available adornments in your bag</p>}
         </div>
       </div>}
 
-      {removeCostume && <div className="fixed inset-0 z-[260] grid place-items-center px-8" style={{ background: "rgba(2,5,3,.94)" }}><div className="w-full max-w-[320px] rounded-2xl p-6 text-center" style={{ background: "#07120d", border: "1px solid rgba(202,164,76,.46)" }}><p className="mb-2 font-fantasy text-sm" style={{ color: "#ead9a8" }}>Unequip Costume?</p><p className="mb-5 font-fantasy text-[11px]" style={{ color: "rgba(200,220,200,.58)" }}>Remove {removeCostume.name} from {petName}?</p><div className="flex gap-3"><button type="button" onClick={() => setRemoveCostume(null)} className="flex-1 rounded-xl py-3" style={{ color: "#aaa", border: "1px solid #ffffff18" }}>CANCEL</button><button type="button" disabled={unequip.isPending} onClick={() => unequip.mutate(removeCostume.id)} className="flex-1 rounded-xl py-3 disabled:opacity-40" style={{ color: "#fca5a5", border: "1px solid #f8717155" }}>UNEQUIP</button></div></div></div>}
+      {removeCostume && <div className="fixed inset-0 z-[260] grid place-items-center px-8" style={{ background: "rgba(2,5,3,.94)" }}><div className="w-full max-w-[320px] rounded-2xl p-6 text-center" style={{ background: "#07120d", border: "1px solid rgba(202,164,76,.46)" }}><p className="mb-2 font-fantasy text-sm" style={{ color: "#ead9a8" }}>Unequip Adornment?</p><p className="mb-5 font-fantasy text-[11px]" style={{ color: "rgba(200,220,200,.58)" }}>Remove {removeCostume.name} from {petName}?</p><div className="flex gap-3"><button type="button" onClick={() => setRemoveCostume(null)} className="flex-1 rounded-xl py-3" style={{ color: "#aaa", border: "1px solid #ffffff18" }}>CANCEL</button><button type="button" disabled={unequip.isPending} onClick={() => unequip.mutate(removeCostume.id)} className="flex-1 rounded-xl py-3 disabled:opacity-40" style={{ color: "#fca5a5", border: "1px solid #f8717155" }}>UNEQUIP</button></div></div></div>}
 
-      {unlockSlot && <div className="fixed inset-0 z-[260] grid place-items-center px-8" style={{ background: "rgba(2,5,3,.94)" }}><div className="w-full max-w-[320px] rounded-2xl p-6 text-center" style={{ background: "#07120d", border: "1px solid rgba(240,192,64,.42)" }}><p className="mb-2 font-fantasy text-sm" style={{ color: "#fde68a" }}>Unlock Costume Slot {unlockSlot}?</p><p className="mb-1 font-fantasy text-base font-bold" style={{ color: "#fbbf24" }}>{getCostumeSlotUnlockCost(unlockSlot).toLocaleString()} coins</p>{userCoins < getCostumeSlotUnlockCost(unlockSlot) && <p className="mb-3 font-fantasy text-[10px]" style={{ color: "#f87171" }}>Not enough coins</p>}<div className="mt-5 flex gap-3"><button type="button" onClick={() => setUnlockSlot(null)} className="flex-1 rounded-xl py-3" style={{ color: "#aaa", border: "1px solid #ffffff18" }}>CANCEL</button><button type="button" disabled={unlock.isPending || userCoins < getCostumeSlotUnlockCost(unlockSlot)} onClick={() => unlock.mutate()} className="flex-1 rounded-xl py-3 disabled:opacity-40" style={{ color: "#fde68a", border: "1px solid #fbbf2455" }}>UNLOCK</button></div></div></div>}
+      {unlockSlot && <div className="fixed inset-0 z-[260] grid place-items-center px-8" style={{ background: "rgba(2,5,3,.94)" }}><div className="w-full max-w-[320px] rounded-2xl p-6 text-center" style={{ background: "#07120d", border: "1px solid rgba(240,192,64,.42)" }}><p className="mb-2 font-fantasy text-sm" style={{ color: "#fde68a" }}>Unlock Adornment Slot {unlockSlot}?</p><p className="mb-1 font-fantasy text-base font-bold" style={{ color: "#fbbf24" }}>{getCostumeSlotUnlockCost(unlockSlot).toLocaleString()} coins</p>{userCoins < getCostumeSlotUnlockCost(unlockSlot) && <p className="mb-3 font-fantasy text-[10px]" style={{ color: "#f87171" }}>Not enough coins</p>}<div className="mt-5 flex gap-3"><button type="button" onClick={() => setUnlockSlot(null)} className="flex-1 rounded-xl py-3" style={{ color: "#aaa", border: "1px solid #ffffff18" }}>CANCEL</button><button type="button" disabled={unlock.isPending || userCoins < getCostumeSlotUnlockCost(unlockSlot)} onClick={() => unlock.mutate()} className="flex-1 rounded-xl py-3 disabled:opacity-40" style={{ color: "#fde68a", border: "1px solid #fbbf2455" }}>UNLOCK</button></div></div></div>}
     </section>
   );
 }
