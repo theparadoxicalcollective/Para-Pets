@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import casinoBackground from "@assets/uploads/HauntedCasinoMainBG.png";
 import slaughterSlotsLogo from "@assets/uploads/SlaughterSlotsLogo.png";
 import slotCloseButton from "@assets/uploads/SlotCloseButton.png";
 import slotMachine from "@assets/uploads/SlotMachine.png";
@@ -315,9 +316,13 @@ export default function SlaughterSlotsOverlay({
       `}</style>
 
       <div
-        className="pointer-events-none fixed inset-0 opacity-70"
+        className="pointer-events-none absolute inset-0"
+        aria-hidden="true"
+        data-testid="slaughter-slots-background"
         style={{
-          background: "radial-gradient(circle at 50% 24%, rgba(87,28,117,.38), transparent 42%), radial-gradient(circle at 50% 90%, rgba(20,83,45,.24), transparent 48%), linear-gradient(180deg,#08040d 0%,#13091e 55%,#07050b 100%)",
+          backgroundImage: `linear-gradient(180deg, rgba(8,4,13,.68), rgba(8,4,13,.82)), url(${casinoBackground})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
         }}
       />
 
@@ -337,20 +342,23 @@ export default function SlaughterSlotsOverlay({
         <img src={slotCloseButton} alt="" draggable={false} className="block w-full h-auto select-none" />
       </button>
 
-      <div className="relative z-[98] h-full min-h-0 w-full max-w-[720px] mx-auto flex flex-col items-center overflow-hidden px-3 pb-2" style={{ paddingTop: "max(10px, env(safe-area-inset-top))" }}>
-        <div className="relative z-[12] flex shrink-0 items-center justify-center gap-3 sm:gap-5 rounded-full border border-amber-300/25 bg-black/45 px-4 py-1.5 text-xs sm:text-sm backdrop-blur-sm">
+      <div className="relative z-[98] h-full min-h-0 w-full max-w-[720px] mx-auto flex flex-col items-center overflow-hidden px-3 pb-2" style={{ paddingTop: "max(24px, calc(env(safe-area-inset-top) + 12px))", paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
+        <div data-testid="slaughter-slots-balances" className="relative z-[12] flex shrink-0 self-start flex-wrap items-center justify-start gap-2 rounded-full border border-amber-300/25 bg-black/60 px-3 py-1.5 text-xs backdrop-blur-sm" style={{ maxWidth: "calc(100% - 72px)" }}>
           <span className="flex items-center gap-1.5"><img src={currencyAssets.coin} alt="Coins" className="h-5 w-5 object-contain" />{state?.balances.coins ?? "—"}</span>
           <span className="h-4 w-px bg-white/15" />
           <span className="flex items-center gap-1.5"><img src={currencyAssets.essenceToken} alt="Essence" className="h-5 w-5 object-contain" />{state?.balances.essence ?? "—"}</span>
         </div>
 
-        <div data-testid="slaughter-slots-machine-stage" className="relative mt-0 w-full shrink-0" style={{ maxWidth: 520, width: "min(100%, calc((100dvh - 150px) * .67))" }}>
+        <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+        {/* Keep the logo, machine, reels and controls together above a reserved winnings area.
+            Use logical stage height so tablets scale the same composition as phones. */}
+        <div data-testid="slaughter-slots-machine-stage" className="relative w-full shrink-0" style={{ maxWidth: 520, width: "min(100%, calc((var(--fh, 100dvh) - 228px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * .67))" }}>
           <img
             src={slaughterSlotsLogo}
             alt="Slaughter Slots"
             draggable={false}
             className="pointer-events-none absolute left-1/2 top-0 z-[5] select-none object-contain"
-            style={{ width: "94%", maxHeight: "19vh", transform: "translate(-50%, -8%)" }}
+            style={{ width: "94%", maxHeight: "calc(var(--fh, 100dvh) * .19)", transform: "translate(-50%, -8%)" }}
           />
           <img
             src={slotMachineHandle}
@@ -384,6 +392,7 @@ export default function SlaughterSlotsOverlay({
                 key={index}
                 className="overflow-hidden rounded-[10%] border border-violet-200/35 backdrop-blur-[3px]"
                 style={{
+                  transform: index === 0 ? "translateX(-4%)" : index === 2 ? "translateX(4%)" : undefined,
                   background: "linear-gradient(180deg, rgba(105,45,158,.52) 0%, rgba(60,20,102,.42) 48%, rgba(27,7,48,.48) 100%)",
                   boxShadow: "inset 0 0 24px rgba(18,3,34,.78), inset 0 0 9px rgba(216,180,254,.18), 0 0 12px rgba(147,51,234,.18)",
                   animation: spinning ? "slaughterReelGlow .42s ease-in-out infinite" : undefined,
@@ -394,13 +403,13 @@ export default function SlaughterSlotsOverlay({
             ))}
           </div>
 
-          {/* Bet moves into the machine's upper control bar. */}
+          {/* Fit the bet controls inside the wide upper inset panel. */}
           <div
             data-testid="slaughter-slots-bet-control"
-            className="absolute z-[7] flex items-center justify-center gap-[2.5%] rounded-[18%] border border-amber-300/25 bg-black/42 px-[2%] shadow-[inset_0_0_12px_rgba(0,0,0,.58)]"
-            style={{ left: "26.5%", top: "60.2%", width: "47%", height: "8.8%" }}
+            className="absolute z-[7] flex items-center justify-between gap-[2.5%] px-[2%]"
+            style={{ left: "20%", top: "62.2%", width: "60%", height: "6.4%" }}
           >
-            <button type="button" aria-label="Decrease bet" onClick={() => moveBet(-1)} disabled={!state || spinning || holding || betIndex <= 0} className="h-[84%] aspect-square shrink-0 disabled:opacity-25 active:scale-90 transition-transform" style={{ background: "transparent", border: 0, padding: "2%" }}>
+            <button type="button" aria-label="Decrease bet" onClick={() => moveBet(-1)} disabled={!state || spinning || holding || betIndex <= 0} className="h-full aspect-square shrink-0 disabled:opacity-40 active:scale-90 transition-transform" style={{ background: "transparent", border: 0, padding: "2%" }}>
               <img src={slotMinusButton} alt="" className="block h-full w-full object-contain" draggable={false} />
             </button>
             <div className="flex min-w-0 flex-1 flex-col items-center justify-center leading-none">
@@ -409,7 +418,7 @@ export default function SlaughterSlotsOverlay({
                 <img src={currencyAssets.coin} alt="" className="h-[1.05em] w-[1.05em] object-contain" />{bet}
               </span>
             </div>
-            <button type="button" aria-label="Increase bet" onClick={() => moveBet(1)} disabled={!state || spinning || holding || betIndex >= (state?.betOptions.length ?? 1) - 1} className="h-[84%] aspect-square shrink-0 disabled:opacity-25 active:scale-90 transition-transform" style={{ background: "transparent", border: 0, padding: "2%" }}>
+            <button type="button" aria-label="Increase bet" onClick={() => moveBet(1)} disabled={!state || spinning || holding || betIndex >= (state?.betOptions.length ?? 1) - 1} className="h-full aspect-square shrink-0 disabled:opacity-40 active:scale-90 transition-transform" style={{ background: "transparent", border: 0, padding: "2%" }}>
               <img src={slotPlusButton} alt="" className="block h-full w-full object-contain" draggable={false} />
             </button>
           </div>
@@ -427,7 +436,7 @@ export default function SlaughterSlotsOverlay({
             className="absolute z-[7] flex flex-col items-center justify-center overflow-hidden rounded-[18%] border border-amber-300/55 bg-gradient-to-b from-emerald-950/95 to-black/85 px-1 disabled:opacity-40 select-none active:scale-[.98] transition-transform"
             style={{
               left: "26.5%",
-              top: "71.25%",
+              top: "72.5%",
               width: "47%",
               height: "7.7%",
               touchAction: "none",
@@ -442,6 +451,9 @@ export default function SlaughterSlotsOverlay({
           </button>
         </div>
 
+        </div>
+
+        <div data-testid="slaughter-slots-winnings-area" className="w-full shrink-0 overflow-y-auto" style={{ height: 112, overscrollBehavior: "contain" }}>
         <div className="mt-0 min-h-[16px] shrink-0 text-center text-[9px] sm:text-xs text-violet-100/80" aria-live="polite">
           {holding ? "Auto spin active — release to stop" : null}
         </div>
@@ -468,6 +480,8 @@ export default function SlaughterSlotsOverlay({
             </div>
           </div>
         )}
+
+        </div>
 
         <p className="sr-only">
           Bets and winnings use the normal Para Pets coin balance. Tap SPIN once or keep it pressed to repeat. Release the button to stop automatic spins.
