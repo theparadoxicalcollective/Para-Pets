@@ -1,5 +1,4 @@
-// Mobile keeps the original, native viewport layout. The logical/scaled frame
-// is an additive presentation used only at the tablet breakpoint and above.
+// Every device renders the iPhone 12 composition. Short viewports scroll its outer frame.
 export const DESIGN_W = 390;
 export const DESIGN_H = 844;
 export const WIDE_BREAKPOINT = 768;
@@ -14,6 +13,8 @@ export type StageLayout = {
   designHeight: number;
   viewportWidth: number;
   viewportHeight: number;
+  viewportLeft: number;
+  viewportTop: number;
   scale: number;
   renderedWidth: number;
   renderedHeight: number;
@@ -26,7 +27,7 @@ export function isNarrowLayout(viewportWidth: number): boolean {
 }
 
 export function getDesignWidth(viewportWidth: number): number {
-  return isNarrowLayout(viewportWidth) ? Math.min(DESIGN_W, viewportWidth) : DESIGN_W;
+  return DESIGN_W;
 }
 
 /**
@@ -55,13 +56,12 @@ export function calculateStageLayout(
   const viewportHeight = Math.max(1, visibleHeight);
   const designWidth = getDesignWidth(viewportWidth);
   const narrow = isNarrowLayout(viewportWidth);
-  // Phones own the real viewport and are never transformed into a fixed canvas.
-  // Tablets/desktops keep the same 390x844 layout and scale the whole stage as
-  // one unit, so internal UI positions never change between device classes.
-  const designHeight = narrow ? viewportHeight : DESIGN_H;
+  // Phones fit the authored width. Wide screens retain the centered fit, but
+  // never squeeze the game below 1x just because the window is short.
+  const designHeight = DESIGN_H;
   const scale = narrow
-    ? 1
-    : Math.min(viewportWidth / designWidth, viewportHeight / designHeight, MAX_STAGE_SCALE);
+    ? Math.min(viewportWidth / designWidth, MAX_STAGE_SCALE)
+    : Math.min(viewportWidth / designWidth, Math.max(1, viewportHeight / designHeight), MAX_STAGE_SCALE);
   const renderedWidth = designWidth * scale;
   const renderedHeight = designHeight * scale;
   return {
@@ -69,11 +69,13 @@ export function calculateStageLayout(
     designHeight,
     viewportWidth,
     viewportHeight,
+    viewportLeft: offsetLeft,
+    viewportTop: offsetTop,
     scale,
     renderedWidth,
     renderedHeight,
     left: offsetLeft + Math.max(0, (viewportWidth - renderedWidth) / 2),
-    top: narrow ? offsetTop : offsetTop + Math.max(0, (viewportHeight - renderedHeight) / 2),
+    top: offsetTop + Math.max(0, (viewportHeight - renderedHeight) / 2),
   };
 }
 
@@ -154,33 +156,19 @@ export function renderedToLogical(layout: StageLayout, x: number, y: number) {
 }
 
 export function clientToPortalPoint(layout: StageLayout, clientX: number, clientY: number) {
-  return isNarrowLayout(layout.viewportWidth)
-    ? { x: clientX, y: clientY }
-    : renderedToLogical(layout, clientX, clientY);
+  return renderedToLogical(layout, clientX, clientY);
 }
 
-/**
- * Do not create a transformed containing block for native phone layouts.
- * Even an explicit `transform: none` is unnecessary there; omitting the
- * property makes the phone coordinate ownership contract unambiguous.
- */
-export function getStageTransform(layout: StageLayout): string | undefined {
-  return layout.scale === 1 ? undefined : `scale(${layout.scale})`;
+/** Even scale(1) makes fixed children follow the canvas when its outer frame scrolls. */
+export function getStageTransform(layout: StageLayout): string {
+  return `scale(${layout.scale})`;
 }
 
-/**
- * Preserve viewport-owned fixed overlays on phones. On larger screens the
- * transformed portrait stage owns them so they do not spill into the gutters.
- */
+/** Gameplay portals share the same scale and scroll origin as their controls. */
 export function getStagePortalTarget(): HTMLElement {
-  if (isNarrowLayout(getVisibleViewport().width)) return document.body;
   return document.getElementById("game-stage") ?? document.body;
 }
 
-/** Match coordinates to the adaptive portal target above. */
 export function clientToStagePortal(clientX: number, clientY: number): { x: number; y: number } {
-  if (typeof window === "undefined" || isNarrowLayout(getVisibleViewport().width)) {
-    return { x: clientX, y: clientY };
-  }
   return clientToStage(clientX, clientY);
 }

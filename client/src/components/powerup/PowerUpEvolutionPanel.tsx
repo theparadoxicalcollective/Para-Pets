@@ -1,3 +1,4 @@
+import { getStagePortalTarget } from "@/lib/stage";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -306,11 +307,11 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
       </div>
       </div>
     </div>,
-    document.body,
+    getStagePortalTarget(),
   ) : null;
 
   const nodeToast = nodeMessage && nodeMessage.slot === undefined && typeof document !== "undefined"
-    ? createPortal(<div className="pupevo-node-message" role="status" aria-live="polite">{nodeMessage.message}</div>, document.body)
+    ? createPortal(<div className="pupevo-node-message" role="status" aria-live="polite">{nodeMessage.message}</div>, getStagePortalTarget())
     : null;
 
   return <>

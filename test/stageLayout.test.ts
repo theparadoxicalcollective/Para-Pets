@@ -1,170 +1,73 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  calculateStageLayout,
-  clientToPortalPoint,
-  DESIGN_H,
-  DESIGN_W,
-  getStageTransform,
-  logicalToRendered,
-  MAX_STAGE_SCALE,
-  renderedToLogical,
-  resolveMobileBrowserHeight,
-} from "../client/src/lib/stage";
+import { calculateStageLayout, clientToPortalPoint, DESIGN_H, DESIGN_W, getStageTransform, logicalToRendered, MAX_STAGE_SCALE, renderedToLogical, resolveMobileBrowserHeight } from "../client/src/lib/stage";
 
-test("390x844 iPhone design remains pixel-faithful", () => {
-  const layout = calculateStageLayout(390, 844);
-  assert.equal(layout.designWidth, DESIGN_W);
-  assert.equal(layout.designHeight, DESIGN_H);
-  assert.equal(layout.scale, 1);
-  assert.equal(layout.renderedWidth, 390);
-  assert.equal(layout.renderedHeight, 844);
-  assert.equal(layout.left, 0);
-  assert.equal(layout.top, 0);
-  assert.equal(getStageTransform(layout), undefined, "native phones do not get a transformed containing block");
+test("iPhone 12 retains 390 by 844 geometry at scale one", () => {
+  const s = calculateStageLayout(390, 844);
+  assert.equal(s.scale, 1);
+  assert.equal(s.left, 0);
+  assert.equal(s.top, 0);
+  assert.equal(getStageTransform(s), "scale(1)");
 });
 
-test("mobile browser toolbar shrinkage does not create a false short game viewport", () => {
-  assert.equal(resolveMobileBrowserHeight(667, 564), 667);
-  assert.equal(resolveMobileBrowserHeight(760, 680), 760);
+test("short phone scrolls the missing height instead of rearranging the scene", () => {
+  const s = calculateStageLayout(390, 760);
+  assert.equal(s.designHeight, 844);
+  assert.equal(s.scale, 1);
+  assert.equal(s.renderedHeight - s.viewportHeight, 84);
+  assert.equal(s.top, 0);
 });
 
-test("mobile browser keyboard reduction still uses the visual viewport", () => {
-  assert.equal(resolveMobileBrowserHeight(760, 420), 420);
-  assert.equal(resolveMobileBrowserHeight(915, 520), 520);
+test("narrow phones scale both axes equally and wider phones can enlarge the game", () => {
+  assert.equal(calculateStageLayout(360, 760).scale, 360 / 390);
+  assert.equal(calculateStageLayout(430, 932).scale, 430 / 390);
 });
 
-test("matching PWA-style viewport measurements remain unchanged", () => {
-  assert.equal(resolveMobileBrowserHeight(844, 844), 844);
-  assert.equal(resolveMobileBrowserHeight(915, 915), 915);
+test("short desktop windows scroll without reducing controls below native size", () => {
+  const s = calculateStageLayout(1280, 600);
+  assert.equal(s.scale, 1);
+  assert.equal(s.top, 0);
+  assert.equal(s.renderedHeight, 844);
 });
 
-test("390x760 Safari visible viewport stays native and follows the usable height", () => {
-  const layout = calculateStageLayout(390, 760);
-  assert.equal(layout.scale, 1);
-  assert.equal(layout.designWidth, 390);
-  assert.equal(layout.designHeight, 760);
-  assert.equal(layout.renderedWidth, 390);
-  assert.equal(layout.renderedHeight, 760);
-  assert.equal(layout.top, 0);
-  assert.equal(layout.viewportHeight, 760);
-  assert.ok(Math.abs(layout.viewportHeight * 0.01 - 7.6) < 1e-12);
-  assert.equal(getStageTransform(layout), undefined);
-});
-
-test("Android Chrome phone viewport stays native like iPhone", () => {
-  const layout = calculateStageLayout(412, 915);
-  assert.equal(layout.scale, 1);
-  assert.equal(layout.designWidth, DESIGN_W);
-  assert.equal(layout.designHeight, 915);
-  assert.equal(layout.renderedWidth, DESIGN_W);
-  assert.equal(layout.renderedHeight, 915);
-  assert.equal(layout.left, 11);
-  assert.equal(layout.top, 0);
-  assert.equal(getStageTransform(layout), undefined);
-});
-
-test("Android browser chrome and keyboard height changes never introduce scaling", () => {
-  for (const height of [915, 820, 760, 470]) {
-    const layout = calculateStageLayout(412, height);
-    assert.equal(layout.scale, 1);
-    assert.equal(layout.designHeight, height);
-    assert.equal(layout.top, 0);
-    assert.equal(getStageTransform(layout), undefined);
+test("ordinary tablet and desktop viewports retain the previous uniform fit", () => {
+  for (const [w, h] of [[768, 1024], [1440, 900], [1920, 1080]]) {
+    const s = calculateStageLayout(w, h);
+    assert.equal(s.scale, Math.min(w / 390, h / 844, 1.5));
+    assert.ok(Math.abs(s.left + s.renderedWidth / 2 - w / 2) < 1e-9);
+    assert.ok(Math.abs(s.top + s.renderedHeight / 2 - h / 2) < 1e-9);
   }
 });
 
-test("software keyboard height changes never introduce a phone stage transform", () => {
-  const beforeKeyboard = calculateStageLayout(390, 760);
-  const withKeyboard = calculateStageLayout(390, 420);
-  assert.equal(beforeKeyboard.scale, 1);
-  assert.equal(withKeyboard.scale, 1);
-  assert.equal(withKeyboard.designHeight, 420);
-  assert.equal(getStageTransform(beforeKeyboard), undefined);
-  assert.equal(getStageTransform(withKeyboard), undefined);
-});
-
-test("modern iPhone viewport remains an unscaled, top-aligned mobile stage", () => {
-  const layout = calculateStageLayout(393, 852, 12, 0);
-  assert.equal(layout.scale, 1);
-  assert.equal(layout.designWidth, 390);
-  assert.equal(layout.designHeight, 852);
-  assert.equal(layout.top, 12);
-  assert.equal(layout.left, 1.5);
-});
-
-test("narrower phones retain responsive width without whole-app scaling", () => {
-  const layout = calculateStageLayout(360, 760);
-  assert.equal(layout.designWidth, 360);
-  assert.equal(layout.designHeight, 760);
-  assert.equal(layout.scale, 1);
-  assert.equal(layout.renderedWidth, 360);
-});
-
-test("mobile portal coordinates remain viewport coordinates used by DOM hit testing", () => {
-  const layout = calculateStageLayout(393, 852);
-  assert.deepEqual(clientToPortalPoint(layout, 198, 420), { x: 198, y: 420 });
-});
-
-test("portrait tablet uniformly enlarges the phone stage without changing logical dimensions", () => {
-  const layout = calculateStageLayout(768, 1024);
-  assert.equal(layout.designWidth, DESIGN_W);
-  assert.equal(layout.designHeight, DESIGN_H);
-  assert.ok(layout.scale > 1.2 && layout.scale < 1.22);
-  assert.equal(layout.renderedHeight, 1024);
-  assert.equal(layout.left + layout.renderedWidth / 2, 384);
-  assert.equal(layout.top, 0);
-  assert.equal(getStageTransform(layout), `scale(${layout.scale})`);
-});
-
-for (const [width, height] of [[1440, 900], [1920, 1080]] as const) {
-  test(`${width}x${height} uses the centered desktop portrait presentation`, () => {
-    const layout = calculateStageLayout(width, height);
-    assert.ok(layout.scale > 1);
-    assert.equal(layout.designHeight, DESIGN_H);
-    assert.equal(layout.left + layout.renderedWidth / 2, width / 2);
-    assert.equal(layout.top + layout.renderedHeight / 2, height / 2);
-    assert.equal(getStageTransform(layout), `scale(${layout.scale})`);
-  });
-}
-
-const viewports = [
-  [360, 800], [360, 780], [375, 812], [390, 844], [393, 873], [412, 915], [430, 932],
-  [768, 1024], [800, 1280], [820, 1180], [834, 1194], [1024, 1366],
-  [1280, 720], [1366, 768], [1440, 900], [1920, 1080], [2560, 1440],
-] as const;
-
-for (const [width, height] of viewports) {
-  test(`${width}x${height} contains the stage and round-trips gameplay hit coordinates`, () => {
-    const layout = calculateStageLayout(width, height);
-    assert.equal(layout.designWidth, width < 768 ? Math.min(DESIGN_W, width) : DESIGN_W);
-    assert.equal(layout.designHeight, width < 768 ? height : DESIGN_H);
-    assert.ok(layout.renderedWidth <= width + Number.EPSILON);
-    assert.ok(layout.renderedHeight <= height + Number.EPSILON);
-    assert.ok(Math.abs(layout.renderedWidth / layout.designWidth - layout.scale) < 1e-12);
-    assert.ok(Math.abs(layout.renderedHeight / layout.designHeight - layout.scale) < 1e-12);
-    assert.ok(layout.scale <= MAX_STAGE_SCALE, "large monitors use the capped frame scale");
-    assert.ok(layout.left >= 0);
-    assert.ok(Math.abs(layout.left + layout.renderedWidth / 2 - width / 2) < 1e-9, "frame is horizontally centered");
-    if (width < 768) assert.equal(layout.top, 0, "mobile starts at the visible top");
-    else assert.ok(Math.abs(layout.top + layout.renderedHeight / 2 - height / 2) < 1e-9, "desktop frame is vertically centered");
-    assert.ok(layout.top + layout.renderedHeight <= height + Number.EPSILON, "bottom controls remain visible");
-
-    for (const logicalTarget of [{ x: 0, y: 0 }, { x: 220, y: 300 }, { x: layout.designWidth - 1, y: layout.designHeight - 1 }]) {
-      const pointer = logicalToRendered(layout, logicalTarget.x, logicalTarget.y);
-      const hit = renderedToLogical(layout, pointer.x, pointer.y);
-      assert.ok(Math.abs(hit.x - logicalTarget.x) < 1e-9, "pointer hits logical x");
-      assert.ok(Math.abs(hit.y - logicalTarget.y) < 1e-9, "pointer hits logical y");
+for (const [w, h] of [[320,568],[360,760],[375,812],[390,844],[393,852],[412,915],[430,932],[768,1024],[800,1280],[1024,768],[1280,720],[1920,1080],[2560,1440]]) {
+  test(`${w}x${h} preserves authored coordinates, horizontal fit, and pointer round trips`, () => {
+    const s = calculateStageLayout(w, h, 7, 3);
+    assert.equal(s.designWidth, DESIGN_W);
+    assert.equal(s.designHeight, DESIGN_H);
+    assert.ok(s.renderedWidth <= w + 1e-9);
+    assert.ok(s.scale <= MAX_STAGE_SCALE);
+    assert.equal(s.viewportTop, 7);
+    assert.equal(s.viewportLeft, 3);
+    for (const y of [0, 400, 843]) {
+      const p = logicalToRendered(s, 100, y);
+      assert.ok(Math.abs(renderedToLogical(s, p.x, p.y).y - y) < 1e-9);
+      assert.ok(Math.abs(clientToPortalPoint(s, p.x, p.y).x - 100) < 1e-9);
     }
   });
 }
 
-test("visual viewport offsets are included in rendered coordinates", () => {
-  const layout = calculateStageLayout(360, 780, 47, 3);
-  assert.equal(layout.top, 47);
-  assert.ok(layout.left >= 3);
-  const pointer = logicalToRendered(layout, 123, 456);
-  const logical = renderedToLogical(layout, pointer.x, pointer.y);
-  assert.ok(Math.abs(logical.x - 123) < 1e-9);
-  assert.ok(Math.abs(logical.y - 456) < 1e-9);
+test("keyboard changes visible space without resizing the composition or its controls", () => {
+  const normal = calculateStageLayout(390, 844);
+  const keyboard = calculateStageLayout(390, 420, 20);
+  assert.equal(keyboard.designHeight, normal.designHeight);
+  assert.equal(keyboard.scale, normal.scale);
+  assert.equal(keyboard.top, 20);
+});
+
+test("browser toolbar and keyboard detection remain unchanged", () => {
+  assert.equal(resolveMobileBrowserHeight(667, 564), 667);
+  assert.equal(resolveMobileBrowserHeight(760, 680), 760);
+  assert.equal(resolveMobileBrowserHeight(760, 420), 420);
+  assert.equal(resolveMobileBrowserHeight(915, 520), 520);
+  assert.equal(resolveMobileBrowserHeight(844, 844), 844);
 });

@@ -11,7 +11,7 @@ import { playClick, unlockAudio } from "@/lib/sounds";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
-import { calculateStageLayout, getStageTransform, getVisibleViewport } from "@/lib/stage";
+import GameFrame from "@/components/GameFrame";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import homeBg from "@assets/bg_home_v2.png";
@@ -760,83 +760,7 @@ function DesktopNotice() {
 }
 
 function GameStage({ children }: { children: ReactNode }) {
-  const [layout, setLayout] = useState(() => {
-    const viewport = getVisibleViewport();
-    return calculateStageLayout(viewport.width, viewport.height, viewport.top, viewport.left);
-  });
-
-  useEffect(() => {
-    let animationFrame = 0;
-    const update = () => {
-      const viewport = getVisibleViewport();
-      const next = calculateStageLayout(viewport.width, viewport.height, viewport.top, viewport.left);
-      setLayout(next);
-      const root = document.documentElement.style;
-      root.setProperty("--stage-scale", String(next.scale));
-      root.setProperty("--viewport-height", `${next.viewportHeight}px`);
-      root.setProperty("--viewport-width", `${next.viewportWidth}px`);
-      root.setProperty("--fh", `${next.viewportHeight}px`);
-      root.setProperty("--vh", `${next.viewportHeight * 0.01}px`);
-      root.setProperty("--vw", `${next.viewportWidth * 0.01}px`);
-      root.setProperty("--stage-logical-width", `${next.designWidth}px`);
-      root.setProperty("--stage-logical-height", `${next.designHeight}px`);
-    };
-    const scheduleUpdate = () => {
-      cancelAnimationFrame(animationFrame);
-      animationFrame = requestAnimationFrame(update);
-    };
-    update();
-    window.addEventListener("resize", scheduleUpdate);
-    window.addEventListener("orientationchange", scheduleUpdate);
-    window.addEventListener("pageshow", scheduleUpdate);
-    document.addEventListener("visibilitychange", scheduleUpdate);
-    window.visualViewport?.addEventListener("resize", scheduleUpdate);
-    window.visualViewport?.addEventListener("scroll", scheduleUpdate);
-    return () => {
-      cancelAnimationFrame(animationFrame);
-      window.removeEventListener("resize", scheduleUpdate);
-      window.removeEventListener("orientationchange", scheduleUpdate);
-      window.removeEventListener("pageshow", scheduleUpdate);
-      document.removeEventListener("visibilitychange", scheduleUpdate);
-      window.visualViewport?.removeEventListener("resize", scheduleUpdate);
-      window.visualViewport?.removeEventListener("scroll", scheduleUpdate);
-    };
-  }, []);
-
-  return (
-    <div
-      className="game-stage-shell"
-      style={{
-        position: "fixed", inset: 0,
-        background: "#050c08",
-        "--desktop-stage-background-image": `url(${mainGameBg})`,
-      } as CSSProperties}
-    >
-      <div
-        id="game-stage"
-        data-design-width={layout.designWidth}
-        data-design-height={layout.designHeight}
-        style={{
-          position: "absolute",
-          left: layout.left,
-          top: layout.top,
-          width: layout.designWidth,
-          height: layout.designHeight,
-          transform: getStageTransform(layout),
-          transformOrigin: "top left",
-          overflow: "hidden",
-          isolation: "isolate",
-          // Frame-relative viewport units remain logical pixels while the
-          // complete stage is uniformly scaled into the visual viewport.
-          "--fh": `${layout.designHeight}px`,
-          "--vh": `${layout.designHeight * 0.01}px`,
-          "--vw": `${layout.designWidth * 0.01}px`,
-        } as CSSProperties}
-      >
-        {children}
-      </div>
-    </div>
-  );
+  return <GameFrame backgroundImage={mainGameBg}>{children}</GameFrame>;
 }
 
 function App() {

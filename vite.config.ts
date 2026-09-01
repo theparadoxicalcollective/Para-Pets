@@ -1,4 +1,5 @@
 import { defineConfig, type Plugin } from "vite";
+import gameFrameSourcePlugin from "./script/gameFrameSource";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
@@ -50,6 +51,7 @@ export default defineConfig({
   define: { __BUILD_ID__: JSON.stringify(buildId) },
   plugins: [
     fixedWorldMapCanvasPlugin(),
+    gameFrameSourcePlugin(),
     react(),
     runtimeErrorOverlay(),
     ...(process.env.NODE_ENV !== "production" &&

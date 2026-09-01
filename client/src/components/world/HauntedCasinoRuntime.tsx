@@ -1,3 +1,4 @@
+import { getStagePortalTarget } from "@/lib/stage";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
@@ -237,7 +238,7 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
             >Close</button>
           </div>
         </div>,
-        document.body,
+        getStagePortalTarget(),
       )}
 
       {slotsOpen && createPortal(
@@ -245,7 +246,7 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
           onClose={() => setSlotsOpen(false)}
           onCurrencyChanged={onCurrencyChanged}
         />,
-        document.body,
+        getStagePortalTarget(),
       )}
     </>
   );

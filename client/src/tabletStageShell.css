@@ -1,7 +1,7 @@
 /*
  * Tablet/desktop presentation shell only.
- * Phones (including iPhone/Android standalone web apps) keep their native
- * mobile layout and are never opted into the desktop presentation by width.
+ * The decorative border stays outside the authored canvas geometry.
+ * Phones share the fixed composition without the desktop artwork/border.
  */
 
 /* Shared desktop/tablet presentation. */
@@ -18,7 +18,8 @@
 
   #game-stage {
     box-sizing: border-box;
-    border: 3px solid rgba(222, 178, 62, 0.9);
+    outline: 3px solid rgba(222, 178, 62, 0.9);
+    outline-offset: -3px;
     border-radius: 18px;
     box-shadow:
       0 0 0 1px rgba(255, 231, 154, 0.28),
@@ -50,7 +51,8 @@
 
   #game-stage {
     box-sizing: border-box;
-    border: 3px solid rgba(222, 178, 62, 0.9);
+    outline: 3px solid rgba(222, 178, 62, 0.9);
+    outline-offset: -3px;
     border-radius: 18px;
     box-shadow:
       0 0 0 1px rgba(255, 231, 154, 0.28),

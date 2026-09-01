@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-test("gameplay portals select body on mobile and the portrait stage on desktop", () => {
+test("gameplay portals share the portrait stage and pointer conversion on every device", () => {
   const pvp = readFileSync("client/src/pages/PvpBattlePage.tsx", "utf8");
   const raid = readFileSync("client/src/pages/RaidBattlePage.tsx", "utf8");
   const petCare = readFileSync("client/src/features/pet-care/FeedingOverlay.tsx", "utf8");

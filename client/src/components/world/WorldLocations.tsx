@@ -1,3 +1,4 @@
+import { getStagePortalTarget } from "@/lib/stage";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -485,7 +486,7 @@ export default function WorldLocations({
             <X className="h-5 w-5" />
           </button>
         </div>,
-        document.body,
+        getStagePortalTarget(),
       )}
     </div>
   );

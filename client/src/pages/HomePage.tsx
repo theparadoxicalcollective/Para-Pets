@@ -19,7 +19,7 @@ import eggImg from "@assets/generated_images/nav_icon_pets.png";
 import badgeIcon from "@assets/generated_images/nav_icon_badges.png";
 import { playSpeedUp } from "@/lib/sounds";
 import { QuillBadge } from "@/components/QuillBadge";
-import { clientToStage, getDesignW } from "@/lib/stage";
+import { clientToStage, getDesignW, DESIGN_H } from "@/lib/stage";
 import { bjGetStep, bjIsStep5FakeMode, bjIsStep5TapMode } from "@/lib/beginJourney";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useToast } from "@/hooks/use-toast";
@@ -689,9 +689,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
         if (ev.pointerId !== pid) return;
         const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
         if (dist > 6) {
-          setHomeDragging({ item, x: ev.clientX, y: ev.clientY });
+          setHomeDragging({ item, ...clientToStage(ev.clientX, ev.clientY) });
           // Light up "over egg" glow when pointer drifts into the upper region
-          setHomeDragOver(ev.clientY < window.innerHeight * 0.65);
+          setHomeDragOver(clientToStage(ev.clientX, ev.clientY).y < DESIGN_H * 0.65);
         }
       };
 
@@ -736,10 +736,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       const dist = Math.hypot(ev.clientX - startX, ev.clientY - startY);
       if (dist > 6 && !dragActive) {
         dragActive = true;
-        setHomeDragging({ item, x: ev.clientX, y: ev.clientY });
+        setHomeDragging({ item, ...clientToStage(ev.clientX, ev.clientY) });
       }
       if (dragActive) {
-        setHomeDragging(prev => prev ? { ...prev, x: ev.clientX, y: ev.clientY } : null);
+        setHomeDragging(prev => prev ? { ...prev, ...clientToStage(ev.clientX, ev.clientY) } : null);
         const dropRect = homeEggDropRef.current?.getBoundingClientRect();
         if (dropRect) {
           const over = ev.clientX >= dropRect.left && ev.clientX <= dropRect.right &&

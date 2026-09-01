@@ -185,6 +185,8 @@ function isStandaloneDisplay(): boolean {
 }
 
 function shouldFitFullWorldComposition(): boolean {
+  // The outer fixed frame owns short-screen overflow; do not shrink the map again.
+  if (document.getElementById("game-stage")?.dataset.fixedComposition === "true") return false;
   const viewport = window.visualViewport;
   return (viewport?.width ?? window.innerWidth) < 768
     && !isStandaloneDisplay()

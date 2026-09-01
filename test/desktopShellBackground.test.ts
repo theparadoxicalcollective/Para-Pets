@@ -12,8 +12,9 @@ test("desktop shell uses MainGameBG only in the large-screen presentation", () =
 
   assert.ok(existsSync(fromRoot("attached_assets", "uploads", "MainGameBG.png")));
   assert.match(app, /import mainGameBg from "@assets\/uploads\/MainGameBG\.png";/);
-  assert.match(app, /className="game-stage-shell"/);
-  assert.match(app, /--desktop-stage-background-image/);
+  const frame = readFileSync(fromRoot("client", "src", "components", "GameFrame.tsx"), "utf8");
+  assert.match(frame, /className="game-stage-shell"/);
+  assert.match(frame, /--desktop-stage-background-image/);
   assert.match(css, /@media \(min-width: 768px\)/);
   assert.match(css, /var\(--desktop-stage-background-image\)/);
   assert.match(css, /background-size: cover/);
