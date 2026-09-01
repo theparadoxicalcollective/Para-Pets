@@ -362,7 +362,11 @@ export default function CardAdminPanel() {
                   ? 100 - Number(currentLayout[selectedField === "name" ? "nameWidth" : "descriptionWidth"])
                   : key === "nameY" || key === "descriptionY"
                     ? 100 - Number(currentLayout[selectedField === "name" ? "nameHeight" : "descriptionHeight"])
-                    : max;
+                    : key === "nameWidth" || key === "descriptionWidth"
+                      ? 100 - Number(currentLayout[selectedField === "name" ? "nameX" : "descriptionX"])
+                      : key === "nameHeight" || key === "descriptionHeight"
+                        ? 100 - Number(currentLayout[selectedField === "name" ? "nameY" : "descriptionY"])
+                        : max;
                 return (
                   <label key={key} className="grid grid-cols-[58px_1fr_42px] items-center gap-2 text-[9px] text-white/55">
                     <span>{label}</span>
