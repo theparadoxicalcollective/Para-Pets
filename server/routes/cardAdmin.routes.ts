@@ -35,9 +35,9 @@ function requiredText(value: unknown, label: string, maxLength: number): string 
   return text;
 }
 
-function descriptionText(value: unknown): string {
+function descriptionText(value: unknown, maxLength = 600): string {
   const text = typeof value === "string" ? value.trim() : "";
-  if (text.length > 600) throw new Error("Description must be 600 characters or fewer");
+  if (text.length > maxLength) throw new Error(`Description must be ${maxLength} characters or fewer`);
   return text;
 }
 
@@ -66,11 +66,12 @@ function parseLayout(body: Record<string, unknown>): LayoutInput {
   return parsed;
 }
 
-function serializeCard(row: any) {
+export function serializeCard(row: any) {
   return {
     id: row.id,
     name: row.name,
     description: row.description ?? "",
+    secondDescription: row.second_description ?? "",
     artworkUrl: row.artwork_url,
     rarity: Number(row.rarity),
     createdAt: row.created_at,
@@ -78,7 +79,7 @@ function serializeCard(row: any) {
   };
 }
 
-function serializeLayout(row: any) {
+export function serializeLayout(row: any) {
   return {
     rarity: Number(row.rarity),
     nameX: Number(row.name_x),
@@ -102,7 +103,7 @@ export function registerCardAdminRoutes(
   app.get("/api/admin/cards", isAdmin, async (_req, res) => {
     try {
       const result = await db.execute(sql`
-        SELECT id, name, description, artwork_url, rarity, created_at, updated_at
+        SELECT id, name, description, second_description, artwork_url, rarity, created_at, updated_at
         FROM card_definitions
         ORDER BY rarity DESC, created_at DESC
       `);
@@ -117,6 +118,7 @@ export function registerCardAdminRoutes(
     try {
       const name = requiredText(req.body?.name, "Name", 80);
       const description = descriptionText(req.body?.description);
+      const secondDescription = req.body?.secondDescription === undefined ? null : descriptionText(req.body.secondDescription, 10000);
       const rarity = parseRarity(req.body?.rarity);
       if (!rarity) return res.status(400).json({ message: "Rarity must be between 1 and 5" });
       if (typeof req.body?.artworkData !== "string" || !req.body.artworkData) {
@@ -124,9 +126,9 @@ export function registerCardAdminRoutes(
       }
       const artworkUrl = await processCardImage(req.body.artworkData, 1600);
       const result = await db.execute(sql`
-        INSERT INTO card_definitions (name, description, artwork_url, rarity)
-        VALUES (${name}, ${description}, ${artworkUrl}, ${rarity})
-        RETURNING id, name, description, artwork_url, rarity, created_at, updated_at
+        INSERT INTO card_definitions (name, description, second_description, artwork_url, rarity)
+        VALUES (${name}, ${description}, ${secondDescription ?? ""}, ${artworkUrl}, ${rarity})
+        RETURNING id, name, description, second_description, artwork_url, rarity, created_at, updated_at
       `);
       return res.status(201).json(serializeCard(result.rows[0]));
     } catch (error: any) {
@@ -141,6 +143,7 @@ export function registerCardAdminRoutes(
     try {
       const name = requiredText(req.body?.name, "Name", 80);
       const description = descriptionText(req.body?.description);
+      const secondDescription = req.body?.secondDescription === undefined ? null : descriptionText(req.body.secondDescription, 10000);
       const rarity = parseRarity(req.body?.rarity);
       if (!rarity) return res.status(400).json({ message: "Rarity must be between 1 and 5" });
       const artworkUrl = typeof req.body?.artworkData === "string" && req.body.artworkData
@@ -149,9 +152,10 @@ export function registerCardAdminRoutes(
       const result = await db.execute(sql`
         UPDATE card_definitions
         SET name = ${name}, description = ${description}, rarity = ${rarity},
+            second_description = COALESCE(${secondDescription}, second_description),
             artwork_url = COALESCE(${artworkUrl}, artwork_url), updated_at = now()
         WHERE id = ${req.params.id}
-        RETURNING id, name, description, artwork_url, rarity, created_at, updated_at
+        RETURNING id, name, description, second_description, artwork_url, rarity, created_at, updated_at
       `);
       if (!result.rows[0]) return res.status(404).json({ message: "Card not found" });
       return res.json(serializeCard(result.rows[0]));
@@ -229,4 +233,4 @@ export function registerCardAdminRoutes(
   });
 }
 
-export const cardAdminValidation = { parseRarity, parseLayout };
+export const cardAdminValidation = { parseRarity, parseLayout, descriptionText };

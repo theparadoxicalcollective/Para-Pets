@@ -37,6 +37,22 @@ export async function runEssentialBoot(): Promise<void> {
         created_at TIMESTAMP NOT NULL DEFAULT now(),
         updated_at TIMESTAMP NOT NULL DEFAULT now()
       );
+      ALTER TABLE card_definitions ADD COLUMN IF NOT EXISTS second_description TEXT NOT NULL DEFAULT '';
+      CREATE TABLE IF NOT EXISTS user_cards (
+        user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        card_id VARCHAR NOT NULL REFERENCES card_definitions(id) ON DELETE CASCADE,
+        quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity >= 0),
+        first_collected_at TIMESTAMP NOT NULL DEFAULT now(),
+        first_reward_claimed_at TIMESTAMP,
+        PRIMARY KEY (user_id, card_id)
+      );
+      CREATE TABLE IF NOT EXISTS reward_bundle_cards (
+        bundle_id VARCHAR NOT NULL REFERENCES reward_bundles(id) ON DELETE CASCADE,
+        card_id VARCHAR NOT NULL REFERENCES card_definitions(id) ON DELETE CASCADE,
+        quantity INTEGER NOT NULL CHECK (quantity BETWEEN 1 AND 999),
+        PRIMARY KEY (bundle_id, card_id)
+      );
+
       CREATE INDEX IF NOT EXISTS card_definitions_rarity_created_idx
         ON card_definitions(rarity, created_at DESC);
 

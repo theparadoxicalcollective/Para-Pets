@@ -17,6 +17,7 @@ import {
 interface CardFormState {
   name: string;
   description: string;
+  secondDescription: string;
   rarity: CardRarity;
   artworkData: string;
   artworkPreview: string;
@@ -25,6 +26,7 @@ interface CardFormState {
 const EMPTY_FORM: CardFormState = {
   name: "",
   description: "",
+  secondDescription: "",
   rarity: 1,
   artworkData: "",
   artworkPreview: "",
@@ -88,6 +90,7 @@ export default function CardAdminPanel() {
       const body = {
         name: form.name,
         description: form.description,
+        secondDescription: form.secondDescription,
         rarity: form.rarity,
         artworkData: form.artworkData || undefined,
       };
@@ -98,6 +101,7 @@ export default function CardAdminPanel() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cards"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cards"] });
       setShowForm(false);
       setEditingCard(null);
       setForm(EMPTY_FORM);
@@ -116,6 +120,7 @@ export default function CardAdminPanel() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cards"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cards"] });
       toast({ title: "Card deleted" });
     },
     onError: (error: any) => toast({
@@ -137,6 +142,7 @@ export default function CardAdminPanel() {
     onSuccess: (saved) => {
       setLayoutDrafts((current) => ({ ...current, [saved.rarity]: saved }));
       queryClient.invalidateQueries({ queryKey: ["/api/admin/card-border-layouts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cards"] });
       toast({ title: `${saved.rarity}★ border layout saved` });
     },
     onError: (error: any) => toast({
@@ -157,6 +163,7 @@ export default function CardAdminPanel() {
     setForm({
       name: card.name,
       description: card.description,
+      secondDescription: card.secondDescription ?? "",
       rarity: card.rarity,
       artworkData: "",
       artworkPreview: card.artworkUrl,
@@ -458,9 +465,15 @@ export default function CardAdminPanel() {
                 </select>
               </label>
               <label className="block">
-                <span className="mb-1 block font-fantasy text-[9px] tracking-wider text-[#ddc175]">DESCRIPTION</span>
+                <span className="mb-1 block font-fantasy text-[9px] tracking-wider text-[#ddc175]">SHORT DESCRIPTION — CARD FACE</span>
                 <textarea data-testid="input-card-description" maxLength={600} rows={4} value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} className="w-full resize-none rounded-xl px-3 py-2.5 text-sm outline-none" style={{ color: "#fff0bd", background: "#0a1710", border: "1px solid rgba(224,181,74,.3)" }} />
                 <span className="mt-1 block text-right text-[8px] text-white/30">{form.description.length}/600</span>
+              </label>
+              <label className="block">
+                <span className="mb-1 block font-fantasy text-[9px] tracking-wider text-[#ddc175]">SECOND DESCRIPTION</span>
+                <p className="mb-2 text-xs text-white/50">Players tap the short description on the enlarged card to read this.</p>
+                <textarea data-testid="input-card-second-description" maxLength={10000} rows={7} value={form.secondDescription} onChange={event => setForm(current => ({ ...current, secondDescription: event.target.value }))} className="w-full rounded-xl border border-amber-200/30 bg-[#0a1710] px-3 py-2.5 text-sm text-[#fff0bd]" />
+                <span className="mt-1 block text-right text-[8px] text-white/30">{form.secondDescription.length}/10000</span>
               </label>
             </div>
 

@@ -13,6 +13,7 @@ interface CardPreviewProps {
   description: string;
   layout: CardBorderLayout;
   editable?: boolean;
+  onDescriptionClick?: () => void;
   selectedField?: CardLayoutField;
   onSelectField?: (field: CardLayoutField) => void;
   onLayoutChange?: (layout: CardBorderLayout) => void;
@@ -31,6 +32,7 @@ export default function CardPreview({
   description,
   layout,
   editable = false,
+  onDescriptionClick,
   selectedField = "name",
   onSelectField,
   onLayoutChange,
@@ -93,6 +95,7 @@ export default function CardPreview({
     const isName = field === "name";
     const metrics = fieldMetrics(field);
     const selected = editable && selectedField === field;
+    const clickable = !editable && !isName && !!onDescriptionClick;
     return (
       <div
         data-testid={`card-layout-box-${field}`}
@@ -100,7 +103,16 @@ export default function CardPreview({
         onPointerMove={moveDrag}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        onClick={() => onSelectField?.(field)}
+        role={clickable ? "button" : undefined}
+        tabIndex={clickable ? 0 : undefined}
+        aria-label={clickable ? `Read full description of ${name}` : undefined}
+        onKeyDown={event => {
+          if (clickable && (event.key === "Enter" || event.key === " ")) {
+            event.preventDefault();
+            onDescriptionClick?.();
+          }
+        }}
+        onClick={() => clickable ? onDescriptionClick?.() : onSelectField?.(field)}
         style={{
           position: "absolute",
           left: `${metrics.x}%`,
@@ -125,7 +137,7 @@ export default function CardPreview({
           border: editable ? `1.5px dashed ${selected ? "#7cf5b2" : "rgba(255,224,128,.78)"}` : "none",
           background: editable ? (selected ? "rgba(22,90,58,.34)" : "rgba(8,8,5,.22)") : "transparent",
           boxShadow: editable && selected ? "0 0 10px rgba(124,245,178,.42)" : "none",
-          cursor: editable ? "grab" : "default",
+          cursor: editable ? "grab" : clickable ? "pointer" : "default",
           touchAction: editable ? "none" : "auto",
           userSelect: "none",
         }}
