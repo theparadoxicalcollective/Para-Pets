@@ -27,17 +27,21 @@ async function runBackgroundInitialization(): Promise<void> {
     // Forest Squirrel Fox template, leaving every other pet profile untouched.
     await tagSquirrelFoxAnimationProfile();
   } finally {
-    // The legacy backfill understands older Haunted Woods databases. The
-    // focused reconciliation runs afterward—even if an unrelated legacy task
-    // fails—so canonical world locations and source-controlled assets have the
-    // final word without replacing admin-controlled placement values.
-    await reconcileHauntedWoodsWorld();
-
-    // Apply the current source-controlled world-map art after every legacy
-    // background backfill. This updates only the world background URLs; the
-    // world IDs, locations, hotspot placement, and destination behavior remain
-    // untouched. Volcanic keeps its existing one-shot/admin-safe semantics.
-    await reconcileCanonicalWorldMaps();
+    // Keep both focused reconciliations independent: even if the Haunted Woods
+    // location repair hits an unrelated data problem, the requested canonical
+    // world-map backgrounds still receive the final word for this boot.
+    try {
+      // The legacy backfill understands older Haunted Woods databases. The
+      // focused reconciliation runs afterward so canonical world locations and
+      // source-controlled assets win without replacing admin placement values.
+      await reconcileHauntedWoodsWorld();
+    } finally {
+      // Apply the current source-controlled world-map art after every legacy
+      // background backfill. This updates only the world background URLs; the
+      // world IDs, locations, hotspot placement, and destination behavior remain
+      // untouched. Volcanic keeps its existing one-shot/admin-safe semantics.
+      await reconcileCanonicalWorldMaps();
+    }
   }
 }
 
