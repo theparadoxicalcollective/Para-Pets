@@ -20,13 +20,17 @@ test("world locations render named admin hotspots instead of map building art", 
   assert.doesNotMatch(source, /src=\{[^}]*loc\.iconUrl/);
 });
 
-test("players see a subtle gold sparkle but keep the existing location click behavior", () => {
+test("players see a clear animated gold sparkle cluster but keep the existing location click behavior", () => {
   const source = fs.readFileSync(WORLD_LOCATIONS_PATH, "utf8");
 
   assert.match(source, /player-location-hotspot-\$\{loc\.id\}/);
   assert.match(source, /location-sparkle-\$\{loc\.id\}/);
   assert.match(source, /worldHotspotSparklePulse/);
-  assert.match(source, /rgba\(255,216,92/);
+  assert.match(source, /worldHotspotSparkleCore/);
+  assert.match(source, /location-sparkle-particle-/);
+  assert.match(source, /linear-gradient\(135deg, #fffce8/);
+  assert.match(source, /translate\(-50%, -50%\) scale/);
+  assert.doesNotMatch(source, /radial-gradient\(circle, rgba\(255,247,196/);
   assert.match(source, /activateLocation\(loc\)/);
   assert.match(source, /onLocationClick\(loc\)/);
 });
