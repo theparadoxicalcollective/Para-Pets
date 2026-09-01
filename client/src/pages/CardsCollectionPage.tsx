@@ -9,6 +9,7 @@ import twoStarButton from "@assets/uploads/2StarButton.png";
 import threeStarButton from "@assets/uploads/3StarButton.png";
 import fourStarButton from "@assets/uploads/4StarButton.png";
 import fiveStarButton from "@assets/uploads/5StarButton.png";
+import closeButton from "@assets/uploads/ClosetCloseButton.png";
 
 const PLACEHOLDER_SLOTS = Array.from({ length: 6 }, (_, index) => index);
 
@@ -31,10 +32,12 @@ export default function CardsCollectionPage() {
         position: "absolute",
         inset: 0,
         overflowY: "auto",
+        overflowX: "hidden",
         background:
-          "radial-gradient(circle at 50% 16%, rgba(83,126,83,.34), transparent 36%), linear-gradient(180deg, #07120c 0%, #0d2115 55%, #050b08 100%)",
+          "radial-gradient(ellipse at 50% 7%, rgba(72,121,77,.3), transparent 30%), radial-gradient(ellipse at 50% 58%, rgba(31,74,49,.18), transparent 46%), linear-gradient(180deg, #07170f 0%, #092017 42%, #04100b 100%)",
         color: "#f8e7b0",
         fontFamily: "'Cinzel', 'Palatino Linotype', serif",
+        WebkitOverflowScrolling: "touch",
       }}
     >
       <div
@@ -43,9 +46,9 @@ export default function CardsCollectionPage() {
           width: "min(100%, 430px)",
           minHeight: "100%",
           margin: "0 auto",
-          padding: "34px 16px 150px",
+          padding:
+            "max(14px, env(safe-area-inset-top)) 12px calc(104px + env(safe-area-inset-bottom))",
           boxSizing: "border-box",
-          overflow: "hidden",
         }}
       >
         <button
@@ -55,87 +58,129 @@ export default function CardsCollectionPage() {
           onClick={() => navigate("/")}
           style={{
             position: "absolute",
-            zIndex: 4,
-            top: 18,
-            right: 18,
-            width: 34,
-            height: 34,
-            borderRadius: "50%",
-            border: "1px solid rgba(224,181,74,.72)",
-            background: "rgba(7,18,12,.88)",
-            color: "#f0c040",
-            fontSize: 22,
-            lineHeight: 1,
+            zIndex: 6,
+            top: "max(12px, env(safe-area-inset-top))",
+            right: 10,
+            width: "clamp(38px, 11vw, 48px)",
+            height: "clamp(38px, 11vw, 48px)",
+            appearance: "none",
+            border: 0,
+            padding: 0,
+            background: "transparent",
             cursor: "pointer",
-            boxShadow: "0 4px 14px rgba(0,0,0,.45)",
+            filter: "drop-shadow(0 5px 8px rgba(0,0,0,.46))",
           }}
         >
-          ×
+          <img
+            src={closeButton}
+            alt=""
+            draggable={false}
+            style={{ display: "block", width: "100%", height: "100%", objectFit: "contain" }}
+          />
         </button>
 
-        <header style={{ position: "relative", zIndex: 2, textAlign: "center", marginBottom: 12 }}>
+        <section
+          aria-label="Card collection controls"
+          style={{
+            position: "relative",
+            zIndex: 3,
+            width: "100%",
+            margin: "0 auto clamp(2px, 1vw, 6px)",
+            padding: "clamp(4px, 1.5vw, 8px) 4px 0",
+            boxSizing: "border-box",
+            textAlign: "center",
+          }}
+        >
           <img
             src={cardTitle}
             alt="Cards"
             draggable={false}
             style={{
               display: "block",
-              width: "min(78%, 290px)",
+              width: "min(70vw, 276px)",
               height: "auto",
-              margin: "0 auto",
+              margin: "0 auto clamp(2px, 1vw, 6px)",
               objectFit: "contain",
-              filter: "drop-shadow(0 6px 12px rgba(0,0,0,.48))",
+              filter: "drop-shadow(0 6px 12px rgba(0,0,0,.5))",
+              userSelect: "none",
             }}
           />
-        </header>
 
-        <nav
-          aria-label="Filter cards by rarity"
-          style={{
-            position: "relative",
-            zIndex: 2,
-            display: "grid",
-            gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
-            alignItems: "center",
-            gap: 5,
-            margin: "0 auto 18px",
-            width: "100%",
-          }}
-        >
-          {RARITY_FILTERS.map(filter => {
-            const selected = rarityFilter === filter.rarity;
-            return (
-              <button
-                key={filter.rarity}
-                type="button"
-                aria-label={`Filter ${filter.label} cards`}
-                aria-pressed={selected}
-                data-testid={`button-card-filter-${filter.rarity}`}
-                onClick={() => setRarityFilter(current => current === filter.rarity ? null : filter.rarity)}
-                style={{
-                  appearance: "none",
-                  border: 0,
-                  padding: 0,
-                  background: "transparent",
-                  cursor: "pointer",
-                  opacity: rarityFilter !== null && !selected ? 0.56 : 1,
-                  transform: selected ? "translateY(-2px) scale(1.06)" : "none",
-                  filter: selected
-                    ? "drop-shadow(0 0 8px rgba(246,205,91,.72))"
-                    : "drop-shadow(0 3px 5px rgba(0,0,0,.35))",
-                  transition: "transform 150ms ease, opacity 150ms ease, filter 150ms ease",
-                }}
-              >
-                <img
-                  src={filter.src}
-                  alt=""
-                  draggable={false}
-                  style={{ display: "block", width: "100%", height: "auto", objectFit: "contain" }}
-                />
-              </button>
-            );
-          })}
-        </nav>
+          <nav
+            aria-label="Filter cards by rarity"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+              alignItems: "center",
+              gap: "clamp(2px, .8vw, 5px)",
+              width: "min(96%, 400px)",
+              margin: "0 auto",
+              padding: "2px 2px 0",
+              boxSizing: "border-box",
+            }}
+          >
+            {RARITY_FILTERS.map(filter => {
+              const selected = rarityFilter === filter.rarity;
+              const subdued = rarityFilter !== null && !selected;
+
+              return (
+                <button
+                  key={filter.rarity}
+                  type="button"
+                  aria-label={`Filter ${filter.label} cards`}
+                  aria-pressed={selected}
+                  data-testid={`button-card-filter-${filter.rarity}`}
+                  onClick={() =>
+                    setRarityFilter(current => (current === filter.rarity ? null : filter.rarity))
+                  }
+                  style={{
+                    appearance: "none",
+                    border: 0,
+                    padding: 0,
+                    background: "transparent",
+                    cursor: "pointer",
+                    opacity: subdued ? 0.5 : 1,
+                    transform: selected ? "translateY(-2px) scale(1.075)" : "scale(1)",
+                    filter: selected
+                      ? "drop-shadow(0 0 8px rgba(249,214,102,.86)) drop-shadow(0 3px 5px rgba(0,0,0,.4))"
+                      : "drop-shadow(0 3px 5px rgba(0,0,0,.38))",
+                    transition: "transform 150ms ease, opacity 150ms ease, filter 150ms ease",
+                  }}
+                >
+                  <img
+                    src={filter.src}
+                    alt=""
+                    draggable={false}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      height: "auto",
+                      objectFit: "contain",
+                      userSelect: "none",
+                    }}
+                  />
+                </button>
+              );
+            })}
+          </nav>
+
+          <img
+            src={cardPageDecor}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            style={{
+              display: "block",
+              width: "min(108%, 450px)",
+              height: "clamp(38px, 12vw, 54px)",
+              margin: "clamp(-5px, -1vw, -2px) auto clamp(-8px, -1.5vw, -4px)",
+              objectFit: "contain",
+              pointerEvents: "none",
+              userSelect: "none",
+              filter: "drop-shadow(0 4px 8px rgba(0,0,0,.32))",
+            }}
+          />
+        </section>
 
         <section
           aria-label={rarityFilter ? `${rarityFilter} star card collection` : "Card collection"}
@@ -143,9 +188,19 @@ export default function CardsCollectionPage() {
           style={{
             position: "relative",
             zIndex: 2,
+            width: "min(94%, 394px)",
+            margin: "0 auto",
+            padding: "clamp(8px, 2vw, 12px) clamp(5px, 1.5vw, 8px) clamp(12px, 3vw, 18px)",
+            boxSizing: "border-box",
             display: "grid",
             gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-            gap: 12,
+            columnGap: "clamp(7px, 2.2vw, 11px)",
+            rowGap: "clamp(4px, 1.3vw, 7px)",
+            borderRadius: 24,
+            background:
+              "radial-gradient(ellipse at 50% 12%, rgba(210,170,78,.055), transparent 48%), rgba(1,13,9,.18)",
+            boxShadow:
+              "inset 0 0 30px rgba(0,0,0,.2), 0 12px 30px rgba(0,0,0,.12)",
           }}
         >
           {PLACEHOLDER_SLOTS.map(slot => (
@@ -154,11 +209,9 @@ export default function CardsCollectionPage() {
               data-testid={`card-collection-placeholder-${slot + 1}`}
               aria-hidden="true"
               style={{
-                position: "relative",
-                aspectRatio: "2 / 3",
-                display: "grid",
-                placeItems: "center",
-                filter: "drop-shadow(0 7px 8px rgba(0,0,0,.28))",
+                minWidth: 0,
+                lineHeight: 0,
+                filter: "drop-shadow(0 6px 7px rgba(0,0,0,.3))",
               }}
             >
               <img
@@ -168,7 +221,8 @@ export default function CardsCollectionPage() {
                 style={{
                   display: "block",
                   width: "100%",
-                  height: "100%",
+                  height: "auto",
+                  margin: 0,
                   objectFit: "contain",
                   userSelect: "none",
                 }}
@@ -176,27 +230,6 @@ export default function CardsCollectionPage() {
             </div>
           ))}
         </section>
-
-        <img
-          src={cardPageDecor}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-          style={{
-            position: "absolute",
-            zIndex: 1,
-            left: "50%",
-            bottom: 0,
-            width: "112%",
-            maxWidth: "none",
-            height: "auto",
-            transform: "translateX(-50%)",
-            objectFit: "contain",
-            pointerEvents: "none",
-            userSelect: "none",
-            filter: "drop-shadow(0 -5px 12px rgba(0,0,0,.24))",
-          }}
-        />
       </div>
     </main>
   );
