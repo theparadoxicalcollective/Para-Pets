@@ -257,8 +257,6 @@ export async function runEssentialBoot(): Promise<void> {
       CREATE INDEX IF NOT EXISTS clearing_special_egg_drops_active_idx ON clearing_special_egg_drops(user_id,session_id,expires_at) WHERE collected_at IS NULL;
     `],
     ["Elysian Clearing configuration backfill error (non-fatal):", sql`
-      INSERT INTO clearing_world_enemies(world_id,enemy_id,is_boss)
-      SELECT 'swamp',e.id,false FROM enemies e WHERE EXISTS(SELECT 1 FROM worlds WHERE id='swamp') AND NOT EXISTS(SELECT 1 FROM clearing_world_enemies WHERE world_id='swamp') ORDER BY e.created_at LIMIT 1;
       INSERT INTO clearing_world_drops(world_id,shop_item_id,rarity)
       SELECT 'swamp',s.id,CASE WHEN COALESCE(s.star_rarity,1)>=3 THEN 'rare' WHEN s.star_rarity=2 THEN 'uncommon' ELSE 'common' END
       FROM shop_items s WHERE EXISTS(SELECT 1 FROM worlds WHERE id='swamp') AND s.type='clearing' AND s.clearing_active=true AND s.id<>'a1b2c3d4-0011-4000-8000-000000000012' ORDER BY s.star_rarity,s.created_at LIMIT 5
@@ -284,17 +282,8 @@ export async function runEssentialBoot(): Promise<void> {
         assignment_id VARCHAR NOT NULL, inventory_id VARCHAR NOT NULL REFERENCES user_inventory(id) ON DELETE RESTRICT,
         essence_spent INTEGER NOT NULL, resulting_essence INTEGER NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT now());
     `],
-    ["Elysian Clearing Murk enemy reuse error (non-fatal):", sql`
-      INSERT INTO enemies(id,name,image_url,atk,health,is_boss,archetype) VALUES
-        ('elysian-murk-puddle-grub','Puddle Grub','/world-assets/generated_images/enemy_t1_puddle_grub.png',8,85,false,'slow'),
-        ('elysian-murk-boglet','Boglet','/world-assets/generated_images/enemy_t1_boglet.png',9,75,false,'balanced'),
-        ('elysian-murk-newt','Murk Newt','/world-assets/generated_images/enemy_t1_murk_newt.png',7,65,false,'nimble')
-      ON CONFLICT(id) DO NOTHING;
-      INSERT INTO clearing_world_enemies(world_id,enemy_id,is_boss,sort_order)
-      SELECT 'swamp',id,false,20+row_number() OVER(ORDER BY id) FROM enemies
-      WHERE id IN ('elysian-murk-puddle-grub','elysian-murk-boglet','elysian-murk-newt')
-      ON CONFLICT(world_id,enemy_id) DO NOTHING;
-    `],
+    // Enemy identities and Clearing assignments are admin-owned. Re-seeding them
+    // during boot would resurrect deleted enemies or repopulate an empty roster.
     ["molten_blocks_drop_items migration error (non-fatal):", sql`CREATE TABLE IF NOT EXISTS molten_blocks_drop_items (
       id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
       shop_item_id VARCHAR NOT NULL,
