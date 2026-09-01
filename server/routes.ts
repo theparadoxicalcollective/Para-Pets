@@ -50,6 +50,7 @@ import { registerClearingShopRoutes } from "./routes/clearingShop.routes";
 import { registerSoulExchangeRoutes } from "./routes/soulExchange.routes";
 import { registerCostumeAdminRoutes } from "./routes/costumeAdmin.routes";
 import { registerCostumePlayerRoutes } from "./routes/costumePlayer.routes";
+import { registerCardAdminRoutes } from "./routes/cardAdmin.routes";
 import { getEffectivePetLayer } from "@shared/petLayer";
 
 type ShopPurchaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -4804,6 +4805,8 @@ export async function registerRoutes(
     const blobId = (result.rows[0] as any).id as string;
     return `/api/media/${blobId}`;
   }
+
+  registerCardAdminRoutes(app, { db, isAdmin, processCardImage: processWorldImage });
 
   function processShopItemImage(imageData: string): Promise<string> {
     return processWorldImage(imageData, 2000);
