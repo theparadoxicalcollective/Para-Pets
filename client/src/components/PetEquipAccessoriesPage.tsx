@@ -3,6 +3,7 @@ import { Lock, X } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { currencyAssets } from "@/lib/currencyAssets";
 import PetAnimator from "@/components/PetAnimator";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
@@ -397,7 +398,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         <ClosetDialog title="Unlock Accessory Slot?" color="#e8bc52">
           <Lock size={34} style={{ color: "#e8bc52" }} />
           <p className="text-center font-fantasy text-[11px] leading-relaxed" style={{ color: "rgba(207,226,207,.65)" }}>Add another accessory slot for {petName}.</p>
-          <p className="font-fantasy font-bold" style={{ color: "#fbbf24" }}>3,000 coins</p>
+          <p className="inline-flex items-center justify-center gap-1 font-fantasy font-bold" style={{ color: "#fbbf24" }}><img src={currencyAssets.coin} alt="" aria-hidden="true" className="h-4 w-4 object-contain" />3,000</p>
           {(user?.coins ?? 0) < SLOT_COST && <p className="font-fantasy text-[10px]" style={{ color: "#f87171" }}>Not enough coins</p>}
           <div className="flex w-full gap-3">
             <DialogButton testId="button-cancel-unlock" onClick={() => setUnlockConfirm(false)}>CANCEL</DialogButton>
@@ -440,7 +441,7 @@ function SlotCell({ slot, maxSlots, acc, isOver, draggingId, rarityColor, onClic
       style={{ background: isOver && draggingId && !locked ? "rgba(39,180,117,.22)" : "transparent", border: isOver && draggingId && !locked ? `2px solid ${rarityColor}` : "2px solid transparent", boxShadow: isOver && draggingId && !locked ? `0 0 18px ${rarityColor}88` : "none", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
     >
       {locked ? (
-        <><Lock size={18} style={{ color: "rgba(218,181,92,.82)", filter: "drop-shadow(0 2px 3px #000)" }} /><span className="mt-1 font-fantasy" style={{ color: "#e6c873", fontSize: 7, textShadow: "0 1px 2px #000" }}>3,000</span></>
+        <><Lock size={18} style={{ color: "rgba(218,181,92,.82)", filter: "drop-shadow(0 2px 3px #000)" }} /><span data-testid={`accessory-slot-price-${slot}`} className="mt-1 inline-flex items-center justify-center gap-[2px] font-fantasy" style={{ color: "#e6c873", fontSize: 7, textShadow: "0 1px 2px #000" }}><img src={currencyAssets.coin} alt="" aria-hidden="true" className="h-[11px] w-[11px] shrink-0 object-contain" style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,.8))" }} />{SLOT_COST.toLocaleString()}</span></>
       ) : acc ? (
         <><img src={acc.imageUrl || gemCrystalIcon} alt={acc.name} className="h-[68%] w-[82%] object-contain" style={{ filter: `drop-shadow(0 3px 6px #000) drop-shadow(0 0 6px ${rarityColor}55)` }} /><span className="absolute bottom-[6%] max-w-[88%] truncate rounded px-1 font-fantasy" style={{ color: rarityColor, background: "rgba(0,5,3,.62)", fontSize: 6 }}>{acc.name}</span></>
       ) : (
