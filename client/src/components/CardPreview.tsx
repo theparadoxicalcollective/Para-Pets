@@ -142,9 +142,8 @@ export default function CardPreview({
       style={{
         position: "relative",
         width: "100%",
-        overflow: "hidden",
-        background: "linear-gradient(145deg, #162219, #070a08)",
-        boxShadow: "0 12px 26px rgba(0,0,0,.52)",
+        // Preserve the transparent silhouette around the decorative frame.
+        filter: "drop-shadow(0 8px 12px rgba(0,0,0,.48))",
       }}
     >
       <img
@@ -154,25 +153,46 @@ export default function CardPreview({
         draggable={false}
         style={{ display: "block", width: "100%", height: "auto", visibility: "hidden" }}
       />
-      {artworkUrl ? (
-        <img
-          src={artworkUrl}
-          alt=""
-          draggable={false}
-          style={{ position: "absolute", inset: 0, zIndex: 0, width: "100%", height: "100%", objectFit: "cover" }}
-        />
-      ) : (
+      {/* Tuck the artwork edges beneath the frame and its name/description plates. */}
+      <div
+        data-testid="card-artwork-window"
+        style={{
+          position: "absolute",
+          inset: "12% 10%",
+          zIndex: 0,
+          overflow: "hidden",
+          borderRadius: "9% / 7%",
+          background: "linear-gradient(145deg, #162219, #070a08)",
+          pointerEvents: "none",
+        }}
+      >
+        {artworkUrl ? (
+          <img
+            src={artworkUrl}
+            alt=""
+            draggable={false}
+            style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "radial-gradient(circle at 50% 38%, rgba(78,124,86,.55), transparent 43%), linear-gradient(160deg,#17251b,#060a07)",
+            }}
+          />
+        )}
         <div
           aria-hidden="true"
           style={{
             position: "absolute",
             inset: 0,
-            zIndex: 0,
-            background: "radial-gradient(circle at 50% 38%, rgba(78,124,86,.55), transparent 43%), linear-gradient(160deg,#17251b,#060a07)",
+            background: "radial-gradient(ellipse at center, transparent 48%, rgba(0,0,0,.42) 100%)",
+            boxShadow: "inset 0 0 12px rgba(0,0,0,.48)",
           }}
         />
-      )}
-      <div aria-hidden="true" style={{ position: "absolute", inset: 0, zIndex: 1, background: "linear-gradient(180deg,rgba(0,0,0,.08),transparent 55%,rgba(0,0,0,.16))" }} />
+      </div>
       <img
         src={CARD_BORDER_ASSETS[rarity]}
         alt={`${rarity}-star card border`}
