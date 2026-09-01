@@ -14,7 +14,7 @@ import {
 } from "@/components/clearing/ClearingAdminSections";
 
 type World = { id: string; name: string };
-type Request = { method: string; url: string; body?: unknown; success: string };
+type Request = { method: string; url: string; body?: unknown; worldId?: string; success: string };
 
 export default function ClearingAdminPanel() {
   const qc = useQueryClient();
@@ -39,7 +39,7 @@ export default function ClearingAdminPanel() {
   const mutation = useMutation({
     mutationFn: ({ method, url, body }: Request) => apiRequest(method, url, body),
     onSuccess: (_response, request) => {
-      void qc.invalidateQueries({ queryKey: ["/api/admin/clearing/worlds", selected] });
+      void qc.invalidateQueries({ queryKey: ["/api/admin/clearing/worlds", request.worldId] });
       toast({ title: "Saved", description: request.success });
     },
     onError: (error: Error) =>
@@ -50,7 +50,7 @@ export default function ClearingAdminPanel() {
       }),
   });
 
-  const act = (request: Request) => mutation.mutate(request);
+  const act = (request: Request) => mutation.mutate({ ...request, worldId: selected });
   const selectedWorld = worlds.data?.find((value) => value.id === selected);
 
   if (worlds.isLoading || !selected) {
@@ -109,6 +109,7 @@ export default function ClearingAdminPanel() {
             )}
             {tab === "enemies" && (
               <ClearingEnemiesAdmin
+                key={selected}
                 worldId={selected}
                 config={config.data}
                 catalog={enemies.data ?? []}

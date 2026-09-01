@@ -1,3 +1,5 @@
+import { parseClearingEnemyType } from "@shared/clearingEnemyTypes";
+import { addClearingEnemy, changeClearingEnemyType, removeClearingEnemy } from "../clearingEnemyAssignments";
 import type {Express,RequestHandler} from "express";import {sql} from "drizzle-orm";import {assertRareInvariant,assertRarity,assertWorld,getClearingConfig} from "../clearingConfig";import {effectiveClearingRarity} from "@shared/clearingConfig";
 import{clearingShopItemCreateSchema,clearingShopItemPatchSchema,clearingShopPatchSchema}from"@shared/clearingShop";import{getClearingShop}from"../clearingShop";
 const bad=(res:any,e:unknown)=>res.status(400).json({message:e instanceof Error?e.message:"Invalid Clearing configuration"});
@@ -12,9 +14,28 @@ export function registerClearingAdminRoutes(app:Express,{db,isAdmin}:{db:any;isA
  app.post("/api/admin/clearing/worlds/:worldId/drops",isAdmin,async(req,res)=>{try{assertRarity(req.body?.rarity);await assertWorld(db,(req.params.worldId as string));const item=await db.execute(sql`SELECT id,star_rarity FROM shop_items WHERE id=${req.body?.shopItemId}`);if(!item.rows.length)throw new Error("Unknown item");const rarity=effectiveClearingRarity(req.body.rarity,Number((item.rows[0] as any).star_rarity||0));await db.execute(sql`INSERT INTO clearing_world_drops(world_id,shop_item_id,rarity) VALUES(${(req.params.worldId as string)},${req.body.shopItemId},${rarity}) ON CONFLICT(world_id,shop_item_id) DO NOTHING`);res.json(await getClearingConfig(db,(req.params.worldId as string)));}catch(e){bad(res,e)}});
  app.patch("/api/admin/clearing/drops/:id",isAdmin,async(req,res)=>{try{assertRarity(req.body?.rarity);const f=await db.execute(sql`SELECT d.world_id,s.star_rarity FROM clearing_world_drops d JOIN shop_items s ON s.id=d.shop_item_id WHERE d.id=${(req.params.id as string)}`);if(!f.rows.length)throw new Error("Unknown drop");const row=f.rows[0] as any,rarity=effectiveClearingRarity(req.body.rarity,Number(row.star_rarity||0));await assertRareInvariant(db,row.world_id,(req.params.id as string),rarity);await db.execute(sql`UPDATE clearing_world_drops SET rarity=${rarity} WHERE id=${(req.params.id as string)}`);res.json(await getClearingConfig(db,row.world_id));}catch(e){bad(res,e)}});
  app.delete("/api/admin/clearing/drops/:id",isAdmin,async(req,res)=>{try{const f=await db.execute(sql`SELECT world_id FROM clearing_world_drops WHERE id=${(req.params.id as string)}`);if(!f.rows.length)throw new Error("Unknown drop");const world=(f.rows[0] as any).world_id;await assertRareInvariant(db,world,(req.params.id as string));await db.execute(sql`DELETE FROM clearing_world_drops WHERE id=${(req.params.id as string)}`);res.json(await getClearingConfig(db,world));}catch(e){bad(res,e)}});
- app.post("/api/admin/clearing/worlds/:worldId/enemies",isAdmin,async(req,res)=>{try{if(typeof req.body?.isBoss!=="boolean")throw new Error("Invalid boss status");await assertWorld(db,(req.params.worldId as string));const e=await db.execute(sql`SELECT id FROM enemies WHERE id=${req.body?.enemyId}`);if(!e.rows.length)throw new Error("Unknown enemy");if(req.body.isBoss){const cfg=await getClearingConfig(db,(req.params.worldId as string));if(!cfg.drops.some((d:any)=>d.effective_rarity==='rare'))throw new Error("Configure a Rare drop before adding a boss");}await db.execute(sql`INSERT INTO clearing_world_enemies(world_id,enemy_id,is_boss) VALUES(${(req.params.worldId as string)},${req.body.enemyId},${req.body.isBoss}) ON CONFLICT(world_id,enemy_id) DO NOTHING`);res.json(await getClearingConfig(db,(req.params.worldId as string)));}catch(e){bad(res,e)}});
- app.patch("/api/admin/clearing/enemies/:id",isAdmin,async(req,res)=>{try{if(typeof req.body?.isBoss!=="boolean")throw new Error("Invalid boss status");const f=await db.execute(sql`SELECT world_id FROM clearing_world_enemies WHERE id=${(req.params.id as string)}`);if(!f.rows.length)throw new Error("Unknown assignment");const w=(f.rows[0] as any).world_id;if(req.body.isBoss){const c=await getClearingConfig(db,w);if(!c.drops.some((d:any)=>d.effective_rarity==='rare'))throw new Error("Configure a Rare drop before enabling a boss");}await db.execute(sql`UPDATE clearing_world_enemies SET is_boss=${req.body.isBoss} WHERE id=${(req.params.id as string)}`);res.json(await getClearingConfig(db,w));}catch(e){bad(res,e)}});
- app.delete("/api/admin/clearing/enemies/:id",isAdmin,async(req,res)=>{const f=await db.execute(sql`DELETE FROM clearing_world_enemies WHERE id=${(req.params.id as string)} RETURNING world_id`);if(!f.rows.length)return res.status(404).json({message:"Unknown assignment"});res.json(await getClearingConfig(db,(f.rows[0] as any).world_id));});
+ app.post("/api/admin/clearing/worlds/:worldId/enemies",isAdmin,async(req,res)=>{
+   try {
+     const type=parseClearingEnemyType(req.body??{}),worldId=req.params.worldId as string;
+     if(typeof req.body?.enemyId!=="string"||!req.body.enemyId)throw new Error("Choose an enemy");
+     await addClearingEnemy(db,worldId,req.body.enemyId,type);
+     res.json(await getClearingConfig(db,worldId));
+   } catch(e){bad(res,e)}
+ });
+ app.patch("/api/admin/clearing/enemies/:id",isAdmin,async(req,res)=>{
+   try {
+     const type=parseClearingEnemyType(req.body??{});
+     const worldId=await changeClearingEnemyType(db,req.params.id as string,type);
+     res.json(await getClearingConfig(db,worldId));
+   } catch(e){bad(res,e)}
+ });
+ app.delete("/api/admin/clearing/enemies/:id",isAdmin,async(req,res)=>{
+   try {
+     const worldId=await removeClearingEnemy(db,req.params.id as string);
+     if(!worldId)return res.status(404).json({message:"Unknown assignment"});
+     res.json(await getClearingConfig(db,worldId));
+   } catch(e){bad(res,e)}
+ });
  app.post("/api/admin/clearing/worlds/:worldId/special-mobs",isAdmin,async(req,res)=>{try{const worldId=req.params.worldId as string;await assertWorld(db,worldId);const pet=await db.execute(sql`SELECT id FROM shop_items WHERE id=${req.body?.petShopItemId} AND type='pet'`);if(!pet.rows.length)throw new Error("Choose a valid pet");await db.execute(sql`INSERT INTO clearing_world_special_mobs(world_id,pet_shop_item_id) VALUES(${worldId},${req.body.petShopItemId}) ON CONFLICT(world_id,pet_shop_item_id) DO NOTHING`);res.json(await getClearingConfig(db,worldId));}catch(e){bad(res,e)}});
  app.delete("/api/admin/clearing/special-mobs/:id",isAdmin,async(req,res)=>{const f=await db.execute(sql`DELETE FROM clearing_world_special_mobs WHERE id=${req.params.id as string} RETURNING world_id`);if(!f.rows.length)return res.status(404).json({message:"Unknown special mob"});res.json(await getClearingConfig(db,(f.rows[0] as any).world_id));});
 }
