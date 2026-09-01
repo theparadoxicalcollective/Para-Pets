@@ -59,7 +59,7 @@ export async function runEssentialBoot(): Promise<void> {
         CHECK (description_y + description_height <= 100)
       );
       INSERT INTO card_border_layouts (rarity)
-      SELECT rarity FROM generate_series(1, 5) AS rarity
+      SELECT generated.rarity FROM generate_series(1, 5) AS generated(rarity)
       ON CONFLICT (rarity) DO NOTHING;
     `],
     ["Pet part rotation migration error (non-fatal):", sql`
