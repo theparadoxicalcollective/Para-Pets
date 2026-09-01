@@ -573,8 +573,13 @@ export default function PetAnimator({
     const node = wrapperRef.current;
     if (!node) return;
     const measure = () => {
-      const rect = node.getBoundingClientRect();
-      const next = Math.min(rect.width, rect.height);
+      // clientWidth/clientHeight stay in the stage's logical coordinate space.
+      // getBoundingClientRect() includes the tablet/desktop stage transform,
+      // which double-counted the stage scale for costume layers while the core
+      // pet renderer's ResizeObserver correctly settled on unscaled content-box
+      // dimensions. Keeping both renderers on logical dimensions preserves the
+      // saved 1000x1000 pet/costume placement contract across device classes.
+      const next = Math.min(node.clientWidth, node.clientHeight);
       if (next > 0) setMeasuredSize(prev => Math.abs(prev - next) > 0.5 ? next : prev);
     };
     measure();
