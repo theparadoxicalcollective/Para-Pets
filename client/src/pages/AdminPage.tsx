@@ -15,6 +15,7 @@ import FishingAdminPanel from "@/components/FishingAdminPanel";
 import EnemyDatabasePanel from "@/components/EnemyDatabasePanel";
 import ClearingAdminPanel from "@/components/ClearingAdminPanel";
 import HomeBundleSection from "@/components/HomeBundleSection";
+import CardAdminPanel from "@/components/CardAdminPanel";
 
 import adminIconMembers from "@assets/admin_icon_members.png";
 import adminIconRewards from "@assets/admin_icon_rewards_new.png";
@@ -73,7 +74,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [banModalUserId, setBanModalUserId] = useState<string | null>(null);
   const [banDays, setBanDays] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "emblems" | "maintenance" | "home_bundle" | "purchases" | "veridian_watcher" | "quest" | "molten_blocks" | "metrics" | "recipe_items" | "forums" | "clearing" | null>(null);
+  const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "cards" | "emblems" | "maintenance" | "home_bundle" | "purchases" | "veridian_watcher" | "quest" | "molten_blocks" | "metrics" | "recipe_items" | "forums" | "clearing" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const [characterTab, setCharacterTab] = useState<"pet" | "enemy" | "npc" | "fish">("pet");
   const [itemsTab, setItemsTab] = useState<"items" | "fishing">("items");
@@ -176,6 +177,7 @@ export default function AdminPage({ user }: AdminPageProps) {
     { key: "pets"          as const, label: "Add Character",   icon: adminIconPets,          desc: "Pets, enemies, NPCs & fish",   color: "#fb923c", glow: "rgba(251,146,60,0.35)",   bg: "linear-gradient(145deg, rgba(72,24,4,0.92) 0%, rgba(110,38,8,0.88) 100%)",    border: "rgba(251,146,60,0.5)"   },
     { key: "clearing"      as const, label: "Clearing",        icon: adminIconRewards,       desc: "World drops & enemies",          color: "#6ee7b7", glow: "rgba(110,231,183,.3)", bg: "linear-gradient(145deg,rgba(4,50,35,.92),rgba(8,80,55,.88))", border: "rgba(110,231,183,.45)" },
     { key: "badges"        as const, label: "Badges",          icon: adminIconBadges,        desc: "Award badges",                 color: "#fde68a", glow: "rgba(253,230,138,0.30)",  bg: "linear-gradient(145deg, rgba(72,54,0,0.92) 0%, rgba(108,80,0,0.88) 100%)",    border: "rgba(253,230,138,0.45)" },
+    { key: "cards"         as const, label: "Cards",           icon: adminIconBadges,        desc: "Card artwork & borders",        color: "#f6d365", glow: "rgba(246,211,101,0.32)", bg: "linear-gradient(145deg, rgba(68,44,4,0.92) 0%, rgba(100,64,8,0.88) 100%)",    border: "rgba(246,211,101,0.48)" },
     { key: "emblems"       as const, label: "Emblems",         icon: adminIconBadges,        desc: "PvP rank trophies",            color: "#fda4af", glow: "rgba(253,164,175,0.30)",  bg: "linear-gradient(145deg, rgba(80,12,24,0.92) 0%, rgba(110,20,36,0.88) 100%)",  border: "rgba(253,164,175,0.45)" },
     { key: "home_bundle"   as const, label: "Home Bundle",     icon: adminIconHouseBundle,   desc: "Decor & bundles",              color: "#fbbf24", glow: "rgba(251,191,36,0.30)",   bg: "linear-gradient(145deg, rgba(60,40,4,0.92) 0%, rgba(90,60,8,0.88) 100%)",    border: "rgba(251,191,36,0.45)" },
     { key: "items"         as const, label: "Items",           icon: adminIconItems,         desc: "Items & fishing supplies",     color: "#5eead4", glow: "rgba(94,234,212,0.30)",   bg: "linear-gradient(145deg, rgba(8,45,42,0.92) 0%, rgba(14,70,65,0.88) 100%)",   border: "rgba(94,234,212,0.45)"  },
@@ -699,6 +701,8 @@ export default function AdminPage({ user }: AdminPageProps) {
               {activeSection === "badges" && (
                 <BadgeDatabaseSection members={members.filter(m => !m.isAdmin)} />
               )}
+
+              {activeSection === "cards" && <CardAdminPanel />}
 
               {activeSection === "emblems" && (
                 <EmblemDatabaseSection />
