@@ -47,3 +47,8 @@
   background: linear-gradient(to bottom, #fef3b0, #dcb850 45%, #9a751e);
   box-shadow: inset 0 0 3px #fff6b8;
 }
+
+/* Leave room for the artwork, balances, and bottom controls on short phones. */
+.clearing-hunt-results {
+  max-height: min(42dvh, max(96px, calc(100dvh - 380px)));
+}
