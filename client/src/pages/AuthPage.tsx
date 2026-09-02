@@ -1,3 +1,5 @@
+import { replaceAuthSession } from "@/lib/authSession";
+import { registrationSchema } from "@shared/accountValidation";
 import { useState, useRef, useCallback, type CSSProperties } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useLocation } from "wouter";
@@ -132,7 +134,8 @@ export default function AuthPage() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const returnTo = new URLSearchParams(window.location.search).get("returnTo") || "/";
+  const requestedReturn = new URLSearchParams(window.location.search).get("returnTo");
+  const returnTo = requestedReturn?.startsWith("/") && !requestedReturn.startsWith("//") && !requestedReturn.includes("\\") && requestedReturn !== "/auth" ? requestedReturn : "/";
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -172,15 +175,12 @@ export default function AuthPage() {
     mutationFn: async () => {
       // Fire the API call and the animation simultaneously so total wait time
       // is max(animation, API) instead of animation + API.
-      const apiPromise = apiRequest("POST", "/api/auth/login", { username, password, rememberMe });
-      await animateProgress();
-      const res = await apiPromise;
+      const [res] = await Promise.all([apiRequest("POST", "/api/auth/login", { username: username.trim(), password, rememberMe }), animateProgress()]);
       return res.json();
     },
-    onSuccess: async () => {
+    onSuccess: async (user) => {
       setLoadingProgress(100);
-      queryClient.clear();
-      await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      await replaceAuthSession(user, queryClient);
       setTimeout(() => {
         setLocation(returnTo);
       }, 300);
@@ -195,24 +195,23 @@ export default function AuthPage() {
         setAdminBypass(false);
         setLoginError("The realm is under maintenance. Only admins may enter.");
       } else {
-        setLoginError("Invalid username or password. Please try again.");
+        setLoginError(parsed.message || "Unable to sign in. Check your connection and try again.");
       }
     },
   });
 
   const registerMutation = useMutation({
     mutationFn: async () => {
-      const apiPromise = apiRequest("POST", "/api/auth/register", { username, email, password, profileImageData, referrer: typeof document !== "undefined" ? document.referrer : "" });
-      await animateProgress();
-      const res = await apiPromise;
+      const input = registrationSchema.parse({ username, email, password, profileImageData, referrer: document.referrer.slice(0, 2048) });
+      const [res] = await Promise.all([apiRequest("POST", "/api/auth/register", input), animateProgress()]);
       return res.json();
     },
-    onSuccess: async () => {
+    onSuccess: async (user) => {
       setLoadingProgress(100);
       setFieldErrors({});
-      localStorage.setItem("para_pets_just_registered", "true");
-      queryClient.clear();
-      await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      try { localStorage.setItem("para_pets_just_registered", "true"); } catch {}
+      if (user.verificationEmailSent === false) toast({ title: "Account created", description: "We could not send your verification email yet. You can retry on the next screen." });
+      await replaceAuthSession(user, queryClient);
       setTimeout(() => {
         setLocation(returnTo);
       }, 300);
@@ -222,9 +221,12 @@ export default function AuthPage() {
       setLoadingProgress(0);
       const raw = err.message ?? "";
       const bodyStr = raw.includes(":") ? raw.split(": ").slice(1).join(": ") : raw;
-      let parsed: { field?: string; message?: string } = {};
+      let parsed: { field?: string; message?: string; accountCreated?: boolean } = {};
       try { parsed = JSON.parse(bodyStr); } catch {}
       const serverMsg = parsed.message || bodyStr || "Registration failed. Please try again.";
+      if (parsed.accountCreated) {
+        setMode("login"); setLoginError(serverMsg); return;
+      }
       const serverField = parsed.field;
       if (serverField === "username") {
         setFieldErrors({ username: serverMsg });
@@ -276,15 +278,15 @@ export default function AuthPage() {
       setLoginError(null);
       loginMutation.mutate();
     } else {
-      const errs: typeof fieldErrors = {};
-      if (!email.trim()) errs.email = "Email is required";
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = "Please enter a valid email address";
-      if (!username.trim()) errs.username = "Username is required";
-      else if (!/^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$/.test(username)) errs.username = "Letters, numbers, underscores, and periods only (periods cannot be at the start or end)";
-      else if (username.length < 3 || username.length > 20) errs.username = "Must be between 3 and 20 characters";
-      if (!password) errs.password = "Password is required";
-      else if (password.length < 6) errs.password = "Must be at least 6 characters";
-      if (Object.keys(errs).length > 0) { setFieldErrors(errs); return; }
+      const parsed = registrationSchema.safeParse({ username, email, password });
+      if (!parsed.success) {
+        const errs: typeof fieldErrors = {};
+        for (const issue of parsed.error.issues) {
+          const field = issue.path[0] as "username" | "email" | "password";
+          if (!errs[field]) errs[field] = issue.message;
+        }
+        setFieldErrors(errs); return;
+      }
       setFieldErrors({});
       registerMutation.mutate();
     }
@@ -434,6 +436,8 @@ export default function AuthPage() {
                       <input
                         data-testid="input-email"
                         type="email"
+                        autoComplete="email"
+                        autoCapitalize="none"
                         value={email}
                         onChange={e => { setEmail(e.target.value); setFieldErrors(prev => ({ ...prev, email: undefined })); }}
                         disabled={isPending}
@@ -496,6 +500,9 @@ export default function AuthPage() {
                   <input
                     data-testid="input-username"
                     type="text"
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    autoCorrect="off"
                     value={username}
                     onChange={e => { setUsername(e.target.value); setFieldErrors(prev => ({ ...prev, username: undefined })); setLoginError(null); }}
                     disabled={isPending}
@@ -523,6 +530,7 @@ export default function AuthPage() {
                     <input
                       data-testid="input-password"
                       type={showPassword ? "text" : "password"}
+                      autoComplete={mode === "register" ? "new-password" : "current-password"}
                       value={password}
                       onChange={e => { setPassword(e.target.value); setFieldErrors(prev => ({ ...prev, password: undefined })); setLoginError(null); }}
                       disabled={isPending}
@@ -952,3 +960,4 @@ export default function AuthPage() {
     </div>
   );
 }
+
