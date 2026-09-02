@@ -1,6 +1,7 @@
+import EmailGateScreen from "@/components/EmailGateScreen";
 import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider, useMutation } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
@@ -8,7 +9,6 @@ import { Suspense, useEffect, useState, type CSSProperties, type ReactNode } fro
 import { lazyWithRetry as lazy } from "@/lib/lazyWithRetry";
 import { installPageLifecycleDiagnostics, stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { playClick, unlockAudio } from "@/lib/sounds";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
 import { calculateStageLayout, getStageTransform, getVisibleViewport } from "@/lib/stage";
@@ -62,102 +62,6 @@ const RaidPage             = lazy(() => import("@/pages/RaidPage"));
 const RaidLeaderboardPage  = lazy(() => import("@/pages/RaidLeaderboardPage"));
 const RaidBattlePage       = lazy(() => import("@/pages/RaidBattlePage"));
 const ElysianBayouClearingPage = lazy(() => import("@/pages/ElysianBayouClearingPage"));
-
-// ── Email gate screen — blocks the game until email is verified ───────────────
-function EmailGateScreen({ email }: { email: string }) {
-  const { toast } = useToast();
-  const [cooldownSecs, setCooldownSecs] = useState(0);
-
-  // Countdown ticker
-  useEffect(() => {
-    if (cooldownSecs <= 0) return;
-    const t = setTimeout(() => setCooldownSecs(s => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [cooldownSecs]);
-
-  // Poll every 3 s so the gate auto-dismisses when the user clicks the link
-  // in another tab or on another device.
-  useEffect(() => {
-    const iv = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-    }, 3000);
-    return () => clearInterval(iv);
-  }, []);
-
-  const resend = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/auth/resend-verification"),
-    onSuccess: () => {
-      setCooldownSecs(60);
-      toast({ title: "Email sent!", description: "Check your inbox and click the link." });
-    },
-    onError: (err: any) => {
-      const secs = err?.secondsLeft ?? 60;
-      setCooldownSecs(secs);
-      toast({ title: "Please wait", description: `Try again in ${secs}s.`, variant: "destructive" });
-    },
-  });
-
-  return (
-    <div
-      data-testid="screen-email-gate"
-      className="absolute inset-0 flex flex-col items-center justify-center px-6"
-      style={{ zIndex: 9995, background: "linear-gradient(180deg,#0d0805 0%,#150d06 100%)" }}
-    >
-      {/* Gold top accent */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg,transparent,#d4a017,#f0c040,#d4a017,transparent)" }} />
-
-      {/* Icon */}
-      <div style={{ fontSize: 52, marginBottom: 20, filter: "drop-shadow(0 0 18px rgba(240,192,64,0.35))" }}>📬</div>
-
-      {/* Heading */}
-      <p style={{ fontFamily: "Lora, serif", fontSize: 11, letterSpacing: "0.28em", color: "#8a6a30", textTransform: "uppercase", margin: "0 0 8px" }}>
-        One more step
-      </p>
-      <h2 style={{ fontFamily: "Lora, serif", fontSize: 22, color: "#f0c040", margin: "0 0 16px", letterSpacing: "0.05em", textAlign: "center", textShadow: "0 0 20px rgba(240,192,64,0.3)" }}>
-        Verify Your Email
-      </h2>
-
-      {/* Card */}
-      <div style={{ width: "100%", maxWidth: 320, background: "rgba(255,215,0,0.04)", border: "1px solid rgba(255,215,0,0.18)", borderRadius: 16, padding: "20px 20px 24px", textAlign: "center" }}>
-        <p style={{ fontFamily: "Lora, serif", fontSize: 13, color: "#a89060", lineHeight: 1.65, margin: "0 0 6px" }}>
-          A verification link was sent to
-        </p>
-        <p style={{ fontFamily: "Lora, serif", fontSize: 13, color: "#f0c040", fontWeight: 600, margin: "0 0 16px", wordBreak: "break-all" }}>
-          {email}
-        </p>
-        <p style={{ fontFamily: "Lora, serif", fontSize: 12, color: "#7a6040", lineHeight: 1.6, margin: "0 0 20px" }}>
-          Click the link in that email to enter the game. This page will open automatically once you verify.
-        </p>
-
-        {/* Resend button */}
-        <button
-          data-testid="button-resend-verification"
-          disabled={resend.isPending || cooldownSecs > 0}
-          onClick={() => resend.mutate()}
-          style={{
-            width: "100%", padding: "12px 0",
-            fontFamily: "Lora, serif", fontSize: 13, letterSpacing: "0.08em",
-            color: (resend.isPending || cooldownSecs > 0) ? "rgba(255,215,0,0.35)" : "#ffd700",
-            background: (resend.isPending || cooldownSecs > 0) ? "rgba(255,215,0,0.04)" : "rgba(255,215,0,0.10)",
-            border: "1px solid rgba(255,215,0,0.25)", borderRadius: 10,
-            cursor: (resend.isPending || cooldownSecs > 0) ? "default" : "pointer",
-            transition: "all 0.2s",
-          }}
-        >
-          {resend.isPending ? "Sending…" : cooldownSecs > 0 ? `Resend email (${cooldownSecs}s)` : "Resend verification email"}
-        </button>
-      </div>
-
-      {/* Subtle waiting indicator */}
-      <p style={{ fontFamily: "Lora, serif", fontSize: 11, color: "rgba(255,215,0,0.2)", marginTop: 28, letterSpacing: "0.12em" }}>
-        Waiting for verification…
-      </p>
-
-      {/* Gold bottom accent */}
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: "linear-gradient(90deg,transparent,#d4a017,#f0c040,#d4a017,transparent)" }} />
-    </div>
-  );
-}
 
 function PvpArenaWrapper() {
   const [, setLocation] = useLocation();
@@ -420,6 +324,8 @@ function AppRouter() {
       toast({ title: "Link expired", description: "That verification link has expired. Please request a new one.", variant: "destructive" });
     } else if (v === "invalid") {
       toast({ title: "Invalid link", description: "That verification link is not valid.", variant: "destructive" });
+    } else if (v === "error") {
+      toast({ title: "Verification unavailable", description: "Please try opening your link again shortly.", variant: "destructive" });
     } else if (v === "already") {
       toast({ title: "Already verified", description: "Your email is already confirmed." });
     }
@@ -964,3 +870,4 @@ function App() {
 }
 
 export default App;
+

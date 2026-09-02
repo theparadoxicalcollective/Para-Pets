@@ -12,7 +12,7 @@ import { pool } from "./db";
 import { WebhookHandlers } from "./webhookHandlers";
 import fs from "fs";
 import path from "path";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import sharp from "sharp";
 import { registerHealthRoute } from "./health";
 import { runStartup } from "./startup/runStartup";
@@ -157,9 +157,11 @@ app.use(
 passport.use(
   new LocalStrategy(async (username, password, done) => {
     try {
-      let user = await storage.getUserByUsername(username);
-      if (!user && username.includes("@")) {
-        user = await storage.getUserByEmail(username);
+      const identifier = username.trim();
+      let user = await storage.getUserByUsername(identifier);
+      if (!user) user = await storage.getUserByUsernameCaseInsensitive(identifier);
+      if (!user && identifier.includes("@")) {
+        user = await storage.getUserByEmail(identifier);
       }
       if (!user) {
         return done(null, false, { message: "Invalid username or password" });
@@ -198,6 +200,26 @@ passport.deserializeUser(async (id: string, done) => {
 
 app.use(passport.initialize());
 app.use(passport.session());
+
+// Verification requires an authenticated session; user and IP limits both apply.
+// Keep these separate from signup/login so a resend cannot exhaust login access.
+const verificationAccountLimiter = rateLimit({
+  windowMs: 60_000, max: 1, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: req => req.user ? `user:${(req.user as { id: string }).id}` : ipKeyGenerator(req.ip || "unknown"),
+  handler: (_req, res) => res.status(429).json({ message: "Please wait a minute before requesting another verification email.", secondsLeft: 60 }),
+});
+const verificationIpLimiter = rateLimit({
+  windowMs: 60_000, max: 15, standardHeaders: true, legacyHeaders: false,
+  message: { message: "Please wait a minute before requesting another verification email.", secondsLeft: 60 },
+});
+const emailCorrectionLimiter = rateLimit({
+  windowMs: 15 * 60_000, max: 5, standardHeaders: true, legacyHeaders: false,
+  keyGenerator: req => req.user ? `user:${(req.user as { id: string }).id}` : ipKeyGenerator(req.ip || "unknown"),
+  message: { message: "Too many email-change attempts. Please try again in 15 minutes." },
+});
+app.use("/api/auth/resend-verification", verificationIpLimiter, verificationAccountLimiter);
+app.use("/api/auth/change-unverified-email", verificationIpLimiter, emailCorrectionLimiter);
+
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -264,3 +286,4 @@ app.use((req, res, next) => {
 });
 
 void runStartup({ app, httpServer, log });
+

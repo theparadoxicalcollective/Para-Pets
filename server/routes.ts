@@ -1,3 +1,5 @@
+import { publicAccount } from "./accounts/publicAccount";
+import { grantWelcomeBundle } from "./accounts/welcomeBundle";
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import passport from "passport";
@@ -286,24 +288,7 @@ async function getWelcomeBundleConfig() {
 }
 
 async function grantWelcomeV2Bundle(userId: string): Promise<void> {
-  const config = await getWelcomeBundleConfig();
-  const bundle = await storage.createRewardBundle("Welcome to the Realm!", config.coinAmount, config.message);
-  await storage.createUserReward(userId, bundle.id);
-  const allShopItems = await storage.getAllShopItems();
-  const find = (name: string) => allShopItems.find(i => i.name.toLowerCase() === name.toLowerCase());
-  console.log(`[WelcomeBundle] Creating bundle for user ${userId}. Shop has ${allShopItems.length} items.`);
-  for (const { name, qty } of config.items) {
-    const item = find(name);
-    if (item) {
-      console.log(`[WelcomeBundle] Found item: "${item.name}" (${item.id})`);
-      for (let i = 0; i < qty; i++) {
-        await storage.addRewardBundleItem(bundle.id, item.id);
-      }
-    } else {
-      console.warn(`[WelcomeBundle] Item NOT found: "${name}"`);
-    }
-  }
-  await storage.setWelcomeV2Sent(userId);
+  await grantWelcomeBundle(userId, await getWelcomeBundleConfig());
 }
 
 const WORLD_BG_SEED: Record<string, string> = {
@@ -1383,39 +1368,41 @@ export async function registerRoutes(
       if (!user) return res.status(401).json({ message: info?.message || "Invalid credentials" });
       req.login(user, async (loginErr) => {
         if (loginErr) return next(loginErr);
-        // Block non-admins when maintenance mode is active
-        if (!user.isAdmin) {
-          const maintenance = await storage.getGameSetting("maintenance_mode");
-          if (maintenance === "true") {
-            req.logout(() => {});
-            return res.status(503).json({ maintenance: true, message: "The realm is currently undergoing maintenance. Please try again soon." });
-          }
-        }
-        req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
-        if (!user.welcomeV2Sent) {
-          try { await grantWelcomeV2Bundle(user.id); } catch (e) { console.error("Welcome v2 grant failed:", e); }
-        }
-        const freshUser = await storage.getUser(user.id);
-        const { password: _, ...safeUser } = freshUser ?? user;
-        // Log login event for metrics (fire-and-forget)
-        setImmediate(async () => {
-          try {
-            const ip = ((req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()) || (req as any).ip || "";
-            const safeIp = ip.replace(/^::ffff:/, "");
-            const result = await db.execute(sql`INSERT INTO player_login_events (user_id, ip_address) VALUES (${user.id}, ${safeIp || null}) RETURNING id`);
-            const rowId = (result as any).rows?.[0]?.id ?? (result as any)?.[0]?.id;
-            if (rowId && safeIp && safeIp !== "::1" && !safeIp.startsWith("127.") && safeIp !== "") {
-              try {
-                const geoRes = await fetch(`http://ip-api.com/json/${safeIp}?fields=country,city`);
-                const geo = await geoRes.json() as any;
-                if (geo?.country) {
-                  await db.execute(sql`UPDATE player_login_events SET country = ${geo.country}, city = ${geo.city ?? null} WHERE id = ${rowId}`);
-                }
-              } catch {}
+        try {
+          // Block non-admins when maintenance mode is active
+          if (!user.isAdmin) {
+            const maintenance = await storage.getGameSetting("maintenance_mode");
+            if (maintenance === "true") {
+              req.logout(() => {});
+              return res.status(503).json({ maintenance: true, message: "The realm is currently undergoing maintenance. Please try again soon." });
             }
-          } catch {}
-        });
-        return res.json(safeUser);
+          }
+          req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
+          if (!user.welcomeV2Sent) {
+            try { await grantWelcomeV2Bundle(user.id); } catch (e) { console.error("Welcome v2 grant failed:", e); }
+          }
+          const freshUser = await storage.getUser(user.id);
+          const safeUser = publicAccount(freshUser ?? user);
+          // Log login event for metrics (fire-and-forget)
+          setImmediate(async () => {
+            try {
+              const ip = ((req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()) || (req as any).ip || "";
+              const safeIp = ip.replace(/^::ffff:/, "");
+              const result = await db.execute(sql`INSERT INTO player_login_events (user_id, ip_address) VALUES (${user.id}, ${safeIp || null}) RETURNING id`);
+              const rowId = (result as any).rows?.[0]?.id ?? (result as any)?.[0]?.id;
+              if (rowId && safeIp && safeIp !== "::1" && !safeIp.startsWith("127.") && safeIp !== "") {
+                try {
+                  const geoRes = await fetch(`http://ip-api.com/json/${safeIp}?fields=country,city`);
+                  const geo = await geoRes.json() as any;
+                  if (geo?.country) {
+                    await db.execute(sql`UPDATE player_login_events SET country = ${geo.country}, city = ${geo.city ?? null} WHERE id = ${rowId}`);
+                  }
+                } catch {}
+              }
+            } catch {}
+          });
+          return res.json(safeUser);
+        } catch (error) { return next(error); }
       });
     })(req, res, next);
   });
@@ -1423,7 +1410,7 @@ export async function registerRoutes(
 
   app.get("/api/auth/me", isAuthenticated, (req, res) => {
     const user = req.user as any;
-    const { password: _, ...safeUser } = user;
+    const safeUser = publicAccount(user);
     return res.json(safeUser);
   });
 
@@ -1476,7 +1463,7 @@ export async function registerRoutes(
       }
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       const updated = await storage.updatePassword(user.id, hashedPassword);
-      const { password: _, ...safeUser } = updated;
+      const safeUser = publicAccount(updated);
       return res.json(safeUser);
     } catch (err) {
       console.error("Change password error:", err);
@@ -1534,7 +1521,7 @@ export async function registerRoutes(
       }
 
       const updated = await storage.updateUsername(user.id, username);
-      const { password: _, ...safeUser } = updated;
+      const safeUser = publicAccount(updated);
       return res.json(safeUser);
     } catch (err) {
       console.error("Update username error:", err);
@@ -1561,7 +1548,7 @@ export async function registerRoutes(
       const profileImage = `data:image/jpeg;base64,${resized.toString("base64")}`;
 
       const updated = await storage.updateProfileImage(user.id, profileImage);
-      const { password: _, ...safeUser } = updated;
+      const safeUser = publicAccount(updated);
       return res.json(safeUser);
     } catch (err) {
       console.error("Update profile image error:", err);
@@ -1595,7 +1582,7 @@ export async function registerRoutes(
       }
 
       const updated = await storage.updateActivePet(user.id, activePetId);
-      const { password: _, ...safeUser } = updated;
+      const safeUser = publicAccount(updated);
       return res.json(safeUser);
     } catch (err) {
       console.error("Update active pet error:", err);
@@ -2093,7 +2080,7 @@ export async function registerRoutes(
       if (!purchase.ok) {
         return res.status(400).json({ message: "Not enough coins" });
       }
-      const { password: _, ...safeUser } = purchase.user as any;
+      const safeUser = publicAccount(purchase.user as any);
 
       // Veridian Watcher congratulation for first 4/5-star pet acquisition
       if (shopItem.type === "pet" && isFirstPetAcquisition && (shopItem.starRarity ?? 0) >= 4) {
@@ -2996,7 +2983,7 @@ export async function registerRoutes(
       });
 
       const updatedUser = await storage.getUser(user.id);
-      const { password: _, ...safeUser } = updatedUser!;
+      const safeUser = publicAccount(updatedUser!);
 
       return res.json({ pet: updatedPet, user: safeUser });
     } catch (err) {
@@ -3108,7 +3095,7 @@ export async function registerRoutes(
       const stripeSession = await stripe.checkout.sessions.retrieve(sessionId);
       const result = await fulfillStripePurchase(stripeSession as any, { expectedUserId: user.id });
       const updatedUser = await storage.getUser(user.id);
-      const { password: _, ...safeUser } = updatedUser!;
+      const safeUser = publicAccount(updatedUser!);
       return res.json({
         credited: result.status === "fulfilled",
         alreadyCredited: result.status === "already_fulfilled",
@@ -3279,7 +3266,7 @@ export async function registerRoutes(
   app.get("/api/admin/users", isAdmin, async (_req, res) => {
     try {
       const allUsers = await storage.getAllUsers();
-      const safeUsers = allUsers.map(({ password: _, ...u }) => u);
+      const safeUsers = allUsers.map(publicAccount);
       return res.json(safeUsers);
     } catch (err) {
       console.error("Get users error:", err);
@@ -3307,7 +3294,7 @@ export async function registerRoutes(
       const { isModerator } = req.body;
       if (typeof isModerator !== "boolean") return res.status(400).json({ message: "isModerator must be boolean" });
       const updated = await storage.setModerator(target.id, isModerator);
-      const { password: _, ...safe } = updated;
+      const safe = publicAccount(updated);
       return res.json(safe);
     } catch (err) {
       console.error("Set moderator error:", err);
@@ -3336,7 +3323,7 @@ export async function registerRoutes(
       if (target.isAdmin) return res.status(400).json({ message: "Cannot banish an admin" });
       const days = typeof req.body.days === "number" && req.body.days > 0 ? req.body.days : undefined;
       const updated = await storage.banUser((req.params.userId as string), days);
-      const { password: _, ...safe } = updated;
+      const safe = publicAccount(updated);
       return res.json(safe);
     } catch (err) {
       console.error("Ban user error:", err);
@@ -3347,7 +3334,7 @@ export async function registerRoutes(
   app.post("/api/admin/unban/:userId", isAdmin, async (req, res) => {
     try {
       const updated = await storage.unbanUser((req.params.userId as string));
-      const { password: _, ...safe } = updated;
+      const safe = publicAccount(updated);
       return res.json(safe);
     } catch (err) {
       console.error("Unban user error:", err);
@@ -3397,7 +3384,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Provide a valid coin amount" });
       }
       const updated = await storage.addCoins((req.params.userId as string), amount);
-      const { password: _, ...safe } = updated;
+      const safe = publicAccount(updated);
       return res.json(safe);
     } catch (err) {
       console.error("Add coins error:", err);
@@ -5015,6 +5002,7 @@ export async function registerRoutes(
   app.get("/api/rewards/pending", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
+      if (!user.welcomeV2Sent) await grantWelcomeV2Bundle(user.id);
       const rewards = await storage.getUnclaimedRewards(user.id);
       const detailed = await Promise.all(rewards.map(async (reward) => {
         const bundle = await storage.getRewardBundle(reward.bundleId);
@@ -5098,7 +5086,7 @@ export async function registerRoutes(
       if (result === "already-claimed") return res.status(404).json({ message: "Reward already claimed" });
 
       const updatedUser = await storage.getUser(user.id);
-      const { password: _, ...safeUser } = updatedUser!;
+      const safeUser = publicAccount(updatedUser!);
 
       return res.json({ user: safeUser, skippedPets });
     } catch (err: any) {
@@ -5725,7 +5713,7 @@ export async function registerRoutes(
         coinsAwarded,
         droppedItems,
         extraPetResults,
-        user: updatedUser,
+        user: updatedUser ? publicAccount(updatedUser) : undefined,
       });
     } catch (err) {
       console.error("Defeat enemy error:", err);
@@ -6667,7 +6655,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Not enough coins" });
       }
 
-      const { password: _pw, ...safeUser } = result.user;
+      const safeUser = publicAccount(result.user);
       return res.json({
         user: safeUser,
         ticketsAdded: bundle.tickets,
@@ -8670,3 +8658,4 @@ export async function registerRoutes(
 
   return httpServer;
 }
+

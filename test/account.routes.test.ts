@@ -18,12 +18,14 @@ function harness() {
     setWelcomeV2Sent: async () => undefined,
     grantUserHouseBundle: async () => undefined,
     setActiveHouseBundle: async () => undefined,
-    setEmailVerificationToken: async () => undefined,
+    prepareEmailVerification: async (_id: string, email: string, token: string) => ({ email, username: "new_user", emailVerificationToken: token }),
+    correctUnverifiedEmail: async () => undefined,
     getUserByResetToken: async () => undefined,
     clearPasswordResetToken: async () => undefined,
+    resetPasswordWithToken: async () => true,
     updatePassword: async () => undefined,
     getUserByEmailVerificationToken: async () => undefined,
-    verifyEmail: async () => undefined,
+    verifyEmail: async () => true,
     getUser: async () => undefined,
     setPasswordResetToken: async () => undefined,
   };
@@ -61,6 +63,7 @@ test("account module registers the exact extracted API paths and preserves resen
   const { routes } = harness();
   assert.deepEqual([...routes.keys()], [
     "POST /api/auth/register",
+    "POST /api/auth/change-unverified-email",
     "POST /api/auth/logout",
     "GET /api/auth/reset-password/:token",
     "POST /api/auth/reset-password",
@@ -128,3 +131,4 @@ test("resend verification rejects anonymous users and logout retains Passport ca
   assert.equal(loggedOut, true);
   assert.deepEqual(logout.result, { statusCode: 200, body: { message: "Logged out" }, redirect: undefined });
 });
+

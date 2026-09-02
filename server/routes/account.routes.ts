@@ -1,13 +1,17 @@
 import type { Express, RequestHandler } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { registrationSchema, emailCorrectionSchema, newAccountPasswordSchema } from "@shared/accountValidation";
+import { publicAccount } from "../accounts/publicAccount";
+import { AccountConflictError } from "../accounts/errors";
+import { createVerificationSender, type EmailClient } from "../accounts/verification";
 import sharp from "sharp";
 import { Resend } from "resend";
 import { createRegisteredUser } from "../registration";
 
 type AccountStorage = Pick<typeof import("../storage").storage,
-  | "addCoins"
   | "clearPasswordResetToken"
+  | "resetPasswordWithToken"
   | "createUser"
   | "getUser"
   | "getUserByEmail"
@@ -16,14 +20,13 @@ type AccountStorage = Pick<typeof import("../storage").storage,
   | "getUserByUsernameCaseInsensitive"
   | "grantUserHouseBundle"
   | "setActiveHouseBundle"
-  | "setEmailVerificationToken"
+  | "prepareEmailVerification"
+  | "correctUnverifiedEmail"
   | "setPasswordResetToken"
-  | "setWelcomeV2Sent"
   | "updatePassword"
   | "verifyEmail"
 >;
 
-type EmailClient = { send(message: { from: string; to: string; subject: string; html: string }): Promise<{ error?: unknown }> };
 type FreeHouseBundle = { id: string };
 
 export interface AccountRouteDependencies {
@@ -51,158 +54,14 @@ export function registerAccountRoutes(app: Express, dependencies: AccountRouteDe
     updateSignupReferrer,
     grantWelcomeV2Bundle,
     postWatcherMessage,
-    emailClient = new Resend(process.env.RESEND_API_KEY).emails,
+    emailClient,
   } = dependencies;
 
-// ── Email verification helper ─────────────────────────────────────────────────
-async function sendVerificationEmail(userId: string, email: string, username: string): Promise<void> {
-  const token = crypto.randomBytes(32).toString("hex");
-  const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-  await accountStorage.setEmailVerificationToken(userId, token, expires);
-  const verifyUrl = `${APP_URL}/api/auth/verify-email/${token}`;
-  await emailClient.send({
-    from: FROM_EMAIL,
-    to: email,
-    subject: "🐾 Para Pets — Verify Your Email",
-    html: `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Para Pets — Verify Your Email</title>
-</head>
-<body style="margin:0;padding:0;background-color:#0d0805;font-family:Georgia,serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0d0805;padding:32px 16px;">
-    <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;">
+const sendVerificationEmail = createVerificationSender(accountStorage, emailClient);
 
-          <!-- Logo -->
-          <tr>
-            <td align="center" style="padding-bottom:24px;">
-              <img src="${APP_URL}/logo_parapets.png" alt="Para Pets" width="180" style="display:block;max-width:180px;" />
-            </td>
-          </tr>
-
-          <!-- Main card -->
-          <tr>
-            <td style="background:linear-gradient(180deg,#1e1208 0%,#150d06 100%);border-radius:16px;border:1px solid #6a4a20;box-shadow:0 0 40px rgba(0,0,0,0.8),inset 0 1px 0 rgba(212,160,23,0.2);overflow:hidden;">
-
-              <!-- Gold top accent line -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="height:3px;background:linear-gradient(90deg,transparent,#d4a017,#f0c040,#d4a017,transparent);"></td>
-                </tr>
-              </table>
-
-              <!-- Header -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td align="center" style="padding:28px 32px 20px;background:linear-gradient(180deg,rgba(212,160,23,0.08) 0%,transparent 100%);">
-                    <p style="margin:0 0 6px;font-size:11px;letter-spacing:4px;color:#8a6a30;text-transform:uppercase;">Account Setup</p>
-                    <h1 style="margin:0;font-size:26px;color:#f0c040;letter-spacing:2px;text-shadow:0 0 20px rgba(240,192,64,0.3);">Verify Your Email</h1>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Divider -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="padding:0 32px;">
-                    <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(212,160,23,0.4),transparent);"></div>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Body -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="padding:28px 32px;">
-                    <p style="margin:0 0 8px;font-size:15px;color:#c8a870;">
-                      Welcome, <strong style="color:#f0c040;">${username}</strong>!
-                    </p>
-                    <p style="margin:0 0 24px;font-size:14px;color:#a89878;line-height:1.7;">
-                      Thanks for joining Para Pets! Click the button below to verify your email address and unlock all rewards. This link is valid for <strong style="color:#d4b896;">24 hours</strong>.
-                    </p>
-
-                    <!-- CTA button -->
-                    <table width="100%" cellpadding="0" cellspacing="0">
-                      <tr>
-                        <td align="center" style="padding:8px 0 28px;">
-                          <a href="${verifyUrl}"
-                            style="display:inline-block;padding:16px 40px;background:linear-gradient(135deg,#4a2d6f 0%,#2d1a4a 100%);color:#d4a8ff;text-decoration:none;border-radius:10px;font-size:16px;font-family:Georgia,serif;letter-spacing:1px;border:1px solid rgba(180,120,255,0.4);box-shadow:0 0 20px rgba(180,120,255,0.15),0 4px 16px rgba(0,0,0,0.5);">
-                            ✦ &nbsp;Verify My Email&nbsp; ✦
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
-
-                    <!-- Divider -->
-                    <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(212,160,23,0.2),transparent);margin-bottom:20px;"></div>
-
-                    <!-- Note -->
-                    <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(0,0,0,0.3);border-radius:8px;border:1px solid rgba(106,72,32,0.3);">
-                      <tr>
-                        <td style="padding:16px 18px;">
-                          <p style="margin:0 0 6px;font-size:11px;letter-spacing:3px;color:#6a4820;text-transform:uppercase;">Didn't sign up?</p>
-                          <p style="margin:0;font-size:13px;color:#7a6040;line-height:1.6;">
-                            You can safely ignore this email — no account will be active without verification.
-                          </p>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Bottom divider -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="padding:0 32px;">
-                    <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(212,160,23,0.3),transparent);"></div>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Footer link -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="padding:20px 32px 28px;" align="center">
-                    <p style="margin:0 0 10px;font-size:11px;color:#4a3820;letter-spacing:2px;">BUTTON NOT WORKING?</p>
-                    <p style="margin:0;font-size:11px;color:#5a4828;word-break:break-all;line-height:1.6;">
-                      <a href="${verifyUrl}" style="color:#6a7a50;">${verifyUrl}</a>
-                    </p>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Gold bottom accent line -->
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="height:3px;background:linear-gradient(90deg,transparent,#d4a017,#f0c040,#d4a017,transparent);"></td>
-                </tr>
-              </table>
-
-            </td>
-          </tr>
-
-          <!-- Footer below card -->
-          <tr>
-            <td align="center" style="padding:24px 16px 8px;">
-              <p style="margin:0;font-size:11px;color:#3a2a18;letter-spacing:3px;">PARA PETS &copy; 2026</p>
-              <p style="margin:6px 0 0;font-size:11px;color:#2a1e10;">
-                <a href="${APP_URL}" style="color:#4a3820;text-decoration:none;">parapets.net</a>
-              </p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`,
-  });
+async function tryVerificationEmail(user: Parameters<typeof sendVerificationEmail>[0]): Promise<boolean> {
+  try { await sendVerificationEmail(user); return true; }
+  catch { console.error("Verification email delivery failed; player can retry from the verification screen"); return false; }
 }
 
 function categorizeReferrer(ref: string | null | undefined): string {
@@ -220,30 +79,14 @@ function categorizeReferrer(ref: string | null | undefined): string {
 
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { username, email, password, profileImageData, referrer } = req.body;
-
-    if (!username || !email || !password) {
-      return res.status(400).json({ message: "Username, email, and password are required" });
+    const parsed = registrationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      return res.status(400).json({ field: issue.path[0], message: issue.message });
     }
-
-    if (!/^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$/.test(username)) {
-      return res.status(400).json({ field: "username", message: "Username can only contain letters, numbers, underscores, and periods (periods cannot be at the start or end)" });
-    }
-    if (username.length < 3 || username.length > 20) {
-      return res.status(400).json({ field: "username", message: "Username must be between 3 and 20 characters" });
-    }
-
+    const { username, email, password, profileImageData, referrer } = parsed.data;
     if (await containsBadWord(username)) {
       return res.status(400).json({ field: "username", message: "That username contains a forbidden word. Please choose another." });
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ field: "email", message: "Please enter a valid email address" });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ field: "password", message: "Password must be at least 6 characters" });
     }
 
     const existingUsername = await accountStorage.getUserByUsernameCaseInsensitive(username);
@@ -290,9 +133,9 @@ app.post("/api/auth/register", async (req, res) => {
     try {
       await grantWelcomeV2Bundle(user.id);
     } catch (rewardErr) {
-      console.error("Failed to create welcome reward, giving coins directly:", rewardErr);
-      await accountStorage.addCoins(user.id, 500);
-      await accountStorage.setWelcomeV2Sent(user.id);
+      // The transactional grant rolls back on failure. Login and the rewards
+      // screen retry it, so a bonus outage never strands a created account.
+      console.error("Welcome reward deferred until retry:", rewardErr instanceof Error ? rewardErr.message : "unavailable");
     }
 
     // Auto-grant all free house bundles and set the first one as active
@@ -310,18 +153,48 @@ app.post("/api/auth/register", async (req, res) => {
 
     // Store categorized signup source
     const refSource = categorizeReferrer(referrer);
-    updateSignupReferrer(user.id, refSource).catch(() => {});
+    Promise.resolve().then(() => updateSignupReferrer(user.id, refSource)).catch(() => {});
 
-    req.login(user, (err) => {
-      if (err) return res.status(500).json({ message: "Login failed after registration" });
-      sendVerificationEmail(user.id, user.email, user.username)
-        .catch(e => console.error("Verification email failed:", e));
-      const { password: _, ...safeUser } = user;
-      return res.status(201).json(safeUser);
+    await new Promise<void>((resolve) => {
+      req.login(user, async (err) => {
+        if (err) {
+          res.status(503).json({ accountCreated: true, message: "Your account was created. Please sign in to continue setup." });
+          resolve();
+          return;
+        }
+        const verificationEmailSent = await tryVerificationEmail(user);
+        res.status(201).json({ ...publicAccount(user), verificationEmailSent });
+        resolve();
+      });
     });
   } catch (err: any) {
-    console.error("Register error:", err);
+    if (err instanceof AccountConflictError) return res.status(409).json({ field: err.field, message: err.message });
+    if (err?.code === "23505") return res.status(409).json({ message: "That username or email is already registered. Try signing in." });
+    console.error("Register error:", err instanceof Error ? err.message : "unavailable");
     return res.status(500).json({ message: "Registration failed" });
+  }
+});
+
+app.post("/api/auth/change-unverified-email", isAuthenticated, async (req, res) => {
+  try {
+    const parsed = emailCorrectionSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0].message });
+    const user = await accountStorage.getUser((req.user as { id: string }).id);
+    if (!user) return res.status(401).json({ message: "Please sign in again" });
+    if (user.emailVerified) return res.status(409).json({ message: "Your email is already verified" });
+    if (!await bcrypt.compare(parsed.data.password, user.password)) {
+      return res.status(403).json({ message: "Your current password is incorrect" });
+    }
+    if ((await findRecentlyDeletedAccounts(parsed.data.email)).length > 0) {
+      return res.status(400).json({ message: "This email was used on a recently deleted account. Please use another email or try again after 30 days." });
+    }
+    const updated = await accountStorage.correctUnverifiedEmail(user.id, parsed.data.email, user.password);
+    if (!updated) return res.status(409).json({ message: "Your account changed. Refresh and try again." });
+    const verificationEmailSent = await tryVerificationEmail(updated);
+    return res.json({ email: updated.email, verificationEmailSent });
+  } catch (error) {
+    if (error instanceof AccountConflictError) return res.status(409).json({ message: error.message });
+    return res.status(503).json({ message: "Unable to update your email. Please try again." });
   }
 });
 
@@ -355,9 +228,8 @@ app.post("/api/auth/reset-password", async (req, res) => {
     if (!token || !newPassword) {
       return res.status(400).json({ message: "Token and new password are required" });
     }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters" });
-    }
+    const parsedPassword = newAccountPasswordSchema.safeParse(newPassword);
+    if (!parsedPassword.success) return res.status(400).json({ message: parsedPassword.error.issues[0].message });
     const user = await accountStorage.getUserByResetToken(token);
     if (!user) {
       return res.status(404).json({ message: "Invalid or expired reset link" });
@@ -367,8 +239,9 @@ app.post("/api/auth/reset-password", async (req, res) => {
       return res.status(400).json({ message: "Reset link has expired" });
     }
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await accountStorage.updatePassword(user.id, hashedPassword);
-    await accountStorage.clearPasswordResetToken(user.id);
+    if (!await accountStorage.resetPasswordWithToken(user.id, token, hashedPassword)) {
+      return res.status(400).json({ message: "This reset link is no longer valid. Please request a new one." });
+    }
     return res.json({ message: "Password has been reset successfully" });
   } catch (err) {
     console.error("Reset password error:", err);
@@ -395,7 +268,7 @@ app.post("/api/auth/forgot-password", async (req, res) => {
     const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await accountStorage.setPasswordResetToken(user.id, token, expires);
     const resetUrl = `${APP_URL}/reset-password/${token}`;
-    const emailResult = await emailClient.send({
+    const emailResult = await (emailClient ?? new Resend(process.env.RESEND_API_KEY).emails).send({
       from: FROM_EMAIL,
       to: user.email,
       subject: "🐾 Para Pets — Password Reset",
@@ -563,7 +436,9 @@ app.get("/api/auth/verify-email/:token", async (req, res) => {
     if (user.emailVerified) {
       return res.redirect(`${APP_URL}/?verified=already`);
     }
-    await accountStorage.verifyEmail(user.id);
+    if (!await accountStorage.verifyEmail(user.id, token)) {
+      return res.redirect(`${APP_URL}/?verified=invalid`);
+    }
     // Update session user if logged in as this user
     if ((req.user as any)?.id === user.id) {
       (req.user as any).emailVerified = true;
@@ -588,16 +463,10 @@ app.post("/api/auth/resend-verification", isAuthenticated, async (req, res) => {
     if (fullUser.emailVerified) {
       return res.status(400).json({ message: "Email is already verified" });
     }
-    // Cooldown: if token was issued less than 60 seconds ago, reject
-    if (fullUser.emailVerificationExpires) {
-      const issuedAt = fullUser.emailVerificationExpires.getTime() - 24 * 60 * 60 * 1000;
-      const cooldownUntil = issuedAt + 60 * 1000;
-      if (Date.now() < cooldownUntil) {
-        const secondsLeft = Math.ceil((cooldownUntil - Date.now()) / 1000);
-        return res.status(429).json({ message: `Please wait ${secondsLeft}s before resending`, secondsLeft });
-      }
+    // Per-account and per-IP cooldowns are mounted after Passport in index.ts.
+    if (!await tryVerificationEmail(fullUser)) {
+      return res.status(503).json({ message: "We could not send your verification email. Please try again shortly. Any previous unexpired link still works." });
     }
-    await sendVerificationEmail(fullUser.id, fullUser.email, fullUser.username);
     return res.json({ message: "Verification email sent" });
   } catch (err) {
     console.error("Resend verification error:", err);
@@ -606,3 +475,4 @@ app.post("/api/auth/resend-verification", isAuthenticated, async (req, res) => {
 });
 
 }
+

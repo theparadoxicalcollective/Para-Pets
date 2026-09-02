@@ -1,3 +1,4 @@
+import { AccountConflictError } from "./accounts/errors";
 import {
   type User, type InsertUser, users,
   type ShopItem, type InsertShopItem, shopItems,
@@ -115,9 +116,12 @@ export interface IStorage {
   setPasswordResetToken(id: string, token: string, expires: Date): Promise<void>;
   getUserByResetToken(token: string): Promise<User | undefined>;
   clearPasswordResetToken(id: string): Promise<void>;
+  resetPasswordWithToken(id: string, token: string, password: string): Promise<boolean>;
   setEmailVerificationToken(id: string, token: string, expires: Date): Promise<void>;
+  prepareEmailVerification(id: string, email: string, token: string, expires: Date): Promise<User | undefined>;
+  correctUnverifiedEmail(id: string, email: string, passwordHash: string): Promise<User | undefined>;
   getUserByEmailVerificationToken(token: string): Promise<User | undefined>;
-  verifyEmail(id: string): Promise<void>;
+  verifyEmail(id: string, token: string): Promise<boolean>;
   getShopItemsByWorld(worldId: string): Promise<ShopItem[]>;
   getAllShopItems(): Promise<ShopItem[]>;
   getShopItem(id: string): Promise<ShopItem | undefined>;
@@ -374,18 +378,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByUsernameCaseInsensitive(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(ilike(users.username, username));
+    const [user] = await db.select().from(users).where(sql`lower(${users.username}) = lower(${username})`);
     return user;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(ilike(users.email, email));
+    const [user] = await db.select().from(users).where(sql`lower(${users.email}) = lower(${email})`);
     return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
-    return user;
+    return db.transaction(async tx => {
+      // Serialize equivalent identifiers without changing any existing account's
+      // spelling or requiring a risky data-cleanup migration.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(7101, hashtext(lower(${insertUser.username})))`);
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(7102, hashtext(lower(${insertUser.email})))`);
+      const [nameMatch] = await tx.select({ id: users.id }).from(users).where(sql`lower(${users.username}) = lower(${insertUser.username})`).limit(1);
+      if (nameMatch) throw new AccountConflictError("username");
+      const [emailMatch] = await tx.select({ id: users.id }).from(users).where(sql`lower(${users.email}) = lower(${insertUser.email})`).limit(1);
+      if (emailMatch) throw new AccountConflictError("email");
+      const [user] = await tx.insert(users).values(insertUser).returning();
+      return user;
+    });
   }
 
   async setWatcherShoutoutsEnabled(userId: string, enabled: boolean): Promise<void> {
@@ -393,12 +407,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUsername(id: string, username: string): Promise<User> {
-    const [user] = await db
-      .update(users)
-      .set({ username, lastUsernameChange: new Date() })
-      .where(eq(users.id, id))
-      .returning();
-    return user;
+    return db.transaction(async tx => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(7101, hashtext(lower(${username})))`);
+      const [existing] = await tx.select({ id: users.id }).from(users)
+        .where(sql`lower(${users.username}) = lower(${username}) AND ${users.id} <> ${id}`).limit(1);
+      if (existing) throw new AccountConflictError("username");
+      const [user] = await tx.update(users).set({ username, lastUsernameChange: new Date() }).where(eq(users.id, id)).returning();
+      return user;
+    });
   }
 
   async updateProfileImage(id: string, profileImage: string): Promise<User> {
@@ -608,11 +624,48 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id));
   }
 
+  async resetPasswordWithToken(id: string, token: string, password: string): Promise<boolean> {
+    const rows = await db.update(users)
+      .set({ password, passwordResetToken: null, passwordResetExpires: null })
+      .where(and(eq(users.id, id), eq(users.passwordResetToken, token), gt(users.passwordResetExpires, new Date())))
+      .returning({ id: users.id });
+    return rows.length > 0;
+  }
+
   async setEmailVerificationToken(id: string, token: string, expires: Date): Promise<void> {
     await db
       .update(users)
       .set({ emailVerificationToken: token, emailVerificationExpires: expires })
       .where(eq(users.id, id));
+  }
+
+  async prepareEmailVerification(id: string, email: string, token: string, expires: Date): Promise<User | undefined> {
+    return db.transaction(async tx => {
+      const [user] = await tx.select().from(users).where(eq(users.id, id)).for("update");
+      if (!user || user.emailVerified || user.email !== email) return undefined;
+      if (user.emailVerificationToken && user.emailVerificationExpires && user.emailVerificationExpires > new Date()) return user;
+      const [updated] = await tx.update(users)
+        .set({ emailVerificationToken: token, emailVerificationExpires: expires })
+        .where(eq(users.id, id)).returning();
+      return updated;
+    });
+  }
+
+  async correctUnverifiedEmail(id: string, email: string, passwordHash: string): Promise<User | undefined> {
+    return db.transaction(async tx => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(7102, hashtext(lower(${email})))`);
+      const [existing] = await tx.select({ id: users.id }).from(users)
+        .where(sql`lower(${users.email}) = lower(${email}) AND ${users.id} <> ${id}`).limit(1);
+      if (existing) throw new AccountConflictError("email");
+      const [user] = await tx.select().from(users).where(eq(users.id, id)).for("update");
+      if (!user || user.emailVerified || user.password !== passwordHash) return undefined;
+      if (user.email === email) return user;
+      const [updated] = await tx.update(users).set({
+        email, emailVerificationToken: null, emailVerificationExpires: null,
+        passwordResetToken: null, passwordResetExpires: null,
+      }).where(eq(users.id, id)).returning();
+      return updated;
+    });
   }
 
   async getUserByEmailVerificationToken(token: string): Promise<User | undefined> {
@@ -623,11 +676,12 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async verifyEmail(id: string): Promise<void> {
-    await db
-      .update(users)
+  async verifyEmail(id: string, token: string): Promise<boolean> {
+    const rows = await db.update(users)
       .set({ emailVerified: true, emailVerificationToken: null, emailVerificationExpires: null })
-      .where(eq(users.id, id));
+      .where(and(eq(users.id, id), eq(users.emailVerificationToken, token), eq(users.emailVerified, false), gt(users.emailVerificationExpires, new Date())))
+      .returning({ id: users.id });
+    return rows.length > 0;
   }
 
   async getShopItemsByWorld(worldId: string): Promise<ShopItem[]> {
@@ -3494,3 +3548,4 @@ export class DatabaseStorage implements IStorage {
 }
 
 export const storage = new DatabaseStorage();
+
