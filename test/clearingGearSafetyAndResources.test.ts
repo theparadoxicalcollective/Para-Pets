@@ -27,15 +27,8 @@ test("enemy attacks use a forward lunge without changing combat state logic",()=
   assert.match(source,/prefers-reduced-motion:reduce/);
 });
 
-test("admin resource tab exposes three inert colored portal placeholders",()=>{
+test("Clearing no longer includes the unused resource placeholder feature",()=>{
   const scene=fs.readFileSync("client/src/components/WalkAroundScene.tsx","utf8");
-  const panel=fs.readFileSync("client/src/components/clearing/ClearingAdminResourcePanel.tsx","utf8");
-  assert.match(scene,/config\.id===ELYSIAN_BAYOU_CLEARING_ID/);
-  assert.match(scene,/isElysianClearing&&isAdmin&&<ClearingAdminResourcePanel/);
-  assert.match(panel,/data-testid=\"button-add-clearing-resource\"/);
-  assert.match(panel,/clearing-resource-placeholder-\$\{theme\.id\}/);
-  assert.match(panel,/id:\"amber\"/);
-  assert.match(panel,/id:\"green\"/);
-  assert.match(panel,/id:\"blue\"/);
-  assert.match(panel,/Visual placeholders only/);
+  assert.doesNotMatch(scene,/ClearingAdminResourcePanel|resourcePanelOpen|button-add-clearing-resource/);
+  assert.equal(fs.existsSync("client/src/components/clearing/ClearingAdminResourcePanel.tsx"),false);
 });

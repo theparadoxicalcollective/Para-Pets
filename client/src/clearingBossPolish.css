@@ -1,53 +1,17 @@
 /* Elysian Clearing boss presentation polish.
  * Keep boss-only visuals here so regular enemy movement/combat stays untouched. */
 
-/* The combat renderer previously applied an amber filter to the whole boss
- * wrapper (including transparent canvas/UI). Remove that wrapper filter and
- * apply the aura directly to the PNG art so CSS drop-shadow follows alpha. */
-.clearing-enemy[data-enemy-rank="boss"] {
-  filter: none !important;
-  overflow: visible;
-}
-
-.clearing-enemy[data-enemy-rank="boss"] .clearing-enemy-sprite.is-boss {
-  /* Slightly larger than the first boss pass without letting the sprite dominate
-   * the playfield or changing server-side combat geometry. */
-  scale: 2.05;
-  transform-origin: 50% 100%;
-}
-
+/* Visible-art sizing and health placement come from the combat renderer.
+ * Keep aura effects on the artwork without applying a second boss scale. */
 .clearing-enemy[data-enemy-rank="boss"] .clearing-enemy-art {
-  transform-origin: 50% 100%;
   animation: clearing-boss-green-aura 2100ms ease-in-out infinite;
 }
 
-/* Hide the generated "Boss · <name>" banner. Keep the target ring intact. */
-.clearing-enemy[data-enemy-rank="boss"] > span:not(.clearing-target-ring) {
-  display: none !important;
-}
-
-/* Keep the health bar clearly above the enlarged boss's head rather than
- * overlapping the face/body as the sprite scales up. */
-.clearing-enemy[data-enemy-rank="boss"] > div.absolute {
-  left: -34% !important;
-  right: -34% !important;
-  top: -48px !important;
-  height: 4px !important;
-  box-shadow: 0 0 5px rgba(134, 239, 172, .42);
-}
-
-.clearing-enemy[data-enemy-rank="boss"] .clearing-target-ring {
-  left: -22%;
-  right: -22%;
-  bottom: -6%;
-  height: 30%;
-}
-
 /* During the boss's existing attack wind-up, conjure a glowing green orb.
- * The enemy wrapper already flips toward its facing direction, so this local
+ * The sprite container flips toward its facing direction, so this local
  * left-to-right travel mirrors automatically when the boss faces left. */
-.clearing-enemy[data-enemy-rank="boss"].is-winding-up::before,
-.clearing-enemy[data-enemy-rank="boss"].is-winding-up::after {
+.clearing-enemy[data-enemy-rank="boss"].is-winding-up > .clearing-enemy-facing::before,
+.clearing-enemy[data-enemy-rank="boss"].is-winding-up > .clearing-enemy-facing::after {
   content: "";
   position: absolute;
   pointer-events: none;
@@ -55,7 +19,7 @@
   border-radius: 999px;
 }
 
-.clearing-enemy[data-enemy-rank="boss"].is-winding-up::before {
+.clearing-enemy[data-enemy-rank="boss"].is-winding-up > .clearing-enemy-facing::before {
   width: 22px;
   height: 22px;
   left: 56%;
@@ -65,7 +29,7 @@
   animation: clearing-boss-orb-charge 650ms ease-out forwards;
 }
 
-.clearing-enemy[data-enemy-rank="boss"].is-winding-up::after {
+.clearing-enemy[data-enemy-rank="boss"].is-winding-up > .clearing-enemy-facing::after {
   width: 12px;
   height: 12px;
   left: 58%;
@@ -106,13 +70,14 @@
     filter: drop-shadow(0 0 3px rgba(187, 247, 208, .95)) drop-shadow(0 0 8px rgba(34, 197, 94, .7));
   }
 
-  .clearing-enemy[data-enemy-rank="boss"].is-winding-up::before {
+  .clearing-enemy[data-enemy-rank="boss"].is-winding-up > .clearing-enemy-facing::before {
     display: none;
   }
 
-  .clearing-enemy[data-enemy-rank="boss"].is-winding-up::after {
+  .clearing-enemy[data-enemy-rank="boss"].is-winding-up > .clearing-enemy-facing::after {
     animation: none;
     opacity: 1;
     transform: translate(10px, -50%);
   }
 }
+

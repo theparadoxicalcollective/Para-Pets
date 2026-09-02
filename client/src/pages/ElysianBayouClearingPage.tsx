@@ -15,7 +15,7 @@ import { stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import WalkAroundScene from "@/components/WalkAroundScene";
 import type { WalkAroundLocationConfig } from "@/lib/exploreLocations";
 import { ELYSIAN_BAYOU_CLEARING_ID } from "@/lib/exploreLocations";
-import backgroundUrl from "@assets/uploads/ElysianClearingBackground.jpeg";
+import backgroundUrl from "@assets/uploads/NewClearingBg.png";
 
 // ── Scene configuration ───────────────────────────────────────────────────────
 //
@@ -50,11 +50,11 @@ const CLEARING_CONFIG: WalkAroundLocationConfig = {
   // Scene-fraction units per second (tweak to make movement feel right)
   movementSpeed: 0.17,
 
-  // Source artwork is 2886×4331. Fit its full height and use a colour-matched
+  // Fit the portrait artwork to the full height and use a colour-matched
   // edge extension rather than cropping it with cover.
   petSize: 96,
   worldSize: { width: 1, height: 1 },
-  aspectLayout: { imageAspect: 2886 / 4331, fit: "height-contain", colorFill: "#18251b", responsivePet: { min: 86, preferredVw: 24, max: 108 } },
+  aspectLayout: { imageAspect: 2 / 3, fit: "height-contain", colorFill: "#18251b", responsivePet: { min: 86, preferredVw: 24, max: 108 } },
 
   features: {
     movement:     true,
@@ -123,3 +123,4 @@ export default function ElysianBayouClearingPage({ user }: ElysianBayouClearingP
     </div>
   );
 }
+

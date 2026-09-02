@@ -2,8 +2,8 @@ export type SimEnemy={instanceId:string;templateId?:string;imageUrl?:string|null
 export type EnemyMotionBody={x:number;y:number;velocityX:number;velocityY:number};
 export const enemySpeciesKey=(e:Pick<SimEnemy,"templateId"|"imageUrl"|"name">)=>e.templateId||`${e.imageUrl||""}|${e.name||"enemy"}`;
 /** Keep one canonical visible-art height for every enemy renderer. These values
- * match the Clearing combat configuration rather than applying a second scale. */
-export const enemyVisibleHeight=(boss:boolean)=>boss?38:28;
+ * also drive spacing and aim visuals; bosses need no extra CSS scale. */
+export const enemyVisibleHeight=(boss:boolean)=>boss?78:44;
 export const enemyMinimumSeparation=(a:Pick<SimEnemy,"templateId"|"imageUrl"|"name"|"visibleHalfWidth">,b:Pick<SimEnemy,"templateId"|"imageUrl"|"name"|"visibleHalfWidth">)=>a.visibleHalfWidth+b.visibleHalfWidth+(enemySpeciesKey(a)===enemySpeciesKey(b)?-3:8);
 export function engageConfirmedEnemy(enemies:SimEnemy[],id:string){const enemy=enemies.find(e=>e.instanceId===id);if(enemy){enemy.engagedByPlayer=true;enemy.state="pursuing";}return enemies;}
 export function resetEnemyPassive(enemy:SimEnemy){enemy.engagedByPlayer=false;enemy.state="roaming";}
@@ -34,3 +34,4 @@ export function clusterHomes<T extends {templateId?:string;imageUrl?:string|null
   const counts=new Map<string,number>(),anchors=new Map<string,number>();let nextAnchor=0;
   return enemies.map(enemy=>{const key=enemy.templateId||`${enemy.imageUrl||""}|${enemy.name||"enemy"}`,n=counts.get(key)||0,packSize=[1,2,3,4,5][Math.abs(key.length+enemy.slot)%5],cluster=Math.floor(n/packSize),clusterId=`${key}:${cluster}`;counts.set(key,n+1);if(!anchors.has(clusterId))anchors.set(clusterId,nextAnchor++);const base=homes[(anchors.get(clusterId)??0)%homes.length]||homes[0]||{x:.5,y:.5},member=n%packSize,angle=member*Math.PI*2/Math.max(1,packSize)-Math.PI/2,r=member===0?0:24+packSize*2;return{homeX:base.x+Math.cos(angle)*r/400,homeY:base.y+Math.sin(angle)*r/800,clusterId};});
 }
+

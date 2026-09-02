@@ -1,8 +1,10 @@
+// Keep packs on the new artwork's central path, away from the upper tree line
+// and right-side dock. Interleave north/south anchors to distribute encounters.
 export const CLEARING_ENCOUNTER_HOMES = [
-  { x: .28, y: .24 }, { x: .48, y: .58 }, { x: .43, y: .82 },
-  { x: .68, y: .28 }, { x: .25, y: .72 }, { x: .14, y: .52 },
-  { x: .35, y: .43 }, { x: .63, y: .72 }, { x: .86, y: .64 },
-  { x: .72, y: .48 },
+  { x: .40, y: .38 }, { x: .62, y: .58 }, { x: .43, y: .84 },
+  { x: .55, y: .44 }, { x: .30, y: .65 }, { x: .34, y: .52 },
+  { x: .46, y: .55 }, { x: .67, y: .73 }, { x: .39, y: .77 },
+  { x: .55, y: .88 },
 ] as const;
 
 type ClearingHome = { x: number; y: number };
@@ -55,3 +57,4 @@ export function layoutClearingEncounter(templates: Array<{ enemy_id?: string } |
     };
   });
 }
+

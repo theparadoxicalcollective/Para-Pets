@@ -7,6 +7,7 @@ const MAP_ASSETS = {
   haunted_woods: "ShadowfenMap.png",
   volcanic: "EmbercraftPeakMap.png",
   swamp: "ElysianBayouMap.png",
+  desert: "SandspireOasis.png",
 } as const;
 
 function pngDimensions(filename: string): { width: number; height: number } {
@@ -35,9 +36,10 @@ test("startup reconciliation maps requested worlds and placeholders", () => {
   assert.match(source, /worldId: "haunted_woods", assetPath: "uploads\/ShadowfenMap\.png"/);
   assert.match(source, /worldId: "swamp", assetPath: "uploads\/ElysianBayouMap\.png"/);
   assert.match(source, /worldId: "volcanic"[\s\S]*assetPath: "uploads\/EmbercraftPeakMap\.png"/);
-  for (const worldId of ["snowy_mountain", "sky_realm", "enchanted_grove", "island", "desert"]) {
+  for (const worldId of ["snowy_mountain", "sky_realm", "enchanted_grove", "island"]) {
     assert.match(source, new RegExp(`worldId: "${worldId}", assetPath: "uploads/ShadowfenMap\\.png"`));
   }
+  assert.match(source, /worldId: "desert", assetPath: "uploads\/SandspireOasis\.png"/);
   assert.match(source, /volcanic_bg_embercraft_peak_2026_08/);
   assert.match(source, /storage\.updateWorld\(worldId, \{ bgUrl \}/);
 });
