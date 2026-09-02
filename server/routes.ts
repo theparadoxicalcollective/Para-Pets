@@ -1,3 +1,4 @@
+import { processEvolutionImageUpdate } from "./evolutionImageUpload";
 import { AccountConflictError } from "./accounts/errors";
 import { publicAccount } from "./accounts/publicAccount";
 import { grantWelcomeBundle } from "./accounts/welcomeBundle";
@@ -1866,6 +1867,7 @@ export async function registerRoutes(
         petNickname: inv.petNickname || null,
         hatchStartedAt: inv.hatchStartedAt,
         isHatched: inv.isHatched,
+        isEvolved: inv.isEvolved,
         petHealth: inv.petHealth,
         petAtk: inv.petAtk,
         petDef: inv.petDef,
@@ -4806,10 +4808,17 @@ export async function registerRoutes(
 
   app.post("/api/admin/shop", isAdmin, async (req, res) => {
     try {
-      const { imageData, eggImageData, hatchedImageData, hooklessImageData, ...itemData } = req.body;
+      const { imageData, eggImageData, hatchedImageData, evolutionImageData, hooklessImageData, ...itemData } = req.body;
       const parse = insertShopItemSchema.safeParse(itemData);
       if (!parse.success) {
         return res.status(400).json({ message: parse.error.errors[0].message });
+      }
+
+      let evolutionImageUrl: string | null;
+      try {
+        evolutionImageUrl = (await processEvolutionImageUpdate({ evolutionImageData, evolutionImageUrl: itemData.evolutionImageUrl }, parse.data.type, processShopItemImage)) ?? null;
+      } catch {
+        return res.status(400).json({ message: "Failed to process evolution image. Please upload a valid PNG (max 20MB)." });
       }
 
       let imageUrl: string | null = null;
@@ -4836,7 +4845,7 @@ export async function registerRoutes(
         catch (e) { console.error("Hookless image error:", e); return res.status(400).json({ message: "Failed to process hookless image. Please try a different file." }); }
       }
 
-      const item = await storage.createShopItem({ ...parse.data, imageUrl, eggImageUrl, hatchedImageUrl, hooklessImageUrl });
+      const item = await storage.createShopItem({ ...parse.data, imageUrl, eggImageUrl, hatchedImageUrl, evolutionImageUrl, hooklessImageUrl });
       return res.status(201).json(item);
     } catch (err) {
       console.error("Create shop item error:", err);
@@ -4846,13 +4855,21 @@ export async function registerRoutes(
 
   app.patch("/api/admin/shop/:itemId", isAdmin, async (req, res) => {
     try {
-      const { imageData, eggImageData, hatchedImageData, hooklessImageData, ...updateData } = req.body;
+      const { imageData, eggImageData, hatchedImageData, evolutionImageData, hooklessImageData, ...updateData } = req.body;
 
       const existing = await storage.getShopItem(req.params.itemId as string);
       if (!existing) return res.status(404).json({ message: "Shop item not found" });
       const { id: _id, createdAt: _createdAt, ...existingData } = existing;
       const parse = insertShopItemSchema.safeParse({ ...existingData, ...updateData });
       if (!parse.success) return res.status(400).json({ message: parse.error.errors[0].message });
+
+      try {
+        const evolutionImageUrl = await processEvolutionImageUpdate({ evolutionImageData, evolutionImageUrl: updateData.evolutionImageUrl }, parse.data.type, processShopItemImage);
+        if (evolutionImageUrl !== undefined) updateData.evolutionImageUrl = evolutionImageUrl;
+        if (parse.data.type !== "pet") updateData.evolutionImageUrl = null;
+      } catch {
+        return res.status(400).json({ message: "Failed to process evolution image. Existing image was kept; please upload a valid PNG (max 20MB)." });
+      }
 
       if (imageData) {
         try { updateData.imageUrl = await processShopItemImage(imageData); }

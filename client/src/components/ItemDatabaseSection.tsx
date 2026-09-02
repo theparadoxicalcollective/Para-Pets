@@ -13,6 +13,7 @@ export interface ShopItemFull {
   imageUrl: string | null;
   eggImageUrl: string | null;
   hatchedImageUrl: string | null;
+  evolutionImageUrl?: string | null;
   rarity: number | null;
   hatchTime: number | null;
   statBoostType: string | null;
@@ -633,6 +634,9 @@ function AdminItemForm({
   const [eggImagePreview, setEggImagePreview] = useState<string | null>(item?.eggImageUrl || null);
   const [hatchedImageData, setHatchedImageData] = useState<string | null>(null);
   const [hatchedImagePreview, setHatchedImagePreview] = useState<string | null>(item?.hatchedImageUrl || null);
+  const [evolutionImageData, setEvolutionImageData] = useState<string | null>(null);
+  const [evolutionImagePreview, setEvolutionImagePreview] = useState<string | null>(item?.evolutionImageUrl || null);
+  const [evolutionImageChanged, setEvolutionImageChanged] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -674,6 +678,10 @@ function AdminItemForm({
         // Pets don't have a separate shop image — use the egg image for both.
         if (eggImageData) payload.imageData = eggImageData;
         if (hatchedImageData) payload.hatchedImageData = hatchedImageData;
+        if (evolutionImageChanged) {
+          if (evolutionImageData) payload.evolutionImageData = evolutionImageData;
+          else payload.evolutionImageUrl = null;
+        }
         payload.statBoostType = null;
         payload.statBoostAmount = null;
         payload.healthRestored = null;
@@ -689,6 +697,7 @@ function AdminItemForm({
         payload.hatchTime = null;
         payload.eggImageUrl = null;
         payload.hatchedImageUrl = null;
+        payload.evolutionImageUrl = null;
         payload.specialSkill = null;
         payload.skillDamagePercent = null;
         payload.petTemplateId = null;
@@ -1127,6 +1136,17 @@ function AdminItemForm({
                 inputId="admin-hatched-img"
                 allowGif
               />
+              <ImageUpload
+                label="Evo Image (still PNG, optional)"
+                preview={evolutionImagePreview}
+                onSelect={(d) => { setEvolutionImageData(d); setEvolutionImagePreview(d); setEvolutionImageChanged(true); }}
+                onRemove={() => { setEvolutionImageData(null); setEvolutionImagePreview(null); setEvolutionImageChanged(true); }}
+                inputId="admin-evolution-img"
+              />
+              <p className="font-fantasy text-[#a89878] text-[9px]">
+                Still artwork for an evolved pet where animated parts are not used.
+                If omitted, the hatched image is used.
+              </p>
             </>
           )}
 
@@ -1448,6 +1468,7 @@ function ImageUpload({
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = ""; // Allow selecting the same file again after Remove.
     if (!file) return;
     if (!allowedTypes.includes(file.type)) {
       toast({ title: "Invalid format", description: formatLabel, variant: "destructive" });
@@ -1657,3 +1678,4 @@ export function ItemPickerModal({
     </div>
   );
 }
+
