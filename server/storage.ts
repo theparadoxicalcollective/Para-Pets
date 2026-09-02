@@ -1,3 +1,5 @@
+import { withPetStillImage } from "../shared/petStillImage";
+import { petHatchedImageSql } from "./petStillImage";
 import { AccountConflictError } from "./accounts/errors";
 import {
   type User, type InsertUser, users,
@@ -756,7 +758,7 @@ export class DatabaseStorage implements IStorage {
         // Within each group: newest acquired first
         desc(userInventory.acquiredAt)
       );
-    return rows.map(r => ({ inventory: r.user_inventory, shopItem: r.shop_items }));
+    return rows.map(r => ({ inventory: r.user_inventory, shopItem: r.shop_items ? withPetStillImage(r.shop_items, r.user_inventory) : null }));
   }
 
   async addToInventory(userId: string, shopItemId: string, extraFields?: Partial<UserInventoryItem>, stackQty?: number): Promise<UserInventoryItem> {
@@ -2750,7 +2752,7 @@ export class DatabaseStorage implements IStorage {
       name:            shopItems.name,
       petNickname:     userInventory.petNickname,
       imageUrl:        shopItems.imageUrl,
-      hatchedImageUrl: shopItems.hatchedImageUrl,
+      hatchedImageUrl: petHatchedImageSql(userInventory.isHatched, userInventory.isEvolved, shopItems.evolutionImageUrl, shopItems.hatchedImageUrl),
       petLevel:        userInventory.petLevel,
       petHealth:       userInventory.petHealth,
       petAtk:          userInventory.petAtk,
@@ -2821,7 +2823,7 @@ export class DatabaseStorage implements IStorage {
         name:            shopItems.name,
         petNickname:     userInventory.petNickname,
         imageUrl:        shopItems.imageUrl,
-        hatchedImageUrl: shopItems.hatchedImageUrl,
+        hatchedImageUrl: petHatchedImageSql(userInventory.isHatched, userInventory.isEvolved, shopItems.evolutionImageUrl, shopItems.hatchedImageUrl),
         petLevel:        userInventory.petLevel,
         petHealth:       userInventory.petHealth,
         petAtk:          userInventory.petAtk,

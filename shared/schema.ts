@@ -63,6 +63,7 @@ export const shopItems = pgTable("shop_items", {
   hatchTime: integer("hatch_time"),
   eggImageUrl: text("egg_image_url"),
   hatchedImageUrl: text("hatched_image_url"),
+  evolutionImageUrl: text("evolution_image_url"),
   statBoostType: text("stat_boost_type"),
   statBoostAmount: integer("stat_boost_amount"),
   petTemplateId: varchar("pet_template_id"),
@@ -120,6 +121,8 @@ export const userInventory = pgTable("user_inventory", {
   acquiredAt: timestamp("acquired_at").notNull().default(sql`now()`),
   hatchStartedAt: timestamp("hatch_started_at"),
   isHatched: boolean("is_hatched").notNull().default(false),
+  // Server-owned final evolution state, never inferred from feed progress.
+  isEvolved: boolean("is_evolved").notNull().default(false),
   petHealth: integer("pet_health").notNull().default(1000),
   petAtk: integer("pet_atk").notNull().default(50),
   petDef: integer("pet_def").notNull().default(50),
@@ -1184,3 +1187,4 @@ export const fishingLeaderboard = pgTable("fishing_leaderboard", {
   points: integer("points").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
+

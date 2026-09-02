@@ -1,3 +1,4 @@
+import { petHatchedImageSql } from "./petStillImage";
 import { sql } from "drizzle-orm";
 import { db } from "./db";
 import {
@@ -79,7 +80,7 @@ const petStateSelect = sql`SELECT
   si.type,
   si.pet_template_id "petTemplateId",
   COALESCE(si.star_rarity, si.rarity, 1) rarity,
-  COALESCE(si.hatched_image_url, si.image_url) "imageUrl",
+  COALESCE(${petHatchedImageSql(sql`ui.is_hatched`, sql`ui.is_evolved`, sql`si.evolution_image_url`, sql`si.hatched_image_url`)}, si.image_url) "imageUrl",
   (u.active_pet_id = ui.id) active,
   EXISTS(SELECT 1 FROM pet_equipped_accessories x WHERE x.pet_inventory_id = ui.id) accessories,
   (ui.is_listed OR EXISTS(SELECT 1 FROM player_market_listings m WHERE m.inventory_id = ui.id AND m.status = 'active')) market,
@@ -418,3 +419,4 @@ export async function feedActivePetForEvolution(userId: string, feederPetIds: un
     };
   });
 }
+
