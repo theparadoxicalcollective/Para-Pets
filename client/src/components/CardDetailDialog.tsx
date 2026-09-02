@@ -18,7 +18,7 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
         <Dialog.Title className="sr-only">{card.name}</Dialog.Title>
         <Dialog.Close aria-label="Close card viewer" className="absolute right-4 grid h-11 w-11 place-items-center rounded-full border border-amber-200/40 bg-black/50" style={{ top: "max(8px, env(safe-area-inset-top))" }}><X /></Dialog.Close>
         <div className="my-auto w-full max-w-[430px]">
-          <CardPreview rarity={card.rarity} artworkUrl={card.artworkUrl} name={card.name} description={card.description}
+          <CardPreview textSize="detail" rarity={card.rarity} artworkUrl={card.artworkUrl} name={card.name} description={card.description}
             layout={getCardBorderLayout(layouts, card.rarity)} onDescriptionClick={() => setDescriptionOpen(true)} />
           <p className="mt-3 text-center text-sm text-amber-100/70">Tap the description on the card to read more.</p>
           <p className="mt-2 text-center text-sm">Owned: ×{card.quantity}</p>

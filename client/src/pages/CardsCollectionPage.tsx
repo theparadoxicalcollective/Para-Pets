@@ -367,7 +367,7 @@ export default function CardsCollectionPage() {
           </>}
           {visibleCards.map(card => <article key={card.id} data-testid={`owned-card-${card.id}`} className="relative min-w-0">
             <button type="button" aria-label={`View ${card.name}`} onClick={() => setSelectedCardId(card.id)} className="block w-full rounded-lg focus-visible:outline focus-visible:outline-amber-200">
-              <CardPreview rarity={card.rarity} artworkUrl={card.artworkUrl} name={card.name} description={card.description} layout={getCardBorderLayout(layouts, card.rarity)} />
+              <CardPreview textSize="inventory" rarity={card.rarity} artworkUrl={card.artworkUrl} name={card.name} description={card.description} layout={getCardBorderLayout(layouts, card.rarity)} />
             </button>
             {card.quantity > 1 && <span aria-label={`${card.quantity} copies`} className="pointer-events-none absolute right-1 top-1 rounded-full border border-amber-200/60 bg-[#102419] px-2 py-1 text-xs font-bold">×{card.quantity}</span>}
             {!card.firstRewardClaimed && <button type="button" aria-label={`Claim 100 coins for ${card.name}`} disabled={claimReward.isPending} onClick={() => claimReward.mutate(card.id)}
