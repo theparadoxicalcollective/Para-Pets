@@ -1,7 +1,9 @@
 import { CLEARING_BLESSINGS, type ClearingBlessingId } from "@shared/clearingBlessings";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { CLEARING_BOSS_ENCOUNTER } from "@shared/clearingConfig";
 import type { ClearingHuntSummary } from "@/lib/clearingHuntSummary";
+import progressBarUrl from "@assets/uploads/ElysianClearingProgressBar.png";
+import "./clearingHuntHud.css";
 
 interface Props {
   regularDefeats: number;
@@ -13,24 +15,28 @@ interface Props {
   onChooseBlessing?: () => void;
   onContinue: () => void;
   onReturn: () => void;
+  children?: ReactNode;
 }
 
-export default function ClearingHuntHud({ regularDefeats, phase, complete, hunt, blessing, blessingAvailable, onChooseBlessing, onContinue, onReturn }: Props) {
+export default function ClearingHuntHud({ regularDefeats, phase, complete, hunt, blessing, blessingAvailable, onChooseBlessing, onContinue, onReturn, children }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const target = CLEARING_BOSS_ENCOUNTER.regularDefeatThreshold;
   const progress = complete || phase !== "regular" ? target : Math.min(target, Math.max(0, regularDefeats));
   const label = complete ? "Hunt complete" : phase === "active" ? "Defeat the Clearing boss" : phase === "preparing" ? "Something is stirring…" : "Bayou Stirring";
 
-  return <div data-interactive className="absolute left-1/2 w-[calc(100%-28px)] max-w-[360px] -translate-x-1/2 pointer-events-auto" style={{ top: "calc(max(12px, env(safe-area-inset-top, 0px)) + 52px)", zIndex: 19 }} onPointerDown={event => event.stopPropagation()}>
-    <section aria-label="Bayou hunt progress" className="rounded-xl border border-amber-300/40 bg-emerald-950/85 px-3 py-1.5 text-amber-100 shadow-lg">
-      <div className="flex items-center justify-between gap-2 text-xs font-bold">
-        <span role="status">{label}</span>
-        {!complete && phase === "regular" && <span className="tabular-nums">{progress}/{target}</span>}
-        {complete && <button type="button" aria-expanded={!collapsed} aria-controls="clearing-hunt-results" className="min-h-9 rounded-lg border border-amber-300/30 px-2 text-[11px]" onClick={() => setCollapsed(value => !value)}>{collapsed ? "View results" : "Collect drops"}</button>}
+  return <div data-interactive className="pointer-events-auto" onPointerDown={event => event.stopPropagation()}>
+    <section aria-label="Bayou hunt progress" className="text-amber-100">
+      <div className="clearing-hunt-art">
+        <img src={progressBarUrl} alt="" aria-hidden draggable={false} className="pointer-events-none block h-auto w-full" />
+        <span role="status" className="clearing-hunt-label">{label}</span>
+        <span className="clearing-hunt-count tabular-nums">{progress}/{target}</span>
+        <div role="progressbar" aria-label="Progress toward the Clearing boss" aria-valuemin={0} aria-valuemax={target} aria-valuenow={progress} className="clearing-hunt-track">
+          <div className="clearing-hunt-fill h-full rounded-full transition-[width] motion-reduce:transition-none" style={{ width: `${progress / target * 100}%` }} />
+        </div>
       </div>
-      <div role="progressbar" aria-label="Progress toward the Clearing boss" aria-valuemin={0} aria-valuemax={target} aria-valuenow={progress} className="mt-1 h-1 overflow-hidden rounded-full bg-black/40">
-        <div className="h-full rounded-full bg-amber-300 transition-[width] motion-reduce:transition-none" style={{ width: `${progress / target * 100}%` }} />
-      </div>
+      {children}
+      {(complete || blessing || blessingAvailable) && <div className="mt-2 rounded-xl border border-amber-300/40 bg-emerald-950/90 px-3 py-2 shadow-lg">
+      {complete && <button type="button" aria-expanded={!collapsed} aria-controls="clearing-hunt-results" className="min-h-11 w-full rounded-lg border border-amber-300/30 px-2 text-xs font-bold" onClick={() => setCollapsed(value => !value)}>{collapsed ? "View results" : "Collect drops"}</button>}
       {!complete && blessing && <p className="mt-2 text-[11px] text-emerald-100" title={CLEARING_BLESSINGS[blessing].description}>{CLEARING_BLESSINGS[blessing].name} · This hunt</p>}
       {!complete && blessingAvailable && <button type="button" className="mt-2 min-h-11 w-full rounded-lg bg-amber-300 px-2 text-xs font-bold text-emerald-950" onClick={onChooseBlessing}>Choose your blessing</button>}
       {complete && !collapsed && <div id="clearing-hunt-results" className="mt-3 max-h-[42dvh] overflow-y-auto border-t border-amber-300/20 pt-3">
@@ -46,6 +52,7 @@ export default function ClearingHuntHud({ regularDefeats, phase, complete, hunt,
           <button type="button" className="min-h-11 rounded-xl bg-amber-300 px-2 text-xs font-bold text-emerald-950" onClick={() => { setCollapsed(false); onContinue(); }}>Hunt Again</button>
           <button type="button" className="min-h-11 rounded-xl border border-amber-300/40 px-2 text-xs font-bold" onClick={onReturn}>Return to Bayou</button>
         </div>
+      </div>}
       </div>}
     </section>
   </div>;

@@ -1,0 +1,49 @@
+/* Coordinates follow the uploaded artwork so text and fill scale with its frame. */
+.clearing-hunt-art {
+  position: relative;
+  container-type: inline-size;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .5));
+}
+
+.clearing-hunt-label,
+.clearing-hunt-count {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-weight: 800;
+  line-height: 1.15;
+  text-shadow: 0 1px 3px #001b15, 0 0 5px #001b15;
+}
+
+.clearing-hunt-label {
+  left: 17%;
+  top: 29%;
+  width: 55%;
+  height: 25%;
+  font-size: clamp(11px, 3.5cqw, 14px);
+}
+
+.clearing-hunt-count {
+  left: 75%;
+  top: 36%;
+  width: 15%;
+  height: 18%;
+  font-size: clamp(10px, 3.2cqw, 13px);
+}
+
+.clearing-hunt-track {
+  position: absolute;
+  left: 17.9%;
+  top: 63.3%;
+  width: 64.8%;
+  height: 8.8%;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.clearing-hunt-fill {
+  background: linear-gradient(to bottom, #fef3b0, #dcb850 45%, #9a751e);
+  box-shadow: inset 0 0 3px #fff6b8;
+}
