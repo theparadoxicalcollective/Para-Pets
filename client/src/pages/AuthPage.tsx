@@ -1,3 +1,4 @@
+import { replaceAuthSession } from "@/lib/authSession";
 import { registrationSchema } from "@shared/accountValidation";
 import { useState, useRef, useCallback, type CSSProperties } from "react";
 import { Eye, EyeOff } from "lucide-react";
@@ -179,8 +180,7 @@ export default function AuthPage() {
     },
     onSuccess: async (user) => {
       setLoadingProgress(100);
-      queryClient.removeQueries({ predicate: query => query.queryKey[0] !== "/api/auth/me" });
-      queryClient.setQueryData(["/api/auth/me"], user);
+      await replaceAuthSession(user, queryClient);
       setTimeout(() => {
         setLocation(returnTo);
       }, 300);
@@ -211,8 +211,7 @@ export default function AuthPage() {
       setFieldErrors({});
       try { localStorage.setItem("para_pets_just_registered", "true"); } catch {}
       if (user.verificationEmailSent === false) toast({ title: "Account created", description: "We could not send your verification email yet. You can retry on the next screen." });
-      queryClient.removeQueries({ predicate: query => query.queryKey[0] !== "/api/auth/me" });
-      queryClient.setQueryData(["/api/auth/me"], user);
+      await replaceAuthSession(user, queryClient);
       setTimeout(() => {
         setLocation(returnTo);
       }, 300);

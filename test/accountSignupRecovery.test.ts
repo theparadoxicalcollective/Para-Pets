@@ -161,3 +161,13 @@ test("a conflicting simultaneous signup gets a useful field error", async () => 
   assert.equal(result.status, 409);
   assert.equal(result.body.field, "email");
 });
+
+test("a reset token revoked during password hashing cannot change the password", async () => {
+  const h = harness(); await h.signup();
+  const originalPassword = h.user.password;
+  h.storage.getUserByResetToken = async () => ({ ...h.user, passwordResetExpires: new Date(Date.now() + 60_000) });
+  h.storage.resetPasswordWithToken = async () => false;
+  const result = await h.invoke("POST", "/api/auth/reset-password", { body: { token: "revoked-during-request", newPassword: "new-secret" } });
+  assert.equal(result.status, 400);
+  assert.equal(h.user.password, originalPassword);
+});

@@ -1,3 +1,4 @@
+import { replaceAuthSession } from "@/lib/authSession";
 import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -61,10 +62,9 @@ export default function EmailGateScreen({ email }: { email: string }) {
   });
   const logout = useMutation({
     mutationFn: () => apiRequest("POST", "/api/auth/logout"),
-    onSuccess: () => {
+    onSuccess: async () => {
       try { localStorage.removeItem("para_pets_just_registered"); } catch {}
-      queryClient.removeQueries({ predicate: query => query.queryKey[0] !== "/api/auth/me" });
-      queryClient.setQueryData(["/api/auth/me"], null);
+      await replaceAuthSession(null);
       setLocation("/");
     },
     onError: () => setError("Could not sign out. Please try again."),
