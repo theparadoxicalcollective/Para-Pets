@@ -1,3 +1,4 @@
+import { AccountConflictError } from "./accounts/errors";
 import { publicAccount } from "./accounts/publicAccount";
 import { grantWelcomeBundle } from "./accounts/welcomeBundle";
 import type { Express, Request, Response } from "express";
@@ -1515,15 +1516,16 @@ export async function registerRoutes(
         return res.status(400).json({ message: "That username contains a forbidden word. Please choose another." });
       }
 
-      const existing = await storage.getUserByUsername(username);
+      const existing = await storage.getUserByUsernameCaseInsensitive(username);
       if (existing && existing.id !== user.id) {
-        return res.status(400).json({ message: "Username already taken" });
+        return res.status(409).json({ field: "username", message: "Username already taken" });
       }
 
       const updated = await storage.updateUsername(user.id, username);
       const safeUser = publicAccount(updated);
       return res.json(safeUser);
     } catch (err) {
+      if (err instanceof AccountConflictError) return res.status(409).json({ field: err.field, message: err.message });
       console.error("Update username error:", err);
       return res.status(500).json({ message: "Failed to update username" });
     }
@@ -5002,7 +5004,10 @@ export async function registerRoutes(
   app.get("/api/rewards/pending", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
-      if (!user.welcomeV2Sent) await grantWelcomeV2Bundle(user.id);
+      if (!user.welcomeV2Sent) {
+        try { await grantWelcomeV2Bundle(user.id); }
+        catch (error) { console.error("Welcome reward retry deferred:", error instanceof Error ? error.message : "unavailable"); }
+      }
       const rewards = await storage.getUnclaimedRewards(user.id);
       const detailed = await Promise.all(rewards.map(async (reward) => {
         const bundle = await storage.getRewardBundle(reward.bundleId);
