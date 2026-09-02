@@ -21,14 +21,14 @@ export default function ClearingHuntHud({ regularDefeats, phase, complete, hunt,
   const progress = complete || phase !== "regular" ? target : Math.min(target, Math.max(0, regularDefeats));
   const label = complete ? "Hunt complete" : phase === "active" ? "Defeat the Clearing boss" : phase === "preparing" ? "Something is stirring…" : "Bayou Stirring";
 
-  return <div data-interactive className="absolute left-1/2 w-[calc(100%-32px)] max-w-[320px] -translate-x-1/2 pointer-events-auto" style={{ top: "calc(var(--clearing-hud-top-row, max(42px, calc(env(safe-area-inset-top, 0px) + 42px))) + 52px)", zIndex: 19 }} onPointerDown={event => event.stopPropagation()}>
-    <section aria-label="Bayou hunt progress" className="rounded-xl border border-amber-300/40 bg-emerald-950/95 px-3 py-2 text-amber-100 shadow-lg">
+  return <div data-interactive className="absolute left-1/2 w-[calc(100%-28px)] max-w-[360px] -translate-x-1/2 pointer-events-auto" style={{ top: "calc(max(12px, env(safe-area-inset-top, 0px)) + 52px)", zIndex: 19 }} onPointerDown={event => event.stopPropagation()}>
+    <section aria-label="Bayou hunt progress" className="rounded-xl border border-amber-300/40 bg-emerald-950/85 px-3 py-1.5 text-amber-100 shadow-lg">
       <div className="flex items-center justify-between gap-2 text-xs font-bold">
         <span role="status">{label}</span>
         {!complete && phase === "regular" && <span className="tabular-nums">{progress}/{target}</span>}
         {complete && <button type="button" aria-expanded={!collapsed} aria-controls="clearing-hunt-results" className="min-h-9 rounded-lg border border-amber-300/30 px-2 text-[11px]" onClick={() => setCollapsed(value => !value)}>{collapsed ? "View results" : "Collect drops"}</button>}
       </div>
-      <div role="progressbar" aria-label="Progress toward the Clearing boss" aria-valuemin={0} aria-valuemax={target} aria-valuenow={progress} className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/40">
+      <div role="progressbar" aria-label="Progress toward the Clearing boss" aria-valuemin={0} aria-valuemax={target} aria-valuenow={progress} className="mt-1 h-1 overflow-hidden rounded-full bg-black/40">
         <div className="h-full rounded-full bg-amber-300 transition-[width] motion-reduce:transition-none" style={{ width: `${progress / target * 100}%` }} />
       </div>
       {!complete && blessing && <p className="mt-2 text-[11px] text-emerald-100" title={CLEARING_BLESSINGS[blessing].description}>{CLEARING_BLESSINGS[blessing].name} · This hunt</p>}
@@ -50,3 +50,4 @@ export default function ClearingHuntHud({ regularDefeats, phase, complete, hunt,
     </section>
   </div>;
 }
+

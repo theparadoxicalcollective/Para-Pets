@@ -22,7 +22,7 @@ const ALWAYS_REFRESH_WORLD_MAPS: CanonicalWorldMap[] = [
   { worldId: "sky_realm", assetPath: "uploads/ShadowfenMap.png" },
   { worldId: "enchanted_grove", assetPath: "uploads/ShadowfenMap.png" },
   { worldId: "island", assetPath: "uploads/ShadowfenMap.png" },
-  { worldId: "desert", assetPath: "uploads/ShadowfenMap.png" },
+  { worldId: "desert", assetPath: "uploads/SandspireOasis.png" },
 ];
 
 // Volcanic has historically allowed an admin-uploaded background to persist.

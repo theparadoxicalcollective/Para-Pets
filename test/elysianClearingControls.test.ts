@@ -61,7 +61,7 @@ test("Clearing controls use CSS-only art and stop on browser interruption", () =
 
 test("the camera has one transformed world layer and a separate fixed HUD", () => {
   assert.match(pageSource, /worldSize: \{ width: 1, height: 1 \}/);
-  assert.match(pageSource, /aspectLayout: \{ imageAspect: 2886 \/ 4331/);
+  assert.match(pageSource, /aspectLayout: \{ imageAspect: 2 \/ 3/);
   assert.match(sceneSource, /data-testid="walkaround-world-layer"/);
   assert.match(sceneSource, /translate3d/);
   assert.match(sceneSource, /data-testid="walkaround-hud-layer"/);
@@ -72,7 +72,6 @@ test("only the Clearing hides its scene title and its currency row stays safe-ar
   assert.match(pageSource,/showSceneTitle: false/);
   assert.match(sceneSource,/config\.showSceneTitle!==false/);
   assert.match(sceneSource,/data-testid="walkaround-scene-title"/);
-  assert.match(combatSource,/--clearing-hud-top-row/);
   assert.match(combatSource,/env\(safe-area-inset-top/);
   assert.doesNotMatch(combatSource,/safe-area-inset-top, 0px\) \+ 58px/);
 });

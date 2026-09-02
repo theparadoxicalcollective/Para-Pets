@@ -17,9 +17,8 @@ import { useQuery } from "@tanstack/react-query";
 import { getStageScale } from "@/lib/stage";
 import PetAnimator from "@/components/PetAnimator";
 import ElysianClearingCombat from "@/components/ElysianClearingCombat";
-import ClearingAdminResourcePanel from "@/components/clearing/ClearingAdminResourcePanel";
 import { usePetWalkController } from "@/hooks/usePetWalkController";
-import { ELYSIAN_BAYOU_CLEARING_ID, type WalkAroundLocationConfig } from "@/lib/exploreLocations";
+import { type WalkAroundLocationConfig } from "@/lib/exploreLocations";
 import { cameraTarget, clearingWorldSize, insetMovementBounds } from "@/lib/elysianClearingCombatMath";
 import { clearingPetSize, CLEARING_PET_PRESENTATION } from "@/lib/clearingPetPresentation";
 import { worldYToDepth } from "@/lib/clearingWorldPresentation";
@@ -47,10 +46,8 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
   const [viewport, setViewport] = useState({ width: 390, height: 844 });
   const [camera, setCamera] = useState({ x: 0, y: 0 });
   const [gameplayBlocked, setGameplayBlocked] = useState(false);
-  const [resourcePanelOpen,setResourcePanelOpen]=useState(false);
   const [specialReady, setSpecialReady] = useState(false);
   const activePetInventoryId: string | null = typeof activePet?.inventoryId === "string" ? activePet.inventoryId : null;
-  const isElysianClearing=config.id===ELYSIAN_BAYOU_CLEARING_ID;
   const [clearingReady, setClearingReady] = useState(!config.features.combat);
   const [loadingComplete, setLoadingComplete] = useState(!config.features.combat);
 
@@ -60,7 +57,6 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
     setLoadingComplete(false);
     setSpecialReady(false);
   }, [activePetInventoryId, config.features.combat]);
-  useEffect(()=>{if(!isElysianClearing||!isAdmin)setResourcePanelOpen(false);},[isElysianClearing,isAdmin]);
 
   const responsivePet = config.aspectLayout?.responsivePet;
   const petSize = responsivePet ? clearingPetSize(viewport) : (config.petSize ?? DEFAULT_PET_SIZE);
@@ -82,7 +78,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
     bounds: movementBounds,
     spawn:  config.spawnPoint,
     speed:  config.movementSpeed,
-    enabled: !gameplayBlocked&&!resourcePanelOpen,
+    enabled: !gameplayBlocked,
   });
 
   const { data: petTemplate } = useQuery<{ facing: string }>({
@@ -100,7 +96,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
   const naturalFacingLeft = petTemplate?.facing === "left" || petTemplate?.facing === "back";
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (gameplayBlocked || resourcePanelOpen || !sceneRef.current || !e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
+    if (gameplayBlocked || !sceneRef.current || !e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
     if ((e.target as HTMLElement).closest("button, a, input, select, textarea, [data-interactive]")) return;
     e.preventDefault();
     const rect = sceneRef.current.getBoundingClientRect();
@@ -112,7 +108,7 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
     const y = Math.max(radius + JOYSTICK_EDGE_GAP, Math.min(logicalHeight - radius - JOYSTICK_EDGE_GAP, (e.clientY - rect.top) / stageScale));
     setJoystickCenter({ x, y });
     onJoystickPointerDown(e, { x: rect.left + x * stageScale, y: rect.top + y * stageScale });
-  }, [gameplayBlocked, resourcePanelOpen, onJoystickPointerDown]);
+  }, [gameplayBlocked, onJoystickPointerDown]);
 
   useEffect(() => {
     const measure = () => sceneRef.current && setViewport({ width: sceneRef.current.clientWidth || 1, height: sceneRef.current.clientHeight || 1 });
@@ -179,9 +175,8 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
       </div>
 
       <div ref={setHudElement} data-testid="walkaround-hud-layer" className="absolute inset-0 pointer-events-none" style={{zIndex:3000}}>
-      <button data-interactive data-testid="button-back-walkaround" onClick={onBack} className="absolute pointer-events-auto px-3 py-2 rounded-xl text-xs" style={{top:"max(12px, env(safe-area-inset-top, 12px))",left:14,background:"rgba(0,0,0,.65)",border:"1px solid rgba(255,255,255,.18)",color:"#f0e8c8"}}>‹ Back</button>
+      <button data-interactive data-testid="button-back-walkaround" onClick={onBack} className="absolute pointer-events-auto h-11 px-3 rounded-xl text-xs" style={{top:"max(12px, env(safe-area-inset-top, 0px))",left:14,background:"rgba(0,0,0,.65)",border:"1px solid rgba(255,255,255,.18)",color:"#f0e8c8"}}>‹ Back</button>
       {config.showSceneTitle!==false&&<div data-testid="walkaround-scene-title" className="absolute top-0 left-0 right-0 flex justify-center" style={{paddingTop:"max(14px, env(safe-area-inset-top, 14px))",color:"#dcffc8cc"}}>{config.name}</div>}
-      {isElysianClearing&&isAdmin&&<ClearingAdminResourcePanel open={resourcePanelOpen} onOpenChange={setResourcePanelOpen}/>} 
 
       {/* ── Floating joystick: appears at the clamped pointer-down position. ── */}
       {isJoystickActive && <div
@@ -231,3 +226,4 @@ export default function WalkAroundScene({ config, petTemplateId, activePet, onBa
     </div>
   );
 }
+

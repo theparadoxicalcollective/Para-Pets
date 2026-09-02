@@ -34,10 +34,10 @@ test("enemy steering accelerates smoothly and brakes instead of snapping",()=>{
   assert.ok(near.velocityX<4||near.arrived);
 });
 
-test("Clearing movement tuning is smaller, slower, and gives idle enemies longer rests",()=>{
+test("Clearing uses consistent visible sizing and gives idle enemies long rests",()=>{
   const config=fs.readFileSync("client/src/lib/elysianClearingCombatConfig.ts","utf8");
-  assert.match(config,/normalEnemyVisibleHeight:\s*28/);
-  assert.match(config,/bossEnemyVisibleHeight:\s*38/);
+  assert.match(config,/normalEnemyVisibleHeight:\s*enemyVisibleHeight\(false\)/);
+  assert.match(config,/bossEnemyVisibleHeight:\s*enemyVisibleHeight\(true\)/);
   assert.match(config,/roamSpeedPixels:\s*12/);
   assert.match(config,/roamPauseMs:\s*\{\s*min:\s*2600,\s*max:\s*6200\s*\}/);
   assert.match(config,/maxStrikeTargets:\s*1/);

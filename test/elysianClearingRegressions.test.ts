@@ -41,7 +41,9 @@ test("validated roaming position remains hittable while teleport is rejected as 
   session.position={...roaming,updatedAt:1500};
   assert.equal(applyClearingHit({sessionId:session.id,instanceId:enemy.instanceId,userId:"roam-user",petId:"pet",enemyPosition:roaming,now:1600}).status,"hit");
   session.lockedTargetInstanceId=null;
-  const teleport={x:.92,y:.94};
+  // Use the opposite end of the scene so this stays beyond the server
+  // desync tolerance regardless of which encounter anchor is chosen.
+  const teleport={x:.92,y:enemy.y>.5?.05:.94};
   assert.equal(updateClearingEnemyPositions({sessionId:session.id,userId:"roam-user",positions:[{enemyInstanceId:enemy.instanceId,...teleport}],worldPixels:world,now:1601}),false);
   const rejected=applyClearingHit({sessionId:session.id,instanceId:enemy.instanceId,userId:"roam-user",petId:"pet",enemyPosition:teleport,now:1602});
   assert.equal(rejected.status,"desync"); assert.equal(rejected.diagnostic?.rejectionReason,"enemy_position_desync");
@@ -68,8 +70,10 @@ test("combat renders every attack phase from the fixed body anchor instead of an
 
 test("boss presentation keeps the health bar above the enlarged sprite",()=>{
   const source=readFileSync("client/src/clearingBossPolish.css","utf8");
-  assert.match(source,/scale:\s*2\.05/);
-  assert.match(source,/top:\s*-48px\s*!important/);
+  assert.doesNotMatch(source,/scale:\s*2\.05|top:\s*-48px/);
+  const combat=readFileSync("client/src/components/ElysianClearingCombat.tsx","utf8");
+  assert.match(combat,/visibleHeight=enemyVisibleHeight\(e\.isBoss\)/);
+  assert.match(combat,/className="absolute -top-2 left-1\/2 h-1\.5/);
   assert.match(source,/data-enemy-rank="boss"/);
 });
 

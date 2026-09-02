@@ -1,5 +1,6 @@
 import placeholderEnemyUrl from "@assets/generated_images/enemy_bayou_wraith.png";
 import { CLEARING_AIM_GEOMETRY } from "@shared/clearingCombatGeometry";
+import { enemyVisibleHeight } from "./clearingEnemyBehavior";
 import { CLEARING_ENCOUNTER_HOMES } from "@shared/clearingEncounterLayout";
 
 export const ELYSIAN_CLEARING_COMBAT_CONFIG = {
@@ -51,11 +52,12 @@ export const ELYSIAN_CLEARING_COMBAT_CONFIG = {
   staffCapsuleRadiusPixels: CLEARING_AIM_GEOMETRY.staffCapsuleRadiusPixels,
   staffLockHysteresisPixels: CLEARING_AIM_GEOMETRY.staffLockHysteresisPixels,
   pickupRadiusPixels: 76,
-  normalEnemyVisibleHeight: 28,
-  bossEnemyVisibleHeight: 38,
+  normalEnemyVisibleHeight: enemyVisibleHeight(false),
+  bossEnemyVisibleHeight: enemyVisibleHeight(true),
   staffAttackRangePixels: CLEARING_AIM_GEOMETRY.staffAttackRangePixels,
   attackButtonSize: 62,
   petHealthBar: { width: 64, height: 6, gap: 7 },
   recentDamageDisplayMs: 1800,
   deathEffect: { size: 44, durationMs: 850, risePixels: 24 },
 } as const;
+

@@ -10,7 +10,7 @@ const configSource = readFileSync("client/src/lib/elysianClearingCombatConfig.ts
 test("Clearing alone selects its configured movement speed and newest organized background", () => {
   assert.match(pageSource, /movementSpeed: 0\.17/);
   assert.doesNotMatch(pageSource, /movementSpeed: 0\.26/);
-  assert.match(pageSource, /@assets\/uploads\/ElysianClearingBackground\.jpeg/);
+  assert.match(pageSource, /@assets\/uploads\/NewClearingBg\.png/);
   assert.match(sceneSource, /src=\{config\.backgroundUrl\}/);
   assert.match(sceneSource, /cameraTarget\(petPos, world, viewport\)/);
 });
