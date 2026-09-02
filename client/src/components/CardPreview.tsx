@@ -1,4 +1,5 @@
 import { useRef, type PointerEvent as ReactPointerEvent } from "react";
+import CardFittedText from "./CardFittedText";
 import {
   CARD_BORDER_ASSETS,
   type CardBorderLayout,
@@ -13,6 +14,7 @@ interface CardPreviewProps {
   description: string;
   layout: CardBorderLayout;
   editable?: boolean;
+  textSize?: "scaled" | "inventory" | "detail";
   onDescriptionClick?: () => void;
   selectedField?: CardLayoutField;
   onSelectField?: (field: CardLayoutField) => void;
@@ -40,6 +42,7 @@ export default function CardPreview({
   description,
   layout,
   editable = false,
+  textSize = "scaled",
   onDescriptionClick,
   selectedField = "name",
   onSelectField,
@@ -105,6 +108,15 @@ export default function CardPreview({
     const selected = editable && selectedField === field;
     const clickable = !editable && !isName && !!onDescriptionClick;
     const rarityTextStyle = RARITY_TEXT_STYLES[rarity];
+    // Saved font sizes describe a 240px-wide card, rather than fixed screen pixels.
+    const relativeFontSize = `${(isName ? layout.nameFontSize : layout.descriptionFontSize) / 240 * 100}cqw`;
+    const fontSize = textSize === "detail"
+      ? `clamp(${isName ? 20 : 16}px, ${relativeFontSize}, ${isName ? 30 : 22}px)`
+      : textSize === "inventory"
+        ? `clamp(${isName ? 8 : 6}px, ${relativeFontSize}, ${isName ? 12 : 9}px)`
+        : relativeFontSize;
+    const minimumFontSize = textSize === "detail" ? (isName ? 16 : 14)
+      : textSize === "inventory" ? (isName ? 7 : 6) : undefined;
     return (
       <div
         data-testid={`card-layout-box-${field}`}
@@ -139,7 +151,7 @@ export default function CardPreview({
           color: isName ? rarityTextStyle.name : rarityTextStyle.description,
           fontFamily: isName ? "'Cinzel', 'Palatino Linotype', serif" : "Georgia, serif",
           fontWeight: isName ? 700 : 500,
-          fontSize: `${isName ? layout.nameFontSize : layout.descriptionFontSize}px`,
+          fontSize,
           lineHeight: isName ? 1.05 : 1.18,
           letterSpacing: isName ? ".05em" : "normal",
           textShadow: "0 1px 0 rgba(255,255,255,.58), 0 0 2px rgba(255,244,205,.28)",
@@ -151,7 +163,7 @@ export default function CardPreview({
           userSelect: "none",
         }}
       >
-        {isName ? (name || "CARD NAME") : (description || "Card description")}
+        <CardFittedText text={isName ? (name || "CARD NAME") : (description || "Card description")} preferredFontSize={fontSize} minimumFontSize={minimumFontSize} />
       </div>
     );
   };
@@ -163,6 +175,7 @@ export default function CardPreview({
       style={{
         position: "relative",
         width: "100%",
+        containerType: "inline-size",
         // Preserve the transparent silhouette around the decorative frame.
         filter: "drop-shadow(0 8px 12px rgba(0,0,0,.48))",
       }}
