@@ -1,5 +1,7 @@
 export const ADORNMENT_ANIMATIONS = ["none", "breathe", "float", "wings", "sway", "rotate"] as const;
 export type AdornmentAnimation = typeof ADORNMENT_ANIMATIONS[number];
+/** Uploaded artwork is served by our media endpoint, never an arbitrary URL. */
+export const ADORNMENT_IMAGE_URL_PATTERN = /^\/api\/media\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const ADORNMENT_ANIMATION_LABELS: Record<AdornmentAnimation, string> = {
   none: "Still", breathe: "Breathe", float: "Subtle float",
   wings: "Wings (mirrored pair)", sway: "Sway", rotate: "Slow rotation",

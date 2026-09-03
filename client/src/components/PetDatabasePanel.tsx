@@ -1,4 +1,5 @@
 import AdornmentArtwork from "./AdornmentArtwork";
+import MirroredWingUpload from "./MirroredWingUpload";
 import { ADORNMENT_ANIMATIONS, ADORNMENT_ANIMATION_LABELS, ADORNMENT_MOTION_CSS, type AdornmentAnimation } from "@shared/adornmentAnimation";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -339,6 +340,8 @@ export default function PetDatabasePanel({
   const [costumeSearch, setCostumeSearch] = useState("");
   const [costumeDraft, setCostumeDraft] = useState<CostumePlacement | null>(null);
   const [previewAdornmentMotion, setPreviewAdornmentMotion] = useState(false);
+  const [readingWingImage, setReadingWingImage] = useState(false);
+  const [wingUploadRevision, setWingUploadRevision] = useState(0);
   const [costumeDraftDirty, setCostumeDraftDirty] = useState(false);
   const [draggingCostume, setDraggingCostume] = useState(false);
   const costumeDragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
@@ -681,16 +684,20 @@ export default function PetDatabasePanel({
     mutationFn: async ({ itemId, placement }: { itemId: string; placement: CostumePlacement }) => {
       const existing = costumeDefinitions.find(definition => definition.shopItemId === itemId)?.placements ?? [];
       const placementInstance = placement.instance ?? 1;
-      const normalizedPlacement = { ...placement, instance: placementInstance };
+      const imageData = placement.mirroredWingImageUrl?.startsWith("data:") ? placement.mirroredWingImageUrl : undefined;
+      const mirroredWingUpload = imageData ? { view: placement.view, instance: placementInstance, imageData } : undefined;
+      const normalizedPlacement = { ...placement, instance: placementInstance,
+        mirroredWingImageUrl: imageData ? undefined : placement.mirroredWingImageUrl };
       const placements = [
         ...existing.filter(current => current.view !== placement.view || (current.instance ?? 1) !== placementInstance),
         normalizedPlacement,
       ];
-      const res = await apiRequest("PUT", "/api/admin/costume-definitions", { shopItemId: itemId, templateId: selectedTemplateId, placements });
+      const res = await apiRequest("PUT", "/api/admin/costume-definitions", { shopItemId: itemId, templateId: selectedTemplateId, placements, mirroredWingUpload });
       return res.json();
     },
     onSuccess: (data: CostumeDefinition, variables) => {
-      setCostumeDraft(variables.placement);
+      setCostumeDraft(data.placements.find(placement => placement.view === variables.placement.view &&
+        (placement.instance ?? 1) === (variables.placement.instance ?? 1)) ?? null);
       setCostumeDraftDirty(false);
       queryClient.setQueryData<CostumeDefinition[]>(["/api/admin/costume-definitions", selectedTemplateId], current => [
         ...(current ?? []).filter(definition => definition.shopItemId !== data.shopItemId),
@@ -783,10 +790,12 @@ export default function PetDatabasePanel({
     setCostumeDraftDirty(true);
   };
   const saveCostumePlacement = () => {
+    if (readingWingImage) return;
     if (!selectedCostumeId || !selectedCostumePlacement || !canSaveCostumePlacement || saveCostumeMutation.isPending) return;
     saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: { ...selectedCostumePlacement, instance: selectedCostumeInstance, rotation: selectedCostumePlacement.rotation ?? 0, flipX: selectedCostumePlacement.flipX ?? false } });
   };
   const discardCostumeDraft = () => {
+    setWingUploadRevision(value => value + 1);
     costumeDragRef.current = null;
     setCostumeDraft(null);
     setCostumeDraftDirty(false);
@@ -1297,7 +1306,10 @@ export default function PetDatabasePanel({
                         {ADORNMENT_ANIMATIONS.map(animation => <option key={animation} value={animation}>{ADORNMENT_ANIMATION_LABELS[animation]}</option>)}
                       </select>
                     </label>
-                    {selectedCostumePlacement.animation === "wings" && <p className="text-[10px]" style={{ color: "#a89878" }}>Use single-wing artwork. A mirrored partner flaps in sync around the pivot; no duplicate is needed.</p>}
+                    {selectedCostumePlacement.animation === "wings" && <MirroredWingUpload
+                      key={`${selectedTemplateId}:${selectedCostumeId}:${currentCostumeView}:${selectedCostumeInstance}:${wingUploadRevision}`}
+                      imageUrl={selectedCostumePlacement.mirroredWingImageUrl} disabled={saveCostumeMutation.isPending}
+                      onPendingChange={setReadingWingImage} onChange={mirroredWingImageUrl => updateCostumeDraft({ mirroredWingImageUrl })} />}
                     <label className="block text-xs" style={{ color: "#a89878" }}>Speed
                       <select value={selectedCostumePlacement.animationSpeed ?? 1} disabled={saveCostumeMutation.isPending} onChange={event => updateCostumeDraft({ animationSpeed: Number(event.target.value) })}
                         className="block w-full mt-1 p-2.5 rounded" style={{ background: "#201526", color: "#e7d7b5" }}>
@@ -1401,7 +1413,7 @@ export default function PetDatabasePanel({
                   <button
                     data-testid="button-save-costume-placement"
                     onClick={saveCostumePlacement}
-                    disabled={!canSaveCostumePlacement || saveCostumeMutation.isPending}
+                    disabled={!canSaveCostumePlacement || saveCostumeMutation.isPending || readingWingImage}
                     className="flex w-full items-center justify-center gap-2 rounded-lg p-3 text-xs font-semibold disabled:opacity-50"
                     style={{ background: canSaveCostumePlacement ? "linear-gradient(135deg,rgba(126,34,206,.9),rgba(192,132,252,.72))" : "rgba(192,132,252,.16)", border: "1px solid rgba(216,180,254,.55)", color: "#fff", boxShadow: canSaveCostumePlacement ? "0 0 16px rgba(192,132,252,.24)" : "none" }}
                   >
@@ -2226,4 +2238,3 @@ export default function PetDatabasePanel({
     </div>
   );
 }
-

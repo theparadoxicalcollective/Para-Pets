@@ -33,10 +33,20 @@ origin; moving it preserves the artwork's top-left position. **Preview motion**
 shows the same artwork component used by players and pauses while dragging.
 Reduced-motion preferences and static rendering disable animation.
 
-For Wings, use one wing image. The renderer creates a reflected partner around
-the fitting's pivot with synchronized motion, rather than consuming another
-visual duplicate or inventory copy. Adjust the pivot to the wing's root and
-optionally enable **Hide the pet's original wings**.
+Selecting **Wings** reveals an optional **Mirrored wing image** upload. Upload the
+opposite-facing wing as it should appear, using the same canvas size and padding
+as the first wing. The uploaded drawing keeps its orientation while the pair
+flaps in sync. Without an upload, the first image is mirrored automatically.
+**Remove image** restores that automatic mirror. Adjust the pivot to the wing's
+root and optionally enable **Hide the pet's original wings**. The pair does not
+consume another visual duplicate or inventory copy.
+
+The upload belongs to the selected pet template, view, and fitted copy. Preview
+and replacement stay local until **Save placement**. The admin-only save validates
+PNG content and a 20MB limit, then decodes, resizes (at most 2000×2000), and
+re-encodes through the existing media pipeline. Only the resulting server media
+URL is stored in placement JSON. Saved wing artwork is retained if you temporarily
+choose another motion, and is displayed again when you select Wings.
 
 Existing part-attached fittings retain their positions and movement. Choose
 **Use independent placement** to convert a fitting, then select its movement and

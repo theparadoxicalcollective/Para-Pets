@@ -814,7 +814,7 @@ export async function registerRoutes(
   registerSoulExchangeRoutes(app, { isAuthenticated });
   registerClearingEquipmentRoutes(app, { db, storage, isAuthenticated });
   registerClearingAdminRoutes(app, { db, isAdmin });
-  registerCostumeAdminRoutes(app);
+  registerCostumeAdminRoutes(app, data => processWorldImage(data, 2000));
   registerCostumePlayerRoutes(app);
 
   const marketplaceRouteDependencies: MarketplaceRouteDependencies = {
@@ -8684,4 +8684,3 @@ export async function registerRoutes(
 
   return httpServer;
 }
-

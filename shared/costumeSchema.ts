@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { boolean, integer, jsonb, pgTable, text, timestamp, unique, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { ADORNMENT_ANIMATIONS } from "./adornmentAnimation";
+import { ADORNMENT_ANIMATIONS, ADORNMENT_IMAGE_URL_PATTERN } from "./adornmentAnimation";
 import { COSTUME_MAX_PLACEMENT_INSTANCES } from "./costumeFeature";
 
 /**
@@ -55,6 +55,7 @@ export const costumePlacementSchema = z.object({
   anchorPart: z.string().min(1),
   animation: z.enum(ADORNMENT_ANIMATIONS).optional(),
   animationSpeed: z.number().min(0.25).max(2).optional(),
+  mirroredWingImageUrl: z.string().max(100).regex(ADORNMENT_IMAGE_URL_PATTERN).optional(),
   replacesWings: z.boolean().optional(),
   instance: z.number().int().min(1).max(COSTUME_MAX_PLACEMENT_INSTANCES).default(1),
   posX: z.number(),
@@ -90,5 +91,4 @@ export const insertPetCostumeDefinitionSchema = createInsertSchema(petCostumeDef
 export type PetCostumeSlotUnlock = typeof petCostumeSlotUnlocks.$inferSelect;
 export type PetEquippedCostume = typeof petEquippedCostumes.$inferSelect;
 export type PetCostumeDefinition = typeof petCostumeDefinitions.$inferSelect;
-
 

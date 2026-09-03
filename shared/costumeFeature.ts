@@ -1,4 +1,4 @@
-import { normalizeAdornmentAnimation, type AdornmentAnimation } from "./adornmentAnimation";
+import { ADORNMENT_IMAGE_URL_PATTERN, normalizeAdornmentAnimation, type AdornmentAnimation } from "./adornmentAnimation";
 
 /**
  * Costume feature contracts shared by the player and admin flows.
@@ -49,6 +49,8 @@ export interface CostumePlacement {
   anchorPart: CostumeAnchorPart;
   animation?: AdornmentAnimation;
   animationSpeed?: number;
+  /** Optional opposite-facing artwork, used only for independent Wings motion. */
+  mirroredWingImageUrl?: string;
   replacesWings?: boolean;
   /** 1 is the original fitted piece; 2-4 are admin-created visual duplicates. Front/side placements reuse the same instance number. */
   instance?: number;
@@ -125,6 +127,8 @@ export function normalizeCostumePlacements(value: unknown): CostumePlacement[] {
         animation: normalizeAdornmentAnimation(placement.animation),
         animationSpeed: Math.max(0.25, Math.min(2, finitePlacementNumber(placement.animationSpeed, 1))),
         replacesWings: placement.replacesWings === true,
+        ...(typeof placement.mirroredWingImageUrl === "string" && ADORNMENT_IMAGE_URL_PATTERN.test(placement.mirroredWingImageUrl)
+          ? { mirroredWingImageUrl: placement.mirroredWingImageUrl } : {}),
       } : {}),
       instance: Math.max(1, Math.min(
         COSTUME_MAX_PLACEMENT_INSTANCES,
@@ -164,4 +168,3 @@ export function getWingReplacementPartTypes(anchorPart: string): string[] {
 
   return anchorPart.includes("wing") ? [anchorPart] : [];
 }
-
