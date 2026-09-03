@@ -23,11 +23,12 @@ test("pet editor exposes native Parts, Evolution, and Costume tabs without a CSS
   assert.equal(existsSync("client/src/adminPetEditor.css"), false);
 });
 
-test("evolution artwork is authored in a separate, non-runtime pet part form", () => {
+test("evolution artwork is authored separately and can be selected for raid bosses", () => {
   assert.match(editor, /data-testid=\{editorTab === "evolution" \? "pet-evolution-editor" : "pet-parts-editor"\}/);
   assert.match(editor, /const activeParts = editorTab === "evolution"/);
   assert.match(editor, /form: editorTab === "evolution" \? "evolution" : "base"/);
-  assert.match(editor, /will not activate until the full evolution process is added/);
+  assert.match(editor, /Raid bosses use these parts when available/);
+  assert.match(editor, /Player evolution is still Coming Soon/);
   assert.match(schema, /form: text\("form"\)\.notNull\(\)\.default\("base"\)/);
   assert.match(storage, /getPetTemplateParts\(templateId: string, form: "base" \| "evolution" = "base"\)/);
   assert.match(routes, /storage\.getPetTemplateParts\(templateId, "evolution"\)/);
@@ -124,11 +125,12 @@ test("admin can fit one costume artwork as an original plus at most three duplic
   assert.match(costumeSchema, /instance: z\.number\(\)\.int\(\)\.min\(1\)\.max\(COSTUME_MAX_PLACEMENT_INSTANCES\)\.default\(1\)/);
 });
 
-test("costume anchor selector lists every uploaded pet layer and marks opposite-view layers unavailable", () => {
-  assert.match(editor, /uploadedPartTypes = Array\.from\(new Set\(\(templateDetail\?\.parts \?\? \[\]\)\.map/);
-  assert.match(editor, /availableInCurrentView: currentViewPartTypes\.has\(partType\)/);
-  assert.match(editor, /disabled=\{!part\.availableInCurrentView\}/);
-  assert.match(editor, /part\.views\.map/);
+test("new adornments have independent placement and legacy fittings can be detached explicitly", () => {
+  assert.match(editor, /anchorPart: "independent"/);
+  assert.match(editor, /select-adornment-animation/);
+  assert.match(editor, /detachCostumePlacement\(costumeAnchor, selectedCostumePlacement\)/);
+  assert.match(editor, /Use independent placement/);
+  assert.doesNotMatch(editor, /Anchor part\s*<select/);
 });
 
 test("server accepts three duplicates, rejects a fourth, and preserves flip defaults", () => {
@@ -174,4 +176,5 @@ test("production boot creates the costume definition table used by the save rout
   assert.match(bootMigrations, /CREATE TABLE IF NOT EXISTS pet_costume_definitions/);
   assert.match(bootMigrations, /CREATE UNIQUE INDEX IF NOT EXISTS pet_costume_definitions_item_template_uidx/);
 });
+
 

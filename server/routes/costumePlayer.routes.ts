@@ -193,7 +193,7 @@ export function registerCostumePlayerRoutes(app: Express) {
 
         const requestedPlacements = normalizeCostumePlacements(definition.placements);
         if (requestedPlacements.length === 0) throw new Error("This costume fitting is incomplete");
-        const requestedLayers = new Set(requestedPlacements.map((placement) => placement.anchorPart));
+        const requestedLayers = new Set(requestedPlacements.filter(placement => placement.anchorPart !== "independent").map((placement) => placement.anchorPart));
         const equippedLayers = await tx.select({
           name: shopItems.name,
           placements: petCostumeDefinitions.placements,
@@ -300,3 +300,4 @@ export function registerCostumePlayerRoutes(app: Express) {
     }
   });
 }
+

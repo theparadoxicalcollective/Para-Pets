@@ -1,3 +1,4 @@
+import PetAnimator from "@/components/PetAnimator";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
@@ -600,12 +601,8 @@ export default function RaidBattlePage() {
               transformOrigin: "center bottom",
             }}>
               {raidBoss?.templateId ? (
-                <img
-                  src={`/api/pet-template-image/${raidBoss.templateId}/front`}
-                  alt={bossName}
-                  draggable={false}
-                  style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }}
-                />
+                <PetAnimator petTemplateId={raidBoss.templateId} artworkForm="evolution"
+                  mode="idle" size={340} fitVisible style={{ pointerEvents: "none" }} />
               ) : (
                 <div style={{ fontSize: 80 }}>👹</div>
               )}
@@ -860,3 +857,4 @@ export default function RaidBattlePage() {
     </div>
   );
 }
+

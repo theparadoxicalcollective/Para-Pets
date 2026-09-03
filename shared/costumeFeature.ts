@@ -1,3 +1,5 @@
+import { normalizeAdornmentAnimation, type AdornmentAnimation } from "./adornmentAnimation";
+
 /**
  * Costume feature contracts shared by the player and admin flows.
  *
@@ -43,7 +45,11 @@ export type CostumeAnchorPart = string;
  */
 export interface CostumePlacement {
   view: CostumeView;
+  /** "independent" uses the pet canvas; all other values retain legacy part attachment. */
   anchorPart: CostumeAnchorPart;
+  animation?: AdornmentAnimation;
+  animationSpeed?: number;
+  replacesWings?: boolean;
   /** 1 is the original fitted piece; 2-4 are admin-created visual duplicates. Front/side placements reuse the same instance number. */
   instance?: number;
   posX: number;
@@ -115,6 +121,11 @@ export function normalizeCostumePlacements(value: unknown): CostumePlacement[] {
       view,
       depth,
       anchorPart,
+      ...(anchorPart === "independent" ? {
+        animation: normalizeAdornmentAnimation(placement.animation),
+        animationSpeed: Math.max(0.25, Math.min(2, finitePlacementNumber(placement.animationSpeed, 1))),
+        replacesWings: placement.replacesWings === true,
+      } : {}),
       instance: Math.max(1, Math.min(
         COSTUME_MAX_PLACEMENT_INSTANCES,
         Math.trunc(finitePlacementNumber(placement.instance, 1)),
@@ -153,3 +164,4 @@ export function getWingReplacementPartTypes(anchorPart: string): string[] {
 
   return anchorPart.includes("wing") ? [anchorPart] : [];
 }
+

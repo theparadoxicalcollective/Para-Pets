@@ -1,0 +1,27 @@
+export const ADORNMENT_ANIMATIONS = ["none", "breathe", "float", "wings", "sway", "rotate"] as const;
+export type AdornmentAnimation = typeof ADORNMENT_ANIMATIONS[number];
+export const ADORNMENT_ANIMATION_LABELS: Record<AdornmentAnimation, string> = {
+  none: "Still", breathe: "Breathe", float: "Subtle float",
+  wings: "Wings (mirrored pair)", sway: "Sway", rotate: "Slow rotation",
+};
+
+export function normalizeAdornmentAnimation(value: unknown): AdornmentAnimation {
+  return ADORNMENT_ANIMATIONS.includes(value as AdornmentAnimation) ? value as AdornmentAnimation : "none";
+}
+
+/** CSS-only motion: no animation timers or per-frame React updates. */
+export function adornmentMotion(animation: AdornmentAnimation, speed = 1, enabled = true) {
+  if (!enabled || animation === "none") return undefined;
+  const seconds = { breathe: 3.6, float: 4, wings: 1.8, sway: 4.5, rotate: 16 }[animation];
+  const safeSpeed = Number.isFinite(speed) ? Math.max(0.25, Math.min(2, speed)) : 1;
+  return `adornment-${animation} ${seconds / safeSpeed}s ${animation === "rotate" ? "linear" : "ease-in-out"} infinite`;
+}
+
+export const ADORNMENT_MOTION_CSS = `
+@keyframes adornment-breathe { 0%,100% { transform:scale(1); } 50% { transform:scale(1.025,1.035); } }
+@keyframes adornment-float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-3%); } }
+@keyframes adornment-wings { 0%,100% { transform:rotate(-9deg) scaleX(1); } 50% { transform:rotate(9deg) scaleX(.88); } }
+@keyframes adornment-sway { 0%,100% { transform:rotate(-4deg); } 50% { transform:rotate(4deg); } }
+@keyframes adornment-rotate { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .adornment-motion { animation:none !important; } }
+`;
