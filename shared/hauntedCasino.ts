@@ -32,17 +32,17 @@ export type HauntedCasinoBet = (typeof HAUNTED_CASINO_BETS)[number];
 /**
  * Item symbols are categories rather than hard-coded item names. The server
  * resolves a real catalog item only after a winning line, which lets the slot
- * machine use the live item database without ever allowing pets / pet eggs.
+ * machine use admin-selected items and pet eggs from the live catalog.
  */
 export type HauntedSlotSymbolId =
   | "coin"
   | "essence"
   | "edible"
-  | "fish"
+  | "egg"
   | "loot"
   | "skull";
 
-export type HauntedSlotItemCategory = "edible" | "fish" | "loot";
+export type HauntedSlotItemCategory = "edible" | "egg" | "loot";
 
 export const HAUNTED_SLOT_SYMBOL_WEIGHTS: ReadonlyArray<{
   id: HauntedSlotSymbolId;
@@ -51,7 +51,7 @@ export const HAUNTED_SLOT_SYMBOL_WEIGHTS: ReadonlyArray<{
   { id: "coin", weight: 38 },
   { id: "essence", weight: 28 },
   { id: "edible", weight: 14 },
-  { id: "fish", weight: 9 },
+  { id: "egg", weight: 9 },
   { id: "loot", weight: 6 },
   { id: "skull", weight: 5 },
 ];
@@ -97,14 +97,14 @@ export function evaluateHauntedSlotResult(
           pvpTickets: 0,
           itemCategory: "loot",
         };
-      case "fish":
+      case "egg":
         return {
           tier: "triple",
-          message: "Haunted catch! Three fish symbols land a real fish prize.",
+          message: "Mystery hatch! Three eggs win a pet egg.",
           coins: safeBet,
           essence: 0,
           pvpTickets: 0,
-          itemCategory: "fish",
+          itemCategory: "egg",
         };
       case "edible":
         return {
@@ -164,10 +164,10 @@ export function evaluateHauntedSlotResult(
           essence: 0,
           pvpTickets: 0,
         };
-      case "fish":
+      case "egg":
         return {
           tier: "pair",
-          message: "Fish pair — a little essence splashes out.",
+          message: "Egg pair — a little essence shimmers out.",
           coins: 0,
           essence: safeBet * 2,
           pvpTickets: 0,

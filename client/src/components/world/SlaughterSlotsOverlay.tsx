@@ -7,6 +7,8 @@ import slotMachineHandle from "@assets/uploads/SlotMachineHandle.png";
 import slotMinusButton from "@assets/uploads/SlotMinusButton.png";
 import slotPlusButton from "@assets/uploads/SlotPlusButton.png";
 import { currencyAssets } from "@/lib/currencyAssets";
+import SlotPrizeAdminDialog from "./SlotPrizeAdminDialog";
+import { queryClient } from "@/lib/queryClient";
 import type { HauntedSlotSymbolId } from "@shared/hauntedCasino";
 
 interface SlotSymbol {
@@ -22,6 +24,7 @@ interface SlotState {
 }
 
 interface SpinResult {
+  symbols: SlotSymbol[];
   bet: number;
   reels: [HauntedSlotSymbolId, HauntedSlotSymbolId, HauntedSlotSymbolId];
   reward: {
@@ -37,6 +40,7 @@ interface SpinResult {
 }
 
 interface SlaughterSlotsOverlayProps {
+  isAdmin?: boolean;
   onClose: () => void;
   onCurrencyChanged: () => void;
 }
@@ -65,7 +69,7 @@ function SymbolFace({ symbol, spinning }: { symbol: SlotSymbol | undefined; spin
   const src = symbol.imageUrl || STATIC_FALLBACKS[symbol.id];
   return (
     <div
-      className="h-full w-full flex items-center justify-center p-1.5 sm:p-2"
+      className="relative h-full w-full flex items-center justify-center p-1.5 sm:p-2"
       style={{ animation: spinning ? "slaughterSymbolRoll .24s linear infinite" : undefined }}
     >
       {src ? (
@@ -74,21 +78,24 @@ function SymbolFace({ symbol, spinning }: { symbol: SlotSymbol | undefined; spin
           alt={symbol.label}
           draggable={false}
           className="max-h-full max-w-full object-contain select-none"
-          style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,.82)) drop-shadow(0 0 7px rgba(168,85,247,.18))" }}
+          style={{ filter: symbol.id === "egg" ? "grayscale(1) brightness(.65) drop-shadow(0 2px 4px #000)" : "drop-shadow(0 2px 4px rgba(0,0,0,.82)) drop-shadow(0 0 7px rgba(168,85,247,.18))" }}
         />
       ) : (
         <span className="font-fantasy text-center text-[9px] sm:text-xs leading-tight text-violet-50 px-1">
           {symbol.label}
         </span>
       )}
+      {symbol.id === "egg" && <span aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center font-fantasy text-[clamp(26px,7vw,44px)] font-bold text-white" style={{ textShadow: "0 2px 5px #000" }}>?</span>}
     </div>
   );
 }
 
 export default function SlaughterSlotsOverlay({
+  isAdmin = false,
   onClose,
   onCurrencyChanged,
 }: SlaughterSlotsOverlayProps) {
+  const [prizeEditor, setPrizeEditor] = useState<"items" | "eggs" | null>(null);
   const [state, setState] = useState<SlotState | null>(null);
   const [betIndex, setBetIndex] = useState(0);
   const [reels, setReels] = useState(DEFAULT_REELS);
@@ -98,6 +105,10 @@ export default function SlaughterSlotsOverlay({
   const [error, setError] = useState<string | null>(null);
 
   const spinTimerRef = useRef<number | null>(null);
+  const holdTimerRef = useRef<number | null>(null);
+  const suppressClickRef = useRef(false);
+  const holdGenerationRef = useRef(0);
+  const mountedRef = useRef(true);
   const stateRef = useRef<SlotState | null>(null);
   const betRef = useRef(10);
   const holdingRef = useRef(false);
@@ -110,6 +121,7 @@ export default function SlaughterSlotsOverlay({
 
   useEffect(() => {
     let cancelled = false;
+    mountedRef.current = true;
     fetch("/api/haunted-casino/slots", { credentials: "include" })
       .then(async (response) => {
         if (!response.ok) throw new Error((await response.json().catch(() => null))?.message || "Slots could not be loaded");
@@ -128,15 +140,17 @@ export default function SlaughterSlotsOverlay({
       });
     return () => {
       cancelled = true;
+      mountedRef.current = false;
       holdingRef.current = false;
+      holdGenerationRef.current++;
+      if (holdTimerRef.current != null) window.clearTimeout(holdTimerRef.current);
       if (spinTimerRef.current != null) window.clearInterval(spinTimerRef.current);
     };
   }, []);
 
   useEffect(() => {
     const stopForBackground = () => {
-      holdingRef.current = false;
-      setHolding(false);
+      stopHold();
     };
     const onVisibility = () => {
       if (document.hidden) stopForBackground();
@@ -158,7 +172,7 @@ export default function SlaughterSlotsOverlay({
   const bet = state?.betOptions[betIndex] ?? 10;
   betRef.current = bet;
   const canSpin = Boolean(state && !spinInFlightRef.current && state.balances.coins >= bet);
-  const canStartHold = canSpin;
+  const canStartHold = holding || canSpin;
 
   const moveBet = (delta: number) => {
     if (!state || spinning || holding) return;
@@ -172,7 +186,7 @@ export default function SlaughterSlotsOverlay({
       const response = await fetch("/api/haunted-casino/slots", { credentials: "include" });
       if (!response.ok) return null;
       const data = await response.json() as SlotState;
-      applyState(data);
+      if (mountedRef.current) applyState(data);
       return data;
     } catch {
       return null;
@@ -182,7 +196,7 @@ export default function SlaughterSlotsOverlay({
   const spinOnce = async (): Promise<boolean> => {
     const currentState = stateRef.current;
     const currentBet = betRef.current;
-    if (!currentState || spinInFlightRef.current || currentState.balances.coins < currentBet) return false;
+    if (!mountedRef.current || !currentState || spinInFlightRef.current || currentState.balances.coins < currentBet) return false;
 
     spinInFlightRef.current = true;
     setSpinning(true);
@@ -210,72 +224,94 @@ export default function SlaughterSlotsOverlay({
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(payload?.message || "The reels jammed. Please try again.");
 
+      const final = payload as SpinResult;
+      // A completed paid spin still refreshes ownership if the viewer closed mid-animation.
+      onCurrencyChanged();
+      if (final.reward.itemGranted) void queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+
       const remainingAnimation = Math.max(0, MINIMUM_ROLL_MS - (Date.now() - startedAt));
       if (remainingAnimation) await sleep(remainingAnimation);
+      if (!mountedRef.current) return false;
       if (spinTimerRef.current != null) window.clearInterval(spinTimerRef.current);
       spinTimerRef.current = null;
 
       // Stop the reels from left to right so the result lands with readable
       // slot-machine pacing instead of flashing all three symbols at once.
-      const final = payload as SpinResult;
       setReels((current) => [final.reels[0], current[1], current[2]]);
       await sleep(REEL_STOP_DELAY_MS);
+      if (!mountedRef.current) return false;
       setReels((current) => [final.reels[0], final.reels[1], current[2]]);
       await sleep(REEL_STOP_DELAY_MS);
+      if (!mountedRef.current) return false;
       setReels(final.reels);
       setResult(final);
-      const nextState: SlotState = { ...currentState, balances: final.balances };
+      const nextState: SlotState = { ...currentState, balances: final.balances, symbols: final.symbols ?? currentState.symbols };
       applyState(nextState);
-      onCurrencyChanged();
       return true;
     } catch (reason) {
       if (spinTimerRef.current != null) window.clearInterval(spinTimerRef.current);
       spinTimerRef.current = null;
-      setError(reason instanceof Error ? reason.message : "The reels jammed. Please try again.");
+      if (mountedRef.current) setError(reason instanceof Error ? reason.message : "The reels jammed. Please try again.");
       await refreshAuthoritativeState();
       return false;
     } finally {
       spinInFlightRef.current = false;
-      setSpinning(false);
+      if (mountedRef.current) setSpinning(false);
     }
+  };
+
+  const clearHoldTimer = () => {
+    if (holdTimerRef.current != null) window.clearTimeout(holdTimerRef.current);
+    holdTimerRef.current = null;
   };
 
   const stopHold = () => {
+    clearHoldTimer();
+    holdGenerationRef.current++;
     holdingRef.current = false;
     setHolding(false);
   };
 
-  const runHoldLoop = async () => {
-    while (holdingRef.current) {
-      const stake = betRef.current;
-      const wallet = stateRef.current?.balances.coins ?? 0;
-      if (wallet < stake) break;
-
+  const runHoldLoop = async (generation: number) => {
+    while (mountedRef.current && holdingRef.current && generation === holdGenerationRef.current) {
       const completed = await spinOnce();
-      if (!completed || !holdingRef.current) break;
+      if (!completed || !holdingRef.current || generation !== holdGenerationRef.current) break;
       await sleep(180);
     }
-    holdingRef.current = false;
-    setHolding(false);
+    if (generation === holdGenerationRef.current) stopHold();
   };
 
   const beginHold = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-    const currentWallet = stateRef.current?.balances.coins ?? 0;
-    if (currentWallet < betRef.current || holdingRef.current) return;
-
-    event.preventDefault();
+    if (!event.isPrimary || (event.pointerType === "mouse" && event.button !== 0)) return;
+    suppressClickRef.current = false;
+    if (holdingRef.current) {
+      suppressClickRef.current = true;
+      stopHold();
+      return;
+    }
+    if (!canSpin) return;
+    clearHoldTimer();
     try { event.currentTarget.setPointerCapture(event.pointerId); } catch {}
-    holdingRef.current = true;
-    setHolding(true);
-    void runHoldLoop();
+    holdTimerRef.current = window.setTimeout(() => {
+      holdTimerRef.current = null;
+      suppressClickRef.current = true;
+      holdingRef.current = true;
+      setHolding(true);
+      const generation = ++holdGenerationRef.current;
+      void runHoldLoop(generation);
+    }, 450);
   };
 
-  const finishHold = (event?: ReactPointerEvent<HTMLButtonElement>) => {
-    if (event) {
-      try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {}
-    }
-    stopHold();
+  const finishHold = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    clearHoldTimer();
+    try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {}
+    // Releasing a long press leaves automatic spins running until the next tap.
+  };
+
+  const clickSpin = () => {
+    if (suppressClickRef.current) { suppressClickRef.current = false; return; }
+    if (holdingRef.current) stopHold();
+    else void spinOnce();
   };
 
   const rewardTone = result?.reward.tier === "jackpot"
@@ -342,6 +378,14 @@ export default function SlaughterSlotsOverlay({
         <img src={slotCloseButton} alt="" draggable={false} className="block w-full h-auto select-none" />
       </button>
 
+      {isAdmin && <div className="absolute left-3 z-[106] flex gap-2" style={{ top: "max(72px, calc(env(safe-area-inset-top) + 60px))" }}>
+        {(["items", "eggs"] as const).map(kind => <button key={kind} type="button" disabled={spinning} onClick={() => { stopHold(); setPrizeEditor(kind); }}
+          className="min-h-11 rounded-lg border border-amber-300/50 bg-black/80 px-3 text-xs text-amber-100 disabled:opacity-40" aria-label={`Edit slot ${kind} prizes`}>
+          <span aria-hidden="true">＋</span> {kind === "eggs" ? "Pet eggs" : "Items"}
+        </button>)}
+      </div>}
+      {isAdmin && prizeEditor && <SlotPrizeAdminDialog kind={prizeEditor} onClose={() => setPrizeEditor(null)} onSaved={refreshAuthoritativeState} />}
+
       <div className="relative z-[98] h-full min-h-0 w-full max-w-[720px] mx-auto flex flex-col items-center overflow-hidden px-3 pb-2" style={{ paddingTop: "max(24px, calc(env(safe-area-inset-top) + 12px))", paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
         <div data-testid="slaughter-slots-balances" className="relative z-[12] flex shrink-0 self-start flex-wrap items-center justify-start gap-2 rounded-full border border-amber-300/25 bg-black/60 px-3 py-1.5 text-xs backdrop-blur-sm" style={{ maxWidth: "calc(100% - 72px)" }}>
           <span className="flex items-center gap-1.5"><img src={currencyAssets.coin} alt="Coins" className="h-5 w-5 object-contain" />{state?.balances.coins ?? "—"}</span>
@@ -407,14 +451,14 @@ export default function SlaughterSlotsOverlay({
           <div
             data-testid="slaughter-slots-bet-control"
             className="absolute z-[7] flex items-center justify-between gap-[2.5%] px-[2%]"
-            style={{ left: "20%", top: "62.2%", width: "60%", height: "6.4%" }}
+            style={{ left: "20%", top: "63%", width: "60%", height: "6.4%" }}
           >
             <button type="button" aria-label="Decrease bet" onClick={() => moveBet(-1)} disabled={!state || spinning || holding || betIndex <= 0} className="h-full aspect-square shrink-0 disabled:opacity-40 active:scale-90 transition-transform" style={{ background: "transparent", border: 0, padding: "2%" }}>
               <img src={slotMinusButton} alt="" className="block h-full w-full object-contain" draggable={false} />
             </button>
-            <div className="flex min-w-0 flex-1 flex-col items-center justify-center leading-none">
+            <div className="flex min-w-0 flex-1 items-center justify-center gap-1 leading-none">
               <span className="text-[clamp(7px,1.7vw,10px)] font-semibold uppercase tracking-[.2em] text-amber-100/90">Bet</span>
-              <span className="mt-1 flex items-center justify-center gap-0.5 font-fantasy text-[clamp(10px,2.8vw,16px)] text-amber-50">
+              <span className="flex items-center justify-center gap-0.5 font-fantasy text-[clamp(10px,2.8vw,16px)] text-amber-50">
                 <img src={currencyAssets.coin} alt="" className="h-[1.05em] w-[1.05em] object-contain" />{bet}
               </span>
             </div>
@@ -427,11 +471,14 @@ export default function SlaughterSlotsOverlay({
           <button
             data-testid="slaughter-slots-spin-control"
             type="button"
-            aria-label="Spin once, or hold to keep spinning"
+            aria-label={holding ? "Stop automatic spins" : "Spin once, or hold to keep spinning"}
+            aria-pressed={holding}
             onPointerDown={beginHold}
             onPointerUp={finishHold}
-            onPointerCancel={finishHold}
-            onLostPointerCapture={() => stopHold()}
+            onPointerCancel={() => { suppressClickRef.current = true; stopHold(); }}
+            onLostPointerCapture={clearHoldTimer}
+            onClick={clickSpin}
+            onContextMenu={event => event.preventDefault()}
             disabled={!canStartHold}
             className="absolute z-[7] flex flex-col items-center justify-center overflow-hidden rounded-[18%] border border-amber-300/55 bg-gradient-to-b from-emerald-950/95 to-black/85 px-1 disabled:opacity-40 select-none active:scale-[.98] transition-transform"
             style={{
@@ -446,8 +493,8 @@ export default function SlaughterSlotsOverlay({
               animation: holding ? "slaughterHoldPulse .86s ease-in-out infinite" : undefined,
             }}
           >
-            <span className="font-fantasy text-[clamp(11px,2.9vw,17px)] leading-none tracking-[.16em] text-amber-100">{spinning ? "SPINNING" : "SPIN"}</span>
-            <span className="mt-1 text-[clamp(5px,1.35vw,8px)] font-semibold uppercase tracking-[.08em] text-emerald-100/80">Tap once · hold to repeat</span>
+            <span className="font-fantasy text-[clamp(11px,2.9vw,17px)] leading-none tracking-[.16em] text-amber-100">{holding ? "STOP AUTO" : spinning ? "SPINNING" : "SPIN"}</span>
+            <span className="mt-1 text-[clamp(5px,1.35vw,8px)] font-semibold uppercase tracking-[.08em] text-emerald-100/80">{holding ? "Tap to stop" : "Tap once · hold for auto"}</span>
           </button>
         </div>
 
@@ -455,7 +502,7 @@ export default function SlaughterSlotsOverlay({
 
         <div data-testid="slaughter-slots-winnings-area" className="w-full shrink-0 overflow-y-auto" style={{ height: 112, overscrollBehavior: "contain" }}>
         <div className="mt-0 min-h-[16px] shrink-0 text-center text-[9px] sm:text-xs text-violet-100/80" aria-live="polite">
-          {holding ? "Auto spin active — release to stop" : null}
+          {holding ? "Auto spin active — tap STOP AUTO to stop" : null}
         </div>
 
         {!spinning && state && state.balances.coins < bet && (
@@ -484,7 +531,7 @@ export default function SlaughterSlotsOverlay({
         </div>
 
         <p className="sr-only">
-          Bets and winnings use the normal Para Pets coin balance. Tap SPIN once or keep it pressed to repeat. Release the button to stop automatic spins.
+          Bets and winnings use the normal Para Pets coin balance. Tap SPIN once, or hold briefly to start automatic spins. Tap STOP AUTO to stop.
         </p>
       </div>
     </div>
