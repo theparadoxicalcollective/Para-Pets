@@ -12,7 +12,6 @@ function isSessionIndependentQuery(queryKey: readonly unknown[]): boolean {
   if (typeof root !== "string") return false;
   return root === "/api/maintenance-status"
     || root === "/api/worlds"
-    || root === "/api/world"
     || root === "/api/pet-template-parts";
 }
 
