@@ -9,6 +9,20 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      purchase-postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: purchase_test
+          POSTGRES_PASSWORD: purchase_test
+          POSTGRES_DB: purchase_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U purchase_test -d purchase_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,4 +33,6 @@ jobs:
       - run: npm run check
       - run: npm run check:tests
       - run: npm test
+        env:
+          PURCHASE_TEST_DATABASE_URL: postgres://purchase_test:purchase_test@localhost:5432/purchase_test
       - run: npm run build

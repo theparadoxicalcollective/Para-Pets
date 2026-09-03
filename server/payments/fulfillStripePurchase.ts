@@ -181,10 +181,11 @@ export async function fulfillStripePurchase(
         const lifetime = await tx.execute(sql`SELECT COALESCE(SUM(amount_usd), 0)::int AS total FROM coin_purchases WHERE user_id = ${userId}`);
         const total = Number((lifetime.rows[0] as any)?.total ?? 0);
         const tier = total >= 1000 ? "legendary" : total >= 500 ? "gold" : total >= 150 ? "silver" : total >= 50 ? "bronze" : null;
+        // uq_founders_user_id is partial; its predicate is required for inference.
         if (tier) await tx.execute(sql`
           INSERT INTO founders (id, name, user_id, tier, added_by)
           VALUES (gen_random_uuid(), ${(user.rows[0] as any).username}, ${userId}, ${tier}, 'system')
-          ON CONFLICT (user_id) DO UPDATE SET tier = CASE
+          ON CONFLICT (user_id) WHERE user_id IS NOT NULL DO UPDATE SET tier = CASE
             WHEN CASE founders.tier WHEN 'legendary' THEN 4 WHEN 'gold' THEN 3 WHEN 'silver' THEN 2 WHEN 'bronze' THEN 1 ELSE 0 END
                < CASE EXCLUDED.tier WHEN 'legendary' THEN 4 WHEN 'gold' THEN 3 WHEN 'silver' THEN 2 WHEN 'bronze' THEN 1 ELSE 0 END
             THEN EXCLUDED.tier ELSE founders.tier END
