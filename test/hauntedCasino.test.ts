@@ -41,7 +41,7 @@ test("Slaughter Slots keeps challenging reel weights and supports database item 
   assert.deepEqual(HAUNTED_CASINO_BETS, [10, 25, 50, 100, 250]);
   assert.deepEqual(
     HAUNTED_SLOT_SYMBOL_WEIGHTS.map((entry) => entry.id),
-    ["coin", "essence", "edible", "fish", "loot", "skull"],
+    ["coin", "essence", "edible", "egg", "loot", "skull"],
   );
   assert.ok((HAUNTED_SLOT_SYMBOL_WEIGHTS.find((entry) => entry.id === "loot")?.weight ?? 99) < (HAUNTED_SLOT_SYMBOL_WEIGHTS.find((entry) => entry.id === "edible")?.weight ?? 0));
   assert.ok((HAUNTED_SLOT_SYMBOL_WEIGHTS.find((entry) => entry.id === "skull")?.weight ?? 99) < (HAUNTED_SLOT_SYMBOL_WEIGHTS.find((entry) => entry.id === "coin")?.weight ?? 0));
@@ -56,8 +56,8 @@ test("Slaughter Slots keeps challenging reel weights and supports database item 
   assert.equal(edible.tier, "triple");
   assert.equal(edible.itemCategory, "edible");
 
-  const fish = evaluateHauntedSlotResult(["fish", "fish", "fish"], 50);
-  assert.equal(fish.itemCategory, "fish");
+  const egg = evaluateHauntedSlotResult(["egg", "egg", "egg"], 50);
+  assert.equal(egg.itemCategory, "egg");
 
   const loot = evaluateHauntedSlotResult(["loot", "loot", "loot"], 50);
   assert.equal(loot.itemCategory, "loot");
@@ -72,7 +72,7 @@ test("Slaughter Slots keeps challenging reel weights and supports database item 
   assert.equal(secret.coins, 50);
   assert.equal(secret.essence, 50);
 
-  const miss = evaluateHauntedSlotResult(["coin", "edible", "fish"], 25);
+  const miss = evaluateHauntedSlotResult(["coin", "edible", "egg"], 25);
   assert.equal(miss.tier, "miss");
   assert.equal(miss.coins, 0);
   assert.equal(miss.essence, 0);
@@ -128,11 +128,11 @@ test("Slaughter Slots uses the standalone essence token and translucent purple r
 test("Slaughter Slots centers bet and spin controls without a hold-limit panel", () => {
   const client = fs.readFileSync("client/src/components/world/SlaughterSlotsOverlay.tsx", "utf8");
   for (const filename of ASSETS.slice(1, -1)) assert.match(client, new RegExp(filename.replace(".", "\\.")));
-  assert.match(client, /data-testid="slaughter-slots-bet-control"[\s\S]*?top: "62\.2%"/);
+  assert.match(client, /data-testid="slaughter-slots-bet-control"[\s\S]*?top: "63%"/);
   assert.match(client, /data-testid="slaughter-slots-spin-control"[\s\S]*?top: "72\.5%"/);
   assert.match(client, /Spin once, or hold to keep spinning/);
-  assert.match(client, /\{spinning \? "SPINNING" : "SPIN"\}/);
-  assert.match(client, /Tap once · hold to repeat/);
+  assert.match(client, /\{holding \? "STOP AUTO" : spinning \? "SPINNING" : "SPIN"\}/);
+  assert.match(client, /Tap once · hold for auto/);
   assert.match(client, /onPointerDown=\{beginHold\}/);
   assert.match(client, /aria-label="Decrease bet"/);
   assert.match(client, /aria-label="Increase bet"/);
@@ -176,16 +176,17 @@ test("Slaughter Slots wagers and payouts use the player's real global coin walle
   assert.doesNotMatch(routes, /req\.body\?\.(?:reward|reels|itemId|shopItemId)/);
 });
 
-test("Casino item prizes come from the live catalog, exclude pets and eggs, and sharply weight down rare items", () => {
+test("Casino item and egg pools are separate, and rare prizes retain their weighting", () => {
   const server = fs.readFileSync("server/hauntedCasino.ts", "utf8");
-  assert.match(server, /FROM shop_items/);
-  assert.match(server, /type <> 'pet'/);
-  assert.match(server, /pet_template_id IS NULL/);
-  assert.match(server, /egg_image_url IS NULL/);
-  assert.match(server, /hatch_time IS NULL/);
-  assert.match(server, /type = 'fishing' AND COALESCE\(fishing_type, ''\) <> 'fish'/);
-  assert.match(server, /item\.type === "edibles"/);
-  assert.match(server, /item\.fishing_type === "fish"/);
+  const prizes = fs.readFileSync("server/hauntedSlotPrizes.ts", "utf8");
+  assert.match(prizes, /FROM shop_items/);
+  assert.match(prizes, /type <> 'pet'/);
+  assert.match(prizes, /pet_template_id IS NULL/);
+  assert.match(prizes, /egg_image_url IS NULL/);
+  assert.match(prizes, /hatch_time IS NULL/);
+  assert.match(prizes, /type = 'fishing' AND COALESCE\(fishing_type, ''\) <> 'fish'/);
+  assert.match(prizes, /item\.type === "edibles"/);
+  assert.match(prizes, /item\.type === "pet"/);
   assert.match(server, /\[0, 100, 45, 18, 6, 2\]\[rarity\]/);
   assert.match(server, /price >= 1000/);
   assert.match(server, /pickPrizeItem/);

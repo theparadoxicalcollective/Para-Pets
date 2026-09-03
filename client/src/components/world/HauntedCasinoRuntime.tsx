@@ -242,6 +242,7 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
 
       {slotsOpen && createPortal(
         <SlaughterSlotsOverlay
+          isAdmin={isAdmin}
           onClose={() => setSlotsOpen(false)}
           onCurrencyChanged={onCurrencyChanged}
         />,

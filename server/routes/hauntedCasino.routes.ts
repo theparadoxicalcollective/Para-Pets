@@ -1,4 +1,6 @@
 import type { Express, RequestHandler } from "express";
+import { db } from "../db";
+import { getSlotPrizeOptions, saveSlotPrizeSelection, SlotPrizeValidationError } from "../hauntedSlotPrizes";
 import {
   HauntedCasinoError,
   getHauntedCasinoHotspots,
@@ -32,6 +34,30 @@ export function registerHauntedCasinoRoutes(
     } catch (error) {
       console.error("[haunted-casino] hotspot save failed", error);
       return res.status(500).json({ message: "Casino hotspot layout could not be saved" });
+    }
+  });
+
+  app.get("/api/admin/haunted-casino/prizes", isAuthenticated, async (req, res) => {
+    if (!(req.user as any)?.isAdmin) return res.status(403).json({ message: "Forbidden" });
+    try {
+      return res.json(await getSlotPrizeOptions(db));
+    } catch (error) {
+      console.error("[haunted-casino] prize options failed", error);
+      return res.status(500).json({ message: "Prize options could not be loaded" });
+    }
+  });
+
+  app.put("/api/admin/haunted-casino/prizes/:kind", isAuthenticated, async (req, res) => {
+    if (!(req.user as any)?.isAdmin) return res.status(403).json({ message: "Forbidden" });
+    const kind = req.params.kind;
+    if (kind !== "items" && kind !== "eggs") return res.status(400).json({ message: "Choose items or eggs" });
+    try {
+      await saveSlotPrizeSelection(db, kind, req.body?.ids);
+      return res.json({ saved: true });
+    } catch (error) {
+      if (error instanceof SlotPrizeValidationError) return res.status(400).json({ message: error.message });
+      console.error("[haunted-casino] prize save failed", error);
+      return res.status(500).json({ message: "Prize selection could not be saved" });
     }
   });
 

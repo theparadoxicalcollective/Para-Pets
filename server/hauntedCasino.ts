@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { sql } from "drizzle-orm";
 import { db } from "./db";
+import { getSlotPrizeCatalog, grantSlotEgg, type CasinoPrizeItem } from "./hauntedSlotPrizes";
 import {
   DEFAULT_HAUNTED_CASINO_HOTSPOTS,
   HAUNTED_CASINO_BETS,
@@ -26,19 +27,6 @@ const STATIC_SYMBOL_IMAGES: Record<"coin" | "essence" | "skull", string> = {
 const HOTSPOT_IDS = new Set<HauntedCasinoHotspotId>(
   DEFAULT_HAUNTED_CASINO_HOTSPOTS.map((spot) => spot.id),
 );
-
-interface CasinoPrizeItem {
-  id: string;
-  name: string;
-  type: string;
-  image_url: string | null;
-  price: number;
-  rarity: number | null;
-  star_rarity: number | null;
-  fishing_type: string | null;
-}
-
-type PrizeCatalog = Record<HauntedSlotItemCategory, CasinoPrizeItem[]>;
 
 export class HauntedCasinoError extends Error {
   constructor(
@@ -101,10 +89,11 @@ export async function saveHauntedCasinoHotspots(input: unknown): Promise<Haunted
   return hotspots;
 }
 
-function pickWeightedSymbol(): HauntedSlotSymbolId {
-  const totalWeight = HAUNTED_SLOT_SYMBOL_WEIGHTS.reduce((sum, entry) => sum + entry.weight, 0);
-  let roll = crypto.randomInt(totalWeight);
-  for (const entry of HAUNTED_SLOT_SYMBOL_WEIGHTS) {
+function pickWeightedSymbol(available: ReadonlySet<HauntedSlotSymbolId>, randomInt: (max: number) => number): HauntedSlotSymbolId {
+  const weights = HAUNTED_SLOT_SYMBOL_WEIGHTS.filter(entry => available.has(entry.id));
+  const totalWeight = weights.reduce((sum, entry) => sum + entry.weight, 0);
+  let roll = randomInt(totalWeight);
+  for (const entry of weights) {
     if (roll < entry.weight) return entry.id;
     roll -= entry.weight;
   }
@@ -129,40 +118,6 @@ function effectiveItemRarity(item: CasinoPrizeItem): number {
 export function hauntedCasinoPrizeWeight(item: Pick<CasinoPrizeItem, "price" | "rarity" | "star_rarity">): number {
   const rarity = effectiveItemRarity(item as CasinoPrizeItem);
   return [0, 100, 45, 18, 6, 2][rarity] ?? 2;
-}
-
-async function getEligiblePrizeCatalog(executor: any = db): Promise<PrizeCatalog> {
-  const result = await executor.execute(sql`
-    SELECT id, name, type, image_url, price, rarity, star_rarity, fishing_type
-    FROM shop_items
-    WHERE type <> 'pet'
-      AND pet_template_id IS NULL
-      AND egg_image_url IS NULL
-      AND hatch_time IS NULL
-      AND image_url IS NOT NULL
-      AND price > 0
-      AND lower(name) NOT LIKE '%ticket%'
-      AND NOT (type = 'fishing' AND COALESCE(fishing_type, '') <> 'fish')
-    ORDER BY created_at DESC
-  `);
-
-  const catalog: PrizeCatalog = { edible: [], fish: [], loot: [] };
-  for (const raw of result.rows as any[]) {
-    const item: CasinoPrizeItem = {
-      id: String(raw.id),
-      name: String(raw.name),
-      type: String(raw.type),
-      image_url: raw.image_url ?? null,
-      price: Number(raw.price ?? 0),
-      rarity: raw.rarity == null ? null : Number(raw.rarity),
-      star_rarity: raw.star_rarity == null ? null : Number(raw.star_rarity),
-      fishing_type: raw.fishing_type ?? null,
-    };
-    if (item.type === "edibles") catalog.edible.push(item);
-    else if (item.type === "fishing" && item.fishing_type === "fish") catalog.fish.push(item);
-    else catalog.loot.push(item);
-  }
-  return catalog;
 }
 
 function pickPrizeItem(items: CasinoPrizeItem[]): CasinoPrizeItem | null {
@@ -193,19 +148,24 @@ export async function getHauntedSlotState(userId: string) {
     // This is the same users.coins / users.essence wallet used throughout the
     // game. Slaughter Slots deliberately has no separate casino balance.
     db.execute(sql`SELECT coins, essence FROM users WHERE id = ${userId} LIMIT 1`),
-    getEligiblePrizeCatalog(),
+    getSlotPrizeCatalog(db),
   ]);
   const user = userResult.rows[0] as any;
   if (!user) throw new HauntedCasinoError("player_not_found", 404, "Player not found");
 
-  const ediblePreview = previewPrizeItem(catalog.edible);
-  const fishPreview = previewPrizeItem(catalog.fish);
-  const lootPreview = previewPrizeItem(catalog.loot);
-
   return {
     balances: { coins: Number(user.coins ?? 0), essence: Number(user.essence ?? 0) },
     betOptions: [...HAUNTED_CASINO_BETS],
-    symbols: [
+    symbols: slotSymbols(catalog),
+  };
+}
+
+function slotSymbols(catalog: Awaited<ReturnType<typeof getSlotPrizeCatalog>>) {
+  const ediblePreview = previewPrizeItem(catalog.edible);
+  const eggPreview = previewPrizeItem(catalog.egg);
+  const lootPreview = previewPrizeItem(catalog.loot);
+
+  return [
       { id: "coin" as const, label: "Coins", imageUrl: STATIC_SYMBOL_IMAGES.coin },
       { id: "essence" as const, label: "Essence", imageUrl: STATIC_SYMBOL_IMAGES.essence },
       {
@@ -214,9 +174,9 @@ export async function getHauntedSlotState(userId: string) {
         imageUrl: ediblePreview?.image_url ?? null,
       },
       {
-        id: "fish" as const,
-        label: fishPreview ? `Fish Prize · ${fishPreview.name}` : "Fish Prize",
-        imageUrl: fishPreview?.image_url ?? null,
+        id: "egg" as const,
+        label: "Mystery Pet Egg",
+        imageUrl: eggPreview?.egg_image_url ?? null,
       },
       {
         id: "loot" as const,
@@ -224,8 +184,7 @@ export async function getHauntedSlotState(userId: string) {
         imageUrl: lootPreview?.image_url ?? null,
       },
       { id: "skull" as const, label: "PvP Skull", imageUrl: STATIC_SYMBOL_IMAGES.skull },
-    ],
-  };
+    ].filter(symbol => !["edible", "egg", "loot"].includes(symbol.id) || catalog[symbol.id as HauntedSlotItemCategory].length > 0);
 }
 
 async function grantPvpTickets(tx: any, userId: string, requested: number): Promise<number> {
@@ -286,17 +245,17 @@ async function grantPrizeItem(tx: any, userId: string, item: CasinoPrizeItem): P
 
 function fallbackEssenceFor(category: HauntedSlotItemCategory, bet: number): number {
   if (category === "loot") return bet * 7;
-  if (category === "fish") return bet * 5;
+  if (category === "egg") return bet * 5;
   return bet * 3;
 }
 
-export async function spinHauntedSlots(userId: string, requestedBet: unknown) {
+export async function spinHauntedSlots(userId: string, requestedBet: unknown, database: Pick<typeof db, "transaction"> = db, randomInt: (max: number) => number = crypto.randomInt) {
   const bet = Number(requestedBet);
   if (!HAUNTED_CASINO_BETS.includes(bet as any)) {
     throw new HauntedCasinoError("invalid_bet", 400, "Choose one of the available bets");
   }
 
-  return db.transaction(async (tx) => {
+  return database.transaction(async (tx) => {
     const userResult = await tx.execute(sql`
       SELECT id, coins, essence
       FROM users
@@ -311,21 +270,26 @@ export async function spinHauntedSlots(userId: string, requestedBet: unknown) {
 
     // The server owns both the RNG and payout calculation. The client only
     // submits the selected stake and receives the final reel result.
+    const catalog = await getSlotPrizeCatalog(tx);
+    const available = new Set<HauntedSlotSymbolId>(["coin", "essence", "skull"]);
+    for (const category of ["edible", "egg", "loot"] as const) {
+      if (catalog[category].length) available.add(category);
+    }
     const reels: [HauntedSlotSymbolId, HauntedSlotSymbolId, HauntedSlotSymbolId] = [
-      pickWeightedSymbol(),
-      pickWeightedSymbol(),
-      pickWeightedSymbol(),
+      pickWeightedSymbol(available, randomInt),
+      pickWeightedSymbol(available, randomInt),
+      pickWeightedSymbol(available, randomInt),
     ];
     const reward = evaluateHauntedSlotResult(reels, bet);
     let itemGranted: { id: string; name: string; imageUrl: string | null } | null = null;
     let fallbackEssence = 0;
 
     if (reward.itemCategory) {
-      const catalog = await getEligiblePrizeCatalog(tx);
       const prize = pickPrizeItem(catalog[reward.itemCategory]);
       if (prize) {
-        await grantPrizeItem(tx, userId, prize);
-        itemGranted = { id: prize.id, name: prize.name, imageUrl: prize.image_url ?? null };
+        if (reward.itemCategory === "egg") await grantSlotEgg(tx, userId, prize);
+        else await grantPrizeItem(tx, userId, prize);
+        itemGranted = { id: prize.id, name: prize.name, imageUrl: (reward.itemCategory === "egg" ? prize.egg_image_url : prize.image_url) ?? null };
       } else {
         // A paid spin must complete safely even when an admin temporarily has
         // no eligible item in one category. Currency is the deterministic
@@ -352,6 +316,7 @@ export async function spinHauntedSlots(userId: string, requestedBet: unknown) {
     return {
       bet,
       reels,
+      symbols: slotSymbols(catalog),
       reward: {
         ...reward,
         essence: essenceWon,
