@@ -34,6 +34,23 @@ test("transactions lock authoritative rows and keep all core writes in one bound
   assert.match(service, /gte\(users\.coins, listing\.price\)/);
 });
 
+test("buyers validate escrow before coin debit and stale listings self-clean", () => {
+  const buyStart = service.indexOf("export async function buyListing");
+  const cancelStart = service.indexOf("export async function cancelListing");
+  const buy = service.slice(buyStart, cancelStart);
+  assert.ok(buy.indexOf("from(userInventory)") < buy.indexOf("gte(users.coins, listing.price)"));
+  assert.match(buy, /!escrow \|\| escrow\.userId !== listing\.sellerId \|\| !escrow\.isListed[\s\S]*?tx\.delete\(playerMarketListings\)/);
+  assert.match(buy, /if \(result\.stale\) throw new MarketplaceError\("not_active"/);
+  const cancel = service.slice(cancelStart, service.indexOf("export async function collectProceeds"));
+  assert.match(cancel, /!escrow \|\| escrow\.userId !== input\.actorId \|\| !escrow\.isListed[\s\S]*?tx\.delete\(playerMarketListings\)/);
+});
+
+test("market browse hides listings whose escrow inventory disappeared", () => {
+  assert.match(routes, /async function liveEscrowListings/);
+  assert.match(routes, /inventory && inventory\.userId === listing\.sellerId && inventory\.isListed/);
+  assert.match(routes, /const listings = await liveEscrowListings\([\s\S]*?await storage\.getMarketListings/);
+});
+
 test("browser callers submit identifiers and player-selected list price only", () => {
   assert.match(client, /\/api\/market\/list", \{ inventoryId, price \}/);
   assert.match(client, /\/api\/market\/list-pet", \{ inventoryId, price \}/);
