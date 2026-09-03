@@ -20,7 +20,7 @@ test("evolution targets match pet rarity rules", () => {
 test("feeder pets award the requested evolution points by rarity", () => {
   assert.deepEqual(
     [1, 2, 3, 4, 5].map((rarity) => evolutionFeedPointsForRarity(rarity)),
-    [10, 15, 50, 100, 1000],
+    [100, 200, 400, 1000, 1500],
   );
 });
 
