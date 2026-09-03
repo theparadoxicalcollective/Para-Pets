@@ -6,11 +6,17 @@ const inventory = readFileSync("client/src/components/PetInventory.tsx", "utf8")
 const market = readFileSync("client/src/pages/MarketPage.tsx", "utf8");
 const routes = readFileSync("server/routes.ts", "utf8");
 const essentialBoot = readFileSync("server/startup/migrations/runEssentialBoot.ts", "utf8");
+const inventoryConsumption = readFileSync("server/inventoryConsumption.ts", "utf8");
 
 test("player inventory hides escrowed pets and globally equipped accessories", () => {
   assert.match(inventory, /queryKey: \["\/api\/user\/equipped-accessory-ids"\]/);
   assert.match(inventory, /item\.type === "pet" && !item\.isListed/);
   assert.match(inventory, /!item\.isListed[\s\S]*?item\.type !== "pet"[\s\S]*?equippedAccessoryIdSet\.has\(item\.inventoryId\)/);
+});
+
+test("marketplace escrow cannot be consumed while it is listed", () => {
+  const listedGuards = inventoryConsumption.match(/eq\(userInventory\.isListed, false\)/g) ?? [];
+  assert.ok(listedGuards.length >= 4, "consume/update/delete paths must all reject listed inventory");
 });
 
 test("Closet prevents cross-pet accessory reuse and accepts normalized item types", () => {

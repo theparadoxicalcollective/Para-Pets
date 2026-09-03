@@ -130,20 +130,30 @@ export async function createFishListing(input: { actorId: string; fishInventoryI
 }
 
 export async function buyListing(input: { actorId: string; listingId: string }): Promise<{ price: number; replayed: boolean }> {
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const [listing] = await tx.select().from(playerMarketListings)
       .where(eq(playerMarketListings.id, input.listingId)).for("update");
     if (!listing) throw new MarketplaceError("not_found", "Listing not found");
-    if (listing.status === "sold" && listing.buyerId === input.actorId) return { price: listing.price, replayed: true };
+    if (listing.status === "sold" && listing.buyerId === input.actorId) return { price: listing.price, replayed: true, stale: false };
     if (listing.status === "sold") throw new MarketplaceError("already_sold", "This item was just purchased by someone else");
     if (listing.status !== "active") throw new MarketplaceError("not_active", "This item is no longer available");
     if (listing.sellerId === input.actorId) throw new MarketplaceError("own_listing", "You cannot buy your own listing");
+
+    // Validate escrow before touching the buyer's balance. Old/invalid listings
+    // can otherwise remain visible after their backing inventory row disappeared.
+    const [escrow] = await tx.select().from(userInventory).where(eq(userInventory.id, listing.inventoryId)).for("update");
+    if (!escrow || escrow.userId !== listing.sellerId || !escrow.isListed) {
+      const removed = await tx.delete(playerMarketListings)
+        .where(and(eq(playerMarketListings.id, listing.id), eq(playerMarketListings.status, "active")))
+        .returning({ id: playerMarketListings.id });
+      if (removed.length !== 1) throw new MarketplaceError("conflict", "Listing state conflicted");
+      return { price: listing.price, replayed: false, stale: true };
+    }
+
     await lockUser(tx, input.actorId);
     const debit = await tx.update(users).set({ coins: sql`${users.coins} - ${listing.price}` })
       .where(and(eq(users.id, input.actorId), gte(users.coins, listing.price))).returning({ coins: users.coins });
     if (debit.length !== 1) throw new MarketplaceError("insufficient_funds", "Not enough coins");
-    const [escrow] = await tx.select().from(userInventory).where(eq(userInventory.id, listing.inventoryId)).for("update");
-    if (!escrow || escrow.userId !== listing.sellerId || !escrow.isListed) throw new MarketplaceError("conflict", "Listed item is no longer in escrow");
     const [equippedCostume] = await tx.select({ id: petEquippedCostumes.id })
       .from(petEquippedCostumes)
       .where(eq(petEquippedCostumes.costumeInventoryId, escrow.id))
@@ -167,8 +177,11 @@ export async function buyListing(input: { actorId: string; listingId: string }):
     const sold = await tx.update(playerMarketListings).set({ status: "sold", buyerId: input.actorId })
       .where(and(eq(playerMarketListings.id, listing.id), eq(playerMarketListings.status, "active"))).returning();
     if (sold.length !== 1) throw new MarketplaceError("conflict", "Listing state conflicted");
-    return { price: listing.price, replayed: false };
+    return { price: listing.price, replayed: false, stale: false };
   });
+
+  if (result.stale) throw new MarketplaceError("not_active", "This listing is no longer available");
+  return { price: result.price, replayed: result.replayed };
 }
 
 export async function cancelListing(input: { actorId: string; listingId: string }): Promise<void> {
@@ -179,7 +192,15 @@ export async function cancelListing(input: { actorId: string; listingId: string 
     if (listing.status === "sold") throw new MarketplaceError("already_sold", "Listing has already sold");
     if (listing.status !== "active") throw new MarketplaceError("not_active", "Listing is not active");
     const [escrow] = await tx.select().from(userInventory).where(eq(userInventory.id, listing.inventoryId)).for("update");
-    if (!escrow || escrow.userId !== input.actorId || !escrow.isListed) throw new MarketplaceError("conflict", "Listed item is no longer in escrow");
+    if (!escrow || escrow.userId !== input.actorId || !escrow.isListed) {
+      // The inventory is already gone, so cancellation should still remove the
+      // orphaned listing and release the seller's market slot.
+      const removed = await tx.delete(playerMarketListings)
+        .where(and(eq(playerMarketListings.id, listing.id), eq(playerMarketListings.status, "active")))
+        .returning({ id: playerMarketListings.id });
+      if (removed.length !== 1) throw new MarketplaceError("conflict", "Cancellation conflicted");
+      return;
+    }
     if (listing.itemType === "fish") {
       await tx.insert(playerFishInventory).values({ userId: input.actorId, shopItemId: escrow.shopItemId });
       await tx.delete(userInventory).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true)));
@@ -213,4 +234,3 @@ export async function collectProceeds(input: { actorId: string; listingId: strin
     return { coinsEarned: listing.price, newBalance: credited.coins };
   });
 }
-

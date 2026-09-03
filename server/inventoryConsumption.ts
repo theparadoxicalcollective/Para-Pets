@@ -9,6 +9,8 @@ export function remainingQuantityAfterConsumption(quantity: number, amount = 1):
 
 /**
  * Consume exactly one unit from an owned stack within the caller's transaction.
+ * Marketplace listings are escrow: a listed inventory row must not be consumed
+ * while buyers can still see and purchase the listing.
  * A guarded UPDATE makes the operation safe when two requests race for the last
  * unit; the row is removed only after that update leaves it at zero.
  */
@@ -23,6 +25,7 @@ export async function tryConsumeOneFromInventory(
     .where(and(
       eq(userInventory.id, inventoryId),
       eq(userInventory.userId, userId),
+      eq(userInventory.isListed, false),
       sql`${userInventory.quantity} > 0`,
     ))
     .returning({ quantity: userInventory.quantity });
@@ -37,6 +40,7 @@ export async function tryConsumeOneFromInventory(
     await tx.delete(userInventory).where(and(
       eq(userInventory.id, inventoryId),
       eq(userInventory.userId, userId),
+      eq(userInventory.isListed, false),
     ));
   }
   return { consumed: true, remainingQuantity };
@@ -56,6 +60,7 @@ export async function tryConsumeInventoryQuantity(
     .where(and(
       eq(userInventory.id, inventoryId),
       eq(userInventory.userId, userId),
+      eq(userInventory.isListed, false),
       sql`${userInventory.quantity} >= ${quantity}`,
     ))
     .returning({ quantity: userInventory.quantity });
@@ -66,6 +71,7 @@ export async function tryConsumeInventoryQuantity(
     await tx.delete(userInventory).where(and(
       eq(userInventory.id, inventoryId),
       eq(userInventory.userId, userId),
+      eq(userInventory.isListed, false),
     ));
   }
   return true;
