@@ -102,6 +102,7 @@ const StableLevelUpPet = memo(function StableLevelUpPet({
         view="front"
         size={350}
         fillContainer
+        fitVisible={typeof window !== "undefined" && window.matchMedia("(max-width: 430px)").matches}
         lowMemory={lowMemory}
         className="w-full h-full"
         style={{ width: "100%", height: "100%", pointerEvents: "none" }}
