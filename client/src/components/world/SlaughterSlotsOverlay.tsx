@@ -8,8 +8,9 @@ import slotMinusButton from "@assets/uploads/SlotMinusButton.png";
 import slotPlusButton from "@assets/uploads/SlotPlusButton.png";
 import { currencyAssets } from "@/lib/currencyAssets";
 import SlotPrizeAdminDialog from "./SlotPrizeAdminDialog";
+import SlotPrizeStrip from "./SlotPrizeStrip";
 import { queryClient } from "@/lib/queryClient";
-import type { HauntedSlotSymbolId } from "@shared/hauntedCasino";
+import type { HauntedSlotPrizePreview, HauntedSlotSymbolId } from "@shared/hauntedCasino";
 
 interface SlotSymbol {
   id: HauntedSlotSymbolId;
@@ -21,6 +22,7 @@ interface SlotState {
   balances: { coins: number; essence: number };
   betOptions: number[];
   symbols: SlotSymbol[];
+  prizes?: HauntedSlotPrizePreview[];
 }
 
 interface SpinResult {
@@ -100,6 +102,7 @@ export default function SlaughterSlotsOverlay({
   const [betIndex, setBetIndex] = useState(0);
   const [reels, setReels] = useState(DEFAULT_REELS);
   const [spinning, setSpinning] = useState(false);
+  const [settledReels, setSettledReels] = useState(3);
   const [holding, setHolding] = useState(false);
   const [result, setResult] = useState<SpinResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -200,7 +203,8 @@ export default function SlaughterSlotsOverlay({
 
     spinInFlightRef.current = true;
     setSpinning(true);
-    setResult(null);
+    setSettledReels(0);
+    // Keep the last result readable while the next automatic spin runs.
     setError(null);
     const startedAt = Date.now();
     const ids = currentState.symbols.map((symbol) => symbol.id);
@@ -238,12 +242,15 @@ export default function SlaughterSlotsOverlay({
       // Stop the reels from left to right so the result lands with readable
       // slot-machine pacing instead of flashing all three symbols at once.
       setReels((current) => [final.reels[0], current[1], current[2]]);
+      setSettledReels(1);
       await sleep(REEL_STOP_DELAY_MS);
       if (!mountedRef.current) return false;
       setReels((current) => [final.reels[0], final.reels[1], current[2]]);
+      setSettledReels(2);
       await sleep(REEL_STOP_DELAY_MS);
       if (!mountedRef.current) return false;
       setReels(final.reels);
+      setSettledReels(3);
       setResult(final);
       const nextState: SlotState = { ...currentState, balances: final.balances, symbols: final.symbols ?? currentState.symbols };
       applyState(nextState);
@@ -251,7 +258,11 @@ export default function SlaughterSlotsOverlay({
     } catch (reason) {
       if (spinTimerRef.current != null) window.clearInterval(spinTimerRef.current);
       spinTimerRef.current = null;
-      if (mountedRef.current) setError(reason instanceof Error ? reason.message : "The reels jammed. Please try again.");
+      if (mountedRef.current) {
+        setResult(null);
+        setSettledReels(3);
+        setError(reason instanceof Error ? reason.message : "The reels jammed. Please try again.");
+      }
       await refreshAuthoritativeState();
       return false;
     } finally {
@@ -345,9 +356,9 @@ export default function SlaughterSlotsOverlay({
           50% { filter: brightness(1.12) saturate(1.08); }
         }
         @keyframes slaughterSymbolRoll {
-          0% { transform: translateY(-8%); filter: blur(.7px); opacity: .78; }
-          50% { transform: translateY(7%); filter: blur(1.1px); opacity: 1; }
-          100% { transform: translateY(-8%); filter: blur(.7px); opacity: .78; }
+          0% { transform: translateY(-8%); }
+          50% { transform: translateY(7%); }
+          100% { transform: translateY(-8%); }
         }
       `}</style>
 
@@ -396,7 +407,7 @@ export default function SlaughterSlotsOverlay({
         <div className="flex min-h-0 w-full flex-1 items-center justify-center">
         {/* Keep the logo, machine, reels and controls together above a reserved winnings area.
             Use logical stage height so tablets scale the same composition as phones. */}
-        <div data-testid="slaughter-slots-machine-stage" className="relative w-full shrink-0" style={{ maxWidth: 520, width: "min(100%, calc((var(--fh, 100dvh) - 228px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * .67))" }}>
+        <div data-testid="slaughter-slots-machine-stage" className="relative w-full shrink-0" style={{ maxWidth: 520, width: "min(100%, calc((var(--fh, 100dvh) - 340px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * .67))" }}>
           <img
             src={slaughterSlotsLogo}
             alt="Slaughter Slots"
@@ -439,10 +450,10 @@ export default function SlaughterSlotsOverlay({
                   transform: index === 0 ? "translateX(-4%)" : index === 2 ? "translateX(4%)" : undefined,
                   background: "linear-gradient(180deg, rgba(105,45,158,.52) 0%, rgba(60,20,102,.42) 48%, rgba(27,7,48,.48) 100%)",
                   boxShadow: "inset 0 0 24px rgba(18,3,34,.78), inset 0 0 9px rgba(216,180,254,.18), 0 0 12px rgba(147,51,234,.18)",
-                  animation: spinning ? "slaughterReelGlow .42s ease-in-out infinite" : undefined,
+                  animation: spinning && index >= settledReels ? "slaughterReelGlow .42s ease-in-out infinite" : undefined,
                 }}
               >
-                <SymbolFace symbol={symbolMap.get(symbolId)} spinning={spinning} />
+                <SymbolFace symbol={symbolMap.get(symbolId)} spinning={spinning && index >= settledReels} />
               </div>
             ))}
           </div>
@@ -451,7 +462,7 @@ export default function SlaughterSlotsOverlay({
           <div
             data-testid="slaughter-slots-bet-control"
             className="absolute z-[7] flex items-center justify-between gap-[2.5%] px-[2%]"
-            style={{ left: "20%", top: "63%", width: "60%", height: "6.4%" }}
+            style={{ left: "20%", top: "65%", width: "60%", height: "6.4%" }}
           >
             <button type="button" aria-label="Decrease bet" onClick={() => moveBet(-1)} disabled={!state || spinning || holding || betIndex <= 0} className="h-full aspect-square shrink-0 disabled:opacity-40 active:scale-90 transition-transform" style={{ background: "transparent", border: 0, padding: "2%" }}>
               <img src={slotMinusButton} alt="" className="block h-full w-full object-contain" draggable={false} />
@@ -483,7 +494,7 @@ export default function SlaughterSlotsOverlay({
             className="absolute z-[7] flex flex-col items-center justify-center overflow-hidden rounded-[18%] border border-amber-300/55 bg-gradient-to-b from-emerald-950/95 to-black/85 px-1 disabled:opacity-40 select-none active:scale-[.98] transition-transform"
             style={{
               left: "26.5%",
-              top: "72.5%",
+              top: "74.5%",
               width: "47%",
               height: "7.7%",
               touchAction: "none",
@@ -500,7 +511,7 @@ export default function SlaughterSlotsOverlay({
 
         </div>
 
-        <div data-testid="slaughter-slots-winnings-area" className="w-full shrink-0 overflow-y-auto" style={{ height: 112, overscrollBehavior: "contain" }}>
+        <div data-testid="slaughter-slots-winnings-area" className="w-full shrink-0 overflow-y-auto" style={{ height: 112, overscrollBehavior: "contain" }} role="status" aria-live="polite" aria-atomic="true">
         <div className="mt-0 min-h-[16px] shrink-0 text-center text-[9px] sm:text-xs text-violet-100/80" aria-live="polite">
           {holding ? "Auto spin active — tap STOP AUTO to stop" : null}
         </div>
@@ -510,8 +521,9 @@ export default function SlaughterSlotsOverlay({
         )}
         {error && <div className="mt-1 max-w-md rounded-lg border border-rose-300/30 bg-rose-950/45 px-3 py-1.5 text-center text-xs text-rose-100">{error}</div>}
 
-        {result && !spinning && (
-          <div className={`mt-1 w-full max-w-[480px] shrink-0 rounded-xl border bg-black/55 px-3 py-1.5 text-center ${rewardTone}`}>
+        {result && (
+          <div className={`mx-auto mt-1 w-full max-w-[480px] shrink-0 rounded-xl border bg-black/55 px-3 py-1.5 text-center ${rewardTone}`}>
+            {spinning && <div className="text-[9px] uppercase tracking-wider text-amber-100/70">Last spin</div>}
             <div className="font-fantasy text-sm sm:text-base">{result.reward.message}</div>
             <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs sm:text-sm">
               {result.reward.coins > 0 && <span>+{result.reward.coins} coins</span>}
@@ -529,6 +541,8 @@ export default function SlaughterSlotsOverlay({
         )}
 
         </div>
+
+        <SlotPrizeStrip prizes={state?.prizes ?? []} loaded={Boolean(state)} />
 
         <p className="sr-only">
           Bets and winnings use the normal Para Pets coin balance. Tap SPIN once, or hold briefly to start automatic spins. Tap STOP AUTO to stop.

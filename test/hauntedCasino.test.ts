@@ -128,8 +128,8 @@ test("Slaughter Slots uses the standalone essence token and translucent purple r
 test("Slaughter Slots centers bet and spin controls without a hold-limit panel", () => {
   const client = fs.readFileSync("client/src/components/world/SlaughterSlotsOverlay.tsx", "utf8");
   for (const filename of ASSETS.slice(1, -1)) assert.match(client, new RegExp(filename.replace(".", "\\.")));
-  assert.match(client, /data-testid="slaughter-slots-bet-control"[\s\S]*?top: "63%"/);
-  assert.match(client, /data-testid="slaughter-slots-spin-control"[\s\S]*?top: "72\.5%"/);
+  assert.match(client, /data-testid="slaughter-slots-bet-control"[\s\S]*?top: "65%"/);
+  assert.match(client, /data-testid="slaughter-slots-spin-control"[\s\S]*?top: "74\.5%"/);
   assert.match(client, /Spin once, or hold to keep spinning/);
   assert.match(client, /\{holding \? "STOP AUTO" : spinning \? "SPINNING" : "SPIN"\}/);
   assert.match(client, /Tap once · hold for auto/);
@@ -157,7 +157,7 @@ test("Slaughter Slots keeps its logo, machine, and controls inside the viewport"
   const client = fs.readFileSync("client/src/components/world/SlaughterSlotsOverlay.tsx", "utf8");
   assert.match(client, /overflow-hidden bg-\[#08040d\]/);
   assert.match(client, /data-testid="slaughter-slots-machine-stage"/);
-  assert.match(client, /var\(--fh, 100dvh\) - 228px/);
+  assert.match(client, /var\(--fh, 100dvh\) - 340px/);
   assert.match(client, /data-testid="slaughter-slots-winnings-area"/);
   assert.match(client, /width: "94%"/);
   assert.match(client, /transform: "translate\(-50%, -8%\)"/);
@@ -192,3 +192,4 @@ test("Casino item and egg pools are separate, and rare prizes retain their weigh
   assert.match(server, /pickPrizeItem/);
   assert.match(server, /grantPrizeItem/);
 });
+

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { PgDialect } from "drizzle-orm/pg-core";
-import { getSlotPrizeCatalog, getSlotPrizeOptions, parseSlotPrizeIds, saveSlotPrizeSelection, type CasinoPrizeItem } from "../server/hauntedSlotPrizes";
+import { getSlotPrizeCatalog, getSlotPrizeOptions, parseSlotPrizeIds, saveSlotPrizeSelection, slotPrizePreviews, type CasinoPrizeItem } from "../server/hauntedSlotPrizes";
 import { spinHauntedSlots } from "../server/hauntedCasino";
 import { registerHauntedCasinoRoutes } from "../server/routes/hauntedCasino.routes";
 
@@ -83,6 +83,21 @@ test("invalid, deleted, or wrong-kind prizes cannot be configured", async () => 
   await assert.rejects(saveSlotPrizeSelection(f.tx, "eggs", ["gift"]));
   await assert.rejects(saveSlotPrizeSelection(f.tx, "eggs", ["deleted"]));
   assert.equal(f.settings.size, 0);
+});
+
+test("public prize previews show only eligible selections and use the actual egg artwork", async () => {
+  const f = fixture();
+  await saveSlotPrizeSelection(f.tx, "items", ["gift"]);
+  await saveSlotPrizeSelection(f.tx, "eggs", ["egg-a"]);
+  assert.deepEqual(slotPrizePreviews(await getSlotPrizeCatalog(f.tx)), [
+    { id: "gift", name: "gift", imageUrl: "gift.png", category: "loot" },
+    { id: "egg-a", name: "egg-a", imageUrl: "egg-a-egg.png", category: "egg" },
+  ]);
+  // Removing a catalog entry also removes it from the public preview.
+  f.options.splice(f.options.findIndex(option => option.id === "gift"), 1);
+  assert.deepEqual(slotPrizePreviews(await getSlotPrizeCatalog(f.tx)).map(prize => prize.id), ["egg-a"]);
+  await saveSlotPrizeSelection(f.tx, "eggs", []);
+  assert.deepEqual(slotPrizePreviews(await getSlotPrizeCatalog(f.tx)), []);
 });
 
 test("cleared or malformed item settings never restore the default prize pool", async () => {

@@ -9,7 +9,7 @@ const fromRoot = (...segments: string[]) => path.join(repoRoot, ...segments);
 
 test("the uploaded game artwork drives every install icon surface", async () => {
   assert.ok(existsSync(fromRoot(
-    "attached_assets", "uploads", "E9EEAB46-6100-4ED7-BB07-C5AB5A0BD7FE.png"
+    "attached_assets", "uploads", "50E7DE46-38A6-477A-9C60-2DF11D39DB12.png"
   )));
 
   const manifest = JSON.parse(
@@ -20,9 +20,9 @@ test("the uploaded game artwork drives every install icon surface", async () => 
   assert.equal(manifest.start_url, "/");
   assert.equal(manifest.scope, "/");
   assert.deepEqual(manifest.icons, [
-    { src: "/pwa-icon-192.png?v=4", sizes: "192x192", type: "image/png", purpose: "any" },
-    { src: "/pwa-icon-512.png?v=4", sizes: "512x512", type: "image/png", purpose: "any" },
-    { src: "/pwa-maskable-512.png?v=4", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    { src: "/pwa-icon-192.png?v=5", sizes: "192x192", type: "image/png", purpose: "any" },
+    { src: "/pwa-icon-512.png?v=5", sizes: "512x512", type: "image/png", purpose: "any" },
+    { src: "/pwa-maskable-512.png?v=5", sizes: "512x512", type: "image/png", purpose: "maskable" },
   ]);
 
   const expected = [
@@ -42,9 +42,9 @@ test("the uploaded game artwork drives every install icon surface", async () => 
   }
 
   const html = readFileSync(fromRoot("client", "index.html"), "utf8");
-  assert.match(html, /apple-touch-icon\.png\?v=4/);
-  assert.match(html, /pwa-icon-512\.png\?v=4/);
-  assert.match(html, /manifest\.json\?v=5/);
+  assert.match(html, /apple-touch-icon\.png\?v=5/);
+  assert.match(html, /pwa-icon-512\.png\?v=5/);
+  assert.match(html, /manifest\.json\?v=6/);
   assert.match(html, /name="application-name" content="Para Pets"/);
   assert.match(html, /name="apple-mobile-web-app-title" content="Para Pets"/);
 
@@ -52,3 +52,4 @@ test("the uploaded game artwork drives every install icon surface", async () => 
   assert.match(app, /if \(!user && location === "\/"\)/);
   assert.match(app, /<AuthPage \/>/);
 });
+
