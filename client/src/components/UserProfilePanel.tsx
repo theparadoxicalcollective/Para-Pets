@@ -5,7 +5,6 @@ import { setNavHidden } from "@/lib/navVisibility";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import { replaceAuthSession } from "@/lib/authSession";
 import { useToast } from "@/hooks/use-toast";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import PlayerAvatarButton from "@/components/PlayerAvatarButton";
@@ -60,6 +59,7 @@ function cropToCanvas(src: string, offsetX: number, offsetY: number): Promise<st
 export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props) {
   const [myZ] = useState(() => getNextZ());
 
+  // Hide the FloatingNav while this panel is open so it doesn't overlap the sheet
   useEffect(() => {
     setNavHidden(true);
     return () => setNavHidden(false);
@@ -71,15 +71,18 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [showFinalConfirm, setShowFinalConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [feedbackSent, setFeedbackSent] = useState(false);
   const [showSupportHistory, setShowSupportHistory] = useState(false);
   const [supportSubject, setSupportSubject] = useState("");
+
   const [showFriends, setShowFriends] = useState(false);
   const [viewingFriendId, setViewingFriendId] = useState<string | null>(null);
 
@@ -112,7 +115,8 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const friendRequestCount = friendRequestCountData?.count ?? 0;
 
   const acceptFriendMutation = useMutation({
-    mutationFn: ({ requestId }: { requestId: string }) => apiRequest("POST", `/api/friends/accept/${requestId}`, {}),
+    mutationFn: ({ requestId }: { requestId: string }) =>
+      apiRequest("POST", `/api/friends/accept/${requestId}`, {}),
     onSuccess: () => {
       toast({ title: "Friend Added!", description: "You are now friends." });
       queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
@@ -122,7 +126,8 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   });
 
   const declineFriendMutation = useMutation({
-    mutationFn: (requesterId: string) => apiRequest("DELETE", `/api/friends/${requesterId}`, {}),
+    mutationFn: (requesterId: string) =>
+      apiRequest("DELETE", `/api/friends/${requesterId}`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
       queryClient.invalidateQueries({ queryKey: ["/api/friends/requests/count"] });
@@ -133,6 +138,7 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const [cropOffset, setCropOffset] = useState({ x: 50, y: 50 });
   const cropDragRef = useRef<{ startX: number; startY: number; startOX: number; startOY: number } | null>(null);
   const cropContainerRef = useRef<HTMLDivElement>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -158,7 +164,12 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   const handleCropPointerDown = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    cropDragRef.current = { startX: e.clientX, startY: e.clientY, startOX: cropOffset.x, startOY: cropOffset.y };
+    cropDragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startOX: cropOffset.x,
+      startOY: cropOffset.y,
+    };
   }, [cropOffset]);
 
   const handleCropPointerMove = useCallback((e: React.PointerEvent) => {
@@ -172,7 +183,9 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
     setCropOffset({ x: newX, y: newY });
   }, []);
 
-  const handleCropPointerUp = useCallback(() => { cropDragRef.current = null; }, []);
+  const handleCropPointerUp = useCallback(() => {
+    cropDragRef.current = null;
+  }, []);
 
   const handleApplyCrop = useCallback(async () => {
     if (!cropImageSrc) return;
@@ -187,7 +200,10 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
   }, [cropImageSrc, cropOffset, toast]);
 
   const updateUsernameMutation = useMutation({
-    mutationFn: async () => (await apiRequest("PATCH", "/api/user/username", { username: newUsername })).json(),
+    mutationFn: async () => {
+      const res = await apiRequest("PATCH", "/api/user/username", { username: newUsername });
+      return res.json();
+    },
     onSuccess: async (data: any) => {
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       onUserUpdate(data);
@@ -196,13 +212,17 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
     },
     onError: (err: any) => {
       const msg = err.message?.includes(":") ? err.message.split(": ").slice(1).join(": ") : err.message;
-      let parsed: any = {}; try { parsed = JSON.parse(msg); } catch {}
+      let parsed: any = {};
+      try { parsed = JSON.parse(msg); } catch {}
       toast({ title: "Update Failed", description: parsed.message || msg || "Failed to update username", variant: "destructive" });
     },
   });
 
   const updateProfilePicMutation = useMutation({
-    mutationFn: async () => (await apiRequest("PATCH", "/api/user/profile-image", { profileImageData })).json(),
+    mutationFn: async () => {
+      const res = await apiRequest("PATCH", "/api/user/profile-image", { profileImageData });
+      return res.json();
+    },
     onSuccess: async (data: any) => {
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       onUserUpdate(data);
@@ -210,135 +230,1010 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
     },
     onError: (err: any) => {
       const msg = err.message?.includes(":") ? err.message.split(": ").slice(1).join(": ") : err.message;
-      let parsed: any = {}; try { parsed = JSON.parse(msg); } catch {}
+      let parsed: any = {};
+      try { parsed = JSON.parse(msg); } catch {}
       toast({ title: "Update Failed", description: parsed.message || msg || "Failed to update photo", variant: "destructive" });
-      setProfilePreview(null); setProfileImageData(null);
+      setProfilePreview(null);
+      setProfileImageData(null);
     },
   });
 
   const changePasswordMutation = useMutation({
-    mutationFn: async () => (await apiRequest("PATCH", "/api/user/password", { currentPassword, newPassword })).json(),
+    mutationFn: async () => {
+      const res = await apiRequest("PATCH", "/api/user/password", { currentPassword, newPassword });
+      return res.json();
+    },
     onSuccess: () => {
       toast({ title: "Password Changed", description: "Your password has been updated" });
-      setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); setShowChangePassword(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowChangePassword(false);
     },
     onError: (err: any) => {
       const msg = err.message?.includes(":") ? err.message.split(": ").slice(1).join(": ") : err.message;
-      let parsed: any = {}; try { parsed = JSON.parse(msg); } catch {}
+      let parsed: any = {};
+      try { parsed = JSON.parse(msg); } catch {}
       toast({ title: "Update Failed", description: parsed.message || msg || "Failed to change password", variant: "destructive" });
     },
   });
 
   const logoutMutation = useMutation({
-    mutationFn: async () => (await apiRequest("POST", "/api/auth/logout", {})).json(),
-    onSuccess: async () => {
-      await replaceAuthSession(null, queryClient);
-      onClose();
-      navigate("/auth");
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/auth/logout", {});
+      return res.json();
     },
-    onError: () => toast({ title: "Error", description: "Logout failed", variant: "destructive" }),
+    onSuccess: async () => {
+      await queryClient.clear();
+      window.location.href = "/auth";
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Logout failed", variant: "destructive" });
+    },
   });
 
   const deleteAccountMutation = useMutation({
     mutationFn: async (password: string) => {
-      const res = await fetch("/api/user/delete-account", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ password }) });
+      const res = await fetch("/api/user/delete-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ password }),
+      });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || `Error ${res.status}`);
+      if (!res.ok) {
+        throw new Error(data?.message || `Error ${res.status}`);
+      }
       return data;
     },
-    onSuccess: () => {
-      queryClient.clear();
-      onClose();
-      navigate("/auth");
+    onSuccess: async () => {
+      await queryClient.clear();
+      window.location.href = "/auth";
     },
     onError: (err: any) => {
       const msg = err?.message || "Failed to delete account";
       console.error("Delete account failed:", msg);
-      setDeleteError(msg); setShowFinalConfirm(false);
+      setDeleteError(msg);
+      setShowFinalConfirm(false);
     },
   });
 
   const feedbackMutation = useMutation({
-    mutationFn: async () => (await apiRequest("POST", "/api/support-message", { username: user.username, email: user.email, subject: supportSubject.trim() || "Player Feedback", message: feedbackMessage.trim() })).json(),
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/support-message", {
+        username: user.username,
+        email: user.email,
+        subject: supportSubject.trim() || "Player Feedback",
+        message: feedbackMessage.trim(),
+      });
+      return res.json();
+    },
     onSuccess: () => {
-      setFeedbackSent(true); setFeedbackMessage(""); setSupportSubject("");
+      setFeedbackSent(true);
+      setFeedbackMessage("");
+      setSupportSubject("");
       queryClient.invalidateQueries({ queryKey: ["/api/support-messages/my"] });
     },
-    onError: () => toast({ title: "Error", description: "Failed to send feedback. Please try again.", variant: "destructive" }),
+    onError: () => {
+      toast({ title: "Error", description: "Failed to send feedback. Please try again.", variant: "destructive" });
+    },
   });
 
-  const { data: mySupportMessages = [] } = useQuery<any[]>({ queryKey: ["/api/support-messages/my"], queryFn: async () => { const res = await fetch("/api/support-messages/my", { credentials: "include" }); if (!res.ok) return []; return res.json(); }, enabled: showFeedback && showSupportHistory, staleTime: 10_000 });
-  const { data: adminReplies = [] } = useQuery<any[]>({ queryKey: ["/api/admin-messages"], queryFn: async () => { const res = await fetch("/api/admin-messages", { credentials: "include" }); if (!res.ok) return []; return res.json(); }, enabled: showFeedback && showSupportHistory, staleTime: 10_000 });
-  const deleteSentMessage = useMutation({ mutationFn: (id: string) => apiRequest("DELETE", `/api/support-messages/my/${id}`).then(r => r.json()), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/support-messages/my"] }), onError: () => toast({ title: "Error", description: "Failed to delete message.", variant: "destructive" }) });
-  const deleteAdminReply = useMutation({ mutationFn: (id: string) => apiRequest("DELETE", `/api/admin-messages/${id}`).then(r => r.json()), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin-messages"] }), onError: () => toast({ title: "Error", description: "Failed to delete reply.", variant: "destructive" }) });
+  const { data: mySupportMessages = [] } = useQuery<any[]>({
+    queryKey: ["/api/support-messages/my"],
+    queryFn: async () => {
+      const res = await fetch("/api/support-messages/my", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: showFeedback && showSupportHistory,
+    staleTime: 10_000,
+  });
+
+  const { data: adminReplies = [] } = useQuery<any[]>({
+    queryKey: ["/api/admin-messages"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin-messages", { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: showFeedback && showSupportHistory,
+    staleTime: 10_000,
+  });
+
+  const deleteSentMessage = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/support-messages/my/${id}`).then(r => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/support-messages/my"] }),
+    onError: () => toast({ title: "Error", description: "Failed to delete message.", variant: "destructive" }),
+  });
+
+  const deleteAdminReply = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin-messages/${id}`).then(r => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin-messages"] }),
+    onError: () => toast({ title: "Error", description: "Failed to delete reply.", variant: "destructive" }),
+  });
+
   const isPending = updateUsernameMutation.isPending || updateProfilePicMutation.isPending || changePasswordMutation.isPending || logoutMutation.isPending || deleteAccountMutation.isPending || feedbackMutation.isPending;
 
   return (
     <>
       <div className="fixed inset-0 flex items-end justify-center" style={{ zIndex: myZ, maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-        <div className="relative w-full rounded-t-3xl animate-slide-up overflow-y-auto" style={{ background: "linear-gradient(180deg, #1a0e05 0%, #2a1808 60%, #1a0e05 100%)", border: "1px solid rgba(212,160,23,0.4)", borderBottom: "none", boxShadow: "0 -8px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(212,160,23,0.3)", maxHeight: "calc(85*var(--vh))" }}>
+        <div
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          onClick={onClose}
+        />
+
+        <div
+          className="relative w-full rounded-t-3xl animate-slide-up overflow-y-auto"
+          style={{
+            background: "linear-gradient(180deg, #1a0e05 0%, #2a1808 60%, #1a0e05 100%)",
+            border: "1px solid rgba(212,160,23,0.4)",
+            borderBottom: "none",
+            boxShadow: "0 -8px 40px rgba(0,0,0,0.8), inset 0 1px 0 rgba(212,160,23,0.3)",
+            maxHeight: "calc(85*var(--vh))",
+          }}
+        >
           <div className="absolute inset-x-0 top-0 h-1 rounded-t-3xl" style={{ background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.6), transparent)" }} />
-          <button data-testid="button-close-profile" onClick={onClose} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full transition-colors z-20" style={{ background: "rgba(212,160,23,0.15)", border: "1px solid rgba(212,160,23,0.4)", color: "#d4a017", fontSize: "18px", cursor: "pointer" }}>✕</button>
+
+          <button
+            data-testid="button-close-profile"
+            onClick={onClose}
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full transition-colors z-20"
+            style={{
+              background: "rgba(212,160,23,0.15)",
+              border: "1px solid rgba(212,160,23,0.4)",
+              color: "#d4a017",
+              fontSize: "18px",
+              cursor: "pointer",
+            }}
+          >
+            ✕
+          </button>
+
           <div className="px-6 pt-6 pb-10 space-y-6">
-            <h2 className="font-fantasy text-[#f0c040] text-center text-xl tracking-widest font-semibold" style={{ textShadow: "0 0 20px rgba(240,192,64,0.4)" }}>Adventurer Profile</h2>
+            <h2 className="font-fantasy text-[#f0c040] text-center text-xl tracking-widest font-semibold"
+              style={{ textShadow: "0 0 20px rgba(240,192,64,0.4)" }}
+            >
+              Adventurer Profile
+            </h2>
+
+            {/* Profile Picture Section */}
             <div className="flex flex-col items-center gap-3">
-              <div className="relative w-24 h-24 cursor-pointer transition-transform active:scale-95 rounded-lg overflow-hidden" onClick={() => fileInputRef.current?.click()} data-testid="button-profile-pic-change" style={{ border: "2.5px solid #c9a030", boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5), inset 0 0 3px rgba(201,160,48,0.15)" }}>
-                {profilePreview || user.profileImage ? <img data-testid="img-profile-current" src={profilePreview || user.profileImage!} alt={user.username} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}><span className="font-fantasy text-[#d4a017] text-3xl font-bold">{(user.username ?? "?").charAt(0).toUpperCase()}</span></div>}
-                <div className="absolute bottom-1 right-1 z-10 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(212,160,23,0.9)", border: "1px solid rgba(240,192,64,0.8)" }}><span className="text-black text-xs font-bold leading-none">+</span></div>
+              <div
+                className="relative w-24 h-24 cursor-pointer transition-transform active:scale-95 rounded-lg overflow-hidden"
+                onClick={() => fileInputRef.current?.click()}
+                data-testid="button-profile-pic-change"
+                style={{
+                  border: "2.5px solid #c9a030",
+                  boxShadow: "0 0 8px rgba(201,160,48,0.3), 0 2px 8px rgba(0,0,0,0.5), inset 0 0 3px rgba(201,160,48,0.15)",
+                }}
+              >
+                {profilePreview || user.profileImage ? (
+                  <img
+                    data-testid="img-profile-current"
+                    src={profilePreview || user.profileImage!}
+                    alt={user.username}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div
+                    className="w-full h-full flex items-center justify-center"
+                    style={{ background: "linear-gradient(135deg, #2a1a0a 0%, #4a2e18 100%)" }}
+                  >
+                    <span className="font-fantasy text-[#d4a017] text-3xl font-bold">
+                      {(user.username ?? "?").charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <div className="absolute bottom-1 right-1 z-10 w-5 h-5 rounded-full flex items-center justify-center"
+                  style={{ background: "rgba(212,160,23,0.9)", border: "1px solid rgba(240,192,64,0.8)" }}
+                >
+                  <span className="text-black text-xs font-bold leading-none">+</span>
+                </div>
               </div>
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" data-testid="input-profile-pic-file" />
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+                data-testid="input-profile-pic-file"
+              />
+
               <div className="flex flex-col items-center gap-2 w-full">
-                {profileImageData && <button data-testid="button-save-profile-pic" onClick={() => updateProfilePicMutation.mutate()} disabled={isPending} className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-60" style={{ background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)", border: "1px solid rgba(45,154,100,0.6)", color: "#7fffd4", boxShadow: "0 0 12px rgba(127,255,212,0.2)", cursor: "pointer" }}>{updateProfilePicMutation.isPending ? "Saving..." : "Save New Photo"}</button>}
-                {!profileImageData && <button onClick={() => fileInputRef.current?.click()} className="font-fantasy text-xs text-[#a89878] tracking-wider hover:text-[#d4a017] transition-colors" style={{ background: "none", border: "none", cursor: "pointer" }}>Tap portrait to change photo</button>}
+                {profileImageData && (
+                  <button
+                    data-testid="button-save-profile-pic"
+                    onClick={() => updateProfilePicMutation.mutate()}
+                    disabled={isPending}
+                    className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-60"
+                    style={{
+                      background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                      border: "1px solid rgba(45,154,100,0.6)",
+                      color: "#7fffd4",
+                      boxShadow: "0 0 12px rgba(127,255,212,0.2)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {updateProfilePicMutation.isPending ? "Saving..." : "Save New Photo"}
+                  </button>
+                )}
+                {!profileImageData && (
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="font-fantasy text-xs text-[#a89878] tracking-wider hover:text-[#d4a017] transition-colors"
+                    style={{ background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    Tap portrait to change photo
+                  </button>
+                )}
               </div>
             </div>
+
             <div className="w-full h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.3), transparent)" }} />
+
+            {/* Username Section */}
             <div className="space-y-2">
-              <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block">USERNAME</label>
+              <label className="font-fantasy text-[#c8b896] text-xs tracking-wider block">
+                USERNAME
+              </label>
               <div className="flex gap-2">
-                <input data-testid="input-new-username" type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} disabled={isPending} placeholder={user.username} className="flex-1 px-4 py-3 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-50" style={{ background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)", border: "2px solid #8b5e3c", boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3)" }} />
-                <button data-testid="button-save-username" onClick={() => updateUsernameMutation.mutate()} disabled={isPending || !newUsername.trim()} className="px-4 py-3 rounded-md font-fantasy text-xs tracking-wider transition-opacity disabled:opacity-50" style={{ background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)", border: "1px solid rgba(212,160,23,0.5)", color: "#f0c040", cursor: "pointer", whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>{updateUsernameMutation.isPending ? "..." : "Save"}</button>
+                <input
+                  data-testid="input-new-username"
+                  type="text"
+                  value={newUsername}
+                  onChange={e => setNewUsername(e.target.value)}
+                  disabled={isPending}
+                  placeholder={user.username}
+                  className="flex-1 px-4 py-3 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#8a7060] outline-none focus:ring-2 focus:ring-[#d4a017] disabled:opacity-50"
+                  style={{
+                    background: "linear-gradient(135deg, #f2e8d0 0%, #e8d8b0 100%)",
+                    border: "2px solid #8b5e3c",
+                    boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3)",
+                  }}
+                />
+                <button
+                  data-testid="button-save-username"
+                  onClick={() => updateUsernameMutation.mutate()}
+                  disabled={isPending || !newUsername.trim()}
+                  className="px-4 py-3 rounded-md font-fantasy text-xs tracking-wider transition-opacity disabled:opacity-50"
+                  style={{
+                    background: "linear-gradient(135deg, #5c3a1e 0%, #8b5e3c 100%)",
+                    border: "1px solid rgba(212,160,23,0.5)",
+                    color: "#f0c040",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                  }}
+                >
+                  {updateUsernameMutation.isPending ? "..." : "Save"}
+                </button>
               </div>
             </div>
+
             <div className="w-full h-px" style={{ background: "linear-gradient(90deg, transparent, rgba(212,160,23,0.3), transparent)" }} />
-            <div className="px-4 py-3 rounded-md space-y-1" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(139,94,60,0.3)" }}><p className="font-fantasy text-[#6a5840] text-xs tracking-widest">ACCOUNT INFO</p><p className="font-sans text-[#a89878] text-xs">{user.email}</p>{user.isAdmin && <div className="flex items-center gap-1"><span className="text-yellow-400 text-xs">&#9733;</span><span className="font-fantasy text-[#d4a017] text-xs tracking-wider">Administrator</span></div>}</div>
-            <div>
-              <button data-testid="button-toggle-change-password" onClick={() => setShowChangePassword(!showChangePassword)} className="w-full py-2.5 rounded-md font-fantasy text-xs tracking-widest transition-all" style={{ background: "linear-gradient(135deg, rgba(92,58,30,0.6) 0%, rgba(58,32,16,0.6) 100%)", border: "1px solid rgba(212,160,23,0.3)", color: "#d4a017", cursor: "pointer" }}>{showChangePassword ? "Cancel" : "Change Password"}</button>
-              {showChangePassword && <div className="mt-2 space-y-2 p-3 rounded-lg" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}>
-                <input data-testid="input-current-password" type="password" placeholder="Current Password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="w-full px-3 py-2 rounded font-sans text-xs" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(212,160,23,0.3)", color: "#e8d8b0", outline: "none" }} />
-                <input data-testid="input-new-password" type="password" placeholder="New Password (min 6 chars)" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full px-3 py-2 rounded font-sans text-xs" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(212,160,23,0.3)", color: "#e8d8b0", outline: "none" }} />
-                <input data-testid="input-confirm-password" type="password" placeholder="Confirm New Password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-3 py-2 rounded font-sans text-xs" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(212,160,23,0.3)", color: "#e8d8b0", outline: "none" }} />
-                {newPassword && confirmPassword && newPassword !== confirmPassword && <p className="font-fantasy text-[10px] text-red-400 tracking-wider">Passwords do not match</p>}
-                <button data-testid="button-save-password" onClick={() => changePasswordMutation.mutate()} disabled={isPending || !currentPassword || !newPassword || newPassword !== confirmPassword || newPassword.length < 6} className="w-full py-2 rounded font-fantasy text-xs tracking-widest transition-all disabled:opacity-50" style={{ background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)", border: "1px solid rgba(127,255,212,0.4)", color: "#7fffd4", cursor: "pointer" }}>{changePasswordMutation.isPending ? "Updating..." : "Update Password"}</button>
-              </div>}
-            </div>
-            <div>
-              <button data-testid="button-toggle-feedback" onClick={() => { setShowFeedback(!showFeedback); setFeedbackSent(false); setFeedbackMessage(""); }} disabled={isPending} className="w-full py-2.5 rounded-md font-fantasy text-xs tracking-widest transition-all disabled:opacity-60" style={{ background: "linear-gradient(135deg, rgba(42,58,92,0.6) 0%, rgba(25,38,70,0.6) 100%)", border: "1px solid rgba(100,140,212,0.4)", color: "#8ab4f8", cursor: "pointer" }}>{showFeedback ? "Cancel" : "Contact Support"}</button>
-              {showFeedback && <div className="mt-2 rounded-lg overflow-hidden" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(100,140,212,0.2)" }}>
-                <div className="flex border-b" style={{ borderColor: "rgba(100,140,212,0.2)" }}>
-                  <button onClick={() => { setShowSupportHistory(false); setFeedbackSent(false); }} className="flex-1 py-2 font-fantasy text-[10px] tracking-wider transition-colors" style={{ background: !showSupportHistory ? "rgba(100,140,212,0.15)" : "transparent", color: !showSupportHistory ? "#8ab4f8" : "#6a7a9a", border: "none", borderBottom: !showSupportHistory ? "2px solid #8ab4f8" : "2px solid transparent", cursor: "pointer" }}>New Message</button>
-                  <button onClick={() => setShowSupportHistory(true)} className="flex-1 py-2 font-fantasy text-[10px] tracking-wider transition-colors" style={{ background: showSupportHistory ? "rgba(100,140,212,0.15)" : "transparent", color: showSupportHistory ? "#8ab4f8" : "#6a7a9a", border: "none", borderBottom: showSupportHistory ? "2px solid #8ab4f8" : "2px solid transparent", cursor: "pointer" }}>My Messages</button>
+
+            {/* Account Info */}
+            <div
+              className="px-4 py-3 rounded-md space-y-1"
+              style={{
+                background: "rgba(0,0,0,0.3)",
+                border: "1px solid rgba(139,94,60,0.3)",
+              }}
+            >
+              <p className="font-fantasy text-[#6a5840] text-xs tracking-widest">ACCOUNT INFO</p>
+              <p className="font-sans text-[#a89878] text-xs">{user.email}</p>
+              {user.isAdmin && (
+                <div className="flex items-center gap-1">
+                  <span className="text-yellow-400 text-xs">&#9733;</span>
+                  <span className="font-fantasy text-[#d4a017] text-xs tracking-wider">Administrator</span>
                 </div>
-                <div className="p-3 space-y-3">
-                  {!showSupportHistory ? (feedbackSent ? <div className="text-center py-2 space-y-2"><p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-feedback-sent">Message sent!</p><p className="font-fantasy text-[#a89878] text-xs tracking-wider">Our support team will review your message and get back to you.</p><button onClick={() => { setShowFeedback(false); setFeedbackSent(false); }} className="font-fantasy text-[#8ab4f8] text-xs tracking-wider hover:text-[#aaccff] transition-colors" style={{ background: "none", border: "none", cursor: "pointer" }}>Close</button></div> : <><p className="font-fantasy text-[#8ab4f8] text-[10px] tracking-wider">Share a bug, idea, or anything — it goes straight to the admin inbox.</p><input data-testid="input-support-subject" value={supportSubject} onChange={e => setSupportSubject(e.target.value)} disabled={feedbackMutation.isPending} placeholder="Subject (optional)" maxLength={200} className="w-full px-3 py-2 rounded font-sans text-xs outline-none disabled:opacity-60" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(100,140,212,0.3)", color: "#e8d8b0" }} /><textarea data-testid="input-feedback-message" value={feedbackMessage} onChange={e => setFeedbackMessage(e.target.value)} disabled={feedbackMutation.isPending} placeholder="What's on your mind?" rows={4} maxLength={2000} className="w-full px-3 py-2 rounded font-sans text-xs resize-none outline-none disabled:opacity-60" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(100,140,212,0.3)", color: "#e8d8b0" }} /><div className="flex items-center justify-between"><span className="font-fantasy text-[#6a5840] text-[9px] tracking-wider">{feedbackMessage.length}/2000</span><button data-testid="button-submit-feedback" onClick={() => feedbackMutation.mutate()} disabled={feedbackMutation.isPending || !feedbackMessage.trim()} className="px-4 py-1.5 rounded font-fantasy text-xs tracking-wider transition-all disabled:opacity-50" style={{ background: "linear-gradient(135deg, #1a2d5a 0%, #0d1a3a 100%)", border: "1px solid rgba(100,140,212,0.5)", color: "#8ab4f8", cursor: "pointer" }}>{feedbackMutation.isPending ? "Sending..." : "Send"}</button></div></>) : <div className="space-y-4">
-                    <div><p className="font-fantasy text-[#8ab4f8] text-[10px] tracking-widest mb-2">Sent Messages</p>{mySupportMessages.length === 0 ? <p className="font-sans text-[#6a7a9a] text-xs italic">No messages sent yet.</p> : <div className="space-y-2">{mySupportMessages.map((msg: any) => <div key={msg.id} className="rounded p-2.5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(100,140,212,0.15)" }}><div className="flex items-start justify-between gap-2"><div className="flex-1 min-w-0"><p className="font-fantasy text-[#c0d0f0] text-[11px] tracking-wider truncate">{msg.subject || "Player Feedback"}</p><p className="font-sans text-[#8a9ab8] text-[10px] mt-0.5 line-clamp-2">{msg.message}</p><p className="font-sans text-[#4a5870] text-[9px] mt-1">{msg.is_read ? "✓ Read" : "Pending"} · {new Date(msg.created_at).toLocaleDateString()}</p></div><button onClick={() => deleteSentMessage.mutate(String(msg.id))} disabled={deleteSentMessage.isPending} className="shrink-0 text-[#6a5840] hover:text-red-400 transition-colors disabled:opacity-40" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, lineHeight: 1 }} title="Delete">×</button></div></div>)}</div>}</div>
-                    <div><p className="font-fantasy text-[#f0c040] text-[10px] tracking-widest mb-2">Admin Replies</p>{adminReplies.length === 0 ? <p className="font-sans text-[#6a7a9a] text-xs italic">No replies yet.</p> : <div className="space-y-2">{adminReplies.map((reply: any) => <div key={reply.id} className="rounded p-2.5" style={{ background: "rgba(240,192,64,0.06)", border: "1px solid rgba(240,192,64,0.2)" }}><div className="flex items-start justify-between gap-2"><div className="flex-1 min-w-0"><p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider truncate">{reply.subject}</p><p className="font-sans text-[#d4c880] text-[10px] mt-0.5">{reply.message}</p><p className="font-sans text-[#8a7840] text-[9px] mt-1">{new Date(reply.created_at).toLocaleDateString()}</p></div><button onClick={() => deleteAdminReply.mutate(String(reply.id))} disabled={deleteAdminReply.isPending} className="shrink-0 text-[#6a5840] hover:text-red-400 transition-colors disabled:opacity-40" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, lineHeight: 1 }} title="Delete">×</button></div></div>)}</div>}</div>
-                  </div>}
-                </div>
-              </div>}
+              )}
             </div>
-            <button data-testid="button-para-pets-hub" onClick={() => { onClose(); navigate("/hub"); }} className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-widest transition-all" style={{ background: "linear-gradient(135deg, rgba(0,80,65,0.55) 0%, rgba(0,50,42,0.55) 100%)", border: "1px solid rgba(0,200,160,0.45)", color: "#7fffd4", cursor: "pointer", boxShadow: "0 0 14px rgba(0,180,140,0.18), 0 2px 8px rgba(0,0,0,0.35)", textShadow: "0 0 12px rgba(0,220,170,0.5)" }}>✦ Para Pets Hub ✦</button>
-            <button data-testid="button-logout" onClick={() => logoutMutation.mutate()} disabled={isPending} className="w-full py-3 rounded-md font-fantasy text-sm tracking-widest transition-all disabled:opacity-60" style={{ background: "linear-gradient(135deg, rgba(139,0,0,0.4) 0%, rgba(80,0,0,0.4) 100%)", border: "1px solid rgba(200,50,50,0.4)", color: "#ff9999", cursor: "pointer", boxShadow: "0 2px 12px rgba(0,0,0,0.4)" }}>{logoutMutation.isPending ? "Departing..." : "Leave Realm"}</button>
+
+            <div>
+              <button
+                data-testid="button-toggle-change-password"
+                onClick={() => setShowChangePassword(!showChangePassword)}
+                className="w-full py-2.5 rounded-md font-fantasy text-xs tracking-widest transition-all"
+                style={{
+                  background: "linear-gradient(135deg, rgba(92,58,30,0.6) 0%, rgba(58,32,16,0.6) 100%)",
+                  border: "1px solid rgba(212,160,23,0.3)",
+                  color: "#d4a017",
+                  cursor: "pointer",
+                }}
+              >
+                {showChangePassword ? "Cancel" : "Change Password"}
+              </button>
+
+              {showChangePassword && (
+                <div className="mt-2 space-y-2 p-3 rounded-lg" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(212,160,23,0.15)" }}>
+                  <input
+                    data-testid="input-current-password"
+                    type="password"
+                    placeholder="Current Password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full px-3 py-2 rounded font-sans text-xs"
+                    style={{
+                      background: "rgba(255,255,255,0.08)",
+                      border: "1px solid rgba(212,160,23,0.3)",
+                      color: "#e8d8b0",
+                      outline: "none",
+                    }}
+                  />
+                  <input
+                    data-testid="input-new-password"
+                    type="password"
+                    placeholder="New Password (min 6 chars)"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-3 py-2 rounded font-sans text-xs"
+                    style={{
+                      background: "rgba(255,255,255,0.08)",
+                      border: "1px solid rgba(212,160,23,0.3)",
+                      color: "#e8d8b0",
+                      outline: "none",
+                    }}
+                  />
+                  <input
+                    data-testid="input-confirm-password"
+                    type="password"
+                    placeholder="Confirm New Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-3 py-2 rounded font-sans text-xs"
+                    style={{
+                      background: "rgba(255,255,255,0.08)",
+                      border: "1px solid rgba(212,160,23,0.3)",
+                      color: "#e8d8b0",
+                      outline: "none",
+                    }}
+                  />
+                  {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                    <p className="font-fantasy text-[10px] text-red-400 tracking-wider">Passwords do not match</p>
+                  )}
+                  <button
+                    data-testid="button-save-password"
+                    onClick={() => changePasswordMutation.mutate()}
+                    disabled={isPending || !currentPassword || !newPassword || newPassword !== confirmPassword || newPassword.length < 6}
+                    className="w-full py-2 rounded font-fantasy text-xs tracking-widest transition-all disabled:opacity-50"
+                    style={{
+                      background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                      border: "1px solid rgba(127,255,212,0.4)",
+                      color: "#7fffd4",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {changePasswordMutation.isPending ? "Updating..." : "Update Password"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Feedback Section */}
+            <div>
+              <button
+                data-testid="button-toggle-feedback"
+                onClick={() => { setShowFeedback(!showFeedback); setFeedbackSent(false); setFeedbackMessage(""); }}
+                disabled={isPending}
+                className="w-full py-2.5 rounded-md font-fantasy text-xs tracking-widest transition-all disabled:opacity-60"
+                style={{
+                  background: "linear-gradient(135deg, rgba(42,58,92,0.6) 0%, rgba(25,38,70,0.6) 100%)",
+                  border: "1px solid rgba(100,140,212,0.4)",
+                  color: "#8ab4f8",
+                  cursor: "pointer",
+                }}
+              >
+                {showFeedback ? "Cancel" : "Contact Support"}
+              </button>
+
+              {showFeedback && (
+                <div
+                  className="mt-2 rounded-lg overflow-hidden"
+                  style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(100,140,212,0.2)" }}
+                >
+                  {/* Tabs */}
+                  <div className="flex border-b" style={{ borderColor: "rgba(100,140,212,0.2)" }}>
+                    <button
+                      onClick={() => { setShowSupportHistory(false); setFeedbackSent(false); }}
+                      className="flex-1 py-2 font-fantasy text-[10px] tracking-wider transition-colors"
+                      style={{
+                        background: !showSupportHistory ? "rgba(100,140,212,0.15)" : "transparent",
+                        color: !showSupportHistory ? "#8ab4f8" : "#6a7a9a",
+                        border: "none",
+                        borderBottom: !showSupportHistory ? "2px solid #8ab4f8" : "2px solid transparent",
+                        cursor: "pointer",
+                      }}
+                    >
+                      New Message
+                    </button>
+                    <button
+                      onClick={() => setShowSupportHistory(true)}
+                      className="flex-1 py-2 font-fantasy text-[10px] tracking-wider transition-colors"
+                      style={{
+                        background: showSupportHistory ? "rgba(100,140,212,0.15)" : "transparent",
+                        color: showSupportHistory ? "#8ab4f8" : "#6a7a9a",
+                        border: "none",
+                        borderBottom: showSupportHistory ? "2px solid #8ab4f8" : "2px solid transparent",
+                        cursor: "pointer",
+                      }}
+                    >
+                      My Messages
+                    </button>
+                  </div>
+
+                  <div className="p-3 space-y-3">
+                    {!showSupportHistory ? (
+                      /* New message form */
+                      feedbackSent ? (
+                        <div className="text-center py-2 space-y-2">
+                          <p className="font-fantasy text-[#7fffd4] text-sm tracking-wider" data-testid="text-feedback-sent">
+                            Message sent!
+                          </p>
+                          <p className="font-fantasy text-[#a89878] text-xs tracking-wider">
+                            Our support team will review your message and get back to you.
+                          </p>
+                          <button
+                            onClick={() => { setShowFeedback(false); setFeedbackSent(false); }}
+                            className="font-fantasy text-[#8ab4f8] text-xs tracking-wider hover:text-[#aaccff] transition-colors"
+                            style={{ background: "none", border: "none", cursor: "pointer" }}
+                          >
+                            Close
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="font-fantasy text-[#8ab4f8] text-[10px] tracking-wider">
+                            Share a bug, idea, or anything — it goes straight to the admin inbox.
+                          </p>
+                          <input
+                            data-testid="input-support-subject"
+                            value={supportSubject}
+                            onChange={e => setSupportSubject(e.target.value)}
+                            disabled={feedbackMutation.isPending}
+                            placeholder="Subject (optional)"
+                            maxLength={200}
+                            className="w-full px-3 py-2 rounded font-sans text-xs outline-none disabled:opacity-60"
+                            style={{
+                              background: "rgba(255,255,255,0.06)",
+                              border: "1px solid rgba(100,140,212,0.3)",
+                              color: "#e8d8b0",
+                            }}
+                          />
+                          <textarea
+                            data-testid="input-feedback-message"
+                            value={feedbackMessage}
+                            onChange={e => setFeedbackMessage(e.target.value)}
+                            disabled={feedbackMutation.isPending}
+                            placeholder="What's on your mind?"
+                            rows={4}
+                            maxLength={2000}
+                            className="w-full px-3 py-2 rounded font-sans text-xs resize-none outline-none disabled:opacity-60"
+                            style={{
+                              background: "rgba(255,255,255,0.06)",
+                              border: "1px solid rgba(100,140,212,0.3)",
+                              color: "#e8d8b0",
+                            }}
+                          />
+                          <div className="flex items-center justify-between">
+                            <span className="font-fantasy text-[#6a5840] text-[9px] tracking-wider">
+                              {feedbackMessage.length}/2000
+                            </span>
+                            <button
+                              data-testid="button-submit-feedback"
+                              onClick={() => feedbackMutation.mutate()}
+                              disabled={feedbackMutation.isPending || !feedbackMessage.trim()}
+                              className="px-4 py-1.5 rounded font-fantasy text-xs tracking-wider transition-all disabled:opacity-50"
+                              style={{
+                                background: "linear-gradient(135deg, #1a2d5a 0%, #0d1a3a 100%)",
+                                border: "1px solid rgba(100,140,212,0.5)",
+                                color: "#8ab4f8",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {feedbackMutation.isPending ? "Sending..." : "Send"}
+                            </button>
+                          </div>
+                        </>
+                      )
+                    ) : (
+                      /* Message history */
+                      <div className="space-y-4">
+                        {/* Sent Messages */}
+                        <div>
+                          <p className="font-fantasy text-[#8ab4f8] text-[10px] tracking-widest mb-2">Sent Messages</p>
+                          {mySupportMessages.length === 0 ? (
+                            <p className="font-sans text-[#6a7a9a] text-xs italic">No messages sent yet.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {mySupportMessages.map((msg: any) => (
+                                <div
+                                  key={msg.id}
+                                  className="rounded p-2.5"
+                                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(100,140,212,0.15)" }}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-fantasy text-[#c0d0f0] text-[11px] tracking-wider truncate">{msg.subject || "Player Feedback"}</p>
+                                      <p className="font-sans text-[#8a9ab8] text-[10px] mt-0.5 line-clamp-2">{msg.message}</p>
+                                      <p className="font-sans text-[#4a5870] text-[9px] mt-1">
+                                        {msg.is_read ? "✓ Read" : "Pending"} · {new Date(msg.created_at).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                    <button
+                                      onClick={() => deleteSentMessage.mutate(String(msg.id))}
+                                      disabled={deleteSentMessage.isPending}
+                                      className="shrink-0 text-[#6a5840] hover:text-red-400 transition-colors disabled:opacity-40"
+                                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, lineHeight: 1 }}
+                                      title="Delete"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Admin Replies */}
+                        <div>
+                          <p className="font-fantasy text-[#f0c040] text-[10px] tracking-widest mb-2">Admin Replies</p>
+                          {adminReplies.length === 0 ? (
+                            <p className="font-sans text-[#6a7a9a] text-xs italic">No replies yet.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {adminReplies.map((reply: any) => (
+                                <div
+                                  key={reply.id}
+                                  className="rounded p-2.5"
+                                  style={{ background: "rgba(240,192,64,0.06)", border: "1px solid rgba(240,192,64,0.2)" }}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-fantasy text-[#f0c040] text-[11px] tracking-wider truncate">{reply.subject}</p>
+                                      <p className="font-sans text-[#d4c880] text-[10px] mt-0.5">{reply.message}</p>
+                                      <p className="font-sans text-[#8a7840] text-[9px] mt-1">
+                                        {new Date(reply.created_at).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                    <button
+                                      onClick={() => deleteAdminReply.mutate(String(reply.id))}
+                                      disabled={deleteAdminReply.isPending}
+                                      className="shrink-0 text-[#6a5840] hover:text-red-400 transition-colors disabled:opacity-40"
+                                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, lineHeight: 1 }}
+                                      title="Delete"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+
+            {/* Para Pets Hub */}
+            <button
+              data-testid="button-para-pets-hub"
+              onClick={() => { onClose(); navigate("/hub"); }}
+              className="w-full py-2.5 rounded-md font-fantasy text-sm tracking-widest transition-all"
+              style={{
+                background: "linear-gradient(135deg, rgba(0,80,65,0.55) 0%, rgba(0,50,42,0.55) 100%)",
+                border: "1px solid rgba(0,200,160,0.45)",
+                color: "#7fffd4",
+                cursor: "pointer",
+                boxShadow: "0 0 14px rgba(0,180,140,0.18), 0 2px 8px rgba(0,0,0,0.35)",
+                textShadow: "0 0 12px rgba(0,220,170,0.5)",
+              }}
+            >
+              ✦ Para Pets Hub ✦
+            </button>
+
+            <button
+              data-testid="button-logout"
+              onClick={() => logoutMutation.mutate()}
+              disabled={isPending}
+              className="w-full py-3 rounded-md font-fantasy text-sm tracking-widest transition-all disabled:opacity-60"
+              style={{
+                background: "linear-gradient(135deg, rgba(139,0,0,0.4) 0%, rgba(80,0,0,0.4) 100%)",
+                border: "1px solid rgba(200,50,50,0.4)",
+                color: "#ff9999",
+                cursor: "pointer",
+                boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
+              }}
+            >
+              {logoutMutation.isPending ? "Departing..." : "Leave Realm"}
+            </button>
+
+            {/* Delete Account */}
             <div className="pt-1">
-              {!showDeleteConfirm ? <button data-testid="button-show-delete-account" onClick={() => { setShowDeleteConfirm(true); setShowFinalConfirm(false); setDeletePassword(""); setDeleteError(""); }} disabled={isPending} className="w-full py-2 rounded-md font-fantasy text-xs tracking-widest transition-all disabled:opacity-60" style={{ background: "transparent", border: "1px solid rgba(120,30,30,0.4)", color: "#8a4a4a", cursor: "pointer" }}>Delete Account</button> : !showFinalConfirm ? <div className="rounded-xl p-4 space-y-3" style={{ background: "rgba(80,10,10,0.5)", border: "1px solid rgba(200,50,50,0.5)", boxShadow: "0 0 20px rgba(180,0,0,0.2)" }}><div className="flex items-start gap-2"><img src={warnRedPng} alt="!" style={{ width: 20, height: 20, objectFit: "contain", flexShrink: 0 }} /><div className="space-y-1.5"><p className="font-fantasy text-[#ff6b6b] text-xs tracking-wider">This is irreversible</p><p className="font-sans text-[#c08080] text-[11px] leading-relaxed">Your account, pets, items, coins, badges, and all progress will be <span style={{ color: "#ff8888", fontWeight: 600 }}>permanently erased</span>. This cannot be undone by anyone, including support.</p></div></div><div className="space-y-1"><label className="font-fantasy text-[#c08080] text-[10px] tracking-wider block">ENTER YOUR PASSWORD TO CONTINUE</label><input data-testid="input-delete-password" type="password" value={deletePassword} onChange={e => { setDeletePassword(e.target.value); setDeleteError(""); }} placeholder="Your current password" className="w-full px-3 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#9a6060] outline-none" style={{ background: "linear-gradient(135deg, #f5d8d8 0%, #ecc0c0 100%)", border: `2px solid ${deleteError ? "#ff4444" : "#9a4040"}`, boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3)" }} onKeyDown={e => { if (e.key === "Enter" && deletePassword.trim()) setShowFinalConfirm(true); }} />{deleteError && <p data-testid="text-delete-error" className="font-sans text-[#ff8888] text-[11px] pt-0.5 flex items-center gap-1"><img src={warnRedPng} alt="!" style={{ width: 13, height: 13, objectFit: "contain" }} /> {deleteError}</p>}</div><div className="flex gap-2"><button data-testid="button-cancel-delete" onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); setShowFinalConfirm(false); setDeleteError(""); }} className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider transition-opacity" style={{ background: "rgba(60,30,10,0.6)", border: "1px solid rgba(139,94,60,0.4)", color: "#c8b896", cursor: "pointer" }}>Cancel</button><button data-testid="button-next-delete" onClick={() => setShowFinalConfirm(true)} disabled={!deletePassword.trim()} className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider transition-opacity disabled:opacity-50" style={{ background: "linear-gradient(135deg, rgba(160,20,20,0.8) 0%, rgba(100,10,10,0.8) 100%)", border: "1px solid rgba(220,60,60,0.6)", color: "#ffaaaa", cursor: "pointer" }}>Continue</button></div></div> : <div className="rounded-xl p-4 space-y-4" style={{ background: "rgba(80,10,10,0.5)", border: "1px solid rgba(200,50,50,0.5)", boxShadow: "0 0 20px rgba(180,0,0,0.2)" }}><div className="text-center space-y-2"><p className="font-fantasy text-[#ff6b6b] text-sm tracking-wider">Are you sure?</p><p className="font-sans text-[#c08080] text-[11px] leading-relaxed">Your password, username, email, and <span style={{ color: "#ff8888", fontWeight: 600 }}>all account data</span> will be permanently deleted. There is no way to recover your account after this. You will not be able to register a new account with this email for <span style={{ color: "#ffaaaa", fontWeight: 600 }}>30 days</span>.</p></div><div className="flex gap-2"><button data-testid="button-no-delete" onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); setShowFinalConfirm(false); setDeleteError(""); }} disabled={deleteAccountMutation.isPending} className="flex-1 py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-50" style={{ background: "rgba(40,80,40,0.7)", border: "1px solid rgba(80,160,80,0.5)", color: "#a0e0a0", cursor: "pointer" }}>No</button><button data-testid="button-yes-delete" onClick={() => deleteAccountMutation.mutate(deletePassword)} disabled={deleteAccountMutation.isPending} className="flex-1 py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-50" style={{ background: "linear-gradient(135deg, rgba(180,20,20,0.9) 0%, rgba(120,10,10,0.9) 100%)", border: "1px solid rgba(240,60,60,0.7)", color: "#ffcccc", cursor: "pointer" }}>{deleteAccountMutation.isPending ? "Deleting..." : "Yes, Delete"}</button></div></div>}
+              {!showDeleteConfirm ? (
+                <button
+                  data-testid="button-show-delete-account"
+                  onClick={() => { setShowDeleteConfirm(true); setShowFinalConfirm(false); setDeletePassword(""); setDeleteError(""); }}
+                  disabled={isPending}
+                  className="w-full py-2 rounded-md font-fantasy text-xs tracking-widest transition-all disabled:opacity-60"
+                  style={{
+                    background: "transparent",
+                    border: "1px solid rgba(120,30,30,0.4)",
+                    color: "#8a4a4a",
+                    cursor: "pointer",
+                  }}
+                >
+                  Delete Account
+                </button>
+              ) : !showFinalConfirm ? (
+                /* Step 1: Enter password */
+                <div
+                  className="rounded-xl p-4 space-y-3"
+                  style={{
+                    background: "rgba(80,10,10,0.5)",
+                    border: "1px solid rgba(200,50,50,0.5)",
+                    boxShadow: "0 0 20px rgba(180,0,0,0.2)",
+                  }}
+                >
+                  <div className="flex items-start gap-2">
+                    <img src={warnRedPng} alt="!" style={{ width: 20, height: 20, objectFit: "contain", flexShrink: 0 }} />
+                    <div className="space-y-1.5">
+                      <p className="font-fantasy text-[#ff6b6b] text-xs tracking-wider">This is irreversible</p>
+                      <p className="font-sans text-[#c08080] text-[11px] leading-relaxed">
+                        Your account, pets, items, coins, badges, and all progress will be <span style={{ color: "#ff8888", fontWeight: 600 }}>permanently erased</span>. This cannot be undone by anyone, including support.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-fantasy text-[#c08080] text-[10px] tracking-wider block">ENTER YOUR PASSWORD TO CONTINUE</label>
+                    <input
+                      data-testid="input-delete-password"
+                      type="password"
+                      value={deletePassword}
+                      onChange={e => { setDeletePassword(e.target.value); setDeleteError(""); }}
+                      placeholder="Your current password"
+                      className="w-full px-3 py-2.5 rounded-md font-sans text-sm text-[#2a1a0a] placeholder-[#9a6060] outline-none"
+                      style={{
+                        background: "linear-gradient(135deg, #f5d8d8 0%, #ecc0c0 100%)",
+                        border: `2px solid ${deleteError ? "#ff4444" : "#9a4040"}`,
+                        boxShadow: "inset 0 2px 6px rgba(0,0,0,0.3)",
+                      }}
+                      onKeyDown={e => { if (e.key === "Enter" && deletePassword.trim()) setShowFinalConfirm(true); }}
+                    />
+                    {deleteError && (
+                      <p data-testid="text-delete-error" className="font-sans text-[#ff8888] text-[11px] pt-0.5 flex items-center gap-1">
+                        <img src={warnRedPng} alt="!" style={{ width: 13, height: 13, objectFit: "contain" }} /> {deleteError}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      data-testid="button-cancel-delete"
+                      onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); setShowFinalConfirm(false); setDeleteError(""); }}
+                      className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider transition-opacity"
+                      style={{
+                        background: "rgba(60,30,10,0.6)",
+                        border: "1px solid rgba(139,94,60,0.4)",
+                        color: "#c8b896",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      data-testid="button-next-delete"
+                      onClick={() => setShowFinalConfirm(true)}
+                      disabled={!deletePassword.trim()}
+                      className="flex-1 py-2 rounded-md font-fantasy text-xs tracking-wider transition-opacity disabled:opacity-50"
+                      style={{
+                        background: "linear-gradient(135deg, rgba(160,20,20,0.8) 0%, rgba(100,10,10,0.8) 100%)",
+                        border: "1px solid rgba(220,60,60,0.6)",
+                        color: "#ffaaaa",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Continue
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Step 2: Final "Are you sure?" confirmation */
+                <div
+                  className="rounded-xl p-4 space-y-4"
+                  style={{
+                    background: "rgba(80,10,10,0.5)",
+                    border: "1px solid rgba(200,50,50,0.5)",
+                    boxShadow: "0 0 20px rgba(180,0,0,0.2)",
+                  }}
+                >
+                  <div className="text-center space-y-2">
+                    <p className="font-fantasy text-[#ff6b6b] text-sm tracking-wider">Are you sure?</p>
+                    <p className="font-sans text-[#c08080] text-[11px] leading-relaxed">
+                      Your password, username, email, and <span style={{ color: "#ff8888", fontWeight: 600 }}>all account data</span> will be permanently deleted. There is no way to recover your account after this. You will not be able to register a new account with this email for <span style={{ color: "#ffaaaa", fontWeight: 600 }}>30 days</span>.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      data-testid="button-no-delete"
+                      onClick={() => { setShowDeleteConfirm(false); setDeletePassword(""); setShowFinalConfirm(false); setDeleteError(""); }}
+                      disabled={deleteAccountMutation.isPending}
+                      className="flex-1 py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-50"
+                      style={{
+                        background: "rgba(40,80,40,0.7)",
+                        border: "1px solid rgba(80,160,80,0.5)",
+                        color: "#a0e0a0",
+                        cursor: "pointer",
+                      }}
+                    >
+                      No
+                    </button>
+                    <button
+                      data-testid="button-yes-delete"
+                      onClick={() => deleteAccountMutation.mutate(deletePassword)}
+                      disabled={deleteAccountMutation.isPending}
+                      className="flex-1 py-2.5 rounded-md font-fantasy text-sm tracking-wider transition-opacity disabled:opacity-50"
+                      style={{
+                        background: "linear-gradient(135deg, rgba(180,20,20,0.9) 0%, rgba(120,10,10,0.9) 100%)",
+                        border: "1px solid rgba(240,60,60,0.7)",
+                        color: "#ffcccc",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {deleteAccountMutation.isPending ? "Deleting..." : "Yes, Delete"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
-      {cropImageSrc && <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: myZ + 1, background: "rgba(0,0,0,0.88)", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}><div className="flex flex-col items-center gap-4 p-6 rounded-2xl mx-4" style={{ background: "linear-gradient(180deg, #1a0e05 0%, #2a1808 100%)", border: "1px solid rgba(212,160,23,0.4)", boxShadow: "0 0 40px rgba(0,0,0,0.8)", width: "100%", maxWidth: "300px" }}><h3 className="font-fantasy text-[#f0c040] text-sm tracking-widest" style={{ textShadow: "0 0 12px rgba(240,192,64,0.4)" }}>Position Your Photo</h3><p className="font-fantasy text-[#a89878] text-[10px] tracking-wider text-center">Drag to choose which part shows</p><div ref={cropContainerRef} data-testid="crop-preview" className="rounded-lg overflow-hidden" style={{ width: "200px", height: "200px", border: "2px solid #c9a030", boxShadow: "0 0 10px rgba(201,160,48,0.3)", cursor: "grab", touchAction: "none", flexShrink: 0 }} onPointerDown={handleCropPointerDown} onPointerMove={handleCropPointerMove} onPointerUp={handleCropPointerUp} onPointerCancel={handleCropPointerUp}><img src={cropImageSrc} alt="crop preview" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: `${cropOffset.x}% ${cropOffset.y}%`, userSelect: "none", pointerEvents: "none", display: "block" }} draggable={false} /></div><div className="flex gap-3 w-full"><button data-testid="button-crop-cancel" onClick={() => { setCropImageSrc(null); setCropOffset({ x: 50, y: 50 }); }} className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-opacity" style={{ background: "rgba(139,0,0,0.25)", border: "1px solid rgba(200,50,50,0.4)", color: "#ff9999", cursor: "pointer" }}>Cancel</button><button data-testid="button-crop-confirm" onClick={handleApplyCrop} className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-opacity" style={{ background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)", border: "1px solid rgba(45,154,100,0.6)", color: "#7fffd4", cursor: "pointer" }}>Use This</button></div></div></div>}
-      {showFriends && <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }} onClick={() => setShowFriends(false)}><div className="w-full rounded-t-3xl overflow-hidden" style={{ maxWidth: 480, maxHeight: "calc(80*var(--vh))", overflowY: "auto", background: "linear-gradient(180deg, #0d0a04 0%, #1a1000 50%, #0a0600 100%)", border: "1px solid rgba(192,132,252,0.25)", borderBottom: "none", boxShadow: "0 -12px 48px rgba(0,0,0,0.8)" }} onClick={e => e.stopPropagation()}><div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full" style={{ background: "rgba(192,132,252,0.3)" }} /></div><div className="flex items-center justify-between px-5 pb-3 pt-1"><p className="font-fantasy text-base tracking-widest" style={{ color: "#c084fc" }}>Friends ({friends.length})</p><button onClick={() => setShowFriends(false)} className="w-8 h-8 flex items-center justify-center rounded-full" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(192,132,252,0.2)", color: "#a89878" }}>✕</button></div><div className="px-4 pb-8 flex flex-col gap-2">{friendRequests.length > 0 && <div className="flex flex-col gap-2 mb-2"><p className="font-fantasy text-[10px] tracking-widest uppercase" style={{ color: "rgba(74,222,128,0.7)" }}>Requests ({friendRequests.length})</p>{friendRequests.map((req: any) => <div key={req.id} data-testid={`friend-request-${req.id}`} className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}><PlayerAvatarButton userId={req.requesterId} username={req.username} onSelectPlayer={setViewingFriendId} testId={`button-profile-request-avatar-${req.id}`}>{req.profileImage ? <img src={req.profileImage} alt="" style={{ width: 30, height: 30, borderRadius: 8, objectFit: "cover", border: "1px solid rgba(74,222,128,0.3)", flexShrink: 0 }} /> : <span style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><span className="font-fantasy font-bold" style={{ fontSize: 12, color: "#4ade80" }}>{(req.username ?? "?").charAt(0).toUpperCase()}</span></span>}</PlayerAvatarButton><span className="flex-1 truncate font-fantasy text-sm" style={{ color: "#d4e8da" }}>{req.username}</span><button data-testid={`button-accept-${req.id}`} onClick={() => acceptFriendMutation.mutate({ requestId: req.id })} disabled={acceptFriendMutation.isPending} className="rounded-lg px-3 py-1 font-fantasy text-xs transition-transform active:scale-90 disabled:opacity-50" style={{ background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.45)", color: "#4ade80", cursor: "pointer" }}>✓</button><button data-testid={`button-decline-${req.id}`} onClick={() => declineFriendMutation.mutate(req.requesterId)} disabled={declineFriendMutation.isPending} className="rounded-lg px-3 py-1 font-fantasy text-xs transition-transform active:scale-90 disabled:opacity-50" style={{ background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.35)", color: "#f87171", cursor: "pointer" }}>✕</button></div>)}<div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(74,222,128,0.2), transparent)", marginTop: 4 }} /></div>}{friends.length === 0 && friendRequests.length === 0 ? <div className="flex items-center justify-center py-10"><p className="font-fantasy text-sm text-center" style={{ color: "rgba(192,132,252,0.4)" }}>No friends yet.<br /><span style={{ fontSize: 11, color: "rgba(168,152,120,0.4)" }}>Find players in World Chat!</span></p></div> : friends.map((friend: any) => <button key={friend.id} data-testid={`button-friend-${friend.friendId}`} onClick={() => setViewingFriendId(friend.friendId)} className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-xl transition-all" style={{ background: "rgba(192,132,252,0.06)", border: "1px solid rgba(192,132,252,0.15)", cursor: "pointer" }}><div className="flex-shrink-0 rounded-lg overflow-hidden" style={{ width: 44, height: 44, border: "1.5px solid rgba(192,132,252,0.3)" }}>{friend.profileImage ? <img src={friend.profileImage} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, #2a1a0a, #4a2e18)" }}><span className="font-fantasy text-[#d4a017] font-bold" style={{ fontSize: 14 }}>{(friend.username ?? "?").charAt(0).toUpperCase()}</span></div>}</div><span className="font-fantasy text-sm" style={{ color: "#ddb4ff" }}>{friend.username}</span>{(friend.isAdmin || friend.isModerator) && <span className="font-fantasy text-[9px] px-1.5 py-0.5 rounded ml-auto" style={{ background: friend.isAdmin ? "rgba(212,160,23,0.2)" : "rgba(127,191,176,0.2)", color: friend.isAdmin ? "#f0c040" : "#7fffd4", border: `1px solid ${friend.isAdmin ? "rgba(212,160,23,0.3)" : "rgba(127,191,176,0.3)"}` }}>{friend.isAdmin ? "Admin" : "Mod"}</span>}</button>)}</div></div></div>}
-      {viewingFriendId && <PlayerDetailPanel userId={viewingFriendId} currentUserId={user.id} onClose={() => setViewingFriendId(null)} />}
+
+      {/* Crop Modal */}
+      {cropImageSrc && (
+        <div
+          className="fixed inset-0 flex items-center justify-center"
+          style={{ zIndex: myZ + 1, background: "rgba(0,0,0,0.88)", maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}
+        >
+          <div
+            className="flex flex-col items-center gap-4 p-6 rounded-2xl mx-4"
+            style={{
+              background: "linear-gradient(180deg, #1a0e05 0%, #2a1808 100%)",
+              border: "1px solid rgba(212,160,23,0.4)",
+              boxShadow: "0 0 40px rgba(0,0,0,0.8)",
+              width: "100%",
+              maxWidth: "300px",
+            }}
+          >
+            <h3
+              className="font-fantasy text-[#f0c040] text-sm tracking-widest"
+              style={{ textShadow: "0 0 12px rgba(240,192,64,0.4)" }}
+            >
+              Position Your Photo
+            </h3>
+            <p className="font-fantasy text-[#a89878] text-[10px] tracking-wider text-center">
+              Drag to choose which part shows
+            </p>
+
+            <div
+              ref={cropContainerRef}
+              data-testid="crop-preview"
+              className="rounded-lg overflow-hidden"
+              style={{
+                width: "200px",
+                height: "200px",
+                border: "2px solid #c9a030",
+                boxShadow: "0 0 10px rgba(201,160,48,0.3)",
+                cursor: "grab",
+                touchAction: "none",
+                flexShrink: 0,
+              }}
+              onPointerDown={handleCropPointerDown}
+              onPointerMove={handleCropPointerMove}
+              onPointerUp={handleCropPointerUp}
+              onPointerCancel={handleCropPointerUp}
+            >
+              <img
+                src={cropImageSrc}
+                alt="crop preview"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  objectPosition: `${cropOffset.x}% ${cropOffset.y}%`,
+                  userSelect: "none",
+                  pointerEvents: "none",
+                  display: "block",
+                }}
+                draggable={false}
+              />
+            </div>
+
+            <div className="flex gap-3 w-full">
+              <button
+                data-testid="button-crop-cancel"
+                onClick={() => { setCropImageSrc(null); setCropOffset({ x: 50, y: 50 }); }}
+                className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-opacity"
+                style={{
+                  background: "rgba(139,0,0,0.25)",
+                  border: "1px solid rgba(200,50,50,0.4)",
+                  color: "#ff9999",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                data-testid="button-crop-confirm"
+                onClick={handleApplyCrop}
+                className="flex-1 py-2.5 rounded-md font-fantasy text-xs tracking-wider transition-opacity"
+                style={{
+                  background: "linear-gradient(135deg, #2d6a4f 0%, #1a4a2e 100%)",
+                  border: "1px solid rgba(45,154,100,0.6)",
+                  color: "#7fffd4",
+                  cursor: "pointer",
+                }}
+              >
+                Use This
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Friends list overlay */}
+      {showFriends && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+          onClick={() => setShowFriends(false)}
+        >
+          <div
+            className="w-full rounded-t-3xl overflow-hidden"
+            style={{
+              maxWidth: 480,
+              maxHeight: "calc(80*var(--vh))",
+              overflowY: "auto",
+              background: "linear-gradient(180deg, #0d0a04 0%, #1a1000 50%, #0a0600 100%)",
+              border: "1px solid rgba(192,132,252,0.25)",
+              borderBottom: "none",
+              boxShadow: "0 -12px 48px rgba(0,0,0,0.8)",
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full" style={{ background: "rgba(192,132,252,0.3)" }} />
+            </div>
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pb-3 pt-1">
+              <p className="font-fantasy text-base tracking-widest" style={{ color: "#c084fc" }}>
+                Friends ({friends.length})
+              </p>
+              <button
+                onClick={() => setShowFriends(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full"
+                style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(192,132,252,0.2)", color: "#a89878" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Friend requests + list */}
+            <div className="px-4 pb-8 flex flex-col gap-2">
+              {/* Pending requests */}
+              {friendRequests.length > 0 && (
+                <div className="flex flex-col gap-2 mb-2">
+                  <p className="font-fantasy text-[10px] tracking-widest uppercase" style={{ color: "rgba(74,222,128,0.7)" }}>
+                    Requests ({friendRequests.length})
+                  </p>
+                  {friendRequests.map((req: any) => (
+                    <div
+                      key={req.id}
+                      data-testid={`friend-request-${req.id}`}
+                      className="flex items-center gap-2 rounded-xl px-3 py-2"
+                      style={{ background: "rgba(74,222,128,0.06)", border: "1px solid rgba(74,222,128,0.15)" }}
+                    >
+                      <PlayerAvatarButton userId={req.requesterId} username={req.username} onSelectPlayer={setViewingFriendId} testId={`button-profile-request-avatar-${req.id}`}>
+                        {req.profileImage ? (
+                          <img src={req.profileImage} alt="" style={{ width: 30, height: 30, borderRadius: 8, objectFit: "cover", border: "1px solid rgba(74,222,128,0.3)", flexShrink: 0 }} />
+                        ) : (
+                          <span style={{ width: 30, height: 30, borderRadius: 8, background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <span className="font-fantasy font-bold" style={{ fontSize: 12, color: "#4ade80" }}>{(req.username ?? "?").charAt(0).toUpperCase()}</span>
+                          </span>
+                        )}
+                      </PlayerAvatarButton>
+                      <span className="flex-1 truncate font-fantasy text-sm" style={{ color: "#d4e8da" }}>{req.username}</span>
+                      <button
+                        data-testid={`button-accept-${req.id}`}
+                        onClick={() => acceptFriendMutation.mutate({ requestId: req.id })}
+                        disabled={acceptFriendMutation.isPending}
+                        className="rounded-lg px-3 py-1 font-fantasy text-xs transition-transform active:scale-90 disabled:opacity-50"
+                        style={{ background: "rgba(74,222,128,0.2)", border: "1px solid rgba(74,222,128,0.45)", color: "#4ade80", cursor: "pointer" }}
+                      >✓</button>
+                      <button
+                        data-testid={`button-decline-${req.id}`}
+                        onClick={() => declineFriendMutation.mutate(req.requesterId)}
+                        disabled={declineFriendMutation.isPending}
+                        className="rounded-lg px-3 py-1 font-fantasy text-xs transition-transform active:scale-90 disabled:opacity-50"
+                        style={{ background: "rgba(248,113,113,0.15)", border: "1px solid rgba(248,113,113,0.35)", color: "#f87171", cursor: "pointer" }}
+                      >✕</button>
+                    </div>
+                  ))}
+                  <div style={{ height: 1, background: "linear-gradient(90deg, transparent, rgba(74,222,128,0.2), transparent)", marginTop: 4 }} />
+                </div>
+              )}
+
+              {/* Friends list */}
+              {friends.length === 0 && friendRequests.length === 0 ? (
+                <div className="flex items-center justify-center py-10">
+                  <p className="font-fantasy text-sm text-center" style={{ color: "rgba(192,132,252,0.4)" }}>
+                    No friends yet.<br />
+                    <span style={{ fontSize: 11, color: "rgba(168,152,120,0.4)" }}>Find players in World Chat!</span>
+                  </p>
+                </div>
+              ) : (
+                friends.map((friend: any) => (
+                  <button
+                    key={friend.id}
+                    data-testid={`button-friend-${friend.friendId}`}
+                    onClick={() => setViewingFriendId(friend.friendId)}
+                    className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-xl transition-all"
+                    style={{
+                      background: "rgba(192,132,252,0.06)",
+                      border: "1px solid rgba(192,132,252,0.15)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div
+                      className="flex-shrink-0 rounded-lg overflow-hidden"
+                      style={{ width: 44, height: 44, border: "1.5px solid rgba(192,132,252,0.3)" }}
+                    >
+                      {friend.profileImage ? (
+                        <img src={friend.profileImage} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center"
+                          style={{ background: "linear-gradient(135deg, #2a1a0a, #4a2e18)" }}>
+                          <span className="font-fantasy text-[#d4a017] font-bold" style={{ fontSize: 14 }}>
+                            {(friend.username ?? "?").charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <span className="font-fantasy text-sm" style={{ color: "#ddb4ff" }}>{friend.username}</span>
+                    {(friend.isAdmin || friend.isModerator) && (
+                      <span className="font-fantasy text-[9px] px-1.5 py-0.5 rounded ml-auto"
+                        style={{ background: friend.isAdmin ? "rgba(212,160,23,0.2)" : "rgba(127,191,176,0.2)", color: friend.isAdmin ? "#f0c040" : "#7fffd4", border: `1px solid ${friend.isAdmin ? "rgba(212,160,23,0.3)" : "rgba(127,191,176,0.3)"}` }}>
+                        {friend.isAdmin ? "Admin" : "Mod"}
+                      </span>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View a friend's detail panel */}
+      {viewingFriendId && (
+        <PlayerDetailPanel
+          userId={viewingFriendId}
+          currentUserId={user.id}
+          onClose={() => setViewingFriendId(null)}
+        />
+      )}
     </>
   );
 }
