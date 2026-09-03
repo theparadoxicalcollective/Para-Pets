@@ -1,0 +1,101 @@
+/* Regular Elysian Clearing enemy attack telegraphs.
+ * Combat timing stays server/gameplay-owned; these visuals read the existing
+ * alerting, windup, and recovering states already emitted by the renderer. */
+
+.clearing-enemy[data-enemy-rank="regular"][data-enemy-state="alerting"] > .clearing-enemy-facing::before,
+.clearing-enemy[data-enemy-rank="regular"].is-winding-up > .clearing-enemy-facing::before,
+.clearing-enemy[data-enemy-rank="regular"].is-winding-up > .clearing-enemy-facing::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 7;
+}
+
+/* Brief warning pulse when an enemy notices the pet. */
+.clearing-enemy[data-enemy-rank="regular"][data-enemy-state="alerting"] > .clearing-enemy-facing::before {
+  left: 50%;
+  top: 62%;
+  width: 54%;
+  aspect-ratio: 1;
+  border: 2px solid rgba(253, 224, 71, .72);
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgba(250, 204, 21, .35), inset 0 0 8px rgba(250, 204, 21, .2);
+  transform: translate(-50%, -50%) scale(.65);
+  animation: clearing-enemy-alert-pulse 520ms ease-out forwards;
+}
+
+/* Windup gets a directional slash plus a small impact glow. The facing wrapper
+ * already mirrors with the enemy, so the attack naturally flips left/right. */
+.clearing-enemy[data-enemy-rank="regular"].is-winding-up > .clearing-enemy-facing::before {
+  left: 58%;
+  top: 38%;
+  width: 42%;
+  height: 58%;
+  border-right: 4px solid rgba(254, 240, 138, .92);
+  border-radius: 50%;
+  filter: drop-shadow(0 0 4px rgba(250, 204, 21, .7));
+  transform: rotate(-32deg) scale(.45);
+  transform-origin: 20% 80%;
+  animation: clearing-enemy-slash 560ms cubic-bezier(.2,.72,.25,1) forwards;
+}
+
+.clearing-enemy[data-enemy-rank="regular"].is-winding-up > .clearing-enemy-facing::after {
+  left: 61%;
+  top: 48%;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255,255,224,.95) 0 10%, rgba(250,204,21,.52) 26%, rgba(245,158,11,0) 72%);
+  animation: clearing-enemy-impact-flare 560ms ease-out forwards;
+}
+
+.clearing-enemy[data-enemy-rank="regular"].is-winding-up .clearing-enemy-art {
+  animation: clearing-enemy-attack-glow 560ms ease-in-out 1;
+}
+
+.clearing-enemy[data-enemy-rank="regular"][data-enemy-state="recovering"] .clearing-enemy-art {
+  animation: clearing-enemy-recover-dim 320ms ease-out 1;
+}
+
+@keyframes clearing-enemy-alert-pulse {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.45); }
+  40% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); }
+}
+
+@keyframes clearing-enemy-slash {
+  0% { opacity: 0; transform: rotate(-54deg) scale(.35); }
+  28% { opacity: 1; }
+  72% { opacity: 1; transform: translate(14px, -3px) rotate(20deg) scale(1.05); }
+  100% { opacity: 0; transform: translate(25px, -6px) rotate(42deg) scale(1.18); }
+}
+
+@keyframes clearing-enemy-impact-flare {
+  0%, 35% { opacity: 0; transform: scale(.25); }
+  62% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0; transform: translateX(18px) scale(1.5); }
+}
+
+@keyframes clearing-enemy-attack-glow {
+  0%, 100% { filter: none; }
+  45% { filter: brightness(1.14) drop-shadow(0 0 5px rgba(250, 204, 21, .48)); }
+}
+
+@keyframes clearing-enemy-recover-dim {
+  0% { filter: brightness(.82) saturate(.8); }
+  100% { filter: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clearing-enemy[data-enemy-rank="regular"][data-enemy-state="alerting"] > .clearing-enemy-facing::before,
+  .clearing-enemy[data-enemy-rank="regular"].is-winding-up > .clearing-enemy-facing::before,
+  .clearing-enemy[data-enemy-rank="regular"].is-winding-up > .clearing-enemy-facing::after {
+    animation: none;
+    opacity: .72;
+  }
+
+  .clearing-enemy[data-enemy-rank="regular"].is-winding-up .clearing-enemy-art,
+  .clearing-enemy[data-enemy-rank="regular"][data-enemy-state="recovering"] .clearing-enemy-art {
+    animation: none;
+  }
+}
