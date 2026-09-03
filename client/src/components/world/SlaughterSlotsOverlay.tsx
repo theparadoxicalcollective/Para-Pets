@@ -58,9 +58,9 @@ const STATIC_FALLBACKS: Partial<Record<HauntedSlotSymbolId, string>> = {
   essence: currencyAssets.essenceToken,
 };
 
-const REEL_TICK_MS = 120;
-const MINIMUM_ROLL_MS = 1700;
-const REEL_STOP_DELAY_MS = 240;
+const REEL_TICK_MS = 150;
+const MINIMUM_ROLL_MS = 2200;
+const REEL_STOP_DELAY_MS = 300;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -72,7 +72,7 @@ function SymbolFace({ symbol, spinning }: { symbol: SlotSymbol | undefined; spin
   return (
     <div
       className="relative h-full w-full flex items-center justify-center p-1.5 sm:p-2"
-      style={{ animation: spinning ? "slaughterSymbolRoll .24s linear infinite" : undefined }}
+      style={{ animation: spinning ? "slaughterSymbolRoll .32s linear infinite" : undefined }}
     >
       {src ? (
         <img
@@ -376,7 +376,8 @@ export default function SlaughterSlotsOverlay({
       <button
         type="button"
         aria-label="Close Slaughter Slots"
-        onClick={() => { stopHold(); onClose(); }}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => { event.preventDefault(); event.stopPropagation(); stopHold(); onClose(); }}
         className="fixed right-3 z-[105] active:scale-95 transition-transform"
         style={{
           top: "max(24px, calc(env(safe-area-inset-top) + 12px))",
@@ -462,7 +463,7 @@ export default function SlaughterSlotsOverlay({
           <div
             data-testid="slaughter-slots-bet-control"
             className="absolute z-[7] flex items-center justify-between gap-[2.5%] px-[2%]"
-            style={{ left: "20%", top: "65%", width: "60%", height: "6.4%" }}
+            style={{ left: "20%", top: "63%", width: "60%", height: "6.4%" }}
           >
             <button type="button" aria-label="Decrease bet" onClick={() => moveBet(-1)} disabled={!state || spinning || holding || betIndex <= 0} className="h-full aspect-square shrink-0 disabled:opacity-40 active:scale-90 transition-transform" style={{ background: "transparent", border: 0, padding: "2%" }}>
               <img src={slotMinusButton} alt="" className="block h-full w-full object-contain" draggable={false} />
@@ -494,7 +495,7 @@ export default function SlaughterSlotsOverlay({
             className="absolute z-[7] flex flex-col items-center justify-center overflow-hidden rounded-[18%] border border-amber-300/55 bg-gradient-to-b from-emerald-950/95 to-black/85 px-1 disabled:opacity-40 select-none active:scale-[.98] transition-transform"
             style={{
               left: "26.5%",
-              top: "74.5%",
+              top: "72.5%",
               width: "47%",
               height: "7.7%",
               touchAction: "none",
