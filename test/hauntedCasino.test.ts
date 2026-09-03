@@ -125,11 +125,11 @@ test("Slaughter Slots uses the standalone essence token and translucent purple r
   assert.doesNotMatch(client, /bg-\[#e8dcc6\]/i);
 });
 
-test("Slaughter Slots centers bet and spin controls without a hold-limit panel", () => {
+test("Slaughter Slots raises bet and spin controls one notch", () => {
   const client = fs.readFileSync("client/src/components/world/SlaughterSlotsOverlay.tsx", "utf8");
   for (const filename of ASSETS.slice(1, -1)) assert.match(client, new RegExp(filename.replace(".", "\\.")));
-  assert.match(client, /data-testid="slaughter-slots-bet-control"[\s\S]*?top: "65%"/);
-  assert.match(client, /data-testid="slaughter-slots-spin-control"[\s\S]*?top: "74\.5%"/);
+  assert.match(client, /data-testid="slaughter-slots-bet-control"[\s\S]*?top: "63%"/);
+  assert.match(client, /data-testid="slaughter-slots-spin-control"[\s\S]*?top: "72\.5%"/);
   assert.match(client, /Spin once, or hold to keep spinning/);
   assert.match(client, /\{holding \? "STOP AUTO" : spinning \? "SPINNING" : "SPIN"\}/);
   assert.match(client, /Tap once · hold for auto/);
@@ -139,18 +139,27 @@ test("Slaughter Slots centers bet and spin controls without a hold-limit panel",
   assert.doesNotMatch(client, /Hold limit|Maximum coins to spend while holding|gross-wager safety limit|holdSpentRef|budgetLimitRef|MAX must be/);
 });
 
-test("Slaughter Slots raises reel content and uses a slower staged stop", () => {
+test("Slaughter Slots uses a more readable staged spin", () => {
   const client = fs.readFileSync("client/src/components/world/SlaughterSlotsOverlay.tsx", "utf8");
   assert.match(client, /top: "28%"/);
-  assert.match(client, /REEL_TICK_MS = 120/);
-  assert.match(client, /MINIMUM_ROLL_MS = 1700/);
-  assert.match(client, /REEL_STOP_DELAY_MS = 240/);
+  assert.match(client, /REEL_TICK_MS = 150/);
+  assert.match(client, /MINIMUM_ROLL_MS = 2200/);
+  assert.match(client, /REEL_STOP_DELAY_MS = 300/);
+  assert.match(client, /slaughterSymbolRoll \.32s linear infinite/);
   assert.match(client, /Stop the reels from left to right/);
   assert.match(client, /slaughterSymbolRoll/);
   assert.doesNotMatch(client, /}, 72\);/);
   assert.doesNotMatch(client, /Math\.max\(0, 900 -/);
   assert.match(client, /slaughterHandlePull \.78s cubic-bezier\(\.25,\.8,\.25,1\) 1/);
   assert.doesNotMatch(client, /slaughterHandlePull[^"\n]*infinite/);
+});
+
+test("Slaughter Slots close returns to the casino without click-through", () => {
+  const client = fs.readFileSync("client/src/components/world/SlaughterSlotsOverlay.tsx", "utf8");
+  const runtime = fs.readFileSync("client/src/components/world/HauntedCasinoRuntime.tsx", "utf8");
+  assert.match(runtime, /onClose=\{\(\) => setSlotsOpen\(false\)\}/);
+  assert.match(client, /aria-label="Close Slaughter Slots"[\s\S]*?onPointerDown=\{\(event\) => event\.stopPropagation\(\)\}/);
+  assert.match(client, /event\.preventDefault\(\); event\.stopPropagation\(\); stopHold\(\); onClose\(\)/);
 });
 
 test("Slaughter Slots keeps its logo, machine, and controls inside the viewport", () => {
@@ -184,6 +193,10 @@ test("decorative prizes keep the original machine sizing and footer footprint", 
   assert.match(client, /data-testid="slaughter-slots-footer"[^\n]*height: 112/);
   assert.match(client, /data-testid="slaughter-slots-winnings-area"[^\n]*absolute inset-x-0 bottom-20/);
   assert.match(strip, /absolute inset-x-0 bottom-0 h-\[72px\]/);
+  assert.match(strip, /slot-prize-coin-image/);
+  assert.match(strip, /slot-prize-essence-image/);
+  assert.match(strip, /currencyAssets\.coin/);
+  assert.match(strip, /currencyAssets\.essenceToken/);
   assert.match(strip, /scrollbarWidth: "none"/);
   assert.match(strip, /::-webkit-scrollbar \{ display: none/);
   assert.match(strip, /overflow-x-auto/);
