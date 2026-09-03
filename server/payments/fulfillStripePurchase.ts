@@ -98,16 +98,42 @@ export async function fulfillStripePurchase(
 
         const user = await tx.execute(sql`SELECT id, username FROM users WHERE id = ${userId} FOR UPDATE`);
         if (!user.rows[0]) throw new StripePurchaseError("unknown_player", "Mapped player does not exist");
-        await tx.execute(sql`UPDATE users SET coins = coins + ${coins}, total_coins_earned = total_coins_earned + ${coins} WHERE id = ${userId}`);
 
+        // Resolve every item before creating the purchaser reward. If a configured
+        // limited pet is missing/ambiguous, the whole transaction remains retryable
+        // and coins/progress are not partially applied.
         let bonusShopItemId: string | null = null;
         if (pack.eggBonus) {
           bonusShopItemId = await resolveEggBonusShopItemId(tx, pack.eggBonus);
+        }
+
+        // Paid rewards use the same reward_bundles -> user_rewards path as admin
+        // gifts. Coins/items are granted only when this inbox reward is claimed,
+        // preventing a direct-credit + claim double award.
+        const purchaseBundle = await tx.execute(sql`
+          INSERT INTO reward_bundles (name, coin_amount, message)
+          VALUES (
+            ${`Coin Shop Purchase — ${pack.label}`},
+            ${coins},
+            ${pack.eggBonus
+              ? `Your ${pack.label} purchase is ready. Claim ${coins.toLocaleString()} coins and your limited ${pack.eggBonus.itemName}.`
+              : `Your ${pack.label} purchase is ready. Claim ${coins.toLocaleString()} coins.`}
+          )
+          RETURNING id
+        `);
+        const purchaseBundleId = String((purchaseBundle.rows[0] as { id: string }).id);
+
+        if (bonusShopItemId) {
           await tx.execute(sql`
-            INSERT INTO user_inventory (user_id, shop_item_id, hatch_started_at)
-            VALUES (${userId}, ${bonusShopItemId}, NOW())
+            INSERT INTO reward_bundle_items (bundle_id, shop_item_id)
+            VALUES (${purchaseBundleId}, ${bonusShopItemId})
           `);
         }
+
+        await tx.execute(sql`
+          INSERT INTO user_rewards (user_id, bundle_id)
+          VALUES (${userId}, ${purchaseBundleId})
+        `);
 
         const cycleResult = await tx.execute(sql`SELECT cycle FROM user_contribution_cycles WHERE user_id = ${userId} FOR UPDATE`);
         const cycle = Number((cycleResult.rows[0] as any)?.cycle ?? 1);
@@ -148,7 +174,7 @@ export async function fulfillStripePurchase(
         const completed = await tx.execute(sql`
           UPDATE coin_purchases SET fulfillment_status = 'fulfilled', fulfilled_at = NOW(), updated_at = NOW(),
             stripe_event_id = COALESCE(${eventId ?? null}, stripe_event_id),
-            result_metadata = ${JSON.stringify({ coins, baseCoins: pack.coins, eggBonus: bonusShopItemId, communityCoins })}::jsonb
+            result_metadata = ${JSON.stringify({ coins, baseCoins: pack.coins, eggBonus: bonusShopItemId, purchaseBundleId, communityCoins })}::jsonb
           WHERE stripe_session_id = ${session.id} AND fulfillment_status = 'processing'
           RETURNING id
         `);
