@@ -95,15 +95,36 @@ test("limited egg, community reward, and milestone progress are each applied onc
   assert.deepEqual([fake.coins, fake.eggs, fake.progress, fake.community], [26600, 1, 5000, 1]);
 });
 
-test("$50 package advertises Midnight Juggler and fulfillment validates a live pet before delivery", () => {
-  const pack = coinPackageById("pack_v2_20000");
-  assert.equal(pack?.eggBonus?.shopItemName, "Midnight Juggler");
-  assert.equal(pack?.eggBonus?.itemName, "Midnight Juggler Egg");
+test("limited $50 and $100 eggs resolve against the live pet catalog", () => {
+  const fifty = coinPackageById("pack_v2_20000");
+  assert.equal(fifty?.eggBonus?.shopItemName, "Midnight Juggler");
+  assert.equal(fifty?.eggBonus?.itemName, "Midnight Juggler Egg");
+
+  const hundred = coinPackageById("pack_v2_50000");
+  assert.equal(hundred?.eggBonus?.shopItemName, "The Paradox");
+  assert.equal(hundred?.eggBonus?.shopItemId, undefined);
+  assert.equal(hundred?.eggBonus?.itemName, "The Paradox Egg");
 
   const fulfillment = readFileSync("server/payments/fulfillStripePurchase.ts", "utf8");
-  assert.match(fulfillment, /FROM shop_items[\s\S]*type = 'pet'/);
+  assert.match(fulfillment, /FROM shop_items[\s\S]*name = \$\{bonus\.shopItemName\}[\s\S]*type = 'pet'/);
   assert.match(fulfillment, /matches\.rows\.length !== 1/);
-  assert.match(fulfillment, /VALUES \(\$\{userId\}, \$\{bonusShopItemId\}, NOW\(\)\)/);
+});
+
+test("purchaser coins and limited egg are delivered through the normal reward inbox", () => {
+  const fulfillment = readFileSync("server/payments/fulfillStripePurchase.ts", "utf8");
+  assert.match(fulfillment, /INSERT INTO reward_bundles \(name, coin_amount, message\)[\s\S]*Coin Shop Purchase/);
+  assert.match(fulfillment, /INSERT INTO reward_bundle_items \(bundle_id, shop_item_id\)/);
+  assert.match(fulfillment, /INSERT INTO user_rewards \(user_id, bundle_id\)[\s\S]*VALUES \(\$\{userId\}, \$\{purchaseBundleId\}\)/);
+  assert.doesNotMatch(fulfillment, /UPDATE users SET coins = coins \+/);
+  assert.doesNotMatch(fulfillment, /INSERT INTO user_inventory \(user_id, shop_item_id, hatch_started_at\)/);
+});
+
+test("$100 purchase contributes 10,000 progress points in the fulfillment transaction", () => {
+  const hundred = coinPackageById("pack_v2_50000");
+  assert.equal(hundred?.priceUsd, 100);
+  const fulfillment = readFileSync("server/payments/fulfillStripePurchase.ts", "utf8");
+  assert.match(fulfillment, /INSERT INTO purchase_monthly_progress/);
+  assert.match(fulfillment, /contributionPointsFor\(pack\)/);
 });
 
 test("coin shop renders the server-owned bonus name with Midnight Juggler promotional art", () => {
