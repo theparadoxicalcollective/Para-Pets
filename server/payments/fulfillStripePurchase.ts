@@ -48,26 +48,36 @@ const paymentIntentId = (session: TrustedCheckoutSession) =>
   typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null;
 
 async function resolveEggBonusShopItemId(tx: any, bonus: NonNullable<CoinPackage["eggBonus"]>): Promise<string> {
-  const matches = bonus.shopItemId
-    ? await tx.execute(sql`
-        SELECT id FROM shop_items
-        WHERE id = ${bonus.shopItemId} AND type = 'pet'
-        FOR SHARE
-      `)
-    : bonus.shopItemName
-      ? await tx.execute(sql`
-          SELECT id FROM shop_items
-          WHERE name = ${bonus.shopItemName} AND type = 'pet'
-          ORDER BY id
-          LIMIT 2
-          FOR SHARE
-        `)
-      : null;
-
-  if (!matches || matches.rows.length !== 1) {
-    throw new Error(`Coin package ${bonus.itemName} reward does not resolve to exactly one live pet`);
+  // Prefer the immutable catalog id when it still exists. Some older limited-pet
+  // records were recreated during catalog work, so a configured exact name is a
+  // safe recovery key when that historical id no longer resolves.
+  if (bonus.shopItemId) {
+    const byId = await tx.execute(sql`
+      SELECT id FROM shop_items
+      WHERE id = ${bonus.shopItemId} AND type = 'pet'
+      FOR SHARE
+    `);
+    if (byId.rows.length === 1) return String((byId.rows[0] as { id: string }).id);
+    if (byId.rows.length > 1) {
+      throw new Error(`Coin package ${bonus.itemName} reward id resolves ambiguously`);
+    }
   }
-  return String((matches.rows[0] as { id: string }).id);
+
+  if (bonus.shopItemName) {
+    const byName = await tx.execute(sql`
+      SELECT id FROM shop_items
+      WHERE name = ${bonus.shopItemName} AND type = 'pet'
+      ORDER BY id
+      LIMIT 2
+      FOR SHARE
+    `);
+    if (byName.rows.length === 1) return String((byName.rows[0] as { id: string }).id);
+    if (byName.rows.length > 1) {
+      throw new Error(`Coin package ${bonus.itemName} reward name resolves ambiguously`);
+    }
+  }
+
+  throw new Error(`Coin package ${bonus.itemName} reward does not resolve to exactly one live pet`);
 }
 
 async function createPurchaserReward(
