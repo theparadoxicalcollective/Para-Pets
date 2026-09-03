@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import CardPreview from "@/components/CardPreview";
 import CardDetailDialog from "@/components/CardDetailDialog";
+import CardRewardCoin from "@/components/CardRewardCoin";
 import { getCardBorderLayout, type CardCollection } from "@/lib/cardCatalog";
 import { setNavHidden } from "@/lib/navVisibility";
 
@@ -33,6 +34,7 @@ export default function CardsCollectionPage() {
   const [rarityFilter, setRarityFilter] = useState<number | null>(null);
   const [sortMode, setSortMode] = useState("rarity");
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [rewardPopup, setRewardPopup] = useState<{ cardId: string; amount: number } | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data, isLoading, isError, refetch } = useQuery<CardCollection>({ queryKey: ["/api/cards"] });
@@ -42,12 +44,14 @@ export default function CardsCollectionPage() {
   const visibleCards = cards.filter(card => rarityFilter === null || card.rarity === rarityFilter)
     .sort((a, b) => sortMode === "name" ? a.name.localeCompare(b.name) : b.rarity - a.rarity || a.name.localeCompare(b.name));
   const claimReward = useMutation({
-    mutationFn: async (cardId: string) => (await apiRequest("POST", `/api/cards/${cardId}/claim`)).json(),
-    onSuccess: (_result, cardId) => {
+    mutationFn: async (cardId: string): Promise<{ claimed: boolean; coinsAwarded: number }> =>
+      (await apiRequest("POST", `/api/cards/${cardId}/claim`)).json(),
+    onSuccess: (result, cardId) => {
+      if (!result.claimed) return;
       queryClient.setQueryData<CardCollection>(["/api/cards"], current => current ? {
         ...current, cards: current.cards.map(card => card.id === cardId ? { ...card, firstRewardClaimed: true } : card),
       } : current);
-      toast({ title: "+100 coins", description: "First collection reward claimed!" });
+      if (result.coinsAwarded > 0) setRewardPopup({ cardId, amount: result.coinsAwarded });
     },
     onError: (error: Error) => toast({ title: "Could not claim reward", description: error.message, variant: "destructive" }),
     onSettled: () => {
@@ -55,6 +59,12 @@ export default function CardsCollectionPage() {
       void queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
     },
   });
+
+  useEffect(() => {
+    if (!rewardPopup) return;
+    const timeout = window.setTimeout(() => setRewardPopup(null), 1200);
+    return () => window.clearTimeout(timeout);
+  }, [rewardPopup]);
 
   useEffect(() => {
     setNavHidden(true);
@@ -365,15 +375,17 @@ export default function CardsCollectionPage() {
             </div>
             <p className="col-span-2 text-center text-xs text-amber-100/60">{rarityFilter ? "No cards of this rarity yet." : "Collected cards will appear here."}</p>
           </>}
-          {visibleCards.map(card => <article key={card.id} data-testid={`owned-card-${card.id}`} className="relative min-w-0">
+          {visibleCards.map(card => <article key={card.id} data-testid={`owned-card-${card.id}`} className="relative min-w-0 pb-8">
+            <div className="relative">
             <button type="button" aria-label={`View ${card.name}`} onClick={() => setSelectedCardId(card.id)} className="block w-full rounded-lg focus-visible:outline focus-visible:outline-amber-200">
               <CardPreview textSize="inventory" rarity={card.rarity} artworkUrl={card.artworkUrl} name={card.name} description={card.description} layout={getCardBorderLayout(layouts, card.rarity)} />
             </button>
             {card.quantity > 1 && <span aria-label={`${card.quantity} copies`} className="pointer-events-none absolute right-1 top-1 rounded-full border border-amber-200/60 bg-[#102419] px-2 py-1 text-xs font-bold">×{card.quantity}</span>}
-            {!card.firstRewardClaimed && <button type="button" aria-label={`Claim 100 coins for ${card.name}`} disabled={claimReward.isPending} onClick={() => claimReward.mutate(card.id)}
-              className="relative mx-auto -mt-2 mb-2 block rounded-full border border-amber-200/70 bg-[#5e420f] px-3 py-2 text-xs font-bold text-amber-100 shadow-lg disabled:opacity-50">
-              {claimReward.isPending && claimReward.variables === card.id ? "Claiming…" : "+100 coins"}
-            </button>}
+            <CardRewardCoin cardName={card.name} claimed={card.firstRewardClaimed}
+              disabled={claimReward.isPending} claiming={claimReward.isPending && claimReward.variables === card.id}
+              rewardAmount={rewardPopup?.cardId === card.id ? rewardPopup.amount : undefined}
+              onClaim={() => claimReward.mutate(card.id)} onDismiss={() => setRewardPopup(null)} />
+            </div>
           </article>)}
         </section>
 
@@ -398,7 +410,9 @@ export default function CardsCollectionPage() {
         />
       </div>
       {selectedCard && <CardDetailDialog key={selectedCard.id} card={selectedCard} layouts={layouts} onClose={() => setSelectedCardId(null)}
-        onClaim={() => claimReward.mutate(selectedCard.id)} claiming={claimReward.isPending} />}
+        onClaim={() => claimReward.mutate(selectedCard.id)} claiming={claimReward.isPending}
+        rewardAmount={rewardPopup?.cardId === selectedCard.id ? rewardPopup.amount : undefined}
+        onDismissReward={() => setRewardPopup(null)} />}
     </main>
   );
 }
