@@ -41,6 +41,7 @@ export default function RaidPage() {
   const [draftHp, setDraftHp] = useState("10000");
   const [draftMaxHp, setDraftMaxHp] = useState("10000");
   const [bossModalSaving, setBossModalSaving] = useState(false);
+  const bossSaveRef = useRef(false);
 
   const { data: raidStatusData, isLoading: raidStatusLoading } = useQuery<{ raidVisible: boolean }>({
     queryKey: ["/api/raid-status"],
@@ -130,27 +131,36 @@ export default function RaidPage() {
       const res = await apiRequest("POST", "/api/admin/raid-boss", { templateId: null });
       return res.json();
     },
-    onSuccess: () => { refetchRaidBoss(); toast({ title: "Raid Boss cleared" }); },
+    onSuccess: async () => { await refreshRaid(); toast({ title: "Raid Boss cleared" }); },
     onError: (err: any) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
   });
 
+  const refreshRaid = async () => {
+    await queryClient.cancelQueries({ queryKey: ["/api/raid-boss"] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["/api/raid-boss"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/raid/leaderboard"] }),
+    ]);
+  };
   const saveBossAndHp = async () => {
-    if (!pendingBossId) return;
+    if (!pendingBossId || bossSaveRef.current) return;
+    const hp = Number(draftHp);
+    const maxHp = Number(draftMaxHp);
+    if (!draftHp.trim() || !draftMaxHp.trim() || !Number.isInteger(hp) || !Number.isInteger(maxHp) || hp < 0 || maxHp < 1 || hp > maxHp || maxHp > 2_000_000_000) {
+      toast({ title: "Check boss HP", description: "Use whole numbers: Max HP from 1 to 2,000,000,000, and Starting HP from 0 to Max HP.", variant: "destructive" });
+      return;
+    }
+    bossSaveRef.current = true;
     setBossModalSaving(true);
     try {
-      const r1 = await apiRequest("POST", "/api/admin/raid-boss", { templateId: pendingBossId });
-      if (!r1.ok) throw new Error("Failed to set boss");
-      const hp = parseInt(draftHp, 10) || 1;
-      const maxHp = parseInt(draftMaxHp, 10) || 1;
-      const r2 = await apiRequest("POST", "/api/admin/raid-boss-hp", { hp, maxHp });
-      if (!r2.ok) throw new Error("Failed to set HP");
-      refetchRaidBoss();
+      await apiRequest("POST", "/api/admin/raid-boss", { templateId: pendingBossId, hp, maxHp });
+      await refreshRaid();
       setBossPickStep(null);
       setPendingBossId(null);
       toast({ title: `${pendingBossName} set as Raid Boss` });
     } catch (e: any) {
       toast({ title: "Failed", description: e.message, variant: "destructive" });
-    } finally { setBossModalSaving(false); }
+    } finally { bossSaveRef.current = false; setBossModalSaving(false); }
   };
 
   // ── Pet slots ─────────────────────────────────────────────────────
@@ -450,6 +460,7 @@ export default function RaidPage() {
                 >
                   <PetAnimator
                     petTemplateId={raidBossData.templateId}
+                    artworkForm="evolution"
                     mode="idle"
                     size={300}
                     fitVisible
@@ -470,6 +481,9 @@ export default function RaidPage() {
                     </div>
                   )}
                 </div>
+                {isAdmin && <button type="button" data-testid="button-change-raid-boss"
+                  onClick={() => setBossPickStep("pick")} disabled={clearBossMutation.isPending || bossModalSaving}
+                  style={{ position: "absolute", bottom: 4, left: -10, zIndex: 5, borderRadius: 8, padding: "6px 10px", background: "#563b16", border: "1px solid #d4a017", color: "#ffe5a0", cursor: "pointer", fontSize: 10 }}>Change Boss</button>}
                 {/* Admin: clear boss button in corner */}
                 {isAdmin && (
                   <button
@@ -477,7 +491,7 @@ export default function RaidPage() {
                     onClick={() => clearBossMutation.mutate()}
                     disabled={clearBossMutation.isPending}
                     style={{
-                      position: "absolute", bottom: 4, right: -10,
+                      position: "absolute", bottom: 4, right: -10, zIndex: 5,
                       height: 28, borderRadius: 8,
                       background: "linear-gradient(135deg, #5a0a0a, #a01818)",
                       border: "1px solid rgba(240,80,40,0.7)",
@@ -553,7 +567,7 @@ export default function RaidPage() {
         {/* ── Boss picker 2-step modal ─────────────────────────────── */}
         {isAdmin && bossPickStep !== null && (
           <div
-            onClick={() => setBossPickStep(null)}
+            onClick={() => { if (!bossSaveRef.current) setBossPickStep(null); }}
             style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center" }}
           >
             <div
@@ -566,7 +580,7 @@ export default function RaidPage() {
                   {bossPickStep === "pick" ? "Choose Raid Boss" : `Set HP for ${pendingBossName}`}
                 </p>
                 <button
-                  onClick={() => setBossPickStep(null)}
+                  onClick={() => { if (!bossSaveRef.current) setBossPickStep(null); }}
                   style={{ background: "none", border: "none", color: "#a89878", cursor: "pointer", fontSize: 20, lineHeight: 1, padding: 0 }}
                 >✕</button>
               </div>
@@ -600,13 +614,13 @@ export default function RaidPage() {
               {bossPickStep === "hp" && (
                 <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 18 }}>
                   <p style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#a89878", margin: 0, textAlign: "center" }}>
-                    Set the boss HP pool for this raid event
+                    Set the boss HP pool. Saving starts a new raid and resets the raid leaderboard.
                   </p>
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       <label style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#a89878" }}>Max HP</label>
                       <input
-                        type="number" min={1} value={draftMaxHp}
+                        type="number" min={1} max={2_000_000_000} disabled={bossModalSaving} value={draftMaxHp}
                         onChange={(e) => { setDraftMaxHp(e.target.value); setDraftHp(e.target.value); }}
                         style={{ borderRadius: 10, padding: "10px 12px", fontSize: 15, fontFamily: "Lora, serif", background: "rgba(0,0,0,0.5)", border: "1px solid rgba(240,160,40,0.35)", color: "#f0c040", outline: "none", width: "100%" }}
                       />
@@ -614,7 +628,7 @@ export default function RaidPage() {
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       <label style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#a89878" }}>Starting HP <span style={{ color: "#5a4020", fontSize: 10 }}>(defaults to Max HP)</span></label>
                       <input
-                        type="number" min={0} value={draftHp}
+                        type="number" min={0} disabled={bossModalSaving} value={draftHp}
                         onChange={(e) => setDraftHp(e.target.value)}
                         style={{ borderRadius: 10, padding: "10px 12px", fontSize: 15, fontFamily: "Lora, serif", background: "rgba(0,0,0,0.5)", border: "1px solid rgba(220,60,40,0.3)", color: "#f0c040", outline: "none", width: "100%" }}
                       />
@@ -623,6 +637,7 @@ export default function RaidPage() {
                   <div style={{ display: "flex", gap: 10 }}>
                     <button
                       onClick={() => setBossPickStep("pick")}
+                      disabled={bossModalSaving}
                       style={{ flex: 1, borderRadius: 10, padding: "11px 0", fontFamily: "Lora, serif", fontSize: 12, color: "#a89878", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer" }}
                     >← Back</button>
                     <button
@@ -1100,3 +1115,4 @@ export default function RaidPage() {
     </div>
   );
 }
+

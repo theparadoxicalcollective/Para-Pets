@@ -1,3 +1,6 @@
+import AdornmentArtwork from "./AdornmentArtwork";
+import MirroredWingUpload from "./MirroredWingUpload";
+import { ADORNMENT_ANIMATIONS, ADORNMENT_ANIMATION_LABELS, ADORNMENT_MOTION_CSS, type AdornmentAnimation } from "@shared/adornmentAnimation";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { basePetPartType } from "@/lib/petPartConfig";
@@ -8,9 +11,11 @@ import { Plus, Trash2, X, ArrowLeft, Save, Layers, Link2, Pencil, ChevronUp, Che
 import { renderPetGif, type GifAnimation } from "@/lib/petGif";
 import { getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
 import { PET_ANIMATION_PROFILES, type PetAnimationProfile, normalizeAnimationProfile } from "@/lib/petAnimationConfig";
-import { COSTUME_MAX_PLACEMENT_INSTANCES, type CostumePlacement } from "@shared/costumeFeature";
+import { COSTUME_MAX_PLACEMENT_INSTANCES, getWingReplacementPartTypes, type CostumePlacement } from "@shared/costumeFeature";
 import {
-  getCostumeAnchorPoint,
+  getCostumePlacementAnchorPoint,
+  detachCostumePlacement,
+  changeCostumePivot,
   getCostumeCanvasPosition,
   getCostumeDragOffset,
   getDraggedCostumePosition,
@@ -334,6 +339,9 @@ export default function PetDatabasePanel({
   const [selectedCostumeInstance, setSelectedCostumeInstance] = useState(1);
   const [costumeSearch, setCostumeSearch] = useState("");
   const [costumeDraft, setCostumeDraft] = useState<CostumePlacement | null>(null);
+  const [previewAdornmentMotion, setPreviewAdornmentMotion] = useState(false);
+  const [readingWingImage, setReadingWingImage] = useState(false);
+  const [wingUploadRevision, setWingUploadRevision] = useState(0);
   const [costumeDraftDirty, setCostumeDraftDirty] = useState(false);
   const [draggingCostume, setDraggingCostume] = useState(false);
   const costumeDragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
@@ -464,26 +472,15 @@ export default function PetDatabasePanel({
   const savedCostumePlacement = selectedCostumeDefinition?.placements.find(placement =>
     placement.view === currentCostumeView && (placement.instance ?? 1) === selectedCostumeInstance
   );
-  const currentViewPartTypes = new Set(viewParts.map(part => part.partType));
-  const uploadedPartTypes = Array.from(new Set((templateDetail?.parts ?? []).map(part => part.partType)));
-  const costumeParts = uploadedPartTypes.map(partType => {
-    const matching = (templateDetail?.parts ?? []).filter(part => part.partType === partType);
-    const views = Array.from(new Set(matching.map(part => part.view)));
-    return {
-      partType,
-      label: ALL_PART_DEFS.find(def => def.key === partType)?.label ?? partType,
-      availableInCurrentView: currentViewPartTypes.has(partType),
-      views,
-    };
-  });
   const defaultCostumePlacement = (): CostumePlacement => ({
     view: currentCostumeView,
-    anchorPart: costumeParts.find(part => part.partType === "body" && part.availableInCurrentView)?.partType
-      ?? costumeParts.find(part => part.availableInCurrentView)?.partType
-      ?? "body",
+    anchorPart: "independent",
+    animation: "none",
+    animationSpeed: 1,
+    replacesWings: false,
     instance: selectedCostumeInstance,
-    posX: 0,
-    posY: 0,
+    posX: 500,
+    posY: 500,
     width: 300,
     height: 300,
     pivotX: 50,
@@ -495,9 +492,19 @@ export default function PetDatabasePanel({
   const selectedCostumePlacement = selectedCostumeId
     ? costumeDraft ?? savedCostumePlacement ?? defaultCostumePlacement()
     : undefined;
-  const costumeAnchor = viewParts.find(part => part.partType === selectedCostumePlacement?.anchorPart) ?? viewParts.find(part => part.partType === "body");
-  const costumeAnchorPoint = getCostumeAnchorPoint(costumeAnchor);
+  const costumeAnchor = viewParts.find(part => part.partType === selectedCostumePlacement?.anchorPart);
+  const costumeAnchorPoint = getCostumePlacementAnchorPoint(costumeAnchor, selectedCostumePlacement);
   const costumeCanvasPosition = getCostumeCanvasPosition(costumeAnchor, selectedCostumePlacement);
+  const previewHiddenWings = new Set<string>();
+  for (const instance of costumeInstances) {
+    const placement = instance === selectedCostumeInstance ? selectedCostumePlacement
+      : selectedCostumeDefinition?.placements.find(p => p.view === currentCostumeView && (p.instance ?? 1) === instance);
+    if (!placement) continue;
+    if (placement.anchorPart === "independent" && placement.replacesWings) {
+      viewParts.forEach(part => { if (part.partType.includes("wing")) previewHiddenWings.add(part.partType); });
+    }
+    getWingReplacementPartTypes(placement.anchorPart).forEach(part => previewHiddenWings.add(part));
+  }
   const canSaveCostumePlacement = !!selectedCostumePlacement && (costumeDraftDirty || !savedCostumePlacement);
   const nextCostumeInstance = Array.from({ length: COSTUME_MAX_PLACEMENT_INSTANCES }, (_, index) => index + 1)
     .find(instance => !costumeInstances.includes(instance));
@@ -609,8 +616,9 @@ export default function PetDatabasePanel({
       });
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+    onSuccess: (_part, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", variables.templateId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts", variables.templateId] });
       setUploadPartType(null);
       toast({ title: "Added", description: "Part added to canvas" });
     },
@@ -677,16 +685,20 @@ export default function PetDatabasePanel({
     mutationFn: async ({ itemId, placement }: { itemId: string; placement: CostumePlacement }) => {
       const existing = costumeDefinitions.find(definition => definition.shopItemId === itemId)?.placements ?? [];
       const placementInstance = placement.instance ?? 1;
-      const normalizedPlacement = { ...placement, instance: placementInstance };
+      const imageData = placement.mirroredWingImageUrl?.startsWith("data:") ? placement.mirroredWingImageUrl : undefined;
+      const mirroredWingUpload = imageData ? { view: placement.view, instance: placementInstance, imageData } : undefined;
+      const normalizedPlacement = { ...placement, instance: placementInstance,
+        mirroredWingImageUrl: imageData ? undefined : placement.mirroredWingImageUrl };
       const placements = [
         ...existing.filter(current => current.view !== placement.view || (current.instance ?? 1) !== placementInstance),
         normalizedPlacement,
       ];
-      const res = await apiRequest("PUT", "/api/admin/costume-definitions", { shopItemId: itemId, templateId: selectedTemplateId, placements });
+      const res = await apiRequest("PUT", "/api/admin/costume-definitions", { shopItemId: itemId, templateId: selectedTemplateId, placements, mirroredWingUpload });
       return res.json();
     },
     onSuccess: (data: CostumeDefinition, variables) => {
-      setCostumeDraft(variables.placement);
+      setCostumeDraft(data.placements.find(placement => placement.view === variables.placement.view &&
+        (placement.instance ?? 1) === (variables.placement.instance ?? 1)) ?? null);
       setCostumeDraftDirty(false);
       queryClient.setQueryData<CostumeDefinition[]>(["/api/admin/costume-definitions", selectedTemplateId], current => [
         ...(current ?? []).filter(definition => definition.shopItemId !== data.shopItemId),
@@ -779,10 +791,12 @@ export default function PetDatabasePanel({
     setCostumeDraftDirty(true);
   };
   const saveCostumePlacement = () => {
+    if (readingWingImage) return;
     if (!selectedCostumeId || !selectedCostumePlacement || !canSaveCostumePlacement || saveCostumeMutation.isPending) return;
     saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: { ...selectedCostumePlacement, instance: selectedCostumeInstance, rotation: selectedCostumePlacement.rotation ?? 0, flipX: selectedCostumePlacement.flipX ?? false } });
   };
   const discardCostumeDraft = () => {
+    setWingUploadRevision(value => value + 1);
     costumeDragRef.current = null;
     setCostumeDraft(null);
     setCostumeDraftDirty(false);
@@ -1141,6 +1155,7 @@ export default function PetDatabasePanel({
           </aside>
 
           <section className="order-3 xl:order-2 space-y-2">
+            <style>{ADORNMENT_MOTION_CSS}</style>
             <p className="text-center text-[11px]" style={{ color: selectedCostumeItem ? "#d8b4fe" : "#a89878" }}>
               {selectedCostumeItem ? "Press and drag the costume to position it. It will not save until you tap Save placement." : "Select a costume from the library to begin."}
             </p>
@@ -1161,7 +1176,7 @@ export default function PetDatabasePanel({
               onPointerUp={(event) => endCostumeDrag(event.pointerId)}
               onPointerCancel={(event) => endCostumeDrag(event.pointerId)}
             >
-              {viewParts.map(part => (
+              {viewParts.filter(part => !previewHiddenWings.has(part.partType)).map(part => (
                 <img
                   key={part.id}
                   src={part.imageUrl}
@@ -1209,7 +1224,7 @@ export default function PetDatabasePanel({
                       pointerEvents: isActive ? "auto" : "none",
                     }}
                   >
-                    <img src={selectedCostumeItem.imageUrl!} alt={`${selectedCostumeItem.name} ${instance === 1 ? "original" : `copy ${instance - 1}`}`} className="w-full h-full object-contain pointer-events-none" draggable={false} />
+                    <AdornmentArtwork src={selectedCostumeItem.imageUrl!} placement={placement} animated={previewAdornmentMotion && !draggingCostume && placement.anchorPart === "independent"} />
                   </div>
                 );
               })}
@@ -1274,22 +1289,41 @@ export default function PetDatabasePanel({
                     )}
                   </div>
                 </div>
-                <label className="block text-xs" style={{ color: "#a89878" }}>
-                  Anchor part
-                  <select
-                    value={selectedCostumePlacement.anchorPart}
-                    disabled={saveCostumeMutation.isPending}
-                    onChange={event => updateCostumeDraft({ anchorPart: event.target.value })}
-                    className="block w-full mt-1 p-2.5 rounded"
-                    style={{ background: "#201526", color: "#e7d7b5", border: "1px solid rgba(192,132,252,.25)" }}
-                  >
-                    {costumeParts.map(part => (
-                      <option key={part.partType} value={part.partType} disabled={!part.availableInCurrentView}>
-                        {part.label}{part.availableInCurrentView ? "" : ` — ${part.views.map(view => view === "back" ? "side" : view).join("/")} only`}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                {selectedCostumePlacement.anchorPart !== "independent" ? (
+                  <div className="space-y-2 text-xs" style={{ color: "#a89878" }}>
+                    <p>This saved fitting follows {selectedCostumePlacement.anchorPart}. Give it its own placement to choose its motion.</p>
+                    <button type="button" disabled={saveCostumeMutation.isPending || !costumeAnchor} onClick={() => {
+                      const detached = detachCostumePlacement(costumeAnchor, selectedCostumePlacement);
+                      if (detached) updateCostumeDraft(detached);
+                    }} className="w-full rounded p-2.5" style={{ background: "#382444", color: "#e7d7b5" }}>Use independent placement</button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-xs" style={{ color: "#a89878" }}>Independent placement — drag anywhere on this pet's canvas.</p>
+                    <label className="block text-xs" style={{ color: "#a89878" }}>Animation
+                      <select data-testid="select-adornment-animation" value={selectedCostumePlacement.animation ?? "none"} disabled={saveCostumeMutation.isPending}
+                        onChange={event => updateCostumeDraft({ animation: event.target.value as AdornmentAnimation })}
+                        className="block w-full mt-1 p-2.5 rounded" style={{ background: "#201526", color: "#e7d7b5" }}>
+                        {ADORNMENT_ANIMATIONS.map(animation => <option key={animation} value={animation}>{ADORNMENT_ANIMATION_LABELS[animation]}</option>)}
+                      </select>
+                    </label>
+                    {selectedCostumePlacement.animation === "wings" && <MirroredWingUpload
+                      key={`${selectedTemplateId}:${selectedCostumeId}:${currentCostumeView}:${selectedCostumeInstance}:${wingUploadRevision}`}
+                      imageUrl={selectedCostumePlacement.mirroredWingImageUrl} disabled={saveCostumeMutation.isPending}
+                      onPendingChange={setReadingWingImage} onChange={mirroredWingImageUrl => updateCostumeDraft({ mirroredWingImageUrl })} />}
+                    <label className="block text-xs" style={{ color: "#a89878" }}>Speed
+                      <select value={selectedCostumePlacement.animationSpeed ?? 1} disabled={saveCostumeMutation.isPending} onChange={event => updateCostumeDraft({ animationSpeed: Number(event.target.value) })}
+                        className="block w-full mt-1 p-2.5 rounded" style={{ background: "#201526", color: "#e7d7b5" }}>
+                        <option value={0.5}>Slow</option><option value={1}>Normal</option><option value={1.5}>Lively</option>
+                      </select>
+                    </label>
+                    <label className="flex gap-2 text-xs" style={{ color: "#a89878" }}><input type="checkbox" checked={!!selectedCostumePlacement.replacesWings} disabled={saveCostumeMutation.isPending} onChange={event => updateCostumeDraft({ replacesWings: event.target.checked })} />Hide the pet's original wings</label>
+                    <label className="flex gap-2 text-xs" style={{ color: "#a89878" }}><input type="checkbox" checked={previewAdornmentMotion} onChange={event => setPreviewAdornmentMotion(event.target.checked)} />Preview motion (pauses while dragging)</label>
+                    {(["pivotX", "pivotY"] as const).map(axis => <label key={axis} className="block text-xs" style={{ color: "#a89878" }}>Pivot {axis === "pivotX" ? "horizontal" : "vertical"}: {Math.round(selectedCostumePlacement[axis])}%
+                      <input type="range" min={0} max={100} value={selectedCostumePlacement[axis]} disabled={saveCostumeMutation.isPending} onChange={event => updateCostumeDraft(changeCostumePivot(selectedCostumePlacement, axis, Number(event.target.value)))} className="block w-full mt-2" />
+                    </label>)}
+                  </div>
+                )}
                 <label className="block text-xs" style={{ color: "#a89878" }}>
                   Size <span className="float-right">{Math.round(selectedCostumePlacement.width)} × {Math.round(selectedCostumePlacement.height)}</span>
                   <input
@@ -1380,7 +1414,7 @@ export default function PetDatabasePanel({
                   <button
                     data-testid="button-save-costume-placement"
                     onClick={saveCostumePlacement}
-                    disabled={!canSaveCostumePlacement || saveCostumeMutation.isPending}
+                    disabled={!canSaveCostumePlacement || saveCostumeMutation.isPending || readingWingImage}
                     className="flex w-full items-center justify-center gap-2 rounded-lg p-3 text-xs font-semibold disabled:opacity-50"
                     style={{ background: canSaveCostumePlacement ? "linear-gradient(135deg,rgba(126,34,206,.9),rgba(192,132,252,.72))" : "rgba(192,132,252,.16)", border: "1px solid rgba(216,180,254,.55)", color: "#fff", boxShadow: canSaveCostumePlacement ? "0 0 16px rgba(192,132,252,.24)" : "none" }}
                   >
@@ -1403,7 +1437,7 @@ export default function PetDatabasePanel({
         {editorTab === "evolution" && (
           <div data-testid="evolution-parts-notice" className="rounded-lg px-3 py-2" style={{ background: "rgba(192,132,252,.08)", border: "1px solid rgba(192,132,252,.3)" }}>
             <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#c084fc" }}>EVOLUTION ARTWORK</p>
-            <p className="mt-1 text-[10px]" style={{ color: "#a89878" }}>Upload and arrange the evolved pet layers here. These files are stored separately from the normal pet and will not activate until the full evolution process is added.</p>
+            <p className="mt-1 text-[10px]" style={{ color: "#a89878" }}>Upload and arrange the evolved pet layers here. Raid bosses use these parts when available. Player evolution is still Coming Soon.</p>
           </div>
         )}
         <div className="flex items-center gap-2 mb-1">

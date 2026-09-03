@@ -1044,6 +1044,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                 <div style={{ width: "100%", position: "relative", zIndex: 1 }}>
                   <PetAnimator
                     petTemplateId={raidBossData.templateId}
+                    artworkForm="evolution"
                     mode="idle"
                     view="front"
                     size={1000}
@@ -2404,3 +2405,4 @@ function HomeHatchBar({ hatchStartedAt, hatchTime }: { hatchStartedAt: string; h
     </div>
   );
 }
+

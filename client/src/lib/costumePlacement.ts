@@ -17,6 +17,7 @@ export interface CostumeAnchorGeometry {
   height: number;
   pivotX?: number | null;
   pivotY?: number | null;
+  rotation?: number | null;
 }
 
 /** Resolve the anchor pivot in the pet editor's 1000 × 1000 template space. */
@@ -33,7 +34,7 @@ export function getCostumeCanvasPosition(
   anchor: CostumeAnchorGeometry | null | undefined,
   placement: CostumePlacement | null | undefined,
 ): { left: number; top: number } | null {
-  const anchorPoint = getCostumeAnchorPoint(anchor);
+  const anchorPoint = getCostumePlacementAnchorPoint(anchor, placement);
   if (!anchorPoint || !placement) return null;
   return {
     left: anchorPoint.x + placement.posX - placement.width * placement.pivotX / 100,
@@ -82,4 +83,31 @@ export function resizeCostumePlacement(
     width: Math.round(placement.width * scale),
     height: Math.round(placement.height * scale),
   };
+}
+
+
+/** An independent piece stores its pivot directly in the 1000×1000 pet canvas. */
+export function getCostumePlacementAnchorPoint(anchor: CostumeAnchorGeometry | null | undefined, placement: CostumePlacement | null | undefined) {
+  return placement?.anchorPart === "independent" ? { x: 0, y: 0 } : getCostumeAnchorPoint(anchor);
+}
+
+/** Explicit conversion preserves the canvas position and rotation shown in the editor. */
+export function detachCostumePlacement(anchor: CostumeAnchorGeometry | null | undefined, placement: CostumePlacement): CostumePlacement | null {
+  if (placement.anchorPart === "independent") return placement;
+  const origin = getCostumeAnchorPoint(anchor);
+  if (!origin) return null;
+  return {
+    ...placement, anchorPart: "independent", animation: "none", animationSpeed: 1,
+    replacesWings: placement.anchorPart.includes("wing"),
+    posX: origin.x + placement.posX,
+    posY: origin.y + placement.posY,
+  };
+}
+
+/** Move the independent pivot without moving the artwork's top-left corner. */
+export function changeCostumePivot(placement: CostumePlacement, axis: "pivotX" | "pivotY", value: number): Partial<CostumePlacement> {
+  const next = Math.max(0, Math.min(100, value));
+  const coordinate = axis === "pivotX" ? "posX" : "posY";
+  const dimension = axis === "pivotX" ? placement.width : placement.height;
+  return { [axis]: next, [coordinate]: placement[coordinate] + dimension * (next - placement[axis]) / 100 };
 }

@@ -1,3 +1,4 @@
+import { petTemplateQuery, type PetArtworkForm } from "@/lib/petTemplateQuery";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { getAlphaBounds, getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
@@ -21,8 +22,12 @@ interface PetPart {
   rotation: number;
 }
 
+export interface PetCanvasLayout { templateId: string; innerSize: number; innerOffset: number; transform: string; }
+
 interface PetAnimatorProps {
+  onCanvasLayout?: (layout: PetCanvasLayout) => void;
   petTemplateId: string;
+  artworkForm?: PetArtworkForm;
   mode: "idle" | "walk" | "zoom" | "house" | "static" | "sleep" | "petting";
   view?: "front" | "back";
   size?: number;
@@ -1356,7 +1361,7 @@ function buildHeadGroups(parts: PetPart[]): { head: PetPart; faceParts: PetPart[
   return groups;
 }
 
-export default function PetAnimator({ petTemplateId, mode, view = "front", size = 200, fillContainer = false, fitVisible = false, expression = "neutral", className = "", style: externalStyle, performanceStatic = false, lowMemory = false, hiddenPartTypes }: PetAnimatorProps) {
+export default function PetAnimator({ petTemplateId, artworkForm = "base", mode, view = "front", size = 200, fillContainer = false, fitVisible = false, expression = "neutral", className = "", style: externalStyle, performanceStatic = false, lowMemory = false, hiddenPartTypes, onCanvasLayout }: PetAnimatorProps) {
   // Stable random blink offset per instance — spreads eye animations across the
   // full 4 s blink cycle so pets don't all blink at the same time.
   const blinkOffset = useRef(`-${(Math.random() * 4).toFixed(2)}s`);
@@ -1398,14 +1403,7 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
   }, [fillContainer, performanceStatic, lowMemory]);
 
   const { data: templateData } = useQuery<{ parts: PetPart[]; facing: string; canFly?: boolean; idleStyle?: string | null }>({
-    queryKey: ["/api/pet-template-parts", petTemplateId],
-    queryFn: async () => {
-      const res = await fetch(`/api/pet-template-parts/${petTemplateId}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    },
-    enabled: !!petTemplateId,
-    staleTime: Infinity,
+    ...petTemplateQuery(petTemplateId, artworkForm),
   });
 
   const allParts = useMemo(
@@ -1538,8 +1536,6 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     return getEffectivePetLayer(a, facing) - getEffectivePetLayer(b, facing);
   });
 
-  if (viewParts.length === 0) return null;
-
   // Large-style parts (1000x1000) fill the full canvas — scale them down visually
   // so they match the old 300x300 in-game footprint (30% of the container).
   const isLargeStyle = viewParts.some(p => p.width >= 500 || p.height >= 500);
@@ -1617,6 +1613,12 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
       }
     }
   }
+
+  useLayoutEffect(() => {
+    onCanvasLayout?.({ templateId: petTemplateId, innerSize, innerOffset, transform: fitTransform });
+  }, [onCanvasLayout, petTemplateId, innerSize, innerOffset, fitTransform]);
+
+  if (viewParts.length === 0) return null;
 
   // Build head groups (each head gets its own associated face parts by proximity)
   const headGroups = buildHeadGroups(viewParts);
@@ -2296,3 +2298,4 @@ export default function PetAnimator({ petTemplateId, mode, view = "front", size 
     </div>
   );
 }
+

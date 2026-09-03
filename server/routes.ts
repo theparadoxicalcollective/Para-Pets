@@ -1,3 +1,5 @@
+import { resolvePetArtwork } from "./petArtwork";
+import { raidBossSelectionSchema, saveRaidBoss } from "./raidBossAdmin";
 import { processEvolutionImageUpdate } from "./evolutionImageUpload";
 import { AccountConflictError } from "./accounts/errors";
 import { publicAccount } from "./accounts/publicAccount";
@@ -812,7 +814,7 @@ export async function registerRoutes(
   registerSoulExchangeRoutes(app, { isAuthenticated });
   registerClearingEquipmentRoutes(app, { db, storage, isAuthenticated });
   registerClearingAdminRoutes(app, { db, isAdmin });
-  registerCostumeAdminRoutes(app);
+  registerCostumeAdminRoutes(app, data => processWorldImage(data, 2000));
   registerCostumePlayerRoutes(app);
 
   const marketplaceRouteDependencies: MarketplaceRouteDependencies = {
@@ -956,17 +958,19 @@ export async function registerRoutes(
   });
 
   // ── Public: get raid boss info ─────────────────────────────────────────────
+  let _raidBossVersion = 0;
   let _raidBossCache: { templateId: string | null; rarity: number | null; name: string | null; hp: number; maxHp: number; at: number } | null = null;
 
   app.get("/api/raid-boss", async (_req, res) => {
     try {
+      const version = _raidBossVersion;
       const now = Date.now();
       if (_raidBossCache && now - _raidBossCache.at < 5_000) {
         return res.json({ templateId: _raidBossCache.templateId, rarity: _raidBossCache.rarity, name: _raidBossCache.name, hp: _raidBossCache.hp, maxHp: _raidBossCache.maxHp });
       }
       const templateId = await storage.getGameSetting("raid_boss_template_id");
       if (!templateId) {
-        _raidBossCache = { templateId: null, rarity: null, name: null, hp: 0, maxHp: 0, at: now };
+        if (version === _raidBossVersion) _raidBossCache = { templateId: null, rarity: null, name: null, hp: 0, maxHp: 0, at: now };
         return res.json({ templateId: null, rarity: null, name: null, hp: 0, maxHp: 0 });
       }
       const [template, hpStr, maxHpStr, shopRow] = await Promise.all([
@@ -979,7 +983,7 @@ export async function registerRoutes(
       const hp = hpStr ? parseInt(hpStr, 10) : maxHp;
       const rarity: number | null = (shopRow.rows[0]?.rarity as number | null) ?? null;
       const result = { templateId, rarity, name: template?.name ?? null, hp, maxHp };
-      _raidBossCache = { ...result, at: now };
+      if (version === _raidBossVersion) _raidBossCache = { ...result, at: now };
       return res.json(result);
     } catch {
       return res.json({ templateId: null, rarity: null, name: null, hp: 0, maxHp: 0 });
@@ -1091,6 +1095,7 @@ export async function registerRoutes(
       const remaining = rows[0].quantity as number;
 
       // Bust the server-side cache so the next GET /api/raid-boss reflects real HP
+      _raidBossVersion++;
       _raidBossCache = null;
 
       return res.json({ success: true, remaining, bossHp, bossMaxHp });
@@ -1125,6 +1130,7 @@ export async function registerRoutes(
 
       // Invalidate the in-process cache so the next GET /api/raid-boss
       // returns the fresh HP from the DB rather than the stale cached value.
+      _raidBossVersion++;
       _raidBossCache = null;
 
       // Accumulate this player's contribution on their user row
@@ -1227,28 +1233,17 @@ export async function registerRoutes(
   // Attack damage rules (fixed game constants):
   //   normal attack = 20% of target pet's current HP
   //   large  attack = 30% of target pet's current HP
-  const RAID_NORMAL_ATK_PCT = 20;
-  const RAID_LARGE_ATK_PCT  = 30;
 
   app.post("/api/admin/raid-boss", isAdmin, async (req, res) => {
     try {
-      const { templateId } = req.body as { templateId: string | null };
-      await storage.setGameSetting("raid_boss_template_id", templateId || "");
-      // Seed attack-% constants so battle logic can read them from game_settings
-      const existingNormal = await storage.getGameSetting("raid_boss_normal_atk_pct");
-      if (!existingNormal) await storage.setGameSetting("raid_boss_normal_atk_pct", String(RAID_NORMAL_ATK_PCT));
-      const existingLarge = await storage.getGameSetting("raid_boss_large_atk_pct");
-      if (!existingLarge) await storage.setGameSetting("raid_boss_large_atk_pct", String(RAID_LARGE_ATK_PCT));
-      // Reset leaderboard and defeat lock whenever a new boss is chosen
-      await db.execute(sql`
-        INSERT INTO game_settings (key, value) VALUES ('raid_defeat_lock_current', 'pending')
-        ON CONFLICT (key) DO UPDATE SET value = 'pending'
-      `);
-      await db.execute(sql`UPDATE users SET raid_total_damage = 0 WHERE COALESCE(raid_total_damage, 0) > 0`);
+      const parsed = raidBossSelectionSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0].message });
+      await saveRaidBoss(db, parsed.data);
+      _raidBossVersion++;
       _raidBossCache = null;
       return res.json({ success: true });
     } catch (err: any) {
-      return res.status(500).json({ message: err.message });
+      return res.status(err.status === 404 ? 404 : 500).json({ message: err.status === 404 ? err.message : "Could not save raid boss. Please try again." });
     }
   });
 
@@ -1267,6 +1262,7 @@ export async function registerRoutes(
       `);
       await db.execute(sql`UPDATE users SET raid_total_damage = 0 WHERE COALESCE(raid_total_damage, 0) > 0`);
 
+      _raidBossVersion++;
       _raidBossCache = null;
       return res.json({ success: true });
     } catch (err: any) {
@@ -4431,20 +4427,25 @@ export async function registerRoutes(
   app.get("/api/pet-template-parts/:templateId", isAuthenticated, async (req, res) => {
     try {
       const { templateId } = req.params as Record<string, string>;
-      const cached = getCachedTemplateParts(templateId);
+      const requestedForm = req.query.form ?? "base";
+      if (requestedForm !== "base" && requestedForm !== "evolution") return res.status(400).json({ message: "form must be base or evolution" });
+      const cacheKey = requestedForm === "base" ? templateId : `${templateId}:evolution`;
+      const cached = getCachedTemplateParts(cacheKey);
       if (cached) return res.json(cached);
 
       const [parts, template] = await Promise.all([
         storage.getPetTemplateParts(templateId),
         storage.getPetTemplate(templateId),
       ]);
+      const artwork = requestedForm === "evolution"
+        ? resolvePetArtwork(parts, await storage.getPetTemplateParts(templateId, "evolution"), template?.facing ?? "front")
+        : { parts, facing: template?.facing ?? "front", form: "base" };
       const result = {
-        parts,
-        facing: template?.facing ?? "front",
+        ...artwork,
         canFly: template?.canFly ?? false,
         idleStyle: template?.idleStyle ?? null,
       };
-      setCachedTemplateParts(templateId, result);
+      setCachedTemplateParts(cacheKey, result);
       return res.json(result);
     } catch (err) {
       console.error("Get pet template parts error:", err);
@@ -4598,6 +4599,7 @@ export async function registerRoutes(
       if (sleepingImageData) updates.sleepingImageUrl = await processWorldImage(sleepingImageData, 1000);
       if (clearSleepingImage) updates.sleepingImageUrl = null;
       const updated = await storage.updatePetTemplate((req.params.id as string), updates);
+      templatePartsCache.clear();
       return res.json(updated);
     } catch (err) {
       console.error("Update pet template error:", err);
@@ -4641,6 +4643,7 @@ export async function registerRoutes(
         pivotY: typeof pivotY === "number" ? Math.max(0, Math.min(100, pivotY)) : 50,
         rotation: typeof rotation === "number" ? Math.max(-180, Math.min(180, Math.round(rotation))) : 0,
       });
+      templatePartsCache.clear();
       return res.status(201).json(part);
     } catch (err) {
       console.error("Create pet template part error:", err);
@@ -4756,6 +4759,7 @@ export async function registerRoutes(
       else updates.backAssembled = assembledDataUrl;
 
       const updated = await storage.updatePetTemplate((req.params.id as string), updates);
+      templatePartsCache.clear();
       return res.json(updated);
     } catch (err) {
       console.error("Assemble pet template error:", err);
@@ -8680,4 +8684,3 @@ export async function registerRoutes(
 
   return httpServer;
 }
-

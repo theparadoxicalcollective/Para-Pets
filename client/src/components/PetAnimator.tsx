@@ -1,6 +1,10 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import AdornmentArtwork from "./AdornmentArtwork";
+import { ADORNMENT_MOTION_CSS } from "@shared/adornmentAnimation";
+import { petTemplateQuery, type PetArtworkForm } from "@/lib/petTemplateQuery";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import PetAnimatorCore from "@/components/PetAnimatorCore";
+import type { PetCanvasLayout } from "@/components/PetAnimatorCore";
 import { apiRequest } from "@/lib/queryClient";
 import { getCostumeCanvasPosition } from "@/lib/costumePlacement";
 import { getEffectivePetLayer } from "@/lib/petPartConfig";
@@ -49,6 +53,7 @@ interface CostumeResponse {
 
 export interface PetAnimatorProps {
   petTemplateId: string;
+  artworkForm?: PetArtworkForm;
   mode: "idle" | "walk" | "zoom" | "house" | "static" | "sleep" | "petting";
   view?: "front" | "back";
   size?: number;
@@ -399,6 +404,17 @@ function CostumeLayer({
     if (!costume.imageUrl || placements.length === 0) return null;
 
     return <>{placements.map((placement) => {
+      if (placement.anchorPart === "independent") {
+        const position = getCostumeCanvasPosition(null, placement)!;
+        return <div key={`${costume.id}-${costumeView}-${depth}-${placement.instance ?? 1}`}
+          data-testid={`adornment-independent-${costume.id}-${placement.instance ?? 1}`}
+          style={{ position: "absolute", left: `${position.left / CANVAS_SIZE * 100}%`, top: `${position.top / CANVAS_SIZE * 100}%`,
+            width: `${placement.width / CANVAS_SIZE * 100}%`, height: `${placement.height / CANVAS_SIZE * 100}%`,
+            transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flipX ? -1 : 1})`,
+            transformOrigin: `${placement.pivotX}% ${placement.pivotY}%`, pointerEvents: "none" }}>
+          <AdornmentArtwork src={costume.imageUrl!} placement={placement} animated={mode !== "static"} />
+        </div>;
+      }
       const anchor = sortedParts.find(part => part.partType === placement.anchorPart);
       if (!anchor || anchor.width <= 0 || anchor.height <= 0) return null;
       const position = getCostumeCanvasPosition(anchor, placement);
@@ -551,6 +567,7 @@ function AboveHeadTopLayer({
 
 export default function PetAnimator({
   petTemplateId,
+  artworkForm = "base",
   mode,
   view = "front",
   size = 200,
@@ -564,6 +581,10 @@ export default function PetAnimator({
   petInventoryId,
   costumeAccess = "owner",
 }: PetAnimatorProps) {
+  const [canvasLayout, setCanvasLayout] = useState<PetCanvasLayout | null>(null);
+  const receiveCanvasLayout = useCallback((next: PetCanvasLayout) => {
+    setCanvasLayout(current => current?.templateId === next.templateId && current.innerSize === next.innerSize && current.innerOffset === next.innerOffset && current.transform === next.transform ? current : next);
+  }, []);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [measuredSize, setMeasuredSize] = useState(size);
   const motionEpochRef = useRef<{ templateId: string; startedAt: number } | null>(null);
@@ -592,14 +613,7 @@ export default function PetAnimator({
   const resolvedPetInventoryId = petInventoryId ?? null;
 
   const { data: templateData } = useQuery<TemplateData>({
-    queryKey: ["/api/pet-template-parts", petTemplateId],
-    queryFn: async () => {
-      const response = await fetch(`/api/pet-template-parts/${petTemplateId}`, { credentials: "include" });
-      if (!response.ok) throw new Error("Failed to load pet template");
-      return response.json();
-    },
-    enabled: !!petTemplateId,
-    staleTime: Infinity,
+    ...petTemplateQuery(petTemplateId, artworkForm),
   });
 
   const { data: costumeData } = useQuery<CostumeResponse>({
@@ -653,12 +667,15 @@ export default function PetAnimator({
       const placements = Array.isArray(costume.placements) ? costume.placements : [];
       for (const placement of placements) {
         if (!placement || placement.view !== costumeView) continue;
+        if (placement.anchorPart === "independent" && placement.replacesWings) {
+          for (const part of viewParts) if (part.partType.includes("wing")) hidden.add(part.partType);
+        }
         for (const partType of getWingReplacementPartTypes(placement.anchorPart)) hidden.add(partType);
       }
     }
     return hidden;
-  }, [costumeData?.equipped, resolvedView]);
-  const renderCostumes = !!resolvedPetInventoryId && equipped.length > 0 && viewParts.length > 0;
+  }, [costumeData?.equipped, resolvedView, templateData?.parts]);
+  const renderCostumes = !!resolvedPetInventoryId && equipped.length > 0 && !!templateData;
   const hasAboveHead = viewParts.some(part => basePartType(part.partType) === "above_head");
   // Above-head parts are intentionally re-rendered in the z=3 top layer while
   // costumes are visible so crowns/halos/hats stay above front costume pieces.
@@ -675,18 +692,25 @@ export default function PetAnimator({
     return hidden;
   }, [hiddenWingPartTypes, renderCostumes, hasAboveHead, viewParts]);
 
+  // Use the core's measured/visible-fit canvas so independently placed pieces
+  // share the pet's position and scale on every screen size.
+  const artworkCanvas = canvasLayout?.templateId === petTemplateId
+    ? canvasLayout : { innerSize, innerOffset, transform: `scale(${partScale})` };
+  const artworkCanvasStyle: React.CSSProperties = { position: "absolute", top: artworkCanvas.innerOffset, left: artworkCanvas.innerOffset,
+    width: artworkCanvas.innerSize, height: artworkCanvas.innerSize, transform: artworkCanvas.transform, transformOrigin: "center center" };
+
   const costumeLayer = (depth: "front" | "back") => (
     <div
       aria-hidden
       data-testid={`pet-animator-costumes-${depth}`}
       style={{ position: "absolute", inset: 0, zIndex: depth === "front" ? 2 : 0, pointerEvents: "none", overflow: "visible" }}
     >
-      <div style={{ position: "absolute", top: innerOffset, left: innerOffset, width: innerSize, height: innerSize, transform: `scale(${partScale})`, transformOrigin: "center center" }}>
+      <div style={artworkCanvasStyle}>
         <CostumeLayer
           depth={depth}
           costumes={equipped}
           viewParts={viewParts}
-          mode={mode}
+          mode={performanceStatic ? "static" : mode}
           resolvedView={resolvedView}
           facing={facing}
           canFly={canFly}
@@ -718,6 +742,8 @@ export default function PetAnimator({
       <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
         <PetAnimatorCore
           petTemplateId={petTemplateId}
+          artworkForm={artworkForm}
+          onCanvasLayout={renderCostumes ? receiveCanvasLayout : undefined}
           mode={mode}
           view={view}
           size={size}
@@ -730,7 +756,7 @@ export default function PetAnimator({
           style={{ width: "100%", height: "100%" }}
         />
       </div>
-      <style data-testid="pet-animation-seam-guard">{`${PET_ATTACHMENT_SEAM_GUARD}\n${SQUIRREL_FOX_IDLE_GUARD}`}</style>
+      <style data-testid="pet-animation-seam-guard">{`${PET_ATTACHMENT_SEAM_GUARD}\n${SQUIRREL_FOX_IDLE_GUARD}\n${ADORNMENT_MOTION_CSS}`}</style>
       {renderCostumes && costumeLayer("front")}
       {renderCostumes && hasAboveHead && (
         <div
@@ -738,7 +764,7 @@ export default function PetAnimator({
           data-testid="pet-animator-above-head-top"
           style={{ position: "absolute", inset: 0, zIndex: 3, pointerEvents: "none", overflow: "visible" }}
         >
-          <div style={{ position: "absolute", top: innerOffset, left: innerOffset, width: innerSize, height: innerSize, transform: `scale(${partScale})`, transformOrigin: "center center" }}>
+          <div style={artworkCanvasStyle}>
             <AboveHeadTopLayer
               viewParts={viewParts}
               mode={mode}
@@ -756,3 +782,4 @@ export default function PetAnimator({
     </div>
   );
 }
+
