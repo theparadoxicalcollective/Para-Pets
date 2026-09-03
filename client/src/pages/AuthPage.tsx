@@ -149,8 +149,8 @@ export default function AuthPage() {
     }
   }, [toast]);
 
-  // Animate the progress bar from 0→90% over ~1.2 s.
-  // Returns a Promise so it can be awaited alongside the real API call.
+  // Animate the progress bar from 0→90% over a few hundred milliseconds.
+  // Keep the visual feedback, but never make a successful auth request wait on a long animation.
   const animateProgress = () => {
     return new Promise<void>((resolve) => {
       setLoadingProgress(0);
@@ -165,9 +165,9 @@ export default function AuthPage() {
         } else {
           setLoadingProgress(progress);
         }
-      }, 120);
-      // Hard cap — resolve anyway after 1.2 s so the API call is never held up
-      setTimeout(() => { clearInterval(interval); resolve(); }, 1200);
+      }, 70);
+      // Short hard cap keeps the animation from becoming artificial login latency.
+      setTimeout(() => { clearInterval(interval); resolve(); }, 360);
     });
   };
 
@@ -183,7 +183,7 @@ export default function AuthPage() {
       await replaceAuthSession(user, queryClient);
       setTimeout(() => {
         setLocation(returnTo);
-      }, 300);
+      }, 80);
     },
     onError: (err: any) => {
       setIsLoading(false);
@@ -960,4 +960,3 @@ export default function AuthPage() {
     </div>
   );
 }
-
