@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { sql } from "drizzle-orm";
 import { db } from "./db";
-import { getSlotPrizeCatalog, grantSlotEgg, type CasinoPrizeItem } from "./hauntedSlotPrizes";
+import { getSlotPrizeCatalog, grantSlotEgg, slotPrizePreviews, type CasinoPrizeItem } from "./hauntedSlotPrizes";
 import {
   DEFAULT_HAUNTED_CASINO_HOTSPOTS,
   HAUNTED_CASINO_BETS,
@@ -157,6 +157,7 @@ export async function getHauntedSlotState(userId: string) {
     balances: { coins: Number(user.coins ?? 0), essence: Number(user.essence ?? 0) },
     betOptions: [...HAUNTED_CASINO_BETS],
     symbols: slotSymbols(catalog),
+    prizes: slotPrizePreviews(catalog),
   };
 }
 

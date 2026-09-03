@@ -44,6 +44,14 @@ export type HauntedSlotSymbolId =
 
 export type HauntedSlotItemCategory = "edible" | "egg" | "loot";
 
+/** Public artwork only; prize eligibility still comes from the server catalog. */
+export interface HauntedSlotPrizePreview {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  category: HauntedSlotItemCategory;
+}
+
 export const HAUNTED_SLOT_SYMBOL_WEIGHTS: ReadonlyArray<{
   id: HauntedSlotSymbolId;
   weight: number;

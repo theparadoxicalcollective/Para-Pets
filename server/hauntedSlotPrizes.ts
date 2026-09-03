@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { HauntedSlotItemCategory } from "@shared/hauntedCasino";
+import type { HauntedSlotItemCategory, HauntedSlotPrizePreview } from "@shared/hauntedCasino";
 
 export type SlotPrizeKind = "items" | "eggs";
 const SETTING_KEYS = {
@@ -73,6 +73,17 @@ export async function getSlotPrizeCatalog(executor: any): Promise<Record<Haunted
     loot: options.filter(item => item.type !== "pet" && item.type !== "edibles"),
     egg: options.filter(item => item.type === "pet"),
   };
+}
+
+export function slotPrizePreviews(catalog: Record<HauntedSlotItemCategory, CasinoPrizeItem[]>): HauntedSlotPrizePreview[] {
+  return (["edible", "loot", "egg"] as const).flatMap(category =>
+    catalog[category].map(item => ({
+      id: item.id,
+      name: item.name,
+      imageUrl: category === "egg" ? item.egg_image_url : item.image_url,
+      category,
+    })),
+  );
 }
 
 export async function saveSlotPrizeSelection(executor: any, kind: SlotPrizeKind, value: unknown): Promise<void> {
