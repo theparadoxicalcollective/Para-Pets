@@ -39,6 +39,14 @@ function normalizeRarity(shopItem: any): number {
   return Math.min(5, Math.max(1, Math.round(parsed)));
 }
 
+async function liveEscrowListings(storage: MarketplaceStorage, listings: any[]): Promise<any[]> {
+  const checked = await Promise.all(listings.map(async (listing) => {
+    const inventory = await storage.getInventoryItemById(listing.inventoryId);
+    return inventory && inventory.userId === listing.sellerId && inventory.isListed ? listing : null;
+  }));
+  return checked.filter((listing): listing is NonNullable<typeof listing> => listing !== null);
+}
+
 /** Register marketplace routes in phases so their ordering among legacy routes stays unchanged. */
 export function registerMarketplaceRoutes(
   app: Express,
@@ -61,7 +69,9 @@ export function registerMarketplaceRoutes(
         const listing = await storage.getMarketListing(req.params.listingId as string);
         if (!listing) return res.status(404).json({ message: "Listing not found" });
         const invItem = await storage.getInventoryItemById(listing.inventoryId);
-        if (!invItem) return res.status(404).json({ message: "Inventory item not found" });
+        if (!invItem || invItem.userId !== listing.sellerId || !invItem.isListed) {
+          return res.status(404).json({ message: "Inventory item not found" });
+        }
         const shopItem = await storage.getShopItem(invItem.shopItemId);
         if (!shopItem) return res.status(404).json({ message: "Shop item not found" });
 
@@ -115,7 +125,9 @@ export function registerMarketplaceRoutes(
         if (!listing) return res.status(404).json({ message: "Listing not found" });
         if (listing.itemType !== "pet_egg") return res.status(400).json({ message: "Not a pet egg listing" });
         const invItem = await storage.getInventoryItemById(listing.inventoryId);
-        if (!invItem) return res.status(404).json({ message: "Pet inventory item not found" });
+        if (!invItem || invItem.userId !== listing.sellerId || !invItem.isListed) {
+          return res.status(404).json({ message: "Pet inventory item not found" });
+        }
         const shopItem = await storage.getShopItem(invItem.shopItemId);
         return res.json({
           speciesName: shopItem?.name ?? "Unknown",
@@ -139,7 +151,10 @@ export function registerMarketplaceRoutes(
       const search = req.query.search as string | undefined;
       const itemType = req.query.itemType as string | undefined;
       const orderAsc = !!(itemType && itemType !== "all");
-      const listings = await storage.getMarketListings({ search, itemType, orderAsc });
+      const listings = await liveEscrowListings(
+        storage,
+        await storage.getMarketListings({ search, itemType, orderAsc }),
+      );
       const uniqueShopItemIds = [...new Set(listings.map(l => l.shopItemId).filter(Boolean))];
       const shopItems = await Promise.all(uniqueShopItemIds.map(id => storage.getShopItem(id)));
       const shopItemMap = new Map<string, any>();
