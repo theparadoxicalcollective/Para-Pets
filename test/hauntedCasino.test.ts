@@ -192,4 +192,3 @@ test("Casino item and egg pools are separate, and rare prizes retain their weigh
   assert.match(server, /pickPrizeItem/);
   assert.match(server, /grantPrizeItem/);
 });
-

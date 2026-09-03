@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import test from "node:test";
 import sharp from "sharp";
@@ -7,11 +8,7 @@ import sharp from "sharp";
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const fromRoot = (...segments: string[]) => path.join(repoRoot, ...segments);
 
-test("the uploaded game artwork drives every install icon surface", async () => {
-  assert.ok(existsSync(fromRoot(
-    "attached_assets", "uploads", "50E7DE46-38A6-477A-9C60-2DF11D39DB12.png"
-  )));
-
+test("the previous game artwork is restored on every install icon surface", async () => {
   const manifest = JSON.parse(
     readFileSync(fromRoot("client", "public", "manifest.json"), "utf8")
   );
@@ -26,16 +23,20 @@ test("the uploaded game artwork drives every install icon surface", async () => 
   ]);
 
   const expected = [
-    ["favicon-32.png", 32],
-    ["apple-touch-icon.png", 180],
-    ["pwa-icon-192.png", 192],
-    ["favicon.png", 512],
-    ["pwa-icon-512.png", 512],
-    ["pwa-maskable-512.png", 512],
+    ["favicon-32.png", 32, "15a9bf78c378979eb47ee37d4f01dc403020c25b"],
+    ["apple-touch-icon.png", 180, "9a20c46091c2f89a05a949c8aed575a35ca50ce5"],
+    ["pwa-icon-192.png", 192, "3daab90e260fdb8991a95e707e4a0a0183077827"],
+    ["favicon.png", 512, "d9390a96bd8c92bc7330bf05200ad2b1a9f274d1"],
+    ["pwa-icon-512.png", 512, "d9390a96bd8c92bc7330bf05200ad2b1a9f274d1"],
+    ["pwa-maskable-512.png", 512, "58bd417bf41b06f5cdbdbe8250a7143d435c0829"],
   ] as const;
 
-  for (const [file, size] of expected) {
-    const metadata = await sharp(fromRoot("client", "public", file)).metadata();
+  for (const [file, size, previousBlobSha] of expected) {
+    const bytes = readFileSync(fromRoot("client", "public", file));
+    // Check the actual historical artwork, not just that a same-sized PNG exists.
+    const blobSha = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+    assert.equal(blobSha, previousBlobSha, file);
+    const metadata = await sharp(bytes).metadata();
     assert.equal(metadata.format, "png", file);
     assert.equal(metadata.width, size, file);
     assert.equal(metadata.height, size, file);
@@ -52,4 +53,3 @@ test("the uploaded game artwork drives every install icon surface", async () => 
   assert.match(app, /if \(!user && location === "\/"\)/);
   assert.match(app, /<AuthPage \/>/);
 });
-
