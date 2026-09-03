@@ -55,8 +55,12 @@ export default function SlotPrizeStrip({ prizes, loaded }: {
       <style>{`
         .slaughter-prize-scroller::-webkit-scrollbar { display: none; width: 0; height: 0; }
       `}</style>
-      <div className="flex h-5 items-center">
+      <div className="flex h-5 items-center justify-between gap-2">
         <h2 className="text-[10px] font-semibold uppercase tracking-[.12em] text-amber-100">Available prizes &amp; eggs</h2>
+        <span className="flex shrink-0 items-center gap-1" aria-label="Coin and essence prizes">
+          <img data-testid="slot-prize-coin-image" src={currencyAssets.coin} alt="Coins" className="h-4 w-4 object-contain" />
+          <img data-testid="slot-prize-essence-image" src={currencyAssets.essenceToken} alt="Essence" className="h-4 w-4 object-contain" />
+        </span>
       </div>
       <div ref={scrollerRef} tabIndex={0} aria-label="Scroll available prizes"
         className="slaughter-prize-scroller flex h-12 gap-2 overflow-x-auto overflow-y-hidden"
