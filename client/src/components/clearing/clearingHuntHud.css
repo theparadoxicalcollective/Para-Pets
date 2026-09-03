@@ -48,7 +48,35 @@
   box-shadow: inset 0 0 3px #fff6b8;
 }
 
+.clearing-blessing-pill {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: .35rem;
+  border: 1px solid rgba(253, 230, 138, .32);
+  border-radius: 999px;
+  background: rgba(2, 44, 34, .82);
+  padding: .3rem .65rem;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fef3c7;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .24);
+  backdrop-filter: blur(5px);
+}
+
+.clearing-blessing-button,
+.clearing-results-toggle {
+  backdrop-filter: blur(5px);
+}
+
 /* Leave room for the artwork, balances, and bottom controls on short phones. */
 .clearing-hunt-results {
   max-height: min(42dvh, max(96px, calc(100dvh - 380px)));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clearing-blessing-button,
+  .clearing-results-toggle {
+    transition: none;
+  }
 }
