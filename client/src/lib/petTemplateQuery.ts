@@ -11,6 +11,9 @@ export function petTemplateQuery(templateId: string, form: PetArtworkForm = "bas
       return response.json();
     },
     enabled: !!templateId,
-    staleTime: Infinity,
+    staleTime: form === "evolution" ? 30_000 : Infinity,
+    // Another admin may add evolution parts after this query cached a base
+    // fallback. Refresh visible raid artwork without polling ordinary pets.
+    ...(form === "evolution" ? { refetchOnWindowFocus: true, refetchInterval: 30_000 } : {}),
   };
 }

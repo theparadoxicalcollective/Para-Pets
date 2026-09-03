@@ -19,7 +19,10 @@ Home, raid preparation, and raid battle displays explicitly request evolution
 parts. Evolution artwork is selected as a whole, using an available view. If no
 usable evolution parts exist, regular parts are returned. Evolution and regular
 artwork use separate cache keys; creating, editing, or removing parts invalidates
-the server cache. Regular player pets continue requesting regular parts.
+the server cache. Adding a part also invalidates both client artwork forms for
+that template. Visible evolution queries refresh every 30 seconds and revalidate
+on window focus when stale, so another admin's edits replace cached base fallback
+artwork. Regular player pets continue requesting regular parts without polling.
 
 ## Fit an adornment
 

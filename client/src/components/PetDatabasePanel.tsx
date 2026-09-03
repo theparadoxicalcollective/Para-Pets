@@ -616,8 +616,9 @@ export default function PetDatabasePanel({
       });
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", selectedTemplateId] });
+    onSuccess: (_part, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pet-templates", variables.templateId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/pet-template-parts", variables.templateId] });
       setUploadPartType(null);
       toast({ title: "Added", description: "Part added to canvas" });
     },
