@@ -157,7 +157,7 @@ test("Slaughter Slots keeps its logo, machine, and controls inside the viewport"
   const client = fs.readFileSync("client/src/components/world/SlaughterSlotsOverlay.tsx", "utf8");
   assert.match(client, /overflow-hidden bg-\[#08040d\]/);
   assert.match(client, /data-testid="slaughter-slots-machine-stage"/);
-  assert.match(client, /var\(--fh, 100dvh\) - 340px/);
+  assert.match(client, /var\(--fh, 100dvh\) - 228px/);
   assert.match(client, /data-testid="slaughter-slots-winnings-area"/);
   assert.match(client, /width: "94%"/);
   assert.match(client, /transform: "translate\(-50%, -8%\)"/);
@@ -174,6 +174,24 @@ test("Slaughter Slots wagers and payouts use the player's real global coin walle
   assert.match(routes, /\/api\/haunted-casino\/slots\/spin/);
   assert.match(routes, /spinHauntedSlots\(user\.id, req\.body\?\.bet\)/);
   assert.doesNotMatch(routes, /req\.body\?\.(?:reward|reels|itemId|shopItemId)/);
+});
+
+test("decorative prizes keep the original machine sizing and footer footprint", () => {
+  const client = fs.readFileSync("client/src/components/world/SlaughterSlotsOverlay.tsx", "utf8");
+  const strip = fs.readFileSync("client/src/components/world/SlotPrizeStrip.tsx", "utf8");
+  assert.match(client, /maxWidth: 520, width: "min\(100%, calc\(\(var\(--fh, 100dvh\) - 228px/);
+  assert.doesNotMatch(client, /var\(--fh, 100dvh\) - 340px/);
+  assert.match(client, /data-testid="slaughter-slots-footer"[^\n]*height: 112/);
+  assert.match(client, /data-testid="slaughter-slots-winnings-area"[^\n]*absolute inset-x-0 bottom-20/);
+  assert.match(strip, /absolute inset-x-0 bottom-0 h-\[72px\]/);
+  assert.match(strip, /scrollbarWidth: "none"/);
+  assert.match(strip, /::-webkit-scrollbar \{ display: none/);
+  assert.match(strip, /overflow-x-auto/);
+  assert.doesNotMatch(strip, /<button|setPaused|Pause scrolling|Resume scrolling|onFocus=/);
+  assert.match(strip, /requestAnimationFrame\(advance\)/);
+  assert.match(strip, /cancelAnimationFrame\(frame\)/);
+  assert.match(strip, /prefers-reduced-motion: reduce/);
+  assert.match(strip, /position = scroller.scrollLeft/);
 });
 
 test("Casino item and egg pools are separate, and rare prizes retain their weighting", () => {

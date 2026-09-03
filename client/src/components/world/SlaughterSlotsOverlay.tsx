@@ -407,7 +407,7 @@ export default function SlaughterSlotsOverlay({
         <div className="flex min-h-0 w-full flex-1 items-center justify-center">
         {/* Keep the logo, machine, reels and controls together above a reserved winnings area.
             Use logical stage height so tablets scale the same composition as phones. */}
-        <div data-testid="slaughter-slots-machine-stage" className="relative w-full shrink-0" style={{ maxWidth: 520, width: "min(100%, calc((var(--fh, 100dvh) - 340px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * .67))" }}>
+        <div data-testid="slaughter-slots-machine-stage" className="relative w-full shrink-0" style={{ maxWidth: 520, width: "min(100%, calc((var(--fh, 100dvh) - 228px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * .67))" }}>
           <img
             src={slaughterSlotsLogo}
             alt="Slaughter Slots"
@@ -511,7 +511,10 @@ export default function SlaughterSlotsOverlay({
 
         </div>
 
-        <div data-testid="slaughter-slots-winnings-area" className="w-full shrink-0 overflow-y-auto" style={{ height: 112, overscrollBehavior: "contain" }} role="status" aria-live="polite" aria-atomic="true">
+        {/* Keep the original 112px footer footprint so prizes never shrink or
+            reposition the machine. Winnings float just above the decorative strip. */}
+        <div data-testid="slaughter-slots-footer" className="relative w-full shrink-0" style={{ height: 112 }}>
+        <div data-testid="slaughter-slots-winnings-area" className="absolute inset-x-0 bottom-20 z-[10] w-full overflow-y-auto" style={{ maxHeight: 112, overscrollBehavior: "contain" }} role="status" aria-live="polite" aria-atomic="true">
         <div className="mt-0 min-h-[16px] shrink-0 text-center text-[9px] sm:text-xs text-violet-100/80" aria-live="polite">
           {holding ? "Auto spin active — tap STOP AUTO to stop" : null}
         </div>
@@ -543,6 +546,7 @@ export default function SlaughterSlotsOverlay({
         </div>
 
         <SlotPrizeStrip prizes={state?.prizes ?? []} loaded={Boolean(state)} />
+        </div>
 
         <p className="sr-only">
           Bets and winnings use the normal Para Pets coin balance. Tap SPIN once, or hold briefly to start automatic spins. Tap STOP AUTO to stop.
