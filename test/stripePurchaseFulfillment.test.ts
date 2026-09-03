@@ -95,15 +95,22 @@ test("limited egg, community reward, and milestone progress are each applied onc
   assert.deepEqual([fake.coins, fake.eggs, fake.progress, fake.community], [26600, 1, 5000, 1]);
 });
 
-test("$50 package advertises Midnight Juggler and fulfillment validates a live pet before delivery", () => {
-  const pack = coinPackageById("pack_v2_20000");
-  assert.equal(pack?.eggBonus?.shopItemName, "Midnight Juggler");
-  assert.equal(pack?.eggBonus?.itemName, "Midnight Juggler Egg");
+test("limited pet packages resolve live pets and paid delivery uses the Reward inbox", () => {
+  const fifty = coinPackageById("pack_v2_20000");
+  assert.equal(fifty?.eggBonus?.shopItemName, "Midnight Juggler");
+  assert.equal(fifty?.eggBonus?.itemName, "Midnight Juggler Egg");
+
+  const hundred = coinPackageById("pack_v2_50000");
+  assert.equal(hundred?.eggBonus?.shopItemId, "670e8ef5-b67d-4be4-b340-3e652327975f");
+  assert.equal(hundred?.eggBonus?.shopItemName, "The Paradox");
+  assert.equal(hundred?.eggBonus?.itemName, "The Paradox Egg");
 
   const fulfillment = readFileSync("server/payments/fulfillStripePurchase.ts", "utf8");
   assert.match(fulfillment, /FROM shop_items[\s\S]*type = 'pet'/);
-  assert.match(fulfillment, /matches\.rows\.length !== 1/);
-  assert.match(fulfillment, /VALUES \(\$\{userId\}, \$\{bonusShopItemId\}, NOW\(\)\)/);
+  assert.match(fulfillment, /INSERT INTO reward_bundle_items/);
+  assert.match(fulfillment, /INSERT INTO user_rewards/);
+  assert.match(fulfillment, /bonus\.shopItemId[\s\S]*bonus\.shopItemName/);
+  assert.doesNotMatch(fulfillment, /INSERT INTO user_inventory/);
 });
 
 test("coin shop renders the server-owned bonus name with Midnight Juggler promotional art", () => {
