@@ -2,11 +2,13 @@ import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import CardPreview from "@/components/CardPreview";
+import CardRewardCoin from "@/components/CardRewardCoin";
 import { getCardBorderLayout, type CardBorderLayout, type OwnedCard } from "@/lib/cardCatalog";
 
-export default function CardDetailDialog({ card, layouts, onClose, onClaim, claiming }: {
+export default function CardDetailDialog({ card, layouts, onClose, onClaim, claiming, rewardAmount, onDismissReward }: {
   card: OwnedCard; layouts: CardBorderLayout[]; onClose: () => void;
   onClaim: () => void; claiming: boolean;
+  rewardAmount?: number; onDismissReward: () => void;
 }) {
   const [descriptionOpen, setDescriptionOpen] = useState(false);
   const longDescription = card.secondDescription || card.description || "No description yet.";
@@ -18,12 +20,14 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
         <Dialog.Title className="sr-only">{card.name}</Dialog.Title>
         <Dialog.Close aria-label="Close card viewer" className="absolute right-4 grid h-11 w-11 place-items-center rounded-full border border-amber-200/40 bg-black/50" style={{ top: "max(8px, env(safe-area-inset-top))" }}><X /></Dialog.Close>
         <div className="my-auto w-full max-w-[430px]">
+          <div className="relative mb-8">
           <CardPreview textSize="detail" rarity={card.rarity} artworkUrl={card.artworkUrl} name={card.name} description={card.description}
             layout={getCardBorderLayout(layouts, card.rarity)} onDescriptionClick={() => setDescriptionOpen(true)} />
+          <CardRewardCoin cardName={card.name} claimed={card.firstRewardClaimed} claiming={claiming} disabled={claiming}
+            rewardAmount={rewardAmount} onClaim={onClaim} onDismiss={onDismissReward} />
+          </div>
           <p className="mt-3 text-center text-sm text-amber-100/70">Tap the description on the card to read more.</p>
           <p className="mt-2 text-center text-sm">Owned: ×{card.quantity}</p>
-          {!card.firstRewardClaimed && <button type="button" disabled={claiming} onClick={onClaim}
-            className="mx-auto mt-3 block rounded-full border border-amber-200 bg-amber-500/20 px-6 py-3 font-bold disabled:opacity-50">{claiming ? "Claiming…" : "+100 coins · Claim"}</button>}
         </div>
         <Dialog.Root open={descriptionOpen} onOpenChange={setDescriptionOpen}>
           <Dialog.Portal>
