@@ -77,6 +77,7 @@ export async function getStripeSync() {
   if (!stripeSync) {
     const { StripeSync } = await import('stripe-replit-sync');
     const secretKey = await getStripeSecretKey();
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
     stripeSync = new StripeSync({
       poolConfig: {
@@ -84,8 +85,24 @@ export async function getStripeSync() {
         max: 2,
       },
       stripeSecretKey: secretKey,
-      ...(process.env.STRIPE_WEBHOOK_SECRET ? { stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET } : {}),
+      ...(webhookSecret ? { stripeWebhookSecret: webhookSecret } : {}),
     });
+
+    // Para Pets uses a Stripe Dashboard-managed webhook in production. When an
+    // explicit signing secret is configured, creating an additional
+    // stripe-replit-sync managed endpoint gives that endpoint a different
+    // signing secret. The shared webhook handler would then reject deliveries
+    // from one of the two endpoints. Keep StripeSync for signature validation
+    // and data backfill, but make managed-endpoint registration a no-op in this
+    // external-webhook mode. If no explicit secret is configured (for example a
+    // Replit/dev environment), StripeSync retains its normal managed-webhook
+    // behavior.
+    if (webhookSecret) {
+      stripeSync.findOrCreateManagedWebhook = async () => {
+        console.log('[Stripe] Managed webhook registration skipped: external signing secret configured');
+        return null;
+      };
+    }
   }
   return stripeSync;
 }
