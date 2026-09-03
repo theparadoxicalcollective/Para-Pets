@@ -1,3 +1,4 @@
+import { PURCHASE_REFRESH_OPTIONS } from "@/lib/purchaseRecovery";
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
@@ -1033,8 +1034,9 @@ interface CoinPurchaseRow {
 }
 
 function CoinPurchasesSection() {
-  const { data: purchases = [], isLoading } = useQuery<CoinPurchaseRow[]>({
+  const { data: purchases = [], isLoading, isError, refetch, isFetching } = useQuery<CoinPurchaseRow[]>({
     queryKey: ["/api/admin/coin-purchases"],
+    ...PURCHASE_REFRESH_OPTIONS,
   });
 
   const totalUsd = purchases.reduce((s, p) => s + p.amountUsd, 0);
@@ -1057,6 +1059,10 @@ function CoinPurchasesSection() {
 
   return (
     <div className="flex flex-col gap-4 px-1">
+      <button type="button" disabled={isFetching} onClick={() => void refetch()} className="self-end rounded-lg border border-green-300/30 px-3 py-2 text-xs text-green-200 disabled:opacity-50">
+        {isFetching ? "Refreshing…" : "Refresh purchases"}
+      </button>
+      {isError && <p role="alert" className="text-sm text-amber-200">Could not refresh purchases. The list may be out of date. Please try Refresh purchases again.</p>}
       <div className="grid grid-cols-3 gap-2">
         {[
           { label: "Total Revenue", value: `$${totalUsd.toFixed(2)}` },
@@ -1071,7 +1077,7 @@ function CoinPurchasesSection() {
       </div>
 
       {userRows.length === 0 ? (
-        <p className="font-fantasy text-xs text-center py-8" style={{ color: "#4a7060" }}>No purchases yet</p>
+        <p className="font-fantasy text-xs text-center py-8" style={{ color: "#4a7060" }}>{isError ? "Purchase history unavailable" : "No purchases yet"}</p>
       ) : (
         <>
           <p className="font-fantasy text-[9px] tracking-widest uppercase" style={{ color: "#4a7060" }}>By Player</p>

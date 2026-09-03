@@ -3094,6 +3094,11 @@ export async function registerRoutes(
       const stripe = await getUncachableStripeClient();
       const stripeSession = await stripe.checkout.sessions.retrieve(sessionId);
       const result = await fulfillStripePurchase(stripeSession as any, { expectedUserId: user.id });
+      // Whichever entry point wins fulfillment must also award acquisition badges.
+      // Keep this after commit and only on the winning path, as in the webhook.
+      if (result.status === "fulfilled") {
+        await maybeAwardAcquisitionBadges(result.userId, stripeSession.amount_total! / 100);
+      }
       const updatedUser = await storage.getUser(user.id);
       const safeUser = publicAccount(updatedUser!);
       return res.json({

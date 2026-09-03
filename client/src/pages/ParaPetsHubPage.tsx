@@ -1,3 +1,4 @@
+import { PURCHASE_REFRESH_OPTIONS } from "@/lib/purchaseRecovery";
 import { Link, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -1202,7 +1203,7 @@ type LeaderboardEntry = { rank: number; userId: string; username: string; profil
 function ContributionLeaderboard({ currentUserId, onSelectPlayer }: { currentUserId?: string; onSelectPlayer: (userId: string) => void }) {
   const { data: entries = [], isLoading } = useQuery<LeaderboardEntry[]>({
     queryKey: ["/api/public/leaderboard"],
-    staleTime: 60_000,
+    ...PURCHASE_REFRESH_OPTIONS,
     retry: false,
   });
 

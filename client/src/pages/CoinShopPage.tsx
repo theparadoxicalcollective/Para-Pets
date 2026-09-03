@@ -5,6 +5,7 @@ import { playShopBell } from "@/lib/sounds";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { pendingPurchaseSession, clearPendingPurchase, PURCHASE_QUERY_KEYS, PURCHASE_REFRESH_OPTIONS } from "@/lib/purchaseRecovery";
 import { useToast } from "@/hooks/use-toast";
 import UserProfilePanel from "@/components/UserProfilePanel";
 import coinIconImg from "@assets/icon_coin.png";
@@ -145,8 +146,9 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   // can mutate location. Never use useSearch() here: wouter patches replaceState and
   // would re-trigger a reactive effect every time we clean the URL.
   const [stripeSessionId] = useState<string | null>(() => {
-    const p = new URLSearchParams(window.location.search);
-    return p.get("success") === "true" ? p.get("session_id") : null;
+    let store: Storage | undefined;
+    try { store = window.sessionStorage; } catch { /* URL retry still works. */ }
+    return pendingPurchaseSession(user.id, window.location.search, store);
   });
   const [stripeWasCanceled] = useState(() => {
     return new URLSearchParams(window.location.search).get("canceled") === "true";
@@ -160,6 +162,8 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
   // Guard: runs once even in React StrictMode (double-invoke)
   const verifiedRef = useRef(false);
+  const [verifyAttempt, setVerifyAttempt] = useState(0);
+  const [verificationFailed, setVerificationFailed] = useState(false);
 
   // Keep local coin display in sync when parent re-fetches updated user data
   useEffect(() => { setCurrentUser(user); }, [user]);
@@ -178,21 +182,22 @@ export default function CoinShopPage({ user }: CoinShopProps) {
     return () => clearTimeout(t);
   }, []);
 
-  // Verify payment — runs exactly once on mount.
+  // Verify on return/revisit, with an explicit retry after a failed request.
   // A 12-second timeout unblocks the UI in case of a slow or dropped connection.
   useEffect(() => {
     if (!stripeSessionId) return;
     if (verifiedRef.current) return;
     verifiedRef.current = true;
 
-    // Clean URL before any async work so re-renders never re-parse it
-    window.history.replaceState({}, "", "/coins");
+    setVerifying(true);
+    setVerificationFailed(false);
+    // Keep the session reference until the server confirms fulfillment.
 
     const timeoutId = setTimeout(() => {
       setVerifying(false);
       toast({
         title: "Taking longer than expected",
-        description: "Your coins should appear shortly. Refresh if they don't show up.",
+        description: "Payment confirmation is taking longer. You can reopen the Coin Shop to check again.",
         variant: "destructive",
       });
     }, 12_000);
@@ -201,18 +206,18 @@ export default function CoinShopPage({ user }: CoinShopProps) {
       .then(res => res.json())
       .then(data => {
         clearTimeout(timeoutId);
+        if (!data.credited && !data.alreadyCredited) throw new Error("Purchase is not fulfilled yet");
+        try { clearPendingPurchase(user.id, stripeSessionId, window.sessionStorage); } catch { /* Storage unavailable. */ }
+        if (window.location.pathname === "/coins" && new URLSearchParams(window.location.search).get("session_id") === stripeSessionId) {
+          window.history.replaceState({}, "", "/coins");
+        }
         if (data.user) {
           setCurrentUser(data.user);
           queryClient.setQueryData(["/api/auth/me"], data.user);
         }
-        queryClient.invalidateQueries({ queryKey: ["/api/coins/packs"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/coins/progress"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/gifts/pending"] });
-        // Refetch the authoritative balance: when the webhook wins the dedup
-        // race, this verify response can carry a momentarily stale coin total,
-        // so refetch instead of trusting only the optimistic setQueryData above.
-        queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+        for (const key of PURCHASE_QUERY_KEYS) {
+          void queryClient.invalidateQueries({ queryKey: [key] });
+        }
         if (data.credited || data.alreadyCredited) {
           const coins = typeof data.coins === "number"
             ? data.coins
@@ -221,9 +226,9 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           if (data.baseCoins && data.baseCoins > 0 && data.baseCoins < coins) {
             setSuccessBaseCoins(typeof data.baseCoins === "number" ? data.baseCoins : parseInt(String(data.baseCoins), 10));
           }
-          if (data.eggBonus?.name) {
+          if (data.eggBonus?.itemName) {
             setTimeout(() => {
-              toast({ title: `🥚 Bonus egg added!`, description: `${data.eggBonus.name} has been added to your pet inventory!` });
+              toast({ title: "Bonus egg ready!", description: `Claim your ${data.eggBonus.itemName} from Rewards.` });
             }, 1800);
           }
           try { playShopBell(); } catch {}
@@ -237,13 +242,14 @@ export default function CoinShopPage({ user }: CoinShopProps) {
       .catch(() => {
         clearTimeout(timeoutId);
         setVerifying(false);
+        setVerificationFailed(true);
         toast({
-          title: "Hmm, something went wrong",
-          description: "Your coins should arrive shortly. Contact support if they don't appear.",
+          title: "Purchase confirmation needs another check",
+          description: "Use Check purchase again below. You do not need to purchase again. Contact support if it keeps failing.",
           variant: "destructive",
         });
       });
-  }, []);
+  }, [verifyAttempt]);
 
   const { data: packsData, isLoading } = useQuery<PacksResponse>({
     queryKey: ["/api/coins/packs"],
@@ -269,7 +275,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   }
   const { data: progressData } = useQuery<ProgressData>({
     queryKey: ["/api/coins/progress"],
-    staleTime: 30_000,
+    ...PURCHASE_REFRESH_OPTIONS,
   });
 
   const [adminPickerMs, setAdminPickerMs] = useState<number | null>(null);
@@ -425,6 +431,16 @@ export default function CoinShopPage({ user }: CoinShopProps) {
             <X size={15} />
           </button>
         </div>
+
+        {verificationFailed && (
+          <div role="alert" className="mx-4 mb-4 rounded-xl border border-amber-300/40 bg-black/60 p-4 text-center text-amber-100">
+            <p className="text-sm">We could not confirm your purchase yet. Please check again before making another purchase.</p>
+            <button type="button" className="mt-3 rounded-lg border border-amber-300/50 px-4 py-2" onClick={() => {
+              verifiedRef.current = false;
+              setVerifyAttempt(attempt => attempt + 1);
+            }}>Check purchase again</button>
+          </div>
+        )}
 
         {/* ── Contribution Rewards Progress Bar ───────────────────────────── */}
         {(() => {
@@ -1305,7 +1321,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
               className="font-fantasy tracking-wider"
               style={{ fontSize: "11px", color: "rgba(127,255,212,0.45)", marginBottom: "28px" }}
             >
-              Added to your treasury
+              Claim your coins and any bonus egg from Rewards
             </p>
 
             <button
