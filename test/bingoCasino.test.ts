@@ -51,13 +51,34 @@ test("Bingo economy is server authoritative with one free daily card, paid repla
   assert.doesNotMatch(bingo, /Math\.random/);
 });
 
-test("Random card bonuses are visible and only become payout when marked at Bingo", () => {
+test("Random card bonuses are ghost coins and only become payout when marked at Bingo", () => {
   assert.match(bingoServer, /HAUNTED_BINGO_BONUS_COUNT = 3/);
   assert.match(bingoServer, /const BONUS_VALUES = \[25, 25, 50, 50, 75, 100, 150\]/);
   assert.match(bingoServer, /bonuses\.filter\(\(bonus\) => marked\.has\(bonus\.key\)\)/);
-  assert.match(bingo, /marked card bonuses/);
   assert.match(bingo, /haunted-bingo-bonus/);
   assert.match(bingo, /currencyAssets\.coin/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-bonus img[\s\S]*?opacity:\s*\.18/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-bonus\.is-collected b[\s\S]*?opacity:\s*1/);
+});
+
+test("Bingo visual tuning clears the header, keeps the card placement, and centers the call area", () => {
+  assert.match(bingo, /haunted-bingo-header haunted-bingo-header-spacer/);
+  assert.doesNotMatch(bingo, /<h1>Haunted Bingo<\/h1>/);
+  assert.doesNotMatch(bingo, /Deal a card to begin/);
+  assert.match(bingo, /FREE GAME/);
+  assert.match(bingo, /PLAY FOR \$\{state\?\.entryCost \?\? 100\} COINS/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-cage[\s\S]*?width:\s*min\(30vw, 128px\)/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-call-zone[\s\S]*?left:\s*-14vw/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-called-ball[\s\S]*?top:\s*45\.5%/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-card[\s\S]*?width:\s*min\(84vw, 372px\)[\s\S]*?margin-top:\s*-8px/);
+});
+
+test("Auto call is calmer and recent calls tick left beneath the card", () => {
+  assert.match(bingo, /AUTO_CALL_DELAY_MS = 2850/);
+  assert.match(bingo, /slice\(-8\)/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-history[\s\S]*?position:\s*absolute[\s\S]*?bottom:\s*-20px/);
+  assert.match(bingoEconomyCss, /justify-content:\s*flex-end/);
+  assert.match(bingoEconomyCss, /haunted-bingo-call-ticker-in/);
 });
 
 test("Active Bingo cards persist instead of allowing free client-side rerolls", () => {
