@@ -57,6 +57,7 @@ const EMPTY_CARD: BingoCard = Array.from({ length: 5 }, (_, row) =>
 );
 const FREE_CELL_KEY = "2-2";
 const MINIMUM_SHUFFLE_MS = 560;
+const AUTO_CALL_DELAY_MS = 2850;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -97,7 +98,7 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
     for (const bonus of round?.bonuses ?? []) map.set(bonus.key, bonus);
     return map;
   }, [round?.bonuses]);
-  const recentCalls = useMemo(() => [...(round?.called ?? [])].reverse().slice(0, 5), [round?.called]);
+  const recentCalls = useMemo(() => (round?.called ?? []).slice(-8), [round?.called]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -182,7 +183,7 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
 
   useEffect(() => {
     if (!autoCall || shuffling || !round || round.status !== "active" || round.remainingCalls <= 0) return;
-    const timer = window.setTimeout(() => void callBall(), round.current == null ? 180 : 1900);
+    const timer = window.setTimeout(() => void callBall(), round.current == null ? 350 : AUTO_CALL_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, [autoCall, callBall, round, shuffling]);
 
@@ -213,24 +214,6 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
       if (mountedRef.current) setMarkingKey(null);
     }
   };
-
-  const status = loading
-    ? "Loading…"
-    : round?.status === "won"
-      ? "BINGO!"
-      : shuffling
-        ? "Shuffling…"
-        : round == null
-          ? state?.freeGameAvailable ? "Free game ready" : "Ready to play"
-          : round.current == null
-            ? "Ready to call"
-            : `${round.called.length} of 75 called`;
-
-  const entryDetail = round
-    ? round.freeEntry ? "Daily free card" : `${round.entryCost} coin entry`
-    : state?.freeGameAvailable
-      ? "1 free game today"
-      : `${state?.entryCost ?? 100} coins per card`;
 
   const canAffordNext = Boolean(state && (state.freeGameAvailable || state.balances.coins >= state.entryCost));
   const nextEntryLabel = state?.freeGameAvailable ? "Play Free Game" : `Play · ${state?.entryCost ?? 100} Coins`;
@@ -263,16 +246,7 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
       </button>
 
       <main className="haunted-bingo-shell">
-        <header className="haunted-bingo-header">
-          <div>
-            <div className="haunted-bingo-kicker">Haunted Casino</div>
-            <h1>Haunted Bingo</h1>
-          </div>
-          <div className="haunted-bingo-status" role="status" aria-live="polite">
-            <span>{status}</span>
-            <small>{entryDetail}</small>
-          </div>
-        </header>
+        <header className="haunted-bingo-header haunted-bingo-header-spacer" aria-hidden="true" />
 
         <div className="haunted-bingo-economy-strip" aria-label="Bingo prizes and balance">
           <span className="haunted-bingo-wallet"><img src={currencyAssets.coin} alt="" />{state?.balances.coins ?? "—"}</span>
@@ -330,9 +304,8 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
                 }))}
               </div>
               {!round && !loading && (
-                <div className="haunted-bingo-deal-overlay">
-                  <strong>{state?.freeGameAvailable ? "FREE CARD READY" : "DEAL A NEW CARD"}</strong>
-                  <span>{state?.freeGameAvailable ? "Your first Bingo game today is free." : `New cards cost ${state?.entryCost ?? 100} coins.`}</span>
+                <div className={`haunted-bingo-deal-overlay ${state?.freeGameAvailable ? "is-free-entry" : "is-paid-entry"}`}>
+                  <strong>{state?.freeGameAvailable ? "FREE GAME" : `PLAY FOR ${state?.entryCost ?? 100} COINS`}</strong>
                 </div>
               )}
             </div>
@@ -346,13 +319,15 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
                   <img src={bingoBall} alt="" draggable={false} />
                   <span>{calledLabel(round.current)}</span>
                 </div>
-              ) : (
-                <div className="haunted-bingo-ready-call">{round ? "READY" : "PLAY"}</div>
-              )}
+              ) : round ? (
+                <div className="haunted-bingo-ready-call">READY</div>
+              ) : null}
             </div>
-            <div className="haunted-bingo-call-caption">
-              {shuffling ? "Mixing the cage…" : round?.current != null ? `Current call · ${calledLabel(round.current)}` : round ? "Call the first ball" : "Deal a card to begin"}
-            </div>
+            {round && (
+              <div className="haunted-bingo-call-caption">
+                {shuffling ? "Mixing the cage…" : round.current != null ? `Current call · ${calledLabel(round.current)}` : "Call the first ball"}
+              </div>
+            )}
           </section>
         </div>
 
@@ -390,7 +365,7 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
           <p className="haunted-bingo-help haunted-bingo-insufficient">You need {state.entryCost} coins for another card.</p>
         )}
         <p className="haunted-bingo-help">
-          {round ? "Called numbers glow. Mark them before Bingo; gold coin bundles marked on your card are added to your win." : "One free Bingo game each casino day. Your active card is saved if you leave."}
+          {round ? "Called numbers glow. Mark them before Bingo; ghost coin spaces become bonus payouts when covered." : "One free Bingo game each casino day. Your active card is saved if you leave."}
         </p>
       </main>
 
