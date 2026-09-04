@@ -37,9 +37,8 @@ export default function ClearingHuntHud({ regularDefeats, phase, complete, hunt,
       {children}
 
       {!complete && blessing && <div className="clearing-blessing-pill mt-1.5" title={CLEARING_BLESSINGS[blessing].description}>
-        <span aria-hidden="true">✦</span>
-        <span>{CLEARING_BLESSINGS[blessing].name}</span>
-        <span className="text-emerald-100/55">this hunt</span>
+        <span aria-hidden="true" className="clearing-blessing-spark">✦</span>
+        <span className="clearing-blessing-copy">{CLEARING_BLESSINGS[blessing].name} <span aria-hidden="true">·</span> This hunt</span>
       </div>}
 
       {!complete && blessingAvailable && <button type="button" className="clearing-blessing-button mt-1.5 min-h-10 w-full rounded-lg border border-amber-200/45 bg-amber-300/95 px-3 text-xs font-bold text-emerald-950 shadow-md" onClick={onChooseBlessing}>
