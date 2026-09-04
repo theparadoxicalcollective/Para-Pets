@@ -7,6 +7,7 @@ import {
   HAUNTED_BINGO_WIN_REWARD,
   HAUNTED_BINGO_WINNER_LIMIT,
   advanceHauntedBingoRivals,
+  completeHauntedBingoRivals,
   createHauntedBingoBonuses,
   createHauntedBingoCard,
   createHauntedBingoRivals,
@@ -58,8 +59,9 @@ test("casino day follows America/Chicago instead of the browser clock", () => {
   assert.equal(hauntedBingoCasinoDay(new Date("2026-09-04T04:30:00.000Z")), "2026-09-03");
 });
 
-test("each round creates three unique casino rivals", () => {
+test("each round creates five unique casino rivals", () => {
   const rivals = createHauntedBingoRivals(noShuffle);
+  assert.equal(HAUNTED_BINGO_RIVAL_COUNT, 5);
   assert.equal(rivals.length, HAUNTED_BINGO_RIVAL_COUNT);
   assert.equal(new Set(rivals.map((rival) => rival.id)).size, HAUNTED_BINGO_RIVAL_COUNT);
   assert.ok(rivals.every((rival) => rival.kind === "bot"));
@@ -67,11 +69,20 @@ test("each round creates three unique casino rivals", () => {
   assert.ok(rivals.every((rival) => rival.card[2][2] === null));
 });
 
-test("settled rival race fills exactly the first three prize places", () => {
+test("older three-rival active rounds are extended to five without replacing existing opponents", () => {
+  const original = createHauntedBingoRivals(noShuffle).slice(0, 3);
+  const completed = completeHauntedBingoRivals(original, noShuffle);
+  assert.equal(completed.length, 5);
+  assert.deepEqual(completed.slice(0, 3), original);
+  assert.equal(new Set(completed.map((rival) => rival.id)).size, 5);
+});
+
+test("settled five-rival race fills only the first three prize places", () => {
   const rivals = createHauntedBingoRivals(noShuffle);
   const called = Array.from({ length: 75 }, (_, index) => index + 1);
   const advanced = advanceHauntedBingoRivals(rivals, called, [], true, noShuffle);
   assert.equal(advanced.winners.length, HAUNTED_BINGO_WINNER_LIMIT);
   assert.deepEqual(advanced.winners.map((winner) => winner.placement), [1, 2, 3]);
-  assert.equal(advanced.rivals.filter((rival) => rival.status === "won").length, HAUNTED_BINGO_RIVAL_COUNT);
+  assert.equal(advanced.rivals.filter((rival) => rival.status === "won").length, HAUNTED_BINGO_WINNER_LIMIT);
+  assert.equal(advanced.rivals.filter((rival) => rival.status === "playing").length, HAUNTED_BINGO_RIVAL_COUNT - HAUNTED_BINGO_WINNER_LIMIT);
 });
