@@ -55,6 +55,12 @@
   transform: none;
 }
 
+.haunted-bingo-bonus img {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
 .haunted-bingo-wallet {
   font-size: 12px;
   padding: 5px 11px 5px 7px;
