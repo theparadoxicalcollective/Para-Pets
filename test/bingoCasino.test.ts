@@ -5,6 +5,7 @@ import test from "node:test";
 const bingo = readFileSync("client/src/components/world/HauntedBingoOverlay.tsx", "utf8");
 const bingoCss = readFileSync("client/src/components/world/HauntedBingoOverlay.css", "utf8");
 const bingoEconomyCss = readFileSync("client/src/components/world/HauntedBingoEconomy.css", "utf8");
+const bingoPolishCss = readFileSync("client/src/components/world/HauntedBingoPolish.css", "utf8");
 const casinoRuntime = readFileSync("client/src/components/world/HauntedCasinoRuntime.tsx", "utf8");
 const bingoServer = readFileSync("server/hauntedBingo.ts", "utf8");
 const casinoRoutes = readFileSync("server/routes/hauntedCasino.routes.ts", "utf8");
@@ -58,13 +59,14 @@ test("Coin balance sits under the cage and call-stand helper text is removed", (
   assert.match(bingoEconomyCss, /\.haunted-bingo-wallet[\s\S]*?font-size:\s*10\.5px/);
 });
 
-test("Random card bonuses stay ghosted, shift down-right, and only pay when marked at Bingo", () => {
+test("Random card bonuses stay ghosted, shift down-right in the base skin, and only pay when marked at Bingo", () => {
   assert.match(bingoServer, /HAUNTED_BINGO_BONUS_COUNT = 3/);
   assert.match(bingoServer, /const BONUS_VALUES = \[25, 25, 50, 50, 75, 100, 150\]/);
   assert.match(bingoServer, /bonuses\.filter\(\(bonus\) => marked\.has\(bonus\.key\)\)/);
   assert.match(bingo, /haunted-bingo-bonus/);
   assert.match(bingo, /currencyAssets\.coin/);
   assert.match(bingoEconomyCss, /\.haunted-bingo-bonus[\s\S]*?transform:\s*translate\(4%, 4%\)/);
+  assert.match(bingoPolishCss, /\.haunted-bingo-bonus[\s\S]*?transform:\s*none/);
   assert.match(bingoEconomyCss, /\.haunted-bingo-bonus img[\s\S]*?opacity:\s*\.18/);
   assert.match(bingoEconomyCss, /\.haunted-bingo-bonus\.is-collected b[\s\S]*?opacity:\s*1/);
 });
@@ -80,11 +82,16 @@ test("Bingo close control shrinks, covered markers move down, and called numbers
   assert.match(bingoEconomyCss, /@keyframes haunted-bingo-called-sparkle/);
 });
 
-test("Main Bingo card moves left on phones while recent calls stay centered beneath it", () => {
-  assert.match(bingo, /AUTO_CALL_DELAY_MS = 2850/);
+test("Main Bingo card stays shifted while call history and top artwork use global polish offsets", () => {
+  assert.match(bingo, /AUTO_CALL_START_MS = 3200/);
+  assert.match(bingo, /AUTO_CALL_END_MS = 2200/);
+  assert.match(bingo, /autoCallDelay\(round\.called\.length\)/);
   assert.match(bingo, /slice\(-8\)/);
   assert.match(bingoEconomyCss, /\.haunted-bingo-card[\s\S]*?width:\s*min\(84vw, 372px\)[\s\S]*?transform:\s*translateX\(-6\.5vw\)/);
   assert.match(bingoEconomyCss, /\.haunted-bingo-history[\s\S]*?left:\s*50%[\s\S]*?bottom:\s*-20px[\s\S]*?translateX\(-50%\)/);
+  assert.match(bingoPolishCss, /\.haunted-bingo-cage,[\s\S]*?translate:\s*16px 0/);
+  assert.match(bingoPolishCss, /\.haunted-bingo-call-zone[\s\S]*?translate:\s*-24px 0/);
+  assert.match(bingoPolishCss, /\.haunted-bingo-history[\s\S]*?translate:\s*0 -16px/);
   assert.match(bingoEconomyCss, /justify-content:\s*flex-end/);
   assert.match(bingoEconomyCss, /haunted-bingo-call-ticker-in/);
 });
@@ -115,6 +122,22 @@ test("Five rival mini cards remain in a separate rail from the shifted main card
 test("Active Bingo cards persist instead of allowing free client-side rerolls", () => {
   assert.match(bingoServer, /WHERE user_id = \$\{userId\} AND status = 'active'/);
   assert.match(bingoServer, /FOR UPDATE/);
-  assert.match(bingo, /Your active card is saved if you leave|real finish line/);
+  assert.match(bingo, /every called number stays markable|real finish line/);
   assert.doesNotMatch(bingo, /New Card/);
+});
+
+test("Bingo adds transparent pressure feedback without changing server-owned odds", () => {
+  assert.match(bingo, /bingoMarksNeeded/);
+  assert.match(bingo, /ONE AWAY/);
+  assert.match(bingo, /calledUnmarkedCount/);
+  assert.match(bingo, /is-threatening/);
+  assert.match(bingoPolishCss, /haunted-bingo-rival-threat/);
+  assert.match(bingo, /Auto Call gradually speeds up/);
+});
+
+test("Closing Bingo returns to the casino overlay instead of reloading back to the world", () => {
+  assert.match(casinoRuntime, /<HauntedBingoOverlay onClose=\{\(\) => setBingoOpen\(false\)\}/);
+  assert.match(bingo, /const closeBingo = \(\) => \{[\s\S]*?setAutoCall\(false\);[\s\S]*?onClose\(\);[\s\S]*?\};/);
+  assert.doesNotMatch(bingo, /window\.location\.reload/);
+  assert.match(bingo, /queryClient\.setQueryData\(\["\/api\/auth\/me"\]/);
 });
