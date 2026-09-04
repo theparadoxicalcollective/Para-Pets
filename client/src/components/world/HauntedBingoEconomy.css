@@ -1,0 +1,240 @@
+.haunted-bingo-economy-strip {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 28px;
+  margin-top: 3px;
+  color: rgba(254, 243, 199, .9);
+  font-size: 9px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .85);
+}
+
+.haunted-bingo-wallet {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(252, 211, 77, .34);
+  border-radius: 999px;
+  background: rgba(3, 45, 34, .8);
+  padding: 3px 8px 3px 5px;
+  font-weight: 800;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, .3);
+}
+
+.haunted-bingo-wallet img,
+.haunted-bingo-win-balance img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.haunted-bingo-prize-copy {
+  color: rgba(236, 253, 245, .74);
+  letter-spacing: .01em;
+}
+
+.haunted-bingo-prize-copy strong { color: #fde68a; }
+
+.haunted-bingo-cell .haunted-bingo-number {
+  position: relative;
+  z-index: 4;
+  transform: translateY(-3%);
+}
+
+.haunted-bingo-bonus {
+  position: absolute !important;
+  right: 4%;
+  bottom: 4%;
+  z-index: 5 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  min-width: 34%;
+  border: 1px solid rgba(254, 240, 138, .88);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(116, 77, 13, .96), rgba(55, 34, 4, .96));
+  padding: 1px 3px 1px 2px;
+  color: #fff5bf;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(5px, 1.45vw, 9px);
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 1px 2px #2a1700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .55), 0 0 5px rgba(250, 204, 21, .2);
+  pointer-events: none;
+}
+
+.haunted-bingo-bonus img {
+  display: block;
+  width: clamp(8px, 2.4vw, 14px);
+  height: clamp(8px, 2.4vw, 14px);
+  object-fit: contain;
+}
+
+.haunted-bingo-bonus b { font: inherit; }
+
+.haunted-bingo-bonus.is-collected {
+  background: linear-gradient(180deg, rgba(16, 133, 86, .98), rgba(3, 75, 53, .98));
+  box-shadow: 0 0 0 1px rgba(253, 230, 138, .52), 0 0 10px rgba(250, 204, 21, .55);
+}
+
+.haunted-bingo-cell.has-bonus.is-called:not(.is-marked)::after {
+  box-shadow: 0 0 8px rgba(52, 211, 153, .45), 0 0 11px rgba(250, 204, 21, .28);
+}
+
+.haunted-bingo-deal-overlay {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  top: 53%;
+  z-index: 8;
+  display: flex;
+  transform: translateY(-50%);
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(253, 230, 138, .62);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(3, 65, 48, .94), rgba(2, 34, 27, .96));
+  padding: 10px 9px;
+  color: #fef3c7;
+  text-align: center;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .52), 0 0 15px rgba(52, 211, 153, .16);
+  pointer-events: none;
+}
+
+.haunted-bingo-deal-overlay strong {
+  font-family: var(--font-fantasy, serif);
+  font-size: clamp(10px, 3vw, 16px);
+  letter-spacing: .08em;
+}
+
+.haunted-bingo-deal-overlay span {
+  color: rgba(236, 253, 245, .78);
+  font-size: clamp(7px, 2vw, 10px);
+  line-height: 1.25;
+}
+
+.haunted-bingo-error {
+  flex: 0 0 auto;
+  max-width: 520px;
+  margin: 1px auto 2px;
+  border: 1px solid rgba(253, 164, 175, .42);
+  border-radius: 9px;
+  background: rgba(76, 5, 25, .82);
+  padding: 4px 9px;
+  color: #ffe4e6;
+  font-size: 9px;
+  line-height: 1.2;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .35);
+}
+
+.haunted-bingo-start-button {
+  min-width: min(76vw, 260px);
+}
+
+.haunted-bingo-insufficient {
+  color: rgba(254, 205, 211, .9) !important;
+  font-weight: 700;
+}
+
+.haunted-bingo-win-total {
+  margin-top: 4px;
+  color: #fde68a;
+  font-family: var(--font-fantasy, serif);
+  font-size: 23px;
+  font-weight: 900;
+  text-shadow: 0 2px 4px #10251d, 0 0 10px rgba(250, 204, 21, .35);
+}
+
+.haunted-bingo-win-balance {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 9px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .25);
+  padding: 4px 9px;
+  color: rgba(236, 253, 245, .85);
+  font-size: 11px;
+}
+
+.haunted-bingo-win-card .haunted-bingo-win-close {
+  display: block;
+  margin: 8px auto 0;
+  border-color: rgba(167, 243, 208, .3);
+  background: rgba(3, 70, 51, .72);
+  color: #ecfdf5;
+}
+
+/* Keep the illustrated pieces dominant, but give the card and controls more
+   breathing room on the tall phone layout shown in the current live build. */
+@media (max-width: 700px) {
+  .haunted-bingo-shell {
+    padding-top: max(14px, calc(env(safe-area-inset-top) + 7px));
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  .haunted-bingo-header {
+    min-height: 40px;
+    padding-right: 64px;
+  }
+
+  .haunted-bingo-header h1 { font-size: clamp(19px, 5.8vw, 25px); }
+  .haunted-bingo-status { min-width: 108px; min-height: 34px; padding: 3px 9px; }
+  .haunted-bingo-status span { font-size: 9px; }
+  .haunted-bingo-status small { font-size: 7px; }
+
+  .haunted-bingo-economy-strip {
+    min-height: 22px;
+    margin-top: 1px;
+    gap: 6px;
+    font-size: 7.5px;
+  }
+
+  .haunted-bingo-wallet { padding: 2px 6px 2px 4px; }
+  .haunted-bingo-wallet img { width: 14px; height: 14px; }
+
+  .haunted-bingo-stage {
+    gap: 0 7px;
+    padding-top: 0;
+  }
+
+  .haunted-bingo-cage,
+  .haunted-bingo-call-stand { width: min(39vw, 160px); }
+
+  .haunted-bingo-history { margin-top: -9px; }
+  .haunted-bingo-call-caption { margin-top: -9px; }
+
+  .haunted-bingo-card-zone { align-self: start; }
+  .haunted-bingo-card {
+    width: min(84vw, 372px);
+    margin-top: -8px;
+  }
+
+  .haunted-bingo-cell { font-size: clamp(11px, 4vw, 18px); }
+  .haunted-bingo-controls { padding-top: 0; margin-top: -2px; }
+  .haunted-bingo-controls button { min-height: 40px; }
+  .haunted-bingo-help { max-width: 92vw; margin-left: auto; margin-right: auto; }
+}
+
+@media (max-width: 390px) {
+  .haunted-bingo-prize-copy { max-width: 178px; text-align: center; }
+  .haunted-bingo-card { width: min(86vw, 340px); }
+  .haunted-bingo-bonus { right: 2%; bottom: 3%; }
+}
+
+@media (max-height: 720px) {
+  .haunted-bingo-economy-strip { display: none; }
+  .haunted-bingo-card { margin-top: -4px; }
+  .haunted-bingo-bonus { font-size: 5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .haunted-bingo-bonus,
+  .haunted-bingo-deal-overlay,
+  .haunted-bingo-win-total { transition: none; }
+}
