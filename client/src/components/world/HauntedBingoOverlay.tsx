@@ -6,6 +6,7 @@ import bingoBallCallStand from "@assets/uploads/BingoBallCallStand.png";
 import blankBingoCard from "@assets/uploads/BlankBingoCard.png";
 import slotCloseButton from "@assets/uploads/SlotCloseButton.png";
 import { currencyAssets } from "@/lib/currencyAssets";
+import { queryClient } from "@/lib/queryClient";
 import "./HauntedBingoOverlay.css";
 import "./HauntedBingoEconomy.css";
 import "./HauntedBingoPolish.css";
@@ -85,7 +86,9 @@ const EMPTY_CARD: BingoCard = Array.from({ length: 5 }, (_, row) =>
 const FREE_CELL_KEY = "2-2";
 const CAGE_DISPLAY_BALLS = 14;
 const MINIMUM_SHUFFLE_MS = 560;
-const AUTO_CALL_DELAY_MS = 2850;
+const AUTO_CALL_START_MS = 3200;
+const AUTO_CALL_END_MS = 2200;
+const AUTO_CALL_RAMP_CALLS = 42;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -106,6 +109,28 @@ function ordinal(value: number): string {
   return `${value}th`;
 }
 
+function autoCallDelay(calledCount: number): number {
+  const progress = Math.max(0, Math.min(1, calledCount / AUTO_CALL_RAMP_CALLS));
+  return Math.round(AUTO_CALL_START_MS - ((AUTO_CALL_START_MS - AUTO_CALL_END_MS) * progress));
+}
+
+function bingoMarksNeeded(marked: ReadonlySet<string>): number {
+  const lines: string[][] = [];
+  for (let index = 0; index < 5; index++) {
+    lines.push(Array.from({ length: 5 }, (_, column) => `${index}-${column}`));
+    lines.push(Array.from({ length: 5 }, (_, row) => `${row}-${index}`));
+  }
+  lines.push(Array.from({ length: 5 }, (_, index) => `${index}-${index}`));
+  lines.push(Array.from({ length: 5 }, (_, index) => `${index}-${4 - index}`));
+  return Math.min(...lines.map((line) => line.filter((key) => !marked.has(key)).length));
+}
+
+function syncCoinBalance(coins: number): void {
+  queryClient.setQueryData(["/api/auth/me"], (current: any) =>
+    current ? { ...current, coins } : current,
+  );
+}
+
 async function readJson<T>(response: Response): Promise<T> {
   const payload = await response.json().catch(() => null);
   if (!response.ok) throw new Error(payload?.message || "Haunted Bingo could not complete that action");
@@ -114,11 +139,12 @@ async function readJson<T>(response: Response): Promise<T> {
 
 function RivalMiniCard({ rival }: { rival: BingoRival }) {
   const marked = useMemo(() => new Set(rival.marked), [rival.marked]);
+  const threatening = rival.status === "playing" && bingoMarksNeeded(marked) === 1;
   return (
-    <div className={`haunted-bingo-rival ${rival.status === "won" ? "is-won" : ""}`}>
+    <div className={`haunted-bingo-rival ${rival.status === "won" ? "is-won" : ""} ${threatening ? "is-threatening" : ""}`}>
       <div className="haunted-bingo-rival-meta">
         <span className="haunted-bingo-rival-name">{rival.name}</span>
-        <span className="haunted-bingo-rival-kind">BOT</span>
+        <span className="haunted-bingo-rival-kind">{threatening ? "1 AWAY" : "BOT"}</span>
       </div>
       <div className="haunted-bingo-rival-card" aria-hidden="true">
         {rival.card.flatMap((row, rowIndex) => row.map((value, columnIndex) => {
@@ -152,7 +178,6 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
   const [error, setError] = useState<string | null>(null);
   const mountedRef = useRef(true);
   const callInFlightRef = useRef(false);
-  const currencyDirtyRef = useRef(false);
 
   const round = state?.round ?? null;
   const calledSet = useMemo(() => new Set(round?.called ?? []), [round?.called]);
@@ -176,6 +201,7 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
       .then((payload) => {
         if (cancelled) return;
         setState(payload);
+        syncCoinBalance(payload.balances.coins);
         setError(null);
       })
       .catch((reason) => {
@@ -193,7 +219,6 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
   const closeBingo = () => {
     setAutoCall(false);
     onClose();
-    if (currencyDirtyRef.current) window.setTimeout(() => window.location.reload(), 0);
   };
 
   const startRound = async () => {
@@ -211,8 +236,8 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
       });
       const payload = await readJson<BingoState>(response);
       if (!mountedRef.current) return;
-      if ((payload.round?.entryCost ?? 0) > 0) currencyDirtyRef.current = true;
       setState(payload);
+      syncCoinBalance(payload.balances.coins);
     } catch (reason) {
       if (mountedRef.current) setError(reason instanceof Error ? reason.message : "Your Bingo card could not be dealt");
     } finally {
@@ -239,6 +264,7 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
       if (remaining) await sleep(remaining);
       if (mountedRef.current) {
         setState(payload);
+        syncCoinBalance(payload.balances.coins);
         if (payload.round?.status !== "active") setAutoCall(false);
       }
     } catch (reason) {
@@ -254,7 +280,8 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
 
   useEffect(() => {
     if (!autoCall || shuffling || !round || round.status !== "active" || round.remainingCalls <= 0) return;
-    const timer = window.setTimeout(() => void callBall(), round.current == null ? 350 : AUTO_CALL_DELAY_MS);
+    const delay = round.current == null ? 350 : autoCallDelay(round.called.length);
+    const timer = window.setTimeout(() => void callBall(), delay);
     return () => window.clearTimeout(timer);
   }, [autoCall, callBall, round, shuffling]);
 
@@ -274,8 +301,8 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
       const payload = await readJson<BingoMarkResponse>(response);
       if (!mountedRef.current) return;
       setState(payload);
+      syncCoinBalance(payload.balances.coins);
       if (payload.reward) {
-        currencyDirtyRef.current = true;
         setReward(payload.reward);
         setAutoCall(false);
       }
@@ -291,6 +318,15 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
   const card = round?.card ?? EMPTY_CARD;
   const winnerLimit = state?.winnerLimit ?? 3;
   const rivalCount = state?.rivalCount ?? 5;
+  const playerMarksNeeded = round?.status === "active" ? bingoMarksNeeded(markedSet) : null;
+  const calledUnmarkedCount = round?.status === "active"
+    ? card.flat().filter((value, index) => {
+        if (value == null || value <= 0 || !calledSet.has(value)) return false;
+        const rowIndex = Math.floor(index / 5);
+        const columnIndex = index % 5;
+        return !markedSet.has(`${rowIndex}-${columnIndex}`);
+      }).length
+    : 0;
 
   return (
     <div
@@ -422,6 +458,15 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
 
         {error && <div className="haunted-bingo-error" role="alert">{error}</div>}
 
+        {round?.status === "active" && (playerMarksNeeded === 1 || calledUnmarkedCount > 0) && (
+          <div className={`haunted-bingo-pressure-status ${playerMarksNeeded === 1 ? "is-one-away" : ""}`} aria-live="polite">
+            {playerMarksNeeded === 1 && <strong>ONE AWAY</strong>}
+            {calledUnmarkedCount > 0 && (
+              <span>{calledUnmarkedCount} called space{calledUnmarkedCount === 1 ? "" : "s"} ready to mark</span>
+            )}
+          </div>
+        )}
+
         <div className="haunted-bingo-controls">
           {!round || round.status !== "active" ? (
             <button
@@ -455,7 +500,7 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
         )}
         <p className="haunted-bingo-help">
           {round
-            ? `Race ${rivalCount} casino rivals. The first ${winnerLimit} Bingos pay; once the prize spots fill, the round ends. Sparkling numbers are ready to mark, and ghost coin spaces add to a winning payout when covered.`
+            ? `Race ${rivalCount} casino rivals. The first ${winnerLimit} Bingos pay; once the prize spots fill, the round ends. Auto Call gradually speeds up as the round heats up, but every called number stays markable. Sparkling numbers are ready to mark, and ghost coin spaces add to a winning payout when covered.`
             : `One free Bingo game each casino day. Each card races ${rivalCount} casino rivals, so every round has a real finish line.`}
         </p>
       </main>
