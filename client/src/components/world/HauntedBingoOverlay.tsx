@@ -94,6 +94,12 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
     return () => window.clearTimeout(timer);
   }, [autoCall, callBall, current, deck.length, shuffling, won]);
 
+  useEffect(() => {
+    if (won || !hasBingo(marked)) return;
+    setWon(true);
+    setAutoCall(false);
+  }, [marked, won]);
+
   useEffect(() => () => {
     if (drawTimerRef.current != null) window.clearTimeout(drawTimerRef.current);
   }, []);
@@ -119,10 +125,6 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
       if (next.has(key)) next.delete(key);
       else next.add(key);
       next.add(FREE_CELL_KEY);
-      if (hasBingo(next)) {
-        setWon(true);
-        setAutoCall(false);
-      }
       return next;
     });
   };
