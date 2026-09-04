@@ -1,0 +1,143 @@
+/* Small visual refinements for the live Haunted Bingo layout. */
+
+.haunted-bingo-cage-ball {
+  transition: opacity 320ms ease;
+}
+
+/* Make a ready-to-mark number much harder to miss without covering the art. */
+.haunted-bingo-cell.is-called:not(.is-marked)::before {
+  content: "";
+  position: absolute;
+  inset: 5%;
+  z-index: 0;
+  border: 1px solid rgba(167, 243, 208, .72);
+  border-radius: 18%;
+  background: radial-gradient(circle, rgba(52, 211, 153, .3) 0, rgba(16, 185, 129, .15) 45%, transparent 72%);
+  box-shadow: 0 0 10px rgba(110, 231, 183, .68), inset 0 0 8px rgba(254, 240, 138, .22);
+  animation: haunted-bingo-ready-aura 720ms ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.haunted-bingo-cell.is-called:not(.is-marked)::after {
+  inset: 2%;
+  z-index: 1;
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 12% 24%, rgba(255, 255, 255, 1) 0 3.2%, transparent 7%),
+    radial-gradient(circle at 30% 8%, rgba(254, 240, 138, 1) 0 3.5%, transparent 7.5%),
+    radial-gradient(circle at 72% 13%, rgba(167, 243, 208, 1) 0 3.4%, transparent 7.4%),
+    radial-gradient(circle at 91% 38%, rgba(253, 230, 138, .98) 0 3.1%, transparent 7%),
+    radial-gradient(circle at 84% 79%, rgba(110, 231, 183, .98) 0 3.4%, transparent 7.5%),
+    radial-gradient(circle at 56% 93%, rgba(255, 255, 255, .98) 0 2.8%, transparent 6.7%),
+    radial-gradient(circle at 19% 82%, rgba(254, 240, 138, .98) 0 3.3%, transparent 7.2%),
+    radial-gradient(circle at 8% 57%, rgba(167, 243, 208, .98) 0 3%, transparent 6.8%),
+    radial-gradient(circle at 50% 52%, rgba(52, 211, 153, .22), transparent 62%);
+  box-shadow: none;
+  filter: drop-shadow(0 0 6px rgba(250, 204, 21, .72)) drop-shadow(0 0 9px rgba(52, 211, 153, .58));
+  animation: haunted-bingo-called-sparkle-strong 620ms ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.haunted-bingo-cell.is-called:not(.is-marked) .haunted-bingo-number {
+  color: #fff7d6;
+  text-shadow: 0 2px 3px #00150f, 0 0 7px rgba(254, 240, 138, .95), 0 0 11px rgba(52, 211, 153, .8);
+  animation: haunted-bingo-ready-number-glow 720ms ease-in-out infinite alternate;
+}
+
+/* Keep every covered-space marker centered on its grid cell. */
+.haunted-bingo-cell.is-marked::before {
+  inset: 9%;
+}
+
+/* The ghost-coin overlay now uses the cell's true center instead of a diagonal nudge. */
+.haunted-bingo-bonus {
+  transform: none;
+}
+
+.haunted-bingo-wallet {
+  font-size: 12px;
+  padding: 5px 11px 5px 7px;
+}
+
+.haunted-bingo-wallet img {
+  width: 20px;
+  height: 20px;
+}
+
+@keyframes haunted-bingo-ready-aura {
+  from { opacity: .58; transform: scale(.94); }
+  to { opacity: 1; transform: scale(1.04); }
+}
+
+@keyframes haunted-bingo-called-sparkle-strong {
+  from { opacity: .68; transform: scale(.94) rotate(-2deg); }
+  to { opacity: 1; transform: scale(1.07) rotate(2deg); }
+}
+
+@keyframes haunted-bingo-ready-number-glow {
+  from { filter: brightness(1.02); }
+  to { filter: brightness(1.28) drop-shadow(0 0 3px rgba(254, 240, 138, .78)); }
+}
+
+@media (min-width: 701px) {
+  .haunted-bingo-cage-zone { transform: translateX(12px); }
+  .haunted-bingo-call-zone { transform: translateX(-18px); }
+}
+
+@media (max-width: 700px) {
+  /* Shift the two illustrated top pieces apart as requested. */
+  .haunted-bingo-cage {
+    transform: translate(12px, -26px);
+  }
+
+  .haunted-bingo-cage-wallet {
+    transform: translate(12px, -22px);
+  }
+
+  .haunted-bingo-call-zone {
+    left: calc(-16vw - 18px);
+  }
+
+  /* Raise the recent-call ticker roughly two visual notches. */
+  .haunted-bingo-history {
+    bottom: -6px;
+    margin: 0;
+  }
+
+  .haunted-bingo-wallet {
+    gap: 6px;
+    padding: 5px 10px 5px 7px;
+    font-size: 11.5px;
+  }
+
+  .haunted-bingo-wallet img {
+    width: 19px;
+    height: 19px;
+  }
+}
+
+@media (max-width: 390px) {
+  .haunted-bingo-call-zone {
+    left: calc(-15vw - 18px);
+  }
+}
+
+@media (max-height: 720px) {
+  .haunted-bingo-history {
+    bottom: -3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .haunted-bingo-cage-ball { transition: none; }
+
+  .haunted-bingo-cell.is-called:not(.is-marked)::before,
+  .haunted-bingo-cell.is-called:not(.is-marked)::after,
+  .haunted-bingo-cell.is-called:not(.is-marked) .haunted-bingo-number {
+    animation: none;
+  }
+
+  .haunted-bingo-cell.is-called:not(.is-marked)::before { opacity: .9; }
+  .haunted-bingo-cell.is-called:not(.is-marked)::after { opacity: 1; }
+}
