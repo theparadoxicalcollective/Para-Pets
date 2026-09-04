@@ -6,7 +6,7 @@ export const HAUNTED_BINGO_ENTRY_COST = 100;
 export const HAUNTED_BINGO_WIN_REWARD = 500;
 export const HAUNTED_BINGO_DAILY_FREE_GAMES = 1;
 export const HAUNTED_BINGO_BONUS_COUNT = 3;
-export const HAUNTED_BINGO_RIVAL_COUNT = 3;
+export const HAUNTED_BINGO_RIVAL_COUNT = 5;
 export const HAUNTED_BINGO_WINNER_LIMIT = 3;
 
 const BINGO_LETTERS = ["B", "I", "N", "G", "O"] as const;
@@ -23,7 +23,7 @@ const BOT_NAMES = [
   "Lucky Specter",
   "Violet Veil",
 ] as const;
-const BOT_REACTION_DELAYS = [1, 2, 3] as const;
+const BOT_REACTION_DELAYS = [1, 2, 2, 3, 3] as const;
 
 type RandomInt = (maxExclusive: number) => number;
 export type HauntedBingoCard = Array<Array<number | null>>;
@@ -153,19 +153,46 @@ export function createHauntedBingoBonuses(randomInt: RandomInt = crypto.randomIn
     .map((key) => ({ key, amount: BONUS_VALUES[randomInt(BONUS_VALUES.length)] }));
 }
 
-export function createHauntedBingoRivals(randomInt: RandomInt = crypto.randomInt): HauntedBingoRival[] {
-  const names = shuffledWith(BOT_NAMES, randomInt).slice(0, HAUNTED_BINGO_RIVAL_COUNT);
+export function completeHauntedBingoRivals(
+  existingInput: readonly HauntedBingoRival[],
+  randomInt: RandomInt = crypto.randomInt,
+): HauntedBingoRival[] {
+  const rivals = existingInput.slice(0, HAUNTED_BINGO_RIVAL_COUNT).map((rival) => ({ ...rival }));
+  if (rivals.length >= HAUNTED_BINGO_RIVAL_COUNT) return rivals;
+
+  const usedNames = new Set(rivals.map((rival) => rival.name));
+  const usedIds = new Set(rivals.map((rival) => rival.id));
+  const availableNames = shuffledWith(BOT_NAMES.filter((name) => !usedNames.has(name)), randomInt);
   const delays = shuffledWith(BOT_REACTION_DELAYS, randomInt);
-  return names.map((name, index) => ({
-    id: `bot-${index + 1}`,
-    name,
-    kind: "bot",
-    card: createHauntedBingoCard(randomInt),
-    marked: [FREE_CELL_KEY],
-    status: "playing",
-    placement: null,
-    reactionDelay: delays[index] ?? 2,
-  }));
+
+  while (rivals.length < HAUNTED_BINGO_RIVAL_COUNT) {
+    const slotIndex = rivals.length;
+    let botNumber = slotIndex + 1;
+    let id = `bot-${botNumber}`;
+    while (usedIds.has(id)) {
+      botNumber += 1;
+      id = `bot-${botNumber}`;
+    }
+    const name = availableNames.shift() ?? `Casino Rival ${botNumber}`;
+    rivals.push({
+      id,
+      name,
+      kind: "bot",
+      card: createHauntedBingoCard(randomInt),
+      marked: [FREE_CELL_KEY],
+      status: "playing",
+      placement: null,
+      reactionDelay: delays[slotIndex % delays.length] ?? 2,
+    });
+    usedIds.add(id);
+    usedNames.add(name);
+  }
+
+  return rivals;
+}
+
+export function createHauntedBingoRivals(randomInt: RandomInt = crypto.randomInt): HauntedBingoRival[] {
+  return completeHauntedBingoRivals([], randomInt);
 }
 
 export function hasHauntedBingo(marked: ReadonlySet<string>): boolean {
@@ -335,8 +362,9 @@ function publicRound(row: any): HauntedBingoPublicRound {
 }
 
 async function ensureRoundRivals(executor: any, row: any): Promise<any> {
-  if (toRivals(row?.rivals).length === HAUNTED_BINGO_RIVAL_COUNT) return row;
-  const rivals = createHauntedBingoRivals();
+  const existingRivals = toRivals(row?.rivals);
+  if (existingRivals.length === HAUNTED_BINGO_RIVAL_COUNT) return row;
+  const rivals = completeHauntedBingoRivals(existingRivals);
   const updated = await executor.execute(sql`
     UPDATE haunted_bingo_rounds
     SET rivals = ${JSON.stringify(rivals)}::jsonb,
@@ -345,7 +373,7 @@ async function ensureRoundRivals(executor: any, row: any): Promise<any> {
     WHERE id = ${String(row.id)}
     RETURNING *
   `);
-  return updated.rows[0] ?? { ...row, rivals, winner_order: [] };
+  return updated.rows[0] ?? { ...row, rivals, winner_order: row?.winner_order ?? [] };
 }
 
 async function freeGameAvailable(executor: any, userId: string, casinoDay: string): Promise<boolean> {
@@ -545,7 +573,7 @@ export async function markHauntedBingoCell(
     let row = roundResult.rows[0] as any;
     if (!row) throw new HauntedBingoError("round_not_found", 404, "That Bingo card could not be found");
     if (row.status !== "active") {
-      const message = row.status === "lost" ? "Three rivals already called Bingo. This card is closed." : "That Bingo game is already finished";
+      const message = row.status === "lost" ? "The three prize spots are already filled. This card is closed." : "That Bingo game is already finished";
       throw new HauntedBingoError("round_finished", 409, message);
     }
     row = await ensureRoundRivals(tx, row);

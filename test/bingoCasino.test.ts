@@ -32,7 +32,7 @@ test("Bingo reuses the Haunted Casino background and supplied artwork", () => {
   assert.match(bingoCss, /\.haunted-bingo-cage-frame[\s\S]*?z-index:\s*2/);
   assert.match(bingoCss, /@media \(max-width: 700px\)/);
   assert.match(bingoEconomyCss, /\.haunted-bingo-bonus/);
-  assert.match(bingoEconomyCss, /\.haunted-bingo-economy-strip/);
+  assert.match(bingo, /haunted-bingo-cage-wallet/);
 });
 
 test("Bingo economy remains server authoritative with one free daily card, 100 coin replays, and 500 coin wins", () => {
@@ -51,39 +51,48 @@ test("Bingo economy remains server authoritative with one free daily card, 100 c
   assert.doesNotMatch(bingo, /Math\.random/);
 });
 
-test("Random card bonuses are ghost coins and only become payout when marked at Bingo", () => {
+test("Coin balance sits under the cage and call-stand helper text is removed", () => {
+  assert.match(bingo, /haunted-bingo-cage-zone[\s\S]*?haunted-bingo-cage-wallet[\s\S]*?haunted-bingo-wallet/);
+  assert.doesNotMatch(bingo, /className="haunted-bingo-economy-strip"/);
+  assert.doesNotMatch(bingo, /haunted-bingo-call-caption/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-wallet[\s\S]*?font-size:\s*10\.5px/);
+});
+
+test("Random card bonuses stay ghosted, shift down-right, and only pay when marked at Bingo", () => {
   assert.match(bingoServer, /HAUNTED_BINGO_BONUS_COUNT = 3/);
   assert.match(bingoServer, /const BONUS_VALUES = \[25, 25, 50, 50, 75, 100, 150\]/);
   assert.match(bingoServer, /bonuses\.filter\(\(bonus\) => marked\.has\(bonus\.key\)\)/);
   assert.match(bingo, /haunted-bingo-bonus/);
   assert.match(bingo, /currencyAssets\.coin/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-bonus[\s\S]*?transform:\s*translate\(4%, 4%\)/);
   assert.match(bingoEconomyCss, /\.haunted-bingo-bonus img[\s\S]*?opacity:\s*\.18/);
   assert.match(bingoEconomyCss, /\.haunted-bingo-bonus\.is-collected b[\s\S]*?opacity:\s*1/);
 });
 
-test("Bingo card stays fixed while close control and marker overlays receive the requested final nudges", () => {
+test("Bingo close control shrinks, covered markers move down, and called numbers sparkle", () => {
   assert.match(bingo, /haunted-bingo-header haunted-bingo-header-spacer/);
   assert.doesNotMatch(bingo, /<h1>Haunted Bingo<\/h1>/);
   assert.match(bingo, /FREE GAME/);
   assert.match(bingo, /PLAY FOR \$\{state\?\.entryCost \?\? 100\} COINS/);
-  assert.match(bingoEconomyCss, /\.haunted-bingo-close[\s\S]*?width:\s*clamp\(38px, 9\.8vw, 48px\)/);
-  assert.match(bingoEconomyCss, /\.haunted-bingo-cell\.is-called:not\(\.is-marked\)::after[\s\S]*?inset:\s*19% 16% 13% 16%/);
-  assert.match(bingoEconomyCss, /\.haunted-bingo-cell\.is-marked::before[\s\S]*?inset:\s*12% 9% 6% 9%/);
-  assert.match(bingoEconomyCss, /\.haunted-bingo-card[\s\S]*?width:\s*min\(84vw, 372px\)[\s\S]*?margin-top:\s*-8px/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-close[\s\S]*?width:\s*clamp\(34px, 8\.8vw, 44px\)/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-cell\.is-marked::before[\s\S]*?inset:\s*14% 9% 4% 9%/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-cell\.is-called:not\(\.is-marked\)::after[\s\S]*?border:\s*0[\s\S]*?radial-gradient/);
+  assert.match(bingoEconomyCss, /@keyframes haunted-bingo-called-sparkle/);
 });
 
-test("Auto call stays readable and recent calls remain centered beneath the Bingo card", () => {
+test("Main Bingo card moves left on phones while recent calls stay centered beneath it", () => {
   assert.match(bingo, /AUTO_CALL_DELAY_MS = 2850/);
   assert.match(bingo, /slice\(-8\)/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-card[\s\S]*?width:\s*min\(84vw, 372px\)[\s\S]*?transform:\s*translateX\(-6\.5vw\)/);
   assert.match(bingoEconomyCss, /\.haunted-bingo-history[\s\S]*?left:\s*50%[\s\S]*?bottom:\s*-20px[\s\S]*?translateX\(-50%\)/);
   assert.match(bingoEconomyCss, /justify-content:\s*flex-end/);
   assert.match(bingoEconomyCss, /haunted-bingo-call-ticker-in/);
 });
 
-test("Every Bingo round races three server-owned rivals and closes after the first three winners", () => {
-  assert.match(bingoServer, /HAUNTED_BINGO_RIVAL_COUNT = 3/);
+test("Every Bingo round races five server-owned rivals but still closes after the first three winners", () => {
+  assert.match(bingoServer, /HAUNTED_BINGO_RIVAL_COUNT = 5/);
   assert.match(bingoServer, /HAUNTED_BINGO_WINNER_LIMIT = 3/);
-  assert.match(bingoServer, /createHauntedBingoRivals/);
+  assert.match(bingoServer, /completeHauntedBingoRivals/);
   assert.match(bingoServer, /advanceHauntedBingoRivals/);
   assert.match(bingoServer, /fieldFilled[\s\S]*?status = \$\{fieldFilled \? "lost" : "active"\}/);
   assert.match(bingoServer, /winners\.length < HAUNTED_BINGO_WINNER_LIMIT/);
@@ -92,12 +101,12 @@ test("Every Bingo round races three server-owned rivals and closes after the fir
   assert.match(bingoMigration, /'active', 'won', 'lost', 'forfeited'/);
 });
 
-test("Rival mini cards and fourth-place finish messaging are visible without moving the main card", () => {
+test("Five rival mini cards remain in a separate rail from the shifted main card", () => {
   assert.match(bingo, /className="haunted-bingo-rivals"/);
   assert.match(bingo, /TOP \{winnerLimit\} WIN/);
   assert.match(bingo, /RivalMiniCard/);
-  assert.match(bingo, /4TH PLACE/);
-  assert.match(bingo, /Three rivals called Bingo first/);
+  assert.match(bingo, /rivalCount = state\?\.rivalCount \?\? 5/);
+  assert.match(bingo, /OUT OF PRIZE SPOTS/);
   assert.match(bingoEconomyCss, /\.haunted-bingo-rivals[\s\S]*?position:\s*absolute/);
   assert.match(bingoEconomyCss, /\.haunted-bingo-rival\.is-won/);
   assert.match(bingoEconomyCss, /haunted-bingo-rival-sheen/);
@@ -106,6 +115,6 @@ test("Rival mini cards and fourth-place finish messaging are visible without mov
 test("Active Bingo cards persist instead of allowing free client-side rerolls", () => {
   assert.match(bingoServer, /WHERE user_id = \$\{userId\} AND status = 'active'/);
   assert.match(bingoServer, /FOR UPDATE/);
-  assert.match(bingo, /Your active card is saved if you leave|round ends instead of running until everyone wins/);
+  assert.match(bingo, /Your active card is saved if you leave|real finish line/);
   assert.doesNotMatch(bingo, /New Card/);
 });

@@ -284,6 +284,7 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
   const nextEntryLabel = state?.freeGameAvailable ? "Play Free Game" : `Play · ${state?.entryCost ?? 100} Coins`;
   const card = round?.card ?? EMPTY_CARD;
   const winnerLimit = state?.winnerLimit ?? 3;
+  const rivalCount = state?.rivalCount ?? 5;
 
   return (
     <div
@@ -314,10 +315,6 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
       <main className="haunted-bingo-shell">
         <header className="haunted-bingo-header haunted-bingo-header-spacer" aria-hidden="true" />
 
-        <div className="haunted-bingo-economy-strip" aria-label="Coin balance">
-          <span className="haunted-bingo-wallet"><img src={currencyAssets.coin} alt="" />{state?.balances.coins ?? "—"}</span>
-        </div>
-
         <div className="haunted-bingo-stage">
           <section className="haunted-bingo-cage-zone" aria-label="Bingo ball cage">
             <div className={`haunted-bingo-cage ${shuffling ? "is-shuffling" : ""}`}>
@@ -327,6 +324,9 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
                 ))}
               </div>
               <img src={bingoBallCage} alt="Bingo ball cage" draggable={false} className="haunted-bingo-cage-frame" />
+            </div>
+            <div className="haunted-bingo-cage-wallet" aria-label="Coin balance">
+              <span className="haunted-bingo-wallet"><img src={currencyAssets.coin} alt="" />{state?.balances.coins ?? "—"}</span>
             </div>
             <div className="haunted-bingo-history" aria-label="Recent calls">
               {recentCalls.length === 0 ? <span className="haunted-bingo-history-empty">Recent calls</span> : recentCalls.map((value) => (
@@ -401,11 +401,6 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
                 <div className="haunted-bingo-ready-call">READY</div>
               ) : null}
             </div>
-            {round && round.status === "active" && (
-              <div className="haunted-bingo-call-caption">
-                {shuffling ? "Mixing the cage…" : round.current != null ? `Current call · ${calledLabel(round.current)}` : "Call the first ball"}
-              </div>
-            )}
           </section>
         </div>
 
@@ -444,8 +439,8 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
         )}
         <p className="haunted-bingo-help">
           {round
-            ? `Race three casino rivals. The first ${winnerLimit} Bingos pay; fourth place is out. Called numbers glow, and ghost coin spaces add to a winning payout when covered.`
-            : "One free Bingo game each casino day. Each card races three casino rivals, so a round ends instead of running until everyone wins."}
+            ? `Race ${rivalCount} casino rivals. The first ${winnerLimit} Bingos pay; once the prize spots fill, the round ends. Sparkling numbers are ready to mark, and ghost coin spaces add to a winning payout when covered.`
+            : `One free Bingo game each casino day. Each card races ${rivalCount} casino rivals, so every round has a real finish line.`}
         </p>
       </main>
 
@@ -470,9 +465,9 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
         <div className="haunted-bingo-win-layer" role="dialog" aria-modal="true" aria-label="Bingo round finished">
           <div className="haunted-bingo-win-card haunted-bingo-loss-card">
             <div className="haunted-bingo-loss-icon" aria-hidden="true">☾</div>
-            <div className="haunted-bingo-placement">4TH PLACE</div>
+            <div className="haunted-bingo-placement">OUT OF PRIZE SPOTS</div>
             <div className="haunted-bingo-win-title">SO CLOSE</div>
-            <p>Three rivals called Bingo first, so this card is closed. Your next card starts a fresh race.</p>
+            <p>The three prize spots filled before your card reached Bingo. Your next card starts a fresh race.</p>
             <button type="button" onClick={() => void startRound()} disabled={starting || !canAffordNext}>
               {starting ? "Dealing…" : state?.freeGameAvailable ? "Play Free Game" : canAffordNext ? `Play Again · ${state?.entryCost ?? 100}` : "Not enough coins"}
             </button>
