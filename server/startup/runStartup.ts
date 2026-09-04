@@ -8,6 +8,7 @@ import { pool } from "../db";
 import { reconcileCanonicalWorldMaps } from "../worlds/canonicalWorldMaps";
 import { reconcileHauntedWoodsWorld } from "../worlds/hauntedWoods";
 import { runEssentialBoot } from "./migrations/runEssentialBoot";
+import { ensureHauntedBingoSchema } from "./migrations/ensureHauntedBingo";
 import { repairAccessoryEquipmentIntegrity } from "./migrations/repairAccessoryEquipmentIntegrity";
 import { runNonCriticalStartup } from "./backfills/runNonCriticalStartup";
 import { tagSquirrelFoxAnimationProfile } from "./backfills/tagSquirrelFoxAnimationProfile";
@@ -47,6 +48,7 @@ async function runBackgroundInitialization(): Promise<void> {
 
 export async function runStartup({ app, httpServer, log }: StartupDependencies): Promise<void> {
   await runEssentialBoot();
+  await ensureHauntedBingoSchema();
 
   // Accessory ownership/equipment is persisted player state and must be valid
   // before any inventory or Closet route can answer. Older versions allowed
