@@ -1,4 +1,4 @@
-import type { Express, RequestHandler } from "express";
+import type { Express, RequestHandler, Response } from "express";
 import { db } from "../db";
 import { getSlotPrizeOptions, saveSlotPrizeSelection, SlotPrizeValidationError } from "../hauntedSlotPrizes";
 import {
@@ -8,6 +8,21 @@ import {
   saveHauntedCasinoHotspots,
   spinHauntedSlots,
 } from "../hauntedCasino";
+import {
+  HauntedBingoError,
+  callHauntedBingoBall,
+  getHauntedBingoState,
+  markHauntedBingoCell,
+  startHauntedBingoRound,
+} from "../hauntedBingo";
+
+function sendBingoError(res: Response, error: unknown, operation: string) {
+  if (error instanceof HauntedBingoError) {
+    return res.status(error.status).json({ errorCode: error.code, message: error.message });
+  }
+  console.error(`[haunted-casino] Bingo ${operation} failed`, error);
+  return res.status(500).json({ message: "Haunted Bingo stumbled safely. Please try again." });
+}
 
 export function registerHauntedCasinoRoutes(
   app: Express,
@@ -58,6 +73,48 @@ export function registerHauntedCasinoRoutes(
       if (error instanceof SlotPrizeValidationError) return res.status(400).json({ message: error.message });
       console.error("[haunted-casino] prize save failed", error);
       return res.status(500).json({ message: "Prize selection could not be saved" });
+    }
+  });
+
+  app.get("/api/haunted-casino/bingo", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      return res.json(await getHauntedBingoState(user.id));
+    } catch (error) {
+      return sendBingoError(res, error, "state");
+    }
+  });
+
+  app.post("/api/haunted-casino/bingo/start", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      return res.json(await startHauntedBingoRound(user.id));
+    } catch (error) {
+      return sendBingoError(res, error, "start");
+    }
+  });
+
+  app.post("/api/haunted-casino/bingo/:roundId/call", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      return res.json(await callHauntedBingoBall(user.id, req.params.roundId as string));
+    } catch (error) {
+      return sendBingoError(res, error, "call");
+    }
+  });
+
+  app.put("/api/haunted-casino/bingo/:roundId/mark", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      return res.json(await markHauntedBingoCell(
+        user.id,
+        req.params.roundId as string,
+        req.body?.row,
+        req.body?.column,
+        req.body?.marked,
+      ));
+    } catch (error) {
+      return sendBingoError(res, error, "mark");
     }
   });
 
