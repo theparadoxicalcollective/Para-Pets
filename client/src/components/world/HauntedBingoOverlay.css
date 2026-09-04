@@ -1,0 +1,478 @@
+.haunted-bingo-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 97;
+  overflow: hidden;
+  background: #08040d;
+  color: #fff;
+}
+
+.haunted-bingo-background {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-size: cover;
+  background-position: center;
+}
+
+.haunted-bingo-close {
+  position: fixed;
+  right: 12px;
+  top: max(24px, calc(env(safe-area-inset-top) + 12px));
+  z-index: 108;
+  width: clamp(48px, 13vw, 62px);
+  border: 0;
+  padding: 0;
+  background: transparent;
+  transition: transform 120ms ease;
+}
+
+.haunted-bingo-close:active { transform: scale(.95); }
+.haunted-bingo-close img { display: block; width: 100%; height: auto; }
+
+.haunted-bingo-shell {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+  max-width: 1050px;
+  margin: 0 auto;
+  flex-direction: column;
+  padding: max(18px, calc(env(safe-area-inset-top) + 10px)) 12px max(10px, env(safe-area-inset-bottom));
+}
+
+.haunted-bingo-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 72px;
+}
+
+.haunted-bingo-kicker {
+  color: rgba(253, 230, 138, .7);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+}
+
+.haunted-bingo-header h1 {
+  margin: 1px 0 0;
+  color: #fef3c7;
+  font-family: var(--font-fantasy, serif);
+  font-size: clamp(21px, 4vw, 34px);
+  line-height: 1;
+  letter-spacing: .04em;
+  text-shadow: 0 2px 5px #000, 0 0 14px rgba(250, 204, 21, .18);
+}
+
+.haunted-bingo-status {
+  display: flex;
+  min-width: 120px;
+  min-height: 42px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(252, 211, 77, .5);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(4, 70, 50, .92), rgba(2, 40, 31, .94));
+  padding: 5px 14px;
+  color: #fef3c7;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .36), inset 0 0 0 1px rgba(255, 255, 255, .04);
+  text-align: center;
+}
+
+.haunted-bingo-status span { font-size: 11px; font-weight: 800; }
+.haunted-bingo-status small { margin-top: 1px; color: rgba(209, 250, 229, .68); font-size: 8px; text-transform: uppercase; letter-spacing: .12em; }
+
+.haunted-bingo-stage {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-areas: "cage card call";
+  grid-template-columns: minmax(180px, .85fr) minmax(300px, 1.25fr) minmax(180px, .85fr);
+  align-items: center;
+  gap: clamp(10px, 2vw, 24px);
+  padding: 4px 0;
+}
+
+.haunted-bingo-cage-zone { grid-area: cage; }
+.haunted-bingo-card-zone { grid-area: card; min-width: 0; }
+.haunted-bingo-call-zone { grid-area: call; }
+
+.haunted-bingo-cage-zone,
+.haunted-bingo-call-zone {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.haunted-bingo-cage {
+  position: relative;
+  width: min(100%, 320px);
+  aspect-ratio: 1;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, .48));
+}
+
+.haunted-bingo-cage-balls {
+  position: absolute;
+  inset: 16% 16% 24% 16%;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.haunted-bingo-cage-frame {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.haunted-bingo-cage-ball {
+  position: absolute;
+  width: 22%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .48));
+  transform: translate(-50%, -50%);
+}
+
+.haunted-bingo-cage-ball:nth-child(1) { left: 12%; top: 57%; }
+.haunted-bingo-cage-ball:nth-child(2) { left: 29%; top: 62%; }
+.haunted-bingo-cage-ball:nth-child(3) { left: 47%; top: 57%; }
+.haunted-bingo-cage-ball:nth-child(4) { left: 64%; top: 62%; }
+.haunted-bingo-cage-ball:nth-child(5) { left: 80%; top: 54%; }
+.haunted-bingo-cage-ball:nth-child(6) { left: 18%; top: 40%; }
+.haunted-bingo-cage-ball:nth-child(7) { left: 36%; top: 43%; }
+.haunted-bingo-cage-ball:nth-child(8) { left: 55%; top: 40%; }
+.haunted-bingo-cage-ball:nth-child(9) { left: 73%; top: 39%; }
+.haunted-bingo-cage-ball:nth-child(10) { left: 27%; top: 23%; }
+.haunted-bingo-cage-ball:nth-child(11) { left: 46%; top: 25%; }
+.haunted-bingo-cage-ball:nth-child(12) { left: 64%; top: 22%; }
+.haunted-bingo-cage-ball:nth-child(13) { left: 39%; top: 76%; }
+.haunted-bingo-cage-ball:nth-child(14) { left: 59%; top: 76%; }
+
+.haunted-bingo-cage.is-shuffling .haunted-bingo-cage-ball {
+  animation: haunted-bingo-ball-shuffle 420ms ease-in-out infinite alternate;
+}
+
+.haunted-bingo-cage.is-shuffling .haunted-bingo-cage-ball:nth-child(2n) { animation-delay: -90ms; animation-duration: 360ms; }
+.haunted-bingo-cage.is-shuffling .haunted-bingo-cage-ball:nth-child(3n) { animation-delay: -180ms; animation-duration: 470ms; }
+.haunted-bingo-cage.is-shuffling .haunted-bingo-cage-ball:nth-child(5n) { animation-delay: -240ms; animation-duration: 330ms; }
+
+@keyframes haunted-bingo-ball-shuffle {
+  0% { translate: -7px 5px; rotate: -14deg; scale: .95; }
+  50% { translate: 5px -9px; rotate: 9deg; scale: 1.04; }
+  100% { translate: 9px 6px; rotate: 18deg; scale: .98; }
+}
+
+.haunted-bingo-history {
+  display: flex;
+  min-height: 27px;
+  max-width: 330px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  margin-top: -4px;
+}
+
+.haunted-bingo-history-chip,
+.haunted-bingo-history-empty {
+  border: 1px solid rgba(252, 211, 77, .34);
+  border-radius: 999px;
+  background: rgba(2, 44, 34, .84);
+  padding: 3px 7px;
+  color: #fef3c7;
+  font-size: 9px;
+  font-weight: 700;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, .28);
+}
+
+.haunted-bingo-history-empty { color: rgba(236, 253, 245, .52); font-weight: 500; }
+
+.haunted-bingo-card {
+  position: relative;
+  width: min(100%, 455px);
+  aspect-ratio: 1122 / 1402;
+  margin: 0 auto;
+  filter: drop-shadow(0 8px 15px rgba(0, 0, 0, .55)) drop-shadow(0 0 7px rgba(250, 204, 21, .12));
+}
+
+.haunted-bingo-card-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.haunted-bingo-card-grid {
+  position: absolute;
+  left: 12.7%;
+  right: 12.9%;
+  top: 39.05%;
+  bottom: 13.7%;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(5, 1fr);
+  gap: .65%;
+}
+
+.haunted-bingo-cell {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  place-items: center;
+  overflow: visible;
+  border: 0;
+  border-radius: 12%;
+  background: transparent;
+  padding: 0;
+  color: #f7e8b4;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(12px, 2.5vw, 24px);
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 2px 3px #00150f, 0 0 4px #00150f;
+}
+
+.haunted-bingo-cell:disabled { opacity: 1; }
+.haunted-bingo-cell:not(:disabled) { cursor: pointer; }
+.haunted-bingo-cell span { position: relative; z-index: 2; }
+
+.haunted-bingo-cell.is-called:not(.is-marked)::after {
+  content: "";
+  position: absolute;
+  inset: 16%;
+  border: 1px solid rgba(167, 243, 208, .66);
+  border-radius: 50%;
+  background: rgba(16, 185, 129, .12);
+  box-shadow: 0 0 8px rgba(52, 211, 153, .4);
+  animation: haunted-bingo-called-pulse 1s ease-in-out infinite alternate;
+}
+
+.haunted-bingo-cell.is-marked::before {
+  content: "";
+  position: absolute;
+  inset: 9%;
+  z-index: 1;
+  border: 2px solid rgba(253, 230, 138, .88);
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, rgba(110, 231, 183, .8), rgba(5, 104, 75, .87) 62%, rgba(3, 54, 42, .94));
+  box-shadow: inset 0 0 7px rgba(255, 255, 255, .25), 0 0 7px rgba(52, 211, 153, .55), 0 2px 4px rgba(0, 0, 0, .42);
+}
+
+.haunted-bingo-cell.is-marked span { color: #fff7d6; text-shadow: 0 2px 3px #003226; }
+.haunted-bingo-cell.is-free { pointer-events: none; }
+
+@keyframes haunted-bingo-called-pulse {
+  from { opacity: .45; transform: scale(.92); }
+  to { opacity: 1; transform: scale(1.03); }
+}
+
+.haunted-bingo-call-stand {
+  position: relative;
+  width: min(100%, 320px);
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, .5));
+}
+
+.haunted-bingo-call-stand-art {
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
+.haunted-bingo-called-ball {
+  position: absolute;
+  left: 50%;
+  top: 53%;
+  z-index: 2;
+  width: 43%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  transition: opacity 150ms ease, transform 180ms ease;
+}
+
+.haunted-bingo-called-ball img { display: block; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 2px 5px rgba(0, 0, 0, .35)); }
+.haunted-bingo-called-ball span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #064e3b;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(14px, 3.1vw, 28px);
+  font-weight: 900;
+  letter-spacing: -.03em;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .45);
+}
+
+.haunted-bingo-call-stand.is-shuffling .haunted-bingo-called-ball { opacity: .28; transform: translate(-50%, -50%) scale(.88); }
+
+.haunted-bingo-ready-call {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  width: 46%;
+  transform: translate(-50%, -50%);
+  color: rgba(209, 250, 229, .72);
+  font-family: var(--font-fantasy, serif);
+  font-size: clamp(11px, 2.2vw, 20px);
+  font-weight: 800;
+  letter-spacing: .15em;
+  text-align: center;
+  text-shadow: 0 2px 4px #001c15;
+}
+
+.haunted-bingo-call-caption {
+  min-height: 25px;
+  margin-top: -2px;
+  color: rgba(254, 243, 199, .75);
+  font-size: 10px;
+  text-align: center;
+}
+
+.haunted-bingo-controls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding-top: 2px;
+}
+
+.haunted-bingo-controls button {
+  min-height: 44px;
+  border-radius: 13px;
+  padding: 8px clamp(11px, 2.5vw, 20px);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .025em;
+  transition: transform 110ms ease, filter 110ms ease, opacity 110ms ease;
+}
+
+.haunted-bingo-controls button:not(:disabled):active { transform: scale(.97); }
+.haunted-bingo-controls button:disabled { opacity: .46; }
+
+.haunted-bingo-primary-button {
+  border: 1px solid rgba(254, 240, 138, .92);
+  background: linear-gradient(180deg, #f4d978, #b78625);
+  color: #173b2d;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, .4), inset 0 1px rgba(255, 255, 255, .45), 0 0 8px rgba(250, 204, 21, .16);
+}
+
+.haunted-bingo-secondary-button {
+  border: 1px solid rgba(252, 211, 77, .46);
+  background: linear-gradient(180deg, rgba(5, 76, 54, .95), rgba(2, 45, 35, .96));
+  color: #fef3c7;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, .34), inset 0 0 0 1px rgba(255, 255, 255, .03);
+}
+
+.haunted-bingo-secondary-button.is-active { box-shadow: 0 0 0 1px rgba(167, 243, 208, .5), 0 0 12px rgba(52, 211, 153, .28); }
+
+.haunted-bingo-help {
+  flex: 0 0 auto;
+  margin: 4px 0 0;
+  color: rgba(221, 214, 254, .7);
+  font-size: 9px;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.haunted-bingo-win-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  background: rgba(3, 2, 8, .76);
+  padding: 20px;
+  backdrop-filter: blur(5px);
+}
+
+.haunted-bingo-win-card {
+  width: min(92vw, 360px);
+  border: 2px solid rgba(253, 230, 138, .76);
+  border-radius: 24px;
+  background: radial-gradient(circle at 50% 0%, rgba(19, 116, 78, .98), rgba(2, 47, 36, .98) 58%, rgba(9, 20, 17, .98));
+  padding: 25px 20px 22px;
+  color: #fef3c7;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .7), 0 0 28px rgba(52, 211, 153, .22);
+  text-align: center;
+}
+
+.haunted-bingo-win-spark { color: #fde68a; font-size: 28px; text-shadow: 0 0 12px rgba(250, 204, 21, .7); }
+.haunted-bingo-win-title { margin-top: 2px; font-family: var(--font-fantasy, serif); font-size: 36px; font-weight: 900; letter-spacing: .09em; }
+.haunted-bingo-win-card p { margin: 7px 0 0; color: rgba(236, 253, 245, .8); font-size: 13px; }
+.haunted-bingo-win-card button { min-height: 44px; margin-top: 18px; border: 1px solid rgba(254, 240, 138, .8); border-radius: 12px; background: #d7b64e; padding: 8px 18px; color: #123528; font-weight: 900; }
+
+@media (max-width: 700px) {
+  .haunted-bingo-shell { padding-left: 8px; padding-right: 8px; }
+  .haunted-bingo-header { min-height: 44px; padding-right: 66px; }
+  .haunted-bingo-kicker { font-size: 7px; }
+  .haunted-bingo-header h1 { font-size: clamp(19px, 6.2vw, 27px); }
+  .haunted-bingo-status { min-width: 100px; min-height: 36px; padding: 4px 10px; }
+  .haunted-bingo-status span { font-size: 9px; }
+
+  .haunted-bingo-stage {
+    grid-template-areas:
+      "cage call"
+      "card card";
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    align-content: start;
+    gap: 3px 8px;
+    padding: 1px 0;
+  }
+
+  .haunted-bingo-cage,
+  .haunted-bingo-call-stand { width: min(43vw, 176px); }
+  .haunted-bingo-history { min-height: 18px; max-height: 20px; flex-wrap: nowrap; overflow: hidden; margin-top: -7px; }
+  .haunted-bingo-history-chip,
+  .haunted-bingo-history-empty { padding: 2px 5px; font-size: 7px; white-space: nowrap; }
+  .haunted-bingo-call-caption { min-height: 18px; margin-top: -7px; font-size: 8px; }
+  .haunted-bingo-card { width: min(88vw, 390px); max-height: 100%; }
+  .haunted-bingo-cell { font-size: clamp(11px, 4.2vw, 19px); }
+  .haunted-bingo-called-ball span { font-size: clamp(12px, 5vw, 21px); }
+  .haunted-bingo-controls { gap: 5px; }
+  .haunted-bingo-controls button { min-height: 42px; padding: 7px 11px; font-size: 10px; }
+  .haunted-bingo-help { margin-top: 2px; font-size: 8px; }
+}
+
+@media (max-height: 650px) {
+  .haunted-bingo-shell { padding-top: max(8px, calc(env(safe-area-inset-top) + 5px)); }
+  .haunted-bingo-header { min-height: 34px; }
+  .haunted-bingo-kicker { display: none; }
+  .haunted-bingo-header h1 { font-size: 19px; }
+  .haunted-bingo-status { min-height: 31px; }
+  .haunted-bingo-cage,
+  .haunted-bingo-call-stand { width: min(36vw, 122px); }
+  .haunted-bingo-card { width: min(72vw, 305px); }
+  .haunted-bingo-history,
+  .haunted-bingo-call-caption { min-height: 14px; }
+  .haunted-bingo-controls button { min-height: 38px; padding-top: 5px; padding-bottom: 5px; }
+  .haunted-bingo-help { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .haunted-bingo-cage.is-shuffling .haunted-bingo-cage-ball,
+  .haunted-bingo-cell.is-called:not(.is-marked)::after { animation: none; }
+  .haunted-bingo-close,
+  .haunted-bingo-called-ball,
+  .haunted-bingo-controls button { transition: none; }
+}
