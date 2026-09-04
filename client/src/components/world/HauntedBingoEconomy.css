@@ -421,8 +421,9 @@
     padding-top: 0;
   }
 
+  /* Do not position this container: the absolutely positioned recent-call
+     ticker must continue resolving against the full Bingo stage, not the cage. */
   .haunted-bingo-cage-zone {
-    position: relative;
     width: max-content;
     justify-self: start;
     align-self: start;
