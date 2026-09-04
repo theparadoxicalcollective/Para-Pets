@@ -4,6 +4,23 @@
   transition: opacity 320ms ease;
 }
 
+/* These offsets are intentionally global, not phone-only. Individual layout
+   transforms from the base Bingo styles still apply, while CSS translate adds
+   the same requested horizontal nudge on every viewport. */
+.haunted-bingo-cage,
+.haunted-bingo-cage-wallet {
+  translate: 16px 0;
+}
+
+.haunted-bingo-call-zone {
+  translate: -24px 0;
+}
+
+/* Keep recent calls visibly closer to the card/cage on every viewport. */
+.haunted-bingo-history {
+  translate: 0 -16px;
+}
+
 /* Make a ready-to-mark number much harder to miss without covering the art. */
 .haunted-bingo-cell.is-called:not(.is-marked)::before {
   content: "";
@@ -86,31 +103,7 @@
   to { filter: brightness(1.28) drop-shadow(0 0 3px rgba(254, 240, 138, .78)); }
 }
 
-@media (min-width: 701px) {
-  .haunted-bingo-cage-zone { transform: translateX(12px); }
-  .haunted-bingo-call-zone { transform: translateX(-18px); }
-}
-
 @media (max-width: 700px) {
-  /* Shift the two illustrated top pieces apart as requested. */
-  .haunted-bingo-cage {
-    transform: translate(12px, -26px);
-  }
-
-  .haunted-bingo-cage-wallet {
-    transform: translate(12px, -22px);
-  }
-
-  .haunted-bingo-call-zone {
-    left: calc(-16vw - 18px);
-  }
-
-  /* Raise the recent-call ticker roughly two visual notches. */
-  .haunted-bingo-history {
-    bottom: -6px;
-    margin: 0;
-  }
-
   .haunted-bingo-wallet {
     gap: 6px;
     padding: 5px 10px 5px 7px;
@@ -120,18 +113,6 @@
   .haunted-bingo-wallet img {
     width: 19px;
     height: 19px;
-  }
-}
-
-@media (max-width: 390px) {
-  .haunted-bingo-call-zone {
-    left: calc(-15vw - 18px);
-  }
-}
-
-@media (max-height: 720px) {
-  .haunted-bingo-history {
-    bottom: -3px;
   }
 }
 
