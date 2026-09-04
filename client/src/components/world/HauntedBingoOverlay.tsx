@@ -18,14 +18,37 @@ interface BingoBonus {
   amount: number;
 }
 
+interface BingoRival {
+  id: string;
+  name: string;
+  kind: "bot";
+  card: BingoCard;
+  marked: string[];
+  status: "playing" | "won";
+  placement: number | null;
+  reactionDelay: number;
+}
+
+interface BingoWinner {
+  kind: "player" | "bot";
+  id: string;
+  name: string;
+  placement: number;
+  callIndex: number;
+}
+
 interface BingoRound {
   id: string;
-  status: "active" | "won" | "forfeited";
+  status: "active" | "won" | "lost" | "forfeited";
   card: BingoCard;
   called: number[];
   current: number | null;
   marked: string[];
   bonuses: BingoBonus[];
+  rivals: BingoRival[];
+  winners: BingoWinner[];
+  placement: number | null;
+  winnerSlotsRemaining: number;
   entryCost: number;
   freeEntry: boolean;
   remainingCalls: number;
@@ -40,6 +63,8 @@ interface BingoState {
   winReward: number;
   dailyFreeGames: number;
   freeGameAvailable: boolean;
+  winnerLimit: number;
+  rivalCount: number;
   round: BingoRound | null;
 }
 
@@ -48,6 +73,7 @@ interface BingoReward {
   bonusCoins: number;
   totalCoins: number;
   markedBonusCount: number;
+  placement: number;
 }
 
 type BingoMarkResponse = BingoState & { reward: BingoReward | null };
@@ -71,10 +97,46 @@ function calledLabel(value: number): string {
   return `${bingoLetterFor(value)} ${value}`;
 }
 
+function ordinal(value: number): string {
+  if (value === 1) return "1st";
+  if (value === 2) return "2nd";
+  if (value === 3) return "3rd";
+  return `${value}th`;
+}
+
 async function readJson<T>(response: Response): Promise<T> {
   const payload = await response.json().catch(() => null);
   if (!response.ok) throw new Error(payload?.message || "Haunted Bingo could not complete that action");
   return payload as T;
+}
+
+function RivalMiniCard({ rival }: { rival: BingoRival }) {
+  const marked = useMemo(() => new Set(rival.marked), [rival.marked]);
+  return (
+    <div className={`haunted-bingo-rival ${rival.status === "won" ? "is-won" : ""}`}>
+      <div className="haunted-bingo-rival-meta">
+        <span className="haunted-bingo-rival-name">{rival.name}</span>
+        <span className="haunted-bingo-rival-kind">BOT</span>
+      </div>
+      <div className="haunted-bingo-rival-card" aria-hidden="true">
+        {rival.card.flatMap((row, rowIndex) => row.map((value, columnIndex) => {
+          const key = `${rowIndex}-${columnIndex}`;
+          const isFree = key === FREE_CELL_KEY;
+          return (
+            <span
+              key={key}
+              className={`${isFree ? "is-free" : ""} ${marked.has(key) ? "is-marked" : ""}`}
+            >
+              {isFree ? "✦" : value}
+            </span>
+          );
+        }))}
+      </div>
+      {rival.placement != null && (
+        <div className="haunted-bingo-rival-place">{ordinal(rival.placement)}</div>
+      )}
+    </div>
+  );
 }
 
 export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }) {
@@ -169,7 +231,10 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
       const payload = await readJson<BingoState>(response);
       const remaining = Math.max(0, MINIMUM_SHUFFLE_MS - (Date.now() - startedAt));
       if (remaining) await sleep(remaining);
-      if (mountedRef.current) setState(payload);
+      if (mountedRef.current) {
+        setState(payload);
+        if (payload.round?.status !== "active") setAutoCall(false);
+      }
     } catch (reason) {
       if (mountedRef.current) {
         setAutoCall(false);
@@ -218,6 +283,7 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
   const canAffordNext = Boolean(state && (state.freeGameAvailable || state.balances.coins >= state.entryCost));
   const nextEntryLabel = state?.freeGameAvailable ? "Play Free Game" : `Play · ${state?.entryCost ?? 100} Coins`;
   const card = round?.card ?? EMPTY_CARD;
+  const winnerLimit = state?.winnerLimit ?? 3;
 
   return (
     <div
@@ -248,9 +314,8 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
       <main className="haunted-bingo-shell">
         <header className="haunted-bingo-header haunted-bingo-header-spacer" aria-hidden="true" />
 
-        <div className="haunted-bingo-economy-strip" aria-label="Bingo prizes and balance">
+        <div className="haunted-bingo-economy-strip" aria-label="Coin balance">
           <span className="haunted-bingo-wallet"><img src={currencyAssets.coin} alt="" />{state?.balances.coins ?? "—"}</span>
-          <span className="haunted-bingo-prize-copy">Bingo pays <strong>{state?.winReward ?? 500}</strong> + marked card bonuses</span>
         </div>
 
         <div className="haunted-bingo-stage">
@@ -309,6 +374,19 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
                 </div>
               )}
             </div>
+
+            {round && round.rivals.length > 0 && (
+              <aside className="haunted-bingo-rivals" aria-label="Casino rivals">
+                <div className="haunted-bingo-rivals-title">
+                  <span>RIVALS</span>
+                  <small>TOP {winnerLimit} WIN</small>
+                </div>
+                {round.rivals.map((rival) => <RivalMiniCard key={rival.id} rival={rival} />)}
+                <div className="haunted-bingo-rival-slots">
+                  {round.winnerSlotsRemaining > 0 ? `${round.winnerSlotsRemaining} prize spot${round.winnerSlotsRemaining === 1 ? "" : "s"} left` : "Prize spots filled"}
+                </div>
+              </aside>
+            )}
           </section>
 
           <section className="haunted-bingo-call-zone" aria-label="Current bingo call">
@@ -323,7 +401,7 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
                 <div className="haunted-bingo-ready-call">READY</div>
               ) : null}
             </div>
-            {round && (
+            {round && round.status === "active" && (
               <div className="haunted-bingo-call-caption">
                 {shuffling ? "Mixing the cage…" : round.current != null ? `Current call · ${calledLabel(round.current)}` : "Call the first ball"}
               </div>
@@ -365,7 +443,9 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
           <p className="haunted-bingo-help haunted-bingo-insufficient">You need {state.entryCost} coins for another card.</p>
         )}
         <p className="haunted-bingo-help">
-          {round ? "Called numbers glow. Mark them before Bingo; ghost coin spaces become bonus payouts when covered." : "One free Bingo game each casino day. Your active card is saved if you leave."}
+          {round
+            ? `Race three casino rivals. The first ${winnerLimit} Bingos pay; fourth place is out. Called numbers glow, and ghost coin spaces add to a winning payout when covered.`
+            : "One free Bingo game each casino day. Each card races three casino rivals, so a round ends instead of running until everyone wins."}
         </p>
       </main>
 
@@ -373,10 +453,26 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
         <div className="haunted-bingo-win-layer" role="dialog" aria-modal="true" aria-label="Bingo win">
           <div className="haunted-bingo-win-card">
             <div className="haunted-bingo-win-spark" aria-hidden="true">✦</div>
+            <div className="haunted-bingo-placement">{ordinal(reward.placement)} PLACE</div>
             <div className="haunted-bingo-win-title">BINGO!</div>
             <div className="haunted-bingo-win-total">+{reward.totalCoins} coins</div>
             <p>{reward.baseCoins} coin Bingo prize{reward.bonusCoins > 0 ? ` + ${reward.bonusCoins} from ${reward.markedBonusCount} marked bonus bundle${reward.markedBonusCount === 1 ? "" : "s"}.` : "."}</p>
             <div className="haunted-bingo-win-balance"><img src={currencyAssets.coin} alt="" />Balance: {state?.balances.coins ?? "—"}</div>
+            <button type="button" onClick={() => void startRound()} disabled={starting || !canAffordNext}>
+              {starting ? "Dealing…" : state?.freeGameAvailable ? "Play Free Game" : canAffordNext ? `Play Again · ${state?.entryCost ?? 100}` : "Not enough coins"}
+            </button>
+            <button type="button" className="haunted-bingo-win-close" onClick={closeBingo}>Back to Casino</button>
+          </div>
+        </div>
+      )}
+
+      {round?.status === "lost" && !reward && (
+        <div className="haunted-bingo-win-layer" role="dialog" aria-modal="true" aria-label="Bingo round finished">
+          <div className="haunted-bingo-win-card haunted-bingo-loss-card">
+            <div className="haunted-bingo-loss-icon" aria-hidden="true">☾</div>
+            <div className="haunted-bingo-placement">4TH PLACE</div>
+            <div className="haunted-bingo-win-title">SO CLOSE</div>
+            <p>Three rivals called Bingo first, so this card is closed. Your next card starts a fresh race.</p>
             <button type="button" onClick={() => void startRound()} disabled={starting || !canAffordNext}>
               {starting ? "Dealing…" : state?.freeGameAvailable ? "Play Free Game" : canAffordNext ? `Play Again · ${state?.entryCost ?? 100}` : "Not enough coins"}
             </button>
