@@ -14,30 +14,32 @@
 .haunted-bingo-wallet {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  border: 1px solid rgba(252, 211, 77, .34);
+  gap: 5px;
+  border: 1px solid rgba(252, 211, 77, .38);
   border-radius: 999px;
-  background: rgba(3, 45, 34, .8);
-  padding: 3px 8px 3px 5px;
-  font-weight: 800;
-  box-shadow: 0 2px 7px rgba(0, 0, 0, .3), 0 0 10px rgba(16, 185, 129, .08);
+  background: rgba(3, 45, 34, .88);
+  padding: 4px 10px 4px 6px;
+  color: #fff4c3;
+  font-size: 10.5px;
+  font-weight: 850;
+  line-height: 1;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, .36), 0 0 12px rgba(16, 185, 129, .1);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .85);
 }
 
 .haunted-bingo-wallet img,
 .haunted-bingo-win-balance img {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   object-fit: contain;
 }
 
 .haunted-bingo-prize-copy { display: none; }
-
 .haunted-bingo-header-spacer { pointer-events: none; }
 
-/* The screenshot still reads the close medallion as a little heavy, so trim it
-   one more step without changing its safe-area anchoring. */
+/* Keep the close control readable but lighter than the illustrated game pieces. */
 .haunted-bingo-close {
-  width: clamp(38px, 9.8vw, 48px);
+  width: clamp(34px, 8.8vw, 44px);
 }
 
 .haunted-bingo-cell .haunted-bingo-number {
@@ -47,18 +49,33 @@
   transition: opacity 140ms ease, transform 140ms ease;
 }
 
-/* Both the "this number was called" halo and the covered marker move together
-   one more optical nudge down so they sit on the illustrated card spaces. */
+/* A called-but-unmarked square now twinkles instead of drawing another circle
+   over the painted card. Multiple tiny radial points pulse around the number. */
 .haunted-bingo-cell.is-called:not(.is-marked)::after {
-  inset: 19% 16% 13% 16%;
+  inset: 14% 12% 8% 12%;
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 18% 28%, rgba(254, 240, 138, .98) 0 2.2%, transparent 5%),
+    radial-gradient(circle at 77% 21%, rgba(167, 243, 208, .98) 0 2.4%, transparent 5.5%),
+    radial-gradient(circle at 86% 68%, rgba(253, 230, 138, .92) 0 2%, transparent 4.8%),
+    radial-gradient(circle at 27% 80%, rgba(110, 231, 183, .9) 0 2.3%, transparent 5.2%),
+    radial-gradient(circle at 53% 8%, rgba(255, 255, 255, .82) 0 1.6%, transparent 4%),
+    radial-gradient(circle at 48% 55%, rgba(52, 211, 153, .12), transparent 60%);
+  box-shadow: none;
+  filter: drop-shadow(0 0 4px rgba(250, 204, 21, .45)) drop-shadow(0 0 6px rgba(52, 211, 153, .28));
+  animation: haunted-bingo-called-sparkle 950ms ease-in-out infinite alternate;
 }
 
+/* Covered markers need one more small downward nudge to land directly on the
+   illustrated number spaces. */
 .haunted-bingo-cell.is-marked::before {
-  inset: 12% 9% 6% 9%;
+  inset: 14% 9% 4% 9%;
 }
 
-.haunted-bingo-cell.is-called:not(.is-marked)::after {
-  box-shadow: 0 0 9px rgba(52, 211, 153, .48), 0 0 16px rgba(16, 185, 129, .16);
+@keyframes haunted-bingo-called-sparkle {
+  from { opacity: .45; transform: scale(.92) rotate(-1.5deg); }
+  to { opacity: 1; transform: scale(1.05) rotate(1.5deg); }
 }
 
 .haunted-bingo-bonus {
@@ -71,6 +88,7 @@
   border-radius: 0;
   background: transparent;
   padding: 0;
+  transform: translate(4%, 4%);
   pointer-events: none;
 }
 
@@ -116,7 +134,7 @@
 }
 
 .haunted-bingo-cell.has-bonus.is-called:not(.is-marked)::after {
-  box-shadow: 0 0 9px rgba(52, 211, 153, .48), 0 0 13px rgba(250, 204, 21, .3);
+  filter: drop-shadow(0 0 5px rgba(250, 204, 21, .55)) drop-shadow(0 0 7px rgba(52, 211, 153, .32));
 }
 
 .haunted-bingo-deal-overlay {
@@ -220,8 +238,6 @@
 
 .haunted-bingo-called-ball { top: 45.5%; }
 
-/* Rival rail: server-controlled mini cards provide a visible stopping point.
-   The rail is decorative/non-interactive so it can never steal card taps. */
 .haunted-bingo-card-zone {
   position: relative;
 }
@@ -286,12 +302,13 @@
   animation: haunted-bingo-rival-sheen 6s ease-in-out infinite;
 }
 
+.haunted-bingo-rival:nth-of-type(2)::after { animation-delay: -1s; }
 .haunted-bingo-rival:nth-of-type(3)::after { animation-delay: -2s; }
-.haunted-bingo-rival:nth-of-type(4)::after { animation-delay: -4s; }
+.haunted-bingo-rival:nth-of-type(4)::after { animation-delay: -3s; }
+.haunted-bingo-rival:nth-of-type(5)::after { animation-delay: -4s; }
+.haunted-bingo-rival:nth-of-type(6)::after { animation-delay: -5s; }
 
-.haunted-bingo-rival-meta {
-  min-width: 0;
-}
+.haunted-bingo-rival-meta { min-width: 0; }
 
 .haunted-bingo-rival-name {
   display: block;
@@ -346,9 +363,7 @@
   box-shadow: 0 0 3px rgba(52, 211, 153, .6);
 }
 
-.haunted-bingo-rival-card span.is-free {
-  color: #fde68a;
-}
+.haunted-bingo-rival-card span.is-free { color: #fde68a; }
 
 .haunted-bingo-rival-place {
   position: absolute;
@@ -399,16 +414,6 @@
     padding-right: 64px;
   }
 
-  .haunted-bingo-economy-strip {
-    min-height: 22px;
-    margin-top: 1px;
-    gap: 0;
-    font-size: 7.5px;
-  }
-
-  .haunted-bingo-wallet { padding: 2px 6px 2px 4px; }
-  .haunted-bingo-wallet img { width: 14px; height: 14px; }
-
   .haunted-bingo-stage {
     position: relative;
     grid-template-columns: 34% 66%;
@@ -417,6 +422,7 @@
   }
 
   .haunted-bingo-cage-zone {
+    position: relative;
     width: max-content;
     justify-self: start;
     align-self: start;
@@ -428,6 +434,21 @@
     transform: translate(-4px, -26px);
   }
 
+  .haunted-bingo-cage-wallet {
+    display: flex;
+    width: min(30vw, 128px);
+    justify-content: center;
+    transform: translate(-4px, -22px);
+  }
+
+  .haunted-bingo-wallet {
+    gap: 5px;
+    padding: 4px 9px 4px 6px;
+    font-size: 9.5px;
+  }
+
+  .haunted-bingo-wallet img { width: 17px; height: 17px; }
+
   .haunted-bingo-call-zone {
     position: relative;
     left: -16vw;
@@ -436,11 +457,6 @@
   }
 
   .haunted-bingo-call-stand { width: min(39vw, 160px); }
-
-  .haunted-bingo-call-caption {
-    margin-top: -10px;
-    font-size: 7px;
-  }
 
   .haunted-bingo-history {
     position: absolute;
@@ -473,24 +489,25 @@
   }
 
   .haunted-bingo-card-zone { align-self: start; }
+
   .haunted-bingo-card {
     width: min(84vw, 372px);
     margin-top: -8px;
+    transform: translateX(-6.5vw);
     filter: drop-shadow(0 9px 17px rgba(0, 0, 0, .58)) drop-shadow(0 0 9px rgba(16, 185, 129, .08));
   }
 
-  /* On phones the three mini cards hug the illustrated right rail. They only
-     overlap decorative wood/ivy, not the 5x5 number cells, so the main card does
-     not move and every tap target remains clear. */
+  /* Five mini cards stay in their own right-side rail. The main illustrated card
+     shifts left instead of allowing the opponent rail to sit over its cells. */
   .haunted-bingo-rivals {
     top: 48%;
-    right: 2px;
-    width: 54px;
+    right: 1px;
+    width: 52px;
     transform: translateY(-50%);
-    gap: 3px;
+    gap: 2px;
     border-radius: 10px;
     padding: 4px 3px;
-    background: linear-gradient(180deg, rgba(3, 48, 37, .78), rgba(16, 8, 27, .82));
+    background: linear-gradient(180deg, rgba(3, 48, 37, .8), rgba(16, 8, 27, .84));
     box-shadow: 0 7px 18px rgba(0,0,0,.42), 0 0 13px rgba(139,92,246,.08);
   }
 
@@ -500,20 +517,21 @@
     font-size: 5.5px;
     line-height: 1.05;
   }
+
   .haunted-bingo-rivals-title small { display: block; margin-top: 1px; font-size: 4.5px; }
 
   .haunted-bingo-rival {
     display: block;
     min-height: 0;
     border-radius: 6px;
-    padding: 3px;
+    padding: 2px 3px;
   }
 
-  .haunted-bingo-rival-meta { margin-bottom: 2px; text-align: center; }
-  .haunted-bingo-rival-name { font-size: 4.5px; }
+  .haunted-bingo-rival-meta { margin-bottom: 1px; text-align: center; }
+  .haunted-bingo-rival-name { font-size: 4.2px; }
   .haunted-bingo-rival-kind { display: none; }
-  .haunted-bingo-rival-card { width: 42px; margin: 0 auto; padding: 1px; }
-  .haunted-bingo-rival-card span { font-size: 3px; }
+  .haunted-bingo-rival-card { width: 40px; margin: 0 auto; padding: 1px; }
+  .haunted-bingo-rival-card span { font-size: 2.8px; }
   .haunted-bingo-rival-place { right: 1px; top: 1px; font-size: 5px; padding: 1px 3px; }
   .haunted-bingo-rival-slots { font-size: 4.5px; line-height: 1.05; }
 
@@ -532,19 +550,22 @@
 }
 
 @media (max-width: 390px) {
-  .haunted-bingo-card { width: min(86vw, 340px); }
+  .haunted-bingo-card {
+    width: min(86vw, 340px);
+    transform: translateX(-6.8vw);
+  }
   .haunted-bingo-cage { width: min(29vw, 116px); }
+  .haunted-bingo-cage-wallet { width: min(29vw, 116px); }
   .haunted-bingo-call-zone { left: -15vw; }
-  .haunted-bingo-rivals { right: 1px; width: 50px; }
-  .haunted-bingo-rival-card { width: 38px; }
+  .haunted-bingo-rivals { right: 1px; width: 48px; }
+  .haunted-bingo-rival-card { width: 36px; }
 }
 
 @media (max-height: 720px) {
-  .haunted-bingo-economy-strip { display: none; }
   .haunted-bingo-card { margin-top: -4px; }
   .haunted-bingo-history { bottom: -17px; }
   .haunted-bingo-controls { margin-top: 14px; }
-  .haunted-bingo-rivals { transform: translateY(-50%) scale(.92); transform-origin: right center; }
+  .haunted-bingo-rivals { transform: translateY(-50%) scale(.88); transform-origin: right center; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -554,6 +575,7 @@
   .haunted-bingo-cell .haunted-bingo-number,
   .haunted-bingo-deal-overlay,
   .haunted-bingo-win-total { transition: none; }
+  .haunted-bingo-cell.is-called:not(.is-marked)::after,
   .haunted-bingo-history-chip,
   .haunted-bingo-rival,
   .haunted-bingo-rival::after { animation: none; }
