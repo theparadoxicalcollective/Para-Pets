@@ -6,6 +6,7 @@ import {
   type HauntedCasinoHotspot,
   type HauntedCasinoHotspotId,
 } from "@shared/hauntedCasino";
+import HauntedBingoOverlay from "./HauntedBingoOverlay";
 import SlaughterSlotsOverlay from "./SlaughterSlotsOverlay";
 
 interface CasinoConfigResponse {
@@ -34,6 +35,7 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
   const [isAdmin, setIsAdmin] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [openingSoon, setOpeningSoon] = useState<string | null>(null);
+  const [bingoOpen, setBingoOpen] = useState(false);
   const [slotsOpen, setSlotsOpen] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const dragRef = useRef<DragState | null>(null);
@@ -78,6 +80,10 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
   };
 
   const openHotspot = (spot: HauntedCasinoHotspot) => {
+    if (spot.id === "bingo") {
+      setBingoOpen(true);
+      return;
+    }
     if (spot.id === "slots") {
       setSlotsOpen(true);
       return;
@@ -237,6 +243,11 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
             >Close</button>
           </div>
         </div>,
+        document.body,
+      )}
+
+      {bingoOpen && createPortal(
+        <HauntedBingoOverlay onClose={() => setBingoOpen(false)} />,
         document.body,
       )}
 
