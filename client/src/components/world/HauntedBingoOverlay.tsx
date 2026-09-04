@@ -8,6 +8,7 @@ import slotCloseButton from "@assets/uploads/SlotCloseButton.png";
 import { currencyAssets } from "@/lib/currencyAssets";
 import "./HauntedBingoOverlay.css";
 import "./HauntedBingoEconomy.css";
+import "./HauntedBingoPolish.css";
 
 const BINGO_LETTERS = ["B", "I", "N", "G", "O"] as const;
 type BingoLetter = (typeof BINGO_LETTERS)[number];
@@ -82,6 +83,7 @@ const EMPTY_CARD: BingoCard = Array.from({ length: 5 }, (_, row) =>
   Array.from({ length: 5 }, (_, column) => row === 2 && column === 2 ? null : 0),
 );
 const FREE_CELL_KEY = "2-2";
+const CAGE_DISPLAY_BALLS = 14;
 const MINIMUM_SHUFFLE_MS = 560;
 const AUTO_CALL_DELAY_MS = 2850;
 
@@ -161,6 +163,10 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
     return map;
   }, [round?.bonuses]);
   const recentCalls = useMemo(() => (round?.called ?? []).slice(-8), [round?.called]);
+  const cageBallPool = round ? round.called.length + round.remainingCalls : 0;
+  const cageBallFill = round
+    ? (cageBallPool > 0 ? CAGE_DISPLAY_BALLS * (round.remainingCalls / cageBallPool) : 0)
+    : CAGE_DISPLAY_BALLS;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -319,9 +325,19 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
           <section className="haunted-bingo-cage-zone" aria-label="Bingo ball cage">
             <div className={`haunted-bingo-cage ${shuffling ? "is-shuffling" : ""}`}>
               <div className="haunted-bingo-cage-balls" aria-hidden="true">
-                {Array.from({ length: 14 }, (_, index) => (
-                  <img key={index} src={bingoBall} alt="" draggable={false} className="haunted-bingo-cage-ball" />
-                ))}
+                {Array.from({ length: CAGE_DISPLAY_BALLS }, (_, index) => {
+                  const cageBallOpacity = Math.max(0, Math.min(1, cageBallFill - index));
+                  return (
+                    <img
+                      key={index}
+                      src={bingoBall}
+                      alt=""
+                      draggable={false}
+                      className="haunted-bingo-cage-ball"
+                      style={{ opacity: cageBallOpacity }}
+                    />
+                  );
+                })}
               </div>
               <img src={bingoBallCage} alt="Bingo ball cage" draggable={false} className="haunted-bingo-cage-frame" />
             </div>
