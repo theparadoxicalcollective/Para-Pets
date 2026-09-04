@@ -2,10 +2,10 @@ import { sql } from "drizzle-orm";
 import { db } from "../../db";
 
 /**
- * Bingo entry fees and payouts must survive restarts and must never be owned by
- * the browser. This small boot migration is idempotent and runs before routes
- * are registered so a fresh Railway database is ready before the first player
- * opens the casino.
+ * Bingo entry fees, rival progress, placements, and payouts must survive
+ * restarts and must never be owned by the browser. This boot migration is
+ * idempotent and runs before routes are registered so Railway is ready before
+ * the first player opens the casino.
  */
 export async function ensureHauntedBingoSchema(): Promise<void> {
   await db.execute(sql`
@@ -20,13 +20,26 @@ export async function ensureHauntedBingoSchema(): Promise<void> {
       called JSONB NOT NULL DEFAULT '[]'::jsonb,
       marked JSONB NOT NULL DEFAULT '["2-2"]'::jsonb,
       bonuses JSONB NOT NULL DEFAULT '[]'::jsonb,
-      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'won', 'forfeited')),
+      rivals JSONB NOT NULL DEFAULT '[]'::jsonb,
+      winner_order JSONB NOT NULL DEFAULT '[]'::jsonb,
+      status TEXT NOT NULL DEFAULT 'active',
       base_reward INTEGER NOT NULL DEFAULT 500 CHECK (base_reward >= 0),
       bonus_reward INTEGER NOT NULL DEFAULT 0 CHECK (bonus_reward >= 0),
       paid_out_at TIMESTAMP,
       created_at TIMESTAMP NOT NULL DEFAULT now(),
       updated_at TIMESTAMP NOT NULL DEFAULT now()
     );
+
+    ALTER TABLE haunted_bingo_rounds
+      ADD COLUMN IF NOT EXISTS rivals JSONB NOT NULL DEFAULT '[]'::jsonb;
+    ALTER TABLE haunted_bingo_rounds
+      ADD COLUMN IF NOT EXISTS winner_order JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+    ALTER TABLE haunted_bingo_rounds
+      DROP CONSTRAINT IF EXISTS haunted_bingo_rounds_status_check;
+    ALTER TABLE haunted_bingo_rounds
+      ADD CONSTRAINT haunted_bingo_rounds_status_check
+      CHECK (status IN ('active', 'won', 'lost', 'forfeited'));
 
     CREATE UNIQUE INDEX IF NOT EXISTS haunted_bingo_one_active_round_uidx
       ON haunted_bingo_rounds(user_id)

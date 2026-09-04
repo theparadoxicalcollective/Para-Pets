@@ -3,9 +3,13 @@ import test from "node:test";
 import {
   HAUNTED_BINGO_BONUS_COUNT,
   HAUNTED_BINGO_ENTRY_COST,
+  HAUNTED_BINGO_RIVAL_COUNT,
   HAUNTED_BINGO_WIN_REWARD,
+  HAUNTED_BINGO_WINNER_LIMIT,
+  advanceHauntedBingoRivals,
   createHauntedBingoBonuses,
   createHauntedBingoCard,
+  createHauntedBingoRivals,
   hasHauntedBingo,
   hauntedBingoCasinoDay,
 } from "../server/hauntedBingo";
@@ -52,4 +56,22 @@ test("Bingo validation recognizes rows, columns, and diagonals", () => {
 
 test("casino day follows America/Chicago instead of the browser clock", () => {
   assert.equal(hauntedBingoCasinoDay(new Date("2026-09-04T04:30:00.000Z")), "2026-09-03");
+});
+
+test("each round creates three unique casino rivals", () => {
+  const rivals = createHauntedBingoRivals(noShuffle);
+  assert.equal(rivals.length, HAUNTED_BINGO_RIVAL_COUNT);
+  assert.equal(new Set(rivals.map((rival) => rival.id)).size, HAUNTED_BINGO_RIVAL_COUNT);
+  assert.ok(rivals.every((rival) => rival.kind === "bot"));
+  assert.ok(rivals.every((rival) => rival.marked.includes("2-2")));
+  assert.ok(rivals.every((rival) => rival.card[2][2] === null));
+});
+
+test("settled rival race fills exactly the first three prize places", () => {
+  const rivals = createHauntedBingoRivals(noShuffle);
+  const called = Array.from({ length: 75 }, (_, index) => index + 1);
+  const advanced = advanceHauntedBingoRivals(rivals, called, [], true, noShuffle);
+  assert.equal(advanced.winners.length, HAUNTED_BINGO_WINNER_LIMIT);
+  assert.deepEqual(advanced.winners.map((winner) => winner.placement), [1, 2, 3]);
+  assert.equal(advanced.rivals.filter((rival) => rival.status === "won").length, HAUNTED_BINGO_RIVAL_COUNT);
 });
