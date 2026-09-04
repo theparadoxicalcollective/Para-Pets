@@ -51,5 +51,5 @@ test("Bingo validation recognizes rows, columns, and diagonals", () => {
 });
 
 test("casino day follows America/Chicago instead of the browser clock", () => {
-  assert.equal(hauntedBingoCasinoDay(new Date("2026-09-04T04:30:00.000Z")), "09/03/2026");
+  assert.equal(hauntedBingoCasinoDay(new Date("2026-09-04T04:30:00.000Z")), "2026-09-03");
 });
