@@ -30,17 +30,20 @@
   object-fit: contain;
 }
 
+/* Keep the balance chip, but clear the redundant prize sentence beside it. */
 .haunted-bingo-prize-copy {
-  color: rgba(236, 253, 245, .74);
-  letter-spacing: .01em;
+  display: none;
 }
-
-.haunted-bingo-prize-copy strong { color: #fde68a; }
 
 /* The decorative title/status header is intentionally kept as an empty spacer.
    This preserves the current card position while clearing the top of the page. */
 .haunted-bingo-header-spacer {
   pointer-events: none;
+}
+
+/* Slightly reduce the close medallion without changing its safe-area position. */
+.haunted-bingo-close {
+  width: clamp(44px, 11.5vw, 56px);
 }
 
 /* One small downward nudge keeps the overlaid numbers optically centered in the
@@ -50,6 +53,16 @@
   z-index: 4;
   transform: translateY(7%);
   transition: opacity 140ms ease, transform 140ms ease;
+}
+
+/* Nudge the called/covered card markers down one optical step while leaving the
+   number positions and card artwork untouched. */
+.haunted-bingo-cell.is-called:not(.is-marked)::after {
+  inset: 17% 16% 15% 16%;
+}
+
+.haunted-bingo-cell.is-marked::before {
+  inset: 10% 9% 8% 9%;
 }
 
 /* Bonus spaces now read as a ghosted coin behind the regular Bingo number.
@@ -219,7 +232,7 @@
   .haunted-bingo-economy-strip {
     min-height: 22px;
     margin-top: 1px;
-    gap: 6px;
+    gap: 0;
     font-size: 7.5px;
   }
 
@@ -233,24 +246,25 @@
     padding-top: 0;
   }
 
-  /* The cage is intentionally smaller and tucked toward the upper-left. Its
-     transform does not affect the grid row, so the card stays where it was. */
+  /* Keep the cage-zone itself untransformed so the absolutely positioned
+     recent-call ticker resolves against the full Bingo stage instead of the
+     small cage. Move only the illustrated cage. */
   .haunted-bingo-cage-zone {
     width: max-content;
     justify-self: start;
     align-self: start;
-    transform: translate(-4px, -14px);
+    transform: none;
   }
 
   .haunted-bingo-cage {
     width: min(30vw, 128px);
+    transform: translate(-4px, -26px);
   }
 
-  /* Center the call stand over the screen rather than over the right-hand grid
-     column. The cage remains at the left as a supporting element. */
+  /* Move the call stand two small steps left while keeping its current height. */
   .haunted-bingo-call-zone {
     position: relative;
-    left: -14vw;
+    left: -16vw;
     align-self: start;
     transform: translateY(-5px);
   }
@@ -264,9 +278,8 @@
     font-size: 7px;
   }
 
-  /* Re-home recent calls beneath the illustrated card without participating in
-     layout, so the card itself does not shift. New calls arrive at the right and
-     push older chips toward the left. */
+  /* Recent calls are centered beneath the Bingo card. New calls arrive at the
+     right and push older chips toward the left without participating in layout. */
   .haunted-bingo-history {
     position: absolute;
     left: 50%;
@@ -320,10 +333,9 @@
 }
 
 @media (max-width: 390px) {
-  .haunted-bingo-prize-copy { max-width: 178px; text-align: center; }
   .haunted-bingo-card { width: min(86vw, 340px); }
   .haunted-bingo-cage { width: min(29vw, 116px); }
-  .haunted-bingo-call-zone { left: -13vw; }
+  .haunted-bingo-call-zone { left: -15vw; }
 }
 
 @media (max-height: 720px) {

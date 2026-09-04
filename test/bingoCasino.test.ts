@@ -61,22 +61,30 @@ test("Random card bonuses are ghost coins and only become payout when marked at 
   assert.match(bingoEconomyCss, /\.haunted-bingo-bonus\.is-collected b[\s\S]*?opacity:\s*1/);
 });
 
-test("Bingo visual tuning clears the header, keeps the card placement, and centers the call area", () => {
+test("Bingo final tuning keeps the card fixed while tightening the top controls", () => {
   assert.match(bingo, /haunted-bingo-header haunted-bingo-header-spacer/);
   assert.doesNotMatch(bingo, /<h1>Haunted Bingo<\/h1>/);
   assert.doesNotMatch(bingo, /Deal a card to begin/);
   assert.match(bingo, /FREE GAME/);
   assert.match(bingo, /PLAY FOR \$\{state\?\.entryCost \?\? 100\} COINS/);
-  assert.match(bingoEconomyCss, /\.haunted-bingo-cage[\s\S]*?width:\s*min\(30vw, 128px\)/);
-  assert.match(bingoEconomyCss, /\.haunted-bingo-call-zone[\s\S]*?left:\s*-14vw/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-close[\s\S]*?width:\s*clamp\(44px, 11\.5vw, 56px\)/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-prize-copy[\s\S]*?display:\s*none/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-cage[\s\S]*?width:\s*min\(30vw, 128px\)[\s\S]*?transform:\s*translate\(-4px, -26px\)/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-call-zone[\s\S]*?left:\s*-16vw/);
   assert.match(bingoEconomyCss, /\.haunted-bingo-called-ball[\s\S]*?top:\s*45\.5%/);
   assert.match(bingoEconomyCss, /\.haunted-bingo-card[\s\S]*?width:\s*min\(84vw, 372px\)[\s\S]*?margin-top:\s*-8px/);
 });
 
-test("Auto call is calmer and recent calls tick left beneath the card", () => {
+test("Called and covered card markers receive one small downward optical nudge", () => {
+  assert.match(bingoEconomyCss, /\.haunted-bingo-cell\.is-called:not\(\.is-marked\)::after[\s\S]*?inset:\s*17% 16% 15% 16%/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-cell\.is-marked::before[\s\S]*?inset:\s*10% 9% 8% 9%/);
+});
+
+test("Auto call is calmer and recent calls tick left centered beneath the Bingo card", () => {
   assert.match(bingo, /AUTO_CALL_DELAY_MS = 2850/);
   assert.match(bingo, /slice\(-8\)/);
-  assert.match(bingoEconomyCss, /\.haunted-bingo-history[\s\S]*?position:\s*absolute[\s\S]*?bottom:\s*-20px/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-cage-zone[\s\S]*?transform:\s*none/);
+  assert.match(bingoEconomyCss, /\.haunted-bingo-history[\s\S]*?position:\s*absolute[\s\S]*?left:\s*50%[\s\S]*?bottom:\s*-20px[\s\S]*?transform:\s*translateX\(-50%\)/);
   assert.match(bingoEconomyCss, /justify-content:\s*flex-end/);
   assert.match(bingoEconomyCss, /haunted-bingo-call-ticker-in/);
 });
