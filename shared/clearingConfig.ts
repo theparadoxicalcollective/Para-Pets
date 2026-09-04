@@ -27,6 +27,9 @@ export const CLEARING_BALANCE = {
 
 /** Server-owned cadence for the Elysian Clearing boss encounter. */
 export const CLEARING_BOSS_ENCOUNTER = {
-  regularDefeatThreshold: 10,
+  // A full hunt should feel like a real combat run rather than ending after the
+  // first visible pack. Defeated regular enemies already respawn until this
+  // server-owned threshold is reached.
+  regularDefeatThreshold: 18,
   preparationMs: 2_200,
 } as const;

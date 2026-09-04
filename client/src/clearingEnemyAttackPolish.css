@@ -1,0 +1,108 @@
+/* Regular Elysian Clearing enemy attack telegraphs.
+ * Combat timing stays server/gameplay-owned; these visuals read the existing
+ * alerting, windup, and recovering states already emitted by the renderer. */
+
+.clearing-enemy[data-enemy-rank="regular"][data-enemy-state="alerting"] > .clearing-enemy-facing::before,
+.clearing-enemy[data-enemy-rank="regular"].is-winding-up > .clearing-enemy-facing::before,
+.clearing-enemy[data-enemy-rank="regular"].is-winding-up > .clearing-enemy-facing::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 7;
+}
+
+/* Brief warning pulse when an enemy notices the pet. */
+.clearing-enemy[data-enemy-rank="regular"][data-enemy-state="alerting"] > .clearing-enemy-facing::before {
+  left: 50%;
+  top: 64%;
+  width: 58%;
+  aspect-ratio: 1;
+  border: 2px solid rgba(251, 191, 36, .78);
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgba(245, 158, 11, .38), inset 0 0 8px rgba(251, 146, 60, .18);
+  transform: translate(-50%, -50%) scale(.65);
+  animation: clearing-enemy-alert-pulse 520ms ease-out forwards;
+}
+
+/* Windup uses the warm orange slash/ring language from the Clearing concept.
+ * The facing wrapper mirrors with the enemy, so the slash naturally flips. */
+.clearing-enemy[data-enemy-rank="regular"].is-winding-up > .clearing-enemy-facing::before {
+  left: 57%;
+  top: 34%;
+  width: 48%;
+  height: 68%;
+  border-right: 4px solid rgba(255, 237, 190, .98);
+  border-bottom: 3px solid rgba(251, 113, 61, .92);
+  border-radius: 50%;
+  filter: drop-shadow(0 0 3px rgba(255, 247, 214, .9)) drop-shadow(0 0 7px rgba(249, 115, 22, .72));
+  transform: rotate(-42deg) scale(.4);
+  transform-origin: 20% 82%;
+  animation: clearing-enemy-slash 590ms cubic-bezier(.2,.72,.25,1) forwards;
+}
+
+/* Ground warning/impact ring makes an enemy attack readable even when the
+ * sprite is partially hidden by another creature or vegetation. */
+.clearing-enemy[data-enemy-rank="regular"].is-winding-up > .clearing-enemy-facing::after {
+  left: 50%;
+  top: 86%;
+  width: 88%;
+  height: 30%;
+  border: 2px solid rgba(251, 113, 61, .88);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(251, 146, 60, .13) 0 44%, rgba(248, 113, 113, 0) 72%);
+  box-shadow: 0 0 8px rgba(249, 115, 22, .52), inset 0 0 8px rgba(251, 146, 60, .22);
+  transform: translate(-50%, -50%) scale(.68);
+  animation: clearing-enemy-impact-ring 590ms ease-out forwards;
+}
+
+.clearing-enemy[data-enemy-rank="regular"].is-winding-up .clearing-enemy-art {
+  animation: clearing-enemy-attack-glow 590ms ease-in-out 1;
+}
+
+.clearing-enemy[data-enemy-rank="regular"][data-enemy-state="recovering"] .clearing-enemy-art {
+  animation: clearing-enemy-recover-dim 320ms ease-out 1;
+}
+
+@keyframes clearing-enemy-alert-pulse {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.45); }
+  40% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); }
+}
+
+@keyframes clearing-enemy-slash {
+  0% { opacity: 0; transform: rotate(-58deg) scale(.32); }
+  24% { opacity: 1; }
+  70% { opacity: 1; transform: translate(15px, -4px) rotate(18deg) scale(1.04); }
+  100% { opacity: 0; transform: translate(29px, -8px) rotate(46deg) scale(1.2); }
+}
+
+@keyframes clearing-enemy-impact-ring {
+  0%, 24% { opacity: 0; transform: translate(-50%, -50%) scale(.55); }
+  48% { opacity: .95; }
+  82% { opacity: .8; transform: translate(-50%, -50%) scale(1.04); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); }
+}
+
+@keyframes clearing-enemy-attack-glow {
+  0%, 100% { filter: none; }
+  46% { filter: brightness(1.16) drop-shadow(0 0 5px rgba(251, 146, 60, .58)); }
+}
+
+@keyframes clearing-enemy-recover-dim {
+  0% { filter: brightness(.82) saturate(.8); }
+  100% { filter: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clearing-enemy[data-enemy-rank="regular"][data-enemy-state="alerting"] > .clearing-enemy-facing::before,
+  .clearing-enemy[data-enemy-rank="regular"].is-winding-up > .clearing-enemy-facing::before,
+  .clearing-enemy[data-enemy-rank="regular"].is-winding-up > .clearing-enemy-facing::after {
+    animation: none;
+    opacity: .7;
+  }
+
+  .clearing-enemy[data-enemy-rank="regular"].is-winding-up .clearing-enemy-art,
+  .clearing-enemy[data-enemy-rank="regular"][data-enemy-state="recovering"] .clearing-enemy-art {
+    animation: none;
+  }
+}

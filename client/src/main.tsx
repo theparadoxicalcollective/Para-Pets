@@ -5,6 +5,7 @@ import "./index.css";
 import "./tabletStageShell.css";
 import "./petCarePolish.css";
 import "./clearingBossPolish.css";
+import "./clearingEnemyAttackPolish.css";
 import "./soulExchangeCardPolish.css";
 import "./activePetRewardAssets.css";
 import "./hubPageOverrides.css";

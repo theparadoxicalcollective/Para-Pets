@@ -19,10 +19,10 @@ interface Props {
 }
 
 export default function ClearingHuntHud({ regularDefeats, phase, complete, hunt, blessing, blessingAvailable, onChooseBlessing, onContinue, onReturn, children }: Props) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const target = CLEARING_BOSS_ENCOUNTER.regularDefeatThreshold;
   const progress = complete || phase !== "regular" ? target : Math.min(target, Math.max(0, regularDefeats));
-  const label = complete ? "Hunt complete" : phase === "active" ? "Defeat the Clearing boss" : phase === "preparing" ? "Something is stirring…" : "Bayou Stirring";
+  const label = complete ? "Boss defeated" : phase === "active" ? "Defeat the Clearing boss" : phase === "preparing" ? "Something is stirring…" : "Bayou Stirring";
 
   return <div data-interactive className="pointer-events-auto" onPointerDown={event => event.stopPropagation()}>
     <section aria-label="Bayou hunt progress" className="text-amber-100">
@@ -35,11 +35,21 @@ export default function ClearingHuntHud({ regularDefeats, phase, complete, hunt,
         </div>
       </div>
       {children}
-      {(complete || blessing || blessingAvailable) && <div className="mt-2 rounded-xl border border-amber-300/40 bg-emerald-950/90 px-3 py-2 shadow-lg">
-        {complete && <button type="button" aria-expanded={!collapsed} aria-controls="clearing-hunt-results" className="min-h-11 w-full rounded-lg border border-amber-300/30 px-2 text-xs font-bold" onClick={() => setCollapsed(value => !value)}>{collapsed ? "View results" : "Collect drops"}</button>}
-        {!complete && blessing && <p className="mt-2 text-[11px] text-emerald-100" title={CLEARING_BLESSINGS[blessing].description}>{CLEARING_BLESSINGS[blessing].name} · This hunt</p>}
-        {!complete && blessingAvailable && <button type="button" className="mt-2 min-h-11 w-full rounded-lg bg-amber-300 px-2 text-xs font-bold text-emerald-950" onClick={onChooseBlessing}>Choose your blessing</button>}
-        {complete && !collapsed && <div id="clearing-hunt-results" className="clearing-hunt-results mt-3 overflow-y-auto border-t border-amber-300/20 pt-3">
+
+      {!complete && blessing && <div className="clearing-blessing-pill mt-1.5" title={CLEARING_BLESSINGS[blessing].description}>
+        <span aria-hidden="true" className="clearing-blessing-spark">✦</span>
+        <span className="clearing-blessing-copy">{CLEARING_BLESSINGS[blessing].name} <span aria-hidden="true">·</span> This hunt</span>
+      </div>}
+
+      {!complete && blessingAvailable && <button type="button" className="clearing-blessing-button mt-1.5 min-h-10 w-full rounded-lg border border-amber-200/45 bg-amber-300/95 px-3 text-xs font-bold text-emerald-950 shadow-md" onClick={onChooseBlessing}>
+        Choose Clearing blessing
+      </button>}
+
+      {complete && <div className="mt-1.5">
+        <button type="button" aria-expanded={!collapsed} aria-controls="clearing-hunt-results" className="clearing-results-toggle min-h-10 w-full rounded-lg border border-amber-300/35 bg-emerald-950/80 px-3 text-xs font-bold shadow-md" onClick={() => setCollapsed(value => !value)}>
+          {collapsed ? "Boss defeated · View rewards" : "Hide rewards"}
+        </button>
+        {!collapsed && <div id="clearing-hunt-results" className="clearing-hunt-results mt-1.5 overflow-y-auto rounded-xl border border-amber-300/35 bg-emerald-950/92 px-3 py-3 shadow-lg">
           <p className="text-center font-fantasy text-base text-amber-200">{hunt.bossName || "Clearing boss"} defeated</p>
           <dl className="mt-3 grid grid-cols-2 gap-2 text-center text-xs">
             <div className="rounded-lg bg-black/20 p-2"><dt className="text-emerald-100/70">Pet EXP earned</dt><dd className="mt-1 text-base font-bold">+{hunt.exp}</dd></div>
@@ -49,7 +59,7 @@ export default function ClearingHuntHud({ regularDefeats, phase, complete, hunt,
           <p className="mt-1 text-xs">{hunt.coins} Coins · {hunt.essence} Essence · {hunt.gear} Gear{hunt.collectedEggIds.length > 0 ? ` · ${hunt.collectedEggIds.length} Egg` : ""}</p>
           <p className="mt-2 text-[11px] leading-relaxed text-emerald-100/70">The next fight is paused. Collect remaining drops before they expire or you leave.</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <button type="button" className="min-h-11 rounded-xl bg-amber-300 px-2 text-xs font-bold text-emerald-950" onClick={() => { setCollapsed(false); onContinue(); }}>Hunt Again</button>
+            <button type="button" className="min-h-11 rounded-xl bg-amber-300 px-2 text-xs font-bold text-emerald-950" onClick={() => { setCollapsed(true); onContinue(); }}>Hunt Again</button>
             <button type="button" className="min-h-11 rounded-xl border border-amber-300/40 px-2 text-xs font-bold" onClick={onReturn}>Return to Bayou</button>
           </div>
         </div>}
@@ -57,4 +67,3 @@ export default function ClearingHuntHud({ regularDefeats, phase, complete, hunt,
     </section>
   </div>;
 }
-

@@ -2,7 +2,7 @@
 .clearing-hunt-art {
   position: relative;
   container-type: inline-size;
-  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .5));
+  filter: drop-shadow(0 4px 7px rgba(0, 0, 0, .58)) drop-shadow(0 0 2px rgba(250, 204, 21, .24));
 }
 
 .clearing-hunt-label,
@@ -12,25 +12,26 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  font-weight: 800;
-  line-height: 1.15;
-  text-shadow: 0 1px 3px #001b15, 0 0 5px #001b15;
+  font-weight: 850;
+  line-height: 1.1;
+  text-shadow: 0 1px 3px #001b15, 0 0 7px #001b15;
 }
 
 .clearing-hunt-label {
   left: 17%;
-  top: 29%;
+  top: 28%;
   width: 55%;
   height: 25%;
-  font-size: clamp(11px, 3.5cqw, 14px);
+  font-size: clamp(12px, 3.9cqw, 16px);
+  letter-spacing: .01em;
 }
 
 .clearing-hunt-count {
   left: 75%;
-  top: 36%;
+  top: 34.5%;
   width: 15%;
-  height: 18%;
-  font-size: clamp(10px, 3.2cqw, 13px);
+  height: 20%;
+  font-size: clamp(11px, 3.55cqw, 14px);
 }
 
 .clearing-hunt-track {
@@ -41,14 +42,195 @@
   height: 8.8%;
   overflow: hidden;
   border-radius: 999px;
+  box-shadow: inset 0 0 4px rgba(0, 20, 13, .75), 0 0 2px rgba(253, 230, 138, .5);
 }
 
 .clearing-hunt-fill {
-  background: linear-gradient(to bottom, #fef3b0, #dcb850 45%, #9a751e);
-  box-shadow: inset 0 0 3px #fff6b8;
+  background: linear-gradient(to bottom, #fff7c7 0%, #f4d77a 25%, #dcb850 54%, #9a751e 100%);
+  box-shadow: inset 0 1px 2px #fff9ce, inset 0 -1px 2px rgba(76, 53, 3, .55), 0 0 5px rgba(250, 204, 21, .28);
+}
+
+/* Match the visual target's compact, jewel-like balance panel without adding a new raster asset. */
+[data-testid="clearing-currency-display"] {
+  min-width: 194px;
+  min-height: 42px;
+  margin-top: .28rem;
+  gap: 1rem !important;
+  border: 1.5px solid rgba(236, 190, 70, .82) !important;
+  border-radius: 15px !important;
+  background: linear-gradient(180deg, rgba(4, 66, 48, .94), rgba(2, 48, 37, .94)) !important;
+  padding: .42rem .8rem !important;
+  font-size: 14px !important;
+  line-height: 1;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, .35), inset 0 0 0 1px rgba(255, 244, 184, .08), 0 0 8px rgba(250, 204, 21, .08) !important;
+  backdrop-filter: blur(7px);
+}
+
+[data-testid="clearing-currency-display"] img {
+  width: 24px !important;
+  height: 24px !important;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .42));
+}
+
+.clearing-blessing-pill {
+  position: relative;
+  display: flex;
+  width: fit-content;
+  min-width: 188px;
+  max-width: min(84%, 250px);
+  min-height: 34px;
+  margin-left: auto;
+  margin-right: auto;
+  align-items: center;
+  justify-content: center;
+  gap: .42rem;
+  border: 1.5px solid rgba(236, 190, 70, .75);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(4, 65, 49, .94), rgba(1, 43, 34, .94));
+  padding: .36rem .9rem;
+  font-size: 11.5px;
+  font-weight: 750;
+  color: #fef3c7;
+  letter-spacing: .01em;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, .28), inset 0 0 0 1px rgba(255, 246, 195, .06);
+  backdrop-filter: blur(7px);
+}
+
+.clearing-blessing-pill::before,
+.clearing-blessing-pill::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: #a7f3d0;
+  box-shadow: 0 0 5px #34d399, 0 0 9px rgba(52, 211, 153, .62);
+  transform: translateY(-50%);
+}
+
+.clearing-blessing-pill::before { left: 9px; }
+.clearing-blessing-pill::after { right: 9px; }
+
+.clearing-blessing-spark {
+  color: #a7f3d0;
+  font-size: 12px;
+  text-shadow: 0 0 5px rgba(52, 211, 153, .8);
+}
+
+.clearing-blessing-copy {
+  white-space: nowrap;
+}
+
+.clearing-blessing-button,
+.clearing-results-toggle {
+  backdrop-filter: blur(6px);
+}
+
+/* Bottom combat controls: larger jewel rims and spacing closer to the concept mockup. */
+[data-testid="button-clearing-equipment"] {
+  width: 56px !important;
+  height: 56px !important;
+  border: 2px solid rgba(239, 199, 84, .95) !important;
+  background: radial-gradient(circle at 45% 38%, rgba(16, 82, 59, .96), rgba(2, 43, 34, .98)) !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, .48), inset 0 0 0 2px rgba(255, 238, 169, .08), 0 0 7px rgba(250, 204, 21, .14) !important;
+}
+
+[data-testid="button-clearing-equipment"] img {
+  transform: scale(.9);
+}
+
+[data-testid="clearing-potion-slots"] {
+  right: max(104px, calc(env(safe-area-inset-right, 0px) + 104px)) !important;
+  bottom: max(19px, env(safe-area-inset-bottom, 0px)) !important;
+  gap: 7px !important;
+}
+
+[data-testid^="button-clearing-potion-"] {
+  width: 56px !important;
+  height: 56px !important;
+  border: 2px solid rgba(239, 199, 84, .9) !important;
+  background: radial-gradient(circle at 45% 35%, rgba(12, 73, 54, .94), rgba(2, 43, 34, .98)) !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, .42), inset 0 0 0 2px rgba(255, 238, 169, .06) !important;
+}
+
+[data-testid^="button-clearing-potion-"] > span[aria-hidden="true"] {
+  top: -3px !important;
+  right: -2px !important;
+  width: 20px !important;
+  height: 20px !important;
+  border: 1px solid rgba(89, 59, 8, .35);
+  background: #fde68a !important;
+  font-size: 13px !important;
+  line-height: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, .28);
+}
+
+[data-testid="button-clearing-attack"] {
+  right: max(13px, env(safe-area-inset-right, 0px)) !important;
+  bottom: max(13px, env(safe-area-inset-bottom, 0px)) !important;
+  width: 74px !important;
+  height: 74px !important;
+  border: 2px solid rgba(239, 199, 84, .96) !important;
+  outline: 1px solid rgba(255, 236, 164, .22);
+  outline-offset: -5px;
+  background: radial-gradient(circle at 45% 35%, #3d6749 0%, #294b35 58%, #173326 100%) !important;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, .55), inset 0 0 0 2px rgba(255, 241, 183, .08), 0 0 9px rgba(250, 204, 21, .16) !important;
+}
+
+[data-testid="button-clearing-attack"] svg {
+  width: 31px;
+  height: 31px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .45));
+}
+
+[data-testid="button-clearing-attack"]:not(:disabled):active,
+[data-testid^="button-clearing-potion-"]:not(:disabled):active,
+[data-testid="button-clearing-equipment"]:active {
+  transform: scale(.96);
 }
 
 /* Leave room for the artwork, balances, and bottom controls on short phones. */
 .clearing-hunt-results {
   max-height: min(42dvh, max(96px, calc(100dvh - 380px)));
+}
+
+@media (max-width: 360px), (max-height: 700px) {
+  [data-testid="clearing-currency-display"] {
+    min-width: 178px;
+    min-height: 38px;
+    font-size: 12.5px !important;
+    gap: .7rem !important;
+  }
+
+  [data-testid="clearing-currency-display"] img {
+    width: 21px !important;
+    height: 21px !important;
+  }
+
+  [data-testid="button-clearing-equipment"],
+  [data-testid^="button-clearing-potion-"] {
+    width: 52px !important;
+    height: 52px !important;
+  }
+
+  [data-testid="clearing-potion-slots"] {
+    right: max(94px, calc(env(safe-area-inset-right, 0px) + 94px)) !important;
+    gap: 5px !important;
+  }
+
+  [data-testid="button-clearing-attack"] {
+    width: 68px !important;
+    height: 68px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clearing-blessing-button,
+  .clearing-results-toggle,
+  [data-testid="button-clearing-attack"],
+  [data-testid^="button-clearing-potion-"],
+  [data-testid="button-clearing-equipment"] {
+    transition: none;
+  }
 }
