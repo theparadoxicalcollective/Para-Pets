@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createClearingSession, selectClearingBlessing, applyClearingHit, recordClearingRegularDefeat, advanceClearingBossEncounter, completeClearingBossEncounter, synchronizeClearingSessions } from "../server/elysianClearingCombat";
 import { clearingBlessedBasicDamage, clearingBlessedIncomingDamage, clearingBlessedMana, isClearingBlessing } from "../shared/clearingBlessings";
+import { CLEARING_BOSS_ENCOUNTER } from "../shared/clearingConfig";
 
 function create() { return createClearingSession(crypto.randomUUID(), "pet", { level: 1, hp: 1000, atk: 50, def: 50 }, 1000, () => .5); }
 function reachHalfway(session: ReturnType<typeof create>) {
@@ -46,8 +47,16 @@ test("Thornfang affects server basic damage only and gear updates never stack it
 
 test("boss completion clears the blessing and rejects delayed choices from the previous hunt", () => {
   const session = create();reachHalfway(session);const input = choice(session);selectClearingBlessing(input);
-  for (const enemy of session.enemies.slice(5)) { enemy.defeated = true; recordClearingRegularDefeat(session.id, enemy.instanceId, 1500); }
-  const boss = advanceClearingBossEncounter({ sessionId: session.id, userId: session.userId, now: 4000 })!;
+  // This test exercises blessing lifecycle, not the regular-enemy cadence. Put the
+  // session at the authoritative boss threshold so changing hunt length cannot
+  // leave this regression test coupled to the number of simultaneous enemies.
+  session.clearingBossProgress = {
+    regularDefeats: CLEARING_BOSS_ENCOUNTER.regularDefeatThreshold,
+    bossPhase: "preparing",
+    bossReadyAt: 2000,
+  };
+  const boss = advanceClearingBossEncounter({ sessionId: session.id, userId: session.userId, now: 4000 });
+  assert.ok(boss, "boss should be available at the authoritative defeat threshold");
   assert.equal(session.huntBlessing.selected, "thornfang", "persists through boss preparation and fight");
   boss.defeated = true;boss.health = 0;
   completeClearingBossEncounter(session.id, boss.instanceId, 4100, () => .5);
