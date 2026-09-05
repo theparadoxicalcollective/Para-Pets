@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 62721)
-Total output lines: 5069
-
 import { PURCHASE_REFRESH_OPTIONS } from "@/lib/purchaseRecovery";
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -2036,7 +2033,958 @@ function BadgeDatabaseSection({ members }: { members: MemberUser[] }) {
             value={uploadDailyReward}
             onChange={e => setUploadDailyReward(e.target.value)}
             className="w-full rounded-lg px-3 py-2 font-fantasy text-xs tracking-wider"
-            style={{ backgr…12721 tokens truncated…    style={{ background: typeColor.badgeBg, color: typeColor.badge }}>
+            style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,215,0,0.25)", color: "#f0c040", outline: "none" }}
+          />
+          <div className="flex flex-col gap-1">
+            <p className="font-fantasy text-[9px] tracking-widest uppercase" style={{ color: "#a89878" }}>Claim Frequency</p>
+            <div className="flex gap-2">
+              {(["daily", "weekly", "monthly"] as const).map(type => (
+                <button
+                  key={type}
+                  data-testid={`button-claim-type-upload-${type}`}
+                  type="button"
+                  onClick={() => setUploadClaimType(type)}
+                  className="flex-1 py-1.5 rounded-lg font-fantasy text-[10px] tracking-wider capitalize transition-all"
+                  style={{
+                    background: uploadClaimType === type ? "linear-gradient(135deg, #4a3800, #7a5c00)" : "rgba(0,0,0,0.3)",
+                    border: uploadClaimType === type ? "1px solid rgba(255,215,0,0.6)" : "1px solid rgba(255,215,0,0.15)",
+                    color: uploadClaimType === type ? "#ffd700" : "#6a5840",
+                  }}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-3 items-center">
+            {uploadPreview && (
+              <img src={uploadPreview} alt="preview" className="w-16 h-16 rounded-full object-cover" style={{ border: "2px solid rgba(255,215,0,0.4)" }} />
+            )}
+            <button
+              data-testid="button-choose-badge-image"
+              onClick={() => fileRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-fantasy text-[10px] tracking-wider"
+              style={{ background: "rgba(0,0,0,0.3)", border: "1px dashed rgba(255,215,0,0.3)", color: "#a89878", cursor: "pointer" }}
+            >
+              <Upload className="w-3 h-3" />
+              {uploadPreview ? "Change image" : "Choose PNG"}
+            </button>
+            <input ref={fileRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={handleFileChange} />
+          </div>
+          <button
+            data-testid="button-save-badge"
+            onClick={() => createMutation.mutate()}
+            disabled={!uploadName.trim() || !uploadData || createMutation.isPending}
+            className="w-full py-2 rounded-lg font-fantasy text-xs tracking-wider"
+            style={{
+              background: !uploadName.trim() || !uploadData ? "rgba(0,0,0,0.3)" : "linear-gradient(135deg, #4a3800, #7a5c00)",
+              border: "1px solid rgba(255,215,0,0.4)",
+              color: !uploadName.trim() || !uploadData ? "#6a5840" : "#ffd700",
+              cursor: !uploadName.trim() || !uploadData ? "not-allowed" : "pointer",
+            }}
+          >
+            {createMutation.isPending ? "Saving..." : "Save Badge"}
+          </button>
+        </div>
+      )}
+
+      {isLoading ? (
+        <p className="font-fantasy text-[#7fbfb0] text-xs text-center animate-pulse py-8">Loading badges...</p>
+      ) : allBadges.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="font-fantasy text-[#a89878] text-sm tracking-wider">No badges yet</p>
+          <p className="font-fantasy text-[#6a5840] text-[10px] tracking-wide mt-1">Upload one to get started</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          {allBadges.map(badge => (
+            <div
+              key={badge.id}
+              data-testid={`card-badge-admin-${badge.id}`}
+              className="flex flex-col items-center gap-2 rounded-xl p-3"
+              style={{ background: "rgba(20,12,4,0.6)", border: "1px solid rgba(255,215,0,0.15)" }}
+            >
+              <div className="flex flex-col items-center gap-1.5 w-full">
+                <button
+                  data-testid={`button-view-recipients-${badge.id}`}
+                  onClick={() => setViewingBadge(badge)}
+                  className="w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-95"
+                  style={{ background: "rgba(255,215,0,0.08)", border: "2px solid rgba(255,215,0,0.3)", boxShadow: "0 0 12px rgba(255,215,0,0.15)", cursor: "pointer", padding: 0 }}
+                  title="View badge holders"
+                >
+                  <img src={badge.imageUrl} alt={badge.name} className="w-12 h-12 object-contain rounded-full" />
+                </button>
+                <p className="font-fantasy text-[10px] tracking-wider text-center leading-tight" style={{ color: "#ffd700" }}>
+                  {badge.name}
+                </p>
+              </div>
+              {editingRewardId === badge.id ? (
+                <div className="flex gap-1 w-full">
+                  <input
+                    type="number"
+                    min="0"
+                    value={editingRewardVal}
+                    onChange={e => setEditingRewardVal(e.target.value)}
+                    placeholder="coins/day"
+                    className="flex-1 rounded px-2 py-0.5 font-fantasy text-[9px]"
+                    style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,215,0,0.4)", color: "#f0c040", outline: "none", minWidth: 0 }}
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => {
+                      const coins = editingRewardVal.trim() ? parseInt(editingRewardVal.trim(), 10) : null;
+                      updateRewardMutation.mutate({ id: badge.id, coins });
+                    }}
+                    disabled={updateRewardMutation.isPending}
+                    className="px-1.5 rounded font-fantasy text-[9px]"
+                    style={{ background: "rgba(255,215,0,0.2)", border: "1px solid rgba(255,215,0,0.4)", color: "#ffd700", cursor: "pointer" }}
+                  >✓</button>
+                  <button
+                    onClick={() => setEditingRewardId(null)}
+                    className="px-1.5 rounded font-fantasy text-[9px]"
+                    style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,100,100,0.3)", color: "#ff9999", cursor: "pointer" }}
+                  >✕</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setEditingRewardId(badge.id); setEditingRewardVal(badge.dailyRewardCoins != null ? String(badge.dailyRewardCoins) : ""); }}
+                  className="font-fantasy text-[9px] tracking-wide"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: badge.dailyRewardCoins ? "#f0c040" : "#6a5840" }}
+                >
+                  {badge.dailyRewardCoins ? (
+                    <span className="flex items-center gap-1">
+                      <img src={coinIconImg} alt="coins" style={{ width: 11, height: 11, objectFit: "contain" }} />
+                      {badge.dailyRewardCoins}/{badge.claimType === "weekly" ? "wk" : badge.claimType === "monthly" ? "mo" : "day"}
+                    </span>
+                  ) : "Set reward"}
+                </button>
+              )}
+              <div className="flex gap-1.5 w-full">
+                <button
+                  data-testid={`button-edit-badge-${badge.id}`}
+                  onClick={() => { setEditingBadge(badge); setEditName(badge.name); setEditClaimType((badge.claimType === "weekly" ? "weekly" : "daily")); setEditDailyReward(badge.dailyRewardCoins != null ? String(badge.dailyRewardCoins) : ""); setEditImageData(null); setEditImagePreview(null); }}
+                  className="flex items-center justify-center gap-1 flex-1 py-1 rounded font-fantasy text-[9px] tracking-wider"
+                  style={{ background: "rgba(30,60,80,0.4)", border: "1px solid rgba(100,160,210,0.3)", color: "#8ab4d8", cursor: "pointer" }}
+                >
+                  <Pencil className="w-2.5 h-2.5" />
+                  Edit
+                </button>
+                <button
+                  data-testid={`button-delete-badge-${badge.id}`}
+                  onClick={() => deleteMutation.mutate(badge.id)}
+                  disabled={deleteMutation.isPending}
+                  className="flex items-center justify-center gap-1 flex-1 py-1 rounded font-fantasy text-[9px] tracking-wider"
+                  style={{ background: "rgba(139,32,32,0.2)", border: "1px solid rgba(255,100,100,0.2)", color: "#ff9999", cursor: "pointer" }}
+                >
+                  <Trash2 className="w-2.5 h-2.5" />
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+
+      {viewingBadge && (
+        <div className="fixed inset-0 z-50 flex flex-col" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/70" onClick={() => { setViewingBadge(null); setShowAddPlayer(false); setAddPlayerSearch(""); }} />
+          <div className="relative flex flex-col h-full" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+            <div className="flex items-center gap-3 px-4 py-3" style={{ background: "rgba(8,4,0,0.95)", borderBottom: "1px solid rgba(255,215,0,0.15)" }}>
+              <button
+                data-testid="button-close-recipients"
+                onClick={() => { setViewingBadge(null); setShowAddPlayer(false); setAddPlayerSearch(""); }}
+                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,215,0,0.3)", color: "#ffd700", cursor: "pointer" }}
+              >✕</button>
+              <img src={viewingBadge.imageUrl} alt={viewingBadge.name} className="w-9 h-9 rounded-full object-contain" style={{ border: "1.5px solid rgba(255,215,0,0.4)" }} />
+              <div className="flex flex-col min-w-0 flex-1">
+                <p className="font-fantasy text-[12px] tracking-wider" style={{ color: "#ffd700" }}>{viewingBadge.name}</p>
+                <p className="font-fantasy text-[9px]" style={{ color: "#6a5840" }}>
+                  {recipientsLoading ? "Loading..." : `${recipients.length} holder${recipients.length !== 1 ? "s" : ""}`}
+                </p>
+              </div>
+              <button
+                data-testid="button-add-player-badge"
+                onClick={() => { setShowAddPlayer(!showAddPlayer); setAddPlayerSearch(""); }}
+                className="px-3 py-1.5 rounded-lg font-fantasy text-[10px] tracking-wide shrink-0"
+                style={{
+                  background: showAddPlayer ? "rgba(255,215,0,0.2)" : "rgba(255,215,0,0.1)",
+                  border: "1px solid rgba(255,215,0,0.3)",
+                  color: "#ffd700",
+                  cursor: "pointer",
+                }}
+              >{showAddPlayer ? "Cancel" : "+ Add Player"}</button>
+            </div>
+            {showAddPlayer && (
+              <div className="px-4 py-3" style={{ background: "rgba(8,4,0,0.95)", borderBottom: "1px solid rgba(255,215,0,0.1)" }}>
+                <input
+                  data-testid="input-search-player-badge"
+                  type="text"
+                  placeholder="Search player by username..."
+                  value={addPlayerSearch}
+                  onChange={(e) => setAddPlayerSearch(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 font-fantasy text-[11px]"
+                  style={{ background: "rgba(255,215,0,0.06)", border: "1px solid rgba(255,215,0,0.15)", color: "#ffd700", outline: "none" }}
+                  autoFocus
+                />
+                {addPlayerSearch.trim().length > 0 && (
+                  <div className="mt-2 flex flex-col gap-1 max-h-48 overflow-y-auto">
+                    {(() => {
+                      const recipientIds = new Set(recipients.map((r) => r.userId));
+                      const filtered = members.filter(
+                        (m) => m.username.toLowerCase().includes(addPlayerSearch.toLowerCase()) && !recipientIds.has(m.id)
+                      );
+                      if (filtered.length === 0) {
+                        return <p className="font-fantasy text-[10px] py-2 text-center" style={{ color: "#6a5840" }}>No matching players found</p>;
+                      }
+                      return filtered.slice(0, 20).map((m) => (
+                        <button
+                          key={m.id}
+                          data-testid={`button-award-badge-${m.id}`}
+                          onClick={() => awardBadgeMutation.mutate({ badgeId: viewingBadge!.id, userId: m.id })}
+                          disabled={awardBadgeMutation.isPending}
+                          className="flex items-center gap-3 rounded-lg px-3 py-2 w-full text-left"
+                          style={{ background: "rgba(255,215,0,0.04)", border: "1px solid rgba(255,215,0,0.08)", cursor: "pointer" }}
+                        >
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 overflow-hidden"
+                            style={{ background: "rgba(255,215,0,0.1)", border: "1.5px solid rgba(255,215,0,0.25)" }}
+                          >
+                            {m.profileImage ? (
+                              <img src={m.profileImage} alt={m.username} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="font-fantasy text-xs" style={{ color: "#ffd700" }}>{m.username[0]?.toUpperCase()}</span>
+                            )}
+                          </div>
+                          <p className="font-fantasy text-[11px] tracking-wide truncate flex-1" style={{ color: "#ffd700" }}>{m.username}</p>
+                          <span className="font-fantasy text-[9px] shrink-0" style={{ color: "#4a7c4a" }}>Award</span>
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="flex-1 overflow-y-auto px-4 py-3" style={{ background: "rgba(8,4,0,0.9)" }}>
+              {recipientsLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <p className="font-fantasy text-xs animate-pulse" style={{ color: "#6a5840" }}>Loading holders...</p>
+                </div>
+              ) : recipients.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-48 gap-3">
+                  <p className="font-fantasy text-xs" style={{ color: "#6a5840" }}>No one has this badge yet</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {recipients.map((r) => (
+                    <div
+                      key={r.userId}
+                      data-testid={`row-badge-recipient-${r.userId}`}
+                      className="flex items-center gap-3 rounded-xl px-3 py-2.5"
+                      style={{ background: "rgba(255,215,0,0.04)", border: "1px solid rgba(255,215,0,0.1)" }}
+                    >
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 overflow-hidden"
+                        style={{ background: "rgba(255,215,0,0.1)", border: "1.5px solid rgba(255,215,0,0.25)" }}
+                      >
+                        {r.profileImage ? (
+                          <img src={r.profileImage} alt={r.username} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="font-fantasy text-sm" style={{ color: "#ffd700" }}>{r.username[0]?.toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <p className="font-fantasy text-[11px] tracking-wide truncate" style={{ color: "#ffd700" }}>{r.username}</p>
+                        <p className="font-fantasy text-[9px]" style={{ color: "#6a5840" }}>
+                          Awarded {new Date(r.awardedAt).toLocaleDateString()} at {new Date(r.awardedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingBadge && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ maxWidth: "768px", margin: "0 auto", left: 0, right: 0 }}>
+          <div className="absolute inset-0 bg-black/60" onClick={() => setEditingBadge(null)} />
+          <div
+            className="relative w-full rounded-t-2xl overflow-hidden flex flex-col"
+            style={{
+              background: "linear-gradient(180deg, #0d1520 0%, #060c14 100%)",
+              border: "1px solid rgba(100,160,210,0.3)",
+              maxHeight: "calc(80*var(--vh))",
+            }}
+          >
+            <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: "1px solid rgba(100,160,210,0.12)" }}>
+              <div className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden" style={{ border: "1.5px solid rgba(100,160,210,0.35)" }}>
+                <img src={editImagePreview ?? editingBadge.imageUrl} alt={editingBadge.name} className="w-full h-full object-cover" />
+              </div>
+              <div className="flex-1">
+                <p className="font-fantasy text-[#8ab4d8] text-sm tracking-wider">Edit Badge</p>
+                <p className="font-fantasy text-[#4a7090] text-[9px] tracking-wide">Update name or image</p>
+              </div>
+              <button onClick={() => setEditingBadge(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#4a7090" }}>
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3 p-4 overflow-y-auto">
+              <div>
+                <label className="font-fantasy text-[9px] tracking-widest uppercase mb-1 block" style={{ color: "#4a7090" }}>Badge Name</label>
+                <input
+                  data-testid="input-edit-badge-name"
+                  type="text"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  placeholder="Badge name..."
+                  className="w-full rounded-lg px-3 py-2 font-fantasy text-xs tracking-wider"
+                  style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(100,160,210,0.25)", color: "#8ab4d8", outline: "none" }}
+                />
+              </div>
+
+              <div>
+                <label className="font-fantasy text-[9px] tracking-widest uppercase mb-1 block" style={{ color: "#4a7090" }}>Coin Reward Per Claim</label>
+                <input
+                  data-testid="input-edit-badge-daily-reward"
+                  type="number"
+                  min="0"
+                  value={editDailyReward}
+                  onChange={e => setEditDailyReward(e.target.value)}
+                  placeholder="0 = no coin reward"
+                  className="w-full rounded-lg px-3 py-2 font-fantasy text-xs tracking-wider"
+                  style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,215,0,0.25)", color: "#f0c040", outline: "none" }}
+                />
+              </div>
+
+              <div>
+                <label className="font-fantasy text-[9px] tracking-widest uppercase mb-1 block" style={{ color: "#4a7090" }}>Claim Frequency</label>
+                <div className="flex gap-2">
+                  {(["daily", "weekly", "monthly"] as const).map(type => (
+                    <button
+                      key={type}
+                      data-testid={`button-claim-type-edit-${type}`}
+                      type="button"
+                      onClick={() => setEditClaimType(type)}
+                      className="flex-1 py-1.5 rounded-lg font-fantasy text-[10px] tracking-wider capitalize transition-all"
+                      style={{
+                        background: editClaimType === type ? "linear-gradient(135deg, #0d2540, #1a4070)" : "rgba(0,0,0,0.3)",
+                        border: editClaimType === type ? "1px solid rgba(100,160,210,0.6)" : "1px solid rgba(100,160,210,0.15)",
+                        color: editClaimType === type ? "#8ab4d8" : "#2a4060",
+                      }}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+                <p className="font-fantasy text-[9px] mt-1" style={{ color: "#2a4060" }}>
+                  {editClaimType === "weekly" ? "Players can claim once every 7 days" : editClaimType === "monthly" ? "Players can claim once every 30 days" : "Players can claim once every 24 hours"}
+                </p>
+              </div>
+
+              <div>
+                <label className="font-fantasy text-[9px] tracking-widest uppercase mb-1 block" style={{ color: "#4a7090" }}>Badge Image</label>
+                <div className="flex gap-3 items-center">
+                  <div
+                    className="w-14 h-14 rounded-full flex-shrink-0 overflow-hidden flex items-center justify-center"
+                    style={{ border: "1.5px solid rgba(100,160,210,0.3)", background: "rgba(0,0,0,0.3)" }}
+                  >
+                    <img
+                      src={editImagePreview ?? editingBadge.imageUrl}
+                      alt="preview"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <button
+                    data-testid="button-edit-badge-image"
+                    onClick={() => editFileRef.current?.click()}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-fantasy text-[10px] tracking-wider"
+                    style={{ background: "rgba(0,0,0,0.3)", border: "1px dashed rgba(100,160,210,0.3)", color: "#4a7090", cursor: "pointer" }}
+                  >
+                    <Upload className="w-3 h-3" />
+                    {editImagePreview ? "Change image" : "Replace image"}
+                  </button>
+                  <input
+                    ref={editFileRef}
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = ev => {
+                        setEditImageData(ev.target?.result as string);
+                        setEditImagePreview(ev.target?.result as string);
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </div>
+              </div>
+
+              <button
+                data-testid="button-save-badge-edit"
+                onClick={() => editBadgeMutation.mutate({ id: editingBadge.id, name: editName, claimType: editClaimType, dailyRewardCoins: editDailyReward.trim() ? parseInt(editDailyReward.trim(), 10) : null, imageData: editImageData })}
+                disabled={!editName.trim() || editBadgeMutation.isPending}
+                className="w-full py-2.5 rounded-xl font-fantasy text-xs tracking-wider mt-1"
+                style={{
+                  background: !editName.trim() ? "rgba(0,0,0,0.3)" : "linear-gradient(135deg, #0d2540, #1a4070)",
+                  border: "1px solid rgba(100,160,210,0.4)",
+                  color: !editName.trim() ? "#2a4060" : "#8ab4d8",
+                  cursor: !editName.trim() ? "not-allowed" : "pointer",
+                  boxShadow: editName.trim() ? "0 0 12px rgba(100,160,210,0.1)" : "none",
+                }}
+              >
+                {editBadgeMutation.isPending ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface CrashEntry {
+  id: number;
+  type: "crash" | "unhandled" | "error";
+  msg: string;
+  source: string;
+  url: string;
+  ua: string;
+  ts: string;
+  userId?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Forum Admin Section
+// ─────────────────────────────────────────────────────────────────────────────
+interface ForumPostAdmin {
+  id: string;
+  title: string;
+  body: string;
+  image_url: string | null;
+  is_pinned: boolean;
+  is_read_only: boolean;
+  created_at: string;
+  author_name: string | null;
+  comment_count: number;
+}
+
+function ForumAdminSection() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [showCreate, setShowCreate] = useState(false);
+  const [editPost, setEditPost] = useState<ForumPostAdmin | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const [title, setTitle]         = useState("");
+  const [body, setBody]           = useState("");
+  const [imagePrev, setImagePrev] = useState<string | null>(null);
+  const [isPinned, setIsPinned]   = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const { data: posts = [], isLoading } = useQuery<ForumPostAdmin[]>({
+    queryKey: ["/api/forum/posts"],
+    staleTime: 30_000,
+  });
+
+  const openCreate = () => {
+    setEditPost(null);
+    setTitle(""); setBody(""); setImagePrev(null); setIsPinned(false);
+    setShowCreate(true);
+  };
+
+  const openEdit = (p: ForumPostAdmin) => {
+    setEditPost(p);
+    setTitle(p.title); setBody(p.body); setImagePrev(p.image_url); setIsPinned(p.is_pinned);
+    setShowCreate(true);
+  };
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setImagePrev(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const savePost = useMutation({
+    mutationFn: async () => {
+      if (editPost) {
+        return apiRequest("PATCH", `/api/forum/posts/${editPost.id}`, {
+          title: title.trim(), body: body.trim(),
+          image_url: imagePrev ?? null, is_pinned: isPinned,
+        }).then(r => r.json());
+      }
+      return apiRequest("POST", "/api/forum/posts", {
+        title: title.trim(), body: body.trim(),
+        image_url: imagePrev ?? null, is_pinned: isPinned,
+      }).then(r => r.json());
+    },
+    onSuccess: () => {
+      toast({ title: editPost ? "Post updated" : "Post created" });
+      setShowCreate(false);
+      qc.invalidateQueries({ queryKey: ["/api/forum/posts"] });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deletePost = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/forum/posts/${id}`).then(r => r.json()),
+    onSuccess: () => {
+      toast({ title: "Post deleted" });
+      setDeleteId(null);
+      qc.invalidateQueries({ queryKey: ["/api/forum/posts"] });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const togglePin = useMutation({
+    mutationFn: ({ id, pinned }: { id: string; pinned: boolean }) =>
+      apiRequest("PATCH", `/api/forum/posts/${id}`, { is_pinned: pinned }).then(r => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/forum/posts"] }),
+  });
+
+  const toggleReadOnly = useMutation({
+    mutationFn: ({ id, readOnly }: { id: string; readOnly: boolean }) =>
+      apiRequest("PATCH", `/api/forum/posts/${id}`, { is_read_only: readOnly }).then(r => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/forum/posts"] }),
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    background: "rgba(255,248,220,0.09)",
+    border: "1px solid rgba(212,168,67,0.4)",
+    borderRadius: 8,
+    color: "#f5e8b0",
+    fontSize: 13,
+    padding: "9px 11px",
+    fontFamily: "sans-serif",
+    outline: "none",
+  };
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12,
+    color: "#c8b060",
+    marginBottom: 5,
+    display: "block",
+    fontFamily: "sans-serif",
+    fontWeight: 600,
+    letterSpacing: "0.04em",
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h3 className="font-fantasy text-sm tracking-widest" style={{ color: "#86efac" }}>Forum Posts</h3>
+        <button
+          data-testid="button-forum-create"
+          onClick={openCreate}
+          className="font-fantasy text-xs tracking-wider"
+          style={{ padding: "7px 14px", borderRadius: 8, background: "rgba(40,100,40,0.8)", border: "1px solid rgba(134,239,172,0.4)", color: "#86efac", cursor: "pointer" }}
+        >
+          + New Post
+        </button>
+      </div>
+
+      {/* Create / Edit Form */}
+      {showCreate && (
+        <div style={{ background: "rgba(6,18,8,0.9)", border: "1px solid rgba(134,239,172,0.25)", borderRadius: 14, padding: "16px 14px" }}>
+          <h4 className="font-fantasy text-xs tracking-widest mb-4" style={{ color: "#86efac" }}>{editPost ? "Edit Post" : "New Post"}</h4>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Title *</label>
+              <input data-testid="input-forum-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="Post title…" style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Body</label>
+              <textarea data-testid="input-forum-body" value={body} onChange={e => setBody(e.target.value)} placeholder="Post content…" rows={4} style={{ ...inputStyle, resize: "vertical" }} />
+            </div>
+            <div>
+              <label style={labelStyle}>Image</label>
+              {imagePrev && (
+                <div style={{ position: "relative", marginBottom: 8 }}>
+                  <img src={imagePrev} alt="" style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 8, border: "1px solid rgba(134,239,172,0.2)" }} />
+                  <button onClick={() => setImagePrev(null)} style={{ position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: "50%", background: "rgba(0,0,0,0.7)", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>✕</button>
+                </div>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFile} />
+              <button onClick={() => fileRef.current?.click()} data-testid="button-forum-upload-img"
+                style={{ padding: "7px 14px", borderRadius: 8, background: "rgba(20,50,20,0.7)", border: "1px solid rgba(134,239,172,0.25)", color: "#86efac", fontSize: 11, cursor: "pointer", fontFamily: "fantasy", letterSpacing: "0.1em" }}>
+                {imagePrev ? "Change Image" : "Upload Image"}
+              </button>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <input type="checkbox" id="pin-toggle" checked={isPinned} onChange={e => setIsPinned(e.target.checked)} data-testid="checkbox-forum-pin" />
+              <label htmlFor="pin-toggle" style={{ ...labelStyle, marginBottom: 0, cursor: "pointer" }}>Pin this post</label>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setShowCreate(false)} style={{ flex: 1, padding: "8px 0", borderRadius: 8, background: "rgba(30,30,30,0.7)", border: "1px solid rgba(212,168,67,0.2)", color: "#a89878", fontSize: 12, cursor: "pointer", fontFamily: "fantasy" }}>Cancel</button>
+              <button onClick={() => savePost.mutate()} disabled={!title.trim() || savePost.isPending} data-testid="button-forum-save"
+                style={{ flex: 2, padding: "8px 0", borderRadius: 8, background: "rgba(40,100,40,0.85)", border: "1px solid rgba(134,239,172,0.4)", color: "#86efac", fontSize: 12, cursor: "pointer", fontFamily: "fantasy", letterSpacing: "0.1em" }}>
+                {savePost.isPending ? "Saving…" : (editPost ? "Save Changes" : "Create Post")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirm */}
+      {deleteId && (
+        <div style={{ background: "rgba(60,10,10,0.9)", border: "1px solid rgba(255,100,100,0.3)", borderRadius: 12, padding: "14px 16px" }}>
+          <p style={{ color: "#fca5a5", fontSize: 13, marginBottom: 12 }}>Delete this post? Comments will also be removed.</p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setDeleteId(null)} style={{ flex: 1, padding: "7px 0", borderRadius: 8, background: "rgba(30,30,30,0.7)", border: "1px solid rgba(212,168,67,0.2)", color: "#a89878", fontSize: 12, cursor: "pointer" }}>Cancel</button>
+            <button onClick={() => deletePost.mutate(deleteId!)} disabled={deletePost.isPending} data-testid="button-forum-confirm-delete"
+              style={{ flex: 1, padding: "7px 0", borderRadius: 8, background: "rgba(120,20,20,0.85)", border: "1px solid rgba(255,100,100,0.4)", color: "#fca5a5", fontSize: 12, cursor: "pointer" }}>
+              {deletePost.isPending ? "Deleting…" : "Delete"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Posts list */}
+      {isLoading ? (
+        <div style={{ textAlign: "center", padding: 20 }}>
+          <div style={{ width: 20, height: 20, borderRadius: "50%", border: "2px solid rgba(134,239,172,0.3)", borderTopColor: "#86efac", animation: "spin 0.8s linear infinite", display: "inline-block" }} />
+        </div>
+      ) : posts.length === 0 ? (
+        <p style={{ color: "rgba(134,239,172,0.45)", fontSize: 13, textAlign: "center", padding: "20px 0" }} className="font-fantasy">No posts yet. Create one above!</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {posts.map(p => (
+            <div key={p.id} style={{ background: "rgba(6,18,8,0.8)", border: `1px solid ${p.is_pinned ? "rgba(134,239,172,0.3)" : "rgba(134,239,172,0.1)"}`, borderRadius: 10, padding: "10px 12px" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                {p.image_url && <img src={p.image_url} alt="" style={{ width: 48, height: 48, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p className="font-fantasy" style={{ fontSize: 13, color: "#f0d060", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
+                  <p style={{ fontSize: 10, color: "rgba(134,239,172,0.5)", marginTop: 2 }}>{p.comment_count} comment{p.comment_count !== 1 ? "s" : ""} · {p.is_pinned ? "📌 pinned" : "not pinned"}{p.is_read_only ? " · 🔒 read only" : ""}</p>
+                </div>
+                <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
+                  <button onClick={() => togglePin.mutate({ id: p.id, pinned: !p.is_pinned })} data-testid={`button-pin-${p.id}`}
+                    title={p.is_pinned ? "Unpin" : "Pin"}
+                    style={{ padding: "5px 8px", borderRadius: 6, background: "rgba(212,168,67,0.15)", border: "1px solid rgba(212,168,67,0.25)", color: "#d4a843", fontSize: 11, cursor: "pointer" }}>
+                    📌
+                  </button>
+                  <button onClick={() => toggleReadOnly.mutate({ id: p.id, readOnly: !p.is_read_only })} data-testid={`button-readonly-${p.id}`}
+                    title={p.is_read_only ? "Unlock post" : "Set read only"}
+                    style={{ padding: "5px 8px", borderRadius: 6, background: p.is_read_only ? "rgba(252,211,77,0.18)" : "rgba(40,40,40,0.5)", border: p.is_read_only ? "1px solid rgba(252,211,77,0.4)" : "1px solid rgba(200,190,160,0.2)", color: p.is_read_only ? "#fcd34d" : "rgba(200,190,160,0.45)", fontSize: 11, cursor: "pointer" }}>
+                    🔒
+                  </button>
+                  <button onClick={() => openEdit(p)} data-testid={`button-edit-post-${p.id}`}
+                    style={{ padding: "5px 8px", borderRadius: 6, background: "rgba(40,80,40,0.5)", border: "1px solid rgba(134,239,172,0.25)", color: "#86efac", fontSize: 11, cursor: "pointer" }}>
+                    Edit
+                  </button>
+                  <button onClick={() => setDeleteId(p.id)} data-testid={`button-delete-post-${p.id}`}
+                    style={{ padding: "5px 8px", borderRadius: 6, background: "rgba(80,20,20,0.5)", border: "1px solid rgba(252,165,165,0.25)", color: "#fca5a5", fontSize: 11, cursor: "pointer" }}>
+                    Del
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MaintenanceSection() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [result, setResult] = useState<{ summary: string; cleaned: number; totalRows: number; ranAt: string } | null>(null);
+  const [running, setRunning] = useState(false);
+  const [crashLog, setCrashLog] = useState<CrashEntry[] | null>(null);
+  const [crashTotal, setCrashTotal] = useState(0);
+  const [loadingCrash, setLoadingCrash] = useState(false);
+  const [clearingCrash, setClearingCrash] = useState(false);
+  const [crashExpanded, setCrashExpanded] = useState<number | null>(null);
+
+  const fetchCrashLog = async () => {
+    setLoadingCrash(true);
+    try {
+      const res = await apiRequest("GET", "/api/admin/client-errors");
+      const data = await res.json();
+      setCrashLog(data.entries ?? []);
+      setCrashTotal(data.total ?? 0);
+    } catch (err: any) {
+      toast({ title: "Failed to load crash log", description: err.message, variant: "destructive" });
+    } finally {
+      setLoadingCrash(false);
+    }
+  };
+
+  const clearCrashLog = async () => {
+    setClearingCrash(true);
+    try {
+      await apiRequest("DELETE", "/api/admin/client-errors");
+      setCrashLog([]);
+      setCrashTotal(0);
+      toast({ title: "Crash log cleared" });
+    } catch (err: any) {
+      toast({ title: "Clear failed", description: err.message, variant: "destructive" });
+    } finally {
+      setClearingCrash(false);
+    }
+  };
+
+  useEffect(() => { fetchCrashLog(); }, []);
+
+  const { data: maintenanceData, isLoading: maintenanceLoading } = useQuery<{ maintenance: boolean }>({
+    queryKey: ["/api/maintenance-status"],
+    staleTime: 10 * 1000,
+  });
+  const maintenanceOn = maintenanceData?.maintenance === true;
+
+  const toggleMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const res = await apiRequest("POST", "/api/admin/maintenance", { enabled });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/maintenance-status"], { maintenance: data.maintenance });
+      toast({
+        title: data.maintenance ? "Maintenance mode ON" : "Maintenance mode OFF",
+        description: data.maintenance
+          ? "Players are now blocked from logging in."
+          : "The realm is open — players can log in again.",
+      });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const runCleanup = async () => {
+    setRunning(true);
+    setResult(null);
+    try {
+      const res = await apiRequest("POST", "/api/admin/cleanup-orphans", {});
+      const data = await res.json();
+      setResult(data);
+    } catch (err: any) {
+      toast({ title: "Cleanup failed", description: err.message, variant: "destructive" });
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <div className="space-y-5 py-2">
+
+      {/* ── Maintenance Mode Toggle ── */}
+      <div
+        className="rounded-2xl p-4 flex flex-col gap-3"
+        style={{
+          background: maintenanceOn
+            ? "linear-gradient(145deg, rgba(60,10,10,0.9) 0%, rgba(90,14,14,0.9) 100%)"
+            : "linear-gradient(145deg, rgba(8,30,20,0.9) 0%, rgba(12,50,30,0.9) 100%)",
+          border: maintenanceOn
+            ? "1px solid rgba(252,165,165,0.4)"
+            : "1px solid rgba(110,231,183,0.3)",
+          boxShadow: maintenanceOn
+            ? "0 0 20px rgba(200,50,50,0.1)"
+            : "0 0 20px rgba(110,231,183,0.06)",
+          transition: "all 0.4s ease",
+        }}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-0.5">
+            <p
+              className="font-fantasy text-sm tracking-wide"
+              style={{ color: maintenanceOn ? "#fca5a5" : "#6ee7b7" }}
+            >
+              Maintenance Mode
+            </p>
+            <p
+              className="font-fantasy text-[10px] tracking-wider"
+              style={{ color: maintenanceOn ? "#7a3030" : "#2a5a3a" }}
+            >
+              {maintenanceLoading ? "Checking status..." : maintenanceOn ? "Realm is closed to players" : "Realm is open to all"}
+            </p>
+          </div>
+
+          {/* Toggle switch */}
+          <button
+            data-testid="button-toggle-maintenance"
+            onClick={() => toggleMutation.mutate(!maintenanceOn)}
+            disabled={maintenanceLoading || toggleMutation.isPending}
+            className="relative flex-shrink-0"
+            style={{
+              width: 52,
+              height: 28,
+              borderRadius: 14,
+              background: maintenanceOn
+                ? "linear-gradient(135deg, #8b1a1a, #c0392b)"
+                : "linear-gradient(135deg, #1a5c38, #27ae60)",
+              border: maintenanceOn ? "1px solid rgba(252,165,165,0.5)" : "1px solid rgba(110,231,183,0.5)",
+              boxShadow: maintenanceOn ? "0 0 10px rgba(200,50,50,0.3)" : "0 0 10px rgba(39,174,96,0.3)",
+              cursor: (maintenanceLoading || toggleMutation.isPending) ? "not-allowed" : "pointer",
+              transition: "all 0.3s ease",
+              opacity: (maintenanceLoading || toggleMutation.isPending) ? 0.5 : 1,
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                top: 3,
+                left: maintenanceOn ? 26 : 3,
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                background: "white",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.4)",
+                transition: "left 0.3s ease",
+              }}
+            />
+          </button>
+        </div>
+
+        {maintenanceOn && (
+          <p
+            className="font-fantasy text-[10px] tracking-wider text-center"
+            style={{ color: "#7a3030" }}
+          >
+            Admins can still access the realm normally.
+          </p>
+        )}
+      </div>
+
+      {/* ── Divider ── */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px" style={{ background: "rgba(168,152,120,0.15)" }} />
+        <p className="font-fantasy text-[10px] text-[#4a3a28] tracking-wider">Database Tools</p>
+        <div className="flex-1 h-px" style={{ background: "rgba(168,152,120,0.15)" }} />
+      </div>
+
+      {/* ── Crash & Error Log ── */}
+      <div className="rounded-2xl overflow-hidden" style={{
+        background: "linear-gradient(145deg, rgba(10,4,20,0.97) 0%, rgba(18,6,30,0.97) 100%)",
+        border: "1px solid rgba(248,113,113,0.2)",
+      }}>
+        {/* Header row */}
+        <div className="px-4 pt-4 pb-2 flex items-start justify-between gap-2">
+          <div className="flex flex-col gap-0.5">
+            <p className="font-fantasy text-sm tracking-wide" style={{ color: "#fca5a5" }}>
+              Crash &amp; Debug Log
+            </p>
+            <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#4a2a2a" }}>
+              Client-side errors, unhandled rejections, and crashes — since last server restart
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              data-testid="button-refresh-crash-log"
+              onClick={fetchCrashLog}
+              disabled={loadingCrash}
+              className="rounded-lg px-2.5 py-1 font-fantasy text-[9px] tracking-wider"
+              style={{
+                background: "rgba(248,113,113,0.08)",
+                border: "1px solid rgba(248,113,113,0.25)",
+                color: loadingCrash ? "#5a2a2a" : "#fca5a5",
+                cursor: loadingCrash ? "not-allowed" : "pointer",
+              }}
+            >
+              {loadingCrash ? "Loading…" : "Refresh"}
+            </button>
+            {crashLog && crashLog.length > 0 && (
+              <button
+                data-testid="button-clear-crash-log"
+                onClick={clearCrashLog}
+                disabled={clearingCrash}
+                className="rounded-lg px-2.5 py-1 font-fantasy text-[9px] tracking-wider"
+                style={{
+                  background: "rgba(248,113,113,0.12)",
+                  border: "1px solid rgba(248,113,113,0.3)",
+                  color: clearingCrash ? "#5a2a2a" : "#f87171",
+                  cursor: clearingCrash ? "not-allowed" : "pointer",
+                }}
+              >
+                {clearingCrash ? "Clearing…" : "Clear All"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Summary count */}
+        {crashLog !== null && (
+          <div className="px-4 pb-2 flex items-center gap-2">
+            <span className="font-fantasy text-lg leading-none" style={{ color: crashTotal > 0 ? "#f87171" : "#6ee7b7" }}>
+              {crashTotal}
+            </span>
+            <span className="font-fantasy text-[10px] tracking-wider" style={{ color: crashTotal > 0 ? "#6a2a2a" : "#2a6a44" }}>
+              {crashTotal === 0 ? "no errors recorded — all clear" : crashTotal === 1 ? "error recorded" : "errors recorded"}
+            </span>
+            {crashTotal > 0 && (() => {
+              const crashes   = crashLog?.filter(e => e.type === "crash").length ?? 0;
+              const unhandled = crashLog?.filter(e => e.type === "unhandled").length ?? 0;
+              const errors    = crashLog?.filter(e => e.type === "error").length ?? 0;
+              return (
+                <div className="flex items-center gap-1.5 ml-1">
+                  {crashes   > 0 && <span className="font-fantasy text-[8px] rounded-full px-1.5 py-0.5" style={{ background: "rgba(248,113,113,0.18)", color: "#fca5a5", border: "1px solid rgba(248,113,113,0.3)" }}>{crashes} crash</span>}
+                  {unhandled > 0 && <span className="font-fantasy text-[8px] rounded-full px-1.5 py-0.5" style={{ background: "rgba(251,191,36,0.18)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.3)" }}>{unhandled} unhandled</span>}
+                  {errors    > 0 && <span className="font-fantasy text-[8px] rounded-full px-1.5 py-0.5" style={{ background: "rgba(253,224,71,0.18)", color: "#fde047", border: "1px solid rgba(253,224,71,0.3)" }}>{errors} window error</span>}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* Entry list */}
+        {loadingCrash && (
+          <div className="mx-3 mb-3 rounded-xl p-3 flex items-center gap-3"
+            style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(248,113,113,0.12)" }}
+          >
+            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: "rgba(248,113,113,0.3)", animation: "pp-glow-pulse 1s ease-in-out infinite" }} />
+            <span className="font-fantasy text-[10px] tracking-wider" style={{ color: "#5a2a2a" }}>Loading error log…</span>
+          </div>
+        )}
+
+        {!loadingCrash && crashLog !== null && crashLog.length > 0 && (
+          <div className="mx-3 mb-3 rounded-xl overflow-hidden" style={{ border: "1px solid rgba(248,113,113,0.12)", maxHeight: 320, overflowY: "auto" }}>
+            {crashLog.map((entry, idx) => {
+              const typeColor = entry.type === "crash" ? { bg: "rgba(248,113,113,0.12)", badge: "#fca5a5", badgeBg: "rgba(248,113,113,0.2)", label: "CRASH" }
+                : entry.type === "unhandled" ? { bg: "rgba(251,191,36,0.08)", badge: "#fbbf24", badgeBg: "rgba(251,191,36,0.18)", label: "UNHANDLED" }
+                : { bg: "rgba(253,224,71,0.06)", badge: "#fde047", badgeBg: "rgba(253,224,71,0.14)", label: "ERROR" };
+              const isExpanded = crashExpanded === entry.id;
+              const ago = (() => {
+                const diff = Date.now() - new Date(entry.ts).getTime();
+                const s = Math.floor(diff / 1000);
+                if (s < 60)  return `${s}s ago`;
+                if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+                if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+                return new Date(entry.ts).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+              })();
+              const browser = (() => {
+                const ua = entry.ua;
+                if (/Chrome\//.test(ua) && !/Edg\//.test(ua)) return "Chrome";
+                if (/Edg\//.test(ua)) return "Edge";
+                if (/Firefox\//.test(ua)) return "Firefox";
+                if (/Safari\//.test(ua)) return "Safari";
+                return "Unknown";
+              })();
+              return (
+                <div
+                  key={entry.id}
+                  style={{
+                    background: typeColor.bg,
+                    borderBottom: idx < crashLog.length - 1 ? "1px solid rgba(248,113,113,0.08)" : "none",
+                  }}
+                >
+                  {/* Collapsed row */}
+                  <button
+                    className="w-full px-3 py-2 flex items-start gap-2 text-left"
+                    style={{ background: "transparent", border: "none", cursor: "pointer" }}
+                    onClick={() => setCrashExpanded(isExpanded ? null : entry.id)}
+                  >
+                    <span className="font-fantasy text-[8px] tracking-wider rounded px-1.5 py-0.5 flex-shrink-0 mt-0.5"
+                      style={{ background: typeColor.badgeBg, color: typeColor.badge }}>
                       {typeColor.label}
                     </span>
                     <div className="flex-1 min-w-0">
