@@ -66,6 +66,7 @@ function formatTypeName(type: string): string {
 
 export const ITEM_CATEGORIES = [
   { key: "pets",        label: "Pets",        color: "#ffb347" },
+  { key: "mini_pets",   label: "Mini Pets",   color: "#6ee7b7" },
   { key: "potions",     label: "Potions",     color: "#a78bfa" },
   { key: "specials",    label: "Specials",    color: "#34d399" },
   { key: "edibles",     label: "Edibles",     color: "#f87171" },
@@ -85,6 +86,13 @@ export const ITEM_CATEGORIES = [
 export type ItemCategoryKey = typeof ITEM_CATEGORIES[number]["key"];
 
 export function getItemEffectText(item: ShopItemFull): string | null {
+  if (item.type === "mini_pet") {
+    const parts: string[] = [];
+    if (item.atkBoost) parts.push(`+${item.atkBoost} ATK`);
+    if (item.healthBoost) parts.push(`+${item.healthBoost} HP`);
+    if (item.defBoost) parts.push(`+${item.defBoost} DEF`);
+    return parts.join(" · ") || "Mini Pet";
+  }
   if (item.type === "potion") {
     const parts: string[] = [];
     if (item.healthRestored) parts.push(`+${item.healthRestored} HP`);
@@ -135,6 +143,7 @@ export function getItemEffectText(item: ShopItemFull): string | null {
 
 export function getItemCategory(item: ShopItemFull): ItemCategoryKey {
   if (item.type === "pet") return "pets";
+  if (item.type === "mini_pet") return "mini_pets";
   if (item.type === "potion") return "potions";
   if (item.type === "special") return "specials";
   if (item.type === "edibles") return "edibles";
@@ -231,7 +240,7 @@ export default function ItemDatabaseSection({
   const sectionItems = allItems.filter(item => {
     if (subSection === "pets") return item.type === "pet";
     // items-only or default: exclude pets; also exclude fishing when in items-only mode
-    if (item.type === "pet") return false;
+    if (item.type === "pet" || item.type === "mini_pet") return false;
     if (mode === "items-only" && item.type === "fishing") return false;
     return true;
   });
@@ -1678,4 +1687,3 @@ export function ItemPickerModal({
     </div>
   );
 }
-

@@ -9,6 +9,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import PetCostumeEquipmentSection from "@/components/PetCostumeEquipmentSection";
+import MiniPetRenderer, { type EquippedMiniPet } from "@/components/MiniPetRenderer";
 import gemCrystalIcon from "@assets/generated_images/icon_gem_crystal.png";
 import closetBackground from "@assets/uploads/ClosetBG.png";
 import closetCloseButton from "@assets/uploads/ClosetCloseButton.png";
@@ -46,6 +47,12 @@ interface AccessoriesResponse {
   extraSlots: number;
 }
 
+interface MiniPetInventoryItem {
+  inventoryId: string; name: string; imageUrl: string | null; rarity: number;
+  atkBoost: number; healthBoost: number; defBoost: number;
+  animationStyle: "breath" | "float"; isListed: boolean; isEquipped: boolean;
+}
+
 interface Props {
   petInventoryId: string;
   petName: string;
@@ -71,6 +78,7 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
   const [unequipConfirm, setUnequipConfirm] = useState<EquippedAccessory | null>(null);
   const [unlockConfirm, setUnlockConfirm] = useState(false);
   const [bagOpen, setBagOpen] = useState(false);
+  const [miniPetOpen, setMiniPetOpen] = useState(false);
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -93,6 +101,15 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
   });
   const { data: inventory = [], isLoading: inventoryLoading, isError: inventoryError } = useQuery<InventoryAccessory[]>({
     queryKey: ["/api/inventory"],
+    staleTime: 0,
+  });
+  const { data: miniPetInventory = [], isLoading: miniPetsLoading } = useQuery<MiniPetInventoryItem[]>({
+    queryKey: ["/api/mini-pets/inventory"],
+    staleTime: 0,
+  });
+  const { data: equippedMiniPetData } = useQuery<{ equipped: EquippedMiniPet | null }>({
+    queryKey: ["/api/pet", petInventoryId, "mini-pet"],
+    queryFn: async () => (await apiRequest("GET", `/api/pet/${petInventoryId}/mini-pet`)).json(),
     staleTime: 0,
   });
   const {
@@ -131,6 +148,23 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
     qc.invalidateQueries({ queryKey: ["/api/user/equipped-accessory-ids"] });
     qc.invalidateQueries({ queryKey: ["/api/inventory"] });
   };
+
+  const refreshMiniPets = () => {
+    qc.invalidateQueries({ queryKey: ["/api/mini-pets/inventory"] });
+    qc.invalidateQueries({ queryKey: ["/api/pet", petInventoryId, "mini-pet"] });
+    qc.invalidateQueries({ queryKey: ["/api/inventory"] });
+  };
+  const equipMiniPet = useMutation({
+    mutationFn: async (miniPetInventoryId: string) =>
+      (await apiRequest("POST", `/api/pet/${petInventoryId}/mini-pet/equip`, { miniPetInventoryId })).json(),
+    onSuccess: refreshMiniPets,
+    onError: (error: any) => toast({ title: "Could not equip Mini Pet", description: error.message, variant: "destructive" }),
+  });
+  const unequipMiniPet = useMutation({
+    mutationFn: async () => (await apiRequest("DELETE", `/api/pet/${petInventoryId}/mini-pet`)).json(),
+    onSuccess: refreshMiniPets,
+    onError: (error: any) => toast({ title: "Could not unequip Mini Pet", description: error.message, variant: "destructive" }),
+  });
 
   const equipMutation = useMutation({
     mutationFn: async (accessoryInventoryId: string) =>
@@ -307,6 +341,16 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         </div>
       </div>
 
+      <button type="button" data-testid="button-open-mini-pets" aria-label="Open Mini Pets inventory" onClick={() => setMiniPetOpen(true)}
+        className="absolute z-[7] grid place-items-center rounded-full transition-transform active:scale-90"
+        style={{ left: "7.5%", top: "43.5%", width: "15.5%", aspectRatio: "1", border: "1px solid rgba(128,255,202,.48)", background: "radial-gradient(circle,rgba(68,255,174,.22) 0%,rgba(10,55,37,.25) 48%,rgba(0,0,0,.05) 70%)", boxShadow: "0 9px 8px rgba(0,0,0,.5),0 0 13px rgba(74,255,177,.38),inset 0 0 10px rgba(145,255,218,.18)", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
+        {equippedMiniPetData?.equipped ? (
+          <MiniPetRenderer petInventoryId={petInventoryId} style={{ width: "88%", height: "88%" }} />
+        ) : (
+          <><span className="font-fantasy text-xl" style={{ color: "#86efac", textShadow: "0 0 10px rgba(74,255,177,.9)" }}>✦</span><span className="absolute -bottom-4 whitespace-nowrap font-fantasy text-[6px] tracking-wider" style={{ color: "rgba(202,241,216,.74)", textShadow: "0 1px 3px #000" }}>MINI PET</span></>
+        )}
+      </button>
+
       <section className="absolute z-[4]" aria-label="Accessory slots" style={{ left: "5.5%", top: "60.1%", width: "89%", height: "12.2%" }}>
         <button type="button" onClick={openAccessoryBag} className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap font-fantasy tracking-[0.16em]" style={{ bottom: "102%", color: "rgba(215,239,213,.78)", fontSize: "clamp(7px, 1.9vw, 10px)", textShadow: "0 2px 4px #000", background: "rgba(2,12,8,.48)", border: "1px solid rgba(97,202,144,.18)", borderRadius: 999, padding: "4px 10px", cursor: "pointer" }}>
           ACCESSORIES · {equippedAccessories.length}/{maxSlots} · OPEN BAG
@@ -337,6 +381,42 @@ export default function PetEquipAccessoriesPage({ petInventoryId, petName, petIm
         userCoins={user?.coins ?? 0}
         closetMode
       />
+
+      {miniPetOpen && (
+        <aside className="absolute inset-x-[5%] top-[14%] z-[35] flex max-h-[72%] flex-col overflow-hidden rounded-2xl" data-testid="mini-pet-inventory"
+          style={{ background: "linear-gradient(180deg,rgba(7,30,20,.985),rgba(2,10,7,.99))", border: "1.5px solid rgba(112,240,174,.5)", boxShadow: "0 16px 40px rgba(0,0,0,.82),0 0 24px rgba(50,220,145,.14)" }}>
+          <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "rgba(112,240,174,.18)" }}>
+            <div><p className="font-fantasy text-xs tracking-[.14em]" style={{ color: "#a7f3d0" }}>MINI PETS</p><p className="font-fantasy text-[8px]" style={{ color: "rgba(210,235,218,.5)" }}>Choose one companion for {petName}</p></div>
+            <button type="button" aria-label="Close Mini Pets inventory" onClick={() => setMiniPetOpen(false)} className="grid h-8 w-8 place-items-center rounded-full" style={{ color: "#a7f3d0", border: "1px solid rgba(112,240,174,.3)" }}><X size={16} /></button>
+          </div>
+          <div className="overflow-y-auto p-3">
+            {equippedMiniPetData?.equipped && (
+              <button type="button" disabled={unequipMiniPet.isPending} onClick={() => unequipMiniPet.mutate()} className="mb-3 w-full rounded-lg py-2 font-fantasy text-[9px] tracking-wider" style={{ color: "#fca5a5", border: "1px solid rgba(248,113,113,.3)", background: "rgba(127,29,29,.14)" }}>UNEQUIP {equippedMiniPetData.equipped.name.toUpperCase()}</button>
+            )}
+            {miniPetsLoading ? <p className="py-8 text-center text-xs text-stone-400">Loading Mini Pets…</p> : miniPetInventory.length === 0 ? (
+              <p className="py-10 text-center font-fantasy text-[10px]" style={{ color: "rgba(215,235,220,.45)" }}>You do not own any Mini Pets yet.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {miniPetInventory.map(item => {
+                  const active = equippedMiniPetData?.equipped?.inventoryId === item.inventoryId;
+                  const unavailable = item.isListed || (item.isEquipped && !active);
+                  return (
+                    <button key={item.inventoryId} type="button" disabled={active || unavailable || equipMiniPet.isPending} onClick={() => equipMiniPet.mutate(item.inventoryId)}
+                      data-testid={`mini-pet-option-${item.inventoryId}`} className="flex min-w-0 flex-col items-center rounded-xl p-2 disabled:opacity-45"
+                      style={{ border: active ? "1px solid #6ee7b7" : "1px solid rgba(110,231,183,.2)", background: active ? "rgba(16,120,82,.2)" : "rgba(0,0,0,.3)" }}>
+                      <img src={item.imageUrl ?? ""} alt={item.name} className="h-20 w-20 object-contain" />
+                      <span className="w-full truncate font-fantasy text-[9px]" style={{ color: active ? "#a7f3d0" : "#e7e5e4" }}>{item.name}</span>
+                      <span className="text-[8px] text-amber-300">{"★".repeat(item.rarity)}</span>
+                      <span className="mt-1 text-[7px] text-stone-400">+{item.atkBoost || 0} ATK · +{item.healthBoost || 0} HP · +{item.defBoost || 0} DEF</span>
+                      <span className="mt-1 font-fantasy text-[7px] text-emerald-300/70">{active ? "EQUIPPED" : unavailable ? "ON ANOTHER PET" : "TAP TO EQUIP"}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </aside>
+      )}
 
 
       {bagOpen && (

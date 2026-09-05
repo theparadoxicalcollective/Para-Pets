@@ -33,6 +33,28 @@ export async function runEssentialBoot(): Promise<void> {
   } catch (err) { console.error("media_blobs table setup error (non-fatal):", err); }
 
   const migrations: Array<[string, ReturnType<typeof sql>]> = [
+    ["Mini Pets schema migration error (non-fatal):", sql`
+      CREATE TABLE IF NOT EXISTS mini_pet_definitions (
+        shop_item_id VARCHAR PRIMARY KEY REFERENCES shop_items(id) ON DELETE CASCADE,
+        animation_style TEXT NOT NULL DEFAULT 'breath' CHECK(animation_style IN ('breath','float')),
+        created_at TIMESTAMP NOT NULL DEFAULT now(),
+        updated_at TIMESTAMP NOT NULL DEFAULT now()
+      );
+      CREATE TABLE IF NOT EXISTS mini_pet_parts (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        shop_item_id VARCHAR NOT NULL REFERENCES shop_items(id) ON DELETE CASCADE,
+        part_type TEXT NOT NULL CHECK(part_type IN ('eyes','head','left_ear','right_ear','body','tail','left_wing','right_wing')),
+        image_url TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT now(),
+        UNIQUE(shop_item_id, part_type)
+      );
+      CREATE TABLE IF NOT EXISTS pet_equipped_mini_pets (
+        pet_inventory_id VARCHAR PRIMARY KEY REFERENCES user_inventory(id) ON DELETE CASCADE,
+        mini_pet_inventory_id VARCHAR NOT NULL UNIQUE REFERENCES user_inventory(id) ON DELETE CASCADE,
+        created_at TIMESTAMP NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS mini_pet_parts_item_idx ON mini_pet_parts(shop_item_id);
+    `],
     ["Card catalog and border layout migration error (non-fatal):", sql`
       CREATE TABLE IF NOT EXISTS card_definitions (
         id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -319,4 +341,3 @@ export async function runEssentialBoot(): Promise<void> {
     catch (err) { console.error(errorMessage, err); }
   }
 }
-

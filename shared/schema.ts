@@ -402,6 +402,27 @@ export const petEquippedAccessories = pgTable("pet_equipped_accessories", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const miniPetDefinitions = pgTable("mini_pet_definitions", {
+  shopItemId: varchar("shop_item_id").primaryKey(),
+  animationStyle: text("animation_style").notNull().default("breath"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const miniPetParts = pgTable("mini_pet_parts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  shopItemId: varchar("shop_item_id").notNull(),
+  partType: text("part_type").notNull(),
+  imageUrl: text("image_url").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, table => [unique("mini_pet_parts_item_part_unique").on(table.shopItemId, table.partType)]);
+
+export const petEquippedMiniPets = pgTable("pet_equipped_mini_pets", {
+  petInventoryId: varchar("pet_inventory_id").primaryKey(),
+  miniPetInventoryId: varchar("mini_pet_inventory_id").notNull().unique(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export const soulExchangeTransactions = pgTable("soul_exchange_transactions", {
   exchangeActionId: varchar("exchange_action_id").primaryKey(),
   userId: varchar("user_id").notNull(),
@@ -1187,4 +1208,3 @@ export const fishingLeaderboard = pgTable("fishing_leaderboard", {
   points: integer("points").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
-
