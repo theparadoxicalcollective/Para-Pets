@@ -28,6 +28,7 @@ import UserProfilePanel from "@/components/UserProfilePanel";
 import PlayerAvatarButton from "@/components/PlayerAvatarButton";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import PetAnimator from "@/components/PetAnimator";
+import MiniPetRenderer from "@/components/MiniPetRenderer";
 import PetPowerUpPage from "@/components/PetPowerUpPage";
 import type { PowerUpItem } from "@/components/powerup/PowerUpModalTypes";
 import PowerUpOverlay from "@/components/PowerUpOverlay";
@@ -1333,6 +1334,12 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         ) : (
                           <img src={petPawIcon} alt="" style={{ width: 72, height: 72, objectFit: "contain", filter: "drop-shadow(0 2px 10px rgba(0,0,0,0.5))" }} />
                         )}
+                        {activePetModal !== "power_up" && (
+                          <div data-testid="active-pet-mini-pet-overlay" className="absolute"
+                            style={{ left: "3%", bottom: "2%", width: "28%", aspectRatio: "1", zIndex: 4, pointerEvents: "none" }}>
+                            <MiniPetRenderer petInventoryId={activePet.inventoryId} />
+                          </div>
+                        )}
                       </div>
                     ) : (() => {
                       const eggHatchReady = activePet.hatchStartedAt && activePet.hatchTime
@@ -2405,4 +2412,3 @@ function HomeHatchBar({ hatchStartedAt, hatchTime }: { hatchStartedAt: string; h
     </div>
   );
 }
-

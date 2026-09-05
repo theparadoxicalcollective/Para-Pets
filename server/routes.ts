@@ -56,6 +56,7 @@ import { registerClearingShopRoutes } from "./routes/clearingShop.routes";
 import { registerSoulExchangeRoutes } from "./routes/soulExchange.routes";
 import { registerCostumeAdminRoutes } from "./routes/costumeAdmin.routes";
 import { registerCostumePlayerRoutes } from "./routes/costumePlayer.routes";
+import { registerMiniPetRoutes } from "./routes/miniPet.routes";
 import { registerCardAdminRoutes } from "./routes/cardAdmin.routes";
 import { registerCardCollectionRoutes } from "./routes/cardCollection.routes";
 import { grantBundleCards, parseBundleCards } from "./cards";
@@ -816,6 +817,7 @@ export async function registerRoutes(
   registerClearingAdminRoutes(app, { db, isAdmin });
   registerCostumeAdminRoutes(app, data => processWorldImage(data, 2000));
   registerCostumePlayerRoutes(app);
+  registerMiniPetRoutes(app, data => processWorldImage(data, 1000));
 
   const marketplaceRouteDependencies: MarketplaceRouteDependencies = {
     storage,

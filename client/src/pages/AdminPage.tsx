@@ -14,6 +14,7 @@ import ItemDatabaseSection, { ShopItemFull, ItemPickerModal, getItemEffectText, 
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import FishingAdminPanel from "@/components/FishingAdminPanel";
 import EnemyDatabasePanel from "@/components/EnemyDatabasePanel";
+import MiniPetAdminPanel from "@/components/MiniPetAdminPanel";
 import ClearingAdminPanel from "@/components/ClearingAdminPanel";
 import HomeBundleSection from "@/components/HomeBundleSection";
 import CardAdminPanel from "@/components/CardAdminPanel";
@@ -78,7 +79,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [activeSection, setActiveSection] = useState<"members" | "rewards" | "items" | "pets" | "messages" | "badges" | "cards" | "emblems" | "maintenance" | "home_bundle" | "purchases" | "veridian_watcher" | "quest" | "molten_blocks" | "metrics" | "recipe_items" | "forums" | "clearing" | null>(null);
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
-  const [characterTab, setCharacterTab] = useState<"pet" | "enemy" | "npc" | "fish">("pet");
+  const [characterTab, setCharacterTab] = useState<"pet" | "mini_pet" | "enemy" | "npc" | "fish">("pet");
   const [itemsTab, setItemsTab] = useState<"items" | "fishing">("items");
   const [rewardsTab, setRewardsTab] = useState<"rewards" | "welcome">("rewards");
   const [watcherTab, setWatcherTab] = useState<"watcher" | "chat_filter">("watcher");
@@ -176,7 +177,7 @@ export default function AdminPage({ user }: AdminPageProps) {
 
   const sections = [
     // ── A–Z alphabetical order, each with a unique colour ────────────────────
-    { key: "pets"          as const, label: "Add Character",   icon: adminIconPets,          desc: "Pets, enemies, NPCs & fish",   color: "#fb923c", glow: "rgba(251,146,60,0.35)",   bg: "linear-gradient(145deg, rgba(72,24,4,0.92) 0%, rgba(110,38,8,0.88) 100%)",    border: "rgba(251,146,60,0.5)"   },
+    { key: "pets"          as const, label: "Add Character",   icon: adminIconPets,          desc: "Pets, Mini Pets, enemies, NPCs & fish",   color: "#fb923c", glow: "rgba(251,146,60,0.35)",   bg: "linear-gradient(145deg, rgba(72,24,4,0.92) 0%, rgba(110,38,8,0.88) 100%)",    border: "rgba(251,146,60,0.5)"   },
     { key: "clearing"      as const, label: "Clearing",        icon: adminIconRewards,       desc: "World drops & enemies",          color: "#6ee7b7", glow: "rgba(110,231,183,.3)", bg: "linear-gradient(145deg,rgba(4,50,35,.92),rgba(8,80,55,.88))", border: "rgba(110,231,183,.45)" },
     { key: "badges"        as const, label: "Badges",          icon: adminIconBadges,        desc: "Award badges",                 color: "#fde68a", glow: "rgba(253,230,138,0.30)",  bg: "linear-gradient(145deg, rgba(72,54,0,0.92) 0%, rgba(108,80,0,0.88) 100%)",    border: "rgba(253,230,138,0.45)" },
     { key: "cards"         as const, label: "Cards",           icon: adminIconBadges,        desc: "Card artwork & borders",        color: "#f6d365", glow: "rgba(246,211,101,0.32)", bg: "linear-gradient(145deg, rgba(68,44,4,0.92) 0%, rgba(100,64,8,0.88) 100%)",    border: "rgba(246,211,101,0.48)" },
@@ -629,6 +630,7 @@ export default function AdminPage({ user }: AdminPageProps) {
                   >
                     {([
                       { key: "pet", label: "Pet" },
+                      { key: "mini_pet", label: "Mini Pets" },
                       { key: "enemy", label: "Enemy" },
                       { key: "npc", label: "NPC" },
                       { key: "fish", label: "Fish" },
@@ -669,6 +671,7 @@ export default function AdminPage({ user }: AdminPageProps) {
                       onOpenParts={(templateId) => setPartsOverlayTemplateId(templateId)}
                     />
                   )}
+                  {characterTab === "mini_pet" && <MiniPetAdminPanel />}
                   {characterTab === "enemy" && <EnemyDatabasePanel />}
                   {characterTab === "npc" && (
                     <div
