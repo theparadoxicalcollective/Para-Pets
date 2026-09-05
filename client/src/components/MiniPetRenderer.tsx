@@ -21,7 +21,9 @@ interface Props {
   style?: React.CSSProperties;
 }
 
-const ORDER: MiniPetPartType[] = ["tail", "left_wing", "right_wing", "body", "head", "left_ear", "right_ear", "eyes"];
+// Lower entries draw first. Wings/tail sit behind the body, ears sit behind the
+// head, and eyes are always the final face layer.
+const ORDER: MiniPetPartType[] = ["tail", "left_wing", "right_wing", "body", "left_ear", "right_ear", "head", "eyes"];
 
 export default function MiniPetRenderer({ petInventoryId, className = "", style }: Props) {
   const { data } = useQuery<{ equipped: EquippedMiniPet | null }>({
@@ -70,6 +72,16 @@ export default function MiniPetRenderer({ petInventoryId, className = "", style 
 }
 
 const MINI_PET_MOTION = `
+/* The active-pet page's main pet interaction layer sits at z-index 520. Keep
+   the equipped Mini Pet visibly above it, while anchoring the companion to the
+   lower-left area of the pet stage like a small sidekick. These selectors only
+   affect the dedicated HomePage host and do not change Mini Pet previews elsewhere. */
+[data-testid="active-pet-mini-pet-overlay"]{
+  left:6%!important;
+  bottom:6%!important;
+  width:26%!important;
+  z-index:560!important;
+}
 @keyframes miniPetBreath { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-.7%) scale(1.006,1.012)} }
 @keyframes miniPetFloat { 0%,100%{transform:translateY(1%)} 50%{transform:translateY(-3%)} }
 @keyframes miniPetWing { 0%,100%{rotate:-1deg} 50%{rotate:1.5deg} }
