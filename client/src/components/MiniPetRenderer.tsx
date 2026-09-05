@@ -34,13 +34,12 @@ export default function MiniPetRenderer({ petInventoryId, className = "", style 
   if (!pet) return null;
 
   const parts = [...(pet.parts ?? [])].sort((a, b) => ORDER.indexOf(a.partType) - ORDER.indexOf(b.partType));
-  const uploadedTypes = new Set(parts.map(part => part.partType));
-  const hasCompleteLayerSet = ORDER.every(partType => uploadedTypes.has(partType));
-  // Keep the companion visible while an admin is still building its layered
-  // artwork. Switching to layered mode after the very first uploaded part can
-  // otherwise replace the full preview with only an eye/ear/tail on player
-  // screens. Once all eight authored parts exist, use the animated layers.
-  const useLayeredParts = parts.length > 0 && (hasCompleteLayerSet || !pet.imageUrl);
+  // Mini Pets are not required to use every supported layer. Some designs may
+  // only need a head/body/eyes while others use ears, tail and wings too. As
+  // soon as an admin authors at least one layered part, render the authored
+  // layer set exactly as-is. The complete preview image remains the fallback
+  // only for Mini Pets that have no authored parts at all.
+  const useLayeredParts = parts.length > 0;
 
   return (
     <div
@@ -64,11 +63,7 @@ export default function MiniPetRenderer({ petInventoryId, className = "", style 
             data-mini-pet-preview
             style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 4px 7px rgba(0,0,0,.5))" }}
           />
-        ) : parts.map(part => (
-          <img key={part.id} src={part.imageUrl} alt="" draggable={false} data-mini-pet-part={part.partType}
-            className={part.partType.includes("wing") ? "mini-pet-wing" : part.partType === "tail" ? "mini-pet-tail" : part.partType.includes("ear") ? "mini-pet-ear" : ""}
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", transformOrigin: "center bottom", filter: "drop-shadow(0 4px 7px rgba(0,0,0,.5))" }} />
-        ))}
+        ) : null}
       </div>
     </div>
   );
