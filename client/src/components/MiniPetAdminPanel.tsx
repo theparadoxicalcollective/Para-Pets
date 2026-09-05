@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import MiniPetPartEditor from "@/components/MiniPetPartEditor";
 import { MINI_PET_PART_TYPES, type MiniPetPartType } from "@shared/miniPet";
 
 interface MiniPetPart { id: string; partType: MiniPetPartType; imageUrl: string }
@@ -11,6 +12,14 @@ interface MiniPet {
   price: number;
   atkBoost: number; healthBoost: number; defBoost: number;
   animationStyle: "breath" | "float"; parts: MiniPetPart[];
+}
+
+interface PartEditorState {
+  shopItemId: string;
+  petName: string;
+  partType: MiniPetPartType;
+  source: string;
+  previewParts: MiniPetPart[];
 }
 
 const label = (value: string) => value.replaceAll("_", " ").replace(/\b\w/g, c => c.toUpperCase());
@@ -33,6 +42,7 @@ export default function MiniPetAdminPanel() {
   const [imageData, setImageData] = useState("");
   const [editingParts, setEditingParts] = useState<string | null>(null);
   const [editingPet, setEditingPet] = useState<MiniPet | null>(null);
+  const [partEditor, setPartEditor] = useState<PartEditorState | null>(null);
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data: pets = [], isLoading } = useQuery<MiniPet[]>({ queryKey: ["/api/admin/mini-pets"] });
@@ -46,6 +56,24 @@ export default function MiniPetAdminPanel() {
     setAtkBoost(pet.atkBoost || 0); setHealthBoost(pet.healthBoost || 0); setDefBoost(pet.defBoost || 0);
     setAnimationStyle(pet.animationStyle); setImageData(""); setFormOpen(true);
   };
+  const openPartEditor = (pet: MiniPet, partType: MiniPetPartType, source: string) => {
+    setPartEditor({
+      shopItemId: pet.shopItemId,
+      petName: pet.name,
+      partType,
+      source,
+      previewParts: pet.parts.filter(part => part.partType !== partType),
+    });
+  };
+  const openUploadedPart = async (pet: MiniPet, partType: MiniPetPartType, file?: File) => {
+    if (!file) return;
+    try {
+      openPartEditor(pet, partType, await fileData(file));
+    } catch {
+      toast({ title: "Could not read image", description: "Please choose the PNG or WebP again.", variant: "destructive" });
+    }
+  };
+
   const save = useMutation({
     mutationFn: async () => {
       const payload = {
@@ -61,14 +89,18 @@ export default function MiniPetAdminPanel() {
       reset();
       qc.invalidateQueries({ queryKey: ["/api/admin/mini-pets"] });
       qc.invalidateQueries({ queryKey: ["/api/admin/shop-items-all"] });
-      toast({ title: wasEditing ? "Mini Pet updated" : "Mini Pet added", description: wasEditing ? "Price and details saved." : "Now upload its eight animation parts." });
+      toast({ title: wasEditing ? "Mini Pet updated" : "Mini Pet added", description: wasEditing ? "Price and details saved." : "Now add and position its eight animation parts." });
     },
     onError: (error: any) => toast({ title: editingPet ? "Could not update Mini Pet" : "Could not add Mini Pet", description: error.message, variant: "destructive" }),
   });
   const savePart = useMutation({
-    mutationFn: async ({ shopItemId, partType, file }: { shopItemId: string; partType: MiniPetPartType; file: File }) =>
-      (await apiRequest("POST", `/api/admin/mini-pets/${shopItemId}/parts`, { partType, imageData: await fileData(file) })).json(),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/admin/mini-pets"] }),
+    mutationFn: async ({ shopItemId, partType, imageData: partImageData }: { shopItemId: string; partType: MiniPetPartType; imageData: string }) =>
+      (await apiRequest("POST", `/api/admin/mini-pets/${shopItemId}/parts`, { partType, imageData: partImageData })).json(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/admin/mini-pets"] });
+      setPartEditor(null);
+      toast({ title: "Mini Pet part saved", description: "The positioned transparent part is ready for animation." });
+    },
     onError: (error: any) => toast({ title: "Part upload failed", description: error.message, variant: "destructive" }),
   });
   const remove = useMutation({
@@ -108,21 +140,34 @@ export default function MiniPetAdminPanel() {
               <button type="button" data-testid={`button-mini-pet-parts-${pet.shopItemId}`} onClick={() => setEditingParts(editingParts === pet.shopItemId ? null : pet.shopItemId)}
                 className="mt-3 w-full rounded-lg py-2 font-fantasy text-[10px] tracking-wider"
                 style={{ color: "#a7f3d0", border: "1px solid rgba(52,211,153,.24)", background: "rgba(5,70,48,.22)" }}>
-                {editingParts === pet.shopItemId ? "HIDE PARTS" : "ADD / REPLACE PET PARTS"}
+                {editingParts === pet.shopItemId ? "HIDE PARTS" : "ADD / EDIT PET PARTS"}
               </button>
               {editingParts === pet.shopItemId && (
-                <div className="mt-3 grid grid-cols-2 gap-2" data-testid={`mini-pet-parts-${pet.shopItemId}`}>
-                  {MINI_PET_PART_TYPES.map(partType => {
-                    const part = pet.parts.find(value => value.partType === partType);
-                    return (
-                      <label key={partType} className="flex cursor-pointer items-center gap-2 rounded-lg p-2 text-[9px]" style={{ border: "1px solid rgba(255,255,255,.1)", background: "rgba(255,255,255,.025)", color: part ? "#86efac" : "#d6d3d1" }}>
-                        {part ? <img src={part.imageUrl} alt="" className="h-8 w-8 object-contain" /> : <Upload size={14} />}
-                        <span className="flex-1">{label(partType)}</span>
-                        <input type="file" accept="image/png,image/webp" className="hidden" disabled={savePart.isPending}
-                          onChange={event => { const file = event.target.files?.[0]; if (file) savePart.mutate({ shopItemId: pet.shopItemId, partType, file }); event.currentTarget.value = ""; }} />
-                      </label>
-                    );
-                  })}
+                <div className="mt-3 space-y-2" data-testid={`mini-pet-parts-${pet.shopItemId}`}>
+                  <p className="px-1 text-[9px] leading-relaxed text-stone-500">Upload a part, then position and resize it in the layered editor before saving. Existing parts can be reopened and adjusted.</p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {MINI_PET_PART_TYPES.map(partType => {
+                      const part = pet.parts.find(value => value.partType === partType);
+                      return (
+                        <div key={partType} className="flex items-center gap-2 rounded-lg p-2 text-[9px]" style={{ border: "1px solid rgba(255,255,255,.1)", background: "rgba(255,255,255,.025)", color: part ? "#86efac" : "#d6d3d1" }}>
+                          {part ? <img src={part.imageUrl} alt="" className="h-9 w-9 shrink-0 object-contain" /> : <Upload size={14} className="shrink-0" />}
+                          <span className="min-w-0 flex-1 truncate">{label(partType)}</span>
+                          <div className="flex shrink-0 gap-1">
+                            {part && (
+                              <button type="button" onClick={() => openPartEditor(pet, partType, part.imageUrl)} disabled={savePart.isPending} className="rounded-md border border-emerald-300/20 px-2 py-1 text-[8px] text-emerald-200 disabled:opacity-40" data-testid={`button-edit-mini-pet-part-${pet.shopItemId}-${partType}`}>
+                                EDIT
+                              </button>
+                            )}
+                            <label className="cursor-pointer rounded-md border border-white/10 px-2 py-1 text-[8px] text-stone-300">
+                              {part ? "REPLACE" : "UPLOAD"}
+                              <input type="file" accept="image/png,image/webp" className="hidden" disabled={savePart.isPending}
+                                onChange={event => { const file = event.target.files?.[0]; void openUploadedPart(pet, partType, file); event.currentTarget.value = ""; }} />
+                            </label>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </article>
@@ -153,6 +198,18 @@ export default function MiniPetAdminPanel() {
             <button type="button" disabled={!name.trim() || (!editingPet && !imageData) || save.isPending} onClick={() => save.mutate()} className="w-full rounded-xl py-3 font-fantasy text-xs tracking-wider disabled:opacity-40" style={{ color: "#111", background: "linear-gradient(135deg,#f7c65c,#d89128)" }}>{save.isPending ? "SAVING…" : editingPet ? "SAVE MINI PET" : "ADD MINI PET"}</button>
           </div>
         </div>
+      )}
+
+      {partEditor && (
+        <MiniPetPartEditor
+          petName={partEditor.petName}
+          partType={partEditor.partType}
+          source={partEditor.source}
+          previewParts={partEditor.previewParts}
+          saving={savePart.isPending}
+          onCancel={() => { if (!savePart.isPending) setPartEditor(null); }}
+          onSave={partImageData => savePart.mutate({ shopItemId: partEditor.shopItemId, partType: partEditor.partType, imageData: partImageData })}
+        />
       )}
     </div>
   );
