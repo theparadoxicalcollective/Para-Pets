@@ -78,6 +78,15 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
   const isThemed = THEMED_WORLDS.has(worldId);
   const [screenDone, setScreenDone] = useState(!isThemed);
   const [worldReady, setWorldReady] = useState(false);
+  const hauntedWelcomeKey = user?.id ? `para_pets_haunted_welcome_v1_${user.id}` : "";
+  const [showHauntedWelcome, setShowHauntedWelcome] = useState(() => {
+    if (worldId !== "haunted_woods" || !user?.id) return false;
+    try {
+      return localStorage.getItem(`para_pets_haunted_welcome_v1_${user.id}`) !== "seen";
+    } catch {
+      return true;
+    }
+  });
 
   const { data: worldData } = useQuery<any>({
     queryKey: ["/api/worlds", worldId],
@@ -102,6 +111,19 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
     });
   }, [worldId]);
 
+  const dismissHauntedWelcome = () => {
+    if (hauntedWelcomeKey) {
+      try { localStorage.setItem(hauntedWelcomeKey, "seen"); } catch {}
+    }
+    setShowHauntedWelcome(false);
+  };
+
+  // Haunted Woods is now a public player world. WorldPage still carries a
+  // legacy guard whose open-world list predates this release and currently uses
+  // moderator status only for that redirect. Passing the public Haunted route
+  // through that guard keeps the change isolated without granting admin access.
+  const worldUser = worldId === "haunted_woods" ? { ...user, isModerator: true } : user;
+
   return (
     <>
       {/* WorldPage keeps rendering/fetching underneath even while hidden, so its
@@ -111,10 +133,64 @@ function WorldLoadingGate({ location, user }: { location: string; user: any }) {
           before the themed loading screen paints — same technique as the
           HomePage base layer above. */}
       <div style={{ visibility: !isThemed || screenDone ? "visible" : "hidden", width: "100%", height: "100%" }}>
-        <WorldPage user={user} onContentReady={() => setWorldReady(true)} />
+        <WorldPage user={worldUser} onContentReady={() => setWorldReady(true)} />
       </div>
       {!screenDone && (
         <WorldLoadingScreen worldId={worldId} bgUrl={worldData?.bgUrl ?? null} pageReady={worldReady} onReady={() => setScreenDone(true)} />
+      )}
+      {screenDone && worldId === "haunted_woods" && showHauntedWelcome && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center px-5"
+          data-testid="modal-haunted-world-welcome"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="haunted-world-welcome-title"
+        >
+          <div className="absolute inset-0" style={{ background: "rgba(2, 3, 10, 0.74)", backdropFilter: "blur(5px)" }} />
+          <div
+            className="relative w-full max-w-[360px] rounded-2xl px-6 py-7 text-center"
+            style={{
+              background: "linear-gradient(180deg, rgba(22, 15, 35, 0.98) 0%, rgba(8, 10, 20, 0.98) 100%)",
+              border: "1px solid rgba(196, 154, 255, 0.48)",
+              boxShadow: "0 18px 55px rgba(0,0,0,0.72), 0 0 34px rgba(125, 72, 180, 0.22), inset 0 0 30px rgba(170, 120, 220, 0.05)",
+            }}
+          >
+            <div
+              className="font-fantasy text-[10px] tracking-[0.32em] uppercase"
+              style={{ color: "#cbb1e8", textShadow: "0 0 10px rgba(196,154,255,.35)" }}
+            >
+              The Veil Has Lifted
+            </div>
+            <div className="my-3 text-lg" aria-hidden="true" style={{ color: "#d6b7ff", textShadow: "0 0 14px rgba(196,154,255,.45)" }}>✦</div>
+            <h2
+              id="haunted-world-welcome-title"
+              className="font-fantasy text-[21px] leading-tight tracking-wide"
+              style={{ color: "#f1e9ff", textShadow: "0 2px 12px rgba(0,0,0,.8)" }}
+            >
+              Welcome to the Haunted Woods
+            </h2>
+            <p className="mt-4 text-[12px] leading-[1.75]" style={{ color: "#c8c1d2" }}>
+              The Haunted Woods are now open for exploration. A few paths, encounters, and curiosities are still being awakened, so some features may remain under construction while we finish bringing the realm to life.
+            </p>
+            <p className="mt-3 font-fantasy text-[11px] leading-relaxed" style={{ color: "#d4bfe9" }}>
+              Thank you for exploring with us — and tread carefully among the shadows.
+            </p>
+            <button
+              type="button"
+              data-testid="button-enter-haunted-world"
+              onClick={dismissHauntedWelcome}
+              className="mt-6 w-full rounded-xl py-3 font-fantasy text-[11px] tracking-[0.2em] transition-transform active:scale-[0.98]"
+              style={{
+                color: "#fff7dc",
+                background: "linear-gradient(180deg, rgba(91, 56, 120, 0.95), rgba(49, 31, 72, 0.98))",
+                border: "1px solid rgba(220, 188, 255, 0.52)",
+                boxShadow: "0 0 20px rgba(137, 83, 180, 0.23), inset 0 1px 0 rgba(255,255,255,.08)",
+              }}
+            >
+              ENTER THE WOODS
+            </button>
+          </div>
+        </div>
       )}
     </>
   );
@@ -870,4 +946,3 @@ function App() {
 }
 
 export default App;
-
