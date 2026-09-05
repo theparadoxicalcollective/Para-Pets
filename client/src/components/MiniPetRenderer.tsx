@@ -27,6 +27,18 @@ interface Props {
 // head, and eyes are always the final face layer.
 const ORDER: MiniPetPartType[] = ["tail", "left_wing", "right_wing", "body", "left_ear", "right_ear", "head", "eyes"];
 
+function motionClassForPart(partType: MiniPetPartType): string {
+  switch (partType) {
+    case "left_wing": return "mini-pet-wing mini-pet-wing-left";
+    case "right_wing": return "mini-pet-wing mini-pet-wing-right";
+    case "left_ear": return "mini-pet-ear mini-pet-ear-left";
+    case "right_ear": return "mini-pet-ear mini-pet-ear-right";
+    case "tail": return "mini-pet-tail";
+    case "eyes": return "mini-pet-eyes";
+    default: return "";
+  }
+}
+
 export default function MiniPetRenderer({ petInventoryId, className = "", style }: Props) {
   // The hidden anchor identifies the dedicated Active Pet Mini Pet host. On the
   // Active Pet page we portal the companion into display-active-pet itself so
@@ -92,9 +104,23 @@ export default function MiniPetRenderer({ petInventoryId, className = "", style 
       <style>{MINI_PET_MOTION}</style>
       <div className={pet.animationStyle === "float" ? "mini-pet-float" : "mini-pet-breath"} style={{ position: "absolute", inset: 0, transformOrigin: "center bottom" }}>
         {useLayeredParts ? parts.map(part => (
-          <img key={part.id} src={part.imageUrl} alt="" draggable={false} data-mini-pet-part={part.partType}
-            className={part.partType.includes("wing") ? "mini-pet-wing" : part.partType === "tail" ? "mini-pet-tail" : part.partType.includes("ear") ? "mini-pet-ear" : ""}
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", transformOrigin: "center bottom", filter: "drop-shadow(0 4px 7px rgba(0,0,0,.5))" }} />
+          <img
+            key={part.id}
+            src={part.imageUrl}
+            alt=""
+            draggable={false}
+            data-mini-pet-part={part.partType}
+            className={motionClassForPart(part.partType)}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              transformOrigin: "center center",
+              filter: "drop-shadow(0 4px 7px rgba(0,0,0,.5))",
+            }}
+          />
         )) : pet.imageUrl ? (
           <img
             src={pet.imageUrl}
@@ -119,11 +145,11 @@ export default function MiniPetRenderer({ petInventoryId, className = "", style 
             style={{
               position: "absolute",
               // Sit partially over the main pet's lower-left side so the Mini Pet
-              // reads as a companion. Percentages keep the relationship stable
-              // across phone widths without changing the main pet placement.
+              // reads as a companion. Keep the proven anchor from the placement
+              // fix and only increase the companion slightly.
               left: "9%",
               top: "58%",
-              width: "25%",
+              width: "28%",
               aspectRatio: "1",
               zIndex: 560,
               pointerEvents: "none",
@@ -146,15 +172,64 @@ export default function MiniPetRenderer({ petInventoryId, className = "", style 
 }
 
 const MINI_PET_MOTION = `
-@keyframes miniPetBreath { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-.7%) scale(1.006,1.012)} }
-@keyframes miniPetFloat { 0%,100%{transform:translateY(1%)} 50%{transform:translateY(-3%)} }
-@keyframes miniPetWing { 0%,100%{rotate:-1deg} 50%{rotate:1.5deg} }
-@keyframes miniPetTail { 0%,100%{rotate:-.8deg} 50%{rotate:1deg} }
-@keyframes miniPetEar { 0%,88%,100%{rotate:0deg} 94%{rotate:.8deg} }
+/* The Active Pet companion is intentionally above the pet artwork. Hide that
+   portaled layer whenever the pet action ring or Closet is open so it can never
+   bleed over full-screen menus/drawers. The Mini Pet rendered inside the Closet
+   itself is not targeted by this selector. */
+body:has([data-testid="backdrop-action-menu"]) [data-testid="active-pet-mini-pet-stage-layer"],
+body:has([data-testid="button-close-equip-accessories"]) [data-testid="active-pet-mini-pet-stage-layer"]{
+  display:none!important;
+}
+
+@keyframes miniPetBreath {
+  0%,100%{transform:translateY(0) scale(1)}
+  50%{transform:translateY(-.7%) scale(1.006,1.012)}
+}
+@keyframes miniPetFloat {
+  0%,100%{transform:translateY(4%)}
+  50%{transform:translateY(-9%)}
+}
+@keyframes miniPetWingLeft {
+  0%,100%{transform:rotate(-1.2deg)}
+  50%{transform:rotate(2.4deg)}
+}
+@keyframes miniPetWingRight {
+  0%,100%{transform:rotate(1.2deg)}
+  50%{transform:rotate(-2.4deg)}
+}
+@keyframes miniPetTail {
+  0%,100%{transform:rotate(-.8deg)}
+  50%{transform:rotate(1deg)}
+}
+@keyframes miniPetEarLeft {
+  0%,88%,100%{transform:rotate(0deg)}
+  94%{transform:rotate(1deg)}
+}
+@keyframes miniPetEarRight {
+  0%,88%,100%{transform:rotate(0deg)}
+  94%{transform:rotate(-1deg)}
+}
+@keyframes miniPetBlink {
+  0%,44%,48%,100%{opacity:1}
+  45%,47%{opacity:.04}
+}
+
 .mini-pet-breath{animation:miniPetBreath 4.8s ease-in-out infinite}
-.mini-pet-float{animation:miniPetFloat 4.4s ease-in-out infinite}
-.mini-pet-wing{animation:miniPetWing 4.2s ease-in-out infinite}
+/* A larger vertical travel, different duration, and negative phase offset keep
+   floating Mini Pets visibly independent from the active pet's idle motion. */
+.mini-pet-float{animation:miniPetFloat 5.2s ease-in-out infinite -1.35s}
+.mini-pet-wing-left{animation:miniPetWingLeft 4.2s ease-in-out infinite}
+.mini-pet-wing-right{animation:miniPetWingRight 4.2s ease-in-out infinite}
 .mini-pet-tail{animation:miniPetTail 5.1s ease-in-out infinite}
-.mini-pet-ear{animation:miniPetEar 5.6s ease-in-out infinite}
-@media (prefers-reduced-motion: reduce){.mini-pet-breath,.mini-pet-float,.mini-pet-wing,.mini-pet-tail,.mini-pet-ear{animation:none!important}}
+.mini-pet-ear-left{animation:miniPetEarLeft 5.6s ease-in-out infinite}
+.mini-pet-ear-right{animation:miniPetEarRight 5.6s ease-in-out infinite}
+.mini-pet-eyes{animation:miniPetBlink 5.4s steps(1,end) infinite}
+.mini-pet-wing{transform-origin:50% 55%!important;will-change:transform}
+.mini-pet-ear{transform-origin:50% 45%!important;will-change:transform}
+.mini-pet-tail{transform-origin:50% 62%!important;will-change:transform}
+.mini-pet-eyes{will-change:opacity}
+
+@media (prefers-reduced-motion: reduce){
+  .mini-pet-breath,.mini-pet-float,.mini-pet-wing-left,.mini-pet-wing-right,.mini-pet-tail,.mini-pet-ear-left,.mini-pet-ear-right,.mini-pet-eyes{animation:none!important}
+}
 `;
