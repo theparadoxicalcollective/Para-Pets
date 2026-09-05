@@ -28,12 +28,10 @@ interface Props {
 const ORDER: MiniPetPartType[] = ["tail", "left_wing", "right_wing", "body", "left_ear", "right_ear", "head", "eyes"];
 
 export default function MiniPetRenderer({ petInventoryId, className = "", style }: Props) {
-  // The small anchor lets this component identify when it is being rendered by
-  // HomePage's dedicated active-pet host. On that page the host currently lives
-  // inside the main pet's transformed interaction wrapper. Portaling only the
-  // Mini Pet visual to the wrapper's parent makes the companion a real sibling
-  // stage layer instead of trying to win a z-index battle from inside the main
-  // pet. Other MiniPetRenderer usages (Closet/admin previews) stay in-place.
+  // The hidden anchor identifies the dedicated Active Pet Mini Pet host. On the
+  // Active Pet page we portal the companion into display-active-pet itself so
+  // its placement is relative to the pet artwork area, not the taller page/stage
+  // container. Closet/admin Mini Pet renderers remain in-place.
   const anchorRef = useRef<HTMLSpanElement>(null);
   const [activePetStage, setActivePetStage] = useState<HTMLElement | null>(null);
 
@@ -63,14 +61,12 @@ export default function MiniPetRenderer({ petInventoryId, className = "", style 
       return;
     }
 
-    // HomePage structure:
-    // stage (relative) -> main-pet interaction wrapper (transform/z-520)
-    //                  -> original Mini Pet host
-    // The renderer is inside the original host, so two parent hops reach the
-    // relative stage we want to portal into.
-    const mainPetWrapper = activeHost.parentElement;
-    const stage = mainPetWrapper?.parentElement;
-    setActivePetStage(stage instanceof HTMLElement ? stage : null);
+    // Anchor directly to the Active Pet artwork container. The previous parent-hop
+    // approach landed in a much taller stage on some phone layouts, which pushed
+    // the Mini Pet down near the bottom navigation. display-active-pet is the
+    // stable, relative container that actually owns the main pet artwork.
+    const stage = activeHost.closest<HTMLElement>("[data-testid=\"display-active-pet\"]");
+    setActivePetStage(stage);
   }, [petInventoryId]);
 
   const pet = data?.equipped;
@@ -122,9 +118,12 @@ export default function MiniPetRenderer({ petInventoryId, className = "", style 
             aria-hidden="true"
             style={{
               position: "absolute",
-              left: "6%",
-              bottom: "6%",
-              width: "26%",
+              // Sit partially over the main pet's lower-left side so the Mini Pet
+              // reads as a companion. Percentages keep the relationship stable
+              // across phone widths without changing the main pet placement.
+              left: "9%",
+              top: "58%",
+              width: "25%",
               aspectRatio: "1",
               zIndex: 560,
               pointerEvents: "none",
