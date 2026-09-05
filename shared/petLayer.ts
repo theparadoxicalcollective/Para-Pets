@@ -32,10 +32,13 @@ export const PET_LAYER_ORDER: Readonly<Record<string, number>> = {
   // Front-view limbs deliberately sit above the body.  The former tie with
   // body made their depth depend on database/upload order (notably left_arm).
   body: 5,
+  // Ears belong behind the front arms/hands but still above the body. Keeping
+  // this semantic rule here makes runtime, editor, GIF and server composites agree.
+  right_ear: 5.5, left_ear: 5.5, right_ear_2: 5.5, left_ear_2: 5.5,
   right_arm: 6, left_arm: 6, front_arm: 6, left_shoulder: 6, right_shoulder: 6,
   neck: 7, front_wing_2: 7, front_wing: 7,
   front_accessory_2: 8, front_accessory_1: 8, right_leg: 8, left_leg: 8, front_leg: 8, left_hand: 9, right_hand: 9,
-  front_shoulder: 9, right_ear: 10, left_ear: 10, right_ear_2: 10, left_ear_2: 10,
+  front_shoulder: 9,
   head: 11, accessory_2: 12, accessory_1: 12, mouth: 13, mouth_closed: 14,
   eyes_closed: 15, eyes: 16, hair_right: 17, hair_left: 18, hair_center: 19, above_head: 20,
 };
