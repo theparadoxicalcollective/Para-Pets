@@ -5,9 +5,10 @@ const GUARD_TABLE = "startup_dynamic_world_location_guard";
 
 /**
  * Legacy non-critical startup still contains an old Haunted Woods cleanup that
- * predates admin-placeable NPCs and deletes every non-canonical world location.
- * Preserve dynamic NPC rows around that legacy pass so a deploy/restart cannot
- * erase an NPC an admin intentionally placed.
+ * predates admin-placeable NPCs and fishing spots and deletes every
+ * non-whitelisted world location. Preserve intentional dynamic rows around
+ * that legacy pass so a deploy/restart cannot erase admin content or the
+ * canonical Haunted Woods fishing destinations before focused reconciliation.
  *
  * The guard stores full rows as jsonb rather than mirroring the world_locations
  * schema. jsonb_populate_record restores against the current table composite
@@ -26,8 +27,8 @@ export async function preserveDynamicWorldLocationsDuringLegacyStartup(
   `));
 
   // Recover anything left by a process that died after the legacy cleanup but
-  // before its finally block could restore the NPCs.
-  await restoreGuardedNpcRows();
+  // before its finally block could restore protected world locations.
+  await restoreGuardedWorldLocationRows();
 
   await db.execute(sql.raw(`DELETE FROM ${GUARD_TABLE}`));
   await db.execute(sql.raw(`
@@ -35,6 +36,10 @@ export async function preserveDynamicWorldLocationsDuringLegacyStartup(
     SELECT id, to_jsonb(wl)
     FROM world_locations wl
     WHERE lower(COALESCE(type, '')) = 'npc'
+       OR (
+         world_id = 'haunted_woods'
+         AND lower(COALESCE(type, '')) = 'fishing'
+       )
     ON CONFLICT (id) DO UPDATE
       SET payload = EXCLUDED.payload,
           protected_at = now()
@@ -43,12 +48,12 @@ export async function preserveDynamicWorldLocationsDuringLegacyStartup(
   try {
     await runLegacyStartup();
   } finally {
-    await restoreGuardedNpcRows();
+    await restoreGuardedWorldLocationRows();
     await db.execute(sql.raw(`DELETE FROM ${GUARD_TABLE}`));
   }
 }
 
-async function restoreGuardedNpcRows(): Promise<void> {
+async function restoreGuardedWorldLocationRows(): Promise<void> {
   await db.execute(sql.raw(`
     INSERT INTO world_locations
     SELECT restored.*
