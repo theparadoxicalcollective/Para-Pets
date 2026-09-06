@@ -63,7 +63,7 @@ export async function createInventoryListing(input: { actorId: string; inventory
       .from(petEquippedCostumes)
       .where(eq(petEquippedCostumes.costumeInventoryId, inventory.id))
       .limit(1);
-    if (equippedCostume) throw new MarketplaceError("conflict", "Unequip this costume before listing it");
+    if (equippedCostume) throw new MarketplaceError("conflict", "Unequip this adornment before listing it");
     const [equippedAccessory] = await tx.select({ id: petEquippedAccessories.id })
       .from(petEquippedAccessories)
       .where(eq(petEquippedAccessories.accessoryInventoryId, inventory.id))
@@ -78,10 +78,13 @@ export async function createInventoryListing(input: { actorId: string; inventory
 
     const listingPet = item.type === "pet" && !!input.preparePetEgg;
     if (listingPet) {
-      // Equipment belongs to the seller and must never follow a listed pet.
-      // Removing equipment must not mutate the pet's own hatch state or stats.
+      // Equipped gear belongs to the seller and must never follow a market pet.
+      // Unequipping only removes the equipment links; the inventory items remain
+      // owned by the seller and the pet's hatch state / instance stats are untouched.
       await tx.delete(petEquippedAccessories)
         .where(eq(petEquippedAccessories.petInventoryId, inventory.id));
+      await tx.delete(petEquippedCostumes)
+        .where(eq(petEquippedCostumes.petInventoryId, inventory.id));
     }
     const updated = await tx.update(userInventory).set({ isListed: true })
       .where(and(eq(userInventory.id, inventory.id), eq(userInventory.userId, input.actorId), eq(userInventory.isListed, false))).returning();
@@ -155,7 +158,7 @@ export async function buyListing(input: { actorId: string; listingId: string }):
       .from(petEquippedCostumes)
       .where(eq(petEquippedCostumes.costumeInventoryId, escrow.id))
       .limit(1);
-    if (equippedCostume) throw new MarketplaceError("conflict", "Listed costume is still equipped");
+    if (equippedCostume) throw new MarketplaceError("conflict", "Listed adornment is still equipped");
     if (listing.itemType === "fish") {
       await tx.insert(playerFishInventory).values({ userId: input.actorId, shopItemId: escrow.shopItemId });
       const removed = await tx.delete(userInventory).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true))).returning();
