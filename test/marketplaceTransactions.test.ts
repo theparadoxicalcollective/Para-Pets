@@ -59,11 +59,21 @@ test("browser callers submit identifiers and player-selected list price only", (
   assert.doesNotMatch(client, /\/api\/market[^\n]*(sellerId|buyerId|ownerId|coinsEarned|newBalance)/);
 });
 
-test("pet market escrow owns the complete revert and hatch lifecycle", () => {
-  assert.match(service, /preparePetEgg\?: boolean/);
+test("pet market preserves hatched state and uses state-appropriate listing art", () => {
+  assert.match(service, /const listingPet = item\.type === "pet" && !!input\.preparePetEgg/);
   assert.match(service, /tx\.delete\(petEquippedAccessories\)[\s\S]*?petInventoryId, inventory\.id/);
-  assert.match(service, /isListed: true, isHatched: false, hatchStartedAt: null/);
-  assert.match(service, /hatchStartedAt: isPetEgg \? new Date\(\) : escrow\.hatchStartedAt/);
-  assert.doesNotMatch(service, /Date\.now\(\) -/);
+  assert.match(service, /tx\.update\(userInventory\)\.set\(\{ isListed: true \}\)/);
+  assert.doesNotMatch(service, /isListed: true, isHatched: false, hatchStartedAt: null/);
+  assert.match(service, /inventory\.isHatched[\s\S]*?item\.hatchedImageUrl[\s\S]*?item\.eggImageUrl/);
+  assert.match(service, /const isUnhatchedPet = listing\.itemType === "pet_egg" && !escrow\.isHatched/);
+  assert.match(service, /hatchStartedAt: isUnhatchedPet \? new Date\(\) : escrow\.hatchStartedAt/);
+  assert.match(service, /isHatched: escrow\.isHatched/);
+  assert.doesNotMatch(service, /petLevel:\s*(?:0|1|null)|petHealth:\s*(?:0|null)|petAtk:\s*(?:0|null)|petDef:\s*(?:0|null)/);
   assert.match(routes, /createInventoryListing\(\{[\s\S]*?preparePetEgg: true/);
+});
+
+test("unhatched market eggs keep the existing hatch-start behavior", () => {
+  const matches = service.match(/const isUnhatchedPet = listing\.itemType === "pet_egg" && !escrow\.isHatched/g) ?? [];
+  assert.equal(matches.length, 2, "buy and cancel paths should both distinguish true eggs from hatched pets");
+  assert.match(service, /hatchStartedAt: isUnhatchedPet \? new Date\(\) : escrow\.hatchStartedAt/);
 });
