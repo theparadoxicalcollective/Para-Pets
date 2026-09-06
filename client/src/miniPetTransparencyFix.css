@@ -1,0 +1,18 @@
+/* Preserve the alpha authored into layered Mini Pet PNGs.
+   MiniPetRenderer applies a drop-shadow to every individual part. On
+   semi-transparent pixels (wing membranes, glow, fur edges, ghost details),
+   those per-layer shadows compound and make the artwork look more opaque than
+   the source files.
+
+   Strip the per-part filters and apply one softer shadow to the completed Mini
+   Pet instead. This keeps each PNG's original alpha intact while still giving
+   the companion enough separation from bright backgrounds. */
+[data-testid="equipped-mini-pet"] [data-mini-pet-part],
+[data-testid="equipped-mini-pet"] [data-mini-pet-preview] {
+  filter: none !important;
+}
+
+[data-testid="equipped-mini-pet"] > .mini-pet-breath,
+[data-testid="equipped-mini-pet"] > .mini-pet-float {
+  filter: drop-shadow(0 4px 7px rgba(0, 0, 0, 0.28));
+}
