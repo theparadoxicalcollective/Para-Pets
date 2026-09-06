@@ -76,6 +76,7 @@ export default function WorldNpcPlacementOverlay() {
   const [spokenMessages, setSpokenMessages] = useState<Record<string, string>>({});
   const locationsRef = useRef<WorldLocationRow[]>([]);
   const npcDragFallbackRef = useRef<NpcDragFallback | null>(null);
+  const lastDraggedNpcRef = useRef<{ locationId: string; at: number } | null>(null);
   const pendingPositionCheckRef = useRef<number | null>(null);
   const speechTimeoutsRef = useRef<Record<string, number>>({});
 
@@ -249,6 +250,7 @@ export default function WorldNpcPlacementOverlay() {
       if (!drag || drag.pointerId !== event.pointerId) return;
       npcDragFallbackRef.current = null;
       if (!drag.moved) return;
+      lastDraggedNpcRef.current = { locationId: drag.locationId, at: Date.now() };
 
       const finalPosition = event.type === "pointercancel"
         ? drag.lastPosition
@@ -348,6 +350,39 @@ export default function WorldNpcPlacementOverlay() {
     }, 4500);
   }, []);
 
+  // Regular players use the transparent talk hitbox rendered below. Admins
+  // cannot use that same hitbox because it would sit above the placement
+  // hotspot and break select/drag/resize. Instead, observe admin hotspot clicks
+  // without cancelling them: the normal admin interaction still runs, and a
+  // configured non-quest NPC also speaks. Suppress the synthetic click that can
+  // follow a drag so repositioning an NPC does not unexpectedly open dialogue.
+  useEffect(() => {
+    if (!authResolved || !isAdmin || !worldId) return;
+
+    const onAdminNpcClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Element)) return;
+      const hotspot = event.target.closest<HTMLElement>('[data-testid^="admin-location-hotspot-"]');
+      if (!hotspot) return;
+
+      const loc = locationsRef.current.find(row =>
+        row.type === "npc" && hotspot.getAttribute("data-testid") === `admin-location-hotspot-${row.id}`
+      );
+      if (!loc) return;
+
+      const lastDrag = lastDraggedNpcRef.current;
+      if (lastDrag?.locationId === loc.id && Date.now() - lastDrag.at < 400) return;
+
+      const catalogNpc = catalog.find(npc => npcNamesMatch(npc.name, loc.name));
+      const metadata = parseNpcMetadata(catalogNpc?.specialSkill ?? loc.description);
+      if (getNpcQuestAssociations(loc.name, loc.worldId).length > 0 || metadata.messages.length === 0) return;
+
+      speakNpcMessage(loc.id, metadata.messages);
+    };
+
+    document.addEventListener("click", onAdminNpcClick, true);
+    return () => document.removeEventListener("click", onAdminNpcClick, true);
+  }, [authResolved, catalog, isAdmin, speakNpcMessage, worldId]);
+
   if (!worldId) return null;
 
   const npcLocations = locations.filter(loc => loc.type === "npc" && loc.iconUrl);
@@ -386,7 +421,7 @@ export default function WorldNpcPlacementOverlay() {
         const catalogNpc = catalog.find(npc => npcNamesMatch(npc.name, loc.name));
         const metadata = parseNpcMetadata(catalogNpc?.specialSkill ?? loc.description);
         const quests = getNpcQuestAssociations(loc.name, loc.worldId);
-        const canSpeak = authResolved && !isAdmin && quests.length === 0 && metadata.messages.length > 0;
+        const canUsePlayerTalkHitbox = authResolved && !isAdmin && quests.length === 0 && metadata.messages.length > 0;
         const spokenMessage = spokenMessages[loc.id];
 
         return createPortal(
@@ -419,7 +454,7 @@ export default function WorldNpcPlacementOverlay() {
               />
             </div>
 
-            {canSpeak && (
+            {canUsePlayerTalkHitbox && (
               <button
                 type="button"
                 aria-label={`Talk to ${loc.name}`}
