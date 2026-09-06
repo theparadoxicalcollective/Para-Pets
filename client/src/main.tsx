@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import RootEntry from "./RootEntry";
 import WorldNpcPlacementOverlay from "./components/WorldNpcPlacementOverlay";
+import GinnyGuideAlignmentFix from "./components/GinnyGuideAlignmentFix";
 import { detectRuntimeMode } from "./lib/runtimeMode";
 import "./index.css";
 import "./tabletStageShell.css";
@@ -115,5 +116,6 @@ createRoot(document.getElementById("root")!).render(
   <>
     <RootEntry />
     <WorldNpcPlacementOverlay />
+    <GinnyGuideAlignmentFix />
   </>,
 );
