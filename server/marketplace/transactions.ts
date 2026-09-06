@@ -74,31 +74,30 @@ export async function createInventoryListing(input: { actorId: string; inventory
     if (input.preparePetEgg && item.type !== "pet") {
       throw new MarketplaceError("unsupported_item", "Only pets can use the pet listing flow");
     }
-    if (item.type === "pet" && inventory.isHatched && !input.preparePetEgg) {
-      throw new MarketplaceError("unsupported_item", "Use the pet listing flow to safely return this pet to egg form.");
-    }
     await assertSlotAvailable(tx, input.actorId, Number(actor.market_extra_slots ?? 0));
 
-    const preparingPetEgg = item.type === "pet" && !!input.preparePetEgg;
-    if (preparingPetEgg) {
+    const listingPet = item.type === "pet" && !!input.preparePetEgg;
+    if (listingPet) {
       // Equipment belongs to the seller and must never follow a listed pet.
+      // Removing equipment must not mutate the pet's own hatch state or stats.
       await tx.delete(petEquippedAccessories)
         .where(eq(petEquippedAccessories.petInventoryId, inventory.id));
     }
-    const updated = await tx.update(userInventory).set(preparingPetEgg
-      ? { isListed: true, isHatched: false, hatchStartedAt: null }
-      : { isListed: true })
+    const updated = await tx.update(userInventory).set({ isListed: true })
       .where(and(eq(userInventory.id, inventory.id), eq(userInventory.userId, input.actorId), eq(userInventory.isListed, false))).returning();
     if (updated.length !== 1) throw new MarketplaceError("conflict", "Item is already listed");
-    if (preparingPetEgg) {
+    if (listingPet) {
       await tx.update(users).set({ activePetId: null })
         .where(and(eq(users.id, input.actorId), eq(users.activePetId, inventory.id)));
     }
     const itemType = item.type === "pet" ? "pet_egg" : item.type === "fishing" && item.fishingType ? item.fishingType : item.type;
+    const petListingImage = inventory.isHatched
+      ? (item.hatchedImageUrl ?? item.imageUrl ?? item.eggImageUrl)
+      : (item.eggImageUrl ?? item.imageUrl);
     const [listing] = await tx.insert(playerMarketListings).values({
       sellerId: input.actorId, sellerName: actor.username, inventoryId: inventory.id,
       shopItemId: item.id, itemName: item.name,
-      itemImageUrl: item.type === "pet" ? (item.eggImageUrl ?? item.imageUrl) : item.imageUrl,
+      itemImageUrl: item.type === "pet" ? petListingImage : item.imageUrl,
       itemType, price: input.price,
     }).returning();
     return listing;
@@ -139,8 +138,6 @@ export async function buyListing(input: { actorId: string; listingId: string }):
     if (listing.status !== "active") throw new MarketplaceError("not_active", "This item is no longer available");
     if (listing.sellerId === input.actorId) throw new MarketplaceError("own_listing", "You cannot buy your own listing");
 
-    // Validate escrow before touching the buyer's balance. Old/invalid listings
-    // can otherwise remain visible after their backing inventory row disappeared.
     const [escrow] = await tx.select().from(userInventory).where(eq(userInventory.id, listing.inventoryId)).for("update");
     if (!escrow || escrow.userId !== listing.sellerId || !escrow.isListed) {
       const removed = await tx.delete(playerMarketListings)
@@ -164,12 +161,12 @@ export async function buyListing(input: { actorId: string; listingId: string }):
       const removed = await tx.delete(userInventory).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true))).returning();
       if (removed.length !== 1) throw new MarketplaceError("conflict", "Fish transfer conflicted");
     } else {
-      const isPetEgg = listing.itemType === "pet_egg";
+      const isUnhatchedPet = listing.itemType === "pet_egg" && !escrow.isHatched;
       const moved = await tx.update(userInventory).set({
         userId: input.actorId,
         isListed: false,
-        hatchStartedAt: isPetEgg ? new Date() : escrow.hatchStartedAt,
-        isHatched: isPetEgg ? false : escrow.isHatched,
+        hatchStartedAt: isUnhatchedPet ? new Date() : escrow.hatchStartedAt,
+        isHatched: escrow.isHatched,
       })
         .where(and(eq(userInventory.id, escrow.id), eq(userInventory.userId, listing.sellerId), eq(userInventory.isListed, true))).returning();
       if (moved.length !== 1) throw new MarketplaceError("conflict", "Item transfer conflicted");
@@ -193,8 +190,6 @@ export async function cancelListing(input: { actorId: string; listingId: string 
     if (listing.status !== "active") throw new MarketplaceError("not_active", "Listing is not active");
     const [escrow] = await tx.select().from(userInventory).where(eq(userInventory.id, listing.inventoryId)).for("update");
     if (!escrow || escrow.userId !== input.actorId || !escrow.isListed) {
-      // The inventory is already gone, so cancellation should still remove the
-      // orphaned listing and release the seller's market slot.
       const removed = await tx.delete(playerMarketListings)
         .where(and(eq(playerMarketListings.id, listing.id), eq(playerMarketListings.status, "active")))
         .returning({ id: playerMarketListings.id });
@@ -205,11 +200,11 @@ export async function cancelListing(input: { actorId: string; listingId: string 
       await tx.insert(playerFishInventory).values({ userId: input.actorId, shopItemId: escrow.shopItemId });
       await tx.delete(userInventory).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true)));
     } else {
-      const isPetEgg = listing.itemType === "pet_egg";
+      const isUnhatchedPet = listing.itemType === "pet_egg" && !escrow.isHatched;
       await tx.update(userInventory).set({
         isListed: false,
-        hatchStartedAt: isPetEgg ? new Date() : escrow.hatchStartedAt,
-        isHatched: isPetEgg ? false : escrow.isHatched,
+        hatchStartedAt: isUnhatchedPet ? new Date() : escrow.hatchStartedAt,
+        isHatched: escrow.isHatched,
       }).where(and(eq(userInventory.id, escrow.id), eq(userInventory.isListed, true)));
     }
     const removed = await tx.delete(playerMarketListings).where(and(eq(playerMarketListings.id, listing.id), eq(playerMarketListings.status, "active"))).returning();
