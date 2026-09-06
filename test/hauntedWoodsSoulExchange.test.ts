@@ -108,7 +108,7 @@ test("Haunted Woods reconciliation exposes the seeded casino to the Casino scrol
 
 test("focused Haunted Woods reconciliation runs after legacy startup backfills", () => {
   const source = fs.readFileSync("server/startup/runStartup.ts", "utf8");
-  const legacyIndex = source.indexOf("await runNonCriticalStartup()");
+  const legacyIndex = source.indexOf(\n    "await preserveDynamicWorldLocationsDuringLegacyStartup(runNonCriticalStartup)",\n  );
   const focusedIndex = source.indexOf("await reconcileHauntedWoodsWorld()");
   assert.ok(legacyIndex >= 0);
   assert.ok(focusedIndex > legacyIndex);
