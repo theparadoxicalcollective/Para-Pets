@@ -7,6 +7,11 @@ const SETTING_KEYS = {
   eggs: "haunted_slots_egg_prizes_v1",
 } as const;
 
+// PvP tickets belong to PvP progression, not the casino prize pool. Keep both
+// the known catalog id and name/type guards so a renamed/legacy ticket row
+// cannot accidentally become an admin-selectable slot prize.
+const PVP_TICKET_ITEM_ID = "a1b2c3d4-9001-4000-8000-000000000099";
+
 export interface CasinoPrizeItem {
   id: string;
   name: string;
@@ -45,7 +50,9 @@ async function readPrizeOptions(executor: any, selection?: { itemIds: string[] |
     FROM shop_items
     WHERE ((type = 'pet' AND egg_image_url IS NOT NULL AND egg_image_url <> '')
       OR (type <> 'pet' AND pet_template_id IS NULL AND egg_image_url IS NULL AND hatch_time IS NULL
-        AND image_url IS NOT NULL AND lower(name) NOT LIKE '%ticket%'
+        AND id <> ${PVP_TICKET_ITEM_ID}
+        AND lower(name) NOT LIKE '%ticket%'
+        AND lower(type) NOT LIKE '%ticket%'
         AND NOT (type = 'fishing' AND COALESCE(fishing_type, '') <> 'fish')))
       ${selection ? sql`AND ((type = 'pet' AND id = ANY(${sql.param(selection.eggIds)}::text[]))
         OR (type <> 'pet' AND ${selection.itemIds === null ? sql`price > 0` : sql`id = ANY(${sql.param(selection.itemIds)}::text[])`}))` : sql``}
@@ -61,6 +68,8 @@ export async function getSlotPrizeOptions(executor: any) {
   const items = options.filter(item => item.type !== "pet");
   const eggs = options.filter(item => item.type === "pet");
   // Preserve the previous item pool until an admin explicitly saves a selection.
+  // Once saved, return the exact ids so the editor can reopen with the current
+  // choices checked instead of forcing the admin through a reset flow.
   const selectedItemIds = itemIds ?? items.filter(item => Number(item.price) > 0).map(item => item.id);
   return { items, eggs, selectedItemIds, selectedEggIds: eggIds ?? [] };
 }
