@@ -16,3 +16,14 @@
 [data-testid="equipped-mini-pet"] > .mini-pet-float {
   filter: drop-shadow(0 4px 7px rgba(0, 0, 0, 0.28));
 }
+
+/* Keep the Active Pet companion in the gameplay layer, below global sheets and
+   dialogs. MiniPetRenderer ports this node directly into display-active-pet and
+   gives it an inline z-index of 560; that lets it escape above overlays managed
+   by layerManager, whose modal stack starts at 301. The pet itself is inside a
+   local z-index:1 stacking context, so 250 still keeps the companion above the
+   pet artwork while reserving the 300+ range for popups such as Adventurer
+   Profile, support sheets, and other managed dialogs. */
+[data-testid="active-pet-mini-pet-stage-layer"] {
+  z-index: 250 !important;
+}
