@@ -1,33 +1,32 @@
+import assert from "node:assert/strict";
+import test from "node:test";
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
 
 const bridge = readFileSync("client/src/components/NpcQuestAwareDialogueBridge.tsx", "utf8");
 const main = readFileSync("client/src/main.tsx", "utf8");
 
-describe("quest-aware NPC dialogue handoff", () => {
-  it("mounts the quest-aware dialogue bridge", () => {
-    expect(main).toContain('import NpcQuestAwareDialogueBridge from "./components/NpcQuestAwareDialogueBridge"');
-    expect(main).toContain("<NpcQuestAwareDialogueBridge />");
-  });
+test("mounts the quest-aware dialogue bridge", () => {
+  assert.match(main, /import NpcQuestAwareDialogueBridge from "\.\/components\/NpcQuestAwareDialogueBridge"/);
+  assert.match(main, /<NpcQuestAwareDialogueBridge \/>/);
+});
 
-  it("only restores Ginny generic dialogue after the one-time quest is claimed", () => {
-    expect(bridge).toContain('const GINNY_QUEST_KEY = "ginny_mini_pet_companion"');
-    expect(bridge).toContain('if (ginnyStatus !== "claimed") return [];');
-  });
+test("only restores Ginny generic dialogue after the one-time quest is claimed", () => {
+  assert.match(bridge, /const GINNY_QUEST_KEY = "ginny_mini_pet_companion"/);
+  assert.match(bridge, /if \(ginnyStatus !== "claimed"\) return \[\];/);
+});
 
-  it("loads the live player quest state instead of treating registry association as availability", () => {
-    expect(bridge).toContain('fetch("/api/quests/ginny-mini-pet"');
-    expect(bridge).toContain("getNpcQuestAssociations(location.name, location.worldId)");
-  });
+test("loads the live player quest state instead of treating registry association as availability", () => {
+  assert.match(bridge, /fetch\("\/api\/quests\/ginny-mini-pet"/);
+  assert.match(bridge, /getNpcQuestAssociations\(location\.name, location\.worldId\)/);
+});
 
-  it("restores click dialogue for both player and admin interaction paths", () => {
-    expect(bridge).toContain("button-quest-finished-talk-npc-");
-    expect(bridge).toContain('admin-location-hotspot-');
-    expect(bridge).toContain("chooseNpcMessage(messages");
-  });
+test("restores click dialogue for both player and admin interaction paths", () => {
+  assert.match(bridge, /button-quest-finished-talk-npc-/);
+  assert.match(bridge, /admin-location-hotspot-/);
+  assert.match(bridge, /chooseNpcMessage\(messages/);
+});
 
-  it("fails closed while quest state is unknown", () => {
-    expect(bridge).toContain("if (ginnyStatus !== \"claimed\") return [];");
-    expect(bridge).toContain("setGinnyStatus(null)");
-  });
+test("fails closed while quest state is unknown", () => {
+  assert.match(bridge, /if \(ginnyStatus !== "claimed"\) return \[\];/);
+  assert.match(bridge, /setGinnyStatus\(null\)/);
 });
