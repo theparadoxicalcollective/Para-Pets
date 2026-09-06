@@ -30,6 +30,6 @@ test("legacy costume identifiers stay compatibility-only while visible item type
 
   // The existing Closet already calls the feature Adornments directly, while
   // the global bridge covers old item-type/category strings elsewhere.
-  assert.match(closet, /Adornments/);
+  assert.match(closet, /\bAdornments\b/i);
   assert.doesNotMatch(bridge, /setAttribute\("value"/);
 });
