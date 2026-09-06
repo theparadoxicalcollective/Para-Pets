@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import RootEntry from "./RootEntry";
+import WorldNpcPlacementOverlay from "./components/WorldNpcPlacementOverlay";
 import { detectRuntimeMode } from "./lib/runtimeMode";
 import "./index.css";
 import "./tabletStageShell.css";
@@ -110,4 +111,9 @@ window.addEventListener("unhandledrejection", (e) => {
   storeError(msg, "unhandledrejection", "unhandledrejection");
 });
 
-createRoot(document.getElementById("root")!).render(<RootEntry />);
+createRoot(document.getElementById("root")!).render(
+  <>
+    <RootEntry />
+    <WorldNpcPlacementOverlay />
+  </>,
+);
