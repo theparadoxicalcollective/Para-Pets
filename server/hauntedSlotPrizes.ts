@@ -48,7 +48,7 @@ async function readPrizeOptions(executor: any, selection?: { itemIds: string[] |
   const result = await executor.execute(sql`
     SELECT id, name, type, image_url, egg_image_url, price, rarity, star_rarity, fishing_type
     FROM shop_items
-    WHERE ((type = 'pet' AND egg_image_url IS NOT NULL AND egg_image_url <> '')
+    WHERE ((type = 'pet' AND COALESCE(egg_image_url, '') <> '')
       OR (type <> 'pet' AND pet_template_id IS NULL AND egg_image_url IS NULL AND hatch_time IS NULL
         AND id <> ${PVP_TICKET_ITEM_ID}
         AND lower(name) NOT LIKE '%ticket%'
