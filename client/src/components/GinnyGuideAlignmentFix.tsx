@@ -83,9 +83,10 @@ function getTargetForLabel(label: string, highlight: HTMLElement): {
 
 function restoreClosetStep(copy: HTMLElement, arrow: HTMLElement | null) {
   // The user-confirmed Closet step is already positioned correctly. Explicitly
-  // clear only the extra properties this fix owns so that step remains exactly
-  // under GinnyQuestOverlay's original layout rules.
+  // restore the original inline values because React can reuse the same DOM
+  // nodes between guide steps and would otherwise retain our previous mutations.
   copy.style.boxSizing = "";
+  copy.style.padding = "9px 12px";
   if (!arrow) return;
   arrow.style.position = "";
   arrow.style.left = "";
@@ -93,6 +94,7 @@ function restoreClosetStep(copy: HTMLElement, arrow: HTMLElement | null) {
   arrow.style.bottom = "";
   arrow.style.transform = "";
   arrow.style.animation = "";
+  arrow.style.marginTop = "3px";
   arrow.textContent = "↓";
 }
 
