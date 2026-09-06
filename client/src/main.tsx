@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import RootEntry from "./RootEntry";
 import WorldNpcPlacementOverlay from "./components/WorldNpcPlacementOverlay";
+import NpcQuestAwareDialogueBridge from "./components/NpcQuestAwareDialogueBridge";
 import GinnyGuideAlignmentFix from "./components/GinnyGuideAlignmentFix";
 import { detectRuntimeMode } from "./lib/runtimeMode";
 import "./index.css";
@@ -117,6 +118,7 @@ createRoot(document.getElementById("root")!).render(
   <>
     <RootEntry />
     <WorldNpcPlacementOverlay />
+    <NpcQuestAwareDialogueBridge />
     <GinnyGuideAlignmentFix />
   </>,
 );
