@@ -17,6 +17,8 @@ export interface GinnyGuidePlacement {
   arrowX: number;
 }
 
+export type GinnyGuidePreferredSide = "auto" | "above" | "below";
+
 function clamp(value: number, min: number, max: number): number {
   if (max < min) return min;
   return Math.max(min, Math.min(max, value));
@@ -32,6 +34,7 @@ export function calculateGinnyGuidePlacement(
   viewportWidth: number,
   viewportHeight: number,
   tooltipHeight = 84,
+  preferredSide: GinnyGuidePreferredSide = "auto",
 ): GinnyGuidePlacement {
   const safeWidth = Number.isFinite(viewportWidth) && viewportWidth > 0 ? viewportWidth : 390;
   const safeHeight = Number.isFinite(viewportHeight) && viewportHeight > 0 ? viewportHeight : 844;
@@ -55,7 +58,18 @@ export function calculateGinnyGuidePlacement(
   const spaceAbove = highlightTop - 8 - gap;
   const highlightBottom = highlightTop + highlightHeight;
   const spaceBelow = safeHeight - highlightBottom - 8 - gap;
-  const tooltipAbove = spaceAbove >= safeTooltipHeight || spaceAbove >= spaceBelow;
+  const canFitAbove = spaceAbove >= safeTooltipHeight;
+  const canFitBelow = spaceBelow >= safeTooltipHeight;
+
+  let tooltipAbove: boolean;
+  if (preferredSide === "above") {
+    tooltipAbove = canFitAbove || !canFitBelow;
+  } else if (preferredSide === "below") {
+    tooltipAbove = !(canFitBelow || !canFitAbove);
+  } else {
+    tooltipAbove = canFitAbove && (!canFitBelow || spaceAbove >= spaceBelow);
+  }
+
   const tooltipTop = tooltipAbove
     ? Math.max(8, highlightTop - safeTooltipHeight - gap)
     : Math.min(safeHeight - safeTooltipHeight - 8, highlightBottom + gap);
