@@ -29,10 +29,18 @@ test("viewport width no longer changes world zoom level", () => {
   assert.equal(narrow, wide);
 });
 
-test("legacy map-height argument does not change fixed 924x1703 sizing", () => {
-  const oldShort = calculateWorldFitScale(390, 844, 1440, false);
-  const oldTall = calculateWorldFitScale(390, 844, 2400, false);
-  assert.equal(oldShort, oldTall);
+test("per-world map height controls height-fit scaling", () => {
+  const frameH = 844;
+  const shortMapHeight = 1440;
+  const tallMapHeight = 2400;
+  const shortScale = calculateWorldFitScale(390, frameH, shortMapHeight, false);
+  const tallScale = calculateWorldFitScale(390, frameH, tallMapHeight, false);
+
+  assert.equal(shortScale, frameH / shortMapHeight);
+  assert.equal(tallScale, frameH / tallMapHeight);
+  assert.notEqual(shortScale, tallScale);
+  assert.ok(Math.abs(shortMapHeight * shortScale - frameH) < 0.000001);
+  assert.ok(Math.abs(tallMapHeight * tallScale - frameH) < 0.000001);
 });
 
 test("invalid viewport height fails safely", () => {
