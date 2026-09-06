@@ -2,6 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import {
+  chooseNpcMessage,
+  getNpcQuestAssociations,
+  npcNamesMatch,
+  parseNpcMetadata,
+  serializeNpcMetadata,
+} from "@/lib/npcMetadata";
 import { calculateWorldDragPosition, worldPositionsDiffer, type WorldPercentPosition } from "@/lib/worldNpcPlacement";
 
 interface NpcCatalogRow {
@@ -10,6 +17,7 @@ interface NpcCatalogRow {
   imageUrl: string | null;
   type: string;
   worldId: string;
+  specialSkill?: string | null;
 }
 
 interface WorldLocationRow {
@@ -18,6 +26,7 @@ interface WorldLocationRow {
   name: string;
   type: string;
   iconUrl: string | null;
+  description?: string | null;
   posX: number;
   posY: number;
   iconSize: number;
@@ -57,19 +66,27 @@ export default function WorldNpcPlacementOverlay() {
   const [pathname, setPathname] = useState(() => window.location.pathname);
   const worldId = useMemo(() => getWorldId(pathname), [pathname]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [authResolved, setAuthResolved] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [catalog, setCatalog] = useState<NpcCatalogRow[]>([]);
   const [locations, setLocations] = useState<WorldLocationRow[]>([]);
   const [mounts, setMounts] = useState<Record<string, HTMLElement>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [spokenMessages, setSpokenMessages] = useState<Record<string, string>>({});
   const locationsRef = useRef<WorldLocationRow[]>([]);
   const npcDragFallbackRef = useRef<NpcDragFallback | null>(null);
   const pendingPositionCheckRef = useRef<number | null>(null);
+  const speechTimeoutsRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     locationsRef.current = locations;
   }, [locations]);
+
+  useEffect(() => () => {
+    Object.values(speechTimeoutsRef.current).forEach(timeout => window.clearTimeout(timeout));
+    speechTimeoutsRef.current = {};
+  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -80,10 +97,12 @@ export default function WorldNpcPlacementOverlay() {
 
   useEffect(() => {
     let cancelled = false;
+    setAuthResolved(false);
     void fetch("/api/auth/me", { credentials: "include" })
       .then(response => response.ok ? response.json() : null)
       .then(user => { if (!cancelled) setIsAdmin(Boolean(user?.isAdmin)); })
-      .catch(() => { if (!cancelled) setIsAdmin(false); });
+      .catch(() => { if (!cancelled) setIsAdmin(false); })
+      .finally(() => { if (!cancelled) setAuthResolved(true); });
     return () => { cancelled = true; };
   }, [pathname]);
 
@@ -99,7 +118,23 @@ export default function WorldNpcPlacementOverlay() {
     } catch {}
   }, [worldId]);
 
+  const loadPublicCatalog = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/shop/${encodeURIComponent(NPC_CATALOG_WORLD)}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (!response.ok) return;
+      const rows = await response.json() as NpcCatalogRow[];
+      setCatalog(rows.filter(row => row.type === "npc" && row.worldId === NPC_CATALOG_WORLD));
+    } catch {}
+  }, []);
+
   useEffect(() => { void loadLocations(); }, [loadLocations]);
+  useEffect(() => {
+    if (!worldId) return;
+    void loadPublicCatalog();
+  }, [loadPublicCatalog, worldId]);
 
   useEffect(() => {
     if (!worldId) return;
@@ -274,11 +309,12 @@ export default function WorldNpcPlacementOverlay() {
     setMessage(null);
     try {
       const iconData = await imageUrlToDataUrl(npc.imageUrl);
+      const metadata = parseNpcMetadata(npc.specialSkill);
       await apiRequest("POST", `/api/admin/world/${worldId}/location`, {
         name: npc.name,
         isShop: false,
         type: "npc",
-        description: "World NPC",
+        description: serializeNpcMetadata(metadata),
         iconData,
       });
       await queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
@@ -292,6 +328,26 @@ export default function WorldNpcPlacementOverlay() {
     }
   };
 
+  const speakNpcMessage = useCallback((locationId: string, messages: readonly string[]) => {
+    setSpokenMessages(previous => {
+      const chosen = chooseNpcMessage(messages, previous[locationId]);
+      if (!chosen) return previous;
+      return { ...previous, [locationId]: chosen };
+    });
+
+    const existingTimeout = speechTimeoutsRef.current[locationId];
+    if (existingTimeout !== undefined) window.clearTimeout(existingTimeout);
+    speechTimeoutsRef.current[locationId] = window.setTimeout(() => {
+      setSpokenMessages(previous => {
+        if (!(locationId in previous)) return previous;
+        const next = { ...previous };
+        delete next[locationId];
+        return next;
+      });
+      delete speechTimeoutsRef.current[locationId];
+    }, 4500);
+  }, []);
+
   if (!worldId) return null;
 
   const npcLocations = locations.filter(loc => loc.type === "npc" && loc.iconUrl);
@@ -301,37 +357,124 @@ export default function WorldNpcPlacementOverlay() {
       <style>{`
         .npc-world-location [data-testid^="location-sparkle-"] { display: none !important; }
         .npc-world-location [data-testid^="player-location-hotspot-"] { pointer-events: none !important; }
+        @keyframes paraNpcBreathe {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.035); }
+        }
+        @keyframes paraNpcFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-7%); }
+        }
+        .para-npc-animation-breathe {
+          animation: paraNpcBreathe 3.4s ease-in-out infinite;
+          transform-origin: 50% 82%;
+        }
+        .para-npc-animation-float {
+          animation: paraNpcFloat 3s ease-in-out infinite;
+          transform-origin: 50% 50%;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .para-npc-animation-breathe,
+          .para-npc-animation-float { animation: none !important; }
+        }
       `}</style>
 
       {npcLocations.map(loc => {
         const mount = mounts[loc.id];
         if (!mount || !loc.iconUrl) return null;
+
+        const catalogNpc = catalog.find(npc => npcNamesMatch(npc.name, loc.name));
+        const metadata = parseNpcMetadata(catalogNpc?.specialSkill ?? loc.description);
+        const quests = getNpcQuestAssociations(loc.name, loc.worldId);
+        const canSpeak = authResolved && !isAdmin && quests.length === 0 && metadata.messages.length > 0;
+        const spokenMessage = spokenMessages[loc.id];
+
         return createPortal(
-          <div
-            aria-hidden="true"
-            data-testid={`world-npc-art-${loc.id}`}
-            style={{
-              position: "absolute",
-              inset: 0,
-              zIndex: 5,
-              pointerEvents: "none",
-              display: "grid",
-              placeItems: "center",
-            }}
-          >
-            <img
-              src={loc.iconUrl}
-              alt=""
-              draggable={false}
+          <>
+            <div
+              aria-hidden="true"
+              data-testid={`world-npc-art-${loc.id}`}
+              data-npc-animation={metadata.animation}
+              className={metadata.animation === "none" ? undefined : `para-npc-animation-${metadata.animation}`}
               style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-                transform: loc.flipped ? "scaleX(-1)" : undefined,
-                filter: "drop-shadow(0 4px 8px rgba(0,0,0,.35))",
+                position: "absolute",
+                inset: 0,
+                zIndex: 5,
+                pointerEvents: "none",
+                display: "grid",
+                placeItems: "center",
               }}
-            />
-          </div>,
+            >
+              <img
+                src={loc.iconUrl}
+                alt=""
+                draggable={false}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  transform: loc.flipped ? "scaleX(-1)" : undefined,
+                  filter: "drop-shadow(0 4px 8px rgba(0,0,0,.35))",
+                }}
+              />
+            </div>
+
+            {canSpeak && (
+              <button
+                type="button"
+                aria-label={`Talk to ${loc.name}`}
+                data-testid={`button-talk-npc-${loc.id}`}
+                onPointerDown={event => event.stopPropagation()}
+                onClick={event => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  speakNpcMessage(loc.id, metadata.messages);
+                }}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  zIndex: 8,
+                  border: 0,
+                  padding: 0,
+                  background: "transparent",
+                  cursor: "pointer",
+                  touchAction: "manipulation",
+                }}
+              />
+            )}
+
+            {spokenMessage && (
+              <div
+                role="status"
+                aria-live="polite"
+                data-testid={`npc-message-${loc.id}`}
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  bottom: "98%",
+                  transform: "translate(-50%, -8px)",
+                  zIndex: 14,
+                  width: "max-content",
+                  maxWidth: "min(220px, 72vw)",
+                  padding: "7px 10px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(255,220,128,.72)",
+                  background: "rgba(18,12,20,.94)",
+                  boxShadow: "0 5px 18px rgba(0,0,0,.6), 0 0 12px rgba(255,205,90,.13)",
+                  color: "#fff2c7",
+                  fontFamily: "Lora, serif",
+                  fontSize: 10,
+                  lineHeight: 1.35,
+                  textAlign: "center",
+                  pointerEvents: "none",
+                  whiteSpace: "normal",
+                }}
+              >
+                <strong style={{ display: "block", marginBottom: 2, color: "#ffd978", fontSize: 9 }}>{loc.name}</strong>
+                {spokenMessage}
+              </div>
+            )}
+          </>,
           mount,
         );
       })}
@@ -370,7 +513,7 @@ export default function WorldNpcPlacementOverlay() {
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <h2 className="font-fantasy text-sm tracking-wider text-amber-200">ADD NPC TO WORLD</h2>
-                <p className="mt-1 text-[10px] text-stone-400">Choose an uploaded NPC. It will appear in the center, ready to move and resize.</p>
+                <p className="mt-1 text-[10px] text-stone-400">Choose an uploaded NPC. It will appear in the center with its saved idle effect and dialogue settings.</p>
               </div>
               <button type="button" onClick={() => setPickerOpen(false)} className="p-2 text-stone-300"><X size={18} /></button>
             </div>
