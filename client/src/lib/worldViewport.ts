@@ -2,23 +2,24 @@ const WORLD_MAP_WIDTH = 924;
 const WORLD_MAP_HEIGHT = 1703;
 
 /**
- * World maps use a fixed 924×1703 portrait design space. Scale strictly from
- * the available viewport height so the full vertical composition is always
- * visible with no up/down scrolling. If that height-fit makes the rendered map
- * wider than the viewport, WorldPage's existing horizontal pan/clamp behavior
- * exposes the cut-off left/right portions instead of shrinking the whole map.
+ * Scale each world from its actual map height so the complete vertical
+ * composition stays visible. WorldPage stores a fixed per-world map height
+ * (derived from each canonical background image) because worlds do not all
+ * share the same aspect ratio.
  *
- * This keeps the visual treatment consistent across every world while leaving
- * percentage-based admin hotspot coordinates and destination behavior intact.
+ * If the height-fit makes the rendered map wider than the viewport,
+ * WorldPage's existing horizontal pan/clamp behavior exposes the left/right
+ * portions instead of cropping the top or bottom of the artwork.
  */
 export function calculateWorldFitScale(
   _frameWidth: number,
   frameHeight: number,
-  _mapHeight: number,
+  mapHeight: number,
   _fitFullComposition: boolean,
 ): number {
   if (!Number.isFinite(frameHeight) || frameHeight <= 0) return 1;
-  return frameHeight / WORLD_MAP_HEIGHT;
+  if (!Number.isFinite(mapHeight) || mapHeight <= 0) return frameHeight / WORLD_MAP_HEIGHT;
+  return frameHeight / mapHeight;
 }
 
 export { WORLD_MAP_WIDTH, WORLD_MAP_HEIGHT };
