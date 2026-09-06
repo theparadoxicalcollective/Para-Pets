@@ -50,7 +50,13 @@ test("Slaughter Slots keeps challenging reel weights and supports database item 
   assert.equal(jackpot.tier, "jackpot");
   assert.equal(jackpot.coins, 250);
   assert.equal(jackpot.essence, 125);
-  assert.equal(jackpot.pvpTickets, 5);
+  assert.equal(jackpot.pvpTickets, 0);
+
+  const skullPair = evaluateHauntedSlotResult(["skull", "skull", "coin"], 25);
+  assert.equal(skullPair.tier, "pair");
+  assert.equal(skullPair.essence, 50);
+  assert.equal(skullPair.pvpTickets, 0);
+  assert.doesNotMatch(skullPair.message, /ticket/i);
 
   const edible = evaluateHauntedSlotResult(["edible", "edible", "edible"], 50);
   assert.equal(edible.tier, "triple");
@@ -197,6 +203,8 @@ test("decorative prizes keep the original machine sizing and footer footprint", 
   assert.match(strip, /slot-prize-essence-image/);
   assert.match(strip, /currencyAssets\.coin/);
   assert.match(strip, /currencyAssets\.essenceToken/);
+  assert.doesNotMatch(strip, /PvP tickets|currency-tickets/);
+  assert.match(strip, /\.\.\.prizes\.map/);
   assert.match(strip, /scrollbarWidth: "none"/);
   assert.match(strip, /::-webkit-scrollbar \{ display: none/);
   assert.match(strip, /overflow-x-auto/);
@@ -215,6 +223,9 @@ test("Casino item and egg pools are separate, and rare prizes retain their weigh
   assert.match(prizes, /pet_template_id IS NULL/);
   assert.match(prizes, /egg_image_url IS NULL/);
   assert.match(prizes, /hatch_time IS NULL/);
+  assert.match(prizes, /id <> \$\{PVP_TICKET_ITEM_ID\}/);
+  assert.match(prizes, /lower\(name\) NOT LIKE '%ticket%'/);
+  assert.doesNotMatch(prizes, /image_url IS NOT NULL/);
   assert.match(prizes, /type = 'fishing' AND COALESCE\(fishing_type, ''\) <> 'fish'/);
   assert.match(prizes, /item\.type === "edibles"/);
   assert.match(prizes, /item\.type === "pet"/);
@@ -222,4 +233,17 @@ test("Casino item and egg pools are separate, and rare prizes retain their weigh
   assert.match(server, /price >= 1000/);
   assert.match(server, /pickPrizeItem/);
   assert.match(server, /grantPrizeItem/);
+});
+
+test("admin slot prize editor reopens with saved selections and refreshes the public prize strip", () => {
+  const dialog = fs.readFileSync("client/src/components/world/SlotPrizeAdminDialog.tsx", "utf8");
+  const slots = fs.readFileSync("client/src/components/world/SlaughterSlotsOverlay.tsx", "utf8");
+  assert.match(dialog, /data-testid="slot-current-prizes"/);
+  assert.match(dialog, /setSelected\(new Set\(ids\)\)/);
+  assert.match(dialog, /Currently selected/);
+  assert.match(dialog, /selectedOptions\.map/);
+  assert.match(dialog, /optionById\.has\(id\)/);
+  assert.match(slots, /onSaved=\{refreshAuthoritativeState\}/);
+  assert.match(slots, /const data = await response\.json\(\) as SlotState/);
+  assert.match(slots, /applyState\(data\)/);
 });
