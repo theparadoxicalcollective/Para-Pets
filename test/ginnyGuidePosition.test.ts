@@ -40,6 +40,19 @@ test("places the tooltip below a target near the top and therefore needs an upwa
   assert.ok(placement.tooltipTop > placement.highlightTop + placement.highlightHeight);
 });
 
+test("active-pet guidance prefers below the pet when there is room", () => {
+  const placement = calculateGinnyGuidePlacement(
+    { left: 120, top: 260, width: 150, height: 260 },
+    390,
+    844,
+    84,
+    "below",
+  );
+
+  assert.equal(placement.tooltipAbove, false);
+  assert.ok(placement.tooltipTop > placement.highlightTop + placement.highlightHeight);
+});
+
 test("places the tooltip above a low target and keeps it inside the viewport", () => {
   const placement = calculateGinnyGuidePlacement(
     { left: 145, top: 700, width: 100, height: 80 },
