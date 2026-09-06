@@ -15,6 +15,7 @@ import { repairAccessoryEquipmentIntegrity } from "./migrations/repairAccessoryE
 import { runNonCriticalStartup } from "./backfills/runNonCriticalStartup";
 import { tagSquirrelFoxAnimationProfile } from "./backfills/tagSquirrelFoxAnimationProfile";
 import { withStartupAdvisoryLock } from "./advisoryLock";
+import { preserveDynamicWorldLocationsDuringLegacyStartup } from "./preserveDynamicWorldLocations";
 
 interface StartupDependencies {
   app: Express;
@@ -24,7 +25,10 @@ interface StartupDependencies {
 
 async function runBackgroundInitialization(): Promise<void> {
   try {
-    await runNonCriticalStartup();
+    // The legacy non-critical startup contains an old Haunted Woods cleanup
+    // written before admins could place NPCs. Protect dynamic NPC rows around
+    // that legacy pass so deploys/restarts cannot erase intentional placements.
+    await preserveDynamicWorldLocationsDuringLegacyStartup(runNonCriticalStartup);
     // Runs after the legacy non-critical migrations so pet_templates.idle_style
     // is guaranteed to exist. The update is idempotent and only targets the
     // Forest Squirrel Fox template, leaving every other pet profile untouched.
