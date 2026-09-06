@@ -63,8 +63,13 @@ export default function WorldNpcPlacementOverlay() {
   const [mounts, setMounts] = useState<Record<string, HTMLElement>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const locationsRef = useRef<WorldLocationRow[]>([]);
   const npcDragFallbackRef = useRef<NpcDragFallback | null>(null);
   const pendingPositionCheckRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    locationsRef.current = locations;
+  }, [locations]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -171,7 +176,7 @@ export default function WorldNpcPlacementOverlay() {
 
       const node = hotspot.closest<HTMLElement>('[data-testid^="location-"]');
       if (!node) return;
-      const loc = locations.find(row => row.type === "npc" && hotspot.getAttribute("data-testid") === `admin-location-hotspot-${row.id}`);
+      const loc = locationsRef.current.find(row => row.type === "npc" && hotspot.getAttribute("data-testid") === `admin-location-hotspot-${row.id}`);
       if (!loc) return;
 
       const mapLayer = node.parentElement;
@@ -210,12 +215,14 @@ export default function WorldNpcPlacementOverlay() {
       npcDragFallbackRef.current = null;
       if (!drag.moved) return;
 
-      const finalPosition = calculateWorldDragPosition(
-        drag.origin,
-        drag.pointerStart,
-        { x: event.clientX, y: event.clientY },
-        drag.renderedMap,
-      );
+      const finalPosition = event.type === "pointercancel"
+        ? drag.lastPosition
+        : calculateWorldDragPosition(
+            drag.origin,
+            drag.pointerStart,
+            { x: event.clientX, y: event.clientY },
+            drag.renderedMap,
+          );
 
       // Keep this overlay's local location snapshot current immediately. The
       // canonical WorldPage query is still the visual source of truth.
@@ -247,7 +254,7 @@ export default function WorldNpcPlacementOverlay() {
         pendingPositionCheckRef.current = null;
       }
     };
-  }, [isAdmin, locations, verifyNpcPosition, worldId]);
+  }, [isAdmin, verifyNpcPosition, worldId]);
 
   const openPicker = async () => {
     setPickerOpen(true);
