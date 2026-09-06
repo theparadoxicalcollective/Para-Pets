@@ -63,11 +63,17 @@ export function calculateGinnyGuidePlacement(
 
   let tooltipAbove: boolean;
   if (preferredSide === "above") {
-    tooltipAbove = canFitAbove || !canFitBelow;
+    tooltipAbove = canFitAbove || (!canFitBelow && spaceAbove >= spaceBelow);
   } else if (preferredSide === "below") {
-    tooltipAbove = !(canFitBelow || !canFitAbove);
+    tooltipAbove = !(canFitBelow || (!canFitAbove && spaceBelow >= spaceAbove));
+  } else if (canFitAbove && canFitBelow) {
+    tooltipAbove = spaceAbove >= spaceBelow;
+  } else if (canFitAbove) {
+    tooltipAbove = true;
+  } else if (canFitBelow) {
+    tooltipAbove = false;
   } else {
-    tooltipAbove = canFitAbove && (!canFitBelow || spaceAbove >= spaceBelow);
+    tooltipAbove = spaceAbove >= spaceBelow;
   }
 
   const tooltipTop = tooltipAbove
