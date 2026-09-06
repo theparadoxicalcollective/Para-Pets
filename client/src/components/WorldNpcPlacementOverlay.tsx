@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { calculateWorldDragPosition, worldPositionsDiffer, type WorldPercentPosition } from "@/lib/worldNpcPlacement";
 
 interface NpcCatalogRow {
   id: string;
@@ -21,6 +22,16 @@ interface WorldLocationRow {
   posY: number;
   iconSize: number;
   flipped?: boolean;
+}
+
+interface NpcDragFallback {
+  pointerId: number;
+  locationId: string;
+  origin: WorldPercentPosition;
+  pointerStart: { x: number; y: number };
+  renderedMap: { width: number; height: number };
+  lastPosition: WorldPercentPosition;
+  moved: boolean;
 }
 
 const NPC_CATALOG_WORLD = "__npc_catalog__";
@@ -52,6 +63,13 @@ export default function WorldNpcPlacementOverlay() {
   const [mounts, setMounts] = useState<Record<string, HTMLElement>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const locationsRef = useRef<WorldLocationRow[]>([]);
+  const npcDragFallbackRef = useRef<NpcDragFallback | null>(null);
+  const pendingPositionCheckRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    locationsRef.current = locations;
+  }, [locations]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -75,7 +93,7 @@ export default function WorldNpcPlacementOverlay() {
       return;
     }
     try {
-      const response = await fetch(`/api/world/${worldId}/locations`, { credentials: "include" });
+      const response = await fetch(`/api/world/${worldId}/locations`, { credentials: "include", cache: "no-store" });
       if (!response.ok) return;
       setLocations(await response.json());
     } catch {}
@@ -110,6 +128,133 @@ export default function WorldNpcPlacementOverlay() {
       window.clearInterval(timer);
     };
   }, [locations, worldId]);
+
+  const verifyNpcPosition = useCallback(async (locationId: string, expected: WorldPercentPosition) => {
+    if (!worldId) return;
+    try {
+      const response = await fetch(`/api/world/${worldId}/locations`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (response.ok) {
+        const rows = await response.json() as WorldLocationRow[];
+        const saved = rows.find(row => row.id === locationId);
+        if (saved && !worldPositionsDiffer({ x: saved.posX, y: saved.posY }, expected)) {
+          setLocations(rows);
+          return;
+        }
+      }
+
+      const saveResponse = await apiRequest("PATCH", `/api/admin/world/location/${locationId}/position`, {
+        posX: expected.x,
+        posY: expected.y,
+      });
+      const updated = await saveResponse.json() as WorldLocationRow;
+      setLocations(previous => previous.map(row => row.id === locationId ? { ...row, ...updated } : row));
+      await queryClient.invalidateQueries({ queryKey: ["/api/world", worldId, "locations"] });
+      await loadLocations();
+    } catch {
+      setMessage("NPC moved on screen, but its saved position could not be confirmed. Please try moving it once more.");
+    }
+  }, [loadLocations, worldId]);
+
+  // WorldPage already owns the normal admin drag interaction. This listener is
+  // deliberately a persistence safety net for NPCs: on fast taps/drags (most
+  // noticeable on touch devices) React state can be one event behind when the
+  // pointer is released, causing a newly placed NPC to snap back on refresh.
+  // Track the same percentage-space drag from native pointer coordinates, then
+  // verify the server value after WorldPage has had a chance to save it. We only
+  // issue a fallback PATCH when the persisted position does not match the last
+  // visible drag position, so normal drags do not create duplicate writes.
+  useEffect(() => {
+    if (!isAdmin || !worldId) return;
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (!(event.target instanceof Element)) return;
+      const hotspot = event.target.closest<HTMLElement>('[data-testid^="admin-location-hotspot-"]');
+      if (!hotspot || hotspot.style.cursor !== "grab") return;
+
+      const node = hotspot.closest<HTMLElement>('[data-testid^="location-"]');
+      if (!node) return;
+      const loc = locationsRef.current.find(row => row.type === "npc" && hotspot.getAttribute("data-testid") === `admin-location-hotspot-${row.id}`);
+      if (!loc) return;
+
+      const mapLayer = node.parentElement;
+      const rect = mapLayer?.getBoundingClientRect();
+      if (!rect || rect.width <= 0 || rect.height <= 0) return;
+
+      const origin = { x: loc.posX, y: loc.posY };
+      npcDragFallbackRef.current = {
+        pointerId: event.pointerId,
+        locationId: loc.id,
+        origin,
+        pointerStart: { x: event.clientX, y: event.clientY },
+        renderedMap: { width: rect.width, height: rect.height },
+        lastPosition: origin,
+        moved: false,
+      };
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      const drag = npcDragFallbackRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      const dx = event.clientX - drag.pointerStart.x;
+      const dy = event.clientY - drag.pointerStart.y;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
+      drag.lastPosition = calculateWorldDragPosition(
+        drag.origin,
+        drag.pointerStart,
+        { x: event.clientX, y: event.clientY },
+        drag.renderedMap,
+      );
+    };
+
+    const finishDrag = (event: PointerEvent) => {
+      const drag = npcDragFallbackRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      npcDragFallbackRef.current = null;
+      if (!drag.moved) return;
+
+      const finalPosition = event.type === "pointercancel"
+        ? drag.lastPosition
+        : calculateWorldDragPosition(
+            drag.origin,
+            drag.pointerStart,
+            { x: event.clientX, y: event.clientY },
+            drag.renderedMap,
+          );
+
+      // Keep this overlay's local location snapshot current immediately. The
+      // canonical WorldPage query is still the visual source of truth.
+      setLocations(previous => previous.map(row => row.id === drag.locationId
+        ? { ...row, posX: finalPosition.x, posY: finalPosition.y }
+        : row));
+
+      if (pendingPositionCheckRef.current !== null) {
+        window.clearTimeout(pendingPositionCheckRef.current);
+      }
+      pendingPositionCheckRef.current = window.setTimeout(() => {
+        pendingPositionCheckRef.current = null;
+        void verifyNpcPosition(drag.locationId, finalPosition);
+      }, 220);
+    };
+
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("pointermove", onPointerMove, true);
+    document.addEventListener("pointerup", finishDrag, true);
+    document.addEventListener("pointercancel", finishDrag, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("pointermove", onPointerMove, true);
+      document.removeEventListener("pointerup", finishDrag, true);
+      document.removeEventListener("pointercancel", finishDrag, true);
+      npcDragFallbackRef.current = null;
+      if (pendingPositionCheckRef.current !== null) {
+        window.clearTimeout(pendingPositionCheckRef.current);
+        pendingPositionCheckRef.current = null;
+      }
+    };
+  }, [isAdmin, verifyNpcPosition, worldId]);
 
   const openPicker = async () => {
     setPickerOpen(true);
