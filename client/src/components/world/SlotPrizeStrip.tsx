@@ -12,7 +12,6 @@ export default function SlotPrizeStrip({ prizes, loaded }: {
   const cards = useMemo(() => [
     { id: "currency-coins", name: "Coins", imageUrl: currencyAssets.coin, kind: "Currency" },
     { id: "currency-essence", name: "Essence", imageUrl: currencyAssets.essenceToken, kind: "Currency" },
-    { id: "currency-tickets", name: "PvP tickets", imageUrl: null, kind: "Jackpot / pair" },
     ...prizes.map(prize => ({ ...prize, kind: prize.category === "egg" ? "Pet egg" : "Item prize" })),
   ], [prizes]);
 

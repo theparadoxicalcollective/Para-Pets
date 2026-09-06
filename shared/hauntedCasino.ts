@@ -69,6 +69,7 @@ export interface HauntedSlotReward {
   message: string;
   coins: number;
   essence: number;
+  /** Kept in the response shape for backwards compatibility; Slots no longer awards PvP tickets. */
   pvpTickets: number;
   itemCategory?: HauntedSlotItemCategory;
 }
@@ -78,6 +79,7 @@ export interface HauntedSlotReward {
  * separately, so `coins` here means the amount credited after the reels stop.
  * Item-category wins are resolved against the live server catalog after the
  * reels are known; the client never submits item IDs, reward values, or rolls.
+ * PvP tickets are intentionally excluded from all Slaughter Slots payouts.
  */
 export function evaluateHauntedSlotResult(
   reels: readonly HauntedSlotSymbolId[],
@@ -94,7 +96,7 @@ export function evaluateHauntedSlotResult(
           message: "SLAUGHTER JACKPOT! Three skulls awaken the house.",
           coins: safeBet * 10,
           essence: safeBet * 5,
-          pvpTickets: 5,
+          pvpTickets: 0,
         };
       case "loot":
         return {
@@ -191,10 +193,10 @@ export function evaluateHauntedSlotResult(
       case "skull":
         return {
           tier: "pair",
-          message: "Cursed pair — one PvP ticket survives the spin.",
+          message: "Cursed pair — spectral essence escapes the reels.",
           coins: 0,
-          essence: 0,
-          pvpTickets: 1,
+          essence: safeBet * 2,
+          pvpTickets: 0,
         };
     }
   }
