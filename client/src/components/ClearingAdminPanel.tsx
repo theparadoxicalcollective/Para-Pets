@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import "@/components/NpcAdminBridge";
 import ClearingShopAdmin from "@/components/clearing/ClearingShopAdmin";
 import {
   ClearingAdminHeader,
