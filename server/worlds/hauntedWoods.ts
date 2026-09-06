@@ -3,6 +3,7 @@ import path from "node:path";
 import { sql } from "drizzle-orm";
 import { db } from "../db";
 import {
+  HAUNTED_WOODS_FISHING_SPOTS,
   HAUNTED_WOODS_WORLD_ID,
   LEGACY_SOUL_POND_LOCATION_ID,
   SOUL_EXCHANGE_LOCATION,
@@ -116,6 +117,70 @@ export async function reconcileHauntedWoodsWorld(): Promise<void> {
       await tx.execute(sql`UPDATE world_locations SET pos_x=${migratedLayout.posX}, pos_y=${migratedLayout.posY}, icon_size=${migratedLayout.iconSize}, sort_order=${migratedLayout.sortOrder}, flipped=${migratedLayout.flipped} WHERE id=${SOUL_EXCHANGE_LOCATION.id}`);
     }
 
+    // Haunted Woods now has two source-controlled fishing destinations. They
+    // use the same `type = 'fishing'` contract as every other world, so the
+    // existing WorldPage handoff opens FishingPage without world-specific UI.
+    // ON CONFLICT intentionally avoids layout columns: after creation, admins
+    // remain free to move, resize, flip, and reorder each hotspot.
+    for (const fishingSpot of HAUNTED_WOODS_FISHING_SPOTS) {
+      await tx.execute(sql`
+        INSERT INTO world_locations (
+          id, world_id, name, type, description,
+          pos_x, pos_y, glow_color, icon_size, sort_order,
+          is_shop, icon_url, bg_url
+        ) VALUES (
+          ${fishingSpot.id},
+          ${fishingSpot.worldId},
+          ${fishingSpot.name},
+          ${fishingSpot.type},
+          ${fishingSpot.description},
+          ${fishingSpot.defaultPosition.x},
+          ${fishingSpot.defaultPosition.y},
+          ${fishingSpot.glowColor},
+          ${fishingSpot.defaultIconSize},
+          ${fishingSpot.defaultSortOrder},
+          false,
+          NULL,
+          NULL
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          world_id = EXCLUDED.world_id,
+          name = EXCLUDED.name,
+          type = EXCLUDED.type,
+          description = EXCLUDED.description,
+          glow_color = EXCLUDED.glow_color,
+          is_shop = false
+      `);
+
+      const fishingSnapshot = snapshot.find(entry => entry.id === fishingSpot.id);
+      if (fishingSnapshot) {
+        await tx.execute(sql`
+          UPDATE world_locations
+          SET pos_x = ${fishingSnapshot.posX}, pos_y = ${fishingSnapshot.posY}
+          WHERE id = ${fishingSpot.id}
+        `);
+      }
+    }
+
+    // If Haunted Woods already had pond stock from a manually-created fishing
+    // spot, make that stock available from both canonical spots. This is a
+    // no-op on a fresh/unstocked world and never creates fish definitions.
+    await tx.execute(sql`
+      INSERT INTO pond_fish (location_id, shop_item_id)
+      SELECT target.id, stocked.shop_item_id
+      FROM world_locations target
+      CROSS JOIN (
+        SELECT DISTINCT pf.shop_item_id
+        FROM pond_fish pf
+        JOIN world_locations source ON source.id = pf.location_id
+        WHERE source.world_id = ${HAUNTED_WOODS_WORLD_ID}
+          AND lower(COALESCE(source.type, '')) = 'fishing'
+      ) stocked
+      WHERE target.world_id = ${HAUNTED_WOODS_WORLD_ID}
+        AND target.id IN (${HAUNTED_WOODS_FISHING_SPOTS[0].id}, ${HAUNTED_WOODS_FISHING_SPOTS[1].id})
+      ON CONFLICT DO NOTHING
+    `);
+
     // Keep the stable Casino row wired to the new full-height, horizontally
     // pannable scene. Position/icon layout remains admin-owned; only its
     // presentation name/background are reconciled from source-controlled art.
@@ -137,5 +202,5 @@ export async function reconcileHauntedWoodsWorld(): Promise<void> {
     `);
   });
 
-  console.log("Haunted Woods: Soul Exchange portal and Casino presentation reconciled.");
+  console.log("Haunted Woods: Soul Exchange, two fishing spots, and Casino presentation reconciled.");
 }
