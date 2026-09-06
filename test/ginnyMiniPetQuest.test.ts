@@ -87,7 +87,7 @@ test("Ginny quest card is integrated without modifying the large quest/nav compo
   const root = await readFile(rootPath, "utf8");
   assert.match(overlay, /quest-card-ginny-mini-pet/);
   assert.match(overlay, /button-ginny-quest-claim/);
-  assert.match(overlay, /heading\.textContent\?\.trim\(\) === "QUESTS"/);
+  assert.match(overlay, /node\.textContent\?\.trim\(\) === "QUESTS"/);
   assert.match(root, /<GinnyQuestOverlay \/>/);
   assert.match(root, /QueryClientProvider client=\{queryClient\}/);
 });
