@@ -4,6 +4,7 @@ import { Redirect, useLocation } from "wouter";
 import App from "./App";
 import AuthPage from "@/pages/AuthPage";
 import LoadingScreen from "@/components/LoadingScreen";
+import GinnyQuestOverlay from "@/components/GinnyQuestOverlay";
 import { queryClient } from "./lib/queryClient";
 import { calculateStageLayout, getStageTransform, getVisibleViewport } from "@/lib/stage";
 
@@ -133,6 +134,7 @@ export default function RootEntry() {
   return (
     <QueryClientProvider client={queryClient}>
       <RootEntryInner />
+      <GinnyQuestOverlay />
     </QueryClientProvider>
   );
 }
