@@ -11,6 +11,7 @@ import "./clearingEnemyAttackPolish.css";
 import "./soulExchangeCardPolish.css";
 import "./activePetRewardAssets.css";
 import "./hubPageOverrides.css";
+import "./miniPetTransparencyFix.css";
 
 declare const __BUILD_ID__: string;
 
