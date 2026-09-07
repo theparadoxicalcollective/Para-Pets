@@ -16,6 +16,7 @@ function harness() {
     createUser: async (user: any) => ({ id: "new-user", ...user }),
     addCoins: async () => undefined,
     setWelcomeV2Sent: async () => undefined,
+    hasUserHouseBundle: async () => false,
     grantUserHouseBundle: async () => undefined,
     setActiveHouseBundle: async () => undefined,
     prepareEmailVerification: async (_id: string, email: string, token: string) => ({ email, username: "new_user", emailVerificationToken: token }),
@@ -60,10 +61,11 @@ async function invoke(handlers: Handler[], req: any, res: any) {
   else await handlers[0](req, res);
 }
 
-test("account module registers the exact extracted API paths and preserves resend authentication", () => {
+test("account module registers the exact extracted API paths and preserves authenticated account recovery routes", () => {
   const { routes } = harness();
   assert.deepEqual([...routes.keys()], [
     "POST /api/auth/register",
+    "POST /api/auth/reconcile-onboarding",
     "POST /api/auth/change-unverified-email",
     "POST /api/auth/logout",
     "GET /api/auth/reset-password/:token",
@@ -72,6 +74,7 @@ test("account module registers the exact extracted API paths and preserves resen
     "GET /api/auth/verify-email/:token",
     "POST /api/auth/resend-verification",
   ]);
+  assert.equal(routes.get("POST /api/auth/reconcile-onboarding")!.length, 2);
   assert.equal(routes.get("POST /api/auth/resend-verification")!.length, 2);
   assert.equal(routes.get("POST /api/auth/register")!.length, 1);
 });
@@ -137,4 +140,3 @@ test("resend verification rejects anonymous users and logout destroys the sessio
   assert.equal(sessionDestroyed, true);
   assert.deepEqual(logout.result, { statusCode: 200, body: { message: "Logged out" }, redirect: undefined });
 });
-
