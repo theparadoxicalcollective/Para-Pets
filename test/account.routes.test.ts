@@ -50,6 +50,7 @@ function response() {
     status(code: number) { result.statusCode = code; return res; },
     json(body: unknown) { result.body = body; return res; },
     redirect(location: string) { result.redirect = location; return res; },
+    clearCookie() { return res; },
   };
   return { result, res };
 }
