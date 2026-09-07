@@ -124,12 +124,25 @@ const postgresTutorialOperations: TutorialOperations = {
   async complete(playerId) {
     return db.transaction(async (tx) => {
       const playerResult = await tx.execute(sql`
-        SELECT COALESCE(tutorial_quest_completed, false) AS completed
-        FROM users WHERE id = ${playerId} FOR UPDATE
+        SELECT COALESCE(users.tutorial_quest_completed, false) AS completed,
+               pet.id AS active_pet_id, pet.is_hatched,
+               COALESCE(item.star_rarity, item.rarity) AS rarity
+        FROM users
+        LEFT JOIN user_inventory pet
+          ON pet.id = users.active_pet_id AND pet.user_id = users.id
+        LEFT JOIN shop_items item
+          ON item.id = pet.shop_item_id AND item.type = 'pet'
+        WHERE users.id = ${playerId}
+        FOR UPDATE OF users
       `);
-      const player = playerResult.rows[0] as { completed: boolean } | undefined;
+      const player = playerResult.rows[0] as {
+        completed: boolean; active_pet_id: string | null; is_hatched: boolean | null; rarity: number | null;
+      } | undefined;
       if (!player) throw new TutorialError("player_not_found", "Player is unavailable");
       if (player.completed) return "already_completed" as const;
+      if (!player.active_pet_id || player.is_hatched !== true || Number(player.rarity) !== 3) {
+        throw new TutorialError("tutorial_not_ready", "Hatch your active 3-star starter pet first");
+      }
       const completed = await tx.execute(sql`
         UPDATE users SET tutorial_quest_completed = true
         WHERE id = ${playerId} AND COALESCE(tutorial_quest_completed, false) = false
