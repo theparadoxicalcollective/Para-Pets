@@ -1,0 +1,100 @@
+/* Mobile polish shared by Haunted Bingo and Slaughter Slots. */
+
+@media (max-width: 700px) {
+  /* Reset legacy art nudges that pull the two illustrated top controls into
+     each other on narrow phones. */
+  .haunted-bingo-cage,
+  .haunted-bingo-cage-wallet,
+  .haunted-bingo-call-zone,
+  .haunted-bingo-history {
+    translate: 0 0 !important;
+  }
+
+  .haunted-bingo-shell {
+    padding-top: max(20px, calc(env(safe-area-inset-top) + 10px));
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .haunted-bingo-stage {
+    grid-template-columns: 38% 62%;
+    column-gap: 4px;
+    overflow: visible;
+  }
+
+  .haunted-bingo-cage-zone {
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  .haunted-bingo-cage {
+    width: min(29vw, 122px);
+    transform: translate(0, -8px);
+  }
+
+  .haunted-bingo-cage-wallet {
+    width: min(29vw, 122px);
+    transform: translate(0, -5px);
+  }
+
+  .haunted-bingo-call-zone {
+    left: 0;
+    justify-self: center;
+    transform: translateY(-2px);
+  }
+
+  .haunted-bingo-call-stand {
+    width: min(37vw, 154px);
+  }
+
+  /* Reserve real space for the rival-card rail instead of shifting the main
+     card underneath/off-screen. Both illustrated side edges stay visible. */
+  .haunted-bingo-card-zone {
+    width: 100%;
+    padding-right: 54px;
+    box-sizing: border-box;
+    overflow: visible;
+  }
+
+  .haunted-bingo-card {
+    width: min(calc(100vw - 76px), 350px);
+    margin-left: 0;
+    margin-right: auto;
+    transform: none;
+  }
+
+  .haunted-bingo-rivals {
+    right: 0;
+    width: 50px;
+    max-height: 82%;
+    overflow: hidden;
+  }
+
+  .haunted-bingo-history {
+    width: min(72vw, 310px);
+    bottom: -16px;
+  }
+
+  .haunted-bingo-controls {
+    margin-top: 12px;
+  }
+}
+
+@media (max-width: 390px) {
+  .haunted-bingo-card-zone { padding-right: 50px; }
+  .haunted-bingo-card { width: min(calc(100vw - 70px), 326px); }
+  .haunted-bingo-rivals { width: 46px; }
+  .haunted-bingo-rival-card { width: 34px; }
+}
+
+/* Admin-selected pet eggs already provide their real egg art. Do not cover it
+   with the legacy mystery question mark or grayscale treatment. */
+[data-testid="slaughter-slots-overlay"] div:has(> img[alt*="Pet Egg"]) > span[aria-hidden="true"],
+[data-testid="slaughter-slots-overlay"] div:has(> img[alt*="Egg ·"]) > span[aria-hidden="true"] {
+  display: none !important;
+}
+
+[data-testid="slaughter-slots-overlay"] img[alt*="Pet Egg"],
+[data-testid="slaughter-slots-overlay"] img[alt*="Egg ·"] {
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.82)) drop-shadow(0 0 8px rgba(168,85,247,.24)) !important;
+}
