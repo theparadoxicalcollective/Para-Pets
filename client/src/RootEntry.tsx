@@ -3,6 +3,7 @@ import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Redirect, useLocation } from "wouter";
 import App from "./App";
 import AuthPage from "@/pages/AuthPage";
+import EmailGateScreen from "@/components/EmailGateScreen";
 import LoadingScreen from "@/components/LoadingScreen";
 import GinnyQuestOverlay from "@/components/GinnyQuestOverlay";
 import { queryClient } from "./lib/queryClient";
@@ -87,8 +88,8 @@ function RootStage({ children }: { children: ReactNode }) {
   );
 }
 
-function RootAuthGate() {
-  const { data: user, isLoading } = useQuery<any>({
+function useRootAuth() {
+  return useQuery<any>({
     queryKey: ["/api/auth/me"],
     retry: false,
     staleTime: 5_000,
@@ -101,7 +102,13 @@ function RootAuthGate() {
       return response.json();
     },
   });
+}
 
+function isVerificationExemptPath(path: string): boolean {
+  return path === "/hub" || path === "/privacy" || path.startsWith("/reset-password/");
+}
+
+function RootAuthGate({ user, isLoading }: { user: any; isLoading: boolean }) {
   if (user) return <App key={user.id} />;
 
   if (isLoading) {
@@ -121,11 +128,24 @@ function RootAuthGate() {
 
 function RootEntryInner() {
   const [location] = useLocation();
+  const { data: user, isLoading } = useRootAuth();
 
   // /auth remains a compatibility alias for old links, but the public sign-in
   // experience has a single canonical address: parapets.net/.
   if (location === "/auth") return <Redirect to="/" />;
-  if (location === "/") return <RootAuthGate />;
+
+  // Verification is an account-level gate, not a navigation-layout concern.
+  // Keep only genuinely public/recovery pages exempt so direct links into PvP,
+  // the casino, worlds, pet care, etc. cannot bypass verification.
+  if (user && !user.emailVerified && !isVerificationExemptPath(location)) {
+    return (
+      <RootStage>
+        <EmailGateScreen email={user.email} />
+      </RootStage>
+    );
+  }
+
+  if (location === "/") return <RootAuthGate user={user} isLoading={isLoading} />;
 
   return <App />;
 }
