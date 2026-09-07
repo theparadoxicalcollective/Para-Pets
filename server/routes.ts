@@ -2407,7 +2407,9 @@ export async function registerRoutes(
           // elapsed >= full hatch time, so the egg is immediately ready to hatch
           // and the player can finish the tutorial regardless of hatch time.
           const hatchTimeHours = (petShopItem.hatchTime ?? 24) as number;
-          hatchUpdate = { hatchStartedAt: new Date(Date.now() - (hatchTimeHours * 3600 * 1000 + 1000)) };
+          const tutorialStepMs = (hatchTimeHours * 3600 * 1000) / BEGIN_JOURNEY_TUTORIAL.hatchPotion.quantity;
+          const currentStart = petInv.hatchStartedAt ? new Date(petInv.hatchStartedAt) : new Date();
+          hatchUpdate = { hatchStartedAt: new Date(currentStart.getTime() - tutorialStepMs - 500) };
         } else {
           // NORMAL PLAY: reduce the remaining hatch time by the item's specific
           // amount (specialAmount minutes) by moving hatchStartedAt earlier —
@@ -8377,31 +8379,93 @@ export async function registerRoutes(
     }
   }, 5 * 60 * 1000);
 
-  // ── Tutorial: grant starter egg ──────────────────────────────────────────
+  // ── Tutorial: production-backed 3-star starter choices ───────────────────
+  app.get("/api/tutorial/starter-pets", isAuthenticated, async (_req: any, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT id, name, image_url, egg_image_url, hatched_image_url,
+               COALESCE(star_rarity, rarity) AS rarity
+        FROM shop_items
+        WHERE type = 'pet'
+          AND COALESCE(star_rarity, rarity) = 3
+          AND egg_image_url IS NOT NULL
+          AND hatched_image_url IS NOT NULL
+        ORDER BY created_at ASC, name ASC
+      `);
+      return res.json((result.rows as any[]).map((pet) => ({
+        id: String(pet.id),
+        name: String(pet.name),
+        imageUrl: pet.egg_image_url || pet.image_url,
+        eggImageUrl: pet.egg_image_url,
+        hatchedImageUrl: pet.hatched_image_url,
+        rarity: 3,
+      })));
+    } catch (err) {
+      console.error("[tutorial] starter-pets error:", err);
+      return res.status(500).json({ message: "Failed to load starter pets" });
+    }
+  });
+
   app.post("/api/tutorial/grant-starter-egg", isAuthenticated, async (req: any, res) => {
     const userId = req.user!.id;
+    const petId = typeof req.body?.petId === "string" ? req.body.petId.trim() : "";
+    if (!petId || Object.keys(req.body ?? {}).some((key) => key !== "petId")) {
+      return res.status(400).json({ message: "Choose a valid 3-star starter pet" });
+    }
     try {
-      const inv = await storage.getUserInventoryWithItems(userId);
-      const hasAnyPet = inv.some(
-        ({ inventory: _inv, shopItem }) => shopItem?.type === "pet"
-      );
-      if (hasAnyPet) {
-        return res.json({ granted: false, message: "Already has a pet" });
-      }
-      const allItems = await storage.getAllShopItems();
-      const starterEgg = allItems.find(
-        (item) =>
-          item.type === "pet" &&
-          (item.name.toLowerCase().includes("grassland") || item.name.toLowerCase().includes("cow"))
-      );
-      if (!starterEgg) {
-        return res.status(404).json({ message: "Starter egg not found in shop" });
-      }
-      await storage.addToInventory(userId, starterEgg.id);
-      return res.json({ granted: true, itemName: starterEgg.name });
-    } catch (err) {
-      console.error("[tutorial] grant-starter-egg error:", err);
-      return res.status(500).json({ message: "Server error" });
+      const granted = await db.transaction(async (tx) => {
+        const playerResult = await tx.execute(sql`
+          SELECT COALESCE(tutorial_quest_completed, false) AS completed
+          FROM users WHERE id = ${userId} FOR UPDATE
+        `);
+        const player = playerResult.rows[0] as any;
+        if (!player) throw Object.assign(new Error("Player is unavailable"), { status: 404 });
+        if (player.completed) throw Object.assign(new Error("Begin Journey is already complete"), { status: 409 });
+
+        const ownedResult = await tx.execute(sql`
+          SELECT ui.id, ui.shop_item_id, si.name
+          FROM user_inventory ui
+          INNER JOIN shop_items si ON si.id = ui.shop_item_id
+          WHERE ui.user_id = ${userId} AND si.type = 'pet'
+          ORDER BY ui.acquired_at ASC
+          LIMIT 1
+          FOR UPDATE OF ui
+        `);
+        if (ownedResult.rows[0]) {
+          const owned = ownedResult.rows[0] as any;
+          return { granted: false, inventoryId: String(owned.id), petId: String(owned.shop_item_id), itemName: String(owned.name) };
+        }
+
+        const petResult = await tx.execute(sql`
+          SELECT id, name
+          FROM shop_items
+          WHERE id = ${petId}
+            AND type = 'pet'
+            AND COALESCE(star_rarity, rarity) = 3
+            AND egg_image_url IS NOT NULL
+            AND hatched_image_url IS NOT NULL
+          FOR SHARE
+        `);
+        const pet = petResult.rows[0] as any;
+        if (!pet) throw Object.assign(new Error("That 3-star starter pet is no longer available"), { status: 409 });
+
+        const inventoryResult = await tx.execute(sql`
+          INSERT INTO user_inventory (user_id, shop_item_id, quantity, hatch_started_at)
+          VALUES (${userId}, ${petId}, 1, NOW())
+          RETURNING id
+        `);
+        return {
+          granted: true,
+          inventoryId: String((inventoryResult.rows[0] as any).id),
+          petId: String(pet.id),
+          itemName: String(pet.name),
+        };
+      });
+      return res.json(granted);
+    } catch (err: any) {
+      const status = Number(err?.status) || 500;
+      if (status >= 500) console.error("[tutorial] grant-starter-egg error:", err);
+      return res.status(status).json({ message: status >= 500 ? "Failed to grant starter pet" : err.message });
     }
   });
 
