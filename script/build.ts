@@ -2,6 +2,7 @@ import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
 import { rm, readFile } from "fs/promises";
 import { execFileSync } from "node:child_process";
+import { optimizeBuiltPngAssets } from "./optimize-built-images";
 
 function gitValue(args: string[]) {
   try {
@@ -50,6 +51,12 @@ async function buildAll() {
 
   console.log("building client...");
   await viteBuild();
+
+  // Vite fingerprints imported artwork but otherwise emits the original PNG
+  // bytes. Replace references to only the large PNGs that become meaningfully
+  // smaller as lossless WebP. The optimizer does not resize/crop artwork and
+  // keeps the original PNGs in dist as a safety fallback.
+  await optimizeBuiltPngAssets();
 
   console.log("building server...");
   const pkg = JSON.parse(await readFile("package.json", "utf-8"));
