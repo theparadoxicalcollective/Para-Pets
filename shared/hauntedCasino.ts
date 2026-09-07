@@ -26,7 +26,9 @@ export const DEFAULT_HAUNTED_CASINO_HOTSPOTS: HauntedCasinoHotspot[] = [
   { id: "scratch", label: "Scratch Offs", x: 62, y: 87, size: 11 },
 ];
 
-export const HAUNTED_CASINO_BETS = [10, 25, 50, 100, 250] as const;
+// Stakes scale the same payout table rather than changing odds. The server
+// still locks the real wallet and rejects any stake the player cannot afford.
+export const HAUNTED_CASINO_BETS = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000] as const;
 export type HauntedCasinoBet = (typeof HAUNTED_CASINO_BETS)[number];
 
 /**
@@ -40,6 +42,7 @@ export type HauntedSlotSymbolId =
   | "edible"
   | "egg"
   | "loot"
+  | "ginny"
   | "skull";
 
 export type HauntedSlotItemCategory = "edible" | "egg" | "loot";
@@ -52,15 +55,18 @@ export interface HauntedSlotPrizePreview {
   category: HauntedSlotItemCategory;
 }
 
+// Keep the total at 100 so the new character symbol is easy to reason about.
+// Ginny is intentionally rare; the common currency symbols give up the weight.
 export const HAUNTED_SLOT_SYMBOL_WEIGHTS: ReadonlyArray<{
   id: HauntedSlotSymbolId;
   weight: number;
 }> = [
-  { id: "coin", weight: 38 },
-  { id: "essence", weight: 28 },
-  { id: "edible", weight: 14 },
+  { id: "coin", weight: 36 },
+  { id: "essence", weight: 27 },
+  { id: "edible", weight: 13 },
   { id: "egg", weight: 9 },
   { id: "loot", weight: 6 },
+  { id: "ginny", weight: 4 },
   { id: "skull", weight: 5 },
 ];
 
@@ -96,6 +102,14 @@ export function evaluateHauntedSlotResult(
           message: "SLAUGHTER JACKPOT! Three skulls awaken the house.",
           coins: safeBet * 10,
           essence: safeBet * 5,
+          pvpTickets: 0,
+        };
+      case "ginny":
+        return {
+          tier: "triple",
+          message: "Ginny's lucky visit! She leaves a surprise coin prize.",
+          coins: safeBet * 3,
+          essence: 0,
           pvpTickets: 0,
         };
       case "loot":
@@ -186,6 +200,14 @@ export function evaluateHauntedSlotResult(
         return {
           tier: "pair",
           message: "Vault pair — your stake comes back.",
+          coins: safeBet,
+          essence: 0,
+          pvpTickets: 0,
+        };
+      case "ginny":
+        return {
+          tier: "pair",
+          message: "Ginny pair — she returns your stake with a wink.",
           coins: safeBet,
           essence: 0,
           pvpTickets: 0,
