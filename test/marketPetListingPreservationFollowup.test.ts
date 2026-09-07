@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const service = readFileSync("server/marketplace/transactions.ts", "utf8");
-const bridge = readFileSync("client/src/components/MarketPetListingCopyBridge.tsx", "utf8");
+const marketPage = readFileSync("client/src/pages/MarketPage.tsx", "utf8");
 const main = readFileSync("client/src/main.tsx", "utf8");
 
 test("hatched market pets keep hatch state and stats", () => {
@@ -27,10 +27,13 @@ test("true eggs still use the existing egg hatch-start path", () => {
   assert.equal(matches.length, 2);
 });
 
-test("player-facing confirmation says the pet stays hatched", () => {
-  assert.match(bridge, /List Hatched Pet/);
-  assert.match(bridge, /stay hatched and keep its current stats/);
-  assert.match(bridge, /accessories and adornments will be unequipped/);
-  assert.match(bridge, /List Pet/);
-  assert.match(main, /<MarketPetListingCopyBridge \/>/);
+test("pet listing confirmation submits directly without a mutation bridge", () => {
+  assert.match(marketPage, /function PetListingConfirmModal/);
+  assert.match(marketPage, /isHatched \? "List Hatched Pet" : "List Pet Egg"/);
+  assert.match(marketPage, /stay hatched and keep its current level and stats/);
+  assert.match(marketPage, /existing market egg flow/);
+  assert.match(marketPage, /data-testid="button-confirm-pet-listing"/);
+  assert.match(marketPage, /onClick=\{onConfirm\}/);
+  assert.match(marketPage, /onConfirm=\{\(\) => \{ if \(valid\) onSubmitPet\(selectedPet\.id, priceNum\); \}\}/);
+  assert.doesNotMatch(main, /MarketPetListingCopyBridge/);
 });
