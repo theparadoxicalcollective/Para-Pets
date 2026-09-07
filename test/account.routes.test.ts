@@ -115,7 +115,7 @@ test("reset expiry and verification token responses remain unchanged", async () 
   assert.equal(invalid.result.redirect, "https://parapets.net/?verified=invalid");
 });
 
-test("resend verification rejects anonymous users and logout retains Passport callback behavior", async () => {
+test("resend verification rejects anonymous users and logout destroys the session", async () => {
   const { routes } = harness();
   const unauthorized = response();
   await invoke(routes.get("POST /api/auth/resend-verification")!, {}, unauthorized.res);
@@ -126,9 +126,14 @@ test("resend verification rejects anonymous users and logout retains Passport ca
   assert.deepEqual(authenticated.result, { statusCode: 404, body: { message: "User not found" }, redirect: undefined });
 
   let loggedOut = false;
+  let sessionDestroyed = false;
   const logout = response();
-  await invoke(routes.get("POST /api/auth/logout")!, { logout: (callback: any) => { loggedOut = true; callback(); } }, logout.res);
+  await invoke(routes.get("POST /api/auth/logout")!, {
+    logout: (callback: any) => { loggedOut = true; callback(); },
+    session: { destroy: (callback: any) => { sessionDestroyed = true; callback(); } },
+  }, logout.res);
   assert.equal(loggedOut, true);
+  assert.equal(sessionDestroyed, true);
   assert.deepEqual(logout.result, { statusCode: 200, body: { message: "Logged out" }, redirect: undefined });
 });
 
