@@ -33,31 +33,28 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
   const queryClient = useQueryClient();
   const [phase, setPhase] = useState<"loading" | "reveal" | "collect" | "claiming" | "done">("loading");
 
-  const { data: rewards = [], isSuccess, isError } = useQuery<PendingReward[]>({
+  const { data: rewards = [], isSuccess, isError, isFetching, refetch } = useQuery<PendingReward[]>({
     queryKey: ["/api/rewards/pending"],
+    queryFn: async () => {
+      // Finish any deferred account provisioning before looking for the gift.
+      // This endpoint is idempotent, so retries safely repair a partial signup.
+      await apiRequest("POST", "/api/auth/reconcile-onboarding");
+      const res = await apiRequest("GET", "/api/rewards/pending");
+      return res.json();
+    },
     retry: 2,
   });
 
-  useEffect(() => {
-    if (!isError) return;
-    localStorage.removeItem("para_pets_just_registered");
-    onComplete(null);
-  }, [isError]);
-
   const welcomeReward = rewards.find(r => r.bundleName === "Welcome to the Realm!");
+  const setupNeedsRetry = isError || (isSuccess && !welcomeReward);
 
   useEffect(() => {
-    if (!isSuccess) return;
-    if (!welcomeReward) {
-      localStorage.removeItem("para_pets_just_registered");
-      onComplete(null);
-      return;
-    }
+    if (!isSuccess || !welcomeReward) return;
     setPhase("reveal");
     const timer = setTimeout(() => setPhase("collect"), 1200);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSuccess]);
+  }, [isSuccess, welcomeReward?.rewardId]);
 
   const claimMutation = useMutation({
     mutationFn: async (rewardId: string) => {
@@ -81,11 +78,7 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
   });
 
   const handleCollect = () => {
-    if (!welcomeReward) {
-      localStorage.removeItem("para_pets_just_registered");
-      onComplete(null);
-      return;
-    }
+    if (!welcomeReward) return;
     playChime();
     setPhase("claiming");
     claimMutation.mutate(welcomeReward.rewardId);
@@ -94,6 +87,11 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
   const handleSkip = () => {
     localStorage.removeItem("para_pets_just_registered");
     onComplete(null);
+  };
+
+  const handleRetrySetup = () => {
+    setPhase("loading");
+    void refetch();
   };
 
   // Group items by id
@@ -117,21 +115,38 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
       }}
     >
       {phase === "loading" ? (
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center gap-3 px-6 text-center">
           <img
             src={giftTreasureIcon}
             alt=""
             style={{ width: 44, height: 44, objectFit: "contain", animation: "wgPulse 1.4s ease-in-out infinite" }}
           />
-          <p style={{ color: "rgba(212,170,50,0.55)", fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", animation: "wgPulse 1.8s ease-in-out infinite" }}>
-            Preparing your gifts…
-          </p>
-          <button
-            onClick={handleSkip}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(150,130,100,0.4)", fontSize: 10, marginTop: 8 }}
-          >
-            skip for now
-          </button>
+          {setupNeedsRetry ? (
+            <>
+              <p style={{ color: "rgba(240,224,160,0.9)", fontSize: 12, lineHeight: 1.55, maxWidth: 280 }}>
+                Your account was created, but a piece of your welcome setup is still being prepared. Retry to finish it safely.
+              </p>
+              <button
+                data-testid="button-retry-welcome-setup"
+                onClick={handleRetrySetup}
+                disabled={isFetching}
+                className="rounded-xl font-bold tracking-wider disabled:opacity-60"
+                style={{
+                  padding: "10px 28px",
+                  fontSize: 12,
+                  background: "linear-gradient(135deg, rgba(212,170,50,0.9), rgba(180,120,20,0.9))",
+                  border: "1px solid rgba(255,220,80,0.6)",
+                  color: "#1a0e00",
+                }}
+              >
+                {isFetching ? "Preparing…" : "Retry Welcome Setup"}
+              </button>
+            </>
+          ) : (
+            <p style={{ color: "rgba(212,170,50,0.55)", fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", animation: "wgPulse 1.8s ease-in-out infinite" }}>
+              Preparing your gifts…
+            </p>
+          )}
         </div>
       ) : (
         <div
