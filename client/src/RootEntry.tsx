@@ -108,9 +108,7 @@ function isVerificationExemptPath(path: string): boolean {
   return path === "/hub" || path === "/privacy" || path.startsWith("/reset-password/");
 }
 
-function RootAuthGate({ user, isLoading }: { user: any; isLoading: boolean }) {
-  if (user) return <App key={user.id} />;
-
+function RootAuthGate({ isLoading }: { isLoading: boolean }) {
   if (isLoading) {
     return (
       <RootStage>
@@ -145,7 +143,12 @@ function RootEntryInner() {
     );
   }
 
-  if (location === "/") return <RootAuthGate user={user} isLoading={isLoading} />;
+  // Keep the same App position and account key on Home and every game route.
+  // Nesting it inside RootAuthGate only on Home remounted the entire game on
+  // each trip to/from Home, restarting startup preloads and welcome overlays.
+  if (user) return <App key={user.id} />;
+
+  if (location === "/") return <RootAuthGate isLoading={isLoading} />;
 
   return <App />;
 }
