@@ -143,12 +143,27 @@ function previewPrizeItem(items: CasinoPrizeItem[]): CasinoPrizeItem | null {
   })[0] ?? null;
 }
 
+async function getGinnyNpcImageUrl(executor: any): Promise<string | null> {
+  const result = await executor.execute(sql`
+    SELECT image_url
+    FROM shop_items
+    WHERE type = 'npc'
+      AND world_id = '__npc_catalog__'
+      AND lower(name) LIKE 'ginny%'
+      AND COALESCE(image_url, '') <> ''
+    ORDER BY CASE WHEN lower(name) = 'ginny' THEN 0 ELSE 1 END, id
+    LIMIT 1
+  `);
+  return (result.rows[0] as any)?.image_url ?? null;
+}
+
 export async function getHauntedSlotState(userId: string) {
-  const [userResult, catalog] = await Promise.all([
+  const [userResult, catalog, ginnyImageUrl] = await Promise.all([
     // This is the same users.coins / users.essence wallet used throughout the
     // game. Slaughter Slots deliberately has no separate casino balance.
     db.execute(sql`SELECT coins, essence FROM users WHERE id = ${userId} LIMIT 1`),
     getSlotPrizeCatalog(db),
+    getGinnyNpcImageUrl(db),
   ]);
   const user = userResult.rows[0] as any;
   if (!user) throw new HauntedCasinoError("player_not_found", 404, "Player not found");
@@ -156,12 +171,12 @@ export async function getHauntedSlotState(userId: string) {
   return {
     balances: { coins: Number(user.coins ?? 0), essence: Number(user.essence ?? 0) },
     betOptions: [...HAUNTED_CASINO_BETS],
-    symbols: slotSymbols(catalog),
+    symbols: slotSymbols(catalog, ginnyImageUrl),
     prizes: slotPrizePreviews(catalog),
   };
 }
 
-function slotSymbols(catalog: Awaited<ReturnType<typeof getSlotPrizeCatalog>>) {
+function slotSymbols(catalog: Awaited<ReturnType<typeof getSlotPrizeCatalog>>, ginnyImageUrl: string | null) {
   const ediblePreview = previewPrizeItem(catalog.edible);
   const eggPreview = previewPrizeItem(catalog.egg);
   const lootPreview = previewPrizeItem(catalog.loot);
@@ -176,7 +191,7 @@ function slotSymbols(catalog: Awaited<ReturnType<typeof getSlotPrizeCatalog>>) {
       },
       {
         id: "egg" as const,
-        label: "Mystery Pet Egg",
+        label: eggPreview ? `Pet Egg · ${eggPreview.name}` : "Pet Egg",
         imageUrl: eggPreview?.egg_image_url ?? null,
       },
       {
@@ -184,8 +199,12 @@ function slotSymbols(catalog: Awaited<ReturnType<typeof getSlotPrizeCatalog>>) {
         label: lootPreview ? `Mystery Prize · ${lootPreview.name}` : "Mystery Prize",
         imageUrl: lootPreview?.image_url ?? null,
       },
+      { id: "ginny" as const, label: "Ginny's Lucky Visit", imageUrl: ginnyImageUrl },
       { id: "skull" as const, label: "PvP Skull", imageUrl: STATIC_SYMBOL_IMAGES.skull },
-    ].filter(symbol => !["edible", "egg", "loot"].includes(symbol.id) || catalog[symbol.id as HauntedSlotItemCategory].length > 0);
+    ].filter(symbol => {
+      if (symbol.id === "ginny") return Boolean(ginnyImageUrl);
+      return !["edible", "egg", "loot"].includes(symbol.id) || catalog[symbol.id as HauntedSlotItemCategory].length > 0;
+    });
 }
 
 async function grantPvpTickets(tx: any, userId: string, requested: number): Promise<number> {
@@ -271,17 +290,29 @@ export async function spinHauntedSlots(userId: string, requestedBet: unknown, da
 
     // The server owns both the RNG and payout calculation. The client only
     // submits the selected stake and receives the final reel result.
-    const catalog = await getSlotPrizeCatalog(tx);
+    const [catalog, ginnyImageUrl] = await Promise.all([
+      getSlotPrizeCatalog(tx),
+      getGinnyNpcImageUrl(tx),
+    ]);
     const available = new Set<HauntedSlotSymbolId>(["coin", "essence", "skull"]);
     for (const category of ["edible", "egg", "loot"] as const) {
       if (catalog[category].length) available.add(category);
     }
+    if (ginnyImageUrl) available.add("ginny");
     const reels: [HauntedSlotSymbolId, HauntedSlotSymbolId, HauntedSlotSymbolId] = [
       pickWeightedSymbol(available, randomInt),
       pickWeightedSymbol(available, randomInt),
       pickWeightedSymbol(available, randomInt),
     ];
-    const reward = evaluateHauntedSlotResult(reels, bet);
+    let reward = evaluateHauntedSlotResult(reels, bet);
+    if (reels.every(symbol => symbol === "ginny")) {
+      const multiplier = 3 + randomInt(4);
+      reward = {
+        ...reward,
+        coins: bet * multiplier,
+        message: `Ginny's lucky visit! She surprised you with a ${multiplier}× coin prize.`,
+      };
+    }
     let itemGranted: { id: string; name: string; imageUrl: string | null } | null = null;
     let fallbackEssence = 0;
 
@@ -317,7 +348,7 @@ export async function spinHauntedSlots(userId: string, requestedBet: unknown, da
     return {
       bet,
       reels,
-      symbols: slotSymbols(catalog),
+      symbols: slotSymbols(catalog, ginnyImageUrl),
       reward: {
         ...reward,
         essence: essenceWon,

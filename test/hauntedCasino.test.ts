@@ -38,10 +38,10 @@ test("Haunted Casino starts with exactly the five requested interactive areas", 
 });
 
 test("Slaughter Slots keeps challenging reel weights and supports database item prize categories", () => {
-  assert.deepEqual(HAUNTED_CASINO_BETS, [10, 25, 50, 100, 250]);
+  assert.deepEqual(HAUNTED_CASINO_BETS, [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]);
   assert.deepEqual(
     HAUNTED_SLOT_SYMBOL_WEIGHTS.map((entry) => entry.id),
-    ["coin", "essence", "edible", "egg", "loot", "skull"],
+    ["coin", "essence", "edible", "egg", "loot", "ginny", "skull"],
   );
   assert.ok((HAUNTED_SLOT_SYMBOL_WEIGHTS.find((entry) => entry.id === "loot")?.weight ?? 99) < (HAUNTED_SLOT_SYMBOL_WEIGHTS.find((entry) => entry.id === "edible")?.weight ?? 0));
   assert.ok((HAUNTED_SLOT_SYMBOL_WEIGHTS.find((entry) => entry.id === "skull")?.weight ?? 99) < (HAUNTED_SLOT_SYMBOL_WEIGHTS.find((entry) => entry.id === "coin")?.weight ?? 0));
