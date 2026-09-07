@@ -18,6 +18,7 @@ type AccountStorage = Pick<typeof import("../storage").storage,
   | "getUserByEmailVerificationToken"
   | "getUserByResetToken"
   | "getUserByUsernameCaseInsensitive"
+  | "hasUserHouseBundle"
   | "grantUserHouseBundle"
   | "setActiveHouseBundle"
   | "prepareEmailVerification"
@@ -77,6 +78,24 @@ function categorizeReferrer(ref: string | null | undefined): string {
   return "Other";
 }
 
+async function ensureFreeHouseSetup(userId: string): Promise<void> {
+  const freeBundles = await getFreeHouseBundles();
+  let firstBundleId: string | null = null;
+  for (const bundle of freeBundles) {
+    if (!firstBundleId) firstBundleId = bundle.id;
+    if (!await accountStorage.hasUserHouseBundle(userId, bundle.id)) {
+      await accountStorage.grantUserHouseBundle(userId, bundle.id);
+    }
+  }
+
+  if (firstBundleId) {
+    const user = await accountStorage.getUser(userId);
+    if (user && !user.activeHouseBundleId) {
+      await accountStorage.setActiveHouseBundle(userId, firstBundleId);
+    }
+  }
+}
+
 app.post("/api/auth/register", async (req, res) => {
   try {
     const parsed = registrationSchema.safeParse(req.body);
@@ -133,22 +152,18 @@ app.post("/api/auth/register", async (req, res) => {
     try {
       await grantWelcomeV2Bundle(user.id);
     } catch (rewardErr) {
-      // The transactional grant rolls back on failure. Login and the rewards
-      // screen retry it, so a bonus outage never strands a created account.
+      // The transactional grant rolls back on failure. The onboarding
+      // reconciliation endpoint retries it, so a bonus outage never strands
+      // a created account.
       console.error("Welcome reward deferred until retry:", rewardErr instanceof Error ? rewardErr.message : "unavailable");
     }
 
-    // Auto-grant all free house bundles and set the first one as active
+    // Auto-grant all free house bundles. A later reconciliation retries this
+    // idempotently if a transient database failure interrupts initial signup.
     try {
-      const freeBundles = await getFreeHouseBundles();
-      let firstBundleId: string | null = null;
-      for (const bundle of freeBundles) {
-        await accountStorage.grantUserHouseBundle(user.id, bundle.id);
-        if (!firstBundleId) firstBundleId = bundle.id;
-      }
-      if (firstBundleId) await accountStorage.setActiveHouseBundle(user.id, firstBundleId);
+      await ensureFreeHouseSetup(user.id);
     } catch (bundleErr) {
-      console.error("Failed to auto-grant free house bundle:", bundleErr);
+      console.error("Free house setup deferred until onboarding retry:", bundleErr instanceof Error ? bundleErr.message : "unavailable");
     }
 
     // Store categorized signup source
@@ -172,6 +187,22 @@ app.post("/api/auth/register", async (req, res) => {
     if (err?.code === "23505") return res.status(409).json({ message: "That username or email is already registered. Try signing in." });
     console.error("Register error:", err instanceof Error ? err.message : "unavailable");
     return res.status(500).json({ message: "Registration failed" });
+  }
+});
+
+// A newly registered player can safely retry any provisioning step that failed
+// after the user row was created. All operations here are idempotent: welcome
+// rewards are transaction-protected, owned free houses are skipped, and an
+// already-selected active house is never overwritten.
+app.post("/api/auth/reconcile-onboarding", isAuthenticated, async (req, res) => {
+  try {
+    const userId = (req.user as { id: string }).id;
+    await grantWelcomeV2Bundle(userId);
+    await ensureFreeHouseSetup(userId);
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error("Onboarding reconciliation deferred:", error instanceof Error ? error.message : "unavailable");
+    return res.status(503).json({ message: "Your account is still being prepared. Please retry in a moment." });
   }
 });
 
@@ -489,4 +520,3 @@ app.post("/api/auth/resend-verification", isAuthenticated, async (req, res) => {
 });
 
 }
-
