@@ -43,6 +43,7 @@ import {
   createInventoryListing,
 } from "./marketplace/transactions";
 import { claimTutorialReward, completeTutorial, grantTutorialHatchPotions } from "./tutorial/tutorialService";
+import { BEGIN_JOURNEY_TUTORIAL } from "./tutorial/config";
 import { invalidTutorialRequest, TutorialError } from "./tutorial/errors";
 import { CaveTierLockedError, isCaveTierAccessible } from "./caveProgress";
 import { executeAcceptGift, executeSendGift } from "./gifts/transactions";
@@ -2388,10 +2389,12 @@ export async function registerRoutes(
         if (petInv.isHatched) {
           return res.status(400).json({ message: "Pet is already hatched" });
         }
-        // Instant hatch-ready fill is RESERVED for the Begin Journey tutorial's
-        // hatch step. It is authorized server-side (never by the client flag
-        // alone): the player must have claimed tutorial potions but not yet
-        // completed the quest. The client's tutorialFill is only an intent hint;
+        // Accelerated hatch progress is RESERVED for Begin Journey. Each of
+        // the three granted potions advances exactly one third of the full hatch
+        // duration, so players learn the real use flow before the egg is ready.
+        // It is authorized server-side (never by the client flag alone): the
+        // player must have claimed tutorial potions but not yet completed the
+        // quest. The client's tutorialFill is only an intent hint;
         // a spoofed flag does nothing outside the genuine tutorial window. Players
         // who have not started OR have finished the tutorial always get the
         // item's specific minute reduction below.
@@ -2403,9 +2406,9 @@ export async function registerRoutes(
         }
         let hatchUpdate: Record<string, any>;
         if (allowInstantFill) {
-          // Tutorial only: set hatchStartedAt far enough in the past that
-          // elapsed >= full hatch time, so the egg is immediately ready to hatch
-          // and the player can finish the tutorial regardless of hatch time.
+          // Tutorial only: advance one third of the configured hatch duration.
+          // Three successful potion uses make the egg ready regardless of its
+          // normal hatch time.
           const hatchTimeHours = (petShopItem.hatchTime ?? 24) as number;
           const tutorialStepMs = (hatchTimeHours * 3600 * 1000) / BEGIN_JOURNEY_TUTORIAL.hatchPotion.quantity;
           const currentStart = petInv.hatchStartedAt ? new Date(petInv.hatchStartedAt) : new Date();
