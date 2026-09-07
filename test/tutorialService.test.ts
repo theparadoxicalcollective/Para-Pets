@@ -208,7 +208,8 @@ test("the seven tutorial steps, wording, visuals, and failure recovery remain un
   assert.match(overlay, /document\.body/);
   assert.doesNotMatch(overlay, /onError: \(\) => \{\s*bjSetStep\("done"\)/);
   assert.match(overlay, /potionGrantAttemptedRef\.current = true/);
-  assert.match(app, /if \(bjGetStatus\(\) === "done"\) \{\s*bjSetStep\(6\)/);
+  assert.match(app, /bjGetStatus\(\) === "done" && \(user as any\)\.activePetId/);
+  assert.doesNotMatch(app, /bjGetStatus\(\) === "not_started"\) bjStart\(\)/);
 });
 
 
