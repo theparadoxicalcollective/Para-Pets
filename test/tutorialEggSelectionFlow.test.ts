@@ -51,3 +51,17 @@ test("tutorial remains on the potion step until inventory confirms hatch-ready",
   assert.match(overlay, /if \(eggReadyToHatch\) \{/);
   assert.match(overlay, /bjSetStep5TapMode\(true\)/);
 });
+
+
+test("empty home stage offers an explicit recoverable Begin Here entry point", async () => {
+  const home = readFileSync("client/src/pages/HomePage.tsx", "utf8");
+  const app = readFileSync("client/src/App.tsx", "utf8");
+  const state = readFileSync("client/src/lib/beginJourney.ts", "utf8");
+  assert.match(home, /data-testid="button-begin-journey"/);
+  assert.match(home, /!ownsAnyPet/);
+  assert.match(home, /!currentUser\.tutorial_quest_completed/);
+  assert.match(home, /!currentUser\.tutorial_reward_claimed/);
+  assert.match(home, /onClick=\{\(\) => bjRestart\(\)\}/);
+  assert.match(state, /export function bjRestart\(\) \{\s*bjSetStep\(0\);/);
+  assert.doesNotMatch(app, /bjGetStatus\(\) === "not_started"\) bjStart\(\)/);
+});
