@@ -18,11 +18,13 @@ test("large Vite PNGs are replaced by smaller lossless WebP references without c
     const pngPath = path.join(assetsDir, pngName);
     const webpPath = path.join(assetsDir, webpName);
 
+    // Include several alpha levels so transparency is covered while avoiding
+    // fully transparent RGB, whose hidden color values are not display pixels.
     const pixels = Buffer.from([
       255, 0, 0, 255,
-      0, 255, 0, 160,
-      0, 0, 255, 80,
-      240, 200, 20, 1,
+      0, 255, 0, 200,
+      0, 0, 255, 128,
+      240, 200, 20, 64,
     ]);
 
     await sharp(pixels, { raw: { width: 2, height: 2, channels: 4 } })
@@ -36,7 +38,10 @@ test("large Vite PNGs are replaced by smaller lossless WebP references without c
     const result = await optimizeBuiltPngAssets({
       publicDir,
       minBytes: 1,
-      minimumSavingsRatio: -1,
+      // A 2x2 fixture has proportionally large container overhead. Disable
+      // the production savings gate here so this test exercises conversion
+      // deterministically; production still requires at least 2% savings.
+      minimumSavingsRatio: Number.NEGATIVE_INFINITY,
       log: () => {},
     });
 
