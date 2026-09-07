@@ -3,6 +3,7 @@ export type TutorialErrorCode =
   | "player_not_found"
   | "reward_item_unavailable"
   | "tutorial_not_completed"
+  | "tutorial_not_ready"
   | "transaction_failure";
 
 export class TutorialError extends Error {
