@@ -20,7 +20,7 @@ import badgeIcon from "@assets/generated_images/nav_icon_badges.png";
 import { playSpeedUp } from "@/lib/sounds";
 import { QuillBadge } from "@/components/QuillBadge";
 import { clientToStage, getDesignW } from "@/lib/stage";
-import { bjGetStep, bjIsStep5FakeMode, bjIsStep5TapMode } from "@/lib/beginJourney";
+import { bjGetStep, bjIsStep5FakeMode, bjIsStep5TapMode, bjRestart } from "@/lib/beginJourney";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
@@ -47,6 +47,8 @@ interface HomePageProps {
     isAdmin: boolean;
     isModerator?: boolean;
     activePetId: string | null;
+    tutorial_quest_completed?: boolean;
+    tutorial_reward_claimed?: boolean;
     lastUsernameChange: string | null;
     lastProfilePicChange: string | null;
   };
@@ -516,6 +518,12 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const activePet = currentUser.activePetId
     ? inventory.find((item) => item.inventoryId === currentUser.activePetId && item.type === "pet")
     : null;
+
+  const ownsAnyPet = inventory.some((item) => item.type === "pet");
+  const canBeginJourney = !inventoryLoading
+    && !ownsAnyPet
+    && !currentUser.tutorial_quest_completed
+    && !currentUser.tutorial_reward_claimed;
 
   // Freeze the last valid activePet so power-up modals stay mounted during
   // inventory refetches (avoids modal closing mid power-up).
@@ -1409,6 +1417,66 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                     })()}
                   </div>
                 </div>
+              ) : canBeginJourney ? (
+                <button
+                  type="button"
+                  data-testid="button-begin-journey"
+                  onClick={() => bjRestart()}
+                  aria-label="Begin your first pet journey"
+                  className="relative flex flex-col items-center justify-center active:scale-95"
+                  style={{
+                    width: "min(72vw, 330px)",
+                    minHeight: "240px",
+                    border: "none",
+                    background: "none",
+                    cursor: "pointer",
+                    animation: "activePetBreath 3.2s ease-in-out infinite",
+                  }}
+                >
+                  <div
+                    aria-hidden="true"
+                    style={{
+                      position: "absolute",
+                      width: "210px",
+                      height: "210px",
+                      borderRadius: "50%",
+                      background: "radial-gradient(circle, rgba(240,192,64,0.3) 0%, rgba(46,122,79,0.18) 48%, transparent 72%)",
+                      filter: "blur(5px)",
+                      animation: "eggGlowPulse 2s ease-in-out infinite",
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "relative",
+                      padding: "16px 30px",
+                      borderRadius: "999px",
+                      color: "#fff2a8",
+                      fontFamily: "Lora, Georgia, serif",
+                      fontSize: "clamp(18px, 5vw, 25px)",
+                      fontWeight: 800,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      background: "linear-gradient(145deg, rgba(34,92,43,0.98), rgba(11,48,29,0.98))",
+                      border: "2px solid rgba(240,192,64,0.82)",
+                      boxShadow: "0 0 18px rgba(240,192,64,0.5), 0 0 42px rgba(46,160,86,0.32), 0 8px 22px rgba(0,0,0,0.62)",
+                    }}
+                  >
+                    Begin Here
+                  </div>
+                  <span
+                    style={{
+                      position: "relative",
+                      marginTop: 14,
+                      color: "rgba(234,244,215,0.9)",
+                      fontFamily: "Lora, Georgia, serif",
+                      fontSize: 12,
+                      letterSpacing: "0.04em",
+                      textShadow: "0 2px 6px rgba(0,0,0,0.9)",
+                    }}
+                  >
+                    Choose your first 3-star companion
+                  </span>
+                </button>
               ) : (
                 <div className="text-center space-y-3 animate-float">
                   <div
@@ -1421,20 +1489,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                   >
                     <span className="text-3xl" style={{ filter: "grayscale(100%) opacity(0.3)" }}>?</span>
                   </div>
-                  <div
-                    className="px-4 py-2 rounded-md mx-4"
-                    style={{
-                      background: "rgba(0,0,0,0.4)",
-                      border: "1px solid rgba(127,191,176,0.2)",
-                    }}
-                  >
-                    <p className="font-fantasy text-[#7fbfb0] text-xs tracking-wider leading-relaxed">
-                      Your companion awaits...
-                    </p>
-                    <p className="font-fantasy text-[#5a8a78] text-xs tracking-wider">
-                      Acquire a pet to begin
-                    </p>
-                  </div>
+                  <p className="font-fantasy text-[#7fbfb0] text-xs tracking-wider">Your companion awaits...</p>
                 </div>
               )}
             </div>
