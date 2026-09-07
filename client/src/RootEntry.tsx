@@ -92,17 +92,17 @@ function RootAuthGate() {
     queryKey: ["/api/auth/me"],
     retry: false,
     staleTime: 5_000,
-    refetchInterval: 1_000,
+    refetchInterval: query => query.state.data ? 30_000 : false,
     refetchOnWindowFocus: true,
-    queryFn: async () => {
-      const response = await fetch("/api/auth/me", { credentials: "include" });
+    queryFn: async ({ signal }) => {
+      const response = await fetch("/api/auth/me", { credentials: "include", signal });
       if (response.status === 401) return null;
       if (!response.ok) throw new Error(`Authentication validation failed (${response.status})`);
       return response.json();
     },
   });
 
-  if (user) return <App />;
+  if (user) return <App key={user.id} />;
 
   if (isLoading) {
     return (
