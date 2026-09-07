@@ -35,3 +35,19 @@ test("home rescue does not bounce back while a confirmed active pet exists", () 
   assert.match(overlay, /setTimeout\(\(\) => setShowRescue\(true\), 3000\)/);
   assert.match(overlay, /\[step, location, targetRect, user\?\.activePetId\]/);
 });
+
+
+test("starter picker uses the live 3-star catalog and does not advance before selection", () => {
+  assert.match(overlay, /queryKey: \["\/api\/tutorial\/starter-pets"\]/);
+  assert.match(overlay, /starterPets\.map\(\(pet\)/);
+  assert.match(overlay, /handleGrantEgg\(pet\.id\)/);
+  assert.match(overlay, /\/api\/tutorial\/grant-starter-egg", \{ petId \}/);
+  assert.match(overlay, /Use all 3 hatching potions on your egg until it is ready!/);
+  assert.doesNotMatch(overlay, /Grassland Cow Egg/);
+});
+
+test("tutorial remains on the potion step until inventory confirms hatch-ready", () => {
+  assert.doesNotMatch(overlay, /window\.addEventListener\("bj_speedup_used"/);
+  assert.match(overlay, /if \(eggReadyToHatch\) \{/);
+  assert.match(overlay, /bjSetStep5TapMode\(true\)/);
+});
