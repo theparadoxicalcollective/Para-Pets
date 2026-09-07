@@ -22,7 +22,7 @@ test("large Vite PNGs are replaced by smaller lossless WebP references without c
       255, 0, 0, 255,
       0, 255, 0, 160,
       0, 0, 255, 80,
-      240, 200, 20, 0,
+      240, 200, 20, 1,
     ]);
 
     await sharp(pixels, { raw: { width: 2, height: 2, channels: 4 } })
