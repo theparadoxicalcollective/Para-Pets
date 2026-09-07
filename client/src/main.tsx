@@ -15,6 +15,7 @@ import "./soulExchangeCardPolish.css";
 import "./activePetRewardAssets.css";
 import "./hubPageOverrides.css";
 import "./miniPetTransparencyFix.css";
+import "./components/world/CasinoMobilePolish.css";
 
 declare const __BUILD_ID__: string;
 
