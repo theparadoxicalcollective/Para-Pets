@@ -238,16 +238,26 @@ function EmptySlot({ onSell }: { onSell: () => void }) {
   );
 }
 
-function RevertToEggModal({ petName, onRevert, onCancel, isPending }: { petName: string; onRevert: () => void; onCancel: () => void; isPending: boolean }) {
+function PetListingConfirmModal({ pet, onConfirm, onCancel, isPending }: { pet: InventoryItem; onConfirm: () => void; onCancel: () => void; isPending: boolean }) {
+  const isHatched = pet.isHatched;
+  const petName = pet.petNickname || pet.name;
+  const petImage = isHatched
+    ? (pet.hatchedImageUrl || pet.imageUrl || pet.eggImageUrl)
+    : (pet.eggImageUrl || pet.imageUrl);
+
   return (
     <div onClick={onCancel} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,.82)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 18 }}>
       <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 330, padding: "25px 22px", borderRadius: 20, border: "2px solid rgba(211,151,255,.55)", background: "linear-gradient(165deg,#180522,#2d0b49)", boxShadow: "0 0 45px rgba(180,50,255,.25)", textAlign: "center" }}>
-        <img src={eggMagicIcon} alt="" style={{ width: 62, height: 62, objectFit: "contain" }} />
-        <h2 style={{ color: purple, fontFamily: "Georgia, serif", fontSize: 18, margin: "8px 0" }}>Revert to Egg</h2>
-        <p style={{ color: "rgba(239,220,255,.75)", fontFamily: "Georgia, serif", fontSize: 12, lineHeight: 1.5 }}>“{petName}” will return to egg form before being listed. Stats remain preserved and equipped accessories are removed.</p>
+        {petImage ? <img src={petImage} alt={petName} style={{ width: 72, height: 72, objectFit: "contain" }} /> : <img src={eggMagicIcon} alt="" style={{ width: 62, height: 62, objectFit: "contain" }} />}
+        <h2 style={{ color: purple, fontFamily: "Georgia, serif", fontSize: 18, margin: "8px 0" }}>{isHatched ? "List Hatched Pet" : "List Pet Egg"}</h2>
+        <p style={{ color: "rgba(239,220,255,.75)", fontFamily: "Georgia, serif", fontSize: 12, lineHeight: 1.5 }}>
+          {isHatched
+            ? `“${petName}” will stay hatched and keep its current level and stats. Equipped accessories and adornments will be unequipped and remain in your inventory.`
+            : `“${petName}” will be listed as an egg using the existing market egg flow.`}
+        </p>
         <div style={{ display: "flex", gap: 9, marginTop: 16 }}>
-          <button onClick={onCancel} style={{ flex: 1, borderRadius: 10, padding: 10, background: "rgba(0,0,0,.25)", border: "1px solid rgba(255,255,255,.18)", color: "#dbcfea", cursor: "pointer" }}>Cancel</button>
-          <button data-testid="button-revert-confirm" disabled={isPending} onClick={onRevert} style={{ flex: 1, borderRadius: 10, padding: 10, background: "rgba(142,70,209,.42)", border: "1px solid rgba(220,170,255,.5)", color: purple, cursor: isPending ? "not-allowed" : "pointer" }}>{isPending ? "Reverting…" : "Revert"}</button>
+          <button type="button" onClick={onCancel} style={{ flex: 1, borderRadius: 10, padding: 10, background: "rgba(0,0,0,.25)", border: "1px solid rgba(255,255,255,.18)", color: "#dbcfea", cursor: "pointer" }}>Cancel</button>
+          <button type="button" data-testid="button-confirm-pet-listing" disabled={isPending} onClick={onConfirm} style={{ flex: 1, borderRadius: 10, padding: 10, background: "rgba(142,70,209,.42)", border: "1px solid rgba(220,170,255,.5)", color: purple, cursor: isPending ? "not-allowed" : "pointer", opacity: isPending ? .65 : 1 }}>{isPending ? "Listing…" : "List Pet"}</button>
         </div>
       </div>
     </div>
@@ -302,7 +312,7 @@ function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFi
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [kind, setKind] = useState<"items" | "fish" | "pets">("items");
   const [price, setPrice] = useState("");
-  const [showRevert, setShowRevert] = useState(false);
+  const [showPetConfirm, setShowPetConfirm] = useState(false);
   const regular = inventory.filter(i => i.type !== "pet" && !i.isListed);
   const pets = inventory.filter(i => i.type === "pet" && !i.isListed);
   const fish = fishInventory.filter(i => !i.inAquarium);
@@ -317,7 +327,7 @@ function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFi
 
   function submit() {
     if (!selectedId || !valid) return;
-    if (kind === "pets") return setShowRevert(true);
+    if (kind === "pets") return setShowPetConfirm(true);
     if (kind === "fish") onSubmitFish(selectedId, priceNum); else onSubmit(selectedId, priceNum);
   }
 
@@ -330,7 +340,7 @@ function SellItemModal({ inventory, fishInventory, onClose, onSubmit, onSubmitFi
         {selectedItem && <div style={{ marginTop: 14 }}><label style={{ display: "block", color: "rgba(255,255,255,.75)", fontSize: 11, marginBottom: 5 }}>Price (1–1,000,000 coins)</label><div style={{ display: "flex", alignItems: "center", gap: 6 }}><CoinIcon size={18} /><input data-testid="input-listing-price" type="number" min={1} max={1000000} value={price} onChange={e => setPrice(e.target.value)} placeholder="Enter price" style={{ flex: 1, borderRadius: 9, border: `1px solid ${valid || !price ? "rgba(225,190,90,.4)" : "#ff7d89"}`, background: "rgba(0,0,0,.3)", padding: "9px 11px", color: cream, outline: "none" }} /></div></div>}
         <button data-testid="button-confirm-listing" disabled={!selectedItem || !valid || isPending || isPetPending} onClick={submit} style={{ ...artButtonStyle(!!selectedItem && valid), width: "100%", minHeight: 42, marginTop: 14, opacity: selectedItem && valid ? 1 : .5 }}>{isPending || isPetPending ? "Listing…" : "List for Sale"}</button>
       </div>
-      {showRevert && selectedPet && <RevertToEggModal petName={selectedPet.petNickname || selectedPet.name} isPending={isPetPending} onCancel={() => setShowRevert(false)} onRevert={() => valid && onSubmitPet(selectedPet.id, priceNum)} />}
+      {showPetConfirm && selectedPet && <PetListingConfirmModal pet={selectedPet} isPending={isPetPending} onCancel={() => setShowPetConfirm(false)} onConfirm={() => { if (valid) onSubmitPet(selectedPet.id, priceNum); }} />}
     </div>
   );
 }
@@ -364,7 +374,7 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
 
   const listMutation = useMutation({ mutationFn: ({ inventoryId, price }: { inventoryId: string; price: number }) => apiRequest("POST", "/api/market/list", { inventoryId, price }), onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); toast({ title: "Listed!", description: "Your item is now on the market." }); }, onError: (e: any) => toast({ title: "Failed to list item", description: e.message, variant: "destructive" }) });
   const listFishMutation = useMutation({ mutationFn: ({ fishInventoryId, price }: { fishInventoryId: string; price: number }) => apiRequest("POST", "/api/market/list-fish", { fishInventoryId, price }), onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); toast({ title: "Fish listed!", description: "Your fish is now on the market." }); }, onError: (e: any) => toast({ title: "Failed to list fish", description: e.message, variant: "destructive" }) });
-  const listPetMutation = useMutation({ mutationFn: ({ inventoryId, price }: { inventoryId: string; price: number }) => apiRequest("POST", "/api/market/list-pet", { inventoryId, price }), onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/user/equipped-accessory-ids"] }); toast({ title: "Pet egg listed!", description: "Your pet is safely held by the market until it is bought or returned." }); }, onError: (e: any) => toast({ title: "Failed to list pet egg", description: e.message, variant: "destructive" }) });
+  const listPetMutation = useMutation({ mutationFn: ({ inventoryId, price }: { inventoryId: string; price: number }) => apiRequest("POST", "/api/market/list-pet", { inventoryId, price }), onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/user/equipped-accessory-ids"] }); toast({ title: "Pet listed!", description: "Your pet is safely held by the market until it is bought or returned." }); }, onError: (e: any) => toast({ title: "Failed to list pet", description: e.message, variant: "destructive" }) });
   const buyMutation = useMutation({ mutationFn: (listingId: string) => apiRequest("POST", `/api/market/${listingId}/buy`, {}), onSuccess: async () => { setDetailTarget(null); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); const updatedUser = await fetch("/api/auth/me").then(r => r.json()); onUserUpdate?.(updatedUser); playChime(); toast({ title: "Purchase complete!", description: "Check your inventory." }); }, onError: (e: any) => { queryClient.invalidateQueries({ queryKey: ["/api/market"] }); toast({ title: "Purchase failed", description: e.message, variant: "destructive" }); } });
   const collectMutation = useMutation({
     mutationFn: (listingId: string) => apiRequest("POST", `/api/market/${listingId}/collect`, {}),
