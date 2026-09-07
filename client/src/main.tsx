@@ -4,7 +4,6 @@ import WorldNpcPlacementOverlay from "./components/WorldNpcPlacementOverlay";
 import NpcQuestAwareDialogueBridge from "./components/NpcQuestAwareDialogueBridge";
 import GinnyGuideAlignmentFix from "./components/GinnyGuideAlignmentFix";
 import AdornmentTerminologyBridge from "./components/AdornmentTerminologyBridge";
-import MarketPetListingCopyBridge from "./components/MarketPetListingCopyBridge";
 import { detectRuntimeMode } from "./lib/runtimeMode";
 import "./index.css";
 import "./tabletStageShell.css";
@@ -121,6 +120,5 @@ createRoot(document.getElementById("root")!).render(
     <NpcQuestAwareDialogueBridge />
     <GinnyGuideAlignmentFix />
     <AdornmentTerminologyBridge />
-    <MarketPetListingCopyBridge />
   </>,
 );
