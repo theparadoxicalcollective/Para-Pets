@@ -1,6 +1,7 @@
 import EmailGateScreen from "@/components/EmailGateScreen";
 import { Switch, Route, Redirect, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
+import { fetchStartupInventory } from "./lib/startupInventory";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -307,6 +308,9 @@ function AppRouter() {
     setIsPreloaded(false);
     if (!user) return;
 
+    const controller = new AbortController();
+    const { signal } = controller;
+
     const lowMemoryPreload = shouldUseLowMemoryPetRenderer(detectRuntimeMode());
 
     // Hard cap: never block the player for more than 4 seconds total.
@@ -327,10 +331,11 @@ function AppRouter() {
     // Fetch inventory to seed the TanStack Query cache so HomePage's own
     // query is instant. Pet parts + their images are kicked off in the
     // background (non-blocking) so they don't delay the loading screen.
-    const inventoryReady = fetch("/api/inventory", { credentials: "include" })
-      .then(res => res.json())
-      .then((items: any[]) => {
-        queryClient.setQueryData(["/api/inventory"], items);
+    const inventoryReady = fetchStartupInventory(signal, items => {
+      queryClient.setQueryData(["/api/inventory"], items);
+    })
+      .then((items) => {
+        if (!items || signal.aborted) return;
 
         const activePetItem = items.find(
           (i: any) => i.inventoryId === user.activePetId && i.type === "pet"
@@ -339,10 +344,10 @@ function AppRouter() {
         // Fire pet-parts prefetch in the background — it will seed the cache
         // for PetAnimator but does not gate the loading screen.
         if (activePetItem?.petTemplateId) {
-          fetch(`/api/pet-template-parts/${activePetItem.petTemplateId}`, { credentials: "include" })
+          fetch(`/api/pet-template-parts/${activePetItem.petTemplateId}`, { credentials: "include", signal })
             .then(r => r.ok ? r.json() : null)
             .then((data: any) => {
-              if (!data) return;
+              if (!data || signal.aborted) return;
               queryClient.setQueryData(["/api/pet-template-parts", activePetItem.petTemplateId], data);
               if (!lowMemoryPreload && Array.isArray(data.parts)) {
                 data.parts.forEach((p: any) => { if (p.imageUrl) preloadImage(p.imageUrl); });
@@ -361,10 +366,13 @@ function AppRouter() {
     // Everything else (pet image, part images) loads concurrently in the bg.
     Promise.all([preloadImage(homeBg), fontReady, inventoryReady]).then(() => {
       clearTimeout(timeout);
-      setIsPreloaded(true);
+      if (!signal.aborted) setIsPreloaded(true);
     });
 
-    return () => clearTimeout(timeout);
+    return () => {
+      controller.abort();
+      clearTimeout(timeout);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
