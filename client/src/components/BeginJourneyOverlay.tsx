@@ -17,7 +17,7 @@ const STEP_LABELS = [
   "Select your egg as your companion!",
   "Head back home!",
   "Tap your egg!",
-  "Drag a hatch potion onto your egg to reduce hatch time!",
+  "Use all 3 hatching potions on your egg until it is ready!",
   "Tap to finish your journey!",
 ];
 
@@ -55,6 +55,13 @@ interface Props {
   user?: { activePetId?: string | null; tutorial_hatch_potions_claimed?: boolean } | null;
 }
 
+interface StarterPetChoice {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  rarity: 3;
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function BeginJourneyOverlay({ user }: Props) {
   const [step, setStep]               = useState<number | "done" | null>(() => {
@@ -70,6 +77,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const [targetRect, setTargetRect]   = useState<TargetRect | null>(null);
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [grantLoading, setGrantLoading]    = useState(false);
+  const [selectedStarterId, setSelectedStarterId] = useState<string | null>(null);
   const [showReward, setShowReward]        = useState(false);
   const [potionsGranted, setPotionsGranted]   = useState(false);
   const [showRescue, setShowRescue]           = useState(false);
@@ -119,6 +127,12 @@ export default function BeginJourneyOverlay({ user }: Props) {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       setPotionsGranted(true);
     },
+  });
+
+  const { data: starterPets = [], isLoading: starterPetsLoading, isError: starterPetsError } = useQuery<StarterPetChoice[]>({
+    queryKey: ["/api/tutorial/starter-pets"],
+    enabled: showGrantModal,
+    staleTime: 30_000,
   });
 
   // Sync step when changed externally (FloatingNav GO button, WelcomeGift, etc.)
@@ -303,19 +317,8 @@ export default function BeginJourneyOverlay({ user }: Props) {
     setEggReadyToHatch(ready);
   }, [step, invHatch, user?.activePetId]);
 
-  // ── Step 5: real potion used → lift overlay so player taps egg to hatch ──
-  useEffect(() => {
-    const handler = () => {
-      if (bjGetStep() === 5) {
-        bjSetStep5FakeMode(false);
-        bjSetStep5TapMode(true);
-        setStep5TapMode(true);
-        window.dispatchEvent(new CustomEvent("bj_close_speedup"));
-      }
-    };
-    window.addEventListener("bj_speedup_used", handler);
-    return () => window.removeEventListener("bj_speedup_used", handler);
-  }, []);
+  // Potion use stays on step 5 until the third server-confirmed use makes
+  // the active egg hatch-ready. Inventory polling below owns that transition.
 
   // ── Step 5: if egg already ready, mark fake mode (keep sheet open) ────────
   useEffect(() => {
@@ -331,7 +334,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
     const hasPotion = (invHatch as any[]).some(
       (i: any) => i.type === "special" && i.specialType === "hatch_time"
     );
-    if (eggReadyToHatch && !hasPotion) {
+    if (eggReadyToHatch) {
       bjSetStep5FakeMode(false);
       bjSetStep5TapMode(true);
       setStep5TapMode(true);
@@ -384,14 +387,20 @@ export default function BeginJourneyOverlay({ user }: Props) {
   }, [step, location, targetRect, user?.activePetId]);
 
   // ── Grant starter egg ─────────────────────────────────────────────────────
-  const handleGrantEgg = async () => {
+  const handleGrantEgg = async (petId: string) => {
+    if (grantLoading) return;
+    setSelectedStarterId(petId);
     setGrantLoading(true);
     try {
-      await apiRequest("POST", "/api/tutorial/grant-starter-egg", {});
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+      await apiRequest("POST", "/api/tutorial/grant-starter-egg", { petId });
+      await queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       setShowGrantModal(false);
-    } catch { /* silent */ }
-    setGrantLoading(false);
+    } catch {
+      queryClient.invalidateQueries({ queryKey: ["/api/tutorial/starter-pets"] });
+    } finally {
+      setGrantLoading(false);
+      setSelectedStarterId(null);
+    }
   };
 
   // ── Handle forwarder click ────────────────────────────────────────────────
@@ -815,27 +824,42 @@ export default function BeginJourneyOverlay({ user }: Props) {
             boxShadow: "0 0 40px rgba(212,168,67,0.15), 0 24px 60px rgba(0,0,0,0.85)",
             textAlign: "center", pointerEvents: "auto",
           }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🥚</div>
+            <div style={{ fontSize: 42, marginBottom: 8 }}>🥚</div>
             <h3 style={{ fontFamily: "Lora, Georgia, serif", color: "#f0d060", fontSize: 16, fontWeight: 700, marginBottom: 8, letterSpacing: "0.05em" }}>
-              You Need an Egg!
+              Choose Your First Pet
             </h3>
-            <p style={{ fontFamily: "Lora, Georgia, serif", color: "rgba(200,220,180,0.8)", fontSize: 13, lineHeight: 1.55, marginBottom: 20 }}>
-              Every tamer starts with a companion! Claim your very own Grassland Cow Egg to begin your journey.
+            <p style={{ fontFamily: "Lora, Georgia, serif", color: "rgba(200,220,180,0.8)", fontSize: 12, lineHeight: 1.45, marginBottom: 14 }}>
+              Pick any available 3-star companion. Your choice is yours to keep!
             </p>
-            <button
-              onClick={handleGrantEgg}
-              disabled={grantLoading}
-              style={{
-                width: "100%", padding: "12px 0", borderRadius: 12,
-                background: grantLoading ? "rgba(30,60,20,0.7)" : "linear-gradient(135deg, #3a7a20 0%, #1a5010 100%)",
-                border: "2px solid rgba(212,168,67,0.55)", color: "#f0d060",
-                fontFamily: "Lora, Georgia, serif", fontSize: 14, fontWeight: 700,
-                letterSpacing: "0.08em", cursor: grantLoading ? "wait" : "pointer",
-                boxShadow: "0 0 16px rgba(46,160,46,0.3), 0 4px 14px rgba(0,0,0,0.6)",
-              }}
-            >
-              {grantLoading ? "Claiming…" : "🌱 Claim Your Egg"}
-            </button>
+            <div style={{ maxHeight: "46vh", overflowY: "auto", display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+              {starterPetsLoading && <p style={{ gridColumn: "1 / -1", color: "#d8c58a", fontSize: 12 }}>Loading companions…</p>}
+              {starterPetsError && <p style={{ gridColumn: "1 / -1", color: "#e7a0a0", fontSize: 12 }}>Companions could not load. Tap outside and try again.</p>}
+              {!starterPetsLoading && !starterPetsError && starterPets.length === 0 && (
+                <p style={{ gridColumn: "1 / -1", color: "#d8c58a", fontSize: 12 }}>No complete 3-star pet eggs are available yet.</p>
+              )}
+              {starterPets.map((pet) => {
+                const choosing = grantLoading && selectedStarterId === pet.id;
+                return (
+                  <button
+                    key={pet.id}
+                    data-testid={`button-choose-starter-${pet.id}`}
+                    onClick={() => handleGrantEgg(pet.id)}
+                    disabled={grantLoading}
+                    style={{
+                      minWidth: 0, padding: "8px 6px 10px", borderRadius: 12,
+                      background: choosing ? "rgba(30,60,20,0.7)" : "linear-gradient(160deg, rgba(40,75,30,0.96), rgba(18,45,17,0.98))",
+                      border: "1.5px solid rgba(212,168,67,0.55)", color: "#f0d060",
+                      fontFamily: "Lora, Georgia, serif", fontSize: 11, fontWeight: 700,
+                      cursor: grantLoading ? "wait" : "pointer",
+                    }}
+                  >
+                    {pet.imageUrl && <img src={pet.imageUrl} alt="" style={{ width: 72, height: 72, maxWidth: "100%", objectFit: "contain", margin: "0 auto 4px" }} />}
+                    <span style={{ display: "block", overflowWrap: "anywhere" }}>{choosing ? "Choosing…" : pet.name}</span>
+                    <span style={{ display: "block", color: "#ffd95a", marginTop: 2 }}>★★★</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

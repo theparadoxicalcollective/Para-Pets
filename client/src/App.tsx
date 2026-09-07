@@ -27,7 +27,7 @@ import DevelopmentNoticeScreen from "@/components/DevelopmentNoticeScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
 import FloatingNav from "@/components/FloatingNav";
 import BeginJourneyOverlay from "@/components/BeginJourneyOverlay";
-import { bjGetStatus, bjStart, bjSetStep } from "@/lib/beginJourney";
+import { bjGetStatus, bjSetStep } from "@/lib/beginJourney";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 // ── Lazy-loaded page chunks ────────────────────────────────────────────────
@@ -278,25 +278,20 @@ function AppRouter() {
     return () => window.removeEventListener("navOverlayToggle", handler);
   }, []);
 
-  // Auto-start Begin Journey for logged-in players who have never started the
-  // quest. Catches players who created accounts before the tutorial existed, or
-  // who dismissed the welcome screen without clicking "Collect & Begin Journey".
-  // Skip if showWelcome is true — new players will start it from WelcomeGiftScreen.
-  // If the server says the quest is already complete, sync localStorage so a
-  // new device/browser never re-triggers the tutorial.
+  // Server completion remains authoritative across browsers. An unfinished
+  // quest is no longer auto-started: players with no pets begin it deliberately
+  // from the floating Begin Here button on the home pet stage. Preserve active
+  // in-progress steps across login, and keep the legacy final-step recovery for
+  // players who already have an active pet.
   useEffect(() => {
     if (!user || showWelcome) return;
     if ((user as any).tutorial_quest_completed || (user as any).tutorial_reward_claimed) {
       if (bjGetStatus() !== "done") bjSetStep("done");
       return;
     }
-    // Older clients marked local completion even when the completion request
-    // failed. Reconcile that impossible state back to the final retryable step.
-    if (bjGetStatus() === "done") {
+    if (bjGetStatus() === "done" && (user as any).activePetId) {
       bjSetStep(6);
-      return;
     }
-    if (bjGetStatus() === "not_started") bjStart();
   }, [user, showWelcome]);
 
   // After auth resolves for a logged-in user, fetch inventory and preload the

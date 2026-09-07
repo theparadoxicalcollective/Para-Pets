@@ -32,6 +32,12 @@ export function bjStart() {
   if (bjGetStep() !== "done") bjSetStep(0);
 }
 
+// Explicit player action from the empty active-pet stage. Unlike bjStart, this
+// intentionally repairs stale browser completion left by an interrupted quest.
+export function bjRestart() {
+  bjSetStep(0);
+}
+
 export function bjGetStatus(): "not_started" | "active" | "done" {
   const v = localStorage.getItem(BJ_LS_KEY);
   if (v === null) return "not_started";
