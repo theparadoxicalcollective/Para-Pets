@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { replaceAuthSession } from "@/lib/authSession";
 import warnRedPng from "@assets/Photoroom_20260705_105636_PM_1783310667789.png";
 import { getNextZ } from "@/lib/layerManager";
 import { setNavHidden } from "@/lib/navVisibility";
@@ -264,8 +265,8 @@ export default function UserProfilePanel({ user, onClose, onUserUpdate }: Props)
       return res.json();
     },
     onSuccess: async () => {
-      await queryClient.clear();
-      window.location.href = "/auth";
+      await replaceAuthSession(null, queryClient);
+      window.location.replace("/");
     },
     onError: () => {
       toast({ title: "Error", description: "Logout failed", variant: "destructive" });

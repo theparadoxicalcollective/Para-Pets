@@ -240,9 +240,7 @@ function AppRouter() {
     queryFn: async () => {
       const response = await fetch("/api/auth/me", { credentials: "include" });
       if (response.status === 401) {
-        const previous = queryClient.getQueryData(["/api/auth/me"]);
-        stabilityDiagnostic("auth-401", { retainedAuthenticatedUser: Boolean(previous) });
-        if (previous) throw new Error("Authentication validation temporarily failed (401)");
+        stabilityDiagnostic("auth-401", { clearedAuthenticatedUser: true });
         return null;
       }
       if (!response.ok) throw new Error(`Authentication validation failed (${response.status})`);
@@ -306,7 +304,8 @@ function AppRouter() {
   // popping in after the page is already visible.
   const [isPreloaded, setIsPreloaded] = useState(false);
   useEffect(() => {
-    if (!user || isPreloaded) return;
+    setIsPreloaded(false);
+    if (!user) return;
 
     const lowMemoryPreload = shouldUseLowMemoryPetRenderer(detectRuntimeMode());
 

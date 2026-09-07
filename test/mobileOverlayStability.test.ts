@@ -15,9 +15,10 @@ test("chunk guard survives App mount and clears only after a lazy import succeed
   assert.match(lazyRetry, /looksLikeChunkLoadError && !alreadyReloaded/);
 });
 
-test("background auth 401 retains a previously authenticated overlay", () => {
-  assert.match(app, /if \(previous\) throw new Error\("Authentication validation temporarily failed \(401\)"\)/);
-  assert.match(app, /retainedAuthenticatedUser: Boolean\(previous\)/);
+test("an authoritative auth 401 clears a previously authenticated overlay", () => {
+  assert.match(app, /response\.status === 401[\s\S]*?return null/);
+  assert.doesNotMatch(app, /Authentication validation temporarily failed \(401\)/);
+  assert.doesNotMatch(app, /retainedAuthenticatedUser/);
 });
 
 test("Pet Care and Clearing retain their confirmed pet during inventory refetch", () => {

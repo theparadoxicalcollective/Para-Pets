@@ -199,9 +199,23 @@ app.post("/api/auth/change-unverified-email", isAuthenticated, async (req, res) 
 });
 
 app.post("/api/auth/logout", (req, res) => {
-  req.logout((err) => {
-    if (err) return res.status(500).json({ message: "Logout failed" });
-    return res.json({ message: "Logged out" });
+  req.logout((logoutError) => {
+    if (logoutError) return res.status(500).json({ message: "Logout failed" });
+    const session = (req as typeof req & {
+      session: { destroy(callback: (error?: Error) => void): void };
+    }).session;
+    session.destroy((sessionError?: Error) => {
+      if (sessionError) {
+        console.error("Session destroy after logout failed:", sessionError);
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.clearCookie("connect.sid", {
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      });
+      return res.json({ message: "Logged out" });
+    });
   });
 });
 
