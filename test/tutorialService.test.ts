@@ -200,7 +200,7 @@ test("the seven tutorial steps, wording, visuals, and failure recovery remain un
     "Select your egg as your companion!",
     "Head back home!",
     "Tap your egg!",
-    "Drag a hatch potion onto your egg to reduce hatch time!",
+    "Use all 3 hatching potions on your egg until it is ready!",
     "Tap to finish your journey!",
   ]) assert.ok(overlay.includes(label));
   assert.match(overlay, /tutorialArrow/);
@@ -209,4 +209,28 @@ test("the seven tutorial steps, wording, visuals, and failure recovery remain un
   assert.doesNotMatch(overlay, /onError: \(\) => \{\s*bjSetStep\("done"\)/);
   assert.match(overlay, /potionGrantAttemptedRef\.current = true/);
   assert.match(app, /if \(bjGetStatus\(\) === "done"\) \{\s*bjSetStep\(6\)/);
+});
+
+
+test("Begin Journey exposes all complete production 3-star pets and locks selection", () => {
+  const routes = readFileSync("server/routes.ts", "utf8");
+  assert.match(routes, /app\.get\("\/api\/tutorial\/starter-pets", isAuthenticated/);
+  assert.match(routes, /COALESCE\(star_rarity, rarity\) = 3/);
+  assert.match(routes, /egg_image_url IS NOT NULL/);
+  assert.match(routes, /hatched_image_url IS NOT NULL/);
+  assert.match(routes, /app\.post\("\/api\/tutorial\/grant-starter-egg", isAuthenticated/);
+  assert.match(routes, /FROM users WHERE id = \$\{userId\} FOR UPDATE/);
+  assert.match(routes, /Object\.keys\(req\.body \?\? \{\}\).*key !== "petId"/);
+  assert.doesNotMatch(routes, /includes\("grassland"\).*includes\("cow"\)/s);
+});
+
+test("three tutorial potions, hatching, and completion are server-authoritative", () => {
+  const routes = readFileSync("server/routes.ts", "utf8");
+  const service = readFileSync("server/tutorial/tutorialService.ts", "utf8");
+  assert.match(routes, /tutorialStepMs = \(hatchTimeHours \* 3600 \* 1000\) \/ BEGIN_JOURNEY_TUTORIAL\.hatchPotion\.quantity/);
+  assert.match(routes, /currentStart\.getTime\(\) - tutorialStepMs - 500/);
+  assert.match(service, /pet\.id AS active_pet_id, pet\.is_hatched/);
+  assert.match(service, /COALESCE\(item\.star_rarity, item\.rarity\) AS rarity/);
+  assert.match(service, /player\.is_hatched !== true \|\| Number\(player\.rarity\) !== 3/);
+  assert.match(service, /tutorial_not_ready/);
 });
