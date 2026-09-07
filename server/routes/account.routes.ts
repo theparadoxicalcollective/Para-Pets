@@ -201,7 +201,10 @@ app.post("/api/auth/change-unverified-email", isAuthenticated, async (req, res) 
 app.post("/api/auth/logout", (req, res) => {
   req.logout((logoutError) => {
     if (logoutError) return res.status(500).json({ message: "Logout failed" });
-    req.session.destroy((sessionError) => {
+    const session = (req as typeof req & {
+      session: { destroy(callback: (error?: Error) => void): void };
+    }).session;
+    session.destroy((sessionError?: Error) => {
       if (sessionError) {
         console.error("Session destroy after logout failed:", sessionError);
         return res.status(500).json({ message: "Logout failed" });
