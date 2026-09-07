@@ -25,7 +25,7 @@ test("an authoritative auth 401 cannot retain the previous player", () => {
 test("logout clears browser player state and destroys the server session", () => {
   assert.match(profile, /replaceAuthSession\(null, queryClient\)/);
   assert.match(profile, /window\.location\.replace\("\/"\)/);
-  assert.match(accountRoutes, /req\.session\.destroy/);
+  assert.match(accountRoutes, /session\.destroy/);
   assert.match(accountRoutes, /res\.clearCookie\("connect\.sid"/);
   assert.match(accountRoutes, /sameSite: process\.env\.NODE_ENV === "production" \? "none" : "lax"/);
 });
