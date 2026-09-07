@@ -147,12 +147,6 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
               Preparing your gifts…
             </p>
           )}
-          <button
-            onClick={handleSkip}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(150,130,100,0.4)", fontSize: 10, marginTop: 8 }}
-          >
-            skip for now
-          </button>
         </div>
       ) : (
         <div
