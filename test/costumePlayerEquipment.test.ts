@@ -93,8 +93,8 @@ test("Admin costume library marks pieces already fitted for the selected pet", (
 });
 
 test("Marketplace refuses to list or transfer an equipped costume", () => {
-  assert.match(marketplace, /Unequip this costume before listing it/);
-  assert.match(marketplace, /Listed costume is still equipped/);
+  assert.match(marketplace, /Unequip this adornment before listing it/);
+  assert.match(marketplace, /Listed adornment is still equipped/);
 });
 
 test("Production boot creates both player costume persistence tables safely", () => {

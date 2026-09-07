@@ -4,6 +4,7 @@ import WorldNpcPlacementOverlay from "./components/WorldNpcPlacementOverlay";
 import NpcQuestAwareDialogueBridge from "./components/NpcQuestAwareDialogueBridge";
 import GinnyGuideAlignmentFix from "./components/GinnyGuideAlignmentFix";
 import AdornmentTerminologyBridge from "./components/AdornmentTerminologyBridge";
+import MarketPetListingCopyBridge from "./components/MarketPetListingCopyBridge";
 import { detectRuntimeMode } from "./lib/runtimeMode";
 import "./index.css";
 import "./tabletStageShell.css";
@@ -62,7 +63,6 @@ function reportDiagnostic(event: "error" | "unhandledrejection", message: string
   if (now - previous < DIAGNOSTIC_DEDUPE_MS) return;
   recentDiagnosticKeys.set(dedupeKey, now);
 
-  // Keep the tiny dedupe map bounded during long play sessions.
   if (recentDiagnosticKeys.size > 40) {
     for (const [key, timestamp] of recentDiagnosticKeys) {
       if (now - timestamp > DIAGNOSTIC_DEDUPE_MS) recentDiagnosticKeys.delete(key);
@@ -90,9 +90,7 @@ function reportDiagnostic(event: "error" | "unhandledrejection", message: string
     keepalive: true,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  }).catch(() => {
-    // Diagnostics must never become a new source of player-visible failures.
-  });
+  }).catch(() => {});
 }
 
 function storeError(msg: string, source?: string, event: "error" | "unhandledrejection" = "error") {
@@ -122,5 +120,6 @@ createRoot(document.getElementById("root")!).render(
     <NpcQuestAwareDialogueBridge />
     <GinnyGuideAlignmentFix />
     <AdornmentTerminologyBridge />
+    <MarketPetListingCopyBridge />
   </>,
 );
