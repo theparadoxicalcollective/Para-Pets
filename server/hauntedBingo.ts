@@ -8,6 +8,7 @@ export const HAUNTED_BINGO_DAILY_FREE_GAMES = 1;
 export const HAUNTED_BINGO_BONUS_COUNT = 3;
 export const HAUNTED_BINGO_RIVAL_COUNT = 5;
 export const HAUNTED_BINGO_WINNER_LIMIT = 3;
+export const HAUNTED_BINGO_ROUND_DURATION_MS = 5 * 60 * 1000;
 
 const BINGO_LETTERS = ["B", "I", "N", "G", "O"] as const;
 const ALL_BALLS = Array.from({ length: 75 }, (_, index) => index + 1);
@@ -70,6 +71,8 @@ export interface HauntedBingoPublicRound {
   baseReward: number;
   bonusReward: number;
   createdAt: string | null;
+  expiresAt: string;
+  secondsRemaining: number;
 }
 
 export interface HauntedBingoState {
@@ -335,11 +338,43 @@ export function advanceHauntedBingoRivals(
   };
 }
 
+export function hauntedBingoRoundExpiresAt(createdAt: Date | string | number): Date {
+  const timestamp = createdAt instanceof Date ? createdAt.getTime() : new Date(createdAt).getTime();
+  return new Date((Number.isFinite(timestamp) ? timestamp : 0) + HAUNTED_BINGO_ROUND_DURATION_MS);
+}
+
+export function isHauntedBingoRoundExpired(row: { created_at?: Date | string | number | null }, now = new Date()): boolean {
+  if (!row.created_at) return true;
+  return hauntedBingoRoundExpiresAt(row.created_at).getTime() <= now.getTime();
+}
+
+async function expireTimedOutRounds(executor: any, userId: string): Promise<void> {
+  await executor.execute(sql`
+    UPDATE haunted_bingo_rounds
+    SET status = 'forfeited', updated_at = now()
+    WHERE user_id = ${userId}
+      AND status = 'active'
+      AND created_at <= now() - interval '5 minutes'
+  `);
+}
+
+async function closeRoundIfExpired(executor: any, row: any, userId: string): Promise<boolean> {
+  if (!isHauntedBingoRoundExpired(row)) return false;
+  await executor.execute(sql`
+    UPDATE haunted_bingo_rounds
+    SET status = 'forfeited', updated_at = now()
+    WHERE id = ${String(row.id)} AND user_id = ${userId} AND status = 'active'
+  `);
+  return true;
+}
+
 function publicRound(row: any): HauntedBingoPublicRound {
   const called = toNumberArray(row.called);
   const deck = toNumberArray(row.deck);
   const winners = toWinners(row.winner_order);
   const playerWinner = winners.find((winner) => winner.kind === "player");
+  const expiresAt = hauntedBingoRoundExpiresAt(row.created_at);
+  const secondsRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / 1000));
   return {
     id: String(row.id),
     status: row.status === "won" ? "won" : row.status === "lost" ? "lost" : row.status === "forfeited" ? "forfeited" : "active",
@@ -358,6 +393,8 @@ function publicRound(row: any): HauntedBingoPublicRound {
     baseReward: Number(row.base_reward ?? HAUNTED_BINGO_WIN_REWARD),
     bonusReward: Number(row.bonus_reward ?? 0),
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
+    expiresAt: expiresAt.toISOString(),
+    secondsRemaining,
   };
 }
 
@@ -406,6 +443,7 @@ function stateEnvelope(
 
 export async function getHauntedBingoState(userId: string): Promise<HauntedBingoState> {
   const casinoDay = hauntedBingoCasinoDay();
+  await expireTimedOutRounds(db, userId);
   const [userResult, roundResult] = await Promise.all([
     db.execute(sql`SELECT coins FROM users WHERE id = ${userId} LIMIT 1`),
     db.execute(sql`
@@ -435,6 +473,7 @@ export async function startHauntedBingoRound(userId: string): Promise<HauntedBin
     const user = userResult.rows[0] as any;
     if (!user) throw new HauntedBingoError("player_not_found", 404, "Player not found");
 
+    await expireTimedOutRounds(tx, userId);
     const existingResult = await tx.execute(sql`
       SELECT * FROM haunted_bingo_rounds
       WHERE user_id = ${userId} AND status = 'active'
@@ -503,6 +542,13 @@ export async function callHauntedBingoBall(userId: string, roundId: string): Pro
     let row = roundResult.rows[0] as any;
     if (!row) throw new HauntedBingoError("round_not_found", 404, "That Bingo card could not be found");
     if (row.status !== "active") throw new HauntedBingoError("round_finished", 409, "That Bingo game is already finished");
+    if (await closeRoundIfExpired(tx, row, userId)) {
+      const userResult = await tx.execute(sql`SELECT coins FROM users WHERE id = ${userId} LIMIT 1`);
+      const user = userResult.rows[0] as any;
+      if (!user) throw new HauntedBingoError("player_not_found", 404, "Player not found");
+      const freeAvailable = await freeGameAvailable(tx, userId, casinoDay);
+      return stateEnvelope(Number(user.coins ?? 0), freeAvailable, null);
+    }
     row = await ensureRoundRivals(tx, row);
 
     const deck = toNumberArray(row.deck);
@@ -520,13 +566,14 @@ export async function callHauntedBingoBall(userId: string, roundId: string): Pro
       );
       const playerAlreadyPlaced = advanced.winners.some((winner) => winner.kind === "player");
       const fieldFilled = advanced.winners.length >= HAUNTED_BINGO_WINNER_LIMIT && !playerAlreadyPlaced;
+      const roundFinished = fieldFilled || remaining.length === 0;
       const updated = await tx.execute(sql`
         UPDATE haunted_bingo_rounds
         SET deck = ${JSON.stringify(remaining)}::jsonb,
             called = ${JSON.stringify(nextCalled)}::jsonb,
             rivals = ${JSON.stringify(advanced.rivals)}::jsonb,
             winner_order = ${JSON.stringify(advanced.winners)}::jsonb,
-            status = ${fieldFilled ? "lost" : "active"},
+            status = ${roundFinished ? "lost" : "active"},
             updated_at = now()
         WHERE id = ${roundId} AND user_id = ${userId} AND status = 'active'
         RETURNING *
@@ -575,6 +622,13 @@ export async function markHauntedBingoCell(
     if (row.status !== "active") {
       const message = row.status === "lost" ? "The three prize spots are already filled. This card is closed." : "That Bingo game is already finished";
       throw new HauntedBingoError("round_finished", 409, message);
+    }
+    if (await closeRoundIfExpired(tx, row, userId)) {
+      const userResult = await tx.execute(sql`SELECT coins FROM users WHERE id = ${userId} LIMIT 1`);
+      const user = userResult.rows[0] as any;
+      if (!user) throw new HauntedBingoError("player_not_found", 404, "Player not found");
+      const freeAvailable = await freeGameAvailable(tx, userId, casinoDay);
+      return { ...stateEnvelope(Number(user.coins ?? 0), freeAvailable, null), reward: null };
     }
     row = await ensureRoundRivals(tx, row);
 
