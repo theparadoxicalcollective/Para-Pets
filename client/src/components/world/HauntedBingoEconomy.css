@@ -470,7 +470,7 @@
     max-height: 20px;
     transform: translateX(-50%);
     flex-wrap: nowrap;
-    justify-content: flex-end;
+    justify-content: center;
     gap: 3px;
     overflow: hidden;
     margin: 0;
@@ -580,4 +580,19 @@
   .haunted-bingo-history-chip,
   .haunted-bingo-rival,
   .haunted-bingo-rival::after { animation: none; }
+}
+
+
+.haunted-bingo-round-timer {
+  align-self: center;
+  margin-top: 2px;
+  border: 1px solid rgba(252, 211, 77, .45);
+  border-radius: 999px;
+  background: rgba(3, 45, 34, .9);
+  color: #fef3c7;
+  padding: 3px 9px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .36);
 }
