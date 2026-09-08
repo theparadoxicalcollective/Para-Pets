@@ -6,6 +6,7 @@ const bingo = readFileSync("client/src/components/world/HauntedBingoOverlay.tsx"
 const bingoCss = readFileSync("client/src/components/world/HauntedBingoOverlay.css", "utf8");
 const bingoEconomyCss = readFileSync("client/src/components/world/HauntedBingoEconomy.css", "utf8");
 const bingoPolishCss = readFileSync("client/src/components/world/HauntedBingoPolish.css", "utf8");
+const casinoMobilePolishCss = readFileSync("client/src/components/world/CasinoMobilePolish.css", "utf8");
 const casinoRuntime = readFileSync("client/src/components/world/HauntedCasinoRuntime.tsx", "utf8");
 const bingoServer = readFileSync("server/hauntedBingo.ts", "utf8");
 const casinoRoutes = readFileSync("server/routes/hauntedCasino.routes.ts", "utf8");
@@ -92,7 +93,10 @@ test("Main Bingo card stays shifted while call history and top artwork use globa
   assert.match(bingoPolishCss, /\.haunted-bingo-cage,[\s\S]*?translate:\s*16px 0/);
   assert.match(bingoPolishCss, /\.haunted-bingo-call-zone[\s\S]*?translate:\s*-24px 0/);
   assert.match(bingoPolishCss, /\.haunted-bingo-history[\s\S]*?translate:\s*0 -16px/);
-  assert.match(bingoEconomyCss, /justify-content:\s*flex-end/);
+  assert.match(bingoEconomyCss, /justify-content:\s*center/);
+  assert.match(casinoMobilePolishCss, /\.haunted-bingo-stage\.is-idle \.haunted-bingo-card-zone[\s\S]*?padding-right:\s*0/);
+  assert.match(casinoMobilePolishCss, /\.haunted-bingo-stage\.is-idle \.haunted-bingo-card[\s\S]*?margin-left:\s*auto[\s\S]*?transform:\s*none/);
+  assert.match(casinoMobilePolishCss, /\.haunted-bingo-cage-wallet[\s\S]*?width:\s*calc\(100vw - 20px\)[\s\S]*?justify-content:\s*center/);
   assert.match(bingoEconomyCss, /haunted-bingo-call-ticker-in/);
 });
 
@@ -101,7 +105,8 @@ test("Every Bingo round races five server-owned rivals but still closes after th
   assert.match(bingoServer, /HAUNTED_BINGO_WINNER_LIMIT = 3/);
   assert.match(bingoServer, /completeHauntedBingoRivals/);
   assert.match(bingoServer, /advanceHauntedBingoRivals/);
-  assert.match(bingoServer, /fieldFilled[\s\S]*?status = \$\{fieldFilled \? "lost" : "active"\}/);
+  assert.match(bingoServer, /roundFinished = fieldFilled \|\| remaining\.length === 0/);
+  assert.match(bingoServer, /status = \$\{roundFinished \? "lost" : "active"\}/);
   assert.match(bingoServer, /winners\.length < HAUNTED_BINGO_WINNER_LIMIT/);
   assert.match(bingoMigration, /ADD COLUMN IF NOT EXISTS rivals JSONB/);
   assert.match(bingoMigration, /ADD COLUMN IF NOT EXISTS winner_order JSONB/);
@@ -119,10 +124,12 @@ test("Five rival mini cards remain in a separate rail from the shifted main card
   assert.match(bingoEconomyCss, /haunted-bingo-rival-sheen/);
 });
 
-test("Active Bingo cards persist instead of allowing free client-side rerolls", () => {
-  assert.match(bingoServer, /WHERE user_id = \$\{userId\} AND status = 'active'/);
-  assert.match(bingoServer, /FOR UPDATE/);
-  assert.match(bingo, /every called number stays markable|real finish line/);
+test("Active Bingo cards expire instead of being held indefinitely", () => {
+  assert.match(bingoServer, /HAUNTED_BINGO_ROUND_DURATION_MS = 5 \* 60 \* 1000/);
+  assert.match(bingoServer, /created_at <= now\(\) - interval '5 minutes'/);
+  assert.match(bingoServer, /SET status = 'forfeited'/);
+  assert.match(bingo, /TIME \{formatRoundTime\(roundSecondsRemaining\)\}/);
+  assert.match(bingo, /clock keeps running if you leave/);
   assert.doesNotMatch(bingo, /New Card/);
 });
 
