@@ -33,7 +33,9 @@
   }
 
   .haunted-bingo-cage-wallet {
-    width: min(29vw, 122px);
+    width: calc(100vw - 20px);
+    max-width: 1050px;
+    justify-content: center;
     transform: translate(0, -5px);
   }
 
@@ -59,6 +61,17 @@
   .haunted-bingo-card {
     width: min(calc(100vw - 76px), 350px);
     margin-left: 0;
+    margin-right: auto;
+    transform: none;
+  }
+
+  .haunted-bingo-stage.is-idle .haunted-bingo-card-zone {
+    padding-right: 0;
+  }
+
+  .haunted-bingo-stage.is-idle .haunted-bingo-card {
+    width: min(84vw, 372px);
+    margin-left: auto;
     margin-right: auto;
     transform: none;
   }
