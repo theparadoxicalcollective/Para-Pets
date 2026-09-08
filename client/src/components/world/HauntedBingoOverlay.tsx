@@ -57,6 +57,8 @@ interface BingoRound {
   baseReward: number;
   bonusReward: number;
   createdAt: string | null;
+  expiresAt: string;
+  secondsRemaining: number;
 }
 
 interface BingoState {
@@ -112,6 +114,15 @@ function ordinal(value: number): string {
 function autoCallDelay(calledCount: number): number {
   const progress = Math.max(0, Math.min(1, calledCount / AUTO_CALL_RAMP_CALLS));
   return Math.round(AUTO_CALL_START_MS - ((AUTO_CALL_START_MS - AUTO_CALL_END_MS) * progress));
+}
+
+function secondsUntil(expiresAt: string): number {
+  return Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000));
+}
+
+function formatRoundTime(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 function bingoMarksNeeded(marked: ReadonlySet<string>): number {
@@ -176,8 +187,10 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
   const [markingKey, setMarkingKey] = useState<string | null>(null);
   const [reward, setReward] = useState<BingoReward | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [roundSecondsRemaining, setRoundSecondsRemaining] = useState<number | null>(null);
   const mountedRef = useRef(true);
   const callInFlightRef = useRef(false);
+  const expiryRefreshInFlightRef = useRef(false);
 
   const round = state?.round ?? null;
   const calledSet = useMemo(() => new Set(round?.called ?? []), [round?.called]);
@@ -215,6 +228,42 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
       mountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!round || round.status !== "active") {
+      setRoundSecondsRemaining(null);
+      return;
+    }
+
+    let cancelled = false;
+    const tick = () => {
+      const seconds = secondsUntil(round.expiresAt);
+      if (!cancelled) setRoundSecondsRemaining(seconds);
+      if (seconds > 0 || expiryRefreshInFlightRef.current) return;
+
+      expiryRefreshInFlightRef.current = true;
+      setAutoCall(false);
+      fetch("/api/haunted-casino/bingo", { credentials: "include" })
+        .then((response) => readJson<BingoState>(response))
+        .then((payload) => {
+          if (cancelled || !mountedRef.current) return;
+          setState(payload);
+          syncCoinBalance(payload.balances.coins);
+          if (!payload.round) setError("Time’s up — that Bingo round has ended.");
+        })
+        .catch((reason) => {
+          if (!cancelled && mountedRef.current) setError(reason instanceof Error ? reason.message : "The finished Bingo round could not be refreshed.");
+        })
+        .finally(() => { expiryRefreshInFlightRef.current = false; });
+    };
+
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [round?.id, round?.expiresAt, round?.status]);
 
   const closeBingo = () => {
     setAutoCall(false);
@@ -266,6 +315,7 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
         setState(payload);
         syncCoinBalance(payload.balances.coins);
         if (payload.round?.status !== "active") setAutoCall(false);
+        if (!payload.round && activeRound.status === "active") setError("That Bingo round has ended.");
       }
     } catch (reason) {
       if (mountedRef.current) {
@@ -302,6 +352,7 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
       if (!mountedRef.current) return;
       setState(payload);
       syncCoinBalance(payload.balances.coins);
+      if (!payload.round && round.status === "active") setError("That Bingo round has ended.");
       if (payload.reward) {
         setReward(payload.reward);
         setAutoCall(false);
@@ -357,7 +408,7 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
       <main className="haunted-bingo-shell">
         <header className="haunted-bingo-header haunted-bingo-header-spacer" aria-hidden="true" />
 
-        <div className="haunted-bingo-stage">
+        <div className={`haunted-bingo-stage ${round ? "is-active-round" : "is-idle"}`}>
           <section className="haunted-bingo-cage-zone" aria-label="Bingo ball cage">
             <div className={`haunted-bingo-cage ${shuffling ? "is-shuffling" : ""}`}>
               <div className="haunted-bingo-cage-balls" aria-hidden="true">
@@ -453,6 +504,9 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
                 <div className="haunted-bingo-ready-call">READY</div>
               ) : null}
             </div>
+            {round?.status === "active" && roundSecondsRemaining != null && (
+              <div className="haunted-bingo-round-timer" aria-live="polite">TIME {formatRoundTime(roundSecondsRemaining)}</div>
+            )}
           </section>
         </div>
 
@@ -500,7 +554,7 @@ export default function HauntedBingoOverlay({ onClose }: { onClose: () => void }
         )}
         <p className="haunted-bingo-help">
           {round
-            ? `Race ${rivalCount} casino rivals. The first ${winnerLimit} Bingos pay; once the prize spots fill, the round ends. Auto Call gradually speeds up as the round heats up, but every called number stays markable. Sparkling numbers are ready to mark, and ghost coin spaces add to a winning payout when covered.`
+            ? `Race ${rivalCount} casino rivals before the five-minute clock runs out. The clock keeps running if you leave, and the round ends when time expires, the prize spots fill, or all balls are called. Auto Call gradually speeds up, while sparkling numbers remain ready to mark and ghost coin spaces add to a winning payout when covered.`
             : `One free Bingo game each casino day. Each card races ${rivalCount} casino rivals, so every round has a real finish line.`}
         </p>
       </main>
