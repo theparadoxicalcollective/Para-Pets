@@ -87,7 +87,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [partsOverlayTemplateId, setPartsOverlayTemplateId] = useState<string | null>(null);
   const [partsOverlayDirty, setPartsOverlayDirty] = useState(false);
   const closePartsOverlay = () => {
-    if (partsOverlayDirty && !window.confirm("Discard the unsaved costume placement?")) return;
+    if (partsOverlayDirty && !window.confirm("Discard the unsaved adornment placement?")) return;
     setPartsOverlayDirty(false);
     setPartsOverlayTemplateId(null);
   };
@@ -5067,3 +5067,4 @@ function RecipeItemsSection() {
     </div>
   );
 }
+

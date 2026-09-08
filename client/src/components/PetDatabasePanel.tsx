@@ -282,7 +282,7 @@ type EditorTab = "parts" | "evolution" | "costume";
 function EditorTabs({ active, onChange }: { active: EditorTab; onChange: (tab: EditorTab) => void }) {
   return <>
     <nav aria-label="Pet editor" className="flex flex-wrap gap-2">
-      {(["parts", "evolution", "costume"] as const).map(tab => <button key={tab} data-testid={`tab-pet-editor-${tab}`} onClick={() => onChange(tab)} className="rounded-md px-3 py-2 font-fantasy text-[10px] tracking-wider" style={{ background: active === tab ? "rgba(240,192,64,.24)" : "rgba(0,0,0,.3)", border: "1px solid rgba(240,192,64,.3)", color: active === tab ? "#f0c040" : "#a89878" }}>{tab.toUpperCase()}</button>)}
+      {(["parts", "evolution", "costume"] as const).map(tab => <button key={tab} data-testid={`tab-pet-editor-${tab}`} onClick={() => onChange(tab)} className="rounded-md px-3 py-2 font-fantasy text-[10px] tracking-wider" style={{ background: active === tab ? "rgba(240,192,64,.24)" : "rgba(0,0,0,.3)", border: "1px solid rgba(240,192,64,.3)", color: active === tab ? "#f0c040" : "#a89878" }}>{tab === "costume" ? "ADORNMENTS" : tab.toUpperCase()}</button>)}
     </nav>
   </>;
 }
@@ -408,13 +408,14 @@ export default function PetDatabasePanel({
     enabled: !!selectedTemplateId,
   });
 
-  const { data: costumeItems = [] } = useQuery<CostumeItem[]>({
+  const { data: costumeItems = [], isPending: costumeItemsLoading, isError: costumeItemsError, refetch: refetchCostumeItems } = useQuery<CostumeItem[]>({
     queryKey: ["/api/admin/costumes"],
     // Costume media is intentionally lazy: the normal parts editor should not
     // download the costume library.
     enabled: !!selectedTemplateId && editorTab === "costume",
+    staleTime: 0,
   });
-  const { data: costumeDefinitions = [] } = useQuery<CostumeDefinition[]>({
+  const { data: costumeDefinitions = [], isPending: costumeDefinitionsLoading, isError: costumeDefinitionsError, refetch: refetchCostumeDefinitions } = useQuery<CostumeDefinition[]>({
     queryKey: ["/api/admin/costume-definitions", selectedTemplateId],
     queryFn: async () => {
       const res = await fetch(`/api/admin/costume-definitions?templateId=${selectedTemplateId}`, { credentials: "include" });
@@ -422,6 +423,7 @@ export default function PetDatabasePanel({
       return res.json();
     },
     enabled: !!selectedTemplateId && editorTab === "costume",
+    staleTime: 0,
   });
   // Reopening a template restores a saved placement into the same editor
   // surface; admins can then choose another piece from the selector.
@@ -505,7 +507,7 @@ export default function PetDatabasePanel({
     }
     getWingReplacementPartTypes(placement.anchorPart).forEach(part => previewHiddenWings.add(part));
   }
-  const canSaveCostumePlacement = !!selectedCostumePlacement && (costumeDraftDirty || !savedCostumePlacement);
+  const canSaveCostumePlacement = !costumeDefinitionsLoading && !costumeDefinitionsError && !!selectedCostumePlacement && (costumeDraftDirty || !savedCostumePlacement);
   const nextCostumeInstance = Array.from({ length: COSTUME_MAX_PLACEMENT_INSTANCES }, (_, index) => index + 1)
     .find(instance => !costumeInstances.includes(instance));
   const canDuplicateCostumePlacement = !!selectedCostumeItem && !!savedCostumePlacement && !costumeDraftDirty && nextCostumeInstance !== undefined;
@@ -705,9 +707,10 @@ export default function PetDatabasePanel({
         data,
       ]);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/costume-definitions", selectedTemplateId] });
-      toast({ title: "Costume saved", description: `${selectedCostumeItem?.name ?? "Costume"} placement saved for the ${currentCostumeView} view.` });
+      queryClient.invalidateQueries({ predicate: query => query.queryKey[0] === "/api/pet" && query.queryKey[2] === "costumes" });
+      toast({ title: "Adornment saved", description: `${selectedCostumeItem?.name ?? "Costume"} placement saved for the ${currentCostumeView} view.` });
     },
-    onError: (error: Error) => toast({ title: "Could not save costume", description: error.message || "Failed to save costume placement", variant: "destructive" }),
+    onError: (error: Error) => toast({ title: "Could not save adornment", description: error.message || "Failed to save adornment placement", variant: "destructive" }),
   });
 
   const removeCostumeInstanceMutation = useMutation({
@@ -726,9 +729,10 @@ export default function PetDatabasePanel({
         data,
       ]);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/costume-definitions", selectedTemplateId] });
-      toast({ title: "Costume copy removed" });
+      queryClient.invalidateQueries({ predicate: query => query.queryKey[0] === "/api/pet" && query.queryKey[2] === "costumes" });
+      toast({ title: "Adornment copy removed" });
     },
-    onError: (error: Error) => toast({ title: "Could not remove costume copy", description: error.message || "Failed to remove costume copy", variant: "destructive" }),
+    onError: (error: Error) => toast({ title: "Could not remove adornment copy", description: error.message || "Failed to remove adornment copy", variant: "destructive" }),
   });
 
   const updateCostumeDraft = (changes: Partial<CostumePlacement>) => {
@@ -807,14 +811,14 @@ export default function PetDatabasePanel({
   };
   const selectCostume = (itemId: string) => {
     if (saveCostumeMutation.isPending || itemId === selectedCostumeId) return;
-    if (costumeDraftDirty && !window.confirm("Discard the unsaved costume placement?")) return;
+    if (costumeDraftDirty && !window.confirm("Discard the unsaved adornment placement?")) return;
     discardCostumeDraft();
     setSelectedCostumeId(itemId);
     setSelectedCostumeInstance(1);
   };
   const selectCostumeInstance = (instance: number) => {
     if (saveCostumeMutation.isPending || removeCostumeInstanceMutation.isPending || instance === selectedCostumeInstance) return;
-    if (costumeDraftDirty && !window.confirm("Discard the unsaved costume placement?")) return;
+    if (costumeDraftDirty && !window.confirm("Discard the unsaved adornment placement?")) return;
     discardCostumeDraft();
     setSelectedCostumeInstance(instance);
   };
@@ -825,14 +829,14 @@ export default function PetDatabasePanel({
   };
   const changeCostumeView = (mode: "front" | "side") => {
     if (saveCostumeMutation.isPending || mode === facingMode) return;
-    if (costumeDraftDirty && !window.confirm("Discard the unsaved costume placement?")) return;
+    if (costumeDraftDirty && !window.confirm("Discard the unsaved adornment placement?")) return;
     discardCostumeDraft();
     setSelectedPartId(null);
     setFacingMode(mode);
   };
   const changeEditorTab = (tab: EditorTab) => {
     if (saveCostumeMutation.isPending || tab === editorTab) return;
-    if (editorTab === "costume" && costumeDraftDirty && !window.confirm("Discard the unsaved costume placement?")) return;
+    if (editorTab === "costume" && costumeDraftDirty && !window.confirm("Discard the unsaved adornment placement?")) return;
     if (editorTab === "costume") discardCostumeDraft();
     setSelectedPartId(null);
     setEditorTab(tab);
@@ -1066,12 +1070,12 @@ export default function PetDatabasePanel({
 
         <div className="rounded-lg px-3 py-3 space-y-3" style={{ background: "rgba(52,28,72,.28)", border: "1px solid rgba(192,132,252,.3)" }}>
           <div>
-            <h3 className="font-fantasy text-[#c084fc] text-sm tracking-widest">{templateDetail.name} — Costume Placement</h3>
+            <h3 className="font-fantasy text-[#c084fc] text-sm tracking-widest">{templateDetail.name} — Adornment Placement</h3>
             <p className="mt-1 text-[11px]" style={{ color: "#a89878" }}>
-              Choose a view and costume, then drag the artwork directly into place on the pet.
+              Choose a view and adornment, then drag the artwork directly into place on the pet.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Costume placement view">
+          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Adornment placement view">
             <button
               data-testid="button-costume-view-front"
               onClick={() => changeCostumeView("front")}
@@ -1097,25 +1101,25 @@ export default function PetDatabasePanel({
           <aside className="order-1 rounded-xl p-3 space-y-3" style={{ background: "linear-gradient(180deg,rgba(52,28,72,.48),rgba(20,12,30,.72))", border: "1px solid rgba(192,132,252,.38)", boxShadow: "inset 0 0 18px rgba(192,132,252,.05)" }}>
             <div className="flex items-center justify-between gap-2">
               <div>
-                <p className="font-fantasy text-[9px] tracking-widest" style={{ color: "#c084fc" }}>COSTUME VAULT</p>
+                <p className="font-fantasy text-[9px] tracking-widest" style={{ color: "#c084fc" }}>ADORNMENT VAULT</p>
                 <p className="mt-1 text-[10px]" style={{ color: "#a89878" }}>Choose artwork to place.</p>
               </div>
               <span className="rounded-full px-2 py-1 text-[9px] font-semibold" style={{ background: "rgba(192,132,252,.13)", border: "1px solid rgba(192,132,252,.3)", color: "#d8b4fe" }}>{costumeItems.length} ITEMS</span>
             </div>
             <label className="relative block">
-              <span className="sr-only">Search costume items</span>
+              <span className="sr-only">Search adornment items</span>
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 pointer-events-none" style={{ color: "#c084fc" }} />
               <input
                 data-testid="input-costume-search"
                 type="search"
                 value={costumeSearch}
                 onChange={event => setCostumeSearch(event.target.value)}
-                placeholder="Search costumes…"
+                placeholder="Search adornments…"
                 className="w-full rounded-lg py-2 pl-8 pr-3 text-[11px] outline-none"
                 style={{ background: "rgba(0,0,0,.34)", border: "1px solid rgba(192,132,252,.28)", color: "#f3e8ff" }}
               />
             </label>
-            <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-2 gap-2 max-h-64 xl:max-h-[520px] overflow-y-auto pr-1" aria-label="Costume library">
+            <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-2 gap-2 max-h-64 xl:max-h-[520px] overflow-y-auto pr-1" aria-label="Adornment library">
               {filteredCostumeItems.map(item => {
                 const selected = selectedCostumeId === item.id;
                 const fittedForPet = costumeDefinitions.some(definition =>
@@ -1150,19 +1154,23 @@ export default function PetDatabasePanel({
                 );
               })}
             </div>
-            {!costumeItems.length && <p className="text-xs" style={{ color: "#a89878" }}>No saved Costume items yet.</p>}
-            {!!costumeItems.length && !filteredCostumeItems.length && <p className="py-4 text-center text-xs" style={{ color: "#a89878" }}>No costumes match “{costumeSearch}”.</p>}
+            {costumeItemsLoading && <p role="status" className="text-xs" style={{ color: "#a89878" }}>Loading adornments…</p>}
+            {costumeItemsError && <p role="alert" className="text-xs" style={{ color: "#a89878" }}>Could not load adornments. <button type="button" className="underline" onClick={() => void refetchCostumeItems()}>Try again</button></p>}
+            {!costumeItemsLoading && !costumeItemsError && !costumeItems.length && <p className="text-xs" style={{ color: "#a89878" }}>No saved adornments yet. Add an item with the Adornment type in the item database, then return here to fit it to this pet.</p>}
+            {costumeDefinitionsLoading && <p role="status" className="text-xs" style={{ color: "#a89878" }}>Loading saved placements…</p>}
+            {costumeDefinitionsError && <p role="alert" className="text-xs" style={{ color: "#a89878" }}>Could not load saved placements. <button type="button" className="underline" onClick={() => void refetchCostumeDefinitions()}>Try again</button></p>}
+            {!!costumeItems.length && !filteredCostumeItems.length && <p className="py-4 text-center text-xs" style={{ color: "#a89878" }}>No adornments match “{costumeSearch}”.</p>}
           </aside>
 
           <section className="order-3 xl:order-2 space-y-2">
             <style>{ADORNMENT_MOTION_CSS}</style>
             <p className="text-center text-[11px]" style={{ color: selectedCostumeItem ? "#d8b4fe" : "#a89878" }}>
-              {selectedCostumeItem ? "Press and drag the costume to position it. It will not save until you tap Save placement." : "Select a costume from the library to begin."}
+              {selectedCostumeItem ? "Press and drag the adornment to position it. It will not save until you tap Save placement." : "Select an adornment from the library to begin."}
             </p>
             <div
               ref={canvasRef}
               data-testid="costume-placement-canvas"
-              aria-label="Drag costume placement canvas"
+              aria-label="Drag adornment placement canvas"
               className="relative aspect-square rounded-lg select-none"
               style={{
                 width: "100%",
@@ -1244,7 +1252,7 @@ export default function PetDatabasePanel({
                     <button
                       type="button"
                       data-testid="button-duplicate-costume-piece"
-                      aria-label="Duplicate costume piece"
+                      aria-label="Duplicate adornment piece"
                       title={canDuplicateCostumePlacement ? "Duplicate this fitted piece" : nextCostumeInstance === undefined ? "Maximum of 3 duplicates reached" : "Save this placement before duplicating it"}
                       onClick={duplicateCostumePlacement}
                       disabled={!canDuplicateCostumePlacement || saveCostumeMutation.isPending || removeCostumeInstanceMutation.isPending}
@@ -1357,9 +1365,9 @@ export default function PetDatabasePanel({
                     style={{ accentColor: "#c084fc" }}
                   />
                   <div className="mt-2 grid grid-cols-3 gap-2">
-                    <button type="button" aria-label="Rotate costume left 15 degrees" onClick={() => rotateCostume((selectedCostumePlacement.rotation ?? 0) - 15)} disabled={saveCostumeMutation.isPending} className="grid place-items-center rounded p-2 disabled:opacity-50" style={{ background: "rgba(0,0,0,.25)", border: "1px solid rgba(192,132,252,.25)", color: "#d8b4fe" }}><RotateCcw className="h-4 w-4" /></button>
+                    <button type="button" aria-label="Rotate adornment left 15 degrees" onClick={() => rotateCostume((selectedCostumePlacement.rotation ?? 0) - 15)} disabled={saveCostumeMutation.isPending} className="grid place-items-center rounded p-2 disabled:opacity-50" style={{ background: "rgba(0,0,0,.25)", border: "1px solid rgba(192,132,252,.25)", color: "#d8b4fe" }}><RotateCcw className="h-4 w-4" /></button>
                     <button type="button" onClick={() => rotateCostume(0)} disabled={saveCostumeMutation.isPending} className="rounded p-2 text-[9px] disabled:opacity-50" style={{ background: "rgba(0,0,0,.25)", border: "1px solid rgba(192,132,252,.25)", color: "#d8b4fe" }}>RESET</button>
-                    <button type="button" aria-label="Rotate costume right 15 degrees" onClick={() => rotateCostume((selectedCostumePlacement.rotation ?? 0) + 15)} disabled={saveCostumeMutation.isPending} className="grid place-items-center rounded p-2 disabled:opacity-50" style={{ background: "rgba(0,0,0,.25)", border: "1px solid rgba(192,132,252,.25)", color: "#d8b4fe" }}><RotateCw className="h-4 w-4" /></button>
+                    <button type="button" aria-label="Rotate adornment right 15 degrees" onClick={() => rotateCostume((selectedCostumePlacement.rotation ?? 0) + 15)} disabled={saveCostumeMutation.isPending} className="grid place-items-center rounded p-2 disabled:opacity-50" style={{ background: "rgba(0,0,0,.25)", border: "1px solid rgba(192,132,252,.25)", color: "#d8b4fe" }}><RotateCw className="h-4 w-4" /></button>
                   </div>
                 </div>
                 <button
@@ -1424,7 +1432,7 @@ export default function PetDatabasePanel({
                 </div>
               </>
             ) : (
-              <p className="text-xs" style={{ color: "#a89878" }}>Select a costume to anchor, drag, resize, and save it.</p>
+              <p className="text-xs" style={{ color: "#a89878" }}>Select an adornment to anchor, drag, resize, and save it.</p>
             )}
           </aside>
         </div>
@@ -2239,3 +2247,4 @@ export default function PetDatabasePanel({
     </div>
   );
 }
+
