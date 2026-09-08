@@ -75,7 +75,7 @@ export const ITEM_CATEGORIES = [
   { key: "fish",        label: "Fish",        color: "#22d3ee" },
   { key: "bait",        label: "Bait",        color: "#86efac" },
   { key: "accessories", label: "Accessories", color: "#f9a8d4" },
-  { key: "costumes",    label: "Costumes",    color: "#c084fc" },
+  { key: "costumes",    label: "Adornments",    color: "#c084fc" },
   { key: "clearing",    label: "Clearing Equipment", color: "#5eead4" },
   { key: "power_ups",   label: "Power Ups",   color: "#fde68a" },
   { key: "decor",       label: "Decor",       color: "#d9f99d" },
@@ -210,6 +210,7 @@ export default function ItemDatabaseSection({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/shop-items-all"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/costumes"] });
       toast({ title: "Deleted", description: "Item removed from game" });
     },
     onError: () => {
@@ -231,6 +232,7 @@ export default function ItemDatabaseSection({
     setShowForm(false);
     setEditingItem(null);
     queryClient.invalidateQueries({ queryKey: ["/api/admin/shop-items-all"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/admin/costumes"] });
     queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
     WORLD_OPTIONS.forEach(w => {
       queryClient.invalidateQueries({ queryKey: ["/api/shop", w.id] });
@@ -897,7 +899,7 @@ function AdminItemForm({
           </div>
 
           <div>
-            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">{type === "costume" ? "Costume Price" : "Price"}</label>
+            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">{type === "costume" ? "Adornment Price" : "Price"}</label>
             <input
               data-testid="input-item-price"
               type="number"
@@ -1687,3 +1689,4 @@ export function ItemPickerModal({
     </div>
   );
 }
+

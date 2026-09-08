@@ -71,7 +71,7 @@ test("costume editor provides proportional sizing and offset-preserving direct d
 });
 
 test("dirty costume drafts are protected when switching items, tabs, or closing the overlay", () => {
-  assert.match(editor, /Discard the unsaved costume placement\?/);
+  assert.match(editor, /Discard the unsaved adornment placement\?/);
   assert.match(editor, /const selectCostume = \(itemId: string\) => \{/);
   assert.match(editor, /const changeEditorTab = \(tab: EditorTab\) => \{/);
   assert.match(editor, /const changeCostumeView = \(mode: "front" \| "side"\) => \{/);
@@ -79,7 +79,7 @@ test("dirty costume drafts are protected when switching items, tabs, or closing 
   assert.match(editor, /data-testid="button-costume-view-side"/);
   assert.match(editor, /window\.addEventListener\("beforeunload", warnBeforeUnload\)/);
   assert.match(editor, /onCostumeDirtyChange\?\.\(costumeDraftDirty\)/);
-  assert.match(adminPage, /if \(partsOverlayDirty && !window\.confirm\("Discard the unsaved costume placement\?"\)\) return/);
+  assert.match(adminPage, /if \(partsOverlayDirty && !window\.confirm\("Discard the unsaved adornment placement\?"\)\) return/);
   assert.match(adminPage, /onClick=\{closePartsOverlay\}/);
   assert.match(adminPage, /onCostumeDirtyChange=\{setPartsOverlayDirty\}/);
 });
@@ -169,12 +169,13 @@ test("costume vault scales through search and a compact thumbnail grid", () => {
   assert.match(editor, /data-testid="input-costume-search"/);
   assert.match(editor, /filteredCostumeItems/);
   assert.match(editor, /grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-2/);
-  assert.match(editor, /COSTUME VAULT/);
+  assert.match(editor, /ADORNMENT VAULT/);
 });
 
 test("production boot creates the costume definition table used by the save route", () => {
   assert.match(bootMigrations, /CREATE TABLE IF NOT EXISTS pet_costume_definitions/);
   assert.match(bootMigrations, /CREATE UNIQUE INDEX IF NOT EXISTS pet_costume_definitions_item_template_uidx/);
 });
+
 
 

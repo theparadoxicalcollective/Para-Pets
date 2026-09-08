@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 
 const WORDING: ReadonlyArray<[RegExp, string]> = [
+  [/\bCOSTUMES\b/g, "ADORNMENTS"],
+  [/\bCOSTUME\b/g, "ADORNMENT"],
   [/\bCostumes\b/g, "Adornments"],
   [/\bCostume\b/g, "Adornment"],
   [/\bcostumes\b/g, "adornments"],
