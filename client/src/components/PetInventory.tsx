@@ -45,6 +45,7 @@ interface InventoryItem {
   shopItemId: string;
   acquiredAt: string;
   name: string;
+  description: string | null;
   type: string;
   imageUrl: string | null;
   worldId: string;
@@ -1046,6 +1047,7 @@ function PetView({
 }
 
 function getItemDescription(item: InventoryItem): string {
+  if (item.description?.trim()) return item.description.trim();
   const parts: string[] = [];
   if (item.statBoostType && item.statBoostAmount) {
     const label = item.statBoostType === "health" ? "HP" : item.statBoostType === "atk" ? "ATK" : item.statBoostType === "def" ? "DEF" : item.statBoostType;

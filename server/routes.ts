@@ -1845,6 +1845,7 @@ export async function registerRoutes(
         shopItemId: inv.shopItemId,
         acquiredAt: inv.acquiredAt,
         name: shopItem?.name || "Unknown",
+        description: shopItem?.description || null,
         type: shopItem?.type || "item",
         imageUrl: shopItem?.imageUrl || null,
         worldId: shopItem?.worldId || "",
@@ -5047,7 +5048,7 @@ export async function registerRoutes(
         const items = bundle ? await storage.getRewardBundleItems(bundle.id) : [];
         const itemDetails = await Promise.all(items.map(async (bi) => {
           const shopItem = await storage.getShopItem(bi.shopItemId);
-          return shopItem ? { id: shopItem.id, name: shopItem.name, type: shopItem.type, imageUrl: shopItem.imageUrl, eggImageUrl: shopItem.eggImageUrl } : null;
+          return shopItem ? { id: shopItem.id, name: shopItem.name, description: shopItem.description || null, type: shopItem.type, imageUrl: shopItem.imageUrl, eggImageUrl: shopItem.eggImageUrl } : null;
         }));
         const cards = bundle ? (await db.execute(sql`SELECT c.id, c.name, c.artwork_url, b.quantity
           FROM reward_bundle_cards b JOIN card_definitions c ON c.id = b.card_id WHERE b.bundle_id = ${bundle.id}`)).rows : [];

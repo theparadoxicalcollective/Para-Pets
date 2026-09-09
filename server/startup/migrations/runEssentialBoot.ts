@@ -6,6 +6,7 @@ export async function runEssentialBoot(): Promise<void> {
   // Required by inventory/catalog reads: do not start with a partial schema.
   await db.execute(sql`
     ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS evolution_image_url TEXT;
+    ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS description TEXT;
     ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS is_evolved BOOLEAN NOT NULL DEFAULT false;
   `);
 

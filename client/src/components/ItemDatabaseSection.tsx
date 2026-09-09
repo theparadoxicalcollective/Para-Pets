@@ -7,6 +7,7 @@ import { readFileAsDataUrl } from "@/lib/utils";
 export interface ShopItemFull {
   id: string;
   name: string;
+  description: string | null;
   price: number;
   type: string;
   worldId: string;
@@ -564,6 +565,7 @@ function AdminItemForm({
 }) {
   const defaultType = petOnly ? "pet" : (item?.type !== "pet" ? (item?.type || "power_up") : "power_up");
   const [name, setName] = useState(item?.name || "");
+  const [description, setDescription] = useState(item?.description || "");
   const [price, setPrice] = useState(item?.price?.toString() || "");
   const [type, setType] = useState(defaultType);
   const [edibleLvlPoints, setEdibleLvlPoints] = useState(item?.statBoostAmount?.toString() || "5");
@@ -665,7 +667,7 @@ function AdminItemForm({
     setSubmitting(true);
     try {
       const finalName = name.trim() || (petOnly ? "Unnamed Pet" : "Unnamed Item");
-      const payload: any = { name: finalName, price: priceNum, type: effectiveType, worldId: "all" };
+      const payload: any = { name: finalName, description: description.trim() || null, price: priceNum, type: effectiveType, worldId: "all" };
       if (imageData) payload.imageData = imageData;
 
       if (effectiveType === "pet") {
@@ -896,6 +898,25 @@ function AdminItemForm({
               className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
               style={inputStyle}
             />
+          </div>
+
+          <div>
+            <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">
+              Description
+            </label>
+            <textarea
+              data-testid="input-item-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Shown in shops and when players open this item's card"
+              maxLength={600}
+              rows={3}
+              className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none resize-y"
+              style={inputStyle}
+            />
+            <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-1 text-right">
+              {description.length}/600
+            </p>
           </div>
 
           <div>

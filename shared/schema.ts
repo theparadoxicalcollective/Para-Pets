@@ -54,6 +54,7 @@ export const users = pgTable("users", {
 export const shopItems = pgTable("shop_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  description: text("description"),
   price: integer("price").notNull(),
   type: text("type").notNull(),
   worldId: text("world_id").notNull(),
