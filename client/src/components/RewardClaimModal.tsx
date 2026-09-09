@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getNextZ } from "@/lib/layerManager";
+import ItemDetailCard from "@/components/ItemDetailCard";
 import { Sparkles } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -12,6 +13,7 @@ interface RewardItem {
   quantity?: number;
   id: string;
   name: string;
+  description?: string | null;
   type: string;
   imageUrl: string | null;
   eggImageUrl: string | null;
@@ -53,6 +55,7 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
   const [claimingBundleId, setClaimingBundleId] = useState<string | null>(null);
   const [showSparkle, setShowSparkle] = useState<string | null>(null);
   const [duplicateNotices, setDuplicateNotices] = useState<DuplicateNotice[]>([]);
+  const [selectedItem, setSelectedItem] = useState<RewardItem | null>(null);
 
   const { data: rewards = [], isLoading } = useQuery<PendingReward[]>({
     queryKey: ["/api/rewards/pending"],
@@ -271,16 +274,20 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
                                 const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
                                 return (
                                   <div key={idx} className="relative flex flex-col items-center gap-1">
-                                    <div
-                                      className="w-full aspect-square rounded-md flex items-center justify-center"
-                                      style={{ background: "rgba(192,132,252,0.1)", border: "1px solid rgba(192,132,252,0.2)" }}
+                                    <button
+                                      type="button"
+                                      className="w-full aspect-square rounded-md flex items-center justify-center transition-transform active:scale-95"
+                                      style={{ background: "rgba(192,132,252,0.1)", border: "1px solid rgba(192,132,252,0.2)", cursor: "pointer" }}
+                                      onClick={() => setSelectedItem({ ...item, imageUrl: displayImg })}
+                                      aria-label={`View details for ${item.name}`}
+                                      data-testid={`button-reward-item-details-${item.id}`}
                                     >
                                       {displayImg ? (
-                                        <img src={displayImg} alt="" className="w-full h-full object-contain p-0.5 rounded-md" />
+                                        <img src={displayImg} alt={item.name} className="w-full h-full object-contain p-0.5 rounded-md" />
                                       ) : (
                                         <span className="text-base">{item.type === "pet" ? "🥚" : "📦"}</span>
                                       )}
-                                    </div>
+                                    </button>
                                     {count > 1 && (
                                       <span
                                         className="absolute -top-1 -right-1 font-fantasy text-[8px] font-bold px-1 rounded-full"
@@ -325,6 +332,9 @@ export default function RewardClaimModal({ onClose, onUserUpdate }: RewardClaimM
           </div>
         </div>
       </div>
+      {selectedItem && (
+        <ItemDetailCard item={selectedItem} onClose={() => setSelectedItem(null)} />
+      )}
     </div>
   );
 }
