@@ -4,6 +4,7 @@ import {
   HAUNTED_BINGO_BONUS_COUNT,
   HAUNTED_BINGO_ENTRY_COST,
   HAUNTED_BINGO_RIVAL_COUNT,
+  HAUNTED_BINGO_ROUND_DURATION_MS,
   HAUNTED_BINGO_WIN_REWARD,
   HAUNTED_BINGO_WINNER_LIMIT,
   advanceHauntedBingoRivals,
@@ -13,6 +14,8 @@ import {
   createHauntedBingoRivals,
   hasHauntedBingo,
   hauntedBingoCasinoDay,
+  hauntedBingoRoundExpiresAt,
+  isHauntedBingoRoundExpired,
 } from "../server/hauntedBingo";
 
 const noShuffle = (max: number) => max - 1;
@@ -85,4 +88,13 @@ test("settled five-rival race fills only the first three prize places", () => {
   assert.deepEqual(advanced.winners.map((winner) => winner.placement), [1, 2, 3]);
   assert.equal(advanced.rivals.filter((rival) => rival.status === "won").length, HAUNTED_BINGO_WINNER_LIMIT);
   assert.equal(advanced.rivals.filter((rival) => rival.status === "playing").length, HAUNTED_BINGO_RIVAL_COUNT - HAUNTED_BINGO_WINNER_LIMIT);
+});
+
+
+test("Bingo rounds have a server-owned five-minute deadline", () => {
+  const createdAt = new Date("2026-09-08T12:00:00.000Z");
+  assert.equal(HAUNTED_BINGO_ROUND_DURATION_MS, 5 * 60 * 1000);
+  assert.equal(hauntedBingoRoundExpiresAt(createdAt).toISOString(), "2026-09-08T12:05:00.000Z");
+  assert.equal(isHauntedBingoRoundExpired({ created_at: createdAt }, new Date("2026-09-08T12:04:59.999Z")), false);
+  assert.equal(isHauntedBingoRoundExpired({ created_at: createdAt }, new Date("2026-09-08T12:05:00.000Z")), true);
 });
