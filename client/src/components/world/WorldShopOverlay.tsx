@@ -16,7 +16,7 @@ import bgShopFoodSwamp from "@assets/bg_shop_food_swamp.png";
 import npcLavaHook from "@assets/npc_lava_hook_shopkeeper.png";
 
 export interface WorldShopItem {
-  id: string; name: string; price: number; type: string; worldId: string; imageUrl: string | null; rarity: number | null; hatchTime: number | null; eggImageUrl: string | null; hatchedImageUrl: string | null; statBoostType: string | null; statBoostAmount: number | null; specialSkill: string | null; healthRestored: number | null; manaRestored: number | null; atkBoost: number | null; defBoost: number | null; healthBoost: number | null; petsRevived: number | null; specialType: string | null; specialAmount: number | null; shopPosX: number; shopPosY: number; shopWidth: number; fishingType: string | null; rarityBoostPercent: number | null; baitRarityBoostStar: number | null; poleMaxUses: number | null; catchEasePercent: number | null; giftPoints: number | null; locationId: string | null; createdAt: string;
+  id: string; name: string; description: string | null; price: number; type: string; worldId: string; imageUrl: string | null; rarity: number | null; hatchTime: number | null; eggImageUrl: string | null; hatchedImageUrl: string | null; statBoostType: string | null; statBoostAmount: number | null; specialSkill: string | null; healthRestored: number | null; manaRestored: number | null; atkBoost: number | null; defBoost: number | null; healthBoost: number | null; petsRevived: number | null; specialType: string | null; specialAmount: number | null; shopPosX: number; shopPosY: number; shopWidth: number; fishingType: string | null; rarityBoostPercent: number | null; baitRarityBoostStar: number | null; poleMaxUses: number | null; catchEasePercent: number | null; giftPoints: number | null; locationId: string | null; createdAt: string;
 }
 
 export interface WorldShopLocation { id: string; name: string; type?: string | null; iconUrl?: string | null; ownerImageUrl?: string | null; }
@@ -28,7 +28,7 @@ interface WorldShopOverlayProps {
 }
 
 function getItemDescription(item: WorldShopItem): string[] {
-  const lines: string[] = [];
+  const lines: string[] = item.description?.trim() ? [item.description.trim()] : [];
   if (item.type === "fishing") {
     if (item.fishingType === "pole") { if (item.catchEasePercent) lines.push(`Easy Catch +${item.catchEasePercent}%`); lines.push(item.poleMaxUses ? `${item.poleMaxUses} uses` : "Unlimited uses"); }
     else if (item.fishingType === "bait") { if (item.rarityBoostPercent && item.baitRarityBoostStar) { lines.push(`+${item.rarityBoostPercent}% Rarity Boost`); lines.push(`Targets ${"★".repeat(item.baitRarityBoostStar)} fish`); } else if (item.rarityBoostPercent) lines.push(`+${item.rarityBoostPercent}% Rarity Boost`); if (item.specialSkill) lines.push(item.specialSkill); }
@@ -459,7 +459,7 @@ export default function WorldShopOverlay(props: WorldShopOverlayProps) {
                 {/* Description lines */}
                 {descLines.length > 0 && (
                   <div style={{ marginBottom: 8 }}>
-                    {descLines.slice(0, 3).map((line, i) => (
+                    {descLines.slice(0, 4).map((line, i) => (
                       <div key={i} className="font-fantasy text-center" style={{ fontSize: 10, color: "rgba(255,240,200,0.75)", lineHeight: 1.45 }}>
                         {line}
                       </div>
