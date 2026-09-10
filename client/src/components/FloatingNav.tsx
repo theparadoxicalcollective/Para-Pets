@@ -178,7 +178,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
   const claimMutation = useMutation({
     mutationFn: (questKey: string) => apiRequest("POST", `/api/quests/daily/claim/${questKey}`, {}),
-    onSuccess: async (res) => {
+    onSuccess: async (res, questKey) => {
       const data = await res.json();
       // Remove the successfully claimed card immediately; the server remains
       // authoritative when the background refresh completes.
@@ -186,7 +186,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
         current ? {
           ...current,
           quests: current.quests.map((quest) =>
-            quest.quest_key === data.questKey || quest.quest_key === claimingKey
+            quest.quest_key === questKey
               ? { ...quest, reward_claimed: true }
               : quest
           ),
