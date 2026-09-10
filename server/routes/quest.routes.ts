@@ -2,6 +2,9 @@ import type { Express, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
 import type { db as database } from "../db";
 import type { executeDailyQuestClaim as DailyQuestClaimExecutor } from "../dailyQuestClaim";
+import { BEGIN_JOURNEY_TUTORIAL } from "../tutorial/config";
+
+const GINNY_MINI_PET_QUEST_KEY = "ginny-mini-pet";
 
 export interface QuestRouteDependencies {
   db: typeof database;
@@ -210,4 +213,154 @@ export function registerQuestRoutes(app: Express, dependencies: QuestRouteDepend
       return res.status(500).json({ message: "Failed to update quest" });
     }
   });
+
+  // Administrator QA tools: reset a selected quest only for a moderator account.
+  // This intentionally preserves inventory, coins, and already-earned rewards.
+  app.get("/api/admin/moderator-quests", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      if (!user.isAdmin) return res.status(403).json({ message: "Admin only" });
+
+      const [moderatorsResult, dailyQuestsResult] = await Promise.all([
+        db.execute(sql`
+          SELECT id, username
+          FROM users
+          WHERE is_moderator = true
+          ORDER BY LOWER(username), username
+        `),
+        db.execute(sql`
+          SELECT quest_key, title, is_active
+          FROM daily_quests
+          ORDER BY title, quest_key
+        `),
+      ]);
+
+      return res.json({
+        moderators: moderatorsResult.rows.map((moderator: any) => ({
+          id: String(moderator.id),
+          username: String(moderator.username),
+        })),
+        quests: [
+          {
+            key: BEGIN_JOURNEY_TUTORIAL.id,
+            title: "Beginning Tutorial",
+            kind: "tutorial",
+            isActive: true,
+          },
+          {
+            key: GINNY_MINI_PET_QUEST_KEY,
+            title: "Ginny's Little Companion",
+            kind: "story",
+            isActive: true,
+          },
+          ...dailyQuestsResult.rows.map((quest: any) => ({
+            key: String(quest.quest_key),
+            title: String(quest.title),
+            kind: "daily",
+            isActive: quest.is_active === true,
+          })),
+        ],
+      });
+    } catch (err) {
+      console.error("Get moderator quest reset options error:", err);
+      return res.status(500).json({ message: "Failed to load moderator quests" });
+    }
+  });
+
+  app.post("/api/admin/moderator-quests/reset", isAuthenticated, async (req, res) => {
+    try {
+      const admin = req.user as any;
+      if (!admin.isAdmin) return res.status(403).json({ message: "Admin only" });
+
+      const moderatorUserId = typeof req.body?.moderatorUserId === "string"
+        ? req.body.moderatorUserId.trim()
+        : "";
+      const questKey = typeof req.body?.questKey === "string" ? req.body.questKey.trim() : "";
+      if (!moderatorUserId || !questKey) {
+        return res.status(400).json({ message: "Choose a moderator and quest" });
+      }
+
+      const reset = await db.transaction(async (tx) => {
+        const targetResult = await tx.execute(sql`
+          SELECT id, username, is_moderator
+          FROM users
+          WHERE id = ${moderatorUserId}
+          FOR UPDATE
+        `);
+        const target = targetResult.rows[0] as any;
+        if (!target) throw Object.assign(new Error("Moderator not found"), { status: 404 });
+        if (target.is_moderator !== true) {
+          throw Object.assign(new Error("Quest resets are limited to moderator accounts"), { status: 400 });
+        }
+
+        let questTitle: string;
+        if (questKey === BEGIN_JOURNEY_TUTORIAL.id) {
+          await tx.execute(sql`
+            UPDATE users
+            SET tutorial_hatch_potions_claimed = false,
+                tutorial_quest_completed = false,
+                tutorial_reward_claimed = false
+            WHERE id = ${moderatorUserId}
+          `);
+          questTitle = "Beginning Tutorial";
+        } else if (questKey === GINNY_MINI_PET_QUEST_KEY) {
+          await tx.execute(sql`
+            DELETE FROM pet_equipped_mini_pets
+            WHERE mini_pet_inventory_id IN (
+              SELECT mini_pet_inventory_id
+              FROM user_ginny_mini_pet_quests
+              WHERE user_id = ${moderatorUserId}
+            )
+          `);
+          await tx.execute(sql`
+            DELETE FROM user_ginny_mini_pet_quests
+            WHERE user_id = ${moderatorUserId}
+          `);
+          questTitle = "Ginny's Little Companion";
+        } else {
+          const questResult = await tx.execute(sql`
+            SELECT title
+            FROM daily_quests
+            WHERE quest_key = ${questKey}
+            LIMIT 1
+          `);
+          const quest = questResult.rows[0] as any;
+          if (!quest) throw Object.assign(new Error("Quest not found"), { status: 404 });
+
+          await tx.execute(sql`
+            DELETE FROM user_daily_quest_progress
+            WHERE user_id = ${moderatorUserId}
+              AND quest_key = ${questKey}
+              AND quest_date = ${getCentralDate()}
+          `);
+          await tx.execute(sql`
+            UPDATE user_quest_log_state
+            SET has_unseen_completion = false
+            WHERE user_id = ${moderatorUserId}
+          `);
+          questTitle = String(quest.title);
+        }
+
+        return {
+          moderatorUserId: String(target.id),
+          moderatorUsername: String(target.username),
+          questKey,
+          questTitle,
+        };
+      });
+
+      return res.json({
+        ok: true,
+        ...reset,
+        message: `${reset.questTitle} will start over the next time @${reset.moderatorUsername} logs in.`,
+      });
+    } catch (err: any) {
+      const status = Number(err?.status) || 500;
+      if (status >= 500) console.error("Moderator quest reset error:", err);
+      return res.status(status).json({
+        message: status >= 500 ? "Failed to reset moderator quest" : err.message,
+      });
+    }
+  });
+
 }
