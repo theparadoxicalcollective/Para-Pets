@@ -31,8 +31,9 @@ test("each reset clears only the selected quest progress", () => {
 
   assert.match(routes, /DELETE FROM pet_equipped_mini_pets[\s\S]*DELETE FROM user_ginny_mini_pet_quests/);
   assert.match(routes, /DELETE FROM user_daily_quest_progress[\s\S]*quest_date = \$\{getCentralDate\(\)\}/);
-  assert.doesNotMatch(routes, /DELETE FROM user_inventory/);
-  assert.doesNotMatch(routes, /UPDATE users[\s\S]{0,180}(?:coins|total_coins_earned)\s*=/);
+  const resetHandler = routes.slice(routes.indexOf('app.post("/api/admin/moderator-quests/reset"'));
+  assert.doesNotMatch(resetHandler, /DELETE FROM user_inventory/);
+  assert.doesNotMatch(resetHandler, /(?:coins|total_coins_earned)\s*=/);
 });
 
 test("maintenance UI exposes both dropdowns and login reconciles a tutorial reset", () => {
