@@ -26,6 +26,8 @@ const expected = [
   ["POST", "/api/quests/daily/claim/:questKey"],
   ["GET", "/api/admin/daily-quests"],
   ["PATCH", "/api/admin/daily-quests/:questKey"],
+  ["GET", "/api/admin/moderator-quests"],
+  ["POST", "/api/admin/moderator-quests/reset"],
 ];
 
 function response() {
@@ -59,7 +61,7 @@ test("routes.ts has one registration boundary while cross-domain progress integr
   const rootSource = fs.readFileSync("server/routes.ts", "utf8");
   const questSource = fs.readFileSync("server/routes/quest.routes.ts", "utf8");
   assert.equal((rootSource.match(/registerQuestRoutes\(app,/g) ?? []).length, 1);
-  assert.equal((questSource.match(/app\.(?:get|post|patch)\("\/api\/(?:quests\/daily|daily-quests|admin\/daily-quests)/g) ?? []).length, expected.length);
+  assert.equal((questSource.match(/app\.(?:get|post|patch)\("\/api\/(?:quests\/daily|daily-quests|admin\/(?:daily-quests|moderator-quests))/g) ?? []).length, expected.length);
   assert.match(questSource, /executeDailyQuestClaim\(\{/);
   for (const integration of ["use_powerup", "feed_pet"]) assert.match(rootSource, new RegExp(`incrementQuestProgress\\(user\\.id, "${integration}"\\)`));
   assert.match(rootSource, /incrementQuestProgress,/);

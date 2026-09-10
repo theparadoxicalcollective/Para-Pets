@@ -178,8 +178,20 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
 
   const claimMutation = useMutation({
     mutationFn: (questKey: string) => apiRequest("POST", `/api/quests/daily/claim/${questKey}`, {}),
-    onSuccess: async (res) => {
+    onSuccess: async (res, questKey) => {
       const data = await res.json();
+      // Remove the successfully claimed card immediately; the server remains
+      // authoritative when the background refresh completes.
+      queryClient.setQueryData<QuestResponse>(["/api/quests/daily"], (current) =>
+        current ? {
+          ...current,
+          quests: current.quests.map((quest) =>
+            quest.quest_key === questKey
+              ? { ...quest, reward_claimed: true }
+              : quest
+          ),
+        } : current
+      );
       queryClient.invalidateQueries({ queryKey: ["/api/quests/daily"] });
       if (onUserUpdate && data.newCoinBalance != null) {
         onUserUpdate({ ...user, coins: data.newCoinBalance });
@@ -198,6 +210,9 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     mutationFn: () => apiRequest("POST", "/api/tutorial/claim-reward", {}),
     onSuccess: async (res) => {
       const data = await res.json();
+      queryClient.setQueryData(["/api/auth/me"], (current: any) =>
+        current ? { ...current, tutorial_reward_claimed: true } : current
+      );
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       if (onUserUpdate) {
         onUserUpdate({ ...user, coins: data.newBalance ?? user.coins, tutorial_reward_claimed: true });
@@ -215,6 +230,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   // Badge logic: green = not opened today, gold = any quest complete but unclaimed
   const today        = questData?.today ?? "";
   const lastOpened   = questData?.lastOpenedDate ?? null;
+  const visibleDailyQuests = questData?.quests.filter(q => !q.reward_claimed) ?? [];
   const hasCompletedUnclaimed = questData?.quests.some(q => q.completed && !q.reward_claimed) ?? false;
   const tutorialClaimable = !!(user as any).tutorial_quest_completed && !(user as any).tutorial_reward_claimed;
   const questBadge: "green" | "gold" | null = !questData
@@ -464,12 +480,12 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                     </p>
                   </div>
                 )}
-                {!questData || questData.quests.length === 0 ? (
+                {!questData || visibleDailyQuests.length === 0 ? (
                   <div className="rounded p-2.5" style={{ background: "rgba(92,58,30,0.07)", border: "1px solid rgba(139,90,40,0.3)" }}>
                     <p className="font-fantasy text-[#3a1800] text-[11.5px] tracking-wider leading-relaxed">No active quests. Explore the realm to discover adventures...</p>
                   </div>
                 ) : (
-                  questData.quests.map((quest) => {
+                  visibleDailyQuests.map((quest) => {
                     const pct = Math.min(100, Math.round((quest.progress / quest.target_count) * 100));
                     const isDone = quest.completed;
                     const isClaimed = quest.reward_claimed;

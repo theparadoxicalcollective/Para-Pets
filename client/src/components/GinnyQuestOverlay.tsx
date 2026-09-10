@@ -373,6 +373,9 @@ export default function GinnyQuestOverlay() {
     mutationFn: async () => (await apiRequest("POST", "/api/quests/ginny-mini-pet/claim", {})).json(),
     onSuccess: data => {
       setMessage(data.coinsGranted > 0 ? "+500 coins claimed!" : "This reward was already claimed.");
+      queryClient.setQueryData<GinnyQuestState>(["/api/quests/ginny-mini-pet"], (current) =>
+        current ? { ...current, status: "claimed", rewardClaimedAt: new Date().toISOString() } : current
+      );
       queryClient.invalidateQueries({ queryKey: ["/api/quests/ginny-mini-pet"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
     },
@@ -435,7 +438,7 @@ export default function GinnyQuestOverlay() {
     ginnyMount,
   ) : null;
 
-  const questCard = questListMount ? createPortal(
+  const questCard = questListMount && state.status !== "claimed" ? createPortal(
     <GinnyQuestCard
       state={state}
       busy={claimMutation.isPending}

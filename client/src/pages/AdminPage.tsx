@@ -2705,6 +2705,39 @@ function MaintenanceSection() {
   const [loadingCrash, setLoadingCrash] = useState(false);
   const [clearingCrash, setClearingCrash] = useState(false);
   const [crashExpanded, setCrashExpanded] = useState<number | null>(null);
+  const [selectedModeratorId, setSelectedModeratorId] = useState("");
+  const [selectedModeratorQuestKey, setSelectedModeratorQuestKey] = useState("");
+
+  const { data: moderatorQuestData, isLoading: moderatorQuestLoading } = useQuery<{
+    moderators: Array<{ id: string; username: string }>;
+    quests: Array<{ key: string; title: string; kind: "tutorial" | "story" | "daily"; isActive: boolean }>;
+  }>({
+    queryKey: ["/api/admin/moderator-quests"],
+  });
+
+  const resetModeratorQuestMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/admin/moderator-quests/reset", {
+        moderatorUserId: selectedModeratorId,
+        questKey: selectedModeratorQuestKey,
+      });
+      return res.json();
+    },
+    onSuccess: (data: { message?: string }) => {
+      toast({
+        title: "Moderator quest reset",
+        description: data.message ?? "The quest will restart on the moderator's next login.",
+      });
+      setSelectedModeratorQuestKey("");
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Quest reset failed",
+        description: err.message || "The moderator quest could not be reset.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const fetchCrashLog = async () => {
     setLoadingCrash(true);
@@ -2854,6 +2887,115 @@ function MaintenanceSection() {
             Admins can still access the realm normally.
           </p>
         )}
+      </div>
+
+      {/* ── Moderator Quest Reset ── */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 h-px" style={{ background: "rgba(232,121,249,0.18)" }} />
+        <p className="font-fantasy text-[10px] tracking-wider" style={{ color: "#a855b8" }}>Moderator Quest</p>
+        <div className="flex-1 h-px" style={{ background: "rgba(232,121,249,0.18)" }} />
+      </div>
+
+      <div
+        className="rounded-2xl p-4 flex flex-col gap-3"
+        style={{
+          background: "linear-gradient(145deg, rgba(38,8,48,0.92) 0%, rgba(22,6,34,0.96) 100%)",
+          border: "1px solid rgba(232,121,249,0.3)",
+          boxShadow: "0 0 20px rgba(232,121,249,0.06)",
+        }}
+      >
+        <div>
+          <p className="font-fantasy text-sm tracking-wide" style={{ color: "#e879f9" }}>
+            Reset a Moderator Quest
+          </p>
+          <p className="font-fantasy text-[10px] leading-relaxed tracking-wide mt-1" style={{ color: "#8b6a94" }}>
+            Choose a moderator and one quest. Its progress will restart on that moderator's next login.
+            Existing pets, coins, and earned rewards are kept.
+          </p>
+        </div>
+
+        <label className="flex flex-col gap-1">
+          <span className="font-fantasy text-[10px] tracking-wider" style={{ color: "#c084cf" }}>Moderator</span>
+          <select
+            data-testid="select-moderator-quest-user"
+            value={selectedModeratorId}
+            onChange={(event) => {
+              setSelectedModeratorId(event.target.value);
+              setSelectedModeratorQuestKey("");
+            }}
+            disabled={moderatorQuestLoading || resetModeratorQuestMutation.isPending}
+            style={{
+              width: "100%",
+              padding: "9px 10px",
+              borderRadius: 8,
+              background: "rgba(0,0,0,0.45)",
+              border: "1px solid rgba(232,121,249,0.3)",
+              color: "#f4d8f8",
+              fontSize: 12,
+            }}
+          >
+            <option value="">{moderatorQuestLoading ? "Loading moderators…" : "Select a moderator"}</option>
+            {(moderatorQuestData?.moderators ?? []).map((moderator) => (
+              <option key={moderator.id} value={moderator.id}>@{moderator.username}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1">
+          <span className="font-fantasy text-[10px] tracking-wider" style={{ color: "#c084cf" }}>Quest</span>
+          <select
+            data-testid="select-moderator-quest"
+            value={selectedModeratorQuestKey}
+            onChange={(event) => setSelectedModeratorQuestKey(event.target.value)}
+            disabled={!selectedModeratorId || moderatorQuestLoading || resetModeratorQuestMutation.isPending}
+            style={{
+              width: "100%",
+              padding: "9px 10px",
+              borderRadius: 8,
+              background: "rgba(0,0,0,0.45)",
+              border: "1px solid rgba(232,121,249,0.3)",
+              color: "#f4d8f8",
+              fontSize: 12,
+            }}
+          >
+            <option value="">Select a quest</option>
+            {(moderatorQuestData?.quests ?? []).map((quest) => (
+              <option key={quest.key} value={quest.key}>
+                {quest.title}{quest.kind === "daily" ? " — Daily" : ""}{!quest.isActive ? " — Inactive" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {(moderatorQuestData?.moderators.length ?? 0) === 0 && !moderatorQuestLoading && (
+          <p className="font-fantasy text-[10px]" style={{ color: "#b98ac2" }}>
+            No users are currently marked as moderators.
+          </p>
+        )}
+
+        <button
+          data-testid="button-reset-moderator-quest"
+          disabled={!selectedModeratorId || !selectedModeratorQuestKey || resetModeratorQuestMutation.isPending}
+          onClick={() => {
+            const moderator = moderatorQuestData?.moderators.find((entry) => entry.id === selectedModeratorId);
+            const quest = moderatorQuestData?.quests.find((entry) => entry.key === selectedModeratorQuestKey);
+            if (!moderator || !quest) return;
+            if (window.confirm(`Reset "${quest.title}" for @${moderator.username}?`)) {
+              resetModeratorQuestMutation.mutate();
+            }
+          }}
+          className="font-fantasy text-[11px] tracking-wider disabled:opacity-40"
+          style={{
+            padding: "10px 14px",
+            borderRadius: 9,
+            background: "linear-gradient(135deg, rgba(168,85,247,0.35), rgba(126,34,206,0.25))",
+            border: "1px solid rgba(232,121,249,0.45)",
+            color: "#f0b8f8",
+            cursor: (!selectedModeratorId || !selectedModeratorQuestKey || resetModeratorQuestMutation.isPending) ? "not-allowed" : "pointer",
+          }}
+        >
+          {resetModeratorQuestMutation.isPending ? "Resetting…" : "Reset Quest"}
+        </button>
       </div>
 
       {/* ── Divider ── */}

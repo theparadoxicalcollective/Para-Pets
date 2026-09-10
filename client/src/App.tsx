@@ -6,7 +6,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
-import { Suspense, useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { lazyWithRetry as lazy } from "@/lib/lazyWithRetry";
 import { installPageLifecycleDiagnostics, stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { playClick, unlockAudio } from "@/lib/sounds";
@@ -27,7 +27,7 @@ import DevelopmentNoticeScreen from "@/components/DevelopmentNoticeScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
 import FloatingNav from "@/components/FloatingNav";
 import BeginJourneyOverlay from "@/components/BeginJourneyOverlay";
-import { bjGetStatus, bjSetStep } from "@/lib/beginJourney";
+import { bjGetStatus, bjRestart, bjSetStep } from "@/lib/beginJourney";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 // ── Lazy-loaded page chunks ────────────────────────────────────────────────
@@ -263,6 +263,9 @@ function AppRouter() {
   const [showDevNotice, setShowDevNotice] = useState(() =>
     localStorage.getItem("para_pets_just_registered") === "true"
   );
+  // A moderator tutorial reset is reconciled once per authenticated app session.
+  // A later admin reset stays queued until the moderator's next login/reload.
+  const moderatorTutorialResetHandledRef = useRef<string | null>(null);
 
   const [petStatsOpen, setPetStatsOpen] = useState(false);
   useEffect(() => {
@@ -287,6 +290,16 @@ function AppRouter() {
     if (!user || showWelcome) return;
     if ((user as any).tutorial_quest_completed || (user as any).tutorial_reward_claimed) {
       if (bjGetStatus() !== "done") bjSetStep("done");
+      return;
+    }
+    const moderatorTutorialWasReset =
+      (user as any).isModerator === true &&
+      (user as any).tutorial_hatch_potions_claimed !== true &&
+      (user as any).tutorial_quest_completed !== true &&
+      (user as any).tutorial_reward_claimed !== true;
+    if (moderatorTutorialWasReset && moderatorTutorialResetHandledRef.current !== (user as any).id) {
+      moderatorTutorialResetHandledRef.current = (user as any).id;
+      bjRestart();
       return;
     }
     if (bjGetStatus() === "done" && (user as any).activePetId) {
