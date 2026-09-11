@@ -20,7 +20,7 @@ import badgeIcon from "@assets/generated_images/nav_icon_badges.png";
 import { playSpeedUp } from "@/lib/sounds";
 import { QuillBadge } from "@/components/QuillBadge";
 import { clientToStage, getDesignW } from "@/lib/stage";
-import { bjGetStep, bjIsStep5FakeMode, bjIsStep5TapMode, bjRestart } from "@/lib/beginJourney";
+import { bjGetStep, bjGetStatus, bjIsStep5FakeMode, bjIsStep5TapMode, bjRestart } from "@/lib/beginJourney";
 import { fireLevelUp } from "@/lib/levelUpEvents";
 import { useToast } from "@/hooks/use-toast";
 import TopBar from "@/components/TopBar";
@@ -166,6 +166,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const [homeDragging, setHomeDragging] = useState<{ item: InventoryItem; x: number; y: number } | null>(null);
   const homeEggDropRef = useRef<HTMLDivElement>(null);
   const homeGestureAbortRef = useRef<AbortController | null>(null);
+  const tutorialPotionBusyRef = useRef(false);
   useEffect(() => () => homeGestureAbortRef.current?.abort(), []);
   const [showSupportModal, setShowSupportModal] = useState(false);
   const [supportSubject, setSupportSubject] = useState("");
@@ -210,7 +211,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   const { data: raidBossData } = useQuery<{ templateId: string | null; rarity: number | null; name: string | null; hp: number; maxHp: number }>({
     queryKey: ["/api/raid-boss"],
     staleTime: 60_000,
-    enabled: raidVisible,
+    enabled: raidVisible && bjGetStatus() !== "active",
   });
 
   const { data: pendingRequests = [] } = useQuery<any[]>({
@@ -484,30 +485,40 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       return res.json();
     },
     onSuccess: (data: any) => {
-      if (data.isHatched) {
-        if (activePet) {
-          const cache = {
-            hatchedImageUrl: activePet.hatchedImageUrl,
-            imageUrl: activePet.imageUrl,
-            petTemplateId: activePet.petTemplateId,
-            name: activePet.petNickname || activePet.name,
-          };
-          setHatchedPetCache(cache);
-          // Preload the hatched image immediately so the browser caches it
-          // before the overlay finishes — avoids a blank flash on reveal.
-          const preloadUrl = cache.hatchedImageUrl || cache.imageUrl;
-          if (preloadUrl) {
-            const img = new Image();
-            img.src = preloadUrl;
-          }
-        }
-        setHatchRevealing(true);
-        setHatchTimerDone(false);
+      if (!data.isHatched) return;
+
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
+
+      // Begin Journey owns its own lightweight completion flash. Running the
+      // normal hatch cinematic at the same time duplicated full-screen layers
+      // and pet renderers, which could exhaust iOS Safari during the transition.
+      const tutorialStep = bjGetStep();
+      if (tutorialStep === 5 || tutorialStep === 6) {
+        setHatchRevealing(false);
         setHatchFadingOut(false);
-        queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-        // Minimum display time — we also wait for inventory to confirm isHatched
-        setTimeout(() => setHatchTimerDone(true), 3500);
+        setHatchTimerDone(false);
+        setHatchedPetCache(null);
+        return;
       }
+
+      if (activePet) {
+        const cache = {
+          hatchedImageUrl: activePet.hatchedImageUrl,
+          imageUrl: activePet.imageUrl,
+          petTemplateId: activePet.petTemplateId,
+          name: activePet.petNickname || activePet.name,
+        };
+        setHatchedPetCache(cache);
+        const preloadUrl = cache.hatchedImageUrl || cache.imageUrl;
+        if (preloadUrl) {
+          const img = new Image();
+          img.src = preloadUrl;
+        }
+      }
+      setHatchRevealing(true);
+      setHatchTimerDone(false);
+      setHatchFadingOut(false);
+      setTimeout(() => setHatchTimerDone(true), 3500);
     },
   });
 
@@ -555,11 +566,20 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       const res = await apiRequest("POST", `/api/pet/${petInvId}/use-special`, { itemInventoryId: itemInvId, tutorialFill: tutorialFill ?? false });
       return res.json();
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       playSpeedUp();
       setShowSpeedUp(false);
       setHomeDragging(null);
       setHomeDragOver(false);
+      // Reflect the server-confirmed hatch progress immediately; the background
+      // invalidation still reconciles potion quantity and enriched inventory.
+      queryClient.setQueryData<InventoryItem[]>(["/api/inventory"], (current) =>
+        current?.map((item) =>
+          item.inventoryId === variables.petInvId
+            ? { ...item, hatchStartedAt: data?.hatchStartedAt ?? item.hatchStartedAt }
+            : item
+        )
+      );
       window.dispatchEvent(new CustomEvent("bj_speedup_used"));
       setSpeedEffectLabel(`-${variables.specialAmount ?? "?"} min`);
       setShowSpeedEffect(true);
@@ -590,11 +610,13 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
       const { petInvId, itemInvId, specialAmount } = (e as CustomEvent<{
         petInvId: string; itemInvId: string; specialAmount: number;
       }>).detail;
-      if (petInvId && itemInvId) {
-        // Tutorial step 5: this path is the ONLY one that requests the instant
-        // hatch-ready fill. All normal speed-up paths omit tutorialFill and get
-        // the item's specific minute reduction instead.
-        speedUpMutation.mutate({ petInvId, itemInvId, specialAmount, tutorialFill: true });
+      if (petInvId && itemInvId && !tutorialPotionBusyRef.current) {
+        tutorialPotionBusyRef.current = true;
+        // Tutorial step 5: each confirmed use advances one third of the hatch.
+        speedUpMutation.mutate(
+          { petInvId, itemInvId, specialAmount, tutorialFill: true },
+          { onSettled: () => { tutorialPotionBusyRef.current = false; } },
+        );
       }
     };
     window.addEventListener("bj_step5_use_potion", handler as EventListener);
@@ -974,7 +996,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
           >
 
             {/* ── Raid Boss — floats to the right of the active pet ── */}
-            {raidVisible && raidBossData?.templateId && (
+            {bjGetStatus() !== "active" && raidVisible && raidBossData?.templateId && (
               <div
                 data-testid="display-raid-boss"
                 style={{
@@ -1370,12 +1392,15 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                           }}
                         >
                           {activePet.eggImageUrl ? (
-                            <div style={{ paddingTop: "calc(6*var(--vh))", width: "100%", display: "flex", justifyContent: "center" }}>
+                            <div style={{ paddingTop: "calc(4*var(--vh))", width: "100%", display: "flex", justifyContent: "center" }}>
                               <img
                                 src={activePet.eggImageUrl}
                                 alt={activePet.name}
-                                className="w-full max-h-[calc(55*var(--vh))] object-contain"
+                                className="object-contain"
                                 style={{
+                                  width: "min(calc(70*var(--vw)), 320px)",
+                                  maxWidth: "70%",
+                                  maxHeight: "calc(46*var(--vh))",
                                   animation: "petImgIdle 3.5s ease-in-out infinite",
                                   transformOrigin: "center bottom",
                                   filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.55))",
