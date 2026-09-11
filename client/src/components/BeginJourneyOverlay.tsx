@@ -77,11 +77,23 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const [eggReadyToHatch, setEggReadyToHatch] = useState(false);
   const [step3Selecting, setStep3Selecting]   = useState(false);
   const [step5TapMode,    setStep5TapMode]    = useState(false);
+  const [dragPotionPreview, setDragPotionPreview] = useState<{
+    x: number;
+    y: number;
+    imageUrl: string | null;
+    name: string;
+  } | null>(null);
   const [location, navigate] = useLocation();
   const queryClient = useQueryClient();
   const pollRef     = useRef<ReturnType<typeof setInterval> | null>(null);
   const invCheckRef = useRef<any[]>([]); // latest invCheck data accessible from poll closure
   const potionGrantAttemptedRef = useRef(false);
+  const dragPotionCleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => () => {
+    dragPotionCleanupRef.current?.();
+    dragPotionCleanupRef.current = null;
+  }, []);
 
   // ── Mark tutorial quest complete (no coins — player claims from quest log) ──
   const completeTutorialMutation = useMutation({
@@ -633,38 +645,55 @@ export default function BeginJourneyOverlay({ user }: Props) {
         />
       )}
 
-      {/* Step 5 drag-ghost animation: arrow sweeps from LEFT of potion card up to egg.
-          No static bounce-arrow on top of the potion — just this sweeping ghost to the left. */}
-      {stepNum === 5 && potionRect && eggOnHomeRect && !step5TapMode && (() => {
-        // Start the ghost 54px to the LEFT of the potion card's left edge, vertically centered
-        const fromCx = potionRect.left - 54;
-        const fromCy = potionRect.top  + potionRect.height / 2;
+      {/* Step 5 demonstration: the real potion artwork repeatedly travels
+          from its card to the egg, showing the exact gesture the player should copy. */}
+      {stepNum === 5 && potionRect && eggOnHomeRect && !step5TapMode && !dragPotionPreview && (() => {
+        const tutorialPotion = ((invHatch as any[] | undefined) ?? []).find(
+          (i: any) => i.type === "special" && i.specialType === "hatch_time"
+        );
+        if (!tutorialPotion) return null;
+
+        const fromCx = potionRect.left + potionRect.width / 2;
+        const fromCy = potionRect.top + Math.min(52, potionRect.height / 2);
+        const dx = (eggOnHomeRect.left + eggOnHomeRect.width / 2) - fromCx;
         const dy = (eggOnHomeRect.top + eggOnHomeRect.height / 2) - fromCy;
         return (
-          <div style={{
-            position: "fixed",
-            left: fromCx - 17,
-            top:  fromCy - 22,
-            width: 34, height: 44,
-            zIndex: 99006,
-            pointerEvents: "none",
-            animation: "bj-drag-ghost 2.3s ease-in-out infinite",
-            ["--bj-drag-dy" as string]: `${dy}px`,
-          } as React.CSSProperties}>
-            <div style={{
-              position: "absolute", top: "50%", left: "50%",
-              transform: "translate(-50%,-50%)",
-              width: 50, height: 50, borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(212,168,67,0.65) 0%, rgba(212,168,67,0.2) 50%, transparent 72%)",
+          <div
+            data-testid="tutorial-potion-drag-demo"
+            style={{
+              position: "fixed",
+              left: fromCx - 34,
+              top: fromCy - 34,
+              width: 68,
+              height: 68,
+              zIndex: 99006,
               pointerEvents: "none",
+              animation: "bj-drag-ghost 2.3s ease-in-out infinite",
+              ["--bj-drag-dx" as string]: `${dx}px`,
+              ["--bj-drag-dy" as string]: `${dy}px`,
+            } as React.CSSProperties}
+          >
+            <div style={{
+              position: "absolute",
+              inset: -10,
+              borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(212,168,67,0.7) 0%, rgba(212,168,67,0.22) 48%, transparent 72%)",
             }} />
-            <img src={tutorialArrow} alt="" style={{
-              width: "100%", height: "100%",
-              objectFit: "contain",
-              transform: "rotate(-90deg)",
-              display: "block",
-              position: "relative",
-            }} />
+            {tutorialPotion.imageUrl ? (
+              <img
+                src={tutorialPotion.imageUrl}
+                alt=""
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  filter: "drop-shadow(0 0 12px rgba(240,192,64,0.95))",
+                }}
+              />
+            ) : (
+              <span style={{ position: "relative", fontSize: 52, lineHeight: "68px" }}>🧪</span>
+            )}
           </div>
         );
       })()}
@@ -692,10 +721,31 @@ export default function BeginJourneyOverlay({ user }: Props) {
         const onPotionDown = (e: React.PointerEvent<HTMLDivElement>) => {
           e.preventDefault();
           const pid = e.pointerId;
-          const onUp = (ev: PointerEvent) => {
+          dragPotionCleanupRef.current?.();
+
+          const updatePreview = (x: number, y: number) => {
+            setDragPotionPreview({
+              x,
+              y,
+              imageUrl: tutPotion.imageUrl ?? null,
+              name: tutPotion.name ?? "Hatching potion",
+            });
+          };
+          updatePreview(e.clientX, e.clientY);
+
+          const cleanup = () => {
+            document.removeEventListener("pointermove", onMove);
+            document.removeEventListener("pointerup", onUp);
+            document.removeEventListener("pointercancel", onCancel);
+            dragPotionCleanupRef.current = null;
+          };
+          const onMove = (ev: PointerEvent) => {
             if (ev.pointerId !== pid) return;
-            document.removeEventListener("pointerup",     onUp);
-            document.removeEventListener("pointercancel", onUp);
+            ev.preventDefault();
+            updatePreview(ev.clientX, ev.clientY);
+          };
+          const finishUse = () => {
+            setDragPotionPreview(null);
             if (bjIsStep5FakeMode()) {
               // Egg already ready — just simulate the use and show tap-egg step
               window.dispatchEvent(new CustomEvent("bj_fake_speedup_done"));
@@ -704,14 +754,27 @@ export default function BeginJourneyOverlay({ user }: Props) {
               window.dispatchEvent(new CustomEvent("bj_step5_use_potion", {
                 detail: {
                   petInvId,
-                  itemInvId:     tutPotion.inventoryId,
+                  itemInvId: tutPotion.inventoryId,
                   specialAmount: tutPotion.specialAmount,
                 },
               }));
             }
           };
-          document.addEventListener("pointerup",     onUp);
-          document.addEventListener("pointercancel", onUp);
+          const onUp = (ev: PointerEvent) => {
+            if (ev.pointerId !== pid) return;
+            cleanup();
+            finishUse();
+          };
+          const onCancel = (ev: PointerEvent) => {
+            if (ev.pointerId !== pid) return;
+            cleanup();
+            setDragPotionPreview(null);
+          };
+
+          dragPotionCleanupRef.current = cleanup;
+          document.addEventListener("pointermove", onMove, { passive: false });
+          document.addEventListener("pointerup", onUp);
+          document.addEventListener("pointercancel", onCancel);
         };
 
         return (
@@ -765,6 +828,35 @@ export default function BeginJourneyOverlay({ user }: Props) {
           </div>
         );
       })()}
+
+      {/* While the player drags, this copy follows their finger all the way to the egg. */}
+      {stepNum === 5 && dragPotionPreview && (
+        <div
+          data-testid="tutorial-potion-drag-preview"
+          aria-hidden="true"
+          style={{
+            position: "fixed",
+            left: dragPotionPreview.x,
+            top: dragPotionPreview.y,
+            width: 72,
+            height: 72,
+            transform: "translate(-50%, -50%) scale(1.08)",
+            zIndex: 99008,
+            pointerEvents: "none",
+            filter: "drop-shadow(0 0 14px rgba(240,192,64,0.95))",
+          }}
+        >
+          {dragPotionPreview.imageUrl ? (
+            <img
+              src={dragPotionPreview.imageUrl}
+              alt=""
+              style={{ width: "100%", height: "100%", objectFit: "contain" }}
+            />
+          ) : (
+            <span style={{ fontSize: 56, lineHeight: "72px" }}>🧪</span>
+          )}
+        </div>
+      )}
 
       {/* One navigation arrow; step 5 renders its dedicated egg/drag guide above. */}
       {pr && stepNum !== 5 && (
