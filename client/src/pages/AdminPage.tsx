@@ -4590,9 +4590,33 @@ const DAYS_OPTIONS = [7, 14, 30, 60, 90] as const;
 type DaysOption = typeof DAYS_OPTIONS[number];
 
 interface MetricsData {
-  dailyLogins: { date: string; count: number }[];
-  loginsByCountry: { country: string; count: number }[];
+  overview: {
+    totalPlayers: number;
+    newPlayers: number;
+    activePlayers: number;
+    loginEvents: number;
+  };
+  dailyLogins: { date: string; count: number; uniquePlayers: number }[];
+  dailySignups: { date: string; count: number }[];
+  loginsByCountry: { country: string; count: number; uniquePlayers: number }[];
   signupsBySource: { source: string; count: number }[];
+  topPlayers: {
+    id: string;
+    username: string;
+    profileImage: string | null;
+    loginCount: number;
+    lastLoginAt: string;
+  }[];
+}
+
+interface OnlineTodayPlayer {
+  id: string;
+  username: string;
+  profileImage: string | null;
+  isAdmin: boolean;
+  isModerator: boolean;
+  lastActiveAt: string;
+  loginCount: number;
 }
 
 const CHART_COLORS = ["#a5f3fc", "#7dd3fc", "#6ee7b7", "#fde68a", "#fca5a5", "#c4b5fd", "#fdba74", "#86efac", "#f9a8d4", "#d4d4d8"];
@@ -4636,40 +4660,64 @@ const tooltipSty = {
   cursor: { fill: "rgba(165,243,252,0.06)" },
 };
 
-function OnlineNowPanel() {
-  const { data: players = [], refetch, dataUpdatedAt } = useQuery<any[]>({
-    queryKey: ["/api/admin/online-players"],
-    refetchInterval: 30_000,
-    staleTime: 25_000,
+function OnlineTodayPanel() {
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+  const since = todayStart.toISOString();
+  const until = tomorrowStart.toISOString();
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "local time";
+
+  const { data: players = [], isLoading, isError, refetch, dataUpdatedAt } = useQuery<OnlineTodayPlayer[]>({
+    queryKey: ["/api/admin/online-today", since, until],
+    queryFn: async () => {
+      const params = new URLSearchParams({ since, until });
+      const res = await fetch(`/api/admin/online-today?${params.toString()}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load today's players");
+      return res.json();
+    },
+    refetchInterval: 2 * 60 * 1000,
+    staleTime: 60_000,
   });
   const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : "—";
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, marginBottom: 16 }}>
-        <span style={{ fontFamily: "Lora, serif", fontSize: 10, color: "rgba(165,243,252,0.45)" }}>Updated: {lastUpdated}</span>
-        <button
-          onClick={() => refetch()}
-          style={{ padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", background: "rgba(165,243,252,0.1)", border: "1px solid rgba(165,243,252,0.35)", color: "#a5f3fc", fontFamily: "Lora, serif" }}
-        >↻ Refresh</button>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        <span style={{ fontFamily: "Lora, serif", fontSize: 10, color: "rgba(165,243,252,0.45)" }}>
+          Today in {timezone}
+        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontFamily: "Lora, serif", fontSize: 10, color: "rgba(165,243,252,0.45)" }}>Updated: {lastUpdated}</span>
+          <button
+            onClick={() => refetch()}
+            style={{ padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", background: "rgba(165,243,252,0.1)", border: "1px solid rgba(165,243,252,0.35)", color: "#a5f3fc", fontFamily: "Lora, serif" }}
+          >↻ Refresh</button>
+        </div>
       </div>
 
       <div style={{ ...metricCardSty, textAlign: "center", marginBottom: 16 }}>
         <p style={{ fontFamily: "Lora, serif", fontSize: 36, fontWeight: 700, color: "#6ee7b7", margin: 0 }}>
           {players.length}
         </p>
-        <p style={metricSubSty}>Players online now</p>
+        <p style={{ ...metricSubSty, marginBottom: 0 }}>Players online today</p>
       </div>
 
       <div style={metricCardSty}>
-        <p style={metricTitleSty}>Online Players</p>
-        <p style={metricSubSty}>All players with an active session — anywhere in the game</p>
-        {players.length === 0 ? (
-          <p style={emptyMsgSty}>No players online right now.</p>
+        <p style={metricTitleSty}>Online Today</p>
+        <p style={metricSubSty}>Unique players who signed in during this calendar day</p>
+        {isLoading ? (
+          <p style={emptyMsgSty}>Loading today's players…</p>
+        ) : isError ? (
+          <p style={{ ...emptyMsgSty, color: "#fca5a5" }}>Today's player list could not be loaded. Tap Refresh to try again.</p>
+        ) : players.length === 0 ? (
+          <p style={emptyMsgSty}>No players have signed in today yet.</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 12 }}>
-            {players.map((p: any, i: number) => (
-              <div key={p.id ?? i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 8, background: "rgba(165,243,252,0.04)", border: "1px solid rgba(165,243,252,0.1)" }}>
+            {players.map((p, i) => (
+              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: 8, background: "rgba(165,243,252,0.04)", border: "1px solid rgba(165,243,252,0.1)" }}>
                 <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "rgba(165,243,252,0.35)", minWidth: 20, textAlign: "right" }}>{i + 1}</span>
                 {p.profileImage ? (
                   <img src={p.profileImage} alt={p.username} style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(165,243,252,0.25)", flexShrink: 0 }} />
@@ -4678,10 +4726,19 @@ function OnlineNowPanel() {
                     <span style={{ fontFamily: "Lora, serif", fontSize: 11, color: "#a5f3fc", fontWeight: 700 }}>{(p.username ?? "?")[0].toUpperCase()}</span>
                   </div>
                 )}
-                <span style={{ fontFamily: "Lora, serif", fontSize: 12, color: "#a5f3fc", fontWeight: 600 }}>{p.username ?? "Unknown"}</span>
-                {p.isAdmin && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.4)", color: "#fbbf24", fontFamily: "Lora, serif" }}>ADMIN</span>}
-                {p.isModerator && !p.isAdmin && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "rgba(165,243,252,0.1)", border: "1px solid rgba(165,243,252,0.35)", color: "#a5f3fc", fontFamily: "Lora, serif" }}>MOD</span>}
-                <span style={{ marginLeft: "auto", fontFamily: "Lora, serif", fontSize: 10, color: "rgba(110,231,183,0.7)" }}>● online</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
+                    <span style={{ fontFamily: "Lora, serif", fontSize: 12, color: "#a5f3fc", fontWeight: 600 }}>{p.username ?? "Unknown"}</span>
+                    {p.isAdmin && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.4)", color: "#fbbf24", fontFamily: "Lora, serif" }}>ADMIN</span>}
+                    {p.isModerator && !p.isAdmin && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "rgba(165,243,252,0.1)", border: "1px solid rgba(165,243,252,0.35)", color: "#a5f3fc", fontFamily: "Lora, serif" }}>MOD</span>}
+                  </div>
+                  <span style={{ fontFamily: "Lora, serif", fontSize: 9, color: "rgba(165,243,252,0.45)" }}>
+                    {p.loginCount} sign-in{p.loginCount === 1 ? "" : "s"} today
+                  </span>
+                </div>
+                <span style={{ marginLeft: "auto", fontFamily: "Lora, serif", fontSize: 9, color: "rgba(110,231,183,0.75)", textAlign: "right", flexShrink: 0 }}>
+                  Last {new Date(p.lastActiveAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                </span>
               </div>
             ))}
           </div>
@@ -4693,9 +4750,9 @@ function OnlineNowPanel() {
 
 function MetricsSection() {
   const [days, setDays] = useState<DaysOption>(30);
-  const [metricsTab, setMetricsTab] = useState<"analytics" | "online">("analytics");
+  const [metricsTab, setMetricsTab] = useState<"analytics" | "today">("analytics");
 
-  const { data, isLoading, refetch, dataUpdatedAt } = useQuery<MetricsData>({
+  const { data, isLoading, isError, refetch, dataUpdatedAt } = useQuery<MetricsData>({
     queryKey: ["/api/admin/metrics", days],
     queryFn: async () => {
       const res = await fetch(`/api/admin/metrics?days=${days}`, { credentials: "include" });
@@ -4707,12 +4764,17 @@ function MetricsSection() {
   });
 
   const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : "—";
+  const summaryCards = data ? [
+    { label: "Total Players", value: data.overview.totalPlayers, note: "All registered accounts" },
+    { label: "New Players", value: data.overview.newPlayers, note: `Last ${days} days` },
+    { label: "Unique Players", value: data.overview.activePlayers, note: `Signed in during ${days}d` },
+    { label: "Login Events", value: data.overview.loginEvents, note: `All sign-ins during ${days}d` },
+  ] : [];
 
   return (
     <div>
-      {/* Metrics tab bar */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {([{ key: "analytics" as const, label: "Analytics" }, { key: "online" as const, label: "Online Now" }]).map(t => {
+        {([{ key: "analytics" as const, label: "Analytics" }, { key: "today" as const, label: "Online Today" }]).map(t => {
           const active = metricsTab === t.key;
           return (
             <button key={t.key} onClick={() => setMetricsTab(t.key)}
@@ -4722,108 +4784,145 @@ function MetricsSection() {
           );
         })}
       </div>
-      {metricsTab === "online" && <OnlineNowPanel />}
+      {metricsTab === "today" && <OnlineTodayPanel />}
       {metricsTab === "analytics" && <>
-      {/* Filter bar */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {DAYS_OPTIONS.map(d => (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {DAYS_OPTIONS.map(d => (
+              <button
+                key={d}
+                onClick={() => setDays(d)}
+                style={{
+                  padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer",
+                  background: days === d ? "rgba(165,243,252,0.18)" : "rgba(0,0,0,0.35)",
+                  border: days === d ? "1px solid rgba(165,243,252,0.6)" : "1px solid rgba(165,243,252,0.2)",
+                  color: days === d ? "#a5f3fc" : "rgba(165,243,252,0.5)",
+                  fontFamily: "Lora, serif",
+                }}
+              >{d}d</button>
+            ))}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontFamily: "Lora, serif", fontSize: 10, color: "rgba(165,243,252,0.45)" }}>Updated: {lastUpdated}</span>
             <button
-              key={d}
-              onClick={() => setDays(d)}
-              style={{
-                padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer",
-                background: days === d ? "rgba(165,243,252,0.18)" : "rgba(0,0,0,0.35)",
-                border: days === d ? "1px solid rgba(165,243,252,0.6)" : "1px solid rgba(165,243,252,0.2)",
-                color: days === d ? "#a5f3fc" : "rgba(165,243,252,0.5)",
-                fontFamily: "Lora, serif",
-              }}
-            >{d}d</button>
-          ))}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontFamily: "Lora, serif", fontSize: 10, color: "rgba(165,243,252,0.45)" }}>Updated: {lastUpdated}</span>
-          <button
-            onClick={() => refetch()}
-            style={{ padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", background: "rgba(165,243,252,0.1)", border: "1px solid rgba(165,243,252,0.35)", color: "#a5f3fc", fontFamily: "Lora, serif" }}
-          >↻ Refresh</button>
-        </div>
-      </div>
-
-      {isLoading && (
-        <div style={{ textAlign: "center", padding: "40px 0", fontFamily: "Lora, serif", fontSize: 13, color: "rgba(165,243,252,0.5)" }}>
-          Loading metrics…
-        </div>
-      )}
-
-      {data && (
-        <>
-          {/* Daily Logins */}
-          <div style={metricCardSty}>
-            <p style={metricTitleSty}>Daily Logins</p>
-            <p style={metricSubSty}>Total login events per day — last {days} days</p>
-            {data.dailyLogins.length === 0 ? (
-              <p style={emptyMsgSty}>No data yet — logins will appear here after players sign in.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={data.dailyLogins} margin={{ top: 4, right: 4, left: -20, bottom: 28 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(165,243,252,0.08)" />
-                  <XAxis dataKey="date" tick={{ fill: "rgba(165,243,252,0.5)", fontSize: 8, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} angle={-35} textAnchor="end" interval="preserveStartEnd" />
-                  <YAxis tick={{ fill: "rgba(165,243,252,0.4)", fontSize: 9, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <Tooltip {...tooltipSty} />
-                  <Bar dataKey="count" name="Logins" radius={[4, 4, 0, 0]} fill="#a5f3fc" />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+              onClick={() => refetch()}
+              style={{ padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", background: "rgba(165,243,252,0.1)", border: "1px solid rgba(165,243,252,0.35)", color: "#a5f3fc", fontFamily: "Lora, serif" }}
+            >↻ Refresh</button>
           </div>
+        </div>
 
-          {/* Logins by Country */}
-          <div style={metricCardSty}>
-            <p style={metricTitleSty}>Logins by Country</p>
-            <p style={metricSubSty}>Where players are logging in from — last {days} days, top 15</p>
-            {data.loginsByCountry.length === 0 ? (
-              <p style={emptyMsgSty}>No location data yet. Country info is collected from new logins going forward.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={Math.max(160, data.loginsByCountry.length * 28)}>
-                <BarChart data={data.loginsByCountry} layout="vertical" margin={{ top: 4, right: 30, left: 4, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(165,243,252,0.08)" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: "rgba(165,243,252,0.4)", fontSize: 9, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="country" tick={{ fill: "rgba(165,243,252,0.6)", fontSize: 9, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} width={90} />
-                  <Tooltip {...tooltipSty} />
-                  <Bar dataKey="count" name="Logins" radius={[0, 4, 4, 0]}>
-                    {data.loginsByCountry.map((_, i) => (
-                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
+        {isLoading && <div style={{ textAlign: "center", padding: "40px 0", fontFamily: "Lora, serif", fontSize: 13, color: "rgba(165,243,252,0.5)" }}>Loading metrics…</div>}
+        {isError && <div style={{ ...metricCardSty, textAlign: "center", color: "#fca5a5", fontFamily: "Lora, serif", fontSize: 11 }}>Metrics could not be loaded. Tap Refresh to try again.</div>}
 
-          {/* Signups by Source */}
-          <div style={metricCardSty}>
-            <p style={metricTitleSty}>Signups by Source</p>
-            <p style={metricSubSty}>Where new players came from when registering — all time</p>
-            {data.signupsBySource.length === 0 ? (
-              <p style={emptyMsgSty}>No signup source data yet.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={data.signupsBySource} margin={{ top: 4, right: 4, left: -20, bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(165,243,252,0.08)" />
-                  <XAxis dataKey="source" tick={{ fill: "rgba(165,243,252,0.55)", fontSize: 9, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fill: "rgba(165,243,252,0.4)", fontSize: 9, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <Tooltip {...tooltipSty} />
-                  <Bar dataKey="count" name="Signups" radius={[4, 4, 0, 0]}>
-                    {data.signupsBySource.map((_, i) => (
-                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </>
-      )}
+        {data && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, marginBottom: 18 }}>
+              {summaryCards.map(card => (
+                <div key={card.label} style={{ ...metricCardSty, marginBottom: 0, padding: "13px 10px", textAlign: "center" }}>
+                  <p style={{ fontFamily: "Lora, serif", fontSize: 24, lineHeight: 1, fontWeight: 700, color: "#a5f3fc", margin: "0 0 7px" }}>{card.value.toLocaleString()}</p>
+                  <p style={{ fontFamily: "Lora, serif", fontSize: 10, fontWeight: 700, color: "#d1f7ff", margin: 0 }}>{card.label}</p>
+                  <p style={{ fontFamily: "Lora, serif", fontSize: 8, color: "rgba(165,243,252,0.45)", margin: "3px 0 0" }}>{card.note}</p>
+                </div>
+              ))}
+            </div>
+
+            <div style={metricCardSty}>
+              <p style={metricTitleSty}>Daily Player Activity</p>
+              <p style={metricSubSty}>Unique players compared with total sign-ins — last {days} days</p>
+              {data.dailyLogins.length === 0 ? (
+                <p style={emptyMsgSty}>No login data in this period yet.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={190}>
+                  <BarChart data={data.dailyLogins} margin={{ top: 4, right: 4, left: -20, bottom: 28 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(165,243,252,0.08)" />
+                    <XAxis dataKey="date" tick={{ fill: "rgba(165,243,252,0.5)", fontSize: 8, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} angle={-35} textAnchor="end" interval="preserveStartEnd" />
+                    <YAxis tick={{ fill: "rgba(165,243,252,0.4)", fontSize: 9, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip {...tooltipSty} />
+                    <Bar dataKey="uniquePlayers" name="Unique Players" radius={[4, 4, 0, 0]} fill="#6ee7b7" />
+                    <Bar dataKey="count" name="Sign-ins" radius={[4, 4, 0, 0]} fill="#7dd3fc" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            <div style={metricCardSty}>
+              <p style={metricTitleSty}>New Player Growth</p>
+              <p style={metricSubSty}>Accounts created per day — last {days} days</p>
+              {data.dailySignups.length === 0 ? (
+                <p style={emptyMsgSty}>No new accounts in this period.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={data.dailySignups} margin={{ top: 4, right: 4, left: -20, bottom: 28 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(165,243,252,0.08)" />
+                    <XAxis dataKey="date" tick={{ fill: "rgba(165,243,252,0.5)", fontSize: 8, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} angle={-35} textAnchor="end" interval="preserveStartEnd" />
+                    <YAxis tick={{ fill: "rgba(165,243,252,0.4)", fontSize: 9, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip {...tooltipSty} />
+                    <Bar dataKey="count" name="New Players" radius={[4, 4, 0, 0]} fill="#c4b5fd" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            <div style={metricCardSty}>
+              <p style={metricTitleSty}>Most Active Players</p>
+              <p style={metricSubSty}>Players with the most sign-ins during the selected period</p>
+              {data.topPlayers.length === 0 ? (
+                <p style={emptyMsgSty}>No player activity in this period.</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {data.topPlayers.map((player, i) => (
+                    <div key={player.id} style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 9px", borderRadius: 8, background: "rgba(165,243,252,0.04)", border: "1px solid rgba(165,243,252,0.1)" }}>
+                      <span style={{ width: 18, textAlign: "right", fontFamily: "Lora, serif", fontSize: 10, color: "rgba(165,243,252,0.4)" }}>{i + 1}</span>
+                      {player.profileImage && <img src={player.profileImage} alt="" style={{ width: 24, height: 24, borderRadius: "50%", objectFit: "cover" }} />}
+                      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", fontFamily: "Lora, serif", fontSize: 11, color: "#a5f3fc", fontWeight: 600 }}>{player.username}</span>
+                      <span style={{ marginLeft: "auto", flexShrink: 0, fontFamily: "Lora, serif", fontSize: 10, color: "#6ee7b7" }}>{player.loginCount} sign-in{player.loginCount === 1 ? "" : "s"}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={metricCardSty}>
+              <p style={metricTitleSty}>Logins by Country</p>
+              <p style={metricSubSty}>Sign-ins by location — last {days} days, top 15</p>
+              {data.loginsByCountry.length === 0 ? (
+                <p style={emptyMsgSty}>No location data yet. Country info is collected from new logins going forward.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={Math.max(160, data.loginsByCountry.length * 28)}>
+                  <BarChart data={data.loginsByCountry} layout="vertical" margin={{ top: 4, right: 30, left: 4, bottom: 4 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(165,243,252,0.08)" horizontal={false} />
+                    <XAxis type="number" tick={{ fill: "rgba(165,243,252,0.4)", fontSize: 9, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <YAxis type="category" dataKey="country" tick={{ fill: "rgba(165,243,252,0.6)", fontSize: 9, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} width={90} />
+                    <Tooltip {...tooltipSty} />
+                    <Bar dataKey="count" name="Sign-ins" radius={[0, 4, 4, 0]}>
+                      {data.loginsByCountry.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            <div style={metricCardSty}>
+              <p style={metricTitleSty}>Signups by Source</p>
+              <p style={metricSubSty}>Where registered players came from — all time</p>
+              {data.signupsBySource.length === 0 ? (
+                <p style={emptyMsgSty}>No signup source data yet.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={data.signupsBySource} margin={{ top: 4, right: 4, left: -20, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(165,243,252,0.08)" />
+                    <XAxis dataKey="source" tick={{ fill: "rgba(165,243,252,0.55)", fontSize: 9, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fill: "rgba(165,243,252,0.4)", fontSize: 9, fontFamily: "Lora, serif" }} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip {...tooltipSty} />
+                    <Bar dataKey="count" name="Signups" radius={[4, 4, 0, 0]}>
+                      {data.signupsBySource.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </>
+        )}
       </>}
     </div>
   );
