@@ -147,21 +147,6 @@ export default function BeginJourneyOverlay({ user }: Props) {
     if (reqPath && location !== reqPath) { setTargetRect(null); return; }
 
     const poll = () => {
-      // Step 6: quest nav item if visible, else main nav button
-      if (stepNum === 6) {
-        const questEl = document.querySelector('[data-testid="nav-item-quest"]') as HTMLElement | null;
-        if (questEl) {
-          const cs = window.getComputedStyle(questEl);
-          if (cs.pointerEvents !== "none" && cs.opacity !== "0") {
-            const r = questEl.getBoundingClientRect();
-            if (r.width > 0) { setTargetRect(r); return; }
-          }
-        }
-        const navBtn = document.querySelector('[data-testid="button-floating-nav"]') as HTMLElement | null;
-        if (navBtn) { const r = navBtn.getBoundingClientRect(); if (r.width > 0) { setTargetRect(r); return; } }
-        setTargetRect(null); return;
-      }
-
       // Step 5: spotlight the egg + track potions for ghost animation.
       // Sheet is elevated (z-99002) above overlay; backdrop has pointer-events:none
       // so it can't close the sheet. Potions are directly interactive.
@@ -179,11 +164,19 @@ export default function BeginJourneyOverlay({ user }: Props) {
         return;
       }
 
-      // Step 2: spotlight the first UNHATCHED egg's select button specifically
-      if (stepNum === 2) {
-        const firstEgg = invCheckRef.current.find(i => i.isHatched === false && i.type === "pet");
-        const eggSel = firstEgg ? `[data-testid="button-select-pet-${firstEgg.shopItemId}"]` : STEP_SELECTORS[2];
-        const el = eggSel ? document.querySelector(eggSel) as HTMLElement | null : null;
+      // Step 3: spotlight only the exact starter inventory row chosen in step 0.
+      if (stepNum === 3) {
+        const starterInventoryId = bjGetStarterInventoryId();
+        const chosenEgg = starterInventoryId
+          ? invCheckRef.current.find(i =>
+              (i.inventoryId === starterInventoryId || i.id === starterInventoryId) &&
+              i.isHatched === false &&
+              i.type === "pet"
+            )
+          : null;
+        const el = chosenEgg
+          ? document.querySelector(`[data-inventory-id="${starterInventoryId}"]`) as HTMLElement | null
+          : null;
         if (!el) { setTargetRect(null); return; }
         const cs = window.getComputedStyle(el);
         if (cs.pointerEvents === "none" || cs.opacity === "0" || cs.display === "none") { setTargetRect(null); return; }
@@ -210,33 +203,29 @@ export default function BeginJourneyOverlay({ user }: Props) {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [step, location]);
 
-  // ── Check for egg at step 2 ───────────────────────────────────────────────
+  // ── Check for the chosen egg at step 3 ────────────────────────────────────
   const { data: invCheck } = useQuery<any[]>({
     queryKey: ["/api/inventory"],
-    enabled: step === 2 && location === "/pets",
-    staleTime: 10_000,
+    enabled: step === 3 && location === "/pets",
+    staleTime: 0,
   });
 
   // Keep ref synced so the poll closure always sees the latest invCheck
   useEffect(() => { invCheckRef.current = invCheck ?? []; }, [invCheck]);
 
-  // Step 2 must not advance until the active-pet mutation has actually
-  // succeeded and the auth cache confirms an unhatched egg is active.
+  // Wait for the exact chosen egg to become active. The shared API layer
+  // advances step 3 only after PATCH succeeds; this effect then moves the player
+  // to the active-pet page for the hatch interaction.
   useEffect(() => {
-    if (step !== 2 || location !== "/pets" || !invCheck) return;
-    const activeEgg = user?.activePetId
-      ? invCheck.find((i: any) => i.inventoryId === user.activePetId && i.type === "pet" && i.isHatched === false)
-      : null;
-    if (!activeEgg) return;
+    if (step !== 4 || location !== "/pets") return;
     setStep3Selecting(false);
-    bjSetStep(3);
-    setStep(3);
-  }, [step, location, invCheck, user?.activePetId]);
+    navigate("/");
+  }, [step, location, navigate]);
 
   // If the selection request fails or stalls, unlock the highlighted button so
-  // the player can retry instead of getting trapped in a permanent pending state.
+  // the player can retry instead of getting trapped in a pending state.
   useEffect(() => {
-    if (step !== 2) {
+    if (step !== 3) {
       if (step3Selecting) setStep3Selecting(false);
       return;
     }
@@ -245,11 +234,10 @@ export default function BeginJourneyOverlay({ user }: Props) {
     return () => clearTimeout(t);
   }, [step, step3Selecting]);
 
+  // Step 0 always owns starter selection, including recovered legacy accounts.
   useEffect(() => {
-    if (step !== 2 || location !== "/pets" || !invCheck) return;
-    const hasAnyPet = invCheck.some(i => i.type === "pet");
-    if (!hasAnyPet) setShowGrantModal(true);
-  }, [step, location, invCheck]);
+    if (step === 0) setShowGrantModal(true);
+  }, [step]);
 
   // ── Poll inventory for hatch at step 5 ────────────────────────────────────
   const { data: invHatch } = useQuery<any[]>({
