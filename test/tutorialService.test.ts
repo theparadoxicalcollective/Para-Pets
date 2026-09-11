@@ -190,27 +190,29 @@ test("public routes use authentication, session ownership, empty bodies, and foc
   assert.doesNotMatch(routes, /SMALL_HATCH_POTION_ID|storage\.addCoins\(userId, 1500\)/);
 });
 
-test("the seven tutorial steps, wording, visuals, and failure recovery remain unchanged", () => {
+test("the seven tutorial steps follow starter selection through automatic hatch completion", () => {
   const overlay = readFileSync("client/src/components/BeginJourneyOverlay.tsx", "utf8");
   const app = readFileSync("client/src/App.tsx", "utf8");
   assert.match(overlay, /const TOTAL_STEPS = 7/);
   for (const label of [
+    "Choose your 3-star starter pet egg!",
     "Open the navigation menu!",
     "Go to your Pet collection!",
-    "Select your egg as your companion!",
-    "Head back home!",
-    "Tap your egg!",
-    "Use all 3 hatching potions on your egg until it is ready!",
-    "Tap to finish your journey!",
+    "Select your chosen egg as your active companion!",
+    "Tap your active egg!",
+    "Use all 3 hatching potions, then tap the egg to hatch it!",
+    "Finishing your journey…",
   ]) assert.ok(overlay.includes(label));
   assert.match(overlay, /tutorialArrow/);
   assert.match(overlay, /createPortal/);
   assert.match(overlay, /document\.body/);
-  assert.doesNotMatch(overlay, /onError: \(\) => \{\s*bjSetStep\("done"\)/);
+  assert.match(overlay, /activePet\?\.isHatched === true/);
+  assert.match(overlay, /completeTutorialMutation\.mutate\(\)/);
   assert.match(overlay, /potionGrantAttemptedRef\.current = true/);
-  assert.match(app, /bjGetStatus\(\) === "done" && \(user as any\)\.activePetId/);
-  assert.doesNotMatch(app, /bjGetStatus\(\) === "not_started"\) bjStart\(\)/);
+  assert.match(app, /!bjIsCurrentFlowVersion\(\)/);
+  assert.match(app, /bjGetStatus\(\) === "not_started"/);
 });
+
 
 
 test("Begin Journey exposes all complete production 3-star pets and locks selection", () => {
