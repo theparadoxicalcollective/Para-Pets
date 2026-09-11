@@ -45,7 +45,7 @@ test("maintenance UI exposes both dropdowns and login reconciles a tutorial rese
   assert.match(adminPage, /data-testid="button-reset-moderator-quest"/);
   assert.match(adminPage, /Existing pets, coins, and earned rewards are kept/);
 
-  assert.match(app, /moderatorTutorialWasReset/);
-  assert.match(app, /moderatorTutorialResetHandledRef/);
+  assert.match(app, /tutorial_quest_completed/);
+  assert.match(app, /bjGetStatus\(\) === "done"/);
   assert.match(app, /bjRestart\(\)/);
 });
