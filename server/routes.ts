@@ -3191,19 +3191,26 @@ export async function registerRoutes(
   app.get("/api/admin/metrics", isAdmin, async (req, res) => {
     try {
       const days = Math.min(90, Math.max(1, parseInt(req.query.days as string) || 30));
-      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const now = new Date();
+      const cutoff = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() - (days - 1),
+      ));
 
-      const [dailyRows, countryRows, sourceRows] = await Promise.all([
+      const [dailyRows, countryRows, sourceRows, playerRows, signupRows, topPlayerRows] = await Promise.all([
         db.execute(sql`
           SELECT (date_trunc('day', created_at AT TIME ZONE 'UTC'))::date::text AS date,
-                 count(*)::int AS count
+                 count(*)::int AS count,
+                 count(DISTINCT user_id)::int AS "uniquePlayers"
           FROM player_login_events
           WHERE created_at >= ${cutoff}
           GROUP BY 1 ORDER BY 1
         `),
         db.execute(sql`
           SELECT coalesce(nullif(trim(country), ''), 'Unknown') AS country,
-                 count(*)::int AS count
+                 count(*)::int AS count,
+                 count(DISTINCT user_id)::int AS "uniquePlayers"
           FROM player_login_events
           WHERE created_at >= ${cutoff}
           GROUP BY 1 ORDER BY 2 DESC LIMIT 15
@@ -3214,18 +3221,60 @@ export async function registerRoutes(
           FROM users
           GROUP BY 1 ORDER BY 2 DESC
         `),
+        db.execute(sql`
+          SELECT count(*)::int AS "loginEvents",
+                 count(DISTINCT user_id)::int AS "activePlayers"
+          FROM player_login_events
+          WHERE created_at >= ${cutoff}
+        `),
+        db.execute(sql`
+          SELECT count(*)::int AS "totalPlayers",
+                 count(*) FILTER (WHERE created_at >= ${cutoff})::int AS "newPlayers"
+          FROM users
+        `),
+        db.execute(sql`
+          SELECT u.id,
+                 u.username,
+                 u.profile_image AS "profileImage",
+                 count(*)::int AS "loginCount",
+                 max(e.created_at) AS "lastLoginAt"
+          FROM player_login_events e
+          JOIN users u ON u.id = e.user_id
+          WHERE e.created_at >= ${cutoff}
+          GROUP BY u.id, u.username, u.profile_image
+          ORDER BY count(*) DESC, max(e.created_at) DESC
+          LIMIT 10
+        `),
       ]);
 
+      const dailySignupRows = await db.execute(sql`
+        SELECT (date_trunc('day', created_at AT TIME ZONE 'UTC'))::date::text AS date,
+               count(*)::int AS count
+        FROM users
+        WHERE created_at >= ${cutoff}
+        GROUP BY 1 ORDER BY 1
+      `);
+
       const toArr = (r: any) => Array.isArray(r) ? r : ((r as any).rows ?? []);
+      const activity = toArr(playerRows)[0] ?? { loginEvents: 0, activePlayers: 0 };
+      const players = toArr(signupRows)[0] ?? { totalPlayers: 0, newPlayers: 0 };
 
       return res.json({
+        overview: {
+          totalPlayers: Number(players.totalPlayers) || 0,
+          newPlayers: Number(players.newPlayers) || 0,
+          activePlayers: Number(activity.activePlayers) || 0,
+          loginEvents: Number(activity.loginEvents) || 0,
+        },
         dailyLogins: toArr(dailyRows),
+        dailySignups: toArr(dailySignupRows),
         loginsByCountry: toArr(countryRows),
         signupsBySource: toArr(sourceRows),
+        topPlayers: toArr(topPlayerRows),
       });
     } catch (err: any) {
       console.error("[admin/metrics]", err);
-      return res.status(500).json({ message: err.message });
+      return res.status(500).json({ message: "Failed to load player metrics" });
     }
   });
 
@@ -4030,32 +4079,45 @@ export async function registerRoutes(
     return res.json(online);
   });
 
-  // All players with an active session anywhere in the game — admins only.
-  // Reads directly from the session table so it catches players on every page,
-  // not just those connected to the world-map WebSocket.
-  app.get("/api/admin/online-players", isAuthenticated, async (req, res) => {
-    const user = req.user as any;
-    if (!user.isAdmin) return res.status(403).json({ message: "Forbidden" });
+  // Players who signed in during the admin's current local day.
+  // The browser supplies exact ISO boundaries so "today" follows the admin's
+  // timezone while the database comparison remains unambiguous.
+  app.get("/api/admin/online-today", isAdmin, async (req, res) => {
     try {
+      const since = new Date(String(req.query.since ?? ""));
+      const until = new Date(String(req.query.until ?? ""));
+      const rangeMs = until.getTime() - since.getTime();
+      if (
+        Number.isNaN(since.getTime())
+        || Number.isNaN(until.getTime())
+        || rangeMs <= 0
+        || rangeMs > 36 * 60 * 60 * 1000
+      ) {
+        return res.status(400).json({ message: "Valid local-day boundaries are required" });
+      }
+
       const rows = await db.execute(sql`
         SELECT
           u.id,
           u.username,
-          u.profile_image   AS "profileImage",
-          u.is_admin        AS "isAdmin",
-          u.is_moderator    AS "isModerator"
-        FROM session s
-        JOIN users u ON u.id = (s.sess->'passport'->>'user')
-        WHERE s.expire > NOW()
-          AND s.sess->'passport'->>'user' IS NOT NULL
-        ORDER BY u.username ASC
+          u.profile_image AS "profileImage",
+          u.is_admin AS "isAdmin",
+          u.is_moderator AS "isModerator",
+          max(e.created_at) AS "lastActiveAt",
+          count(*)::int AS "loginCount"
+        FROM player_login_events e
+        JOIN users u ON u.id = e.user_id
+        WHERE e.created_at >= ${since}
+          AND e.created_at < ${until}
+        GROUP BY u.id, u.username, u.profile_image, u.is_admin, u.is_moderator
+        ORDER BY max(e.created_at) DESC, u.username ASC
       `);
-      return res.json(rows.rows);
+      return res.json(Array.isArray(rows) ? rows : ((rows as any).rows ?? []));
     } catch (err: any) {
-      return res.status(500).json({ message: err.message });
+      console.error("[admin/online-today]", err);
+      return res.status(500).json({ message: "Failed to load today's players" });
     }
   });
-
 
   app.patch("/api/world/pet_world/pet-position", isAuthenticated, async (req: Request, res: Response) => {
     try {
