@@ -8426,20 +8426,6 @@ export async function registerRoutes(
         if (!player) throw Object.assign(new Error("Player is unavailable"), { status: 404 });
         if (player.completed) throw Object.assign(new Error("Begin Journey is already complete"), { status: 409 });
 
-        const ownedResult = await tx.execute(sql`
-          SELECT ui.id, ui.shop_item_id, si.name
-          FROM user_inventory ui
-          INNER JOIN shop_items si ON si.id = ui.shop_item_id
-          WHERE ui.user_id = ${userId} AND si.type = 'pet'
-          ORDER BY ui.acquired_at ASC
-          LIMIT 1
-          FOR UPDATE OF ui
-        `);
-        if (ownedResult.rows[0]) {
-          const owned = ownedResult.rows[0] as any;
-          return { granted: false, inventoryId: String(owned.id), petId: String(owned.shop_item_id), itemName: String(owned.name) };
-        }
-
         const petResult = await tx.execute(sql`
           SELECT id, name
           FROM shop_items
@@ -8452,6 +8438,28 @@ export async function registerRoutes(
         `);
         const pet = petResult.rows[0] as any;
         if (!pet) throw Object.assign(new Error("That 3-star starter pet is no longer available"), { status: 409 });
+
+        // Idempotently reuse this exact unhatched starter choice. Do not return
+        // an unrelated owned pet: that was the source of the client/server loop.
+        const ownedResult = await tx.execute(sql`
+          SELECT ui.id
+          FROM user_inventory ui
+          WHERE ui.user_id = ${userId}
+            AND ui.shop_item_id = ${petId}
+            AND COALESCE(ui.is_hatched, false) = false
+            AND COALESCE(ui.is_listed, false) = false
+          ORDER BY ui.acquired_at ASC
+          LIMIT 1
+          FOR UPDATE OF ui
+        `);
+        if (ownedResult.rows[0]) {
+          return {
+            granted: false,
+            inventoryId: String((ownedResult.rows[0] as any).id),
+            petId: String(pet.id),
+            itemName: String(pet.name),
+          };
+        }
 
         const inventoryResult = await tx.execute(sql`
           INSERT INTO user_inventory (user_id, shop_item_id, quantity, hatch_started_at)
