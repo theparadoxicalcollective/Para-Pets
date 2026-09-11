@@ -248,23 +248,18 @@ export default function BeginJourneyOverlay({ user }: Props) {
   });
 
   useEffect(() => {
-    if (step !== 5 || !invHatch) return;
-    const arr = invHatch as any[];
-
-    // Primary check: active pet is hatched
-    if (user?.activePetId) {
-      const activePet = arr.find(
-        (i: any) => i.inventoryId === user!.activePetId || i.id === user!.activePetId
-      );
-      if (activePet?.isHatched === true) { bjSetStep(6); setStep(6); return; }
+    if (step !== 5 || !invHatch || !user?.activePetId || completeTutorialMutation.isPending) return;
+    const activePet = (invHatch as any[]).find(
+      (i: any) =>
+        (i.inventoryId === user.activePetId || i.id === user.activePetId) &&
+        i.type === "pet"
+    );
+    if (activePet?.isHatched === true && Number(activePet.rarity) === 3) {
+      bjSetStep(6);
+      setStep(6);
+      completeTutorialMutation.mutate();
     }
-
-    // Fallback: inventory has pets but none are unhatched
-    // (covers ID-mismatch where activePetId doesn't line up with inventory rows)
-    const hasAnyPet     = arr.some((i: any) => i.type === "pet");
-    const hasUnhatched  = arr.some((i: any) => i.type === "pet" && i.isHatched === false);
-    if (hasAnyPet && !hasUnhatched) { bjSetStep(6); setStep(6); }
-  }, [step, invHatch, user?.activePetId]);
+  }, [step, invHatch, user?.activePetId, completeTutorialMutation.isPending]);
 
   // ── Step 5: check for hatching potions; auto-grant if none ───────────────
   useEffect(() => {
@@ -365,15 +360,20 @@ export default function BeginJourneyOverlay({ user }: Props) {
     return () => clearTimeout(t);
   }, [step, location, targetRect, user?.activePetId]);
 
-  // ── Grant starter egg ─────────────────────────────────────────────────────
+  // ── Grant or recover the selected starter egg ──────────────────────────────
   const handleGrantEgg = async (petId: string) => {
     if (grantLoading) return;
     setSelectedStarterId(petId);
     setGrantLoading(true);
     try {
-      await apiRequest("POST", "/api/tutorial/grant-starter-egg", { petId });
+      const response = await apiRequest("POST", "/api/tutorial/grant-starter-egg", { petId });
+      const result = await response.json();
+      bjSetStarterInventoryId(String(result.inventoryId));
       await queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       setShowGrantModal(false);
+      bjSetStep(1);
+      setStep(1);
+      navigate("/");
     } catch {
       queryClient.invalidateQueries({ queryKey: ["/api/tutorial/starter-pets"] });
     } finally {
@@ -387,40 +387,28 @@ export default function BeginJourneyOverlay({ user }: Props) {
     if (step === null || step === "done") return;
     const stepNum = step as number;
 
-    if (stepNum === 2) {
-      const firstEgg = (invCheck as any[] | undefined)?.find(i => i.isHatched === false && i.type === "pet");
-      if (!firstEgg) return;
+    if (stepNum === 3) {
+      const starterInventoryId = bjGetStarterInventoryId();
+      const chosenEgg = (invCheck as any[] | undefined)?.find(i =>
+        (i.inventoryId === starterInventoryId || i.id === starterInventoryId) &&
+        i.isHatched === false &&
+        i.type === "pet"
+      );
+      if (!starterInventoryId || !chosenEgg) {
+        bjRestart();
+        setStep(0);
+        setShowGrantModal(true);
+        return;
+      }
 
-      // If an unhatched egg is already active, the confirmation effect above
-      // advances the tutorial. Never click ACTIVE again because that toggles it off.
-      const eggAlreadyActive = user?.activePetId === firstEgg.inventoryId ||
-        (invCheck as any[]).some((i: any) =>
-          i.inventoryId === user?.activePetId && i.isHatched === false && i.type === "pet"
-        );
-      if (eggAlreadyActive || step3Selecting) return;
+      if (user?.activePetId === starterInventoryId || step3Selecting) return;
 
-      // Start selection, but stay on step 2 until /api/auth/me confirms success.
-      // This prevents fast taps on "back home" from outrunning the PATCH request.
-      const eggSel = `[data-testid="button-select-pet-${firstEgg.shopItemId}"]`;
-      const eggButton = document.querySelector(eggSel) as HTMLElement | null;
+      const eggButton = document.querySelector(
+        `[data-inventory-id="${starterInventoryId}"]`
+      ) as HTMLElement | null;
       if (!eggButton) return;
       setStep3Selecting(true);
       eggButton.click();
-      return;
-    }
-
-    if (stepNum === 6) {
-      const questEl = document.querySelector('[data-testid="nav-item-quest"]') as HTMLElement | null;
-      const isVisible = questEl && window.getComputedStyle(questEl).pointerEvents !== "none";
-      if (!isVisible) {
-        // Open nav first
-        const navBtn = document.querySelector('[data-testid="button-floating-nav"]') as HTMLElement | null;
-        navBtn?.click();
-        return;
-      }
-      // Quest icon visible — open quest panel and mark tutorial quest complete
-      questEl?.click();
-      completeTutorialMutation.mutate();
       return;
     }
 
@@ -438,7 +426,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
       bjSetStep(next);
       setStep(next);
     }
-  }, [step, invCheck, user?.activePetId, step3Selecting, navigate, completeTutorialMutation]);
+  }, [step, invCheck, user?.activePetId, step3Selecting]);
 
   // ── Render guard ──────────────────────────────────────────────────────────
   // Keep mounted during reward flash even after step → "done"
@@ -584,8 +572,8 @@ export default function BeginJourneyOverlay({ user }: Props) {
             onClick={() => {
               setShowRescue(false);
               navigate("/pets");
-              bjSetStep(2);
-              setStep(2);
+              bjSetStep(3);
+              setStep(3);
             }}
             style={{
               background: "linear-gradient(135deg, #1a3d1a 0%, #2a6e2a 100%)",
@@ -793,7 +781,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
         />
       )}
 
-      {/* Grant Egg modal (step 2, no eggs found) */}
+      {/* Starter egg picker — the first required tutorial step */}
       {showGrantModal && (
         <div style={{ position: "fixed", inset: 0, zIndex: 99010, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20px", pointerEvents: "none" }}>
           <div style={{
