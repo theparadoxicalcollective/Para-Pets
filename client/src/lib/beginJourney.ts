@@ -10,9 +10,13 @@ export const bjIsStep5FakeMode  = (): boolean  => _step5FakeMode;
 let _step5TapMode = false;
 export const bjSetStep5TapMode = (v: boolean) => { _step5TapMode = v; };
 export const bjIsStep5TapMode  = (): boolean  => _step5TapMode;
+
 const TOTAL_STEPS = 7; // steps 0–6
+const CURRENT_FLOW_VERSION = "2";
 
 export const BJ_LS_KEY = "bj_step";
+export const BJ_VERSION_KEY = "bj_flow_version";
+export const BJ_STARTER_INVENTORY_KEY = "bj_starter_inventory_id";
 export const BJ_EVENT  = "bj_step_changed";
 
 export function bjGetStep(): number | "done" | null {
@@ -24,18 +28,35 @@ export function bjGetStep(): number | "done" | null {
 }
 
 export function bjSetStep(s: number | "done") {
+  localStorage.setItem(BJ_VERSION_KEY, CURRENT_FLOW_VERSION);
   localStorage.setItem(BJ_LS_KEY, s === "done" ? "done" : String(s));
   window.dispatchEvent(new Event(BJ_EVENT));
 }
 
-export function bjStart() {
-  if (bjGetStep() !== "done") bjSetStep(0);
+export function bjSetStarterInventoryId(inventoryId: string) {
+  localStorage.setItem(BJ_STARTER_INVENTORY_KEY, inventoryId);
 }
 
-// Explicit player action from the empty active-pet stage. Unlike bjStart, this
-// intentionally repairs stale browser completion left by an interrupted quest.
+export function bjGetStarterInventoryId(): string | null {
+  return localStorage.getItem(BJ_STARTER_INVENTORY_KEY);
+}
+
+export function bjStart() {
+  if (bjGetStep() !== "done") {
+    localStorage.removeItem(BJ_STARTER_INVENTORY_KEY);
+    bjSetStep(0);
+  }
+}
+
+// Explicit player/admin recovery. This clears any stale starter reference so the
+// server-backed picker can safely resume or grant the selected 3-star egg.
 export function bjRestart() {
+  localStorage.removeItem(BJ_STARTER_INVENTORY_KEY);
   bjSetStep(0);
+}
+
+export function bjIsCurrentFlowVersion(): boolean {
+  return localStorage.getItem(BJ_VERSION_KEY) === CURRENT_FLOW_VERSION;
 }
 
 export function bjGetStatus(): "not_started" | "active" | "done" {
@@ -46,19 +67,21 @@ export function bjGetStatus(): "not_started" | "active" | "done" {
   return !isNaN(n) && n >= 0 && n < TOTAL_STEPS ? "active" : "not_started";
 }
 
-// Step 2 is special: the visual overlay forwards the tap to PetInventory, but
-// progression must be tied to the server-confirmed active-pet PATCH rather than
-// to React Query propagation timing. The shared API layer emits this event only
-// after a successful response. A null activePetId is a deselection and must never
-// advance the tutorial.
+// Step 3 waits for the server-confirmed active-pet PATCH and only accepts the
+// exact starter egg selected in step 0. Selecting a different pet cannot skip
+// the tutorial.
 if (typeof window !== "undefined") {
   const tutorialWindow = window as Window & { __paraBjActivePetAckInstalled?: boolean };
   if (!tutorialWindow.__paraBjActivePetAckInstalled) {
     tutorialWindow.__paraBjActivePetAckInstalled = true;
     window.addEventListener(ACTIVE_PET_UPDATE_CONFIRMED_EVENT, (event: Event) => {
       const activePetId = (event as CustomEvent<{ activePetId?: string | null }>).detail?.activePetId;
-      if (bjGetStep() === 2 && activePetId) {
-        bjSetStep(3);
+      if (
+        bjGetStep() === 3 &&
+        activePetId &&
+        activePetId === bjGetStarterInventoryId()
+      ) {
+        bjSetStep(4);
       }
     });
   }
