@@ -15,3 +15,29 @@ test("active pet uses the restored responsive home flow", () => {
   );
   assert.doesNotMatch(page, /className="home-active-pet-stage"/);
 });
+
+test("Begin Journey keeps the active egg compact on the phone stage", () => {
+  const page = readFileSync("client/src/pages/HomePage.tsx", "utf8");
+
+  assert.match(page, /width: "min\(calc\(70\*var\(--vw\)\), 320px\)"/);
+  assert.match(page, /maxHeight: "calc\(46\*var\(--vh\)\)"/);
+  assert.doesNotMatch(page, /max-h-\[calc\(55\*var\(--vh\)\)\]/);
+});
+
+test("tutorial mode suppresses raid chrome and the duplicate hatch cinematic", () => {
+  const page = readFileSync("client/src/pages/HomePage.tsx", "utf8");
+
+  assert.match(page, /enabled: raidVisible && bjGetStatus\(\) !== "active"/);
+  assert.match(page, /bjGetStatus\(\) !== "active" && raidVisible && raidBossData\?\.templateId/);
+  assert.match(page, /tutorialStep === 5 \|\| tutorialStep === 6/);
+  assert.match(page, /setHatchRevealing\(false\)/);
+});
+
+test("tutorial potion progress updates immediately and rejects duplicate in-flight drops", () => {
+  const page = readFileSync("client/src/pages/HomePage.tsx", "utf8");
+
+  assert.match(page, /tutorialPotionBusyRef\.current/);
+  assert.match(page, /onSettled: \(\) => \{ tutorialPotionBusyRef\.current = false; \}/);
+  assert.match(page, /queryClient\.setQueryData<InventoryItem\[]>\(\["\/api\/inventory"\]/);
+  assert.match(page, /hatchStartedAt: data\?\.hatchStartedAt/);
+});
