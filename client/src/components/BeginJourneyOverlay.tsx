@@ -261,7 +261,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
   });
 
   useEffect(() => {
-    if (!isHatchCompletionStep || !invHatch || !user?.activePetId || completeTutorialMutation.isPending) return;
+    if (!isHatchCompletionStep || !invHatch || !user?.activePetId || completeTutorialMutation.isPending || showReward) return;
     const activePet = (invHatch as any[]).find(
       (i: any) =>
         (i.inventoryId === user.activePetId || i.id === user.activePetId) &&
@@ -283,7 +283,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
       }
       completeTutorialMutation.mutate();
     }
-  }, [step, isHatchCompletionStep, invHatch, user?.activePetId, completeTutorialMutation.isPending]);
+  }, [step, isHatchCompletionStep, invHatch, user?.activePetId, completeTutorialMutation.isPending, showReward]);
 
   // ── Step 5: check for hatching potions; auto-grant if none ───────────────
   useEffect(() => {
