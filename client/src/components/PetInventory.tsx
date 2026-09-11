@@ -1006,6 +1006,7 @@ function PetView({
               {/* SELECT / ACTIVE button */}
               <button
                 data-testid={`button-select-pet-${pet.shopItemId}`}
+                data-inventory-id={pet.inventoryId}
                 onClick={(e) => { e.stopPropagation(); onToggle(pet.inventoryId); }}
                 disabled={isPending}
                 className="w-full mt-2 flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-40"
