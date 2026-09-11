@@ -252,26 +252,38 @@ export default function BeginJourneyOverlay({ user }: Props) {
   }, [step]);
 
   // ── Poll inventory for hatch at step 5 ────────────────────────────────────
+  const isHatchCompletionStep = step === 5 || step === 6;
   const { data: invHatch } = useQuery<any[]>({
     queryKey: ["/api/inventory"],
-    enabled: step === 5,
-    refetchInterval: step === 5 ? 2500 : false,
+    enabled: isHatchCompletionStep,
+    refetchInterval: isHatchCompletionStep ? 1000 : false,
     staleTime: 0,
   });
 
   useEffect(() => {
-    if (step !== 5 || !invHatch || !user?.activePetId || completeTutorialMutation.isPending) return;
+    if (!isHatchCompletionStep || !invHatch || !user?.activePetId || completeTutorialMutation.isPending) return;
     const activePet = (invHatch as any[]).find(
       (i: any) =>
         (i.inventoryId === user.activePetId || i.id === user.activePetId) &&
         i.type === "pet"
     );
+
+    // A reload can preserve step 6 before the hatch request reached the server.
+    // Resume potion/hatch guidance instead of leaving a blank finishing overlay.
+    if (step === 6 && activePet?.isHatched !== true) {
+      bjSetStep(5);
+      setStep(5);
+      return;
+    }
+
     if (activePet?.isHatched === true && Number(activePet.rarity) === 3) {
-      bjSetStep(6);
-      setStep(6);
+      if (step !== 6) {
+        bjSetStep(6);
+        setStep(6);
+      }
       completeTutorialMutation.mutate();
     }
-  }, [step, invHatch, user?.activePetId, completeTutorialMutation.isPending]);
+  }, [step, isHatchCompletionStep, invHatch, user?.activePetId, completeTutorialMutation.isPending]);
 
   // ── Step 5: check for hatching potions; auto-grant if none ───────────────
   useEffect(() => {
@@ -754,29 +766,8 @@ export default function BeginJourneyOverlay({ user }: Props) {
         );
       })()}
 
-      {/* Step 5 tap-mode: bouncing arrow above the egg guides the player to hatch */}
-      {stepNum === 5 && step5TapMode && pr && (
-        <div style={{
-          position: "fixed",
-          top:  Math.max(8, cy - radius - 80),
-          left: cx - 17,
-          width: 34, height: 44,
-          zIndex: 99003, pointerEvents: "none",
-          animation: "bj-bounce 0.7s ease-in-out infinite",
-        }}>
-          <div style={{
-            position: "absolute", top: "50%", left: "50%",
-            transform: "translate(-50%,-50%)",
-            width: 44, height: 44, borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(212,168,67,0.6) 0%, rgba(212,168,67,0.15) 55%, transparent 75%)",
-            pointerEvents: "none",
-          }} />
-          <img src={tutorialArrow} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", position: "relative" }} />
-        </div>
-      )}
-
-      {/* Bouncing arrow above target */}
-      {pr && (
+      {/* One navigation arrow; step 5 renders its dedicated egg/drag guide above. */}
+      {pr && stepNum !== 5 && (
         <img
           src={tutorialArrow}
           alt=""
