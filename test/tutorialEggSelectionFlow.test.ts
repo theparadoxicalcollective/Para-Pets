@@ -57,3 +57,18 @@ test("hatch step renders one guide at a time and recovers interrupted completion
   assert.doesNotMatch(overlay, /Step 5 tap-mode: bouncing arrow above the egg guides the player to hatch/);
   assert.match(overlay, /\{pr && stepNum !== 5 && \(/);
 });
+
+test("hatch training visibly moves the potion artwork onto the egg", () => {
+  const css = readFileSync("client/src/index.css", "utf8");
+
+  assert.match(overlay, /data-testid="tutorial-potion-drag-demo"/);
+  assert.match(overlay, /src=\{tutorialPotion\.imageUrl\}/);
+  assert.match(overlay, /\["--bj-drag-dx" as string\]/);
+  assert.match(overlay, /\["--bj-drag-dy" as string\]/);
+  assert.match(overlay, /data-testid="tutorial-potion-drag-preview"/);
+  assert.match(overlay, /document\.addEventListener\("pointermove", onMove/);
+  assert.match(overlay, /updatePreview\(ev\.clientX, ev\.clientY\)/);
+  assert.doesNotMatch(overlay, /Step 5 drag-ghost animation: arrow sweeps/);
+
+  assert.match(css, /translate\(var\(--bj-drag-dx, 0px\), var\(--bj-drag-dy\)\)/);
+});
