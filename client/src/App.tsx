@@ -27,7 +27,7 @@ import DevelopmentNoticeScreen from "@/components/DevelopmentNoticeScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
 import FloatingNav from "@/components/FloatingNav";
 import BeginJourneyOverlay from "@/components/BeginJourneyOverlay";
-import { bjGetStatus, bjRestart, bjSetStep } from "@/lib/beginJourney";
+import { bjGetStatus, bjIsCurrentFlowVersion, bjRestart, bjSetStep } from "@/lib/beginJourney";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 // ── Lazy-loaded page chunks ────────────────────────────────────────────────
@@ -263,10 +263,6 @@ function AppRouter() {
   const [showDevNotice, setShowDevNotice] = useState(() =>
     localStorage.getItem("para_pets_just_registered") === "true"
   );
-  // A moderator tutorial reset is reconciled once per authenticated app session.
-  // A later admin reset stays queued until the moderator's next login/reload.
-  const moderatorTutorialResetHandledRef = useRef<string | null>(null);
-
   const [petStatsOpen, setPetStatsOpen] = useState(false);
   useEffect(() => {
     const handler = (e: Event) => setPetStatsOpen((e as CustomEvent<{ open: boolean }>).detail.open);
@@ -281,29 +277,17 @@ function AppRouter() {
     return () => window.removeEventListener("navOverlayToggle", handler);
   }, []);
 
-  // Server completion remains authoritative across browsers. An unfinished
-  // quest is no longer auto-started: players with no pets begin it deliberately
-  // from the floating Begin Here button on the home pet stage. Preserve active
-  // in-progress steps across login, and keep the legacy final-step recovery for
-  // players who already have an active pet.
+  // Server completion is authoritative. Migrate every unfinished account off
+  // the legacy looping flow once, and automatically recover missing/stale local
+  // state (including moderator resets and players who never received an egg).
   useEffect(() => {
     if (!user || showWelcome) return;
     if ((user as any).tutorial_quest_completed || (user as any).tutorial_reward_claimed) {
       if (bjGetStatus() !== "done") bjSetStep("done");
       return;
     }
-    const moderatorTutorialWasReset =
-      (user as any).isModerator === true &&
-      (user as any).tutorial_hatch_potions_claimed !== true &&
-      (user as any).tutorial_quest_completed !== true &&
-      (user as any).tutorial_reward_claimed !== true;
-    if (moderatorTutorialWasReset && moderatorTutorialResetHandledRef.current !== (user as any).id) {
-      moderatorTutorialResetHandledRef.current = (user as any).id;
+    if (!bjIsCurrentFlowVersion() || bjGetStatus() === "done" || bjGetStatus() === "not_started") {
       bjRestart();
-      return;
-    }
-    if (bjGetStatus() === "done" && (user as any).activePetId) {
-      bjSetStep(6);
     }
   }, [user, showWelcome]);
 

@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { bjGetStep, bjSetStep, bjGetStatus, BJ_EVENT, bjSetStep5FakeMode, bjSetStep5TapMode, bjIsStep5FakeMode } from "@/lib/beginJourney";
+import { bjGetStep, bjSetStep, bjRestart, bjGetStarterInventoryId, bjSetStarterInventoryId, BJ_EVENT, bjSetStep5FakeMode, bjSetStep5TapMode, bjIsStep5FakeMode } from "@/lib/beginJourney";
 import tutorialArrow from "@assets/Photoroom_20260616_95112_PM_1781667768792.png";
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -12,35 +12,35 @@ const OVERLAY_BG  = "rgba(0,0,0,0.74)";
 const PAD         = 14; // spotlight padding around target (px)
 
 const STEP_LABELS = [
+  "Choose your 3-star starter pet egg!",
   "Open the navigation menu!",
   "Go to your Pet collection!",
-  "Select your egg as your companion!",
-  "Head back home!",
-  "Tap your egg!",
-  "Use all 3 hatching potions on your egg until it is ready!",
-  "Tap to finish your journey!",
+  "Select your chosen egg as your active companion!",
+  "Tap your active egg!",
+  "Use all 3 hatching potions, then tap the egg to hatch it!",
+  "Finishing your journey…",
 ];
 
 // Required URL path for each step (null = any)
 const STEP_REQUIRED_PATH: (string | null)[] = [
-  null,    // 0 – any game page
-  null,    // 1 – any (nav opened by previous step)
-  "/pets", // 2
-  "/pets", // 3
-  "/",     // 4
-  "/",     // 5 – drag potion onto egg on home page
-  null,    // 6 – any (after hatch, quest icon)
+  null,    // 0 – starter picker
+  null,    // 1 – any game page
+  null,    // 2 – nav opened by previous step
+  "/pets", // 3 – activate the chosen egg
+  "/",     // 4 – tap the active egg
+  "/",     // 5 – drag potions, then hatch
+  "/",     // 6 – server completion in progress
 ];
 
 // DOM selectors per step (null = handled inline)
 const STEP_SELECTORS: (string | null)[] = [
-  '[data-testid="button-floating-nav"]',   // 0
-  '[data-testid="nav-item-inventory"]',     // 1
-  '[data-testid^="button-select-pet-"]',   // 2 – first select button
-  '[data-testid="button-close-inventory"]', // 3
-  '[data-testid="button-egg-tap"]',         // 4
-  null,                                      // 5 – free mode
-  null,                                      // 6 – dynamic (nav btn or quest btn)
+  null,                                      // 0 – starter picker
+  '[data-testid="button-floating-nav"]',     // 1
+  '[data-testid="nav-item-inventory"]',      // 2
+  null,                                      // 3 – exact chosen egg, resolved dynamically
+  '[data-testid="button-egg-tap"]',          // 4
+  null,                                      // 5 – potion/hatch mode
+  null,                                      // 6 – server completion in progress
 ];
 
 const FREE_STEP = -1; // no step is "free" — step 5 uses dark overlay with elevated sheet
@@ -64,16 +64,7 @@ interface StarterPetChoice {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function BeginJourneyOverlay({ user }: Props) {
-  const [step, setStep]               = useState<number | "done" | null>(() => {
-    const s = bjGetStep();
-    // Steps 0–4 are navigation-dependent — reset to 0 if player backed out mid-flow
-    // Step 5+ (potion drag onward) can resume exactly where they left off
-    if (typeof s === "number" && s < 5) {
-      bjSetStep(0);
-      return 0;
-    }
-    return s;
-  });
+  const [step, setStep]               = useState<number | "done" | null>(() => bjGetStep());
   const [targetRect, setTargetRect]   = useState<TargetRect | null>(null);
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [grantLoading, setGrantLoading]    = useState(false);
@@ -84,7 +75,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
   const [potionRect, setPotionRect]           = useState<TargetRect | null>(null);
   const [eggOnHomeRect, setEggOnHomeRect]     = useState<TargetRect | null>(null);
   const [eggReadyToHatch, setEggReadyToHatch] = useState(false);
-  const [step2Selecting, setStep2Selecting]   = useState(false);
+  const [step3Selecting, setStep3Selecting]   = useState(false);
   const [step5TapMode,    setStep5TapMode]    = useState(false);
   const [location, navigate] = useLocation();
   const queryClient = useQueryClient();
@@ -111,9 +102,13 @@ export default function BeginJourneyOverlay({ user }: Props) {
         setStep("done");
       }, 3500);
     },
-    // Keep step 6 active after a transient failure. A retry remains available
-    // through the same quest-icon interaction and server completion stays authoritative.
-    onError: () => queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] }),
+    // Return to hatch verification after a transient failure so the next
+    // inventory refresh retries automatically instead of trapping the player.
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      bjSetStep(5);
+      setStep(5);
+    },
   });
 
   // ── Grant 3 free hatching potions (one-time) ──────────────────────────────
@@ -140,7 +135,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
     const handler = () => {
       const s = bjGetStep();
       setStep(s);
-      if (s === 0) { setShowGrantModal(false); setPotionsGranted(false); setShowRescue(false); }
+      if (s === 0) { setShowGrantModal(true); setPotionsGranted(false); setShowRescue(false); }
     };
     window.addEventListener(BJ_EVENT, handler);
     return () => window.removeEventListener(BJ_EVENT, handler);
@@ -156,21 +151,6 @@ export default function BeginJourneyOverlay({ user }: Props) {
     if (reqPath && location !== reqPath) { setTargetRect(null); return; }
 
     const poll = () => {
-      // Step 6: quest nav item if visible, else main nav button
-      if (stepNum === 6) {
-        const questEl = document.querySelector('[data-testid="nav-item-quest"]') as HTMLElement | null;
-        if (questEl) {
-          const cs = window.getComputedStyle(questEl);
-          if (cs.pointerEvents !== "none" && cs.opacity !== "0") {
-            const r = questEl.getBoundingClientRect();
-            if (r.width > 0) { setTargetRect(r); return; }
-          }
-        }
-        const navBtn = document.querySelector('[data-testid="button-floating-nav"]') as HTMLElement | null;
-        if (navBtn) { const r = navBtn.getBoundingClientRect(); if (r.width > 0) { setTargetRect(r); return; } }
-        setTargetRect(null); return;
-      }
-
       // Step 5: spotlight the egg + track potions for ghost animation.
       // Sheet is elevated (z-99002) above overlay; backdrop has pointer-events:none
       // so it can't close the sheet. Potions are directly interactive.
@@ -188,11 +168,19 @@ export default function BeginJourneyOverlay({ user }: Props) {
         return;
       }
 
-      // Step 2: spotlight the first UNHATCHED egg's select button specifically
-      if (stepNum === 2) {
-        const firstEgg = invCheckRef.current.find(i => i.isHatched === false && i.type === "pet");
-        const eggSel = firstEgg ? `[data-testid="button-select-pet-${firstEgg.shopItemId}"]` : STEP_SELECTORS[2];
-        const el = eggSel ? document.querySelector(eggSel) as HTMLElement | null : null;
+      // Step 3: spotlight only the exact starter inventory row chosen in step 0.
+      if (stepNum === 3) {
+        const starterInventoryId = bjGetStarterInventoryId();
+        const chosenEgg = starterInventoryId
+          ? invCheckRef.current.find(i =>
+              (i.inventoryId === starterInventoryId || i.id === starterInventoryId) &&
+              i.isHatched === false &&
+              i.type === "pet"
+            )
+          : null;
+        const el = chosenEgg
+          ? document.querySelector(`[data-inventory-id="${starterInventoryId}"]`) as HTMLElement | null
+          : null;
         if (!el) { setTargetRect(null); return; }
         const cs = window.getComputedStyle(el);
         if (cs.pointerEvents === "none" || cs.opacity === "0" || cs.display === "none") { setTargetRect(null); return; }
@@ -219,46 +207,49 @@ export default function BeginJourneyOverlay({ user }: Props) {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [step, location]);
 
-  // ── Check for egg at step 2 ───────────────────────────────────────────────
+  // ── Check for the chosen egg at step 3 ────────────────────────────────────
   const { data: invCheck } = useQuery<any[]>({
     queryKey: ["/api/inventory"],
-    enabled: step === 2 && location === "/pets",
-    staleTime: 10_000,
+    enabled: step === 3 && location === "/pets",
+    staleTime: 0,
   });
 
   // Keep ref synced so the poll closure always sees the latest invCheck
   useEffect(() => { invCheckRef.current = invCheck ?? []; }, [invCheck]);
 
-  // Step 2 must not advance until the active-pet mutation has actually
-  // succeeded and the auth cache confirms an unhatched egg is active.
+  // Wait for the exact chosen egg to become active. The shared API layer
+  // advances step 3 only after PATCH succeeds. The cache check also recovers a
+  // reload that happens after activation but before local progression is saved.
   useEffect(() => {
-    if (step !== 2 || location !== "/pets" || !invCheck) return;
-    const activeEgg = user?.activePetId
-      ? invCheck.find((i: any) => i.inventoryId === user.activePetId && i.type === "pet" && i.isHatched === false)
-      : null;
-    if (!activeEgg) return;
-    setStep2Selecting(false);
-    bjSetStep(3);
-    setStep(3);
-  }, [step, location, invCheck, user?.activePetId]);
+    if (step === 3 && location === "/pets") {
+      const starterInventoryId = bjGetStarterInventoryId();
+      if (starterInventoryId && user?.activePetId === starterInventoryId) {
+        bjSetStep(4);
+        setStep(4);
+        return;
+      }
+    }
+    if (step !== 4 || location !== "/pets") return;
+    setStep3Selecting(false);
+    navigate("/");
+  }, [step, location, navigate, user?.activePetId]);
 
   // If the selection request fails or stalls, unlock the highlighted button so
-  // the player can retry instead of getting trapped in a permanent pending state.
+  // the player can retry instead of getting trapped in a pending state.
   useEffect(() => {
-    if (step !== 2) {
-      if (step2Selecting) setStep2Selecting(false);
+    if (step !== 3) {
+      if (step3Selecting) setStep3Selecting(false);
       return;
     }
-    if (!step2Selecting) return;
-    const t = setTimeout(() => setStep2Selecting(false), 5000);
+    if (!step3Selecting) return;
+    const t = setTimeout(() => setStep3Selecting(false), 5000);
     return () => clearTimeout(t);
-  }, [step, step2Selecting]);
+  }, [step, step3Selecting]);
 
+  // Step 0 always owns starter selection, including recovered legacy accounts.
   useEffect(() => {
-    if (step !== 2 || location !== "/pets" || !invCheck) return;
-    const hasAnyPet = invCheck.some(i => i.type === "pet");
-    if (!hasAnyPet) setShowGrantModal(true);
-  }, [step, location, invCheck]);
+    if (step === 0) setShowGrantModal(true);
+  }, [step]);
 
   // ── Poll inventory for hatch at step 5 ────────────────────────────────────
   const { data: invHatch } = useQuery<any[]>({
@@ -269,23 +260,18 @@ export default function BeginJourneyOverlay({ user }: Props) {
   });
 
   useEffect(() => {
-    if (step !== 5 || !invHatch) return;
-    const arr = invHatch as any[];
-
-    // Primary check: active pet is hatched
-    if (user?.activePetId) {
-      const activePet = arr.find(
-        (i: any) => i.inventoryId === user!.activePetId || i.id === user!.activePetId
-      );
-      if (activePet?.isHatched === true) { bjSetStep(6); setStep(6); return; }
+    if (step !== 5 || !invHatch || !user?.activePetId || completeTutorialMutation.isPending) return;
+    const activePet = (invHatch as any[]).find(
+      (i: any) =>
+        (i.inventoryId === user.activePetId || i.id === user.activePetId) &&
+        i.type === "pet"
+    );
+    if (activePet?.isHatched === true && Number(activePet.rarity) === 3) {
+      bjSetStep(6);
+      setStep(6);
+      completeTutorialMutation.mutate();
     }
-
-    // Fallback: inventory has pets but none are unhatched
-    // (covers ID-mismatch where activePetId doesn't line up with inventory rows)
-    const hasAnyPet     = arr.some((i: any) => i.type === "pet");
-    const hasUnhatched  = arr.some((i: any) => i.type === "pet" && i.isHatched === false);
-    if (hasAnyPet && !hasUnhatched) { bjSetStep(6); setStep(6); }
-  }, [step, invHatch, user?.activePetId]);
+  }, [step, invHatch, user?.activePetId, completeTutorialMutation.isPending]);
 
   // ── Step 5: check for hatching potions; auto-grant if none ───────────────
   useEffect(() => {
@@ -386,15 +372,20 @@ export default function BeginJourneyOverlay({ user }: Props) {
     return () => clearTimeout(t);
   }, [step, location, targetRect, user?.activePetId]);
 
-  // ── Grant starter egg ─────────────────────────────────────────────────────
+  // ── Grant or recover the selected starter egg ──────────────────────────────
   const handleGrantEgg = async (petId: string) => {
     if (grantLoading) return;
     setSelectedStarterId(petId);
     setGrantLoading(true);
     try {
-      await apiRequest("POST", "/api/tutorial/grant-starter-egg", { petId });
+      const response = await apiRequest("POST", "/api/tutorial/grant-starter-egg", { petId });
+      const result = await response.json();
+      bjSetStarterInventoryId(String(result.inventoryId));
       await queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       setShowGrantModal(false);
+      bjSetStep(1);
+      setStep(1);
+      navigate("/");
     } catch {
       queryClient.invalidateQueries({ queryKey: ["/api/tutorial/starter-pets"] });
     } finally {
@@ -408,40 +399,28 @@ export default function BeginJourneyOverlay({ user }: Props) {
     if (step === null || step === "done") return;
     const stepNum = step as number;
 
-    if (stepNum === 2) {
-      const firstEgg = (invCheck as any[] | undefined)?.find(i => i.isHatched === false && i.type === "pet");
-      if (!firstEgg) return;
-
-      // If an unhatched egg is already active, the confirmation effect above
-      // advances the tutorial. Never click ACTIVE again because that toggles it off.
-      const eggAlreadyActive = user?.activePetId === firstEgg.inventoryId ||
-        (invCheck as any[]).some((i: any) =>
-          i.inventoryId === user?.activePetId && i.isHatched === false && i.type === "pet"
-        );
-      if (eggAlreadyActive || step2Selecting) return;
-
-      // Start selection, but stay on step 2 until /api/auth/me confirms success.
-      // This prevents fast taps on "back home" from outrunning the PATCH request.
-      const eggSel = `[data-testid="button-select-pet-${firstEgg.shopItemId}"]`;
-      const eggButton = document.querySelector(eggSel) as HTMLElement | null;
-      if (!eggButton) return;
-      setStep2Selecting(true);
-      eggButton.click();
-      return;
-    }
-
-    if (stepNum === 6) {
-      const questEl = document.querySelector('[data-testid="nav-item-quest"]') as HTMLElement | null;
-      const isVisible = questEl && window.getComputedStyle(questEl).pointerEvents !== "none";
-      if (!isVisible) {
-        // Open nav first
-        const navBtn = document.querySelector('[data-testid="button-floating-nav"]') as HTMLElement | null;
-        navBtn?.click();
+    if (stepNum === 3) {
+      const starterInventoryId = bjGetStarterInventoryId();
+      const chosenEgg = (invCheck as any[] | undefined)?.find(i =>
+        (i.inventoryId === starterInventoryId || i.id === starterInventoryId) &&
+        i.isHatched === false &&
+        i.type === "pet"
+      );
+      if (!starterInventoryId || !chosenEgg) {
+        bjRestart();
+        setStep(0);
+        setShowGrantModal(true);
         return;
       }
-      // Quest icon visible — open quest panel and mark tutorial quest complete
-      questEl?.click();
-      completeTutorialMutation.mutate();
+
+      if (user?.activePetId === starterInventoryId || step3Selecting) return;
+
+      const eggButton = document.querySelector(
+        `[data-inventory-id="${starterInventoryId}"]`
+      ) as HTMLElement | null;
+      if (!eggButton) return;
+      setStep3Selecting(true);
+      eggButton.click();
       return;
     }
 
@@ -459,7 +438,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
       bjSetStep(next);
       setStep(next);
     }
-  }, [step, invCheck, user?.activePetId, step2Selecting, navigate, completeTutorialMutation]);
+  }, [step, invCheck, user?.activePetId, step3Selecting]);
 
   // ── Render guard ──────────────────────────────────────────────────────────
   // Keep mounted during reward flash even after step → "done"
@@ -605,8 +584,8 @@ export default function BeginJourneyOverlay({ user }: Props) {
             onClick={() => {
               setShowRescue(false);
               navigate("/pets");
-              bjSetStep(2);
-              setStep(2);
+              bjSetStep(3);
+              setStep(3);
             }}
             style={{
               background: "linear-gradient(135deg, #1a3d1a 0%, #2a6e2a 100%)",
@@ -814,7 +793,7 @@ export default function BeginJourneyOverlay({ user }: Props) {
         />
       )}
 
-      {/* Grant Egg modal (step 2, no eggs found) */}
+      {/* Starter egg picker — the first required tutorial step */}
       {showGrantModal && (
         <div style={{ position: "fixed", inset: 0, zIndex: 99010, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 20px", pointerEvents: "none" }}>
           <div style={{
