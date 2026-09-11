@@ -102,9 +102,13 @@ export default function BeginJourneyOverlay({ user }: Props) {
         setStep("done");
       }, 3500);
     },
-    // Keep step 6 active after a transient failure. A retry remains available
-    // through the same quest-icon interaction and server completion stays authoritative.
-    onError: () => queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] }),
+    // Return to hatch verification after a transient failure so the next
+    // inventory refresh retries automatically instead of trapping the player.
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      bjSetStep(5);
+      setStep(5);
+    },
   });
 
   // ── Grant 3 free hatching potions (one-time) ──────────────────────────────
