@@ -218,13 +218,21 @@ export default function BeginJourneyOverlay({ user }: Props) {
   useEffect(() => { invCheckRef.current = invCheck ?? []; }, [invCheck]);
 
   // Wait for the exact chosen egg to become active. The shared API layer
-  // advances step 3 only after PATCH succeeds; this effect then moves the player
-  // to the active-pet page for the hatch interaction.
+  // advances step 3 only after PATCH succeeds. The cache check also recovers a
+  // reload that happens after activation but before local progression is saved.
   useEffect(() => {
+    if (step === 3 && location === "/pets") {
+      const starterInventoryId = bjGetStarterInventoryId();
+      if (starterInventoryId && user?.activePetId === starterInventoryId) {
+        bjSetStep(4);
+        setStep(4);
+        return;
+      }
+    }
     if (step !== 4 || location !== "/pets") return;
     setStep3Selecting(false);
     navigate("/");
-  }, [step, location, navigate]);
+  }, [step, location, navigate, user?.activePetId]);
 
   // If the selection request fails or stalls, unlock the highlighted button so
   // the player can retry instead of getting trapped in a pending state.
