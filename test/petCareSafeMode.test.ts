@@ -15,8 +15,8 @@ const runtime = (displayMode: RuntimeMode["displayMode"]): RuntimeMode => ({
   displayMode, isStandalone: displayMode === "ios-standalone", browserClassification: displayMode,
 });
 
-test("iOS reduced visuals retain drag and tap fallback capabilities", () => {
-  for (const mode of ["ios-browser", "ios-embedded", "ios-standalone"] as const) {
+test("mobile reduced visuals retain drag and tap fallback capabilities", () => {
+  for (const mode of ["ios-browser", "ios-embedded", "ios-standalone", "android-browser", "android-standalone"] as const) {
     assert.deepEqual(getPetCareRuntimeDecisions(runtime(mode), ""), {
       reducedVisualMode: true,
       dragEnabled: true,
@@ -29,6 +29,8 @@ test("Pet Care defaults all iOS runtime modes to safe mode with controlled overr
   assert.equal(shouldUsePetCareSafeMode(runtime("ios-browser"), ""), true);
   assert.equal(shouldUsePetCareSafeMode(runtime("ios-embedded"), ""), true);
   assert.equal(shouldUsePetCareSafeMode(runtime("ios-standalone"), ""), true);
+  assert.equal(shouldUsePetCareSafeMode(runtime("android-browser"), ""), true);
+  assert.equal(shouldUsePetCareSafeMode(runtime("android-standalone"), ""), true);
   assert.equal(shouldUsePetCareSafeMode(runtime("desktop"), "?petCareSafe=1"), true);
   assert.equal(shouldUsePetCareSafeMode(runtime("ios-browser"), "?petCareSafe=0"), false);
   assert.equal(shouldUsePetCareSafeMode(runtime("ios-browser"), "?petCareSafe=0", true), true);

@@ -209,7 +209,10 @@ export default function AuthPage() {
     onSuccess: async (user) => {
       setLoadingProgress(100);
       setFieldErrors({});
-      try { localStorage.setItem("para_pets_just_registered", "true"); } catch {}
+      try {
+        localStorage.setItem("para_pets_just_registered", "true");
+        localStorage.setItem("para_pets_just_registered_user_id", String(user.id));
+      } catch {}
       if (user.verificationEmailSent === false) toast({ title: "Account created", description: "We could not send your verification email yet. You can retry on the next screen." });
       await replaceAuthSession(user, queryClient);
       setTimeout(() => {

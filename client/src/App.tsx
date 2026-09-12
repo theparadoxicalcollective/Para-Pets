@@ -27,7 +27,7 @@ import DevelopmentNoticeScreen from "@/components/DevelopmentNoticeScreen";
 import GlobalLevelUpOverlay from "@/components/GlobalLevelUpOverlay";
 import FloatingNav from "@/components/FloatingNav";
 import BeginJourneyOverlay from "@/components/BeginJourneyOverlay";
-import { bjGetStatus, bjIsCurrentFlowVersion, bjRestart, bjSetStep } from "@/lib/beginJourney";
+import { bjGetStatus, bjIsCurrentFlowVersion, bjRestart, bjSetStep, bjUsePlayer } from "@/lib/beginJourney";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 // ── Lazy-loaded page chunks ────────────────────────────────────────────────
@@ -249,6 +249,11 @@ function AppRouter() {
     },
   });
 
+  // Select the browser-local tutorial namespace before any tutorial child renders.
+  // This prevents a second account on the same device from inheriting another
+  // player's step, starter egg id, or completed state.
+  if (user?.id) bjUsePlayer(String(user.id));
+
   const { data: maintenanceData } = useQuery<{ maintenance: boolean }>({
     queryKey: ["/api/maintenance-status"],
     retry: false,
@@ -257,12 +262,8 @@ function AppRouter() {
   });
   const maintenanceOn = maintenanceData?.maintenance === true;
 
-  const [showWelcome, setShowWelcome] = useState(() =>
-    localStorage.getItem("para_pets_just_registered") === "true"
-  );
-  const [showDevNotice, setShowDevNotice] = useState(() =>
-    localStorage.getItem("para_pets_just_registered") === "true"
-  );
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [showDevNotice, setShowDevNotice] = useState(false);
   const [petStatsOpen, setPetStatsOpen] = useState(false);
   useEffect(() => {
     const handler = (e: Event) => setPetStatsOpen((e as CustomEvent<{ open: boolean }>).detail.open);
@@ -369,11 +370,26 @@ function AppRouter() {
   }, [user?.id]);
 
   useEffect(() => {
-    if (user && localStorage.getItem("para_pets_just_registered") === "true") {
-      setShowWelcome(true);
-      setShowDevNotice(true);
+    if (!user?.id) {
+      setShowWelcome(false);
+      setShowDevNotice(false);
+      return;
     }
-  }, [user]);
+    try {
+      const userId = String(user.id);
+      const pendingUserId = localStorage.getItem("para_pets_just_registered_user_id");
+      const legacyPending = localStorage.getItem("para_pets_just_registered") === "true";
+      const belongsToThisPlayer = pendingUserId === userId || (!pendingUserId && legacyPending);
+      if (belongsToThisPlayer && !pendingUserId) {
+        localStorage.setItem("para_pets_just_registered_user_id", userId);
+      }
+      setShowWelcome(belongsToThisPlayer);
+      setShowDevNotice(belongsToThisPlayer);
+    } catch {
+      setShowWelcome(false);
+      setShowDevNotice(false);
+    }
+  }, [user?.id]);
 
   const handleWelcomeComplete = (updatedUser: any) => {
     setShowWelcome(false);
@@ -890,6 +906,12 @@ function App() {
   }, []);
 
   useEffect(() => {
+    // Safari owns an edge-swipe navigation gesture; Android browsers do not.
+    // Installing this non-passive document listener on Android interferes with
+    // horizontal controls and drag gestures, including tutorial interactions.
+    const runtime = detectRuntimeMode();
+    if (!runtime.displayMode.startsWith("ios-")) return;
+
     let touchStartX = 0;
     let touchStartY = 0;
     let touchStartedInPetCareShelf = false;
