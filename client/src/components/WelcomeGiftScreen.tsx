@@ -36,9 +36,12 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
   const { data: rewards = [], isSuccess, isError, isFetching, refetch } = useQuery<PendingReward[]>({
     queryKey: ["/api/rewards/pending"],
     queryFn: async () => {
-      // Finish any deferred account provisioning before looking for the gift.
-      // This endpoint is idempotent, so retries safely repair a partial signup.
-      await apiRequest("POST", "/api/auth/reconcile-onboarding");
+      // Reconciliation is best-effort. Always check pending rewards afterward:
+      // another request may already have created the gift even if one optional
+      // setup step failed or the reconciliation response was interrupted.
+      try {
+        await apiRequest("POST", "/api/auth/reconcile-onboarding");
+      } catch {}
       const res = await apiRequest("GET", "/api/rewards/pending");
       return res.json();
     },
@@ -142,6 +145,16 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
                 }}
               >
                 {isFetching ? "Preparing…" : "Retry Welcome Setup"}
+              </button>
+              <button
+                type="button"
+                data-testid="button-continue-without-welcome"
+                onClick={handleSkip}
+                disabled={isFetching}
+                className="font-semibold underline underline-offset-4 disabled:opacity-60"
+                style={{ color: "rgba(240,224,160,0.78)", fontSize: 11 }}
+              >
+                Continue to the game — your gift can arrive later
               </button>
             </>
           ) : (

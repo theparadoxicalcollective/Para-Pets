@@ -6,6 +6,7 @@ const root = readFileSync("client/src/RootEntry.tsx", "utf8");
 const app = readFileSync("client/src/App.tsx", "utf8");
 const profile = readFileSync("client/src/components/UserProfilePanel.tsx", "utf8");
 const accountRoutes = readFileSync("server/routes/account.routes.ts", "utf8");
+const serverIndex = readFileSync("server/index.ts", "utf8");
 
 test("account changes remount the game and restart player-specific preload", () => {
   assert.match(root, /<App key=\{user\.id\} \/>/);
@@ -27,5 +28,6 @@ test("logout clears browser player state and destroys the server session", () =>
   assert.match(profile, /window\.location\.replace\("\/"\)/);
   assert.match(accountRoutes, /session\.destroy/);
   assert.match(accountRoutes, /res\.clearCookie\("connect\.sid"/);
-  assert.match(accountRoutes, /sameSite: process\.env\.NODE_ENV === "production" \? "none" : "lax"/);
+  assert.match(accountRoutes, /sameSite: "lax"/);
+  assert.match(serverIndex, /sameSite: "lax"/);
 });

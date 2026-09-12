@@ -181,6 +181,9 @@ export default function AuthPage() {
     onSuccess: async (user) => {
       setLoadingProgress(100);
       await replaceAuthSession(user, queryClient);
+      // Repair any welcome or free-house setup that was interrupted during
+      // registration. This is idempotent and must never delay a successful login.
+      void apiRequest("POST", "/api/auth/reconcile-onboarding").catch(() => {});
       setTimeout(() => {
         setLocation(returnTo);
       }, 80);

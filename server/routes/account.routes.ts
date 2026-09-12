@@ -195,15 +195,36 @@ app.post("/api/auth/register", async (req, res) => {
 // rewards are transaction-protected, owned free houses are skipped, and an
 // already-selected active house is never overwritten.
 app.post("/api/auth/reconcile-onboarding", isAuthenticated, async (req, res) => {
-  try {
-    const userId = (req.user as { id: string }).id;
-    await grantWelcomeV2Bundle(userId);
-    await ensureFreeHouseSetup(userId);
-    return res.json({ ok: true });
-  } catch (error) {
-    console.error("Onboarding reconciliation deferred:", error instanceof Error ? error.message : "unavailable");
-    return res.status(503).json({ message: "Your account is still being prepared. Please retry in a moment." });
+  const userId = (req.user as { id: string }).id;
+  const [welcomeResult, houseResult] = await Promise.allSettled([
+    grantWelcomeV2Bundle(userId),
+    ensureFreeHouseSetup(userId),
+  ]);
+  const welcomeReady = welcomeResult.status === "fulfilled";
+  const houseReady = houseResult.status === "fulfilled";
+
+  if (!welcomeReady) {
+    console.error(
+      "Welcome reward reconciliation deferred:",
+      welcomeResult.reason instanceof Error ? welcomeResult.reason.message : "unavailable",
+    );
   }
+  if (!houseReady) {
+    console.error(
+      "Free house reconciliation deferred:",
+      houseResult.reason instanceof Error ? houseResult.reason.message : "unavailable",
+    );
+  }
+
+  // The welcome reward controls this screen. House setup is independent and
+  // can repair on the next login without blocking the player from entering.
+  if (welcomeReady) return res.json({ ok: true, welcomeReady, houseReady });
+  return res.status(503).json({
+    ok: false,
+    welcomeReady,
+    houseReady,
+    message: "Your welcome reward is still being prepared. Please retry in a moment.",
+  });
 });
 
 app.post("/api/auth/change-unverified-email", isAuthenticated, async (req, res) => {
@@ -243,7 +264,7 @@ app.post("/api/auth/logout", (req, res) => {
       res.clearCookie("connect.sid", {
         path: "/",
         secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        sameSite: "lax",
       });
       return res.json({ message: "Logged out" });
     });

@@ -7,6 +7,7 @@ type Handler = (req: any, res: any, next?: () => unknown) => unknown;
 
 const rootEntrySource = readFileSync("client/src/RootEntry.tsx", "utf8");
 const welcomeSource = readFileSync("client/src/components/WelcomeGiftScreen.tsx", "utf8");
+const authPageSource = readFileSync("client/src/pages/AuthPage.tsx", "utf8");
 const accountRoutesSource = readFileSync("server/routes/account.routes.ts", "utf8");
 
 test("email verification is enforced above navigation-specific route behavior", () => {
@@ -16,10 +17,13 @@ test("email verification is enforced above navigation-specific route behavior", 
   assert.doesNotMatch(rootEntrySource, /isVerificationExemptPath[\s\S]{0,300}shouldHideNav/);
 });
 
-test("welcome setup failures remain retryable instead of clearing new-player state", () => {
+test("welcome gift provisioning can recover or safely let the player continue", () => {
   assert.match(welcomeSource, /POST", "\/api\/auth\/reconcile-onboarding"/);
   assert.match(welcomeSource, /data-testid="button-retry-welcome-setup"/);
+  assert.match(welcomeSource, /data-testid="button-continue-without-welcome"/);
+  assert.match(welcomeSource, /catch \{\}[\s\S]{0,120}GET", "\/api\/rewards\/pending"/);
   assert.match(welcomeSource, /setupNeedsRetry = isError \|\| \(isSuccess && !welcomeReward\)/);
+  assert.match(authPageSource, /reconcile-onboarding"\)\.catch\(\(\) => \{\}\)/);
   assert.doesNotMatch(
     welcomeSource,
     /if \(!isError\) return;[\s\S]{0,180}localStorage\.removeItem\("para_pets_just_registered"\)/,
@@ -31,7 +35,7 @@ test("onboarding reconciliation repairs partial provisioning and is safe to repe
   const user: any = { id: "new-user", activeHouseBundleId: null };
   const owned = new Set<string>();
   let failWelcome = true;
-  let failHouseGrant = false;
+  let failHouseGrant = true;
   let houseGrantCalls = 0;
 
   const storage: any = {
@@ -80,26 +84,35 @@ test("onboarding reconciliation repairs partial provisioning and is safe to repe
     return result;
   }
 
-  assert.equal((await reconcile()).status, 503);
+  const unavailable = await reconcile();
+  assert.equal(unavailable.status, 503);
+  assert.deepEqual(unavailable.body, {
+    ok: false,
+    welcomeReady: false,
+    houseReady: false,
+    message: "Your welcome reward is still being prepared. Please retry in a moment.",
+  });
   assert.equal(owned.size, 0);
 
   failWelcome = false;
   failHouseGrant = true;
-  assert.equal((await reconcile()).status, 503);
+  const welcomeOnly = await reconcile();
+  assert.equal(welcomeOnly.status, 200);
+  assert.deepEqual(welcomeOnly.body, { ok: true, welcomeReady: true, houseReady: false });
   assert.equal(owned.size, 0);
 
   const repaired = await reconcile();
   assert.equal(repaired.status, 200);
-  assert.deepEqual(repaired.body, { ok: true });
+  assert.deepEqual(repaired.body, { ok: true, welcomeReady: true, houseReady: true });
   assert.deepEqual([...owned].sort(), ["free-a", "free-b"]);
   assert.equal(user.activeHouseBundleId, "free-a");
-  assert.equal(houseGrantCalls, 3);
+  assert.equal(houseGrantCalls, 4);
 
   user.activeHouseBundleId = "player-choice";
   const repeated = await reconcile();
   assert.equal(repeated.status, 200);
   assert.equal(user.activeHouseBundleId, "player-choice");
-  assert.equal(houseGrantCalls, 3);
+  assert.equal(houseGrantCalls, 4);
 
   assert.match(accountRoutesSource, /hasUserHouseBundle\(userId, bundle\.id\)/);
   assert.match(accountRoutesSource, /if \(user && !user\.activeHouseBundleId\)/);

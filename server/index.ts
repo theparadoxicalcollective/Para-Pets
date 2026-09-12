@@ -148,7 +148,9 @@ app.use(
     saveUninitialized: false,
     cookie: {
       secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
+      // All game API calls are first-party. Lax is accepted more consistently
+      // by Safari, Chrome, installed PWAs, and embedded Android browsers.
+      sameSite: "lax",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     },
   })
