@@ -58,6 +58,13 @@ export default function FriendsPage() {
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [showRequests, setShowRequests] = useState(false);
 
+  // Open the dedicated drawer when the player arrives with pending requests.
+  // This replaces the layout-shifting request cards that used to render on
+  // the Active Pet page.
+  useEffect(() => {
+    if (friendRequests.length > 0) setShowRequests(true);
+  }, [friendRequests.length]);
+
   useEffect(() => {
     setNavHidden(true);
     return () => setNavHidden(false);

@@ -38,5 +38,5 @@ test("Clearing has a single visibility-aware RAF loop with unmount cleanup", () 
 
 test("hidden HomePage pauses safe background polling", () => {
   assert.match(home, /showWorldChat \|\| isOverlayActive \? false : 15000/);
-  assert.ok((home.match(/enabled: !!currentUser && !isOverlayActive/g) ?? []).length >= 2);
+  assert.ok((home.match(/enabled: !!currentUser && !isOverlayActive/g) ?? []).length >= 1);
 });
