@@ -241,7 +241,8 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     ? "gold"
     : null;
 
-  const friendBadge: "green" | null = (friendReqData?.count ?? 0) > 0 ? "green" : null;
+  const friendRequestCount = friendReqData?.count ?? 0;
+  const friendBadge: "green" | null = friendRequestCount > 0 ? "green" : null;
 
   const handleLeft = (id: string) => {
     closeAll();
@@ -416,6 +417,38 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
               glow={questBadge === "green" ? "#4ade80" : "#f0c040"}
               style={{ position: "absolute", top: -22, zIndex: 100 }}
             />
+          )}
+          {/* Friend requests live in the Friends page; this badge keeps
+              them visible without adding anything to the Active Pet layout. */}
+          {friendRequestCount > 0 && !isOpen && (
+            <span
+              data-testid="badge-friend-request-count"
+              aria-label={`${friendRequestCount} pending friend ${friendRequestCount === 1 ? "request" : "requests"}`}
+              style={{
+                position: "absolute",
+                top: -6,
+                right: -6,
+                zIndex: 101,
+                minWidth: 20,
+                height: 20,
+                padding: "0 5px",
+                borderRadius: 10,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "radial-gradient(circle, #4ade80 0%, #16a34a 100%)",
+                border: "2px solid rgba(5,12,8,0.95)",
+                boxShadow: "0 0 10px rgba(74,222,128,0.75), 0 2px 6px rgba(0,0,0,0.7)",
+                color: "#fff",
+                fontFamily: "Lora, serif",
+                fontSize: 10,
+                fontWeight: 700,
+                lineHeight: 1,
+                pointerEvents: "none",
+              }}
+            >
+              {friendRequestCount > 99 ? "99+" : friendRequestCount}
+            </span>
           )}
         </button>
       </div>
