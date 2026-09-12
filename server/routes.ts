@@ -60,6 +60,7 @@ import { registerCostumePlayerRoutes } from "./routes/costumePlayer.routes";
 import { registerMiniPetRoutes } from "./routes/miniPet.routes";
 import { registerCardAdminRoutes } from "./routes/cardAdmin.routes";
 import { registerCardCollectionRoutes } from "./routes/cardCollection.routes";
+import { registerRedeemCodeRoutes } from "./routes/redeemCode.routes";
 import { grantBundleCards, parseBundleCards } from "./cards";
 import { getEffectivePetLayer } from "@shared/petLayer";
 
@@ -819,6 +820,7 @@ export async function registerRoutes(
   registerCostumeAdminRoutes(app, data => processWorldImage(data, 2000));
   registerCostumePlayerRoutes(app);
   registerMiniPetRoutes(app, data => processWorldImage(data, 1000));
+  registerRedeemCodeRoutes(app);
 
   const marketplaceRouteDependencies: MarketplaceRouteDependencies = {
     storage,
