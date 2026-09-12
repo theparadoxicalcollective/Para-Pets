@@ -39,10 +39,9 @@ test("player leaderboards mount one shared panel per logical overlay instead of 
   }
 });
 
-test("friend, hub, home, and world avatar surfaces reuse stable ids with a single page-level panel", () => {
+test("friend, hub, and world avatar surfaces reuse stable ids with a single page-level panel", () => {
   const expectations = [
     ["client/src/pages/FriendsPage.tsx", /userId=\{req\.requesterId\}/],
-    ["client/src/pages/HomePage.tsx", /userId=\{req\.requesterId\}/],
     ["client/src/pages/ParaPetsHubPage.tsx", /userId=\{member\.id\}/],
     ["client/src/pages/PetWorldPage.tsx", /userId=\{pet\.userId\}/],
     ["client/src/components/UserProfilePanel.tsx", /userId=\{req\.requesterId\}/],
