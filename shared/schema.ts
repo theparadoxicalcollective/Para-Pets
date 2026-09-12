@@ -264,6 +264,23 @@ export const userRewards = pgTable("user_rewards", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const redeemCodes = pgTable("redeem_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: varchar("code", { length: 32 }).notNull().unique(),
+  bundleId: varchar("bundle_id").notNull().references(() => rewardBundles.id, { onDelete: "cascade" }),
+  active: boolean("active").notNull().default(true),
+  expiresAt: timestamp("expires_at"),
+  createdBy: varchar("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const redeemCodeRedemptions = pgTable("redeem_code_redemptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  codeId: varchar("code_id").notNull().references(() => redeemCodes.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  redeemedAt: timestamp("redeemed_at").notNull().default(sql`now()`),
+}, (table) => [uniqueIndex("redeem_code_redemptions_code_user_uidx").on(table.codeId, table.userId)]);
+
 export const worldLocations = pgTable("world_locations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   worldId: text("world_id").notNull(),
@@ -517,6 +534,8 @@ export type UserClearingLoadout = typeof userClearingLoadouts.$inferSelect;
 export type RewardBundle = typeof rewardBundles.$inferSelect;
 export type RewardBundleItem = typeof rewardBundleItems.$inferSelect;
 export type UserReward = typeof userRewards.$inferSelect;
+export type RedeemCode = typeof redeemCodes.$inferSelect;
+export type RedeemCodeRedemption = typeof redeemCodeRedemptions.$inferSelect;
 export const supportMessages = pgTable("support_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull(),

@@ -34,6 +34,26 @@ export async function runEssentialBoot(): Promise<void> {
   } catch (err) { console.error("media_blobs table setup error (non-fatal):", err); }
 
   const migrations: Array<[string, ReturnType<typeof sql>]> = [
+    ["Redeem code schema migration error (non-fatal):", sql`
+      CREATE TABLE IF NOT EXISTS redeem_codes (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        code VARCHAR(32) NOT NULL UNIQUE,
+        bundle_id VARCHAR NOT NULL REFERENCES reward_bundles(id) ON DELETE CASCADE,
+        active BOOLEAN NOT NULL DEFAULT true,
+        expires_at TIMESTAMP,
+        created_by VARCHAR REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT now()
+      );
+      CREATE TABLE IF NOT EXISTS redeem_code_redemptions (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        code_id VARCHAR NOT NULL REFERENCES redeem_codes(id) ON DELETE CASCADE,
+        user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        redeemed_at TIMESTAMP NOT NULL DEFAULT now(),
+        UNIQUE(code_id, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS redeem_code_redemptions_user_idx
+        ON redeem_code_redemptions(user_id, redeemed_at DESC);
+    `],
     ["Mini Pets schema migration error (non-fatal):", sql`
       CREATE TABLE IF NOT EXISTS mini_pet_definitions (
         shop_item_id VARCHAR PRIMARY KEY REFERENCES shop_items(id) ON DELETE CASCADE,

@@ -50,6 +50,7 @@ import worldSwamp        from "@assets/bg_swamp_map.png";
 import worldVolcanic     from "@assets/bg_volcanic_map_v4.webp";
 import worldSnowy        from "@assets/bg_snowy_mountain_map.png";
 import DailyClaimCard from "@/components/DailyClaimCard";
+import RedeemCodeCard from "@/components/RedeemCodeCard";
 
 import hubParaPet    from "@assets/generated_images/hub_para_pet_transparent.png";
 import paradoxStatue from "@assets/Photoroom_20260619_64226_PM_1781913135212.png";
@@ -1462,6 +1463,10 @@ export default function ParaPetsHubPage() {
           {/* ── Daily Rewards ──────────────────────────────────────────────── */}
           <div className="mt-4">
             <DailyClaimCard user={user} />
+          </div>
+
+          <div className="mt-4">
+            <RedeemCodeCard user={user} onSignIn={() => setShowSignIn(true)} />
           </div>
 
           <GoldDivider />

@@ -19,6 +19,7 @@ import ClearingAdminPanel from "@/components/ClearingAdminPanel";
 import HomeBundleSection from "@/components/HomeBundleSection";
 import CardAdminPanel from "@/components/CardAdminPanel";
 import RewardCardPicker, { type SelectedRewardCard } from "@/components/RewardCardPicker";
+import RedeemCodeAdminPanel from "@/components/RedeemCodeAdminPanel";
 
 import adminIconMembers from "@assets/admin_icon_members.png";
 import adminIconRewards from "@assets/admin_icon_rewards_new.png";
@@ -81,7 +82,7 @@ export default function AdminPage({ user }: AdminPageProps) {
   const [orphanResult, setOrphanResult] = useState<{ summary: string; cleaned: number } | null>(null);
   const [characterTab, setCharacterTab] = useState<"pet" | "mini_pet" | "enemy" | "npc" | "fish">("pet");
   const [itemsTab, setItemsTab] = useState<"items" | "fishing">("items");
-  const [rewardsTab, setRewardsTab] = useState<"rewards" | "welcome">("rewards");
+  const [rewardsTab, setRewardsTab] = useState<"rewards" | "welcome" | "code">("rewards");
   const [watcherTab, setWatcherTab] = useState<"watcher" | "chat_filter">("watcher");
   const [purchasesTab, setPurchasesTab] = useState<"history" | "milestones">("history");
   const [partsOverlayTemplateId, setPartsOverlayTemplateId] = useState<string | null>(null);
@@ -517,6 +518,7 @@ export default function AdminPage({ user }: AdminPageProps) {
                     {([
                       { key: "rewards", label: "Rewards" },
                       { key: "welcome", label: "Welcome Bundle" },
+                      { key: "code", label: "Code" },
                     ] as const).map(t => {
                       const active = rewardsTab === t.key;
                       return (
@@ -550,6 +552,7 @@ export default function AdminPage({ user }: AdminPageProps) {
                     <RewardBundleSection members={members.filter(m => !m.isAdmin)} />
                   )}
                   {rewardsTab === "welcome" && <WelcomeBundleSection />}
+                  {rewardsTab === "code" && <RedeemCodeAdminPanel />}
                 </div>
               )}
 
