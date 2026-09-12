@@ -3612,8 +3612,9 @@ img[data-interactive], button img, a img {
 @keyframes bj-drag-ghost {
   0%   { opacity: 0;    transform: translate(0, 0) scale(0.7); }
   12%  { opacity: 1;    transform: translate(0, 0) scale(1); }
-  70%  { opacity: 0.85; transform: translate(0, var(--bj-drag-dy)) scale(1.15); }
-  88%  { opacity: 0;    transform: translate(0, var(--bj-drag-dy)) scale(0.9); }
+  70%  { opacity: 0.95; transform: translate(var(--bj-drag-dx, 0px), var(--bj-drag-dy)) scale(1.12); }
+  82%  { opacity: 1;    transform: translate(var(--bj-drag-dx, 0px), var(--bj-drag-dy)) scale(0.92); }
+  90%  { opacity: 0;    transform: translate(var(--bj-drag-dx, 0px), var(--bj-drag-dy)) scale(1.25); }
   100% { opacity: 0;    transform: translate(0, 0) scale(0.7); }
 }
 @keyframes bj-hint-bob {
