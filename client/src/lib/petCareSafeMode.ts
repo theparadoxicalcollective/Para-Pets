@@ -29,7 +29,11 @@ export function shouldUsePetCareSafeMode(runtime: RuntimeMode, search: string, r
   const override = new URLSearchParams(search).get("petCareSafe");
   if (override === "1") return true;
   if (override === "0") return false;
-  return runtime.displayMode === "ios-browser" || runtime.displayMode === "ios-embedded" || runtime.displayMode === "ios-standalone";
+  return runtime.displayMode === "ios-browser"
+    || runtime.displayMode === "ios-embedded"
+    || runtime.displayMode === "ios-standalone"
+    || runtime.displayMode === "android-browser"
+    || runtime.displayMode === "android-standalone";
 }
 
 /** Keep visual degradation independent from Pet Care input capabilities. */
@@ -76,8 +80,10 @@ export function reportRecoveredPetCarePhase(record: PetCarePhaseRecord) {
 }
 
 export function writePetCarePhase(storage: Pick<Storage, "setItem">, record: PetCarePhaseRecord) {
+  // Persist locally on every phase, but report only if a later mount proves the
+  // previous visit terminated mid-interaction. Normal mount/cleanup traffic is
+  // not an error and must not bury real crashes in the production error log.
   try { storage.setItem(PET_CARE_PHASE_KEY, JSON.stringify(record)); } catch {}
-  sendPhase(record);
 }
 
 export function clearPetCarePhase(storage: Pick<Storage, "removeItem">) {

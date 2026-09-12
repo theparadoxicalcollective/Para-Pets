@@ -67,6 +67,7 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       localStorage.removeItem("para_pets_just_registered");
+      localStorage.removeItem("para_pets_just_registered_user_id");
       setTimeout(() => {
         bjStart();
         onComplete(data.user ?? null);
@@ -86,6 +87,7 @@ export default function WelcomeGiftScreen({ user, onComplete }: WelcomeGiftScree
 
   const handleSkip = () => {
     localStorage.removeItem("para_pets_just_registered");
+    localStorage.removeItem("para_pets_just_registered_user_id");
     onComplete(null);
   };
 

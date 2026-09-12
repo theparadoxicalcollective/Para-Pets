@@ -43,10 +43,12 @@ test("legacy costume JSON is normalized before route and renderer use", () => {
   }]);
 });
 
-test("all iOS hosting modes use the animated low-memory renderer", () => {
+test("all mobile hosting modes use the animated low-memory renderer", () => {
   assert.equal(shouldUseLowMemoryPetRenderer(runtime("ios-browser")), true);
   assert.equal(shouldUseLowMemoryPetRenderer(runtime("ios-embedded")), true);
   assert.equal(shouldUseLowMemoryPetRenderer(runtime("ios-standalone")), true);
+  assert.equal(shouldUseLowMemoryPetRenderer(runtime("android-browser")), true);
+  assert.equal(shouldUseLowMemoryPetRenderer(runtime("android-standalone")), true);
   assert.equal(shouldUseLowMemoryPetRenderer(runtime("desktop")), false);
 });
 
