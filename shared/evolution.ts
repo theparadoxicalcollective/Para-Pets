@@ -12,7 +12,7 @@ export const EVOLUTION_FEED_POINTS_BY_RARITY = Object.freeze({
   1: 100,
   2: 200,
   3: 400,
-  4: 5000,
+  4: 1000,
   5: 1500,
 } as const);
 
