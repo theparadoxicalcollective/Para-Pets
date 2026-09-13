@@ -45,7 +45,7 @@ test("Evolution pet cards scroll independently and show gold stars and points", 
 });
 
 test("Evolution popup exposes progress and keeps its warning and confirmation aligned", () => {
-  assert.match(popupSource, /className="pupevo-picker-progress" role="progressbar"/);
+  assert.match(popupSource, /className="pupevo-picker-progress"\s+role="progressbar"/);
   assert.match(popupSource, /style=\{\{ width: `\$\{currentPercent\}%` \}\}/);
   assert.match(popupSource, />Pets used for evolution are permanently consumed\.<\/p>/);
   assert.match(popupSource, /aria-describedby="pupevo-consumption-warning"/);

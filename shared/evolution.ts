@@ -1,11 +1,11 @@
 export const EVOLUTION_SLOT_COUNT = 6;
 
 export const EVOLUTION_TARGET_BY_RARITY = Object.freeze({
-  1: 1000,
-  2: 1000,
-  3: 1000,
-  4: 1000,
-  5: 1000,
+  1: 5000,
+  2: 5000,
+  3: 5000,
+  4: 5000,
+  5: 5000,
 } as const);
 
 export const EVOLUTION_FEED_POINTS_BY_RARITY = Object.freeze({

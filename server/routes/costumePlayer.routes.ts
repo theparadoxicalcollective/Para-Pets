@@ -84,6 +84,7 @@ export function registerCostumePlayerRoutes(app: Express) {
       ));
 
       return res.json({
+        isEvolved: !!pet.isEvolved,
         equipped: equipped.map((costume) => ({ ...costume, placements: normalizeCostumePlacements(costume.placements) })),
         anchors,
         extraSlots: 0,
@@ -136,6 +137,7 @@ export function registerCostumePlayerRoutes(app: Express) {
       ));
 
       return res.json({
+        isEvolved: !!target.pet.isEvolved,
         equipped: equipped.map((costume) => ({ ...costume, placements: normalizeCostumePlacements(costume.placements) })),
         anchors,
         extraSlots: unlock?.extraSlots ?? 0,

@@ -72,6 +72,7 @@ const petStateSelect = sql`SELECT
   ui.id "inventoryId",
   ui.user_id "userId",
   ui.is_hatched "isHatched",
+  ui.is_evolved "isEvolved",
   ui.is_listed "isListed",
   ui.pet_nickname nickname,
   ui.acquired_at "acquiredAt",
@@ -79,6 +80,13 @@ const petStateSelect = sql`SELECT
   si.name,
   si.type,
   si.pet_template_id "petTemplateId",
+  si.hatched_image_url "hatchedImageUrl",
+  si.evolution_image_url "evolutionImageUrl",
+  EXISTS(
+    SELECT 1 FROM pet_template_parts ep
+    WHERE ep.template_id = si.pet_template_id
+      AND ep.form = 'evolution'
+  ) "hasEvolutionParts",
   COALESCE(si.star_rarity, si.rarity, 1) rarity,
   COALESCE(${petHatchedImageSql(sql`ui.is_hatched`, sql`ui.is_evolved`, sql`si.evolution_image_url`, sql`si.hatched_image_url`)}, si.image_url) "imageUrl",
   (u.active_pet_id = ui.id) active,
@@ -171,7 +179,12 @@ export async function getActiveEvolutionState(userId: string) {
       name: target.nickname || target.name,
       rarity,
       imageUrl: target.imageUrl ?? null,
+      hatchedImageUrl: target.hatchedImageUrl ?? target.imageUrl ?? null,
+      evolutionImageUrl: target.evolutionImageUrl ?? null,
       petTemplateId: target.petTemplateId ?? null,
+      hasEvolutionParts: !!target.hasEvolutionParts,
+      isEvolved: !!target.isEvolved,
+      canEvolve: !!target.hasEvolutionParts || !!target.evolutionImageUrl,
     },
     slotCount: EVOLUTION_SLOT_COUNT,
     completedSlots,
@@ -187,6 +200,88 @@ export async function getActiveEvolutionState(userId: string) {
   };
 }
 
+
+
+export async function evolveActivePet(userId: string) {
+  await ensureEvolutionStorage();
+
+  return db.transaction(async (tx) => {
+    const userResult = await tx.execute(sql`
+      SELECT id, active_pet_id
+      FROM users
+      WHERE id = ${userId}
+      FOR UPDATE
+    `);
+    const user = userResult.rows[0] as any;
+    if (!user) throw new PetEvolutionError("user_not_found", "Player not found.", 404);
+    if (!user.active_pet_id) throw new PetEvolutionError("active_pet_not_found", "Choose an active pet before evolving.", 404);
+
+    const targetResult = await tx.execute(sql`
+      SELECT
+        ui.id "inventoryId",
+        ui.is_evolved "isEvolved",
+        si.pet_template_id "petTemplateId",
+        si.hatched_image_url "hatchedImageUrl",
+        si.evolution_image_url "evolutionImageUrl",
+        EXISTS(
+          SELECT 1 FROM pet_template_parts ep
+          WHERE ep.template_id = si.pet_template_id
+            AND ep.form = 'evolution'
+        ) "hasEvolutionParts"
+      FROM user_inventory ui
+      JOIN shop_items si ON si.id = ui.shop_item_id
+      WHERE ui.id = ${user.active_pet_id}
+        AND ui.user_id = ${userId}
+        AND ui.is_hatched = true
+        AND si.type = 'pet'
+      FOR UPDATE OF ui
+    `);
+    const target = targetResult.rows[0] as any;
+    if (!target) throw new PetEvolutionError("active_pet_not_found", "The active hatched pet could not be found.", 404);
+
+    const hasEvolutionArtwork = !!target.hasEvolutionParts || !!target.evolutionImageUrl;
+    if (!hasEvolutionArtwork) {
+      throw new PetEvolutionError("evolution_artwork_missing", "This pet does not have an evolution form yet.", 409);
+    }
+
+    const progressResult = await tx.execute(sql`
+      SELECT completed_slots
+      FROM pet_evolution_progress
+      WHERE pet_inventory_id = ${target.inventoryId}
+      FOR UPDATE
+    `);
+    const completedSlots = Number((progressResult.rows[0] as any)?.completed_slots ?? 0);
+    if (completedSlots < EVOLUTION_SLOT_COUNT) {
+      throw new PetEvolutionError("evolution_not_ready", "Complete all six evolution nodes first.", 409);
+    }
+
+    if (!target.isEvolved) {
+      const updated = await tx.execute(sql`
+        UPDATE user_inventory
+        SET is_evolved = true
+        WHERE id = ${target.inventoryId}
+          AND user_id = ${userId}
+          AND is_hatched = true
+          AND is_evolved = false
+        RETURNING id
+      `);
+      if (!updated.rows[0]) {
+        throw new PetEvolutionError("evolution_conflict", "The pet changed before evolution could finish. Please try again.", 409);
+      }
+    }
+
+    return {
+      success: true,
+      alreadyEvolved: !!target.isEvolved,
+      inventoryId: target.inventoryId,
+      petTemplateId: target.petTemplateId ?? null,
+      hatchedImageUrl: target.hatchedImageUrl ?? null,
+      evolutionImageUrl: target.evolutionImageUrl ?? target.hatchedImageUrl ?? null,
+      hasEvolutionParts: !!target.hasEvolutionParts,
+      isEvolved: true,
+    };
+  });
+}
 
 function validateRewardSlot(slotInput: unknown): number {
   const slot = Number(slotInput);
