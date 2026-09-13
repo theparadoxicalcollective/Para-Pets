@@ -49,6 +49,7 @@ interface EquippedCostume {
 interface CostumeResponse {
   equipped: EquippedCostume[];
   extraSlots: number;
+  isEvolved?: boolean;
 }
 
 export interface PetAnimatorProps {
@@ -567,7 +568,7 @@ function AboveHeadTopLayer({
 
 export default function PetAnimator({
   petTemplateId,
-  artworkForm = "base",
+  artworkForm,
   mode,
   view = "front",
   size = 200,
@@ -612,10 +613,6 @@ export default function PetAnimator({
 
   const resolvedPetInventoryId = petInventoryId ?? null;
 
-  const { data: templateData } = useQuery<TemplateData>({
-    ...petTemplateQuery(petTemplateId, artworkForm),
-  });
-
   const { data: costumeData } = useQuery<CostumeResponse>({
     queryKey: ["/api/pet", resolvedPetInventoryId, "costumes", costumeAccess],
     queryFn: async () => {
@@ -625,6 +622,11 @@ export default function PetAnimator({
     enabled: !!resolvedPetInventoryId,
     staleTime: costumeAccess === "public" ? 60_000 : 0,
     refetchOnWindowFocus: false,
+  });
+
+  const resolvedArtworkForm: PetArtworkForm = artworkForm ?? (costumeData?.isEvolved ? "evolution" : "base");
+  const { data: templateData } = useQuery<TemplateData>({
+    ...petTemplateQuery(petTemplateId, resolvedArtworkForm),
   });
 
   if (templateData && motionEpochRef.current?.templateId !== petTemplateId) {
@@ -742,7 +744,7 @@ export default function PetAnimator({
       <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
         <PetAnimatorCore
           petTemplateId={petTemplateId}
-          artworkForm={artworkForm}
+          artworkForm={resolvedArtworkForm}
           onCanvasLayout={renderCostumes ? receiveCanvasLayout : undefined}
           mode={mode}
           view={view}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
+import PetAnimator from "@/components/PetAnimator";
 import { EVOLUTION_SLOT_COUNT, applyEvolutionPoints, evolutionTargetForRarity } from "@shared/evolution";
 import socketActive from "@assets/ui/power-up/evolution-icon-unlocked.png";
 import socketLocked from "@assets/ui/power-up/evolution-icon-locked.png";
@@ -21,7 +22,18 @@ interface EvolutionFeederPet {
 }
 
 interface EvolutionState {
-  target: { inventoryId: string; name: string; rarity: number; imageUrl: string | null };
+  target: {
+    inventoryId: string;
+    name: string;
+    rarity: number;
+    imageUrl: string | null;
+    hatchedImageUrl: string | null;
+    evolutionImageUrl: string | null;
+    petTemplateId: string | null;
+    hasEvolutionParts: boolean;
+    isEvolved: boolean;
+    canEvolve: boolean;
+  };
   slotCount: number;
   completedSlots: number;
   currentPoints: number;
@@ -85,6 +97,19 @@ const REFINEMENT_CSS = String.raw`
 .pupevo-feed-icon{position:static;width:9%;transform:none}
 .pupevo-warning{left:6%;right:6%;bottom:-3.5%;width:auto;margin:0;color:#e8c5b7;font-size:clamp(8px,2.1vw,11px);line-height:1.25}
 .pupevo-node-message.local{position:absolute;left:50%;top:50%;z-index:8;width:max-content;max-width:88px;transform:translate(-50%,-50%);padding:4px 7px;border-radius:999px;font-size:8px;line-height:1.1;letter-spacing:0;box-shadow:0 3px 10px #000a,0 0 8px rgba(76,255,170,.22)}
+.pupevo-final-backdrop{position:fixed;inset:0;z-index:100200;display:grid;place-items:center;padding:16px;background:radial-gradient(circle at 50% 40%,rgba(14,66,48,.88),rgba(0,4,5,.97) 68%);backdrop-filter:blur(7px);touch-action:none}
+.pupevo-final{position:relative;width:min(92vw,440px);min-height:min(78dvh,620px);display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;padding:42px 24px 28px;border:1px solid rgba(91,241,160,.62);border-radius:30px;background:linear-gradient(180deg,rgba(5,34,26,.98),rgba(1,13,14,.99));box-shadow:0 24px 70px #000,0 0 44px rgba(47,225,139,.18);text-align:center;color:#effff6}
+.pupevo-final h3{position:relative;z-index:3;margin:0;color:#dfffea;font:700 clamp(23px,6vw,34px)/1.1 Georgia,serif;text-shadow:0 2px 8px #000,0 0 18px rgba(81,255,172,.32)}
+.pupevo-final p{position:relative;z-index:3;max-width:330px;margin:12px 0 2px;color:#add8c1;font:600 13px/1.5 system-ui,sans-serif}
+.pupevo-final-close{position:absolute;right:15px;top:12px;z-index:8;width:38px;height:38px;border:1px solid #55977a;border-radius:50%;background:#061b15;color:#dfffea;font:400 26px/1 system-ui;cursor:pointer}
+.pupevo-final-pet{position:relative;z-index:2;width:min(70vw,300px);height:min(70vw,300px);display:grid;place-items:center;margin:10px auto;transition:filter .7s ease,transform .7s ease,opacity .35s ease}
+.pupevo-final-pet>img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 12px 13px #000b)}
+.pupevo-final-confirm{position:relative;z-index:4;min-width:220px;border:1px solid #75e6aa;border-radius:999px;padding:13px 22px;background:linear-gradient(180deg,#19764c,#0b482f);color:#effff6;font:800 14px/1 system-ui,sans-serif;box-shadow:0 6px 18px #0008,0 0 20px rgba(64,237,148,.22);cursor:pointer}
+.pupevo-final-confirm:disabled{opacity:.58;cursor:wait}.pupevo-final-error{z-index:4;margin:0 0 10px;color:#ffc0b4;font:700 12px/1.35 system-ui,sans-serif}
+.pupevo-final-awaken{position:absolute!important;top:42px}.pupevo-final-pet.reveal-base{filter:none;transform:scale(1)}.pupevo-final-pet.reveal-blackout,.pupevo-final-pet.reveal-evolved-blackout{filter:brightness(0) drop-shadow(0 0 24px #65ffb0);transform:scale(.93)}.pupevo-final-pet.reveal-evolved-blackout{transform:scale(1.08)}.pupevo-final-pet.reveal-revealed{filter:brightness(1) drop-shadow(0 0 26px rgba(104,255,180,.72));transform:scale(1.03)}
+.pupevo-final-ring{position:absolute;left:50%;top:54%;width:260px;height:260px;border:2px solid rgba(101,255,176,.64);border-radius:50%;transform:translate(-50%,-50%);animation:pupevoFinalRing 1.25s ease-out infinite;box-shadow:0 0 34px rgba(88,255,169,.25)}
+@keyframes pupevoFinalRing{from{opacity:.85;transform:translate(-50%,-50%) scale(.55)}to{opacity:0;transform:translate(-50%,-50%) scale(1.35)}}@media(prefers-reduced-motion:reduce){.pupevo-final-ring{animation:none}.pupevo-final-pet{transition:none}}
+
 @keyframes pupevoLinkGlow{0%,100%{opacity:.7}50%{opacity:1;stroke-width:1}}
 @media(prefers-reduced-motion:reduce){.pupevo-link-glow{animation:none}}
 `;
@@ -93,7 +118,8 @@ function randomActionId() {
   const browserCrypto = globalThis.crypto;
   if (browserCrypto?.randomUUID) return browserCrypto.randomUUID();
   const bytes = new Uint8Array(16);
-  browserCrypto.getRandomValues(bytes);
+  if (browserCrypto?.getRandomValues) browserCrypto.getRandomValues(bytes);
+  else for (let index = 0; index < bytes.length; index += 1) bytes[index] = Math.floor(Math.random() * 256);
   bytes[6] = (bytes[6] & 0x0f) | 0x40;
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
   const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -110,7 +136,11 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
   const [claimingSlot, setClaimingSlot] = useState<number | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [feeding, setFeeding] = useState(false);
+  const [evolutionOpen, setEvolutionOpen] = useState(false);
+  const [evolving, setEvolving] = useState(false);
+  const [revealPhase, setRevealPhase] = useState<"confirm" | "base" | "blackout" | "evolved-blackout" | "revealed">("confirm");
   const nodeMessageTimer = useRef<number | null>(null);
+  const revealTimers = useRef<number[]>([]);
   const pickerCloseRef = useRef<HTMLButtonElement>(null);
   const pickerPositionRef = useRef({ pageTop: 0, windowX: 0, windowY: 0 });
 
@@ -142,7 +172,11 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
 
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => { if (!pickerOpen) setSelected(new Set()); }, [pickerOpen]);
-  useEffect(() => () => { if (nodeMessageTimer.current !== null) window.clearTimeout(nodeMessageTimer.current); }, []);
+  useEffect(() => () => {
+    if (nodeMessageTimer.current !== null) window.clearTimeout(nodeMessageTimer.current);
+    revealTimers.current.forEach((timer) => window.clearTimeout(timer));
+    revealTimers.current = [];
+  }, []);
   useEffect(() => {
     if (!pickerOpen || typeof document === "undefined") return;
     const pageScroll = document.querySelector<HTMLElement>(".pupage-scroll");
@@ -235,6 +269,52 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
   };
 
 
+  const closeEvolution = useCallback(() => {
+    if (evolving) return;
+    setEvolutionOpen(false);
+    setRevealPhase("confirm");
+  }, [evolving]);
+
+  const evolve = useCallback(async () => {
+    if (!state?.target.canEvolve || state.target.isEvolved || evolving) return;
+    setEvolving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/pet-evolution/active/evolve", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body?.message || "Evolution could not be completed safely.");
+
+      setRevealPhase("base");
+      const schedule = (phase: typeof revealPhase, delay: number) => {
+        const timer = window.setTimeout(() => setRevealPhase(phase), delay);
+        revealTimers.current.push(timer);
+      };
+      schedule("blackout", 350);
+      schedule("evolved-blackout", 1250);
+      schedule("revealed", 2050);
+      const finishTimer = window.setTimeout(async () => {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/pet", state.target.inventoryId, "costumes"] }),
+          refresh(),
+        ]);
+        setEvolutionOpen(false);
+        setRevealPhase("confirm");
+        setEvolving(false);
+      }, 3400);
+      revealTimers.current.push(finishTimer);
+    } catch (err: any) {
+      setError(err?.message || "Evolution could not be completed safely.");
+      setEvolving(false);
+      setRevealPhase("confirm");
+    }
+  }, [evolving, queryClient, refresh, state]);
+
   const claimReward = useCallback(async (slot: number) => {
     if (claimingSlot !== null) return;
     setClaimingSlot(slot);
@@ -309,6 +389,41 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
     document.body,
   ) : null;
 
+
+  const evolutionModal = evolutionOpen && state && typeof document !== "undefined" ? createPortal(
+    <div className="pupevo-final-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) closeEvolution(); }}>
+      <section className="pupevo-final" role="dialog" aria-modal="true" aria-labelledby="pupevo-final-title" onPointerDown={(event) => event.stopPropagation()}>
+        {revealPhase === "confirm" ? <>
+          <button className="pupevo-final-close" type="button" onClick={closeEvolution} aria-label="Close evolution confirmation">×</button>
+          <h3 id="pupevo-final-title">Evolve {state.target.name}?</h3>
+          <p>All six power nodes are complete. Confirm to awaken this pet's evolution form.</p>
+          <div className="pupevo-final-pet">
+            {state.target.petTemplateId
+              ? <PetAnimator petTemplateId={state.target.petTemplateId} artworkForm="base" petInventoryId={state.target.inventoryId} mode="idle" size={260} fillContainer />
+              : state.target.hatchedImageUrl ? <img src={state.target.hatchedImageUrl} alt={state.target.name} /> : null}
+          </div>
+          {error ? <div className="pupevo-final-error" role="alert">{error}</div> : null}
+          <button className="pupevo-final-confirm" type="button" disabled={evolving} onClick={() => void evolve()}>
+            {evolving ? "Preparing Evolution…" : "Confirm Evolution"}
+          </button>
+        </> : <>
+          <h3 id="pupevo-final-title" className="pupevo-final-awaken">{revealPhase === "revealed" ? "Evolution Complete!" : "Evolution Awakening…"}</h3>
+          <div className={`pupevo-final-pet reveal-${revealPhase}`} aria-live="polite">
+            {(revealPhase === "evolved-blackout" || revealPhase === "revealed")
+              ? state.target.hasEvolutionParts && state.target.petTemplateId
+                ? <PetAnimator petTemplateId={state.target.petTemplateId} artworkForm="evolution" petInventoryId={state.target.inventoryId} mode="idle" size={280} fillContainer />
+                : state.target.evolutionImageUrl ? <img src={state.target.evolutionImageUrl} alt={`Evolved ${state.target.name}`} /> : null
+              : state.target.petTemplateId
+                ? <PetAnimator petTemplateId={state.target.petTemplateId} artworkForm="base" petInventoryId={state.target.inventoryId} mode="idle" size={260} fillContainer />
+                : state.target.hatchedImageUrl ? <img src={state.target.hatchedImageUrl} alt={state.target.name} /> : null}
+          </div>
+          <div className="pupevo-final-ring" aria-hidden="true" />
+        </>}
+      </section>
+    </div>,
+    document.body,
+  ) : null;
+
   const nodeToast = nodeMessage && nodeMessage.slot === undefined && typeof document !== "undefined"
     ? createPortal(<div className="pupevo-node-message" role="status" aria-live="polite">{nodeMessage.message}</div>, document.body)
     : null;
@@ -328,8 +443,9 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
         const current = !state?.isComplete && index === completedSlots;
         const locked = !complete && !current;
         const claimed = complete && claimedSlots.has(slot);
-        const evolutionReady = complete && slot === EVOLUTION_SLOT_COUNT;
-        const claimable = complete && !claimed && !evolutionReady;
+        const evolutionReady = complete && slot === EVOLUTION_SLOT_COUNT && !state?.target.isEvolved;
+        const evolutionFinished = complete && slot === EVOLUTION_SLOT_COUNT && !!state?.target.isEvolved;
+        const claimable = complete && !claimed && !evolutionReady && !evolutionFinished;
         const fill = complete ? 100 : current ? currentPercent : 0;
         const position = POSITIONS[index] ?? POSITIONS[POSITIONS.length - 1];
         const style = { "--x": `${position.x}%`, "--y": `${position.y}%` } as React.CSSProperties;
@@ -341,13 +457,15 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
           style={style}
           onClick={() => {
             if (claimable) void claimReward(slot);
-            else if (evolutionReady) showNodeMessage("Evolution Coming Soon");
+            else if (evolutionReady && state?.target.canEvolve) { setError(""); setRevealPhase("confirm"); setEvolutionOpen(true); }
+            else if (evolutionReady) showNodeMessage("This pet does not have an evolution form yet.");
+            else if (evolutionFinished) showNodeMessage("Evolution Complete", slot);
             else if (current) setPickerOpen(true);
             else if (complete) showNodeMessage("Completed", slot);
             else showNodeMessage("Locked");
           }}
           aria-busy={claimingSlot === slot}
-          aria-label={claimable ? `Evolution slot ${slot} reward ready. Tap to claim ${rewardLabel}.` : evolutionReady ? "Evolution slot 6 complete. Evolution Coming Soon." : claimed ? `Evolution slot ${slot} reward collected` : current ? `Evolution slot ${slot}, ${Math.round(fill)} percent filled. Tap to choose feeder pets.` : `Evolution slot ${slot} locked`}
+          aria-label={claimable ? `Evolution slot ${slot} reward ready. Tap to claim ${rewardLabel}.` : evolutionReady ? (state?.target.canEvolve ? "Evolution slot 6 complete. Tap to evolve this pet." : "Evolution slot 6 complete. This pet has no evolution form yet.") : evolutionFinished ? "Evolution slot 6 complete. Pet evolved." : claimed ? `Evolution slot ${slot} reward collected` : current ? `Evolution slot ${slot}, ${Math.round(fill)} percent filled. Tap to choose feeder pets.` : `Evolution slot ${slot} locked`}
           data-testid={`button-evolution-slot-${slot}`}
         >
           {locked ? <img className="pupevo-locked-base" src={socketLocked} alt="" /> : <>
@@ -361,6 +479,7 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
       {(loading || error) && <span className={`pupevo-status ${error ? "error" : ""}`}>{error || "Reading evolution energy…"}</span>}
     </section>
     {picker}
+    {evolutionModal}
     {nodeToast}
   </>;
 }
