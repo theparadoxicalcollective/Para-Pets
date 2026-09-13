@@ -5,6 +5,7 @@ import test from "node:test";
 const server = readFileSync("server/petEvolution.ts", "utf8");
 const routes = readFileSync("server/routes/petEvolution.routes.ts", "utf8");
 const panel = readFileSync("client/src/components/powerup/PowerUpEvolutionPanel.tsx", "utf8");
+const home = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 const animator = readFileSync("client/src/components/PetAnimator.tsx", "utf8");
 const animatorCore = readFileSync("client/src/components/PetAnimatorCore.tsx", "utf8");
 const costumes = readFileSync("server/routes/costumePlayer.routes.ts", "utf8");
@@ -56,5 +57,14 @@ test("evolution Tail 1 stays subtle and ears layer behind arms and hands", () =>
   assert.match(animatorCore, /@keyframes petIdleEvolutionTail[\s\S]*rotate\(-0\.75deg\)[\s\S]*rotate\( 0\.75deg\)/);
   assert.match(animatorCore, /isEvolutionTailOne \? "6\.5s"/);
   assert.match(animatorCore, /artworkForm === "evolution"[\s\S]*EAR_PART_TYPES\.has\(basePetPartType\(part\.partType\)\)/);
-  assert.match(animatorCore, /artworkForm === "evolution" \? effectiveEvolutionZ/);
+  assert.match(animatorCore, /const evolutionForegroundLimbZ = artworkForm === "evolution"/);
+  assert.match(animatorCore, /EAR_PART_TYPES\.has\(basePetPartType\(part\.partType\)\)[\s\S]*?evolutionForegroundLimbZ - 0\.5/);
+  assert.match(animatorCore, /const sortedBodyByZ = \[\.\.\.bodyParts\]\.sort\(\(a, b\) => a\.zIndex - b\.zIndex\)/);
+});
+
+test("Power Up tray stacks duplicate inventory rows by catalog item", () => {
+  assert.match(home, /const stacks = new Map<string, PowerUpItem>\(\)/);
+  assert.match(home, /const existing = stacks\.get\(item\.shopItemId\)/);
+  assert.match(home, /existing\.quantity \+= item\.quantity/);
+  assert.match(home, /stacks\.set\(item\.shopItemId, \{ \.\.\.item \}\)/);
 });
