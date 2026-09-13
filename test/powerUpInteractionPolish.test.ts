@@ -91,7 +91,8 @@ test("Evolution modal escapes the pet stacking context and only active nodes ope
   assert.match(evolutionSource, /pageScroll\.style\.overflowY = "hidden"/);
   assert.match(evolutionSource, /if \(current\) setPickerOpen\(true\)/);
   assert.match(evolutionSource, /if \(claimable\) void claimReward\(slot\)/);
-  assert.match(evolutionSource, /if \(evolutionReady\) showNodeMessage\("Evolution Coming Soon"\)/);
+  assert.match(evolutionSource, /evolutionReady && state\?\.target\.canEvolve/);
+  assert.match(evolutionSource, /setEvolutionOpen\(true\)/);
   assert.match(evolutionSource, /else if \(complete\) showNodeMessage\("Completed", slot\)/);
   assert.match(evolutionSource, /nodeMessage\?\.slot === slot[\s\S]*pupevo-node-message local/);
   assert.match(evolutionSource, /pupevo-node-message\.local\{[^}]*font-size:8px/);

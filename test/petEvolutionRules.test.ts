@@ -10,10 +10,10 @@ import {
   evolutionTargetForRarity,
 } from "../shared/evolution";
 
-test("all evolution nodes require 1000 points regardless of pet rarity", () => {
+test("all evolution nodes require 5000 points regardless of pet rarity", () => {
   assert.deepEqual(
     [1, 2, 3, 4, 5].map((rarity) => evolutionTargetForRarity(rarity)),
-    [1000, 1000, 1000, 1000, 1000],
+    [5000, 5000, 5000, 5000, 5000],
   );
 });
 
@@ -33,7 +33,7 @@ test("completed evolution nodes award coins and rarity-scaled all-stat boosts", 
 });
 
 test("filling the first evolution icon completes it and unlocks the next", () => {
-  const result = applyEvolutionPoints(0, 900, 100, 1);
+  const result = applyEvolutionPoints(0, 4900, 100, 1);
   assert.equal(result.completedSlots, 1);
   assert.equal(result.currentPoints, 0);
   assert.equal(result.completedNow, 1);
@@ -41,21 +41,21 @@ test("filling the first evolution icon completes it and unlocks the next", () =>
 });
 
 test("evolution point overflow carries into the newly unlocked icon", () => {
-  const result = applyEvolutionPoints(0, 950, 100, 1);
+  const result = applyEvolutionPoints(0, 4950, 100, 1);
   assert.equal(result.completedSlots, 1);
   assert.equal(result.currentPoints, 50);
-  assert.equal(result.percent, 5);
+  assert.equal(result.percent, 1);
 });
 
 test("a high-value feeder can fill multiple sequential icons without wasting points", () => {
-  const result = applyEvolutionPoints(0, 0, 2500, 1);
+  const result = applyEvolutionPoints(0, 0, 12500, 1);
   assert.equal(result.completedSlots, 2);
-  assert.equal(result.currentPoints, 500);
+  assert.equal(result.currentPoints, 2500);
   assert.equal(result.completedNow, 2);
 });
 
 test("evolution progress caps at six completed icons", () => {
-  const result = applyEvolutionPoints(EVOLUTION_SLOT_COUNT - 1, 900, 5000, 1);
+  const result = applyEvolutionPoints(EVOLUTION_SLOT_COUNT - 1, 4900, 5000, 1);
   assert.equal(result.completedSlots, EVOLUTION_SLOT_COUNT);
   assert.equal(result.currentPoints, 0);
   assert.equal(result.percent, 100);
@@ -66,7 +66,7 @@ const evolutionServerSource = readFileSync("server/petEvolution.ts", "utf8");
 const evolutionRoutesSource = readFileSync("server/routes/petEvolution.routes.ts", "utf8");
 const evolutionClientSource = readFileSync("client/src/components/powerup/PowerUpEvolutionPanel.tsx", "utf8");
 
-test("node rewards are one-time atomic claims and the sixth node remains a future evolution action", () => {
+test("node rewards are one-time atomic claims and the sixth node opens final evolution", () => {
   assert.match(evolutionServerSource, /claimed_slots_mask/);
   assert.match(evolutionServerSource, /SET coins = coins \+ \$\{EVOLUTION_NODE_COIN_REWARD\}/);
   assert.match(evolutionServerSource, /pet_atk = pet_atk \+ \$\{statBoost\}/);
@@ -75,5 +75,6 @@ test("node rewards are one-time atomic claims and the sixth node remains a futur
   assert.match(evolutionRoutesSource, /\/api\/pet-evolution\/active\/claim/);
   assert.match(evolutionClientSource, /pupevo-slot\.claimable/);
   assert.match(evolutionClientSource, /pupevo-slot\.evolution-ready/);
-  assert.match(evolutionClientSource, /Evolution Coming Soon/);
+  assert.match(evolutionRoutesSource, /\/api\/pet-evolution\/active\/evolve/);
+  assert.match(evolutionClientSource, /Confirm Evolution/);
 });
