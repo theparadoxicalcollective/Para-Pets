@@ -605,9 +605,26 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
     quantity: i.quantity,
   });
 
-  const statBoostItems = inventory
-    .filter(i => i.type === "power_up" && i.statBoostType !== "lvl")
-    .map(toModalItem);
+  // Reward bundles historically store repeated copies as separate inventory
+  // rows. The main Bag already stacks those rows by shopItemId, but the Power
+  // Up tray previously rendered one card per row and could look flooded with
+  // dozens of identical boosts. Keep the first owned row as the consume target
+  // and combine every matching row into the quantity shown on that card. After
+  // one use, the inventory refetch selects the next row when necessary.
+  const statBoostItems = (() => {
+    const stacks = new Map<string, PowerUpItem>();
+    for (const inventoryItem of inventory) {
+      if (inventoryItem.type !== "power_up" || inventoryItem.statBoostType === "lvl") continue;
+      const item = toModalItem(inventoryItem);
+      const existing = stacks.get(item.shopItemId);
+      if (existing) {
+        existing.quantity += item.quantity;
+      } else {
+        stacks.set(item.shopItemId, { ...item });
+      }
+    }
+    return Array.from(stacks.values());
+  })();
 
   const activePetForModal = activePet ?? frozenActivePetRef.current;
 
