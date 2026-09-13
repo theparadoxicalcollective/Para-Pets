@@ -1665,19 +1665,30 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
   // tweaks (e.g. The Paradox has back_hair at z=35 with wings at z=14-15,
   // meaning back_hair should render IN FRONT of the wings — a relationship
   // a fixed table can't capture).
-  const sortedBodyByZ = [...bodyParts].sort((a, b) =>
-    artworkForm === "evolution"
-      ? getEffectivePetLayer(a, facing) - getEffectivePetLayer(b, facing)
-      : a.zIndex - b.zIndex,
-  );
+  const sortedBodyByZ = [...bodyParts].sort((a, b) => a.zIndex - b.zIndex);
   const compressedZ = new Map<string, number>();
   sortedBodyByZ.forEach((part, idx) => {
-    // Evolution artwork uses the shared semantic bands directly. In particular,
-    // ears are 5.5, arms are 6, and hands cap at 8 beneath the head wrapper.
-    // Base artwork retains its authored/raw compression unchanged.
-    const effectiveEvolutionZ = Math.min(8, Math.max(1, getEffectivePetLayer(part, facing)));
-    compressedZ.set(part.id, artworkForm === "evolution" ? effectiveEvolutionZ : Math.min(idx + 1, 8));
+    compressedZ.set(part.id, Math.min(idx + 1, 8));
   });
+
+  // Evolution ears render outside the head wrapper so they can pass behind
+  // foreground limbs. Preserve every other authored body-layer relationship
+  // (especially legs behind the body), and only lower ears relative to the
+  // closest front arm/hand layer.
+  const evolutionForegroundLimbZ = artworkForm === "evolution"
+    ? Math.min(
+        ...bodyParts
+          .filter(part => ["left_arm", "right_arm", "front_arm", "left_hand", "right_hand"].includes(basePetPartType(part.partType)))
+          .map(part => compressedZ.get(part.id) ?? 8),
+      )
+    : Infinity;
+  if (Number.isFinite(evolutionForegroundLimbZ)) {
+    for (const part of bodyParts) {
+      if (EAR_PART_TYPES.has(basePetPartType(part.partType))) {
+        compressedZ.set(part.id, Math.max(0, evolutionForegroundLimbZ - 0.5));
+      }
+    }
+  }
 
   // Wing-pair sync: paired wings use mirrored keyframes (e.g. front_wing
   // tilts up while back_wing tilts down) but each part normally gets its
