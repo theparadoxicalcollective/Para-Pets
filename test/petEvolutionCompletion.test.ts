@@ -6,6 +6,7 @@ const server = readFileSync("server/petEvolution.ts", "utf8");
 const routes = readFileSync("server/routes/petEvolution.routes.ts", "utf8");
 const panel = readFileSync("client/src/components/powerup/PowerUpEvolutionPanel.tsx", "utf8");
 const animator = readFileSync("client/src/components/PetAnimator.tsx", "utf8");
+const animatorCore = readFileSync("client/src/components/PetAnimatorCore.tsx", "utf8");
 const costumes = readFileSync("server/routes/costumePlayer.routes.ts", "utf8");
 const rules = readFileSync("shared/evolution.ts", "utf8");
 
@@ -48,4 +49,12 @@ test("inventory-backed animated pets automatically use evolution parts", () => {
 test("evolution nodes require 5,000 points while completed nodes remain stored", () => {
   for (const rarity of [1, 2, 3, 4, 5]) assert.match(rules, new RegExp(`${rarity}: 5000`));
   assert.match(server, /completed_slots/);
+});
+
+
+test("evolution Tail 1 stays subtle and ears layer behind arms and hands", () => {
+  assert.match(animatorCore, /@keyframes petIdleEvolutionTail[\s\S]*rotate\(-0\.75deg\)[\s\S]*rotate\( 0\.75deg\)/);
+  assert.match(animatorCore, /isEvolutionTailOne \? "6\.5s"/);
+  assert.match(animatorCore, /artworkForm === "evolution"[\s\S]*EAR_PART_TYPES\.has\(basePetPartType\(part\.partType\)\)/);
+  assert.match(animatorCore, /artworkForm === "evolution" \? effectiveEvolutionZ/);
 });
