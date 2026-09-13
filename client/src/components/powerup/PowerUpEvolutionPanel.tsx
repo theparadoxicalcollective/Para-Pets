@@ -84,8 +84,10 @@ const REFINEMENT_CSS = String.raw`
 .pupevo-link-glow{stroke:#52f5a1;stroke-width:.75;filter:drop-shadow(0 0 2px #8affc2) drop-shadow(0 0 5px rgba(50,239,146,.88));animation:pupevoLinkGlow 1.8s ease-in-out infinite}
 .pupevo-picker-wrap{width:min(calc(100vw - 16px),58.66dvh,500px);display:grid;justify-items:center}
 .pupevo-picker-wrap .pupevo-picker{width:100%}
-.pupevo-picker-progress{width:76%;height:5px;margin:4px auto 0;overflow:hidden;border:1px solid rgba(91,211,151,.78);border-radius:999px;background:#03140e;box-shadow:inset 0 1px 3px #000b}
-.pupevo-picker-progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#14864f,#43e697,#b0ffcf);box-shadow:0 0 7px rgba(75,255,170,.72);transition:width .25s ease}
+.pupevo-picker-progress{position:relative;width:76%;height:5px;margin:4px auto 0;overflow:hidden;border:1px solid rgba(91,211,151,.78);border-radius:999px;background:#03140e;box-shadow:inset 0 1px 3px #000b}
+.pupevo-picker-progress i{position:absolute;top:0;display:block;height:100%;transition:width .25s ease,left .25s ease}
+.pupevo-picker-progress-current{left:0;z-index:2;border-radius:999px;background:linear-gradient(90deg,#14864f,#43e697,#b0ffcf);box-shadow:0 0 7px rgba(75,255,170,.72)}
+.pupevo-picker-progress-preview{z-index:1;border-radius:0 999px 999px 0;background:linear-gradient(90deg,rgba(176,255,207,.55),rgba(232,255,241,.92));box-shadow:0 0 8px rgba(176,255,207,.62);animation:pupevoPreviewPulse 1.25s ease-in-out infinite}
 .pupevo-picker-head p{margin-top:3px}
 .pupevo-feeders{gap:0}
 .pupevo-feeder+.pupevo-feeder{margin-top:-6%}
@@ -111,7 +113,8 @@ const REFINEMENT_CSS = String.raw`
 @keyframes pupevoFinalRing{from{opacity:.85;transform:translate(-50%,-50%) scale(.55)}to{opacity:0;transform:translate(-50%,-50%) scale(1.35)}}@media(prefers-reduced-motion:reduce){.pupevo-final-ring{animation:none}.pupevo-final-pet{transition:none}}
 
 @keyframes pupevoLinkGlow{0%,100%{opacity:.7}50%{opacity:1;stroke-width:1}}
-@media(prefers-reduced-motion:reduce){.pupevo-link-glow{animation:none}}
+@keyframes pupevoPreviewPulse{0%,100%{opacity:.62}50%{opacity:1}}
+@media(prefers-reduced-motion:reduce){.pupevo-link-glow,.pupevo-picker-progress-preview{animation:none}}
 `;
 
 function randomActionId() {
@@ -217,6 +220,12 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
     [completedSlots, currentPoints, fallbackRarity, selectedPoints, state?.target.rarity],
   );
   const projectedNodes = Math.max(0, projectedProgress.completedSlots - completedSlots);
+  const previewPercent = !selectedPoints
+    ? currentPercent
+    : projectedNodes > 0
+      ? 100
+      : projectedProgress.percent;
+  const previewAddedPercent = Math.max(0, previewPercent - currentPercent);
   const projectedSummary = !selectedPoints
     ? ""
     : projectedProgress.isComplete
@@ -354,8 +363,22 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
         <button ref={pickerCloseRef} className="pupevo-picker-close" type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); closePicker(); }} aria-label="Close evolution pet picker"><img src={popupClose} alt="" /></button>
         <div className="pupevo-picker-head">
           <h3>Evolution Offering</h3>
-          <div className="pupevo-picker-progress" role="progressbar" aria-label="Current evolution node progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(currentPercent)}><i style={{ width: `${currentPercent}%` }} /></div>
-          <p>{currentPoints.toLocaleString()} / {pointsRequired.toLocaleString()} pts in the current node</p>
+          <div
+            className="pupevo-picker-progress"
+            role="progressbar"
+            aria-label="Evolution node progress with selected feeder preview"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(previewPercent)}
+            aria-valuetext={selectedPoints ? `${currentPoints.toLocaleString()} current points plus ${selectedPoints.toLocaleString()} selected feeder points` : `${currentPoints.toLocaleString()} of ${pointsRequired.toLocaleString()} points`}
+          >
+            <i className="pupevo-picker-progress-current" style={{ width: `${currentPercent}%` }} />
+            {selectedPoints > 0 && previewAddedPercent > 0 ? <i className="pupevo-picker-progress-preview" style={{ left: `${currentPercent}%`, width: `${previewAddedPercent}%` }} /> : null}
+          </div>
+          <p>
+            {currentPoints.toLocaleString()} / {pointsRequired.toLocaleString()} pts
+            {selectedPoints > 0 ? <> · +{selectedPoints.toLocaleString()} selected</> : <> in the current node</>}
+          </p>
         </div>
         {error && <div className="pupevo-error">{error}</div>}
         <div className="pupevo-feeders" aria-label="Eligible feeder pets">
