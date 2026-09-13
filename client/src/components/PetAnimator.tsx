@@ -624,10 +624,18 @@ export default function PetAnimator({
     refetchOnWindowFocus: false,
   });
 
+  // Owned pets must not render base artwork while their server-owned evolution
+  // state is still loading. On memory-constrained mobile browsers that briefly
+  // decoded both complete forms before swapping to evolution, which could
+  // terminate the page process and create a startup reload loop.
+  const artworkDecisionReady = artworkForm !== undefined || !resolvedPetInventoryId || costumeData !== undefined;
   const resolvedArtworkForm: PetArtworkForm = artworkForm ?? (costumeData?.isEvolved ? "evolution" : "base");
+  const templateQuery = petTemplateQuery(petTemplateId, resolvedArtworkForm);
   const { data: templateData } = useQuery<TemplateData>({
-    ...petTemplateQuery(petTemplateId, resolvedArtworkForm),
+    ...templateQuery,
+    enabled: artworkDecisionReady && templateQuery.enabled,
   });
+  const evolvedLowMemory = lowMemory || (artworkForm === undefined && !!costumeData?.isEvolved);
 
   if (templateData && motionEpochRef.current?.templateId !== petTemplateId) {
     motionEpochRef.current = {
@@ -742,21 +750,23 @@ export default function PetAnimator({
     >
       {renderCostumes && costumeLayer("back")}
       <div style={{ position: "absolute", inset: 0, zIndex: 1 }}>
-        <PetAnimatorCore
-          petTemplateId={petTemplateId}
-          artworkForm={resolvedArtworkForm}
-          onCanvasLayout={renderCostumes ? receiveCanvasLayout : undefined}
-          mode={mode}
-          view={view}
-          size={size}
-          fillContainer={fillContainer}
-          fitVisible={fitVisible}
-          expression={expression}
-          performanceStatic={performanceStatic}
-          lowMemory={lowMemory}
-          hiddenPartTypes={hiddenCorePartTypes}
-          style={{ width: "100%", height: "100%" }}
-        />
+        {artworkDecisionReady ? (
+          <PetAnimatorCore
+            petTemplateId={petTemplateId}
+            artworkForm={resolvedArtworkForm}
+            onCanvasLayout={renderCostumes ? receiveCanvasLayout : undefined}
+            mode={mode}
+            view={view}
+            size={size}
+            fillContainer={fillContainer}
+            fitVisible={fitVisible}
+            expression={expression}
+            performanceStatic={performanceStatic}
+            lowMemory={evolvedLowMemory}
+            hiddenPartTypes={hiddenCorePartTypes}
+            style={{ width: "100%", height: "100%" }}
+          />
+        ) : null}
       </div>
       <style data-testid="pet-animation-seam-guard">{`${PET_ATTACHMENT_SEAM_GUARD}\n${SQUIRREL_FOX_IDLE_GUARD}\n${ADORNMENT_MOTION_CSS}`}</style>
       {renderCostumes && costumeLayer("front")}
