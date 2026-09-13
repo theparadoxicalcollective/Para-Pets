@@ -2,7 +2,7 @@ import { petTemplateQuery, type PetArtworkForm } from "@/lib/petTemplateQuery";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { getAlphaBounds, getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
-import { PET_LAYER_ORDER, getEffectivePetLayer } from "@/lib/petPartConfig";
+import { EAR_PART_TYPES, PET_LAYER_ORDER, basePetPartType, getEffectivePetLayer } from "@/lib/petPartConfig";
 import { DEFAULT_PET_ANIMATION, alphaAdjustedPivot } from "@/lib/petAnimationConfig";
 import { normalizePetParts } from "@/lib/petRenderSafety";
 
@@ -655,6 +655,13 @@ const ANIMATION_STYLES = `
     from { transform: rotate(-5deg); }
     to   { transform: rotate( 5deg); }
   }
+  /* Evolution Tail 1 artwork tends to be larger and more detailed than the
+     base slot, so the standard ±5° swing reads as a dramatic whip. Keep its
+     idle movement deliberately subtle and let it travel on a slower cycle. */
+  @keyframes petIdleEvolutionTail {
+    from { transform: rotate(-0.75deg); }
+    to   { transform: rotate( 0.75deg); }
+  }
   @keyframes petIdleTail2 {
     from { transform: rotate(-4deg); }
     to   { transform: rotate( 4deg); }
@@ -1190,7 +1197,7 @@ const ALTERNATE_MOTION_ANIMS = new Set<string>([
   "petIdleBody",
   "petIdleLeftWing", "petIdleRightWing",
   "petIdleLeftLeg", "petIdleRightLeg",
-  "petIdleTail", "petIdleTail2", "petIdleTail3",
+  "petIdleTail", "petIdleTail2", "petIdleTail3", "petIdleEvolutionTail",
   "petIdleSideTail", "petIdleSideTail2", "petIdleSideTail3",
   "petAboveHeadBounce",
   // Side-view depth keyframes — also 2-keyframe from/to motions, so they
@@ -1503,6 +1510,7 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
   // the tail base (isBodyBreathAnim still gates the origin override).
   const isTailIdleAnim = (name: string | null | undefined) =>
     name === "petIdleTail" || name === "petIdleTail2" || name === "petIdleTail3" ||
+    name === "petIdleEvolutionTail" ||
     name === "petIdleSideTail" || name === "petIdleSideTail2" || name === "petIdleSideTail3";
 
   // Determine which view to render:
@@ -1620,11 +1628,25 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
 
   if (viewParts.length === 0) return null;
 
-  // Build head groups (each head gets its own associated face parts by proximity)
-  const headGroups = buildHeadGroups(viewParts);
+  // Build head groups (each head gets its own associated face parts by proximity).
+  // Evolution ears are deliberately pulled out of the head stacking context:
+  // a transformed head wrapper is a single z-index layer, so an ear inside it
+  // can never sit behind an arm outside it. Rendering evolution ears with the
+  // body layers lets the canonical body < ear < arm < hand order take effect.
+  const evolutionRearEarIds = new Set(
+    artworkForm === "evolution"
+      ? viewParts
+          .filter(part => EAR_PART_TYPES.has(basePetPartType(part.partType)))
+          .map(part => part.id)
+      : [],
+  );
+  const headGroups = buildHeadGroups(viewParts).map(group => ({
+    ...group,
+    faceParts: group.faceParts.filter(part => !evolutionRearEarIds.has(part.id)),
+  }));
   const headGroupPartIds = new Set(headGroups.flatMap(g => [g.head.id, ...g.faceParts.map(p => p.id)]));
 
-  // Non-head-group body parts
+  // Non-head-group body parts (plus rear-layer evolution ears).
   const bodyParts = viewParts.filter(p => !headGroupPartIds.has(p.id));
 
   // Track per-type index for duplicate same-type parts (for staggering)
@@ -1643,10 +1665,18 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
   // tweaks (e.g. The Paradox has back_hair at z=35 with wings at z=14-15,
   // meaning back_hair should render IN FRONT of the wings — a relationship
   // a fixed table can't capture).
-  const sortedBodyByZ = [...bodyParts].sort((a, b) => a.zIndex - b.zIndex);
+  const sortedBodyByZ = [...bodyParts].sort((a, b) =>
+    artworkForm === "evolution"
+      ? getEffectivePetLayer(a, facing) - getEffectivePetLayer(b, facing)
+      : a.zIndex - b.zIndex,
+  );
   const compressedZ = new Map<string, number>();
   sortedBodyByZ.forEach((part, idx) => {
-    compressedZ.set(part.id, Math.min(idx + 1, 8));
+    // Evolution artwork uses the shared semantic bands directly. In particular,
+    // ears are 5.5, arms are 6, and hands cap at 8 beneath the head wrapper.
+    // Base artwork retains its authored/raw compression unchanged.
+    const effectiveEvolutionZ = Math.min(8, Math.max(1, getEffectivePetLayer(part, facing)));
+    compressedZ.set(part.id, artworkForm === "evolution" ? effectiveEvolutionZ : Math.min(idx + 1, 8));
   });
 
   // Wing-pair sync: paired wings use mirrored keyframes (e.g. front_wing
@@ -2058,6 +2088,11 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
           }
           const anims = mode === "idle" ? idleAnimMap : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
           let animName = lookupAnim(anims, part.partType) || anims.body;
+          const isEvolutionTailOne =
+            mode === "idle" &&
+            artworkForm === "evolution" &&
+            idlePartType === "tail";
+          if (isEvolutionTailOne) animName = "petIdleEvolutionTail";
           // Marionette idle style: swap in smaller-amplitude keyframe variants
           // so only this pet's body/arms/accessories are affected.
           if (mode === "idle" && idleStyle === "marionette") {
@@ -2081,7 +2116,11 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
             (isMarionetteAccessory || isMarionetteLeftArm || isMarionetteRightArm) && bodyBreathDelay !== undefined
               ? bodyBreathDelay
               : wingDelay;
-          const partDuration = isMarionetteAccessory ? "4.5s" : (isMarionetteLeftLeg || isMarionetteRightLeg) ? "3.7s" : undefined;
+          const partDuration =
+            isEvolutionTailOne ? "6.5s" :
+            isMarionetteAccessory ? "4.5s" :
+            (isMarionetteLeftLeg || isMarionetteRightLeg) ? "3.7s" :
+            undefined;
           // Legs: rotate around their top (attachment point) for a puppet-pendulum look.
           // Arms: rotate around own centre so the tilt is in-place, not a sweep.
           const partOrigin =
