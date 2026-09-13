@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import PetAnimator from "@/components/PetAnimator";
+import PetAnimatorCore from "@/components/PetAnimatorCore";
 import { EVOLUTION_SLOT_COUNT, applyEvolutionPoints, evolutionTargetForRarity } from "@shared/evolution";
 import socketActive from "@assets/ui/power-up/evolution-icon-unlocked.png";
 import socketLocked from "@assets/ui/power-up/evolution-icon-locked.png";
@@ -99,7 +99,7 @@ const REFINEMENT_CSS = String.raw`
 .pupevo-feed-icon{position:static;width:9%;transform:none}
 .pupevo-warning{left:6%;right:6%;bottom:-3.5%;width:auto;margin:0;color:#e8c5b7;font-size:clamp(8px,2.1vw,11px);line-height:1.25}
 .pupevo-node-message.local{position:absolute;left:50%;top:50%;z-index:8;width:max-content;max-width:88px;transform:translate(-50%,-50%);padding:4px 7px;border-radius:999px;font-size:8px;line-height:1.1;letter-spacing:0;box-shadow:0 3px 10px #000a,0 0 8px rgba(76,255,170,.22)}
-.pupevo-final-backdrop{position:fixed;inset:0;z-index:100200;display:grid;place-items:center;padding:16px;background:radial-gradient(circle at 50% 40%,rgba(14,66,48,.88),rgba(0,4,5,.97) 68%);backdrop-filter:blur(7px);touch-action:none}
+.pupevo-final-backdrop{position:fixed;inset:0;z-index:100200;display:grid;place-items:center;padding:16px;background:radial-gradient(circle at 50% 40%,rgba(14,66,48,.88),rgba(0,4,5,.97) 68%);touch-action:none}
 .pupevo-final{position:relative;width:min(92vw,440px);min-height:min(78dvh,620px);display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;padding:42px 24px 28px;border:1px solid rgba(91,241,160,.62);border-radius:30px;background:linear-gradient(180deg,rgba(5,34,26,.98),rgba(1,13,14,.99));box-shadow:0 24px 70px #000,0 0 44px rgba(47,225,139,.18);text-align:center;color:#effff6}
 .pupevo-final h3{position:relative;z-index:3;margin:0;color:#dfffea;font:700 clamp(23px,6vw,34px)/1.1 Georgia,serif;text-shadow:0 2px 8px #000,0 0 18px rgba(81,255,172,.32)}
 .pupevo-final p{position:relative;z-index:3;max-width:330px;margin:12px 0 2px;color:#add8c1;font:600 13px/1.5 system-ui,sans-serif}
@@ -109,7 +109,7 @@ const REFINEMENT_CSS = String.raw`
 .pupevo-final-confirm{position:relative;z-index:4;min-width:220px;border:1px solid #75e6aa;border-radius:999px;padding:13px 22px;background:linear-gradient(180deg,#19764c,#0b482f);color:#effff6;font:800 14px/1 system-ui,sans-serif;box-shadow:0 6px 18px #0008,0 0 20px rgba(64,237,148,.22);cursor:pointer}
 .pupevo-final-confirm:disabled{opacity:.58;cursor:wait}.pupevo-final-error{z-index:4;margin:0 0 10px;color:#ffc0b4;font:700 12px/1.35 system-ui,sans-serif}
 .pupevo-final-awaken{position:absolute!important;top:42px}.pupevo-final-pet.reveal-base{filter:none;transform:scale(1)}.pupevo-final-pet.reveal-blackout,.pupevo-final-pet.reveal-evolved-blackout{filter:brightness(0) drop-shadow(0 0 24px #65ffb0);transform:scale(.93)}.pupevo-final-pet.reveal-evolved-blackout{transform:scale(1.08)}.pupevo-final-pet.reveal-revealed{filter:brightness(1) drop-shadow(0 0 26px rgba(104,255,180,.72));transform:scale(1.03)}
-.pupevo-final-ring{position:absolute;left:50%;top:54%;width:260px;height:260px;border:2px solid rgba(101,255,176,.64);border-radius:50%;transform:translate(-50%,-50%);animation:pupevoFinalRing 1.25s ease-out infinite;box-shadow:0 0 34px rgba(88,255,169,.25)}
+.pupevo-final-ring{position:absolute;left:50%;top:54%;width:260px;height:260px;border:2px solid rgba(101,255,176,.64);border-radius:50%;transform:translate(-50%,-50%);animation:pupevoFinalRing 1.25s ease-out 2;box-shadow:0 0 34px rgba(88,255,169,.25)}
 @keyframes pupevoFinalRing{from{opacity:.85;transform:translate(-50%,-50%) scale(.55)}to{opacity:0;transform:translate(-50%,-50%) scale(1.35)}}@media(prefers-reduced-motion:reduce){.pupevo-final-ring{animation:none}.pupevo-final-pet{transition:none}}
 
 @keyframes pupevoLinkGlow{0%,100%{opacity:.7}50%{opacity:1;stroke-width:1}}
@@ -422,7 +422,7 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
           <p>All six power nodes are complete. Confirm to awaken this pet's evolution form.</p>
           <div className="pupevo-final-pet">
             {state.target.petTemplateId
-              ? <PetAnimator petTemplateId={state.target.petTemplateId} artworkForm="base" petInventoryId={state.target.inventoryId} mode="idle" size={260} fillContainer />
+              ? <PetAnimatorCore petTemplateId={state.target.petTemplateId} artworkForm="base" mode="static" size={260} fillContainer performanceStatic lowMemory />
               : state.target.hatchedImageUrl ? <img src={state.target.hatchedImageUrl} alt={state.target.name} /> : null}
           </div>
           {error ? <div className="pupevo-final-error" role="alert">{error}</div> : null}
@@ -434,10 +434,10 @@ export default function PowerUpEvolutionPanel({ enabled, fallbackRarity }: Props
           <div className={`pupevo-final-pet reveal-${revealPhase}`} aria-live="polite">
             {(revealPhase === "evolved-blackout" || revealPhase === "revealed")
               ? state.target.hasEvolutionParts && state.target.petTemplateId
-                ? <PetAnimator petTemplateId={state.target.petTemplateId} artworkForm="evolution" petInventoryId={state.target.inventoryId} mode="idle" size={280} fillContainer />
+                ? <PetAnimatorCore petTemplateId={state.target.petTemplateId} artworkForm="evolution" mode="static" size={280} fillContainer performanceStatic lowMemory />
                 : state.target.evolutionImageUrl ? <img src={state.target.evolutionImageUrl} alt={`Evolved ${state.target.name}`} /> : null
               : state.target.petTemplateId
-                ? <PetAnimator petTemplateId={state.target.petTemplateId} artworkForm="base" petInventoryId={state.target.inventoryId} mode="idle" size={260} fillContainer />
+                ? <PetAnimatorCore petTemplateId={state.target.petTemplateId} artworkForm="base" mode="static" size={260} fillContainer performanceStatic lowMemory />
                 : state.target.hatchedImageUrl ? <img src={state.target.hatchedImageUrl} alt={state.target.name} /> : null}
           </div>
           <div className="pupevo-final-ring" aria-hidden="true" />
