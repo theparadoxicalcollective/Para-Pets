@@ -38,6 +38,10 @@ test("inventory-backed animated pets automatically use evolution parts", () => {
   assert.match(costumes, /isEvolved:/);
   assert.match(animator, /costumeData\?\.isEvolved \? "evolution" : "base"/);
   assert.match(animator, /petTemplateQuery\(petTemplateId, resolvedArtworkForm\)/);
+  assert.match(animator, /artworkDecisionReady = artworkForm !== undefined \|\| !resolvedPetInventoryId \|\| costumeData !== undefined/);
+  assert.match(animator, /enabled: artworkDecisionReady && templateQuery\.enabled/);
+  assert.match(animator, /artworkDecisionReady \? \(/);
+  assert.match(animator, /lowMemory=\{evolvedLowMemory\}/);
   assert.match(animator, /artworkForm=\{resolvedArtworkForm\}/);
 });
 
