@@ -103,8 +103,8 @@ test("Evolution modal escapes the pet stacking context and only active nodes ope
   assert.match(evolutionSource, /align-items:center/);
   assert.match(evolutionSource, /filter:drop-shadow\(0 0 5px rgba\(65,236,151,.28\)\)/);
   assert.match(evolutionSource, /pupevo-slot\.current\{filter:drop-shadow\(0 0 10px/);
-  assert.match(Heal, /pupevo-picker-progress-preview/);
-  assert.match(Heal, /previewAddedPercent/);
-  assert.match(Heal, /\+\{selectedPoints\.toLocaleString\(\)\} selected/);
+  assert.match(evolutionSource, /pupevo-picker-progress-preview/);
+  assert.match(evolutionSource, /previewAddedPercent/);
+  assert.match(evolutionSource, /\+\{selectedPoints\.toLocaleString\(\)\} selected/);
 });
 
