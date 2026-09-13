@@ -28,6 +28,9 @@ test("Power Up confirms and reveals the authored evolution form", () => {
   assert.match(panel, /mode="static"[\s\S]*performanceStatic lowMemory/);
   assert.doesNotMatch(panel, /pupevo-final-backdrop\{[^}]*backdrop-filter/);
   assert.doesNotMatch(panel, /pupevoFinalRing 1\.25s ease-out infinite/);
+  assert.match(panel, /pupevo-slot\.evolution-ready::before/);
+  assert.match(panel, /pupevoEvolutionSparkles/);
+  assert.doesNotMatch(panel, /pupevoEvolutionReady/);
   assert.doesNotMatch(panel, /Evolution Coming Soon/);
 });
 
