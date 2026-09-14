@@ -659,8 +659,8 @@ const ANIMATION_STYLES = `
      base slot, so the standard ±5° swing reads as a dramatic whip. Keep its
      idle movement deliberately subtle and let it travel on a slower cycle. */
   @keyframes petIdleEvolutionTail {
-    from { transform: rotate(-0.75deg); }
-    to   { transform: rotate( 0.75deg); }
+    from { transform: rotate(-1.5deg); }
+    to   { transform: rotate( 1.5deg); }
   }
   @keyframes petIdleTail2 {
     from { transform: rotate(-4deg); }
@@ -1640,7 +1640,18 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
           .map(part => part.id)
       : [],
   );
-  const headGroups = buildHeadGroups(viewParts).map(group => ({
+  const groupedHeads = buildHeadGroups(viewParts);
+  const evolutionRearEarHeadGroups = new Map<string, { head: PetPart; groupIndex: number }>();
+  if (artworkForm === "evolution") {
+    groupedHeads.forEach((group, groupIndex) => {
+      for (const part of group.faceParts) {
+        if (evolutionRearEarIds.has(part.id)) {
+          evolutionRearEarHeadGroups.set(part.id, { head: group.head, groupIndex });
+        }
+      }
+    });
+  }
+  const headGroups = groupedHeads.map(group => ({
     ...group,
     faceParts: group.faceParts.filter(part => !evolutionRearEarIds.has(part.id)),
   }));
@@ -1985,6 +1996,47 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
     );
   };
 
+  const headWrapperMotion = (head: PetPart, groupIndex: number) => {
+    const anims = mode === "idle" ? idleAnimMap : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
+    const groupDelay = HEAD_GROUP_STAGGER[Math.min(groupIndex, HEAD_GROUP_STAGGER.length - 1)];
+    const isSecondaryHead = head.partType !== "head";
+    const isH3Head = head.partType === "h3_head";
+    const useSecondaryHeadSway = mode === "idle" && isSecondaryHead;
+    const animationName =
+      mode === "sleep" ? "petSleepHead" :
+      mode === "petting" ? "petPettingHead" :
+      mode === "idle"
+        ? (useSecondaryHeadSway
+            ? (isH3Head ? "petIdleHeadSwayAlt" : "petIdleHeadSway")
+            : (resolvedView === "back" ? "petIdleHeadSide" : "petIdleHead"))
+        :
+      (mode !== "house" && mode !== "static") ? anims.head :
+      undefined;
+    const headSyncBreath = mode === "idle" && !useSecondaryHeadSway && bodyBreathDelay !== undefined;
+    const swayPhaseOffsetSec =
+      head.partType === "h3_head" ? 1.4 :
+      head.partType === "h2_head" ? 0.4 : 0;
+    const duration =
+      useSecondaryHeadSway ? (isH3Head ? "4.1s" : "3.2s") :
+      headSyncBreath ? "4.5s" :
+      getPartDuration("head", mode);
+    const delay =
+      useSecondaryHeadSway ? `-${swayPhaseOffsetSec.toFixed(2)}s` :
+      (headSyncBreath && bodyBreathDelay) ? bodyBreathDelay :
+      `${groupDelay}s`;
+    const headBobStyle =
+      mode === "idle" && headBobCssPct
+        ? ({ "--pet-head-bob": headBobCssPct } as React.CSSProperties)
+        : undefined;
+
+    return {
+      animation: animationName ? buildAnimationCss(animationName, duration, delay) : undefined,
+      animationName,
+      groupDelay,
+      headBobStyle,
+    };
+  };
+
   return (
     <div
       ref={wrapperRef}
@@ -2007,6 +2059,55 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
           const partZ = overHeadPartTypes.has(part.partType)
             ? OVER_HEAD_Z
             : compressedZ.get(part.id);
+          const evolutionEarHeadGroup = evolutionRearEarHeadGroups.get(part.id);
+          if (evolutionEarHeadGroup) {
+            const headMotion = headWrapperMotion(evolutionEarHeadGroup.head, evolutionEarHeadGroup.groupIndex);
+            const anims = mode === "idle" ? idleAnimMap : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
+            const barePartType = part.partType.replace(/^h[23]_/, "");
+            const isBatLeftEar = mode === "idle" && idleStyle === "bat" && (barePartType === "left_ear" || barePartType === "left_ear_2");
+            const isBatRightEar = mode === "idle" && idleStyle === "bat" && (barePartType === "right_ear" || barePartType === "right_ear_2");
+            const earAnimation =
+              mode === "static" ? null :
+              mode === "house" ? (lookupAnim(HOUSE_ANIMATIONS, part.partType) ?? null) :
+              mode === "sleep" ? (lookupAnim(SLEEP_ANIMATIONS, part.partType) ?? null) :
+              mode === "petting" ? (lookupAnim(PETTING_ANIMATIONS, part.partType) ?? null) :
+              isBatLeftEar ? "petBatLeftEar" :
+              isBatRightEar ? "petBatRightEar" :
+              (lookupAnim(anims, part.partType) ?? null);
+            let earOrigin: string | undefined;
+            if (isBatLeftEar || isBatRightEar) {
+              const earBounds = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
+              const originX = (earBounds.left + earBounds.width * 0.5) * 100;
+              const originY = (earBounds.top + earBounds.height) * 100;
+              earOrigin = `${originX.toFixed(2)}% ${originY.toFixed(2)}%`;
+            }
+            return (
+              <div
+                key={`evolution-ear-${part.id}`}
+                data-evolution-ear-head-sync={evolutionEarHeadGroup.head.partType}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  animation: headMotion.animation,
+                  willChange: headMotion.animationName && !lowMemory ? "transform" : undefined,
+                  zIndex: partZ,
+                  pointerEvents: "none",
+                  ...(headMotion.headBobStyle ?? {}),
+                }}
+              >
+                {renderPartImg(
+                  part,
+                  earAnimation,
+                  undefined,
+                  `${headMotion.groupDelay}s`,
+                  earOrigin,
+                  undefined,
+                  isBatLeftEar || isBatRightEar ? "5s" : undefined,
+                )}
+              </div>
+            );
+          }
+
           if (part.partType === "back_full") {
             const leftPct = (part.posX / CANVAS_SIZE) * 100;
             const topPct = (part.posY / CANVAS_SIZE) * 100;
@@ -2128,7 +2229,7 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
               ? bodyBreathDelay
               : wingDelay;
           const partDuration =
-            isEvolutionTailOne ? "6.5s" :
+            isEvolutionTailOne ? "5.5s" :
             isMarionetteAccessory ? "4.5s" :
             (isMarionetteLeftLeg || isMarionetteRightLeg) ? "3.7s" :
             undefined;
