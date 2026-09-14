@@ -542,6 +542,17 @@ const ANIMATION_STYLES = `
     from { transform: rotate(${DEFAULT_PET_ANIMATION.ear.degrees}deg); }
     to   { transform: rotate(-${DEFAULT_PET_ANIMATION.ear.degrees}deg); }
   }
+  /* Evolution ears live outside the head stacking context so they can remain
+     behind foreground arms. Their outer wrapper follows the head exactly;
+     these inner keyframes add a small mirrored angled lift on top. */
+  @keyframes petIdleEvolutionLeftEar {
+    from { transform: translate(-0.35px, 0.45px) rotate(-1deg); }
+    to   { transform: translate(0.35px, -1.25px) rotate(1.5deg); }
+  }
+  @keyframes petIdleEvolutionRightEar {
+    from { transform: translate(0.35px, 0.45px) rotate(1deg); }
+    to   { transform: translate(-0.35px, -1.25px) rotate(-1.5deg); }
+  }
   @keyframes petIdleLeftHair {
     from { transform: rotate(-${DEFAULT_PET_ANIMATION.hair.degrees}deg); }
     to { transform: rotate(${DEFAULT_PET_ANIMATION.hair.degrees}deg); }
@@ -659,8 +670,8 @@ const ANIMATION_STYLES = `
      base slot, so the standard ±5° swing reads as a dramatic whip. Keep its
      idle movement deliberately subtle and let it travel on a slower cycle. */
   @keyframes petIdleEvolutionTail {
-    from { transform: rotate(-1.5deg); }
-    to   { transform: rotate( 1.5deg); }
+    from { transform: rotate(-2.5deg); }
+    to   { transform: rotate( 2.5deg); }
   }
   @keyframes petIdleTail2 {
     from { transform: rotate(-4deg); }
@@ -1192,6 +1203,7 @@ function getPartDuration(partType: string, mode: "idle" | "walk" | "zoom" | "hou
 const ALTERNATE_MOTION_ANIMS = new Set<string>([
   "petIdleHead", "petIdleHeadGround", "petIdleHeadSide",
   "petIdleLeftEar", "petIdleRightEar",
+  "petIdleEvolutionLeftEar", "petIdleEvolutionRightEar",
   "petBatLeftEar", "petBatRightEar",
   "petIdleLeftArm", "petIdleRightArm",
   "petIdleBody",
@@ -2066,16 +2078,20 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
             const barePartType = part.partType.replace(/^h[23]_/, "");
             const isBatLeftEar = mode === "idle" && idleStyle === "bat" && (barePartType === "left_ear" || barePartType === "left_ear_2");
             const isBatRightEar = mode === "idle" && idleStyle === "bat" && (barePartType === "right_ear" || barePartType === "right_ear_2");
+            const isLeftEvolutionEar = ["left_ear", "left_ear_2"].includes(barePartType);
+            const isRightEvolutionEar = ["right_ear", "right_ear_2"].includes(barePartType);
             const earAnimation =
               mode === "static" ? null :
               mode === "house" ? (lookupAnim(HOUSE_ANIMATIONS, part.partType) ?? null) :
               mode === "sleep" ? (lookupAnim(SLEEP_ANIMATIONS, part.partType) ?? null) :
               mode === "petting" ? (lookupAnim(PETTING_ANIMATIONS, part.partType) ?? null) :
+              mode === "idle" && isLeftEvolutionEar ? "petIdleEvolutionLeftEar" :
+              mode === "idle" && isRightEvolutionEar ? "petIdleEvolutionRightEar" :
               isBatLeftEar ? "petBatLeftEar" :
               isBatRightEar ? "petBatRightEar" :
               (lookupAnim(anims, part.partType) ?? null);
             let earOrigin: string | undefined;
-            if (isBatLeftEar || isBatRightEar) {
+            if (mode === "idle" || isBatLeftEar || isBatRightEar) {
               const earBounds = getAlphaBoundsSync(part.imageUrl) ?? FULL_BOUNDS;
               const originX = (earBounds.left + earBounds.width * 0.5) * 100;
               const originY = (earBounds.top + earBounds.height) * 100;
@@ -2102,7 +2118,9 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
                   `${headMotion.groupDelay}s`,
                   earOrigin,
                   undefined,
-                  isBatLeftEar || isBatRightEar ? "5s" : undefined,
+                  mode === "idle" && (isLeftEvolutionEar || isRightEvolutionEar)
+                    ? "4.8s"
+                    : isBatLeftEar || isBatRightEar ? "5s" : undefined,
                 )}
               </div>
             );
@@ -2191,12 +2209,15 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
             const animName = lookupAnim(PETTING_ANIMATIONS, part.partType);
             return renderPartImg(part, animName ?? null, undefined, wingDelay, tailOrigin ?? bodyOrigin, partZ);
           }
-          // Ground-pet legs stay planted during idle. Flying/floating pets retain
-          // the normal hover motion selected by the admin `canFly` setting.
+          // Base-pet ground legs stay frozen. Evolution legs instead share the
+          // body's exact breath transform, duration, delay, and world-space
+          // feet anchor so the torso cannot scale away from their attachment.
           const idlePartType = part.partType.replace(/^h[23]_/, "");
           const isIdleLeg = ["left_leg", "right_leg", "front_leg", "back_leg"].includes(idlePartType);
           if (mode === "idle" && !canFly && isIdleLeg) {
-            return renderPartImg(part, null, undefined, undefined, undefined, partZ);
+            return artworkForm === "evolution"
+              ? renderPartImg(part, "petIdleBody", undefined, bodyBreathDelay, undefined, partZ, "4.5s")
+              : renderPartImg(part, null, undefined, undefined, undefined, partZ);
           }
           const anims = mode === "idle" ? idleAnimMap : mode === "zoom" ? ZOOM_ANIMATIONS : WALK_ANIMATIONS;
           let animName = lookupAnim(anims, part.partType) || anims.body;
