@@ -53,13 +53,16 @@ test("evolution nodes require 5,000 points while completed nodes remain stored",
 });
 
 
-test("evolution Tail 1 stays subtle and ears layer behind arms and hands", () => {
-  assert.match(animatorCore, /@keyframes petIdleEvolutionTail[\s\S]*rotate\(-0\.75deg\)[\s\S]*rotate\( 0\.75deg\)/);
-  assert.match(animatorCore, /isEvolutionTailOne \? "6\.5s"/);
+test("evolution Tail 1 stays visibly subtle while rear-layer ears follow their head", () => {
+  assert.match(animatorCore, /@keyframes petIdleEvolutionTail[\s\S]*rotate\(-1\.5deg\)[\s\S]*rotate\( 1\.5deg\)/);
+  assert.match(animatorCore, /isEvolutionTailOne \? "5\.5s"/);
   assert.match(animatorCore, /artworkForm === "evolution"[\s\S]*EAR_PART_TYPES\.has\(basePetPartType\(part\.partType\)\)/);
   assert.match(animatorCore, /const evolutionForegroundLimbZ = artworkForm === "evolution"/);
   assert.match(animatorCore, /EAR_PART_TYPES\.has\(basePetPartType\(part\.partType\)\)[\s\S]*?evolutionForegroundLimbZ - 0\.5/);
   assert.match(animatorCore, /const sortedBodyByZ = \[\.\.\.bodyParts\]\.sort\(\(a, b\) => a\.zIndex - b\.zIndex\)/);
+  assert.match(animatorCore, /evolutionRearEarHeadGroups\.set\(part\.id, \{ head: group\.head, groupIndex \}\)/);
+  assert.match(animatorCore, /data-evolution-ear-head-sync=\{evolutionEarHeadGroup\.head\.partType\}/);
+  assert.match(animatorCore, /animation: headMotion\.animation[\s\S]*zIndex: partZ/);
 });
 
 test("Power Up tray stacks duplicate inventory rows by catalog item", () => {
