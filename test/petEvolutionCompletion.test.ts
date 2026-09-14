@@ -53,16 +53,19 @@ test("evolution nodes require 5,000 points while completed nodes remain stored",
 });
 
 
-test("evolution Tail 1 stays visibly subtle while rear-layer ears follow their head", () => {
-  assert.match(animatorCore, /@keyframes petIdleEvolutionTail[\s\S]*rotate\(-1\.5deg\)[\s\S]*rotate\( 1\.5deg\)/);
+test("evolution idle keeps ears, tail, body, and legs moving as connected layers", () => {
+  assert.match(animatorCore, /@keyframes petIdleEvolutionTail[\s\S]*rotate\(-2\.5deg\)[\s\S]*rotate\( 2\.5deg\)/);
   assert.match(animatorCore, /isEvolutionTailOne \? "5\.5s"/);
+  assert.match(animatorCore, /@keyframes petIdleEvolutionLeftEar[\s\S]*translate\(-0\.35px, 0\.45px\) rotate\(-1deg\)[\s\S]*translate\(0\.35px, -1\.25px\) rotate\(1\.5deg\)/);
+  assert.match(animatorCore, /@keyframes petIdleEvolutionRightEar[\s\S]*translate\(0\.35px, 0\.45px\) rotate\(1deg\)[\s\S]*translate\(-0\.35px, -1\.25px\) rotate\(-1\.5deg\)/);
   assert.match(animatorCore, /artworkForm === "evolution"[\s\S]*EAR_PART_TYPES\.has\(basePetPartType\(part\.partType\)\)/);
   assert.match(animatorCore, /const evolutionForegroundLimbZ = artworkForm === "evolution"/);
   assert.match(animatorCore, /EAR_PART_TYPES\.has\(basePetPartType\(part\.partType\)\)[\s\S]*?evolutionForegroundLimbZ - 0\.5/);
-  assert.match(animatorCore, /const sortedBodyByZ = \[\.\.\.bodyParts\]\.sort\(\(a, b\) => a\.zIndex - b\.zIndex\)/);
   assert.match(animatorCore, /evolutionRearEarHeadGroups\.set\(part\.id, \{ head: group\.head, groupIndex \}\)/);
-  assert.match(animatorCore, /data-evolution-ear-head-sync=\{evolutionEarHeadGroup\.head\.partType\}/);
   assert.match(animatorCore, /animation: headMotion\.animation[\s\S]*zIndex: partZ/);
+  assert.match(animatorCore, /mode === "idle" && isLeftEvolutionEar \? "petIdleEvolutionLeftEar"/);
+  assert.match(animatorCore, /mode === "idle" && isRightEvolutionEar \? "petIdleEvolutionRightEar"/);
+  assert.match(animatorCore, /artworkForm === "evolution"[\s\S]*renderPartImg\(part, "petIdleBody", undefined, bodyBreathDelay, undefined, partZ, "4\.5s"\)/);
 });
 
 test("Power Up tray stacks duplicate inventory rows by catalog item", () => {
