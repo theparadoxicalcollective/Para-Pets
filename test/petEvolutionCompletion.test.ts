@@ -62,7 +62,7 @@ test("evolution Tail 1 stays visibly subtle while rear-layer ears follow their h
   assert.match(animatorCore, /const sortedBodyByZ = \[\.\.\.bodyParts\]\.sort\(\(a, b\) => a\.zIndex - b\.zIndex\)/);
   assert.match(animatorCore, /evolutionRearEarHeadGroups\.set\(part\.id, \{ head: group\.head, groupIndex \}\)/);
   assert.match(animatorCore, /data-evolution-ear-head-sync=\{evolutionEarHeadGroup\.head\.partType\}/);
-  assert.match(animatorCore, /animation: headMotion\.animation/[\s\S]*zIndex: partZ/);
+  assert.match(animatorCore, /animation: headMotion\.animation[\s\S]*zIndex: partZ/);
 });
 
 test("Power Up tray stacks duplicate inventory rows by catalog item", () => {
