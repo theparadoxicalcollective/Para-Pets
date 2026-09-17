@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { fetchAuthenticatedUserCached } from "@/lib/queryClient";
 import {
   chooseNpcMessage,
   getNpcQuestAssociations,
@@ -60,8 +61,7 @@ export default function NpcQuestAwareDialogueBridge() {
 
   useEffect(() => {
     let cancelled = false;
-    void fetch("/api/auth/me", { credentials: "include", cache: "no-store" })
-      .then(response => response.ok ? response.json() : null)
+    void fetchAuthenticatedUserCached()
       .then(user => { if (!cancelled) setIsAdmin(Boolean(user?.isAdmin)); })
       .catch(() => { if (!cancelled) setIsAdmin(false); });
     return () => { cancelled = true; };

@@ -10,6 +10,7 @@ const SYNC_KEYS = [
 ];
 
 let channel: BroadcastChannel | null = null;
+let unsubscribeFromQueryCache: (() => void) | null = null;
 let receiving = false;
 
 export function initTabSync() {
@@ -27,7 +28,7 @@ export function initTabSync() {
     receiving = false;
   };
 
-  queryClient.getQueryCache().subscribe((cacheEvent) => {
+  unsubscribeFromQueryCache = queryClient.getQueryCache().subscribe((cacheEvent) => {
     if (receiving) return;
     if (cacheEvent.type !== "updated") return;
     const action = (cacheEvent as any).action;
@@ -42,6 +43,8 @@ export function initTabSync() {
 }
 
 export function teardownTabSync() {
+  unsubscribeFromQueryCache?.();
+  unsubscribeFromQueryCache = null;
   channel?.close();
   channel = null;
 }
