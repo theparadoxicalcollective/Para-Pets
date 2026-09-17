@@ -4,8 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { chestAssets } from "@/lib/chestAssets";
 
-import coinIconImg     from "@assets/icon_coin.png";
-import essenceIconImg  from "@assets/Photoroom_20260709_24152_PM_1783626130265.png";
+import { currencyAssets } from "@/lib/currencyAssets";
 import pvpTicketIcon   from "@assets/Photoroom_20260415_83701_PM_1776304592941.png";
 import raidTicketIcon  from "@assets/Photoroom_20260714_43330_PM_1784076584992.png";
 
@@ -15,10 +14,30 @@ interface ClaimStatus {
   lastClaimedAt: string | null;
 }
 
-const REWARD_COINS        = 100;
-const REWARD_ESSENCE      = 100;
-const REWARD_TICKETS      = 5;
-const REWARD_RAID_TICKETS = 5;
+interface DailyRewardItem {
+  id: string;
+  name: string;
+  type: string;
+  imageUrl: string | null;
+}
+
+interface DailyRewardConfig {
+  coinAmount: number;
+  essenceAmount: number;
+  itemIds: string[];
+  items: DailyRewardItem[];
+  pvpTickets: number;
+  raidTickets: number;
+}
+
+const DEFAULT_REWARDS: DailyRewardConfig = {
+  coinAmount: 100,
+  essenceAmount: 100,
+  itemIds: [],
+  items: [],
+  pvpTickets: 5,
+  raidTickets: 5,
+};
 
 function parseUtc(ts: string | null): number | null {
   if (!ts) return null;
@@ -87,6 +106,15 @@ export default function DailyClaimCard({
   const { toast } = useToast();
   const [showBurst, setShowBurst] = useState(false);
 
+  const { data: configuredRewards } = useQuery<DailyRewardConfig>({
+    queryKey: ["/api/daily-claim/config"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/daily-claim/config");
+      return response.json();
+    },
+  });
+  const rewards = configuredRewards ?? DEFAULT_REWARDS;
+
   const dailyStatusKey = ["/api/daily-claim/status", user?.id ?? "guest"] as const;
   const { data: status } = useQuery<ClaimStatus>({
     queryKey: dailyStatusKey,
@@ -116,9 +144,12 @@ export default function DailyClaimCard({
       const raidGranted = data.raidTickets ?? 0;
       const pvpPart = pvpGranted > 0 ? ` · +${pvpGranted} PvP tickets` : " · PvP tickets full (100/100)";
       const raidPart = raidGranted > 0 ? ` · +${raidGranted} Raid tickets` : " · Raid tickets full (25/25)";
+      const itemPart = Array.isArray(data.items) && data.items.length > 0
+        ? ` · ${data.items.map((item: DailyRewardItem) => item.name).join(" + ")}`
+        : "";
       toast({
         title: "Daily Reward Claimed!",
-        description: `+${REWARD_COINS} coins · +${REWARD_ESSENCE} essence${pvpPart}${raidPart}`,
+        description: `+${data.coinAmount ?? rewards.coinAmount} coins · +${data.essenceAmount ?? rewards.essenceAmount} essence${itemPart}${pvpPart}${raidPart}`,
       });
     },
     onError: (err: any) => {
@@ -186,25 +217,25 @@ export default function DailyClaimCard({
             {/* Coins */}
             <div className="flex items-center gap-1" data-testid="reward-coins">
               <img
-                src={coinIconImg}
+                src={currencyAssets.coin}
                 alt="Coins"
                 className="w-5 h-5 object-contain"
                 style={{ filter: "drop-shadow(0 0 4px rgba(255,200,80,0.5))" }}
               />
               <span className="font-fantasy text-[12px]" style={{ color: "#ffd773" }}>
-                +{REWARD_COINS}
+                +{rewards.coinAmount}
               </span>
             </div>
             {/* Essence */}
             <div className="flex items-center gap-1" data-testid="reward-essence">
               <img
-                src={essenceIconImg}
+                src={currencyAssets.essenceToken}
                 alt="Essence"
                 className="w-5 h-5 object-contain"
                 style={{ filter: "drop-shadow(0 0 4px rgba(127,191,176,0.55))" }}
               />
               <span className="font-fantasy text-[12px]" style={{ color: "#9fdcc9" }}>
-                +{REWARD_ESSENCE}
+                +{rewards.essenceAmount}
               </span>
             </div>
             {/* PvP tickets */}
@@ -216,7 +247,7 @@ export default function DailyClaimCard({
                 style={{ filter: "drop-shadow(0 0 4px rgba(127,191,176,0.55))" }}
               />
               <span className="font-fantasy text-[12px]" style={{ color: "#cfe6dc" }}>
-                +{REWARD_TICKETS}
+                +{rewards.pvpTickets}
               </span>
             </div>
             {/* Raid tickets */}
@@ -228,9 +259,19 @@ export default function DailyClaimCard({
                 style={{ filter: "drop-shadow(0 0 4px rgba(240,160,40,0.55))" }}
               />
               <span className="font-fantasy text-[12px]" style={{ color: "#cfe6dc" }}>
-                +{REWARD_RAID_TICKETS}
+                +{rewards.raidTickets}
               </span>
             </div>
+            {rewards.items.map((item) => (
+              <div key={item.id} className="flex items-center gap-1" data-testid={`reward-item-${item.id}`}>
+                {item.imageUrl
+                  ? <img src={item.imageUrl} alt={item.name} className="w-5 h-5 object-contain" />
+                  : <span aria-hidden className="text-sm">📦</span>}
+                <span className="font-fantasy text-[10px] max-w-[72px] truncate" style={{ color: "#e9d5ff" }}>
+                  {item.name}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
 

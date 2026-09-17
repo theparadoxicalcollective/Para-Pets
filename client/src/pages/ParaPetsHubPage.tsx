@@ -1552,6 +1552,21 @@ export default function ParaPetsHubPage() {
 
           <GoldDivider />
 
+          {/* ── Redeem Code ───────────────────────────────────────────────── */}
+          <RedeemCodeCard user={user} onSignIn={() => setShowSignIn(true)} />
+
+          <GoldDivider />
+
+          {/* ── About the game ─────────────────────────────────────────────── */}
+          <AboutSection />
+
+          <GoldDivider />
+
+          {/* ── Realm Benefactors leaderboard ─────────────────────────────── */}
+          <ContributionLeaderboard currentUserId={user?.id} onSelectPlayer={setSelectedPlayerId} />
+
+          <GoldDivider />
+
           {/* ── Forum button ──────────────────────────────────────────────── */}
           <Link
             href="/forum"
@@ -1569,21 +1584,6 @@ export default function ParaPetsHubPage() {
               }}
             />
           </Link>
-
-          <GoldDivider />
-
-          {/* ── About the game ─────────────────────────────────────────────── */}
-          <AboutSection />
-
-          <GoldDivider />
-
-          {/* ── Realm Benefactors leaderboard ─────────────────────────────── */}
-          <ContributionLeaderboard currentUserId={user?.id} onSelectPlayer={setSelectedPlayerId} />
-
-          <GoldDivider />
-
-          {/* ── Redeem Code ───────────────────────────────────────────────── */}
-          <RedeemCodeCard user={user} onSignIn={() => setShowSignIn(true)} />
 
           <GoldDivider />
 
