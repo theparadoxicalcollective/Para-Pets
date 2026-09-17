@@ -256,7 +256,11 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   }, [verifyAttempt]);
 
   const { data: packsData, isLoading } = useQuery<PacksResponse>({
-    queryKey: ["/api/coins/packs"],
+    queryKey: ["/api/coins/packs", user?.id ?? "guest"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/coins/packs");
+      return response.json();
+    },
   });
 
   interface ProgressData {
@@ -997,7 +1001,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                       textShadow: "0 0 8px rgba(74,222,128,0.3)",
                     }}
                   >
-                    {!user ? "Sign In to Purchase" : isBuying ? "Processing..." : `${pack.priceUsd}`}
+                    {!user ? "Sign In to Purchase" : isBuying ? "Processing..." : `$${pack.priceUsd}`}
                   </div>
                   {isDisabled && (
                     <span className="font-fantasy text-[#ff6b6b] text-[8px] tracking-wider">

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, type CSSProperties } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { getNextZ } from "@/lib/layerManager";
@@ -99,6 +99,37 @@ function calcSpacing() {
   return Math.min(62, Math.max(34, Math.floor(available / LEFT_ITEMS.length)));
 }
 
+function QuestRewardBadge({ style, testId }: { style?: CSSProperties; testId?: string }) {
+  return (
+    <span
+      data-testid={testId}
+      aria-label="Quest reward ready to claim"
+      className="font-fantasy"
+      style={{
+        position: "absolute",
+        zIndex: 200,
+        width: 20,
+        height: 20,
+        borderRadius: "50%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#8a5c08",
+        border: "1.5px solid #f0c040",
+        color: "#fff3b0",
+        fontSize: 14,
+        fontWeight: 800,
+        lineHeight: 1,
+        boxShadow: "0 2px 5px rgba(0,0,0,0.65)",
+        pointerEvents: "none",
+        ...style,
+      }}
+    >
+      !
+    </span>
+  );
+}
+
 export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const [, navigate] = useLocation();
   const navHidden = useNavHidden();
@@ -169,13 +200,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   });
 
 
-  const seenMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/quests/daily/seen", {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/quests/daily"] });
-    },
-  });
-
   const claimMutation = useMutation({
     mutationFn: (questKey: string) => apiRequest("POST", `/api/quests/daily/claim/${questKey}`, {}),
     onSuccess: async (res, questKey) => {
@@ -227,19 +251,12 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     },
   });
 
-  // Badge logic: green = not opened today, gold = any quest complete but unclaimed
-  const today        = questData?.today ?? "";
-  const lastOpened   = questData?.lastOpenedDate ?? null;
+  // Alert only when a completed quest has a reward waiting to be claimed.
+  // Merely receiving a new set of daily quests should not create a login reminder.
   const visibleDailyQuests = questData?.quests.filter(q => !q.reward_claimed) ?? [];
   const hasCompletedUnclaimed = questData?.quests.some(q => q.completed && !q.reward_claimed) ?? false;
   const tutorialClaimable = !!(user as any).tutorial_quest_completed && !(user as any).tutorial_reward_claimed;
-  const questBadge: "green" | "gold" | null = !questData
-    ? null
-    : lastOpened !== today
-    ? "green"
-    : (hasCompletedUnclaimed || tutorialClaimable)
-    ? "gold"
-    : null;
+  const questRewardReady = hasCompletedUnclaimed || tutorialClaimable;
 
   const friendRequestCount = friendReqData?.count ?? 0;
   const friendBadge: "green" | null = friendRequestCount > 0 ? "green" : null;
@@ -251,7 +268,6 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
       setTimeout(() => {
         openPanel(() => {
           setShowQuest(true);
-          seenMutation.mutate();
         });
       }, NAV_DELAY);
       return;
@@ -355,7 +371,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             translateX={-(spacing * (i + 1))}
             translateY={0}
             fillIcon={!!(item as any).fill}
-            badge={item.id === "quest" ? questBadge : null}
+            badge={item.id === "quest" && questRewardReady ? "quest" : null}
             onClick={() => handleLeft(item.id)}
             testId={`nav-item-${item.id}`}
           />
@@ -410,12 +426,10 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
             }}
           />
           {/* Quest notification badge — visible on main button when nav is closed */}
-          {questBadge && !isOpen && (
-            <QuillBadge
-              data-testid="badge-quest-notification"
-              size={15}
-              glow={questBadge === "green" ? "#4ade80" : "#f0c040"}
-              style={{ position: "absolute", top: -22, zIndex: 100 }}
+          {questRewardReady && !isOpen && (
+            <QuestRewardBadge
+              testId="badge-quest-notification"
+              style={{ top: -5, right: -5, zIndex: 100 }}
             />
           )}
           {/* Friend requests live in the Friends page; this badge keeps
@@ -783,7 +797,7 @@ function NavButton({
   translateX: number;
   translateY: number;
   fillIcon?: boolean;
-  badge?: "green" | "gold" | null;
+  badge?: "green" | "gold" | "quest" | null;
   locked?: boolean;
   onClick: () => void;
   testId?: string;
@@ -854,13 +868,15 @@ function NavButton({
       )}
 
       {/* Badge indicator on individual icon (visible when nav is open) */}
-      {badge && (
+      {badge === "quest" ? (
+        <QuestRewardBadge style={{ top: -7, right: -7 }} />
+      ) : badge ? (
         <QuillBadge
           size={15}
           glow={badge === "green" ? "#4ade80" : "#f0c040"}
           style={{ position: "absolute", top: -22, zIndex: 200 }}
         />
-      )}
+      ) : null}
 
       {/* Icon label */}
       <span style={{

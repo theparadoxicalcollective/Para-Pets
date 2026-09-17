@@ -65,6 +65,29 @@ test("signed-out visitors can browse coin packs but checkout still requires auth
   assert.match(coinShop, /user: CoinShopUser \| null/);
   assert.match(coinShop, /if \(!user\) \{\s*navigate\("\/auth"\);\s*return;/);
   assert.match(coinShop, /Sign In to Purchase/);
+  assert.match(coinShop, /queryKey: \["\/api\/coins\/packs", user\?\.id \?\? "guest"\]/);
+  assert.match(coinShop, /: `\$\$\{pack\.priceUsd\}`/);
   assert.match(routes, /app\.get\("\/api\/coins\/packs", async \(req, res\) =>/);
   assert.match(routes, /app\.post\("\/api\/coins\/checkout", isAuthenticated/);
+});
+
+
+test("Daily Rewards stays visible to guests and Redeem Code replaces Founder's Wall", () => {
+  const hub = readFileSync(fromRoot("client", "src", "pages", "ParaPetsHubPage.tsx"), "utf8");
+  const daily = readFileSync(fromRoot("client", "src", "components", "DailyClaimCard.tsx"), "utf8");
+
+  const dailyUsage = hub.lastIndexOf("<DailyClaimCard");
+  const noticeUsage = hub.lastIndexOf("<NoticeCarousel");
+  const benefactorsUsage = hub.lastIndexOf("<ContributionLeaderboard");
+  const redeemUsage = hub.lastIndexOf("<RedeemCodeCard");
+  const guardiansUsage = hub.lastIndexOf("Game Guardians");
+
+  assert.ok(dailyUsage >= 0 && dailyUsage < noticeUsage, "Daily Rewards should occupy the former top redeem-code position");
+  assert.ok(redeemUsage > benefactorsUsage && redeemUsage < guardiansUsage, "Redeem Code should occupy the former Founder's Wall position");
+  assert.doesNotMatch(hub, /link-founders|paradoxStatue|Founder's Wall/);
+  assert.match(hub, /onSignInRequest=\{\(\) => setShowSignIn\(true\)\}/);
+  assert.match(daily, /data-testid="button-daily-sign-in"/);
+  assert.match(daily, /dailyStatusKey = \["\/api\/daily-claim\/status", user\?\.id \?\? "guest"\]/);
+  assert.match(daily, /setQueryData<ClaimStatus>\(dailyStatusKey/);
+  assert.doesNotMatch(daily, /if \(!user\) return null/);
 });
