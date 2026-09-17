@@ -18,18 +18,20 @@ import coinPack10000 from "@assets/Photoroom_20260629_102138_PM_1782789980383.pn
 import limitedBannerImg from "@assets/Photoroom_20260617_64201_AM_1781696551801.png";
 import midnightJugglerEggImg from "@assets/limited_eggs/midnight_juggler_egg.webp";
 
+interface CoinShopUser {
+  id: string;
+  username: string;
+  email: string;
+  profileImage: string | null;
+  coins: number;
+  isAdmin: boolean;
+  activePetId: string | null;
+  lastUsernameChange: string | null;
+  lastProfilePicChange: string | null;
+}
+
 interface CoinShopProps {
-  user: {
-    id: string;
-    username: string;
-    email: string;
-    profileImage: string | null;
-    coins: number;
-    isAdmin: boolean;
-    activePetId: string | null;
-    lastUsernameChange: string | null;
-    lastProfilePicChange: string | null;
-  };
+  user: CoinShopUser | null;
 }
 
 interface CoinPack {
@@ -125,6 +127,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
   const supportMutation = useMutation({
     mutationFn: async () => {
+      if (!user) throw new Error("Sign in to contact purchase support");
       const res = await apiRequest("POST", "/api/support-message", {
         username: user.username,
         email: user.email,
@@ -146,6 +149,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   // can mutate location. Never use useSearch() here: wouter patches replaceState and
   // would re-trigger a reactive effect every time we clean the URL.
   const [stripeSessionId] = useState<string | null>(() => {
+    if (!user) return null;
     let store: Storage | undefined;
     try { store = window.sessionStorage; } catch { /* URL retry still works. */ }
     return pendingPurchaseSession(user.id, window.location.search, store);
@@ -185,7 +189,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   // Verify on return/revisit, with an explicit retry after a failed request.
   // A 12-second timeout unblocks the UI in case of a slow or dropped connection.
   useEffect(() => {
-    if (!stripeSessionId) return;
+    if (!stripeSessionId || !user) return;
     if (verifiedRef.current) return;
     verifiedRef.current = true;
 
@@ -276,6 +280,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   const { data: progressData } = useQuery<ProgressData>({
     queryKey: ["/api/coins/progress"],
     ...PURCHASE_REFRESH_OPTIONS,
+    enabled: !!user,
   });
 
   const [adminPickerMs, setAdminPickerMs] = useState<number | null>(null);
@@ -283,7 +288,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   const [pickerTab, setPickerTab] = useState<string>("all");
   const { data: allShopItems = [] } = useQuery<any[]>({
     queryKey: ["/api/admin/shop-items-all"],
-    enabled: adminPickerMs !== null && currentUser.isAdmin,
+    enabled: adminPickerMs !== null && currentUser?.isAdmin,
     staleTime: 60_000,
   });
   const saveMilestoneMutation = useMutation({
@@ -356,11 +361,15 @@ export default function CoinShopPage({ user }: CoinShopProps) {
 
 
   const handleBuy = (packId: string) => {
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
     setBuyingPackId(packId);
     checkoutMutation.mutate(packId);
   };
 
-  const dailyRemaining = packsData ? packsData.dailyLimit - packsData.dailySpent : 500;
+  const dailyRemaining = user && packsData ? packsData.dailyLimit - packsData.dailySpent : Number.POSITIVE_INFINITY;
 
   return (
     <div style={{ position: "absolute", inset: 0, overflowY: "auto", overflowX: "hidden", background: "linear-gradient(180deg, #040d04 0%, #071a0a 15%, #0d2510 40%, #081a0d 65%, #051208 85%, #040d04 100%)", paddingTop: "env(safe-area-inset-top, 0px)" }}>
@@ -416,7 +425,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           </p>
           <button
             data-testid="button-close-coin-shop"
-            onClick={() => navigate("/")}
+            onClick={() => navigate(user ? "/" : "/hub")}
             className="flex items-center justify-center transition-transform active:scale-90"
             style={{
               position: "absolute", top: 0, right: 0,
@@ -443,7 +452,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         )}
 
         {/* ── Contribution Rewards Progress Bar ───────────────────────────── */}
-        {(() => {
+        {currentUser && (() => {
           const pts = progressData?.points ?? 0;
           const claimed = progressData?.claimedMilestones ?? [];
           const rewards = progressData?.milestoneRewards ?? [];
@@ -525,9 +534,9 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                     }}>
                       {/* Item image or empty slot — admin: always opens picker; player: opens popup if item exists */}
                       <div
-                        style={{ position: "relative", flexShrink: 0, cursor: (currentUser.isAdmin || hasItem) ? "pointer" : "default" }}
+                        style={{ position: "relative", flexShrink: 0, cursor: (currentUser?.isAdmin || hasItem) ? "pointer" : "default" }}
                         onClick={() => {
-                          if (currentUser.isAdmin) {
+                          if (currentUser?.isAdmin) {
                             setAdminPickerMs(m.end);
                             setPickerSearch("");
                             setPickerTab("all");
@@ -727,7 +736,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         })()}
 
         {/* ── Admin milestone reward picker — fixed overlay modal ── */}
-        {currentUser.isAdmin && adminPickerMs !== null && (() => {
+        {currentUser?.isAdmin && adminPickerMs !== null && (() => {
           const msLabel = [
             { end: 2500, label: "Bronze" }, { end: 5000, label: "Silver" },
             { end: 7500, label: "Gold" }, { end: 10000, label: "Diamond" },
@@ -867,7 +876,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         ) : (
           <div className="px-4 grid grid-cols-2 gap-3">
             {packsData?.packs.map((pack) => {
-              const isDisabled = pack.priceUsd > dailyRemaining;
+              const isDisabled = !!user && pack.priceUsd > dailyRemaining;
               const isBuying = buyingPackId === pack.id && checkoutMutation.isPending;
               const packImage = imageForCoins(pack.coins);
               const { glow: glowColor, border: borderColor, outerGlow } = styleForCoins(pack.coins);
@@ -988,7 +997,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
                       textShadow: "0 0 8px rgba(74,222,128,0.3)",
                     }}
                   >
-                    {isBuying ? "Processing..." : `$${pack.priceUsd}`}
+                    {!user ? "Sign In to Purchase" : isBuying ? "Processing..." : `${pack.priceUsd}`}
                   </div>
                   {isDisabled && (
                     <span className="font-fantasy text-[#ff6b6b] text-[8px] tracking-wider">
@@ -1010,7 +1019,7 @@ export default function CoinShopPage({ user }: CoinShopProps) {
         <div className="flex justify-center mt-5">
           <button
             data-testid="button-back-home"
-            onClick={() => navigate("/")}
+            onClick={() => navigate(user ? "/" : "/hub")}
             className="px-8 py-2 rounded-md font-fantasy text-xs tracking-wider transition-all"
             style={{
               background: "linear-gradient(135deg, rgba(5,20,10,0.9) 0%, rgba(10,30,15,0.9) 100%)",
@@ -1040,7 +1049,15 @@ export default function CoinShopPage({ user }: CoinShopProps) {
           </button>
           <button
             data-testid="button-open-support"
-            onClick={() => { setShowSupport(true); setSupportSent(false); setSupportMessage(""); }}
+            onClick={() => {
+              if (!user) {
+                navigate("/auth");
+                return;
+              }
+              setShowSupport(true);
+              setSupportSent(false);
+              setSupportMessage("");
+            }}
             className="font-fantasy text-[10px] tracking-wider underline underline-offset-2"
             style={{
               background: "none",
@@ -1049,12 +1066,12 @@ export default function CoinShopPage({ user }: CoinShopProps) {
               cursor: "pointer",
             }}
           >
-            Contact Support
+            {user ? "Contact Support" : "Sign In for Support"}
           </button>
         </div>
       </div>
 
-      {showProfile && (
+      {showProfile && currentUser && (
         <UserProfilePanel
           user={currentUser}
           onClose={() => setShowProfile(false)}
