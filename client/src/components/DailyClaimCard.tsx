@@ -87,8 +87,13 @@ export default function DailyClaimCard({
   const { toast } = useToast();
   const [showBurst, setShowBurst] = useState(false);
 
+  const dailyStatusKey = ["/api/daily-claim/status", user?.id ?? "guest"] as const;
   const { data: status } = useQuery<ClaimStatus>({
-    queryKey: ["/api/daily-claim/status"],
+    queryKey: dailyStatusKey,
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/daily-claim/status");
+      return response.json();
+    },
     enabled: !!user,
     retry: false,
   });
@@ -97,7 +102,7 @@ export default function DailyClaimCard({
     mutationFn: () => apiRequest("POST", "/api/daily-claim"),
     onSuccess: async (res) => {
       const data = await res.json();
-      qc.setQueryData<ClaimStatus>(["/api/daily-claim/status"], {
+      qc.setQueryData<ClaimStatus>(dailyStatusKey, {
         canClaim: false,
         lastClaimedAt: data.lastClaimedAt ?? null,
         nextClaimAt: data.nextClaimAt ?? null,
