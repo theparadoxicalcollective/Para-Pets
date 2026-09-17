@@ -824,61 +824,142 @@ function PetsBanner() {
 // About the game section
 // ─────────────────────────────────────────────────────────────────────────────
 function AboutSection() {
+  const highlights = [
+    {
+      img: eggsImg,
+      title: "Collect & Raise",
+      desc: "Hatch, name, care for, level up, and evolve magical pets.",
+      glow: "rgba(240,215,112,0.18)",
+    },
+    {
+      img: iconGlobeWorld,
+      title: "Explore & Play",
+      desc: "Discover mystical worlds, quests, battles, fishing, and mini-games.",
+      glow: "rgba(127,191,176,0.18)",
+    },
+    {
+      img: iconFriends,
+      title: "Connect & Trade",
+      desc: "Make friends, visit players, use the marketplace, and join events.",
+      glow: "rgba(192,132,252,0.18)",
+    },
+  ];
+
   return (
-    <div className="flex flex-col items-center text-center gap-5" data-testid="section-about">
+    <section
+      className="flex flex-col items-center text-center gap-5"
+      data-testid="section-about"
+      aria-labelledby="about-game-heading"
+    >
       <div>
+        <p
+          className="font-fantasy text-[9px] tracking-widest uppercase mb-2"
+          style={{ color: "rgba(127,191,176,0.58)", letterSpacing: "0.24em" }}
+        >
+          Your adventure starts here
+        </p>
         <h2
-          className="font-fantasy text-2xl tracking-widest mb-2"
+          id="about-game-heading"
+          className="font-fantasy text-2xl tracking-widest mb-3"
           style={{
             color: "#f0d770",
             textShadow: "0 0 22px rgba(232,200,88,0.45), 0 2px 10px rgba(0,0,0,0.9)",
-            letterSpacing: "0.18em",
+            letterSpacing: "0.14em",
           }}
         >
-          Welcome to Para Pets
+          About the Game
         </h2>
         <p
-          className="font-fantasy text-[11px] tracking-wider leading-relaxed"
-          style={{ color: "rgba(200,220,180,0.75)", maxWidth: 340, margin: "0 auto" }}
+          className="font-fantasy text-[11px] tracking-wide leading-relaxed"
+          style={{ color: "rgba(210,225,195,0.78)", maxWidth: 560, margin: "0 auto" }}
         >
-          Hatch rare creatures from ancient eggs, explore hidden worlds, and forge your own legend across realms beyond imagination.
+          Para Pets is a free-to-play browser fantasy pet adventure for older teens and up. Build a collection
+          of magical companions, care for them, grow their abilities, and create your own story across an
+          ever-expanding world filled with secrets, challenges, and seasonal surprises.
         </p>
       </div>
 
-      {/* Three pillars */}
-      <div className="flex gap-3 w-full">
-        {[
-          { img: eggsImg,           label: "Hatch",   desc: "Rare eggs from across the realm",   glow: "rgba(240,215,112,0.18)" },
-          { img: iconGlobeWorld,    label: "Explore", desc: "8 mystical worlds to discover",     glow: "rgba(127,191,176,0.18)" },
-          { img: iconCrossedSwords, label: "Conquer", desc: "Battle, quest & rise to glory",     glow: "rgba(248,113,113,0.18)" },
-        ].map(p => (
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+        {highlights.map((item) => (
           <div
-            key={p.label}
-            className="flex-1 flex flex-col items-center gap-1.5 rounded-2xl py-4 px-2"
+            key={item.title}
+            className="flex sm:flex-col items-center sm:text-center gap-3 sm:gap-2 rounded-2xl py-3.5 px-4 sm:px-3"
             style={{
               background: "linear-gradient(160deg, rgba(15,35,20,0.88) 0%, rgba(10,28,16,0.92) 100%)",
               border: "1px solid rgba(127,191,176,0.14)",
-              boxShadow: `0 4px 14px rgba(0,0,0,0.35), 0 0 10px ${p.glow}`,
+              boxShadow: `0 4px 14px rgba(0,0,0,0.35), 0 0 10px ${item.glow}`,
             }}
           >
             <img
-              src={p.img}
-              alt={p.label}
+              src={item.img}
+              alt=""
+              aria-hidden="true"
               style={{
-                width: 42, height: 42, objectFit: "contain",
-                filter: `drop-shadow(0 0 6px ${p.glow})`,
+                width: 42,
+                height: 42,
+                objectFit: "contain",
+                flexShrink: 0,
+                filter: `drop-shadow(0 0 6px ${item.glow})`,
               }}
             />
-            <p className="font-fantasy text-[11px] tracking-widest" style={{ color: "#f0d770" }}>
-              {p.label}
-            </p>
-            <p className="font-fantasy text-[9px] leading-relaxed text-center" style={{ color: "rgba(160,200,160,0.6)" }}>
-              {p.desc}
-            </p>
+            <div>
+              <p className="font-fantasy text-[11px] tracking-widest" style={{ color: "#f0d770" }}>
+                {item.title}
+              </p>
+              <p className="font-fantasy text-[9px] leading-relaxed mt-1" style={{ color: "rgba(170,205,170,0.65)" }}>
+                {item.desc}
+              </p>
+            </div>
           </div>
         ))}
       </div>
-    </div>
+
+      <div
+        className="w-full rounded-2xl p-4 text-left"
+        data-testid="about-paid-options"
+        style={{
+          background: "linear-gradient(135deg, rgba(44,31,8,0.72) 0%, rgba(14,29,18,0.9) 100%)",
+          border: "1px solid rgba(212,168,67,0.3)",
+          boxShadow: "0 7px 22px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,225,120,0.05)",
+        }}
+      >
+        <div className="flex items-start gap-3">
+          <div
+            className="flex items-center justify-center rounded-xl flex-shrink-0"
+            style={{
+              width: 42,
+              height: 42,
+              background: "rgba(212,168,67,0.1)",
+              border: "1px solid rgba(212,168,67,0.28)",
+              color: "#f0d770",
+              fontSize: 19,
+            }}
+            aria-hidden="true"
+          >
+            ✦
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-fantasy text-xs tracking-widest mb-1.5" style={{ color: "#f0d770" }}>
+              Optional In-Game Purchases
+            </h3>
+            <p className="font-fantasy text-[10px] leading-relaxed" style={{ color: "rgba(210,225,195,0.72)" }}>
+              You can enjoy Para Pets without paying. Optional virtual coin packs are available through secure
+              Stripe checkout and can be used for eligible in-game eggs, items, and other content. Some packs
+              may include promotional bonus coins or eggs. Offers can change, prices are shown before checkout,
+              and there are no physical goods or shipping.
+            </p>
+            <Link
+              href="/coins"
+              className="inline-flex mt-3 font-fantasy text-[10px] tracking-widest transition-opacity active:opacity-70"
+              data-testid="link-about-coin-shop"
+              style={{ color: "#d4a843", textDecoration: "none" }}
+            >
+              View optional coin packs →
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -1493,6 +1574,11 @@ export default function ParaPetsHubPage() {
               }}
             />
           </Link>
+
+          <GoldDivider />
+
+          {/* ── About the game ─────────────────────────────────────────────── */}
+          <AboutSection />
 
           <GoldDivider />
 
