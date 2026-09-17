@@ -78,7 +78,7 @@ function ClaimBurst({ onDone }: { onDone: () => void }) {
 
 export default function DailyClaimCard({
   user,
-  onSignInRequest: _onSignInRequest,
+  onSignInRequest,
 }: {
   user: { id: string; isAdmin?: boolean } | null | undefined;
   onSignInRequest?: () => void;
@@ -86,9 +86,6 @@ export default function DailyClaimCard({
   const qc = useQueryClient();
   const { toast } = useToast();
   const [showBurst, setShowBurst] = useState(false);
-
-  // Hide entirely for logged-out visitors
-  if (!user) return null;
 
   const { data: status } = useQuery<ClaimStatus>({
     queryKey: ["/api/daily-claim/status"],
@@ -234,7 +231,22 @@ export default function DailyClaimCard({
 
         {/* Claim / countdown */}
         <div className="flex flex-col justify-center flex-shrink-0">
-          {canClaim ? (
+          {!user ? (
+            <button
+              data-testid="button-daily-sign-in"
+              onClick={() => onSignInRequest?.()}
+              className="font-fantasy text-[11px] tracking-wider px-3 py-2 rounded-lg"
+              style={{
+                background: "linear-gradient(135deg, rgba(127,191,176,0.38) 0%, rgba(60,160,130,0.34) 100%)",
+                border: "1px solid rgba(127,191,176,0.62)",
+                color: "#ecfff6",
+                boxShadow: "0 0 12px rgba(127,191,176,0.3)",
+                cursor: "pointer",
+              }}
+            >
+              Sign In
+            </button>
+          ) : canClaim ? (
             <button
               data-testid="button-daily-claim"
               onClick={() => claimMut.mutate()}
