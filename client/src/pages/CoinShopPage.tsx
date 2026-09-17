@@ -256,7 +256,11 @@ export default function CoinShopPage({ user }: CoinShopProps) {
   }, [verifyAttempt]);
 
   const { data: packsData, isLoading } = useQuery<PacksResponse>({
-    queryKey: ["/api/coins/packs"],
+    queryKey: ["/api/coins/packs", user?.id ?? "guest"],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/coins/packs");
+      return response.json();
+    },
   });
 
   interface ProgressData {
