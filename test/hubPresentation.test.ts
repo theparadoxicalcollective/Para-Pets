@@ -72,7 +72,7 @@ test("signed-out visitors can browse coin packs but checkout still requires auth
 });
 
 
-test("Daily Rewards stays visible to guests and Redeem Code replaces Founder's Wall", () => {
+test("Daily Rewards stays visible to guests and the Forum and Redeem Code positions are swapped", () => {
   const hub = readFileSync(fromRoot("client", "src", "pages", "ParaPetsHubPage.tsx"), "utf8");
   const daily = readFileSync(fromRoot("client", "src", "components", "DailyClaimCard.tsx"), "utf8");
 
@@ -80,10 +80,13 @@ test("Daily Rewards stays visible to guests and Redeem Code replaces Founder's W
   const noticeUsage = hub.lastIndexOf("<NoticeCarousel");
   const benefactorsUsage = hub.lastIndexOf("<ContributionLeaderboard");
   const redeemUsage = hub.lastIndexOf("<RedeemCodeCard");
+  const aboutUsage = hub.lastIndexOf("<AboutSection");
+  const forumUsage = hub.lastIndexOf('href="/forum"');
   const guardiansUsage = hub.lastIndexOf("Game Guardians");
 
-  assert.ok(dailyUsage >= 0 && dailyUsage < noticeUsage, "Daily Rewards should occupy the former top redeem-code position");
-  assert.ok(redeemUsage > benefactorsUsage && redeemUsage < guardiansUsage, "Redeem Code should occupy the former Founder's Wall position");
+  assert.ok(dailyUsage >= 0 && dailyUsage < noticeUsage, "Daily Rewards should remain above the notice carousel");
+  assert.ok(redeemUsage > noticeUsage && redeemUsage < aboutUsage, "Redeem Code should occupy the former Forum position");
+  assert.ok(forumUsage > benefactorsUsage && forumUsage < guardiansUsage, "Forum should occupy the former Redeem Code position");
   assert.doesNotMatch(hub, /link-founders|paradoxStatue|Founder's Wall/);
   assert.match(hub, /onSignInRequest=\{\(\) => setShowSignIn\(true\)\}/);
   assert.match(daily, /data-testid="button-daily-sign-in"/);
