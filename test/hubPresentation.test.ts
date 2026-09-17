@@ -54,3 +54,17 @@ test("the Hub introduces the game and optional purchases before Realm Benefactor
   assert.match(hub, /there are no physical goods or shipping/);
   assert.match(hub, /data-testid="link-about-coin-shop"/);
 });
+
+
+test("signed-out visitors can browse coin packs but checkout still requires authentication", () => {
+  const app = readFileSync(fromRoot("client", "src", "App.tsx"), "utf8");
+  const coinShop = readFileSync(fromRoot("client", "src", "pages", "CoinShopPage.tsx"), "utf8");
+  const routes = readFileSync(fromRoot("server", "routes.ts"), "utf8");
+
+  assert.match(app, /<Route path="\/coins"><CoinShopPage user=\{user \?\? null\} \/><\/Route>/);
+  assert.match(coinShop, /user: CoinShopUser \| null/);
+  assert.match(coinShop, /if \(!user\) \{\s*navigate\("\/auth"\);\s*return;/);
+  assert.match(coinShop, /Sign In to Purchase/);
+  assert.match(routes, /app\.get\("\/api\/coins\/packs", async \(req, res\) =>/);
+  assert.match(routes, /app\.post\("\/api\/coins\/checkout", isAuthenticated/);
+});
