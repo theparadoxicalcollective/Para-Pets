@@ -3026,10 +3026,12 @@ export async function registerRoutes(
 
   registerMarketplaceRoutes(app, marketplaceRouteDependencies, "details");
 
-  app.get("/api/coins/packs", isAuthenticated, async (req, res) => {
+  // Pack names, amounts, prices, and current bonuses are public so visitors can
+  // review the store before signing in. User-specific spending remains private.
+  app.get("/api/coins/packs", async (req, res) => {
     try {
-      const user = req.user as any;
-      const dailyTotal = await storage.getDailyPurchaseTotal(user.id);
+      const user = req.isAuthenticated() ? req.user as any : null;
+      const dailyTotal = user ? await storage.getDailyPurchaseTotal(user.id) : 0;
       return res.json({
         packs: COIN_PACKS,
         dailySpent: dailyTotal,
