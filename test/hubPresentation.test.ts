@@ -87,5 +87,7 @@ test("Daily Rewards stays visible to guests and Redeem Code replaces Founder's W
   assert.doesNotMatch(hub, /link-founders|paradoxStatue|Founder's Wall/);
   assert.match(hub, /onSignInRequest=\{\(\) => setShowSignIn\(true\)\}/);
   assert.match(daily, /data-testid="button-daily-sign-in"/);
+  assert.match(daily, /dailyStatusKey = \["\/api\/daily-claim\/status", user\?\.id \?\? "guest"\]/);
+  assert.match(daily, /setQueryData<ClaimStatus>\(dailyStatusKey/);
   assert.doesNotMatch(daily, /if \(!user\) return null/);
 });
