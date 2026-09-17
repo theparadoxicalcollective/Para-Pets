@@ -4,6 +4,7 @@ import test from "node:test";
 
 const root = readFileSync("client/src/RootEntry.tsx", "utf8");
 const app = readFileSync("client/src/App.tsx", "utf8");
+const queryClient = readFileSync("client/src/lib/queryClient.ts", "utf8");
 const profile = readFileSync("client/src/components/UserProfilePanel.tsx", "utf8");
 const accountRoutes = readFileSync("server/routes/account.routes.ts", "utf8");
 const serverIndex = readFileSync("server/index.ts", "utf8");
@@ -15,10 +16,11 @@ test("account changes remount the game and restart player-specific preload", () 
 });
 
 test("an authoritative auth 401 cannot retain the previous player", () => {
-  assert.match(app, /response\.status === 401[\s\S]*?return null/);
+  assert.match(queryClient, /response\.status === 401[\s\S]*?return null/);
+  assert.match(app, /fetchAuthenticatedUser\(signal\)/);
   assert.doesNotMatch(app, /retainedAuthenticatedUser|Authentication validation temporarily failed/);
-  assert.match(root, /queryFn: async \(\{ signal \}\)/);
-  assert.match(root, /credentials: "include", signal/);
+  assert.match(root, /queryFn: \(\{ signal \}\) => fetchAuthenticatedUser\(signal\)/);
+  assert.match(queryClient, /credentials: "include", signal/);
   assert.match(root, /refetchInterval: query => query\.state\.data \? 30_000 : false/);
   assert.doesNotMatch(root, /refetchInterval: 1_000/);
 });

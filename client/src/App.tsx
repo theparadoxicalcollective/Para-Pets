@@ -1,6 +1,6 @@
 import EmailGateScreen from "@/components/EmailGateScreen";
 import { Switch, Route, Redirect, useLocation } from "wouter";
-import { queryClient } from "./lib/queryClient";
+import { fetchAuthenticatedUser, queryClient } from "./lib/queryClient";
 import { fetchStartupInventory } from "./lib/startupInventory";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -238,14 +238,10 @@ function AppRouter() {
     staleTime: 20 * 1000,
     refetchInterval: 30 * 1000,
     refetchOnWindowFocus: true,
-    queryFn: async () => {
-      const response = await fetch("/api/auth/me", { credentials: "include" });
-      if (response.status === 401) {
-        stabilityDiagnostic("auth-401", { clearedAuthenticatedUser: true });
-        return null;
-      }
-      if (!response.ok) throw new Error(`Authentication validation failed (${response.status})`);
-      return response.json();
+    queryFn: async ({ signal }) => {
+      const user = await fetchAuthenticatedUser(signal);
+      if (!user) stabilityDiagnostic("auth-401", { clearedAuthenticatedUser: true });
+      return user;
     },
   });
 

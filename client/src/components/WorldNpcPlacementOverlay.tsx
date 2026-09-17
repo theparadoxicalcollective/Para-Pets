@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, fetchAuthenticatedUserCached, queryClient } from "@/lib/queryClient";
 import {
   chooseNpcMessage,
   getNpcQuestAssociations,
@@ -99,8 +99,7 @@ export default function WorldNpcPlacementOverlay() {
   useEffect(() => {
     let cancelled = false;
     setAuthResolved(false);
-    void fetch("/api/auth/me", { credentials: "include" })
-      .then(response => response.ok ? response.json() : null)
+    void fetchAuthenticatedUserCached()
       .then(user => { if (!cancelled) setIsAdmin(Boolean(user?.isAdmin)); })
       .catch(() => { if (!cancelled) setIsAdmin(false); })
       .finally(() => { if (!cancelled) setAuthResolved(true); });

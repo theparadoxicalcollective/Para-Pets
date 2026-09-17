@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const app = readFileSync("client/src/App.tsx", "utf8");
+const queryClient = readFileSync("client/src/lib/queryClient.ts", "utf8");
 const lazyRetry = readFileSync("client/src/lib/lazyWithRetry.ts", "utf8");
 const petCare = readFileSync("client/src/pages/PetCarePage.tsx", "utf8");
 const clearing = readFileSync("client/src/pages/ElysianBayouClearingPage.tsx", "utf8");
@@ -16,7 +17,8 @@ test("chunk guard survives App mount and clears only after a lazy import succeed
 });
 
 test("an authoritative auth 401 clears a previously authenticated overlay", () => {
-  assert.match(app, /response\.status === 401[\s\S]*?return null/);
+  assert.match(queryClient, /response\.status === 401[\s\S]*?return null/);
+  assert.match(app, /fetchAuthenticatedUser\(signal\)/);
   assert.doesNotMatch(app, /Authentication validation temporarily failed \(401\)/);
   assert.doesNotMatch(app, /retainedAuthenticatedUser/);
 });

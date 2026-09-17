@@ -1,5 +1,12 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+export async function fetchAuthenticatedUser(signal?: AbortSignal): Promise<any | null> {
+  const response = await fetch("/api/auth/me", { credentials: "include", signal });
+  if (response.status === 401) return null;
+  if (!response.ok) throw new Error(`Authentication validation failed (${response.status})`);
+  return response.json();
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -80,6 +87,18 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+/**
+ * Read the current session through React Query so startup helpers and global
+ * bridges share one in-flight request instead of each calling /api/auth/me.
+ */
+export function fetchAuthenticatedUserCached(staleTime = 5_000): Promise<any | null> {
+  return queryClient.fetchQuery({
+    queryKey: ["/api/auth/me"],
+    queryFn: ({ signal }) => fetchAuthenticatedUser(signal),
+    staleTime,
+  });
+}
 
 // Mutable player-owned state must not inherit the app-wide `staleTime: Infinity`
 // policy. These query prefixes are shared by Home, Pet Inventory, The Closet,

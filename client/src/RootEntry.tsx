@@ -6,7 +6,7 @@ import AuthPage from "@/pages/AuthPage";
 import EmailGateScreen from "@/components/EmailGateScreen";
 import LoadingScreen from "@/components/LoadingScreen";
 import GinnyQuestOverlay from "@/components/GinnyQuestOverlay";
-import { queryClient } from "./lib/queryClient";
+import { fetchAuthenticatedUser, queryClient } from "./lib/queryClient";
 import { calculateStageLayout, getStageTransform, getVisibleViewport } from "@/lib/stage";
 
 function RootStage({ children }: { children: ReactNode }) {
@@ -95,12 +95,7 @@ function useRootAuth() {
     staleTime: 5_000,
     refetchInterval: query => query.state.data ? 30_000 : false,
     refetchOnWindowFocus: true,
-    queryFn: async ({ signal }) => {
-      const response = await fetch("/api/auth/me", { credentials: "include", signal });
-      if (response.status === 401) return null;
-      if (!response.ok) throw new Error(`Authentication validation failed (${response.status})`);
-      return response.json();
-    },
+    queryFn: ({ signal }) => fetchAuthenticatedUser(signal),
   });
 }
 
