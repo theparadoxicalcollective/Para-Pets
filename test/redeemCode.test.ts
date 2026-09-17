@@ -26,7 +26,12 @@ test("redemption is verified-account-only and atomically unique per account and 
 test("Hub and administration surfaces expose redeem-code controls", () => {
   const hub = readFileSync(path.join(root, "client", "src", "pages", "ParaPetsHubPage.tsx"), "utf8");
   const admin = readFileSync(path.join(root, "client", "src", "pages", "AdminPage.tsx"), "utf8");
+  const card = readFileSync(path.join(root, "client", "src", "components", "RedeemCodeCard.tsx"), "utf8");
   assert.match(hub, /<RedeemCodeCard user=\{user\}/);
+  assert.match(card, /chestAssets\.closed/);
+  assert.match(card, /data-testid="img-redeem-code-chest"/);
+  assert.match(card, /padding: "16px 14px"/);
+  assert.doesNotMatch(card, /<Gift/);
   assert.match(admin, /\{ key: "code", label: "Code" \}/);
   assert.match(admin, /rewardsTab === "code" && <RedeemCodeAdminPanel/);
 });
