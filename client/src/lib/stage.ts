@@ -25,6 +25,15 @@ export function isNarrowLayout(viewportWidth: number): boolean {
   return viewportWidth < WIDE_BREAKPOINT;
 }
 
+/**
+ * Public informational pages may opt out of the portrait gameplay frame on
+ * larger screens. Keep the decision pure so phone preservation is regression
+ * testable without a browser.
+ */
+export function shouldUseDocumentLayout(pathname: string, viewportWidth: number): boolean {
+  return pathname === "/hub" && !isNarrowLayout(viewportWidth);
+}
+
 export function getDesignWidth(viewportWidth: number): number {
   return isNarrowLayout(viewportWidth) ? Math.min(DESIGN_W, viewportWidth) : DESIGN_W;
 }
