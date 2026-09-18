@@ -897,9 +897,11 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                   top: 0,
                   bottom: 0,
                   width: "42%",
-                  transform: "translateX(18%)",
+                  maxWidth: "42%",
+                  transform: "translateX(8%)",
                   zIndex: 4,
                   pointerEvents: "none",
+                  overflow: "hidden",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
@@ -965,7 +967,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
 
                 {/* Boss pet render. Mobile uses the existing flattened art so
                     WebKit decodes one image instead of every transparent layer. */}
-                <div style={{ width: "100%", position: "relative", zIndex: 1 }}>
+                <div style={{ width: "100%", maxWidth: "100%", position: "relative", zIndex: 1, overflow: "hidden" }}>
                   {lowMemoryPetRenderer && raidBossData.hatchedImageUrl ? (
                     <img
                       src={raidBossData.hatchedImageUrl}
@@ -973,6 +975,10 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                       decoding="async"
                       className="w-full object-contain"
                       style={{
+                        display: "block",
+                        width: "100%",
+                        maxWidth: "100%",
+                        height: "auto",
                         aspectRatio: "1/1",
                         filter: "drop-shadow(0 0 6px rgba(200,30,20,0.4))",
                         animation: "activePetBreath 3.5s ease-in-out infinite",
@@ -995,7 +1001,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                 </div>
 
                 {/* HP bar under the boss */}
-                <div style={{ width: "130%", position: "relative", zIndex: 3, marginTop: -8 }}>
+                <div style={{ width: "100%", maxWidth: "100%", position: "relative", zIndex: 3, marginTop: -8 }}>
                   {/* HP numbers row */}
                   <div style={{ display: "flex", justifyContent: "space-between", paddingLeft: "14%", paddingRight: "14%", marginBottom: 1 }}>
                     <span style={{ fontFamily: "Lora, serif", fontSize: 8, color: "#e86060", textShadow: "0 1px 3px rgba(0,0,0,0.9)", letterSpacing: "0.04em" }}>
