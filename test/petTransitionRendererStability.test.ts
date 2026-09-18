@@ -66,7 +66,8 @@ test("mobile Home renders flattened active-pet and raid-boss artwork", () => {
 test("full-screen routes do not retain the complete Home scene", () => {
   assert.match(app, /location === "\/" && \(/);
   assert.doesNotMatch(app, /visibility: location !== "\/"/);
-  assert.match(home, /activePetModal === "power_up" \? null : activePet\.petTemplateId/);
+  assert.match(home, /activePetModal === "power_up" \? null : lowMemoryPetRenderer/);
+  assert.match(home, /activePet\.petTemplateId \? \(/);
 });
 
 test("upgrade and Closet pet trees fail locally instead of closing the game", () => {
