@@ -14,7 +14,7 @@ test("world shops render through one typed overlay boundary", () => {
 
 test("world-specific shop artwork and volcanic NPC presentation stay in the overlay", () => {
   for (const asset of [
-    "bg_shop_mystical.png", "bg_shop_bayou.png", "bg_shop_fishing.png",
+    "bg_shop_mystical.webp", "bg_shop_bayou.png", "bg_shop_fishing.png",
     "bg_central_market.png", "bg_shop_volcanic.png", "bg_shop_volcanic_pets.png",
     "bg_shop_forge_fang_volcanic.png", "bg_shop_bookshop_volcanic.png",
     "bg_shop_food_volcanic.png", "bg_shop_food_swamp.png",
