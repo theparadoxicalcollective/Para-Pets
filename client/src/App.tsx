@@ -12,7 +12,7 @@ import { installPageLifecycleDiagnostics, stabilityDiagnostic } from "@/lib/stab
 import { playClick, unlockAudio } from "@/lib/sounds";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
-import { calculateStageLayout, getStageTransform, getVisibleViewport } from "@/lib/stage";
+import { calculateStageLayout, getStageTransform, getVisibleViewport, shouldUseDocumentLayout } from "@/lib/stage";
 import { detectRuntimeMode } from "@/lib/runtimeMode";
 import { shouldUseLowMemoryPetRenderer } from "@/lib/petRenderSafety";
 import homeBg from "@assets/bg_home_v2.png";
@@ -698,6 +698,7 @@ function CrashReporter() {
 
 // ── Desktop-only "game is mobile optimized" notice ────────────────────────────
 function DesktopNotice() {
+  const [location] = useLocation();
   const [dismissed, setDismissed] = useState<boolean>(() => {
     try { return localStorage.getItem("para_desktop_notice_v1") === "1"; } catch { return false; }
   });
@@ -712,7 +713,9 @@ function DesktopNotice() {
     } catch { return false; }
   });
 
-  if (!isDesktop || dismissed) return null;
+  // The public Hub is a real desktop document, so its visitors should not see
+  // the gameplay-only mobile optimization notice.
+  if (location === "/hub" || !isDesktop || dismissed) return null;
 
   const dismiss = () => {
     try { localStorage.setItem("para_desktop_notice_v1", "1"); } catch {}
@@ -754,6 +757,7 @@ function DesktopNotice() {
 }
 
 function GameStage({ children }: { children: ReactNode }) {
+  const [location] = useLocation();
   const [layout, setLayout] = useState(() => {
     const viewport = getVisibleViewport();
     return calculateStageLayout(viewport.width, viewport.height, viewport.top, viewport.left);
@@ -796,6 +800,38 @@ function GameStage({ children }: { children: ReactNode }) {
       window.visualViewport?.removeEventListener("scroll", scheduleUpdate);
     };
   }, []);
+
+  // Gameplay stays inside the stable 390x844 portrait stage. The public Hub is
+  // the one document-style route: on tablet/desktop it owns the real browser
+  // viewport so it reads like a website instead of a scaled phone preview.
+  // Narrow screens deliberately keep the original native phone rendering.
+  if (shouldUseDocumentLayout(location, layout.viewportWidth)) {
+    return (
+      <div
+        className="game-stage-shell hub-document-shell"
+        style={{ position: "fixed", inset: 0, background: "#020604" }}
+      >
+        <div
+          id="game-stage"
+          data-design-width={layout.viewportWidth}
+          data-design-height={layout.viewportHeight}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            overflow: "hidden",
+            isolation: "isolate",
+            "--fh": `${layout.viewportHeight}px`,
+            "--vh": `${layout.viewportHeight * 0.01}px`,
+            "--vw": `${layout.viewportWidth * 0.01}px`,
+          } as CSSProperties}
+        >
+          {children}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

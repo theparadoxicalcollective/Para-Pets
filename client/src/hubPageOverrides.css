@@ -70,3 +70,49 @@
     backdrop-filter: none;
   }
 }
+
+
+/* The Hub is the public, document-style face of Para Pets. Desktop/tablet
+   browsers receive a wider reading surface while phones keep every existing
+   rule and dimension above unchanged. */
+@media (min-width: 768px) {
+  .hub-document-shell [data-testid="para-pets-hub-page"] {
+    background-attachment: fixed !important;
+    background-position: center top !important;
+  }
+
+  .hub-document-shell [data-testid="para-pets-hub-page"] > .relative.flex.flex-col.items-center {
+    box-sizing: border-box;
+    width: min(1120px, calc(100vw - 48px));
+    min-height: 330px;
+    margin-inline: auto;
+    padding-top: 56px !important;
+    padding-bottom: 30px !important;
+    border-radius: 0 0 32px 32px;
+  }
+
+  .hub-document-shell [data-testid="text-hub-title"] {
+    font-size: clamp(3.4rem, 6vw, 5.5rem) !important;
+  }
+
+  .hub-document-shell [data-testid="img-hub-mascot"] {
+    width: 112px !important;
+    height: 112px !important;
+  }
+
+  .hub-document-shell [data-testid="hub-main"] {
+    box-sizing: border-box;
+    width: min(1040px, calc(100vw - 64px));
+    max-width: 1040px !important;
+    margin-inline: auto;
+    padding-inline: clamp(28px, 4vw, 56px) !important;
+    padding-top: 22px;
+    border-radius: 32px 32px 0 0;
+  }
+
+  .hub-document-shell [data-testid="notice-carousel"],
+  .hub-document-shell [data-testid="contribution-leaderboard"],
+  .hub-document-shell [data-testid="team-section"] {
+    padding: clamp(18px, 2.6vw, 30px);
+  }
+}
