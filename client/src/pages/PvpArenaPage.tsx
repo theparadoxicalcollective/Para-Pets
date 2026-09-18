@@ -7,7 +7,7 @@ import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import battleTrophyIcon from "@assets/generated_images/icon_battle_trophy.png";
 import pvpTicketImg from "@assets/Photoroom_20260415_83701_PM_1776304592941.png";
 import pvpNavIcon from "@assets/generated_images/nav_icon_pvp.png";
-import coinIconImg from "@assets/icon_coin.png";
+import coinIconImg from "@assets/icon_coin.webp";
 import { ArrowLeft, Users, Check, Heart, Droplets, Trophy, Plus, X } from "lucide-react";
 import PvpBattlePage from "./PvpBattlePage";
 import type { BattlePotionSlot } from "@/components/BattleArena";

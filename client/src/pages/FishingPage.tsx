@@ -13,7 +13,7 @@ import bobberIcon from "@assets/Photoroom_20260317_35839_PM_1773781228635.png";
 import volcanicBobberIcon from "@assets/bobber_volcanic.png";
 import fishBookIcon from "@assets/Photoroom_20260324_65241_AM_1774353229077.png";
 import leaderboardIcon from "@assets/Photoroom_20260623_111411_AM_1782231282456.png";
-import coinIconImg from "@assets/icon_coin.png";
+import coinIconImg from "@assets/icon_coin.webp";
 import { playPlop, playCatch, playReelTick } from "@/lib/sounds";
 import { fishingCompletionOutcome, type FishingCompletionResponse } from "@/lib/fishingAttemptResult";
 import PlayerAvatarButton from "@/components/PlayerAvatarButton";

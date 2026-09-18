@@ -1,4 +1,4 @@
-import coin from "@assets/icon_coin.png";
+import coin from "@assets/icon_coin.webp";
 import "./CardRewardCoin.css";
 
 interface CardRewardCoinProps {

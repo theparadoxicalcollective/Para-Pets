@@ -7,7 +7,7 @@ import fishCommonIcon from "@assets/generated_images/icon_fish_common.png";
 import fishRodIcon from "@assets/generated_images/icon_fish_rod.png";
 import fishBarrelImg from "@assets/fish_barrel.png";
 import { X, ShoppingBag, Coins } from "lucide-react";
-import coinIconImg from "@assets/icon_coin.png";
+import coinIconImg from "@assets/icon_coin.webp";
 
 const ACCENT = "#5eead4";
 

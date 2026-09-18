@@ -7,7 +7,7 @@ import volcanicAquariumBg from "@assets/731E39C0-FA17-469A-BD4E-7DCAF0456B7A_178
 import closeIcon from "@assets/Photoroom_20260706_95641_PM_1783394294636.png";
 import arrowIcon from "@assets/Photoroom_20260706_94656_PM_1783394294636.png";
 import lockIcon from "@assets/Photoroom_20260706_104316_PM_1783395823714.png";
-import coinIcon from "@assets/icon_coin.png";
+import coinIcon from "@assets/icon_coin.webp";
 import fishInvIconPH from "@assets/icon_fish_inventory.png";
 
 interface AqCaughtFish {

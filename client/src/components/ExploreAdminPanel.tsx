@@ -4,7 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, X, ChevronDown, ChevronUp, Swords, Image, Coins, Package } from "lucide-react";
 import { readFileAsDataUrl } from "@/lib/utils";
-import coinIconImg from "@assets/icon_coin.png";
+import coinIconImg from "@assets/icon_coin.webp";
 
 interface ShopItemOption {
   id: string;

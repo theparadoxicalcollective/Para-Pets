@@ -8,7 +8,7 @@ import { playChime, playClick, playTick } from "@/lib/sounds";
 import powerupBagIcon from "@assets/generated_images/icon_powerup_bag.png";
 import fishInvIcon from "@assets/icon_fish_inventory.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
-import coinIconImg from "@assets/icon_coin.png";
+import coinIconImg from "@assets/icon_coin.webp";
 import marketBg from "@assets/uploads/MarketBG.png";
 import marketSearchBar from "@assets/uploads/MarketSearchBar.png";
 import marketItemCard from "@assets/uploads/MarketItemCard.png";

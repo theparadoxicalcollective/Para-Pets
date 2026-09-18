@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import SendGiftModal from "./SendGiftModal";
-import coinIconImg from "@assets/icon_coin.png";
+import coinIconImg from "@assets/icon_coin.webp";
 import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
 import homeIconImg from "@assets/generated_images/nav_icon_home.png";
 

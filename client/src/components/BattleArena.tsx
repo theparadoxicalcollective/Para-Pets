@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { playHit, playBlock, playPlayerHurt, playDefeat, playBattleVictory, playPowerUp, playChime } from "@/lib/sounds";
 import { Swords, Star, Coins, X, ChevronRight, ArrowLeft, Heart, HelpCircle, Droplets } from "lucide-react";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
-import coinIconPng from "@assets/icon_coin.png";
+import coinIconPng from "@assets/icon_coin.webp";
 import battlePauseBtn from "@assets/Photoroom_20260702_82333_PM_1783041830710.png";
 import battleCloseBtn from "@assets/Photoroom_20260702_83143_PM_1783042315810.png";
 import blockIconPng from "@assets/icon_battle_block.png";

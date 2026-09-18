@@ -6,7 +6,7 @@ import { useLocation } from "wouter";
 import { useNavHidden } from "@/lib/navVisibility";
 import { useToast } from "@/hooks/use-toast";
 import { Lock } from "lucide-react";
-import coinIconImg from "@assets/icon_coin.png";
+import coinIconImg from "@assets/icon_coin.webp";
 import mainNavIcon from "@assets/generated_images/icon_main_nav.png";
 import petHouseIcon from "@assets/generated_images/nav_icon_home.png";
 import activePetIcon from "@assets/generated_images/nav_icon_active_pet_new.png";
