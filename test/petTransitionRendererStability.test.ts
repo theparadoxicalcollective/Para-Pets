@@ -52,10 +52,22 @@ test("all mobile hosting modes use the animated low-memory renderer", () => {
   assert.equal(shouldUseLowMemoryPetRenderer(runtime("desktop")), false);
 });
 
+test("mobile Home renders flattened active-pet and raid-boss artwork", () => {
+  const mobileFlatArt = home.indexOf("lowMemoryPetRenderer && (activePet.hatchedImageUrl || activePet.imageUrl)");
+  const layeredActivePet = home.indexOf("activePet.petTemplateId ? (", mobileFlatArt);
+  assert.ok(mobileFlatArt >= 0);
+  assert.ok(layeredActivePet > mobileFlatArt);
+  assert.match(home, /lowMemoryPetRenderer && raidBossData\.hatchedImageUrl/);
+  assert.match(home, /decoding="async"/);
+  assert.match(routes, /hatched_image_url AS "hatchedImageUrl"/);
+  assert.match(routes, /hatchedImageUrl: _raidBossCache\.hatchedImageUrl/);
+});
+
 test("full-screen routes do not retain the complete Home scene", () => {
   assert.match(app, /location === "\/" && \(/);
   assert.doesNotMatch(app, /visibility: location !== "\/"/);
-  assert.match(home, /activePetModal === "power_up" \? null : activePet\.petTemplateId/);
+  assert.match(home, /activePetModal === "power_up" \? null : lowMemoryPetRenderer/);
+  assert.match(home, /activePet\.petTemplateId \? \(/);
 });
 
 test("upgrade and Closet pet trees fail locally instead of closing the game", () => {

@@ -964,34 +964,38 @@ export async function registerRoutes(
 
   // ── Public: get raid boss info ─────────────────────────────────────────────
   let _raidBossVersion = 0;
-  let _raidBossCache: { templateId: string | null; rarity: number | null; name: string | null; hp: number; maxHp: number; at: number } | null = null;
+  let _raidBossCache: { templateId: string | null; rarity: number | null; name: string | null; hatchedImageUrl: string | null; hp: number; maxHp: number; at: number } | null = null;
 
   app.get("/api/raid-boss", async (_req, res) => {
     try {
       const version = _raidBossVersion;
       const now = Date.now();
       if (_raidBossCache && now - _raidBossCache.at < 5_000) {
-        return res.json({ templateId: _raidBossCache.templateId, rarity: _raidBossCache.rarity, name: _raidBossCache.name, hp: _raidBossCache.hp, maxHp: _raidBossCache.maxHp });
+        return res.json({ templateId: _raidBossCache.templateId, rarity: _raidBossCache.rarity, name: _raidBossCache.name, hatchedImageUrl: _raidBossCache.hatchedImageUrl, hp: _raidBossCache.hp, maxHp: _raidBossCache.maxHp });
       }
       const templateId = await storage.getGameSetting("raid_boss_template_id");
       if (!templateId) {
-        if (version === _raidBossVersion) _raidBossCache = { templateId: null, rarity: null, name: null, hp: 0, maxHp: 0, at: now };
-        return res.json({ templateId: null, rarity: null, name: null, hp: 0, maxHp: 0 });
+        if (version === _raidBossVersion) _raidBossCache = { templateId: null, rarity: null, name: null, hatchedImageUrl: null, hp: 0, maxHp: 0, at: now };
+        return res.json({ templateId: null, rarity: null, name: null, hatchedImageUrl: null, hp: 0, maxHp: 0 });
       }
       const [template, hpStr, maxHpStr, shopRow] = await Promise.all([
         storage.getPetTemplate(templateId),
         storage.getGameSetting("raid_boss_hp"),
         storage.getGameSetting("raid_boss_max_hp"),
-        db.execute(sql`SELECT rarity FROM shop_items WHERE pet_template_id = ${templateId} AND type = 'pet' LIMIT 1`),
+        db.execute(sql`SELECT rarity, hatched_image_url AS "hatchedImageUrl", image_url AS "imageUrl" FROM shop_items WHERE pet_template_id = ${templateId} AND type = 'pet' LIMIT 1`),
       ]);
       const maxHp = maxHpStr ? parseInt(maxHpStr, 10) : 10000;
       const hp = hpStr ? parseInt(hpStr, 10) : maxHp;
       const rarity: number | null = (shopRow.rows[0]?.rarity as number | null) ?? null;
-      const result = { templateId, rarity, name: template?.name ?? null, hp, maxHp };
+      const hatchedImageUrl: string | null =
+        (shopRow.rows[0]?.hatchedImageUrl as string | null)
+        ?? (shopRow.rows[0]?.imageUrl as string | null)
+        ?? null;
+      const result = { templateId, rarity, name: template?.name ?? null, hatchedImageUrl, hp, maxHp };
       if (version === _raidBossVersion) _raidBossCache = { ...result, at: now };
       return res.json(result);
     } catch {
-      return res.json({ templateId: null, rarity: null, name: null, hp: 0, maxHp: 0 });
+      return res.json({ templateId: null, rarity: null, name: null, hatchedImageUrl: null, hp: 0, maxHp: 0 });
     }
   });
 
