@@ -22,7 +22,7 @@ test("client imports prefer an existing WebP sibling over PNG or JPEG", () => {
       const original = join("attached_assets", relativeAsset);
       const webp = original.replace(/\.(?:png|jpe?g)$/i, ".webp");
       if (existsSync(original) && existsSync(webp)) {
-        offenders.push(`${relative(file)} imports ${relativeAsset}`);
+        offenders.push(`${relative("client/src", file)} imports ${relativeAsset}`);
       }
     }
   }
