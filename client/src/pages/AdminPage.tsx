@@ -8,7 +8,7 @@ import { Search, X, Upload, Trash2, ChevronLeft, Pencil } from "lucide-react";
 import bgImg from "@assets/bg_home_v2.png";
 import TopBar from "@/components/TopBar";
 import UserProfilePanel from "@/components/UserProfilePanel";
-import coinIconImg from "@assets/icon_coin.png";
+import coinIconImg from "@assets/icon_coin.webp";
 import PetDatabasePanel from "@/components/PetDatabasePanel";
 import ItemDatabaseSection, { ShopItemFull, ItemPickerModal, getItemEffectText, getItemCategory, ITEM_CATEGORIES } from "@/components/ItemDatabaseSection";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";

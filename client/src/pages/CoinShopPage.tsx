@@ -8,7 +8,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { pendingPurchaseSession, clearPendingPurchase, PURCHASE_QUERY_KEYS, PURCHASE_REFRESH_OPTIONS } from "@/lib/purchaseRecovery";
 import { useToast } from "@/hooks/use-toast";
 import UserProfilePanel from "@/components/UserProfilePanel";
-import coinIconImg from "@assets/icon_coin.png";
+import coinIconImg from "@assets/icon_coin.webp";
 import coinPack100 from "@assets/Photoroom_20260629_101811_PM_1782789946363.png";
 import coinPack500 from "@assets/Photoroom_20260629_102009_PM_1782789946363.png";
 import coinPack1000 from "@assets/Photoroom_20260629_102249_PM_1782789946363.png";

@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import coinIconImg from "@assets/icon_coin.png";
+import coinIconImg from "@assets/icon_coin.webp";
 import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
 import { burstGoldenOrbs } from "@/lib/goldenOrbs";
 import { playChime } from "@/lib/sounds";

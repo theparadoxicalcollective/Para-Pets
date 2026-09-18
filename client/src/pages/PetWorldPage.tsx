@@ -16,7 +16,7 @@ import { AquariumPage } from "@/pages/AquariumPage";
 import PlayerAvatarButton from "@/components/PlayerAvatarButton";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
-import coinIconImg from "@assets/icon_coin.png";
+import coinIconImg from "@assets/icon_coin.webp";
 import petHouseIconImg from "@assets/icon_pet_house.png";
 import aquariumIconImg from "@assets/icon_fish_inventory.png";
 import joystickBaseImg  from "@assets/generated_images/joystick_base.png";

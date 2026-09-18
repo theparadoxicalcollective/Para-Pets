@@ -10,7 +10,7 @@ import rank1Icon from "@assets/Photoroom_20260707_64701_AM_1783425136780.png";
 import rank2Icon from "@assets/Photoroom_20260707_64734_AM_1783425136780.png";
 import rank3Icon from "@assets/Photoroom_20260707_64923_AM_1783425136780.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
-import coinIconImg from "@assets/icon_coin.png";
+import coinIconImg from "@assets/icon_coin.webp";
 import PlayerAvatarButton from "@/components/PlayerAvatarButton";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 
