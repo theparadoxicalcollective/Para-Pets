@@ -204,7 +204,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
   });
   const raidVisible = raidStatusData?.raidVisible === true || currentUser?.isAdmin === true || currentUser?.isModerator === true;
 
-  const { data: raidBossData } = useQuery<{ templateId: string | null; rarity: number | null; name: string | null; hp: number; maxHp: number }>({
+  const { data: raidBossData } = useQuery<{ templateId: string | null; rarity: number | null; name: string | null; hatchedImageUrl: string | null; hp: number; maxHp: number }>({
     queryKey: ["/api/raid-boss"],
     staleTime: 60_000,
     enabled: raidVisible && bjGetStatus() !== "active",
@@ -963,18 +963,35 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                   {raidBossData.name}
                 </p>
 
-                {/* Boss pet render */}
+                {/* Boss pet render. Mobile uses the existing flattened art so
+                    WebKit decodes one image instead of every transparent layer. */}
                 <div style={{ width: "100%", position: "relative", zIndex: 1 }}>
-                  <PetAnimator
-                    petTemplateId={raidBossData.templateId}
-                    artworkForm="evolution"
-                    mode="idle"
-                    view="front"
-                    size={1000}
-                    expression="neutral"
-                    className="w-full"
-                    style={{ aspectRatio: "1/1", filter: "drop-shadow(0 0 6px rgba(200,30,20,0.4))" }}
-                  />
+                  {lowMemoryPetRenderer && raidBossData.hatchedImageUrl ? (
+                    <img
+                      src={raidBossData.hatchedImageUrl}
+                      alt={raidBossData.name || "Raid boss"}
+                      decoding="async"
+                      className="w-full object-contain"
+                      style={{
+                        aspectRatio: "1/1",
+                        filter: "drop-shadow(0 0 6px rgba(200,30,20,0.4))",
+                        animation: "activePetBreath 3.5s ease-in-out infinite",
+                        transformOrigin: "center bottom",
+                      }}
+                    />
+                  ) : (
+                    <PetAnimator
+                      petTemplateId={raidBossData.templateId}
+                      artworkForm="evolution"
+                      mode="idle"
+                      view="front"
+                      size={1000}
+                      lowMemory={lowMemoryPetRenderer}
+                      expression="neutral"
+                      className="w-full"
+                      style={{ aspectRatio: "1/1", filter: "drop-shadow(0 0 6px rgba(200,30,20,0.4))" }}
+                    />
+                  )}
                 </div>
 
                 {/* HP bar under the boss */}
@@ -1237,7 +1254,20 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         className="w-full flex items-center justify-center"
                         data-testid="button-open-pet-actions"
                       >
-                        {activePetModal === "power_up" ? null : activePet.petTemplateId ? (
+                        {activePetModal === "power_up" ? null : lowMemoryPetRenderer && (activePet.hatchedImageUrl || activePet.imageUrl) ? (
+                          <div style={{ paddingTop: "calc(8*var(--vh))", width: "100%" }}>
+                            <img
+                              src={activePet.hatchedImageUrl || activePet.imageUrl || ""}
+                              alt={activePet.name}
+                              decoding="async"
+                              className="w-full max-h-[calc(58*var(--vh))] object-contain"
+                              style={{
+                                animation: "activePetBreath 3.5s ease-in-out infinite, petImgBlink 4s ease-in-out infinite",
+                                transformOrigin: "center bottom",
+                              }}
+                            />
+                          </div>
+                        ) : activePet.petTemplateId ? (
                           <div className="w-full flex items-center justify-center">
                             <PetAnimator petTemplateId={activePet.petTemplateId} petInventoryId={activePet.inventoryId} mode="idle" view="front" size={1000} lowMemory={lowMemoryPetRenderer} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
                           </div>
@@ -1246,6 +1276,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                             <img
                               src={activePet.hatchedImageUrl || activePet.imageUrl || ""}
                               alt={activePet.name}
+                              decoding="async"
                               className="w-full max-h-[calc(58*var(--vh))] object-contain"
                               style={{
                                 animation: "activePetBreath 3.5s ease-in-out infinite, petImgBlink 4s ease-in-out infinite",
