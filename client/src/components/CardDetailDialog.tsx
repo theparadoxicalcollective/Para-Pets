@@ -17,9 +17,10 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
       <Dialog.Overlay className="fixed inset-0 z-[100000] bg-black/90" />
       <Dialog.Content aria-describedby={undefined} className="fixed inset-0 z-[100001] flex flex-col items-center overflow-y-auto bg-[#06150d] px-4 pb-6 text-[#f6df9e]"
         style={{ paddingTop: "max(56px, calc(env(safe-area-inset-top) + 44px))", paddingBottom: "max(24px, env(safe-area-inset-bottom))" }}>
+        {card.artworkUrl && <div aria-hidden="true" className="pointer-events-none fixed inset-0" style={{ backgroundImage: `linear-gradient(rgba(3,13,8,.70), rgba(3,13,8,.82)), url("${card.artworkUrl.replace(/["\\]/g, "")}")`, backgroundSize: "cover", backgroundPosition: "center" }} />}
         <Dialog.Title className="sr-only">{card.name}</Dialog.Title>
-        <Dialog.Close aria-label="Close card viewer" className="absolute right-4 grid h-11 w-11 place-items-center rounded-full border border-amber-200/40 bg-black/50" style={{ top: "max(8px, env(safe-area-inset-top))" }}><X /></Dialog.Close>
-        <div className="my-auto w-full max-w-[430px]">
+        <Dialog.Close aria-label="Close card viewer" className="absolute right-4 z-10 grid h-11 w-11 place-items-center rounded-full border border-amber-200/40 bg-black/50" style={{ top: "max(8px, env(safe-area-inset-top))" }}><X /></Dialog.Close>
+        <div className="relative my-auto w-full max-w-[430px]">
           <div className="relative mb-8">
           <CardPreview textSize="detail" rarity={card.rarity} artworkUrl={card.artworkUrl} name={card.name} description={card.description}
             layout={getCardBorderLayout(layouts, card.rarity)} onDescriptionClick={() => setDescriptionOpen(true)} />

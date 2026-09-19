@@ -1888,6 +1888,7 @@ export async function registerRoutes(
         lastBattleDefeatAt: inv.lastBattleDefeatAt ?? null,
         facingDirection: shopItem?.facingDirection ?? null,
         giftPoints: shopItem?.giftPoints ?? null,
+        petExp: shopItem?.petExp ?? null,
         petStatsUpdatedAt: inv.petStatsUpdatedAt ?? null,
         itemsUsedThisLevel: inv.itemsUsedThisLevel,
         atkBoost: shopItem?.atkBoost ?? null,
@@ -2801,7 +2802,17 @@ export async function registerRoutes(
         lastFedAt: new Date(),
       };
 
+      const expAdded = Math.max(0, itemShopItem.petExp ?? 0) * quantity;
       const updatedPet = await db.transaction(async (tx) => {
+        const locked = await tx.execute(sql`SELECT pet_level, pet_level_points FROM user_inventory
+          WHERE id = ${petInv.id} AND user_id = ${user.id} FOR UPDATE`);
+        const current = locked.rows[0];
+        if (!current) throw new Error("Pet was not available for feeding");
+        if (expAdded > 0) {
+          const { newLevel, newPoints } = applyPetXp(Number(current.pet_level), Number(current.pet_level_points), expAdded);
+          updates.petLevel = newLevel;
+          updates.petLevelPoints = newPoints;
+        }
         const [pet] = await tx.update(userInventory)
           .set(updates)
           .where(and(eq(userInventory.id, petInv.id), eq(userInventory.userId, user.id)))
@@ -2814,7 +2825,7 @@ export async function registerRoutes(
       });
       // Quest progress: feed_pet
       incrementQuestProgress(user.id, "feed_pet").catch(() => {});
-      return res.json({ ...updatedPet, totalFeedPoints });
+      return res.json({ ...updatedPet, totalFeedPoints, expAdded });
     } catch (err) {
       console.error("Feed edible error:", err);
       if (err instanceof Error && err.message === "Edible is no longer available") {
@@ -2827,7 +2838,7 @@ export async function registerRoutes(
   // Give a "gift" item to a pet on the Pet Care page. Each gift adds the
   // item's giftPoints to the pet's loyalty meter (cap is rarity-based:
   // 1★=1000, 2★=2000, 3★=3000, 4★=4000, 5★=5000) and is removed from
-  // inventory. Loyalty is the only stat gifts affect.
+  // inventory. Configured pet EXP also uses the standard leveling curve.
   app.post("/api/pet/:inventoryId/give-gift", isAuthenticated, async (req, res) => {
     try {
       const user = req.user as any;
@@ -2864,9 +2875,16 @@ export async function registerRoutes(
 
       const points = Math.max(0, itemShopItem.giftPoints || 0);
       const newLoyalty = Math.min(loyaltyMax, (petInv.petLoyalty ?? 0) + points);
+      const expAdded = Math.max(0, itemShopItem.petExp ?? 0);
       const updated = await db.transaction(async (tx) => {
+        const locked = await tx.execute(sql`SELECT pet_level, pet_level_points FROM user_inventory
+          WHERE id = ${petInv.id} AND user_id = ${user.id} FOR UPDATE`);
+        const current = locked.rows[0];
+        if (!current) throw new Error("Pet was not available for gift");
+        const xp = expAdded > 0
+          ? applyPetXp(Number(current.pet_level), Number(current.pet_level_points), expAdded) : null;
         const [pet] = await tx.update(userInventory)
-          .set({ petLoyalty: newLoyalty })
+          .set({ petLoyalty: newLoyalty, ...(xp ? { petLevel: xp.newLevel, petLevelPoints: xp.newPoints } : {}) })
           .where(and(eq(userInventory.id, petInv.id), eq(userInventory.userId, user.id)))
           .returning();
         if (!pet) throw new Error("Pet was not available for gift");
@@ -2874,7 +2892,7 @@ export async function registerRoutes(
         if (!consumed) throw new Error("Gift is no longer available");
         return pet;
       });
-      return res.json({ pet: updated, loyaltyAdded: points, petLoyalty: newLoyalty });
+      return res.json({ pet: updated, loyaltyAdded: points, petLoyalty: newLoyalty, expAdded });
     } catch (err) {
       console.error("Give gift error:", err);
       if (err instanceof Error && err.message === "Gift is no longer available") {

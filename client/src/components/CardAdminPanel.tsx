@@ -216,13 +216,19 @@ export default function CardAdminPanel() {
         ["Height", "nameHeight", 4, 50],
         ["Text Size", "nameFontSize", 6, 32],
       ] as const
-    : [
-        ["Left", "descriptionX", 0, 96],
-        ["Top", "descriptionY", 0, 96],
-        ["Width", "descriptionWidth", 4, 100],
-        ["Height", "descriptionHeight", 4, 50],
-        ["Text Size", "descriptionFontSize", 6, 32],
-      ] as const;
+    : selectedField === "description"
+      ? [
+          ["Left", "descriptionX", 0, 96],
+          ["Top", "descriptionY", 0, 96],
+          ["Width", "descriptionWidth", 4, 100],
+          ["Height", "descriptionHeight", 4, 50],
+          ["Text Size", "descriptionFontSize", 6, 32],
+        ] as const
+      : [
+          ["Left", "starX", 0, 95],
+          ["Top", "starY", 0, 95],
+          ["Group Width", "starWidth", 5, 80],
+        ] as const;
 
   return (
     <div data-testid="card-admin-panel" className="space-y-4 pb-10">
@@ -322,11 +328,11 @@ export default function CardAdminPanel() {
             >
               {CARD_RARITIES.map((rarity) => <option key={rarity} value={rarity}>{rarity} Star Border</option>)}
             </select>
-            <p className="mt-2 text-[9px] leading-4 text-white/42">Choose a border, select a box, then drag it directly on the card. The controls below provide precise adjustments.</p>
+            <p className="mt-2 text-[9px] leading-4 text-white/42">Choose a border, select the name, description, or stars, then drag it on the card. Stars move together as one group.</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            {(["name", "description"] as const).map((field) => (
+          <div className="grid grid-cols-3 gap-2">
+            {(["name", "description", "stars"] as const).map((field) => (
               <button
                 key={field}
                 type="button"
@@ -339,7 +345,7 @@ export default function CardAdminPanel() {
                   border: selectedField === field ? "1px solid rgba(110,231,183,.55)" : "1px solid rgba(224,181,74,.2)",
                 }}
               >
-                {field === "name" ? "Name Box" : "Description Box"}
+                {field === "name" ? "Name Box" : field === "description" ? "Description Box" : "Stars"}
               </button>
             ))}
           </div>
@@ -361,11 +367,17 @@ export default function CardAdminPanel() {
           </div>
 
           <div className="rounded-xl p-3" style={panelStyle}>
-            <p className="mb-3 font-fantasy text-[9px] tracking-wider text-[#e7cb80]">{selectedField === "name" ? "NAME BOX" : "DESCRIPTION BOX"} SETTINGS</p>
+            <p className="mb-3 font-fantasy text-[9px] tracking-wider text-[#e7cb80]">{selectedField === "name" ? "NAME BOX" : selectedField === "description" ? "DESCRIPTION BOX" : "STARS"} SETTINGS</p>
             <div className="space-y-3">
               {fieldControls.map(([label, key, min, max]) => {
                 const value = Number(currentLayout[key]);
-                const effectiveMax = key === "nameX" || key === "descriptionX"
+                const effectiveMax = key === "starX"
+                  ? 100 - currentLayout.starWidth
+                  : key === "starY"
+                    ? 100 - currentLayout.starWidth / layoutRarity * 2 / 3
+                    : key === "starWidth"
+                      ? Math.min(100 - currentLayout.starX, (100 - currentLayout.starY) * layoutRarity * 3 / 2, 80)
+                      : key === "nameX" || key === "descriptionX"
                   ? 100 - Number(currentLayout[selectedField === "name" ? "nameWidth" : "descriptionWidth"])
                   : key === "nameY" || key === "descriptionY"
                     ? 100 - Number(currentLayout[selectedField === "name" ? "nameHeight" : "descriptionHeight"])

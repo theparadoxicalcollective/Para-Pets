@@ -70,8 +70,11 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
     nameX: 13, nameY: 6, nameWidth: 74, nameHeight: 10, nameFontSize: 14,
     descriptionX: 13, descriptionY: 76, descriptionWidth: 74,
     descriptionHeight: 16, descriptionFontSize: 10,
+    starX: 47, starY: 18, starWidth: 6, rarity: 1,
   };
-  assert.deepEqual(cardAdminValidation.parseLayout(valid), valid);
+  const { rarity, ...layout } = valid;
+  assert.deepEqual(cardAdminValidation.parseLayout(valid), layout);
+  assert.throws(() => cardAdminValidation.parseLayout({ ...valid, starX: 99 }), /Stars must stay inside/);
   assert.throws(
     () => cardAdminValidation.parseLayout({ ...valid, descriptionY: 90 }),
     /inside the card/,
