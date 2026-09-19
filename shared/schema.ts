@@ -112,6 +112,7 @@ export const shopItems = pgTable("shop_items", {
   // For type === "gift": how many loyalty points this gift awards when given
   // to a pet on the Pet Care page (cap 1000 per pet).
   giftPoints: integer("gift_points"),
+  petExp: integer("pet_exp"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
@@ -491,6 +492,9 @@ const baseInsertShopItemSchema = createInsertSchema(shopItems).omit({
 export const clearingEquipmentSlots = ["helmet", "weapon", "armor", "boots", "charm"] as const;
 export const clearingAttackStyles = ["sword_slash", "staff_orb", "default_melee"] as const;
 export const insertShopItemSchema = baseInsertShopItemSchema.superRefine((item, ctx) => {
+  if (item.petExp != null && (!Number.isInteger(item.petExp) || item.petExp < 0 || item.petExp > 1000000)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["petExp"], message: "Pet EXP must be between 0 and 1,000,000" });
+  }
   if (item.type === "accessory" && (!Number.isInteger(item.starRarity) || (item.starRarity ?? 0) < 1 || (item.starRarity ?? 0) > 5)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["starRarity"], message: "Accessory star rarity must be from 1 through 5" });
   }

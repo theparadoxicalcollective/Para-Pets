@@ -43,6 +43,7 @@ export interface ShopItemFull {
   baitRarityBoostStar: number | null;
   poleMaxUses: number | null;
   giftPoints?: number | null;
+  petExp?: number | null;
   facingDirection?: string | null;
   createdAt: string;
 }
@@ -116,11 +117,11 @@ export function getItemEffectText(item: ShopItemFull): string | null {
     return null;
   }
   if (item.type === "edibles") {
-    return item.statBoostAmount ? `+${item.statBoostAmount} Feed pts` : null;
+    return [item.statBoostAmount ? `+${item.statBoostAmount} Feed pts` : null, item.petExp ? `+${item.petExp} EXP` : null].filter(Boolean).join(" · ") || null;
   }
   if (item.type === "gift") {
     const gp = (item as any).giftPoints;
-    return gp ? `+${gp} Loyalty pts` : "Gift";
+    return [gp ? `+${gp} Loyalty pts` : "Gift", item.petExp ? `+${item.petExp} EXP` : null].filter(Boolean).join(" · ");
   }
   if (item.type === "fishing") {
     if (item.fishingType === "fish") {
@@ -162,6 +163,16 @@ export function getItemCategory(item: ShopItemFull): ItemCategoryKey {
   if (item.type === "ingredient") return "ingredients";
   if (item.type === "recipe") return "recipes";
   return "power_ups";
+}
+
+function PetExpInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return <div>
+    <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1" htmlFor="input-pet-exp">+Pet EXP when used</label>
+    <input id="input-pet-exp" data-testid="input-pet-exp" type="number" min="0" max="1000000" step="1"
+      value={value} onChange={(event) => onChange(event.target.value)}
+      className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+      style={{ background: "rgba(242,232,208,0.9)", border: "1px solid #8b5e3c", color: "#2a1a0a" }} />
+  </div>;
 }
 
 export default function ItemDatabaseSection({
@@ -466,6 +477,9 @@ export default function ItemDatabaseSection({
                           {item.giftPoints ? `+${item.giftPoints} Loyalty pts` : "Gift"}
                         </span>
                       )}
+                      {(item.type === "gift" || item.type === "edibles") && !!item.petExp && (
+                        <span className="font-fantasy text-[#e9c76d] text-[7px]">+{item.petExp} Pet EXP</span>
+                      )}
                       {item.type === "potion" && (
                         <span className="font-fantasy text-[#a89878] text-[7px]">
                           {item.healthRestored ? `+${item.healthRestored} HP` : ""}{item.manaRestored ? ` +${item.manaRestored} MP` : ""}{item.petsRevived ? ` Revive ${item.petsRevived}` : ""}
@@ -569,7 +583,8 @@ function AdminItemForm({
   const [price, setPrice] = useState(item?.price?.toString() || "");
   const [type, setType] = useState(defaultType);
   const [edibleLvlPoints, setEdibleLvlPoints] = useState(item?.statBoostAmount?.toString() || "5");
-  const [giftPoints, setGiftPoints] = useState((item as any)?.giftPoints?.toString() || "100");
+  const [giftPoints, setGiftPoints] = useState(item?.giftPoints?.toString() || "100");
+  const [petExp, setPetExp] = useState(item?.petExp?.toString() || "0");
   const [fishingType, setFishingType] = useState(item?.fishingType || "fish");
   const [starRarity, setStarRarity] = useState(item?.starRarity?.toString() || "1");
   const [baitCatchBoost, setBaitCatchBoost] = useState(item?.baitCatchBoost?.toString() || "");
@@ -697,6 +712,7 @@ function AdminItemForm({
         }
         payload.statBoostType = null;
         payload.statBoostAmount = null;
+        payload.petExp = null;
         payload.healthRestored = null;
         payload.manaRestored = null;
         payload.petsRevived = null;
@@ -725,6 +741,9 @@ function AdminItemForm({
           payload.statBoostType = null;
           payload.statBoostAmount = null;
         }
+
+        payload.petExp = effectiveType === "gift" || effectiveType === "edibles"
+          ? Math.max(0, Math.min(1000000, parseInt(petExp, 10) || 0)) : null;
 
         if (effectiveType === "gift") {
           payload.giftPoints = Math.max(0, parseInt(giftPoints) || 0);
@@ -1239,6 +1258,7 @@ function AdminItemForm({
                 />
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Feed points added to a pet when this edible is fed to them</p>
               </div>
+              <PetExpInput value={petExp} onChange={setPetExp} />
               <p className="font-fantasy text-[#86efac] text-[8px] tracking-wider text-center">Edibles can be fed to pets from the Pet House page</p>
             </>
           )}
@@ -1260,6 +1280,7 @@ function AdminItemForm({
                 />
                 <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-0.5">Loyalty points added to a pet's bar when this gift is given (cap 1000)</p>
               </div>
+              <PetExpInput value={petExp} onChange={setPetExp} />
               <p className="font-fantasy text-[#ec4899] text-[8px] tracking-wider text-center">Gifts can only be given on the Pet Care page — they're consumed on use</p>
             </>
           )}

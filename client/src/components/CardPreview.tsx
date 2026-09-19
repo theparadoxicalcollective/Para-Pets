@@ -1,5 +1,6 @@
 import { useRef, type PointerEvent as ReactPointerEvent } from "react";
 import CardFittedText from "./CardFittedText";
+import starImg from "@assets/Photoroom_20260331_20947_PM_1774984267132.png";
 import {
   CARD_BORDER_ASSETS,
   type CardBorderLayout,
@@ -53,7 +54,9 @@ export default function CardPreview({
 
   const fieldMetrics = (field: CardLayoutField) => field === "name"
     ? { x: layout.nameX, y: layout.nameY, width: layout.nameWidth, height: layout.nameHeight }
-    : { x: layout.descriptionX, y: layout.descriptionY, width: layout.descriptionWidth, height: layout.descriptionHeight };
+    : field === "description"
+      ? { x: layout.descriptionX, y: layout.descriptionY, width: layout.descriptionWidth, height: layout.descriptionHeight }
+      : { x: layout.starX, y: layout.starY, width: layout.starWidth, height: layout.starWidth / rarity * 2 / 3 };
 
   const updateFieldPosition = (
     field: CardLayoutField,
@@ -69,7 +72,9 @@ export default function CardPreview({
     const nextY = Math.max(0, Math.min(100 - metrics.height, ((pointerY - bounds.top) / bounds.height) * 100 - drag.offsetY));
     onLayoutChange(field === "name"
       ? { ...layout, nameX: nextX, nameY: nextY }
-      : { ...layout, descriptionX: nextX, descriptionY: nextY });
+      : field === "description"
+        ? { ...layout, descriptionX: nextX, descriptionY: nextY }
+        : { ...layout, starX: nextX, starY: nextY });
   };
 
   const beginDrag = (field: CardLayoutField, event: ReactPointerEvent<HTMLDivElement>) => {
@@ -235,6 +240,24 @@ export default function CardPreview({
       />
       {renderTextBox("name")}
       {renderTextBox("description")}
+      <div
+        data-testid="card-layout-box-stars"
+        onPointerDown={(event) => beginDrag("stars", event)}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onClick={() => onSelectField?.("stars")}
+        aria-label={`${rarity} card rarity ${rarity === 1 ? "star" : "stars"}`}
+        style={{ position: "absolute", left: `${layout.starX}%`, top: `${layout.starY}%`, width: `${layout.starWidth}%`, height: `${layout.starWidth / rarity * 2 / 3}%`,
+          zIndex: 4, display: "flex", justifyContent: "center", alignItems: "center",
+          border: editable ? `1.5px dashed ${selectedField === "stars" ? "#7cf5b2" : "rgba(255,224,128,.78)"}` : "none",
+          background: editable && selectedField === "stars" ? "rgba(22,90,58,.34)" : "transparent",
+          cursor: editable ? "grab" : "default", touchAction: editable ? "none" : "auto", userSelect: "none" }}
+      >
+        {Array.from({ length: rarity }, (_, index) => <img key={index} src={starImg} alt="" draggable={false}
+          style={{ width: `${100 / rarity}%`, height: "100%", objectFit: "contain", pointerEvents: "none",
+            filter: "drop-shadow(0 1px 2px rgba(0,0,0,.85))" }} />)}
+      </div>
     </div>
   );
 }

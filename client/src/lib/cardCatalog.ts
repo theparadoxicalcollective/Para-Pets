@@ -5,7 +5,7 @@ import fourStarBorder from "@assets/uploads/4StarBorder.png";
 import fiveStarBorder from "@assets/uploads/5StarBorder.png";
 
 export type CardRarity = 1 | 2 | 3 | 4 | 5;
-export type CardLayoutField = "name" | "description";
+export type CardLayoutField = "name" | "description" | "stars";
 
 export interface CardDefinition {
   id: string;
@@ -30,6 +30,9 @@ export interface CardBorderLayout {
   descriptionWidth: number;
   descriptionHeight: number;
   descriptionFontSize: number;
+  starX: number;
+  starY: number;
+  starWidth: number;
   updatedAt?: string;
 }
 
@@ -56,6 +59,9 @@ export function defaultCardBorderLayout(rarity: CardRarity): CardBorderLayout {
     descriptionWidth: 74,
     descriptionHeight: 16,
     descriptionFontSize: 10,
+    starX: 50 - rarity * 3,
+    starY: 18,
+    starWidth: rarity * 6,
   };
 }
 

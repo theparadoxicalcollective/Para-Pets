@@ -7,6 +7,7 @@ export async function runEssentialBoot(): Promise<void> {
   await db.execute(sql`
     ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS evolution_image_url TEXT;
     ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS description TEXT;
+    ALTER TABLE shop_items ADD COLUMN IF NOT EXISTS pet_exp INTEGER CHECK (pet_exp >= 0);
     ALTER TABLE user_inventory ADD COLUMN IF NOT EXISTS is_evolved BOOLEAN NOT NULL DEFAULT false;
   `);
 
@@ -123,9 +124,14 @@ export async function runEssentialBoot(): Promise<void> {
         CHECK (description_x + description_width <= 100),
         CHECK (description_y + description_height <= 100)
       );
+      ALTER TABLE card_border_layouts ADD COLUMN IF NOT EXISTS star_x REAL NOT NULL DEFAULT 47;
+      ALTER TABLE card_border_layouts ADD COLUMN IF NOT EXISTS star_y REAL NOT NULL DEFAULT 18;
+      ALTER TABLE card_border_layouts ADD COLUMN IF NOT EXISTS star_width REAL NOT NULL DEFAULT 6;
       INSERT INTO card_border_layouts (rarity)
       SELECT generated.rarity FROM generate_series(1, 5) AS generated(rarity)
       ON CONFLICT (rarity) DO NOTHING;
+      UPDATE card_border_layouts SET star_x = 50 - rarity * 3, star_width = rarity * 6
+      WHERE star_x = 47 AND star_width = 6 AND rarity > 1;
     `],
     ["Pet part rotation migration error (non-fatal):", sql`
       ALTER TABLE pet_template_parts ADD COLUMN IF NOT EXISTS rotation INTEGER NOT NULL DEFAULT 0
