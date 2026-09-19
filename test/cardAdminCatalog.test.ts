@@ -70,6 +70,7 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
     nameX: 13, nameY: 6, nameWidth: 74, nameHeight: 10, nameFontSize: 14,
     descriptionX: 13, descriptionY: 76, descriptionWidth: 74,
     descriptionHeight: 16, descriptionFontSize: 10,
+    starsX: 38, starsY: 18, starsWidth: 24, starsHeight: 7,
   };
   assert.deepEqual(cardAdminValidation.parseLayout(valid), valid);
   assert.throws(
@@ -77,3 +78,27 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
     /inside the card/,
   );
 });
+
+
+test("cards render rarity stars from the active-pet star asset and persist one movable group per rarity", () => {
+  assert.match(preview, /Photoroom_20260331_20947_PM_1774984267132\.png/);
+  assert.match(preview, /Array\.from\(\{ length: rarity \}/);
+  assert.match(preview, /data-testid="card-layout-box-stars"/);
+  assert.match(adminPanel, /"name", "description", "stars"/);
+  assert.match(adminPanel, /"starsX"/);
+  assert.match(adminPanel, /"starsY"/);
+  assert.match(routes, /"starsX", "starsY", "starsWidth", "starsHeight"/);
+  assert.match(boot, /ADD COLUMN IF NOT EXISTS stars_x/);
+  assert.match(boot, /ADD COLUMN IF NOT EXISTS stars_y/);
+  for (const rarity of [1, 2, 3, 4, 5] as const) {
+    const layout = cardAdminValidation.parseLayout({ ...validStarLayout, starsX: 10 + rarity });
+    assert.equal(layout.starsX, 10 + rarity);
+  }
+});
+
+const validStarLayout = {
+  nameX: 13, nameY: 6, nameWidth: 74, nameHeight: 10, nameFontSize: 14,
+  descriptionX: 13, descriptionY: 76, descriptionWidth: 74,
+  descriptionHeight: 16, descriptionFontSize: 10,
+  starsX: 38, starsY: 18, starsWidth: 24, starsHeight: 7,
+};
