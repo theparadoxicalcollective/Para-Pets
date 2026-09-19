@@ -1092,20 +1092,7 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
                         className="w-full flex items-center justify-center"
                         data-testid="button-open-pet-actions"
                       >
-                        {activePetModal === "power_up" ? null : lowMemoryPetRenderer && (activePet.hatchedImageUrl || activePet.imageUrl) ? (
-                          <div style={{ paddingTop: "calc(8*var(--vh))", width: "100%" }}>
-                            <img
-                              src={activePet.hatchedImageUrl || activePet.imageUrl || ""}
-                              alt={activePet.name}
-                              decoding="async"
-                              className="w-full max-h-[calc(58*var(--vh))] object-contain"
-                              style={{
-                                animation: "activePetBreath 3.5s ease-in-out infinite, petImgBlink 4s ease-in-out infinite",
-                                transformOrigin: "center bottom",
-                              }}
-                            />
-                          </div>
-                        ) : activePet.petTemplateId ? (
+                        {activePetModal === "power_up" ? null : activePet.petTemplateId ? (
                           <div className="w-full flex items-center justify-center">
                             <PetAnimator petTemplateId={activePet.petTemplateId} petInventoryId={activePet.inventoryId} mode="idle" view="front" size={1000} lowMemory={lowMemoryPetRenderer} expression={petCircling ? "petted" : "neutral"} className="w-full" style={{ aspectRatio: "1/1" }} />
                           </div>
