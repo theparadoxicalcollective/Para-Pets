@@ -24,11 +24,11 @@ test("Begin Journey keeps the active egg compact on the phone stage", () => {
   assert.doesNotMatch(page, /max-h-\[calc\(55\*var\(--vh\)\)\]/);
 });
 
-test("tutorial mode suppresses raid chrome and the duplicate hatch cinematic", () => {
+test("Home excludes raid chrome and tutorial suppresses the duplicate hatch cinematic", () => {
   const page = readFileSync("client/src/pages/HomePage.tsx", "utf8");
 
-  assert.match(page, /enabled: raidVisible && bjGetStatus\(\) !== "active"/);
-  assert.match(page, /bjGetStatus\(\) !== "active" && raidVisible && raidBossData\?\.templateId/);
+  assert.doesNotMatch(page, /raidBossData/);
+  assert.doesNotMatch(page, /data-testid="display-raid-boss"/);
   assert.match(page, /tutorialStep === 5 \|\| tutorialStep === 6/);
   assert.match(page, /setHatchRevealing\(false\)/);
 });
