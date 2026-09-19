@@ -216,13 +216,20 @@ export default function CardAdminPanel() {
         ["Height", "nameHeight", 4, 50],
         ["Text Size", "nameFontSize", 6, 32],
       ] as const
-    : [
-        ["Left", "descriptionX", 0, 96],
-        ["Top", "descriptionY", 0, 96],
-        ["Width", "descriptionWidth", 4, 100],
-        ["Height", "descriptionHeight", 4, 50],
-        ["Text Size", "descriptionFontSize", 6, 32],
-      ] as const;
+    : selectedField === "description"
+      ? [
+          ["Left", "descriptionX", 0, 96],
+          ["Top", "descriptionY", 0, 96],
+          ["Width", "descriptionWidth", 4, 100],
+          ["Height", "descriptionHeight", 4, 50],
+          ["Text Size", "descriptionFontSize", 6, 32],
+        ] as const
+      : [
+          ["Left", "starsX", 0, 96],
+          ["Top", "starsY", 0, 96],
+          ["Width", "starsWidth", 4, 100],
+          ["Height", "starsHeight", 4, 50],
+        ] as const;
 
   return (
     <div data-testid="card-admin-panel" className="space-y-4 pb-10">
@@ -325,8 +332,8 @@ export default function CardAdminPanel() {
             <p className="mt-2 text-[9px] leading-4 text-white/42">Choose a border, select a box, then drag it directly on the card. The controls below provide precise adjustments.</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            {(["name", "description"] as const).map((field) => (
+          <div className="grid grid-cols-3 gap-2">
+            {(["name", "description", "stars"] as const).map((field) => (
               <button
                 key={field}
                 type="button"
@@ -339,7 +346,7 @@ export default function CardAdminPanel() {
                   border: selectedField === field ? "1px solid rgba(110,231,183,.55)" : "1px solid rgba(224,181,74,.2)",
                 }}
               >
-                {field === "name" ? "Name Box" : "Description Box"}
+                {field === "name" ? "Name Box" : field === "description" ? "Description Box" : "Stars"}
               </button>
             ))}
           </div>
@@ -361,18 +368,19 @@ export default function CardAdminPanel() {
           </div>
 
           <div className="rounded-xl p-3" style={panelStyle}>
-            <p className="mb-3 font-fantasy text-[9px] tracking-wider text-[#e7cb80]">{selectedField === "name" ? "NAME BOX" : "DESCRIPTION BOX"} SETTINGS</p>
+            <p className="mb-3 font-fantasy text-[9px] tracking-wider text-[#e7cb80]">{selectedField === "name" ? "NAME BOX" : selectedField === "description" ? "DESCRIPTION BOX" : "STARS"} SETTINGS</p>
             <div className="space-y-3">
               {fieldControls.map(([label, key, min, max]) => {
                 const value = Number(currentLayout[key]);
-                const effectiveMax = key === "nameX" || key === "descriptionX"
-                  ? 100 - Number(currentLayout[selectedField === "name" ? "nameWidth" : "descriptionWidth"])
-                  : key === "nameY" || key === "descriptionY"
-                    ? 100 - Number(currentLayout[selectedField === "name" ? "nameHeight" : "descriptionHeight"])
-                    : key === "nameWidth" || key === "descriptionWidth"
-                      ? 100 - Number(currentLayout[selectedField === "name" ? "nameX" : "descriptionX"])
-                      : key === "nameHeight" || key === "descriptionHeight"
-                        ? 100 - Number(currentLayout[selectedField === "name" ? "nameY" : "descriptionY"])
+                const selectedPrefix = selectedField === "name" ? "name" : selectedField === "description" ? "description" : "stars";
+                const effectiveMax = key.endsWith("X")
+                  ? 100 - Number(currentLayout[`${selectedPrefix}Width` as keyof CardBorderLayout])
+                  : key.endsWith("Y")
+                    ? 100 - Number(currentLayout[`${selectedPrefix}Height` as keyof CardBorderLayout])
+                    : key.endsWith("Width")
+                      ? 100 - Number(currentLayout[`${selectedPrefix}X` as keyof CardBorderLayout])
+                      : key.endsWith("Height")
+                        ? 100 - Number(currentLayout[`${selectedPrefix}Y` as keyof CardBorderLayout])
                         : max;
                 return (
                   <label key={key} className="grid grid-cols-[58px_1fr_42px] items-center gap-2 text-[9px] text-white/55">
