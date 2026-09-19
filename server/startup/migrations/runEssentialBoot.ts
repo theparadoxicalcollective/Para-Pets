@@ -117,12 +117,22 @@ export async function runEssentialBoot(): Promise<void> {
         description_width REAL NOT NULL DEFAULT 74 CHECK (description_width BETWEEN 4 AND 100),
         description_height REAL NOT NULL DEFAULT 16 CHECK (description_height BETWEEN 4 AND 100),
         description_font_size REAL NOT NULL DEFAULT 10 CHECK (description_font_size BETWEEN 6 AND 32),
+        stars_x REAL NOT NULL DEFAULT 38 CHECK (stars_x BETWEEN 0 AND 100),
+        stars_y REAL NOT NULL DEFAULT 18 CHECK (stars_y BETWEEN 0 AND 100),
+        stars_width REAL NOT NULL DEFAULT 24 CHECK (stars_width BETWEEN 4 AND 100),
+        stars_height REAL NOT NULL DEFAULT 7 CHECK (stars_height BETWEEN 4 AND 100),
         updated_at TIMESTAMP NOT NULL DEFAULT now(),
         CHECK (name_x + name_width <= 100),
         CHECK (name_y + name_height <= 100),
         CHECK (description_x + description_width <= 100),
-        CHECK (description_y + description_height <= 100)
+        CHECK (description_y + description_height <= 100),
+        CHECK (stars_x + stars_width <= 100),
+        CHECK (stars_y + stars_height <= 100)
       );
+      ALTER TABLE card_border_layouts ADD COLUMN IF NOT EXISTS stars_x REAL NOT NULL DEFAULT 38;
+      ALTER TABLE card_border_layouts ADD COLUMN IF NOT EXISTS stars_y REAL NOT NULL DEFAULT 18;
+      ALTER TABLE card_border_layouts ADD COLUMN IF NOT EXISTS stars_width REAL NOT NULL DEFAULT 24;
+      ALTER TABLE card_border_layouts ADD COLUMN IF NOT EXISTS stars_height REAL NOT NULL DEFAULT 7;
       INSERT INTO card_border_layouts (rarity)
       SELECT generated.rarity FROM generate_series(1, 5) AS generated(rarity)
       ON CONFLICT (rarity) DO NOTHING;
