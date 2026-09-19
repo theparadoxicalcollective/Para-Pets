@@ -52,12 +52,13 @@ test("all mobile hosting modes use the animated low-memory renderer", () => {
   assert.equal(shouldUseLowMemoryPetRenderer(runtime("desktop")), false);
 });
 
-test("mobile Home renders flattened active-pet and raid-boss artwork", () => {
+test("mobile Home renders flattened active-pet artwork without raid boss", () => {
   const mobileFlatArt = home.indexOf("lowMemoryPetRenderer && (activePet.hatchedImageUrl || activePet.imageUrl)");
   const layeredActivePet = home.indexOf("activePet.petTemplateId ? (", mobileFlatArt);
   assert.ok(mobileFlatArt >= 0);
   assert.ok(layeredActivePet > mobileFlatArt);
-  assert.match(home, /lowMemoryPetRenderer && raidBossData\.hatchedImageUrl/);
+  assert.doesNotMatch(home, /raidBossData/);
+  assert.doesNotMatch(home, /data-testid="display-raid-boss"/);
   assert.match(home, /decoding="async"/);
   assert.match(routes, /hatched_image_url AS "hatchedImageUrl"/);
   assert.match(routes, /hatchedImageUrl: _raidBossCache\.hatchedImageUrl/);
