@@ -16,6 +16,7 @@ const LAYOUT_FIELDS = [
   "nameX", "nameY", "nameWidth", "nameHeight", "nameFontSize",
   "descriptionX", "descriptionY", "descriptionWidth", "descriptionHeight",
   "descriptionFontSize",
+  "starsX", "starsY", "starsWidth", "starsHeight",
 ] as const;
 
 type LayoutField = (typeof LAYOUT_FIELDS)[number];
@@ -46,8 +47,8 @@ function parseLayout(body: Record<string, unknown>): LayoutInput {
   for (const field of LAYOUT_FIELDS) {
     if (!Number.isFinite(parsed[field])) throw new Error(`${field} must be a number`);
   }
-  const positionFields: LayoutField[] = ["nameX", "nameY", "descriptionX", "descriptionY"];
-  const sizeFields: LayoutField[] = ["nameWidth", "nameHeight", "descriptionWidth", "descriptionHeight"];
+  const positionFields: LayoutField[] = ["nameX", "nameY", "descriptionX", "descriptionY", "starsX", "starsY"];
+  const sizeFields: LayoutField[] = ["nameWidth", "nameHeight", "descriptionWidth", "descriptionHeight", "starsWidth", "starsHeight"];
   for (const field of positionFields) {
     if (parsed[field] < 0 || parsed[field] > 100) throw new Error(`${field} must be between 0 and 100`);
   }
@@ -62,6 +63,9 @@ function parseLayout(body: Record<string, unknown>): LayoutInput {
   }
   if (parsed.descriptionX + parsed.descriptionWidth > 100 || parsed.descriptionY + parsed.descriptionHeight > 100) {
     throw new Error("Description box must stay inside the card");
+  }
+  if (parsed.starsX + parsed.starsWidth > 100 || parsed.starsY + parsed.starsHeight > 100) {
+    throw new Error("Stars must stay inside the card");
   }
   return parsed;
 }
@@ -92,6 +96,10 @@ export function serializeLayout(row: any) {
     descriptionWidth: Number(row.description_width),
     descriptionHeight: Number(row.description_height),
     descriptionFontSize: Number(row.description_font_size),
+    starsX: Number(row.stars_x),
+    starsY: Number(row.stars_y),
+    starsWidth: Number(row.stars_width),
+    starsHeight: Number(row.stars_height),
     updatedAt: row.updated_at,
   };
 }
@@ -185,7 +193,7 @@ export function registerCardAdminRoutes(
       const result = await db.execute(sql`
         SELECT rarity, name_x, name_y, name_width, name_height, name_font_size,
                description_x, description_y, description_width, description_height,
-               description_font_size, updated_at
+               description_font_size, stars_x, stars_y, stars_width, stars_height, updated_at
         FROM card_border_layouts ORDER BY rarity
       `);
       return res.json(result.rows.map(serializeLayout));
@@ -204,12 +212,12 @@ export function registerCardAdminRoutes(
         INSERT INTO card_border_layouts (
           rarity, name_x, name_y, name_width, name_height, name_font_size,
           description_x, description_y, description_width, description_height,
-          description_font_size, updated_at
+          description_font_size, stars_x, stars_y, stars_width, stars_height, updated_at
         ) VALUES (
           ${rarity}, ${layout.nameX}, ${layout.nameY}, ${layout.nameWidth},
           ${layout.nameHeight}, ${layout.nameFontSize}, ${layout.descriptionX},
           ${layout.descriptionY}, ${layout.descriptionWidth}, ${layout.descriptionHeight},
-          ${layout.descriptionFontSize}, now()
+          ${layout.descriptionFontSize}, ${layout.starsX}, ${layout.starsY}, ${layout.starsWidth}, ${layout.starsHeight}, now()
         )
         ON CONFLICT (rarity) DO UPDATE SET
           name_x = EXCLUDED.name_x, name_y = EXCLUDED.name_y,
@@ -218,10 +226,12 @@ export function registerCardAdminRoutes(
           description_x = EXCLUDED.description_x, description_y = EXCLUDED.description_y,
           description_width = EXCLUDED.description_width,
           description_height = EXCLUDED.description_height,
-          description_font_size = EXCLUDED.description_font_size, updated_at = now()
+          description_font_size = EXCLUDED.description_font_size,
+          stars_x = EXCLUDED.stars_x, stars_y = EXCLUDED.stars_y,
+          stars_width = EXCLUDED.stars_width, stars_height = EXCLUDED.stars_height, updated_at = now()
         RETURNING rarity, name_x, name_y, name_width, name_height, name_font_size,
                   description_x, description_y, description_width, description_height,
-                  description_font_size, updated_at
+                  description_font_size, stars_x, stars_y, stars_width, stars_height, updated_at
       `);
       return res.json(serializeLayout(result.rows[0]));
     } catch (error: any) {
