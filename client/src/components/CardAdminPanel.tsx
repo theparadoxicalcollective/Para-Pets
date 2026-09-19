@@ -208,6 +208,18 @@ export default function CardAdminPanel() {
     setCurrentLayout({ ...currentLayout, [key]: value });
   };
 
+  const maxStarWidth = Math.min(80, (100 - currentLayout.starY) * layoutRarity * 3 / 2);
+
+  const resizeStars = (direction: -1 | 1) => {
+    const width = Math.max(5, Math.min(maxStarWidth, Number((currentLayout.starWidth + direction).toFixed(1))));
+    const centerX = currentLayout.starX + currentLayout.starWidth / 2;
+    setCurrentLayout({
+      ...currentLayout,
+      starWidth: width,
+      starX: Math.max(0, Math.min(100 - width, centerX - width / 2)),
+    });
+  };
+
   const fieldControls = selectedField === "name"
     ? [
         ["Left", "nameX", 0, 96],
@@ -216,19 +228,13 @@ export default function CardAdminPanel() {
         ["Height", "nameHeight", 4, 50],
         ["Text Size", "nameFontSize", 6, 32],
       ] as const
-    : selectedField === "description"
-      ? [
-          ["Left", "descriptionX", 0, 96],
-          ["Top", "descriptionY", 0, 96],
-          ["Width", "descriptionWidth", 4, 100],
-          ["Height", "descriptionHeight", 4, 50],
-          ["Text Size", "descriptionFontSize", 6, 32],
-        ] as const
-      : [
-          ["Left", "starX", 0, 95],
-          ["Top", "starY", 0, 95],
-          ["Group Width", "starWidth", 5, 80],
-        ] as const;
+    : [
+        ["Left", "descriptionX", 0, 96],
+        ["Top", "descriptionY", 0, 96],
+        ["Width", "descriptionWidth", 4, 100],
+        ["Height", "descriptionHeight", 4, 50],
+        ["Text Size", "descriptionFontSize", 6, 32],
+      ] as const;
 
   return (
     <div data-testid="card-admin-panel" className="space-y-4 pb-10">
@@ -368,16 +374,45 @@ export default function CardAdminPanel() {
 
           <div className="rounded-xl p-3" style={panelStyle}>
             <p className="mb-3 font-fantasy text-[9px] tracking-wider text-[#e7cb80]">{selectedField === "name" ? "NAME BOX" : selectedField === "description" ? "DESCRIPTION BOX" : "STARS"} SETTINGS</p>
-            <div className="space-y-3">
-              {fieldControls.map(([label, key, min, max]) => {
+            {selectedField === "stars" ? (
+              <div className="space-y-3">
+                <p className="text-[10px] leading-4 text-white/55">Drag the stars to set their height, then center them horizontally if needed.</p>
+                <button
+                  type="button"
+                  data-testid="button-center-card-stars"
+                  onClick={() => setCurrentLayout({ ...currentLayout, starX: (100 - currentLayout.starWidth) / 2 })}
+                  className="min-h-11 w-full rounded-lg font-fantasy text-[10px] text-[#f8e7b0] active:scale-[.99]"
+                  style={{ background: "rgba(118,76,10,.24)", border: "1px solid rgba(224,181,74,.46)" }}
+                >
+                  Center Stars
+                </button>
+                <div className="grid grid-cols-[48px_1fr_48px] items-center gap-3">
+                  <button
+                    type="button"
+                    data-testid="button-decrease-card-stars"
+                    aria-label="Decrease star size"
+                    disabled={currentLayout.starWidth <= 5}
+                    onClick={() => resizeStars(-1)}
+                    className="h-12 rounded-lg text-xl text-[#f8e7b0] active:scale-95 disabled:opacity-40"
+                    style={{ background: "#0c1710", border: "1px solid rgba(224,181,74,.46)" }}
+                  >−</button>
+                  <span className="text-center font-fantasy text-[10px] text-[#e7cb80]">Star size: {currentLayout.starWidth.toFixed(1)}%</span>
+                  <button
+                    type="button"
+                    data-testid="button-increase-card-stars"
+                    aria-label="Increase star size"
+                    disabled={currentLayout.starWidth >= maxStarWidth}
+                    onClick={() => resizeStars(1)}
+                    className="h-12 rounded-lg text-xl text-[#f8e7b0] active:scale-95 disabled:opacity-40"
+                    style={{ background: "#0c1710", border: "1px solid rgba(224,181,74,.46)" }}
+                  >+</button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {fieldControls.map(([label, key, min, max]) => {
                 const value = Number(currentLayout[key]);
-                const effectiveMax = key === "starX"
-                  ? 100 - currentLayout.starWidth
-                  : key === "starY"
-                    ? 100 - currentLayout.starWidth / layoutRarity * 2 / 3
-                    : key === "starWidth"
-                      ? Math.min(100 - currentLayout.starX, (100 - currentLayout.starY) * layoutRarity * 3 / 2, 80)
-                      : key === "nameX" || key === "descriptionX"
+                const effectiveMax = key === "nameX" || key === "descriptionX"
                   ? 100 - Number(currentLayout[selectedField === "name" ? "nameWidth" : "descriptionWidth"])
                   : key === "nameY" || key === "descriptionY"
                     ? 100 - Number(currentLayout[selectedField === "name" ? "nameHeight" : "descriptionHeight"])
@@ -410,8 +445,9 @@ export default function CardAdminPanel() {
                     />
                   </label>
                 );
-              })}
-            </div>
+                })}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-2">
