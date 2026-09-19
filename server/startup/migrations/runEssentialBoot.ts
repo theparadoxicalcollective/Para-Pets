@@ -132,6 +132,13 @@ export async function runEssentialBoot(): Promise<void> {
       ON CONFLICT (rarity) DO NOTHING;
       UPDATE card_border_layouts SET star_x = 50 - rarity * 3, star_width = rarity * 6
       WHERE star_x = 47 AND star_width = 6 AND rarity > 1;
+      -- Enlarge groups that still use the original default star size. Keep each
+      -- group's center and leave explicitly resized groups at their chosen size.
+      UPDATE card_border_layouts
+      SET star_x = GREATEST(0, LEAST(100 - rarity * 7.8, star_x - rarity * 0.9)),
+          star_y = GREATEST(0, LEAST(94.8, star_y - 0.6)),
+          star_width = rarity * 7.8
+      WHERE star_width = rarity * 6;
     `],
     ["Pet part rotation migration error (non-fatal):", sql`
       ALTER TABLE pet_template_parts ADD COLUMN IF NOT EXISTS rotation INTEGER NOT NULL DEFAULT 0

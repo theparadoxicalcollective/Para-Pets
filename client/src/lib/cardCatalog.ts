@@ -59,9 +59,9 @@ export function defaultCardBorderLayout(rarity: CardRarity): CardBorderLayout {
     descriptionWidth: 74,
     descriptionHeight: 16,
     descriptionFontSize: 10,
-    starX: 50 - rarity * 3,
-    starY: 18,
-    starWidth: rarity * 6,
+    starX: 50 - rarity * 3.9,
+    starY: 17.4,
+    starWidth: rarity * 7.8,
   };
 }
 
