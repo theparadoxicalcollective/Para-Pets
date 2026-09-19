@@ -1,5 +1,6 @@
 import { useRef, type PointerEvent as ReactPointerEvent } from "react";
 import CardFittedText from "./CardFittedText";
+import starImg from "@assets/Photoroom_20260331_20947_PM_1774984267132.png";
 import {
   CARD_BORDER_ASSETS,
   type CardBorderLayout,
@@ -53,7 +54,9 @@ export default function CardPreview({
 
   const fieldMetrics = (field: CardLayoutField) => field === "name"
     ? { x: layout.nameX, y: layout.nameY, width: layout.nameWidth, height: layout.nameHeight }
-    : { x: layout.descriptionX, y: layout.descriptionY, width: layout.descriptionWidth, height: layout.descriptionHeight };
+    : field === "description"
+      ? { x: layout.descriptionX, y: layout.descriptionY, width: layout.descriptionWidth, height: layout.descriptionHeight }
+      : { x: layout.starsX, y: layout.starsY, width: layout.starsWidth, height: layout.starsHeight };
 
   const updateFieldPosition = (
     field: CardLayoutField,
@@ -69,7 +72,9 @@ export default function CardPreview({
     const nextY = Math.max(0, Math.min(100 - metrics.height, ((pointerY - bounds.top) / bounds.height) * 100 - drag.offsetY));
     onLayoutChange(field === "name"
       ? { ...layout, nameX: nextX, nameY: nextY }
-      : { ...layout, descriptionX: nextX, descriptionY: nextY });
+      : field === "description"
+        ? { ...layout, descriptionX: nextX, descriptionY: nextY }
+        : { ...layout, starsX: nextX, starsY: nextY });
   };
 
   const beginDrag = (field: CardLayoutField, event: ReactPointerEvent<HTMLDivElement>) => {
@@ -100,6 +105,50 @@ export default function CardPreview({
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
     dragRef.current = null;
+  };
+
+  const renderStars = () => {
+    const metrics = fieldMetrics("stars");
+    const selected = editable && selectedField === "stars";
+    return (
+      <div
+        data-testid="card-layout-box-stars"
+        onPointerDown={(event) => beginDrag("stars", event)}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onClick={() => onSelectField?.("stars")}
+        style={{
+          position: "absolute",
+          left: `${metrics.x}%`,
+          top: `${metrics.y}%`,
+          width: `${metrics.width}%`,
+          height: `${metrics.height}%`,
+          zIndex: 3,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "2%",
+          border: editable ? `1.5px dashed ${selected ? "#7cf5b2" : "rgba(255,224,128,.78)"}` : "none",
+          background: editable ? (selected ? "rgba(22,90,58,.34)" : "rgba(8,8,5,.22)") : "transparent",
+          boxShadow: editable && selected ? "0 0 10px rgba(124,245,178,.42)" : "none",
+          cursor: editable ? "grab" : "default",
+          touchAction: editable ? "none" : "auto",
+          userSelect: "none",
+        }}
+      >
+        {Array.from({ length: rarity }, (_, index) => (
+          <img
+            key={index}
+            src={starImg}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            style={{ height: "100%", width: "auto", maxWidth: `${100 / rarity}%`, objectFit: "contain", pointerEvents: "none" }}
+          />
+        ))}
+      </div>
+    );
   };
 
   const renderTextBox = (field: CardLayoutField) => {
@@ -235,6 +284,7 @@ export default function CardPreview({
       />
       {renderTextBox("name")}
       {renderTextBox("description")}
+      {renderStars()}
     </div>
   );
 }
