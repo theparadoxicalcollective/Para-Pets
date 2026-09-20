@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { fetchAuthenticatedUserCached } from "@/lib/queryClient";
 import { npcNamesMatch } from "@/lib/npcMetadata";
@@ -6,7 +6,9 @@ import {
   BEAU_PRIZE_WHEEL_NPC_NAME,
   BEAU_PRIZE_WHEEL_WORLD_ID,
 } from "@shared/beauPrizeWheel";
-import BeauPrizeWheelOverlay, { type WheelState } from "@/components/world/BeauPrizeWheelOverlay";
+import type { WheelState } from "@/components/world/BeauPrizeWheelOverlay";
+
+const BeauPrizeWheelOverlay = lazy(() => import("@/components/world/BeauPrizeWheelOverlay"));
 
 interface WorldLocationRow {
   id: string;
@@ -236,11 +238,17 @@ export default function BeauPrizeWheelBridge() {
       )}
 
       {wheelState && createPortal(
-        <BeauPrizeWheelOverlay
-          initialState={wheelState}
-          onClose={() => setWheelState(null)}
-          onStateChange={setWheelState}
-        />,
+        <Suspense fallback={
+          <div className="fixed inset-0 z-[2200] grid place-items-center bg-black/90 text-sm text-amber-100">
+            Preparing Beau's wheel…
+          </div>
+        }>
+          <BeauPrizeWheelOverlay
+            initialState={wheelState}
+            onClose={() => setWheelState(null)}
+            onStateChange={setWheelState}
+          />
+        </Suspense>,
         document.body,
       )}
     </>
