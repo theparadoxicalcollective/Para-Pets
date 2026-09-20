@@ -1160,10 +1160,6 @@ function WelcomeBundleSection() {
     queryKey: ["/api/admin/shop-items-all"],
   });
 
-  const { data: rewardCards = [] } = useQuery<CardDefinition[]>({
-    queryKey: ["/api/admin/cards"],
-  });
-
   useEffect(() => {
     if (config) {
       setCoinAmount(String(config.coinAmount));
@@ -1350,6 +1346,10 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
 
   const { data: allShopItems = [] } = useQuery<ShopItemFull[]>({
     queryKey: ["/api/admin/shop-items-all"],
+  });
+
+  const { data: rewardCards = [] } = useQuery<CardDefinition[]>({
+    queryKey: ["/api/admin/cards"],
   });
 
   const sendMutation = useMutation({
