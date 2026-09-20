@@ -128,7 +128,7 @@ export default function SlaughterSlotsOverlay({
   useEffect(() => {
     let cancelled = false;
     mountedRef.current = true;
-    fetch("/api/haunted-casino/slots", { credentials: "include" })
+    fetch("/api/haunted-casino/slots", { credentials: "include", cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error((await response.json().catch(() => null))?.message || "Slots could not be loaded");
         return response.json() as Promise<SlotState>;
@@ -192,7 +192,7 @@ export default function SlaughterSlotsOverlay({
 
   const refreshAuthoritativeState = async () => {
     try {
-      const response = await fetch("/api/haunted-casino/slots", { credentials: "include" });
+      const response = await fetch("/api/haunted-casino/slots", { credentials: "include", cache: "no-store" });
       if (!response.ok) return null;
       const data = await response.json() as SlotState;
       if (mountedRef.current) applyState(data);
