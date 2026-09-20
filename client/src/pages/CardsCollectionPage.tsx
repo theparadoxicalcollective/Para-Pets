@@ -308,7 +308,7 @@ export default function CardsCollectionPage() {
             gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
             alignContent: "start",
             columnGap: "clamp(8px, 2.4vw, 12px)",
-            rowGap: "clamp(5px, 1.6vw, 8px)",
+            rowGap: "clamp(8px, 2.4vw, 12px)",
             borderRadius: 18,
             background: "radial-gradient(ellipse at 50% 4%, rgba(62,117,73,.12), transparent 48%)",
             border: "none",
@@ -323,7 +323,14 @@ export default function CardsCollectionPage() {
             </div>
             <p className="col-span-2 text-center text-xs text-amber-100/60">{rarityFilter ? "No cards of this rarity yet." : "Collected cards will appear here."}</p>
           </>}
-          {visibleCards.map(card => <article key={card.id} data-testid={`owned-card-${card.id}`} className="relative min-w-0 pb-8">
+          {visibleCards.map(card => {
+            const rewardNeedsClearance = !card.firstRewardClaimed || rewardPopup?.cardId === card.id;
+            return <article
+              key={card.id}
+              data-testid={`owned-card-${card.id}`}
+              className="relative min-w-0"
+              style={{ paddingBottom: rewardNeedsClearance ? "clamp(24px, 6.5vw, 30px)" : 0 }}
+            >
             <div className="relative">
             <button type="button" aria-label={`View ${card.name}`} onClick={() => setSelectedCardId(card.id)} className="block w-full rounded-lg focus-visible:outline focus-visible:outline-amber-200">
               <CardPreview textSize="inventory" rarity={card.rarity} artworkUrl={card.artworkUrl} name={card.name} description={card.description} layout={getCardBorderLayout(layouts, card.rarity)} />
@@ -334,7 +341,8 @@ export default function CardsCollectionPage() {
               rewardAmount={rewardPopup?.cardId === card.id ? rewardPopup.amount : undefined}
               onClaim={() => claimReward.mutate(card.id)} onDismiss={() => setRewardPopup(null)} />
             </div>
-          </article>)}
+          </article>;
+          })}
         </section>
 
         <section
