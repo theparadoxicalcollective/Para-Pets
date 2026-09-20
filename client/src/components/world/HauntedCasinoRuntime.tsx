@@ -37,6 +37,7 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
   const [openingSoon, setOpeningSoon] = useState<string | null>(null);
   const [bingoOpen, setBingoOpen] = useState(false);
   const [freeBingoGame, setFreeBingoGame] = useState(false);
+  const [freeSlotSpin, setFreeSlotSpin] = useState(false);
   const [slotsOpen, setSlotsOpen] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
   const dragRef = useRef<DragState | null>(null);
@@ -61,18 +62,23 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
     return () => { cancelled = true; };
   }, []);
 
-  const refreshFreeBingo = () => {
+  const refreshFreePlay = () => {
     void fetch("/api/haunted-casino/bingo", { credentials: "include", cache: "no-store" })
       .then(response => response.ok ? response.json() as Promise<{ freeGameAvailable: boolean }> : null)
       .then(data => setFreeBingoGame(Boolean(data?.freeGameAvailable)))
       .catch(() => setFreeBingoGame(false));
+    void fetch("/api/haunted-casino/slots", { credentials: "include", cache: "no-store" })
+      .then(response => response.ok ? response.json() as Promise<{ freeSpinAvailable: boolean }> : null)
+      .then(data => setFreeSlotSpin(Boolean(data?.freeSpinAvailable)))
+      .catch(() => setFreeSlotSpin(false));
   };
 
   useEffect(() => {
-    refreshFreeBingo();
-    const interval = window.setInterval(refreshFreeBingo, 60_000);
-    window.addEventListener("focus", refreshFreeBingo);
-    return () => { window.clearInterval(interval); window.removeEventListener("focus", refreshFreeBingo); };
+    refreshFreePlay();
+    const interval = window.setInterval(refreshFreePlay, 60_000);
+    window.addEventListener("focus", refreshFreePlay);
+    window.addEventListener("para:casino-free-play-changed", refreshFreePlay);
+    return () => { window.clearInterval(interval); window.removeEventListener("focus", refreshFreePlay); window.removeEventListener("para:casino-free-play-changed", refreshFreePlay); };
   }, []);
 
   const persist = (next: HauntedCasinoHotspot[]) => {
@@ -207,6 +213,7 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
             padding: 0,
           }}
         >
+          {!isAdmin && spot.id === "slots" && freeSlotSpin && <span data-testid="casino-slots-free-indicator" aria-label="Free 500 coin slot spin available" className="pointer-events-none absolute -right-2 -top-2 grid h-8 w-8 place-items-center rounded-full border-2 border-amber-200 bg-[#754413] text-xl font-black text-amber-50 shadow-[0_0_18px_#f6be55]">!</span>}
           {!isAdmin && spot.id === "bingo" && freeBingoGame && <span data-testid="casino-bingo-free-indicator" aria-label="Free Bingo game available" className="pointer-events-none absolute -right-2 -top-2 grid h-8 w-8 place-items-center rounded-full border-2 border-amber-200 bg-[#754413] text-xl font-black text-amber-50 shadow-[0_0_18px_#f6be55]">!</span>}
           {isAdmin && (
             <>
@@ -263,14 +270,14 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
       )}
 
       {bingoOpen && createPortal(
-        <HauntedBingoOverlay onClose={() => { setBingoOpen(false); refreshFreeBingo(); }} />,
+        <HauntedBingoOverlay onClose={() => { setBingoOpen(false); refreshFreePlay(); }} />,
         document.body,
       )}
 
       {slotsOpen && createPortal(
         <SlaughterSlotsOverlay
           isAdmin={isAdmin}
-          onClose={() => setSlotsOpen(false)}
+          onClose={() => { setSlotsOpen(false); refreshFreePlay(); }}
           onCurrencyChanged={onCurrencyChanged}
         />,
         document.body,
