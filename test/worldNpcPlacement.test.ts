@@ -61,5 +61,8 @@ test("world NPC art keeps a grounded shadow and a smooth bottom-anchored breathi
   assert.match(source, /backface-visibility: hidden/);
   assert.match(source, /drop-shadow\(0 7px 9px rgba\(0,0,0,\.68\)\)/);
   assert.match(source, /drop-shadow\(0 0 2px rgba\(255,244,214,\.18\)\)/);
+  assert.match(source, /loc\.worldId === "haunted_woods"/);
+  assert.match(source, /drop-shadow\(0 0 4px rgba\(223,174,255,\.88\)\)/);
+  assert.match(source, /drop-shadow\(0 0 9px rgba\(143,82,210,\.58\)\)/);
   assert.match(source, /prefers-reduced-motion: reduce/);
 });
