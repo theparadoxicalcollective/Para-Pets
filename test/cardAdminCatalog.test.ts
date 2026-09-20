@@ -87,10 +87,13 @@ test("player-facing cards use brighter rarity stars, tiered sparkles, and swipe-
   assert.match(preview, /brightness\(1\.2\)/);
   assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*0[\s\S]*?3:\s*5[\s\S]*?4:\s*9[\s\S]*?5:\s*14/);
   assert.match(preview, /data-testid="card-rarity-sparkles"/);
-  assert.match(preview, /translateZ\(18px\)/);
+  assert.match(preview, /translateZ\(34px\)/);
+  assert.match(preview, /circle \$\{Math\.max\(sparkle\.size \* 2\.6, 4\.2\)\}cqw/);
+  assert.doesNotMatch(preview, /radial-gradient\(circle [^`]*?\}% at/);
+  assert.match(preview, /<svg className="absolute inset-0 h-full w-full"/);
   assert.match(detail, /data-testid="card-turn-surface"/);
-  assert.match(detail, /velocity >= 0\.45/);
-  assert.match(detail, /gesture\.width \* 0\.12/);
+  assert.match(detail, /velocity >= 0\.35/);
+  assert.match(detail, /gesture\.width \* 0\.1/);
   assert.match(detail, /rotateY\(\$\{turnAngle\}deg\)/);
   assert.match(detail, /depth3d/);
   assert.match(detail, /Drag left or right to turn the card\. Swipe quickly to read more\./);
