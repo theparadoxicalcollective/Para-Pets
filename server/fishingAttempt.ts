@@ -193,13 +193,21 @@ export async function completeFishingAttempt(
       INSERT INTO fishing_leaderboard (user_id, world_id, points) VALUES (${input.userId}, ${attempt.world_id}, ${points})
       ON CONFLICT (user_id, world_id) DO UPDATE SET points = fishing_leaderboard.points + ${points}, updated_at = NOW()
     `);
-    const date = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-    await tx.execute(sql`
-      INSERT INTO user_daily_quest_progress (user_id, quest_key, quest_date, progress, completed)
-      SELECT ${input.userId}, 'catch_fish', ${date}, 1, 1 >= target_count FROM daily_quests WHERE quest_key = 'catch_fish' AND is_active = true
-      ON CONFLICT (user_id, quest_key, quest_date) DO UPDATE SET
-        progress = CASE WHEN user_daily_quest_progress.completed THEN user_daily_quest_progress.progress ELSE LEAST((SELECT target_count FROM daily_quests WHERE quest_key='catch_fish'), user_daily_quest_progress.progress + 1) END,
-        completed = CASE WHEN user_daily_quest_progress.completed THEN true ELSE user_daily_quest_progress.progress + 1 >= (SELECT target_count FROM daily_quests WHERE quest_key='catch_fish') END
+    // Count only catches made after accepting Janson's one-time quest. Keep the
+    // progress mutation in this transaction so a rolled-back catch never counts.
+    const jansonProgress = await tx.execute(sql`
+      UPDATE user_janson_quests p
+      SET progress = LEAST(q.target_count, p.progress + 1),
+          completed_at = CASE WHEN p.progress + 1 >= q.target_count THEN NOW() ELSE NULL END
+      FROM daily_quests q
+      WHERE p.user_id = ${input.userId} AND p.quest_key = 'catch_fish'
+        AND p.completed_at IS NULL AND q.quest_key = 'catch_fish'
+      RETURNING p.completed_at
+    `);
+    if ((jansonProgress.rows[0] as any)?.completed_at) await tx.execute(sql`
+      INSERT INTO user_quest_log_state (user_id, has_unseen_completion)
+      VALUES (${input.userId}, true)
+      ON CONFLICT (user_id) DO UPDATE SET has_unseen_completion = true
     `);
     const result: FishingAttemptResult = {
       outcome: "caught",

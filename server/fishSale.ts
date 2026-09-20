@@ -92,33 +92,18 @@ export async function sellFish(userId: string, fishIds: string[]): Promise<FishS
       .returning({ coins: users.coins });
     if (!updatedPlayer) throw new Error("Fish sale coin credit failed");
 
-    // Preserve the existing one sell_fish progress increment per fish, but
-    // make it part of the sale transaction so progress cannot describe a sale
-    // whose inventory/coin mutations rolled back.
+    // Count each sold fish only after Janson's second one-time quest is accepted.
+    // Progress, the inventory deletion and coin credit must commit together.
     const questProgress = await tx.execute(sql`
-      INSERT INTO user_daily_quest_progress (user_id, quest_key, quest_date, progress, completed)
-      SELECT ${userId}, 'sell_fish',
-             (CURRENT_TIMESTAMP AT TIME ZONE 'America/Chicago')::date,
-             LEAST(dq.target_count, ${sortedIds.length}),
-             ${sortedIds.length} >= dq.target_count
-      FROM daily_quests dq
-      WHERE dq.quest_key = 'sell_fish' AND dq.is_active = true
-      ON CONFLICT (user_id, quest_key, quest_date) DO UPDATE
-      SET progress = CASE
-            WHEN user_daily_quest_progress.completed THEN user_daily_quest_progress.progress
-            ELSE LEAST(
-              (SELECT target_count FROM daily_quests WHERE quest_key = 'sell_fish'),
-              user_daily_quest_progress.progress + ${sortedIds.length}
-            )
-          END,
-          completed = CASE
-            WHEN user_daily_quest_progress.completed THEN true
-            ELSE user_daily_quest_progress.progress + ${sortedIds.length} >=
-              (SELECT target_count FROM daily_quests WHERE quest_key = 'sell_fish')
-          END
-      RETURNING completed
+      UPDATE user_janson_quests p
+      SET progress = LEAST(q.target_count, p.progress + ${sortedIds.length}),
+          completed_at = CASE WHEN p.progress + ${sortedIds.length} >= q.target_count THEN NOW() ELSE NULL END
+      FROM daily_quests q
+      WHERE p.user_id = ${userId} AND p.quest_key = 'sell_fish'
+        AND p.completed_at IS NULL AND q.quest_key = 'sell_fish'
+      RETURNING p.completed_at
     `);
-    if ((questProgress.rows[0] as { completed?: boolean } | undefined)?.completed) {
+    if ((questProgress.rows[0] as { completed_at?: Date } | undefined)?.completed_at) {
       await tx.execute(sql`
         INSERT INTO user_quest_log_state (user_id, has_unseen_completion)
         VALUES (${userId}, true)

@@ -33,7 +33,7 @@ export function registerQuestRoutes(app: Express, dependencies: QuestRouteDepend
         LEFT JOIN user_daily_quest_progress p
           ON p.quest_key = q.quest_key AND p.user_id = ${user.id} AND p.quest_date = ${date}
         LEFT JOIN shop_items si ON si.id = q.reward_item_id
-        WHERE q.is_active = true
+        WHERE q.is_active = true AND q.quest_key NOT IN ('catch_fish', 'sell_fish')
         ORDER BY CASE q.quest_key WHEN 'use_powerup' THEN 1 WHEN 'feed_pet' THEN 2 WHEN 'catch_fish' THEN 3 WHEN 'play_molten_blocks' THEN 4 WHEN 'sell_fish' THEN 5 ELSE 99 END
       `);
       const stateRes = await db.execute(sql`
@@ -79,6 +79,9 @@ export function registerQuestRoutes(app: Express, dependencies: QuestRouteDepend
     try {
       const user = req.user as any;
       const { questKey } = req.params;
+      if (questKey === "catch_fish" || questKey === "sell_fish") {
+        return res.status(404).json({ message: "This quest belongs to Janson" });
+      }
       const date = getCentralDate();
       const claim = await db.transaction(async (tx) => {
         let progress: any;
@@ -253,7 +256,9 @@ export function registerQuestRoutes(app: Express, dependencies: QuestRouteDepend
             kind: "story",
             isActive: true,
           },
-          ...dailyQuestsResult.rows.map((quest: any) => ({
+          { key: "janson:catch_fish", title: "Janson: Gone Fishing", kind: "story", isActive: true },
+          { key: "janson:sell_fish", title: "Janson: Sell Fish", kind: "story", isActive: true },
+          ...dailyQuestsResult.rows.filter((quest: any) => !["catch_fish", "sell_fish"].includes(String(quest.quest_key))).map((quest: any) => ({
             key: String(quest.quest_key),
             title: String(quest.title),
             kind: "daily",
@@ -317,6 +322,13 @@ export function registerQuestRoutes(app: Express, dependencies: QuestRouteDepend
             WHERE user_id = ${moderatorUserId}
           `);
           questTitle = "Ginny's Little Companion";
+        } else if (questKey === "janson:catch_fish" || questKey === "janson:sell_fish") {
+          // Resetting the first chapter also resets the dependent second chapter.
+          await tx.execute(sql`DELETE FROM user_janson_quests
+            WHERE user_id = ${moderatorUserId}
+              AND (quest_key = ${questKey === "janson:catch_fish" ? "catch_fish" : "sell_fish"}
+                OR (${questKey === "janson:catch_fish"} AND quest_key = 'sell_fish'))`);
+          questTitle = questKey === "janson:catch_fish" ? "Janson: Gone Fishing and Sell Fish" : "Janson: Sell Fish";
         } else {
           const questResult = await tx.execute(sql`
             SELECT title

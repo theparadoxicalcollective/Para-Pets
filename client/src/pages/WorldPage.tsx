@@ -285,6 +285,12 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [fishingLocation, setFishingLocation] = useState<WorldLocationData | null>(null);
   const showFishing = fishingLocation !== null;
   const [showSellFish, setShowSellFish] = useState(false);
+  useEffect(() => {
+    if (worldId !== "swamp") return;
+    const openFishMarket = () => setShowSellFish(true);
+    window.addEventListener("para:open-fish-market", openFishMarket);
+    return () => window.removeEventListener("para:open-fish-market", openFishMarket);
+  }, [worldId]);
   const [barrelDragPos, setBarrelDragPos] = useState<{ x: number; y: number } | null>(null);
   const barrelDragRef = useRef<{ startX: number; startY: number; origPosX: number; origPosY: number } | null>(null);
   const barrelDidDrag = useRef(false);
