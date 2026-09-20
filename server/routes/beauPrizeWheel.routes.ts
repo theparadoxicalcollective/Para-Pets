@@ -6,6 +6,7 @@ import {
   getBeauPrizeOptions,
   getBeauPrizeWheelState,
   saveBeauPrizeSlot,
+  saveBeauWheelLayout,
   spinBeauPrizeWheel,
 } from "../beauPrizeWheel";
 
@@ -45,6 +46,15 @@ export function registerBeauPrizeWheelRoutes(app: Express): void {
       return res.json(await getBeauPrizeOptions());
     } catch (error) {
       return sendError(res, error, "options");
+    }
+  });
+
+  app.put("/api/admin/beau-prize-wheel/layout", requireAuthenticated, async (req: Request, res: Response) => {
+    if (!adminUser(req)) return res.status(403).json({ message: "Forbidden" });
+    try {
+      return res.json({ layout: await saveBeauWheelLayout(req.body) });
+    } catch (error) {
+      return sendError(res, error, "save wheel placement");
     }
   });
 
