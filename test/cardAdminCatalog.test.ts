@@ -132,6 +132,8 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /prefers-reduced-motion: reduce/);
   assert.match(preview, /inset: depth3d \? "12% 7%" : "12% 10%"/);
   assert.match(preview, /inset 0 0 24px 8px/);
+  assert.match(preview, /transform: depth3d \? "translateZ\(22px\)" : undefined/);
+  assert.doesNotMatch(preview, /isName \? 26 : 22/);
 });
 
 test("card collection keeps the cleaner open layout and text heading", () => {
