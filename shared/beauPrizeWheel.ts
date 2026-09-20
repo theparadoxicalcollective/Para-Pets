@@ -3,7 +3,7 @@ export const BEAU_PRIZE_WHEEL_NPC_NAME = "Beau";
 export const BEAU_PRIZE_WHEEL_SLOT_COUNT = 8;
 export const BEAU_PRIZE_WHEEL_PRIZE_SLOTS = 7;
 export const BEAU_PRIZE_WHEEL_LOSS_SLOT = 7;
-export const BEAU_PRIZE_WHEEL_PAID_COST = 500;
+export const BEAU_PRIZE_WHEEL_PAID_COST = 1000;
 
 
 // Position and diameter are percentages of the Beau artwork stage width/height.
