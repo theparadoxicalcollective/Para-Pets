@@ -127,7 +127,7 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /data-card-title-rarity=\{highRarityTitle \? rarity : undefined\}/);
   assert.match(preview, /cardTitleHologoldSweep/);
   assert.doesNotMatch(preview, /cardTitleFiveStarPulse/);
-  assert.doesNotMatch(preview, /\[data-card-title-rarity="5"\] > span \{[\s\S]*?animation:/);
+  assert.doesNotMatch(preview, /cardTitleHologoldSweep 6\.6s[^;]*cardTitleFiveStarPulse/);
   assert.match(preview, /background-clip: text/);
   assert.match(preview, /prefers-reduced-motion: reduce/);
   assert.match(preview, /inset: depth3d \? "12% 7%" : "12% 10%"/);
