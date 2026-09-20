@@ -230,7 +230,9 @@ test("Casino item and egg pools are separate, and rare prizes retain their weigh
   assert.match(prizes, /item\.type === "edibles"/);
   assert.match(prizes, /item\.type === "pet"/);
   assert.match(server, /\[0, 100, 45, 18, 6, 2\]\[rarity\]/);
-  assert.match(server, /price >= 1000/);
+  assert.match(server, /effectiveSlotItemRarity\(item\) >= 3/);
+  assert.match(server, /bet >= 1000/);
+  assert.match(server, /randomInt\(10\) < 9 \? common : rare/);
   assert.match(server, /pickPrizeItem/);
   assert.match(server, /grantPrizeItem/);
 });
