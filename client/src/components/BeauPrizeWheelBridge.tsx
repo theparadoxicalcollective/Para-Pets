@@ -282,7 +282,32 @@ export default function BeauPrizeWheelBridge() {
       )}
 
       {casinoMount && !isAdmin && (freeBingoGame || freeSlotSpin) && createPortal(
-        <span data-testid="casino-free-play-indicator" aria-label="Free casino play available" style={{ position: "absolute", top: "-12%", left: "50%", transform: "translateX(-50%)", zIndex: 25, width: 34, height: 34, borderRadius: "50%", display: "grid", placeItems: "center", background: "#754413", border: "2px solid #ffe29a", boxShadow: "0 0 18px #f6be55", color: "#fff6cd", fontSize: 24, fontWeight: 900, pointerEvents: "none" }}>!</span>,
+        <span
+          data-testid="casino-free-play-indicator"
+          aria-label="Free casino play available"
+          style={{
+            position: "absolute",
+            top: "-12%",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 25,
+            width: 34,
+            height: 34,
+            borderRadius: "50%",
+            display: "grid",
+            placeItems: "center",
+            background: "#754413",
+            border: "2px solid #ffe29a",
+            boxShadow: "0 0 18px #f6be55",
+            color: "#fff6cd",
+            fontSize: 24,
+            fontWeight: 900,
+            lineHeight: 1,
+            pointerEvents: "none",
+          }}
+        >
+          <span aria-hidden="true" style={{ display: "block", lineHeight: 1, transform: "translateY(-1px)" }}>!</span>
+        </span>,
         casinoMount,
       )}
 

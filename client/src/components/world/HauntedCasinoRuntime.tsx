@@ -213,8 +213,8 @@ function HauntedCasinoHotspotLayer({ onCurrencyChanged }: { onCurrencyChanged: (
             padding: 0,
           }}
         >
-          {!isAdmin && spot.id === "slots" && freeSlotSpin && <span data-testid="casino-slots-free-indicator" aria-label="Free 500 coin slot spin available" className="pointer-events-none absolute -right-2 -top-2 grid h-8 w-8 place-items-center rounded-full border-2 border-amber-200 bg-[#754413] text-xl font-black text-amber-50 shadow-[0_0_18px_#f6be55]">!</span>}
-          {!isAdmin && spot.id === "bingo" && freeBingoGame && <span data-testid="casino-bingo-free-indicator" aria-label="Free Bingo game available" className="pointer-events-none absolute -right-2 -top-2 grid h-8 w-8 place-items-center rounded-full border-2 border-amber-200 bg-[#754413] text-xl font-black text-amber-50 shadow-[0_0_18px_#f6be55]">!</span>}
+          {!isAdmin && spot.id === "slots" && freeSlotSpin && <span data-testid="casino-slots-free-indicator" aria-label="Free 500 coin slot spin available" className="pointer-events-none absolute -right-2 -top-2 grid h-8 w-8 place-items-center rounded-full border-2 border-amber-200 bg-[#754413] text-xl font-black leading-none text-amber-50 shadow-[0_0_18px_#f6be55]"><span aria-hidden className="-translate-y-px leading-none">!</span></span>}
+          {!isAdmin && spot.id === "bingo" && freeBingoGame && <span data-testid="casino-bingo-free-indicator" aria-label="Free Bingo game available" className="pointer-events-none absolute -right-2 -top-2 grid h-8 w-8 place-items-center rounded-full border-2 border-amber-200 bg-[#754413] text-xl font-black leading-none text-amber-50 shadow-[0_0_18px_#f6be55]"><span aria-hidden className="-translate-y-px leading-none">!</span></span>}
           {isAdmin && (
             <>
               <span

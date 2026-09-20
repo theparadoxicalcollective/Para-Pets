@@ -103,6 +103,9 @@ test("Casino runtime keeps player circles invisible while exposing admin drag an
   assert.match(runtime, /\/api\/admin\/haunted-casino\/hotspots/);
   assert.match(runtime, />opening soon</);
   assert.match(runtime, /spot\.id === "slots"/);
+  assert.match(runtime, /casino-slots-free-indicator[\s\S]*?leading-none/);
+  assert.match(runtime, /casino-bingo-free-indicator[\s\S]*?leading-none/);
+  assert.match(runtime, /-translate-y-px/);
 });
 
 test("Casino floor has an iOS-safe horizontal pan fallback that does not turn swipes into hotspot taps", () => {
