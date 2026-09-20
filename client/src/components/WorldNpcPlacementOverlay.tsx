@@ -424,6 +424,7 @@ export default function WorldNpcPlacementOverlay() {
         const quests = getNpcQuestAssociations(loc.name, loc.worldId);
         const canUsePlayerTalkHitbox = authResolved && !isAdmin && quests.length === 0 && metadata.messages.length > 0;
         const spokenMessage = spokenMessages[loc.id];
+        const hauntedForestGlow = loc.worldId === "haunted_woods";
 
         return createPortal(
           <>
@@ -450,7 +451,9 @@ export default function WorldNpcPlacementOverlay() {
                   height: "100%",
                   objectFit: "contain",
                   transform: loc.flipped ? "scaleX(-1)" : undefined,
-                  filter: "drop-shadow(0 7px 9px rgba(0,0,0,.68)) drop-shadow(0 2px 3px rgba(0,0,0,.5)) drop-shadow(0 0 2px rgba(255,244,214,.18))",
+                  filter: hauntedForestGlow
+                    ? "drop-shadow(0 0 1px rgba(255,248,255,.98)) drop-shadow(0 0 4px rgba(223,174,255,.88)) drop-shadow(0 0 9px rgba(143,82,210,.58)) drop-shadow(0 7px 9px rgba(0,0,0,.68)) drop-shadow(0 2px 3px rgba(0,0,0,.5))"
+                    : "drop-shadow(0 7px 9px rgba(0,0,0,.68)) drop-shadow(0 2px 3px rgba(0,0,0,.5)) drop-shadow(0 0 2px rgba(255,244,214,.18))",
                 }}
               />
             </div>

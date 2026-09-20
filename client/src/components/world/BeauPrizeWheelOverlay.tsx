@@ -873,7 +873,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
               touchAction: "none",
               cursor: state.isAdmin && !spinning ? "move" : undefined,
               pointerEvents: state.isAdmin ? "auto" : "none",
-              filter: "drop-shadow(0 0 7px rgba(255,206,82,.88)) drop-shadow(0 4px 5px rgba(0,0,0,.72))",
+              filter: "drop-shadow(0 0 3px rgba(255,92,84,.96)) drop-shadow(0 0 9px rgba(190,28,40,.72)) drop-shadow(0 0 7px rgba(255,206,82,.72)) drop-shadow(0 4px 5px rgba(0,0,0,.72))",
             }}
           >
             <div

@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { db } from "../db";
 import { requireAdmin, requireAuthenticated } from "../auth";
 import { isValidRedeemCode, normalizeRedeemCode } from "../redeemCode";
+import { parseBundleCards } from "../cards";
 
 type RedeemError = Error & { code?: string; status?: number };
 
@@ -39,11 +40,14 @@ export function registerRedeemCodeRoutes(app: Express): void {
       const shopItemIds = Array.isArray(req.body?.shopItemIds)
         ? req.body.shopItemIds.filter((id: unknown): id is string => typeof id === "string").slice(0, 999)
         : [];
+      let cards;
+      try { cards = parseBundleCards(req.body?.cards); }
+      catch (error: any) { return res.status(400).json({ message: error.message }); }
       const expiresAt = req.body?.expiresAt ? new Date(req.body.expiresAt) : null;
 
       if (!isValidRedeemCode(code)) return res.status(400).json({ message: "Code must be 3–32 letters, numbers, or hyphens" });
       if (!name) return res.status(400).json({ message: "Give this code reward a name" });
-      if (!coinAmount && shopItemIds.length === 0) return res.status(400).json({ message: "Add coins or at least one item" });
+      if (!coinAmount && shopItemIds.length === 0 && cards.length === 0) return res.status(400).json({ message: "Add coins, an item, or a card" });
       if (expiresAt && Number.isNaN(expiresAt.getTime())) return res.status(400).json({ message: "Expiration date is invalid" });
 
       const created = await db.transaction(async (tx) => {
@@ -51,6 +55,10 @@ export function registerRedeemCodeRoutes(app: Express): void {
           const uniqueItemIds = [...new Set(shopItemIds)];
           const found = await tx.execute(sql`SELECT id FROM shop_items WHERE id IN (${sql.join(uniqueItemIds.map(id => sql`${id}`), sql`, `)})`);
           if (found.rows.length !== uniqueItemIds.length) fail("One or more reward items no longer exist", "INVALID_ITEM", 400);
+        }
+        for (const card of cards) {
+          const found = await tx.execute(sql`SELECT id FROM card_definitions WHERE id = ${card.cardId} FOR SHARE`);
+          if (!found.rows.length) fail("One or more reward cards no longer exist", "INVALID_CARD", 400);
         }
 
         const bundleResult = await tx.execute(sql`
@@ -61,6 +69,9 @@ export function registerRedeemCodeRoutes(app: Express): void {
         const bundleId = String(bundleResult.rows[0].id);
         for (const shopItemId of shopItemIds) {
           await tx.execute(sql`INSERT INTO reward_bundle_items (bundle_id, shop_item_id) VALUES (${bundleId}, ${shopItemId})`);
+        }
+        for (const card of cards) {
+          await tx.execute(sql`INSERT INTO reward_bundle_cards (bundle_id, card_id, quantity) VALUES (${bundleId}, ${card.cardId}, ${card.quantity})`);
         }
         const codeResult = await tx.execute(sql`
           INSERT INTO redeem_codes (code, bundle_id, active, expires_at, created_by)
