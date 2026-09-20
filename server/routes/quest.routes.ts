@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import type { db as database } from "../db";
 import type { executeDailyQuestClaim as DailyQuestClaimExecutor } from "../dailyQuestClaim";
 import { BEGIN_JOURNEY_TUTORIAL } from "../tutorial/config";
+import { jansonQuestDate } from "../jansonQuestRules";
 
 const GINNY_MINI_PET_QUEST_KEY = "ginny-mini-pet";
 
@@ -258,6 +259,7 @@ export function registerQuestRoutes(app: Express, dependencies: QuestRouteDepend
           },
           { key: "janson:catch_fish", title: "Janson: Gone Fishing", kind: "story", isActive: true },
           { key: "janson:sell_fish", title: "Janson: Sell Fish", kind: "story", isActive: true },
+          { key: "janson:daily_catch_fish", title: "Janson: Daily Gone Fishing", kind: "daily", isActive: true },
           ...dailyQuestsResult.rows.filter((quest: any) => !["catch_fish", "sell_fish"].includes(String(quest.quest_key))).map((quest: any) => ({
             key: String(quest.quest_key),
             title: String(quest.title),
@@ -328,7 +330,13 @@ export function registerQuestRoutes(app: Express, dependencies: QuestRouteDepend
             WHERE user_id = ${moderatorUserId}
               AND (quest_key = ${questKey === "janson:catch_fish" ? "catch_fish" : "sell_fish"}
                 OR (${questKey === "janson:catch_fish"} AND quest_key = 'sell_fish'))`);
+          if (questKey === "janson:catch_fish") await tx.execute(sql`DELETE FROM user_janson_daily_quests
+            WHERE user_id = ${moderatorUserId} AND quest_day = ${jansonQuestDate()}::date`);
           questTitle = questKey === "janson:catch_fish" ? "Janson: Gone Fishing and Sell Fish" : "Janson: Sell Fish";
+        } else if (questKey === "janson:daily_catch_fish") {
+          await tx.execute(sql`DELETE FROM user_janson_daily_quests
+            WHERE user_id = ${moderatorUserId} AND quest_day = ${jansonQuestDate()}::date`);
+          questTitle = "Janson: Daily Gone Fishing";
         } else {
           const questResult = await tx.execute(sql`
             SELECT title
