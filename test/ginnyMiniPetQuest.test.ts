@@ -14,6 +14,7 @@ const routePath = new URL("../server/routes/ginnyQuest.routes.ts", import.meta.u
 const migrationPath = new URL("../server/startup/migrations/ensureGinnyQuest.ts", import.meta.url);
 const startupPath = new URL("../server/startup/runStartup.ts", import.meta.url);
 const overlayPath = new URL("../client/src/components/GinnyQuestOverlay.tsx", import.meta.url);
+const jansonOverlayPath = new URL("../client/src/components/JansonQuestOverlay.tsx", import.meta.url);
 const rootPath = new URL("../client/src/RootEntry.tsx", import.meta.url);
 
 test("Ginny quest identity, reward, and choice rules are stable", () => {
@@ -90,4 +91,21 @@ test("Ginny quest card is integrated without modifying the large quest/nav compo
   assert.match(overlay, /node\.textContent\?\.trim\(\) === "QUESTS"/);
   assert.match(root, /<GinnyQuestOverlay \/>/);
   assert.match(root, /QueryClientProvider client=\{queryClient\}/);
+});
+
+
+test("Janson quest marker matches Ginny's quest exclamation styling", async () => {
+  const ginny = await readFile(overlayPath, "utf8");
+  const janson = await readFile(jansonOverlayPath, "utf8");
+  for (const marker of [
+    /fontFamily: "Georgia,serif"/,
+    /border: "2px solid rgba\(255,228,136,\.94\)"/,
+    /boxShadow: "0 0 0 5px rgba\(255,218,90,\.12\),0 0 22px rgba\(255,199,58,\.85\)"/,
+    /animation: "ginnyQuestPulse 1\.7s ease-in-out infinite"/,
+  ]) {
+    assert.match(ginny, marker);
+    assert.match(janson, marker);
+  }
+  assert.match(janson, /data-testid="janson-quest-marker-badge"/);
+  assert.match(janson, /current\?\.status === "completed" \? "✓" : "!"/);
 });

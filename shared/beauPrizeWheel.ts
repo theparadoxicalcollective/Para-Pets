@@ -3,7 +3,8 @@ export const BEAU_PRIZE_WHEEL_NPC_NAME = "Beau";
 export const BEAU_PRIZE_WHEEL_SLOT_COUNT = 8;
 export const BEAU_PRIZE_WHEEL_PRIZE_SLOTS = 7;
 export const BEAU_PRIZE_WHEEL_LOSS_SLOT = 7;
-export const BEAU_PRIZE_WHEEL_PAID_COST = 1000;
+export const BEAU_PRIZE_WHEEL_PAID_COST = 2500;
+export const BEAU_PRIZE_WHEEL_POINTER_ANGLE = 90; // fixed pointer sits on the right side of the wheel
 
 
 // Position and diameter are percentages of the Beau artwork stage width/height.
@@ -54,6 +55,6 @@ export function beauWheelSlotCenterAngle(slot: number): number {
 }
 
 export function beauWheelLandingRotation(slot: number): number {
-  const raw = 360 - beauWheelSlotCenterAngle(slot);
+  const raw = BEAU_PRIZE_WHEEL_POINTER_ANGLE - beauWheelSlotCenterAngle(slot);
   return ((raw % 360) + 360) % 360;
 }

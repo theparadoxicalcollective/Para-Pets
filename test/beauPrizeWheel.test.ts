@@ -19,15 +19,17 @@ const startup = readFileSync("server/startup/runStartup.ts", "utf8");
 const overlay = readFileSync("client/src/components/world/BeauPrizeWheelOverlay.tsx", "utf8");
 const bridge = readFileSync("client/src/components/BeauPrizeWheelBridge.tsx", "utf8");
 
-test("Beau wheel has seven admin prizes plus one fixed loss section", () => {
+test("Beau wheel has seven admin prizes plus one fixed skull bonus section", () => {
   assert.equal(BEAU_PRIZE_WHEEL_SLOT_COUNT, 8);
   assert.equal(BEAU_PRIZE_WHEEL_PRIZE_SLOTS, 7);
   assert.equal(BEAU_PRIZE_WHEEL_LOSS_SLOT, 7);
-  assert.equal(BEAU_PRIZE_WHEEL_PAID_COST, 1000);
+  assert.equal(BEAU_PRIZE_WHEEL_PAID_COST, 2500);
 
   const centers = Array.from({ length: 8 }, (_, slot) => beauWheelSlotCenterAngle(slot));
   assert.deepEqual(centers, [22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5]);
   assert.equal(new Set(centers.map((_, slot) => beauWheelLandingRotation(slot))).size, 8);
+  assert.equal(beauWheelLandingRotation(0), 67.5, "slot 1 should land at the right-side pointer");
+  assert.equal(beauWheelLandingRotation(2), 337.5, "landing math should target 90 degrees instead of the old top pointer");
 });
 
 test("spin cost, daily free spin and reward grant stay server-authoritative and atomic", () => {
@@ -38,6 +40,12 @@ test("spin cost, daily free spin and reward grant stay server-authoritative and 
   assert.match(server, /FROM beau_prize_wheel_spins[\s\S]*spin_day/);
   assert.match(server, /randomInt\(BEAU_PRIZE_WHEEL_SLOT_COUNT\)/);
   assert.match(server, /slotIndex === BEAU_PRIZE_WHEEL_LOSS_SLOT/);
+  assert.match(server, /grantSkullBonus/);
+  assert.match(server, /SKULL_BONUS_AMOUNT = 100/);
+  assert.match(server, /coins = coins \+ \$\{SKULL_BONUS_AMOUNT\}/);
+  assert.match(server, /essence = COALESCE\(essence, 0\) \+ \$\{SKULL_BONUS_AMOUNT\}/);
+  assert.match(server, /kind: "exp", amount: SKULL_BONUS_AMOUNT/);
+  assert.match(server, /requiresActivePet: true/);
   assert.match(server, /active_pet_id/);
   assert.match(server, /pet_level_points/);
   assert.match(server, /ui\.is_hatched = true/);
@@ -58,8 +66,12 @@ test("player popup uses Beau art, empty wheel, pointer and Haunted Forest backgr
   assert.match(overlay, /PrizeWheelEmpty\.png/);
   assert.match(overlay, /PrizeWheelArrow\.png/);
   assert.match(overlay, /bg_haunted_woods_v2\.webp/);
-  assert.match(overlay, /generated_images\/icon_skull_defeat\.png/);
+  assert.match(overlay, /Photoroom_20260705_103527_PM_1783426783499\.png/);
   assert.match(overlay, /beauWheelLandingRotation/);
+  assert.match(overlay, /data-testid="beau-prize-wheel-arrow"/);
+  assert.match(overlay, /transform: "rotate\(90deg\)"/);
+  assert.match(overlay, /data-testid="beau-skull-burst"/);
+  assert.match(overlay, /SKULL_BURST_PARTICLES/);
   assert.match(overlay, /FREE SPIN/);
   assert.match(overlay, /SPIN ·/);
 });

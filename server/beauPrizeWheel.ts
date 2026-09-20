@@ -33,7 +33,8 @@ const MAX_CURRENCY_REWARD = 1_000_000;
 const MAX_EXP_REWARD = 100_000;
 const COIN_IMAGE = "/world-assets/icon_coin.png";
 const ESSENCE_IMAGE = "/world-assets/Photoroom_20260709_23958_PM_1783626016795.png";
-const LOSS_IMAGE = "/world-assets/generated_images/icon_skull_defeat.png";
+const LOSS_IMAGE = "/world-assets/Photoroom_20260705_103527_PM_1783426783499.png";
+const SKULL_BONUS_AMOUNT = 100;
 
 export class BeauPrizeWheelError extends Error {
   constructor(
@@ -211,7 +212,7 @@ async function resolveWheel(executor: Executor): Promise<ResolvedWheel> {
     slot: BEAU_PRIZE_WHEEL_LOSS_SLOT,
     configured: true,
     kind: "loss",
-    label: "No Prize",
+    label: "Skull Bonus",
     imageUrl: LOSS_IMAGE,
     amount: null,
     shopItemId: null,
@@ -221,7 +222,8 @@ async function resolveWheel(executor: Executor): Promise<ResolvedWheel> {
     configs,
     slots,
     ready: configs.length === BEAU_PRIZE_WHEEL_PRIZE_SLOTS && configs.every(Boolean),
-    requiresActivePet: configs.some(config => config?.kind === "exp"),
+    // The fixed skull section always grants 100 EXP to the active pet.
+    requiresActivePet: true,
   };
 }
 
@@ -423,7 +425,7 @@ async function grantReward(executor: Executor, userId: string, config: BeauPrize
       FOR UPDATE
     `);
     const pet = petResult.rows[0] as any;
-    if (!pet) throw new BeauPrizeWheelError("active_pet_required", 409, "Set a hatched pet as active before spinning Beau's wheel while EXP is a possible prize.");
+    if (!pet) throw new BeauPrizeWheelError("active_pet_required", 409, "Set a hatched pet as active before spinning Beau's wheel because every spin can land on the 100 EXP skull bonus.");
     const previousLevel = Number(pet.pet_level ?? 1);
     const next = applyPetXp(previousLevel, Number(pet.pet_level_points ?? 0), amount);
     await executor.execute(sql`
@@ -444,6 +446,42 @@ async function grantReward(executor: Executor, userId: string, config: BeauPrize
   return {
     ...view,
     message: config.kind === "egg" ? "You won a " + view.label + " egg!" : "You won " + view.label + "!",
+  };
+}
+
+async function grantSkullBonus(executor: Executor, userId: string, slotIndex: number) {
+  await executor.execute(sql`
+    UPDATE users
+    SET coins = coins + ${SKULL_BONUS_AMOUNT},
+        essence = COALESCE(essence, 0) + ${SKULL_BONUS_AMOUNT},
+        total_coins_earned = total_coins_earned + ${SKULL_BONUS_AMOUNT}
+    WHERE id = ${userId}
+  `);
+
+  const skullView: BeauPrizeView = {
+    slot: slotIndex,
+    configured: true,
+    kind: "loss",
+    label: "Skull Bonus",
+    imageUrl: LOSS_IMAGE,
+    amount: null,
+    shopItemId: null,
+  };
+  const petReward = await grantReward(
+    executor,
+    userId,
+    { slot: slotIndex, kind: "exp", amount: SKULL_BONUS_AMOUNT },
+    skullView,
+  );
+  const petName = "petName" in petReward && petReward.petName
+    ? String(petReward.petName)
+    : "your active pet";
+  return {
+    ...petReward,
+    bonusCoins: SKULL_BONUS_AMOUNT,
+    bonusEssence: SKULL_BONUS_AMOUNT,
+    bonusExp: SKULL_BONUS_AMOUNT,
+    message: `Skull bonus! +${SKULL_BONUS_AMOUNT} coins, +${SKULL_BONUS_AMOUNT} essence, and ${petName} gained ${SKULL_BONUS_AMOUNT} EXP!`,
   };
 }
 
@@ -512,16 +550,7 @@ export async function spinBeauPrizeWheel(
     const slotIndex = randomInt(BEAU_PRIZE_WHEEL_SLOT_COUNT);
     let reward: any;
     if (slotIndex === BEAU_PRIZE_WHEEL_LOSS_SLOT) {
-      reward = {
-        slot: slotIndex,
-        configured: true,
-        kind: "loss",
-        label: "No Prize",
-        imageUrl: LOSS_IMAGE,
-        amount: null,
-        shopItemId: null,
-        message: "The skull claimed this spin. No prize this time.",
-      };
+      reward = await grantSkullBonus(executor, userId, slotIndex);
     } else {
       const config = wheel.configs[slotIndex];
       const view = wheel.slots[slotIndex];
