@@ -6,6 +6,7 @@ import { cardAdminValidation } from "../server/routes/cardAdmin.routes";
 const adminPage = fs.readFileSync("client/src/pages/AdminPage.tsx", "utf8");
 const adminPanel = fs.readFileSync("client/src/components/CardAdminPanel.tsx", "utf8");
 const preview = fs.readFileSync("client/src/components/CardPreview.tsx", "utf8");
+const detail = fs.readFileSync("client/src/components/CardDetailDialog.tsx", "utf8");
 const catalog = fs.readFileSync("client/src/lib/cardCatalog.ts", "utf8");
 const routes = fs.readFileSync("server/routes/cardAdmin.routes.ts", "utf8");
 const routeRegistry = fs.readFileSync("server/routes.ts", "utf8");
@@ -79,4 +80,19 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
     () => cardAdminValidation.parseLayout({ ...valid, descriptionY: 90 }),
     /inside the card/,
   );
+});
+
+
+test("player-facing cards use brighter rarity stars, tiered sparkles, and swipe-to-turn lore", () => {
+  assert.match(preview, /brightness\(1\.2\)/);
+  assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*0[\s\S]*?3:\s*4[\s\S]*?4:\s*8[\s\S]*?5:\s*14/);
+  assert.match(preview, /data-testid="card-rarity-sparkles"/);
+  assert.match(preview, /translateZ\(18px\)/);
+  assert.match(detail, /data-testid="card-turn-surface"/);
+  assert.match(detail, /velocity >= 0\.45/);
+  assert.match(detail, /gesture\.width \* 0\.12/);
+  assert.match(detail, /rotateY\(\$\{turnAngle\}deg\)/);
+  assert.match(detail, /depth3d/);
+  assert.match(detail, /Drag left or right to turn the card\. Swipe quickly to read more\./);
+  assert.doesNotMatch(detail, /onDescriptionClick=/);
 });
