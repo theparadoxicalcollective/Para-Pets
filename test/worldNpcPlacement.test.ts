@@ -50,13 +50,15 @@ test("server verification ignores harmless floating point noise but catches a re
 });
 
 
-test("world NPC art keeps a grounded shadow and a noticeable bottom-anchored breathing idle", () => {
+test("world NPC art keeps a grounded shadow and a smooth bottom-anchored breathing idle", () => {
   const source = readFileSync("client/src/components/WorldNpcPlacementOverlay.tsx", "utf8");
   assert.match(source, /@keyframes paraNpcBreathe/);
-  assert.match(source, /42% \{ transform: scaleY\(\.958\); \}/);
-  assert.match(source, /55% \{ transform: scaleY\(\.95\); \}/);
-  assert.match(source, /animation: paraNpcBreathe 4\.15s ease-in-out infinite/);
+  assert.match(source, /0%, 100% \{ transform: translate3d\(0,0,0\) scale3d\(1,1,1\); \}/);
+  assert.match(source, /50% \{ transform: translate3d\(0,\.16%,0\) scale3d\(1\.003,\.984,1\); \}/);
+  assert.match(source, /animation: paraNpcBreathe 4\.8s cubic-bezier\(\.42,0,\.58,1\) infinite/);
   assert.match(source, /transform-origin: 50% 100%/);
+  assert.match(source, /will-change: transform/);
+  assert.match(source, /backface-visibility: hidden/);
   assert.match(source, /drop-shadow\(0 7px 9px rgba\(0,0,0,\.68\)\)/);
   assert.match(source, /drop-shadow\(0 0 2px rgba\(255,244,214,\.18\)\)/);
   assert.match(source, /prefers-reduced-motion: reduce/);
