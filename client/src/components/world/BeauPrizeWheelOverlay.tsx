@@ -16,7 +16,7 @@ const beauFrame = "/world-assets/uploads/BeauPrizeWheel.png";
 const emptyWheel = "/world-assets/uploads/PrizeWheelEmpty.png";
 const wheelArrow = "/world-assets/uploads/PrizeWheelArrow.png";
 const hauntedForestBackground = "/world-assets/bg_haunted_woods_v2.webp";
-const lossSkull = "/world-assets/generated_images/icon_skull_defeat.png";
+const lossSkull = "/world-assets/Photoroom_20260705_103527_PM_1783426783499.png";
 const coinIcon = "/world-assets/icon_coin.png";
 const essenceIcon = "/world-assets/Photoroom_20260709_23958_PM_1783626016795.png";
 
@@ -69,6 +69,26 @@ interface Props {
 
 const WHEEL_STAGE_RATIO = 1122 / 1402;
 const ARROW_WIDTH = 11;
+const SKULL_BURST_PARTICLES = [
+  { left: 8, top: 71, size: 18, delay: 0.02, duration: 1.75, rotate: -22 },
+  { left: 17, top: 53, size: 28, delay: 0.08, duration: 1.95, rotate: 13 },
+  { left: 25, top: 79, size: 14, delay: 0.16, duration: 1.6, rotate: -9 },
+  { left: 31, top: 40, size: 22, delay: 0.2, duration: 2.05, rotate: 19 },
+  { left: 39, top: 67, size: 34, delay: 0.04, duration: 2.15, rotate: -17 },
+  { left: 46, top: 29, size: 16, delay: 0.27, duration: 1.72, rotate: 7 },
+  { left: 52, top: 77, size: 25, delay: 0.12, duration: 1.9, rotate: 24 },
+  { left: 59, top: 48, size: 13, delay: 0.31, duration: 1.58, rotate: -28 },
+  { left: 66, top: 70, size: 31, delay: 0.18, duration: 2.1, rotate: 11 },
+  { left: 74, top: 36, size: 19, delay: 0.06, duration: 1.82, rotate: -14 },
+  { left: 82, top: 63, size: 27, delay: 0.24, duration: 2.0, rotate: 27 },
+  { left: 89, top: 47, size: 15, delay: 0.14, duration: 1.66, rotate: -6 },
+  { left: 14, top: 28, size: 12, delay: 0.35, duration: 1.55, rotate: 30 },
+  { left: 28, top: 18, size: 24, delay: 0.11, duration: 1.88, rotate: -25 },
+  { left: 43, top: 13, size: 17, delay: 0.29, duration: 1.7, rotate: 16 },
+  { left: 57, top: 21, size: 29, delay: 0.01, duration: 2.12, rotate: -12 },
+  { left: 71, top: 16, size: 14, delay: 0.22, duration: 1.64, rotate: 21 },
+  { left: 86, top: 25, size: 21, delay: 0.33, duration: 1.92, rotate: -19 },
+] as const;
 
 function slotPosition(slot: number) {
   const angle = beauWheelSlotCenterAngle(slot) * Math.PI / 180;
@@ -576,7 +596,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
   const footerMessage = !state.ready
     ? `Admin setup: ${configuredCount}/${BEAU_PRIZE_WHEEL_PRIZE_SLOTS} prize sections set`
     : activePetBlocked
-      ? "Set a hatched pet as active before spinning — EXP is on the wheel."
+      ? "Set a hatched pet as active before spinning — the skull bonus includes 100 pet EXP."
       : !canAfford
         ? `You need ${BEAU_PRIZE_WHEEL_PAID_COST.toLocaleString()} coins for another spin.`
         : state.freeSpinAvailable
@@ -592,6 +612,17 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
       data-testid="beau-prize-wheel-overlay"
       style={{ overscrollBehavior: "contain" }}
     >
+      <style>{`
+        @keyframes beauSkullBurst {
+          0% { opacity: 0; transform: translateY(12px) scale(.3); }
+          18% { opacity: .96; transform: translateY(0) scale(.78); }
+          48% { opacity: 1; transform: translateY(-18px) scale(1); }
+          100% { opacity: 0; transform: translateY(-58px) scale(1.18); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [data-testid="beau-skull-burst"] img { animation-duration: .01ms !important; }
+        }
+      `}</style>
       <div
         className="pointer-events-none absolute inset-0"
         aria-hidden="true"
@@ -669,14 +700,57 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
             alt=""
             draggable={false}
             decoding="async"
+            data-testid="beau-prize-wheel-arrow"
             className="pointer-events-none absolute z-[12] select-none object-contain"
             style={{
-              left: `${layout.left + layout.size / 2 - ARROW_WIDTH / 2}%`,
-              top: `${layout.top - 4.9}%`,
+              left: `${layout.left + layout.size - ARROW_WIDTH * .36}%`,
+              top: `${layout.top + layout.size * WHEEL_STAGE_RATIO / 2 - ARROW_WIDTH * WHEEL_STAGE_RATIO / 2}%`,
               width: `${ARROW_WIDTH}%`,
+              transform: "rotate(90deg)",
+              transformOrigin: "50% 50%",
               filter: "drop-shadow(0 0 7px rgba(255,205,92,.78)) drop-shadow(0 3px 5px rgba(0,0,0,.72))",
             }}
           />
+
+          {result?.reward.kind === "loss" && !spinning && (
+            <div
+              data-testid="beau-skull-burst"
+              aria-hidden="true"
+              className="pointer-events-none absolute z-[18]"
+              style={{
+                left: `${layout.left}%`,
+                top: `${layout.top}%`,
+                width: `${layout.size}%`,
+                aspectRatio: "1 / 1",
+                overflow: "visible",
+              }}
+            >
+              {SKULL_BURST_PARTICLES.map((particle, index) => (
+                <span
+                  key={index}
+                  className="absolute"
+                  style={{
+                    left: `${particle.left}%`,
+                    top: `${particle.top}%`,
+                    width: particle.size,
+                    transform: `translate(-50%,-50%) rotate(${particle.rotate}deg)`,
+                  }}
+                >
+                  <img
+                    src={lossSkull}
+                    alt=""
+                    draggable={false}
+                    className="block h-auto w-full object-contain"
+                    style={{
+                      opacity: 0,
+                      animation: `beauSkullBurst ${particle.duration}s ease-out ${particle.delay}s 1 forwards`,
+                      filter: "drop-shadow(0 0 7px rgba(255,255,255,.82)) drop-shadow(0 3px 5px rgba(0,0,0,.65))",
+                    }}
+                  />
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </main>
 
