@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { getSlotPrizeCatalog, getSlotPrizeOptions, parseSlotPrizeIds, saveSlotPrizeSelection, slotPrizePreviews, type CasinoPrizeItem } from "../server/hauntedSlotPrizes";
-import { spinHauntedSlots } from "../server/hauntedCasino";
+import { casinoDay, eligibleSlotCatalog, pickPrizeItem, spinHauntedSlots } from "../server/hauntedCasino";
 import { registerHauntedCasinoRoutes } from "../server/routes/hauntedCasino.routes";
 
 const PVP_TICKET_ID = "a1b2c3d4-9001-4000-8000-000000000099";
@@ -65,8 +65,8 @@ function fixture() {
   const database = {
     transaction(fn: (executor: any) => Promise<any>) {
       const next = queue.then(async () => {
-        const before = { coins, inventory: [...inventory] };
-        try { return await fn(tx); } catch (error) { coins = before.coins; inventory = before.inventory; throw error; }
+        const before = { coins, inventory: [...inventory], settings: new Map(settings) };
+        try { return await fn(tx); } catch (error) { coins = before.coins; inventory = before.inventory; settings.clear(); for (const [key, value] of before.settings) settings.set(key, value); throw error; }
       });
       queue = next.catch(() => {});
       return next;
@@ -110,9 +110,9 @@ test("public prize previews mirror the saved catalog, including items without ar
   await saveSlotPrizeSelection(f.tx, "items", ["gift", "no-art-item"]);
   await saveSlotPrizeSelection(f.tx, "eggs", ["egg-a"]);
   assert.deepEqual(slotPrizePreviews(await getSlotPrizeCatalog(f.tx)), [
-    { id: "gift", name: "gift", imageUrl: "gift.png", category: "loot" },
-    { id: "no-art-item", name: "no-art-item", imageUrl: null, category: "loot" },
-    { id: "egg-a", name: "egg-a", imageUrl: "egg-a-egg.png", category: "egg" },
+    { id: "gift", name: "gift", imageUrl: "gift.png", category: "loot", rarity: 1 },
+    { id: "no-art-item", name: "no-art-item", imageUrl: null, category: "loot", rarity: 1 },
+    { id: "egg-a", name: "egg-a", imageUrl: "egg-a-egg.png", category: "egg", rarity: 1 },
   ]);
   // Removing a catalog entry also removes it from the public preview.
   f.options.splice(f.options.findIndex(option => option.id === "gift"), 1);
@@ -133,7 +133,7 @@ test("three eggs grant exactly one selected unhatched egg in the wallet transact
   const f = fixture();
   await saveSlotPrizeSelection(f.tx, "items", []);
   await saveSlotPrizeSelection(f.tx, "eggs", ["egg-a"]);
-  const result = await spinHauntedSlots("player", 10, f.database, () => 66);
+  const result = await spinHauntedSlots("player", 50, false, f.database, () => 66);
   assert.deepEqual(result.reels, ["egg", "egg", "egg"]);
   assert.equal(result.reward.itemGranted?.id, "egg-a");
   assert.equal(result.reward.itemGranted?.imageUrl, "egg-a-egg.png");
@@ -145,16 +145,16 @@ test("failed wallet credit rolls back the egg grant", async () => {
   await saveSlotPrizeSelection(f.tx, "items", []);
   await saveSlotPrizeSelection(f.tx, "eggs", ["egg-a"]);
   f.failWallet();
-  await assert.rejects(spinHauntedSlots("player", 10, f.database, () => 66), /wallet unavailable/);
+  await assert.rejects(spinHauntedSlots("player", 50, false, f.database, () => 66), /wallet unavailable/);
   assert.deepEqual(f.state(), { coins: 100, inventory: [] });
 });
 
 test("empty egg selections omit the egg symbol, and insufficient funds cannot grant prizes", async () => {
   const f = fixture();
-  const result = await spinHauntedSlots("player", 10, f.database, () => 0);
+  const result = await spinHauntedSlots("player", 50, false, f.database, () => 0);
   assert.ok(result.symbols.every(symbol => symbol.id !== "egg"));
   f.setCoins(0);
-  await assert.rejects(spinHauntedSlots("player", 10, f.database), /Not enough coins/);
+  await assert.rejects(spinHauntedSlots("player", 50, false, f.database), /Not enough coins/);
   assert.deepEqual(f.state().inventory, []);
 });
 
@@ -168,4 +168,47 @@ test("non-admin requests cannot read or change slot prize selections", async () 
     await handlers.get(key)!({ user: { id: "player", isAdmin: false }, params: { kind: "eggs" }, body: { ids: ["egg-a"] } }, response);
     assert.equal(status, 403);
   }
+});
+
+test("high stakes award rare catalog prizes only; low stakes favor common and uncommon", () => {
+  const common = item("common", "item", { star_rarity: 1 });
+  const uncommon = item("uncommon", "item", { star_rarity: 2 });
+  const rare = item("rare", "item", { star_rarity: 3 });
+  const rareEgg = item("rare-egg", "pet", { star_rarity: 4 });
+  const catalog = { edible: [], loot: [common, uncommon, rare], egg: [rareEgg] };
+  const low = eligibleSlotCatalog(catalog, 50);
+  assert.deepEqual(low.loot.map(prize => prize.id), ["common", "uncommon", "rare"]);
+  assert.deepEqual(low.egg, []);
+  assert.equal(pickPrizeItem(low.loot, 50, () => 0)?.id, "common");
+  assert.equal(pickPrizeItem(low.loot, 500, max => max === 10 ? 9 : 0)?.id, "rare");
+  const high = eligibleSlotCatalog(catalog, 1000);
+  assert.deepEqual(high.loot.map(prize => prize.id), ["rare"]);
+  assert.deepEqual(high.egg.map(prize => prize.id), ["rare-egg"]);
+  assert.equal(pickPrizeItem(high.loot, 5000, () => 0)?.id, "rare");
+  assert.equal(pickPrizeItem([common], 5000, () => 0), null);
+});
+
+test("the free 500 spin is available once per Chicago day and costs zero coins", async () => {
+  const f = fixture();
+  f.setCoins(0);
+  const first = await spinHauntedSlots("player", 500, true, f.database, () => 0);
+  assert.equal(first.wasFree, true);
+  assert.equal(first.freeSpinAvailable, false);
+  assert.equal(f.state().coins, first.reward.coins);
+  await assert.rejects(spinHauntedSlots("player", 500, true, f.database, () => 0), /already been used/);
+  f.setCoins(0);
+  await assert.rejects(spinHauntedSlots("player", 500, false, f.database, () => 0), /Not enough coins/);
+  await assert.rejects(spinHauntedSlots("player", 50, true, f.database, () => 0), /free 500 coin spin/);
+});
+
+test("a failed free spin does not consume the daily entitlement", async () => {
+  const f = fixture();
+  f.failWallet();
+  await assert.rejects(spinHauntedSlots("player", 500, true, f.database, () => 0), /wallet unavailable/);
+  assert.equal([...f.settings.keys()].some(key => key.startsWith("haunted_slots_free_500_v1:")), false);
+});
+
+test("daily slot entitlement resets at midnight in the same casino time zone as Beau", () => {
+  assert.equal(casinoDay(new Date("2026-09-21T04:59:00Z")), "2026-09-20");
+  assert.equal(casinoDay(new Date("2026-09-21T05:01:00Z")), "2026-09-21");
 });
