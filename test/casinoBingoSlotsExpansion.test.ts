@@ -7,11 +7,11 @@ const server = readFileSync("server/hauntedCasino.ts", "utf8");
 const polish = readFileSync("client/src/components/world/CasinoMobilePolish.css", "utf8");
 const main = readFileSync("client/src/main.tsx", "utf8");
 
-test("Slaughter Slots exposes stakes through 10k but keeps server wallet enforcement", () => {
-  assert.match(shared, /HAUNTED_CASINO_BETS\s*=\s*\[[^\]]*5000,\s*10000\]/s);
+test("Slaughter Slots exposes the five stakes and enforces the real wallet", () => {
+  assert.match(shared, /HAUNTED_CASINO_BETS\s*=\s*\[50, 100, 500, 1000, 5000\]/s);
   assert.match(server, /HAUNTED_CASINO_BETS\.includes\(bet as any\)/);
-  assert.match(server, /Number\(user\.coins \?\? 0\) < bet/);
-  assert.match(server, /SET coins = coins - \$\{bet\} \+ \$\{reward\.coins\}/);
+  assert.match(server, /Number\(user\.coins \?\? 0\) < cost/);
+  assert.match(server, /SET coins = coins - \$\{cost\} \+ \$\{reward\.coins\}/);
 });
 
 test("Ginny is a rare live-NPC reel symbol with bounded coin rewards", () => {
