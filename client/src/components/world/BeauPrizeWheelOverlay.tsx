@@ -572,16 +572,16 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
     }
   };
 
-  const spinLabel = state.freeSpinAvailable ? "FREE SPIN" : "SPIN · 500";
+  const spinLabel = state.freeSpinAvailable ? "FREE SPIN" : `SPIN · ${BEAU_PRIZE_WHEEL_PAID_COST.toLocaleString()}`;
   const footerMessage = !state.ready
     ? `Admin setup: ${configuredCount}/${BEAU_PRIZE_WHEEL_PRIZE_SLOTS} prize sections set`
     : activePetBlocked
       ? "Set a hatched pet as active before spinning — EXP is on the wheel."
       : !canAfford
-        ? "You need 500 coins for another spin."
+        ? `You need ${BEAU_PRIZE_WHEEL_PAID_COST.toLocaleString()} coins for another spin.`
         : state.freeSpinAvailable
           ? "Your first spin today is free."
-          : "Additional spins cost 500 coins each.";
+          : `Additional spins cost ${BEAU_PRIZE_WHEEL_PAID_COST.toLocaleString()} coins each.`;
 
   return (
     <div
