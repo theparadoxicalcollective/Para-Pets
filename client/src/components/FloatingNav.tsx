@@ -190,8 +190,11 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     staleTime: 5000,
     refetchOnWindowFocus: true,
   });
-  const { data: jansonData } = useQuery<{ quests: { status: string }[] }>({
+  const { data: jansonData } = useQuery<{ quests: { status: string }[]; dailyQuest?: { status: string } }>({
     queryKey: ["/api/quests/janson"], staleTime: 5000, refetchOnWindowFocus: true,
+  });
+  const { data: ginnyData } = useQuery<{ status: string }>({
+    queryKey: ["/api/quests/ginny-mini-pet"], staleTime: 5000, refetchOnWindowFocus: true,
   });
 
   // ── Friend-request count ──────────────────────────────────────────────────
@@ -259,7 +262,11 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const visibleDailyQuests = questData?.quests.filter(q => !q.reward_claimed) ?? [];
   const hasCompletedUnclaimed = questData?.quests.some(q => q.completed && !q.reward_claimed) ?? false;
   const tutorialClaimable = !!(user as any).tutorial_quest_completed && !(user as any).tutorial_reward_claimed;
-  const questRewardReady = hasCompletedUnclaimed || tutorialClaimable || !!jansonData?.quests.some(q => q.status === "completed");
+  const npcQuestInLog = !!ginnyData && (ginnyData.status === "accepted" || ginnyData.status === "completed")
+    || !!jansonData?.quests.some(q => q.status === "accepted" || q.status === "completed")
+    || jansonData?.dailyQuest?.status === "accepted" || jansonData?.dailyQuest?.status === "completed";
+  const questRewardReady = hasCompletedUnclaimed || tutorialClaimable || ginnyData?.status === "completed"
+    || !!jansonData?.quests.some(q => q.status === "completed") || jansonData?.dailyQuest?.status === "completed";
 
   const friendRequestCount = friendReqData?.count ?? 0;
   const friendBadge: "green" | null = friendRequestCount > 0 ? "green" : null;
@@ -531,7 +538,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
                   </div>
                 )}
                 {!questData || visibleDailyQuests.length === 0 ? (
-                  <div className="rounded p-2.5" style={{ background: "rgba(92,58,30,0.07)", border: "1px solid rgba(139,90,40,0.3)" }}>
+                  !npcQuestInLog && <div className="rounded p-2.5" style={{ background: "rgba(92,58,30,0.07)", border: "1px solid rgba(139,90,40,0.3)" }}>
                     <p className="font-fantasy text-[#3a1800] text-[11.5px] tracking-wider leading-relaxed">No active quests. Explore the realm to discover adventures...</p>
                   </div>
                 ) : (

@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { jansonQuestDate } from "./jansonQuestRules";
 
 export const FISHING_ATTEMPT_TTL_MS = 2 * 60 * 1000;
 export const FISH_POINTS: Readonly<Record<number, number>> = { 1: 10, 2: 12, 3: 20, 4: 25, 5: 50 };
@@ -207,6 +208,22 @@ export async function completeFishingAttempt(
       RETURNING p.completed_at
     `);
     if ((jansonProgress.rows[0] as any)?.completed_at) await tx.execute(sql`
+      INSERT INTO user_quest_log_state (user_id, has_unseen_completion)
+      VALUES (${input.userId}, true)
+      ON CONFLICT (user_id) DO UPDATE SET has_unseen_completion = true
+    `);
+    // The repeatable chapter advances only for today's accepted run. A catch
+    // cannot count toward a quest the player has not taken from Janson yet.
+    const dailyProgress = await tx.execute(sql`
+      UPDATE user_janson_daily_quests p
+      SET progress = LEAST(q.target_count, p.progress + 1),
+          completed_at = CASE WHEN p.progress + 1 >= q.target_count THEN NOW() ELSE NULL END
+      FROM daily_quests q
+      WHERE p.user_id = ${input.userId} AND p.quest_day = ${jansonQuestDate()}::date
+        AND p.completed_at IS NULL AND q.quest_key = 'catch_fish'
+      RETURNING p.completed_at
+    `);
+    if ((dailyProgress.rows[0] as any)?.completed_at) await tx.execute(sql`
       INSERT INTO user_quest_log_state (user_id, has_unseen_completion)
       VALUES (${input.userId}, true)
       ON CONFLICT (user_id) DO UPDATE SET has_unseen_completion = true

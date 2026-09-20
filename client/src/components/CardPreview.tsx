@@ -49,26 +49,27 @@ const RARITY_SPARKLE_COUNT: Record<CardRarity, number> = {
 const RARITY_SPARKLE_STYLE: Record<CardRarity, { opacity: number; duration: string; glow: string }> = {
   1: { opacity: 0, duration: "0s", glow: "none" },
   2: { opacity: 0, duration: "0s", glow: "none" },
-  3: { opacity: 0.62, duration: "3.8s", glow: "drop-shadow(0 0 2px rgba(255,225,120,.65))" },
-  4: { opacity: 0.8, duration: "3.2s", glow: "drop-shadow(0 0 3px rgba(255,225,120,.8))" },
+  3: { opacity: 0.85, duration: "3.8s", glow: "drop-shadow(0 0 2px rgba(255,225,120,.65))" },
+  4: { opacity: 0.95, duration: "3.2s", glow: "drop-shadow(0 0 3px rgba(255,225,120,.8))" },
   5: { opacity: 1, duration: "2.7s", glow: "drop-shadow(0 0 4px rgba(255,235,150,.9))" },
 };
 
 const CARD_SPARKLE_POINTS = [
-  { left: 14, top: 18, size: 2.2, delay: 0.0 },
-  { left: 83, top: 20, size: 1.8, delay: 0.5 },
-  { left: 18, top: 47, size: 1.6, delay: 1.0 },
-  { left: 80, top: 44, size: 2.4, delay: 1.4 },
-  { left: 30, top: 31, size: 1.5, delay: 0.8 },
-  { left: 69, top: 32, size: 1.9, delay: 1.8 },
-  { left: 15, top: 68, size: 2.0, delay: 1.2 },
-  { left: 84, top: 70, size: 1.5, delay: 0.3 },
-  { left: 29, top: 82, size: 2.2, delay: 1.6 },
-  { left: 70, top: 81, size: 1.8, delay: 0.9 },
-  { left: 48, top: 24, size: 1.4, delay: 2.0 },
-  { left: 53, top: 57, size: 1.6, delay: 0.2 },
-  { left: 26, top: 60, size: 1.3, delay: 2.2 },
-  { left: 74, top: 58, size: 1.4, delay: 1.1 },
+  // Place the strongest glints at the bottom of the artwork, then taper upward.
+  { left: 50, top: 88, size: 3.1, delay: 0.0 },
+  { left: 36, top: 79, size: 2.7, delay: 0.5 },
+  { left: 64, top: 78, size: 2.9, delay: 1.0 },
+  { left: 43, top: 69, size: 2.6, delay: 1.4 },
+  { left: 57, top: 67, size: 2.6, delay: 0.8 },
+  { left: 49, top: 59, size: 2.3, delay: 1.8 },
+  { left: 32, top: 56, size: 2.1, delay: 1.2 },
+  { left: 68, top: 53, size: 2.1, delay: 0.3 },
+  { left: 58, top: 46, size: 1.9, delay: 1.6 },
+  { left: 43, top: 42, size: 1.7, delay: 0.9 },
+  { left: 51, top: 34, size: 1.6, delay: 2.0 },
+  { left: 35, top: 29, size: 1.5, delay: 0.2 },
+  { left: 65, top: 27, size: 1.4, delay: 2.2 },
+  { left: 53, top: 21, size: 1.3, delay: 1.1 },
 ] as const;
 
 export default function CardPreview({
@@ -296,19 +297,19 @@ export default function CardPreview({
             viewBox="0 0 100 150"
             preserveAspectRatio="none"
             aria-hidden="true"
-            style={{ pointerEvents: "none", opacity: RARITY_SPARKLE_STYLE[rarity].opacity, filter: RARITY_SPARKLE_STYLE[rarity].glow }}
+            style={{ pointerEvents: "none", zIndex: 1, opacity: RARITY_SPARKLE_STYLE[rarity].opacity, filter: RARITY_SPARKLE_STYLE[rarity].glow, overflow: "hidden", clipPath: "inset(0)" }}
           >
             {CARD_SPARKLE_POINTS.slice(0, RARITY_SPARKLE_COUNT[rarity]).map((sparkle, index) => {
               const x = sparkle.left;
               const y = sparkle.top * 1.5;
-              const ray = Math.max(0.75, sparkle.size * 0.42);
+              const ray = Math.max(1.4, sparkle.size * 0.8);
               return (
                 <g
                   key={index}
                   className="card-artwork-sparkle"
                   style={{ animationDelay: `-${sparkle.delay}s`, animationDuration: RARITY_SPARKLE_STYLE[rarity].duration }}
                 >
-                  <circle cx={x} cy={y} r={ray * 2.4} fill="rgba(255,205,95,.24)" />
+                  <circle cx={x} cy={y} r={ray * 3} fill="rgba(255,225,145,.36)" />
                   <circle cx={x} cy={y} r={ray * .34} fill="#ffffff" />
                   <path
                     d={`M ${x} ${y - ray} L ${x + ray * .16} ${y - ray * .16} L ${x + ray} ${y} L ${x + ray * .16} ${y + ray * .16} L ${x} ${y + ray} L ${x - ray * .16} ${y + ray * .16} L ${x - ray} ${y} L ${x - ray * .16} ${y - ray * .16} Z`}

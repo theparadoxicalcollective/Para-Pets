@@ -472,7 +472,7 @@ export default function GinnyQuestOverlay() {
 
       {completeNotice && (
         <div data-testid="ginny-quest-complete-notice" role="status" style={{ position: "fixed", left: 12, right: 12, top: "max(16px,env(safe-area-inset-top))", margin: "0 auto", maxWidth: 390, zIndex: 2147483003, padding: "12px 15px", borderRadius: 15, background: "rgba(18,68,36,.97)", border: "1px solid rgba(171,255,187,.62)", color: "#e9ffec", font: "700 11px/1.4 Lora,serif", textAlign: "center", boxShadow: "0 8px 28px rgba(0,0,0,.72),0 0 20px rgba(68,220,116,.22)" }}>
-          Quest complete! Open your Quest page to claim 500 coins.
+          Quest complete! Claim your 500 coins from Ginny or your Quest page.
         </div>
       )}
 
@@ -498,7 +498,7 @@ export default function GinnyQuestOverlay() {
                     : state.status === "accepted"
                       ? `${state.selected?.name ?? "Your Mini Pet"} is yours. Let me show you how to equip your new companion.`
                       : state.status === "completed"
-                        ? "Perfect. Your new companion looks right at home. Your 500 coin reward is ready in the Quest page."
+                        ? "Perfect. Your new companion looks right at home. Your 500 coin reward is ready here or in your Quest page."
                         : "You and your little companion make a fine pair."}
                 </p>
               </div>
@@ -534,7 +534,7 @@ export default function GinnyQuestOverlay() {
             )}
 
             {state.status === "completed" && (
-              <button type="button" data-testid="button-ginny-open-quest-log" onClick={() => { setDialogOpen(false); setMessage("Open the Quest icon in the main menu to claim 500 coins."); }} style={{ width: "100%", marginTop: 14, padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(233,202,118,.58)", background: "linear-gradient(135deg,#6e4a00,#a57400)", color: "#fff5d6", fontFamily: "Lora,serif", fontSize: 11, fontWeight: 800, letterSpacing: ".06em", cursor: "pointer" }}>REWARD READY · 500 COINS</button>
+              <button type="button" data-testid="button-ginny-claim-at-npc" onClick={() => claimMutation.mutate()} disabled={claimMutation.isPending} style={{ width: "100%", marginTop: 14, padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(233,202,118,.58)", background: "linear-gradient(135deg,#6e4a00,#a57400)", color: "#fff5d6", fontFamily: "Lora,serif", fontSize: 11, fontWeight: 800, letterSpacing: ".06em", cursor: claimMutation.isPending ? "wait" : "pointer" }}>{claimMutation.isPending ? "CLAIMING…" : "CLAIM 500 COINS"}</button>
             )}
 
             {message && <p role="status" style={{ margin: "10px 2px 0", fontSize: 10, lineHeight: 1.4, color: "#ffcf9b" }}>{message}</p>}
