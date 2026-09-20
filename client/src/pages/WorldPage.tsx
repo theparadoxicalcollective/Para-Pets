@@ -1307,6 +1307,19 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
     setMapScale(fitScale);
   }, [worldId, mapH, frameW, frameH, fitFullComposition]);
 
+  // Bring the first fishing spot into view when Janson points it out. The
+  // map-space arrows alone can be clipped by the viewport on smaller screens.
+  useEffect(() => {
+    if (!showFishHint || worldId !== "swamp") return;
+    const spot = locations.find(loc => loc.type === "fishing" && !loc.isShop);
+    if (!spot) return;
+    const scale = mapTransformRef.current.scale;
+    const size = spot.iconSize || 300;
+    const centerX = MAP_W * spot.posX / 100 + size / 2;
+    const centerY = mapH * spot.posY / 100 + size / 2;
+    applyMapTransform(frameW / 2 - centerX * scale, frameH / 2 - centerY * scale, scale);
+  }, [showFishHint, worldId, locations, mapH, frameW, frameH, applyMapTransform]);
+
   const handleVpPointerDown = useCallback((e: React.PointerEvent) => {
     // Safety: clear any stale drag state that wasn't cleaned up (e.g. after pointerCancel)
     if (dragRef.current && !mapPanPointersRef.current.size) { dragRef.current = null; setDragPos(null); }
