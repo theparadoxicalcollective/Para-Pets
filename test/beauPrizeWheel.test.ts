@@ -6,6 +6,8 @@ import {
   BEAU_PRIZE_WHEEL_PAID_COST,
   BEAU_PRIZE_WHEEL_PRIZE_SLOTS,
   BEAU_PRIZE_WHEEL_SLOT_COUNT,
+  DEFAULT_BEAU_WHEEL_LAYOUT,
+  beauWheelLayoutFrom,
   beauWheelLandingRotation,
   beauWheelSlotCenterAngle,
 } from "../shared/beauPrizeWheel";
@@ -80,4 +82,17 @@ test("Beau only opens the wheel from the Haunted Forest NPC and startup installs
   assert.match(startup, /registerBeauPrizeWheelRoutes\(app\)/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS beau_prize_wheel_spins/);
   assert.match(migration, /action_id UUID PRIMARY KEY/);
+});
+
+test("admin wheel placement stays inside the artwork at mobile and desktop sizes", () => {
+  assert.deepEqual(beauWheelLayoutFrom(DEFAULT_BEAU_WHEEL_LAYOUT), DEFAULT_BEAU_WHEEL_LAYOUT);
+  assert.deepEqual(beauWheelLayoutFrom({ left: 12.345, top: 20.123, size: 78 }), { left: 12.35, top: 20.12, size: 78 });
+  for (const placement of [
+    { left: -1, top: 20, size: 69 },
+    { left: 40, top: 20, size: 69 },
+    { left: 10, top: 60, size: 69 },
+    { left: 20, top: 20, size: 90 },
+    { left: Number.NaN, top: 20, size: 69 },
+    { left: "25", top: 20, size: 69 },
+  ]) assert.equal(beauWheelLayoutFrom(placement), null);
 });
