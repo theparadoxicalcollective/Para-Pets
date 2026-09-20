@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { claimFirstCardReward, grantBundleCards, parseBundleCards } from "../server/cards";
@@ -98,4 +99,29 @@ test("second descriptions preserve line breaks and old cards fall back to an emp
   assert.throws(() => cardAdminValidation.descriptionText("x".repeat(601)));
   assert.equal(serializeCard({ id: "old", rarity: 1 }).secondDescription, "");
   assert.equal(serializeCard({ id: "new", rarity: 1, second_description: "Full story" }).secondDescription, "Full story");
+});
+
+
+test("admin reward pickers integrate cards with the normal reward categories", () => {
+  const admin = readFileSync("client/src/pages/AdminPage.tsx", "utf8");
+  const picker = readFileSync("client/src/components/ItemDatabaseSection.tsx", "utf8");
+  const redeemAdmin = readFileSync("client/src/components/RedeemCodeAdminPanel.tsx", "utf8");
+  const redeemRoutes = readFileSync("server/routes/redeemCode.routes.ts", "utf8");
+
+  assert.doesNotMatch(admin, /<RewardCardPicker/);
+  assert.match(admin, /title="Select Reward"/);
+  assert.match(admin, /cards=\{rewardCards\.filter/);
+  assert.match(admin, /onSelectCard=\{\(card\) =>/);
+  assert.match(admin, /Rewards \(\{selectedItems\.length \+ selectedCards\.length\} types/);
+
+  assert.match(picker, /key: "cards" as const, label: "Cards"/);
+  assert.match(picker, /activeCategory.*"cards"/);
+  assert.match(picker, /button-pick-card-/);
+  assert.match(picker, /Card · \{"★"\.repeat\(card\.rarity\)\}/);
+
+  assert.match(redeemAdmin, /title="Select Code Reward"/);
+  assert.match(redeemAdmin, /cards=\{cardCatalog\.filter/);
+  assert.match(redeemAdmin, /cards: cards\.map/);
+  assert.match(redeemRoutes, /parseBundleCards\(req\.body\?\.cards\)/);
+  assert.match(redeemRoutes, /INSERT INTO reward_bundle_cards/);
 });
