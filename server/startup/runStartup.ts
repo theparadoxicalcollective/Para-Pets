@@ -5,6 +5,7 @@ import { registerDailyClaimRoutes } from "../routes/dailyClaim.routes";
 import { registerClientDiagnosticsRoutes } from "../routes/clientDiagnostics.routes";
 import { registerGinnyQuestRoutes } from "../routes/ginnyQuest.routes";
 import { registerJansonQuestRoutes } from "../routes/jansonQuest.routes";
+import { registerBeauPrizeWheelRoutes } from "../routes/beauPrizeWheel.routes";
 import { serveStatic } from "../static";
 import { pool } from "../db";
 import { reconcileCanonicalWorldMaps } from "../worlds/canonicalWorldMaps";
@@ -13,6 +14,7 @@ import { runEssentialBoot } from "./migrations/runEssentialBoot";
 import { ensureHauntedBingoSchema } from "./migrations/ensureHauntedBingo";
 import { ensureGinnyQuestSchema } from "./migrations/ensureGinnyQuest";
 import { ensureJansonQuestsSchema } from "./migrations/ensureJansonQuests";
+import { ensureBeauPrizeWheelSchema } from "./migrations/ensureBeauPrizeWheel";
 import { repairAccessoryEquipmentIntegrity } from "./migrations/repairAccessoryEquipmentIntegrity";
 import { runNonCriticalStartup } from "./backfills/runNonCriticalStartup";
 import { tagSquirrelFoxAnimationProfile } from "./backfills/tagSquirrelFoxAnimationProfile";
@@ -59,6 +61,7 @@ export async function runStartup({ app, httpServer, log }: StartupDependencies):
   await ensureHauntedBingoSchema();
   await ensureGinnyQuestSchema();
   await ensureJansonQuestsSchema();
+  await ensureBeauPrizeWheelSchema();
 
   // Accessory ownership/equipment is persisted player state and must be valid
   // before any inventory or Closet route can answer. Older versions allowed
@@ -78,6 +81,7 @@ export async function runStartup({ app, httpServer, log }: StartupDependencies):
   registerDailyClaimRoutes(app);
   registerGinnyQuestRoutes(app);
   registerJansonQuestRoutes(app);
+  registerBeauPrizeWheelRoutes(app);
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
