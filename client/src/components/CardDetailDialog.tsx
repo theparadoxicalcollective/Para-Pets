@@ -39,7 +39,7 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
     if (!gesture || gesture.pointerId !== event.pointerId) return;
     const dx = event.clientX - gesture.startX;
     if (Math.abs(dx) > 6) event.preventDefault();
-    const angle = Math.max(-34, Math.min(34, (dx / gesture.width) * 72));
+    const angle = Math.max(-58, Math.min(58, (dx / gesture.width) * 160));
     setTurnAngle(angle);
   };
 
@@ -49,7 +49,7 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
     const dx = event.clientX - gesture.startX;
     const elapsed = Math.max(1, performance.now() - gesture.startedAt);
     const velocity = Math.abs(dx) / elapsed;
-    const quickSwipe = allowReveal && Math.abs(dx) >= gesture.width * 0.12 && velocity >= 0.45;
+    const quickSwipe = allowReveal && Math.abs(dx) >= gesture.width * 0.1 && velocity >= 0.35;
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
@@ -59,7 +59,7 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
     if (quickSwipe) {
       const direction = dx < 0 ? -1 : 1;
       setTurnTransition("transform 130ms ease-out");
-      setTurnAngle(direction * 28);
+      setTurnAngle(direction * 46);
       if (revealTimerRef.current !== null) window.clearTimeout(revealTimerRef.current);
       revealTimerRef.current = window.setTimeout(() => {
         setDescriptionOpen(true);
@@ -101,7 +101,7 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
               }}
               className="outline-none"
               style={{
-                perspective: "1200px",
+                perspective: "750px",
                 touchAction: "pan-y",
                 cursor: "grab",
                 WebkitTapHighlightColor: "transparent",
