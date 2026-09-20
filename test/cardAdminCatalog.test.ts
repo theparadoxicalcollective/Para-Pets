@@ -85,9 +85,9 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
 
 test("detail cards use lightweight rarity-scaled magical glitter inside the artwork", () => {
   assert.match(preview, /brightness\(1\.2\)/);
-  assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*18[\s\S]*?3:\s*32[\s\S]*?4:\s*48[\s\S]*?5:\s*64/);
-  assert.match(preview, /RARITY_GLINT_COUNT[\s\S]*?3:\s*4[\s\S]*?4:\s*8[\s\S]*?5:\s*12/);
-  assert.match(preview, /CARD_GLITTER_POINTS = Array\.from\(\{ length: 64 \}/);
+  assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*24[\s\S]*?3:\s*44[\s\S]*?4:\s*68[\s\S]*?5:\s*88/);
+  assert.match(preview, /RARITY_GLINT_COUNT[\s\S]*?3:\s*6[\s\S]*?4:\s*12[\s\S]*?5:\s*18/);
+  assert.match(preview, /CARD_GLITTER_POINTS = Array\.from\(\{ length: 88 \}/);
   assert.doesNotMatch(preview, /Math\.random\(\)/);
   assert.match(preview, /showSparkles = false/);
   assert.match(detail, /showSparkles/);
@@ -99,6 +99,8 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /card-micro-glint/);
   assert.match(preview, /rarity === 5/);
   assert.match(preview, /card-sparkle-swirl-line/);
+  assert.match(preview, /card-sparkle-swirl-line-c/);
+  assert.match(preview, /card-sparkle-swirl-line-d/);
   assert.match(preview, /prefers-reduced-motion: reduce/);
   assert.match(preview, /inset: depth3d \? "12% 7%" : "12% 10%"/);
   assert.match(preview, /inset 0 0 24px 8px/);

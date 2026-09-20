@@ -542,16 +542,16 @@ const ANIMATION_STYLES = `
     from { transform: rotate(${DEFAULT_PET_ANIMATION.ear.degrees}deg); }
     to   { transform: rotate(-${DEFAULT_PET_ANIMATION.ear.degrees}deg); }
   }
-  /* Evolution ears live outside the head stacking context so they can remain
-     behind foreground arms. Their outer wrapper follows the head exactly;
-     these inner keyframes add a small mirrored angled lift on top. */
+  /* Evolution ears already follow the head through their outer wrapper.
+     Keep the local motion very small and vertical so the ear base stays
+     attached to the skull (notably on the Grassland Cow evolution). */
   @keyframes petIdleEvolutionLeftEar {
-    from { transform: translate(-0.35px, 0.45px) rotate(-1deg); }
-    to   { transform: translate(0.35px, -1.25px) rotate(1.5deg); }
+    from { transform: translateY(0.1px) rotate(-0.55deg); }
+    to   { transform: translateY(-0.55px) rotate(0.75deg); }
   }
   @keyframes petIdleEvolutionRightEar {
-    from { transform: translate(0.35px, 0.45px) rotate(1deg); }
-    to   { transform: translate(-0.35px, -1.25px) rotate(-1.5deg); }
+    from { transform: translateY(0.1px) rotate(0.55deg); }
+    to   { transform: translateY(-0.55px) rotate(-0.75deg); }
   }
   @keyframes petIdleLeftHair {
     from { transform: rotate(-${DEFAULT_PET_ANIMATION.hair.degrees}deg); }
@@ -666,12 +666,12 @@ const ANIMATION_STYLES = `
     from { transform: rotate(-5deg); }
     to   { transform: rotate( 5deg); }
   }
-  /* Evolution Tail 1 artwork tends to be larger and more detailed than the
-     base slot, so the standard ±5° swing reads as a dramatic whip. Keep its
-     idle movement deliberately subtle and let it travel on a slower cycle. */
+  /* Evolution tails can have a broad silhouette where rotation alone is hard
+     to see. Add a gentle vertical lift while keeping the angular motion small,
+     so tails such as Bayou Bunny's visibly idle without whipping around. */
   @keyframes petIdleEvolutionTail {
-    from { transform: rotate(-2.5deg); }
-    to   { transform: rotate( 2.5deg); }
+    from { transform: translateY(0%) rotate(-1.25deg); }
+    to   { transform: translateY(-1.4%) rotate(1.25deg); }
   }
   @keyframes petIdleTail2 {
     from { transform: rotate(-4deg); }
@@ -2250,7 +2250,7 @@ export default function PetAnimator({ petTemplateId, artworkForm = "base", mode,
               ? bodyBreathDelay
               : wingDelay;
           const partDuration =
-            isEvolutionTailOne ? "5.5s" :
+            isEvolutionTailOne ? "4.8s" :
             isMarionetteAccessory ? "4.5s" :
             (isMarionetteLeftLeg || isMarionetteRightLeg) ? "3.7s" :
             undefined;
