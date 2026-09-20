@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import { sql } from "drizzle-orm";
 import { db } from "./db";
-import { getSlotPrizeOptions, type CasinoPrizeItem } from "./hauntedSlotPrizes";
 import {
   BEAU_PRIZE_WHEEL_LOSS_SLOT,
   BEAU_PRIZE_WHEEL_PAID_COST,
@@ -14,6 +13,16 @@ import {
 
 type Executor = { execute(statement: any): Promise<{ rows: any[] }> };
 type WheelDatabase = Pick<typeof db, "transaction">;
+
+interface BeauCatalogItem {
+  id: string;
+  name: string;
+  type: string;
+  image_url: string | null;
+  egg_image_url: string | null;
+  rarity: number | null;
+  star_rarity: number | null;
+}
 
 const SETTING_KEY = "beau_prize_wheel_prizes_v1";
 const MAX_CURRENCY_REWARD = 1_000_000;
@@ -114,10 +123,25 @@ interface ResolvedWheel {
   requiresActivePet: boolean;
 }
 
+async function readBeauPrizeCatalog(executor: Executor): Promise<{ items: BeauCatalogItem[]; eggs: BeauCatalogItem[] }> {
+  const result = await executor.execute(sql`
+    SELECT id, name, type, image_url, egg_image_url, rarity, star_rarity
+    FROM shop_items
+    WHERE type <> 'npc'
+      AND (type <> 'pet' OR COALESCE(egg_image_url, '') <> '')
+    ORDER BY name, id
+  `);
+  const rows = result.rows as BeauCatalogItem[];
+  return {
+    items: rows.filter(item => item.type !== "pet"),
+    eggs: rows.filter(item => item.type === "pet"),
+  };
+}
+
 async function resolveWheel(executor: Executor): Promise<ResolvedWheel> {
   const [stored, options] = await Promise.all([
     readStoredSlots(executor),
-    getSlotPrizeOptions(executor),
+    readBeauPrizeCatalog(executor),
   ]);
   const items = new Map(options.items.map(item => [item.id, item] as const));
   const eggs = new Map(options.eggs.map(item => [item.id, item] as const));
@@ -173,8 +197,8 @@ async function resolveWheel(executor: Executor): Promise<ResolvedWheel> {
 }
 
 export async function getBeauPrizeOptions(executor: Executor = db as unknown as Executor) {
-  const options = await getSlotPrizeOptions(executor);
-  const mapItem = (item: CasinoPrizeItem, egg: boolean) => ({
+  const options = await readBeauPrizeCatalog(executor);
+  const mapItem = (item: BeauCatalogItem, egg: boolean) => ({
     id: item.id,
     name: item.name,
     type: item.type,
@@ -189,7 +213,7 @@ export async function getBeauPrizeOptions(executor: Executor = db as unknown as 
 
 async function validateCatalogPrize(executor: Executor, config: BeauPrizeConfig): Promise<void> {
   if (config.kind !== "item" && config.kind !== "egg") return;
-  const options = await getSlotPrizeOptions(executor);
+  const options = await readBeauPrizeCatalog(executor);
   const allowed = config.kind === "egg" ? options.eggs : options.items;
   if (!allowed.some(item => item.id === config.shopItemId)) {
     throw new BeauPrizeWheelError("invalid_request", 400, "That prize is no longer available. Choose another one.");
