@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readFileAsDataUrl } from "@/lib/utils";
+import type { CardDefinition } from "@/lib/cardCatalog";
 
 export interface ShopItemFull {
   id: string;
@@ -1579,25 +1580,42 @@ function ImageUpload({
 
 export function ItemPickerModal({
   items,
+  cards = [],
   onSelect,
+  onSelectCard,
   onClose,
+  title = "Select Item",
 }: {
   items: ShopItemFull[];
+  cards?: CardDefinition[];
   onSelect: (item: ShopItemFull) => void;
+  onSelectCard?: (card: CardDefinition) => void;
   onClose: () => void;
+  title?: string;
 }) {
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState<"all" | ItemCategoryKey>("all");
+  const [activeCategory, setActiveCategory] = useState<"all" | ItemCategoryKey | "cards">("all");
+  const cardsEnabled = cards.length > 0 && !!onSelectCard;
+  const CARD_TAB = { key: "cards" as const, label: "Cards", color: "#f6d365" };
+  const ALL_TABS = [
+    { key: "all" as const, label: "All", color: "#a89878" },
+    ...(cardsEnabled ? [CARD_TAB] : []),
+    ...ITEM_CATEGORIES,
+  ];
 
-  const ALL_TABS = [{ key: "all" as const, label: "All", color: "#a89878" }, ...ITEM_CATEGORIES];
-
+  const normalizedSearch = search.trim().toLowerCase();
   const matchesSearch = (item: ShopItemFull) =>
-    !search || item.name.toLowerCase().includes(search.toLowerCase());
+    !normalizedSearch || item.name.toLowerCase().includes(normalizedSearch);
 
   const matchesCategory = (item: ShopItemFull) =>
-    activeCategory === "all" || getItemCategory(item) === activeCategory;
+    activeCategory !== "cards" && (activeCategory === "all" || getItemCategory(item) === activeCategory);
 
   const filtered = items.filter(item => matchesSearch(item) && matchesCategory(item));
+  const filteredCards = cardsEnabled && (activeCategory === "all" || activeCategory === "cards")
+    ? cards
+        .filter(card => !normalizedSearch || card.name.toLowerCase().includes(normalizedSearch))
+        .sort((a, b) => b.rarity - a.rarity || a.name.localeCompare(b.name))
+    : [];
 
   const catOrder = ITEM_CATEGORIES.map(c => c.key);
   const sorted = [...filtered].sort((a, b) => {
@@ -1633,7 +1651,7 @@ export function ItemPickerModal({
           X
         </button>
 
-        <h4 className="font-fantasy text-[#c084fc] text-xs tracking-wider text-center mb-3">Select Item</h4>
+        <h4 className="font-fantasy text-[#c084fc] text-xs tracking-wider text-center mb-3">{title}</h4>
 
         {/* Category chips — 2 rows of scrollable chips */}
         <div className="flex flex-wrap gap-1 mb-2">
@@ -1669,63 +1687,101 @@ export function ItemPickerModal({
         />
 
         <div className="overflow-y-auto flex-1 space-y-1">
-          {sorted.length === 0 ? (
-            <p className="font-fantasy text-[#a89878] text-xs text-center py-4">No items found</p>
-          ) : (() => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const elements: any[] = [];
-            let lastCat = "";
-            sorted.forEach(item => {
-              const cat = getItemCategory(item);
-              const catMeta = ITEM_CATEGORIES.find(c => c.key === cat);
-              if (showHeaders && cat !== lastCat) {
-                lastCat = cat;
-                elements.push(
-                  <p
-                    key={`hdr-${cat}`}
-                    className="font-fantasy text-[8px] tracking-widest uppercase pt-2 pb-0.5 px-1"
-                    style={{ color: catMeta?.color ?? "#a89878" }}
-                  >
-                    {catMeta?.label ?? cat}
-                  </p>
-                );
-              }
-              const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
-              const displayFallback = item.type === "pet" && item.eggImageUrl ? (item.imageUrl ?? undefined) : undefined;
-              const catColor = catMeta?.color ?? "#f0c040";
-              const effectText = getItemEffectText(item);
-              elements.push(
-                <button
-                  key={item.id}
-                  data-testid={`button-pick-item-${item.id}`}
-                  onClick={() => onSelect(item)}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-all active:scale-95"
-                  style={{
-                    background: "rgba(0,0,0,0.3)",
-                    border: `1px solid ${catColor}22`,
-                    cursor: "pointer",
-                  }}
-                >
-                  <div className="w-8 h-8 rounded flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: "rgba(0,0,0,0.3)" }}>
-                    {displayImg
-                      ? <img src={displayImg} alt="" className="w-full h-full object-contain" onError={displayFallback ? (e) => { (e.target as HTMLImageElement).src = displayFallback; } : undefined} />
-                      : <span className="text-lg">{item.type === "pet" ? "🥚" : "📦"}</span>
-                    }
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-fantasy text-[10px] truncate" style={{ color: catColor }}>{item.name}</p>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <p className="font-fantasy text-[8px]" style={{ color: `${catColor}70` }}>{catMeta?.label ?? item.type}</p>
-                      {effectText && (
-                        <p className="font-fantasy text-[8px]" style={{ color: `${catColor}cc` }}>· {effectText}</p>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              );
-            });
-            return elements;
-          })()}
+          {sorted.length === 0 && filteredCards.length === 0 ? (
+            <p className="font-fantasy text-[#a89878] text-xs text-center py-4">No rewards found</p>
+          ) : (
+            <>
+              {sorted.length > 0 && (() => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const elements: any[] = [];
+                let lastCat = "";
+                sorted.forEach(item => {
+                  const cat = getItemCategory(item);
+                  const catMeta = ITEM_CATEGORIES.find(c => c.key === cat);
+                  if (showHeaders && cat !== lastCat) {
+                    lastCat = cat;
+                    elements.push(
+                      <p
+                        key={`hdr-${cat}`}
+                        className="font-fantasy text-[8px] tracking-widest uppercase pt-2 pb-0.5 px-1"
+                        style={{ color: catMeta?.color ?? "#a89878" }}
+                      >
+                        {catMeta?.label ?? cat}
+                      </p>
+                    );
+                  }
+                  const displayImg = item.type === "pet" && item.eggImageUrl ? item.eggImageUrl : item.imageUrl;
+                  const displayFallback = item.type === "pet" && item.eggImageUrl ? (item.imageUrl ?? undefined) : undefined;
+                  const catColor = catMeta?.color ?? "#f0c040";
+                  const effectText = getItemEffectText(item);
+                  elements.push(
+                    <button
+                      key={item.id}
+                      data-testid={`button-pick-item-${item.id}`}
+                      onClick={() => onSelect(item)}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-all active:scale-95"
+                      style={{
+                        background: "rgba(0,0,0,0.3)",
+                        border: `1px solid ${catColor}22`,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div className="w-8 h-8 rounded flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: "rgba(0,0,0,0.3)" }}>
+                        {displayImg
+                          ? <img src={displayImg} alt="" className="w-full h-full object-contain" onError={displayFallback ? (e) => { (e.target as HTMLImageElement).src = displayFallback; } : undefined} />
+                          : <span className="text-lg">{item.type === "pet" ? "🥚" : "📦"}</span>
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-fantasy text-[10px] truncate" style={{ color: catColor }}>{item.name}</p>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="font-fantasy text-[8px]" style={{ color: `${catColor}70` }}>{catMeta?.label ?? item.type}</p>
+                          {effectText && (
+                            <p className="font-fantasy text-[8px]" style={{ color: `${catColor}cc` }}>· {effectText}</p>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                });
+                return elements;
+              })()}
+              {filteredCards.length > 0 && (
+                <>
+                  {showHeaders && (
+                    <p className="font-fantasy text-[8px] tracking-widest uppercase pt-2 pb-0.5 px-1" style={{ color: CARD_TAB.color }}>
+                      Cards
+                    </p>
+                  )}
+                  {filteredCards.map(card => (
+                    <button
+                      key={card.id}
+                      data-testid={`button-pick-card-${card.id}`}
+                      onClick={() => onSelectCard?.(card)}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-left transition-all active:scale-95"
+                      style={{
+                        background: "rgba(0,0,0,0.3)",
+                        border: `1px solid ${CARD_TAB.color}33`,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div className="w-8 h-8 rounded flex items-center justify-center overflow-hidden flex-shrink-0" style={{ background: "rgba(0,0,0,0.3)" }}>
+                        {card.artworkUrl
+                          ? <img src={card.artworkUrl} alt="" className="w-full h-full object-cover" />
+                          : <span className="text-lg">🃏</span>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-fantasy text-[10px] truncate" style={{ color: CARD_TAB.color }}>{card.name}</p>
+                        <p className="font-fantasy text-[8px]" style={{ color: "#d6b95f" }}>
+                          Card · {"★".repeat(card.rarity)}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
