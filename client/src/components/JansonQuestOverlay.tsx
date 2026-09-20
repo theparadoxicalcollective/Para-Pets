@@ -118,7 +118,10 @@ export default function JansonQuestOverlay() {
   };
   const onQuestGo = (quest: Quest) => {
     setDialogOpen(false);
-    if (quest.status === "available") navigate(`/world/${WORLD}`);
+    if (quest.status === "available") {
+      if (quest.questKey === "catch_fish") navigate(`/world/${WORLD}?fishHint=1`);
+      else navigate(`/world/${WORLD}`);
+    }
     else if (quest.questKey === "catch_fish") navigate(`/world/${WORLD}?fishHint=1`);
     else if (state.marketUnlocked && inBayou) openMarket();
     else navigate(`/world/${WORLD}`);
