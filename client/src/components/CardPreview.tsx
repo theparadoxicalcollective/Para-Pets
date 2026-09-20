@@ -72,18 +72,24 @@ const CARD_GLITTER_POINTS = Array.from({ length: 88 }, (_, index) => ({
 }));
 
 const CARD_GLINT_POINTS = [
-  { x: 18, y: 118, size: 1.15, delay: 0.2 },
-  { x: 77, y: 108, size: 0.95, delay: 1.1 },
-  { x: 34, y: 92, size: 0.9, delay: 1.8 },
-  { x: 66, y: 82, size: 1.05, delay: 0.6 },
-  { x: 24, y: 70, size: 0.82, delay: 1.4 },
-  { x: 82, y: 61, size: 0.9, delay: 2.2 },
-  { x: 45, y: 54, size: 0.78, delay: 0.9 },
-  { x: 61, y: 43, size: 0.88, delay: 1.7 },
-  { x: 31, y: 34, size: 0.72, delay: 2.5 },
-  { x: 73, y: 27, size: 0.78, delay: 0.4 },
-  { x: 50, y: 22, size: 0.72, delay: 1.3 },
-  { x: 87, y: 126, size: 0.82, delay: 2.0 },
+  { x: 18, y: 118, size: 1.5, delay: 0.12 },
+  { x: 77, y: 108, size: 1.28, delay: 0.74 },
+  { x: 34, y: 92, size: 1.2, delay: 1.18 },
+  { x: 66, y: 82, size: 1.4, delay: 0.36 },
+  { x: 24, y: 70, size: 1.12, delay: 0.92 },
+  { x: 82, y: 61, size: 1.26, delay: 1.42 },
+  { x: 45, y: 54, size: 1.08, delay: 0.58 },
+  { x: 61, y: 43, size: 1.22, delay: 1.08 },
+  { x: 31, y: 34, size: 1.02, delay: 1.62 },
+  { x: 73, y: 27, size: 1.14, delay: 0.22 },
+  { x: 50, y: 22, size: 1.0, delay: 0.82 },
+  { x: 87, y: 126, size: 1.2, delay: 1.28 },
+  { x: 12, y: 48, size: 1.08, delay: 0.46 },
+  { x: 91, y: 88, size: 1.16, delay: 1.52 },
+  { x: 53, y: 104, size: 1.3, delay: 0.68 },
+  { x: 39, y: 129, size: 1.12, delay: 1.36 },
+  { x: 69, y: 136, size: 1.04, delay: 0.98 },
+  { x: 14, y: 101, size: 1.18, delay: 1.72 },
 ] as const;
 
 export default function CardPreview({
@@ -340,16 +346,34 @@ export default function CardPreview({
               <g
                 key={`glint-${index}`}
                 className="card-micro-glint"
-                style={{ animationDelay: `-${glint.delay}s` }}
+                style={{
+                  animationDelay: `-${glint.delay}s`,
+                  animationDuration: `${1.55 + (index % 4) * .27}s`,
+                }}
               >
-                <circle cx={glint.x} cy={glint.y} r={glint.size * 1.7} fill="rgba(255,230,150,.12)" />
-                <path
-                  d={`M ${glint.x} ${glint.y - glint.size} L ${glint.x} ${glint.y + glint.size} M ${glint.x - glint.size} ${glint.y} L ${glint.x + glint.size} ${glint.y}`}
-                  fill="none"
-                  stroke="rgba(255,255,248,1)"
-                  strokeWidth="0.48"
-                  strokeLinecap="round"
+                <circle
+                  className="card-star-aura"
+                  cx={glint.x}
+                  cy={glint.y}
+                  r={glint.size * 2.5}
+                  fill="rgba(255,231,151,.18)"
                 />
+                <path
+                  className="card-star-shape"
+                  d={`M ${glint.x} ${glint.y - glint.size * 1.55}
+                    L ${glint.x + glint.size * .23} ${glint.y - glint.size * .23}
+                    L ${glint.x + glint.size * 1.55} ${glint.y}
+                    L ${glint.x + glint.size * .23} ${glint.y + glint.size * .23}
+                    L ${glint.x} ${glint.y + glint.size * 1.55}
+                    L ${glint.x - glint.size * .23} ${glint.y + glint.size * .23}
+                    L ${glint.x - glint.size * 1.55} ${glint.y}
+                    L ${glint.x - glint.size * .23} ${glint.y - glint.size * .23} Z`}
+                  fill="rgba(255,255,248,1)"
+                  stroke="rgba(255,235,172,.92)"
+                  strokeWidth="0.12"
+                  strokeLinejoin="round"
+                />
+                <circle cx={glint.x} cy={glint.y} r={glint.size * .18} fill="#fff" />
               </g>
             ))}
             {rarity === 5 && (
@@ -360,9 +384,8 @@ export default function CardPreview({
                   pathLength="100"
                   fill="none"
                   stroke="rgba(255,249,215,.98)"
-                  strokeWidth="0.9"
+                  strokeWidth="0.6"
                   strokeLinecap="round"
-                  strokeDasharray="0.2 2.4"
                 />
                 <path
                   className="card-sparkle-swirl-line card-sparkle-swirl-line-b"
@@ -370,9 +393,8 @@ export default function CardPreview({
                   pathLength="100"
                   fill="none"
                   stroke="rgba(238,250,255,.96)"
-                  strokeWidth="0.75"
+                  strokeWidth="0.52"
                   strokeLinecap="round"
-                  strokeDasharray="0.18 2.9"
                 />
                 <path
                   className="card-sparkle-swirl-line card-sparkle-swirl-line-c"
@@ -380,9 +402,8 @@ export default function CardPreview({
                   pathLength="100"
                   fill="none"
                   stroke="rgba(255,235,173,.94)"
-                  strokeWidth="0.68"
+                  strokeWidth="0.48"
                   strokeLinecap="round"
-                  strokeDasharray="0.16 2.6"
                 />
                 <path
                   className="card-sparkle-swirl-line card-sparkle-swirl-line-d"
@@ -390,9 +411,8 @@ export default function CardPreview({
                   pathLength="100"
                   fill="none"
                   stroke="rgba(255,250,221,.9)"
-                  strokeWidth="0.62"
+                  strokeWidth="0.46"
                   strokeLinecap="round"
-                  strokeDasharray="0.14 3"
                 />
               </g>
             )}
@@ -449,14 +469,17 @@ export default function CardPreview({
           75% { opacity: 1; }
         }
         @keyframes cardMicroGlint {
-          0%, 68%, 100% { opacity: .18; transform: scale(.68) rotate(0deg); }
-          80% { opacity: 1; transform: scale(1.28) rotate(35deg); }
-          92% { opacity: .34; transform: scale(.82) rotate(58deg); }
+          0%, 100% { opacity: .08; transform: scale(.52) rotate(0deg); }
+          16% { opacity: .22; transform: scale(.7) rotate(4deg); }
+          28% { opacity: 1; transform: scale(1.38) rotate(9deg); }
+          39% { opacity: .3; transform: scale(.82) rotate(13deg); }
+          56% { opacity: .92; transform: scale(1.16) rotate(18deg); }
+          69% { opacity: .12; transform: scale(.62) rotate(22deg); }
         }
-        @keyframes cardSparkleSwirl {
-          0% { stroke-dashoffset: 0; opacity: .42; }
-          45% { opacity: 1; }
-          100% { stroke-dashoffset: -26; opacity: .52; }
+        @keyframes cardSparkleSwirlGlow {
+          0%, 100% { opacity: .42; filter: drop-shadow(0 0 1px rgba(255,243,199,.72)) drop-shadow(0 0 2px rgba(255,206,104,.32)); }
+          38% { opacity: 1; filter: drop-shadow(0 0 2px rgba(255,255,240,1)) drop-shadow(0 0 6px rgba(255,220,128,.9)); }
+          62% { opacity: .68; filter: drop-shadow(0 0 1.5px rgba(245,252,255,.86)) drop-shadow(0 0 4px rgba(238,220,157,.62)); }
         }
         .card-glitter-batch {
           will-change: opacity;
@@ -466,24 +489,32 @@ export default function CardPreview({
         .card-glitter-batch-2 { animation: cardGlitterPulseC 3.6s ease-in-out infinite; }
         .card-glitter-batch-3 { animation: cardGlitterPulseD 4.2s ease-in-out infinite; }
         .card-micro-glint {
-          opacity: .3;
+          opacity: .28;
           transform-box: fill-box;
           transform-origin: center;
-          animation: cardMicroGlint 3.8s ease-in-out infinite;
+          mix-blend-mode: screen;
+          filter: drop-shadow(0 0 1px rgba(255,255,244,.95)) drop-shadow(0 0 4px rgba(255,218,120,.7));
+          animation: cardMicroGlint 1.9s ease-in-out infinite;
+        }
+        .card-star-aura {
+          filter: blur(.35px);
         }
         .card-sparkle-swirl-line {
-          animation: cardSparkleSwirl 6.5s linear infinite;
+          mix-blend-mode: screen;
+          filter: drop-shadow(0 0 1px rgba(255,255,240,.9)) drop-shadow(0 0 4px rgba(255,214,115,.55));
+          animation: cardSparkleSwirlGlow 1.65s ease-in-out infinite;
         }
         .card-sparkle-swirl-line-b {
-          animation-duration: 7.8s;
-          animation-direction: reverse;
+          animation-duration: 1.95s;
+          animation-delay: -.42s;
         }
         .card-sparkle-swirl-line-c {
-          animation-duration: 6.9s;
+          animation-duration: 1.78s;
+          animation-delay: -.8s;
         }
         .card-sparkle-swirl-line-d {
-          animation-duration: 9.2s;
-          animation-direction: reverse;
+          animation-duration: 2.12s;
+          animation-delay: -1.05s;
         }
         @media (prefers-reduced-motion: reduce) {
           .card-glitter-batch,
