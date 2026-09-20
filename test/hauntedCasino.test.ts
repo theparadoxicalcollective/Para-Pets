@@ -38,7 +38,7 @@ test("Haunted Casino starts with exactly the five requested interactive areas", 
 });
 
 test("Slaughter Slots keeps challenging reel weights and supports database item prize categories", () => {
-  assert.deepEqual(HAUNTED_CASINO_BETS, [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]);
+  assert.deepEqual(HAUNTED_CASINO_BETS, [50, 100, 500, 1000, 5000]);
   assert.deepEqual(
     HAUNTED_SLOT_SYMBOL_WEIGHTS.map((entry) => entry.id),
     ["coin", "essence", "edible", "egg", "loot", "ginny", "skull"],
@@ -46,15 +46,15 @@ test("Slaughter Slots keeps challenging reel weights and supports database item 
   assert.ok((HAUNTED_SLOT_SYMBOL_WEIGHTS.find((entry) => entry.id === "loot")?.weight ?? 99) < (HAUNTED_SLOT_SYMBOL_WEIGHTS.find((entry) => entry.id === "edible")?.weight ?? 0));
   assert.ok((HAUNTED_SLOT_SYMBOL_WEIGHTS.find((entry) => entry.id === "skull")?.weight ?? 99) < (HAUNTED_SLOT_SYMBOL_WEIGHTS.find((entry) => entry.id === "coin")?.weight ?? 0));
 
-  const jackpot = evaluateHauntedSlotResult(["skull", "skull", "skull"], 25);
+  const jackpot = evaluateHauntedSlotResult(["skull", "skull", "skull"], 50);
   assert.equal(jackpot.tier, "jackpot");
-  assert.equal(jackpot.coins, 250);
-  assert.equal(jackpot.essence, 125);
+  assert.equal(jackpot.coins, 500);
+  assert.equal(jackpot.essence, 250);
   assert.equal(jackpot.pvpTickets, 0);
 
-  const skullPair = evaluateHauntedSlotResult(["skull", "skull", "coin"], 25);
+  const skullPair = evaluateHauntedSlotResult(["skull", "skull", "coin"], 50);
   assert.equal(skullPair.tier, "pair");
-  assert.equal(skullPair.essence, 50);
+  assert.equal(skullPair.essence, 100);
   assert.equal(skullPair.pvpTickets, 0);
   assert.doesNotMatch(skullPair.message, /ticket/i);
 
@@ -73,12 +73,12 @@ test("Slaughter Slots keeps challenging reel weights and supports database item 
   assert.equal(pair.tier, "pair");
   assert.equal(pair.coins, 125);
 
-  const secret = evaluateHauntedSlotResult(["coin", "essence", "skull"], 25);
+  const secret = evaluateHauntedSlotResult(["coin", "essence", "skull"], 50);
   assert.equal(secret.tier, "combo");
-  assert.equal(secret.coins, 50);
-  assert.equal(secret.essence, 50);
+  assert.equal(secret.coins, 100);
+  assert.equal(secret.essence, 100);
 
-  const miss = evaluateHauntedSlotResult(["coin", "edible", "egg"], 25);
+  const miss = evaluateHauntedSlotResult(["coin", "edible", "egg"], 50);
   assert.equal(miss.tier, "miss");
   assert.equal(miss.coins, 0);
   assert.equal(miss.essence, 0);
@@ -163,7 +163,7 @@ test("Slaughter Slots uses a more readable staged spin", () => {
 test("Slaughter Slots close returns to the casino without click-through", () => {
   const client = fs.readFileSync("client/src/components/world/SlaughterSlotsOverlay.tsx", "utf8");
   const runtime = fs.readFileSync("client/src/components/world/HauntedCasinoRuntime.tsx", "utf8");
-  assert.match(runtime, /onClose=\{\(\) => setSlotsOpen\(false\)\}/);
+  assert.match(runtime, /onClose=\{\(\) => \{ setSlotsOpen\(false\); refreshFreePlay\(\); \}\}/);
   assert.match(client, /aria-label="Close Slaughter Slots"[\s\S]*?onPointerDown=\{\(event\) => event\.stopPropagation\(\)\}/);
   assert.match(client, /event\.preventDefault\(\); event\.stopPropagation\(\); stopHold\(\); onClose\(\)/);
 });
@@ -184,10 +184,10 @@ test("Slaughter Slots wagers and payouts use the player's real global coin walle
   const routes = fs.readFileSync("server/routes/hauntedCasino.routes.ts", "utf8");
   assert.match(server, /SELECT coins, essence FROM users WHERE id = \$\{userId\}/);
   assert.match(server, /FOR UPDATE/);
-  assert.match(server, /UPDATE users[\s\S]*coins = coins - \$\{bet\} \+ \$\{reward\.coins\}/);
+  assert.match(server, /UPDATE users[\s\S]*coins = coins - \$\{cost\} \+ \$\{reward\.coins\}/);
   assert.match(server, /no casino-only balance/i);
   assert.match(routes, /\/api\/haunted-casino\/slots\/spin/);
-  assert.match(routes, /spinHauntedSlots\(user\.id, req\.body\?\.bet\)/);
+  assert.match(routes, /spinHauntedSlots\(user\.id, req\.body\?\.bet, req\.body\?\.useFreeSpin === true\)/);
   assert.doesNotMatch(routes, /req\.body\?\.(?:reward|reels|itemId|shopItemId)/);
 });
 
@@ -246,4 +246,14 @@ test("admin slot prize editor reopens with saved selections and refreshes the pu
   assert.match(slots, /onSaved=\{refreshAuthoritativeState\}/);
   assert.match(slots, /const data = await response\.json\(\) as SlotState/);
   assert.match(slots, /applyState\(data\)/);
+});
+
+test("higher stakes scale currency payouts without increasing reel odds", () => {
+  for (const bet of HAUNTED_CASINO_BETS) {
+    const triple = evaluateHauntedSlotResult(["coin", "coin", "coin"], bet);
+    const pair = evaluateHauntedSlotResult(["coin", "coin", "skull"], bet);
+    assert.equal(triple.coins, bet * 5);
+    assert.equal(pair.coins, Math.ceil(bet * 1.25));
+    assert.equal(evaluateHauntedSlotResult(["skull", "skull", "skull"], bet).essence, bet * 5);
+  }
 });
