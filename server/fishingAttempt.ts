@@ -150,11 +150,13 @@ export async function completeFishingAttempt(
       await tx.execute(sql`UPDATE player_fishing_equipment SET pole_inventory_id = NULL, updated_at = NOW() WHERE user_id = ${input.userId} AND pole_inventory_id = ${attempt.pole_inventory_id}`);
     }
 
-    // Browser interaction remains a bounded input, not proof: even 100 is capped
-    // at the former 99-score probability and is compared with a committed server roll.
+    // Reaching 100 means the player completed the reel minigame successfully.
+    // Do not roll a second hidden failure after the UI has already declared a catch.
+    // Partial/legacy completion scores still use the server-side roll.
+    const completedReel = input.interactionScore >= 100;
     const boundedScore = Math.min(99, Math.floor(input.interactionScore));
     const catchChance = 0.20 + (boundedScore / 100) * 0.65;
-    if (Number(attempt.catch_roll) > catchChance) {
+    if (!completedReel && Number(attempt.catch_roll) > catchChance) {
       const result: FishingAttemptResult = { outcome: "miss", caught: null, reason: "miss" };
       await tx.execute(sql`UPDATE fishing_attempts SET status = 'completed', completed_at = NOW(), result_json = ${JSON.stringify(result)}::jsonb WHERE id = ${input.attemptId}`);
       return result;

@@ -24,6 +24,12 @@ test("bait rarity forcing preserves the configured direct probability behavior",
   assert.notEqual(selectAuthoritativeFish(pond, () => sequence.shift() ?? 0, 50, 5).shop_item_id, "rare");
 });
 
+test("a completed reel cannot be converted into a hidden server miss", () => {
+  const service = readFileSync("server/fishingAttempt.ts", "utf8");
+  assert.match(service, /const completedReel = input\.interactionScore >= 100/);
+  assert.match(service, /if \(!completedReel && Number\(attempt\.catch_roll\) > catchChance\)/);
+});
+
 test("attempt constants preserve expiry, leaderboard points, and rarity weights in the focused boundary", () => {
   assert.equal(FISHING_ATTEMPT_TTL_MS, 120_000);
   assert.deepEqual(FISH_POINTS, { 1: 10, 2: 12, 3: 20, 4: 25, 5: 50 });
@@ -58,6 +64,7 @@ test("production protocol rejects old authority fields and atomically records al
   assert.match(route, /keys\.some\(key => !\["locationId", "interactionScore"\]/);
   assert.match(service, /SELECT \*, expires_at <= NOW\(\) AS is_expired FROM fishing_attempts WHERE id = .* FOR UPDATE/);
   assert.match(service, /Math\.min\(99, Math\.floor\(input\.interactionScore\)\)/);
+  assert.match(service, /const completedReel = input\.interactionScore >= 100/);
   for (const mutation of ["player_fish_inventory", "player_fish_catch_log", "total_fish_caught", "user_inventory", "fishing_leaderboard", "user_janson_quests", "result_json"]) {
     assert.match(service, new RegExp(mutation));
   }
