@@ -149,6 +149,10 @@ test("card collection keeps the cleaner open layout and text heading", () => {
   assert.match(collection, /width: 40[\s\S]*?height: 40/);
   assert.match(collection, /width: "108%"/);
   assert.match(collection, /width: "min\(82%, 342px\)"/);
+  assert.match(collection, /columnGap: "clamp\(8px, 2\.4vw, 12px\)"/);
+  assert.match(collection, /rowGap: "clamp\(8px, 2\.4vw, 12px\)"/);
+  assert.match(collection, /rewardNeedsClearance = !card\.firstRewardClaimed/);
+  assert.doesNotMatch(collection, /className="relative min-w-0 pb-8"/);
 });
 
 test("card turn queues visual updates per frame and preserves fast swipe lore", () => {
