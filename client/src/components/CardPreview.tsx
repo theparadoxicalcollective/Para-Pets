@@ -88,7 +88,7 @@ export default function CardPreview({
   const dragRef = useRef<DragState | null>(null);
   const sparkleBackground = RARITY_SPARKLE_COUNT[rarity] > 0
     ? CARD_SPARKLE_POINTS.slice(0, RARITY_SPARKLE_COUNT[rarity])
-        .map((sparkle) => `radial-gradient(circle ${Math.max(sparkle.size * 2.6, 4.2)}% at ${sparkle.left}% ${sparkle.top}%, rgba(255,255,245,1) 0 5%, rgba(255,246,188,.98) 10%, rgba(255,210,82,.9) 24%, rgba(255,178,28,.55) 42%, rgba(255,190,52,0) 68%)`)
+        .map((sparkle) => `radial-gradient(circle ${Math.max(sparkle.size * 2.6, 4.2)}cqw at ${sparkle.left}% ${sparkle.top}%, rgba(255,255,245,1) 0 5%, rgba(255,246,188,.98) 10%, rgba(255,210,82,.9) 24%, rgba(255,178,28,.55) 42%, rgba(255,190,52,0) 68%)`)
         .join(", ")
     : undefined;
 
@@ -200,7 +200,7 @@ export default function CardPreview({
           lineHeight: isName ? 1.05 : 1.18,
           letterSpacing: isName ? ".05em" : "normal",
           textShadow: "0 1px 0 rgba(255,255,255,.58), 0 0 2px rgba(255,244,205,.28)",
-          transform: depth3d ? `translateZ(${isName ? 16 : 12}px)` : undefined,
+          transform: depth3d ? `translateZ(${isName ? 26 : 22}px)` : undefined,
           backfaceVisibility: "hidden",
           border: editable ? `1.5px dashed ${selected ? "#7cf5b2" : "rgba(255,224,128,.78)"}` : "none",
           background: editable ? (selected ? "rgba(22,90,58,.34)" : "rgba(8,8,5,.22)") : "transparent",
@@ -248,7 +248,7 @@ export default function CardPreview({
           borderRadius: "9% / 7%",
           background: "linear-gradient(145deg, #162219, #070a08)",
           pointerEvents: "none",
-          transform: depth3d ? "translateZ(5px)" : undefined,
+          transform: depth3d ? "translateZ(-10px)" : undefined,
           backfaceVisibility: "hidden",
         }}
       >
@@ -283,7 +283,7 @@ export default function CardPreview({
         src={CARD_BORDER_ASSETS[rarity]}
         alt={`${rarity}-star card border`}
         draggable={false}
-        style={{ position: "absolute", inset: 0, zIndex: 2, width: "100%", height: "100%", objectFit: "fill", pointerEvents: "none", transform: depth3d ? "translateZ(10px)" : undefined, backfaceVisibility: "hidden", filter: depth3d ? "drop-shadow(0 8px 12px rgba(0,0,0,.48))" : undefined }}
+        style={{ position: "absolute", inset: 0, zIndex: 2, width: "100%", height: "100%", objectFit: "fill", pointerEvents: "none", transform: depth3d ? "translateZ(16px)" : undefined, backfaceVisibility: "hidden", filter: depth3d ? "drop-shadow(0 8px 12px rgba(0,0,0,.48))" : undefined }}
       />
       {renderTextBox("name")}
       {renderTextBox("description")}
@@ -297,7 +297,7 @@ export default function CardPreview({
         aria-label={`${rarity} card rarity ${rarity === 1 ? "star" : "stars"}`}
         style={{ position: "absolute", left: `${layout.starX}%`, top: `${layout.starY}%`, width: `${layout.starWidth}%`, height: `${layout.starWidth / rarity * 2 / 3}%`,
           zIndex: 4, display: "flex", justifyContent: "center", alignItems: "center",
-          transform: depth3d ? "translateZ(18px)" : undefined,
+          transform: depth3d ? "translateZ(34px)" : undefined,
           backfaceVisibility: "hidden",
           border: editable ? `1.5px dashed ${selectedField === "stars" ? "#7cf5b2" : "rgba(255,224,128,.78)"}` : "none",
           background: editable && selectedField === "stars" ? "rgba(22,90,58,.34)" : "transparent",
@@ -309,15 +309,12 @@ export default function CardPreview({
       </div>
       <style>{`
         @keyframes cardRaritySparkleShimmer {
-          0%, 100% { opacity: .42; filter: brightness(.82); }
-          38% { opacity: 1; filter: brightness(1.5); }
-          62% { opacity: .68; filter: brightness(1.05); }
+          0%, 100% { opacity: .65; }
+          38% { opacity: 1; }
+          62% { opacity: .8; }
         }
         .card-rarity-sparkle-shimmer {
-          animation-name: cardRaritySparkleShimmer;
-          animation-timing-function: ease-in-out;
-          animation-iteration-count: infinite;
-          will-change: opacity, filter;
+          animation: cardRaritySparkleShimmer 3s ease-in-out infinite;
         }
         @media (prefers-reduced-motion: reduce) {
           .card-rarity-sparkle-shimmer { animation: none !important; }
@@ -327,20 +324,42 @@ export default function CardPreview({
         <div
           data-testid="card-rarity-sparkles"
           aria-hidden="true"
-          className="absolute card-rarity-sparkle-shimmer"
+          className="absolute"
           style={{
             inset: 0,
             zIndex: 5,
             pointerEvents: "none",
-            overflow: "hidden",
-            backgroundImage: sparkleBackground,
             opacity: RARITY_SPARKLE_STYLE[rarity].opacity,
             filter: RARITY_SPARKLE_STYLE[rarity].glow,
-            animationDuration: RARITY_SPARKLE_STYLE[rarity].duration,
-            transform: depth3d ? "translateZ(23px)" : undefined,
+            transform: depth3d ? "translateZ(38px)" : undefined,
             backfaceVisibility: "hidden",
           }}
-        />
+        >
+          <div
+            className="absolute inset-0 card-rarity-sparkle-shimmer"
+            style={{
+              backgroundImage: sparkleBackground,
+              animationDuration: RARITY_SPARKLE_STYLE[rarity].duration,
+            }}
+          >
+            <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 150" preserveAspectRatio="none" aria-hidden="true">
+              {CARD_SPARKLE_POINTS.slice(0, RARITY_SPARKLE_COUNT[rarity]).map((sparkle, index) => {
+                const x = sparkle.left;
+                const y = sparkle.top * 1.5;
+                const ray = sparkle.size * 0.55;
+                return (
+                  <g key={index}>
+                    <circle cx={x} cy={y} r={ray * 2.1} fill="rgba(255,197,65,.35)" />
+                    <path
+                      d={`M ${x} ${y - ray} L ${x + ray * .18} ${y - ray * .18} L ${x + ray} ${y} L ${x + ray * .18} ${y + ray * .18} L ${x} ${y + ray} L ${x - ray * .18} ${y + ray * .18} L ${x - ray} ${y} L ${x - ray * .18} ${y - ray * .18} Z`}
+                      fill="#fffbea"
+                    />
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        </div>
       )}
     </div>
   );
