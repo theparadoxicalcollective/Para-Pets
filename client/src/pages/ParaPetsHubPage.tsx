@@ -913,51 +913,6 @@ function AboutSection() {
         ))}
       </div>
 
-      <div
-        className="w-full rounded-2xl p-4 text-left"
-        data-testid="about-paid-options"
-        style={{
-          background: "linear-gradient(135deg, rgba(44,31,8,0.72) 0%, rgba(14,29,18,0.9) 100%)",
-          border: "1px solid rgba(212,168,67,0.3)",
-          boxShadow: "0 7px 22px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,225,120,0.05)",
-        }}
-      >
-        <div className="flex items-start gap-3">
-          <div
-            className="flex items-center justify-center rounded-xl flex-shrink-0"
-            style={{
-              width: 42,
-              height: 42,
-              background: "rgba(212,168,67,0.1)",
-              border: "1px solid rgba(212,168,67,0.28)",
-              color: "#f0d770",
-              fontSize: 19,
-            }}
-            aria-hidden="true"
-          >
-            ✦
-          </div>
-          <div className="min-w-0">
-            <h3 className="font-fantasy text-xs tracking-widest mb-1.5" style={{ color: "#f0d770" }}>
-              Optional In-Game Purchases
-            </h3>
-            <p className="font-fantasy text-[10px] leading-relaxed" style={{ color: "rgba(210,225,195,0.72)" }}>
-              You can enjoy Para Pets without paying. Optional virtual coin packs are available through secure
-              Stripe checkout and can be used for eligible in-game eggs, items, and other content. Some packs
-              may include promotional bonus coins or eggs. Offers can change, prices are shown before checkout,
-              and there are no physical goods or shipping.
-            </p>
-            <Link
-              href="/coins"
-              className="inline-flex mt-3 font-fantasy text-[10px] tracking-widest transition-opacity active:opacity-70"
-              data-testid="link-about-coin-shop"
-              style={{ color: "#d4a843", textDecoration: "none" }}
-            >
-              View optional coin packs →
-            </Link>
-          </div>
-        </div>
-      </div>
     </section>
   );
 }
