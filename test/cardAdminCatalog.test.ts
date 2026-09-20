@@ -85,7 +85,7 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
 
 test("player-facing cards use brighter rarity stars, tiered sparkles, and swipe-to-turn lore", () => {
   assert.match(preview, /brightness\(1\.2\)/);
-  assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*0[\s\S]*?3:\s*4[\s\S]*?4:\s*8[\s\S]*?5:\s*14/);
+  assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*0[\s\S]*?3:\s*5[\s\S]*?4:\s*9[\s\S]*?5:\s*14/);
   assert.match(preview, /data-testid="card-rarity-sparkles"/);
   assert.match(preview, /translateZ\(18px\)/);
   assert.match(detail, /data-testid="card-turn-surface"/);
