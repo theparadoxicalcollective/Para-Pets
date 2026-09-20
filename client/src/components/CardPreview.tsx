@@ -41,17 +41,17 @@ const RARITY_TEXT_STYLES: Record<CardRarity, { name: string; description: string
 const RARITY_SPARKLE_COUNT: Record<CardRarity, number> = {
   1: 0,
   2: 44,
-  3: 76,
-  4: 112,
-  5: 156,
+  3: 96,
+  4: 148,
+  5: 220,
 };
 
 const RARITY_GLINT_COUNT: Record<CardRarity, number> = {
   1: 0,
   2: 5,
-  3: 10,
-  4: 18,
-  5: 30,
+  3: 14,
+  4: 26,
+  5: 44,
 };
 
 const RARITY_SWIRL_COUNT: Record<CardRarity, number> = {
@@ -72,7 +72,7 @@ const RARITY_SPARKLE_STYLE: Record<CardRarity, { opacity: number; glow: string; 
 
 // Keep the tiny glitter deterministic but distribute it across the whole artwork.
 // Only five batch opacity animations are used, so even a 5-star card stays light on mobile.
-const CARD_GLITTER_POINTS = Array.from({ length: 156 }, (_, index) => {
+const CARD_GLITTER_POINTS = Array.from({ length: 220 }, (_, index) => {
   const xSeed = ((index * 37 + 11) % 101) / 100;
   const ySeed = ((index * 61 + 23) % 151) / 150;
   const drift = Math.sin(index * 1.73) * 2.4;
@@ -84,12 +84,21 @@ const CARD_GLITTER_POINTS = Array.from({ length: 156 }, (_, index) => {
   };
 });
 
-const CARD_GLINT_POINTS = Array.from({ length: 30 }, (_, index) => ({
+const CARD_GLINT_POINTS = Array.from({ length: 44 }, (_, index) => ({
   x: 9 + ((index * 37 + 7) % 83),
   y: 9 + ((index * 61 + 19) % 131),
   size: .38 + ((index * 11) % 5) * .075,
   delay: ((index * 17) % 29) / 10,
 }));
+
+const CARD_BORDER_GLINT_POINTS = Array.from({ length: 36 }, (_, index) => {
+  const lane = index % 4;
+  const offset = ((index * 29 + 13) % 89) / 89;
+  if (lane === 0) return { x: 7 + offset * 86, y: 7 + (index % 3) * 2.4, size: .42 + (index % 4) * .07, delay: ((index * 13) % 31) / 10 };
+  if (lane === 1) return { x: 91 + (index % 3) * 1.6, y: 14 + offset * 119, size: .42 + (index % 4) * .07, delay: ((index * 13) % 31) / 10 };
+  if (lane === 2) return { x: 7 + offset * 86, y: 141 - (index % 3) * 2.4, size: .42 + (index % 4) * .07, delay: ((index * 13) % 31) / 10 };
+  return { x: 9 - (index % 3) * 1.6, y: 14 + offset * 119, size: .42 + (index % 4) * .07, delay: ((index * 13) % 31) / 10 };
+});
 
 const CARD_SWIRL_PATHS = [
   "M 16 133 C 10 116, 18 101, 32 101 C 47 101, 50 114, 41 121 C 31 129, 20 118, 25 108 C 31 97, 54 97, 62 82 C 70 67, 59 55, 47 59 C 35 63, 35 75, 43 80 C 51 84, 59 76, 55 68",
@@ -172,6 +181,7 @@ export default function CardPreview({
 
   const renderTextBox = (field: CardLayoutField) => {
     const isName = field === "name";
+    const highRarityTitle = isName && rarity >= 4;
     const metrics = fieldMetrics(field);
     const selected = editable && selectedField === field;
     const clickable = !editable && !isName && !!onDescriptionClick;
@@ -188,6 +198,7 @@ export default function CardPreview({
     return (
       <div
         data-testid={`card-layout-box-${field}`}
+        data-card-title-rarity={highRarityTitle ? rarity : undefined}
         onPointerDown={(event) => beginDrag(field, event)}
         onPointerMove={moveDrag}
         onPointerUp={endDrag}
@@ -208,7 +219,7 @@ export default function CardPreview({
           top: `${metrics.y}%`,
           width: `${metrics.width}%`,
           height: `${metrics.height}%`,
-          zIndex: 3,
+          zIndex: 4,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -413,7 +424,7 @@ export default function CardPreview({
           </svg>
         )}
       </div>
-      {showSparkles && (
+      {showSparkles && rarity >= 3 && (
         <div
           data-testid="card-border-gold-glow"
           aria-hidden="true"
@@ -421,9 +432,9 @@ export default function CardPreview({
           style={{
             position: "absolute",
             inset: 0,
-            zIndex: 1,
+            zIndex: 3,
             pointerEvents: "none",
-            transform: depth3d ? "translateZ(12px)" : undefined,
+            transform: depth3d ? "translateZ(20px)" : undefined,
             WebkitMaskImage: `url("${CARD_BORDER_ASSETS[rarity]}")`,
             maskImage: `url("${CARD_BORDER_ASSETS[rarity]}")`,
             WebkitMaskRepeat: "no-repeat",
@@ -432,12 +443,62 @@ export default function CardPreview({
             maskPosition: "center",
             WebkitMaskSize: "100% 100%",
             maskSize: "100% 100%",
-            backgroundImage: "linear-gradient(105deg, transparent 0 37%, rgba(255,194,46,.08) 42%, rgba(255,226,120,.96) 49%, rgba(255,202,60,.48) 54%, transparent 61% 100%)",
-            backgroundSize: "240% 100%",
-            filter: `drop-shadow(0 0 ${1.5 + rarity * .35}px rgba(255,205,73,.82)) drop-shadow(0 0 ${4 + rarity * .7}px rgba(255,177,34,.42))`,
-            opacity: .5 + rarity * .08,
+            backgroundImage: "linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%)",
+            backgroundSize: "285% 100%",
+            mixBlendMode: "screen",
+            filter: `drop-shadow(0 0 ${2.8 + rarity * .45}px rgba(255,224,116,.95)) drop-shadow(0 0 ${6.5 + rarity * .9}px rgba(255,184,34,.7)) drop-shadow(0 0 ${11 + rarity * 1.1}px rgba(255,146,18,.36))`,
+            opacity: .82 + (rarity - 3) * .06,
           }}
         />
+      )}
+      {showSparkles && rarity === 5 && (
+        <div
+          data-testid="card-border-sparkles"
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 3,
+            pointerEvents: "none",
+            transform: depth3d ? "translateZ(22px)" : undefined,
+            WebkitMaskImage: `url("${CARD_BORDER_ASSETS[rarity]}")`,
+            maskImage: `url("${CARD_BORDER_ASSETS[rarity]}")`,
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskPosition: "center",
+            maskPosition: "center",
+            WebkitMaskSize: "100% 100%",
+            maskSize: "100% 100%",
+          }}
+        >
+          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 150" preserveAspectRatio="none">
+            {CARD_BORDER_GLINT_POINTS.map((glint, index) => (
+              <g
+                key={index}
+                className="card-border-glint"
+                style={{
+                  animationDelay: `-${glint.delay}s`,
+                  animationDuration: `${1.85 + (index % 5) * .24}s`,
+                }}
+              >
+                <circle cx={glint.x} cy={glint.y} r={glint.size * 2.5} fill="rgba(255,218,112,.14)" />
+                <path
+                  d={`M ${glint.x} ${glint.y - glint.size * 1.45}
+                    L ${glint.x + glint.size * .2} ${glint.y - glint.size * .2}
+                    L ${glint.x + glint.size * 1.45} ${glint.y}
+                    L ${glint.x + glint.size * .2} ${glint.y + glint.size * .2}
+                    L ${glint.x} ${glint.y + glint.size * 1.45}
+                    L ${glint.x - glint.size * .2} ${glint.y + glint.size * .2}
+                    L ${glint.x - glint.size * 1.45} ${glint.y}
+                    L ${glint.x - glint.size * .2} ${glint.y - glint.size * .2} Z`}
+                  fill="rgba(255,255,241,.98)"
+                  stroke="rgba(255,218,112,.95)"
+                  strokeWidth=".1"
+                />
+              </g>
+            ))}
+          </svg>
+        </div>
       )}
       <img
         src={CARD_BORDER_ASSETS[rarity]}
@@ -456,7 +517,7 @@ export default function CardPreview({
         onClick={() => onSelectField?.("stars")}
         aria-label={`${rarity} card rarity ${rarity === 1 ? "star" : "stars"}`}
         style={{ position: "absolute", left: `${layout.starX}%`, top: `${layout.starY}%`, width: `${layout.starWidth}%`, height: `${layout.starWidth / rarity * 2 / 3}%`,
-          zIndex: 4, display: "flex", justifyContent: "center", alignItems: "center",
+          zIndex: 5, display: "flex", justifyContent: "center", alignItems: "center",
           transform: depth3d ? "translateZ(34px)" : undefined,
           backfaceVisibility: "hidden",
           border: editable ? `1.5px dashed ${selectedField === "stars" ? "#7cf5b2" : "rgba(255,224,128,.78)"}` : "none",
@@ -502,9 +563,24 @@ export default function CardPreview({
           70% { opacity: .42; }
         }
         @keyframes cardBorderGlowTravel {
-          0% { background-position: 165% 0; opacity: .34; }
-          42% { opacity: .86; }
-          100% { background-position: -85% 0; opacity: .34; }
+          0% { background-position: 185% 0; opacity: .72; }
+          45% { opacity: 1; }
+          100% { background-position: -105% 0; opacity: .72; }
+        }
+        @keyframes cardBorderGlint {
+          0%, 100% { opacity: .06; transform: scale(.5) rotate(0deg); }
+          26% { opacity: .95; transform: scale(1.1) rotate(8deg); }
+          44% { opacity: .18; transform: scale(.72) rotate(13deg); }
+          67% { opacity: .82; transform: scale(.98) rotate(18deg); }
+          82% { opacity: .08; transform: scale(.58) rotate(23deg); }
+        }
+        @keyframes cardTitleHologoldSweep {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        @keyframes cardTitleFiveStarPulse {
+          0%, 100% { filter: drop-shadow(0 0 1px rgba(255,239,176,.55)) drop-shadow(0 0 3px rgba(255,186,46,.38)); }
+          50% { filter: drop-shadow(0 0 2px rgba(255,250,214,.95)) drop-shadow(0 0 7px rgba(255,197,53,.86)) drop-shadow(0 0 12px rgba(255,147,20,.38)); }
         }
         .card-glitter-batch { will-change: opacity; }
         .card-glitter-batch-0 { animation: cardGlitterPulseA 2.5s ease-in-out infinite; }
@@ -521,24 +597,51 @@ export default function CardPreview({
           animation: cardMicroGlint 1.9s ease-in-out infinite;
         }
         .card-star-aura { filter: blur(.35px); }
+        .card-border-glint {
+          opacity: .3;
+          transform-box: fill-box;
+          transform-origin: center;
+          mix-blend-mode: screen;
+          filter: drop-shadow(0 0 1px rgba(255,255,240,.96)) drop-shadow(0 0 4px rgba(255,193,58,.8));
+          animation: cardBorderGlint 2.15s ease-in-out infinite;
+        }
+        [data-card-title-rarity="4"] > span,
+        [data-card-title-rarity="5"] > span {
+          color: transparent;
+          -webkit-text-fill-color: transparent;
+          background-image: linear-gradient(100deg, #8d5513 0%, #d99c31 18%, #fff3bd 34%, #c57918 47%, #fff8d8 61%, #e7b447 76%, #8e5413 100%);
+          background-size: 230% 100%;
+          background-clip: text;
+          -webkit-background-clip: text;
+          animation: cardTitleHologoldSweep 7.8s ease-in-out infinite;
+        }
+        [data-card-title-rarity="5"] > span {
+          animation: cardTitleHologoldSweep 6.6s ease-in-out infinite, cardTitleFiveStarPulse 2.9s ease-in-out infinite;
+        }
         .card-sparkle-swirl-line {
           mix-blend-mode: screen;
           filter: drop-shadow(0 0 .7px rgba(255,255,240,.88)) drop-shadow(0 0 2px rgba(255,214,115,.5));
           animation: cardSparkleSwirlFlow 3.4s ease-in-out infinite;
         }
         .card-border-gold-glow {
-          animation: cardBorderGlowTravel 4.6s ease-in-out infinite;
+          animation: cardBorderGlowTravel 9.6s ease-in-out infinite;
           will-change: background-position, opacity;
         }
         @media (prefers-reduced-motion: reduce) {
           .card-glitter-batch,
           .card-micro-glint,
+          .card-border-glint,
           .card-sparkle-swirl-line,
-          .card-border-gold-glow { animation: none !important; }
+          .card-border-gold-glow,
+          [data-card-title-rarity="4"] > span,
+          [data-card-title-rarity="5"] > span { animation: none !important; }
           .card-glitter-batch { opacity: .82; }
-          .card-micro-glint { opacity: .6; }
+          .card-micro-glint,
+          .card-border-glint { opacity: .6; }
           .card-sparkle-swirl-line { opacity: .56; }
-          .card-border-gold-glow { background-position: 50% 0; opacity: .54; }
+          .card-border-gold-glow { background-position: 50% 0; opacity: .88; }
+          [data-card-title-rarity="4"] > span,
+          [data-card-title-rarity="5"] > span { background-position: 50% 50%; filter: drop-shadow(0 0 3px rgba(255,194,56,.48)); }
         }
       `}</style>}
     </div>
