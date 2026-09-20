@@ -1,0 +1,83 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+import {
+  BEAU_PRIZE_WHEEL_LOSS_SLOT,
+  BEAU_PRIZE_WHEEL_PAID_COST,
+  BEAU_PRIZE_WHEEL_PRIZE_SLOTS,
+  BEAU_PRIZE_WHEEL_SLOT_COUNT,
+  beauWheelLandingRotation,
+  beauWheelSlotCenterAngle,
+} from "../shared/beauPrizeWheel";
+
+const server = readFileSync("server/beauPrizeWheel.ts", "utf8");
+const routes = readFileSync("server/routes/beauPrizeWheel.routes.ts", "utf8");
+const migration = readFileSync("server/startup/migrations/ensureBeauPrizeWheel.ts", "utf8");
+const startup = readFileSync("server/startup/runStartup.ts", "utf8");
+const overlay = readFileSync("client/src/components/world/BeauPrizeWheelOverlay.tsx", "utf8");
+const bridge = readFileSync("client/src/components/BeauPrizeWheelBridge.tsx", "utf8");
+
+test("Beau wheel has seven admin prizes plus one fixed loss section", () => {
+  assert.equal(BEAU_PRIZE_WHEEL_SLOT_COUNT, 8);
+  assert.equal(BEAU_PRIZE_WHEEL_PRIZE_SLOTS, 7);
+  assert.equal(BEAU_PRIZE_WHEEL_LOSS_SLOT, 7);
+  assert.equal(BEAU_PRIZE_WHEEL_PAID_COST, 500);
+
+  const centers = Array.from({ length: 8 }, (_, slot) => beauWheelSlotCenterAngle(slot));
+  assert.deepEqual(centers, [22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5]);
+  assert.equal(new Set(centers.map((_, slot) => beauWheelLandingRotation(slot))).size, 8);
+});
+
+test("spin cost, daily free spin and reward grant stay server-authoritative and atomic", () => {
+  assert.match(server, /America\/Chicago/);
+  assert.match(server, /BEAU_PRIZE_WHEEL_PAID_COST/);
+  assert.match(server, /transaction\(async tx/);
+  assert.match(server, /WHERE id = \$\{userId\}[\s\S]*FOR UPDATE/);
+  assert.match(server, /FROM beau_prize_wheel_spins[\s\S]*spin_day/);
+  assert.match(server, /randomInt\(BEAU_PRIZE_WHEEL_SLOT_COUNT\)/);
+  assert.match(server, /slotIndex === BEAU_PRIZE_WHEEL_LOSS_SLOT/);
+  assert.match(server, /active_pet_id/);
+  assert.match(server, /pet_level_points/);
+  assert.match(server, /ui\.is_hatched = true/);
+  assert.match(server, /UPDATE users SET coins = coins - \$\{cost\}/);
+  assert.match(server, /INSERT INTO beau_prize_wheel_spins/);
+});
+
+test("wheel cannot spin until every admin prize is valid", () => {
+  assert.match(server, /ready: configs\.length === BEAU_PRIZE_WHEEL_PRIZE_SLOTS && configs\.every\(Boolean\)/);
+  assert.match(server, /if \(!wheel\.ready\) throw new BeauPrizeWheelError\("not_configured"/);
+  assert.match(routes, /\/api\/admin\/beau-prize-wheel\/slots\/:slot/);
+  assert.match(routes, /\/api\/beau-prize-wheel\/spin/);
+  assert.match(bridge, /if \(!next\.ready && !next\.isAdmin\)/);
+});
+
+test("player popup uses Beau art, empty wheel, pointer and Haunted Forest background", () => {
+  assert.match(overlay, /BeauPrizeWheel\.png/);
+  assert.match(overlay, /PrizeWheelEmpty\.png/);
+  assert.match(overlay, /PrizeWheelArrow\.png/);
+  assert.match(overlay, /bg_haunted_woods_v2\.webp/);
+  assert.match(overlay, /generated_images\/icon_skull_defeat\.png/);
+  assert.match(overlay, /beauWheelLandingRotation/);
+  assert.match(overlay, /FREE SPIN/);
+  assert.match(overlay, /SPIN · 500/);
+});
+
+test("admin can set coins, essence, pet EXP, items and eggs directly on wheel sections", () => {
+  for (const kind of ["coins", "essence", "exp", "item", "egg"]) {
+    assert.match(overlay, new RegExp('kind: "' + kind + '"'));
+  }
+  assert.match(overlay, /Set Prize/);
+  assert.match(overlay, /EXP is applied only to the player's currently active, hatched pet/);
+  assert.match(server, /type <> 'npc'/);
+  assert.match(server, /type <> 'pet' OR COALESCE\(egg_image_url, ''\) <> ''/);
+});
+
+test("Beau only opens the wheel from the Haunted Forest NPC and startup installs the feature", () => {
+  assert.match(bridge, /BEAU_PRIZE_WHEEL_WORLD_ID/);
+  assert.match(bridge, /BEAU_PRIZE_WHEEL_NPC_NAME/);
+  assert.match(bridge, /npcNamesMatch/);
+  assert.match(startup, /ensureBeauPrizeWheelSchema/);
+  assert.match(startup, /registerBeauPrizeWheelRoutes\(app\)/);
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS beau_prize_wheel_spins/);
+  assert.match(migration, /action_id UUID PRIMARY KEY/);
+});
