@@ -49,8 +49,8 @@ const RARITY_SPARKLE_COUNT: Record<CardRarity, number> = {
 const RARITY_SPARKLE_STYLE: Record<CardRarity, { opacity: number; duration: string; glow: string }> = {
   1: { opacity: 0, duration: "0s", glow: "none" },
   2: { opacity: 0, duration: "0s", glow: "none" },
-  3: { opacity: 0.62, duration: "3.8s", glow: "drop-shadow(0 0 2px rgba(255,225,120,.65))" },
-  4: { opacity: 0.8, duration: "3.2s", glow: "drop-shadow(0 0 3px rgba(255,225,120,.8))" },
+  3: { opacity: 0.85, duration: "3.8s", glow: "drop-shadow(0 0 2px rgba(255,225,120,.65))" },
+  4: { opacity: 0.95, duration: "3.2s", glow: "drop-shadow(0 0 3px rgba(255,225,120,.8))" },
   5: { opacity: 1, duration: "2.7s", glow: "drop-shadow(0 0 4px rgba(255,235,150,.9))" },
 };
 
@@ -301,14 +301,14 @@ export default function CardPreview({
             {CARD_SPARKLE_POINTS.slice(0, RARITY_SPARKLE_COUNT[rarity]).map((sparkle, index) => {
               const x = sparkle.left;
               const y = sparkle.top * 1.5;
-              const ray = Math.max(0.75, sparkle.size * 0.42);
+              const ray = Math.max(1.4, sparkle.size * 0.8);
               return (
                 <g
                   key={index}
                   className="card-artwork-sparkle"
                   style={{ animationDelay: `-${sparkle.delay}s`, animationDuration: RARITY_SPARKLE_STYLE[rarity].duration }}
                 >
-                  <circle cx={x} cy={y} r={ray * 2.4} fill="rgba(255,205,95,.24)" />
+                  <circle cx={x} cy={y} r={ray * 3} fill="rgba(255,225,145,.36)" />
                   <circle cx={x} cy={y} r={ray * .34} fill="#ffffff" />
                   <path
                     d={`M ${x} ${y - ray} L ${x + ray * .16} ${y - ray * .16} L ${x + ray} ${y} L ${x + ray * .16} ${y + ray * .16} L ${x} ${y + ray} L ${x - ray * .16} ${y + ray * .16} L ${x - ray} ${y} L ${x - ray * .16} ${y - ray * .16} Z`}
