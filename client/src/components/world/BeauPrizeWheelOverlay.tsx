@@ -3,7 +3,7 @@ import { Check, Coins, Gem, Minus, Pencil, Plus, Search, Sparkles, X } from "luc
 import { queryClient } from "@/lib/queryClient";
 import {
   BEAU_PRIZE_WHEEL_PAID_COST,
-  BEAU_WHEEL_STAGE_RATIO,
+  BEAU_BEAU_WHEEL_STAGE_RATIO,
   DEFAULT_BEAU_POINTER_LAYOUT,
   DEFAULT_BEAU_WHEEL_LAYOUT,
   BEAU_PRIZE_WHEEL_PRIZE_SLOTS,
@@ -525,8 +525,8 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
     const next = {
       size,
       left: Math.max(0, Math.min(100 - size, previous.left - (size - previous.size) / 2)),
-      top: Math.max(0, Math.min(100 - size * WHEEL_STAGE_RATIO,
-        previous.top - (size - previous.size) * WHEEL_STAGE_RATIO / 2)),
+      top: Math.max(0, Math.min(100 - size * BEAU_WHEEL_STAGE_RATIO,
+        previous.top - (size - previous.size) * BEAU_WHEEL_STAGE_RATIO / 2)),
     };
     layoutRef.current = next;
     setLayout(next);
@@ -581,7 +581,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
       const next = {
         ...layoutDrag.original,
         left: Math.max(0, Math.min(100 - size, layoutDrag.original.left + (event.clientX - layoutDrag.x) / rect.width * 100)),
-        top: Math.max(0, Math.min(100 - size * BEAU_WHEEL_STAGE_RATIO,
+        top: Math.max(0, Math.min(100 - size * BEAU_BEAU_WHEEL_STAGE_RATIO,
           layoutDrag.original.top + (event.clientY - layoutDrag.y) / rect.height * 100)),
       };
       layoutRef.current = next;
@@ -652,7 +652,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
     event.preventDefault();
     event.stopPropagation();
     const halfWidth = drag.original.size / 2;
-    const halfHeight = drag.original.size * 1.65 * BEAU_WHEEL_STAGE_RATIO / 2;
+    const halfHeight = drag.original.size * 1.65 * BEAU_BEAU_WHEEL_STAGE_RATIO / 2;
     const next = {
       ...drag.original,
       x: Math.max(halfWidth, Math.min(100 - halfWidth, drag.original.x + (event.clientX - drag.x) / rect.width * 100)),
@@ -868,7 +868,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
               left: `${pointerLayout.x}%`,
               top: `${pointerLayout.y}%`,
               width: `${pointerLayout.size}%`,
-              height: `${pointerLayout.size * 1.65 * BEAU_WHEEL_STAGE_RATIO}%`,
+              height: `${pointerLayout.size * 1.65 * BEAU_BEAU_WHEEL_STAGE_RATIO}%`,
               transform: "translate(-50%,-50%)",
               touchAction: "none",
               cursor: state.isAdmin && !spinning ? "move" : undefined,
