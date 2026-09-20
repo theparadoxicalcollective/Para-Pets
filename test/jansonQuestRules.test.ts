@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isJansonQuestKey, jansonQuestDate, jansonQuestStatus } from "../server/jansonQuestRules";
+import { isJansonQuestKey, jansonDailyUnlocked, jansonMarketUnlocked, jansonQuestDate, jansonQuestStatus } from "../server/jansonQuestRules";
 
 test("Janson's fishing chapters unlock in order and stay claimed", () => {
   assert.equal(jansonQuestStatus("catch_fish", null, false), "available");
@@ -20,4 +20,12 @@ test("Janson's repeatable quest uses the game's Central calendar day", () => {
   assert.equal(jansonQuestDate(new Date("2026-09-21T05:00:00Z")), "2026-09-21");
   assert.equal(jansonQuestDate(new Date("2026-01-01T05:59:59Z")), "2025-12-31");
   assert.equal(jansonQuestDate(new Date("2026-01-01T06:00:00Z")), "2026-01-01");
+});
+
+test("the market opens during Sell Fish, but daily fishing waits for both rewards", () => {
+  assert.equal(jansonMarketUnlocked(false, { accepted_at: new Date() }), false);
+  assert.equal(jansonMarketUnlocked(true, null), false);
+  assert.equal(jansonMarketUnlocked(true, { accepted_at: new Date() }), true);
+  assert.equal(jansonDailyUnlocked(true, { accepted_at: new Date() }), false);
+  assert.equal(jansonDailyUnlocked(true, { reward_claimed_at: new Date() }), true);
 });
