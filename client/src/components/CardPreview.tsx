@@ -17,6 +17,7 @@ interface CardPreviewProps {
   editable?: boolean;
   textSize?: "scaled" | "inventory" | "detail";
   onDescriptionClick?: () => void;
+  depth3d?: boolean;
   selectedField?: CardLayoutField;
   onSelectField?: (field: CardLayoutField) => void;
   onLayoutChange?: (layout: CardBorderLayout) => void;
@@ -36,6 +37,31 @@ const RARITY_TEXT_STYLES: Record<CardRarity, { name: string; description: string
   5: { name: "#7a3d18", description: "#7f5528" },
 };
 
+const RARITY_SPARKLE_COUNT: Record<CardRarity, number> = {
+  1: 0,
+  2: 0,
+  3: 4,
+  4: 8,
+  5: 14,
+};
+
+const CARD_SPARKLE_POINTS = [
+  { left: 14, top: 18, size: 2.2, delay: 0.0 },
+  { left: 83, top: 20, size: 1.8, delay: 0.5 },
+  { left: 18, top: 47, size: 1.6, delay: 1.0 },
+  { left: 80, top: 44, size: 2.4, delay: 1.4 },
+  { left: 30, top: 31, size: 1.5, delay: 0.8 },
+  { left: 69, top: 32, size: 1.9, delay: 1.8 },
+  { left: 15, top: 68, size: 2.0, delay: 1.2 },
+  { left: 84, top: 70, size: 1.5, delay: 0.3 },
+  { left: 29, top: 82, size: 2.2, delay: 1.6 },
+  { left: 70, top: 81, size: 1.8, delay: 0.9 },
+  { left: 48, top: 24, size: 1.4, delay: 2.0 },
+  { left: 53, top: 57, size: 1.6, delay: 0.2 },
+  { left: 26, top: 60, size: 1.3, delay: 2.2 },
+  { left: 74, top: 58, size: 1.4, delay: 1.1 },
+] as const;
+
 export default function CardPreview({
   rarity,
   artworkUrl,
@@ -45,12 +71,18 @@ export default function CardPreview({
   editable = false,
   textSize = "scaled",
   onDescriptionClick,
+  depth3d = false,
   selectedField = "name",
   onSelectField,
   onLayoutChange,
 }: CardPreviewProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
+  const sparkleBackground = RARITY_SPARKLE_COUNT[rarity] > 0
+    ? CARD_SPARKLE_POINTS.slice(0, RARITY_SPARKLE_COUNT[rarity])
+        .map((sparkle) => `radial-gradient(circle ${sparkle.size}% at ${sparkle.left}% ${sparkle.top}%, #fffdf0 0 10%, #ffe68a 22%, rgba(255,190,52,.82) 46%, rgba(255,190,52,0) 74%)`)
+        .join(", ")
+    : undefined;
 
   const fieldMetrics = (field: CardLayoutField) => field === "name"
     ? { x: layout.nameX, y: layout.nameY, width: layout.nameWidth, height: layout.nameHeight }
@@ -160,6 +192,8 @@ export default function CardPreview({
           lineHeight: isName ? 1.05 : 1.18,
           letterSpacing: isName ? ".05em" : "normal",
           textShadow: "0 1px 0 rgba(255,255,255,.58), 0 0 2px rgba(255,244,205,.28)",
+          transform: depth3d ? `translateZ(${isName ? 16 : 12}px)` : undefined,
+          backfaceVisibility: "hidden",
           border: editable ? `1.5px dashed ${selected ? "#7cf5b2" : "rgba(255,224,128,.78)"}` : "none",
           background: editable ? (selected ? "rgba(22,90,58,.34)" : "rgba(8,8,5,.22)") : "transparent",
           boxShadow: editable && selected ? "0 0 10px rgba(124,245,178,.42)" : "none",
@@ -182,7 +216,10 @@ export default function CardPreview({
         width: "100%",
         containerType: "inline-size",
         // Preserve the transparent silhouette around the decorative frame.
-        filter: "drop-shadow(0 8px 12px rgba(0,0,0,.48))",
+        // The detail viewer owns the shadow while the card is in 3D so the
+        // individual layers remain free to separate along the Z axis.
+        filter: depth3d ? "none" : "drop-shadow(0 8px 12px rgba(0,0,0,.48))",
+        transformStyle: depth3d ? "preserve-3d" : undefined,
       }}
     >
       <img
@@ -203,6 +240,8 @@ export default function CardPreview({
           borderRadius: "9% / 7%",
           background: "linear-gradient(145deg, #162219, #070a08)",
           pointerEvents: "none",
+          transform: depth3d ? "translateZ(5px)" : undefined,
+          backfaceVisibility: "hidden",
         }}
       >
         {artworkUrl ? (
@@ -236,7 +275,7 @@ export default function CardPreview({
         src={CARD_BORDER_ASSETS[rarity]}
         alt={`${rarity}-star card border`}
         draggable={false}
-        style={{ position: "absolute", inset: 0, zIndex: 2, width: "100%", height: "100%", objectFit: "fill", pointerEvents: "none" }}
+        style={{ position: "absolute", inset: 0, zIndex: 2, width: "100%", height: "100%", objectFit: "fill", pointerEvents: "none", transform: depth3d ? "translateZ(10px)" : undefined, backfaceVisibility: "hidden", filter: depth3d ? "drop-shadow(0 8px 12px rgba(0,0,0,.48))" : undefined }}
       />
       {renderTextBox("name")}
       {renderTextBox("description")}
@@ -250,14 +289,34 @@ export default function CardPreview({
         aria-label={`${rarity} card rarity ${rarity === 1 ? "star" : "stars"}`}
         style={{ position: "absolute", left: `${layout.starX}%`, top: `${layout.starY}%`, width: `${layout.starWidth}%`, height: `${layout.starWidth / rarity * 2 / 3}%`,
           zIndex: 4, display: "flex", justifyContent: "center", alignItems: "center",
+          transform: depth3d ? "translateZ(18px)" : undefined,
+          backfaceVisibility: "hidden",
           border: editable ? `1.5px dashed ${selectedField === "stars" ? "#7cf5b2" : "rgba(255,224,128,.78)"}` : "none",
           background: editable && selectedField === "stars" ? "rgba(22,90,58,.34)" : "transparent",
           cursor: editable ? "grab" : "default", touchAction: editable ? "none" : "auto", userSelect: "none" }}
       >
         {Array.from({ length: rarity }, (_, index) => <img key={index} src={starImg} alt="" draggable={false}
           style={{ width: `${100 / rarity}%`, height: "100%", objectFit: "contain", pointerEvents: "none",
-            filter: "drop-shadow(0 1px 2px rgba(0,0,0,.85))" }} />)}
+            filter: "brightness(1.2) saturate(1.12) drop-shadow(0 0 2px rgba(255,245,190,.95)) drop-shadow(0 0 6px rgba(255,196,54,.82)) drop-shadow(0 1px 2px rgba(0,0,0,.78))" }} />)}
       </div>
+      {sparkleBackground && (
+        <div
+          data-testid="card-rarity-sparkles"
+          aria-hidden="true"
+          className="absolute animate-pulse"
+          style={{
+            inset: 0,
+            zIndex: 5,
+            pointerEvents: "none",
+            overflow: "hidden",
+            backgroundImage: sparkleBackground,
+            filter: "drop-shadow(0 0 4px rgba(255,225,120,.66))",
+            animationDuration: rarity === 5 ? "2.2s" : rarity === 4 ? "2.7s" : "3.2s",
+            transform: depth3d ? "translateZ(23px)" : undefined,
+            backfaceVisibility: "hidden",
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -39,7 +39,7 @@ test("sign-in landing spacing and Hub button use the refined proportions", () =>
 });
 
 
-test("the Hub introduces the game and optional purchases before Realm Benefactors", () => {
+test("the Hub introduces the game without duplicating the coin-shop purchase notice", () => {
   const hub = readFileSync(fromRoot("client", "src", "pages", "ParaPetsHubPage.tsx"), "utf8");
 
   const aboutUsage = hub.lastIndexOf("<AboutSection />");
@@ -48,11 +48,9 @@ test("the Hub introduces the game and optional purchases before Realm Benefactor
   assert.ok(aboutUsage >= 0, "About the Game section should render on the Hub");
   assert.ok(benefactorsUsage > aboutUsage, "About the Game should appear before Realm Benefactors");
   assert.match(hub, />\s*About the Game\s*</);
-  assert.match(hub, />\s*Optional In-Game Purchases\s*</);
-  assert.match(hub, /You can enjoy Para Pets without paying/);
-  assert.match(hub, /secure\s+Stripe checkout/);
-  assert.match(hub, /there are no physical goods or shipping/);
-  assert.match(hub, /data-testid="link-about-coin-shop"/);
+  assert.doesNotMatch(hub, />\s*Optional In-Game Purchases\s*</);
+  assert.doesNotMatch(hub, /data-testid="about-paid-options"/);
+  assert.doesNotMatch(hub, /data-testid="link-about-coin-shop"/);
 });
 
 
