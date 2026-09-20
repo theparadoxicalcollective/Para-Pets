@@ -7,7 +7,7 @@ import { npcNamesMatch } from "@/lib/npcMetadata";
 
 type QuestStatus = "locked" | "available" | "accepted" | "completed" | "claimed";
 interface Quest {
-  questKey: "catch_fish" | "sell_fish";
+  questKey: "catch_fish" | "sell_fish" | "daily_catch_fish";
   title: string;
   description: string;
   targetCount: number;
@@ -17,7 +17,7 @@ interface Quest {
   rewardItemName: string | null;
   rewardItemQuantity: number;
 }
-interface JansonState { quests: Quest[]; marketUnlocked: boolean }
+interface JansonState { quests: Quest[]; dailyQuest: Quest; marketUnlocked: boolean }
 interface WorldNpc { id: string; name: string; type: string; iconUrl?: string | null }
 const API = "/api/quests/janson";
 const WORLD = "swamp";
@@ -28,7 +28,7 @@ function QuestCard({ quest, busy, onGo, onClaim }: {
   return <div data-testid={`quest-card-janson-${quest.questKey}`} style={{ border: "1px solid rgba(99,143,73,.52)", borderRadius: 7, padding: 9, background: quest.status === "completed" ? "rgba(120,80,10,.18)" : "rgba(28,76,50,.13)", color: "#492b13", fontFamily: "Lora,serif" }}>
     <div style={{ display: "flex", justifyContent: "space-between", gap: 7, alignItems: "center" }}>
       <div>
-        <span style={{ display: "block", fontSize: 7, textTransform: "uppercase", letterSpacing: ".13em" }}>One-Time · Janson</span>
+        <span style={{ display: "block", fontSize: 7, textTransform: "uppercase", letterSpacing: ".13em" }}>{quest.questKey === "daily_catch_fish" ? "Daily · Janson" : "One-Time · Janson"}</span>
         <strong style={{ fontSize: 11 }}>{quest.title}</strong>
       </div>
       {quest.status === "completed" ? <button type="button" disabled={busy} onClick={onClaim} data-testid={`button-claim-janson-${quest.questKey}`} style={actionStyle}>{busy ? "…" : "CLAIM"}</button>
@@ -59,7 +59,7 @@ export default function JansonQuestOverlay() {
   });
   const { data: state } = useQuery<JansonState>({
     queryKey: [API], enabled: Boolean(user), staleTime: 2_000, refetchOnWindowFocus: true,
-    refetchInterval: query => query.state.data?.quests.some(quest => quest.status === "accepted") ? 5_000 : false,
+    refetchInterval: query => query.state.data?.quests.some(quest => quest.status === "accepted") || query.state.data?.dailyQuest?.status === "accepted" ? 5_000 : 60_000,
     queryFn: async () => (await apiRequest("GET", API)).json(),
   });
   const inBayou = pathname.startsWith(`/world/${WORLD}`);
@@ -112,7 +112,13 @@ export default function JansonQuestOverlay() {
   });
 
   if (!user || !state) return null;
-  const current = state.quests.find(quest => quest.status !== "claimed" && quest.status !== "locked");
+  const firstTime = state.quests.find(quest => quest.status !== "claimed" && quest.status !== "locked");
+  const repeatable = state.marketUnlocked ? state.dailyQuest : null;
+  const current = firstTime ?? (repeatable?.status !== "locked" && repeatable?.status !== "claimed" ? repeatable : null);
+  // A fresh daily offer belongs to Janson; the log appears only after accepting it.
+  const logQuest = firstTime?.status === "accepted" || firstTime?.status === "completed"
+    ? firstTime
+    : repeatable?.status === "accepted" || repeatable?.status === "completed" ? repeatable : null;
   const openMarket = () => {
     if (!state.marketUnlocked || !inBayou) return;
     setDialogOpen(false);
@@ -120,7 +126,7 @@ export default function JansonQuestOverlay() {
   };
   const onQuestGo = (quest: Quest) => {
     setDialogOpen(false);
-    if (quest.questKey === "catch_fish") {
+    if (quest.questKey === "catch_fish" || quest.questKey === "daily_catch_fish") {
       if (inBayou) window.dispatchEvent(new Event("para:show-fishing-spots"));
       else navigate(`/world/${WORLD}?fishHint=1`);
     } else if (quest.status === "available") navigate(`/world/${WORLD}`);
@@ -130,17 +136,17 @@ export default function JansonQuestOverlay() {
 
   return <>
     {npcMount && createPortal(
-      <button type="button" data-testid="button-talk-janson" aria-label={state.quests[1]?.status === "claimed" ? "Open Janson's fish market" : "Talk to Janson"}
+      <button type="button" data-testid="button-talk-janson" aria-label={state.marketUnlocked && repeatable?.status === "claimed" ? "Open Janson's fish market" : "Talk to Janson"}
         onPointerDown={event => event.stopPropagation()}
         onClick={event => {
           event.preventDefault(); event.stopPropagation(); setMessage(null);
-          if (state.quests[1]?.status === "claimed") openMarket();
+          if (state.marketUnlocked && repeatable?.status === "claimed") openMarket();
           else setDialogOpen(true);
         }}
         style={{ position: "absolute", inset: user.isAdmin ? "-10%" : "4%", zIndex: 32, background: "transparent", border: 0, cursor: "pointer", touchAction: "manipulation" }}>
-        <span aria-hidden style={{ position: "absolute", left: "50%", top: "-8%", transform: "translate(-50%,-50%)", display: "grid", placeItems: "center", width: 40, height: 40, borderRadius: "50%", background: state.quests[1]?.status === "claimed" ? "#245a54" : "#775226", border: "2px solid #f6d587", color: "#fff8d4", fontSize: 23, boxShadow: "0 0 15px rgba(255,211,107,.65)", pointerEvents: "none" }}>{state.quests[1]?.status === "claimed" ? "🐟" : current?.status === "completed" ? "✓" : "!"}</span>
+        <span aria-hidden style={{ position: "absolute", left: "50%", top: "-8%", transform: "translate(-50%,-50%)", display: "grid", placeItems: "center", width: 40, height: 40, borderRadius: "50%", background: state.marketUnlocked && repeatable?.status === "claimed" ? "#245a54" : "#775226", border: "2px solid #f6d587", color: "#fff8d4", fontSize: 23, boxShadow: "0 0 15px rgba(255,211,107,.65)", pointerEvents: "none" }}>{state.marketUnlocked && repeatable?.status === "claimed" ? "🐟" : current?.status === "completed" ? "✓" : "!"}</span>
       </button>, npcMount)}
-    {questListMount && current && createPortal(<QuestCard quest={current} busy={claim.isPending} onGo={() => onQuestGo(current)} onClaim={() => claim.mutate(current.questKey)} />, questListMount)}
+    {questListMount && logQuest && createPortal(<QuestCard quest={logQuest} busy={claim.isPending} onGo={() => onQuestGo(logQuest)} onClaim={() => claim.mutate(logQuest.questKey)} />, questListMount)}
     {dialogOpen && inBayou && <div className="fixed inset-0 z-[2147482000] flex items-center justify-center p-3" style={{ background: "rgba(2,10,7,.82)" }} onClick={() => setDialogOpen(false)}>
       <section role="dialog" aria-modal="true" aria-label="Janson's fishing quests" data-testid="janson-quest-dialog" onClick={event => event.stopPropagation()}
         style={{ width: "min(94vw,410px)", padding: 18, borderRadius: 18, border: "1px solid rgba(184,219,142,.65)", background: "linear-gradient(#163528,#081b16)", boxShadow: "0 16px 45px #000a", color: "#f5ead0", fontFamily: "Lora,serif" }}>
@@ -153,13 +159,17 @@ export default function JansonQuestOverlay() {
                   state.quests[0]?.status === "completed" ? "Nice catch! Claim Gone Fishing here or in your quest log, then I'll teach you to sell." :
                     state.quests[1]?.status === "available" ? "Ready for the next step? Sell your catch here at the fish market." :
                       state.quests[1]?.status === "accepted" ? "Open my fish market and sell your catch." :
-                        state.quests[1]?.status === "completed" ? "Well done! Claim your Sell Fish reward here or in your quest log." : "The fish market is always open to you."}
+                        state.quests[1]?.status === "completed" ? "Well done! Claim your Sell Fish reward here or in your quest log." :
+                        repeatable?.status === "available" ? "The fish market is yours to use. Want to go fishing again today? Take the daily quest here first." :
+                        repeatable?.status === "accepted" ? "Find a fishing spot and bring back your catch for today's Gone Fishing quest." :
+                        repeatable?.status === "completed" ? "Nice work! Claim today's Gone Fishing reward here or in your quest log." :
+                        "The fish market is open. Come back tomorrow for another Gone Fishing quest."}
             </p>
           </div>
           <button type="button" aria-label="Close Janson dialog" onClick={() => setDialogOpen(false)} style={{ alignSelf: "flex-start", border: 0, background: "transparent", color: "#fff", fontSize: 24 }}>×</button>
         </div>
         {current?.status === "available" && <button type="button" data-testid={`button-start-janson-${current.questKey}`} disabled={start.isPending} onClick={() => start.mutate(current.questKey)} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>START {current.title.toUpperCase()}</button>}
-        {current?.status === "accepted" && current.questKey === "catch_fish" && <button type="button" onClick={() => onQuestGo(current)} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>FIND A FISHING SPOT</button>}
+        {current?.status === "accepted" && (current.questKey === "catch_fish" || current.questKey === "daily_catch_fish") && <button type="button" onClick={() => onQuestGo(current)} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>FIND A FISHING SPOT</button>}
         {state.marketUnlocked && <button type="button" data-testid="button-janson-fish-market" onClick={openMarket} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>OPEN FISH MARKET</button>}
         {current?.status === "completed" && <button type="button" data-testid={`button-claim-janson-at-npc-${current.questKey}`} disabled={claim.isPending} onClick={() => claim.mutate(current.questKey)} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>{claim.isPending ? "CLAIMING…" : `CLAIM ${current.title.toUpperCase()} REWARD`}</button>}
         {message && <p role="status" style={{ color: "#ffcb9a", fontSize: 11 }}>{message}</p>}
