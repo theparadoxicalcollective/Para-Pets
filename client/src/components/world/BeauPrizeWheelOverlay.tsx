@@ -496,7 +496,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
       aria-modal="true"
       aria-label="Beau's Prize Wheel"
       data-testid="beau-prize-wheel-overlay"
-      style={{ overscrollBehavior: "contain", touchAction: "none" }}
+      style={{ overscrollBehavior: "contain" }}
     >
       <div
         className="pointer-events-none absolute inset-0"
@@ -535,7 +535,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
           style={{ width: "min(96vw, 720px, calc((100dvh - 170px) * .8003))", aspectRatio: "1122 / 1402" }}
           data-testid="beau-prize-wheel-stage"
         >
-          <img src={beauFrame} alt="Beau holding his prize wheel" draggable={false} className="pointer-events-none absolute inset-0 h-full w-full select-none object-contain" />
+          <img src={beauFrame} alt="Beau holding his prize wheel" draggable={false} decoding="async" className="pointer-events-none absolute inset-0 h-full w-full select-none object-contain" />
 
           <div
             className="absolute"
@@ -551,7 +551,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
                 willChange: spinning ? "transform" : undefined,
               }}
             >
-              <img src={emptyWheel} alt="" draggable={false} className="pointer-events-none absolute inset-0 h-full w-full select-none object-contain" />
+              <img src={emptyWheel} alt="" draggable={false} decoding="async" className="pointer-events-none absolute inset-0 h-full w-full select-none object-contain" />
               {state.slots.map(slot => (
                 <PrizeToken
                   key={slot.slot}
@@ -568,6 +568,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
             src={wheelArrow}
             alt=""
             draggable={false}
+            decoding="async"
             className="pointer-events-none absolute z-[12] select-none object-contain"
             style={{
               left: `${ARROW_LEFT}%`,
