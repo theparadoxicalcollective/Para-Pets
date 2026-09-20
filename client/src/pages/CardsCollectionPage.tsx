@@ -120,8 +120,8 @@ export default function CardsCollectionPage() {
             zIndex: 8,
             top: "max(20px, calc(env(safe-area-inset-top) + 6px))",
             right: 18,
-            width: 44,
-            height: 44,
+            width: 40,
+            height: 40,
             appearance: "none",
             border: 0,
             padding: 0,
@@ -147,9 +147,9 @@ export default function CardsCollectionPage() {
         >
           <h1
             style={{
-              margin: "4px auto 13px",
+              margin: "2px auto 9px",
               fontFamily: "'Cinzel', 'Palatino Linotype', Georgia, serif",
-              fontSize: "clamp(34px, 9vw, 46px)",
+              fontSize: "clamp(39px, 10.5vw, 52px)",
               fontWeight: 700,
               lineHeight: 1.12,
               letterSpacing: ".09em",
@@ -160,36 +160,16 @@ export default function CardsCollectionPage() {
             Cards
           </h1>
 
-          <section
-            aria-label="Collection progress"
-            style={{
-              width: "min(72%, 280px)",
-              margin: "0 auto clamp(9px, 2.5vw, 12px)",
-              padding: "7px 18px 8px",
-              border: `1px solid ${mutedGold}`,
-              borderRadius: 18,
-              background: "linear-gradient(180deg, rgba(4,22,14,.82), rgba(3,15,10,.62))",
-              boxShadow: "inset 0 0 18px rgba(111,164,98,.06), 0 5px 12px rgba(0,0,0,.18)",
-            }}
-          >
-            <div style={{ fontSize: "clamp(12px, 3.5vw, 15px)", color: "#f4dfa4", letterSpacing: ".03em", marginBottom: 2 }}>
-              Your Collection
-            </div>
-            <div style={{ fontSize: "clamp(11px, 3vw, 13px)", color: "#88cf91", letterSpacing: ".02em" }}>
-              {cards.length} / {data?.totalCards ?? 0} cards collected
-            </div>
-          </section>
-
           <nav
             aria-label="Filter cards by rarity"
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
               alignItems: "center",
-              gap: "clamp(3px, 1vw, 6px)",
-              width: "100%",
-              margin: "0 auto",
-              padding: "0 2px",
+              gap: "clamp(1px, .6vw, 4px)",
+              width: "calc(100% + 16px)",
+              margin: "0 -8px",
+              padding: "0",
               boxSizing: "border-box",
             }}
           >
@@ -208,20 +188,20 @@ export default function CardsCollectionPage() {
                   style={{
                     appearance: "none",
                     border: 0,
-                    padding: "3px 1px",
-                    minHeight: 44,
+                    padding: "1px 0",
+                    minHeight: 48,
                     background: selected ? "radial-gradient(ellipse, rgba(231,192,86,.12), transparent 68%)" : "transparent",
                     borderRadius: 18,
                     cursor: "pointer",
                     opacity: subdued ? 0.42 : 1,
-                    transform: selected ? "translateY(-2px) scale(1.07)" : "scale(1)",
+                    transform: selected ? "translateY(-2px) scale(1.12)" : "scale(1.06)",
                     filter: selected
                       ? "drop-shadow(0 0 9px rgba(249,214,102,.9)) drop-shadow(0 3px 5px rgba(0,0,0,.4))"
                       : "drop-shadow(0 3px 5px rgba(0,0,0,.36))",
                     transition: "transform 150ms ease, opacity 150ms ease, filter 150ms ease",
                   }}
                 >
-                  <img src={filter.src} alt="" draggable={false} style={{ display: "block", width: "100%", height: "auto", objectFit: "contain", userSelect: "none" }} />
+                  <img src={filter.src} alt="" draggable={false} style={{ display: "block", width: "108%", height: "auto", marginLeft: "-4%", objectFit: "contain", userSelect: "none" }} />
                 </button>
               );
             })}
@@ -251,16 +231,16 @@ export default function CardsCollectionPage() {
           style={{
             position: "relative",
             zIndex: 3,
-            width: "min(90%, 375px)",
+            width: "min(82%, 342px)",
             margin: "0 auto 8px",
             flexShrink: 0,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: 10,
+            gap: 8,
           }}
         >
-          <label style={{ position: "relative", flex: "0 1 132px" }}>
+          <label style={{ position: "relative", flex: "0 1 116px" }}>
             <span className="sr-only">Sort cards</span>
             <select
               value={sortMode}
@@ -270,31 +250,31 @@ export default function CardsCollectionPage() {
                 width: "100%",
                 appearance: "none",
                 border: `1px solid ${mutedGold}`,
-                borderRadius: 18,
-                padding: "7px 28px 7px 13px",
+                borderRadius: 16,
+                padding: "5px 25px 5px 11px",
                 background: "rgba(5,25,16,.72)",
                 color: "#ddcb96",
                 fontFamily: "inherit",
-                fontSize: "clamp(10px, 2.8vw, 12px)",
-                minHeight: 36,
+                fontSize: "clamp(9px, 2.45vw, 11px)",
+                minHeight: 32,
               }}
             >
               <option value="rarity">Sort: Rarity</option>
               <option value="name">Sort: Name</option>
             </select>
-            <span aria-hidden="true" style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-53%)", color: "#c7aa56", fontSize: 14, pointerEvents: "none" }}>⌄</span>
+            <span aria-hidden="true" style={{ position: "absolute", right: 9, top: "50%", transform: "translateY(-53%)", color: "#c7aa56", fontSize: 12, pointerEvents: "none" }}>⌄</span>
           </label>
 
           <div
             data-testid="card-collection-count"
             style={{
-              minWidth: 78,
-              padding: "7px 12px",
+              minWidth: 68,
+              padding: "5px 10px",
               border: `1px solid ${mutedGold}`,
               borderRadius: 18,
               background: "rgba(5,25,16,.72)",
               color: "#e1cc8e",
-              fontSize: "clamp(10px, 2.8vw, 12px)",
+              fontSize: "clamp(9px, 2.45vw, 11px)",
               textAlign: "center",
               boxSizing: "border-box",
             }}
@@ -322,7 +302,7 @@ export default function CardsCollectionPage() {
             scrollbarColor: "#997b3c #071b12",
             width: "min(92%, 382px)",
             margin: "0 auto",
-            padding: "clamp(7px, 2vw, 10px) clamp(5px, 1.4vw, 7px) 14px",
+            padding: "clamp(7px, 2vw, 10px) clamp(5px, 1.4vw, 7px) 58px",
             boxSizing: "border-box",
             display: "grid",
             gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
@@ -355,6 +335,34 @@ export default function CardsCollectionPage() {
               onClaim={() => claimReward.mutate(card.id)} onDismiss={() => setRewardPopup(null)} />
             </div>
           </article>)}
+        </section>
+
+        <section
+          aria-label="Collection progress"
+          data-testid="card-collection-progress-overlay"
+          style={{
+            position: "absolute",
+            zIndex: 6,
+            left: 19,
+            bottom: "calc(21px + env(safe-area-inset-bottom))",
+            width: "min(43%, 158px)",
+            padding: "6px 9px 7px",
+            border: `1px solid ${mutedGold}`,
+            borderRadius: 14,
+            background: "linear-gradient(180deg, rgba(4,22,14,.88), rgba(3,15,10,.76))",
+            boxShadow: "inset 0 0 14px rgba(111,164,98,.05), 0 5px 13px rgba(0,0,0,.3)",
+            backdropFilter: "blur(4px)",
+            pointerEvents: "none",
+            textAlign: "left",
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ fontSize: "clamp(9px, 2.6vw, 11px)", color: "#f4dfa4", letterSpacing: ".025em", marginBottom: 1 }}>
+            Your Collection
+          </div>
+          <div style={{ fontSize: "clamp(8px, 2.3vw, 10px)", color: "#88cf91", letterSpacing: ".015em", whiteSpace: "nowrap" }}>
+            {cards.length} / {data?.totalCards ?? 0} cards collected
+          </div>
         </section>
 
       </div>

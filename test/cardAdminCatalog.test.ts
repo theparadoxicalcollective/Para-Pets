@@ -86,10 +86,11 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
 
 test("detail cards use lightweight rarity-scaled magical glitter inside the artwork", () => {
   assert.match(preview, /brightness\(1\.2\)/);
-  assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*28[\s\S]*?3:\s*48[\s\S]*?4:\s*72[\s\S]*?5:\s*96/);
-  assert.match(preview, /RARITY_GLINT_COUNT[\s\S]*?2:\s*2[\s\S]*?3:\s*6[\s\S]*?4:\s*11[\s\S]*?5:\s*16/);
-  assert.match(preview, /RARITY_SWIRL_COUNT[\s\S]*?2:\s*1[\s\S]*?3:\s*2[\s\S]*?4:\s*3[\s\S]*?5:\s*4/);
-  assert.match(preview, /CARD_GLITTER_POINTS = Array\.from\(\{ length: 96 \}/);
+  assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*44[\s\S]*?3:\s*76[\s\S]*?4:\s*112[\s\S]*?5:\s*156/);
+  assert.match(preview, /RARITY_GLINT_COUNT[\s\S]*?2:\s*5[\s\S]*?3:\s*10[\s\S]*?4:\s*18[\s\S]*?5:\s*30/);
+  assert.match(preview, /RARITY_SWIRL_COUNT[\s\S]*?2:\s*1[\s\S]*?3:\s*1[\s\S]*?4:\s*2[\s\S]*?5:\s*3/);
+  assert.match(preview, /CARD_GLITTER_POINTS = Array\.from\(\{ length: 156 \}/);
+  assert.match(preview, /CARD_GLINT_POINTS = Array\.from\(\{ length: 30 \}/);
   assert.doesNotMatch(preview, /Math\.random\(\)/);
   assert.match(preview, /showSparkles = false/);
   assert.match(detail, /showSparkles/);
@@ -103,7 +104,12 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /card-sparkle-swirl-line/);
   assert.match(preview, /card-star-shape/);
   assert.match(preview, /cardSparkleSwirlFlow/);
-  assert.match(preview, /stroke-dasharray: 17 83/);
+  assert.match(preview, /linearGradient/);
+  assert.match(preview, /stopOpacity="0"/);
+  assert.doesNotMatch(preview, /stroke-dasharray: 17 83/);
+  assert.match(preview, /data-testid="card-border-gold-glow"/);
+  assert.match(preview, /maskImage: `url/);
+  assert.match(preview, /cardBorderGlowTravel/);
   assert.match(preview, /prefers-reduced-motion: reduce/);
   assert.match(preview, /inset: depth3d \? "12% 7%" : "12% 10%"/);
   assert.match(preview, /inset 0 0 24px 8px/);
@@ -117,6 +123,11 @@ test("card collection keeps the cleaner open layout and text heading", () => {
   assert.doesNotMatch(collection, />\s*PARA PETS\s*</);
   assert.doesNotMatch(collection, /inset: "8px 7px 18px"/);
   assert.doesNotMatch(collection, /border: "1px solid rgba\(216,176,74,\.2\)"/);
+  assert.match(collection, /data-testid="card-collection-progress-overlay"/);
+  assert.match(collection, /fontSize: "clamp\(39px, 10\.5vw, 52px\)"/);
+  assert.match(collection, /width: 40[\s\S]*?height: 40/);
+  assert.match(collection, /width: "108%"/);
+  assert.match(collection, /width: "min\(82%, 342px\)"/);
 });
 
 test("card turn queues visual updates per frame and preserves fast swipe lore", () => {
