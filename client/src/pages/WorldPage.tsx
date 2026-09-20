@@ -402,6 +402,12 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
   const [showFishHint, setShowFishHint] = useState(() =>
     worldId === "swamp" && new URLSearchParams(window.location.search).get("fishHint") === "1"
   );
+  useEffect(() => {
+    if (worldId !== "swamp") return;
+    const showFishingSpots = () => setShowFishHint(true);
+    window.addEventListener("para:show-fishing-spots", showFishingSpots);
+    return () => window.removeEventListener("para:show-fishing-spots", showFishingSpots);
+  }, [worldId]);
   const [showShopHint, setShowShopHint] = useState<string | null>(() =>
     new URLSearchParams(window.location.search).get("shopHint")
   );
@@ -1484,6 +1490,7 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
       setShowLocationView(false);
       setShowShop(false);
       setFishingLocation(loc);
+      setShowFishHint(false);
     } else if (loc.isShop) {
       setFishingLocation(null);
       setShowLocationView(false);
@@ -2130,12 +2137,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                 if (fishingSpots.length === 0) return null;
                 return (
                   <>
-                    {/* Full-screen dismiss layer */}
-                    <div
-                      className="absolute inset-0"
-                      style={{ zIndex: 498, cursor: "pointer" }}
-                      onClick={() => setShowFishHint(false)}
-                    />
                     {fishingSpots.map((spot, si) => {
                       const sz = spot.iconSize || 300;
                       const cx = `calc(${spot.posX}% + ${sz / 2}px)`;
@@ -2149,7 +2150,6 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
                             top: cy,
                             transform: "translate(-50%, -100%)",
                             zIndex: 499,
-                            position: "relative",
                             display: "flex",
                             flexDirection: "column",
                             alignItems: "center",
