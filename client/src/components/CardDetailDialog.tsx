@@ -11,18 +11,34 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
   rewardAmount?: number; onDismissReward: () => void;
 }) {
   const [descriptionOpen, setDescriptionOpen] = useState(false);
-  const [turnAngle, setTurnAngle] = useState(0);
-  const [turnTransition, setTurnTransition] = useState("transform 240ms cubic-bezier(.22,.8,.2,1)");
+  const turnCardRef = useRef<HTMLDivElement>(null);
+  const turnFrameRef = useRef<number | null>(null);
+  const angleRef = useRef(0);
   const turnGestureRef = useRef<{ pointerId: number; startX: number; startedAt: number; width: number } | null>(null);
   const revealTimerRef = useRef<number | null>(null);
   const longDescription = card.secondDescription || card.description || "No description yet.";
 
   useEffect(() => () => {
     if (revealTimerRef.current !== null) window.clearTimeout(revealTimerRef.current);
+    if (turnFrameRef.current !== null) window.cancelAnimationFrame(turnFrameRef.current);
   }, []);
 
+  // Move the card once per display frame without rerendering its artwork on every pointer event.
+  const queueTurn = (angle: number) => {
+    angleRef.current = angle;
+    if (turnFrameRef.current !== null) return;
+    turnFrameRef.current = window.requestAnimationFrame(() => {
+      turnFrameRef.current = null;
+      if (turnCardRef.current) turnCardRef.current.style.transform = `rotateY(${angleRef.current}deg)`;
+    });
+  };
+
+  const setTurnTransition = (transition: string) => {
+    if (turnCardRef.current) turnCardRef.current.style.transition = transition;
+  };
+
   const beginTurn = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (descriptionOpen) return;
+    if (descriptionOpen || turnGestureRef.current || (event.pointerType === "mouse" && event.button !== 0)) return;
     const bounds = event.currentTarget.getBoundingClientRect();
     turnGestureRef.current = {
       pointerId: event.pointerId,
@@ -31,6 +47,7 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
       width: Math.max(bounds.width, 1),
     };
     setTurnTransition("none");
+    event.currentTarget.style.cursor = "grabbing";
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
@@ -39,8 +56,7 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
     if (!gesture || gesture.pointerId !== event.pointerId) return;
     const dx = event.clientX - gesture.startX;
     if (Math.abs(dx) > 6) event.preventDefault();
-    const angle = Math.max(-58, Math.min(58, (dx / gesture.width) * 160));
-    setTurnAngle(angle);
+    queueTurn(Math.max(-58, Math.min(58, (dx / gesture.width) * 160)));
   };
 
   const finishTurn = (event: ReactPointerEvent<HTMLDivElement>, allowReveal: boolean) => {
@@ -54,24 +70,25 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+    event.currentTarget.style.cursor = "grab";
     turnGestureRef.current = null;
 
     if (quickSwipe) {
       const direction = dx < 0 ? -1 : 1;
-      setTurnTransition("transform 130ms ease-out");
-      setTurnAngle(direction * 46);
+      setTurnTransition("transform 150ms ease-out");
+      queueTurn(direction * 46);
       if (revealTimerRef.current !== null) window.clearTimeout(revealTimerRef.current);
       revealTimerRef.current = window.setTimeout(() => {
         setDescriptionOpen(true);
         setTurnTransition("transform 260ms cubic-bezier(.2,.8,.2,1)");
-        setTurnAngle(0);
+        queueTurn(0);
         revealTimerRef.current = null;
-      }, 140);
+      }, 160);
       return;
     }
 
-    setTurnTransition("transform 260ms cubic-bezier(.2,.8,.2,1)");
-    setTurnAngle(0);
+    setTurnTransition("transform 300ms cubic-bezier(.2,.8,.2,1)");
+    queueTurn(0);
   };
 
   return <Dialog.Root open onOpenChange={open => { if (!open) onClose(); }}>
@@ -102,16 +119,18 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
               className="outline-none"
               style={{
                 perspective: "750px",
+                userSelect: "none",
                 touchAction: "pan-y",
                 cursor: "grab",
                 WebkitTapHighlightColor: "transparent",
               }}
             >
               <div
+                ref={turnCardRef}
                 style={{
-                  transform: `rotateY(${turnAngle}deg)`,
+                  transform: "rotateY(0deg)",
                   transformStyle: "preserve-3d",
-                  transition: turnTransition,
+                  transition: "transform 240ms cubic-bezier(.22,.8,.2,1)",
                   willChange: "transform",
                 }}
               >
@@ -123,6 +142,7 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
                   description={card.description}
                   layout={getCardBorderLayout(layouts, card.rarity)}
                   depth3d
+                  showSparkles
                 />
               </div>
             </div>
