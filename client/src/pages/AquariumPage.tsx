@@ -1,11 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import aquariumBg from "@assets/bg_aquarium.png";
 import bayouAquariumBg from "@assets/C98FF13A-0E53-4BA8-9036-24139DA75818_1783394294636.png";
 import volcanicAquariumBg from "@assets/731E39C0-FA17-469A-BD4E-7DCAF0456B7A_1783402475912.png";
-import closeIcon from "@assets/Photoroom_20260706_95641_PM_1783394294636.png";
-import arrowIcon from "@assets/Photoroom_20260706_94656_PM_1783394294636.png";
 import lockIcon from "@assets/Photoroom_20260706_104316_PM_1783395823714.png";
 import coinIcon from "@assets/icon_coin.webp";
 import fishInvIconPH from "@assets/icon_fish_inventory.png";
@@ -687,14 +686,21 @@ export function AquariumPage({ onClose, userId, readOnly = false }: { onClose: (
         <div style={{ height: 1, width: 80, marginTop: 4, background: "linear-gradient(90deg,transparent,rgba(94,234,212,0.5),transparent)" }}/>
       </div>
 
-      {/* Close button — custom X icon */}
+      {/* Close button — simple glowing control with a full touch target */}
       <button
         data-testid="button-close-aquarium"
+        aria-label="Close aquarium"
         onClick={onClose}
         className="absolute z-50 active:scale-90 transition-transform"
-        style={{ top: "calc(env(safe-area-inset-top, 0px) + 8px)", right: 8, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+        style={{
+          top: "calc(env(safe-area-inset-top, 0px) + 8px)", right: 8,
+          width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(2,18,30,0.28)", border: "1px solid rgba(180,255,246,0.22)", borderRadius: "50%",
+          color: "#e7fffb", cursor: "pointer", padding: 0,
+          boxShadow: "0 0 12px rgba(94,234,212,0.22), 0 2px 10px rgba(0,0,0,0.55)",
+        }}
       >
-        <img src={closeIcon} alt="Close" style={{ width: 44, height: 44, objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.85))" }} draggable={false} />
+        <X aria-hidden size={23} strokeWidth={2.25} style={{ filter: "drop-shadow(0 0 5px rgba(94,234,212,0.75))" }} />
       </button>
 
       {/* Star button — top-left, sets current aquarium as the default (opens first) */}
@@ -717,48 +723,42 @@ export function AquariumPage({ onClose, userId, readOnly = false }: { onClose: (
         }}>★</span>
       </button>}
 
-      {/* Right arrow — always rendered, hidden on volcanic to avoid mount/unmount glitch */}
+      {/* Right arrow — smaller visible icon, generous touch target */}
       {!readOnly && <button
         data-testid="button-aquarium-next"
+        aria-label="Next aquarium"
         onClick={() => { setActiveAquarium(activeAquarium === "main" ? "bayou" : "volcanic"); setShowPanel(false); }}
         className="absolute z-30 active:scale-90 transition-transform"
         style={{
-          right: 6, top: "50%", transform: "translateY(-50%)",
-          background: "none", border: "none", cursor: "pointer", padding: 0,
+          right: 4, top: "50%", transform: "translateY(-50%)",
+          width: 46, height: 58, display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(2,18,30,0.18)", border: "none", borderRadius: 18, color: "#e7fffb", cursor: "pointer", padding: 0,
           opacity: activeAquarium === "volcanic" ? 0 : 1,
           pointerEvents: activeAquarium === "volcanic" ? "none" : "auto",
           transition: "opacity 0.2s ease",
         }}
         aria-hidden={activeAquarium === "volcanic"}
       >
-        <img
-          src={arrowIcon}
-          alt="Next aquarium"
-          style={{ width: 64, height: "auto", objectFit: "contain", transform: "scaleX(-1)", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.85)) drop-shadow(0 0 6px rgba(94,234,212,0.35))" }}
-          draggable={false}
-        />
+        <ChevronRight aria-hidden size={29} strokeWidth={2.25} style={{ filter: "drop-shadow(0 0 5px rgba(94,234,212,0.9)) drop-shadow(0 2px 5px rgba(0,0,0,0.8))" }} />
       </button>}
 
-      {/* Left arrow — always rendered, hidden on main to avoid mount/unmount glitch */}
+      {/* Left arrow — smaller visible icon, generous touch target */}
       {!readOnly && <button
         data-testid="button-aquarium-prev"
+        aria-label="Previous aquarium"
         onClick={() => { setActiveAquarium(activeAquarium === "volcanic" ? "bayou" : "main"); setShowPanel(false); }}
         className="absolute z-30 active:scale-90 transition-transform"
         style={{
-          left: 6, top: "50%", transform: "translateY(-50%)",
-          background: "none", border: "none", cursor: "pointer", padding: 0,
+          left: 4, top: "50%", transform: "translateY(-50%)",
+          width: 46, height: 58, display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(2,18,30,0.18)", border: "none", borderRadius: 18, color: "#e7fffb", cursor: "pointer", padding: 0,
           opacity: activeAquarium === "main" ? 0 : 1,
           pointerEvents: activeAquarium === "main" ? "none" : "auto",
           transition: "opacity 0.2s ease",
         }}
         aria-hidden={activeAquarium === "main"}
       >
-        <img
-          src={arrowIcon}
-          alt="Previous aquarium"
-          style={{ width: 64, height: "auto", objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.85)) drop-shadow(0 0 6px rgba(94,234,212,0.35))" }}
-          draggable={false}
-        />
+        <ChevronLeft aria-hidden size={29} strokeWidth={2.25} style={{ filter: "drop-shadow(0 0 5px rgba(94,234,212,0.9)) drop-shadow(0 2px 5px rgba(0,0,0,0.8))" }} />
       </button>}
 
 
