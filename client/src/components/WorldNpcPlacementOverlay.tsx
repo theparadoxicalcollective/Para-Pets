@@ -392,18 +392,18 @@ export default function WorldNpcPlacementOverlay() {
         .npc-world-location [data-testid^="location-sparkle-"] { display: none !important; }
         .npc-world-location [data-testid^="player-location-hotspot-"] { pointer-events: none !important; }
         @keyframes paraNpcBreathe {
-          0%, 100% { transform: scaleY(1); }
-          42% { transform: scaleY(.958); }
-          55% { transform: scaleY(.95); }
-          72% { transform: scaleY(.982); }
+          0%, 100% { transform: translate3d(0,0,0) scale3d(1,1,1); }
+          50% { transform: translate3d(0,.16%,0) scale3d(1.003,.984,1); }
         }
         @keyframes paraNpcFloat {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-7%); }
         }
         .para-npc-animation-breathe {
-          animation: paraNpcBreathe 4.15s ease-in-out infinite;
+          animation: paraNpcBreathe 4.8s cubic-bezier(.42,0,.58,1) infinite;
           transform-origin: 50% 100%;
+          will-change: transform;
+          backface-visibility: hidden;
         }
         .para-npc-animation-float {
           animation: paraNpcFloat 3s ease-in-out infinite;

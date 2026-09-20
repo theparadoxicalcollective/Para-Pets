@@ -6,7 +6,10 @@ import {
   BEAU_PRIZE_WHEEL_PAID_COST,
   BEAU_PRIZE_WHEEL_PRIZE_SLOTS,
   BEAU_PRIZE_WHEEL_SLOT_COUNT,
+  DEFAULT_BEAU_POINTER_LAYOUT,
   DEFAULT_BEAU_WHEEL_LAYOUT,
+  beauPointerAngle,
+  beauPointerLayoutFrom,
   beauWheelLayoutFrom,
   beauWheelLandingRotation,
   beauWheelSlotCenterAngle,
@@ -61,15 +64,18 @@ test("wheel cannot spin until every admin prize is valid", () => {
   assert.match(bridge, /if \(!next\.ready && !next\.isAdmin\)/);
 });
 
-test("player popup uses Beau art, empty wheel, pointer and Haunted Forest background", () => {
+test("player popup uses Beau art, red-gold diamond pointer and Haunted Forest background", () => {
   assert.match(overlay, /BeauPrizeWheel\.png/);
   assert.match(overlay, /PrizeWheelEmpty\.png/);
-  assert.match(overlay, /PrizeWheelArrow\.png/);
+  assert.doesNotMatch(overlay, /PrizeWheelArrow\.png/);
   assert.match(overlay, /bg_haunted_woods_v2\.webp/);
   assert.match(overlay, /Photoroom_20260705_103527_PM_1783426783499\.png/);
+  assert.match(overlay, /beauPointerAngle/);
   assert.match(overlay, /beauWheelLandingRotation/);
-  assert.match(overlay, /data-testid="beau-prize-wheel-arrow"/);
-  assert.match(overlay, /transform: "rotate\(90deg\)"/);
+  assert.match(overlay, /data-testid="beau-prize-wheel-pointer"/);
+  assert.match(overlay, /#e04438/);
+  assert.match(overlay, /#fff0a8/);
+  assert.match(overlay, /polygon\(50% 0,100% 50%,50% 100%,0 50%\)/);
   assert.match(overlay, /data-testid="beau-skull-burst"/);
   assert.match(overlay, /SKULL_BURST_PARTICLES/);
   assert.match(overlay, /FREE SPIN/);
@@ -99,9 +105,11 @@ test("Beau only opens the wheel from the Haunted Forest NPC and startup installs
   assert.match(migration, /action_id UUID PRIMARY KEY/);
 });
 
-test("admin wheel placement stays inside the artwork at mobile and desktop sizes", () => {
+test("admin wheel and diamond pointer placement stay independently valid", () => {
   assert.deepEqual(beauWheelLayoutFrom(DEFAULT_BEAU_WHEEL_LAYOUT), DEFAULT_BEAU_WHEEL_LAYOUT);
+  assert.deepEqual(beauPointerLayoutFrom(DEFAULT_BEAU_POINTER_LAYOUT), DEFAULT_BEAU_POINTER_LAYOUT);
   assert.deepEqual(beauWheelLayoutFrom({ left: 12.345, top: 20.123, size: 78 }), { left: 12.35, top: 20.12, size: 78 });
+  assert.deepEqual(beauPointerLayoutFrom({ x: 90.126, y: 50.784, size: 4.6 }), { x: 90.13, y: 50.78, size: 4.6 });
   for (const placement of [
     { left: -1, top: 20, size: 69 },
     { left: 40, top: 20, size: 69 },
@@ -110,4 +118,23 @@ test("admin wheel placement stays inside the artwork at mobile and desktop sizes
     { left: Number.NaN, top: 20, size: 69 },
     { left: "25", top: 20, size: 69 },
   ]) assert.equal(beauWheelLayoutFrom(placement), null);
+  assert.equal(beauPointerLayoutFrom({ x: 1, y: 50, size: 4.6 }), null);
+  assert.equal(beauPointerLayoutFrom({ x: 96, y: 50, size: 12 }), null);
+  const angle = beauPointerAngle(DEFAULT_BEAU_WHEEL_LAYOUT, DEFAULT_BEAU_POINTER_LAYOUT);
+  assert.ok(angle > 80 && angle < 100, "default diamond should remain on the wheel's right side");
+  assert.equal(beauWheelLandingRotation(0, 180), 157.5);
+  assert.match(routes, /\/api\/admin\/beau-prize-wheel\/pointer-layout/);
+  assert.match(server, /POINTER_LAYOUT_SETTING_KEY/);
+});
+
+test("players can rotate Beau's wheel by drag and a quick flick starts one authoritative spin", () => {
+  assert.match(overlay, /spinDragRef/);
+  assert.match(overlay, /signedAngleDelta/);
+  assert.match(overlay, /rotationRef\.current \+ delta/);
+  assert.match(overlay, /Math\.abs\(spinDrag\.velocity\) >= 220/);
+  assert.match(overlay, /spinDrag\.totalDelta >= 18/);
+  assert.match(overlay, /void spin\(spinDrag\.velocity\)/);
+  assert.match(overlay, /body: JSON\.stringify\(\{ actionId: createActionId\(\) \}\)/);
+  assert.match(overlay, /beauWheelLandingRotation\(spinResult\.slotIndex, pointerAngle\)/);
+  assert.match(overlay, /Drag the wheel to turn it · a quick flick starts the spin/);
 });

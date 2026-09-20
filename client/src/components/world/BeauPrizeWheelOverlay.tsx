@@ -3,10 +3,14 @@ import { Check, Coins, Gem, Minus, Pencil, Plus, Search, Sparkles, X } from "luc
 import { queryClient } from "@/lib/queryClient";
 import {
   BEAU_PRIZE_WHEEL_PAID_COST,
+  BEAU_WHEEL_STAGE_RATIO,
+  DEFAULT_BEAU_POINTER_LAYOUT,
   DEFAULT_BEAU_WHEEL_LAYOUT,
   BEAU_PRIZE_WHEEL_PRIZE_SLOTS,
+  beauPointerAngle,
   beauWheelLandingRotation,
   beauWheelSlotCenterAngle,
+  type BeauPointerLayout,
   type BeauPrizeKind,
   type BeauWheelLayout,
   type BeauPrizeView,
@@ -14,7 +18,6 @@ import {
 
 const beauFrame = "/world-assets/uploads/BeauPrizeWheel.png";
 const emptyWheel = "/world-assets/uploads/PrizeWheelEmpty.png";
-const wheelArrow = "/world-assets/uploads/PrizeWheelArrow.png";
 const hauntedForestBackground = "/world-assets/bg_haunted_woods_v2.webp";
 const lossSkull = "/world-assets/Photoroom_20260705_103527_PM_1783426783499.png";
 const coinIcon = "/world-assets/icon_coin.png";
@@ -23,6 +26,7 @@ const essenceIcon = "/world-assets/Photoroom_20260709_23958_PM_1783626016795.png
 export interface WheelState {
   ready: boolean;
   layout: BeauWheelLayout;
+  pointerLayout: BeauPointerLayout;
   slots: BeauPrizeView[];
   requiresActivePet: boolean;
   activePetReady: boolean;
@@ -67,8 +71,6 @@ interface Props {
   onStateChange?: (state: WheelState) => void;
 }
 
-const WHEEL_STAGE_RATIO = 1122 / 1402;
-const ARROW_WIDTH = 11;
 const SKULL_BURST_PARTICLES = [
   { left: 8, top: 71, size: 18, delay: 0.02, duration: 1.75, rotate: -22 },
   { left: 17, top: 53, size: 28, delay: 0.08, duration: 1.95, rotate: 13 },
@@ -421,10 +423,17 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
   const [optionsError, setOptionsError] = useState("");
   const [catalogAttempt, setCatalogAttempt] = useState(0);
   const [layout, setLayout] = useState<BeauWheelLayout>(initialState.layout ?? DEFAULT_BEAU_WHEEL_LAYOUT);
+  const [pointerLayout, setPointerLayout] = useState<BeauPointerLayout>(initialState.pointerLayout ?? DEFAULT_BEAU_POINTER_LAYOUT);
   const [layoutSaving, setLayoutSaving] = useState(false);
+  const [pointerSaving, setPointerSaving] = useState(false);
+  const [spinMotion, setSpinMotion] = useState<"idle" | "ignite" | "settle">("idle");
   const stageRef = useRef<HTMLDivElement>(null);
   const layoutRef = useRef(layout);
-  const dragRef = useRef<{ pointerId: number; x: number; y: number; original: BeauWheelLayout } | null>(null);
+  const pointerLayoutRef = useRef(pointerLayout);
+  const rotationRef = useRef(rotation);
+  const layoutDragRef = useRef<{ pointerId: number; x: number; y: number; original: BeauWheelLayout } | null>(null);
+  const pointerDragRef = useRef<{ pointerId: number; x: number; y: number; original: BeauPointerLayout } | null>(null);
+  const spinDragRef = useRef<{ pointerId: number; lastAngle: number; lastTime: number; velocity: number; totalDelta: number } | null>(null);
   const [error, setError] = useState("");
   const [result, setResult] = useState<SpinResult | null>(null);
   const resultTimerRef = useRef<number | null>(null);
@@ -485,6 +494,30 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
     }
   };
 
+  const savePointerLayout = async (next: BeauPointerLayout, previous: BeauPointerLayout) => {
+    setPointerSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/beau-prize-wheel/pointer-layout", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body?.message || "Prize pointer placement could not be saved.");
+      pointerLayoutRef.current = body.pointerLayout as BeauPointerLayout;
+      setPointerLayout(body.pointerLayout as BeauPointerLayout);
+      onStateChange?.({ ...state, layout: layoutRef.current, pointerLayout: body.pointerLayout as BeauPointerLayout });
+    } catch (reason) {
+      pointerLayoutRef.current = previous;
+      setPointerLayout(previous);
+      setError(reason instanceof Error ? reason.message : "Prize pointer placement could not be saved.");
+    } finally {
+      setPointerSaving(false);
+    }
+  };
+
   const resizeWheel = (delta: number) => {
     if (!state.isAdmin || spinning || layoutSaving) return;
     const previous = layoutRef.current;
@@ -492,49 +525,159 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
     const next = {
       size,
       left: Math.max(0, Math.min(100 - size, previous.left - (size - previous.size) / 2)),
-      top: Math.max(0, Math.min(100 - size * WHEEL_STAGE_RATIO,
-        previous.top - (size - previous.size) * WHEEL_STAGE_RATIO / 2)),
+      top: Math.max(0, Math.min(100 - size * BEAU_WHEEL_STAGE_RATIO,
+        previous.top - (size - previous.size) * BEAU_WHEEL_STAGE_RATIO / 2)),
     };
     layoutRef.current = next;
     setLayout(next);
     void saveLayout(next, previous);
   };
 
+  const eventAngle = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const dx = event.clientX - (rect.left + rect.width / 2);
+    const dy = event.clientY - (rect.top + rect.height / 2);
+    return Math.atan2(dy, dx) * 180 / Math.PI;
+  };
+
+  const signedAngleDelta = (next: number, previous: number) => {
+    let delta = next - previous;
+    while (delta > 180) delta -= 360;
+    while (delta < -180) delta += 360;
+    return delta;
+  };
+
   const onWheelPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!state.isAdmin || spinning || layoutSaving || (event.target instanceof Element && event.target.closest("button"))) return;
+    if (spinning || (event.target instanceof Element && event.target.closest("button"))) return;
+    if (state.isAdmin) {
+      if (layoutSaving) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      layoutDragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, original: layoutRef.current };
+      return;
+    }
+    if (!canSpin) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const radius = Math.hypot(event.clientX - (rect.left + rect.width / 2), event.clientY - (rect.top + rect.height / 2));
+    if (radius < rect.width * .14) return;
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, original: layoutRef.current };
-  };
-  const onWheelPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
-    const rect = stageRef.current?.getBoundingClientRect();
-    if (!drag || drag.pointerId !== event.pointerId || !rect?.width || !rect?.height) return;
-    const size = drag.original.size;
-    const next = {
-      ...drag.original,
-      left: Math.max(0, Math.min(100 - size, drag.original.left + (event.clientX - drag.x) / rect.width * 100)),
-      top: Math.max(0, Math.min(100 - size * WHEEL_STAGE_RATIO,
-        drag.original.top + (event.clientY - drag.y) / rect.height * 100)),
+    spinDragRef.current = {
+      pointerId: event.pointerId,
+      lastAngle: eventAngle(event),
+      lastTime: performance.now(),
+      velocity: 0,
+      totalDelta: 0,
     };
-    layoutRef.current = next;
-    setLayout(next);
   };
+
+  const onWheelPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const layoutDrag = layoutDragRef.current;
+    if (layoutDrag && layoutDrag.pointerId === event.pointerId) {
+      const rect = stageRef.current?.getBoundingClientRect();
+      if (!rect?.width || !rect?.height) return;
+      const size = layoutDrag.original.size;
+      const next = {
+        ...layoutDrag.original,
+        left: Math.max(0, Math.min(100 - size, layoutDrag.original.left + (event.clientX - layoutDrag.x) / rect.width * 100)),
+        top: Math.max(0, Math.min(100 - size * BEAU_WHEEL_STAGE_RATIO,
+          layoutDrag.original.top + (event.clientY - layoutDrag.y) / rect.height * 100)),
+      };
+      layoutRef.current = next;
+      setLayout(next);
+      return;
+    }
+
+    const spinDrag = spinDragRef.current;
+    if (!spinDrag || spinDrag.pointerId !== event.pointerId || state.isAdmin || spinning) return;
+    event.preventDefault();
+    const now = performance.now();
+    const angle = eventAngle(event);
+    const delta = signedAngleDelta(angle, spinDrag.lastAngle);
+    const elapsed = Math.max(8, now - spinDrag.lastTime);
+    if (Math.abs(delta) <= 70) {
+      const nextRotation = rotationRef.current + delta;
+      rotationRef.current = nextRotation;
+      setRotation(nextRotation);
+      spinDrag.velocity = spinDrag.velocity * .58 + (delta / elapsed * 1000) * .42;
+      spinDrag.totalDelta += Math.abs(delta);
+    }
+    spinDrag.lastAngle = angle;
+    spinDrag.lastTime = now;
+  };
+
   const onWheelPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    dragRef.current = null;
+    const layoutDrag = layoutDragRef.current;
+    if (layoutDrag && layoutDrag.pointerId === event.pointerId) {
+      layoutDragRef.current = null;
+      try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {}
+      const next = layoutRef.current;
+      if (Math.abs(next.left - layoutDrag.original.left) > .05 || Math.abs(next.top - layoutDrag.original.top) > .05) {
+        void saveLayout(next, layoutDrag.original);
+      }
+      return;
+    }
+
+    const spinDrag = spinDragRef.current;
+    if (!spinDrag || spinDrag.pointerId !== event.pointerId) return;
+    spinDragRef.current = null;
     try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {}
-    const next = layoutRef.current;
-    if (Math.abs(next.left - drag.original.left) > .05 || Math.abs(next.top - drag.original.top) > .05) {
-      void saveLayout(next, drag.original);
+    if (Math.abs(spinDrag.velocity) >= 220 && spinDrag.totalDelta >= 18) {
+      void spin(spinDrag.velocity);
     }
   };
+
   const onWheelPointerCancel = () => {
-    if (!dragRef.current) return;
-    layoutRef.current = dragRef.current.original;
-    setLayout(dragRef.current.original);
-    dragRef.current = null;
+    if (layoutDragRef.current) {
+      layoutRef.current = layoutDragRef.current.original;
+      setLayout(layoutDragRef.current.original);
+      layoutDragRef.current = null;
+    }
+    spinDragRef.current = null;
+  };
+
+  const onPointerMarkerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!state.isAdmin || spinning || pointerSaving) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    pointerDragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, original: pointerLayoutRef.current };
+  };
+
+  const onPointerMarkerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = pointerDragRef.current;
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!drag || drag.pointerId !== event.pointerId || !rect?.width || !rect?.height) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const halfWidth = drag.original.size / 2;
+    const halfHeight = drag.original.size * 1.65 * BEAU_WHEEL_STAGE_RATIO / 2;
+    const next = {
+      ...drag.original,
+      x: Math.max(halfWidth, Math.min(100 - halfWidth, drag.original.x + (event.clientX - drag.x) / rect.width * 100)),
+      y: Math.max(halfHeight, Math.min(100 - halfHeight, drag.original.y + (event.clientY - drag.y) / rect.height * 100)),
+    };
+    pointerLayoutRef.current = next;
+    setPointerLayout(next);
+  };
+
+  const onPointerMarkerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = pointerDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    pointerDragRef.current = null;
+    try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {}
+    const next = pointerLayoutRef.current;
+    if (Math.abs(next.x - drag.original.x) > .05 || Math.abs(next.y - drag.original.y) > .05) {
+      void savePointerLayout(next, drag.original);
+    }
+  };
+
+  const onPointerMarkerCancel = () => {
+    if (!pointerDragRef.current) return;
+    pointerLayoutRef.current = pointerDragRef.current.original;
+    setPointerLayout(pointerDragRef.current.original);
+    pointerDragRef.current = null;
   };
 
   const configuredCount = state.slots.filter(slot => slot.slot < BEAU_PRIZE_WHEEL_PRIZE_SLOTS && slot.configured).length;
@@ -549,11 +692,19 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
     setError("");
   };
 
-  const spin = async () => {
+  const spin = async (launchVelocity = 0) => {
     if (!canSpin) return;
+    const direction = launchVelocity < -40 ? -1 : 1;
     setSpinning(true);
+    setSpinMotion("ignite");
     setResult(null);
     setError("");
+    if (Math.abs(launchVelocity) > 40) {
+      const kick = direction * Math.min(210, 80 + Math.abs(launchVelocity) * .15);
+      const kickedRotation = rotationRef.current + kick;
+      rotationRef.current = kickedRotation;
+      setRotation(kickedRotation);
+    }
     try {
       const response = await fetch("/api/beau-prize-wheel/spin", {
         method: "POST",
@@ -565,13 +716,21 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
       if (!response.ok) throw new Error(body?.message || "Beau's wheel could not spin.");
 
       const spinResult = body as SpinResult;
-      const desired = beauWheelLandingRotation(spinResult.slotIndex);
-      const current = normalizeDegrees(rotation);
-      const correction = normalizeDegrees(desired - current);
-      setRotation(rotation + 360 * 6 + correction);
+      const pointerAngle = beauPointerAngle(layoutRef.current, pointerLayoutRef.current);
+      const desired = beauWheelLandingRotation(spinResult.slotIndex, pointerAngle);
+      const current = normalizeDegrees(rotationRef.current);
+      const correction = direction > 0
+        ? normalizeDegrees(desired - current)
+        : -normalizeDegrees(current - desired);
+      const finalRotation = rotationRef.current + direction * 360 * 6 + correction;
+      setSpinMotion("settle");
+      rotationRef.current = finalRotation;
+      setRotation(finalRotation);
 
       const nextState: WheelState = {
         ...state,
+        layout: layoutRef.current,
+        pointerLayout: pointerLayoutRef.current,
         balances: spinResult.balances,
         freeSpinAvailable: spinResult.freeSpinAvailable,
         nextSpinCost: spinResult.nextSpinCost,
@@ -584,11 +743,13 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
       resultTimerRef.current = window.setTimeout(() => {
         setResult(spinResult);
         setSpinning(false);
+        setSpinMotion("idle");
         resultTimerRef.current = null;
       }, 4100);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Beau's wheel could not spin.");
       setSpinning(false);
+      setSpinMotion("idle");
     }
   };
 
@@ -670,16 +831,16 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
             onPointerMove={onWheelPointerMove}
             onPointerUp={onWheelPointerUp}
             onPointerCancel={onWheelPointerCancel}
-            style={{ left: `${layout.left}%`, top: `${layout.top}%`, width: `${layout.size}%`, aspectRatio: "1 / 1", touchAction: state.isAdmin ? "none" : undefined, cursor: state.isAdmin && !spinning ? "grab" : undefined }}
+            style={{ left: `${layout.left}%`, top: `${layout.top}%`, width: `${layout.size}%`, aspectRatio: "1 / 1", touchAction: "none", cursor: state.isAdmin && !spinning ? "grab" : !state.isAdmin && canSpin ? "grab" : undefined }}
           >
             <div
               className="absolute inset-0"
               data-testid="beau-prize-wheel-spinner"
               style={{
                 transform: `rotate(${rotation}deg)`,
-                transition: spinning ? "transform 4s cubic-bezier(.12,.72,.08,1)" : undefined,
+                transition: spinMotion === "settle" ? "transform 4s cubic-bezier(.12,.72,.08,1)" : spinMotion === "ignite" ? "transform .5s cubic-bezier(.18,.72,.2,1)" : undefined,
                 transformOrigin: "50% 50%",
-                willChange: spinning ? "transform" : undefined,
+                willChange: spinning || spinDragRef.current ? "transform" : undefined,
               }}
             >
               <img src={emptyWheel} alt="" draggable={false} decoding="async" className="pointer-events-none absolute inset-0 h-full w-full select-none object-contain" />
@@ -695,22 +856,44 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
             </div>
           </div>
 
-          <img
-            src={wheelArrow}
-            alt=""
-            draggable={false}
-            decoding="async"
-            data-testid="beau-prize-wheel-arrow"
-            className="pointer-events-none absolute z-[12] select-none object-contain"
+          <div
+            data-testid="beau-prize-wheel-pointer"
+            aria-label={state.isAdmin ? "Move Beau prize pointer" : undefined}
+            onPointerDown={onPointerMarkerDown}
+            onPointerMove={onPointerMarkerMove}
+            onPointerUp={onPointerMarkerUp}
+            onPointerCancel={onPointerMarkerCancel}
+            className="absolute z-[15]"
             style={{
-              left: `${layout.left + layout.size - ARROW_WIDTH * .36}%`,
-              top: `${layout.top + layout.size * WHEEL_STAGE_RATIO / 2 - ARROW_WIDTH * WHEEL_STAGE_RATIO / 2}%`,
-              width: `${ARROW_WIDTH}%`,
-              transform: "rotate(90deg)",
-              transformOrigin: "50% 50%",
-              filter: "drop-shadow(0 0 7px rgba(255,205,92,.78)) drop-shadow(0 3px 5px rgba(0,0,0,.72))",
+              left: `${pointerLayout.x}%`,
+              top: `${pointerLayout.y}%`,
+              width: `${pointerLayout.size}%`,
+              height: `${pointerLayout.size * 1.65 * BEAU_WHEEL_STAGE_RATIO}%`,
+              transform: "translate(-50%,-50%)",
+              touchAction: "none",
+              cursor: state.isAdmin && !spinning ? "move" : undefined,
+              pointerEvents: state.isAdmin ? "auto" : "none",
+              filter: "drop-shadow(0 0 7px rgba(255,206,82,.88)) drop-shadow(0 4px 5px rgba(0,0,0,.72))",
             }}
-          />
+          >
+            <div
+              className="absolute inset-0"
+              style={{
+                clipPath: "polygon(50% 0,100% 50%,50% 100%,0 50%)",
+                background: "linear-gradient(180deg,#fff0a8 0%,#d99a23 46%,#7d4a08 100%)",
+              }}
+            >
+              <div
+                className="absolute"
+                style={{
+                  inset: 2,
+                  clipPath: "polygon(50% 0,100% 50%,50% 100%,0 50%)",
+                  background: "linear-gradient(180deg,#e04438 0%,#9f171d 52%,#4d090e 100%)",
+                  boxShadow: "inset 0 0 7px rgba(255,126,95,.55)",
+                }}
+              />
+            </div>
+          </div>
 
           {result?.reward.kind === "loss" && !spinning && (
             <div
@@ -766,18 +949,19 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
           </div>
         )}
         {state.isAdmin && <div className="mx-auto mb-2 flex max-w-xs items-center justify-center gap-2 text-[10px] text-amber-100/85">
-          <span className="mr-1">Drag wheel to align · Size</span>
+          <span className="mr-1">Drag wheel · move red diamond separately · Size</span>
           <button type="button" aria-label="Make prize wheel smaller" disabled={layoutSaving || spinning || layout.size <= 55} onClick={() => resizeWheel(-1.5)} className="grid h-9 w-9 place-items-center rounded-full border border-amber-200/50 bg-black/70 disabled:opacity-40"><Minus className="h-4 w-4" /></button>
           <button type="button" aria-label="Make prize wheel larger" disabled={layoutSaving || spinning || layout.size >= 78} onClick={() => resizeWheel(1.5)} className="grid h-9 w-9 place-items-center rounded-full border border-amber-200/50 bg-black/70 disabled:opacity-40"><Plus className="h-4 w-4" /></button>
-          {layoutSaving && <span role="status">Saving…</span>}
+          {(layoutSaving || pointerSaving) && <span role="status">Saving…</span>}
         </div>}
         {error && <div className="mx-auto mb-2 max-w-md rounded-lg border border-rose-300/35 bg-rose-950/65 px-3 py-2 text-center text-xs text-rose-100">{error}</div>}
-        <div className="mx-auto mb-2 max-w-md text-center text-[10px] leading-relaxed text-amber-100/75">{footerMessage}</div>
+        <div className="mx-auto mb-1 max-w-md text-center text-[10px] leading-relaxed text-amber-100/75">{footerMessage}</div>
+        {!state.isAdmin && canSpin && <div className="mx-auto mb-2 max-w-md text-center text-[9px] text-amber-100/55">Drag the wheel to turn it · a quick flick starts the spin</div>}
         <button
           type="button"
           data-testid="button-spin-beau-prize-wheel"
           disabled={!canSpin}
-          onClick={() => void spin()}
+          onClick={() => void spin(0)}
           className="mx-auto flex min-h-12 w-full max-w-xs items-center justify-center rounded-xl border border-amber-200/65 bg-gradient-to-b from-[#7d251f]/95 to-[#32100e]/95 px-5 font-fantasy text-base tracking-[.1em] text-amber-50 disabled:opacity-35 active:scale-[.98]"
           style={{ boxShadow: canSpin ? "0 0 18px rgba(251,191,36,.25), inset 0 0 14px rgba(255,220,130,.09)" : undefined }}
         >

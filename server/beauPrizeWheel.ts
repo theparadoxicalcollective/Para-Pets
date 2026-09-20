@@ -6,8 +6,11 @@ import {
   BEAU_PRIZE_WHEEL_PAID_COST,
   BEAU_PRIZE_WHEEL_PRIZE_SLOTS,
   BEAU_PRIZE_WHEEL_SLOT_COUNT,
+  DEFAULT_BEAU_POINTER_LAYOUT,
   DEFAULT_BEAU_WHEEL_LAYOUT,
+  beauPointerLayoutFrom,
   beauWheelLayoutFrom,
+  type BeauPointerLayout,
   type BeauWheelLayout,
   type BeauPrizeConfig,
   type BeauPrizeKind,
@@ -29,6 +32,7 @@ interface BeauCatalogItem {
 
 const SETTING_KEY = "beau_prize_wheel_prizes_v1";
 const LAYOUT_SETTING_KEY = "beau_prize_wheel_layout_v1";
+const POINTER_LAYOUT_SETTING_KEY = "beau_prize_wheel_pointer_layout_v1";
 const MAX_CURRENCY_REWARD = 1_000_000;
 const MAX_EXP_REWARD = 100_000;
 const COIN_IMAGE = "/world-assets/icon_coin.png";
@@ -94,6 +98,12 @@ export function parseBeauWheelLayout(value: unknown): BeauWheelLayout {
   return layout;
 }
 
+export function parseBeauPointerLayout(value: unknown): BeauPointerLayout {
+  const layout = beauPointerLayoutFrom(value);
+  if (!layout) throw new BeauPrizeWheelError("invalid_request", 400, "Keep Beau's prize pointer within the artwork.");
+  return layout;
+}
+
 async function readBeauWheelLayout(executor: Executor): Promise<BeauWheelLayout> {
   const result = await executor.execute(sql`SELECT value FROM game_settings WHERE key = ${LAYOUT_SETTING_KEY} LIMIT 1`);
   if (!result.rows[0]) return DEFAULT_BEAU_WHEEL_LAYOUT;
@@ -108,6 +118,25 @@ export async function saveBeauWheelLayout(value: unknown): Promise<BeauWheelLayo
   const layout = parseBeauWheelLayout(value);
   await db.execute(sql`
     INSERT INTO game_settings (key, value) VALUES (${LAYOUT_SETTING_KEY}, ${JSON.stringify(layout)})
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+  `);
+  return layout;
+}
+
+async function readBeauPointerLayout(executor: Executor): Promise<BeauPointerLayout> {
+  const result = await executor.execute(sql`SELECT value FROM game_settings WHERE key = ${POINTER_LAYOUT_SETTING_KEY} LIMIT 1`);
+  if (!result.rows[0]) return DEFAULT_BEAU_POINTER_LAYOUT;
+  try {
+    return parseBeauPointerLayout(JSON.parse(String((result.rows[0] as any).value)));
+  } catch {
+    return DEFAULT_BEAU_POINTER_LAYOUT;
+  }
+}
+
+export async function saveBeauPointerLayout(value: unknown): Promise<BeauPointerLayout> {
+  const layout = parseBeauPointerLayout(value);
+  await db.execute(sql`
+    INSERT INTO game_settings (key, value) VALUES (${POINTER_LAYOUT_SETTING_KEY}, ${JSON.stringify(layout)})
     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
   `);
   return layout;
@@ -301,7 +330,7 @@ async function activePetStatus(executor: Executor, userId: string) {
 }
 
 export async function getBeauPrizeWheelState(userId: string) {
-  const [wheel, userResult, spinResult, pet, layout] = await Promise.all([
+  const [wheel, userResult, spinResult, pet, layout, pointerLayout] = await Promise.all([
     resolveWheel(db as unknown as Executor),
     db.execute(sql`SELECT coins, essence FROM users WHERE id = ${userId} LIMIT 1`),
     db.execute(sql`
@@ -311,6 +340,7 @@ export async function getBeauPrizeWheelState(userId: string) {
     `),
     activePetStatus(db as unknown as Executor, userId),
     readBeauWheelLayout(db as unknown as Executor),
+    readBeauPointerLayout(db as unknown as Executor),
   ]);
   const user = userResult.rows[0] as any;
   if (!user) throw new BeauPrizeWheelError("player_not_found", 404, "Player not found.");
@@ -319,6 +349,7 @@ export async function getBeauPrizeWheelState(userId: string) {
     ready: wheel.ready,
     slots: wheel.slots,
     layout,
+    pointerLayout,
     requiresActivePet: wheel.requiresActivePet,
     ...pet,
     balances: { coins: Number(user.coins ?? 0), essence: Number(user.essence ?? 0) },
