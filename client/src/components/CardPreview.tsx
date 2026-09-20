@@ -443,8 +443,10 @@ export default function CardPreview({
             maskPosition: "center",
             WebkitMaskSize: "100% 100%",
             maskSize: "100% 100%",
-            backgroundImage: "linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%)",
-            backgroundSize: "285% 100%",
+            backgroundImage: "linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%), linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%)",
+            backgroundSize: "190% 100%, 190% 100%",
+            backgroundRepeat: "no-repeat, no-repeat",
+            backgroundPosition: "0% 0, 190% 0",
             mixBlendMode: "screen",
             filter: `drop-shadow(0 0 ${2.8 + rarity * .45}px rgba(255,224,116,.95)) drop-shadow(0 0 ${6.5 + rarity * .9}px rgba(255,184,34,.7)) drop-shadow(0 0 ${11 + rarity * 1.1}px rgba(255,146,18,.36))`,
             opacity: .82 + (rarity - 3) * .06,
@@ -477,8 +479,8 @@ export default function CardPreview({
                 key={index}
                 className="card-border-glint"
                 style={{
-                  animationDelay: `-${glint.delay}s`,
-                  animationDuration: `${1.85 + (index % 5) * .24}s`,
+                  animationDelay: `-${(index / CARD_BORDER_GLINT_POINTS.length * 3.2).toFixed(2)}s`,
+                  animationDuration: "3.2s",
                 }}
               >
                 <circle cx={glint.x} cy={glint.y} r={glint.size * 2.5} fill="rgba(255,218,112,.14)" />
@@ -563,24 +565,18 @@ export default function CardPreview({
           70% { opacity: .42; }
         }
         @keyframes cardBorderGlowTravel {
-          0% { background-position: 185% 0; opacity: .72; }
-          45% { opacity: 1; }
-          100% { background-position: -105% 0; opacity: .72; }
+          from { background-position: 0% 0, 190% 0; }
+          to { background-position: -190% 0, 0% 0; }
         }
         @keyframes cardBorderGlint {
-          0%, 100% { opacity: .06; transform: scale(.5) rotate(0deg); }
-          26% { opacity: .95; transform: scale(1.1) rotate(8deg); }
-          44% { opacity: .18; transform: scale(.72) rotate(13deg); }
-          67% { opacity: .82; transform: scale(.98) rotate(18deg); }
-          82% { opacity: .08; transform: scale(.58) rotate(23deg); }
+          0%, 100% { opacity: .08; transform: scale(.62) rotate(0deg); }
+          22% { opacity: .92; transform: scale(1.08) rotate(6deg); }
+          50% { opacity: .18; transform: scale(.74) rotate(0deg); }
+          72% { opacity: .8; transform: scale(1) rotate(-5deg); }
         }
         @keyframes cardTitleHologoldSweep {
           0%, 100% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
-        }
-        @keyframes cardTitleFiveStarPulse {
-          0%, 100% { filter: drop-shadow(0 0 1px rgba(255,239,176,.55)) drop-shadow(0 0 3px rgba(255,186,46,.38)); }
-          50% { filter: drop-shadow(0 0 2px rgba(255,250,214,.95)) drop-shadow(0 0 7px rgba(255,197,53,.86)) drop-shadow(0 0 12px rgba(255,147,20,.38)); }
         }
         .card-glitter-batch { will-change: opacity; }
         .card-glitter-batch-0 { animation: cardGlitterPulseA 2.5s ease-in-out infinite; }
@@ -615,17 +611,14 @@ export default function CardPreview({
           -webkit-background-clip: text;
           animation: cardTitleHologoldSweep 7.8s ease-in-out infinite;
         }
-        [data-card-title-rarity="5"] > span {
-          animation: cardTitleHologoldSweep 6.6s ease-in-out infinite, cardTitleFiveStarPulse 2.9s ease-in-out infinite;
-        }
         .card-sparkle-swirl-line {
           mix-blend-mode: screen;
           filter: drop-shadow(0 0 .7px rgba(255,255,240,.88)) drop-shadow(0 0 2px rgba(255,214,115,.5));
           animation: cardSparkleSwirlFlow 3.4s ease-in-out infinite;
         }
         .card-border-gold-glow {
-          animation: cardBorderGlowTravel 9.6s ease-in-out infinite;
-          will-change: background-position, opacity;
+          animation: cardBorderGlowTravel 11.5s linear infinite;
+          will-change: background-position;
         }
         @media (prefers-reduced-motion: reduce) {
           .card-glitter-batch,
@@ -639,7 +632,7 @@ export default function CardPreview({
           .card-micro-glint,
           .card-border-glint { opacity: .6; }
           .card-sparkle-swirl-line { opacity: .56; }
-          .card-border-gold-glow { background-position: 50% 0; opacity: .88; }
+          .card-border-gold-glow { background-position: 0% 0, 190% 0; opacity: .88; }
           [data-card-title-rarity="4"] > span,
           [data-card-title-rarity="5"] > span { background-position: 50% 50%; filter: drop-shadow(0 0 3px rgba(255,194,56,.48)); }
         }
