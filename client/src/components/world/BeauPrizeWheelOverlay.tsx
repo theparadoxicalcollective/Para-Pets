@@ -18,7 +18,7 @@ const lossSkull = "/world-assets/generated_images/icon_skull_defeat.png";
 const coinIcon = "/world-assets/icon_coin.png";
 const essenceIcon = "/world-assets/Photoroom_20260709_23958_PM_1783626016795.png";
 
-interface WheelState {
+export interface WheelState {
   ready: boolean;
   slots: BeauPrizeView[];
   requiresActivePet: boolean;
@@ -395,6 +395,17 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
 
   useEffect(() => () => {
     if (resultTimerRef.current !== null) window.clearTimeout(resultTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    const bodyOverflow = document.body.style.overflow;
+    const rootOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = bodyOverflow;
+      document.documentElement.style.overflow = rootOverflow;
+    };
   }, []);
 
   useEffect(() => {
