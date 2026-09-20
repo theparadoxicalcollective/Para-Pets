@@ -10,8 +10,6 @@ import { getCardBorderLayout, type CardCollection } from "@/lib/cardCatalog";
 import { setNavHidden } from "@/lib/navVisibility";
 
 import emptyCard from "@assets/uploads/EmptyCard.png";
-import cardPageDecor from "@assets/uploads/CardPageDecor.png";
-import cardTitle from "@assets/uploads/CardTitle.png";
 import decorDivider from "@assets/uploads/DecorDivider.png";
 import oneStarButton from "@assets/uploads/1StarButton.png";
 import twoStarButton from "@assets/uploads/2StarButton.png";
@@ -147,32 +145,20 @@ export default function CardsCollectionPage() {
             boxSizing: "border-box",
           }}
         >
-          <div style={{
-            width: "calc(100% - 72px)",
-            margin: "0 auto 8px",
-            padding: "5px 0 1px",
-            background: "radial-gradient(ellipse, rgba(120,179,103,.13), transparent 72%)",
-          }}>
-            <div aria-hidden="true" style={{ color: "#bfa35f", fontSize: 9, letterSpacing: ".28em", lineHeight: 1.45 }}>
-              PARA PETS
-            </div>
-            <h1 className="sr-only">Cards</h1>
-            <img
-              src={cardTitle}
-              alt=""
-              aria-hidden="true"
-              draggable={false}
-              style={{
-                display: "block",
-                width: "min(88%, 286px)",
-                maxHeight: 66,
-                margin: "2px auto 0",
-                objectFit: "contain",
-                filter: "drop-shadow(0 4px 9px rgba(0,0,0,.5)) drop-shadow(0 0 10px rgba(225,187,83,.16))",
-                userSelect: "none",
-              }}
-            />
-          </div>
+          <h1
+            style={{
+              margin: "4px auto 13px",
+              fontFamily: "'Cinzel', 'Palatino Linotype', Georgia, serif",
+              fontSize: "clamp(34px, 9vw, 46px)",
+              fontWeight: 700,
+              lineHeight: 1.12,
+              letterSpacing: ".09em",
+              color: "#f5d990",
+              textShadow: "0 2px 0 #60401a, 0 4px 9px rgba(0,0,0,.72), 0 0 16px rgba(239,192,99,.35)",
+            }}
+          >
+            Cards
+          </h1>
 
           <section
             aria-label="Collection progress"
@@ -371,25 +357,6 @@ export default function CardsCollectionPage() {
           </article>)}
         </section>
 
-        <img
-          src={cardPageDecor}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-          style={{
-            position: "relative",
-            zIndex: 2,
-            display: "block",
-            width: "min(70%, 275px)",
-            flexShrink: 0,
-            height: 30,
-            margin: "2px auto 0",
-            objectFit: "contain",
-            pointerEvents: "none",
-            userSelect: "none",
-            filter: "drop-shadow(0 4px 8px rgba(0,0,0,.28))",
-          }}
-        />
       </div>
       {selectedCard && <CardDetailDialog key={selectedCard.id} card={selectedCard} layouts={layouts} onClose={() => setSelectedCardId(null)}
         onClaim={() => claimReward.mutate(selectedCard.id)} claiming={claimReward.isPending}
