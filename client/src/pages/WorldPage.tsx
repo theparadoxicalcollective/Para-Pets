@@ -2130,8 +2130,8 @@ export default function WorldPage({ user, onContentReady }: WorldPageProps) {
 
               {/* ── Fish-hint arrows ────────────────────────────────────────
                   Bright green floating arrows pointing to every fishing spot.
-                  Only shown when the player arrives via the Gone Fishing quest
-                  shortcut (?fishHint=1). Tap anywhere to dismiss.            */}
+                  Shown from Janson's Gone Fishing guidance, including when
+                  the player is already in the Bayou. Opening a spot hides it. */}
               {showFishHint && worldId === "swamp" && (() => {
                 const fishingSpots = locations.filter(l => l.type === "fishing" && !l.isShop);
                 if (fishingSpots.length === 0) return null;
