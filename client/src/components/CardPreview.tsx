@@ -301,14 +301,15 @@ export default function CardPreview({
             {CARD_SPARKLE_POINTS.slice(0, RARITY_SPARKLE_COUNT[rarity]).map((sparkle, index) => {
               const x = sparkle.left;
               const y = sparkle.top * 1.5;
-              const ray = sparkle.size * 0.28;
+              const ray = Math.max(0.75, sparkle.size * 0.42);
               return (
                 <g
                   key={index}
                   className="card-artwork-sparkle"
                   style={{ animationDelay: `-${sparkle.delay}s`, animationDuration: RARITY_SPARKLE_STYLE[rarity].duration }}
                 >
-                  <circle cx={x} cy={y} r={ray * 2} fill="rgba(255,205,95,.28)" />
+                  <circle cx={x} cy={y} r={ray * 2.4} fill="rgba(255,205,95,.24)" />
+                  <circle cx={x} cy={y} r={ray * .34} fill="#ffffff" />
                   <path
                     d={`M ${x} ${y - ray} L ${x + ray * .16} ${y - ray * .16} L ${x + ray} ${y} L ${x + ray * .16} ${y + ray * .16} L ${x} ${y + ray} L ${x - ray * .16} ${y + ray * .16} L ${x - ray} ${y} L ${x - ray * .16} ${y - ray * .16} Z`}
                     fill="#fffbea"
@@ -349,12 +350,15 @@ export default function CardPreview({
       </div>
       {showSparkles && <style>{`
         @keyframes cardArtworkTwinkle {
-          0%, 100% { opacity: .14; }
-          42% { opacity: 1; }
-          62% { opacity: .32; }
+          0%, 100% { opacity: .08; transform: scale(.45) rotate(0deg); }
+          28% { opacity: .42; transform: scale(.72) rotate(18deg); }
+          48% { opacity: 1; transform: scale(1.18) rotate(42deg); }
+          68% { opacity: .3; transform: scale(.62) rotate(64deg); }
         }
         .card-artwork-sparkle {
           opacity: .65;
+          transform-box: fill-box;
+          transform-origin: center;
           animation: cardArtworkTwinkle 3s ease-in-out infinite;
         }
         @media (prefers-reduced-motion: reduce) {

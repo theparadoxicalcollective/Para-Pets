@@ -92,7 +92,7 @@ test("detail cards confine smaller rarity sparkles to artwork and keep inventory
   const sparkles = preview.indexOf('data-testid="card-rarity-sparkles"');
   const border = preview.indexOf('alt={`${rarity}-star card border`}');
   assert.ok(artwork >= 0 && artwork < sparkles && sparkles < border, "sparkles belong inside the artwork, behind the frame");
-  assert.match(preview, /const ray = sparkle\.size \* 0\.28/);
+  assert.match(preview, /const ray = Math\.max\(0\.75, sparkle\.size \* 0\.42\)/);
   assert.match(preview, /cardArtworkTwinkle/);
   assert.match(preview, /prefers-reduced-motion: reduce/);
   assert.match(preview, /inset: depth3d \? "12% 7%" : "12% 10%"/);
@@ -107,6 +107,6 @@ test("card turn queues visual updates per frame and preserves fast swipe lore", 
   assert.doesNotMatch(detail, /setTurnAngle/);
   assert.match(detail, /velocity >= 0\.35/);
   assert.match(detail, /gesture\.width \* 0\.1/);
-  assert.match(detail, /Drag left or right to turn the card\. Swipe quickly to read more\./);
+  assert.doesNotMatch(detail, />Drag left or right to turn the card\. Swipe quickly to read more\.</);
   assert.doesNotMatch(detail, /onDescriptionClick=/);
 });

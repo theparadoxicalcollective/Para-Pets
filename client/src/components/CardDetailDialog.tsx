@@ -149,8 +149,7 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
             <CardRewardCoin cardName={card.name} claimed={card.firstRewardClaimed} claiming={claiming} disabled={claiming}
               rewardAmount={rewardAmount} onClaim={onClaim} onDismiss={onDismissReward} />
           </div>
-          <p className="mt-3 text-center text-sm text-amber-100/70">Drag left or right to turn the card. Swipe quickly to read more.</p>
-          <p className="mt-2 text-center text-sm">Owned: ×{card.quantity}</p>
+          <p className="mt-3 text-center text-sm">Owned: ×{card.quantity}</p>
         </div>
         <Dialog.Root open={descriptionOpen} onOpenChange={setDescriptionOpen}>
           <Dialog.Portal>
