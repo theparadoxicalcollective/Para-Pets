@@ -18,7 +18,7 @@ import MiniPetAdminPanel from "@/components/MiniPetAdminPanel";
 import ClearingAdminPanel from "@/components/ClearingAdminPanel";
 import HomeBundleSection from "@/components/HomeBundleSection";
 import CardAdminPanel from "@/components/CardAdminPanel";
-import RewardCardPicker, { type SelectedRewardCard } from "@/components/RewardCardPicker";
+import type { CardDefinition } from "@/lib/cardCatalog";
 import RedeemCodeAdminPanel from "@/components/RedeemCodeAdminPanel";
 import DailyRewardsAdminPanel from "@/components/DailyRewardsAdminPanel";
 
@@ -68,6 +68,11 @@ interface BuildInfo {
   buildTimestamp: string;
   environment: string;
   branch: string;
+}
+
+interface SelectedRewardCard {
+  cardId: string;
+  quantity: number;
 }
 
 export default function AdminPage({ user }: AdminPageProps) {
@@ -1155,6 +1160,10 @@ function WelcomeBundleSection() {
     queryKey: ["/api/admin/shop-items-all"],
   });
 
+  const { data: rewardCards = [] } = useQuery<CardDefinition[]>({
+    queryKey: ["/api/admin/cards"],
+  });
+
   useEffect(() => {
     if (config) {
       setCoinAmount(String(config.coinAmount));
@@ -1416,7 +1425,17 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
     );
   };
 
+  const setCardQty = (cardId: string, qty: number) => {
+    setSelectedCards(prev => prev.map(entry =>
+      entry.cardId === cardId
+        ? { ...entry, quantity: Math.max(1, Math.min(999, Math.floor(qty || 1))) }
+        : entry
+    ));
+  };
+
   const totalItemCount = selectedItems.reduce((sum, e) => sum + (e.qty || 1), 0);
+  const totalCardCount = selectedCards.reduce((sum, e) => sum + (e.quantity || 1), 0);
+  const totalRewardCount = totalItemCount + totalCardCount;
 
   const filteredMembers = userSearch
     ? members.filter(m => m.username.toLowerCase().includes(userSearch.trim().toLowerCase()))
@@ -1481,7 +1500,7 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider">
-                Items ({selectedItems.length} types · {totalItemCount} total)
+                Rewards ({selectedItems.length + selectedCards.length} types · {totalRewardCount} total)
               </label>
               <button
                 data-testid="button-add-bundle-item"
@@ -1489,7 +1508,7 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
                 className="px-2 py-1 rounded-md font-fantasy text-[9px] tracking-wider"
                 style={{ background: "rgba(192,132,252,0.2)", border: "1px solid rgba(192,132,252,0.4)", color: "#c084fc", cursor: "pointer" }}
               >
-                + Add Item
+                + Add Reward
               </button>
             </div>
             {selectedItems.length > 0 && (
@@ -1550,7 +1569,62 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
             )}
           </div>
 
-          <RewardCardPicker selected={selectedCards} onChange={setSelectedCards} />
+          {selectedCards.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {selectedCards.map((entry) => {
+                const card = rewardCards.find(candidate => candidate.id === entry.cardId);
+                if (!card) return null;
+                return (
+                  <div
+                    key={entry.cardId}
+                    data-testid={`bundle-card-${entry.cardId}`}
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-md"
+                    style={{ background: "rgba(246,211,101,0.1)", border: "1px solid rgba(246,211,101,0.35)" }}
+                  >
+                    {card.artworkUrl
+                      ? <img src={card.artworkUrl} alt="" className="w-6 h-6 object-cover rounded-sm" />
+                      : <span className="text-xs">🃏</span>}
+                    <span className="font-fantasy text-[#f6d365] text-[9px] max-w-[90px] truncate">
+                      {card.name} · {card.rarity}★
+                    </span>
+                    <div className="flex items-center gap-0.5 ml-0.5" style={{ background: "rgba(0,0,0,0.35)", borderRadius: 4, padding: "1px 2px" }}>
+                      <button
+                        type="button"
+                        aria-label={`Decrease ${card.name} quantity`}
+                        onClick={() => setCardQty(entry.cardId, entry.quantity - 1)}
+                        className="w-5 h-5 flex items-center justify-center rounded text-[#f6d365] active:scale-90"
+                        style={{ background: "rgba(246,211,101,0.14)", border: "1px solid rgba(246,211,101,0.28)", cursor: "pointer" }}
+                      >−</button>
+                      <input
+                        aria-label={`Quantity for ${card.name}`}
+                        type="number"
+                        min={1}
+                        max={999}
+                        value={entry.quantity}
+                        onChange={(event) => setCardQty(entry.cardId, parseInt(event.target.value, 10) || 1)}
+                        className="w-10 text-center font-fantasy text-[11px] outline-none rounded"
+                        style={{ background: "rgba(242,232,208,0.95)", color: "#2a1a0a", border: "1px solid #8b5e3c", padding: "1px 2px" }}
+                      />
+                      <button
+                        type="button"
+                        aria-label={`Increase ${card.name} quantity`}
+                        onClick={() => setCardQty(entry.cardId, entry.quantity + 1)}
+                        className="w-5 h-5 flex items-center justify-center rounded text-[#f6d365] active:scale-90"
+                        style={{ background: "rgba(246,211,101,0.14)", border: "1px solid rgba(246,211,101,0.28)", cursor: "pointer" }}
+                      >+</button>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${card.name}`}
+                      onClick={() => setSelectedCards(prev => prev.filter(item => item.cardId !== entry.cardId))}
+                      className="text-[#ff9999] text-[12px] ml-0.5"
+                      style={{ background: "none", border: "none", cursor: "pointer", fontWeight: "bold" }}
+                    >×</button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div>
             <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Recipients</label>
@@ -1652,7 +1726,9 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
 
       {showItemPicker && (
         <ItemPickerModal
+          title="Select Reward"
           items={allShopItems}
+          cards={rewardCards.filter(card => !selectedCards.some(entry => entry.cardId === card.id))}
           onSelect={(item) => {
             // If the item is already in the bundle, just bump its quantity
             // by 1 instead of adding a duplicate row — the admin can then
@@ -1664,6 +1740,10 @@ function RewardBundleSection({ members }: { members: MemberUser[] }) {
               }
               return [...prev, { item, qty: 1 }];
             });
+            setShowItemPicker(false);
+          }}
+          onSelectCard={(card) => {
+            setSelectedCards(prev => [...prev, { cardId: card.id, quantity: 1 }]);
             setShowItemPicker(false);
           }}
           onClose={() => setShowItemPicker(false)}
