@@ -11,6 +11,8 @@ import { setNavHidden } from "@/lib/navVisibility";
 
 import emptyCard from "@assets/uploads/EmptyCard.png";
 import cardPageDecor from "@assets/uploads/CardPageDecor.png";
+import cardTitle from "@assets/uploads/CardTitle.png";
+import decorDivider from "@assets/uploads/DecorDivider.png";
 import oneStarButton from "@assets/uploads/1StarButton.png";
 import twoStarButton from "@assets/uploads/2StarButton.png";
 import threeStarButton from "@assets/uploads/3StarButton.png";
@@ -26,7 +28,6 @@ const RARITY_FILTERS = [
   { rarity: 5, src: fiveStarButton, label: "5 stars" },
 ] as const;
 
-const gold = "rgba(216,176,74,.78)";
 const mutedGold = "rgba(216,176,74,.34)";
 
 export default function CardsCollectionPage() {
@@ -111,39 +112,6 @@ export default function CardsCollectionPage() {
           boxSizing: "border-box",
         }}
       >
-        <div
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            inset: "8px 7px 18px",
-            border: `1px solid ${mutedGold}`,
-            borderRadius: 3,
-            pointerEvents: "none",
-            boxShadow: "inset 0 0 34px rgba(7,30,20,.55), 0 0 18px rgba(0,0,0,.18)",
-          }}
-        />
-
-        {[
-          { top: 8, left: 7, borderTop: `3px solid ${gold}`, borderLeft: `3px solid ${gold}` },
-          { top: 8, right: 7, borderTop: `3px solid ${gold}`, borderRight: `3px solid ${gold}` },
-          { bottom: 18, left: 7, borderBottom: `3px solid ${gold}`, borderLeft: `3px solid ${gold}` },
-          { bottom: 18, right: 7, borderBottom: `3px solid ${gold}`, borderRight: `3px solid ${gold}` },
-        ].map((corner, index) => (
-          <div
-            key={index}
-            aria-hidden="true"
-            style={{
-              position: "absolute",
-              zIndex: 1,
-              width: 28,
-              height: 28,
-              borderRadius: index === 0 ? "5px 0 0 0" : index === 1 ? "0 5px 0 0" : index === 2 ? "0 0 0 5px" : "0 0 5px 0",
-              pointerEvents: "none",
-              ...corner,
-            }}
-          />
-        ))}
-
         <button
           type="button"
           data-testid="button-close-cards"
@@ -181,24 +149,29 @@ export default function CardsCollectionPage() {
         >
           <div style={{
             width: "calc(100% - 72px)",
-            margin: "0 auto 10px",
-            padding: "8px 0 4px",
-            background: "radial-gradient(ellipse, rgba(120,179,103,.14), transparent 70%)",
+            margin: "0 auto 8px",
+            padding: "5px 0 1px",
+            background: "radial-gradient(ellipse, rgba(120,179,103,.13), transparent 72%)",
           }}>
-            <div aria-hidden="true" style={{ color: "#bfa35f", fontSize: 9, letterSpacing: ".28em", lineHeight: 1.5 }}>
+            <div aria-hidden="true" style={{ color: "#bfa35f", fontSize: 9, letterSpacing: ".28em", lineHeight: 1.45 }}>
               PARA PETS
             </div>
-            <h1 style={{
-              margin: 0,
-              color: "#f2d889",
-              fontSize: "clamp(34px, calc(var(--vw, 1vw) * 11), 46px)",
-              fontWeight: 500,
-              letterSpacing: ".06em",
-              lineHeight: 1.15,
-              textShadow: "0 2px 1px #4c3512, 0 4px 12px rgba(0,0,0,.6), 0 0 22px rgba(220,181,79,.18)",
-            }}>
-              Cards
-            </h1>
+            <h1 className="sr-only">Cards</h1>
+            <img
+              src={cardTitle}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              style={{
+                display: "block",
+                width: "min(88%, 286px)",
+                maxHeight: 66,
+                margin: "2px auto 0",
+                objectFit: "contain",
+                filter: "drop-shadow(0 4px 9px rgba(0,0,0,.5)) drop-shadow(0 0 10px rgba(225,187,83,.16))",
+                userSelect: "none",
+              }}
+            />
           </div>
 
           <section
@@ -268,12 +241,21 @@ export default function CardsCollectionPage() {
             })}
           </nav>
 
-          <div
+          <img
+            src={decorDivider}
+            alt=""
             aria-hidden="true"
+            draggable={false}
             style={{
-              height: 1,
-              margin: "8px 6px 12px",
-              background: "linear-gradient(90deg, transparent, rgba(216,176,74,.55) 25%, rgba(216,176,74,.55) 75%, transparent)",
+              display: "block",
+              width: "min(74%, 250px)",
+              height: 22,
+              margin: "5px auto 8px",
+              objectFit: "contain",
+              opacity: .82,
+              filter: "drop-shadow(0 3px 6px rgba(0,0,0,.3))",
+              pointerEvents: "none",
+              userSelect: "none",
             }}
           />
         </header>
@@ -283,7 +265,7 @@ export default function CardsCollectionPage() {
           style={{
             position: "relative",
             zIndex: 3,
-            width: "min(88%, 365px)",
+            width: "min(90%, 375px)",
             margin: "0 auto 8px",
             flexShrink: 0,
             display: "flex",
@@ -352,19 +334,19 @@ export default function CardsCollectionPage() {
             WebkitOverflowScrolling: "touch",
             scrollbarWidth: "thin",
             scrollbarColor: "#997b3c #071b12",
-            width: "min(89%, 370px)",
+            width: "min(92%, 382px)",
             margin: "0 auto",
-            padding: "clamp(7px, 2vw, 10px) clamp(5px, 1.4vw, 7px) 10px",
+            padding: "clamp(7px, 2vw, 10px) clamp(5px, 1.4vw, 7px) 14px",
             boxSizing: "border-box",
             display: "grid",
             gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
             alignContent: "start",
             columnGap: "clamp(8px, 2.4vw, 12px)",
             rowGap: "clamp(5px, 1.6vw, 8px)",
-            borderRadius: 14,
-            background: "linear-gradient(180deg, rgba(2,17,11,.38), rgba(1,12,8,.18))",
-            border: "1px solid rgba(216,176,74,.2)",
-            boxShadow: "inset 0 0 26px rgba(0,0,0,.18), 0 10px 24px rgba(0,0,0,.12)",
+            borderRadius: 18,
+            background: "radial-gradient(ellipse at 50% 4%, rgba(62,117,73,.12), transparent 48%)",
+            border: "none",
+            boxShadow: "none",
           }}
         >
           {isLoading && <p className="col-span-2 py-5 text-center text-sm" role="status">Loading cards…</p>}
