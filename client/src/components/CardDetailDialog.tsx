@@ -113,7 +113,6 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
                   transformStyle: "preserve-3d",
                   transition: turnTransition,
                   willChange: "transform",
-                  filter: "drop-shadow(0 8px 12px rgba(0,0,0,.48))",
                 }}
               >
                 <CardPreview
