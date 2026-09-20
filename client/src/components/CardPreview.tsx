@@ -40,56 +40,73 @@ const RARITY_TEXT_STYLES: Record<CardRarity, { name: string; description: string
 
 const RARITY_SPARKLE_COUNT: Record<CardRarity, number> = {
   1: 0,
-  2: 24,
-  3: 44,
-  4: 68,
-  5: 88,
+  2: 28,
+  3: 48,
+  4: 72,
+  5: 96,
 };
 
 const RARITY_GLINT_COUNT: Record<CardRarity, number> = {
   1: 0,
-  2: 0,
+  2: 2,
   3: 6,
-  4: 12,
-  5: 18,
+  4: 11,
+  5: 16,
 };
 
-const RARITY_SPARKLE_STYLE: Record<CardRarity, { opacity: number; glow: string }> = {
-  1: { opacity: 0, glow: "none" },
-  2: { opacity: 0.72, glow: "drop-shadow(0 0 1.5px rgba(255,242,190,.58))" },
-  3: { opacity: 0.86, glow: "drop-shadow(0 0 2px rgba(255,236,170,.72))" },
-  4: { opacity: 0.96, glow: "drop-shadow(0 0 3px rgba(255,231,150,.82))" },
-  5: { opacity: 1, glow: "drop-shadow(0 0 4px rgba(255,242,196,.95))" },
+const RARITY_SWIRL_COUNT: Record<CardRarity, number> = {
+  1: 0,
+  2: 1,
+  3: 2,
+  4: 3,
+  5: 4,
 };
 
-// Deterministic points keep the glitter stable between renders and avoid a
-// JavaScript particle loop. Four SVG groups animate regardless of point count.
-const CARD_GLITTER_POINTS = Array.from({ length: 88 }, (_, index) => ({
-  x: 3 + ((index * 37 + 11) % 94),
-  y: 5 + ((index * 53 + 17) % 140),
-  radius: 0.26 + ((index * 17) % 7) * 0.055,
-  group: index % 4,
-}));
+const RARITY_SPARKLE_STYLE: Record<CardRarity, { opacity: number; glow: string; color: string }> = {
+  1: { opacity: 0, glow: "none", color: "#fff4ca" },
+  2: { opacity: .67, glow: "drop-shadow(0 0 1px rgba(252,241,180,.58))", color: "#e9f7cd" },
+  3: { opacity: .79, glow: "drop-shadow(0 0 1.5px rgba(181,225,255,.66))", color: "#d8edff" },
+  4: { opacity: .89, glow: "drop-shadow(0 0 2px rgba(226,183,255,.72))", color: "#efddff" },
+  5: { opacity: 1, glow: "drop-shadow(0 0 2px rgba(255,215,119,.8))", color: "#fff0b6" },
+};
+
+// Dust follows a centered ribbon. Lower points are larger and more crowded;
+// the top thins out without relying on a timer or an off-card particle emitter.
+const CARD_GLITTER_POINTS = Array.from({ length: 96 }, (_, index) => {
+  const height = (((index * 47) % 97) / 97) ** 1.7;
+  const turn = height * 11 + (index % 4) * .25;
+  return {
+    x: 50 + Math.sin(turn) * (18 - height * 5) + ((index * 19) % 13) - 6,
+    y: 138 - height * 121,
+    radius: (.27 + ((index * 17) % 7) * .052) * (1.3 - height * .45),
+    group: index % 4,
+  };
+});
 
 const CARD_GLINT_POINTS = [
-  { x: 18, y: 118, size: 1.5, delay: 0.12 },
-  { x: 77, y: 108, size: 1.28, delay: 0.74 },
-  { x: 34, y: 92, size: 1.2, delay: 1.18 },
-  { x: 66, y: 82, size: 1.4, delay: 0.36 },
-  { x: 24, y: 70, size: 1.12, delay: 0.92 },
-  { x: 82, y: 61, size: 1.26, delay: 1.42 },
-  { x: 45, y: 54, size: 1.08, delay: 0.58 },
-  { x: 61, y: 43, size: 1.22, delay: 1.08 },
-  { x: 31, y: 34, size: 1.02, delay: 1.62 },
-  { x: 73, y: 27, size: 1.14, delay: 0.22 },
-  { x: 50, y: 22, size: 1.0, delay: 0.82 },
-  { x: 87, y: 126, size: 1.2, delay: 1.28 },
-  { x: 12, y: 48, size: 1.08, delay: 0.46 },
-  { x: 91, y: 88, size: 1.16, delay: 1.52 },
-  { x: 53, y: 104, size: 1.3, delay: 0.68 },
-  { x: 39, y: 129, size: 1.12, delay: 1.36 },
-  { x: 69, y: 136, size: 1.04, delay: 0.98 },
-  { x: 14, y: 101, size: 1.18, delay: 1.72 },
+  { x: 34, y: 127, size: 1.55, delay: .12 },
+  { x: 66, y: 117, size: 1.42, delay: .74 },
+  { x: 48, y: 108, size: 1.36, delay: 1.18 },
+  { x: 25, y: 99, size: 1.27, delay: .36 },
+  { x: 70, y: 91, size: 1.22, delay: .92 },
+  { x: 51, y: 83, size: 1.18, delay: 1.42 },
+  { x: 31, y: 77, size: 1.13, delay: .58 },
+  { x: 67, y: 68, size: 1.1, delay: 1.08 },
+  { x: 46, y: 61, size: 1.08, delay: 1.62 },
+  { x: 27, y: 53, size: 1.06, delay: .22 },
+  { x: 63, y: 48, size: 1.02, delay: .82 },
+  { x: 51, y: 41, size: .96, delay: 1.28 },
+  { x: 37, y: 36, size: .92, delay: .46 },
+  { x: 69, y: 30, size: .9, delay: 1.52 },
+  { x: 47, y: 24, size: .86, delay: .68 },
+  { x: 55, y: 18, size: .82, delay: 1.36 },
+] as const;
+
+const CARD_SWIRL_PATHS = [
+  "M 25 139 C 8 111, 76 126, 72 96 C 69 73, 28 91, 30 68 C 32 49, 72 58, 64 35 C 60 26, 50 23, 53 16",
+  "M 72 139 C 91 112, 26 124, 25 103 C 24 82, 78 88, 74 67 C 71 49, 34 61, 38 40 C 40 29, 57 30, 49 20",
+  "M 38 141 C 69 120, 80 113, 64 99 C 46 83, 23 106, 30 83 C 37 67, 73 79, 68 55 C 65 46, 45 44, 47 31",
+  "M 62 137 C 29 126, 12 112, 37 98 C 56 87, 82 108, 74 78 C 68 61, 30 72, 34 49 C 37 37, 58 45, 55 27",
 ] as const;
 
 export default function CardPreview({
@@ -323,7 +340,6 @@ export default function CardPreview({
               opacity: RARITY_SPARKLE_STYLE[rarity].opacity,
               filter: RARITY_SPARKLE_STYLE[rarity].glow,
               overflow: "hidden",
-              clipPath: "inset(0)",
             }}
           >
             {[0, 1, 2, 3].map(group => (
@@ -376,46 +392,28 @@ export default function CardPreview({
                 <circle cx={glint.x} cy={glint.y} r={glint.size * .18} fill="#fff" />
               </g>
             ))}
-            {rarity === 5 && (
-              <g className="card-sparkle-swirl">
+            {CARD_SWIRL_PATHS.slice(0, RARITY_SWIRL_COUNT[rarity]).map((path, index) => (
+              <g key={index} className="card-sparkle-swirl">
                 <path
-                  className="card-sparkle-swirl-line card-sparkle-swirl-line-a"
-                  d="M 12 120 C 24 88, 67 101, 84 65 C 95 42, 83 23, 58 27"
-                  pathLength="100"
+                  d={path}
                   fill="none"
-                  stroke="rgba(255,249,215,.98)"
-                  strokeWidth="0.6"
+                  stroke={RARITY_SPARKLE_STYLE[rarity].color}
+                  strokeOpacity=".24"
+                  strokeWidth={.34 + rarity * .045}
                   strokeLinecap="round"
                 />
                 <path
-                  className="card-sparkle-swirl-line card-sparkle-swirl-line-b"
-                  d="M 20 132 C 39 106, 76 117, 78 83 C 79 66, 67 56, 53 58"
-                  pathLength="100"
+                  className="card-sparkle-swirl-line"
+                  d={path}
+                  pathLength={100}
                   fill="none"
-                  stroke="rgba(238,250,255,.96)"
-                  strokeWidth="0.52"
+                  stroke={RARITY_SPARKLE_STYLE[rarity].color}
+                  strokeWidth={.46 + rarity * .075}
                   strokeLinecap="round"
-                />
-                <path
-                  className="card-sparkle-swirl-line card-sparkle-swirl-line-c"
-                  d="M 8 91 C 25 72, 45 84, 61 68 C 76 53, 73 37, 91 22"
-                  pathLength="100"
-                  fill="none"
-                  stroke="rgba(255,235,173,.94)"
-                  strokeWidth="0.48"
-                  strokeLinecap="round"
-                />
-                <path
-                  className="card-sparkle-swirl-line card-sparkle-swirl-line-d"
-                  d="M 92 119 C 72 96, 48 113, 31 94 C 18 79, 23 57, 9 42"
-                  pathLength="100"
-                  fill="none"
-                  stroke="rgba(255,250,221,.9)"
-                  strokeWidth="0.46"
-                  strokeLinecap="round"
+                  style={{ animationDelay: `-${index * 1.3}s`, animationDuration: `${5.4 + index * .7}s` }}
                 />
               </g>
-            )}
+            ))}
           </svg>
         )}
       </div>
@@ -476,14 +474,12 @@ export default function CardPreview({
           56% { opacity: .92; transform: scale(1.16) rotate(18deg); }
           69% { opacity: .12; transform: scale(.62) rotate(22deg); }
         }
-        @keyframes cardSparkleSwirlGlow {
-          0%, 100% { opacity: .42; filter: drop-shadow(0 0 1px rgba(255,243,199,.72)) drop-shadow(0 0 2px rgba(255,206,104,.32)); }
-          38% { opacity: 1; filter: drop-shadow(0 0 2px rgba(255,255,240,1)) drop-shadow(0 0 6px rgba(255,220,128,.9)); }
-          62% { opacity: .68; filter: drop-shadow(0 0 1.5px rgba(245,252,255,.86)) drop-shadow(0 0 4px rgba(238,220,157,.62)); }
+        @keyframes cardSparkleSwirlFlow {
+          from { stroke-dashoffset: 100; opacity: .35; }
+          45% { opacity: 1; }
+          to { stroke-dashoffset: 0; opacity: .35; }
         }
-        .card-glitter-batch {
-          will-change: opacity;
-        }
+        .card-glitter-batch { will-change: opacity; }
         .card-glitter-batch-0 { animation: cardGlitterPulseA 2.5s ease-in-out infinite; }
         .card-glitter-batch-1 { animation: cardGlitterPulseB 3s ease-in-out infinite; }
         .card-glitter-batch-2 { animation: cardGlitterPulseC 3.6s ease-in-out infinite; }
@@ -496,25 +492,12 @@ export default function CardPreview({
           filter: drop-shadow(0 0 1px rgba(255,255,244,.95)) drop-shadow(0 0 4px rgba(255,218,120,.7));
           animation: cardMicroGlint 1.9s ease-in-out infinite;
         }
-        .card-star-aura {
-          filter: blur(.35px);
-        }
+        .card-star-aura { filter: blur(.35px); }
         .card-sparkle-swirl-line {
+          stroke-dasharray: 17 83;
           mix-blend-mode: screen;
-          filter: drop-shadow(0 0 1px rgba(255,255,240,.9)) drop-shadow(0 0 4px rgba(255,214,115,.55));
-          animation: cardSparkleSwirlGlow 1.65s ease-in-out infinite;
-        }
-        .card-sparkle-swirl-line-b {
-          animation-duration: 1.95s;
-          animation-delay: -.42s;
-        }
-        .card-sparkle-swirl-line-c {
-          animation-duration: 1.78s;
-          animation-delay: -.8s;
-        }
-        .card-sparkle-swirl-line-d {
-          animation-duration: 2.12s;
-          animation-delay: -1.05s;
+          filter: drop-shadow(0 0 1px rgba(255,255,240,.9)) drop-shadow(0 0 3px rgba(255,214,115,.6));
+          animation: cardSparkleSwirlFlow 5.4s linear infinite;
         }
         @media (prefers-reduced-motion: reduce) {
           .card-glitter-batch,
@@ -522,7 +505,7 @@ export default function CardPreview({
           .card-sparkle-swirl-line { animation: none !important; }
           .card-glitter-batch { opacity: .82; }
           .card-micro-glint { opacity: .6; }
-          .card-sparkle-swirl-line { opacity: .72; }
+          .card-sparkle-swirl-line { opacity: .72; stroke-dasharray: none; }
         }
       `}</style>}
     </div>

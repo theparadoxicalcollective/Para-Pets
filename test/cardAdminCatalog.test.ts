@@ -86,9 +86,10 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
 
 test("detail cards use lightweight rarity-scaled magical glitter inside the artwork", () => {
   assert.match(preview, /brightness\(1\.2\)/);
-  assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*24[\s\S]*?3:\s*44[\s\S]*?4:\s*68[\s\S]*?5:\s*88/);
-  assert.match(preview, /RARITY_GLINT_COUNT[\s\S]*?3:\s*6[\s\S]*?4:\s*12[\s\S]*?5:\s*18/);
-  assert.match(preview, /CARD_GLITTER_POINTS = Array\.from\(\{ length: 88 \}/);
+  assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*28[\s\S]*?3:\s*48[\s\S]*?4:\s*72[\s\S]*?5:\s*96/);
+  assert.match(preview, /RARITY_GLINT_COUNT[\s\S]*?2:\s*2[\s\S]*?3:\s*6[\s\S]*?4:\s*11[\s\S]*?5:\s*16/);
+  assert.match(preview, /RARITY_SWIRL_COUNT[\s\S]*?2:\s*1[\s\S]*?3:\s*2[\s\S]*?4:\s*3[\s\S]*?5:\s*4/);
+  assert.match(preview, /CARD_GLITTER_POINTS = Array\.from\(\{ length: 96 \}/);
   assert.doesNotMatch(preview, /Math\.random\(\)/);
   assert.match(preview, /showSparkles = false/);
   assert.match(detail, /showSparkles/);
@@ -98,22 +99,22 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.ok(artwork >= 0 && artwork < sparkles && sparkles < border, "sparkles belong inside the artwork, behind the frame");
   assert.match(preview, /card-glitter-batch-0/);
   assert.match(preview, /card-micro-glint/);
-  assert.match(preview, /rarity === 5/);
+  assert.match(preview, /CARD_SWIRL_PATHS\.slice\(0, RARITY_SWIRL_COUNT\[rarity\]\)/);
   assert.match(preview, /card-sparkle-swirl-line/);
-  assert.match(preview, /card-sparkle-swirl-line-c/);
-  assert.match(preview, /card-sparkle-swirl-line-d/);
   assert.match(preview, /card-star-shape/);
-  assert.match(preview, /cardSparkleSwirlGlow/);
-  assert.doesNotMatch(preview, /strokeDasharray="0\\./);
+  assert.match(preview, /cardSparkleSwirlFlow/);
+  assert.match(preview, /stroke-dasharray: 17 83/);
   assert.match(preview, /prefers-reduced-motion: reduce/);
   assert.match(preview, /inset: depth3d \? "12% 7%" : "12% 10%"/);
   assert.match(preview, /inset 0 0 24px 8px/);
 });
 
-test("card collection uses the decorative assets without boxing the whole page or card grid", () => {
-  assert.match(collection, /CardTitle\.png/);
+test("card collection keeps the cleaner open layout and text heading", () => {
   assert.match(collection, /DecorDivider\.png/);
-  assert.match(collection, /CardPageDecor\.png/);
+  assert.match(collection, />\s*Cards\s*<\/h1>/);
+  assert.doesNotMatch(collection, /CardTitle\.png/);
+  assert.doesNotMatch(collection, /CardPageDecor\.png/);
+  assert.doesNotMatch(collection, />\s*PARA PETS\s*</);
   assert.doesNotMatch(collection, /inset: "8px 7px 18px"/);
   assert.doesNotMatch(collection, /border: "1px solid rgba\(216,176,74,\.2\)"/);
 });
