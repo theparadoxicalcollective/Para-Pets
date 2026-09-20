@@ -190,6 +190,9 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
     staleTime: 5000,
     refetchOnWindowFocus: true,
   });
+  const { data: jansonData } = useQuery<{ quests: { status: string }[] }>({
+    queryKey: ["/api/quests/janson"], staleTime: 5000, refetchOnWindowFocus: true,
+  });
 
   // ── Friend-request count ──────────────────────────────────────────────────
   const { data: friendReqData } = useQuery<{ count: number }>({
@@ -256,7 +259,7 @@ export default function FloatingNav({ user, onUserUpdate }: FloatingNavProps) {
   const visibleDailyQuests = questData?.quests.filter(q => !q.reward_claimed) ?? [];
   const hasCompletedUnclaimed = questData?.quests.some(q => q.completed && !q.reward_claimed) ?? false;
   const tutorialClaimable = !!(user as any).tutorial_quest_completed && !(user as any).tutorial_reward_claimed;
-  const questRewardReady = hasCompletedUnclaimed || tutorialClaimable;
+  const questRewardReady = hasCompletedUnclaimed || tutorialClaimable || !!jansonData?.quests.some(q => q.status === "completed");
 
   const friendRequestCount = friendReqData?.count ?? 0;
   const friendBadge: "green" | null = friendRequestCount > 0 ? "green" : null;
