@@ -24,6 +24,17 @@ export interface CasinoPrizeItem {
   fishing_type: string | null;
 }
 
+export function effectiveSlotItemRarity(item: Pick<CasinoPrizeItem, "price" | "rarity" | "star_rarity">): number {
+  const explicit = Number(item.star_rarity ?? item.rarity);
+  if (Number.isFinite(explicit) && explicit >= 1) return Math.max(1, Math.min(5, Math.floor(explicit)));
+  const price = Number(item.price ?? 0);
+  if (price >= 1000) return 5;
+  if (price >= 500) return 4;
+  if (price >= 250) return 3;
+  if (price >= 100) return 2;
+  return 1;
+}
+
 export class SlotPrizeValidationError extends Error {}
 
 export function parseSlotPrizeIds(value: unknown): string[] {
@@ -91,6 +102,7 @@ export function slotPrizePreviews(catalog: Record<HauntedSlotItemCategory, Casin
       name: item.name,
       imageUrl: category === "egg" ? item.egg_image_url : item.image_url,
       category,
+      rarity: effectiveSlotItemRarity(item),
     })),
   );
 }
