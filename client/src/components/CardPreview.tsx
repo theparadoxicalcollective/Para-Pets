@@ -38,6 +38,11 @@ const RARITY_TEXT_STYLES: Record<CardRarity, { name: string; description: string
   5: { name: "#7a3d18", description: "#7f5528" },
 };
 
+const DETAIL_TITLE_Y_NUDGE: Partial<Record<CardRarity, number>> = {
+  2: .75,
+  3: .9,
+};
+
 const RARITY_SPARKLE_COUNT: Record<CardRarity, number> = {
   1: 0,
   2: 44,
@@ -183,6 +188,9 @@ export default function CardPreview({
     const isName = field === "name";
     const highRarityTitle = isName && rarity >= 4;
     const metrics = fieldMetrics(field);
+    const detailTitleYNudge = isName && textSize === "detail"
+      ? (DETAIL_TITLE_Y_NUDGE[rarity] ?? 0)
+      : 0;
     const selected = editable && selectedField === field;
     const clickable = !editable && !isName && !!onDescriptionClick;
     const rarityTextStyle = RARITY_TEXT_STYLES[rarity];
@@ -216,7 +224,7 @@ export default function CardPreview({
         style={{
           position: "absolute",
           left: `${metrics.x}%`,
-          top: `${metrics.y}%`,
+          top: `${metrics.y + detailTitleYNudge}%`,
           width: `${metrics.width}%`,
           height: `${metrics.height}%`,
           zIndex: 4,
