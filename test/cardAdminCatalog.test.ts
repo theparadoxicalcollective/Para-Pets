@@ -86,11 +86,12 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
 
 test("detail cards use lightweight rarity-scaled magical glitter inside the artwork", () => {
   assert.match(preview, /brightness\(1\.2\)/);
-  assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*44[\s\S]*?3:\s*76[\s\S]*?4:\s*112[\s\S]*?5:\s*156/);
-  assert.match(preview, /RARITY_GLINT_COUNT[\s\S]*?2:\s*5[\s\S]*?3:\s*10[\s\S]*?4:\s*18[\s\S]*?5:\s*30/);
+  assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*44[\s\S]*?3:\s*96[\s\S]*?4:\s*148[\s\S]*?5:\s*220/);
+  assert.match(preview, /RARITY_GLINT_COUNT[\s\S]*?2:\s*5[\s\S]*?3:\s*14[\s\S]*?4:\s*26[\s\S]*?5:\s*44/);
   assert.match(preview, /RARITY_SWIRL_COUNT[\s\S]*?2:\s*1[\s\S]*?3:\s*1[\s\S]*?4:\s*2[\s\S]*?5:\s*3/);
-  assert.match(preview, /CARD_GLITTER_POINTS = Array\.from\(\{ length: 156 \}/);
-  assert.match(preview, /CARD_GLINT_POINTS = Array\.from\(\{ length: 30 \}/);
+  assert.match(preview, /CARD_GLITTER_POINTS = Array\.from\(\{ length: 220 \}/);
+  assert.match(preview, /CARD_GLINT_POINTS = Array\.from\(\{ length: 44 \}/);
+  assert.match(preview, /CARD_BORDER_GLINT_POINTS = Array\.from\(\{ length: 36 \}/);
   assert.doesNotMatch(preview, /Math\.random\(\)/);
   assert.match(preview, /showSparkles = false/);
   assert.match(detail, /showSparkles/);
@@ -107,9 +108,20 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /linearGradient/);
   assert.match(preview, /stopOpacity="0"/);
   assert.doesNotMatch(preview, /stroke-dasharray: 17 83/);
+  assert.match(preview, /showSparkles && rarity >= 3/);
   assert.match(preview, /data-testid="card-border-gold-glow"/);
+  assert.match(preview, /zIndex: 3/);
   assert.match(preview, /maskImage: `url/);
-  assert.match(preview, /cardBorderGlowTravel/);
+  assert.match(preview, /mixBlendMode: "screen"/);
+  assert.match(preview, /cardBorderGlowTravel 9\.6s ease-in-out infinite/);
+  assert.match(preview, /drop-shadow\(0 0 \$\{6\.5 \+ rarity \* \.9\}px rgba\(255,184,34,\.7\)\)/);
+  assert.match(preview, /showSparkles && rarity === 5/);
+  assert.match(preview, /data-testid="card-border-sparkles"/);
+  assert.match(preview, /cardBorderGlint/);
+  assert.match(preview, /data-card-title-rarity=\{highRarityTitle \? rarity : undefined\}/);
+  assert.match(preview, /cardTitleHologoldSweep/);
+  assert.match(preview, /cardTitleFiveStarPulse/);
+  assert.match(preview, /background-clip: text/);
   assert.match(preview, /prefers-reduced-motion: reduce/);
   assert.match(preview, /inset: depth3d \? "12% 7%" : "12% 10%"/);
   assert.match(preview, /inset 0 0 24px 8px/);
