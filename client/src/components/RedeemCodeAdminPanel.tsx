@@ -4,6 +4,7 @@ import { Check, Gift, Power, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ItemPickerModal, type ShopItemFull } from "@/components/ItemDatabaseSection";
+import type { CardDefinition } from "@/lib/cardCatalog";
 
 interface AdminCode {
   id: string;
@@ -24,24 +25,28 @@ export default function RedeemCodeAdminPanel() {
   const [coins, setCoins] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [items, setItems] = useState<Array<{ item: ShopItemFull; qty: number }>>([]);
+  const [cards, setCards] = useState<Array<{ card: CardDefinition; qty: number }>>([]);
   const [showPicker, setShowPicker] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: codes = [], isLoading } = useQuery<AdminCode[]>({ queryKey: ["/api/admin/redeem-codes"] });
   const { data: catalog = [] } = useQuery<ShopItemFull[]>({ queryKey: ["/api/admin/shop-items-all"] });
+  const { data: cardCatalog = [] } = useQuery<CardDefinition[]>({ queryKey: ["/api/admin/cards"] });
 
   const createCode = useMutation({
     mutationFn: async () => {
       const shopItemIds = items.flatMap(({ item, qty }) => Array.from({ length: Math.max(1, Math.min(999, qty)) }, () => item.id));
       const response = await apiRequest("POST", "/api/admin/redeem-codes", {
         code, name, message: message || undefined, coinAmount: Number(coins) || 0,
-        shopItemIds, expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+        shopItemIds,
+        cards: cards.map(({ card, qty }) => ({ cardId: card.id, quantity: Math.max(1, Math.min(999, qty)) })),
+        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
       });
       return response.json();
     },
     onSuccess: async () => {
-      setCode(""); setName(""); setMessage(""); setCoins(""); setExpiresAt(""); setItems([]);
+      setCode(""); setName(""); setMessage(""); setCoins(""); setExpiresAt(""); setItems([]); setCards([]);
       await queryClient.invalidateQueries({ queryKey: ["/api/admin/redeem-codes"] });
       toast({ title: "Redeem Code Created", description: "Verified players can now use it once each." });
     },
@@ -57,7 +62,7 @@ export default function RedeemCodeAdminPanel() {
     onError: (error: Error) => toast({ title: "Could Not Update Code", description: readableError(error), variant: "destructive" }),
   });
 
-  const canCreate = code.trim().length >= 3 && name.trim().length > 0 && ((Number(coins) || 0) > 0 || items.length > 0);
+  const canCreate = code.trim().length >= 3 && name.trim().length > 0 && ((Number(coins) || 0) > 0 || items.length > 0 || cards.length > 0);
   const inputStyle = { background: "rgba(242,232,208,.94)", border: "1px solid #8b5e3c", color: "#2a1a0a" };
 
   return (
@@ -75,8 +80,10 @@ export default function RedeemCodeAdminPanel() {
 
         {items.length > 0 && <div className="flex flex-wrap gap-2 mt-3">{items.map(({ item, qty }, index) => <div key={item.id} className="flex items-center gap-1 rounded-md px-2 py-1" style={{ background: "rgba(0,0,0,.35)", border: "1px solid rgba(212,168,67,.28)" }}><span className="font-fantasy text-[#f0c040] text-[9px]">{item.name}</span><input aria-label={`${item.name} quantity`} value={qty} onChange={e => setItems(prev => prev.map((entry, i) => i === index ? { ...entry, qty: Math.max(1, Math.min(999, Number(e.target.value) || 1)) } : entry))} inputMode="numeric" className="w-10 rounded px-1 text-center text-[10px]" style={inputStyle} /><button aria-label={`Remove ${item.name}`} onClick={() => setItems(prev => prev.filter((_, i) => i !== index))}><X size={12} color="#d98b8b" /></button></div>)}</div>}
 
+        {cards.length > 0 && <div className="flex flex-wrap gap-2 mt-2">{cards.map(({ card, qty }, index) => <div key={card.id} className="flex items-center gap-1 rounded-md px-2 py-1" style={{ background: "rgba(246,211,101,.1)", border: "1px solid rgba(246,211,101,.35)" }}><span className="font-fantasy text-[#f6d365] text-[9px]">{card.name} · {card.rarity}★</span><input aria-label={`${card.name} quantity`} value={qty} onChange={e => setCards(prev => prev.map((entry, i) => i === index ? { ...entry, qty: Math.max(1, Math.min(999, Number(e.target.value) || 1)) } : entry))} inputMode="numeric" className="w-10 rounded px-1 text-center text-[10px]" style={inputStyle} /><button aria-label={`Remove ${card.name}`} onClick={() => setCards(prev => prev.filter((_, i) => i !== index))}><X size={12} color="#d98b8b" /></button></div>)}</div>}
+
         <div className="flex gap-2 mt-3">
-          <button data-testid="button-admin-code-add-item" onClick={() => setShowPicker(true)} className="flex-1 rounded-md py-2 font-fantasy text-[10px] tracking-wider" style={{ background: "rgba(10,40,25,.8)", border: "1px dashed rgba(110,231,183,.45)", color: "#6ee7b7" }}>+ Add Reward Item</button>
+          <button data-testid="button-admin-code-add-item" onClick={() => setShowPicker(true)} className="flex-1 rounded-md py-2 font-fantasy text-[10px] tracking-wider" style={{ background: "rgba(10,40,25,.8)", border: "1px dashed rgba(110,231,183,.45)", color: "#6ee7b7" }}>+ Add Reward</button>
           <button data-testid="button-admin-create-code" disabled={!canCreate || createCode.isPending} onClick={() => createCode.mutate()} className="flex-1 rounded-md py-2 font-fantasy text-[10px] tracking-wider disabled:opacity-40" style={{ background: "linear-gradient(135deg,rgba(120,80,200,.8),rgba(55,105,65,.8))", border: "1px solid rgba(192,132,252,.55)", color: "#efe1ff" }}>{createCode.isPending ? "Creating…" : "Create Code"}</button>
         </div>
       </div>
@@ -92,7 +99,7 @@ export default function RedeemCodeAdminPanel() {
         })}</div>}
       </div>
 
-      {showPicker && <ItemPickerModal items={catalog} onSelect={item => { setItems(prev => { const found = prev.findIndex(entry => entry.item.id === item.id); return found >= 0 ? prev.map((entry, i) => i === found ? { ...entry, qty: Math.min(999, entry.qty + 1) } : entry) : [...prev, { item, qty: 1 }]; }); setShowPicker(false); }} onClose={() => setShowPicker(false)} />}
+      {showPicker && <ItemPickerModal title="Select Code Reward" items={catalog} cards={cardCatalog.filter(card => !cards.some(entry => entry.card.id === card.id))} onSelect={item => { setItems(prev => { const found = prev.findIndex(entry => entry.item.id === item.id); return found >= 0 ? prev.map((entry, i) => i === found ? { ...entry, qty: Math.min(999, entry.qty + 1) } : entry) : [...prev, { item, qty: 1 }]; }); setShowPicker(false); }} onSelectCard={card => { setCards(prev => [...prev, { card, qty: 1 }]); setShowPicker(false); }} onClose={() => setShowPicker(false)} />}
     </div>
   );
 }
