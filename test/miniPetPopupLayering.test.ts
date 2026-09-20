@@ -29,8 +29,8 @@ test("active Mini Pet stays below the global popup stack", () => {
 
 test("Closet Mini Pet stays below its drawers and confirmation dialogs", () => {
   const miniButtonZ = Number(closet.match(/button-open-mini-pets[\s\S]*?className="absolute z-\[(\d+)\]/)?.[1] ?? 0);
-  const bagZ = Number(closet.match(/accessory-bag-drawer[\s\S]*?z-\[(\d+)\]/)?.[1] ?? 0);
-  const miniInventoryZ = Number(closet.match(/mini-pet-inventory[\s\S]*?z-\[(\d+)\]/)?.[1] ?? 0);
+  const bagZ = Number(closet.match(/className="[^"]*z-\[(\d+)\][^"]*" data-testid="accessory-bag-drawer"/)?.[1] ?? 0);
+  const miniInventoryZ = Number(closet.match(/className="[^"]*z-\[(\d+)\][^"]*" data-testid="mini-pet-inventory"/)?.[1] ?? 0);
   const dialogZ = Number(closet.match(/ClosetDialog[\s\S]*?absolute inset-0 z-\[(\d+)\]/)?.[1] ?? 0);
 
   assert.ok(miniButtonZ > 0 && bagZ > 0 && miniInventoryZ > 0 && dialogZ > 0);
