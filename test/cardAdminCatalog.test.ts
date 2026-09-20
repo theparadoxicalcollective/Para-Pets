@@ -39,7 +39,7 @@ test("border editor uses one persisted percentage layout per rarity", () => {
   assert.match(adminPanel, /onLayoutChange=\{setCurrentLayout\}/);
   assert.match(preview, /setPointerCapture/);
   assert.match(preview, /left: `\$\{metrics\.x\}%`/);
-  assert.match(preview, /top: `\$\{metrics\.y\}%`/);
+  assert.match(preview, /top: `\$\{metrics\.y \+ detailTitleYNudge\}%`/);
   assert.match(adminPanel, /button-save-card-border-layout/);
   assert.match(routes, /app\.put\("\/api\/admin\/card-border-layouts\/:rarity", isAdmin/);
 });
