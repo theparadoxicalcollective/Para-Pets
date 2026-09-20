@@ -132,9 +132,12 @@ export function registerHauntedCasinoRoutes(
   });
 
   app.post("/api/haunted-casino/slots/spin", isAuthenticated, async (req, res) => {
+    if (req.body?.useFreeSpin !== undefined && typeof req.body.useFreeSpin !== "boolean") {
+      return res.status(400).json({ message: "Choose a valid spin type." });
+    }
     try {
       const user = req.user as any;
-      return res.json(await spinHauntedSlots(user.id, req.body?.bet));
+      return res.json(await spinHauntedSlots(user.id, req.body?.bet, req.body?.useFreeSpin === true));
     } catch (error) {
       if (error instanceof HauntedCasinoError) {
         return res.status(error.status).json({ errorCode: error.code, message: error.message });
