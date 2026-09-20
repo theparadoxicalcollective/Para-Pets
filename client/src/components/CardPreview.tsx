@@ -40,9 +40,17 @@ const RARITY_TEXT_STYLES: Record<CardRarity, { name: string; description: string
 const RARITY_SPARKLE_COUNT: Record<CardRarity, number> = {
   1: 0,
   2: 0,
-  3: 4,
-  4: 8,
+  3: 5,
+  4: 9,
   5: 14,
+};
+
+const RARITY_SPARKLE_STYLE: Record<CardRarity, { opacity: number; duration: string; glow: string }> = {
+  1: { opacity: 0, duration: "0s", glow: "none" },
+  2: { opacity: 0, duration: "0s", glow: "none" },
+  3: { opacity: 0.58, duration: "3.4s", glow: "drop-shadow(0 0 3px rgba(255,225,120,.55))" },
+  4: { opacity: 0.78, duration: "2.8s", glow: "drop-shadow(0 0 5px rgba(255,225,120,.72))" },
+  5: { opacity: 1, duration: "2.15s", glow: "drop-shadow(0 0 7px rgba(255,235,150,.9))" },
 };
 
 const CARD_SPARKLE_POINTS = [
@@ -80,7 +88,7 @@ export default function CardPreview({
   const dragRef = useRef<DragState | null>(null);
   const sparkleBackground = RARITY_SPARKLE_COUNT[rarity] > 0
     ? CARD_SPARKLE_POINTS.slice(0, RARITY_SPARKLE_COUNT[rarity])
-        .map((sparkle) => `radial-gradient(circle ${sparkle.size}% at ${sparkle.left}% ${sparkle.top}%, #fffdf0 0 10%, #ffe68a 22%, rgba(255,190,52,.82) 46%, rgba(255,190,52,0) 74%)`)
+        .map((sparkle) => `radial-gradient(circle ${Math.max(sparkle.size * 2.6, 4.2)}% at ${sparkle.left}% ${sparkle.top}%, rgba(255,255,245,1) 0 5%, rgba(255,246,188,.98) 10%, rgba(255,210,82,.9) 24%, rgba(255,178,28,.55) 42%, rgba(255,190,52,0) 68%)`)
         .join(", ")
     : undefined;
 
@@ -299,19 +307,36 @@ export default function CardPreview({
           style={{ width: `${100 / rarity}%`, height: "100%", objectFit: "contain", pointerEvents: "none",
             filter: "brightness(1.2) saturate(1.12) drop-shadow(0 0 2px rgba(255,245,190,.95)) drop-shadow(0 0 6px rgba(255,196,54,.82)) drop-shadow(0 1px 2px rgba(0,0,0,.78))" }} />)}
       </div>
+      <style>{`
+        @keyframes cardRaritySparkleShimmer {
+          0%, 100% { opacity: .42; filter: brightness(.82); }
+          38% { opacity: 1; filter: brightness(1.5); }
+          62% { opacity: .68; filter: brightness(1.05); }
+        }
+        .card-rarity-sparkle-shimmer {
+          animation-name: cardRaritySparkleShimmer;
+          animation-timing-function: ease-in-out;
+          animation-iteration-count: infinite;
+          will-change: opacity, filter;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .card-rarity-sparkle-shimmer { animation: none !important; }
+        }
+      `}</style>
       {sparkleBackground && (
         <div
           data-testid="card-rarity-sparkles"
           aria-hidden="true"
-          className="absolute animate-pulse"
+          className="absolute card-rarity-sparkle-shimmer"
           style={{
             inset: 0,
             zIndex: 5,
             pointerEvents: "none",
             overflow: "hidden",
             backgroundImage: sparkleBackground,
-            filter: "drop-shadow(0 0 4px rgba(255,225,120,.66))",
-            animationDuration: rarity === 5 ? "2.2s" : rarity === 4 ? "2.7s" : "3.2s",
+            opacity: RARITY_SPARKLE_STYLE[rarity].opacity,
+            filter: RARITY_SPARKLE_STYLE[rarity].glow,
+            animationDuration: RARITY_SPARKLE_STYLE[rarity].duration,
             transform: depth3d ? "translateZ(23px)" : undefined,
             backfaceVisibility: "hidden",
           }}
