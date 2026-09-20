@@ -26,6 +26,6 @@ test("the market opens during Sell Fish, but daily fishing waits for both reward
   assert.equal(jansonMarketUnlocked(false, { accepted_at: new Date() }), false);
   assert.equal(jansonMarketUnlocked(true, null), false);
   assert.equal(jansonMarketUnlocked(true, { accepted_at: new Date() }), true);
-  assert.equal(jansonDailyUnlocked(true, { accepted_at: new Date() }), false);
+  assert.equal(jansonDailyUnlocked(true, { reward_claimed_at: null }), false);
   assert.equal(jansonDailyUnlocked(true, { reward_claimed_at: new Date() }), true);
 });
