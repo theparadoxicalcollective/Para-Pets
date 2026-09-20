@@ -3913,7 +3913,7 @@ function QuestAdminSection() {
   return (
     <div className="space-y-4">
       <p className="font-fantasy text-[#6ee7b7] text-xs tracking-wider opacity-70 pb-1">
-        Configure coin &amp; item rewards for each daily quest. Progress targets are fixed.
+        Configure coin &amp; item rewards for daily quests and Janson&apos;s one-time fishing quests. Progress targets are fixed.
       </p>
 
       {quests.map((quest) => {
@@ -3931,7 +3931,7 @@ function QuestAdminSection() {
           >
             {/* Quest header */}
             <div>
-              <p className="font-fantasy text-[#6ee7b7] text-sm font-semibold tracking-wide">{quest.title}</p>
+              <p className="font-fantasy text-[#6ee7b7] text-sm font-semibold tracking-wide">{quest.title}{(quest.quest_key === "catch_fish" || quest.quest_key === "sell_fish") && " · One-Time · Janson"}</p>
               <p className="text-[#a8c8b0] text-[11px] mt-0.5">{quest.description}</p>
               <p className="text-[#5a8a6a] text-[10px] mt-0.5 tracking-wider">
                 Target: <span className="text-[#8ac8a0]">{quest.target_count}</span>
