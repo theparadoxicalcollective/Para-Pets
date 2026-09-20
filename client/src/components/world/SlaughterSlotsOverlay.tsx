@@ -23,9 +23,12 @@ interface SlotState {
   betOptions: number[];
   symbols: SlotSymbol[];
   prizes?: HauntedSlotPrizePreview[];
+  freeSpinAvailable: boolean;
 }
 
 interface SpinResult {
+  wasFree: boolean;
+  freeSpinAvailable: boolean;
   symbols: SlotSymbol[];
   bet: number;
   reels: [HauntedSlotSymbolId, HauntedSlotSymbolId, HauntedSlotSymbolId];
@@ -113,7 +116,7 @@ export default function SlaughterSlotsOverlay({
   const holdGenerationRef = useRef(0);
   const mountedRef = useRef(true);
   const stateRef = useRef<SlotState | null>(null);
-  const betRef = useRef(10);
+  const betRef = useRef(50);
   const holdingRef = useRef(false);
   const spinInFlightRef = useRef(false);
 
@@ -125,7 +128,7 @@ export default function SlaughterSlotsOverlay({
   useEffect(() => {
     let cancelled = false;
     mountedRef.current = true;
-    fetch("/api/haunted-casino/slots", { credentials: "include" })
+    fetch("/api/haunted-casino/slots", { credentials: "include", cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error((await response.json().catch(() => null))?.message || "Slots could not be loaded");
         return response.json() as Promise<SlotState>;
@@ -133,10 +136,9 @@ export default function SlaughterSlotsOverlay({
       .then((data) => {
         if (cancelled) return;
         applyState(data);
-        const affordable = data.betOptions.findIndex((amount) => amount <= data.balances.coins);
-        const initialBetIndex = affordable >= 0 ? affordable : 0;
+        const initialBetIndex = 0;
         setBetIndex(initialBetIndex);
-        betRef.current = data.betOptions[initialBetIndex] ?? 10;
+        betRef.current = data.betOptions[initialBetIndex] ?? 50;
       })
       .catch((reason) => {
         if (!cancelled) setError(reason instanceof Error ? reason.message : "Slots could not be loaded");
@@ -172,21 +174,25 @@ export default function SlaughterSlotsOverlay({
     return map;
   }, [state]);
 
-  const bet = state?.betOptions[betIndex] ?? 10;
+  const bet = state?.betOptions[betIndex] ?? 50;
   betRef.current = bet;
   const canSpin = Boolean(state && !spinInFlightRef.current && state.balances.coins >= bet);
+  const canFreeSpin = Boolean(state?.freeSpinAvailable && !spinInFlightRef.current && !holding && !spinning);
   const canStartHold = holding || canSpin;
 
   const moveBet = (delta: number) => {
     if (!state || spinning || holding) return;
     setResult(null);
     setError(null);
-    setBetIndex((current) => Math.max(0, Math.min(state.betOptions.length - 1, current + delta)));
+    setBetIndex((current) => {
+      const next = Math.max(0, Math.min(state.betOptions.length - 1, current + delta));
+      return delta > 0 && state.betOptions[next] > state.balances.coins ? current : next;
+    });
   };
 
   const refreshAuthoritativeState = async () => {
     try {
-      const response = await fetch("/api/haunted-casino/slots", { credentials: "include" });
+      const response = await fetch("/api/haunted-casino/slots", { credentials: "include", cache: "no-store" });
       if (!response.ok) return null;
       const data = await response.json() as SlotState;
       if (mountedRef.current) applyState(data);
@@ -196,10 +202,11 @@ export default function SlaughterSlotsOverlay({
     }
   };
 
-  const spinOnce = async (): Promise<boolean> => {
+  const spinOnce = async (useFreeSpin = false): Promise<boolean> => {
     const currentState = stateRef.current;
-    const currentBet = betRef.current;
-    if (!mountedRef.current || !currentState || spinInFlightRef.current || currentState.balances.coins < currentBet) return false;
+    const currentBet = useFreeSpin ? 500 : betRef.current;
+    if (!mountedRef.current || !currentState || spinInFlightRef.current ||
+        (useFreeSpin ? !currentState.freeSpinAvailable : currentState.balances.coins < currentBet)) return false;
 
     spinInFlightRef.current = true;
     setSpinning(true);
@@ -223,13 +230,13 @@ export default function SlaughterSlotsOverlay({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bet: currentBet }),
+        body: JSON.stringify({ bet: currentBet, useFreeSpin }),
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(payload?.message || "The reels jammed. Please try again.");
 
       const final = payload as SpinResult;
-      // A completed paid spin still refreshes ownership if the viewer closed mid-animation.
+      // A completed spin still refreshes ownership if the viewer closed mid-animation.
       onCurrencyChanged();
       if (final.reward.itemGranted) void queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
 
@@ -252,8 +259,9 @@ export default function SlaughterSlotsOverlay({
       setReels(final.reels);
       setSettledReels(3);
       setResult(final);
-      const nextState: SlotState = { ...currentState, balances: final.balances, symbols: final.symbols ?? currentState.symbols };
+      const nextState: SlotState = { ...currentState, balances: final.balances, freeSpinAvailable: final.freeSpinAvailable, symbols: final.symbols ?? currentState.symbols };
       applyState(nextState);
+      window.dispatchEvent(new Event("para:casino-free-play-changed"));
       return true;
     } catch (reason) {
       if (spinTimerRef.current != null) window.clearInterval(spinTimerRef.current);
@@ -403,6 +411,7 @@ export default function SlaughterSlotsOverlay({
           <span className="flex items-center gap-1.5"><img src={currencyAssets.coin} alt="Coins" className="h-5 w-5 object-contain" />{state?.balances.coins ?? "—"}</span>
           <span className="h-4 w-px bg-white/15" />
           <span className="flex items-center gap-1.5"><img src={currencyAssets.essenceToken} alt="Essence" className="h-5 w-5 object-contain" />{state?.balances.essence ?? "—"}</span>
+          {state?.freeSpinAvailable && <button type="button" data-testid="slaughter-slots-free-spin" disabled={!canFreeSpin} onClick={() => { stopHold(); void spinOnce(true); }} className="min-h-8 rounded-full border border-amber-300/60 bg-amber-950/85 px-2 text-[9px] font-bold text-amber-100 disabled:opacity-40">FREE 500 SPIN</button>}
         </div>
 
         <div className="flex min-h-0 w-full flex-1 items-center justify-center">
@@ -474,7 +483,7 @@ export default function SlaughterSlotsOverlay({
                 <img src={currencyAssets.coin} alt="" className="h-[1.05em] w-[1.05em] object-contain" />{bet}
               </span>
             </div>
-            <button type="button" aria-label="Increase bet" onClick={() => moveBet(1)} disabled={!state || spinning || holding || betIndex >= (state?.betOptions.length ?? 1) - 1} className="h-full aspect-square shrink-0 disabled:opacity-40 active:scale-90 transition-transform" style={{ background: "transparent", border: 0, padding: "2%" }}>
+            <button type="button" aria-label="Increase bet" onClick={() => moveBet(1)} disabled={!state || spinning || holding || betIndex >= (state?.betOptions.length ?? 1) - 1 || (state.betOptions[betIndex + 1] ?? Infinity) > state.balances.coins} className="h-full aspect-square shrink-0 disabled:opacity-40 active:scale-90 transition-transform" style={{ background: "transparent", border: 0, padding: "2%" }}>
               <img src={slotPlusButton} alt="" className="block h-full w-full object-contain" draggable={false} />
             </button>
           </div>
@@ -529,6 +538,7 @@ export default function SlaughterSlotsOverlay({
           <div className={`mx-auto mt-1 w-full max-w-[480px] shrink-0 rounded-xl border bg-black/55 px-3 py-1.5 text-center ${rewardTone}`}>
             {spinning && <div className="text-[9px] uppercase tracking-wider text-amber-100/70">Last spin</div>}
             <div className="font-fantasy text-sm sm:text-base">{result.reward.message}</div>
+            {result.wasFree && <div className="text-[10px] font-semibold text-amber-200">Free 500 coin spin · no coins charged</div>}
             <div className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs sm:text-sm">
               {result.reward.coins > 0 && <span>+{result.reward.coins} coins</span>}
               {result.reward.essence > 0 && <span>+{result.reward.essence} essence</span>}
@@ -546,7 +556,8 @@ export default function SlaughterSlotsOverlay({
 
         </div>
 
-        <SlotPrizeStrip prizes={state?.prizes ?? []} loaded={Boolean(state)} />
+        <SlotPrizeStrip prizes={(state?.prizes ?? []).filter(prize => bet >= 1000 ? prize.rarity >= 3 :
+          (state?.prizes ?? []).some(other => other.category === prize.category && other.rarity <= 2))} loaded={Boolean(state)} />
         </div>
 
         <p className="sr-only">

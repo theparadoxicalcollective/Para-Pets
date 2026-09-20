@@ -16,7 +16,7 @@ test("Bingo hotspot opens the playable Bingo overlay instead of Opening Soon", (
   assert.match(casinoRuntime, /import HauntedBingoOverlay from "\.\/HauntedBingoOverlay"/);
   assert.match(casinoRuntime, /const \[bingoOpen, setBingoOpen\] = useState\(false\)/);
   assert.match(casinoRuntime, /spot\.id === "bingo"[\s\S]*?setBingoOpen\(true\)/);
-  assert.match(casinoRuntime, /bingoOpen && createPortal\([\s\S]*?<HauntedBingoOverlay onClose=\{\(\) => setBingoOpen\(false\)\}/);
+  assert.match(casinoRuntime, /bingoOpen && createPortal\([\s\S]*?<HauntedBingoOverlay onClose=\{\(\) => \{ setBingoOpen\(false\); refreshFreePlay\(\); \}\}/);
 });
 
 test("Bingo reuses the Haunted Casino background and supplied artwork", () => {
@@ -143,7 +143,7 @@ test("Bingo adds transparent pressure feedback without changing server-owned odd
 });
 
 test("Closing Bingo returns to the casino overlay instead of reloading back to the world", () => {
-  assert.match(casinoRuntime, /<HauntedBingoOverlay onClose=\{\(\) => setBingoOpen\(false\)\}/);
+  assert.match(casinoRuntime, /<HauntedBingoOverlay onClose=\{\(\) => \{ setBingoOpen\(false\); refreshFreePlay\(\); \}\}/);
   assert.match(bingo, /const closeBingo = \(\) => \{[\s\S]*?setAutoCall\(false\);[\s\S]*?onClose\(\);[\s\S]*?\};/);
   assert.doesNotMatch(bingo, /window\.location\.reload/);
   assert.match(bingo, /queryClient\.setQueryData\(\["\/api\/auth\/me"\]/);

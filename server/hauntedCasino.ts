@@ -1,10 +1,11 @@
 import crypto from "node:crypto";
 import { sql } from "drizzle-orm";
 import { db } from "./db";
-import { getSlotPrizeCatalog, grantSlotEgg, slotPrizePreviews, type CasinoPrizeItem } from "./hauntedSlotPrizes";
+import { effectiveSlotItemRarity, getSlotPrizeCatalog, grantSlotEgg, slotPrizePreviews, type CasinoPrizeItem } from "./hauntedSlotPrizes";
 import {
   DEFAULT_HAUNTED_CASINO_HOTSPOTS,
   HAUNTED_CASINO_BETS,
+  HAUNTED_SLOTS_FREE_BET,
   HAUNTED_CASINO_HOTSPOT_SETTING_KEY,
   HAUNTED_SLOT_SYMBOL_WEIGHTS,
   evaluateHauntedSlotResult,
@@ -30,7 +31,7 @@ const HOTSPOT_IDS = new Set<HauntedCasinoHotspotId>(
 
 export class HauntedCasinoError extends Error {
   constructor(
-    public code: "invalid_bet" | "insufficient_coins" | "player_not_found",
+    public code: "invalid_bet" | "insufficient_coins" | "free_spin_unavailable" | "player_not_found",
     public status: number,
     message: string,
   ) {
@@ -100,31 +101,44 @@ function pickWeightedSymbol(available: ReadonlySet<HauntedSlotSymbolId>, randomI
   return "coin";
 }
 
-function effectiveItemRarity(item: CasinoPrizeItem): number {
-  const explicit = Number(item.star_rarity ?? item.rarity);
-  if (Number.isFinite(explicit) && explicit >= 1) return Math.max(1, Math.min(5, Math.floor(explicit)));
-
-  // A number of older non-fish items have no rarity field. Price gives those
-  // items a conservative rarity floor so expensive catalog entries never
-  // become the easiest mystery prizes by accident.
-  const price = Number(item.price ?? 0);
-  if (price >= 1000) return 5;
-  if (price >= 500) return 4;
-  if (price >= 250) return 3;
-  if (price >= 100) return 2;
-  return 1;
-}
-
 export function hauntedCasinoPrizeWeight(item: Pick<CasinoPrizeItem, "price" | "rarity" | "star_rarity">): number {
-  const rarity = effectiveItemRarity(item as CasinoPrizeItem);
+  const rarity = effectiveSlotItemRarity(item);
   return [0, 100, 45, 18, 6, 2][rarity] ?? 2;
 }
 
-function pickPrizeItem(items: CasinoPrizeItem[]): CasinoPrizeItem | null {
-  if (!items.length) return null;
-  const weighted = items.map((item) => ({ item, weight: hauntedCasinoPrizeWeight(item) }));
+export function eligibleSlotCatalog(
+  catalog: Record<HauntedSlotItemCategory, CasinoPrizeItem[]>,
+  bet: number,
+): Record<HauntedSlotItemCategory, CasinoPrizeItem[]> {
+  return {
+    edible: eligibleSlotItems(catalog.edible, bet),
+    egg: eligibleSlotItems(catalog.egg, bet),
+    loot: eligibleSlotItems(catalog.loot, bet),
+  };
+}
+
+function eligibleSlotItems(items: CasinoPrizeItem[], bet: number): CasinoPrizeItem[] {
+  if (bet >= 1000) return items.filter(item => effectiveSlotItemRarity(item) >= 3);
+  // Do not offer an all-rare item pool on the cheapest bets.
+  return items.some(item => effectiveSlotItemRarity(item) <= 2) ? items : [];
+}
+
+export function pickPrizeItem(
+  items: CasinoPrizeItem[],
+  bet: number,
+  randomInt: (max: number) => number = crypto.randomInt,
+): CasinoPrizeItem | null {
+  const eligible = eligibleSlotItems(items, bet);
+  if (!eligible.length) return null;
+  const common = eligible.filter(item => effectiveSlotItemRarity(item) <= 2);
+  const rare = eligible.filter(item => effectiveSlotItemRarity(item) >= 3);
+  // When both tiers exist, 90% of low-bet item wins are common/uncommon.
+  const pool = bet < 1000 && common.length && rare.length
+    ? (randomInt(10) < 9 ? common : rare)
+    : eligible;
+  const weighted = pool.map(item => ({ item, weight: hauntedCasinoPrizeWeight(item) }));
   const total = weighted.reduce((sum, entry) => sum + entry.weight, 0);
-  let roll = crypto.randomInt(Math.max(1, total));
+  let roll = randomInt(total);
   for (const entry of weighted) {
     if (roll < entry.weight) return entry.item;
     roll -= entry.weight;
@@ -132,10 +146,24 @@ function pickPrizeItem(items: CasinoPrizeItem[]): CasinoPrizeItem | null {
   return weighted[0]?.item ?? null;
 }
 
+const FREE_SLOT_SETTING_PREFIX = "haunted_slots_free_500_v1:";
+function freeSlotSettingKey(userId: string): string {
+  return FREE_SLOT_SETTING_PREFIX + userId;
+}
+export function casinoDay(date: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(date);
+}
+async function freeSlotAvailable(executor: any, userId: string, day: string): Promise<boolean> {
+  const result = await executor.execute(sql`SELECT value FROM game_settings WHERE key = ${freeSlotSettingKey(userId)} LIMIT 1`);
+  return String((result.rows[0] as any)?.value ?? "") !== day;
+}
+
 function previewPrizeItem(items: CasinoPrizeItem[]): CasinoPrizeItem | null {
   if (!items.length) return null;
   return [...items].sort((a, b) => {
-    const rarityDiff = effectiveItemRarity(a) - effectiveItemRarity(b);
+    const rarityDiff = effectiveSlotItemRarity(a) - effectiveSlotItemRarity(b);
     if (rarityDiff) return rarityDiff;
     const priceDiff = Number(a.price ?? 0) - Number(b.price ?? 0);
     if (priceDiff) return priceDiff;
@@ -158,12 +186,14 @@ async function getGinnyNpcImageUrl(executor: any): Promise<string | null> {
 }
 
 export async function getHauntedSlotState(userId: string) {
-  const [userResult, catalog, ginnyImageUrl] = await Promise.all([
+  const day = casinoDay();
+  const [userResult, catalog, ginnyImageUrl, freeSpinAvailable] = await Promise.all([
     // This is the same users.coins / users.essence wallet used throughout the
     // game. Slaughter Slots deliberately has no separate casino balance.
     db.execute(sql`SELECT coins, essence FROM users WHERE id = ${userId} LIMIT 1`),
     getSlotPrizeCatalog(db),
     getGinnyNpcImageUrl(db),
+    freeSlotAvailable(db, userId, day),
   ]);
   const user = userResult.rows[0] as any;
   if (!user) throw new HauntedCasinoError("player_not_found", 404, "Player not found");
@@ -171,7 +201,8 @@ export async function getHauntedSlotState(userId: string) {
   return {
     balances: { coins: Number(user.coins ?? 0), essence: Number(user.essence ?? 0) },
     betOptions: [...HAUNTED_CASINO_BETS],
-    symbols: slotSymbols(catalog, ginnyImageUrl),
+    freeSpinAvailable,
+    symbols: slotSymbols(eligibleSlotCatalog(catalog, 50), ginnyImageUrl),
     prizes: slotPrizePreviews(catalog),
   };
 }
@@ -269,7 +300,7 @@ function fallbackEssenceFor(category: HauntedSlotItemCategory, bet: number): num
   return bet * 3;
 }
 
-export async function spinHauntedSlots(userId: string, requestedBet: unknown, database: Pick<typeof db, "transaction"> = db, randomInt: (max: number) => number = crypto.randomInt) {
+export async function spinHauntedSlots(userId: string, requestedBet: unknown, useFreeSpin = false, database: Pick<typeof db, "transaction"> = db, randomInt: (max: number) => number = crypto.randomInt) {
   const bet = Number(requestedBet);
   if (!HAUNTED_CASINO_BETS.includes(bet as any)) {
     throw new HauntedCasinoError("invalid_bet", 400, "Choose one of the available bets");
@@ -284,7 +315,12 @@ export async function spinHauntedSlots(userId: string, requestedBet: unknown, da
     `);
     const user = userResult.rows[0] as any;
     if (!user) throw new HauntedCasinoError("player_not_found", 404, "Player not found");
-    if (Number(user.coins ?? 0) < bet) {
+    const day = casinoDay();
+    if (useFreeSpin && (bet !== HAUNTED_SLOTS_FREE_BET || !(await freeSlotAvailable(tx, userId, day)))) {
+      throw new HauntedCasinoError("free_spin_unavailable", 409, "Today's free 500 coin spin has already been used.");
+    }
+    const cost = useFreeSpin ? 0 : bet;
+    if (Number(user.coins ?? 0) < cost) {
       throw new HauntedCasinoError("insufficient_coins", 409, "Not enough coins for that bet");
     }
 
@@ -294,9 +330,10 @@ export async function spinHauntedSlots(userId: string, requestedBet: unknown, da
       getSlotPrizeCatalog(tx),
       getGinnyNpcImageUrl(tx),
     ]);
+    const eligibleCatalog = eligibleSlotCatalog(catalog, bet);
     const available = new Set<HauntedSlotSymbolId>(["coin", "essence", "skull"]);
     for (const category of ["edible", "egg", "loot"] as const) {
-      if (catalog[category].length) available.add(category);
+      if (eligibleCatalog[category].length) available.add(category);
     }
     if (ginnyImageUrl) available.add("ginny");
     const reels: [HauntedSlotSymbolId, HauntedSlotSymbolId, HauntedSlotSymbolId] = [
@@ -317,7 +354,7 @@ export async function spinHauntedSlots(userId: string, requestedBet: unknown, da
     let fallbackEssence = 0;
 
     if (reward.itemCategory) {
-      const prize = pickPrizeItem(catalog[reward.itemCategory]);
+      const prize = pickPrizeItem(eligibleCatalog[reward.itemCategory], bet);
       if (prize) {
         if (reward.itemCategory === "egg") await grantSlotEgg(tx, userId, prize);
         else await grantPrizeItem(tx, userId, prize);
@@ -337,18 +374,26 @@ export async function spinHauntedSlots(userId: string, requestedBet: unknown, da
     // is no casino-only balance and no client-side credit ledger.
     const balanceResult = await tx.execute(sql`
       UPDATE users
-      SET coins = coins - ${bet} + ${reward.coins},
+      SET coins = coins - ${cost} + ${reward.coins},
           essence = COALESCE(essence, 0) + ${essenceWon},
           total_coins_earned = total_coins_earned + ${reward.coins}
       WHERE id = ${userId}
       RETURNING coins, essence
     `);
     const balances = balanceResult.rows[0] as any;
+    if (useFreeSpin) {
+      await tx.execute(sql`
+        INSERT INTO game_settings (key, value) VALUES (${freeSlotSettingKey(userId)}, ${day})
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+      `);
+    }
 
     return {
       bet,
+      wasFree: useFreeSpin,
+      freeSpinAvailable: useFreeSpin ? false : await freeSlotAvailable(tx, userId, day),
       reels,
-      symbols: slotSymbols(catalog, ginnyImageUrl),
+      symbols: slotSymbols(eligibleCatalog, ginnyImageUrl),
       reward: {
         ...reward,
         essence: essenceWon,

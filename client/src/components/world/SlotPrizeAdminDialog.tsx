@@ -9,6 +9,7 @@ interface PrizeOption {
   egg_image_url: string | null;
   star_rarity: number | null;
   rarity: number | null;
+  price: number;
 }
 
 interface PrizeOptions {
@@ -19,8 +20,14 @@ interface PrizeOptions {
 }
 
 function optionRarity(option: PrizeOption): number {
-  const value = Number(option.star_rarity ?? option.rarity ?? 1);
-  return Number.isFinite(value) ? Math.max(1, Math.min(5, Math.floor(value))) : 1;
+  const explicit = Number(option.star_rarity ?? option.rarity);
+  if (Number.isFinite(explicit) && explicit >= 1) return Math.max(1, Math.min(5, Math.floor(explicit)));
+  const price = Number(option.price ?? 0);
+  if (price >= 1000) return 5;
+  if (price >= 500) return 4;
+  if (price >= 250) return 3;
+  if (price >= 100) return 2;
+  return 1;
 }
 
 function typeLabel(type: string): string {
@@ -131,7 +138,7 @@ export default function SlotPrizeAdminDialog({ kind, onClose, onSaved }: {
       <Dialog.Content className="fixed left-1/2 top-1/2 z-[111] flex max-h-[80dvh] w-[calc(100%-24px)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col rounded-2xl border border-amber-300/50 bg-[#10091d] p-4 text-amber-50 shadow-2xl">
         <Dialog.Title className="pr-10 font-fantasy text-xl">Slot {kind === "eggs" ? "Pet Egg" : "Item"} Prizes</Dialog.Title>
         <Dialog.Description className="mt-2 text-xs text-amber-100/70">
-          {kind === "eggs" ? "Three mystery eggs award one of the selected pet eggs. Uncheck an egg to remove it." : "Choose the items players can win. Edibles use the treat symbol; other items use the mystery-prize symbol. PvP tickets are not eligible."}
+          {kind === "eggs" ? "Three mystery eggs award one of the selected pet eggs. Uncheck an egg to remove it." : "Choose the items players can win. Edibles use the treat symbol; other items use the mystery-prize symbol. PvP tickets are not eligible. 50–500 coin spins favor 1–2★ prizes; 1,000+ coin spins award only 3★ or higher items."}
         </Dialog.Description>
         <Dialog.Close disabled={saving} aria-label="Close prize editor" className="absolute right-2 top-2 h-11 w-11 text-2xl">×</Dialog.Close>
 

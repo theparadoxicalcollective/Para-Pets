@@ -24,6 +24,11 @@ function currentWorldId(): string {
 export default function BeauPrizeWheelBridge() {
   const [worldId, setWorldId] = useState(currentWorldId);
   const [beau, setBeau] = useState<WorldLocationRow | null>(null);
+  const [casino, setCasino] = useState<WorldLocationRow | null>(null);
+  const [casinoMount, setCasinoMount] = useState<HTMLElement | null>(null);
+  const [freeBeauSpin, setFreeBeauSpin] = useState(false);
+  const [freeBingoGame, setFreeBingoGame] = useState(false);
+  const [freeSlotSpin, setFreeSlotSpin] = useState(false);
   const [mount, setMount] = useState<HTMLElement | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [wheelState, setWheelState] = useState<WheelState | null>(null);
@@ -52,6 +57,11 @@ export default function BeauPrizeWheelBridge() {
     setNotice("");
     setBeau(null);
     setMount(null);
+    setCasino(null);
+    setCasinoMount(null);
+    setFreeBeauSpin(false);
+    setFreeBingoGame(false);
+    setFreeSlotSpin(false);
     if (worldId !== BEAU_PRIZE_WHEEL_WORLD_ID) return;
 
     let cancelled = false;
@@ -71,6 +81,7 @@ export default function BeauPrizeWheelBridge() {
           npcNamesMatch(row.name, BEAU_PRIZE_WHEEL_NPC_NAME)
         ) ?? null;
         setBeau(match);
+        setCasino(rows.find(row => /haunted casino/i.test(row.name)) ?? null);
       })
       .catch(() => { if (!cancelled) setBeau(null); });
 
@@ -94,6 +105,39 @@ export default function BeauPrizeWheelBridge() {
       window.clearInterval(timer);
     };
   }, [beau]);
+
+  useEffect(() => {
+    if (!casino) { setCasinoMount(null); return; }
+    const refresh = () => setCasinoMount(document.querySelector<HTMLElement>(`[data-testid="location-${casino.id}"]`));
+    refresh();
+    const observer = new MutationObserver(refresh);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [casino]);
+
+  useEffect(() => {
+    if (worldId !== BEAU_PRIZE_WHEEL_WORLD_ID || isAdmin) return;
+    let active = true;
+    const refresh = () => {
+      void fetch("/api/beau-prize-wheel", { credentials: "include", cache: "no-store" })
+        .then(response => response.ok ? response.json() as Promise<WheelState> : null)
+        .then(state => { if (active) setFreeBeauSpin(Boolean(state?.ready && state.freeSpinAvailable && (!state.requiresActivePet || state.activePetReady))); })
+        .catch(() => { if (active) setFreeBeauSpin(false); });
+      void fetch("/api/haunted-casino/bingo", { credentials: "include", cache: "no-store" })
+        .then(response => response.ok ? response.json() as Promise<{ freeGameAvailable: boolean }> : null)
+        .then(state => { if (active) setFreeBingoGame(Boolean(state?.freeGameAvailable)); })
+        .catch(() => { if (active) setFreeBingoGame(false); });
+      void fetch("/api/haunted-casino/slots", { credentials: "include", cache: "no-store" })
+        .then(response => response.ok ? response.json() as Promise<{ freeSpinAvailable: boolean }> : null)
+        .then(state => { if (active) setFreeSlotSpin(Boolean(state?.freeSpinAvailable)); })
+        .catch(() => { if (active) setFreeSlotSpin(false); });
+    };
+    refresh();
+    const interval = window.setInterval(refresh, 60_000);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("para:casino-free-play-changed", refresh);
+    return () => { active = false; window.clearInterval(interval); window.removeEventListener("focus", refresh); window.removeEventListener("para:casino-free-play-changed", refresh); };
+  }, [worldId, isAdmin]);
 
   useEffect(() => () => {
     if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current);
@@ -237,6 +281,11 @@ export default function BeauPrizeWheelBridge() {
         mount,
       )}
 
+      {casinoMount && !isAdmin && (freeBingoGame || freeSlotSpin) && createPortal(
+        <span data-testid="casino-free-play-indicator" aria-label="Free casino play available" style={{ position: "absolute", top: "-12%", left: "50%", transform: "translateX(-50%)", zIndex: 25, width: 34, height: 34, borderRadius: "50%", display: "grid", placeItems: "center", background: "#754413", border: "2px solid #ffe29a", boxShadow: "0 0 18px #f6be55", color: "#fff6cd", fontSize: 24, fontWeight: 900, pointerEvents: "none" }}>!</span>,
+        casinoMount,
+      )}
+
       {wheelState && createPortal(
         <Suspense fallback={
           <div className="fixed inset-0 z-[2200] grid place-items-center bg-black/90 text-sm text-amber-100">
@@ -246,7 +295,7 @@ export default function BeauPrizeWheelBridge() {
           <BeauPrizeWheelOverlay
             initialState={wheelState}
             onClose={() => setWheelState(null)}
-            onStateChange={setWheelState}
+            onStateChange={next => { setWheelState(next); setFreeBeauSpin(Boolean(next.ready && next.freeSpinAvailable && (!next.requiresActivePet || next.activePetReady))); }}
           />
         </Suspense>,
         document.body,

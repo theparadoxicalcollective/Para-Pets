@@ -6,6 +6,8 @@ import {
   BEAU_PRIZE_WHEEL_PAID_COST,
   BEAU_PRIZE_WHEEL_PRIZE_SLOTS,
   BEAU_PRIZE_WHEEL_SLOT_COUNT,
+  DEFAULT_BEAU_WHEEL_LAYOUT,
+  beauWheelLayoutFrom,
   beauWheelLandingRotation,
   beauWheelSlotCenterAngle,
 } from "../shared/beauPrizeWheel";
@@ -21,7 +23,7 @@ test("Beau wheel has seven admin prizes plus one fixed loss section", () => {
   assert.equal(BEAU_PRIZE_WHEEL_SLOT_COUNT, 8);
   assert.equal(BEAU_PRIZE_WHEEL_PRIZE_SLOTS, 7);
   assert.equal(BEAU_PRIZE_WHEEL_LOSS_SLOT, 7);
-  assert.equal(BEAU_PRIZE_WHEEL_PAID_COST, 500);
+  assert.equal(BEAU_PRIZE_WHEEL_PAID_COST, 1000);
 
   const centers = Array.from({ length: 8 }, (_, slot) => beauWheelSlotCenterAngle(slot));
   assert.deepEqual(centers, [22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5]);
@@ -59,7 +61,7 @@ test("player popup uses Beau art, empty wheel, pointer and Haunted Forest backgr
   assert.match(overlay, /generated_images\/icon_skull_defeat\.png/);
   assert.match(overlay, /beauWheelLandingRotation/);
   assert.match(overlay, /FREE SPIN/);
-  assert.match(overlay, /SPIN · 500/);
+  assert.match(overlay, /SPIN ·/);
 });
 
 test("admin can set coins, essence, pet EXP, items and eggs directly on wheel sections", () => {
@@ -80,4 +82,17 @@ test("Beau only opens the wheel from the Haunted Forest NPC and startup installs
   assert.match(startup, /registerBeauPrizeWheelRoutes\(app\)/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS beau_prize_wheel_spins/);
   assert.match(migration, /action_id UUID PRIMARY KEY/);
+});
+
+test("admin wheel placement stays inside the artwork at mobile and desktop sizes", () => {
+  assert.deepEqual(beauWheelLayoutFrom(DEFAULT_BEAU_WHEEL_LAYOUT), DEFAULT_BEAU_WHEEL_LAYOUT);
+  assert.deepEqual(beauWheelLayoutFrom({ left: 12.345, top: 20.123, size: 78 }), { left: 12.35, top: 20.12, size: 78 });
+  for (const placement of [
+    { left: -1, top: 20, size: 69 },
+    { left: 40, top: 20, size: 69 },
+    { left: 10, top: 60, size: 69 },
+    { left: 20, top: 20, size: 90 },
+    { left: Number.NaN, top: 20, size: 69 },
+    { left: "25", top: 20, size: 69 },
+  ]) assert.equal(beauWheelLayoutFrom(placement), null);
 });
