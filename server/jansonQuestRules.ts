@@ -17,3 +17,10 @@ export function jansonQuestStatus(
   if (row.reward_claimed_at) return "claimed";
   return row.completed_at ? "completed" : "accepted";
 }
+
+/** Use the same America/Chicago calendar day as the game's daily quests. */
+export function jansonQuestDate(date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(date);
+}
