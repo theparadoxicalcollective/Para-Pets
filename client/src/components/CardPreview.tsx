@@ -40,36 +40,50 @@ const RARITY_TEXT_STYLES: Record<CardRarity, { name: string; description: string
 
 const RARITY_SPARKLE_COUNT: Record<CardRarity, number> = {
   1: 0,
+  2: 18,
+  3: 32,
+  4: 48,
+  5: 64,
+};
+
+const RARITY_GLINT_COUNT: Record<CardRarity, number> = {
+  1: 0,
   2: 0,
-  3: 5,
-  4: 9,
-  5: 14,
+  3: 4,
+  4: 8,
+  5: 12,
 };
 
-const RARITY_SPARKLE_STYLE: Record<CardRarity, { opacity: number; duration: string; glow: string }> = {
-  1: { opacity: 0, duration: "0s", glow: "none" },
-  2: { opacity: 0, duration: "0s", glow: "none" },
-  3: { opacity: 0.85, duration: "3.8s", glow: "drop-shadow(0 0 2px rgba(255,225,120,.65))" },
-  4: { opacity: 0.95, duration: "3.2s", glow: "drop-shadow(0 0 3px rgba(255,225,120,.8))" },
-  5: { opacity: 1, duration: "2.7s", glow: "drop-shadow(0 0 4px rgba(255,235,150,.9))" },
+const RARITY_SPARKLE_STYLE: Record<CardRarity, { opacity: number; glow: string }> = {
+  1: { opacity: 0, glow: "none" },
+  2: { opacity: 0.52, glow: "drop-shadow(0 0 1px rgba(255,238,174,.42))" },
+  3: { opacity: 0.7, glow: "drop-shadow(0 0 1.5px rgba(255,232,155,.55))" },
+  4: { opacity: 0.86, glow: "drop-shadow(0 0 2px rgba(255,226,138,.68))" },
+  5: { opacity: 1, glow: "drop-shadow(0 0 2.5px rgba(255,236,178,.82))" },
 };
 
-const CARD_SPARKLE_POINTS = [
-  // Place the strongest glints at the bottom of the artwork, then taper upward.
-  { left: 50, top: 88, size: 3.1, delay: 0.0 },
-  { left: 36, top: 79, size: 2.7, delay: 0.5 },
-  { left: 64, top: 78, size: 2.9, delay: 1.0 },
-  { left: 43, top: 69, size: 2.6, delay: 1.4 },
-  { left: 57, top: 67, size: 2.6, delay: 0.8 },
-  { left: 49, top: 59, size: 2.3, delay: 1.8 },
-  { left: 32, top: 56, size: 2.1, delay: 1.2 },
-  { left: 68, top: 53, size: 2.1, delay: 0.3 },
-  { left: 58, top: 46, size: 1.9, delay: 1.6 },
-  { left: 43, top: 42, size: 1.7, delay: 0.9 },
-  { left: 51, top: 34, size: 1.6, delay: 2.0 },
-  { left: 35, top: 29, size: 1.5, delay: 0.2 },
-  { left: 65, top: 27, size: 1.4, delay: 2.2 },
-  { left: 53, top: 21, size: 1.3, delay: 1.1 },
+// Deterministic points keep the glitter stable between renders and avoid a
+// JavaScript particle loop. Only three SVG groups animate regardless of count.
+const CARD_GLITTER_POINTS = Array.from({ length: 64 }, (_, index) => ({
+  x: 4 + ((index * 37 + 11) % 92),
+  y: 7 + ((index * 53 + 17) % 136),
+  radius: 0.18 + ((index * 17) % 6) * 0.055,
+  group: index % 3,
+}));
+
+const CARD_GLINT_POINTS = [
+  { x: 18, y: 118, size: 1.15, delay: 0.2 },
+  { x: 77, y: 108, size: 0.95, delay: 1.1 },
+  { x: 34, y: 92, size: 0.9, delay: 1.8 },
+  { x: 66, y: 82, size: 1.05, delay: 0.6 },
+  { x: 24, y: 70, size: 0.82, delay: 1.4 },
+  { x: 82, y: 61, size: 0.9, delay: 2.2 },
+  { x: 45, y: 54, size: 0.78, delay: 0.9 },
+  { x: 61, y: 43, size: 0.88, delay: 1.7 },
+  { x: 31, y: 34, size: 0.72, delay: 2.5 },
+  { x: 73, y: 27, size: 0.78, delay: 0.4 },
+  { x: 50, y: 22, size: 0.72, delay: 1.3 },
+  { x: 87, y: 126, size: 0.82, delay: 2.0 },
 ] as const;
 
 export default function CardPreview({
@@ -297,27 +311,71 @@ export default function CardPreview({
             viewBox="0 0 100 150"
             preserveAspectRatio="none"
             aria-hidden="true"
-            style={{ pointerEvents: "none", zIndex: 1, opacity: RARITY_SPARKLE_STYLE[rarity].opacity, filter: RARITY_SPARKLE_STYLE[rarity].glow, overflow: "hidden", clipPath: "inset(0)" }}
+            style={{
+              pointerEvents: "none",
+              zIndex: 1,
+              opacity: RARITY_SPARKLE_STYLE[rarity].opacity,
+              filter: RARITY_SPARKLE_STYLE[rarity].glow,
+              overflow: "hidden",
+              clipPath: "inset(0)",
+            }}
           >
-            {CARD_SPARKLE_POINTS.slice(0, RARITY_SPARKLE_COUNT[rarity]).map((sparkle, index) => {
-              const x = sparkle.left;
-              const y = sparkle.top * 1.5;
-              const ray = Math.max(1.4, sparkle.size * 0.8);
-              return (
-                <g
-                  key={index}
-                  className="card-artwork-sparkle"
-                  style={{ animationDelay: `-${sparkle.delay}s`, animationDuration: RARITY_SPARKLE_STYLE[rarity].duration }}
-                >
-                  <circle cx={x} cy={y} r={ray * 3} fill="rgba(255,225,145,.36)" />
-                  <circle cx={x} cy={y} r={ray * .34} fill="#ffffff" />
-                  <path
-                    d={`M ${x} ${y - ray} L ${x + ray * .16} ${y - ray * .16} L ${x + ray} ${y} L ${x + ray * .16} ${y + ray * .16} L ${x} ${y + ray} L ${x - ray * .16} ${y + ray * .16} L ${x - ray} ${y} L ${x - ray * .16} ${y - ray * .16} Z`}
-                    fill="#fffbea"
-                  />
-                </g>
-              );
-            })}
+            {[0, 1, 2].map(group => (
+              <g key={group} className={`card-glitter-batch card-glitter-batch-${group}`}>
+                {CARD_GLITTER_POINTS
+                  .slice(0, RARITY_SPARKLE_COUNT[rarity])
+                  .filter(point => point.group === group)
+                  .map((point, index) => (
+                    <circle
+                      key={index}
+                      cx={point.x}
+                      cy={point.y}
+                      r={point.radius}
+                      fill={rarity >= 4 ? "rgba(255,248,218,.98)" : "rgba(255,245,210,.9)"}
+                    />
+                  ))}
+              </g>
+            ))}
+            {CARD_GLINT_POINTS.slice(0, RARITY_GLINT_COUNT[rarity]).map((glint, index) => (
+              <g
+                key={`glint-${index}`}
+                className="card-micro-glint"
+                style={{ animationDelay: `-${glint.delay}s` }}
+              >
+                <circle cx={glint.x} cy={glint.y} r={glint.size * 1.7} fill="rgba(255,230,150,.12)" />
+                <path
+                  d={`M ${glint.x} ${glint.y - glint.size} L ${glint.x} ${glint.y + glint.size} M ${glint.x - glint.size} ${glint.y} L ${glint.x + glint.size} ${glint.y}`}
+                  fill="none"
+                  stroke="rgba(255,255,244,.96)"
+                  strokeWidth="0.34"
+                  strokeLinecap="round"
+                />
+              </g>
+            ))}
+            {rarity === 5 && (
+              <g className="card-sparkle-swirl">
+                <path
+                  className="card-sparkle-swirl-line card-sparkle-swirl-line-a"
+                  d="M 12 120 C 24 88, 67 101, 84 65 C 95 42, 83 23, 58 27"
+                  pathLength="100"
+                  fill="none"
+                  stroke="rgba(255,247,207,.86)"
+                  strokeWidth="0.7"
+                  strokeLinecap="round"
+                  strokeDasharray="0.1 3.2"
+                />
+                <path
+                  className="card-sparkle-swirl-line card-sparkle-swirl-line-b"
+                  d="M 20 132 C 39 106, 76 117, 78 83 C 79 66, 67 56, 53 58"
+                  pathLength="100"
+                  fill="none"
+                  stroke="rgba(230,247,255,.76)"
+                  strokeWidth="0.55"
+                  strokeLinecap="round"
+                  strokeDasharray="0.1 4"
+                />
+              </g>
+            )}
           </svg>
         )}
       </div>
@@ -350,20 +408,57 @@ export default function CardPreview({
             filter: "brightness(1.2) saturate(1.12) drop-shadow(0 0 2px rgba(255,245,190,.95)) drop-shadow(0 0 6px rgba(255,196,54,.82)) drop-shadow(0 1px 2px rgba(0,0,0,.78))" }} />)}
       </div>
       {showSparkles && <style>{`
-        @keyframes cardArtworkTwinkle {
-          0%, 100% { opacity: .08; transform: scale(.45) rotate(0deg); }
-          28% { opacity: .42; transform: scale(.72) rotate(18deg); }
-          48% { opacity: 1; transform: scale(1.18) rotate(42deg); }
-          68% { opacity: .3; transform: scale(.62) rotate(64deg); }
+        @keyframes cardGlitterPulseA {
+          0%, 100% { opacity: .22; }
+          38% { opacity: .95; }
+          68% { opacity: .4; }
         }
-        .card-artwork-sparkle {
-          opacity: .65;
+        @keyframes cardGlitterPulseB {
+          0%, 100% { opacity: .62; }
+          32% { opacity: .25; }
+          72% { opacity: 1; }
+        }
+        @keyframes cardGlitterPulseC {
+          0%, 100% { opacity: .34; }
+          48% { opacity: .88; }
+          78% { opacity: .2; }
+        }
+        @keyframes cardMicroGlint {
+          0%, 72%, 100% { opacity: .08; transform: scale(.55) rotate(0deg); }
+          82% { opacity: 1; transform: scale(1.12) rotate(35deg); }
+          92% { opacity: .2; transform: scale(.7) rotate(58deg); }
+        }
+        @keyframes cardSparkleSwirl {
+          0% { stroke-dashoffset: 0; opacity: .2; }
+          45% { opacity: .78; }
+          100% { stroke-dashoffset: -22; opacity: .28; }
+        }
+        .card-glitter-batch {
+          will-change: opacity;
+        }
+        .card-glitter-batch-0 { animation: cardGlitterPulseA 2.8s ease-in-out infinite; }
+        .card-glitter-batch-1 { animation: cardGlitterPulseB 3.4s ease-in-out infinite; }
+        .card-glitter-batch-2 { animation: cardGlitterPulseC 4.1s ease-in-out infinite; }
+        .card-micro-glint {
+          opacity: .15;
           transform-box: fill-box;
           transform-origin: center;
-          animation: cardArtworkTwinkle 3s ease-in-out infinite;
+          animation: cardMicroGlint 3.8s ease-in-out infinite;
+        }
+        .card-sparkle-swirl-line {
+          animation: cardSparkleSwirl 6.5s linear infinite;
+        }
+        .card-sparkle-swirl-line-b {
+          animation-duration: 8.5s;
+          animation-direction: reverse;
         }
         @media (prefers-reduced-motion: reduce) {
-          .card-artwork-sparkle { animation: none !important; }
+          .card-glitter-batch,
+          .card-micro-glint,
+          .card-sparkle-swirl-line { animation: none !important; }
+          .card-glitter-batch { opacity: .62; }
+          .card-micro-glint { opacity: .36; }
+          .card-sparkle-swirl-line { opacity: .35; }
         }
       `}</style>}
     </div>

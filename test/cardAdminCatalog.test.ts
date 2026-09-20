@@ -83,17 +83,22 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
 });
 
 
-test("detail cards confine smaller rarity sparkles to artwork and keep inventory cards plain", () => {
+test("detail cards use lightweight rarity-scaled magical glitter inside the artwork", () => {
   assert.match(preview, /brightness\(1\.2\)/);
-  assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*0[\s\S]*?3:\s*5[\s\S]*?4:\s*9[\s\S]*?5:\s*14/);
+  assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*18[\s\S]*?3:\s*32[\s\S]*?4:\s*48[\s\S]*?5:\s*64/);
+  assert.match(preview, /RARITY_GLINT_COUNT[\s\S]*?3:\s*4[\s\S]*?4:\s*8[\s\S]*?5:\s*12/);
+  assert.match(preview, /CARD_GLITTER_POINTS = Array\.from\(\{ length: 64 \}/);
+  assert.doesNotMatch(preview, /Math\.random\(\)/);
   assert.match(preview, /showSparkles = false/);
   assert.match(detail, /showSparkles/);
   const artwork = preview.indexOf('data-testid="card-artwork-window"');
   const sparkles = preview.indexOf('data-testid="card-rarity-sparkles"');
   const border = preview.indexOf('alt={`${rarity}-star card border`}');
   assert.ok(artwork >= 0 && artwork < sparkles && sparkles < border, "sparkles belong inside the artwork, behind the frame");
-  assert.match(preview, /const ray = Math\.max\(1\.4, sparkle\.size \* 0\.8\)/);
-  assert.match(preview, /cardArtworkTwinkle/);
+  assert.match(preview, /card-glitter-batch-0/);
+  assert.match(preview, /card-micro-glint/);
+  assert.match(preview, /rarity === 5/);
+  assert.match(preview, /card-sparkle-swirl-line/);
   assert.match(preview, /prefers-reduced-motion: reduce/);
   assert.match(preview, /inset: depth3d \? "12% 7%" : "12% 10%"/);
   assert.match(preview, /inset 0 0 24px 8px/);
