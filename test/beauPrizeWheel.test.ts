@@ -74,6 +74,8 @@ test("player popup uses Beau art, red-gold diamond pointer and Haunted Forest ba
   assert.match(overlay, /beauWheelLandingRotation/);
   assert.match(overlay, /data-testid="beau-prize-wheel-pointer"/);
   assert.match(overlay, /#e04438/);
+  assert.match(overlay, /drop-shadow\(0 0 3px rgba\(255,92,84,\.96\)\)/);
+  assert.match(overlay, /drop-shadow\(0 0 9px rgba\(190,28,40,\.72\)\)/);
   assert.match(overlay, /#fff0a8/);
   assert.match(overlay, /polygon\(50% 0,100% 50%,50% 100%,0 50%\)/);
   assert.match(overlay, /data-testid="beau-skull-burst"/);
