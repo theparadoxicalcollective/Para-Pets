@@ -160,7 +160,7 @@ export default function JansonQuestOverlay() {
                     state.quests[1]?.status === "available" ? "Ready for the next step? Sell your catch here at the fish market." :
                       state.quests[1]?.status === "accepted" ? "Open my fish market and sell your catch." :
                         state.quests[1]?.status === "completed" ? "Well done! Claim your Sell Fish reward here or in your quest log." :
-                        repeatable?.status === "available" ? "The fish market is yours to use. Want to go fishing again today? Take the daily quest here first." :
+                        repeatable?.status === "available" ? "Choose today’s Gone Fishing quest, or open the fish market now. You can come back for the quest later today." :
                         repeatable?.status === "accepted" ? "Find a fishing spot and bring back your catch for today's Gone Fishing quest." :
                         repeatable?.status === "completed" ? "Nice work! Claim today's Gone Fishing reward here or in your quest log." :
                         "The fish market is open. Come back tomorrow for another Gone Fishing quest."}
@@ -168,9 +168,9 @@ export default function JansonQuestOverlay() {
           </div>
           <button type="button" aria-label="Close Janson dialog" onClick={() => setDialogOpen(false)} style={{ alignSelf: "flex-start", border: 0, background: "transparent", color: "#fff", fontSize: 24 }}>×</button>
         </div>
-        {current?.status === "available" && <button type="button" data-testid={`button-start-janson-${current.questKey}`} disabled={start.isPending} onClick={() => start.mutate(current.questKey)} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>START {current.title.toUpperCase()}</button>}
+        {current?.status === "available" && <button type="button" data-testid={`button-start-janson-${current.questKey}`} disabled={start.isPending} onClick={() => start.mutate(current.questKey)} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>{current.questKey === "daily_catch_fish" ? "TAKE TODAY’S GONE FISHING QUEST" : `START ${current.title.toUpperCase()}`}</button>}
         {current?.status === "accepted" && (current.questKey === "catch_fish" || current.questKey === "daily_catch_fish") && <button type="button" onClick={() => onQuestGo(current)} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>FIND A FISHING SPOT</button>}
-        {state.marketUnlocked && <button type="button" data-testid="button-janson-fish-market" onClick={openMarket} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>OPEN FISH MARKET</button>}
+        {state.marketUnlocked && <button type="button" data-testid="button-janson-fish-market" onClick={openMarket} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12, background: repeatable?.status === "available" ? "#245a54" : actionStyle.background }}>{repeatable?.status === "available" ? "OPEN FISH MARKET WITHOUT STARTING QUEST" : "OPEN FISH MARKET"}</button>}
         {current?.status === "completed" && <button type="button" data-testid={`button-claim-janson-at-npc-${current.questKey}`} disabled={claim.isPending} onClick={() => claim.mutate(current.questKey)} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>{claim.isPending ? "CLAIMING…" : `CLAIM ${current.title.toUpperCase()} REWARD`}</button>}
         {message && <p role="status" style={{ color: "#ffcb9a", fontSize: 11 }}>{message}</p>}
       </section>
