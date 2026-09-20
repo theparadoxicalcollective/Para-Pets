@@ -40,7 +40,10 @@ export function registerRedeemCodeRoutes(app: Express): void {
       const shopItemIds = Array.isArray(req.body?.shopItemIds)
         ? req.body.shopItemIds.filter((id: unknown): id is string => typeof id === "string").slice(0, 999)
         : [];
-      let cards;\n      try { cards = parseBundleCards(req.body?.cards); }\n      catch (error: any) { return res.status(400).json({ message: error.message }); }\n      const expiresAt = req.body?.expiresAt ? new Date(req.body.expiresAt) : null;
+      let cards;
+      try { cards = parseBundleCards(req.body?.cards); }
+      catch (error: any) { return res.status(400).json({ message: error.message }); }
+      const expiresAt = req.body?.expiresAt ? new Date(req.body.expiresAt) : null;
 
       if (!isValidRedeemCode(code)) return res.status(400).json({ message: "Code must be 3–32 letters, numbers, or hyphens" });
       if (!name) return res.status(400).json({ message: "Give this code reward a name" });
