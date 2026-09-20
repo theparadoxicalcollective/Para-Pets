@@ -72,6 +72,7 @@ export default function SellFishPage({ user, worldId, onClose, onUserUpdate }: S
       );
       queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/quests/janson"] });
       if (onUserUpdate) onUserUpdate({ ...user, coins: data.newBalance });
       setCartIds(new Set());
       playChime();
