@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { calculateWorldDragPosition, worldPositionsDiffer } from "../client/src/lib/worldNpcPlacement";
 
 test("NPC drag math stays in world percentage space on a phone-sized rendered map", () => {
@@ -46,4 +47,17 @@ test("NPC drag coordinates keep the world's existing admin overscan limits", () 
 test("server verification ignores harmless floating point noise but catches a real snap-back", () => {
   assert.equal(worldPositionsDiffer({ x: 42, y: 63 }, { x: 42.04, y: 62.96 }), false);
   assert.equal(worldPositionsDiffer({ x: 40, y: 40 }, { x: 42, y: 63 }), true);
+});
+
+
+test("world NPC art keeps a grounded shadow and a noticeable bottom-anchored breathing idle", () => {
+  const source = readFileSync("client/src/components/WorldNpcPlacementOverlay.tsx", "utf8");
+  assert.match(source, /@keyframes paraNpcBreathe/);
+  assert.match(source, /42% \{ transform: scaleY\(\.958\); \}/);
+  assert.match(source, /55% \{ transform: scaleY\(\.95\); \}/);
+  assert.match(source, /animation: paraNpcBreathe 4\.15s ease-in-out infinite/);
+  assert.match(source, /transform-origin: 50% 100%/);
+  assert.match(source, /drop-shadow\(0 7px 9px rgba\(0,0,0,\.68\)\)/);
+  assert.match(source, /drop-shadow\(0 0 2px rgba\(255,244,214,\.18\)\)/);
+  assert.match(source, /prefers-reduced-motion: reduce/);
 });
