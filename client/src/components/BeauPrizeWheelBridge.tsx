@@ -28,6 +28,7 @@ export default function BeauPrizeWheelBridge() {
   const [casinoMount, setCasinoMount] = useState<HTMLElement | null>(null);
   const [freeBeauSpin, setFreeBeauSpin] = useState(false);
   const [freeBingoGame, setFreeBingoGame] = useState(false);
+  const [freeSlotSpin, setFreeSlotSpin] = useState(false);
   const [mount, setMount] = useState<HTMLElement | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [wheelState, setWheelState] = useState<WheelState | null>(null);
@@ -60,6 +61,7 @@ export default function BeauPrizeWheelBridge() {
     setCasinoMount(null);
     setFreeBeauSpin(false);
     setFreeBingoGame(false);
+    setFreeSlotSpin(false);
     if (worldId !== BEAU_PRIZE_WHEEL_WORLD_ID) return;
 
     let cancelled = false;
@@ -125,11 +127,16 @@ export default function BeauPrizeWheelBridge() {
         .then(response => response.ok ? response.json() as Promise<{ freeGameAvailable: boolean }> : null)
         .then(state => { if (active) setFreeBingoGame(Boolean(state?.freeGameAvailable)); })
         .catch(() => { if (active) setFreeBingoGame(false); });
+      void fetch("/api/haunted-casino/slots", { credentials: "include", cache: "no-store" })
+        .then(response => response.ok ? response.json() as Promise<{ freeSpinAvailable: boolean }> : null)
+        .then(state => { if (active) setFreeSlotSpin(Boolean(state?.freeSpinAvailable)); })
+        .catch(() => { if (active) setFreeSlotSpin(false); });
     };
     refresh();
     const interval = window.setInterval(refresh, 60_000);
     window.addEventListener("focus", refresh);
-    return () => { active = false; window.clearInterval(interval); window.removeEventListener("focus", refresh); };
+    window.addEventListener("para:casino-free-play-changed", refresh);
+    return () => { active = false; window.clearInterval(interval); window.removeEventListener("focus", refresh); window.removeEventListener("para:casino-free-play-changed", refresh); };
   }, [worldId, isAdmin]);
 
   useEffect(() => () => {
@@ -274,8 +281,8 @@ export default function BeauPrizeWheelBridge() {
         mount,
       )}
 
-      {casinoMount && !isAdmin && freeBingoGame && createPortal(
-        <span data-testid="casino-free-play-indicator" aria-label="Free Bingo game available in the casino" style={{ position: "absolute", top: "-12%", left: "50%", transform: "translateX(-50%)", zIndex: 25, width: 34, height: 34, borderRadius: "50%", display: "grid", placeItems: "center", background: "#754413", border: "2px solid #ffe29a", boxShadow: "0 0 18px #f6be55", color: "#fff6cd", fontSize: 24, fontWeight: 900, pointerEvents: "none" }}>!</span>,
+      {casinoMount && !isAdmin && (freeBingoGame || freeSlotSpin) && createPortal(
+        <span data-testid="casino-free-play-indicator" aria-label="Free casino play available" style={{ position: "absolute", top: "-12%", left: "50%", transform: "translateX(-50%)", zIndex: 25, width: 34, height: 34, borderRadius: "50%", display: "grid", placeItems: "center", background: "#754413", border: "2px solid #ffe29a", boxShadow: "0 0 18px #f6be55", color: "#fff6cd", fontSize: 24, fontWeight: 900, pointerEvents: "none" }}>!</span>,
         casinoMount,
       )}
 
