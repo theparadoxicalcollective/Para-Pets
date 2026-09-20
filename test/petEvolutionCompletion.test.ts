@@ -54,10 +54,10 @@ test("evolution nodes require 5,000 points while completed nodes remain stored",
 
 
 test("evolution idle keeps ears, tail, body, and legs moving as connected layers", () => {
-  assert.match(animatorCore, /@keyframes petIdleEvolutionTail[\s\S]*rotate\(-2\.5deg\)[\s\S]*rotate\( 2\.5deg\)/);
-  assert.match(animatorCore, /isEvolutionTailOne \? "5\.5s"/);
-  assert.match(animatorCore, /@keyframes petIdleEvolutionLeftEar[\s\S]*translate\(-0\.35px, 0\.45px\) rotate\(-1deg\)[\s\S]*translate\(0\.35px, -1\.25px\) rotate\(1\.5deg\)/);
-  assert.match(animatorCore, /@keyframes petIdleEvolutionRightEar[\s\S]*translate\(0\.35px, 0\.45px\) rotate\(1deg\)[\s\S]*translate\(-0\.35px, -1\.25px\) rotate\(-1\.5deg\)/);
+  assert.match(animatorCore, /@keyframes petIdleEvolutionTail[\s\S]*translateY\(0%\) rotate\(-1\.25deg\)[\s\S]*translateY\(-1\.4%\) rotate\(1\.25deg\)/);
+  assert.match(animatorCore, /isEvolutionTailOne \? "4\.8s"/);
+  assert.match(animatorCore, /@keyframes petIdleEvolutionLeftEar[\s\S]*translateY\(0\.1px\) rotate\(-0\.55deg\)[\s\S]*translateY\(-0\.55px\) rotate\(0\.75deg\)/);
+  assert.match(animatorCore, /@keyframes petIdleEvolutionRightEar[\s\S]*translateY\(0\.1px\) rotate\(0\.55deg\)[\s\S]*translateY\(-0\.55px\) rotate\(-0\.75deg\)/);
   assert.match(animatorCore, /artworkForm === "evolution"[\s\S]*EAR_PART_TYPES\.has\(basePetPartType\(part\.partType\)\)/);
   assert.match(animatorCore, /const evolutionForegroundLimbZ = artworkForm === "evolution"/);
   assert.match(animatorCore, /EAR_PART_TYPES\.has\(basePetPartType\(part\.partType\)\)[\s\S]*?evolutionForegroundLimbZ - 0\.5/);
