@@ -270,7 +270,7 @@ export default function CardPreview({
         src={CARD_BORDER_ASSETS[rarity]}
         alt={`${rarity}-star card border`}
         draggable={false}
-        style={{ position: "absolute", inset: 0, zIndex: 2, width: "100%", height: "100%", objectFit: "fill", pointerEvents: "none", transform: depth3d ? "translateZ(10px)" : undefined, backfaceVisibility: "hidden" }}
+        style={{ position: "absolute", inset: 0, zIndex: 2, width: "100%", height: "100%", objectFit: "fill", pointerEvents: "none", transform: depth3d ? "translateZ(10px)" : undefined, backfaceVisibility: "hidden", filter: depth3d ? "drop-shadow(0 8px 12px rgba(0,0,0,.48))" : undefined }}
       />
       {renderTextBox("name")}
       {renderTextBox("description")}
