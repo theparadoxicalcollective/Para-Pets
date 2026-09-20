@@ -18,6 +18,7 @@ interface CardPreviewProps {
   textSize?: "scaled" | "inventory" | "detail";
   onDescriptionClick?: () => void;
   depth3d?: boolean;
+  showSparkles?: boolean;
   selectedField?: CardLayoutField;
   onSelectField?: (field: CardLayoutField) => void;
   onLayoutChange?: (layout: CardBorderLayout) => void;
@@ -48,9 +49,9 @@ const RARITY_SPARKLE_COUNT: Record<CardRarity, number> = {
 const RARITY_SPARKLE_STYLE: Record<CardRarity, { opacity: number; duration: string; glow: string }> = {
   1: { opacity: 0, duration: "0s", glow: "none" },
   2: { opacity: 0, duration: "0s", glow: "none" },
-  3: { opacity: 0.58, duration: "3.4s", glow: "drop-shadow(0 0 3px rgba(255,225,120,.55))" },
-  4: { opacity: 0.78, duration: "2.8s", glow: "drop-shadow(0 0 5px rgba(255,225,120,.72))" },
-  5: { opacity: 1, duration: "2.15s", glow: "drop-shadow(0 0 7px rgba(255,235,150,.9))" },
+  3: { opacity: 0.62, duration: "3.8s", glow: "drop-shadow(0 0 2px rgba(255,225,120,.65))" },
+  4: { opacity: 0.8, duration: "3.2s", glow: "drop-shadow(0 0 3px rgba(255,225,120,.8))" },
+  5: { opacity: 1, duration: "2.7s", glow: "drop-shadow(0 0 4px rgba(255,235,150,.9))" },
 };
 
 const CARD_SPARKLE_POINTS = [
@@ -80,17 +81,13 @@ export default function CardPreview({
   textSize = "scaled",
   onDescriptionClick,
   depth3d = false,
+  showSparkles = false,
   selectedField = "name",
   onSelectField,
   onLayoutChange,
 }: CardPreviewProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
-  const sparkleBackground = RARITY_SPARKLE_COUNT[rarity] > 0
-    ? CARD_SPARKLE_POINTS.slice(0, RARITY_SPARKLE_COUNT[rarity])
-        .map((sparkle) => `radial-gradient(circle ${Math.max(sparkle.size * 2.6, 4.2)}cqw at ${sparkle.left}% ${sparkle.top}%, rgba(255,255,245,1) 0 5%, rgba(255,246,188,.98) 10%, rgba(255,210,82,.9) 24%, rgba(255,178,28,.55) 42%, rgba(255,190,52,0) 68%)`)
-        .join(", ")
-    : undefined;
 
   const fieldMetrics = (field: CardLayoutField) => field === "name"
     ? { x: layout.nameX, y: layout.nameY, width: layout.nameWidth, height: layout.nameHeight }
@@ -237,12 +234,26 @@ export default function CardPreview({
         draggable={false}
         style={{ display: "block", width: "100%", height: "auto", visibility: "hidden" }}
       />
-      {/* Tuck the artwork edges beneath the frame and its name/description plates. */}
+      {/* A dark backing fills the parallax gap while the artwork sits behind the raised frame. */}
+      {depth3d && (
+        <div
+          aria-hidden="true"
+          className="absolute"
+          style={{
+            inset: "11% 6%",
+            background: "#050604",
+            boxShadow: "0 0 14px 8px rgba(0,0,0,.8)",
+            transform: "translateZ(-14px)",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+      {/* Let detail artwork bleed slightly under the frame when turned. */}
       <div
         data-testid="card-artwork-window"
         style={{
           position: "absolute",
-          inset: "12% 10%",
+          inset: depth3d ? "12% 7%" : "12% 10%",
           zIndex: 0,
           overflow: "hidden",
           borderRadius: "9% / 7%",
@@ -275,9 +286,38 @@ export default function CardPreview({
             position: "absolute",
             inset: 0,
             background: "radial-gradient(ellipse at center, transparent 48%, rgba(0,0,0,.42) 100%)",
-            boxShadow: "inset 0 0 12px rgba(0,0,0,.48)",
+            boxShadow: depth3d ? "inset 0 0 24px 8px rgba(0,0,0,.75)" : "inset 0 0 12px rgba(0,0,0,.48)",
           }}
         />
+        {showSparkles && RARITY_SPARKLE_COUNT[rarity] > 0 && (
+          <svg
+            data-testid="card-rarity-sparkles"
+            className="absolute inset-0 h-full w-full"
+            viewBox="0 0 100 150"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+            style={{ pointerEvents: "none", opacity: RARITY_SPARKLE_STYLE[rarity].opacity, filter: RARITY_SPARKLE_STYLE[rarity].glow }}
+          >
+            {CARD_SPARKLE_POINTS.slice(0, RARITY_SPARKLE_COUNT[rarity]).map((sparkle, index) => {
+              const x = sparkle.left;
+              const y = sparkle.top * 1.5;
+              const ray = sparkle.size * 0.28;
+              return (
+                <g
+                  key={index}
+                  className="card-artwork-sparkle"
+                  style={{ animationDelay: `-${sparkle.delay}s`, animationDuration: RARITY_SPARKLE_STYLE[rarity].duration }}
+                >
+                  <circle cx={x} cy={y} r={ray * 2} fill="rgba(255,205,95,.28)" />
+                  <path
+                    d={`M ${x} ${y - ray} L ${x + ray * .16} ${y - ray * .16} L ${x + ray} ${y} L ${x + ray * .16} ${y + ray * .16} L ${x} ${y + ray} L ${x - ray * .16} ${y + ray * .16} L ${x - ray} ${y} L ${x - ray * .16} ${y - ray * .16} Z`}
+                    fill="#fffbea"
+                  />
+                </g>
+              );
+            })}
+          </svg>
+        )}
       </div>
       <img
         src={CARD_BORDER_ASSETS[rarity]}
@@ -307,60 +347,20 @@ export default function CardPreview({
           style={{ width: `${100 / rarity}%`, height: "100%", objectFit: "contain", pointerEvents: "none",
             filter: "brightness(1.2) saturate(1.12) drop-shadow(0 0 2px rgba(255,245,190,.95)) drop-shadow(0 0 6px rgba(255,196,54,.82)) drop-shadow(0 1px 2px rgba(0,0,0,.78))" }} />)}
       </div>
-      <style>{`
-        @keyframes cardRaritySparkleShimmer {
-          0%, 100% { opacity: .65; }
-          38% { opacity: 1; }
-          62% { opacity: .8; }
+      {showSparkles && <style>{`
+        @keyframes cardArtworkTwinkle {
+          0%, 100% { opacity: .14; }
+          42% { opacity: 1; }
+          62% { opacity: .32; }
         }
-        .card-rarity-sparkle-shimmer {
-          animation: cardRaritySparkleShimmer 3s ease-in-out infinite;
+        .card-artwork-sparkle {
+          opacity: .65;
+          animation: cardArtworkTwinkle 3s ease-in-out infinite;
         }
         @media (prefers-reduced-motion: reduce) {
-          .card-rarity-sparkle-shimmer { animation: none !important; }
+          .card-artwork-sparkle { animation: none !important; }
         }
-      `}</style>
-      {sparkleBackground && (
-        <div
-          data-testid="card-rarity-sparkles"
-          aria-hidden="true"
-          className="absolute"
-          style={{
-            inset: 0,
-            zIndex: 5,
-            pointerEvents: "none",
-            opacity: RARITY_SPARKLE_STYLE[rarity].opacity,
-            filter: RARITY_SPARKLE_STYLE[rarity].glow,
-            transform: depth3d ? "translateZ(38px)" : undefined,
-            backfaceVisibility: "hidden",
-          }}
-        >
-          <div
-            className="absolute inset-0 card-rarity-sparkle-shimmer"
-            style={{
-              backgroundImage: sparkleBackground,
-              animationDuration: RARITY_SPARKLE_STYLE[rarity].duration,
-            }}
-          >
-            <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 150" preserveAspectRatio="none" aria-hidden="true">
-              {CARD_SPARKLE_POINTS.slice(0, RARITY_SPARKLE_COUNT[rarity]).map((sparkle, index) => {
-                const x = sparkle.left;
-                const y = sparkle.top * 1.5;
-                const ray = sparkle.size * 0.55;
-                return (
-                  <g key={index}>
-                    <circle cx={x} cy={y} r={ray * 2.1} fill="rgba(255,197,65,.35)" />
-                    <path
-                      d={`M ${x} ${y - ray} L ${x + ray * .18} ${y - ray * .18} L ${x + ray} ${y} L ${x + ray * .18} ${y + ray * .18} L ${x} ${y + ray} L ${x - ray * .18} ${y + ray * .18} L ${x - ray} ${y} L ${x - ray * .18} ${y - ray * .18} Z`}
-                      fill="#fffbea"
-                    />
-                  </g>
-                );
-              })}
-            </svg>
-          </div>
-        </div>
-      )}
+      `}</style>}
     </div>
   );
 }
