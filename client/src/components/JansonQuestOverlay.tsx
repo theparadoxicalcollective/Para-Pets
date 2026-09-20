@@ -94,7 +94,15 @@ export default function JansonQuestOverlay() {
 
   const start = useMutation({
     mutationFn: async (key: Quest["questKey"]) => (await apiRequest("POST", `${API}/${key}/start`, {})).json() as Promise<JansonState>,
-    onSuccess: data => { queryClient.setQueryData([API], data); setMessage(null); },
+    onSuccess: (data, key) => {
+      queryClient.setQueryData([API], data);
+      setMessage(null);
+      if (key === "catch_fish" || key === "daily_catch_fish") {
+        setDialogOpen(false);
+        if (inBayou) window.dispatchEvent(new Event("para:show-fishing-spots"));
+        else navigate(`/world/${WORLD}?fishHint=1`);
+      }
+    },
     onError: (error: Error) => setMessage(error.message),
   });
   const claim = useMutation({

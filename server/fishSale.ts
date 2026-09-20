@@ -94,13 +94,18 @@ export async function sellFish(userId: string, fishIds: string[]): Promise<FishS
 
     // Count each sold fish only after Janson's second one-time quest is accepted.
     // Progress, the inventory deletion and coin credit must commit together.
+    // The quest configuration may be absent in older deployments. Use the
+    // same ten-fish default shown by Janson instead of silently losing progress.
+    const sellTarget = sql`COALESCE(
+      (SELECT GREATEST(1, target_count) FROM daily_quests WHERE quest_key = 'sell_fish'),
+      10
+    )`;
     const questProgress = await tx.execute(sql`
       UPDATE user_janson_quests p
-      SET progress = LEAST(q.target_count, p.progress + ${sortedIds.length}),
-          completed_at = CASE WHEN p.progress + ${sortedIds.length} >= q.target_count THEN NOW() ELSE NULL END
-      FROM daily_quests q
+      SET progress = LEAST(${sellTarget}, p.progress + ${sortedIds.length}),
+          completed_at = CASE WHEN p.progress + ${sortedIds.length} >= ${sellTarget} THEN NOW() ELSE NULL END
       WHERE p.user_id = ${userId} AND p.quest_key = 'sell_fish'
-        AND p.completed_at IS NULL AND q.quest_key = 'sell_fish'
+        AND p.completed_at IS NULL
       RETURNING p.completed_at
     `);
     if ((questProgress.rows[0] as { completed_at?: Date } | undefined)?.completed_at) {
