@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { sql } from "drizzle-orm";
 import { db } from "../db";
 import { requireAuthenticated } from "../auth";
-import { isJansonQuestKey, jansonQuestDate, jansonQuestStatus } from "../jansonQuestRules";
+import { isJansonQuestKey, jansonDailyUnlocked, jansonMarketUnlocked, jansonQuestDate, jansonQuestStatus } from "../jansonQuestRules";
 
 type Executor = { execute(statement: any): Promise<{ rows: any[] }> };
 const QUESTS = [
@@ -42,8 +42,8 @@ async function getState(executor: Executor, userId: string) {
     };
   });
   // Players need the market while Sell Fish is active; repeatable fishing waits for both rewards.
-  const marketUnlocked = Boolean(rows.get("sell_fish")) && fishingClaimed;
-  const firstTimeComplete = Boolean(rows.get("sell_fish")?.reward_claimed_at) && fishingClaimed;
+  const marketUnlocked = jansonMarketUnlocked(fishingClaimed, rows.get("sell_fish") ?? null);
+  const firstTimeComplete = jansonDailyUnlocked(fishingClaimed, rows.get("sell_fish") ?? null);
   const config = configs.get("catch_fish");
   const dailyRow = dailyResult.rows[0] as any | undefined;
   return {
