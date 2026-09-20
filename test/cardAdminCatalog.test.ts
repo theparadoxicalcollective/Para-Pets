@@ -132,6 +132,8 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /prefers-reduced-motion: reduce/);
   assert.match(preview, /inset: depth3d \? "12% 7%" : "12% 10%"/);
   assert.match(preview, /inset 0 0 24px 8px/);
+  assert.match(preview, /transform: depth3d \? "translateZ\(22px\)" : undefined/);
+  assert.doesNotMatch(preview, /isName \? 26 : 22/);
 });
 
 test("card collection keeps the cleaner open layout and text heading", () => {
@@ -147,6 +149,10 @@ test("card collection keeps the cleaner open layout and text heading", () => {
   assert.match(collection, /width: 40[\s\S]*?height: 40/);
   assert.match(collection, /width: "108%"/);
   assert.match(collection, /width: "min\(82%, 342px\)"/);
+  assert.match(collection, /columnGap: "clamp\(8px, 2\.4vw, 12px\)"/);
+  assert.match(collection, /rowGap: "clamp\(8px, 2\.4vw, 12px\)"/);
+  assert.match(collection, /rewardNeedsClearance = !card\.firstRewardClaimed/);
+  assert.doesNotMatch(collection, /className="relative min-w-0 pb-8"/);
 });
 
 test("card turn queues visual updates per frame and preserves fast swipe lore", () => {
