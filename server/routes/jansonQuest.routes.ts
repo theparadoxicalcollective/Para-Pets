@@ -41,7 +41,9 @@ async function getState(executor: Executor, userId: string) {
       rewardItemQuantity: Number(config?.reward_item_quantity ?? 1),
     };
   });
-  const marketUnlocked = Boolean(rows.get("sell_fish")?.reward_claimed_at) && fishingClaimed;
+  // Players need the market while Sell Fish is active; repeatable fishing waits for both rewards.
+  const marketUnlocked = Boolean(rows.get("sell_fish")) && fishingClaimed;
+  const firstTimeComplete = Boolean(rows.get("sell_fish")?.reward_claimed_at) && fishingClaimed;
   const config = configs.get("catch_fish");
   const dailyRow = dailyResult.rows[0] as any | undefined;
   return {
@@ -50,7 +52,7 @@ async function getState(executor: Executor, userId: string) {
       questKey: "daily_catch_fish", title: "Gone Fishing", description: "Catch 5 fish",
       targetCount: Math.max(1, Number(config?.target_count) || 5),
       progress: Number(dailyRow?.progress ?? 0),
-      status: marketUnlocked ? jansonQuestStatus("catch_fish", dailyRow ?? null, true) : "locked",
+      status: firstTimeComplete ? jansonQuestStatus("catch_fish", dailyRow ?? null, true) : "locked",
       coinReward: Number(config?.coin_reward ?? 0),
       rewardItemName: config?.reward_item_name ?? null,
       rewardItemImage: config?.reward_item_image ?? null,
