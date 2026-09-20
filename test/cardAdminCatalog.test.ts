@@ -7,6 +7,7 @@ const adminPage = fs.readFileSync("client/src/pages/AdminPage.tsx", "utf8");
 const adminPanel = fs.readFileSync("client/src/components/CardAdminPanel.tsx", "utf8");
 const preview = fs.readFileSync("client/src/components/CardPreview.tsx", "utf8");
 const detail = fs.readFileSync("client/src/components/CardDetailDialog.tsx", "utf8");
+const collection = fs.readFileSync("client/src/pages/CardsCollectionPage.tsx", "utf8");
 const catalog = fs.readFileSync("client/src/lib/cardCatalog.ts", "utf8");
 const routes = fs.readFileSync("server/routes/cardAdmin.routes.ts", "utf8");
 const routeRegistry = fs.readFileSync("server/routes.ts", "utf8");
@@ -101,9 +102,20 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /card-sparkle-swirl-line/);
   assert.match(preview, /card-sparkle-swirl-line-c/);
   assert.match(preview, /card-sparkle-swirl-line-d/);
+  assert.match(preview, /card-star-shape/);
+  assert.match(preview, /cardSparkleSwirlGlow/);
+  assert.doesNotMatch(preview, /strokeDasharray="0\\./);
   assert.match(preview, /prefers-reduced-motion: reduce/);
   assert.match(preview, /inset: depth3d \? "12% 7%" : "12% 10%"/);
   assert.match(preview, /inset 0 0 24px 8px/);
+});
+
+test("card collection uses the decorative assets without boxing the whole page or card grid", () => {
+  assert.match(collection, /CardTitle\.png/);
+  assert.match(collection, /DecorDivider\.png/);
+  assert.match(collection, /CardPageDecor\.png/);
+  assert.doesNotMatch(collection, /inset: "8px 7px 18px"/);
+  assert.doesNotMatch(collection, /border: "1px solid rgba\(216,176,74,\.2\)"/);
 });
 
 test("card turn queues visual updates per frame and preserves fast swipe lore", () => {
