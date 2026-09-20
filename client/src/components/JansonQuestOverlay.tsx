@@ -98,13 +98,15 @@ export default function JansonQuestOverlay() {
     onError: (error: Error) => setMessage(error.message),
   });
   const claim = useMutation({
-    mutationFn: async (key: Quest["questKey"]) => (await apiRequest("POST", `${API}/${key}/claim`, {})).json() as Promise<JansonState & { newCoinBalance: number }>,
+    mutationFn: async (key: Quest["questKey"]) => (await apiRequest("POST", `${API}/${key}/claim`, {})).json() as Promise<JansonState & { newCoinBalance: number; coinsGranted: number; itemGranted: string | null }>,
     onSuccess: data => {
       queryClient.setQueryData([API], data);
       queryClient.setQueryData(["/api/auth/me"], (current: any) => current ? { ...current, coins: data.newCoinBalance } : current);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      setMessage(null);
+      setMessage(data.coinsGranted > 0 || data.itemGranted
+        ? "Reward claimed!" + (data.coinsGranted > 0 ? " +" + data.coinsGranted + " coins" : "") + (data.itemGranted ? " · " + data.itemGranted : "")
+        : "Reward claimed!");
     },
     onError: (error: Error) => setMessage(error.message),
   });
@@ -148,10 +150,10 @@ export default function JansonQuestOverlay() {
             <p style={{ fontSize: 12, lineHeight: 1.45, margin: "5px 0" }}>
               {state.quests[0]?.status === "available" ? "The Bayou has plenty of fish. Catch a few and I'll show you the trade." :
                 state.quests[0]?.status === "accepted" ? "Try your luck at a fishing spot. Come back when you've caught enough." :
-                  state.quests[0]?.status === "completed" ? "Nice catch! Claim Gone Fishing in your quest log, then I'll teach you to sell." :
+                  state.quests[0]?.status === "completed" ? "Nice catch! Claim Gone Fishing here or in your quest log, then I'll teach you to sell." :
                     state.quests[1]?.status === "available" ? "Ready for the next step? Sell your catch here at the fish market." :
                       state.quests[1]?.status === "accepted" ? "Open my fish market and sell your catch." :
-                        state.quests[1]?.status === "completed" ? "Well done! Claim your Sell Fish reward in the quest log." : "The fish market is always open to you."}
+                        state.quests[1]?.status === "completed" ? "Well done! Claim your Sell Fish reward here or in your quest log." : "The fish market is always open to you."}
             </p>
           </div>
           <button type="button" aria-label="Close Janson dialog" onClick={() => setDialogOpen(false)} style={{ alignSelf: "flex-start", border: 0, background: "transparent", color: "#fff", fontSize: 24 }}>×</button>
@@ -159,7 +161,7 @@ export default function JansonQuestOverlay() {
         {current?.status === "available" && <button type="button" data-testid={`button-start-janson-${current.questKey}`} disabled={start.isPending} onClick={() => start.mutate(current.questKey)} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>START {current.title.toUpperCase()}</button>}
         {current?.status === "accepted" && current.questKey === "catch_fish" && <button type="button" onClick={() => onQuestGo(current)} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>FIND A FISHING SPOT</button>}
         {state.marketUnlocked && <button type="button" data-testid="button-janson-fish-market" onClick={openMarket} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>OPEN FISH MARKET</button>}
-        {current?.status === "completed" && <p style={{ fontSize: 11, marginTop: 12 }}>Claim your reward from the Quest log to continue.</p>}
+        {current?.status === "completed" && <button type="button" data-testid={`button-claim-janson-at-npc-${current.questKey}`} disabled={claim.isPending} onClick={() => claim.mutate(current.questKey)} style={{ ...actionStyle, width: "100%", marginTop: 14, padding: 12 }}>{claim.isPending ? "CLAIMING…" : `CLAIM ${current.title.toUpperCase()} REWARD`}</button>}
         {message && <p role="status" style={{ color: "#ffcb9a", fontSize: 11 }}>{message}</p>}
       </section>
     </div>}
