@@ -473,12 +473,15 @@ async function grantSkullBonus(executor: Executor, userId: string, slotIndex: nu
     { slot: slotIndex, kind: "exp", amount: SKULL_BONUS_AMOUNT },
     skullView,
   );
+  const petName = "petName" in petReward && petReward.petName
+    ? String(petReward.petName)
+    : "your active pet";
   return {
     ...petReward,
     bonusCoins: SKULL_BONUS_AMOUNT,
     bonusEssence: SKULL_BONUS_AMOUNT,
     bonusExp: SKULL_BONUS_AMOUNT,
-    message: `Skull bonus! +${SKULL_BONUS_AMOUNT} coins, +${SKULL_BONUS_AMOUNT} essence, and ${petReward.petName ?? "your active pet"} gained ${SKULL_BONUS_AMOUNT} EXP!`,
+    message: `Skull bonus! +${SKULL_BONUS_AMOUNT} coins, +${SKULL_BONUS_AMOUNT} essence, and ${petName} gained ${SKULL_BONUS_AMOUNT} EXP!`,
   };
 }
 
