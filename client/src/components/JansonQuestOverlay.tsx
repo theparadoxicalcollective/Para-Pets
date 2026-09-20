@@ -143,6 +143,10 @@ export default function JansonQuestOverlay() {
   };
 
   return <>
+    <style>{`
+      @keyframes ginnyQuestPulse { 0%,100% { transform: translate(-50%,-50%) scale(.92); filter: brightness(.92); } 50% { transform: translate(-50%,-50%) scale(1.12); filter: brightness(1.18); } }
+      @media (prefers-reduced-motion: reduce) { [data-testid="janson-quest-marker-badge"] { animation: none !important; } }
+    `}</style>
     {npcMount && createPortal(
       <button type="button" data-testid="button-talk-janson" aria-label={state.marketUnlocked && repeatable?.status === "claimed" ? "Open Janson's fish market" : "Talk to Janson"}
         onPointerDown={event => event.stopPropagation()}
@@ -152,7 +156,25 @@ export default function JansonQuestOverlay() {
           else setDialogOpen(true);
         }}
         style={{ position: "absolute", inset: user.isAdmin ? "-10%" : "4%", zIndex: 32, background: "transparent", border: 0, cursor: "pointer", touchAction: "manipulation" }}>
-        <span aria-hidden style={{ position: "absolute", left: "50%", top: "-8%", transform: "translate(-50%,-50%)", display: "grid", placeItems: "center", width: 40, height: 40, borderRadius: "50%", background: state.marketUnlocked && repeatable?.status === "claimed" ? "#245a54" : "#775226", border: "2px solid #f6d587", color: "#fff8d4", fontSize: 23, boxShadow: "0 0 15px rgba(255,211,107,.65)", pointerEvents: "none" }}>{state.marketUnlocked && repeatable?.status === "claimed" ? "🐟" : current?.status === "completed" ? "✓" : "!"}</span>
+        {state.marketUnlocked && repeatable?.status === "claimed" ? (
+          <span aria-hidden style={{ position: "absolute", left: "50%", top: "-8%", transform: "translate(-50%,-50%)", display: "grid", placeItems: "center", width: 40, height: 40, borderRadius: "50%", background: "#245a54", border: "2px solid #f6d587", color: "#fff8d4", fontSize: 23, boxShadow: "0 0 15px rgba(255,211,107,.65)", pointerEvents: "none" }}>🐟</span>
+        ) : (
+          <span
+            aria-hidden
+            data-testid="janson-quest-marker-badge"
+            style={{
+              position: "absolute", left: "50%", top: "-7%", transform: "translate(-50%,-50%)",
+              width: "clamp(34px,22%,58px)", aspectRatio: "1", borderRadius: "50%", display: "grid", placeItems: "center",
+              fontFamily: "Georgia,serif", fontWeight: 900, fontSize: "clamp(20px,14%,36px)",
+              color: current?.status === "completed" ? "#d9ffe3" : "#fff3aa",
+              background: current?.status === "completed" ? "rgba(20,112,57,.96)" : current?.status === "accepted" ? "rgba(72,52,126,.96)" : "rgba(89,52,8,.96)",
+              border: "2px solid rgba(255,228,136,.94)",
+              boxShadow: "0 0 0 5px rgba(255,218,90,.12),0 0 22px rgba(255,199,58,.85)",
+              animation: "ginnyQuestPulse 1.7s ease-in-out infinite",
+              pointerEvents: "none",
+            }}
+          >{current?.status === "completed" ? "✓" : "!"}</span>
+        )}
       </button>, npcMount)}
     {questListMount && logQuest && createPortal(<QuestCard quest={logQuest} busy={claim.isPending} onGo={() => onQuestGo(logQuest)} onClaim={() => claim.mutate(logQuest.questKey)} />, questListMount)}
     {dialogOpen && inBayou && <div className="fixed inset-0 z-[2147482000] flex items-center justify-center p-3" style={{ background: "rgba(2,10,7,.82)" }} onClick={() => setDialogOpen(false)}>
