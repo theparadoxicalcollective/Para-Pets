@@ -27,10 +27,15 @@ function fixture() {
   let coins = 100;
   let inventory: string[] = [];
   let failWallet = false;
+  let prizeSelectionReads = 0;
   let queue: Promise<unknown> = Promise.resolve();
   const tx = {
     async execute(query: any) {
       const { sql, params } = dialect.sqlToQuery(query);
+      if (sql.includes("SELECT key, value FROM game_settings")) {
+        prizeSelectionReads++;
+        return { rows: params.filter(key => settings.has(String(key))).map(key => ({ key, value: settings.get(String(key)) })) };
+      }
       if (sql.includes("SELECT value FROM game_settings")) return { rows: settings.has(String(params[0])) ? [{ value: settings.get(String(params[0])) }] : [] };
       if (sql.includes("FROM shop_items")) {
         const ticketId = String(params[0]);
@@ -72,12 +77,13 @@ function fixture() {
       return next;
     },
   };
-  return { tx, database: database as any, settings, options, state: () => ({ coins, inventory }), failWallet: () => { failWallet = true; }, setCoins: (value: number) => { coins = value; } };
+  return { tx, database: database as any, settings, options, state: () => ({ coins, inventory }), failWallet: () => { failWallet = true; }, setCoins: (value: number) => { coins = value; }, prizeSelectionReads: () => prizeSelectionReads };
 }
 
 test("admin selections persist independently and reopen with the exact saved eggs and items", async () => {
   const f = fixture();
   assert.equal((await getSlotPrizeCatalog(f.tx)).egg.length, 0);
+  assert.equal(f.prizeSelectionReads(), 1, "one settings query loads both prize selections");
   await saveSlotPrizeSelection(f.tx, "items", ["gift", "no-art-item"]);
   await saveSlotPrizeSelection(f.tx, "eggs", ["egg-a"]);
   const catalog = await getSlotPrizeCatalog(f.tx);
