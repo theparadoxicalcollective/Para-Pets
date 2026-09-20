@@ -671,8 +671,8 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
             decoding="async"
             className="pointer-events-none absolute z-[12] select-none object-contain"
             style={{
-              left: `${ARROW_LEFT}%`,
-              top: `${ARROW_TOP}%`,
+              left: `${layout.left + layout.size / 2 - ARROW_WIDTH / 2}%`,
+              top: `${layout.top - 4.9}%`,
               width: `${ARROW_WIDTH}%`,
               filter: "drop-shadow(0 0 7px rgba(255,205,92,.78)) drop-shadow(0 3px 5px rgba(0,0,0,.72))",
             }}
@@ -691,6 +691,12 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
             <span>{result.reward.message}</span>
           </div>
         )}
+        {state.isAdmin && <div className="mx-auto mb-2 flex max-w-xs items-center justify-center gap-2 text-[10px] text-amber-100/85">
+          <span className="mr-1">Drag wheel to align · Size</span>
+          <button type="button" aria-label="Make prize wheel smaller" disabled={layoutSaving || spinning || layout.size <= 55} onClick={() => resizeWheel(-1.5)} className="grid h-9 w-9 place-items-center rounded-full border border-amber-200/50 bg-black/70 disabled:opacity-40"><Minus className="h-4 w-4" /></button>
+          <button type="button" aria-label="Make prize wheel larger" disabled={layoutSaving || spinning || layout.size >= 78} onClick={() => resizeWheel(1.5)} className="grid h-9 w-9 place-items-center rounded-full border border-amber-200/50 bg-black/70 disabled:opacity-40"><Plus className="h-4 w-4" /></button>
+          {layoutSaving && <span role="status">Saving…</span>}
+        </div>}
         {error && <div className="mx-auto mb-2 max-w-md rounded-lg border border-rose-300/35 bg-rose-950/65 px-3 py-2 text-center text-xs text-rose-100">{error}</div>}
         <div className="mx-auto mb-2 max-w-md text-center text-[10px] leading-relaxed text-amber-100/75">{footerMessage}</div>
         <button
@@ -711,6 +717,8 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
           current={state.slots.find(slot => slot.slot === editorSlot)}
           options={options}
           optionsLoading={optionsLoading}
+          optionsError={optionsError}
+          onRetryOptions={() => setCatalogAttempt(value => value + 1)}
           onClose={() => setEditorSlot(null)}
           onSaved={updateState}
         />
