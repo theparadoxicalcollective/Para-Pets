@@ -44,15 +44,21 @@ export function parseSlotPrizeIds(value: unknown): string[] {
   return [...new Set(value)];
 }
 
-async function readPrizeSelection(executor: any, kind: SlotPrizeKind): Promise<string[] | null> {
-  const result = await executor.execute(sql`SELECT value FROM game_settings WHERE key = ${SETTING_KEYS[kind]} LIMIT 1`);
-  if (!result.rows.length) return null;
-  try {
-    return parseSlotPrizeIds(JSON.parse(String(result.rows[0].value)));
-  } catch {
-    // A corrupt selection must never enable unselected catalog prizes.
-    return [];
-  }
+async function readPrizeSelections(executor: any): Promise<{ items: string[] | null; eggs: string[] | null }> {
+  const result = await executor.execute(sql`
+    SELECT key, value FROM game_settings WHERE key IN (${SETTING_KEYS.items}, ${SETTING_KEYS.eggs})
+  `);
+  const saved = new Map(result.rows.map((row: any) => [String(row.key), row.value]));
+  const parse = (kind: SlotPrizeKind): string[] | null => {
+    if (!saved.has(SETTING_KEYS[kind])) return null;
+    try {
+      return parseSlotPrizeIds(JSON.parse(String(saved.get(SETTING_KEYS[kind]))));
+    } catch {
+      // A corrupt selection must never enable unselected catalog prizes.
+      return [];
+    }
+  };
+  return { items: parse("items"), eggs: parse("eggs") };
 }
 
 async function readPrizeOptions(executor: any, selection?: { itemIds: string[] | null; eggIds: string[] }): Promise<CasinoPrizeItem[]> {
@@ -73,9 +79,10 @@ async function readPrizeOptions(executor: any, selection?: { itemIds: string[] |
 }
 
 export async function getSlotPrizeOptions(executor: any) {
-  const [options, itemIds, eggIds] = await Promise.all([
-    readPrizeOptions(executor), readPrizeSelection(executor, "items"), readPrizeSelection(executor, "eggs"),
+  const [options, selections] = await Promise.all([
+    readPrizeOptions(executor), readPrizeSelections(executor),
   ]);
+  const { items: itemIds, eggs: eggIds } = selections;
   const items = options.filter(item => item.type !== "pet");
   const eggs = options.filter(item => item.type === "pet");
   // Preserve the previous item pool until an admin explicitly saves a selection.
@@ -86,7 +93,7 @@ export async function getSlotPrizeOptions(executor: any) {
 }
 
 export async function getSlotPrizeCatalog(executor: any): Promise<Record<HauntedSlotItemCategory, CasinoPrizeItem[]>> {
-  const [itemIds, eggIds] = await Promise.all([readPrizeSelection(executor, "items"), readPrizeSelection(executor, "eggs")]);
+  const { items: itemIds, eggs: eggIds } = await readPrizeSelections(executor);
   const options = await readPrizeOptions(executor, { itemIds, eggIds: eggIds ?? [] });
   return {
     edible: options.filter(item => item.type === "edibles"),
