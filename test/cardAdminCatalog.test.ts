@@ -83,19 +83,30 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
 });
 
 
-test("player-facing cards use brighter rarity stars, tiered sparkles, and swipe-to-turn lore", () => {
+test("detail cards confine smaller rarity sparkles to artwork and keep inventory cards plain", () => {
   assert.match(preview, /brightness\(1\.2\)/);
   assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*0[\s\S]*?3:\s*5[\s\S]*?4:\s*9[\s\S]*?5:\s*14/);
-  assert.match(preview, /data-testid="card-rarity-sparkles"/);
-  assert.match(preview, /translateZ\(34px\)/);
-  assert.match(preview, /circle \$\{Math\.max\(sparkle\.size \* 2\.6, 4\.2\)\}cqw/);
-  assert.doesNotMatch(preview, /radial-gradient\(circle [^`]*?\}% at/);
-  assert.match(preview, /<svg className="absolute inset-0 h-full w-full"/);
+  assert.match(preview, /showSparkles = false/);
+  assert.match(detail, /showSparkles/);
+  const artwork = preview.indexOf('data-testid="card-artwork-window"');
+  const sparkles = preview.indexOf('data-testid="card-rarity-sparkles"');
+  const border = preview.indexOf('alt={`${rarity}-star card border`}');
+  assert.ok(artwork >= 0 && artwork < sparkles && sparkles < border, "sparkles belong inside the artwork, behind the frame");
+  assert.match(preview, /const ray = sparkle\.size \* 0\.28/);
+  assert.match(preview, /cardArtworkTwinkle/);
+  assert.match(preview, /prefers-reduced-motion: reduce/);
+  assert.match(preview, /inset: depth3d \? "12% 7%" : "12% 10%"/);
+  assert.match(preview, /inset 0 0 24px 8px/);
+});
+
+test("card turn queues visual updates per frame and preserves fast swipe lore", () => {
   assert.match(detail, /data-testid="card-turn-surface"/);
+  assert.match(detail, /requestAnimationFrame/);
+  assert.match(detail, /cancelAnimationFrame/);
+  assert.match(detail, /ref=\{turnCardRef\}/);
+  assert.doesNotMatch(detail, /setTurnAngle/);
   assert.match(detail, /velocity >= 0\.35/);
   assert.match(detail, /gesture\.width \* 0\.1/);
-  assert.match(detail, /rotateY\(\$\{turnAngle\}deg\)/);
-  assert.match(detail, /depth3d/);
   assert.match(detail, /Drag left or right to turn the card\. Swipe quickly to read more\./);
   assert.doesNotMatch(detail, /onDescriptionClick=/);
 });
