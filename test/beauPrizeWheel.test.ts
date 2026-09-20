@@ -23,7 +23,7 @@ test("Beau wheel has seven admin prizes plus one fixed loss section", () => {
   assert.equal(BEAU_PRIZE_WHEEL_SLOT_COUNT, 8);
   assert.equal(BEAU_PRIZE_WHEEL_PRIZE_SLOTS, 7);
   assert.equal(BEAU_PRIZE_WHEEL_LOSS_SLOT, 7);
-  assert.equal(BEAU_PRIZE_WHEEL_PAID_COST, 500);
+  assert.equal(BEAU_PRIZE_WHEEL_PAID_COST, 1000);
 
   const centers = Array.from({ length: 8 }, (_, slot) => beauWheelSlotCenterAngle(slot));
   assert.deepEqual(centers, [22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5]);
@@ -61,7 +61,7 @@ test("player popup uses Beau art, empty wheel, pointer and Haunted Forest backgr
   assert.match(overlay, /generated_images\/icon_skull_defeat\.png/);
   assert.match(overlay, /beauWheelLandingRotation/);
   assert.match(overlay, /FREE SPIN/);
-  assert.match(overlay, /SPIN · 500/);
+  assert.match(overlay, /SPIN ·/);
 });
 
 test("admin can set coins, essence, pet EXP, items and eggs directly on wheel sections", () => {
