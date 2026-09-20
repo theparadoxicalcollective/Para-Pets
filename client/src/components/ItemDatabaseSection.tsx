@@ -1595,7 +1595,7 @@ export function ItemPickerModal({
 }) {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<"all" | ItemCategoryKey | "cards">("all");
-  const cardsEnabled = cards.length > 0 && !!onSelectCard;
+  const cardsEnabled = !!onSelectCard;
   const CARD_TAB = { key: "cards" as const, label: "Cards", color: "#f6d365" };
   const ALL_TABS = [
     { key: "all" as const, label: "All", color: "#a89878" },
