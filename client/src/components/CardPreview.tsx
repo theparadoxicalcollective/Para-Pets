@@ -78,6 +78,11 @@ export default function CardPreview({
 }: CardPreviewProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
+  const sparkleBackground = RARITY_SPARKLE_COUNT[rarity] > 0
+    ? CARD_SPARKLE_POINTS.slice(0, RARITY_SPARKLE_COUNT[rarity])
+        .map((sparkle) => `radial-gradient(circle ${sparkle.size}% at ${sparkle.left}% ${sparkle.top}%, #fffdf0 0 10%, #ffe68a 22%, rgba(255,190,52,.82) 46%, rgba(255,190,52,0) 74%)`)
+        .join(", ")
+    : undefined;
 
   const fieldMetrics = (field: CardLayoutField) => field === "name"
     ? { x: layout.nameX, y: layout.nameY, width: layout.nameWidth, height: layout.nameHeight }
@@ -294,39 +299,23 @@ export default function CardPreview({
           style={{ width: `${100 / rarity}%`, height: "100%", objectFit: "contain", pointerEvents: "none",
             filter: "brightness(1.2) saturate(1.12) drop-shadow(0 0 2px rgba(255,245,190,.95)) drop-shadow(0 0 6px rgba(255,196,54,.82)) drop-shadow(0 1px 2px rgba(0,0,0,.78))" }} />)}
       </div>
-      {RARITY_SPARKLE_COUNT[rarity] > 0 && (
+      {sparkleBackground && (
         <div
           data-testid="card-rarity-sparkles"
           aria-hidden="true"
+          className="absolute animate-pulse"
           style={{
-            position: "absolute",
             inset: 0,
             zIndex: 5,
             pointerEvents: "none",
             overflow: "hidden",
+            backgroundImage: sparkleBackground,
+            filter: "drop-shadow(0 0 4px rgba(255,225,120,.66))",
+            animationDuration: rarity === 5 ? "2.2s" : rarity === 4 ? "2.7s" : "3.2s",
             transform: depth3d ? "translateZ(23px)" : undefined,
             backfaceVisibility: "hidden",
           }}
-        >
-          {CARD_SPARKLE_POINTS.slice(0, RARITY_SPARKLE_COUNT[rarity]).map((sparkle, index) => (
-            <span
-              key={index}
-              className="absolute animate-pulse"
-              style={{
-                left: `${sparkle.left}%`,
-                top: `${sparkle.top}%`,
-                width: `${sparkle.size}%`,
-                aspectRatio: "1",
-                transform: "translate(-50%, -50%) rotate(45deg)",
-                borderRadius: "22%",
-                background: "radial-gradient(circle at 35% 35%, #fffdf0 0 12%, #ffe68a 22%, rgba(255,190,52,.82) 45%, rgba(255,190,52,0) 72%)",
-                boxShadow: "0 0 5px rgba(255,225,120,.9), 0 0 10px rgba(255,185,45,.5)",
-                animationDuration: `${2.1 + (index % 4) * 0.45}s`,
-                animationDelay: `-${sparkle.delay}s`,
-              }}
-            />
-          ))}
-        </div>
+        />
       )}
     </div>
   );
