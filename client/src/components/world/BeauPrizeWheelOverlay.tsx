@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Check, Coins, Gem, Pencil, Plus, Search, Sparkles, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { Check, Coins, Gem, Minus, Pencil, Plus, Search, Sparkles, X } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import {
   BEAU_PRIZE_WHEEL_PAID_COST,
+  DEFAULT_BEAU_WHEEL_LAYOUT,
   BEAU_PRIZE_WHEEL_PRIZE_SLOTS,
   beauWheelLandingRotation,
   beauWheelSlotCenterAngle,
   type BeauPrizeKind,
+  type BeauWheelLayout,
   type BeauPrizeView,
 } from "@shared/beauPrizeWheel";
 
@@ -20,6 +22,7 @@ const essenceIcon = "/world-assets/Photoroom_20260709_23958_PM_1783626016795.png
 
 export interface WheelState {
   ready: boolean;
+  layout: BeauWheelLayout;
   slots: BeauPrizeView[];
   requiresActivePet: boolean;
   activePetReady: boolean;
@@ -64,11 +67,7 @@ interface Props {
   onStateChange?: (state: WheelState) => void;
 }
 
-const WHEEL_LEFT = 28.9;
-const WHEEL_TOP = 35.15;
-const WHEEL_SIZE = 62.8;
-const ARROW_LEFT = 54.7;
-const ARROW_TOP = 30.25;
+const WHEEL_STAGE_RATIO = 1122 / 1402;
 const ARROW_WIDTH = 11;
 
 function slotPosition(slot: number) {
@@ -183,6 +182,8 @@ function PrizeEditor({
   slot,
   options,
   optionsLoading,
+  optionsError,
+  onRetryOptions,
   current,
   onClose,
   onSaved,
@@ -190,6 +191,8 @@ function PrizeEditor({
   slot: number;
   options: PrizeOptions | null;
   optionsLoading: boolean;
+  optionsError: string;
+  onRetryOptions: () => void;
   current: BeauPrizeView | undefined;
   onClose: () => void;
   onSaved: (state: WheelState) => void;
@@ -205,8 +208,8 @@ function PrizeEditor({
   const catalog = kind === "egg" ? options?.eggs ?? [] : kind === "item" ? options?.items ?? [] : [];
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return catalog.slice(0, 80);
-    return catalog.filter(item => item.name.toLowerCase().includes(query) || item.type.toLowerCase().includes(query)).slice(0, 80);
+    if (!query) return catalog;
+    return catalog.filter(item => item.name.toLowerCase().includes(query) || item.type.toLowerCase().includes(query));
   }, [catalog, search]);
 
   const selected = catalog.find(item => item.id === shopItemId);
@@ -328,9 +331,15 @@ function PrizeEditor({
                   className="w-full rounded-xl border border-amber-200/25 bg-black/35 py-3 pl-9 pr-3 text-sm text-amber-50 outline-none placeholder:text-amber-100/30"
                 />
               </div>
+              <div className="mt-2 text-[10px] text-amber-100/65">{optionsLoading ? "Loading…" : `${filtered.length} of ${catalog.length} available prizes`}</div>
               <div className="mt-2 grid max-h-[310px] grid-cols-2 gap-2 overflow-y-auto pr-1">
                 {optionsLoading ? (
                   <div className="col-span-2 py-8 text-center text-xs text-amber-100/45">Loading prize catalog…</div>
+                ) : optionsError ? (
+                  <div role="alert" className="col-span-2 py-6 text-center text-xs text-rose-200">
+                    {optionsError}
+                    <button type="button" onClick={onRetryOptions} className="mx-auto mt-3 block min-h-10 rounded-lg border border-amber-200/50 px-4 text-amber-100">Try again</button>
+                  </div>
                 ) : filtered.length ? filtered.map(item => (
                   <button
                     key={item.id}
@@ -352,7 +361,7 @@ function PrizeEditor({
                     {shopItemId === item.id && <Check className="absolute right-2 top-2 h-3.5 w-3.5 text-emerald-300" />}
                   </button>
                 )) : (
-                  <div className="col-span-2 py-8 text-center text-xs text-amber-100/45">No matching prizes found.</div>
+                  <div className="col-span-2 py-8 text-center text-xs text-amber-100/45">{catalog.length ? "No prizes match your search." : "No eligible game items found."}</div>
                 )}
               </div>
               {selected && <div className="mt-2 text-center text-[10px] text-emerald-200/75">Selected: {selected.name}</div>}
@@ -389,6 +398,13 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
   const [editorSlot, setEditorSlot] = useState<number | null>(null);
   const [options, setOptions] = useState<PrizeOptions | null>(null);
   const [optionsLoading, setOptionsLoading] = useState(false);
+  const [optionsError, setOptionsError] = useState("");
+  const [catalogAttempt, setCatalogAttempt] = useState(0);
+  const [layout, setLayout] = useState<BeauWheelLayout>(initialState.layout ?? DEFAULT_BEAU_WHEEL_LAYOUT);
+  const [layoutSaving, setLayoutSaving] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const layoutRef = useRef(layout);
+  const dragRef = useRef<{ pointerId: number; x: number; y: number; original: BeauWheelLayout } | null>(null);
   const [error, setError] = useState("");
   const [result, setResult] = useState<SpinResult | null>(null);
   const resultTimerRef = useRef<number | null>(null);
@@ -409,19 +425,97 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
   }, []);
 
   useEffect(() => {
-    if (!state.isAdmin || editorSlot === null || options || optionsLoading) return;
+    if (!state.isAdmin || editorSlot === null || options) return;
     let cancelled = false;
     setOptionsLoading(true);
+    setOptionsError("");
     void fetch("/api/admin/beau-prize-wheel/options", { credentials: "include", cache: "no-store" })
       .then(async response => {
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body?.message || "Prize catalog could not be loaded.");
+        if (!Array.isArray(body.items) || !Array.isArray(body.eggs)) throw new Error("Prize catalog returned an invalid response.");
         if (!cancelled) setOptions(body as PrizeOptions);
       })
-      .catch(reason => { if (!cancelled) setError(reason instanceof Error ? reason.message : "Prize catalog could not be loaded."); })
+      .catch(reason => { if (!cancelled) setOptionsError(reason instanceof Error ? reason.message : "Prize catalog could not be loaded."); })
       .finally(() => { if (!cancelled) setOptionsLoading(false); });
     return () => { cancelled = true; };
-  }, [editorSlot, options, optionsLoading, state.isAdmin]);
+  }, [editorSlot, catalogAttempt, state.isAdmin]);
+
+  const saveLayout = async (next: BeauWheelLayout, previous: BeauWheelLayout) => {
+    setLayoutSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/beau-prize-wheel/layout", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body?.message || "Wheel placement could not be saved.");
+      layoutRef.current = body.layout as BeauWheelLayout;
+      setLayout(body.layout as BeauWheelLayout);
+      onStateChange?.({ ...state, layout: body.layout as BeauWheelLayout });
+    } catch (reason) {
+      layoutRef.current = previous;
+      setLayout(previous);
+      setError(reason instanceof Error ? reason.message : "Wheel placement could not be saved.");
+    } finally {
+      setLayoutSaving(false);
+    }
+  };
+
+  const resizeWheel = (delta: number) => {
+    if (!state.isAdmin || spinning || layoutSaving) return;
+    const previous = layoutRef.current;
+    const size = Math.max(55, Math.min(78, previous.size + delta));
+    const next = {
+      size,
+      left: Math.max(0, Math.min(100 - size, previous.left - (size - previous.size) / 2)),
+      top: Math.max(0, Math.min(100 - size * WHEEL_STAGE_RATIO,
+        previous.top - (size - previous.size) * WHEEL_STAGE_RATIO / 2)),
+    };
+    layoutRef.current = next;
+    setLayout(next);
+    void saveLayout(next, previous);
+  };
+
+  const onWheelPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!state.isAdmin || spinning || layoutSaving || (event.target instanceof Element && event.target.closest("button"))) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, original: layoutRef.current };
+  };
+  const onWheelPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!drag || drag.pointerId !== event.pointerId || !rect?.width || !rect?.height) return;
+    const size = drag.original.size;
+    const next = {
+      ...drag.original,
+      left: Math.max(0, Math.min(100 - size, drag.original.left + (event.clientX - drag.x) / rect.width * 100)),
+      top: Math.max(0, Math.min(100 - size * WHEEL_STAGE_RATIO,
+        drag.original.top + (event.clientY - drag.y) / rect.height * 100)),
+    };
+    layoutRef.current = next;
+    setLayout(next);
+  };
+  const onWheelPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    try { event.currentTarget.releasePointerCapture(event.pointerId); } catch {}
+    const next = layoutRef.current;
+    if (Math.abs(next.left - drag.original.left) > .05 || Math.abs(next.top - drag.original.top) > .05) {
+      void saveLayout(next, drag.original);
+    }
+  };
+  const onWheelPointerCancel = () => {
+    if (!dragRef.current) return;
+    layoutRef.current = dragRef.current.original;
+    setLayout(dragRef.current.original);
+    dragRef.current = null;
+  };
 
   const configuredCount = state.slots.filter(slot => slot.slot < BEAU_PRIZE_WHEEL_PRIZE_SLOTS && slot.configured).length;
   const canAfford = state.freeSpinAvailable || state.balances.coins >= BEAU_PRIZE_WHEEL_PAID_COST;
@@ -531,6 +625,7 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
 
       <main className="relative z-[2] flex min-h-0 w-full flex-1 flex-col items-center justify-center px-1">
         <div
+          ref={stageRef}
           className="relative shrink-0"
           style={{ width: "min(96vw, 720px, calc((100dvh - 170px) * .8003))", aspectRatio: "1122 / 1402" }}
           data-testid="beau-prize-wheel-stage"
@@ -539,7 +634,12 @@ export default function BeauPrizeWheelOverlay({ initialState, onClose, onStateCh
 
           <div
             className="absolute"
-            style={{ left: `${WHEEL_LEFT}%`, top: `${WHEEL_TOP}%`, width: `${WHEEL_SIZE}%`, aspectRatio: "1 / 1" }}
+            data-testid="beau-prize-wheel-placement"
+            onPointerDown={onWheelPointerDown}
+            onPointerMove={onWheelPointerMove}
+            onPointerUp={onWheelPointerUp}
+            onPointerCancel={onWheelPointerCancel}
+            style={{ left: `${layout.left}%`, top: `${layout.top}%`, width: `${layout.size}%`, aspectRatio: "1 / 1", touchAction: state.isAdmin ? "none" : undefined, cursor: state.isAdmin && !spinning ? "grab" : undefined }}
           >
             <div
               className="absolute inset-0"
