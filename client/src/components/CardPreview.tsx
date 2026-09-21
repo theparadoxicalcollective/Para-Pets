@@ -39,7 +39,8 @@ const RARITY_TEXT_STYLES: Record<CardRarity, { name: string; description: string
   5: { name: "#7a3d18", description: "#7f5528" },
 };
 
-const DETAIL_TITLE_Y_NUDGE: Partial<Record<CardRarity, number>> = {
+// Use the same title position at every card size, including the collection grid.
+const TITLE_Y_NUDGE: Partial<Record<CardRarity, number>> = {
   2: .75,
   3: .9,
 };
@@ -217,19 +218,23 @@ export default function CardPreview({
     const highRarityTitle = isName && rarity >= 4;
     const curvedTitle = isName && (layout.nameCurve ?? 0) > 0;
     const metrics = fieldMetrics(field);
-    const detailTitleYNudge = isName && textSize === "detail"
-      ? (DETAIL_TITLE_Y_NUDGE[rarity] ?? 0)
+    const titleYNudge = isName && !editable && textSize !== "scaled"
+      ? (TITLE_Y_NUDGE[rarity] ?? 0)
       : 0;
     const selected = editable && selectedField === field;
     const clickable = !editable && !isName && !!onDescriptionClick;
     const rarityTextStyle = RARITY_TEXT_STYLES[rarity];
     // Saved font sizes describe a 240px-wide card, rather than fixed screen pixels.
     const relativeFontSize = `${(isName ? layout.nameFontSize : layout.descriptionFontSize) / 240 * 100}cqw`;
-    const fontSize = textSize === "detail"
-      ? `clamp(${isName ? 20 : 16}px, ${relativeFontSize}, ${isName ? 30 : 22}px)`
-      : textSize === "inventory"
-        ? `clamp(${isName ? 8 : 6}px, ${relativeFontSize}, ${isName ? 12 : 9}px)`
-        : relativeFontSize;
+    // Title limits scale with the card, so the grid is a smaller rendering of
+    // the detail title rather than a separate pixel-sized layout.
+    const fontSize = isName && (textSize === "detail" || textSize === "inventory")
+      ? `clamp(5cqw, ${relativeFontSize}, 7.5cqw)`
+      : textSize === "detail"
+        ? `clamp(16px, ${relativeFontSize}, 22px)`
+        : textSize === "inventory"
+          ? `clamp(6px, ${relativeFontSize}, 9px)`
+          : relativeFontSize;
     const minimumFontSize = textSize === "detail" ? (isName ? 16 : 14)
       : textSize === "inventory" ? (isName ? 7 : 6) : undefined;
     return (
@@ -253,7 +258,7 @@ export default function CardPreview({
         style={{
           position: "absolute",
           left: `${metrics.x}%`,
-          top: `${metrics.y + detailTitleYNudge}%`,
+          top: `${metrics.y + titleYNudge}%`,
           width: `${metrics.width}%`,
           height: `${metrics.height}%`,
           zIndex: 4,
