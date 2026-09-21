@@ -144,8 +144,8 @@ function ArtworkEffectColorPicker({ src, color, pickerX, pickerY, onChange, onAu
   return (
     <div data-testid="card-effect-color-picker" className="space-y-2 rounded-xl p-3" style={panelStyle}>
       <div>
-        <p className="font-fantasy text-[9px] tracking-wider text-[#ddc175]">CARD EFFECT COLOR</p>
-        <p className="mt-1 text-[9px] leading-4 text-white/45">Drag the picker over this card's artwork. This color is saved to this card only and never changes the rarity border.</p>
+        <p className="font-fantasy text-[9px] tracking-wider text-[#ddc175]">ARTWORK SWIRL COLOR</p>
+        <p className="mt-1 text-[9px] leading-4 text-white/45">Drag the picker over this card's artwork to color its magical swirls. The gold border and title shine stay the same.</p>
       </div>
       <div
         className="relative mx-auto w-full max-w-[210px] overflow-hidden rounded-lg"
@@ -182,14 +182,14 @@ function ArtworkEffectColorPicker({ src, color, pickerX, pickerY, onChange, onAu
       <div className="grid grid-cols-[52px_1fr_auto] items-center gap-2">
         <input
           data-testid="input-card-effect-color"
-          aria-label="Card effect color"
+          aria-label="Artwork swirl color"
           type="color"
           value={color || "#FFF0B6"}
           onChange={(event) => onChange(event.target.value.toUpperCase(), pickerX, pickerY)}
           className="h-10 w-[52px] rounded-lg border-0 bg-transparent p-0"
         />
         <div className="rounded-lg px-3 py-2 text-center font-mono text-[10px] text-[#f5deb0]" style={{ background: "#0a1710", border: "1px solid rgba(224,181,74,.25)" }}>
-          {color || "RARITY DEFAULT"}
+          {color || "DEFAULT SWIRL"}
         </div>
         <button type="button" data-testid="button-auto-card-effect-color" onClick={onAuto} className="h-10 rounded-lg px-3 font-fantasy text-[8px] text-[#f8e7b0] active:scale-95" style={{ background: "rgba(118,76,10,.24)", border: "1px solid rgba(224,181,74,.4)" }}>
           Auto
