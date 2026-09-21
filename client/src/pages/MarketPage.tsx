@@ -368,7 +368,14 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
     refetchInterval: 15000,
   });
 
-  const myListingsQuery = useQuery<Listing[]>({ queryKey: ["/api/market/my-listings"], enabled: activeTab === "myshop" });
+  const myListingsQuery = useQuery<Listing[]>({
+    queryKey: ["/api/market/my-listings"],
+    enabled: activeTab === "myshop",
+    staleTime: 0,
+    refetchInterval: activeTab === "myshop" ? 5000 : false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+  });
   const inventoryQuery = useQuery<InventoryItem[]>({ queryKey: ["/api/inventory"], enabled: showSellModal });
   const fishInventoryQuery = useQuery<FishItem[]>({ queryKey: ["/api/fishing/inventory"], enabled: showSellModal });
 
@@ -377,14 +384,33 @@ export default function MarketPage({ user, onUserUpdate }: { user: any; onUserUp
   const listPetMutation = useMutation({ mutationFn: ({ inventoryId, price }: { inventoryId: string; price: number }) => apiRequest("POST", "/api/market/list-pet", { inventoryId, price }), onSuccess: () => { setShowSellModal(false); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/user/equipped-accessory-ids"] }); toast({ title: "Pet listed!", description: "Your pet is safely held by the market until it is bought or returned." }); }, onError: (e: any) => toast({ title: "Failed to list pet", description: e.message, variant: "destructive" }) });
   const buyMutation = useMutation({ mutationFn: (listingId: string) => apiRequest("POST", `/api/market/${listingId}/buy`, {}), onSuccess: async () => { setDetailTarget(null); queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); const updatedUser = await fetch("/api/auth/me").then(r => r.json()); onUserUpdate?.(updatedUser); playChime(); toast({ title: "Purchase complete!", description: "Check your inventory." }); }, onError: (e: any) => { queryClient.invalidateQueries({ queryKey: ["/api/market"] }); toast({ title: "Purchase failed", description: e.message, variant: "destructive" }); } });
   const collectMutation = useMutation({
-    mutationFn: (listingId: string) => apiRequest("POST", `/api/market/${listingId}/collect`, {}),
-    onSuccess: async (data: any) => {
+    mutationFn: async (listingId: string) => {
+      const response = await apiRequest("POST", `/api/market/${listingId}/collect`, {});
+      return await response.json() as { coinsEarned: number; newBalance: number };
+    },
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
-      const updatedUser = await fetch("/api/auth/me").then(r => r.json());
-      onUserUpdate?.(updatedUser);
+
+      const currentUser = queryClient.getQueryData<any>(["/api/auth/me"]) ?? user;
+      if (currentUser) {
+        const updatedUser = {
+          ...currentUser,
+          coins: data.newBalance,
+          totalCoinsEarned: typeof currentUser.totalCoinsEarned === "number"
+            ? currentUser.totalCoinsEarned + data.coinsEarned
+            : currentUser.totalCoinsEarned,
+        };
+        queryClient.setQueryData(["/api/auth/me"], updatedUser);
+        onUserUpdate?.(updatedUser);
+      }
+
+      playChime();
       toast({ title: `+${formatCoins(data.coinsEarned)} coins collected!` });
     },
-    onError: (e: any) => toast({ title: "Failed to collect", description: e.message, variant: "destructive" }),
+    onError: (e: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] });
+      toast({ title: "Failed to collect", description: e.message, variant: "destructive" });
+    },
   });
   const cancelMutation = useMutation({ mutationFn: (listingId: string) => apiRequest("DELETE", `/api/market/${listingId}`, {}), onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/market"] }); queryClient.invalidateQueries({ queryKey: ["/api/market/my-listings"] }); queryClient.invalidateQueries({ queryKey: ["/api/inventory"] }); queryClient.invalidateQueries({ queryKey: ["/api/fishing/inventory"] }); toast({ title: "Listing cancelled", description: "Your item is back in inventory." }); }, onError: (e: any) => toast({ title: "Failed to cancel", description: e.message, variant: "destructive" }) });
   const buySlotMutation = useMutation({ mutationFn: () => apiRequest("POST", "/api/market/buy-slot", {}), onSuccess: async () => { const updatedUser = await fetch("/api/auth/me").then(r => r.json()); onUserUpdate?.(updatedUser); toast({ title: "New slot unlocked!" }); }, onError: (e: any) => toast({ title: "Failed to buy slot", description: e.message, variant: "destructive" }) });
