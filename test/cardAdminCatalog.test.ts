@@ -62,6 +62,30 @@ test("card text editor uses simple nudge, center, size, and title-only curve con
   assert.match(fittedText, /overflow: curve > 0 \? "visible" : "hidden"/);
 });
 
+test("admin can pick and persist an effect color per card artwork", () => {
+  assert.match(catalog, /effectColor\?: string \| null/);
+  assert.match(adminPanel, /data-testid="card-effect-color-picker"/);
+  assert.match(adminPanel, /data-testid="card-effect-color-picker-dot"/);
+  assert.match(adminPanel, /data-testid="input-card-effect-color"/);
+  assert.match(adminPanel, /data-testid="button-auto-card-effect-color"/);
+  assert.match(adminPanel, /suggestArtworkEffectColor/);
+  assert.match(adminPanel, /Drag the picker over this card's artwork/);
+  assert.match(adminPanel, /saved to this card only and never changes the rarity border/);
+  assert.match(adminPanel, /effectColor: form\.effectColor \|\| null/);
+  assert.match(routes, /effectColor: row\.effect_color \?\? null/);
+  assert.match(routes, /effectColorText\(req\.body\?\.effectColor\)/);
+  assert.match(routes, /INSERT INTO card_definitions \(name, description, second_description, artwork_url, effect_color, rarity\)/);
+  assert.match(routes, /const hasEffectColor = Object\.prototype\.hasOwnProperty\.call\(req\.body \?\? \{\}, "effectColor"\)/);
+  assert.match(routes, /effect_color = CASE WHEN \$\{hasEffectColor\} THEN \$\{effectColor\} ELSE effect_color END/);
+  assert.match(boot, /ALTER TABLE card_definitions ADD COLUMN IF NOT EXISTS effect_color TEXT/);
+  assert.match(preview, /effectColor\?: string \| null/);
+  assert.match(preview, /const customEffectColor = normalizeEffectColor\(effectColor\)/);
+  assert.match(preview, /stopColor=\{activeEffectColor\}/);
+  assert.match(preview, /backgroundImage: borderGlowBackground/);
+  assert.match(detail, /effectColor=\{card\.effectColor\}/);
+  assert.match(collection, /effectColor=\{card\.effectColor\}/);
+});
+
 test("card APIs are admin-protected and durable", () => {
   assert.match(routeRegistry, /registerCardAdminRoutes\(app, \{ db, isAdmin, processCardImage: processWorldImage \}\)/);
   for (const path of [
@@ -102,6 +126,9 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
     () => cardAdminValidation.parseLayout({ ...valid, descriptionY: 90 }),
     /inside the card/,
   );
+  assert.equal(cardAdminValidation.effectColorText("#1aB2c3"), "#1AB2C3");
+  assert.equal(cardAdminValidation.effectColorText(null), null);
+  assert.throws(() => cardAdminValidation.effectColorText("blue"), /6-digit hex color/);
 });
 
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, LayoutTemplate, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
@@ -21,6 +21,9 @@ interface CardFormState {
   rarity: CardRarity;
   artworkData: string;
   artworkPreview: string;
+  effectColor: string;
+  effectPickerX: number;
+  effectPickerY: number;
 }
 
 const EMPTY_FORM: CardFormState = {
@@ -30,6 +33,9 @@ const EMPTY_FORM: CardFormState = {
   rarity: 1,
   artworkData: "",
   artworkPreview: "",
+  effectColor: "",
+  effectPickerX: 50,
+  effectPickerY: 50,
 };
 
 const panelStyle = {
@@ -47,6 +53,150 @@ function readImage(file: File): Promise<string> {
     reader.onerror = () => reject(new Error("Could not read image"));
     reader.readAsDataURL(file);
   });
+}
+
+
+function rgbToHex(red: number, green: number, blue: number): string {
+  return `#${[red, green, blue].map(value => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+}
+
+async function suggestArtworkEffectColor(src: string): Promise<{ color: string; x: number; y: number }> {
+  const image = new Image();
+  if (!src.startsWith("data:")) image.crossOrigin = "anonymous";
+  image.decoding = "async";
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error("Could not sample artwork"));
+    image.src = src;
+  });
+
+  const size = 28;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("Color sampling is unavailable");
+  context.drawImage(image, 0, 0, size, size);
+  const pixels = context.getImageData(0, 0, size, size).data;
+
+  let best = { score: -1, color: "#FFF0B6", x: 50, y: 50 };
+  for (let y = 1; y < size - 1; y++) {
+    for (let x = 1; x < size - 1; x++) {
+      const index = (y * size + x) * 4;
+      const alpha = pixels[index + 3] / 255;
+      if (alpha < .75) continue;
+      const red = pixels[index] / 255;
+      const green = pixels[index + 1] / 255;
+      const blue = pixels[index + 2] / 255;
+      const max = Math.max(red, green, blue);
+      const min = Math.min(red, green, blue);
+      const saturation = max === 0 ? 0 : (max - min) / max;
+      const luminance = red * .2126 + green * .7152 + blue * .0722;
+      if (luminance < .16 || luminance > .94) continue;
+      const centerBias = 1 - Math.min(1, Math.hypot(x - size / 2, y - size / 2) / (size * .72));
+      const score = saturation * 1.35 + (1 - Math.abs(luminance - .58)) * .42 + centerBias * .08;
+      if (score > best.score) {
+        best = {
+          score,
+          color: rgbToHex(pixels[index], pixels[index + 1], pixels[index + 2]),
+          x: ((x + .5) / size) * 100,
+          y: ((y + .5) / size) * 100,
+        };
+      }
+    }
+  }
+  return { color: best.color, x: best.x, y: best.y };
+}
+
+function ArtworkEffectColorPicker({ src, color, pickerX, pickerY, onChange, onAuto }: {
+  src: string;
+  color: string;
+  pickerX: number;
+  pickerY: number;
+  onChange: (color: string, x: number, y: number) => void;
+  onAuto: () => void;
+}) {
+  const imageRef = useRef<HTMLImageElement>(null);
+  const draggingRef = useRef(false);
+
+  const sampleAt = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const image = imageRef.current;
+    if (!image?.complete || !image.naturalWidth || !image.naturalHeight) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const normalizedX = Math.max(0, Math.min(1, (event.clientX - bounds.left) / Math.max(bounds.width, 1)));
+    const normalizedY = Math.max(0, Math.min(1, (event.clientY - bounds.top) / Math.max(bounds.height, 1)));
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return;
+    try {
+      const sourceX = Math.min(image.naturalWidth - 1, Math.floor(normalizedX * image.naturalWidth));
+      const sourceY = Math.min(image.naturalHeight - 1, Math.floor(normalizedY * image.naturalHeight));
+      context.drawImage(image, sourceX, sourceY, 1, 1, 0, 0, 1, 1);
+      const pixel = context.getImageData(0, 0, 1, 1).data;
+      onChange(rgbToHex(pixel[0], pixel[1], pixel[2]), normalizedX * 100, normalizedY * 100);
+    } catch {
+      // Existing remote artwork without CORS can still use the manual color input.
+    }
+  };
+
+  return (
+    <div data-testid="card-effect-color-picker" className="space-y-2 rounded-xl p-3" style={panelStyle}>
+      <div>
+        <p className="font-fantasy text-[9px] tracking-wider text-[#ddc175]">CARD EFFECT COLOR</p>
+        <p className="mt-1 text-[9px] leading-4 text-white/45">Drag the picker over this card's artwork. This color is saved to this card only and never changes the rarity border.</p>
+      </div>
+      <div
+        className="relative mx-auto w-full max-w-[210px] overflow-hidden rounded-lg"
+        style={{ touchAction: "none", border: "1px solid rgba(224,181,74,.35)" }}
+        onPointerDown={(event) => {
+          draggingRef.current = true;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          sampleAt(event);
+        }}
+        onPointerMove={(event) => {
+          if (draggingRef.current) sampleAt(event);
+        }}
+        onPointerUp={(event) => {
+          sampleAt(event);
+          draggingRef.current = false;
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+        }}
+        onPointerCancel={() => { draggingRef.current = false; }}
+      >
+        <img ref={imageRef} src={src} crossOrigin={src.startsWith("data:") ? undefined : "anonymous"} alt="" draggable={false} className="block h-auto w-full select-none" />
+        <span
+          aria-hidden="true"
+          data-testid="card-effect-color-picker-dot"
+          className="pointer-events-none absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{
+            left: `${pickerX}%`,
+            top: `${pickerY}%`,
+            background: color || "#FFF0B6",
+            border: "2px solid white",
+            boxShadow: "0 0 0 2px rgba(0,0,0,.7), 0 0 10px rgba(255,255,255,.7)",
+          }}
+        />
+      </div>
+      <div className="grid grid-cols-[52px_1fr_auto] items-center gap-2">
+        <input
+          data-testid="input-card-effect-color"
+          aria-label="Card effect color"
+          type="color"
+          value={color || "#FFF0B6"}
+          onChange={(event) => onChange(event.target.value.toUpperCase(), pickerX, pickerY)}
+          className="h-10 w-[52px] rounded-lg border-0 bg-transparent p-0"
+        />
+        <div className="rounded-lg px-3 py-2 text-center font-mono text-[10px] text-[#f5deb0]" style={{ background: "#0a1710", border: "1px solid rgba(224,181,74,.25)" }}>
+          {color || "RARITY DEFAULT"}
+        </div>
+        <button type="button" data-testid="button-auto-card-effect-color" onClick={onAuto} className="h-10 rounded-lg px-3 font-fantasy text-[8px] text-[#f8e7b0] active:scale-95" style={{ background: "rgba(118,76,10,.24)", border: "1px solid rgba(224,181,74,.4)" }}>
+          Auto
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default function CardAdminPanel() {
@@ -93,6 +243,7 @@ export default function CardAdminPanel() {
         secondDescription: form.secondDescription,
         rarity: form.rarity,
         artworkData: form.artworkData || undefined,
+        effectColor: form.effectColor || null,
       };
       const response = editingCard
         ? await apiRequest("PATCH", `/api/admin/cards/${editingCard.id}`, body)
@@ -167,6 +318,9 @@ export default function CardAdminPanel() {
       rarity: card.rarity,
       artworkData: "",
       artworkPreview: card.artworkUrl,
+      effectColor: card.effectColor ?? "",
+      effectPickerX: 50,
+      effectPickerY: 50,
     });
     setShowForm(true);
   };
@@ -181,6 +335,14 @@ export default function CardAdminPanel() {
     try {
       const data = await readImage(file);
       setForm((current) => ({ ...current, artworkData: data, artworkPreview: data }));
+      try {
+        const suggestion = await suggestArtworkEffectColor(data);
+        setForm((current) => current.artworkPreview === data
+          ? { ...current, effectColor: suggestion.color, effectPickerX: suggestion.x, effectPickerY: suggestion.y }
+          : current);
+      } catch {
+        // The movable picker and manual color control remain available.
+      }
     } catch (error: any) {
       toast({ title: "Could not read artwork", description: error?.message, variant: "destructive" });
     } finally {
@@ -327,6 +489,7 @@ export default function CardAdminPanel() {
                     <CardPreview
                       rarity={card.rarity}
                       artworkUrl={card.artworkUrl}
+                      effectColor={card.effectColor}
                       name={card.name}
                       description={card.description}
                       layout={getCardBorderLayout(layouts, card.rarity)}
@@ -583,9 +746,11 @@ export default function CardAdminPanel() {
               <CardPreview
                 rarity={form.rarity}
                 artworkUrl={form.artworkPreview}
+                effectColor={form.effectColor || null}
                 name={form.name || "Card Name"}
                 description={form.description || "Card description"}
                 layout={getCardBorderLayout(layouts, form.rarity)}
+                showSparkles
               />
             </div>
 
@@ -597,6 +762,20 @@ export default function CardAdminPanel() {
                   <input data-testid="input-card-artwork" type="file" accept="image/*" onChange={onArtwork} className="sr-only" />
                 </span>
               </label>
+              {form.artworkPreview && (
+                <ArtworkEffectColorPicker
+                  src={form.artworkPreview}
+                  color={form.effectColor}
+                  pickerX={form.effectPickerX}
+                  pickerY={form.effectPickerY}
+                  onChange={(effectColor, effectPickerX, effectPickerY) => setForm((current) => ({ ...current, effectColor, effectPickerX, effectPickerY }))}
+                  onAuto={() => {
+                    void suggestArtworkEffectColor(form.artworkPreview).then((suggestion) => {
+                      setForm((current) => ({ ...current, effectColor: suggestion.color, effectPickerX: suggestion.x, effectPickerY: suggestion.y }));
+                    }).catch(() => undefined);
+                  }}
+                />
+              )}
               <label className="block">
                 <span className="mb-1 block font-fantasy text-[9px] tracking-wider text-[#ddc175]">NAME</span>
                 <input data-testid="input-card-name" maxLength={80} value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none" style={{ color: "#fff0bd", background: "#0a1710", border: "1px solid rgba(224,181,74,.3)" }} />

@@ -138,6 +138,7 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
                   textSize="detail"
                   rarity={card.rarity}
                   artworkUrl={card.artworkUrl}
+                  effectColor={card.effectColor}
                   name={card.name}
                   description={card.description}
                   layout={getCardBorderLayout(layouts, card.rarity)}
