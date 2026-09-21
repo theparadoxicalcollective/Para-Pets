@@ -73,7 +73,7 @@ export default function CardFittedText({ text, preferredFontSize, minimumFontSiz
       WebkitBoxOrient: "vertical",
       width: "100%",
       flexShrink: 0,
-      overflow: "hidden",
+      overflow: curve > 0 ? "visible" : "hidden",
       overflowWrap: curve > 0 ? "normal" : "anywhere",
       whiteSpace: curve > 0 ? "nowrap" : "normal",
     }}
