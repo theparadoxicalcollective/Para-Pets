@@ -66,6 +66,7 @@ export default function CardFittedText({ text, preferredFontSize, minimumFontSiz
   return <span
     ref={textRef}
     title={text}
+    aria-label={curve > 0 ? text : undefined}
     className={curve > 0 ? "card-fitted-text card-curved-title" : "card-fitted-text"}
     style={{
       display: curve > 0 ? "block" : "-webkit-box",
