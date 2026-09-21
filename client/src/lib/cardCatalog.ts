@@ -25,6 +25,7 @@ export interface CardBorderLayout {
   nameWidth: number;
   nameHeight: number;
   nameFontSize: number;
+  nameCurve?: number;
   descriptionX: number;
   descriptionY: number;
   descriptionWidth: number;
@@ -54,6 +55,7 @@ export function defaultCardBorderLayout(rarity: CardRarity): CardBorderLayout {
     nameWidth: 74,
     nameHeight: 10,
     nameFontSize: 14,
+    nameCurve: 0,
     descriptionX: 13,
     descriptionY: 76,
     descriptionWidth: 74,

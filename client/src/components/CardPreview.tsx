@@ -252,7 +252,7 @@ export default function CardPreview({
           userSelect: "none",
         }}
       >
-        <CardFittedText text={isName ? (name || "CARD NAME") : (description || "Card description")} preferredFontSize={fontSize} minimumFontSize={minimumFontSize} />
+        <CardFittedText text={isName ? (name || "CARD NAME") : (description || "Card description")} preferredFontSize={fontSize} minimumFontSize={minimumFontSize} curve={isName ? (layout.nameCurve ?? 0) : 0} />
       </div>
     );
   };
@@ -619,6 +619,16 @@ export default function CardPreview({
           -webkit-background-clip: text;
           animation: cardTitleHologoldSweep 7.8s ease-in-out infinite;
         }
+        [data-card-title-rarity="4"] .card-curved-title-letter,
+        [data-card-title-rarity="5"] .card-curved-title-letter {
+          color: transparent;
+          -webkit-text-fill-color: transparent;
+          background-image: linear-gradient(100deg, #8d5513 0%, #d99c31 18%, #fff3bd 34%, #c57918 47%, #fff8d8 61%, #e7b447 76%, #8e5413 100%);
+          background-size: 230% 100%;
+          background-clip: text;
+          -webkit-background-clip: text;
+          animation: cardTitleHologoldSweep 7.8s ease-in-out infinite;
+        }
         .card-sparkle-swirl-line {
           mix-blend-mode: screen;
           filter: drop-shadow(0 0 .7px rgba(255,255,240,.88)) drop-shadow(0 0 2px rgba(255,214,115,.5));
@@ -635,14 +645,18 @@ export default function CardPreview({
           .card-sparkle-swirl-line,
           .card-border-gold-glow,
           [data-card-title-rarity="4"] > span,
-          [data-card-title-rarity="5"] > span { animation: none !important; }
+          [data-card-title-rarity="5"] > span,
+          [data-card-title-rarity="4"] .card-curved-title-letter,
+          [data-card-title-rarity="5"] .card-curved-title-letter { animation: none !important; }
           .card-glitter-batch { opacity: .82; }
           .card-micro-glint,
           .card-border-glint { opacity: .6; }
           .card-sparkle-swirl-line { opacity: .56; }
           .card-border-gold-glow { background-position: 0% 0, 190% 0; opacity: .88; }
           [data-card-title-rarity="4"] > span,
-          [data-card-title-rarity="5"] > span { background-position: 50% 50%; filter: drop-shadow(0 0 3px rgba(255,194,56,.48)); }
+          [data-card-title-rarity="5"] > span,
+          [data-card-title-rarity="4"] .card-curved-title-letter,
+          [data-card-title-rarity="5"] .card-curved-title-letter { background-position: 50% 50%; filter: drop-shadow(0 0 3px rgba(255,194,56,.48)); }
         }
       `}</style>}
     </div>

@@ -19,7 +19,7 @@ const LAYOUT_FIELDS = [
 ] as const;
 
 type LayoutField = (typeof LAYOUT_FIELDS)[number];
-type LayoutInput = Record<LayoutField, number>;
+type LayoutInput = Record<LayoutField, number> & { nameCurve: number };
 
 function parseRarity(value: unknown): CardRarity | null {
   const rarity = Number(value);
@@ -42,10 +42,16 @@ function descriptionText(value: unknown, maxLength = 600): string {
 }
 
 function parseLayout(body: Record<string, unknown>): LayoutInput {
-  const parsed = Object.fromEntries(LAYOUT_FIELDS.map((field) => [field, Number(body[field])])) as LayoutInput;
+  const parsed = Object.fromEntries(LAYOUT_FIELDS.map((field) => [field, Number(body[field])])) as Record<LayoutField, number>;
   for (const field of LAYOUT_FIELDS) {
     if (!Number.isFinite(parsed[field])) throw new Error(`${field} must be a number`);
   }
+  const rawNameCurve = body.nameCurve;
+  const nameCurve = rawNameCurve === undefined || rawNameCurve === null || rawNameCurve === ""
+    ? 0
+    : Number(rawNameCurve);
+  if (!Number.isFinite(nameCurve)) throw new Error("nameCurve must be a number");
+
   const positionFields: LayoutField[] = ["nameX", "nameY", "descriptionX", "descriptionY", "starX", "starY"];
   const sizeFields: LayoutField[] = ["nameWidth", "nameHeight", "descriptionWidth", "descriptionHeight"];
   for (const field of positionFields) {
@@ -55,6 +61,7 @@ function parseLayout(body: Record<string, unknown>): LayoutInput {
     if (parsed[field] < 4 || parsed[field] > 100) throw new Error(`${field} must be between 4 and 100`);
   }
   if (parsed.starWidth < 5 || parsed.starWidth > 80) throw new Error("starWidth must be between 5 and 80");
+  if (nameCurve < 0 || nameCurve > 8) throw new Error("nameCurve must be between 0 and 8");
   const rarity = parseRarity(body.rarity);
   if (!rarity) throw new Error("Invalid card rarity");
   if (parsed.starX + parsed.starWidth > 100 || parsed.starY + parsed.starWidth / rarity * 2 / 3 > 100) {
@@ -69,7 +76,7 @@ function parseLayout(body: Record<string, unknown>): LayoutInput {
   if (parsed.descriptionX + parsed.descriptionWidth > 100 || parsed.descriptionY + parsed.descriptionHeight > 100) {
     throw new Error("Description box must stay inside the card");
   }
-  return parsed;
+  return { ...parsed, nameCurve };
 }
 
 export function serializeCard(row: any) {
@@ -93,6 +100,7 @@ export function serializeLayout(row: any) {
     nameWidth: Number(row.name_width),
     nameHeight: Number(row.name_height),
     nameFontSize: Number(row.name_font_size),
+    nameCurve: Number(row.name_curve ?? 0),
     descriptionX: Number(row.description_x),
     descriptionY: Number(row.description_y),
     descriptionWidth: Number(row.description_width),
@@ -192,7 +200,7 @@ export function registerCardAdminRoutes(
   app.get("/api/admin/card-border-layouts", isAdmin, async (_req, res) => {
     try {
       const result = await db.execute(sql`
-        SELECT rarity, name_x, name_y, name_width, name_height, name_font_size,
+        SELECT rarity, name_x, name_y, name_width, name_height, name_font_size, name_curve,
                description_x, description_y, description_width, description_height,
                description_font_size, star_x, star_y, star_width, updated_at
         FROM card_border_layouts ORDER BY rarity
@@ -211,25 +219,25 @@ export function registerCardAdminRoutes(
       const layout = parseLayout({ ...req.body, rarity });
       const result = await db.execute(sql`
         INSERT INTO card_border_layouts (
-          rarity, name_x, name_y, name_width, name_height, name_font_size,
+          rarity, name_x, name_y, name_width, name_height, name_font_size, name_curve,
           description_x, description_y, description_width, description_height,
           description_font_size, star_x, star_y, star_width, updated_at
         ) VALUES (
           ${rarity}, ${layout.nameX}, ${layout.nameY}, ${layout.nameWidth},
-          ${layout.nameHeight}, ${layout.nameFontSize}, ${layout.descriptionX},
+          ${layout.nameHeight}, ${layout.nameFontSize}, ${layout.nameCurve}, ${layout.descriptionX},
           ${layout.descriptionY}, ${layout.descriptionWidth}, ${layout.descriptionHeight},
           ${layout.descriptionFontSize}, ${layout.starX}, ${layout.starY}, ${layout.starWidth}, now()
         )
         ON CONFLICT (rarity) DO UPDATE SET
           name_x = EXCLUDED.name_x, name_y = EXCLUDED.name_y,
           name_width = EXCLUDED.name_width, name_height = EXCLUDED.name_height,
-          name_font_size = EXCLUDED.name_font_size,
+          name_font_size = EXCLUDED.name_font_size, name_curve = EXCLUDED.name_curve,
           description_x = EXCLUDED.description_x, description_y = EXCLUDED.description_y,
           description_width = EXCLUDED.description_width,
           description_height = EXCLUDED.description_height,
           description_font_size = EXCLUDED.description_font_size,
           star_x = EXCLUDED.star_x, star_y = EXCLUDED.star_y, star_width = EXCLUDED.star_width, updated_at = now()
-        RETURNING rarity, name_x, name_y, name_width, name_height, name_font_size,
+        RETURNING rarity, name_x, name_y, name_width, name_height, name_font_size, name_curve,
                   description_x, description_y, description_width, description_height,
                   description_font_size, star_x, star_y, star_width, updated_at
       `);

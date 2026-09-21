@@ -204,10 +204,6 @@ export default function CardAdminPanel() {
     setLayoutDrafts((current) => ({ ...current, [layout.rarity]: layout }));
   };
 
-  const updateLayoutValue = (key: keyof CardBorderLayout, value: number) => {
-    setCurrentLayout({ ...currentLayout, [key]: value });
-  };
-
   const maxStarWidth = Math.min(80, (100 - currentLayout.starY) * layoutRarity * 3 / 2);
 
   const resizeStars = (direction: -1 | 1) => {
@@ -220,21 +216,50 @@ export default function CardAdminPanel() {
     });
   };
 
-  const fieldControls = selectedField === "name"
-    ? [
-        ["Left", "nameX", 0, 96],
-        ["Top", "nameY", 0, 96],
-        ["Width", "nameWidth", 4, 100],
-        ["Height", "nameHeight", 4, 50],
-        ["Text Size", "nameFontSize", 6, 32],
-      ] as const
-    : [
-        ["Left", "descriptionX", 0, 96],
-        ["Top", "descriptionY", 0, 96],
-        ["Width", "descriptionWidth", 4, 100],
-        ["Height", "descriptionHeight", 4, 50],
-        ["Text Size", "descriptionFontSize", 6, 32],
-      ] as const;
+  const textFieldKeys = selectedField === "name"
+    ? { x: "nameX", y: "nameY", width: "nameWidth", height: "nameHeight", fontSize: "nameFontSize" } as const
+    : selectedField === "description"
+      ? { x: "descriptionX", y: "descriptionY", width: "descriptionWidth", height: "descriptionHeight", fontSize: "descriptionFontSize" } as const
+      : null;
+
+  const nudgeSelectedText = (dx: number, dy: number) => {
+    if (!textFieldKeys) return;
+    const x = Number(currentLayout[textFieldKeys.x]);
+    const y = Number(currentLayout[textFieldKeys.y]);
+    const width = Number(currentLayout[textFieldKeys.width]);
+    const height = Number(currentLayout[textFieldKeys.height]);
+    setCurrentLayout({
+      ...currentLayout,
+      [textFieldKeys.x]: Number(Math.max(0, Math.min(100 - width, x + dx)).toFixed(1)),
+      [textFieldKeys.y]: Number(Math.max(0, Math.min(100 - height, y + dy)).toFixed(1)),
+    });
+  };
+
+  const centerSelectedText = () => {
+    if (!textFieldKeys) return;
+    const width = Number(currentLayout[textFieldKeys.width]);
+    setCurrentLayout({
+      ...currentLayout,
+      [textFieldKeys.x]: Number(((100 - width) / 2).toFixed(1)),
+    });
+  };
+
+  const resizeSelectedText = (direction: -1 | 1) => {
+    if (!textFieldKeys) return;
+    const current = Number(currentLayout[textFieldKeys.fontSize]);
+    setCurrentLayout({
+      ...currentLayout,
+      [textFieldKeys.fontSize]: Number(Math.max(6, Math.min(32, current + direction)).toFixed(1)),
+    });
+  };
+
+  const adjustTitleCurve = (direction: -1 | 1) => {
+    const current = Number(currentLayout.nameCurve ?? 0);
+    setCurrentLayout({
+      ...currentLayout,
+      nameCurve: Number(Math.max(0, Math.min(8, current + direction)).toFixed(1)),
+    });
+  };
 
   return (
     <div data-testid="card-admin-panel" className="space-y-4 pb-10">
@@ -334,7 +359,7 @@ export default function CardAdminPanel() {
             >
               {CARD_RARITIES.map((rarity) => <option key={rarity} value={rarity}>{rarity} Star Border</option>)}
             </select>
-            <p className="mt-2 text-[9px] leading-4 text-white/42">Choose a border, select the name, description, or stars, then drag it on the card. Stars move together as one group.</p>
+            <p className="mt-2 text-[9px] leading-4 text-white/42">Choose a border and select the name, description, or stars. Drag on the card or use the simple nudge, center, and size buttons below.</p>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
@@ -409,43 +434,113 @@ export default function CardAdminPanel() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-3">
-                {fieldControls.map(([label, key, min, max]) => {
-                const value = Number(currentLayout[key]);
-                const effectiveMax = key === "nameX" || key === "descriptionX"
-                  ? 100 - Number(currentLayout[selectedField === "name" ? "nameWidth" : "descriptionWidth"])
-                  : key === "nameY" || key === "descriptionY"
-                    ? 100 - Number(currentLayout[selectedField === "name" ? "nameHeight" : "descriptionHeight"])
-                    : key === "nameWidth" || key === "descriptionWidth"
-                      ? 100 - Number(currentLayout[selectedField === "name" ? "nameX" : "descriptionX"])
-                      : key === "nameHeight" || key === "descriptionHeight"
-                        ? 100 - Number(currentLayout[selectedField === "name" ? "nameY" : "descriptionY"])
-                        : max;
-                return (
-                  <label key={key} className="grid grid-cols-[58px_1fr_42px] items-center gap-2 text-[9px] text-white/55">
-                    <span>{label}</span>
-                    <input
-                      type="range"
-                      min={min}
-                      max={Math.max(min, effectiveMax)}
-                      step={0.5}
-                      value={Math.min(value, Math.max(min, effectiveMax))}
-                      onChange={(event) => updateLayoutValue(key, Number(event.target.value))}
-                      className="accent-amber-400"
-                    />
-                    <input
-                      type="number"
-                      min={min}
-                      max={Math.max(min, effectiveMax)}
-                      step={0.5}
-                      value={Number(value.toFixed(1))}
-                      onChange={(event) => updateLayoutValue(key, Number(event.target.value))}
-                      className="w-full rounded px-1 py-1 text-center text-[9px] outline-none"
-                      style={{ color: "#f8e7b0", background: "#09110c", border: "1px solid rgba(224,181,74,.25)" }}
-                    />
-                  </label>
-                );
-                })}
+              <div className="space-y-4">
+                <p className="text-[10px] leading-4 text-white/55">Drag the text on the preview, or use these buttons for small precise adjustments.</p>
+
+                <div className="mx-auto grid w-full max-w-[210px] grid-cols-3 gap-2">
+                  <span />
+                  <button
+                    type="button"
+                    data-testid="button-nudge-card-text-up"
+                    aria-label="Move card text up"
+                    onClick={() => nudgeSelectedText(0, -0.5)}
+                    className="h-11 rounded-lg text-lg text-[#f8e7b0] active:scale-95"
+                    style={{ background: "#0c1710", border: "1px solid rgba(224,181,74,.36)" }}
+                  >↑</button>
+                  <span />
+                  <button
+                    type="button"
+                    data-testid="button-nudge-card-text-left"
+                    aria-label="Move card text left"
+                    onClick={() => nudgeSelectedText(-0.5, 0)}
+                    className="h-11 rounded-lg text-lg text-[#f8e7b0] active:scale-95"
+                    style={{ background: "#0c1710", border: "1px solid rgba(224,181,74,.36)" }}
+                  >←</button>
+                  <button
+                    type="button"
+                    data-testid="button-center-card-text"
+                    onClick={centerSelectedText}
+                    className="h-11 rounded-lg font-fantasy text-[9px] text-[#f8e7b0] active:scale-95"
+                    style={{ background: "rgba(118,76,10,.24)", border: "1px solid rgba(224,181,74,.46)" }}
+                  >Center</button>
+                  <button
+                    type="button"
+                    data-testid="button-nudge-card-text-right"
+                    aria-label="Move card text right"
+                    onClick={() => nudgeSelectedText(0.5, 0)}
+                    className="h-11 rounded-lg text-lg text-[#f8e7b0] active:scale-95"
+                    style={{ background: "#0c1710", border: "1px solid rgba(224,181,74,.36)" }}
+                  >→</button>
+                  <span />
+                  <button
+                    type="button"
+                    data-testid="button-nudge-card-text-down"
+                    aria-label="Move card text down"
+                    onClick={() => nudgeSelectedText(0, 0.5)}
+                    className="h-11 rounded-lg text-lg text-[#f8e7b0] active:scale-95"
+                    style={{ background: "#0c1710", border: "1px solid rgba(224,181,74,.36)" }}
+                  >↓</button>
+                  <span />
+                </div>
+
+                <div className="grid grid-cols-[48px_1fr_48px] items-center gap-3">
+                  <button
+                    type="button"
+                    data-testid="button-decrease-card-text-size"
+                    aria-label="Decrease card text size"
+                    onClick={() => resizeSelectedText(-1)}
+                    disabled={!textFieldKeys || Number(currentLayout[textFieldKeys.fontSize]) <= 6}
+                    className="h-12 rounded-lg text-xl text-[#f8e7b0] active:scale-95 disabled:opacity-40"
+                    style={{ background: "#0c1710", border: "1px solid rgba(224,181,74,.46)" }}
+                  >−</button>
+                  <span className="text-center font-fantasy text-[10px] text-[#e7cb80]">
+                    Text size: {textFieldKeys ? Number(currentLayout[textFieldKeys.fontSize]).toFixed(0) : "—"}
+                  </span>
+                  <button
+                    type="button"
+                    data-testid="button-increase-card-text-size"
+                    aria-label="Increase card text size"
+                    onClick={() => resizeSelectedText(1)}
+                    disabled={!textFieldKeys || Number(currentLayout[textFieldKeys.fontSize]) >= 32}
+                    className="h-12 rounded-lg text-xl text-[#f8e7b0] active:scale-95 disabled:opacity-40"
+                    style={{ background: "#0c1710", border: "1px solid rgba(224,181,74,.46)" }}
+                  >+</button>
+                </div>
+
+                {selectedField === "name" && (
+                  <div className="rounded-lg p-2.5" style={{ background: "rgba(0,0,0,.22)", border: "1px solid rgba(224,181,74,.18)" }}>
+                    <p className="mb-2 text-center font-fantasy text-[9px] text-[#e7cb80]">
+                      Title curve: {(currentLayout.nameCurve ?? 0) > 0 ? (currentLayout.nameCurve ?? 0).toFixed(0) : "Flat"}
+                    </p>
+                    <div className="grid grid-cols-[48px_1fr_48px] items-center gap-3">
+                      <button
+                        type="button"
+                        data-testid="button-card-title-curve-decrease"
+                        aria-label="Decrease card title curve"
+                        onClick={() => adjustTitleCurve(-1)}
+                        disabled={(currentLayout.nameCurve ?? 0) <= 0}
+                        className="h-11 rounded-lg text-xl text-[#f8e7b0] active:scale-95 disabled:opacity-40"
+                        style={{ background: "#0c1710", border: "1px solid rgba(224,181,74,.36)" }}
+                      >−</button>
+                      <button
+                        type="button"
+                        data-testid="button-card-title-curve-flat"
+                        onClick={() => setCurrentLayout({ ...currentLayout, nameCurve: 0 })}
+                        className="h-11 rounded-lg font-fantasy text-[9px] text-[#f8e7b0] active:scale-95"
+                        style={{ background: "rgba(118,76,10,.24)", border: "1px solid rgba(224,181,74,.46)" }}
+                      >Flat</button>
+                      <button
+                        type="button"
+                        data-testid="button-card-title-curve-increase"
+                        aria-label="Increase card title curve"
+                        onClick={() => adjustTitleCurve(1)}
+                        disabled={(currentLayout.nameCurve ?? 0) >= 8}
+                        className="h-11 rounded-lg text-xl text-[#f8e7b0] active:scale-95 disabled:opacity-40"
+                        style={{ background: "#0c1710", border: "1px solid rgba(224,181,74,.36)" }}
+                      >+</button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

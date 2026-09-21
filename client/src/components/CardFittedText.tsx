@@ -1,10 +1,11 @@
 import { useLayoutEffect, useRef } from "react";
 
 /** Fit within the existing admin-positioned box without shrinking indefinitely. */
-export default function CardFittedText({ text, preferredFontSize, minimumFontSize }: {
+export default function CardFittedText({ text, preferredFontSize, minimumFontSize, curve = 0 }: {
   text: string;
   preferredFontSize: string;
   minimumFontSize?: number;
+  curve?: number;
 }) {
   const textRef = useRef<HTMLSpanElement>(null);
 
@@ -24,6 +25,7 @@ export default function CardFittedText({ text, preferredFontSize, minimumFontSiz
       const minimum = Math.min(preferred, minimumFontSize ?? preferred * .8);
       node.style.display = "block";
       node.style.webkitLineClamp = "unset";
+      node.style.whiteSpace = curve > 0 ? "nowrap" : "normal";
       node.style.lineHeight = String(lineHeight);
       const fits = (size: number) => {
         node.style.fontSize = `${size}px`;
@@ -44,8 +46,9 @@ export default function CardFittedText({ text, preferredFontSize, minimumFontSiz
         size = low;
       }
       node.style.fontSize = `${size}px`;
-      node.style.display = "-webkit-box";
-      node.style.webkitLineClamp = String(Math.max(1, Math.floor(height / (size * lineHeight))));
+      node.style.display = curve > 0 ? "block" : "-webkit-box";
+      node.style.whiteSpace = curve > 0 ? "nowrap" : "normal";
+      node.style.webkitLineClamp = curve > 0 ? "unset" : String(Math.max(1, Math.floor(height / (size * lineHeight))));
     };
     fit();
     const observer = new ResizeObserver(fit);
@@ -57,14 +60,40 @@ export default function CardFittedText({ text, preferredFontSize, minimumFontSiz
       observer.disconnect();
       document.fonts.removeEventListener("loadingdone", fit);
     };
-  }, [text, preferredFontSize, minimumFontSize]);
+  }, [text, preferredFontSize, minimumFontSize, curve]);
 
-  return <span ref={textRef} title={text} style={{
-    display: "-webkit-box",
-    WebkitBoxOrient: "vertical",
-    width: "100%",
-    flexShrink: 0,
-    overflow: "hidden",
-    overflowWrap: "anywhere",
-  }}>{text}</span>;
+  const characters = Array.from(text);
+  return <span
+    ref={textRef}
+    title={text}
+    aria-label={curve > 0 ? text : undefined}
+    className={curve > 0 ? "card-fitted-text card-curved-title" : "card-fitted-text"}
+    style={{
+      display: curve > 0 ? "block" : "-webkit-box",
+      WebkitBoxOrient: "vertical",
+      width: "100%",
+      flexShrink: 0,
+      overflow: "hidden",
+      overflowWrap: curve > 0 ? "normal" : "anywhere",
+      whiteSpace: curve > 0 ? "nowrap" : "normal",
+    }}
+  >
+    {curve > 0
+      ? characters.map((character, index) => {
+          const progress = characters.length <= 1 ? 0 : (index / (characters.length - 1)) * 2 - 1;
+          const y = curve * .035 * progress * progress;
+          const rotation = curve * .65 * progress;
+          return <span
+            key={index}
+            className="card-curved-title-letter"
+            aria-hidden="true"
+            style={{
+              display: "inline-block",
+              transform: `translateY(${y.toFixed(3)}em) rotate(${rotation.toFixed(2)}deg)`,
+              transformOrigin: "50% 100%",
+            }}
+          >{character === " " ? "\u00a0" : character}</span>;
+        })
+      : text}
+  </span>;
 }
