@@ -105,6 +105,12 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
 });
 
 
+test("1, 2, and 3 star cards share the same neutral text colors", () => {
+  assert.match(preview, /1: \{ name: "#4a4032", description: "#5b5143" \}/);
+  assert.match(preview, /2: \{ name: "#4a4032", description: "#5b5143" \}/);
+  assert.match(preview, /3: \{ name: "#4a4032", description: "#5b5143" \}/);
+});
+
 test("detail cards use lightweight rarity-scaled magical glitter inside the artwork", () => {
   assert.match(preview, /brightness\(1\.2\)/);
   assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*44[\s\S]*?3:\s*96[\s\S]*?4:\s*148[\s\S]*?5:\s*220/);
