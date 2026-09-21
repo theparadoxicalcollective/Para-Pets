@@ -11,6 +11,7 @@ import {
 interface CardPreviewProps {
   rarity: CardRarity;
   artworkUrl?: string | null;
+  effectColor?: string | null;
   name: string;
   description: string;
   layout: CardBorderLayout;
@@ -75,6 +76,20 @@ const RARITY_SPARKLE_STYLE: Record<CardRarity, { opacity: number; glow: string; 
   5: { opacity: 1, glow: "drop-shadow(0 0 2px rgba(255,215,119,.8))", color: "#fff0b6" },
 };
 
+function normalizeEffectColor(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized.toUpperCase() : null;
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const normalized = hex.replace("#", "");
+  const r = Number.parseInt(normalized.slice(0, 2), 16);
+  const g = Number.parseInt(normalized.slice(2, 4), 16);
+  const b = Number.parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 // Keep the tiny glitter deterministic but distribute it across the whole artwork.
 // Only five batch opacity animations are used, so even a 5-star card stays light on mobile.
 const CARD_GLITTER_POINTS = Array.from({ length: 220 }, (_, index) => {
@@ -114,6 +129,7 @@ const CARD_SWIRL_PATHS = [
 export default function CardPreview({
   rarity,
   artworkUrl,
+  effectColor,
   name,
   description,
   layout,
@@ -128,6 +144,18 @@ export default function CardPreview({
 }: CardPreviewProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
+
+  const customEffectColor = normalizeEffectColor(effectColor);
+  const activeEffectColor = customEffectColor ?? RARITY_SPARKLE_STYLE[rarity].color;
+  const sparkleGlow = customEffectColor
+    ? `drop-shadow(0 0 ${rarity >= 4 ? 2 : rarity === 3 ? 1.5 : 1}px ${hexToRgba(activeEffectColor, .72)})`
+    : RARITY_SPARKLE_STYLE[rarity].glow;
+  const borderGlowBackground = customEffectColor
+    ? `linear-gradient(105deg, transparent 0 31%, ${hexToRgba(activeEffectColor, .08)} 37%, ${hexToRgba(activeEffectColor, .52)} 43%, rgba(255,255,255,.95) 49%, ${hexToRgba(activeEffectColor, .72)} 55%, ${hexToRgba(activeEffectColor, .16)} 61%, transparent 68% 100%), linear-gradient(105deg, transparent 0 31%, ${hexToRgba(activeEffectColor, .08)} 37%, ${hexToRgba(activeEffectColor, .52)} 43%, rgba(255,255,255,.95) 49%, ${hexToRgba(activeEffectColor, .72)} 55%, ${hexToRgba(activeEffectColor, .16)} 61%, transparent 68% 100%)`
+    : "linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%), linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%)";
+  const borderGlowFilter = customEffectColor
+    ? `drop-shadow(0 0 ${2.8 + rarity * .45}px ${hexToRgba(activeEffectColor, .95)}) drop-shadow(0 0 ${6.5 + rarity * .9}px ${hexToRgba(activeEffectColor, .7)}) drop-shadow(0 0 ${11 + rarity * 1.1}px ${hexToRgba(activeEffectColor, .36)})`
+    : `drop-shadow(0 0 ${2.8 + rarity * .45}px rgba(255,224,116,.95)) drop-shadow(0 0 ${6.5 + rarity * .9}px rgba(255,184,34,.7)) drop-shadow(0 0 ${11 + rarity * 1.1}px rgba(255,146,18,.36))`;
 
   const fieldMetrics = (field: CardLayoutField) => field === "name"
     ? { x: layout.nameX, y: layout.nameY, width: layout.nameWidth, height: layout.nameHeight }
@@ -345,7 +373,7 @@ export default function CardPreview({
               pointerEvents: "none",
               zIndex: 1,
               opacity: RARITY_SPARKLE_STYLE[rarity].opacity,
-              filter: RARITY_SPARKLE_STYLE[rarity].glow,
+              filter: sparkleGlow,
               overflow: "hidden",
             }}
           >
@@ -410,10 +438,10 @@ export default function CardPreview({
                   x2={index % 2 === 0 ? 82 : 18}
                   y2="12"
                 >
-                  <stop offset="0%" stopColor={RARITY_SPARKLE_STYLE[rarity].color} stopOpacity=".98" />
-                  <stop offset="26%" stopColor={RARITY_SPARKLE_STYLE[rarity].color} stopOpacity=".68" />
-                  <stop offset="60%" stopColor={RARITY_SPARKLE_STYLE[rarity].color} stopOpacity=".24" />
-                  <stop offset="100%" stopColor={RARITY_SPARKLE_STYLE[rarity].color} stopOpacity="0" />
+                  <stop offset="0%" stopColor={activeEffectColor} stopOpacity=".98" />
+                  <stop offset="26%" stopColor={activeEffectColor} stopOpacity=".68" />
+                  <stop offset="60%" stopColor={activeEffectColor} stopOpacity=".24" />
+                  <stop offset="100%" stopColor={activeEffectColor} stopOpacity="0" />
                 </linearGradient>
               ))}
             </defs>
@@ -451,12 +479,12 @@ export default function CardPreview({
             maskPosition: "center",
             WebkitMaskSize: "100% 100%",
             maskSize: "100% 100%",
-            backgroundImage: "linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%), linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%)",
+            backgroundImage: borderGlowBackground,
             backgroundSize: "190% 100%, 190% 100%",
             backgroundRepeat: "no-repeat, no-repeat",
             backgroundPosition: "0% 0, 190% 0",
             mixBlendMode: "screen",
-            filter: `drop-shadow(0 0 ${2.8 + rarity * .45}px rgba(255,224,116,.95)) drop-shadow(0 0 ${6.5 + rarity * .9}px rgba(255,184,34,.7)) drop-shadow(0 0 ${11 + rarity * 1.1}px rgba(255,146,18,.36))`,
+            filter: borderGlowFilter,
             opacity: .82 + (rarity - 3) * .06,
           }}
         />
