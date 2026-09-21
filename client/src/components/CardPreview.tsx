@@ -187,6 +187,7 @@ export default function CardPreview({
   const renderTextBox = (field: CardLayoutField) => {
     const isName = field === "name";
     const highRarityTitle = isName && rarity >= 4;
+    const curvedTitle = isName && (layout.nameCurve ?? 0) > 0;
     const metrics = fieldMetrics(field);
     const detailTitleYNudge = isName && textSize === "detail"
       ? (DETAIL_TITLE_Y_NUDGE[rarity] ?? 0)
@@ -233,7 +234,7 @@ export default function CardPreview({
           justifyContent: "center",
           padding: isName ? "1% 3%" : "2% 4%",
           boxSizing: "border-box",
-          overflow: "hidden",
+          overflow: curvedTitle ? "visible" : "hidden",
           textAlign: "center",
           color: isName ? rarityTextStyle.name : rarityTextStyle.description,
           fontFamily: isName ? "'Cinzel', 'Palatino Linotype', serif" : "Georgia, serif",
