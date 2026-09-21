@@ -174,7 +174,8 @@ export function registerCardAdminRoutes(
       const secondDescription = req.body?.secondDescription === undefined ? null : descriptionText(req.body.secondDescription, 10000);
       const rarity = parseRarity(req.body?.rarity);
       if (!rarity) return res.status(400).json({ message: "Rarity must be between 1 and 5" });
-      const effectColor = effectColorText(req.body?.effectColor);
+      const hasEffectColor = Object.prototype.hasOwnProperty.call(req.body ?? {}, "effectColor");
+      const effectColor = hasEffectColor ? effectColorText(req.body?.effectColor) : null;
       const artworkUrl = typeof req.body?.artworkData === "string" && req.body.artworkData
         ? await processCardImage(req.body.artworkData, 1600)
         : null;
@@ -182,7 +183,7 @@ export function registerCardAdminRoutes(
         UPDATE card_definitions
         SET name = ${name}, description = ${description}, rarity = ${rarity},
             second_description = COALESCE(${secondDescription}, second_description),
-            effect_color = ${effectColor},
+            effect_color = CASE WHEN ${hasEffectColor} THEN ${effectColor} ELSE effect_color END,
             artwork_url = COALESCE(${artworkUrl}, artwork_url), updated_at = now()
         WHERE id = ${req.params.id}
         RETURNING id, name, description, second_description, artwork_url, effect_color, rarity, created_at, updated_at
