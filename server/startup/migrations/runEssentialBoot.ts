@@ -124,6 +124,7 @@ export async function runEssentialBoot(): Promise<void> {
         CHECK (description_x + description_width <= 100),
         CHECK (description_y + description_height <= 100)
       );
+      ALTER TABLE card_border_layouts ADD COLUMN IF NOT EXISTS name_curve REAL NOT NULL DEFAULT 0 CHECK (name_curve BETWEEN 0 AND 8);
       ALTER TABLE card_border_layouts ADD COLUMN IF NOT EXISTS star_x REAL NOT NULL DEFAULT 47;
       ALTER TABLE card_border_layouts ADD COLUMN IF NOT EXISTS star_y REAL NOT NULL DEFAULT 18;
       ALTER TABLE card_border_layouts ADD COLUMN IF NOT EXISTS star_width REAL NOT NULL DEFAULT 6;
