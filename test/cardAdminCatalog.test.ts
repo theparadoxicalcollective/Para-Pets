@@ -54,8 +54,8 @@ test("card text editor uses simple nudge, center, size, and title-only curve con
   assert.match(adminPanel, /button-increase-card-text-size/);
   assert.doesNotMatch(adminPanel, /type="range"/);
   assert.match(adminPanel, /selectedField === "name"[\s\S]*button-card-title-curve-decrease[\s\S]*button-card-title-curve-flat[\s\S]*button-card-title-curve-increase/);
-  assert.match(catalog, /nameCurve: number/);
-  assert.match(preview, /curve=\{isName \? layout\.nameCurve : 0\}/);
+  assert.match(catalog, /nameCurve\?: number/);
+  assert.match(preview, /curve=\{isName \? \(layout\.nameCurve \?\? 0\) : 0\}/);
 });
 
 test("card APIs are admin-protected and durable", () => {
@@ -90,6 +90,8 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
   };
   const { rarity, ...layout } = valid;
   assert.deepEqual(cardAdminValidation.parseLayout(valid), layout);
+  const { nameCurve: _omittedCurve, ...legacyValid } = valid;
+  assert.deepEqual(cardAdminValidation.parseLayout(legacyValid), { ...layout, nameCurve: 0 });
   assert.throws(() => cardAdminValidation.parseLayout({ ...valid, starX: 99 }), /Stars must stay inside/);
   assert.throws(() => cardAdminValidation.parseLayout({ ...valid, nameCurve: 9 }), /nameCurve must be between 0 and 8/);
   assert.throws(
