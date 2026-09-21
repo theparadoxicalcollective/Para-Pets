@@ -71,7 +71,8 @@ test("admin can pick and persist an effect color per card artwork", () => {
   assert.match(routes, /effectColor: row\.effect_color \?\? null/);
   assert.match(routes, /effectColorText\(req\.body\?\.effectColor\)/);
   assert.match(routes, /INSERT INTO card_definitions \(name, description, second_description, artwork_url, effect_color, rarity\)/);
-  assert.match(routes, /effect_color = \$\{effectColor\}/);
+  assert.match(routes, /const hasEffectColor = Object\.prototype\.hasOwnProperty\.call\(req\.body \?\? \{\}, "effectColor"\)/);
+  assert.match(routes, /effect_color = CASE WHEN \$\{hasEffectColor\} THEN \$\{effectColor\} ELSE effect_color END/);
   assert.match(boot, /ALTER TABLE card_definitions ADD COLUMN IF NOT EXISTS effect_color TEXT/);
   assert.match(preview, /effectColor\?: string \| null/);
   assert.match(preview, /const customEffectColor = normalizeEffectColor\(effectColor\)/);
