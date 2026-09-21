@@ -29,7 +29,14 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
     if (turnFrameRef.current !== null) return;
     turnFrameRef.current = window.requestAnimationFrame(() => {
       turnFrameRef.current = null;
-      if (turnCardRef.current) turnCardRef.current.style.transform = `rotateY(${angleRef.current}deg)`;
+      if (turnCardRef.current) {
+        const turn = turnCardRef.current;
+        const intensity = Math.min(1, Math.abs(angleRef.current) / 58);
+        turn.style.transform = `rotateY(${angleRef.current}deg)`;
+        turn.style.setProperty("--card-turn-intensity", String(intensity));
+        turn.style.setProperty("--card-turn-opacity", String(intensity * .9));
+        turn.style.setProperty("--card-turn-position", `${intensity > 0 ? Math.max(0, Math.min(100, 50 + angleRef.current * .85)) : 0}%`);
+      }
     });
   };
 
