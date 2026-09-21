@@ -39,7 +39,7 @@ test("border editor uses one persisted percentage layout per rarity", () => {
   assert.match(adminPanel, /onLayoutChange=\{setCurrentLayout\}/);
   assert.match(preview, /setPointerCapture/);
   assert.match(preview, /left: `\$\{metrics\.x\}%`/);
-  assert.match(preview, /top: `\$\{metrics\.y \+ detailTitleYNudge\}%`/);
+  assert.match(preview, /top: `\$\{metrics\.y \+ titleYNudge\}%`/);
   assert.match(adminPanel, /button-save-card-border-layout/);
   assert.match(routes, /app\.put\("\/api\/admin\/card-border-layouts\/:rarity", isAdmin/);
 });
@@ -70,7 +70,8 @@ test("admin can pick and persist an effect color per card artwork", () => {
   assert.match(adminPanel, /data-testid="button-auto-card-effect-color"/);
   assert.match(adminPanel, /suggestArtworkEffectColor/);
   assert.match(adminPanel, /Drag the picker over this card's artwork/);
-  assert.match(adminPanel, /saved to this card only and never changes the rarity border/);
+  assert.match(adminPanel, /ARTWORK SWIRL COLOR/);
+  assert.match(adminPanel, /The gold border and title shine stay the same/);
   assert.match(adminPanel, /effectColor: form\.effectColor \|\| null/);
   assert.match(routes, /effectColor: row\.effect_color \?\? null/);
   assert.match(routes, /effectColorText\(req\.body\?\.effectColor\)/);
@@ -79,7 +80,9 @@ test("admin can pick and persist an effect color per card artwork", () => {
   assert.match(routes, /effect_color = CASE WHEN \$\{hasEffectColor\} THEN \$\{effectColor\} ELSE effect_color END/);
   assert.match(boot, /ALTER TABLE card_definitions ADD COLUMN IF NOT EXISTS effect_color TEXT/);
   assert.match(preview, /effectColor\?: string \| null/);
-  assert.match(preview, /const customEffectColor = normalizeEffectColor\(effectColor\)/);
+  assert.match(preview, /const activeEffectColor = normalizeEffectColor\(effectColor\) \?\? RARITY_SPARKLE_STYLE\[rarity\]\.color/);
+  assert.match(preview, /const sparkleGlow = RARITY_SPARKLE_STYLE\[rarity\]\.glow/);
+  assert.doesNotMatch(preview, /borderGlowBackground = customEffectColor/);
   assert.match(preview, /stopColor=\{activeEffectColor\}/);
   assert.match(preview, /backgroundImage: borderGlowBackground/);
   assert.match(detail, /effectColor=\{card\.effectColor\}/);
@@ -168,7 +171,7 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /maskImage: `url/);
   assert.match(preview, /mixBlendMode: "screen"/);
   assert.match(preview, /backgroundRepeat: "no-repeat, no-repeat"/);
-  assert.match(preview, /backgroundPosition: "0% 0, 190% 0"/);
+  assert.match(preview, /backgroundPosition: depth3d \? "var\(--card-turn-position, 0%\) 0, 190% 0" : "0% 0, 190% 0"/);
   assert.match(preview, /from \{ background-position: 0% 0, 190% 0; \}/);
   assert.match(preview, /to \{ background-position: -190% 0, 0% 0; \}/);
   assert.match(preview, /cardBorderGlowTravel 11\.5s linear infinite/);
@@ -179,18 +182,23 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /CARD_BORDER_GLINT_POINTS\.length \* 3\.2/);
   assert.match(preview, /cardBorderGlint/);
   assert.match(preview, /data-card-title-rarity=\{highRarityTitle \? rarity : undefined\}/);
-  assert.match(preview, /cardTitleHologoldSweep/);
+  assert.match(preview, /background-position: var\(--card-turn-position, 0%\) 50%/);
+  assert.match(preview, /color: #673b18/);
+  assert.match(preview, /card-border-turn-glow/);
+  assert.match(detail, /--card-turn-intensity/);
   assert.doesNotMatch(preview, /cardTitleFiveStarPulse/);
-  assert.doesNotMatch(preview, /cardTitleHologoldSweep 6\.6s[^;]*cardTitleFiveStarPulse/);
+  assert.doesNotMatch(preview, /cardTitleHologoldSweep/);
   assert.match(preview, /background-clip: text/);
   assert.match(preview, /prefers-reduced-motion: reduce/);
   assert.match(preview, /inset: depth3d \? "12% 7%" : "12% 10%"/);
   assert.match(preview, /inset 0 0 24px 8px/);
   assert.match(preview, /transform: depth3d \? "translateZ\(22px\)" : undefined/);
   assert.doesNotMatch(preview, /isName \? 26 : 22/);
-  assert.match(preview, /DETAIL_TITLE_Y_NUDGE[\s\S]*?2:\s*\.75[\s\S]*?3:\s*\.9/);
-  assert.match(preview, /isName && textSize === "detail"/);
-  assert.match(preview, /top: `\$\{metrics\.y \+ detailTitleYNudge\}%`/);
+  assert.match(preview, /TITLE_Y_NUDGE[\s\S]*?2:\s*\.75[\s\S]*?3:\s*\.9/);
+  assert.match(preview, /isName && !editable && textSize !== "scaled"/);
+  assert.match(preview, /clamp\(5cqw, \$\{relativeFontSize\}, 7\.5cqw\)/);
+  assert.match(collection, /CardPreview textSize="inventory"/);
+  assert.match(preview, /top: `\$\{metrics\.y \+ titleYNudge\}%`/);
 });
 
 test("card collection keeps the cleaner open layout and text heading", () => {
