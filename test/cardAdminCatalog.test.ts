@@ -171,7 +171,7 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /maskImage: `url/);
   assert.match(preview, /mixBlendMode: "screen"/);
   assert.match(preview, /backgroundRepeat: "no-repeat, no-repeat"/);
-  assert.match(preview, /backgroundPosition: "0% 0, 190% 0"/);
+  assert.match(preview, /backgroundPosition: depth3d \? "var\(--card-turn-position, 0%\) 0, 190% 0" : "0% 0, 190% 0"/);
   assert.match(preview, /from \{ background-position: 0% 0, 190% 0; \}/);
   assert.match(preview, /to \{ background-position: -190% 0, 0% 0; \}/);
   assert.match(preview, /cardBorderGlowTravel 11\.5s linear infinite/);
