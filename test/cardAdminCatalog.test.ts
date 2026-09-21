@@ -56,6 +56,10 @@ test("card text editor uses simple nudge, center, size, and title-only curve con
   assert.match(adminPanel, /selectedField === "name"[\s\S]*button-card-title-curve-decrease[\s\S]*button-card-title-curve-flat[\s\S]*button-card-title-curve-increase/);
   assert.match(catalog, /nameCurve\?: number/);
   assert.match(preview, /curve=\{isName \? \(layout\.nameCurve \?\? 0\) : 0\}/);
+  assert.match(preview, /const curvedTitle = isName && \(layout\.nameCurve \?\? 0\) > 0/);
+  assert.match(preview, /overflow: curvedTitle \? "visible" : "hidden"/);
+  const fittedText = fs.readFileSync("client/src/components/CardFittedText.tsx", "utf8");
+  assert.match(fittedText, /overflow: curve > 0 \? "visible" : "hidden"/);
 });
 
 test("card APIs are admin-protected and durable", () => {
@@ -100,6 +104,12 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
   );
 });
 
+
+test("1, 2, and 3 star cards share the same neutral text colors", () => {
+  assert.match(preview, /1: \{ name: "#4a4032", description: "#5b5143" \}/);
+  assert.match(preview, /2: \{ name: "#4a4032", description: "#5b5143" \}/);
+  assert.match(preview, /3: \{ name: "#4a4032", description: "#5b5143" \}/);
+});
 
 test("detail cards use lightweight rarity-scaled magical glitter inside the artwork", () => {
   assert.match(preview, /brightness\(1\.2\)/);

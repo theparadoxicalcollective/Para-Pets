@@ -32,8 +32,8 @@ interface DragState {
 
 const RARITY_TEXT_STYLES: Record<CardRarity, { name: string; description: string }> = {
   1: { name: "#4a4032", description: "#5b5143" },
-  2: { name: "#244d32", description: "#355f42" },
-  3: { name: "#234f73", description: "#356681" },
+  2: { name: "#4a4032", description: "#5b5143" },
+  3: { name: "#4a4032", description: "#5b5143" },
   4: { name: "#573b72", description: "#6b4c81" },
   5: { name: "#7a3d18", description: "#7f5528" },
 };
@@ -187,6 +187,7 @@ export default function CardPreview({
   const renderTextBox = (field: CardLayoutField) => {
     const isName = field === "name";
     const highRarityTitle = isName && rarity >= 4;
+    const curvedTitle = isName && (layout.nameCurve ?? 0) > 0;
     const metrics = fieldMetrics(field);
     const detailTitleYNudge = isName && textSize === "detail"
       ? (DETAIL_TITLE_Y_NUDGE[rarity] ?? 0)
@@ -233,7 +234,7 @@ export default function CardPreview({
           justifyContent: "center",
           padding: isName ? "1% 3%" : "2% 4%",
           boxSizing: "border-box",
-          overflow: "hidden",
+          overflow: curvedTitle ? "visible" : "hidden",
           textAlign: "center",
           color: isName ? rarityTextStyle.name : rarityTextStyle.description,
           fontFamily: isName ? "'Cinzel', 'Palatino Linotype', serif" : "Georgia, serif",

@@ -59,6 +59,30 @@ test("browser callers submit identifiers and player-selected list price only", (
   assert.doesNotMatch(client, /\/api\/market[^\n]*(sellerId|buyerId|ownerId|coinsEarned|newBalance)/);
 });
 
+test("seller market discovers sold listings and handles collect proceeds response", () => {
+  assert.match(client, /queryKey: \["\/api\/market\/my-listings"\][\s\S]*?staleTime: 0[\s\S]*?refetchInterval: activeTab === "myshop" \? 5000 : false/);
+  assert.match(client, /refetchOnWindowFocus: true/);
+  assert.match(client, /refetchOnReconnect: true/);
+
+  const collectStart = client.indexOf("const collectMutation = useMutation");
+  const cancelStart = client.indexOf("const cancelMutation", collectStart);
+  const collect = client.slice(collectStart, cancelStart);
+  assert.match(collect, /const response = await apiRequest\("POST", `\/api\/market\/\$\{listingId\}\/collect`, \{\}\)/);
+  assert.match(collect, /return await response\.json\(\) as \{ coinsEarned: number; newBalance: number \}/);
+  assert.match(collect, /coins: data\.newBalance/);
+  assert.match(collect, /queryClient\.setQueryData\(\["\/api\/auth\/me"\], updatedUser\)/);
+  assert.doesNotMatch(collect, /fetch\("\/api\/auth\/me"\)/);
+});
+
+test("collect proceeds credits the seller before removing the sold listing", () => {
+  const collectStart = service.indexOf("export async function collectProceeds");
+  const collect = service.slice(collectStart);
+  assert.match(collect, /coins: sql`\$\{users\.coins\} \+ \$\{listing\.price\}`/);
+  assert.match(collect, /totalCoinsEarned: sql`\$\{users\.totalCoinsEarned\} \+ \$\{listing\.price\}`/);
+  assert.ok(collect.indexOf("tx.update(users)") < collect.indexOf("tx.delete(playerMarketListings)"));
+  assert.match(collect, /return \{ coinsEarned: listing\.price, newBalance: credited\.coins \}/);
+});
+
 test("pet market preserves hatched state and uses state-appropriate listing art", () => {
   assert.match(service, /const listingPet = item\.type === "pet" && !!input\.preparePetEgg/);
   assert.match(service, /tx\.delete\(petEquippedAccessories\)[\s\S]*?petInventoryId, inventory\.id/);
