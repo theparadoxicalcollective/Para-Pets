@@ -161,7 +161,7 @@ export function registerCardAdminRoutes(
       return res.status(201).json(serializeCard(result.rows[0]));
     } catch (error: any) {
       const message = error?.message || "Failed to create card";
-      const status = /required|characters|fewer/i.test(message) ? 400 : 500;
+      const status = /required|characters|fewer|effect color|hex color/i.test(message) ? 400 : 500;
       if (status === 500) console.error("[cards] create failed:", error);
       return res.status(status).json({ message });
     }
@@ -191,7 +191,7 @@ export function registerCardAdminRoutes(
       return res.json(serializeCard(result.rows[0]));
     } catch (error: any) {
       const message = error?.message || "Failed to update card";
-      const status = /required|characters|fewer/i.test(message) ? 400 : 500;
+      const status = /required|characters|fewer|effect color|hex color/i.test(message) ? 400 : 500;
       if (status === 500) console.error("[cards] update failed:", error);
       return res.status(status).json({ message });
     }
