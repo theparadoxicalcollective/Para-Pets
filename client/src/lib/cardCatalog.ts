@@ -13,6 +13,7 @@ export interface CardDefinition {
   description: string;
   secondDescription: string;
   artworkUrl: string;
+  effectColor?: string | null;
   rarity: CardRarity;
   createdAt: string;
   updatedAt: string;
