@@ -70,7 +70,8 @@ test("admin can pick and persist an effect color per card artwork", () => {
   assert.match(adminPanel, /data-testid="button-auto-card-effect-color"/);
   assert.match(adminPanel, /suggestArtworkEffectColor/);
   assert.match(adminPanel, /Drag the picker over this card's artwork/);
-  assert.match(adminPanel, /saved to this card only and never changes the rarity border/);
+  assert.match(adminPanel, /ARTWORK SWIRL COLOR/);
+  assert.match(adminPanel, /The gold border and title shine stay the same/);
   assert.match(adminPanel, /effectColor: form\.effectColor \|\| null/);
   assert.match(routes, /effectColor: row\.effect_color \?\? null/);
   assert.match(routes, /effectColorText\(req\.body\?\.effectColor\)/);
@@ -79,7 +80,9 @@ test("admin can pick and persist an effect color per card artwork", () => {
   assert.match(routes, /effect_color = CASE WHEN \$\{hasEffectColor\} THEN \$\{effectColor\} ELSE effect_color END/);
   assert.match(boot, /ALTER TABLE card_definitions ADD COLUMN IF NOT EXISTS effect_color TEXT/);
   assert.match(preview, /effectColor\?: string \| null/);
-  assert.match(preview, /const customEffectColor = normalizeEffectColor\(effectColor\)/);
+  assert.match(preview, /const activeEffectColor = normalizeEffectColor\(effectColor\) \?\? RARITY_SPARKLE_STYLE\[rarity\]\.color/);
+  assert.match(preview, /const sparkleGlow = RARITY_SPARKLE_STYLE\[rarity\]\.glow/);
+  assert.doesNotMatch(preview, /borderGlowBackground = customEffectColor/);
   assert.match(preview, /stopColor=\{activeEffectColor\}/);
   assert.match(preview, /backgroundImage: borderGlowBackground/);
   assert.match(detail, /effectColor=\{card\.effectColor\}/);
@@ -179,9 +182,12 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /CARD_BORDER_GLINT_POINTS\.length \* 3\.2/);
   assert.match(preview, /cardBorderGlint/);
   assert.match(preview, /data-card-title-rarity=\{highRarityTitle \? rarity : undefined\}/);
-  assert.match(preview, /cardTitleHologoldSweep/);
+  assert.match(preview, /background-position: var\(--card-turn-position, 0%\) 50%/);
+  assert.match(preview, /color: #673b18/);
+  assert.match(preview, /card-border-turn-glow/);
+  assert.match(detail, /--card-turn-intensity/);
   assert.doesNotMatch(preview, /cardTitleFiveStarPulse/);
-  assert.doesNotMatch(preview, /cardTitleHologoldSweep 6\.6s[^;]*cardTitleFiveStarPulse/);
+  assert.doesNotMatch(preview, /cardTitleHologoldSweep/);
   assert.match(preview, /background-clip: text/);
   assert.match(preview, /prefers-reduced-motion: reduce/);
   assert.match(preview, /inset: depth3d \? "12% 7%" : "12% 10%"/);
