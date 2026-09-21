@@ -252,7 +252,7 @@ export default function CardPreview({
           userSelect: "none",
         }}
       >
-        <CardFittedText text={isName ? (name || "CARD NAME") : (description || "Card description")} preferredFontSize={fontSize} minimumFontSize={minimumFontSize} curve={isName ? layout.nameCurve : 0} />
+        <CardFittedText text={isName ? (name || "CARD NAME") : (description || "Card description")} preferredFontSize={fontSize} minimumFontSize={minimumFontSize} curve={isName ? (layout.nameCurve ?? 0) : 0} />
       </div>
     );
   };
