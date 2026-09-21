@@ -32,8 +32,8 @@ interface DragState {
 
 const RARITY_TEXT_STYLES: Record<CardRarity, { name: string; description: string }> = {
   1: { name: "#4a4032", description: "#5b5143" },
-  2: { name: "#244d32", description: "#355f42" },
-  3: { name: "#234f73", description: "#356681" },
+  2: { name: "#4a4032", description: "#5b5143" },
+  3: { name: "#4a4032", description: "#5b5143" },
   4: { name: "#573b72", description: "#6b4c81" },
   5: { name: "#7a3d18", description: "#7f5528" },
 };
