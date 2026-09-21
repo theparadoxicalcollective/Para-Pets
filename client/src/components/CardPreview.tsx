@@ -83,14 +83,6 @@ function normalizeEffectColor(value: string | null | undefined): string | null {
   return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized.toUpperCase() : null;
 }
 
-function hexToRgba(hex: string, alpha: number): string {
-  const normalized = hex.replace("#", "");
-  const r = Number.parseInt(normalized.slice(0, 2), 16);
-  const g = Number.parseInt(normalized.slice(2, 4), 16);
-  const b = Number.parseInt(normalized.slice(4, 6), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-
 // Keep the tiny glitter deterministic but distribute it across the whole artwork.
 // Only five batch opacity animations are used, so even a 5-star card stays light on mobile.
 const CARD_GLITTER_POINTS = Array.from({ length: 220 }, (_, index) => {
@@ -146,17 +138,11 @@ export default function CardPreview({
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
 
-  const customEffectColor = normalizeEffectColor(effectColor);
-  const activeEffectColor = customEffectColor ?? RARITY_SPARKLE_STYLE[rarity].color;
-  const sparkleGlow = customEffectColor
-    ? `drop-shadow(0 0 ${rarity >= 4 ? 2 : rarity === 3 ? 1.5 : 1}px ${hexToRgba(activeEffectColor, .72)})`
-    : RARITY_SPARKLE_STYLE[rarity].glow;
-  const borderGlowBackground = customEffectColor
-    ? `linear-gradient(105deg, transparent 0 31%, ${hexToRgba(activeEffectColor, .08)} 37%, ${hexToRgba(activeEffectColor, .52)} 43%, rgba(255,255,255,.95) 49%, ${hexToRgba(activeEffectColor, .72)} 55%, ${hexToRgba(activeEffectColor, .16)} 61%, transparent 68% 100%), linear-gradient(105deg, transparent 0 31%, ${hexToRgba(activeEffectColor, .08)} 37%, ${hexToRgba(activeEffectColor, .52)} 43%, rgba(255,255,255,.95) 49%, ${hexToRgba(activeEffectColor, .72)} 55%, ${hexToRgba(activeEffectColor, .16)} 61%, transparent 68% 100%)`
-    : "linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%), linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%)";
-  const borderGlowFilter = customEffectColor
-    ? `drop-shadow(0 0 ${2.8 + rarity * .45}px ${hexToRgba(activeEffectColor, .95)}) drop-shadow(0 0 ${6.5 + rarity * .9}px ${hexToRgba(activeEffectColor, .7)}) drop-shadow(0 0 ${11 + rarity * 1.1}px ${hexToRgba(activeEffectColor, .36)})`
-    : `drop-shadow(0 0 ${2.8 + rarity * .45}px rgba(255,224,116,.95)) drop-shadow(0 0 ${6.5 + rarity * .9}px rgba(255,184,34,.7)) drop-shadow(0 0 ${11 + rarity * 1.1}px rgba(255,146,18,.36))`;
+  // The saved per-card color belongs to the artwork swirls only.
+  const activeEffectColor = normalizeEffectColor(effectColor) ?? RARITY_SPARKLE_STYLE[rarity].color;
+  const sparkleGlow = RARITY_SPARKLE_STYLE[rarity].glow;
+  const borderGlowBackground = "linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%), linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%)";
+  const borderGlowFilter = `drop-shadow(0 0 ${2.8 + rarity * .45}px rgba(255,224,116,.95)) drop-shadow(0 0 ${6.5 + rarity * .9}px rgba(255,184,34,.7)) drop-shadow(0 0 ${11 + rarity * 1.1}px rgba(255,146,18,.36))`;
 
   const fieldMetrics = (field: CardLayoutField) => field === "name"
     ? { x: layout.nameX, y: layout.nameY, width: layout.nameWidth, height: layout.nameHeight }
@@ -295,6 +281,7 @@ export default function CardPreview({
     <div
       ref={canvasRef}
       data-testid="card-preview"
+      className={depth3d ? "card-preview-turnable" : undefined}
       style={{
         position: "relative",
         width: "100%",
@@ -470,7 +457,7 @@ export default function CardPreview({
         <div
           data-testid="card-border-gold-glow"
           aria-hidden="true"
-          className="card-border-gold-glow"
+          className={depth3d ? "card-border-turn-glow" : "card-border-gold-glow"}
           style={{
             position: "absolute",
             inset: 0,
@@ -488,10 +475,10 @@ export default function CardPreview({
             backgroundImage: borderGlowBackground,
             backgroundSize: "190% 100%, 190% 100%",
             backgroundRepeat: "no-repeat, no-repeat",
-            backgroundPosition: "0% 0, 190% 0",
+            backgroundPosition: depth3d ? "var(--card-turn-position, 0%) 0, 190% 0" : "0% 0, 190% 0",
             mixBlendMode: "screen",
             filter: borderGlowFilter,
-            opacity: .82 + (rarity - 3) * .06,
+            opacity: depth3d ? "var(--card-turn-opacity, 0)" : .82 + (rarity - 3) * .06,
           }}
         />
       )}
@@ -500,6 +487,8 @@ export default function CardPreview({
           data-testid="card-border-sparkles"
           aria-hidden="true"
           style={{
+            opacity: depth3d ? "var(--card-turn-intensity, 0)" : 1,
+            transition: "opacity 180ms ease-out",
             position: "absolute",
             inset: 0,
             zIndex: 3,
@@ -616,10 +605,6 @@ export default function CardPreview({
           50% { opacity: .18; transform: scale(.74) rotate(0deg); }
           72% { opacity: .8; transform: scale(1) rotate(-5deg); }
         }
-        @keyframes cardTitleHologoldSweep {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
         .card-glitter-batch { will-change: opacity; }
         .card-glitter-batch-0 { animation: cardGlitterPulseA 2.5s ease-in-out infinite; }
         .card-glitter-batch-1 { animation: cardGlitterPulseB 3s ease-in-out infinite; }
@@ -644,24 +629,18 @@ export default function CardPreview({
           animation: cardBorderGlint 2.15s ease-in-out infinite;
         }
         [data-card-title-rarity="4"] > span,
-        [data-card-title-rarity="5"] > span {
-          color: transparent;
-          -webkit-text-fill-color: transparent;
-          background-image: linear-gradient(100deg, #8d5513 0%, #d99c31 18%, #fff3bd 34%, #c57918 47%, #fff8d8 61%, #e7b447 76%, #8e5413 100%);
-          background-size: 230% 100%;
-          background-clip: text;
-          -webkit-background-clip: text;
-          animation: cardTitleHologoldSweep 7.8s ease-in-out infinite;
-        }
+        [data-card-title-rarity="5"] > span,
         [data-card-title-rarity="4"] .card-curved-title-letter,
         [data-card-title-rarity="5"] .card-curved-title-letter {
-          color: transparent;
+          color: #673b18;
           -webkit-text-fill-color: transparent;
-          background-image: linear-gradient(100deg, #8d5513 0%, #d99c31 18%, #fff3bd 34%, #c57918 47%, #fff8d8 61%, #e7b447 76%, #8e5413 100%);
-          background-size: 230% 100%;
+          background-image: linear-gradient(100deg, #673b18 0%, #88511c 42%, #fff5cb 49%, #c18a2e 54%, #673b18 100%);
+          background-size: 250% 100%;
+          background-position: var(--card-turn-position, 0%) 50%;
           background-clip: text;
           -webkit-background-clip: text;
-          animation: cardTitleHologoldSweep 7.8s ease-in-out infinite;
+          filter: drop-shadow(0 1px 1px rgba(45,24,8,.55));
+          transition: background-position 180ms ease-out;
         }
         .card-sparkle-swirl-line {
           mix-blend-mode: screen;
@@ -672,25 +651,25 @@ export default function CardPreview({
           animation: cardBorderGlowTravel 11.5s linear infinite;
           will-change: background-position;
         }
+        .card-border-turn-glow {
+          transition: opacity 180ms ease-out, background-position 180ms ease-out;
+        }
         @media (prefers-reduced-motion: reduce) {
           .card-glitter-batch,
           .card-micro-glint,
           .card-border-glint,
           .card-sparkle-swirl-line,
-          .card-border-gold-glow,
-          [data-card-title-rarity="4"] > span,
-          [data-card-title-rarity="5"] > span,
-          [data-card-title-rarity="4"] .card-curved-title-letter,
-          [data-card-title-rarity="5"] .card-curved-title-letter { animation: none !important; }
+          .card-border-gold-glow { animation: none !important; }
           .card-glitter-batch { opacity: .82; }
           .card-micro-glint,
           .card-border-glint { opacity: .6; }
           .card-sparkle-swirl-line { opacity: .56; }
           .card-border-gold-glow { background-position: 0% 0, 190% 0; opacity: .88; }
+          .card-border-turn-glow,
           [data-card-title-rarity="4"] > span,
           [data-card-title-rarity="5"] > span,
           [data-card-title-rarity="4"] .card-curved-title-letter,
-          [data-card-title-rarity="5"] .card-curved-title-letter { background-position: 50% 50%; filter: drop-shadow(0 0 3px rgba(255,194,56,.48)); }
+          [data-card-title-rarity="5"] .card-curved-title-letter { transition: none; }
         }
       `}</style>}
     </div>
