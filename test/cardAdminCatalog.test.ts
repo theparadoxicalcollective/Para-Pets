@@ -44,6 +44,20 @@ test("border editor uses one persisted percentage layout per rarity", () => {
   assert.match(routes, /app\.put\("\/api\/admin\/card-border-layouts\/:rarity", isAdmin/);
 });
 
+test("card text editor uses simple nudge, center, size, and title-only curve controls", () => {
+  assert.match(adminPanel, /button-nudge-card-text-up/);
+  assert.match(adminPanel, /button-nudge-card-text-down/);
+  assert.match(adminPanel, /button-nudge-card-text-left/);
+  assert.match(adminPanel, /button-nudge-card-text-right/);
+  assert.match(adminPanel, /button-center-card-text/);
+  assert.match(adminPanel, /button-decrease-card-text-size/);
+  assert.match(adminPanel, /button-increase-card-text-size/);
+  assert.doesNotMatch(adminPanel, /type="range"/);
+  assert.match(adminPanel, /selectedField === "name"[\s\S]*button-card-title-curve-decrease[\s\S]*button-card-title-curve-flat[\s\S]*button-card-title-curve-increase/);
+  assert.match(catalog, /nameCurve: number/);
+  assert.match(preview, /curve=\{isName \? layout\.nameCurve : 0\}/);
+});
+
 test("card APIs are admin-protected and durable", () => {
   assert.match(routeRegistry, /registerCardAdminRoutes\(app, \{ db, isAdmin, processCardImage: processWorldImage \}\)/);
   for (const path of [
@@ -69,7 +83,7 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
   assert.equal(cardAdminValidation.parseRarity(6), null);
 
   const valid = {
-    nameX: 13, nameY: 6, nameWidth: 74, nameHeight: 10, nameFontSize: 14,
+    nameX: 13, nameY: 6, nameWidth: 74, nameHeight: 10, nameFontSize: 14, nameCurve: 0,
     descriptionX: 13, descriptionY: 76, descriptionWidth: 74,
     descriptionHeight: 16, descriptionFontSize: 10,
     starX: 47, starY: 18, starWidth: 6, rarity: 1,
@@ -77,6 +91,7 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
   const { rarity, ...layout } = valid;
   assert.deepEqual(cardAdminValidation.parseLayout(valid), layout);
   assert.throws(() => cardAdminValidation.parseLayout({ ...valid, starX: 99 }), /Stars must stay inside/);
+  assert.throws(() => cardAdminValidation.parseLayout({ ...valid, nameCurve: 9 }), /nameCurve must be between 0 and 8/);
   assert.throws(
     () => cardAdminValidation.parseLayout({ ...valid, descriptionY: 90 }),
     /inside the card/,
