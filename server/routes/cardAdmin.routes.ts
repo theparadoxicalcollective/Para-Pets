@@ -13,13 +13,13 @@ interface CardRouteDependencies {
 type CardRarity = 1 | 2 | 3 | 4 | 5;
 
 const LAYOUT_FIELDS = [
-  "nameX", "nameY", "nameWidth", "nameHeight", "nameFontSize", "nameCurve",
+  "nameX", "nameY", "nameWidth", "nameHeight", "nameFontSize",
   "descriptionX", "descriptionY", "descriptionWidth", "descriptionHeight",
   "descriptionFontSize", "starX", "starY", "starWidth",
 ] as const;
 
 type LayoutField = (typeof LAYOUT_FIELDS)[number];
-type LayoutInput = Record<LayoutField, number>;
+type LayoutInput = Record<LayoutField, number> & { nameCurve: number };
 
 function parseRarity(value: unknown): CardRarity | null {
   const rarity = Number(value);
@@ -42,10 +42,16 @@ function descriptionText(value: unknown, maxLength = 600): string {
 }
 
 function parseLayout(body: Record<string, unknown>): LayoutInput {
-  const parsed = Object.fromEntries(LAYOUT_FIELDS.map((field) => [field, Number(body[field])])) as LayoutInput;
+  const parsed = Object.fromEntries(LAYOUT_FIELDS.map((field) => [field, Number(body[field])])) as Record<LayoutField, number>;
   for (const field of LAYOUT_FIELDS) {
     if (!Number.isFinite(parsed[field])) throw new Error(`${field} must be a number`);
   }
+  const rawNameCurve = body.nameCurve;
+  const nameCurve = rawNameCurve === undefined || rawNameCurve === null || rawNameCurve === ""
+    ? 0
+    : Number(rawNameCurve);
+  if (!Number.isFinite(nameCurve)) throw new Error("nameCurve must be a number");
+
   const positionFields: LayoutField[] = ["nameX", "nameY", "descriptionX", "descriptionY", "starX", "starY"];
   const sizeFields: LayoutField[] = ["nameWidth", "nameHeight", "descriptionWidth", "descriptionHeight"];
   for (const field of positionFields) {
@@ -55,7 +61,7 @@ function parseLayout(body: Record<string, unknown>): LayoutInput {
     if (parsed[field] < 4 || parsed[field] > 100) throw new Error(`${field} must be between 4 and 100`);
   }
   if (parsed.starWidth < 5 || parsed.starWidth > 80) throw new Error("starWidth must be between 5 and 80");
-  if (parsed.nameCurve < 0 || parsed.nameCurve > 8) throw new Error("nameCurve must be between 0 and 8");
+  if (nameCurve < 0 || nameCurve > 8) throw new Error("nameCurve must be between 0 and 8");
   const rarity = parseRarity(body.rarity);
   if (!rarity) throw new Error("Invalid card rarity");
   if (parsed.starX + parsed.starWidth > 100 || parsed.starY + parsed.starWidth / rarity * 2 / 3 > 100) {
@@ -70,7 +76,7 @@ function parseLayout(body: Record<string, unknown>): LayoutInput {
   if (parsed.descriptionX + parsed.descriptionWidth > 100 || parsed.descriptionY + parsed.descriptionHeight > 100) {
     throw new Error("Description box must stay inside the card");
   }
-  return parsed;
+  return { ...parsed, nameCurve };
 }
 
 export function serializeCard(row: any) {
