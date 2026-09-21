@@ -25,7 +25,7 @@ export interface CardBorderLayout {
   nameWidth: number;
   nameHeight: number;
   nameFontSize: number;
-  nameCurve: number;
+  nameCurve?: number;
   descriptionX: number;
   descriptionY: number;
   descriptionWidth: number;
