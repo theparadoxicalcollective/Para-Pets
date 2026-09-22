@@ -99,6 +99,8 @@ test("Beau only opens the wheel from the Haunted Forest NPC and startup installs
   assert.match(bridge, /BEAU_PRIZE_WHEEL_NPC_NAME/);
   assert.match(bridge, /npcNamesMatch/);
   assert.match(bridge, /data-testid="casino-free-play-indicator"/);
+  assert.match(bridge, /data-testid="beau-free-spin-indicator"/);
+  assert.match(bridge, /state\?\.ready && state\.freeSpinAvailable/);
   assert.match(bridge, /lineHeight: 1/);
   assert.match(bridge, /translateY\(-1px\)/);
   assert.match(startup, /ensureBeauPrizeWheelSchema/);
