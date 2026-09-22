@@ -121,7 +121,7 @@ export default function BeauPrizeWheelBridge() {
     const refresh = () => {
       void fetch("/api/beau-prize-wheel", { credentials: "include", cache: "no-store" })
         .then(response => response.ok ? response.json() as Promise<WheelState> : null)
-        .then(state => { if (active) setFreeBeauSpin(Boolean(state?.ready && state.freeSpinAvailable && (!state.requiresActivePet || state.activePetReady))); })
+        .then(state => { if (active) setFreeBeauSpin(Boolean(state?.ready && state.freeSpinAvailable)); })
         .catch(() => { if (active) setFreeBeauSpin(false); });
       void fetch("/api/haunted-casino/bingo", { credentials: "include", cache: "no-store" })
         .then(response => response.ok ? response.json() as Promise<{ freeGameAvailable: boolean }> : null)
@@ -246,6 +246,15 @@ export default function BeauPrizeWheelBridge() {
               }}
             />
           )}
+          {!isAdmin && freeBeauSpin && (
+            <span
+              data-testid="beau-free-spin-indicator"
+              aria-label="Beau has a free spin available"
+              className="beau-free-spin-indicator"
+            >
+              <span aria-hidden="true">!</span>
+            </span>
+          )}
           {notice && (
             <div
               role="status"
@@ -320,7 +329,7 @@ export default function BeauPrizeWheelBridge() {
           <BeauPrizeWheelOverlay
             initialState={wheelState}
             onClose={() => setWheelState(null)}
-            onStateChange={next => { setWheelState(next); setFreeBeauSpin(Boolean(next.ready && next.freeSpinAvailable && (!next.requiresActivePet || next.activePetReady))); }}
+            onStateChange={next => { setWheelState(next); setFreeBeauSpin(Boolean(next.ready && next.freeSpinAvailable)); }}
           />
         </Suspense>,
         document.body,

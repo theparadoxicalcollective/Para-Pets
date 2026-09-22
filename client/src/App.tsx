@@ -10,6 +10,7 @@ import { Suspense, useEffect, useRef, useState, type CSSProperties, type ReactNo
 import { lazyWithRetry as lazy } from "@/lib/lazyWithRetry";
 import { installPageLifecycleDiagnostics, stabilityDiagnostic } from "@/lib/stabilityDiagnostics";
 import { playClick, unlockAudio } from "@/lib/sounds";
+import { showClickSparkles } from "@/lib/interactionEffects";
 import { useToast } from "@/hooks/use-toast";
 import { initTabSync, teardownTabSync } from "@/lib/tabSync";
 import { calculateStageLayout, getStageTransform, getVisibleViewport, shouldUseDocumentLayout } from "@/lib/stage";
@@ -931,7 +932,10 @@ function App() {
         '[data-testid^="link-"], [data-testid^="item-"], [data-testid^="tile-"],' +
         '[data-testid^="nav-"], [data-testid^="select-"]'
       );
-      if (interactive && !interactive.hasAttribute('data-no-click-sound')) playClick();
+      const disabled = interactive?.matches(':disabled, [aria-disabled="true"]');
+      if (!interactive || disabled) return;
+      if (!interactive.hasAttribute('data-no-click-sound')) playClick();
+      if (!interactive.hasAttribute('data-no-click-sparkle')) showClickSparkles(e.clientX, e.clientY);
     };
 
     document.addEventListener("pointerdown", handler, true);
