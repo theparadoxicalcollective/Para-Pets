@@ -5,12 +5,13 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { currencyAssets } from "@/lib/currencyAssets";
 import type { CostumePlacement } from "@shared/costumeFeature";
-import { COSTUME_SLOT_COUNT, getCostumeSlotUnlockCost, getUnlockedCostumeSlotCount } from "@shared/costumeFeature";
+import { COSTUME_SLOT_COUNT, getAdornmentSlotDefinition, getCostumeSlotUnlockCost, getUnlockedCostumeSlotCount } from "@shared/costumeFeature";
 
 interface InventoryCostume {
   inventoryId: string;
   name: string;
   type: string;
+  adornmentSlot?: string | null;
   imageUrl: string | null;
   quantity: number;
 }
@@ -55,7 +56,12 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
 
   const { data: inventory = [] } = useQuery<InventoryCostume[]>({ queryKey: ["/api/inventory"], staleTime: 0 });
   const { data: equippedCounts = {} } = useQuery<Record<string, number>>({ queryKey: ["/api/user/equipped-costume-counts"], staleTime: 0 });
-  const available = inventory.filter((item) => item.type === "costume" && item.quantity > (equippedCounts[item.inventoryId] ?? 0));
+  const selectedSlotDefinition = selectedSlot ? getAdornmentSlotDefinition(selectedSlot) : undefined;
+  const available = inventory.filter((item) =>
+    item.type === "costume"
+    && item.quantity > (equippedCounts[item.inventoryId] ?? 0)
+    && (!selectedSlotDefinition || !item.adornmentSlot || item.adornmentSlot === selectedSlotDefinition.key)
+  );
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/pet", petInventoryId, "costumes"] });
@@ -108,19 +114,20 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
           const locked = slot > unlockedCount;
           const costume = equipped.find((item) => item.slot === slot);
           const price = getCostumeSlotUnlockCost(slot);
+          const slotDefinition = getAdornmentSlotDefinition(slot)!;
           return (
             <button
               key={slot}
               type="button"
               data-testid={`slot-costume-${slot}`}
-              aria-label={locked ? `Unlock adornment slot ${slot}` : costume ? `Unequip ${costume.name}` : `Choose adornment for slot ${slot}`}
+              aria-label={locked ? `Unlock ${slotDefinition.label} adornment space` : costume ? `Unequip ${costume.name} from ${slotDefinition.label}` : `Choose adornment for ${slotDefinition.label}`}
               onClick={() => locked ? requestLockedSlot(slot) : costume ? setRemoveCostume(costume) : setSelectedSlot(slot)}
               className="relative flex min-w-0 flex-col items-center justify-center overflow-hidden rounded-xl transition-transform active:scale-95"
               style={closetMode ? { background: "transparent", border: "2px solid transparent", padding: 3, cursor: "pointer" } : { minHeight: 92, padding: 8, background: costume ? "rgba(16,28,20,.92)" : "rgba(3,10,7,.78)", border: `1.5px solid ${locked ? "rgba(80,90,82,.35)" : costume ? rarityColor + "88" : "rgba(139,92,246,.32)"}`, cursor: "pointer" }}
             >
-              {locked ? <><Lock size={closetMode ? 18 : 20} style={{ color: "rgba(218,181,92,.82)", filter: "drop-shadow(0 2px 3px #000)" }} /><span data-testid={`costume-slot-price-${slot}`} className="mt-1 inline-flex items-center justify-center gap-[2px] font-fantasy" style={{ color: "#e6c873", fontSize: 7, textShadow: "0 1px 2px #000" }}><img src={currencyAssets.coin} alt="" aria-hidden="true" className="shrink-0 object-contain" style={{ width: closetMode ? 11 : 14, height: closetMode ? 11 : 14, filter: "drop-shadow(0 1px 2px rgba(0,0,0,.8))" }} />{price.toLocaleString()}</span></>
+              {locked ? <><span className="font-fantasy" style={{ color: "rgba(226,207,157,.72)", fontSize: closetMode ? 6 : 8 }}>[ {slotDefinition.label} ]</span><Lock size={closetMode ? 18 : 20} style={{ color: "rgba(218,181,92,.82)", filter: "drop-shadow(0 2px 3px #000)" }} /><span data-testid={`costume-slot-price-${slot}`} className="mt-1 inline-flex items-center justify-center gap-[2px] font-fantasy" style={{ color: "#e6c873", fontSize: 7, textShadow: "0 1px 2px #000" }}><img src={currencyAssets.coin} alt="" aria-hidden="true" className="shrink-0 object-contain" style={{ width: closetMode ? 11 : 14, height: closetMode ? 11 : 14, filter: "drop-shadow(0 1px 2px rgba(0,0,0,.8))" }} />{price.toLocaleString()}</span></>
                 : costume ? <><div className={closetMode ? "grid h-[72%] w-[86%] place-items-center overflow-hidden" : "grid h-12 w-12 place-items-center overflow-hidden rounded-lg"}>{costume.imageUrl ? <img src={costume.imageUrl} alt={costume.name} className="h-full w-full object-contain" style={{ filter: `drop-shadow(0 3px 6px #000) drop-shadow(0 0 6px ${rarityColor}55)` }} /> : <Sparkles size={24} style={{ color: rarityColor }} />}</div><span className={closetMode ? "absolute bottom-[5%] max-w-[88%] truncate rounded px-1 font-fantasy" : "w-full truncate font-fantasy"} style={{ color: rarityColor, fontSize: 7, background: closetMode ? "rgba(0,5,3,.62)" : undefined }}>{costume.name}</span></>
-                : <><Sparkles size={closetMode ? 21 : 24} style={{ color: "rgba(100,221,158,.58)", filter: "drop-shadow(0 0 7px rgba(52,220,145,.36))" }} /><span className="mt-1 font-fantasy" style={{ color: "rgba(190,225,198,.48)", fontSize: 6 }}>TAP</span></>}
+                : <span className="font-fantasy tracking-wide" style={{ color: "rgba(190,225,198,.66)", fontSize: closetMode ? 7 : 9, textShadow: "0 1px 3px #000" }}>[ {slotDefinition.label} ]</span>}
             </button>
           );
         })}
@@ -130,7 +137,7 @@ export default function PetCostumeEquipmentSection({ petInventoryId, petName, ra
 
       {selectedSlot && <div className="fixed inset-0 z-[1000] grid place-items-center px-5 py-8" style={{ background: "rgba(2,5,3,.94)" }}>
         <div className="max-h-full w-full max-w-[380px] overflow-y-auto rounded-2xl p-5" style={{ background: "#07120d", border: "1px solid rgba(202,164,76,.48)", boxShadow: "0 0 30px rgba(0,0,0,.72)" }}>
-          <div className="mb-4 flex items-start justify-between gap-3"><div><p className="font-fantasy text-sm" style={{ color: "#ead9a8" }}>Choose Adornment</p><p className="mt-1 font-fantasy text-[9px]" style={{ color: "rgba(200,220,200,.58)" }}>Equip to slot {selectedSlot}</p></div><button type="button" aria-label="Close adornment inventory" onClick={() => setSelectedSlot(null)} className="rounded-lg px-3 py-2 text-xs" style={{ color: "#dfc27d", border: "1px solid rgba(202,164,76,.32)" }}>CLOSE</button></div>
+          <div className="mb-4 flex items-start justify-between gap-3"><div><p className="font-fantasy text-sm" style={{ color: "#ead9a8" }}>Choose Adornment</p><p className="mt-1 font-fantasy text-[9px]" style={{ color: "rgba(200,220,200,.58)" }}>Equip to [ {getAdornmentSlotDefinition(selectedSlot)?.label} ]</p></div><button type="button" aria-label="Close adornment inventory" onClick={() => setSelectedSlot(null)} className="rounded-lg px-3 py-2 text-xs" style={{ color: "#dfc27d", border: "1px solid rgba(202,164,76,.32)" }}>CLOSE</button></div>
           {available.length ? <div className="grid grid-cols-3 gap-2" data-testid="costume-slot-inventory">{available.map((item) => {
             const remaining = item.quantity - (equippedCounts[item.inventoryId] ?? 0);
             return <button key={item.inventoryId} type="button" data-testid={`bag-costume-${item.inventoryId}`} disabled={equip.isPending} onClick={() => equip.mutate({ costumeInventoryId: item.inventoryId, slot: selectedSlot })} className="flex flex-col items-center gap-1 rounded-xl p-2 active:scale-95 disabled:opacity-45" style={{ background: "rgba(7,14,11,.9)", border: "1px solid rgba(202,164,76,.26)" }}><div className="grid h-12 w-12 place-items-center overflow-hidden rounded-lg" style={{ background: "rgba(0,0,0,.48)" }}>{item.imageUrl ? <img src={item.imageUrl} alt={item.name} className="h-full w-full object-contain" /> : <Sparkles size={24} style={{ color: "#dfc27d" }} />}</div><span className="w-full truncate font-fantasy text-[7px]" style={{ color: "rgba(239,226,194,.8)" }}>{item.name}</span>{remaining > 1 && <span className="font-fantasy text-[7px]" style={{ color: "#a7f3d0" }}>×{remaining}</span>}</button>;

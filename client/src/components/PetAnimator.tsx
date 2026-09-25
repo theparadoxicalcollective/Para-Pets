@@ -10,7 +10,7 @@ import { getCostumeCanvasPosition } from "@/lib/costumePlacement";
 import { getEffectivePetLayer } from "@/lib/petPartConfig";
 import { FULL_BOUNDS, getAlphaBoundsSync } from "@/lib/alphaBounds";
 import { alphaAdjustedPivot } from "@/lib/petAnimationConfig";
-import { getWingReplacementPartTypes, normalizeCostumePlacements, type CostumePlacement } from "@shared/costumeFeature";
+import { ADORNMENT_SLOT_MAP, getWingReplacementPartTypes, normalizeCostumePlacements, type CostumePlacement } from "@shared/costumeFeature";
 import { normalizePetParts } from "@/lib/petRenderSafety";
 
 interface PetPart {
@@ -675,10 +675,15 @@ export default function PetAnimator({
     const costumeView = resolvedView === "back" ? "side" : "front";
     for (const costume of equipped) {
       const placements = Array.isArray(costume.placements) ? costume.placements : [];
+      const hasVisibleWingsAdornment = costume.slot === ADORNMENT_SLOT_MAP.wings
+        && placements.some((placement) => placement?.view === costumeView);
+      if (hasVisibleWingsAdornment) {
+        for (const part of viewParts) if (part.partType.toLowerCase().includes("wing")) hidden.add(part.partType);
+      }
       for (const placement of placements) {
         if (!placement || placement.view !== costumeView) continue;
         if (placement.anchorPart === "independent" && placement.replacesWings) {
-          for (const part of viewParts) if (part.partType.includes("wing")) hidden.add(part.partType);
+          for (const part of viewParts) if (part.partType.toLowerCase().includes("wing")) hidden.add(part.partType);
         }
         for (const partType of getWingReplacementPartTypes(placement.anchorPart)) hidden.add(partType);
       }

@@ -4,6 +4,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { readFileAsDataUrl } from "@/lib/utils";
 import type { CardDefinition } from "@/lib/cardCatalog";
+import { ADORNMENT_SLOT_DEFINITIONS, isAdornmentSlotKey, type AdornmentSlotKey } from "@shared/costumeFeature";
 
 export interface ShopItemFull {
   id: string;
@@ -11,6 +12,7 @@ export interface ShopItemFull {
   description: string | null;
   price: number;
   type: string;
+  adornmentSlot?: string | null;
   worldId: string;
   imageUrl: string | null;
   eggImageUrl: string | null;
@@ -64,6 +66,7 @@ const NON_PET_TYPES = ["power_up", "accessory", "costume", "clearing", "potion",
 
 function formatTypeName(type: string): string {
   if (type === "power_up") return "Power Up";
+  if (type === "costume") return "Adornment";
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
@@ -463,6 +466,11 @@ export default function ItemDatabaseSection({
                         >
                           {formatTypeName(item.type)}
                         </span>
+                        {item.type === "costume" && (
+                          <span data-testid={`adornment-space-${item.id}`} className="font-fantasy text-[8px] tracking-wider px-1.5 py-0.5 rounded-full" style={{ color: "#d8b4fe", border: "1px solid rgba(192,132,252,.25)", background: "rgba(192,132,252,.08)" }}>
+                            {ADORNMENT_SLOT_DEFINITIONS.find((space) => space.key === item.adornmentSlot)?.label ?? "Unassigned"}
+                          </span>
+                        )}
                         <span className="font-fantasy text-[#f0c040] text-[8px]">{item.price} coins</span>
                       </div>
                       {(item.type === "power_up" || item.type === "item") && item.statBoostType && (
@@ -583,6 +591,8 @@ function AdminItemForm({
   const [description, setDescription] = useState(item?.description || "");
   const [price, setPrice] = useState(item?.price?.toString() || "");
   const [type, setType] = useState(defaultType);
+  const initialAdornmentSlot = item?.adornmentSlot;
+  const [adornmentSlot, setAdornmentSlot] = useState<AdornmentSlotKey>(isAdornmentSlotKey(initialAdornmentSlot) ? initialAdornmentSlot : "head");
   const [edibleLvlPoints, setEdibleLvlPoints] = useState(item?.statBoostAmount?.toString() || "5");
   const [giftPoints, setGiftPoints] = useState(item?.giftPoints?.toString() || "100");
   const [petExp, setPetExp] = useState(item?.petExp?.toString() || "0");
@@ -684,6 +694,7 @@ function AdminItemForm({
     try {
       const finalName = name.trim() || (petOnly ? "Unnamed Pet" : "Unnamed Item");
       const payload: any = { name: finalName, description: description.trim() || null, price: priceNum, type: effectiveType, worldId: "all" };
+      payload.adornmentSlot = effectiveType === "costume" ? adornmentSlot : null;
       if (imageData) payload.imageData = imageData;
 
       if (effectiveType === "pet") {
@@ -968,6 +979,24 @@ function AdminItemForm({
                   <option key={t} value={t}>{formatTypeName(t)}</option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {!petOnly && effectiveType === "costume" && (
+            <div>
+              <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Adornment Closet Space</label>
+              <select
+                data-testid="select-adornment-slot"
+                value={adornmentSlot}
+                onChange={(e) => setAdornmentSlot(e.target.value as AdornmentSlotKey)}
+                className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                style={inputStyle}
+              >
+                {ADORNMENT_SLOT_DEFINITIONS.map((space) => (
+                  <option key={space.key} value={space.key}>{space.label}</option>
+                ))}
+              </select>
+              <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-1">Sets which of the five player Closet spaces can equip this adornment.</p>
             </div>
           )}
 

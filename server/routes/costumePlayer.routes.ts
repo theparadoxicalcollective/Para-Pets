@@ -11,6 +11,7 @@ import {
 } from "@shared/costumeSchema";
 import {
   COSTUME_SLOT_COUNT,
+  getAdornmentSlotDefinition,
   getCostumeSlotUnlockCost,
   getUnlockedCostumeSlotCount,
   normalizeCostumePlacements,
@@ -178,6 +179,11 @@ export function registerCostumePlayerRoutes(app: Express) {
         const [costumeItem] = await tx.select().from(shopItems)
           .where(eq(shopItems.id, costumeInventory.shopItemId)).limit(1);
         if (!costumeItem || costumeItem.type !== "costume") throw new Error("Item is not a costume");
+        const slotDefinition = getAdornmentSlotDefinition(slot);
+        if (!slotDefinition) throw new Error("Adornment space is invalid");
+        if (costumeItem.adornmentSlot && costumeItem.adornmentSlot !== slotDefinition.key) {
+          throw new Error(`This adornment belongs in the ${slotDefinition.label} space`);
+        }
 
         const [unlock] = await tx.select().from(petCostumeSlotUnlocks)
           .where(eq(petCostumeSlotUnlocks.petInventoryId, petInventoryId)).limit(1);

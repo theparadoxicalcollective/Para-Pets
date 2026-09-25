@@ -1853,6 +1853,7 @@ export async function registerRoutes(
         name: shopItem?.name || "Unknown",
         description: shopItem?.description || null,
         type: shopItem?.type || "item",
+        adornmentSlot: shopItem?.adornmentSlot ?? null,
         imageUrl: shopItem?.imageUrl || null,
         worldId: shopItem?.worldId || "",
         rarity: shopItem?.rarity || null,
