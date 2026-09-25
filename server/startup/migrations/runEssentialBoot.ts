@@ -42,6 +42,7 @@ export async function runEssentialBoot(): Promise<void> {
         bundle_id VARCHAR NOT NULL REFERENCES reward_bundles(id) ON DELETE CASCADE,
         active BOOLEAN NOT NULL DEFAULT true,
         expires_at TIMESTAMP,
+        max_redemptions INTEGER CHECK (max_redemptions > 0),
         created_by VARCHAR REFERENCES users(id) ON DELETE SET NULL,
         created_at TIMESTAMP NOT NULL DEFAULT now()
       );
@@ -54,6 +55,7 @@ export async function runEssentialBoot(): Promise<void> {
       );
       CREATE INDEX IF NOT EXISTS redeem_code_redemptions_user_idx
         ON redeem_code_redemptions(user_id, redeemed_at DESC);
+      ALTER TABLE redeem_codes ADD COLUMN IF NOT EXISTS max_redemptions INTEGER;
     `],
     ["Mini Pets schema migration error (non-fatal):", sql`
       CREATE TABLE IF NOT EXISTS mini_pet_definitions (

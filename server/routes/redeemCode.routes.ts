@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { sql } from "drizzle-orm";
 import { db } from "../db";
 import { requireAdmin, requireAuthenticated } from "../auth";
-import { isValidRedeemCode, normalizeRedeemCode } from "../redeemCode";
+import { isValidRedeemCode, normalizeRedeemCode, parseMaxRedemptions } from "../redeemCode";
 import { parseBundleCards } from "../cards";
 
 type RedeemError = Error & { code?: string; status?: number };
@@ -15,7 +15,7 @@ export function registerRedeemCodeRoutes(app: Express): void {
   app.get("/api/admin/redeem-codes", requireAdmin, async (_req, res) => {
     try {
       const result = await db.execute(sql`
-        SELECT rc.id, rc.code, rc.active, rc.expires_at, rc.created_at,
+        SELECT rc.id, rc.code, rc.active, rc.expires_at, rc.max_redemptions, rc.created_at,
                rb.name AS bundle_name, rb.message, rb.coin_amount,
                COUNT(DISTINCT rcr.user_id)::int AS redemption_count
         FROM redeem_codes rc
@@ -43,12 +43,12 @@ export function registerRedeemCodeRoutes(app: Express): void {
       let cards;
       try { cards = parseBundleCards(req.body?.cards); }
       catch (error: any) { return res.status(400).json({ message: error.message }); }
-      const expiresAt = req.body?.expiresAt ? new Date(req.body.expiresAt) : null;
+      const maxRedemptions = parseMaxRedemptions(req.body?.maxRedemptions);
 
       if (!isValidRedeemCode(code)) return res.status(400).json({ message: "Code must be 3–32 letters, numbers, or hyphens" });
       if (!name) return res.status(400).json({ message: "Give this code reward a name" });
       if (!coinAmount && shopItemIds.length === 0 && cards.length === 0) return res.status(400).json({ message: "Add coins, an item, or a card" });
-      if (expiresAt && Number.isNaN(expiresAt.getTime())) return res.status(400).json({ message: "Expiration date is invalid" });
+      if (maxRedemptions === null) return res.status(400).json({ message: "Redemption limit must be a whole number from 1 to 1,000,000" });
 
       const created = await db.transaction(async (tx) => {
         if (shopItemIds.length) {
@@ -74,9 +74,9 @@ export function registerRedeemCodeRoutes(app: Express): void {
           await tx.execute(sql`INSERT INTO reward_bundle_cards (bundle_id, card_id, quantity) VALUES (${bundleId}, ${card.cardId}, ${card.quantity})`);
         }
         const codeResult = await tx.execute(sql`
-          INSERT INTO redeem_codes (code, bundle_id, active, expires_at, created_by)
-          VALUES (${code}, ${bundleId}, true, ${expiresAt}, ${(req.user as { id: string }).id})
-          RETURNING id, code, active, expires_at, created_at
+          INSERT INTO redeem_codes (code, bundle_id, active, max_redemptions, created_by)
+          VALUES (${code}, ${bundleId}, true, ${maxRedemptions}, ${(req.user as { id: string }).id})
+          RETURNING id, code, active, max_redemptions, created_at
         `);
         return codeResult.rows[0];
       });
@@ -98,7 +98,7 @@ export function registerRedeemCodeRoutes(app: Express): void {
       if (typeof req.body?.active !== "boolean") return res.status(400).json({ message: "Active must be true or false" });
       const updated = await db.execute(sql`
         UPDATE redeem_codes SET active = ${req.body.active}
-        WHERE id = ${req.params.id} RETURNING id, code, active, expires_at, created_at
+        WHERE id = ${req.params.id} RETURNING id, code, active, expires_at, max_redemptions, created_at
       `);
       if (!updated.rows.length) return res.status(404).json({ message: "Redeem code not found" });
       return res.json(updated.rows[0]);
@@ -119,13 +119,23 @@ export function registerRedeemCodeRoutes(app: Express): void {
         if (!userResult.rows[0]?.email_verified) fail("Please verify your email before redeeming a code", "EMAIL_UNVERIFIED", 403);
 
         const codeResult = await tx.execute(sql`
-          SELECT id, bundle_id, active, expires_at
+          SELECT id, bundle_id, active, expires_at, max_redemptions
           FROM redeem_codes WHERE code = ${code} FOR UPDATE
         `);
         const redeemCode = codeResult.rows[0] as any;
         if (!redeemCode) fail("That code was not found", "CODE_NOT_FOUND", 404);
         if (!redeemCode.active) fail("That code is no longer active", "CODE_INACTIVE", 410);
         if (redeemCode.expires_at && new Date(redeemCode.expires_at) <= new Date()) fail("That code has expired", "CODE_EXPIRED", 410);
+
+        // Locking the code row above serializes claims for this code, including
+        // requests from different accounts. The unique key below handles repeats.
+        const previous = await tx.execute(sql`
+          SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE user_id = ${userId})::int AS own
+          FROM redeem_code_redemptions WHERE code_id = ${redeemCode.id}
+        `);
+        if (Number(previous.rows[0].own) > 0) fail("You have already redeemed this code", "ALREADY_REDEEMED", 409);
+        if (redeemCode.max_redemptions !== null && Number(previous.rows[0].total) >= Number(redeemCode.max_redemptions))
+          fail("This code has reached its redemption limit", "CODE_LIMIT_REACHED", 410);
 
         const reserved = await tx.execute(sql`
           INSERT INTO redeem_code_redemptions (code_id, user_id)

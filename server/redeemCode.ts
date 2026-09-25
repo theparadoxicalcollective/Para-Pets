@@ -9,3 +9,9 @@ export function isValidRedeemCode(code: string): boolean {
   return code.length >= 3 && code.length <= 32 && REDEEM_CODE_PATTERN.test(code);
 }
 
+/** New codes must have a finite, positive number of account redemptions. */
+export function parseMaxRedemptions(value: unknown): number | null {
+  if (typeof value !== "number" && (typeof value !== "string" || !/^\d+$/.test(value))) return null;
+  const count = Number(value);
+  return Number.isSafeInteger(count) && count >= 1 && count <= 1_000_000 ? count : null;
+}
