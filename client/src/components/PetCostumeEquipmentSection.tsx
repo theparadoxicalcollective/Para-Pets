@@ -11,7 +11,7 @@ interface InventoryCostume {
   inventoryId: string;
   name: string;
   type: string;
-  adornmentSlot: string | null;
+  adornmentSlot?: string | null;
   imageUrl: string | null;
   quantity: number;
 }
