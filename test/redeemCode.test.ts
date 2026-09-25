@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { isValidRedeemCode, normalizeRedeemCode } from "../server/redeemCode";
+import { isValidRedeemCode, normalizeRedeemCode, parseMaxRedemptions } from "../server/redeemCode";
 
 const root = path.resolve(import.meta.dirname, "..");
 
@@ -12,6 +12,13 @@ test("redeem codes are canonical and reject unsafe values", () => {
   assert.equal(isValidRedeemCode("MOON-GIFT"), true);
   assert.equal(isValidRedeemCode("NO"), false);
   assert.equal(isValidRedeemCode("BAD_CODE"), false);
+});
+
+test("new code redemption limits require a positive whole number", () => {
+  assert.equal(parseMaxRedemptions("100"), 100);
+  for (const value of [undefined, "", 0, -1, 1.5, "abc", true, 1_000_001]) {
+    assert.equal(parseMaxRedemptions(value), null);
+  }
 });
 
 test("redemption is verified-account-only and atomically unique per account and code", () => {
@@ -35,4 +42,3 @@ test("Hub and administration surfaces expose redeem-code controls", () => {
   assert.match(admin, /\{ key: "code", label: "Code" \}/);
   assert.match(admin, /rewardsTab === "code" && <RedeemCodeAdminPanel/);
 });
-

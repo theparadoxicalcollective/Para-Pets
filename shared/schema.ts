@@ -271,6 +271,7 @@ export const redeemCodes = pgTable("redeem_codes", {
   bundleId: varchar("bundle_id").notNull().references(() => rewardBundles.id, { onDelete: "cascade" }),
   active: boolean("active").notNull().default(true),
   expiresAt: timestamp("expires_at"),
+  maxRedemptions: integer("max_redemptions"), // null preserves unlimited legacy codes
   createdBy: varchar("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
