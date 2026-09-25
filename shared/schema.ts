@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, boolean, timestamp, integer, real, unique, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { isAdornmentSlotKey } from "./costumeFeature";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -57,6 +58,7 @@ export const shopItems = pgTable("shop_items", {
   description: text("description"),
   price: integer("price").notNull(),
   type: text("type").notNull(),
+  adornmentSlot: text("adornment_slot"),
   worldId: text("world_id").notNull(),
   locationId: varchar("location_id"),
   imageUrl: text("image_url"),
@@ -498,6 +500,12 @@ export const insertShopItemSchema = baseInsertShopItemSchema.superRefine((item, 
   }
   if (item.type === "accessory" && (!Number.isInteger(item.starRarity) || (item.starRarity ?? 0) < 1 || (item.starRarity ?? 0) > 5)) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["starRarity"], message: "Accessory star rarity must be from 1 through 5" });
+  }
+  if (item.type === "costume" && !isAdornmentSlotKey(item.adornmentSlot)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["adornmentSlot"], message: "Adornment space must be Head, Hand L, Right Hand, Wings, or Back" });
+  }
+  if (item.type !== "costume" && item.adornmentSlot != null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["adornmentSlot"], message: "Only adornments can use an adornment space" });
   }
   if (item.type !== "clearing") return;
   if (!clearingEquipmentSlots.includes(item.clearingSlot as typeof clearingEquipmentSlots[number])) {
