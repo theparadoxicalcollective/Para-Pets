@@ -12,7 +12,7 @@ export interface ShopItemFull {
   description: string | null;
   price: number;
   type: string;
-  adornmentSlot: string | null;
+  adornmentSlot?: string | null;
   worldId: string;
   imageUrl: string | null;
   eggImageUrl: string | null;
@@ -466,6 +466,11 @@ export default function ItemDatabaseSection({
                         >
                           {formatTypeName(item.type)}
                         </span>
+                        {item.type === "costume" && (
+                          <span data-testid={`adornment-space-${item.id}`} className="font-fantasy text-[8px] tracking-wider px-1.5 py-0.5 rounded-full" style={{ color: "#d8b4fe", border: "1px solid rgba(192,132,252,.25)", background: "rgba(192,132,252,.08)" }}>
+                            {ADORNMENT_SLOT_DEFINITIONS.find((space) => space.key === item.adornmentSlot)?.label ?? "Unassigned"}
+                          </span>
+                        )}
                         <span className="font-fantasy text-[#f0c040] text-[8px]">{item.price} coins</span>
                       </div>
                       {(item.type === "power_up" || item.type === "item") && item.statBoostType && (
