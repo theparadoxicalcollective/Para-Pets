@@ -591,7 +591,8 @@ function AdminItemForm({
   const [description, setDescription] = useState(item?.description || "");
   const [price, setPrice] = useState(item?.price?.toString() || "");
   const [type, setType] = useState(defaultType);
-  const [adornmentSlot, setAdornmentSlot] = useState<AdornmentSlotKey>(isAdornmentSlotKey(item?.adornmentSlot) ? item.adornmentSlot : "head");
+  const initialAdornmentSlot = item?.adornmentSlot;
+  const [adornmentSlot, setAdornmentSlot] = useState<AdornmentSlotKey>(isAdornmentSlotKey(initialAdornmentSlot) ? initialAdornmentSlot : "head");
   const [edibleLvlPoints, setEdibleLvlPoints] = useState(item?.statBoostAmount?.toString() || "5");
   const [giftPoints, setGiftPoints] = useState(item?.giftPoints?.toString() || "100");
   const [petExp, setPetExp] = useState(item?.petExp?.toString() || "0");
