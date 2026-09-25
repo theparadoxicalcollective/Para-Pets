@@ -317,12 +317,116 @@ export default function CardsCollectionPage() {
         >
           {isLoading && <p className="col-span-2 py-5 text-center text-sm" role="status">Loading cards…</p>}
           {isError && <div className="col-span-2 py-5 text-center" role="alert"><p>Could not load your cards.</p><button type="button" onClick={() => refetch()} className="mt-2 underline">Try again</button></div>}
-          {!isLoading && !isError && visibleCards.length === 0 && <>
-            <div data-testid="card-collection-placeholder-1" aria-hidden="true" style={{ minWidth: 0, opacity: .55, filter: "grayscale(1) brightness(.7)" }}>
-              <img src={emptyCard} alt="" draggable={false} style={{ display: "block", width: "100%" }} />
+          {!isLoading && !isError && visibleCards.length === 0 && (
+            <div
+              data-testid="card-collection-empty-state"
+              style={{
+                gridColumn: "1 / -1",
+                minHeight: "100%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                textAlign: "center",
+                padding: "8px 10px 28px",
+                boxSizing: "border-box",
+              }}
+            >
+              <div
+                data-testid="card-collection-placeholder-1"
+                aria-hidden="true"
+                style={{
+                  position: "relative",
+                  width: "min(48vw, 174px)",
+                  maxWidth: "100%",
+                  marginBottom: 12,
+                }}
+              >
+                <div style={{
+                  position: "absolute",
+                  inset: "12% -35%",
+                  borderRadius: "50%",
+                  background: "radial-gradient(ellipse, rgba(212,172,83,.22), rgba(83,133,84,.12) 38%, transparent 72%)",
+                  filter: "blur(13px)",
+                }} />
+                <img
+                  src={emptyCard}
+                  alt=""
+                  draggable={false}
+                  style={{
+                    position: "relative",
+                    display: "block",
+                    width: "100%",
+                    opacity: .77,
+                    filter: "grayscale(.72) sepia(.18) drop-shadow(0 12px 14px rgba(0,0,0,.42))",
+                  }}
+                />
+                <span style={{ position: "absolute", top: "18%", left: "-16%", color: "#e8ca79", opacity: .8, fontSize: 20, textShadow: "0 0 12px #e8ca79" }}>✦</span>
+                <span style={{ position: "absolute", top: "43%", right: "-19%", color: "#e8ca79", opacity: .7, fontSize: 14, textShadow: "0 0 10px #e8ca79" }}>✦</span>
+                <span style={{ position: "absolute", bottom: "20%", left: "-12%", color: "#e8ca79", opacity: .6, fontSize: 11, textShadow: "0 0 9px #e8ca79" }}>✦</span>
+              </div>
+              <h2 style={{
+                margin: "0 0 6px",
+                color: "#f3d995",
+                fontSize: "clamp(18px, 5vw, 22px)",
+                lineHeight: 1.3,
+                textShadow: "0 2px 8px rgba(0,0,0,.55)",
+              }}>
+                {rarityFilter ? `No ${rarityFilter}-star cards yet` : "Your collection begins here"}
+              </h2>
+              <p style={{
+                margin: 0,
+                maxWidth: 255,
+                color: "#c9c1a5",
+                fontSize: "clamp(12px, 3.2vw, 14px)",
+                lineHeight: 1.55,
+              }}>
+                {rarityFilter ? "Cards you collect at this rarity will appear here." : "Find your first card and watch your collection come to life."}
+              </p>
+              {rarityFilter ? (
+                <button
+                  type="button"
+                  onClick={() => setRarityFilter(null)}
+                  style={{
+                    marginTop: 18,
+                    minHeight: 40,
+                    padding: "8px 18px",
+                    border: `1px solid ${mutedGold}`,
+                    borderRadius: 22,
+                    background: "rgba(11,41,27,.9)",
+                    color: "#f1d897",
+                    fontFamily: "inherit",
+                    fontSize: 13,
+                    cursor: "pointer",
+                  }}
+                >
+                  View all cards
+                </button>
+              ) : (
+                <div style={{ width: "min(100%, 230px)", marginTop: 22 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, color: "#ebd59b", fontSize: 12 }}>
+                    <span>Your Collection</span>
+                    <span>{cards.length} / {data?.totalCards ?? 0}</span>
+                  </div>
+                  <div
+                    role="progressbar"
+                    aria-label="Cards collected"
+                    aria-valuemin={0}
+                    aria-valuemax={data?.totalCards ?? 0}
+                    aria-valuenow={cards.length}
+                    style={{
+                      height: 6,
+                      marginTop: 8,
+                      borderRadius: 6,
+                      border: `1px solid ${mutedGold}`,
+                      background: "rgba(4,18,12,.8)",
+                      boxShadow: "inset 0 1px 3px rgba(0,0,0,.5)",
+                    }}
+                  />
+                </div>
+              )}
             </div>
-            <p className="col-span-2 text-center text-xs text-amber-100/60">{rarityFilter ? "No cards of this rarity yet." : "Collected cards will appear here."}</p>
-          </>}
+          )}
           {visibleCards.map(card => {
             const rewardNeedsClearance = !card.firstRewardClaimed || rewardPopup?.cardId === card.id;
             return <article
@@ -345,7 +449,7 @@ export default function CardsCollectionPage() {
           })}
         </section>
 
-        <section
+        {cards.length > 0 && <section
           aria-label="Collection progress"
           data-testid="card-collection-progress-overlay"
           style={{
@@ -371,7 +475,7 @@ export default function CardsCollectionPage() {
           <div style={{ fontSize: "clamp(8px, 2.3vw, 10px)", color: "#88cf91", letterSpacing: ".015em", whiteSpace: "nowrap" }}>
             {cards.length} / {data?.totalCards ?? 0} cards collected
           </div>
-        </section>
+        </section>}
 
       </div>
       {selectedCard && <CardDetailDialog key={selectedCard.id} card={selectedCard} layouts={layouts} onClose={() => setSelectedCardId(null)}
