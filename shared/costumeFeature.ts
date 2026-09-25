@@ -11,6 +11,35 @@ import { ADORNMENT_IMAGE_URL_PATTERN, normalizeAdornmentAnimation, type Adornmen
 
 export const COSTUME_SLOT_COUNT = 5 as const;
 
+/** Fixed player-facing Closet spaces for adornments. */
+export const ADORNMENT_SLOT_MAP = {
+  head: 1,
+  left_hand: 2,
+  right_hand: 3,
+  wings: 4,
+  back: 5,
+} as const;
+
+export type AdornmentSlotKey = keyof typeof ADORNMENT_SLOT_MAP;
+
+export const ADORNMENT_SLOT_DEFINITIONS = [
+  { slot: ADORNMENT_SLOT_MAP.head, key: "head", label: "Head" },
+  { slot: ADORNMENT_SLOT_MAP.left_hand, key: "left_hand", label: "Hand L" },
+  { slot: ADORNMENT_SLOT_MAP.right_hand, key: "right_hand", label: "Right Hand" },
+  { slot: ADORNMENT_SLOT_MAP.wings, key: "wings", label: "Wings" },
+  { slot: ADORNMENT_SLOT_MAP.back, key: "back", label: "Back" },
+] as const;
+
+export const ADORNMENT_SLOT_KEYS = Object.keys(ADORNMENT_SLOT_MAP) as AdornmentSlotKey[];
+
+export function isAdornmentSlotKey(value: unknown): value is AdornmentSlotKey {
+  return typeof value === "string" && ADORNMENT_SLOT_KEYS.includes(value as AdornmentSlotKey);
+}
+
+export function getAdornmentSlotDefinition(slot: number) {
+  return ADORNMENT_SLOT_DEFINITIONS.find((definition) => definition.slot === slot);
+}
+
 /** One fitted costume can be duplicated three times on the same pet template. */
 export const COSTUME_MAX_DUPLICATES_PER_PET = 3 as const;
 /** Original artwork + the three allowed duplicates. These are visual placements, not extra inventory copies. */
