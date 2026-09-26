@@ -23,8 +23,9 @@ test("Level Up keeps a still-pet fallback if the animated renderer throws", () =
   assert.match(levelUpSource, /<StableLevelUpPet/);
 });
 
-test("animated costume rendering tolerates incomplete API data", () => {
+test("animated costume rendering tolerates incomplete API data and optional admin preview costumes", () => {
   assert.match(animatorSource, /normalizePetParts\(templateData\?\.parts\)/);
-  assert.match(animatorSource, /Array\.isArray\(costumeData\?\.equipped\)/);
+  assert.match(animatorSource, /const costumeSource = previewCostumes \?\? costumeData\?\.equipped/);
+  assert.match(animatorSource, /Array\.isArray\(costumeSource\)/);
   assert.match(animatorSource, /normalizeCostumePlacements\(costume\.placements\)/);
 });

@@ -48,7 +48,9 @@ test("evolved pets prefer evolution adornment fittings and Still semantic slots 
   assert.match(animator, /function placementsForArtworkForm/);
   assert.match(animator, /artworkForm === "base"/);
   assert.match(animator, /artworkForm=\{resolvedArtworkForm\}/);
-  assert.match(animator, /function semanticStillPartType/);
+  assert.match(animator, /function semanticFollowPartType/);
+  assert.match(animator, /placement\.followPartIndex/);
+  assert.match(animator, /\["head", "h2_head", "h3_head"\]\[placement\.followPartIndex - 1\]/);
   assert.match(animator, /ADORNMENT_SLOT_MAP\.left_hand\) return "left_hand"/);
   assert.match(animator, /ADORNMENT_SLOT_MAP\.right_hand\) return "right_hand"/);
   assert.match(animator, /rebasePlacementToPart\(savedPlacement, followPart, sortedParts\)/);
@@ -56,11 +58,17 @@ test("evolved pets prefer evolution adornment fittings and Still semantic slots 
 
 test("Don\'t Move placements stay fixed and bypass pet-part and item motion", () => {
   assert.match(animator, /const dontMove = savedPlacement\.dontMove === true/);
-  assert.match(animator, /const followPartType = dontMove \? null : semanticStillPartType\(costume\)/);
+  assert.match(animator, /const followPartType = dontMove \? null : semanticFollowPartType\(costume, savedPlacement\)/);
   assert.match(animator, /adornment-fixed-/);
   assert.match(animator, /const fixedAnchor = placement\.anchorPart === "independent"/);
   assert.match(animator, /getCostumeCanvasPosition\(fixedAnchor, placement\)/);
   assert.match(animator, /animated=\{false\}/);
+});
+
+test("admin preview costumes reuse the production animator without a player inventory", () => {
+  assert.match(animator, /previewCostumes\?: PetAnimatorPreviewCostume\[\]/);
+  assert.match(animator, /const costumeSource = previewCostumes \?\? costumeData\?\.equipped/);
+  assert.match(animator, /previewCostumes !== undefined \|\| !!resolvedPetInventoryId/);
 });
 
 test("late-loading costume layers stay phase-locked to the pet animation clock", () => {

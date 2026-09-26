@@ -89,7 +89,7 @@ test("A pet cannot equip two costumes attached to the same saved layer", () => {
 test("Admin costume library marks pieces already fitted for the selected pet", () => {
   assert.match(adminEditor, /const fittedForPet = costumeDefinitions\.some/);
   assert.match(adminEditor, /data-testid={`costume-fitted-\$\{item\.id\}`}/);
-  assert.match(adminEditor, /Placement saved for this pet/);
+  assert.match(adminEditor, /\$\{costumeArtworkForm === "evolution" \? "Evolution" : "Regular"\} placement saved for this pet/);
 });
 
 test("Marketplace refuses to list or transfer an equipped costume", () => {

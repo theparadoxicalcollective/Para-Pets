@@ -1,4 +1,5 @@
 import AdornmentArtwork from "./AdornmentArtwork";
+import PetAnimator, { type PetAnimatorPreviewCostume } from "./PetAnimator";
 import { ADORNMENT_ANIMATIONS, ADORNMENT_ANIMATION_LABELS, ADORNMENT_MOTION_CSS, type AdornmentAnimation } from "@shared/adornmentAnimation";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,7 +11,7 @@ import { Plus, Trash2, X, ArrowLeft, Save, Layers, Link2, Pencil, ChevronUp, Che
 import { renderPetGif, type GifAnimation } from "@/lib/petGif";
 import { getAlphaBoundsSync, FULL_BOUNDS } from "@/lib/alphaBounds";
 import { PET_ANIMATION_PROFILES, type PetAnimationProfile, normalizeAnimationProfile } from "@/lib/petAnimationConfig";
-import { COSTUME_MAX_PLACEMENT_INSTANCES, getWingReplacementPartTypes, type CostumePlacement } from "@shared/costumeFeature";
+import { ADORNMENT_SLOT_MAP, COSTUME_MAX_PLACEMENT_INSTANCES, getWingReplacementPartTypes, type AdornmentSlotKey, type CostumePlacement } from "@shared/costumeFeature";
 import {
   getCostumePlacementAnchorPoint,
   detachCostumePlacement,
@@ -339,7 +340,7 @@ export default function PetDatabasePanel({
   const [selectedCostumeInstance, setSelectedCostumeInstance] = useState(1);
   const [costumeSearch, setCostumeSearch] = useState("");
   const [costumeDraft, setCostumeDraft] = useState<CostumePlacement | null>(null);
-  const [previewAdornmentMotion, setPreviewAdornmentMotion] = useState(false);
+  const [previewAdornmentMotion, setPreviewAdornmentMotion] = useState(true);
   const [costumeDraftDirty, setCostumeDraftDirty] = useState(false);
   const [draggingCostume, setDraggingCostume] = useState(false);
   const costumeDragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
@@ -484,6 +485,7 @@ export default function PetDatabasePanel({
     animation: "none",
     animationSpeed: 1,
     replacesWings: false,
+    ...(selectedCostumeItem?.adornmentSlot === "head" ? { followPartIndex: 1 } : {}),
     instance: selectedCostumeInstance,
     posX: 500,
     posY: 500,
@@ -498,6 +500,43 @@ export default function PetDatabasePanel({
   const selectedCostumePlacement = selectedCostumeId
     ? costumeDraft ?? savedCostumePlacement ?? defaultCostumePlacement()
     : undefined;
+  const availableHeadTargets = (["head", "h2_head", "h3_head"] as const)
+    .map((partType, index) => ({
+      partType,
+      index: index + 1,
+      label: `Head ${index + 1}`,
+    }))
+    .filter(target => viewParts.some(part => part.partType === target.partType));
+  const selectedCostumeSlotKey = selectedCostumeItem?.adornmentSlot as AdornmentSlotKey | null | undefined;
+  const previewCostumeSlot = selectedCostumeSlotKey && selectedCostumeSlotKey in ADORNMENT_SLOT_MAP
+    ? ADORNMENT_SLOT_MAP[selectedCostumeSlotKey]
+    : 0;
+  const previewPlacementInstance = selectedCostumeIsWings ? 1 : selectedCostumeInstance;
+  const previewCostumePlacements = selectedCostumeItem && selectedCostumePlacement
+    ? [
+        ...(selectedCostumeDefinition?.placements ?? []).filter(current =>
+          (current.form ?? "base") !== costumeArtworkForm
+          || current.view !== currentCostumeView
+          || (current.instance ?? 1) !== previewPlacementInstance
+        ),
+        {
+          ...selectedCostumePlacement,
+          form: costumeArtworkForm,
+          view: currentCostumeView,
+          instance: previewPlacementInstance,
+        },
+      ]
+    : [];
+  const livePreviewCostumes: PetAnimatorPreviewCostume[] = selectedCostumeItem?.imageUrl && selectedCostumePlacement
+    ? [{
+        id: `admin-preview-${selectedCostumeItem.id}`,
+        slot: previewCostumeSlot,
+        name: selectedCostumeItem.name,
+        imageUrl: selectedCostumeItem.imageUrl,
+        adornmentEffect: selectedCostumeItem.adornmentEffect as any,
+        placements: previewCostumePlacements,
+      }]
+    : [];
   const costumeAnchor = viewParts.find(part => part.partType === selectedCostumePlacement?.anchorPart);
   const costumeAnchorPoint = getCostumePlacementAnchorPoint(costumeAnchor, selectedCostumePlacement);
   const costumeCanvasPosition = getCostumeCanvasPosition(costumeAnchor, selectedCostumePlacement);
@@ -802,9 +841,13 @@ export default function PetDatabasePanel({
   const duplicateCostumePlacement = () => {
     if (!canDuplicateCostumePlacement || !selectedCostumePlacement || nextCostumeInstance === undefined) return;
     setSelectedCostumeInstance(nextCostumeInstance);
+    const nextHeadTarget = selectedCostumeItem?.adornmentSlot === "head"
+      ? availableHeadTargets[Math.min(nextCostumeInstance, availableHeadTargets.length) - 1]?.index
+      : undefined;
     setCostumeDraft({
       ...selectedCostumePlacement,
       instance: nextCostumeInstance,
+      ...(nextHeadTarget ? { followPartIndex: nextHeadTarget } : {}),
       posX: selectedCostumePlacement.posX + 24,
       posY: selectedCostumePlacement.posY + 24,
     });
@@ -1170,7 +1213,8 @@ export default function PetDatabasePanel({
               {filteredCostumeItems.map(item => {
                 const selected = selectedCostumeId === item.id;
                 const fittedForPet = costumeDefinitions.some(definition =>
-                  definition.shopItemId === item.id && definition.placements.length > 0
+                  definition.shopItemId === item.id
+                  && definition.placements.some(placement => (placement.form ?? "base") === costumeArtworkForm)
                 );
                 return (
                   <button
@@ -1188,8 +1232,8 @@ export default function PetDatabasePanel({
                   >
                     {fittedForPet && <span
                       data-testid={`costume-fitted-${item.id}`}
-                      aria-label="Placement saved for this pet"
-                      title="Placement saved for this pet"
+                      aria-label={`${costumeArtworkForm === "evolution" ? "Evolution" : "Regular"} placement saved for this pet`}
+                      title={`${costumeArtworkForm === "evolution" ? "Evolution" : "Regular"} placement saved for this pet`}
                       className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full"
                       style={{ background: "#39f58a", border: "1px solid rgba(220,255,232,.9)", boxShadow: "0 0 8px rgba(57,245,138,.95)" }}
                     />}
@@ -1253,7 +1297,11 @@ export default function PetDatabasePanel({
                 const isActive = instance === selectedCostumeInstance;
                 const placement = isActive
                   ? selectedCostumePlacement
-                  : selectedCostumeDefinition?.placements.find(current => current.view === currentCostumeView && (current.instance ?? 1) === instance);
+                  : selectedCostumeDefinition?.placements.find(current =>
+                      (current.form ?? "base") === costumeArtworkForm
+                      && current.view === currentCostumeView
+                      && (current.instance ?? 1) === instance
+                    );
                 const anchor = placement ? viewParts.find(part => part.partType === placement.anchorPart) : undefined;
                 const position = getCostumeCanvasPosition(anchor, placement);
                 if (!placement || !position) return null;
@@ -1279,10 +1327,46 @@ export default function PetDatabasePanel({
                       pointerEvents: isActive ? "auto" : "none",
                     }}
                   >
-                    <AdornmentArtwork src={selectedCostumeItem.imageUrl!} placement={placement} animated={previewAdornmentMotion && !draggingCostume && !placement.dontMove} effect={selectedCostumeItem.adornmentEffect as any} wingPair={selectedCostumeIsWings} />
+                    <AdornmentArtwork src={selectedCostumeItem.imageUrl!} placement={placement} animated={false} effect={selectedCostumeItem.adornmentEffect as any} wingPair={selectedCostumeIsWings} />
                   </div>
                 );
               })}
+            </div>
+
+            <div
+              data-testid="adornment-live-preview"
+              className="rounded-xl p-3"
+              style={{ background: "rgba(12,8,18,.62)", border: "1px solid rgba(192,132,252,.25)" }}
+            >
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-fantasy text-[9px] tracking-widest" style={{ color: "#d8b4fe" }}>LIVE ANIMATION PREVIEW</p>
+                  <p className="mt-0.5 text-[9px]" style={{ color: "#8f8198" }}>
+                    {costumeArtworkForm === "evolution" ? "Evolution" : "Regular"} pet idle + saved adornment effect.
+                  </p>
+                </div>
+                <label className="flex items-center gap-2 text-[9px]" style={{ color: "#bca7c8" }}>
+                  <input
+                    data-testid="toggle-live-adornment-preview"
+                    type="checkbox"
+                    checked={previewAdornmentMotion}
+                    onChange={event => setPreviewAdornmentMotion(event.target.checked)}
+                  />
+                  Animate
+                </label>
+              </div>
+              <div className="relative mx-auto aspect-square w-full max-w-[320px] overflow-hidden rounded-lg" style={{ background: "rgba(0,0,0,.22)" }}>
+                <PetAnimator
+                  petTemplateId={selectedTemplateId}
+                  artworkForm={costumeArtworkForm}
+                  mode={previewAdornmentMotion ? "idle" : "static"}
+                  view={activeView === "back" ? "back" : "front"}
+                  fillContainer
+                  lowMemory
+                  previewCostumes={livePreviewCostumes}
+                  style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+                />
+              </div>
             </div>
           </section>
 
@@ -1375,6 +1459,30 @@ export default function PetDatabasePanel({
                     />
                   </span>
                 </button>
+                {selectedCostumeItem.adornmentSlot === "head" && availableHeadTargets.length > 0 && (
+                  <label
+                    data-testid="head-adornment-follow-target"
+                    className="block rounded-lg p-2.5 text-xs"
+                    style={{ color: "#d8b4fe", background: "rgba(192,132,252,.08)", border: "1px solid rgba(192,132,252,.2)" }}
+                  >
+                    Follow Head Layer
+                    <select
+                      data-testid="select-head-adornment-follow-target"
+                      value={selectedCostumePlacement.followPartIndex ?? 1}
+                      disabled={saveCostumeMutation.isPending || !!selectedCostumePlacement.dontMove}
+                      onChange={event => updateCostumeDraft({ followPartIndex: Number(event.target.value) })}
+                      className="mt-1 block w-full rounded p-2.5"
+                      style={{ background: "#201526", color: "#e7d7b5" }}
+                    >
+                      {availableHeadTargets.map(target => (
+                        <option key={target.partType} value={target.index}>{target.label}</option>
+                      ))}
+                    </select>
+                    <span className="mt-1 block text-[8px] leading-3" style={{ color: "#8f8198" }}>
+                      Use this for the original and duplicate Head adornments so each piece can follow Head 1, Head 2, or Head 3 independently.
+                    </span>
+                  </label>
+                )}
                 {selectedCostumePlacement.anchorPart !== "independent" ? (
                   <div className="space-y-2 text-xs" style={{ color: "#a89878" }}>
                     <p>This saved fitting follows {selectedCostumePlacement.anchorPart}. Give it its own placement to choose its motion.</p>
@@ -1406,7 +1514,6 @@ export default function PetDatabasePanel({
                       </select>
                     </label>
                     <label className="flex gap-2 text-xs" style={{ color: "#a89878" }}><input type="checkbox" checked={!!selectedCostumePlacement.replacesWings} disabled={saveCostumeMutation.isPending} onChange={event => updateCostumeDraft({ replacesWings: event.target.checked })} />Hide the pet's original wings</label>
-                    <label className="flex gap-2 text-xs" style={{ color: "#a89878" }}><input type="checkbox" checked={previewAdornmentMotion} onChange={event => setPreviewAdornmentMotion(event.target.checked)} />Preview motion (pauses while dragging)</label>
                     {(["pivotX", "pivotY"] as const).map(axis => <label key={axis} className="block text-xs" style={{ color: "#a89878" }}>Pivot {axis === "pivotX" ? "horizontal" : "vertical"}: {Math.round(selectedCostumePlacement[axis])}%
                       <input type="range" min={0} max={100} value={selectedCostumePlacement[axis]} disabled={saveCostumeMutation.isPending} onChange={event => updateCostumeDraft(changeCostumePivot(selectedCostumePlacement, axis, Number(event.target.value)))} className="block w-full mt-2" />
                     </label>)}

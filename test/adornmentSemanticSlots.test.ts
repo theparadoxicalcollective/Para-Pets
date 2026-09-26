@@ -90,12 +90,15 @@ test("Wings adornment type automatically uses front-facing mirrored open-close m
 test("Still Head and hand adornments follow the matching animated pet part", () => {
   const animator = read("client/src/components/PetAnimator.tsx");
 
-  assert.match(animator, /function semanticStillPartType/);
+  assert.match(animator, /function semanticFollowPartType/);
+  assert.match(animator, /placement\.followPartIndex/);
+  assert.match(animator, /\["head", "h2_head", "h3_head"\]\[placement\.followPartIndex - 1\]/);
   assert.match(animator, /costume\.adornmentEffect !== "still"/);
   assert.match(animator, /ADORNMENT_SLOT_MAP\.head\) return "head"/);
   assert.match(animator, /ADORNMENT_SLOT_MAP\.left_hand\) return "left_hand"/);
   assert.match(animator, /ADORNMENT_SLOT_MAP\.right_hand\) return "right_hand"/);
   assert.match(animator, /function rebasePlacementToPart/);
+  assert.match(animator, /const followPartType = dontMove \? null : semanticFollowPartType\(costume, savedPlacement\)/);
   assert.match(animator, /const placement = followPart \? rebasePlacementToPart\(savedPlacement, followPart, sortedParts\) : savedPlacement/);
   assert.match(animator, /animation: animName \? buildAnimation\(animName, duration, partDelay\) : undefined/);
 });
@@ -132,6 +135,18 @@ test("base and evolution adornment fittings are stored separately with safe base
   assert.match(animator, /function placementsForArtworkForm/);
   assert.match(animator, /artworkForm === "base"/);
   assert.match(animator, /resolvedArtworkForm/);
+});
+
+test("Head placement target is persisted in existing adornment JSON without a database migration", () => {
+  const feature = read("shared/costumeFeature.ts");
+  const schema = read("shared/costumeSchema.ts");
+  const editor = read("client/src/components/PetDatabasePanel.tsx");
+
+  assert.match(feature, /followPartIndex\?: number/);
+  assert.match(feature, /followPartIndex: Math\.max\(1, Math\.min\(3/);
+  assert.match(schema, /followPartIndex: z\.number\(\)\.int\(\)\.min\(1\)\.max\(3\)\.optional\(\)/);
+  assert.match(editor, /Follow Head Layer/);
+  assert.match(editor, /Head 1, Head 2, or Head 3 independently/);
 });
 
 test("Head adornments can optionally hide the native Above Head pet part", () => {

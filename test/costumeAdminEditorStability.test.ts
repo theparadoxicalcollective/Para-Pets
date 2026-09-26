@@ -97,7 +97,6 @@ test("adornment fitter exposes a persisted Don\'t Move switch", () => {
   assert.match(editor, /aria-checked=\{!!selectedCostumePlacement\.dontMove\}/);
   assert.match(editor, /updateCostumeDraft\(\{ dontMove: !selectedCostumePlacement\.dontMove \}\)/);
   assert.match(editor, /Locks this fitted adornment in place/);
-  assert.match(editor, /!placement\.dontMove/);
   assert.match(costumeSchema, /dontMove: z\.boolean\(\)\.optional\(\)/);
 });
 
@@ -185,6 +184,32 @@ test("adornment fitter has separate regular and evolution sections without a new
   assert.match(editor, /form: costumeArtworkForm/);
   assert.match(editor, /\(placement\.form \?\? "base"\) === costumeArtworkForm/);
   assert.match(costumeSchema, /form: z\.enum\(\["base", "evolution"\]\)\.default\("base"\)/);
+});
+
+test("adornment fitted indicators are scoped to the selected regular or evolution form", () => {
+  assert.match(editor, /definition\.placements\.some\(placement => \(placement\.form \?\? "base"\) === costumeArtworkForm\)/);
+  assert.match(editor, /\$\{costumeArtworkForm === "evolution" \? "Evolution" : "Regular"\} placement saved for this pet/);
+  assert.match(editor, /\(current\.form \?\? "base"\) === costumeArtworkForm/);
+});
+
+test("adornment fitter provides a shared-runtime live idle and effect preview", () => {
+  assert.match(editor, /data-testid="adornment-live-preview"/);
+  assert.match(editor, /data-testid="toggle-live-adornment-preview"/);
+  assert.match(editor, /<PetAnimator/);
+  assert.match(editor, /artworkForm=\{costumeArtworkForm\}/);
+  assert.match(editor, /mode=\{previewAdornmentMotion \? "idle" : "static"\}/);
+  assert.match(editor, /previewCostumes=\{livePreviewCostumes\}/);
+  assert.match(editor, /pet idle \+ saved adornment effect/);
+  assert.match(editor, /<AdornmentArtwork[^>]*animated=\{false\}/);
+});
+
+test("duplicate Head adornments can target Head 1, Head 2, or Head 3", () => {
+  assert.match(editor, /data-testid="select-head-adornment-follow-target"/);
+  assert.match(editor, /\["head", "h2_head", "h3_head"\]/);
+  assert.match(editor, /followPartIndex: Number\(event\.target\.value\)/);
+  assert.match(editor, /nextHeadTarget/);
+  assert.match(editor, /followPartIndex: nextHeadTarget/);
+  assert.match(costumeSchema, /followPartIndex: z\.number\(\)\.int\(\)\.min\(1\)\.max\(3\)\.optional\(\)/);
 });
 
 test("Wings fitting uses one source and does not expose legacy Wings animation", () => {
