@@ -359,14 +359,47 @@ function computeHeadBob(bodyPart: PetPart | undefined, canFly: boolean) {
   return `-${Math.min(1.2, Math.max(minBob, bodyTopRisePct)).toFixed(2)}%`;
 }
 
+function placementsForArtworkForm(placements: CostumePlacement[], artworkForm: PetArtworkForm) {
+  const exact = placements.filter((placement) => (placement.form ?? "base") === artworkForm);
+  if (exact.length > 0 || artworkForm === "base") return exact;
+  return placements.filter((placement) => (placement.form ?? "base") === "base");
+}
+
+function semanticStillPartType(costume: EquippedCostume): "head" | "left_hand" | "right_hand" | null {
+  if (costume.adornmentEffect !== "still") return null;
+  if (costume.slot === ADORNMENT_SLOT_MAP.head) return "head";
+  if (costume.slot === ADORNMENT_SLOT_MAP.left_hand) return "left_hand";
+  if (costume.slot === ADORNMENT_SLOT_MAP.right_hand) return "right_hand";
+  return null;
+}
+
+function rebasePlacementToPart(placement: CostumePlacement, target: PetPart, parts: PetPart[]): CostumePlacement {
+  const sourceAnchor = placement.anchorPart === "independent"
+    ? null
+    : parts.find((part) => part.partType === placement.anchorPart) ?? null;
+  const current = getCostumeCanvasPosition(sourceAnchor, placement);
+  if (!current) return placement;
+  const currentPivotX = current.left + placement.width * placement.pivotX / 100;
+  const currentPivotY = current.top + placement.height * placement.pivotY / 100;
+  const targetPivotX = target.posX + target.width * (target.pivotX ?? 50) / 100;
+  const targetPivotY = target.posY + target.height * (target.pivotY ?? 50) / 100;
+  return {
+    ...placement,
+    anchorPart: target.partType,
+    posX: currentPivotX - targetPivotX,
+    posY: currentPivotY - targetPivotY,
+  };
+}
+
 function CostumeLayer({
-  depth, costumes, viewParts, mode, resolvedView, facing, canFly, idleStyle, bodyDelay, headBob, motionElapsedSeconds,
+  depth, costumes, viewParts, mode, resolvedView, artworkForm, facing, canFly, idleStyle, bodyDelay, headBob, motionElapsedSeconds,
 }: {
   depth: "front" | "back";
   costumes: EquippedCostume[];
   viewParts: PetPart[];
   mode: PetAnimatorProps["mode"];
   resolvedView: "front" | "back";
+  artworkForm: PetArtworkForm;
   facing: string;
   canFly: boolean;
   idleStyle: string | null;
@@ -402,15 +435,19 @@ function CostumeLayer({
 
   const renderCostume = (costume: EquippedCostume) => {
     const costumeView = resolvedView === "back" ? "side" : "front";
-    const viewPlacements = (Array.isArray(costume.placements) ? costume.placements : [])
-      .filter(item => item && item.view === costumeView);
+    const allPlacements = Array.isArray(costume.placements) ? costume.placements : [];
+    const formPlacements = placementsForArtworkForm(allPlacements, artworkForm);
+    const viewPlacements = formPlacements.filter((item) => item && item.view === costumeView);
     const canonicalPlacements = costume.slot === ADORNMENT_SLOT_MAP.wings
       ? viewPlacements.slice(0, 1)
       : viewPlacements;
-    const placements = canonicalPlacements.filter(item => item.depth === depth);
+    const placements = canonicalPlacements.filter((item) => item.depth === depth);
     if (!costume.imageUrl || placements.length === 0) return null;
 
-    return <>{placements.map((placement) => {
+    return <>{placements.map((savedPlacement) => {
+      const followPartType = semanticStillPartType(costume);
+      const followPart = followPartType ? sortedParts.find((part) => part.partType === followPartType) : undefined;
+      const placement = followPart ? rebasePlacementToPart(savedPlacement, followPart, sortedParts) : savedPlacement;
       if (placement.anchorPart === "independent") {
         const position = getCostumeCanvasPosition(null, placement)!;
         return <div key={`${costume.id}-${costumeView}-${depth}-${placement.instance ?? 1}`}
@@ -684,7 +721,8 @@ export default function PetAnimator({
     const hidden = new Set<string>();
     const costumeView = resolvedView === "back" ? "side" : "front";
     for (const costume of equipped) {
-      const placements = Array.isArray(costume.placements) ? costume.placements : [];
+      const allPlacements = Array.isArray(costume.placements) ? costume.placements : [];
+      const placements = placementsForArtworkForm(allPlacements, resolvedArtworkForm);
       const hasVisibleWingsAdornment = costume.slot === ADORNMENT_SLOT_MAP.wings
         && placements.some((placement) => placement?.view === costumeView);
       if (hasVisibleWingsAdornment) {
@@ -699,16 +737,14 @@ export default function PetAnimator({
       }
     }
     return hidden;
-  }, [costumeData?.equipped, resolvedView, templateData?.parts]);
+  }, [costumeData?.equipped, resolvedView, resolvedArtworkForm, templateData?.parts]);
   const renderCostumes = !!resolvedPetInventoryId && equipped.length > 0 && !!templateData;
   const hasAboveHead = viewParts.some(part => basePartType(part.partType) === "above_head");
   const costumeView = resolvedView === "back" ? "side" : "front";
-  const hideAboveHeadPart = equipped.some((costume) =>
-    costume.slot === ADORNMENT_SLOT_MAP.head
-    && costume.hideAboveHeadPart === true
-    && Array.isArray(costume.placements)
-    && costume.placements.some((placement) => placement?.view === costumeView)
-  );
+  const hideAboveHeadPart = equipped.some((costume) => {
+    if (costume.slot !== ADORNMENT_SLOT_MAP.head || costume.hideAboveHeadPart !== true || !Array.isArray(costume.placements)) return false;
+    return placementsForArtworkForm(costume.placements, resolvedArtworkForm).some((placement) => placement?.view === costumeView);
+  });
   // Above-head parts are intentionally re-rendered in the z=3 top layer while
   // costumes are visible so crowns/halos/hats stay above front costume pieces.
   // Hide those exact source parts from PetAnimatorCore at the same time.
@@ -744,6 +780,7 @@ export default function PetAnimator({
           viewParts={viewParts}
           mode={performanceStatic ? "static" : mode}
           resolvedView={resolvedView}
+          artworkForm={resolvedArtworkForm}
           facing={facing}
           canFly={canFly}
           idleStyle={templateData?.idleStyle ?? null}
