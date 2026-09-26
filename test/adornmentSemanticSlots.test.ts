@@ -33,6 +33,36 @@ test("administration saves and exposes an adornment Closet-space selector", () =
   assert.match(boot, /ADD COLUMN IF NOT EXISTS adornment_slot TEXT/);
 });
 
+test("administration can assign safe item-level effects to adornments", () => {
+  const admin = read("client/src/components/ItemDatabaseSection.tsx");
+  const animation = read("shared/adornmentAnimation.ts");
+  const schema = read("shared/schema.ts");
+  const boot = read("server/startup/migrations/runEssentialBoot.ts");
+  const routes = read("server/routes/costumePlayer.routes.ts");
+  const artwork = read("client/src/components/AdornmentArtwork.tsx");
+  const animator = read("client/src/components/PetAnimator.tsx");
+
+  assert.match(admin, /data-testid="select-adornment-effect"/);
+  assert.match(admin, />Effects<\/label>/);
+  assert.match(admin, /Float — balloon-like loop/);
+  assert.match(admin, /Spin — slow clockwise/);
+  assert.match(admin, /Sway — gentle side to side/);
+  assert.match(admin, /Pulse — subtle magical breathing/);
+  assert.match(admin, /payload\.adornmentEffect = effectiveType === "costume" \? \(adornmentEffect \|\| null\) : null/);
+
+  assert.match(animation, /ADORNMENT_ITEM_EFFECTS = \["still", "float", "spin", "sway", "pulse"\]/);
+  assert.match(animation, /spin:\s*"rotate"/);
+  assert.match(animation, /pulse:\s*"breathe"/);
+  assert.match(schema, /adornmentEffect:\s*text\("adornment_effect"\)/);
+  assert.match(boot, /ADD COLUMN IF NOT EXISTS adornment_effect TEXT/);
+
+  assert.match(routes, /adornmentEffect:\s*shopItems\.adornmentEffect/);
+  assert.match(animator, /adornmentEffect\?: AdornmentItemEffect \| null/);
+  assert.match(animator, /effect=\{costume\.adornmentEffect\}/);
+  assert.match(artwork, /const overrideProfile = adornmentItemEffectAnimation\(effect\)/);
+  assert.match(artwork, /const profile = overrideProfile \?\? fittedProfile/);
+});
+
 test("Head adornments can optionally hide the native Above Head pet part", () => {
   const admin = read("client/src/components/ItemDatabaseSection.tsx");
   const schema = read("shared/schema.ts");
