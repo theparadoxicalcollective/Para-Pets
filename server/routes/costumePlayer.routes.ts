@@ -61,6 +61,7 @@ export function registerCostumePlayerRoutes(app: Express) {
         costumeInventoryId: petEquippedCostumes.costumeInventoryId,
         name: shopItems.name,
         imageUrl: shopItems.imageUrl,
+        adornmentEffect: shopItems.adornmentEffect,
         hideAboveHeadPart: shopItems.hideAboveHeadPart,
         placements: petCostumeDefinitions.placements,
       }).from(petEquippedCostumes)
@@ -115,6 +116,7 @@ export function registerCostumePlayerRoutes(app: Express) {
         costumeInventoryId: petEquippedCostumes.costumeInventoryId,
         name: shopItems.name,
         imageUrl: shopItems.imageUrl,
+        adornmentEffect: shopItems.adornmentEffect,
         hideAboveHeadPart: shopItems.hideAboveHeadPart,
         placements: petCostumeDefinitions.placements,
       }).from(petEquippedCostumes)
