@@ -41,7 +41,7 @@ const RARITY_TEXT_STYLES: Record<CardRarity, { name: string; description: string
   1: { name: "#4a4032", description: "#5b5143" },
   2: { name: "#4a4032", description: "#5b5143" },
   3: { name: "#4a4032", description: "#5b5143" },
-  4: { name: "#573b72", description: "#6b4c81" },
+  4: { name: "#7f5528", description: "#6b4c81" },
   5: { name: "#7f5528", description: "#7f5528" },
 };
 
@@ -639,18 +639,6 @@ export default function CardPreview({
           filter: drop-shadow(0 0 1px rgba(255,255,240,.96)) drop-shadow(0 0 4px rgba(255,193,58,.8));
           animation: cardBorderGlint 2.15s ease-in-out infinite;
         }
-        [data-card-title-rarity="4"] > span,
-        [data-card-title-rarity="4"] .card-curved-title-letter {
-          color: #673b18;
-          -webkit-text-fill-color: transparent;
-          background-image: linear-gradient(100deg, #673b18 0%, #88511c 42%, #fff5cb 49%, #c18a2e 54%, #673b18 100%);
-          background-size: 250% 100%;
-          background-position: var(--card-turn-position, 0%) 50%;
-          background-clip: text;
-          -webkit-background-clip: text;
-          filter: drop-shadow(0 1px 1px rgba(45,24,8,.55));
-          transition: background-position 180ms ease-out;
-        }
         .card-sparkle-swirl-line {
           mix-blend-mode: screen;
           filter: drop-shadow(0 0 .7px rgba(255,255,240,.88)) drop-shadow(0 0 2px rgba(255,214,115,.5));
@@ -674,9 +662,7 @@ export default function CardPreview({
           .card-border-glint { opacity: .6; }
           .card-sparkle-swirl-line { opacity: .56; }
           .card-border-gold-glow { background-position: 0% 0, 190% 0; opacity: .88; }
-          .card-border-turn-glow,
-          [data-card-title-rarity="4"] > span,
-          [data-card-title-rarity="4"] .card-curved-title-letter { transition: none; }
+          .card-border-turn-glow { transition: none; }
         }
       `}</style>}
     </div>
