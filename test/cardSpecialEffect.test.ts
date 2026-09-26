@@ -23,21 +23,37 @@ test("stored special effect is included in the card sent to players", () => {
 });
 
 test("each special effect stays in its artwork overlay and supports reduced motion", () => {
-  const render = (effect: "stars" | "aurora" | "wisps") =>
+  const render = (effect: "stars" | "aurora" | "wisps" | "pumpkin") =>
     renderToStaticMarkup(createElement(CardSpecialArtworkEffect, { effect, color: "#9CEEFF" }));
   const stars = render("stars");
+  const pumpkin = render("pumpkin");
   const aurora = render("aurora");
   const wisps = render("wisps");
   assert.match(stars, /card-special-effect-stars/);
-  assert.match(stars, /card-special-starfield/);
-  assert.match(stars, /mask-image/);
+  assert.match(stars, /card-special-starfield-a/);
+  assert.match(stars, /card-special-starfield-b/);
+  assert.match(stars, /mask-size:10\.5% 13\.2%/);
+  assert.match(stars, /mask-position:5\.25% 6\.6%/);
+  assert.match(stars, /opacity: \.48/);
+  assert.match(stars, /opacity: \.64/);
+  assert.doesNotMatch(stars, /fill%3D%22none%22/);
   assert.doesNotMatch(stars, /<div class="card-special-holo"/);
+  assert.ok(CARD_SPECIAL_EFFECTS.includes("pumpkin"));
+  assert.equal(parseCardSpecialEffect("pumpkin"), "pumpkin");
+  assert.match(pumpkin, /card-special-effect-pumpkin/);
+  assert.match(pumpkin, /card-pumpkin-field/);
+  assert.match(pumpkin, /pumpkin-holo-gradient/);
+  assert.match(pumpkin, /#FFD27A/);
+  assert.match(pumpkin, /#E43B25/);
+  assert.match(pumpkin, /fill-opacity="\.52"/);
+  assert.match(pumpkin, /card-special-pumpkin-/);
+  assert.match(pumpkin, /cardPumpkinPop/);
   assert.match(aurora, /card-special-aurora-a/);
   assert.match(aurora, /<div class="card-special-holo"/);
   assert.doesNotMatch(aurora, /<svg/);
   assert.match(wisps, /card-special-mist/);
   assert.match(wisps, /<circle/);
-  for (const markup of [stars, aurora, wisps]) {
+  for (const markup of [stars, pumpkin, aurora, wisps]) {
     assert.match(markup, /prefers-reduced-motion/);
     assert.doesNotMatch(markup, /card-border/);
   }

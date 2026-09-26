@@ -71,8 +71,9 @@ test("admin can pick and persist an effect color per card artwork", () => {
   assert.match(adminPanel, /suggestArtworkEffectColor/);
   assert.match(adminPanel, /Drag the picker over this card's artwork/);
   assert.match(adminPanel, /ARTWORK EFFECT COLOR/);
+  assert.match(adminPanel, /<option value="pumpkin">Pumpkin — warm holographic pumpkin pop<\/option>/);
   assert.match(adminPanel, /The gold border stays the same/);
-  assert.match(adminPanel, /form\.specialEffect !== "stars"/);
+  assert.match(adminPanel, /!\["stars", "pumpkin"\]\.includes\(form\.specialEffect\)/);
   assert.match(adminPanel, /effectColor: form\.effectColor \|\| null/);
   assert.match(routes, /effectColor: row\.effect_color \?\? null/);
   assert.match(routes, /effectColorText\(req\.body\?\.effectColor\)/);
