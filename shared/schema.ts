@@ -59,6 +59,7 @@ export const shopItems = pgTable("shop_items", {
   price: integer("price").notNull(),
   type: text("type").notNull(),
   adornmentSlot: text("adornment_slot"),
+  hideAboveHeadPart: boolean("hide_above_head_part").notNull().default(false),
   worldId: text("world_id").notNull(),
   locationId: varchar("location_id"),
   imageUrl: text("image_url"),
@@ -506,6 +507,9 @@ export const insertShopItemSchema = baseInsertShopItemSchema.superRefine((item, 
   }
   if (item.type !== "costume" && item.adornmentSlot != null) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["adornmentSlot"], message: "Only adornments can use an adornment space" });
+  }
+  if (item.hideAboveHeadPart && (item.type !== "costume" || item.adornmentSlot !== "head")) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["hideAboveHeadPart"], message: "Only Head adornments can hide the Above Head pet part" });
   }
   if (item.type !== "clearing") return;
   if (!clearingEquipmentSlots.includes(item.clearingSlot as typeof clearingEquipmentSlots[number])) {
