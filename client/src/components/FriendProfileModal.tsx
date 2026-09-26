@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import SendGiftModal from "./SendGiftModal";
+import PetAnimator from "./PetAnimator";
 import coinIconImg from "@assets/icon_coin.webp";
 import giftIconImg from "@assets/generated_images/gift_icon_forest.png";
 import homeIconImg from "@assets/generated_images/nav_icon_home.png";
@@ -122,11 +123,28 @@ export default function FriendProfileModal({ friendId, friendUsername, senderCoi
                 <div
                   style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 12, background: "rgba(127,255,212,0.04)", border: `1px solid ${rarityColor}33` }}
                 >
-                  <img
-                    src={activePet.hatchedImageUrl || activePet.imageUrl}
-                    alt={activePet.name}
-                    style={{ width: 44, height: 44, objectFit: "contain", borderRadius: 8, background: "rgba(0,0,0,0.3)", flexShrink: 0 }}
-                  />
+                  <div
+                    data-testid="friend-profile-active-pet"
+                    style={{ width: 44, height: 44, borderRadius: 8, background: "rgba(0,0,0,0.3)", flexShrink: 0, overflow: "hidden" }}
+                  >
+                    {activePet.petTemplateId && activePet.inventoryId ? (
+                      <PetAnimator
+                        petTemplateId={activePet.petTemplateId}
+                        petInventoryId={activePet.inventoryId}
+                        costumeAccess="public"
+                        mode="static"
+                        size={44}
+                        fillContainer
+                        fitVisible
+                      />
+                    ) : (
+                      <img
+                        src={activePet.hatchedImageUrl || activePet.imageUrl}
+                        alt={activePet.name}
+                        style={{ width: 44, height: 44, objectFit: "contain" }}
+                      />
+                    )}
+                  </div>
                   <div className="min-w-0">
                     <p className="font-fantasy truncate" style={{ color: "#d4e8da", fontSize: 12 }}>
                       {activePet.nickname || activePet.name}
