@@ -10,6 +10,7 @@ import {
   petEquippedCostumes,
 } from "@shared/costumeSchema";
 import {
+  ADORNMENT_SLOT_MAP,
   COSTUME_SLOT_COUNT,
   getAdornmentSlotDefinition,
   getCostumeSlotUnlockCost,
@@ -88,7 +89,7 @@ export function registerCostumePlayerRoutes(app: Express) {
 
       return res.json({
         isEvolved: !!pet.isEvolved,
-        equipped: equipped.map((costume) => ({ ...costume, placements: normalizeCostumePlacements(costume.placements) })),
+        equipped: equipped.map((costume) => ({ ...costume, adornmentEffect: costume.slot === ADORNMENT_SLOT_MAP.wings ? "wings" : costume.adornmentEffect, placements: normalizeCostumePlacements(costume.placements) })),
         anchors,
         extraSlots: 0,
       });
@@ -143,7 +144,7 @@ export function registerCostumePlayerRoutes(app: Express) {
 
       return res.json({
         isEvolved: !!target.pet.isEvolved,
-        equipped: equipped.map((costume) => ({ ...costume, placements: normalizeCostumePlacements(costume.placements) })),
+        equipped: equipped.map((costume) => ({ ...costume, adornmentEffect: costume.slot === ADORNMENT_SLOT_MAP.wings ? "wings" : costume.adornmentEffect, placements: normalizeCostumePlacements(costume.placements) })),
         anchors,
         extraSlots: unlock?.extraSlots ?? 0,
       });
