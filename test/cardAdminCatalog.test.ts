@@ -143,8 +143,10 @@ test("1, 2, and 3 star cards share the same neutral text colors", () => {
   assert.match(preview, /3: \{ name: "#4a4032", description: "#5b5143" \}/);
 });
 
-test("5 star card title uses the same warm readable tone as its description", () => {
+test("4 and 5 star card titles share the same warm readable name color", () => {
+  assert.match(preview, /4: \{ name: "#7f5528", description: "#6b4c81" \}/);
   assert.match(preview, /5: \{ name: "#7f5528", description: "#7f5528" \}/);
+  assert.doesNotMatch(preview, /\[data-card-title-rarity="4"\] > span/);
   assert.doesNotMatch(preview, /\[data-card-title-rarity="5"\] > span/);
 });
 
@@ -189,13 +191,10 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /CARD_BORDER_GLINT_POINTS\.length \* 3\.2/);
   assert.match(preview, /cardBorderGlint/);
   assert.match(preview, /data-card-title-rarity=\{highRarityTitle \? rarity : undefined\}/);
-  assert.match(preview, /background-position: var\(--card-turn-position, 0%\) 50%/);
-  assert.match(preview, /color: #673b18/);
   assert.match(preview, /card-border-turn-glow/);
   assert.match(detail, /--card-turn-intensity/);
   assert.doesNotMatch(preview, /cardTitleFiveStarPulse/);
   assert.doesNotMatch(preview, /cardTitleHologoldSweep/);
-  assert.match(preview, /background-clip: text/);
   assert.match(preview, /prefers-reduced-motion: reduce/);
   assert.match(preview, /inset: depth3d \? "12% 7%" : "12% 10%"/);
   assert.match(preview, /inset 0 0 24px 8px/);
