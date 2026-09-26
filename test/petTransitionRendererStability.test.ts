@@ -38,7 +38,7 @@ test("legacy costume JSON is normalized before route and renderer use", () => {
     { view: "front", depth: "front", anchorPart: "", width: 10, height: 10 },
     { view: "front", depth: "back", anchorPart: "head", width: "120", height: 80, posX: "4", posY: 5, pivotX: null, pivotY: undefined, instance: 99 },
   ]), [{
-    view: "front", depth: "back", anchorPart: "head", width: 120, height: 80,
+    form: "base", view: "front", depth: "back", anchorPart: "head", width: 120, height: 80,
     posX: 4, posY: 5, pivotX: 0, pivotY: 50, instance: 4, rotation: 0, flipX: false,
   }]);
 });
