@@ -13,7 +13,7 @@ test("card labels allow the three events and can be removed", () => {
   assert.throws(() => parseCardLabel("summer"), /Invalid card label/);
 });
 
-test("seasonal banners use richer event colors and a compact straight-edged corner tag", () => {
+test("seasonal banners stay inset, use a stronger diagonal, and glow in their event color", () => {
   assert.equal(CARD_LABEL_DETAILS.halloween.background, "#6D2F8E");
   assert.equal(CARD_LABEL_DETAILS.christmas.background, "#176B43");
   assert.equal(CARD_LABEL_DETAILS.valentine.background, "#8F3042");
@@ -24,8 +24,11 @@ test("seasonal banners use richer event colors and a compact straight-edged corn
     assert.match(markup, new RegExp(CARD_LABEL_DETAILS[label].background));
     assert.match(markup, new RegExp(CARD_LABEL_DETAILS[label].highlight));
     assert.match(markup, /stroke="#f0c96f"/);
-    assert.match(markup, /rotate\(-10 19\.5 19\.5\)/);
-    assert.doesNotMatch(markup, / Q /);
+    assert.match(markup, /rotate\(-18 23 20\.5\)/);
+    assert.match(markup, /M 4 16 L 41 16/);
+    assert.doesNotMatch(markup, /M -/);
+    assert.match(markup, /feDropShadow/);
+    assert.match(markup, /flood-opacity="\.78"/);
     assert.match(markup, /translateZ\(38px\)/);
   }
 });
