@@ -80,14 +80,30 @@ test("Wings slot flag creates a synchronized front-facing mirrored pair", async 
   assert.match(markup, /scaleX\(-1\)/);
 });
 
-test("mirrored wing artwork uses synchronized motion with a reflected partner and static mode stops it", async () => {
+test("legacy fitted wing motion cannot create Wings behavior on a non-Wings adornment", async () => {
   const result = await build({ entryPoints: ["client/src/components/AdornmentArtwork.tsx"], bundle: true, platform: "node", format: "cjs", packages: "external", write: false, jsx: "automatic" });
   const module = { exports: {} as { default: any } };
   new Function("require", "module", "exports", result.outputFiles[0].text)(createRequire(import.meta.url), module, module.exports);
-  const render = (animated: boolean) => renderToStaticMarkup(createElement(module.exports.default, { src: "/wing.png", placement: { ...fitting, animation: "wings" }, animated }));
-  const moving = render(true);
-  assert.equal((moving.match(/<img /g) ?? []).length, 2);
-  assert.equal((moving.match(/adornment-wings 1.8s/g) ?? []).length, 2);
-  assert.match(moving, /scaleX\(-1\)/);
-  assert.equal((render(false).match(/animation:/g) ?? []).length, 0);
+  const markup = renderToStaticMarkup(createElement(module.exports.default, {
+    src: "/wing.png",
+    placement: { ...fitting, animation: "wings" },
+    wingPair: false,
+    animated: true,
+  }));
+  assert.equal((markup.match(/<img /g) ?? []).length, 1);
+  assert.doesNotMatch(markup, /adornment-wings 1\.8s/);
+});
+
+test("semantic Wings pair stops motion in static mode", async () => {
+  const result = await build({ entryPoints: ["client/src/components/AdornmentArtwork.tsx"], bundle: true, platform: "node", format: "cjs", packages: "external", write: false, jsx: "automatic" });
+  const module = { exports: {} as { default: any } };
+  new Function("require", "module", "exports", result.outputFiles[0].text)(createRequire(import.meta.url), module, module.exports);
+  const markup = renderToStaticMarkup(createElement(module.exports.default, {
+    src: "/wing.png",
+    placement: { ...fitting, animation: "none" },
+    wingPair: true,
+    animated: false,
+  }));
+  assert.equal((markup.match(/<img /g) ?? []).length, 2);
+  assert.equal((markup.match(/animation:/g) ?? []).length, 0);
 });
