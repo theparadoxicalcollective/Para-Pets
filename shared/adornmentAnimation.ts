@@ -1,7 +1,8 @@
 export const ADORNMENT_ANIMATIONS = ["none", "breathe", "float", "wings", "sway", "rotate"] as const;
 export type AdornmentAnimation = typeof ADORNMENT_ANIMATIONS[number];
 
-export const ADORNMENT_ITEM_EFFECTS = ["still", "float", "spin", "sway", "pulse"] as const;
+export const ADORNMENT_ITEM_EFFECTS = ["still", "float", "spin", "sway", "pulse", "wings"] as const;
+export const ADORNMENT_GENERAL_ITEM_EFFECTS = ["still", "float", "spin", "sway", "pulse"] as const;
 export type AdornmentItemEffect = typeof ADORNMENT_ITEM_EFFECTS[number];
 
 export const ADORNMENT_ITEM_EFFECT_LABELS: Record<AdornmentItemEffect, string> = {
@@ -10,6 +11,7 @@ export const ADORNMENT_ITEM_EFFECT_LABELS: Record<AdornmentItemEffect, string> =
   spin: "Spin — slow clockwise",
   sway: "Sway — gentle side to side",
   pulse: "Pulse — subtle magical breathing",
+  wings: "Wings — mirrored open / close",
 };
 
 /** Uploaded artwork is served by our media endpoint, never an arbitrary URL. */
@@ -37,6 +39,7 @@ export function adornmentItemEffectAnimation(effect: AdornmentItemEffect | null 
     spin: "rotate",
     sway: "sway",
     pulse: "breathe",
+    wings: "wings",
   }[effect];
 }
 
@@ -51,7 +54,7 @@ export function adornmentMotion(animation: AdornmentAnimation, speed = 1, enable
 export const ADORNMENT_MOTION_CSS = `
 @keyframes adornment-breathe { 0%,100% { transform:scale(1); } 50% { transform:scale(1.025,1.035); } }
 @keyframes adornment-float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-3%); } }
-@keyframes adornment-wings { 0%,100% { transform:rotate(-9deg) scaleX(1); } 50% { transform:rotate(9deg) scaleX(.88); } }
+@keyframes adornment-wings { 0%,100% { transform:rotate(-10deg) scaleX(.74); } 50% { transform:rotate(8deg) scaleX(1); } }
 @keyframes adornment-sway { 0%,100% { transform:rotate(-4deg); } 50% { transform:rotate(4deg); } }
 @keyframes adornment-rotate { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .adornment-motion { animation:none !important; } }
