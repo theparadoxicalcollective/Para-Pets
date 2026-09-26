@@ -36,6 +36,12 @@ test("costume artwork inherits its configured pet-part motion instead of using a
   assert.match(animator, /transform: `rotate\(\$\{placement\.rotation \?\? 0\}deg\) scaleX\(\$\{placement\.flipX \? -1 : 1\}\)`/);
 });
 
+test("item-level effects compose with independent and pet-part-mounted adornments", () => {
+  assert.ok((animator.match(/effect=\{costume\.adornmentEffect\}/g) ?? []).length >= 2);
+  assert.match(animator, /adornmentEffect\?: AdornmentItemEffect \| null/);
+  assert.match(costumeRoutes, /adornmentEffect:\s*shopItems\.adornmentEffect/);
+});
+
 test("late-loading costume layers stay phase-locked to the pet animation clock", () => {
   assert.match(animator, /function syncAnimationDelay/);
   assert.match(animator, /const motionEpochRef = useRef/);
