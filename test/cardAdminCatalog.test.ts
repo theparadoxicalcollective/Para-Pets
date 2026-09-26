@@ -296,6 +296,8 @@ test("detail cards preserve a 3D front, flat contained back, and stable full tur
   assert.match(detail, /ref=\{turnCardRef\}/);
   assert.match(detail, /const settledAngleRef = useRef\(0\)/);
   assert.match(detail, /const turnAnimatingRef = useRef\(false\)/);
+  assert.match(detail, /const needsAnimation = Math\.abs\(angleRef\.current - targetAngle\) > \.1/);
+  assert.match(detail, /turnAnimatingRef\.current = needsAnimation/);
   assert.match(detail, /baseAngle: settledAngleRef\.current/);
   assert.match(detail, /const previewTurn = Math\.max\(-180, Math\.min\(180, \(dx \/ gesture\.width\) \* 220\)\)/);
   assert.match(detail, /const deliberateDrag = Math\.abs\(dx\) >= gesture\.width \* \.22/);
