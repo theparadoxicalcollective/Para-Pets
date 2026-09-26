@@ -20,7 +20,9 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
 }) {
   const [flipped, setFlipped] = useState(false);
   const turnCardRef = useRef<HTMLDivElement>(null);
+  const frontFaceRef = useRef<HTMLDivElement>(null);
   const turnFrameRef = useRef<number | null>(null);
+  const settleFrameRef = useRef<number | null>(null);
   const angleRef = useRef(0);
   const settledAngleRef = useRef(0);
   const turnAnimatingRef = useRef(false);
@@ -39,41 +41,69 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
 
   useEffect(() => () => {
     if (turnFrameRef.current !== null) window.cancelAnimationFrame(turnFrameRef.current);
+    if (settleFrameRef.current !== null) window.cancelAnimationFrame(settleFrameRef.current);
   }, []);
 
-  // Update the physical turn at most once per display frame. The front CardPreview
-  // keeps its own translated Z layers while this wrapper performs the whole-card turn.
+  // The raised front is a single flat face near the edge of a turn. Hide it
+  // once it points away so its recessed backing cannot cover the description.
+  const paintTurn = (angle: number) => {
+    const turn = turnCardRef.current;
+    const front = frontFaceRef.current;
+    if (!turn || !front) return;
+    const normalized = ((angle % 360) + 360) % 360;
+    const frontAngle = Math.min(normalized, 360 - normalized);
+    front.style.transformStyle = frontAngle >= 70 ? "flat" : "preserve-3d";
+    front.style.visibility = frontAngle >= 90 ? "hidden" : "visible";
+
+    const nearestFace = Math.round(angle / 180) * 180;
+    const localAngle = angle - nearestFace;
+    const intensity = frontAngle < 90 ? Math.min(1, frontAngle / 70) : 0;
+    turn.style.transform = `rotateY(${angle}deg)`;
+    turn.style.setProperty("--card-turn-intensity", String(intensity));
+    turn.style.setProperty("--card-turn-opacity", String(intensity * .9));
+    turn.style.setProperty(
+      "--card-turn-position",
+      `${intensity > 0 ? Math.max(0, Math.min(100, 50 + localAngle * .72)) : 0}%`,
+    );
+  };
+
+  // Coalesce drag updates to one paint per display frame.
   const queueTurn = (angle: number) => {
     angleRef.current = angle;
     if (turnFrameRef.current !== null) return;
     turnFrameRef.current = window.requestAnimationFrame(() => {
       turnFrameRef.current = null;
-      const turn = turnCardRef.current;
-      if (!turn) return;
-
-      const nearestFace = Math.round(angleRef.current / 180) * 180;
-      const localAngle = angleRef.current - nearestFace;
-      const intensity = Math.min(1, Math.abs(localAngle) / 70);
-      turn.style.transform = `rotateY(${angleRef.current}deg)`;
-      turn.style.setProperty("--card-turn-intensity", String(intensity));
-      turn.style.setProperty("--card-turn-opacity", String(intensity * .9));
-      turn.style.setProperty(
-        "--card-turn-position",
-        `${intensity > 0 ? Math.max(0, Math.min(100, 50 + localAngle * .72)) : 0}%`,
-      );
+      paintTurn(angleRef.current);
     });
   };
 
   const animateTurnTo = (targetAngle: number) => {
     settledAngleRef.current = targetAngle;
+    if (turnFrameRef.current !== null) window.cancelAnimationFrame(turnFrameRef.current);
+    turnFrameRef.current = null;
+    if (settleFrameRef.current !== null) window.cancelAnimationFrame(settleFrameRef.current);
+    settleFrameRef.current = null;
+    const startAngle = angleRef.current;
     const needsAnimation = Math.abs(angleRef.current - targetAngle) > .1;
     turnAnimatingRef.current = needsAnimation;
-    if (turnCardRef.current) {
-      turnCardRef.current.style.transition = needsAnimation
-        ? "transform 420ms cubic-bezier(.2,.72,.16,1)"
-        : "none";
+    if (!needsAnimation) {
+      angleRef.current = targetAngle;
+      paintTurn(targetAngle);
+      return;
     }
-    queueTurn(targetAngle);
+    const startedAt = performance.now();
+    const frame = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / 420);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      angleRef.current = startAngle + (targetAngle - startAngle) * eased;
+      paintTurn(angleRef.current);
+      if (progress < 1) settleFrameRef.current = window.requestAnimationFrame(frame);
+      else {
+        settleFrameRef.current = null;
+        turnAnimatingRef.current = false;
+      }
+    };
+    settleFrameRef.current = window.requestAnimationFrame(frame);
   };
 
   const flipByDirection = (direction: -1 | 1) => {
@@ -97,7 +127,6 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
       width: Math.max(bounds.width, 1),
       baseAngle: settledAngleRef.current,
     };
-    if (turnCardRef.current) turnCardRef.current.style.transition = "none";
     event.currentTarget.style.cursor = "grabbing";
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -189,7 +218,7 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
               }}
               className="outline-none"
               style={{
-                perspective: "850px",
+                perspective: "700px",
                 perspectiveOrigin: "50% 48%",
                 userSelect: "none",
                 touchAction: "pan-y",
@@ -199,18 +228,15 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
             >
               <div
                 ref={turnCardRef}
-                onTransitionEnd={(event) => {
-                  if (event.propertyName === "transform") turnAnimatingRef.current = false;
-                }}
                 style={{
                   position: "relative",
                   transform: "rotateY(0deg)",
                   transformStyle: "preserve-3d",
-                  transition: "none",
                   willChange: "transform",
                 }}
               >
                 <div
+                  ref={frontFaceRef}
                   data-testid="card-front-face"
                   aria-hidden={flipped}
                   style={{

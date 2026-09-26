@@ -424,9 +424,10 @@ export default function CardAdminPanel() {
   };
 
   const maxStarWidth = Math.min(80, (100 - currentLayout.starY) * layoutRarity * 3 / 2);
+  const minStarWidth = Math.max(5, layoutRarity * 1);
 
   const resizeStars = (direction: -1 | 1) => {
-    const width = Math.max(5, Math.min(maxStarWidth, Number((currentLayout.starWidth + direction).toFixed(1))));
+    const width = Math.max(minStarWidth, Math.min(maxStarWidth, Number((currentLayout.starWidth + direction * layoutRarity).toFixed(1))));
     const centerX = currentLayout.starX + currentLayout.starWidth / 2;
     setCurrentLayout({
       ...currentLayout,
@@ -648,12 +649,12 @@ export default function CardAdminPanel() {
                     type="button"
                     data-testid="button-decrease-card-stars"
                     aria-label="Decrease star size"
-                    disabled={currentLayout.starWidth <= 5}
+                    disabled={currentLayout.starWidth <= minStarWidth}
                     onClick={() => resizeStars(-1)}
                     className="h-12 rounded-lg text-xl text-[#f8e7b0] active:scale-95 disabled:opacity-40"
                     style={{ background: "#0c1710", border: "1px solid rgba(224,181,74,.46)" }}
                   >−</button>
-                  <span className="text-center font-fantasy text-[10px] text-[#e7cb80]">Star size: {currentLayout.starWidth.toFixed(1)}%</span>
+                  <span className="text-center font-fantasy text-[10px] text-[#e7cb80]">Each star: {(currentLayout.starWidth / layoutRarity).toFixed(1)}%</span>
                   <button
                     type="button"
                     data-testid="button-increase-card-stars"
