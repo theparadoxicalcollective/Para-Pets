@@ -63,6 +63,16 @@ test("border editor uses one persisted percentage layout per rarity", () => {
   assert.match(routes, /app\.put\("\/api\/admin\/card-border-layouts\/:rarity", isAdmin/);
 });
 
+test("admin can apply one star-row horizontal center to all rarity layouts", () => {
+  assert.match(adminPanel, /data-testid="button-apply-card-star-x-to-all"/);
+  assert.match(adminPanel, /const centerX = currentLayout\.starX \+ currentLayout\.starWidth \/ 2/);
+  assert.match(adminPanel, /CARD_RARITIES\.map\(\(rarity\) =>/);
+  assert.match(adminPanel, /centerX - existing\.starWidth \/ 2/);
+  assert.match(adminPanel, /\/api\/admin\/card-border-layouts\/\$\{layout\.rarity\}/);
+  assert.match(adminPanel, /Star position applied to all rarities/);
+  assert.match(adminPanel, /Each rarity keeps its own height and star size/);
+});
+
 test("card text editor uses simple nudge, center, size, and title-only curve controls", () => {
   assert.match(adminPanel, /button-nudge-card-text-up/);
   assert.match(adminPanel, /button-nudge-card-text-down/);
