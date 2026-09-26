@@ -63,6 +63,27 @@ test("border editor uses one persisted percentage layout per rarity", () => {
   assert.match(routes, /app\.put\("\/api\/admin\/card-border-layouts\/:rarity", isAdmin/);
 });
 
+test("admin can apply consistent star size and placement to all rarity layouts", () => {
+  assert.match(adminPanel, /data-testid="button-apply-card-star-x-to-all"/);
+  assert.match(adminPanel, /const requestedCenterX = currentLayout\.starX \+ currentLayout\.starWidth \/ 2/);
+  assert.match(adminPanel, /const requestedPerStarWidth = currentLayout\.starWidth \/ layoutRarity/);
+  assert.match(adminPanel, /const maxPerStarWidthForFiveStars = 80 \/ 5/);
+  assert.match(adminPanel, /const maxPerStarWidthForHeight = \(100 - starY\) \* 3 \/ 2/);
+  assert.match(adminPanel, /const perStarWidth = Math\.min\(requestedPerStarWidth, maxPerStarWidthForFiveStars, maxPerStarWidthForHeight\)/);
+  assert.match(adminPanel, /const widestRow = perStarWidth \* 5/);
+  assert.match(adminPanel, /const centerX = Math\.max\(widestRow \/ 2, Math\.min\(100 - widestRow \/ 2, requestedCenterX\)\)/);
+  assert.match(adminPanel, /CARD_RARITIES\.map\(\(rarity\) =>/);
+  assert.match(adminPanel, /const starWidth = Number\(\(perStarWidth \* rarity\)\.toFixed\(1\)\)/);
+  assert.match(adminPanel, /const starX = Number\(\(centerX - starWidth \/ 2\)\.toFixed\(1\)\)/);
+  assert.match(adminPanel, /starY,/);
+  assert.match(adminPanel, /starWidth,/);
+  assert.match(adminPanel, /\/api\/admin\/card-border-layouts\/\$\{layout\.rarity\}/);
+  assert.match(adminPanel, /Star size and placement applied to all rarities/);
+  assert.match(adminPanel, /Apply Size \+ Placement to All/);
+  assert.match(adminPanel, /same individual star size, vertical position, and horizontal center/);
+  assert.match(adminPanel, /shared size is reduced just enough for the 5★ row to fit safely/);
+});
+
 test("card text editor uses simple nudge, center, size, and title-only curve controls", () => {
   assert.match(adminPanel, /button-nudge-card-text-up/);
   assert.match(adminPanel, /button-nudge-card-text-down/);

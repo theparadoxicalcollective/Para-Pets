@@ -310,6 +310,55 @@ export default function CardAdminPanel() {
     }),
   });
 
+  const applyStarHorizontalToAll = useMutation({
+    mutationFn: async () => {
+      const requestedCenterX = currentLayout.starX + currentLayout.starWidth / 2;
+      const starY = currentLayout.starY;
+      const requestedPerStarWidth = currentLayout.starWidth / layoutRarity;
+      const maxPerStarWidthForFiveStars = 80 / 5;
+      const maxPerStarWidthForHeight = (100 - starY) * 3 / 2;
+      const perStarWidth = Math.min(requestedPerStarWidth, maxPerStarWidthForFiveStars, maxPerStarWidthForHeight);
+      const widestRow = perStarWidth * 5;
+      const centerX = Math.max(widestRow / 2, Math.min(100 - widestRow / 2, requestedCenterX));
+
+      const updatedLayouts = CARD_RARITIES.map((rarity) => {
+        const existing = layoutDrafts[rarity] ?? getCardBorderLayout(layouts, rarity);
+        const starWidth = Number((perStarWidth * rarity).toFixed(1));
+        const starX = Number((centerX - starWidth / 2).toFixed(1));
+        return {
+          ...existing,
+          starX,
+          starY,
+          starWidth,
+        };
+      });
+
+      return Promise.all(updatedLayouts.map(async (layout) => {
+        const response = await apiRequest(
+          "PUT",
+          `/api/admin/card-border-layouts/${layout.rarity}`,
+          layout,
+        );
+        return response.json() as Promise<CardBorderLayout>;
+      }));
+    },
+    onSuccess: (savedLayouts) => {
+      setLayoutDrafts((current) => {
+        const next = { ...current };
+        for (const saved of savedLayouts) next[saved.rarity] = saved;
+        return next;
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/card-border-layouts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cards"] });
+      toast({ title: "Star size and placement applied to all rarities" });
+    },
+    onError: (error: any) => toast({
+      title: "Could not apply star position",
+      description: error?.message || "The current horizontal star position could not be saved to every rarity.",
+      variant: "destructive",
+    }),
+  });
+
   const openNewCard = () => {
     setEditingCard(null);
     setForm(EMPTY_FORM);
@@ -581,6 +630,19 @@ export default function CardAdminPanel() {
                 >
                   Center Stars
                 </button>
+                <button
+                  type="button"
+                  data-testid="button-apply-card-star-x-to-all"
+                  disabled={applyStarHorizontalToAll.isPending}
+                  onClick={() => applyStarHorizontalToAll.mutate()}
+                  className="min-h-11 w-full rounded-lg font-fantasy text-[10px] tracking-wider text-[#baf7d0] active:scale-[.99] disabled:opacity-45"
+                  style={{ background: "rgba(20,100,65,.28)", border: "1px solid rgba(110,231,183,.42)" }}
+                >
+                  {applyStarHorizontalToAll.isPending ? "Applying…" : "Apply Size + Placement to All"}
+                </button>
+                <p className="text-center text-[8px] leading-3 text-white/40">
+                  Uses the same individual star size, vertical position, and horizontal center for every 1–5★ border. If needed, the shared size is reduced just enough for the 5★ row to fit safely.
+                </p>
                 <div className="grid grid-cols-[48px_1fr_48px] items-center gap-3">
                   <button
                     type="button"
