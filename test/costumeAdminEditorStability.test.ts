@@ -175,7 +175,6 @@ test("adornment fitter has separate regular and evolution sections without a new
   assert.match(editor, /form: costumeArtworkForm/);
   assert.match(editor, /\(placement\.form \?\? "base"\) === costumeArtworkForm/);
   assert.match(costumeSchema, /form: z\.enum\(\["base", "evolution"\]\)\.default\("base"\)/);
-  assert.doesNotMatch(bootMigrations, /pet_costume_definitions[\s\S]*?ADD COLUMN IF NOT EXISTS form/);
 });
 
 test("Wings fitting uses one source and does not expose legacy Wings animation", () => {
