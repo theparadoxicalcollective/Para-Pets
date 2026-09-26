@@ -61,6 +61,7 @@ export function registerCostumePlayerRoutes(app: Express) {
         costumeInventoryId: petEquippedCostumes.costumeInventoryId,
         name: shopItems.name,
         imageUrl: shopItems.imageUrl,
+        hideAboveHeadPart: shopItems.hideAboveHeadPart,
         placements: petCostumeDefinitions.placements,
       }).from(petEquippedCostumes)
         .innerJoin(userInventory, eq(userInventory.id, petEquippedCostumes.costumeInventoryId))
@@ -114,6 +115,7 @@ export function registerCostumePlayerRoutes(app: Express) {
         costumeInventoryId: petEquippedCostumes.costumeInventoryId,
         name: shopItems.name,
         imageUrl: shopItems.imageUrl,
+        hideAboveHeadPart: shopItems.hideAboveHeadPart,
         placements: petCostumeDefinitions.placements,
       }).from(petEquippedCostumes)
         .innerJoin(userInventory, eq(userInventory.id, petEquippedCostumes.costumeInventoryId))
