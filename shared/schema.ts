@@ -511,7 +511,7 @@ export const insertShopItemSchema = baseInsertShopItemSchema.superRefine((item, 
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["adornmentSlot"], message: "Only adornments can use an adornment space" });
   }
   if (item.adornmentEffect != null && !isAdornmentItemEffect(item.adornmentEffect)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["adornmentEffect"], message: "Adornment effect must be Still, Float, Spin, Sway, or Pulse" });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["adornmentEffect"], message: "Adornment effect must be Still, Float, Spin, Sway, Pulse, or Wings" });
   }
   if (item.type !== "costume" && item.adornmentEffect != null) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["adornmentEffect"], message: "Only adornments can use an adornment effect" });
