@@ -313,11 +313,17 @@ export default function CardAdminPanel() {
   const applyStarHorizontalToAll = useMutation({
     mutationFn: async () => {
       const centerX = currentLayout.starX + currentLayout.starWidth / 2;
+      const perStarWidth = currentLayout.starWidth / layoutRarity;
+      const starY = currentLayout.starY;
       const updatedLayouts = CARD_RARITIES.map((rarity) => {
         const existing = layoutDrafts[rarity] ?? getCardBorderLayout(layouts, rarity);
+        const starWidth = Number(Math.min(80, perStarWidth * rarity).toFixed(1));
+        const starX = Number(Math.max(0, Math.min(100 - starWidth, centerX - starWidth / 2)).toFixed(1));
         return {
           ...existing,
-          starX: Number(Math.max(0, Math.min(100 - existing.starWidth, centerX - existing.starWidth / 2)).toFixed(1)),
+          starX,
+          starY,
+          starWidth,
         };
       });
 
@@ -338,7 +344,7 @@ export default function CardAdminPanel() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/card-border-layouts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/cards"] });
-      toast({ title: "Star position applied to all rarities" });
+      toast({ title: "Star size and placement applied to all rarities" });
     },
     onError: (error: any) => toast({
       title: "Could not apply star position",
@@ -626,10 +632,10 @@ export default function CardAdminPanel() {
                   className="min-h-11 w-full rounded-lg font-fantasy text-[10px] tracking-wider text-[#baf7d0] active:scale-[.99] disabled:opacity-45"
                   style={{ background: "rgba(20,100,65,.28)", border: "1px solid rgba(110,231,183,.42)" }}
                 >
-                  {applyStarHorizontalToAll.isPending ? "Applying…" : "Apply to All"}
+                  {applyStarHorizontalToAll.isPending ? "Applying…" : "Apply Size + Placement to All"}
                 </button>
                 <p className="text-center text-[8px] leading-3 text-white/40">
-                  Copies this star row's horizontal center to all 1–5★ borders. Each rarity keeps its own height and star size.
+                  Uses the same individual star size, vertical position, and horizontal center for every 1–5★ border.
                 </p>
                 <div className="grid grid-cols-[48px_1fr_48px] items-center gap-3">
                   <button
