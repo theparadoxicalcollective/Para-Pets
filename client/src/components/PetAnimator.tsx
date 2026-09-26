@@ -415,7 +415,7 @@ function CostumeLayer({
             width: `${placement.width / CANVAS_SIZE * 100}%`, height: `${placement.height / CANVAS_SIZE * 100}%`,
             transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flipX ? -1 : 1})`,
             transformOrigin: `${placement.pivotX}% ${placement.pivotY}%`, pointerEvents: "none" }}>
-          <AdornmentArtwork src={costume.imageUrl!} placement={placement} animated={mode !== "static"} effect={costume.adornmentEffect} />
+          <AdornmentArtwork src={costume.imageUrl!} placement={placement} animated={mode !== "static"} effect={costume.adornmentEffect} wingPair={costume.slot === ADORNMENT_SLOT_MAP.wings} />
         </div>;
       }
       const anchor = sortedParts.find(part => part.partType === placement.anchorPart);
@@ -474,6 +474,7 @@ function CostumeLayer({
               placement={placement}
               animated={mode !== "static"}
               effect={costume.adornmentEffect}
+              wingPair={costume.slot === ADORNMENT_SLOT_MAP.wings}
             />
           </div>
         </div>
