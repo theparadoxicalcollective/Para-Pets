@@ -66,9 +66,12 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
 
   const animateTurnTo = (targetAngle: number) => {
     settledAngleRef.current = targetAngle;
-    turnAnimatingRef.current = true;
+    const needsAnimation = Math.abs(angleRef.current - targetAngle) > .1;
+    turnAnimatingRef.current = needsAnimation;
     if (turnCardRef.current) {
-      turnCardRef.current.style.transition = "transform 420ms cubic-bezier(.2,.72,.16,1)";
+      turnCardRef.current.style.transition = needsAnimation
+        ? "transform 420ms cubic-bezier(.2,.72,.16,1)"
+        : "none";
     }
     queueTurn(targetAngle);
   };
