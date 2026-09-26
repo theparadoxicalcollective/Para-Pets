@@ -696,15 +696,22 @@ export default function PetDatabasePanel({
       const normalizedPlacement = { ...placement, instance: placementInstance,
         mirroredWingImageUrl: imageData ? undefined : placement.mirroredWingImageUrl };
       const placements = [
-        ...existing.filter(current => current.view !== placement.view || (current.instance ?? 1) !== placementInstance),
+        ...existing.filter(current =>
+          (current.form ?? "base") !== (placement.form ?? "base")
+          || current.view !== placement.view
+          || (current.instance ?? 1) !== placementInstance
+        ),
         normalizedPlacement,
       ];
       const res = await apiRequest("PUT", "/api/admin/costume-definitions", { shopItemId: itemId, templateId: selectedTemplateId, placements, mirroredWingUpload });
       return res.json();
     },
     onSuccess: (data: CostumeDefinition, variables) => {
-      setCostumeDraft(data.placements.find(placement => placement.view === variables.placement.view &&
-        (placement.instance ?? 1) === (variables.placement.instance ?? 1)) ?? null);
+      setCostumeDraft(data.placements.find(placement =>
+        (placement.form ?? "base") === (variables.placement.form ?? "base")
+        && placement.view === variables.placement.view
+        && (placement.instance ?? 1) === (variables.placement.instance ?? 1)
+      ) ?? null);
       setCostumeDraftDirty(false);
       queryClient.setQueryData<CostumeDefinition[]>(["/api/admin/costume-definitions", selectedTemplateId], current => [
         ...(current ?? []).filter(definition => definition.shopItemId !== data.shopItemId),
@@ -718,9 +725,11 @@ export default function PetDatabasePanel({
   });
 
   const removeCostumeInstanceMutation = useMutation({
-    mutationFn: async ({ itemId, instance }: { itemId: string; instance: number }) => {
+    mutationFn: async ({ itemId, instance, form }: { itemId: string; instance: number; form: "base" | "evolution" }) => {
       const existing = costumeDefinitions.find(definition => definition.shopItemId === itemId)?.placements ?? [];
-      const placements = existing.filter(placement => (placement.instance ?? 1) !== instance);
+      const placements = existing.filter(placement =>
+        (placement.form ?? "base") !== form || (placement.instance ?? 1) !== instance
+      );
       const res = await apiRequest("PUT", "/api/admin/costume-definitions", { shopItemId: itemId, templateId: selectedTemplateId, placements });
       return res.json();
     },
@@ -801,7 +810,7 @@ export default function PetDatabasePanel({
   const saveCostumePlacement = () => {
     if (readingWingImage) return;
     if (!selectedCostumeId || !selectedCostumePlacement || !canSaveCostumePlacement || saveCostumeMutation.isPending) return;
-    saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: { ...selectedCostumePlacement, instance: selectedCostumeInstance, rotation: selectedCostumePlacement.rotation ?? 0, flipX: selectedCostumePlacement.flipX ?? false } });
+    saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: { ...selectedCostumePlacement, form: costumeArtworkForm, instance: selectedCostumeIsWings ? 1 : selectedCostumeInstance, rotation: selectedCostumePlacement.rotation ?? 0, flipX: selectedCostumePlacement.flipX ?? false, animation: selectedCostumeIsWings ? "none" : selectedCostumePlacement.animation } });
   };
   const discardCostumeDraft = () => {
     setWingUploadRevision(value => value + 1);
@@ -829,7 +838,15 @@ export default function PetDatabasePanel({
   const removeSelectedCostumeInstance = () => {
     if (!selectedCostumeId || selectedCostumeInstance === 1 || !savedCostumePlacement || costumeDraftDirty || removeCostumeInstanceMutation.isPending) return;
     if (!window.confirm(`Remove Copy ${selectedCostumeInstance - 1} from this pet? This removes its front and side placement.`)) return;
-    removeCostumeInstanceMutation.mutate({ itemId: selectedCostumeId, instance: selectedCostumeInstance });
+    removeCostumeInstanceMutation.mutate({ itemId: selectedCostumeId, instance: selectedCostumeInstance, form: costumeArtworkForm });
+  };
+  const changeCostumeArtworkForm = (form: "base" | "evolution") => {
+    if (saveCostumeMutation.isPending || form === costumeArtworkForm) return;
+    if (costumeDraftDirty && !window.confirm("Discard the unsaved adornment placement?")) return;
+    discardCostumeDraft();
+    setSelectedCostumeInstance(1);
+    setSelectedPartId(null);
+    setCostumeArtworkForm(form);
   };
   const changeCostumeView = (mode: "front" | "side") => {
     if (saveCostumeMutation.isPending || mode === facingMode) return;
