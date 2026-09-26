@@ -3,6 +3,7 @@ import { pgTable, text, varchar, boolean, timestamp, integer, real, unique, uniq
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { isAdornmentSlotKey } from "./costumeFeature";
+import { isAdornmentItemEffect } from "./adornmentAnimation";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -59,6 +60,7 @@ export const shopItems = pgTable("shop_items", {
   price: integer("price").notNull(),
   type: text("type").notNull(),
   adornmentSlot: text("adornment_slot"),
+  adornmentEffect: text("adornment_effect"),
   hideAboveHeadPart: boolean("hide_above_head_part").notNull().default(false),
   worldId: text("world_id").notNull(),
   locationId: varchar("location_id"),
@@ -507,6 +509,12 @@ export const insertShopItemSchema = baseInsertShopItemSchema.superRefine((item, 
   }
   if (item.type !== "costume" && item.adornmentSlot != null) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["adornmentSlot"], message: "Only adornments can use an adornment space" });
+  }
+  if (item.adornmentEffect != null && !isAdornmentItemEffect(item.adornmentEffect)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["adornmentEffect"], message: "Adornment effect must be Still, Float, Spin, Sway, or Pulse" });
+  }
+  if (item.type !== "costume" && item.adornmentEffect != null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["adornmentEffect"], message: "Only adornments can use an adornment effect" });
   }
   if (item.hideAboveHeadPart && (item.type !== "costume" || item.adornmentSlot !== "head")) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["hideAboveHeadPart"], message: "Only Head adornments can hide the Above Head pet part" });
