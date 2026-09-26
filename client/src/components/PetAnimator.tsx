@@ -359,10 +359,11 @@ function computeHeadBob(bodyPart: PetPart | undefined, canFly: boolean) {
   return `-${Math.min(1.2, Math.max(minBob, bodyTopRisePct)).toFixed(2)}%`;
 }
 
-function placementsForArtworkForm(placements: CostumePlacement[], artworkForm: PetArtworkForm) {
-  const exact = placements.filter((placement) => (placement.form ?? "base") === artworkForm);
+function placementsForArtworkForm(placements: CostumePlacement[], artworkForm: PetArtworkForm, view?: "front" | "side") {
+  const inView = (placement: CostumePlacement) => !view || placement.view === view;
+  const exact = placements.filter((placement) => (placement.form ?? "base") === artworkForm && inView(placement));
   if (exact.length > 0 || artworkForm === "base") return exact;
-  return placements.filter((placement) => (placement.form ?? "base") === "base");
+  return placements.filter((placement) => (placement.form ?? "base") === "base" && inView(placement));
 }
 
 function semanticStillPartType(costume: EquippedCostume): "head" | "left_hand" | "right_hand" | null {
@@ -436,8 +437,7 @@ function CostumeLayer({
   const renderCostume = (costume: EquippedCostume) => {
     const costumeView = resolvedView === "back" ? "side" : "front";
     const allPlacements = Array.isArray(costume.placements) ? costume.placements : [];
-    const formPlacements = placementsForArtworkForm(allPlacements, artworkForm);
-    const viewPlacements = formPlacements.filter((item) => item && item.view === costumeView);
+    const viewPlacements = placementsForArtworkForm(allPlacements, artworkForm, costumeView);
     const canonicalPlacements = costume.slot === ADORNMENT_SLOT_MAP.wings
       ? viewPlacements.slice(0, 1)
       : viewPlacements;
@@ -722,9 +722,9 @@ export default function PetAnimator({
     const costumeView = resolvedView === "back" ? "side" : "front";
     for (const costume of equipped) {
       const allPlacements = Array.isArray(costume.placements) ? costume.placements : [];
-      const placements = placementsForArtworkForm(allPlacements, resolvedArtworkForm);
+      const placements = placementsForArtworkForm(allPlacements, resolvedArtworkForm, costumeView);
       const hasVisibleWingsAdornment = costume.slot === ADORNMENT_SLOT_MAP.wings
-        && placements.some((placement) => placement?.view === costumeView);
+        && placements.length > 0;
       if (hasVisibleWingsAdornment) {
         for (const part of viewParts) if (part.partType.toLowerCase().includes("wing")) hidden.add(part.partType);
       }
@@ -743,7 +743,7 @@ export default function PetAnimator({
   const costumeView = resolvedView === "back" ? "side" : "front";
   const hideAboveHeadPart = equipped.some((costume) => {
     if (costume.slot !== ADORNMENT_SLOT_MAP.head || costume.hideAboveHeadPart !== true || !Array.isArray(costume.placements)) return false;
-    return placementsForArtworkForm(costume.placements, resolvedArtworkForm).some((placement) => placement?.view === costumeView);
+    return placementsForArtworkForm(costume.placements, resolvedArtworkForm, costumeView).length > 0;
   });
   // Above-head parts are intentionally re-rendered in the z=3 top layer while
   // costumes are visible so crowns/halos/hats stay above front costume pieces.
