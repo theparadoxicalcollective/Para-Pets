@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { readFileAsDataUrl } from "@/lib/utils";
 import type { CardDefinition } from "@/lib/cardCatalog";
 import { ADORNMENT_SLOT_DEFINITIONS, isAdornmentSlotKey, type AdornmentSlotKey } from "@shared/costumeFeature";
+import { ADORNMENT_ITEM_EFFECTS, ADORNMENT_ITEM_EFFECT_LABELS, isAdornmentItemEffect, type AdornmentItemEffect } from "@shared/adornmentAnimation";
 
 export interface ShopItemFull {
   id: string;
@@ -13,6 +14,7 @@ export interface ShopItemFull {
   price: number;
   type: string;
   adornmentSlot?: string | null;
+  adornmentEffect?: string | null;
   hideAboveHeadPart?: boolean;
   worldId: string;
   imageUrl: string | null;
@@ -594,6 +596,7 @@ function AdminItemForm({
   const [type, setType] = useState(defaultType);
   const initialAdornmentSlot = item?.adornmentSlot;
   const [adornmentSlot, setAdornmentSlot] = useState<AdornmentSlotKey>(isAdornmentSlotKey(initialAdornmentSlot) ? initialAdornmentSlot : "head");
+  const [adornmentEffect, setAdornmentEffect] = useState<AdornmentItemEffect | "">(isAdornmentItemEffect(item?.adornmentEffect) ? item!.adornmentEffect as AdornmentItemEffect : "");
   const [hideAboveHeadPart, setHideAboveHeadPart] = useState(!!item?.hideAboveHeadPart);
   const [edibleLvlPoints, setEdibleLvlPoints] = useState(item?.statBoostAmount?.toString() || "5");
   const [giftPoints, setGiftPoints] = useState(item?.giftPoints?.toString() || "100");
@@ -697,6 +700,7 @@ function AdminItemForm({
       const finalName = name.trim() || (petOnly ? "Unnamed Pet" : "Unnamed Item");
       const payload: any = { name: finalName, description: description.trim() || null, price: priceNum, type: effectiveType, worldId: "all" };
       payload.adornmentSlot = effectiveType === "costume" ? adornmentSlot : null;
+      payload.adornmentEffect = effectiveType === "costume" ? (adornmentEffect || null) : null;
       payload.hideAboveHeadPart = effectiveType === "costume" && adornmentSlot === "head" ? hideAboveHeadPart : false;
       if (imageData) payload.imageData = imageData;
 
@@ -1000,6 +1004,24 @@ function AdminItemForm({
                 ))}
               </select>
               <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-1">Sets which of the five player Closet spaces can equip this adornment.</p>
+              <div className="mt-3">
+                <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Effects</label>
+                <select
+                  data-testid="select-adornment-effect"
+                  value={adornmentEffect}
+                  onChange={(e) => setAdornmentEffect(e.target.value as AdornmentItemEffect | "")}
+                  className="w-full px-3 py-2 rounded-md font-sans text-sm outline-none"
+                  style={inputStyle}
+                >
+                  <option value="">Use fitted/default motion</option>
+                  {ADORNMENT_ITEM_EFFECTS.map((effect) => (
+                    <option key={effect} value={effect}>{ADORNMENT_ITEM_EFFECT_LABELS[effect]}</option>
+                  ))}
+                </select>
+                <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-1">
+                  Applies to this adornment wherever it is equipped. Existing fitted motion is preserved until an effect is chosen here.
+                </p>
+              </div>
               {adornmentSlot === "head" && (
                 <div
                   className="mt-3 flex items-center justify-between gap-3 rounded-md px-3 py-2"
