@@ -239,6 +239,7 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
                     inset: 0,
                     containerType: "inline-size",
                     transform: "rotateY(180deg)",
+                    transformStyle: "flat",
                     backfaceVisibility: "hidden",
                     WebkitBackfaceVisibility: "hidden",
                     overflow: "hidden",
