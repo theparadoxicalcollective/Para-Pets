@@ -48,40 +48,39 @@ test("administration can assign safe item-level effects to adornments", () => {
   assert.match(animation, /spin: "Spin — slow clockwise"/);
   assert.match(animation, /sway: "Sway — gentle side to side"/);
   assert.match(animation, /pulse: "Pulse — subtle magical breathing"/);
-  assert.match(admin, /payload\.adornmentEffect = effectiveType === "costume" \? \(adornmentSlot === "wings" \? "wings" : adornmentEffect \|\| null\) : null/);
+  assert.match(admin, /payload\.adornmentEffect = effectiveType === "costume" && adornmentSlot !== "wings" \? \(adornmentEffect \|\| null\) : null/);
 
-  assert.match(animation, /ADORNMENT_ITEM_EFFECTS = \["still", "float", "spin", "sway", "pulse", "wings"\]/);
-  assert.match(animation, /ADORNMENT_GENERAL_ITEM_EFFECTS = \["still", "float", "spin", "sway", "pulse"\]/);
+  assert.match(animation, /ADORNMENT_ITEM_EFFECTS = \["still", "float", "spin", "sway", "pulse"\]/);
   assert.match(animation, /spin:\s*"rotate"/);
   assert.match(animation, /pulse:\s*"breathe"/);
-  assert.match(animation, /wings:\s*"wings"/);
   assert.match(schema, /adornmentEffect:\s*text\("adornment_effect"\)/);
   assert.match(boot, /ADD COLUMN IF NOT EXISTS adornment_effect TEXT/);
 
   assert.match(routes, /adornmentEffect:\s*shopItems\.adornmentEffect/);
-  assert.match(routes, /costume\.slot === ADORNMENT_SLOT_MAP\.wings \? "wings" : costume\.adornmentEffect/);
   assert.match(animator, /adornmentEffect\?: AdornmentItemEffect \| null/);
   assert.match(animator, /effect=\{costume\.adornmentEffect\}/);
   assert.match(artwork, /const overrideProfile = adornmentItemEffectAnimation\(effect\)/);
-  assert.match(artwork, /const profile = overrideProfile \?\? fittedProfile/);
-  assert.match(artwork, /const mirroredPair = profile === "wings"/);
+  assert.match(artwork, /const profile = wingPair \? "wings" : overrideProfile \?\? fittedProfile/);
+  assert.match(artwork, /const mirroredPair = wingPair \|\| fittedProfile === "wings"/);
+  assert.match(animator, /wingPair=\{costume\.slot === ADORNMENT_SLOT_MAP\.wings\}/);
 });
 
-test("Wings Closet space uses a fixed mirrored open-close effect instead of the general dropdown", () => {
+test("Wings adornment type automatically uses front-facing mirrored open-close motion", () => {
   const admin = read("client/src/components/ItemDatabaseSection.tsx");
   const animation = read("shared/adornmentAnimation.ts");
-  const schema = read("shared/schema.ts");
+  const animator = read("client/src/components/PetAnimator.tsx");
+  const artwork = read("client/src/components/AdornmentArtwork.tsx");
 
   assert.match(admin, /data-testid="adornment-wings-effect"/);
   assert.match(admin, /Upload the wing adornment once/);
   assert.match(admin, /No separate wing spots are needed/);
   assert.match(admin, /adornmentSlot === "wings"/);
-  assert.match(admin, /next === "wings" \? "wings" : current === "wings" \? "" : current/);
-  assert.match(admin, /ADORNMENT_GENERAL_ITEM_EFFECTS\.map/);
-  assert.match(animation, /wings: "Wings — mirrored open \/ close"/);
+  assert.match(admin, /ADORNMENT_ITEM_EFFECTS\.map/);
+  assert.match(admin, /adornmentSlot !== "wings"/);
+  assert.doesNotMatch(animation, /ADORNMENT_ITEM_EFFECTS = \[[^\]]*"wings"/);
   assert.match(animation, /@keyframes adornment-wings \{ 0%,100% \{ transform:rotate\(-10deg\) scaleX\(\.74\); \} 50% \{ transform:rotate\(8deg\) scaleX\(1\); \} \}/);
-  assert.match(schema, /The Wings effect is reserved for Wings adornments/);
-  assert.match(schema, /Wings adornments use the mirrored Wings effect/);
+  assert.match(animator, /wingPair=\{costume\.slot === ADORNMENT_SLOT_MAP\.wings\}/);
+  assert.match(artwork, /const profile = wingPair \? "wings"/);
 });
 
 test("Head adornments can optionally hide the native Above Head pet part", () => {
