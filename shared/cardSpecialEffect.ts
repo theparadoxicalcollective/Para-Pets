@@ -1,4 +1,4 @@
-export const CARD_SPECIAL_EFFECTS = ["stars", "aurora", "wisps"] as const;
+export const CARD_SPECIAL_EFFECTS = ["stars", "aurora", "wisps", "pumpkin"] as const;
 export type CardSpecialEffect = (typeof CARD_SPECIAL_EFFECTS)[number];
 
 export function parseCardSpecialEffect(value: unknown): CardSpecialEffect | null {
