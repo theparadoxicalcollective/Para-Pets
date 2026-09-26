@@ -39,6 +39,7 @@ test("costume artwork inherits its configured pet-part motion instead of using a
 test("item-level effects compose with independent and pet-part-mounted adornments", () => {
   assert.ok((animator.match(/effect=\{costume\.adornmentEffect\}/g) ?? []).length >= 2);
   assert.ok((animator.match(/wingPair=\{costume\.slot === ADORNMENT_SLOT_MAP\.wings\}/g) ?? []).length >= 2);
+  assert.match(animator, /matchingPlacements\.slice\(0, 1\)/);
   assert.match(animator, /adornmentEffect\?: AdornmentItemEffect \| null/);
   assert.match(costumeRoutes, /adornmentEffect:\s*shopItems\.adornmentEffect/);
 });
