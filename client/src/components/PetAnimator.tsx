@@ -43,6 +43,7 @@ interface EquippedCostume {
   costumeInventoryId: string;
   name: string;
   imageUrl: string | null;
+  hideAboveHeadPart?: boolean;
   placements?: CostumePlacement[] | null;
 }
 
