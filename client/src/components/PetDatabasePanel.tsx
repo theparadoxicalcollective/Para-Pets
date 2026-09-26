@@ -1295,7 +1295,7 @@ export default function PetDatabasePanel({
                 <div className="rounded-lg p-2.5" style={{ background: "rgba(0,0,0,.2)", border: "1px solid rgba(192,132,252,.2)" }}>
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <p className="text-[9px] font-semibold tracking-wider" style={{ color: "#d8b4fe" }}>PLACED PIECES</p>
-                    <button
+                    {!selectedCostumeIsWings && <button
                       type="button"
                       data-testid="button-duplicate-costume-piece"
                       aria-label="Duplicate adornment piece"
@@ -1306,7 +1306,7 @@ export default function PetDatabasePanel({
                       style={{ background: "rgba(192,132,252,.18)", border: "1px solid rgba(216,180,254,.42)", color: "#f3e8ff" }}
                     >
                       +
-                    </button>
+                    </button>}
                   </div>
                   <div data-testid="costume-copy-selector" className="flex flex-wrap gap-1.5">
                     {costumeInstances.map(instance => (
@@ -1328,7 +1328,7 @@ export default function PetDatabasePanel({
                     ))}
                   </div>
                   <div className="mt-2 flex items-center justify-between gap-2">
-                    <p className="text-[8px]" style={{ color: "#8f8198" }}>Original + up to 3 duplicates per pet.</p>
+                    <p className="text-[8px]" style={{ color: "#8f8198" }}>{selectedCostumeIsWings ? "Wings use one fitted source image." : "Original + up to 3 duplicates per pet."}</p>
                     {selectedCostumeInstance > 1 && savedCostumePlacement && !costumeDraftDirty && (
                       <button
                         type="button"
@@ -1354,17 +1354,19 @@ export default function PetDatabasePanel({
                 ) : (
                   <div className="space-y-3">
                     <p className="text-xs" style={{ color: "#a89878" }}>Independent placement — drag anywhere on this pet's canvas.</p>
-                    <label className="block text-xs" style={{ color: "#a89878" }}>Animation
-                      <select data-testid="select-adornment-animation" value={selectedCostumePlacement.animation ?? "none"} disabled={saveCostumeMutation.isPending}
-                        onChange={event => updateCostumeDraft({ animation: event.target.value as AdornmentAnimation })}
-                        className="block w-full mt-1 p-2.5 rounded" style={{ background: "#201526", color: "#e7d7b5" }}>
-                        {ADORNMENT_ANIMATIONS.map(animation => <option key={animation} value={animation}>{ADORNMENT_ANIMATION_LABELS[animation]}</option>)}
-                      </select>
-                    </label>
-                    {selectedCostumePlacement.animation === "wings" && <MirroredWingUpload
-                      key={`${selectedTemplateId}:${selectedCostumeId}:${currentCostumeView}:${selectedCostumeInstance}:${wingUploadRevision}`}
-                      imageUrl={selectedCostumePlacement.mirroredWingImageUrl} disabled={saveCostumeMutation.isPending}
-                      onPendingChange={setReadingWingImage} onChange={mirroredWingImageUrl => updateCostumeDraft({ mirroredWingImageUrl })} />}
+                    {selectedCostumeIsWings ? (
+                      <div className="rounded-md p-2.5 text-xs" style={{ color: "#d8b4fe", background: "rgba(192,132,252,.08)", border: "1px solid rgba(192,132,252,.2)" }}>
+                        Wings motion is automatic: one fitted image is mirrored into a front-facing pair that opens and closes together.
+                      </div>
+                    ) : (
+                      <label className="block text-xs" style={{ color: "#a89878" }}>Fitted/default animation
+                        <select data-testid="select-adornment-animation" value={selectedCostumePlacement.animation ?? "none"} disabled={saveCostumeMutation.isPending}
+                          onChange={event => updateCostumeDraft({ animation: event.target.value as AdornmentAnimation })}
+                          className="block w-full mt-1 p-2.5 rounded" style={{ background: "#201526", color: "#e7d7b5" }}>
+                          {ADORNMENT_ANIMATIONS.filter(animation => animation !== "wings").map(animation => <option key={animation} value={animation}>{ADORNMENT_ANIMATION_LABELS[animation]}</option>)}
+                        </select>
+                      </label>
+                    )}
                     <label className="block text-xs" style={{ color: "#a89878" }}>Speed
                       <select value={selectedCostumePlacement.animationSpeed ?? 1} disabled={saveCostumeMutation.isPending} onChange={event => updateCostumeDraft({ animationSpeed: Number(event.target.value) })}
                         className="block w-full mt-1 p-2.5 rounded" style={{ background: "#201526", color: "#e7d7b5" }}>
