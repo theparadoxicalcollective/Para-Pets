@@ -445,9 +445,41 @@ function CostumeLayer({
     if (!costume.imageUrl || placements.length === 0) return null;
 
     return <>{placements.map((savedPlacement) => {
-      const followPartType = semanticStillPartType(costume);
+      const dontMove = savedPlacement.dontMove === true;
+      const followPartType = dontMove ? null : semanticStillPartType(costume);
       const followPart = followPartType ? sortedParts.find((part) => part.partType === followPartType) : undefined;
       const placement = followPart ? rebasePlacementToPart(savedPlacement, followPart, sortedParts) : savedPlacement;
+
+      if (dontMove) {
+        const fixedAnchor = placement.anchorPart === "independent"
+          ? null
+          : sortedParts.find((part) => part.partType === placement.anchorPart) ?? null;
+        const position = getCostumeCanvasPosition(fixedAnchor, placement);
+        if (!position) return null;
+        return <div
+          key={`${costume.id}-${costumeView}-${depth}-${placement.instance ?? 1}-fixed`}
+          data-testid={`adornment-fixed-${costume.id}-${placement.instance ?? 1}`}
+          style={{
+            position: "absolute",
+            left: `${position.left / CANVAS_SIZE * 100}%`,
+            top: `${position.top / CANVAS_SIZE * 100}%`,
+            width: `${placement.width / CANVAS_SIZE * 100}%`,
+            height: `${placement.height / CANVAS_SIZE * 100}%`,
+            transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flipX ? -1 : 1})`,
+            transformOrigin: `${placement.pivotX}% ${placement.pivotY}%`,
+            pointerEvents: "none",
+          }}
+        >
+          <AdornmentArtwork
+            src={costume.imageUrl!}
+            placement={placement}
+            animated={false}
+            effect={costume.adornmentEffect}
+            wingPair={costume.slot === ADORNMENT_SLOT_MAP.wings}
+          />
+        </div>;
+      }
+
       if (placement.anchorPart === "independent") {
         const position = getCostumeCanvasPosition(null, placement)!;
         return <div key={`${costume.id}-${costumeView}-${depth}-${placement.instance ?? 1}`}
