@@ -206,6 +206,7 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /import cardStarImg from "@assets\/uploads\/CardStar\.png"/);
   assert.match(preview, /data-testid="card-rarity-star"/);
   assert.match(preview, /src=\{cardStarImg\}/);
+  assert.match(preview, /drop-shadow\(0 0 1px rgba\(64,30,2,\.96\)\)[\s\S]*drop-shadow\(0 0 5px rgba\(255,245,190,\.9\)\)/);
   assert.doesNotMatch(preview, /CARD_RARITY_STAR_PATH/);
   assert.doesNotMatch(preview, /Photoroom_20260331_20947_PM_1774984267132\.png/);
   assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*44[\s\S]*?3:\s*96[\s\S]*?4:\s*148[\s\S]*?5:\s*220/);
@@ -288,23 +289,42 @@ test("card collection keeps the cleaner open layout and text heading", () => {
   assert.doesNotMatch(collection, /className="relative min-w-0 pb-8"/);
 });
 
-test("fast card turns flip to an in-card description back instead of opening a description modal", () => {
+test("detail cards preserve a 3D front, flat contained back, and stable full turns", () => {
   assert.match(detail, /data-testid="card-turn-surface"/);
   assert.match(detail, /requestAnimationFrame/);
   assert.match(detail, /cancelAnimationFrame/);
   assert.match(detail, /ref=\{turnCardRef\}/);
-  assert.doesNotMatch(detail, /setTurnAngle/);
-  assert.match(detail, /velocity >= 0\.35/);
-  assert.match(detail, /gesture\.width \* 0\.1/);
-  assert.match(detail, /queueTurn\(nextFlipped \? direction \* 180 : 0\)/);
+  assert.match(detail, /const settledAngleRef = useRef\(0\)/);
+  assert.match(detail, /const turnAnimatingRef = useRef\(false\)/);
+  assert.match(detail, /baseAngle: settledAngleRef\.current/);
+  assert.match(detail, /const previewTurn = Math\.max\(-180, Math\.min\(180, \(dx \/ gesture\.width\) \* 220\)\)/);
+  assert.match(detail, /const deliberateDrag = Math\.abs\(dx\) >= gesture\.width \* \.22/);
+  assert.match(detail, /const quickSwipe = Math\.abs\(dx\) >= gesture\.width \* \.08 && velocity >= \.32/);
+  assert.match(detail, /animateTurnTo\(gesture\.baseAngle \+ direction \* 180\)/);
+  assert.match(detail, /onTransitionEnd=/);
+  assert.match(detail, /turnAnimatingRef\.current = false/);
+
   assert.match(detail, /data-testid="card-front-face"/);
+  assert.match(detail, /transformStyle: "preserve-3d"/);
+  assert.match(detail, /<CardPreview[\s\S]*depth3d[\s\S]*showSparkles/);
+
   assert.match(detail, /data-testid="card-back-face"/);
-  assert.match(detail, /data-testid="card-back-description"/);
-  assert.match(detail, /CARD_BACK_SURFACE_COLORS\[card\.rarity\]/);
-  assert.match(detail, /color: CARD_TITLE_COLORS\[card\.rarity\]/);
-  assert.match(detail, /src=\{CARD_BORDER_ASSETS\[card\.rarity\]\}/);
   assert.match(detail, /transform: "rotateY\(180deg\)"/);
+  assert.match(detail, /data-testid="card-back-surface"/);
+  assert.match(detail, /inset: "10\.5% 9\.5% 9\.5%"/);
+  assert.match(detail, /background: CARD_BACK_SURFACE_COLORS\[card\.rarity\]/);
+  assert.match(detail, /src=\{CARD_BORDER_ASSETS\[card\.rarity\]\}/);
+  assert.doesNotMatch(detail, /translateZ\([^)]*\)[\s\S]*data-testid="card-back-face"/);
+
+  assert.match(detail, /data-testid="card-back-title"/);
+  assert.match(detail, /<CardFittedText[\s\S]*text=\{card\.name\}[\s\S]*curve=\{layout\.nameCurve \?\? 0\}/);
+  assert.match(detail, /data-testid="card-back-description"/);
+  assert.match(detail, /inset: "23% 17% 19%"/);
+  assert.match(detail, /fontSize: "clamp\(10\.5px, 3cqw, 14\.5px\)"/);
+  assert.match(detail, /overflowY: "auto"/);
+  assert.match(detail, /color: CARD_TITLE_COLORS\[card\.rarity\]/);
   assert.match(detail, /card\.secondDescription \|\| card\.description/);
+
   assert.doesNotMatch(detail, /descriptionOpen/);
   assert.doesNotMatch(detail, /card-full-description/);
   assert.doesNotMatch(detail, /Close full description/);
