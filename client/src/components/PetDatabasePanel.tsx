@@ -1362,7 +1362,7 @@ export default function PetDatabasePanel({
                   mode={previewAdornmentMotion ? "idle" : "static"}
                   view={activeView === "back" ? "back" : "front"}
                   fillContainer
-                  lowMemory
+                  fitVisible
                   previewCostumes={livePreviewCostumes}
                   style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
                 />
@@ -2434,4 +2434,3 @@ export default function PetDatabasePanel({
     </div>
   );
 }
-

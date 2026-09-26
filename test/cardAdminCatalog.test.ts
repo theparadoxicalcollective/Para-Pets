@@ -196,16 +196,15 @@ test("4 and 5 star card titles share the same warm readable name color", () => {
   assert.doesNotMatch(preview, /\[data-card-title-rarity="5"\] > span/);
 });
 
-test("1 and 2 star artwork overscans inside a safe clipped inner viewport", () => {
+test("1 and 2 star artwork fills the clipped viewport on both sides", () => {
   assert.match(preview, /if \(rarity <= 2\) return "12\.5% 11\.5% 8%"/);
-  assert.match(preview, /function artworkMediaInsetForRarity\(rarity: CardRarity\)/);
-  assert.match(preview, /return rarity <= 2 \? "-1\.5% -2% -5%" : "0"/);
   assert.match(preview, /return rarity <= 2 \? "11\.5% 10\.5% 7%" : "11% 6%"/);
   assert.match(preview, /return depth3d \? "12% 7%" : "12% 10%"/);
   assert.match(preview, /clipPath: "inset\(0 round 9% \/ 7%\)"/);
   assert.match(preview, /WebkitClipPath: "inset\(0 round 9% \/ 7%\)"/);
   assert.match(preview, /contain: "paint"/);
-  assert.match(preview, /inset: artworkMediaInsetForRarity\(rarity\)/);
+  assert.match(preview, /width: "100%",\s*height: "100%",\s*objectFit: "cover"/);
+  assert.match(preview, /transform: rarity <= 2 \? "scale\(1\.04\)" : undefined/);
 });
 
 test("detail cards use lightweight rarity-scaled magical glitter inside the artwork", () => {
@@ -215,9 +214,9 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /drop-shadow\(0 0 1px rgba\(64,30,2,\.96\)\)[\s\S]*drop-shadow\(0 0 5px rgba\(255,245,190,\.9\)\)/);
   assert.doesNotMatch(preview, /CARD_RARITY_STAR_PATH/);
   assert.doesNotMatch(preview, /Photoroom_20260331_20947_PM_1774984267132\.png/);
-  assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*44[\s\S]*?3:\s*96[\s\S]*?4:\s*148[\s\S]*?5:\s*220/);
-  assert.match(preview, /RARITY_GLINT_COUNT[\s\S]*?2:\s*5[\s\S]*?3:\s*14[\s\S]*?4:\s*26[\s\S]*?5:\s*44/);
-  assert.match(preview, /RARITY_SWIRL_COUNT[\s\S]*?2:\s*1[\s\S]*?3:\s*1[\s\S]*?4:\s*2[\s\S]*?5:\s*3/);
+  assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*0[\s\S]*?3:\s*44[\s\S]*?4:\s*148[\s\S]*?5:\s*220/);
+  assert.match(preview, /RARITY_GLINT_COUNT[\s\S]*?2:\s*0[\s\S]*?3:\s*5[\s\S]*?4:\s*26[\s\S]*?5:\s*44/);
+  assert.match(preview, /RARITY_SWIRL_COUNT[\s\S]*?2:\s*0[\s\S]*?3:\s*1[\s\S]*?4:\s*2[\s\S]*?5:\s*3/);
   assert.match(preview, /CARD_GLITTER_POINTS = Array\.from\(\{ length: 220 \}/);
   assert.match(preview, /CARD_GLINT_POINTS = Array\.from\(\{ length: 44 \}/);
   assert.match(preview, /CARD_BORDER_GLINT_POINTS = Array\.from\(\{ length: 36 \}/);
@@ -265,11 +264,11 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.match(preview, /rarity <= 2\) return "12\.5% 11\.5% 8%"/);
   assert.match(preview, /return depth3d \? "12% 7%" : "12% 10%"/);
   assert.match(preview, /clipPath: "inset\(0 round 9% \/ 7%\)"/);
-  assert.match(preview, /inset: artworkMediaInsetForRarity\(rarity\)/);
+  assert.match(preview, /transform: rarity <= 2 \? "scale\(1\.04\)" : undefined/);
   assert.match(preview, /inset: artworkInsetForRarity\(rarity, depth3d\)/);
   assert.match(preview, /artworkBackingInsetForRarity\(rarity\)/);
   assert.match(preview, /inset 0 0 24px 8px/);
-  assert.match(preview, /transform: depth3d \? "translateZ\(22px\)" : undefined/);
+  assert.match(preview, /transform: depth3d \? "translateZ\(30px\)" : undefined/);
   assert.doesNotMatch(preview, /isName \? 26 : 22/);
   assert.match(preview, /TITLE_Y_NUDGE[\s\S]*?2:\s*\.75[\s\S]*?3:\s*\.9/);
   assert.match(preview, /isName && !editable && textSize !== "scaled"/);
@@ -311,7 +310,8 @@ test("detail cards preserve a 3D front, flat contained back, and stable full tur
   assert.match(detail, /const deliberateDrag = Math\.abs\(dx\) >= gesture\.width \* \.22/);
   assert.match(detail, /const quickSwipe = Math\.abs\(dx\) >= gesture\.width \* \.08 && velocity >= \.32/);
   assert.match(detail, /animateTurnTo\(gesture\.baseAngle \+ direction \* 180\)/);
-  assert.match(detail, /onTransitionEnd=/);
+  assert.match(detail, /front\.style\.transformStyle = frontAngle >= 70 \? "flat" : "preserve-3d"/);
+  assert.match(detail, /front\.style\.visibility = frontAngle >= 90 \? "hidden" : "visible"/);
   assert.match(detail, /turnAnimatingRef\.current = false/);
 
   assert.match(detail, /data-testid="card-front-face"/);

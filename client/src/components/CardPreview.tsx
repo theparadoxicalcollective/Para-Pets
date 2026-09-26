@@ -52,23 +52,23 @@ const TITLE_Y_NUDGE: Partial<Record<CardRarity, number>> = {
 
 const RARITY_SPARKLE_COUNT: Record<CardRarity, number> = {
   1: 0,
-  2: 44,
-  3: 96,
+  2: 0,
+  3: 44,
   4: 148,
   5: 220,
 };
 
 const RARITY_GLINT_COUNT: Record<CardRarity, number> = {
   1: 0,
-  2: 5,
-  3: 14,
+  2: 0,
+  3: 5,
   4: 26,
   5: 44,
 };
 
 const RARITY_SWIRL_COUNT: Record<CardRarity, number> = {
   1: 0,
-  2: 1,
+  2: 0,
   3: 1,
   4: 2,
   5: 3,
@@ -88,10 +88,6 @@ function artworkInsetForRarity(rarity: CardRarity, depth3d: boolean): string {
  * Low-rarity artwork can overscan inside the safe viewport so it still reaches
  * behind the lower frame without moving the clipping boundary outward.
  */
-function artworkMediaInsetForRarity(rarity: CardRarity): string {
-  return rarity <= 2 ? "-1.5% -2% -5%" : "0";
-}
-
 function artworkBackingInsetForRarity(rarity: CardRarity): string {
   return rarity <= 2 ? "11.5% 10.5% 7%" : "11% 6%";
 }
@@ -99,7 +95,7 @@ function artworkBackingInsetForRarity(rarity: CardRarity): string {
 const RARITY_SPARKLE_STYLE: Record<CardRarity, { opacity: number; glow: string; color: string }> = {
   1: { opacity: 0, glow: "none", color: "#fff4ca" },
   2: { opacity: .67, glow: "drop-shadow(0 0 1px rgba(252,241,180,.58))", color: "#e9f7cd" },
-  3: { opacity: .79, glow: "drop-shadow(0 0 1.5px rgba(181,225,255,.66))", color: "#d8edff" },
+  3: { opacity: .67, glow: "drop-shadow(0 0 1px rgba(252,241,180,.58))", color: "#e9f7cd" },
   4: { opacity: .89, glow: "drop-shadow(0 0 2px rgba(226,183,255,.72))", color: "#efddff" },
   5: { opacity: 1, glow: "drop-shadow(0 0 2px rgba(255,215,119,.8))", color: "#fff0b6" },
 };
@@ -283,7 +279,7 @@ export default function CardPreview({
           lineHeight: isName ? 1.05 : 1.18,
           letterSpacing: isName ? ".05em" : "normal",
           textShadow: "0 1px 0 rgba(255,255,255,.58), 0 0 2px rgba(255,244,205,.28)",
-          transform: depth3d ? "translateZ(22px)" : undefined,
+          transform: depth3d ? "translateZ(30px)" : undefined,
           backfaceVisibility: "hidden",
           border: editable ? `1.5px dashed ${selected ? "#7cf5b2" : "rgba(255,224,128,.78)"}` : "none",
           background: editable ? (selected ? "rgba(22,90,58,.34)" : "rgba(8,8,5,.22)") : "transparent",
@@ -330,7 +326,7 @@ export default function CardPreview({
             inset: artworkBackingInsetForRarity(rarity),
             background: "#050604",
             boxShadow: "0 0 14px 8px rgba(0,0,0,.8)",
-            transform: "translateZ(-14px)",
+            transform: "translateZ(-18px)",
             pointerEvents: "none",
           }}
         />
@@ -351,7 +347,7 @@ export default function CardPreview({
           contain: "paint",
           background: "linear-gradient(145deg, #162219, #070a08)",
           pointerEvents: "none",
-          transform: depth3d ? "translateZ(-10px)" : undefined,
+          transform: depth3d ? "translateZ(-12px)" : undefined,
           backfaceVisibility: "hidden",
         }}
       >
@@ -362,12 +358,12 @@ export default function CardPreview({
             draggable={false}
             style={{
               position: "absolute",
-              inset: artworkMediaInsetForRarity(rarity),
-              width: "auto",
-              height: "auto",
-              minWidth: "100%",
-              minHeight: "100%",
+              inset: 0,
+              width: "100%",
+              height: "100%",
               objectFit: "cover",
+              objectPosition: "center",
+              transform: rarity <= 2 ? "scale(1.04)" : undefined,
             }}
           />
         ) : (
@@ -498,7 +494,7 @@ export default function CardPreview({
             inset: 0,
             zIndex: 3,
             pointerEvents: "none",
-            transform: depth3d ? "translateZ(20px)" : undefined,
+            transform: depth3d ? "translateZ(28px)" : undefined,
             WebkitMaskImage: `url("${CARD_BORDER_ASSETS[rarity]}")`,
             maskImage: `url("${CARD_BORDER_ASSETS[rarity]}")`,
             WebkitMaskRepeat: "no-repeat",
@@ -528,7 +524,7 @@ export default function CardPreview({
             inset: 0,
             zIndex: 3,
             pointerEvents: "none",
-            transform: depth3d ? "translateZ(22px)" : undefined,
+            transform: depth3d ? "translateZ(30px)" : undefined,
             WebkitMaskImage: `url("${CARD_BORDER_ASSETS[rarity]}")`,
             maskImage: `url("${CARD_BORDER_ASSETS[rarity]}")`,
             WebkitMaskRepeat: "no-repeat",
@@ -572,7 +568,7 @@ export default function CardPreview({
         src={CARD_BORDER_ASSETS[rarity]}
         alt={`${rarity}-star card border`}
         draggable={false}
-        style={{ position: "absolute", inset: 0, zIndex: 2, width: "100%", height: "100%", objectFit: "fill", pointerEvents: "none", transform: depth3d ? "translateZ(16px)" : undefined, backfaceVisibility: "hidden", filter: depth3d ? "drop-shadow(0 8px 12px rgba(0,0,0,.48))" : undefined }}
+        style={{ position: "absolute", inset: 0, zIndex: 2, width: "100%", height: "100%", objectFit: "fill", pointerEvents: "none", transform: depth3d ? "translateZ(24px)" : undefined, backfaceVisibility: "hidden", filter: depth3d ? "drop-shadow(0 9px 14px rgba(0,0,0,.55))" : undefined }}
       />
       {label && <CardCornerBanner label={label} depth3d={depth3d} />}
       {renderTextBox("name")}
@@ -586,7 +582,7 @@ export default function CardPreview({
         aria-label={`${rarity} card rarity ${rarity === 1 ? "star" : "stars"}`}
         style={{ position: "absolute", left: `${layout.starX}%`, top: `${layout.starY}%`, width: `${layout.starWidth}%`, height: `${layout.starWidth / rarity * 2 / 3}%`,
           zIndex: 5, display: "flex", justifyContent: "center", alignItems: "center",
-          transform: depth3d ? "translateZ(34px)" : undefined,
+          transform: depth3d ? "translateZ(42px)" : undefined,
           backfaceVisibility: "hidden",
           border: editable ? `1.5px dashed ${selectedField === "stars" ? "#7cf5b2" : "rgba(255,224,128,.78)"}` : "none",
           background: editable && selectedField === "stars" ? "rgba(22,90,58,.34)" : "transparent",
