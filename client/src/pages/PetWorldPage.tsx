@@ -17,6 +17,7 @@ import PlayerAvatarButton from "@/components/PlayerAvatarButton";
 import PlayerDetailPanel from "@/components/PlayerDetailPanel";
 import bgGround from "@assets/IMG_6459_1774675340089.jpeg";
 import coinIconImg from "@assets/icon_coin.webp";
+import cardStarImg from "@assets/uploads/CardStar.png";
 import petHouseIconImg from "@assets/icon_pet_house.png";
 import aquariumIconImg from "@assets/icon_fish_inventory.png";
 import joystickBaseImg  from "@assets/generated_images/joystick_base.png";
@@ -3511,8 +3512,6 @@ function PetDetailModal({
   const [showAquarium, setShowAquarium] = useState(false);
 
   const rarityCount = Math.min(5, Math.max(0, pet.rarity ?? 0));
-  const RARITY_COLOURS = ["", "#a0a0b0", "#4ade80", "#60a5fa", "#c084fc", "#f0c040"];
-  const starColour = RARITY_COLOURS[rarityCount] ?? "#f0c040";
 
   const displayName = pet.petNickname || pet.name;
   const petImg = pet.hatchedImageUrl || pet.imageUrl;
@@ -3588,9 +3587,19 @@ function PetDetailModal({
             {rarityCount > 0 && (
               <div className="flex gap-1 items-center">
                 {Array.from({ length: rarityCount }).map((_, i) => (
-                  <svg key={i} width="16" height="16" viewBox="0 0 24 24" fill={starColour} style={{ filter: `drop-shadow(0 0 5px ${starColour}bb)` }}>
-                    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-                  </svg>
+                  <img
+                    key={i}
+                    data-testid="world-pet-rarity-star"
+                    src={cardStarImg}
+                    alt=""
+                    draggable={false}
+                    style={{
+                      width: 16,
+                      height: 16,
+                      objectFit: "contain",
+                      filter: "drop-shadow(0 0 4px rgba(255,195,55,.55))",
+                    }}
+                  />
                 ))}
               </div>
             )}
