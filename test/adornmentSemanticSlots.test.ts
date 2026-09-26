@@ -134,7 +134,7 @@ test("Head adornments can optionally hide the native Above Head pet part", () =>
   assert.match(boot, /ADD COLUMN IF NOT EXISTS hide_above_head_part BOOLEAN NOT NULL DEFAULT false/);
   assert.match(routes, /hideAboveHeadPart:\s*shopItems\.hideAboveHeadPart/);
   assert.match(animator, /costume\.slot === ADORNMENT_SLOT_MAP\.head/);
-  assert.match(animator, /costume\.hideAboveHeadPart === true/);
+  assert.match(animator, /costume\.hideAboveHeadPart !== true/);
   assert.match(animator, /hasAboveHead && !hideAboveHeadPart/);
 });
 
