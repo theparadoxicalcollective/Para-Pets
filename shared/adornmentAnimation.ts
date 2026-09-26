@@ -1,8 +1,7 @@
 export const ADORNMENT_ANIMATIONS = ["none", "breathe", "float", "wings", "sway", "rotate"] as const;
 export type AdornmentAnimation = typeof ADORNMENT_ANIMATIONS[number];
 
-export const ADORNMENT_ITEM_EFFECTS = ["still", "float", "spin", "sway", "pulse", "wings"] as const;
-export const ADORNMENT_GENERAL_ITEM_EFFECTS = ["still", "float", "spin", "sway", "pulse"] as const;
+export const ADORNMENT_ITEM_EFFECTS = ["still", "float", "spin", "sway", "pulse"] as const;
 export type AdornmentItemEffect = typeof ADORNMENT_ITEM_EFFECTS[number];
 
 export const ADORNMENT_ITEM_EFFECT_LABELS: Record<AdornmentItemEffect, string> = {
@@ -11,7 +10,6 @@ export const ADORNMENT_ITEM_EFFECT_LABELS: Record<AdornmentItemEffect, string> =
   spin: "Spin — slow clockwise",
   sway: "Sway — gentle side to side",
   pulse: "Pulse — subtle magical breathing",
-  wings: "Wings — mirrored open / close",
 };
 
 /** Uploaded artwork is served by our media endpoint, never an arbitrary URL. */
@@ -39,7 +37,6 @@ export function adornmentItemEffectAnimation(effect: AdornmentItemEffect | null 
     spin: "rotate",
     sway: "sway",
     pulse: "breathe",
-    wings: "wings",
   }[effect];
 }
 
