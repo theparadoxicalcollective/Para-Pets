@@ -24,7 +24,7 @@ export type AdornmentSlotKey = keyof typeof ADORNMENT_SLOT_MAP;
 
 export const ADORNMENT_SLOT_DEFINITIONS = [
   { slot: ADORNMENT_SLOT_MAP.head, key: "head", label: "Head" },
-  { slot: ADORNMENT_SLOT_MAP.left_hand, key: "left_hand", label: "Hand L" },
+  { slot: ADORNMENT_SLOT_MAP.left_hand, key: "left_hand", label: "Left Hand" },
   { slot: ADORNMENT_SLOT_MAP.right_hand, key: "right_hand", label: "Right Hand" },
   { slot: ADORNMENT_SLOT_MAP.wings, key: "wings", label: "Wings" },
   { slot: ADORNMENT_SLOT_MAP.back, key: "back", label: "Back" },

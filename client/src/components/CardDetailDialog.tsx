@@ -146,6 +146,8 @@ export default function CardDetailDialog({ card, layouts, onClose, onClaim, clai
                   rarity={card.rarity}
                   artworkUrl={card.artworkUrl}
                   effectColor={card.effectColor}
+                  specialEffect={card.specialEffect}
+                  label={card.label}
                   name={card.name}
                   description={card.description}
                   layout={getCardBorderLayout(layouts, card.rarity)}

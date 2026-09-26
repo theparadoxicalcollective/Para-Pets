@@ -92,6 +92,8 @@ export async function runEssentialBoot(): Promise<void> {
       );
       ALTER TABLE card_definitions ADD COLUMN IF NOT EXISTS second_description TEXT NOT NULL DEFAULT '';
       ALTER TABLE card_definitions ADD COLUMN IF NOT EXISTS effect_color TEXT;
+      ALTER TABLE card_definitions ADD COLUMN IF NOT EXISTS special_effect TEXT;
+      ALTER TABLE card_definitions ADD COLUMN IF NOT EXISTS card_label TEXT;
       CREATE TABLE IF NOT EXISTS user_cards (
         user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         card_id VARCHAR NOT NULL REFERENCES card_definitions(id) ON DELETE CASCADE,

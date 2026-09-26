@@ -14,7 +14,7 @@ test("adornment Closet spaces have fixed names and ordering", () => {
   assert.match(feature, /wings:\s*4/);
   assert.match(feature, /back:\s*5/);
   assert.match(feature, /label:\s*"Head"/);
-  assert.match(feature, /label:\s*"Hand L"/);
+  assert.match(feature, /label:\s*"Left Hand"/);
   assert.match(feature, /label:\s*"Right Hand"/);
   assert.match(feature, /label:\s*"Wings"/);
   assert.match(feature, /label:\s*"Back"/);
@@ -40,7 +40,8 @@ test("player Closet filters assigned adornments by space and Wings replaces nati
   const animator = read("client/src/components/PetAnimator.tsx");
 
   assert.match(closet, /item\.adornmentSlot === selectedSlotDefinition\.key/);
-  assert.match(closet, /\[ \{slotDefinition\.label\} \]/);
+  assert.match(closet, />\{slotDefinition\.label\}<\/span>/);
+  assert.doesNotMatch(closet, /\[ \{slotDefinition\.label\} \]/);
   assert.match(routes, /costumeItem\.adornmentSlot !== slotDefinition\.key/);
   assert.match(inventory, /adornmentSlot:\s*shopItem\?\.adornmentSlot \?\? null/);
   assert.match(animator, /costume\.slot === ADORNMENT_SLOT_MAP\.wings/);

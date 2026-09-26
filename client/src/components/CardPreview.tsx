@@ -1,5 +1,9 @@
 import { useRef, type PointerEvent as ReactPointerEvent } from "react";
 import CardFittedText from "./CardFittedText";
+import CardSpecialArtworkEffect from "./CardSpecialArtworkEffect";
+import CardCornerBanner from "./CardCornerBanner";
+import { cardArtworkEffect, type CardSpecialEffect } from "@shared/cardSpecialEffect";
+import type { CardLabel } from "@shared/cardLabel";
 import starImg from "@assets/Photoroom_20260331_20947_PM_1774984267132.png";
 import {
   CARD_BORDER_ASSETS,
@@ -12,6 +16,8 @@ interface CardPreviewProps {
   rarity: CardRarity;
   artworkUrl?: string | null;
   effectColor?: string | null;
+  specialEffect?: CardSpecialEffect | null;
+  label?: CardLabel | null;
   name: string;
   description: string;
   layout: CardBorderLayout;
@@ -36,7 +42,7 @@ const RARITY_TEXT_STYLES: Record<CardRarity, { name: string; description: string
   2: { name: "#4a4032", description: "#5b5143" },
   3: { name: "#4a4032", description: "#5b5143" },
   4: { name: "#573b72", description: "#6b4c81" },
-  5: { name: "#7a3d18", description: "#7f5528" },
+  5: { name: "#4a260f", description: "#7f5528" },
 };
 
 // Use the same title position at every card size, including the collection grid.
@@ -123,6 +129,8 @@ export default function CardPreview({
   rarity,
   artworkUrl,
   effectColor,
+  specialEffect,
+  label,
   name,
   description,
   layout,
@@ -140,6 +148,7 @@ export default function CardPreview({
 
   // The saved per-card color belongs to the artwork swirls only.
   const activeEffectColor = normalizeEffectColor(effectColor) ?? RARITY_SPARKLE_STYLE[rarity].color;
+  const artworkEffect = cardArtworkEffect(specialEffect);
   const sparkleGlow = RARITY_SPARKLE_STYLE[rarity].glow;
   const borderGlowBackground = "linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%), linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%)";
   const borderGlowFilter = `drop-shadow(0 0 ${2.8 + rarity * .45}px rgba(255,224,116,.95)) drop-shadow(0 0 ${6.5 + rarity * .9}px rgba(255,184,34,.7)) drop-shadow(0 0 ${11 + rarity * 1.1}px rgba(255,146,18,.36))`;
@@ -355,7 +364,8 @@ export default function CardPreview({
             boxShadow: depth3d ? "inset 0 0 24px 8px rgba(0,0,0,.75)" : "inset 0 0 12px rgba(0,0,0,.48)",
           }}
         />
-        {showSparkles && RARITY_SPARKLE_COUNT[rarity] > 0 && (
+        {showSparkles && artworkEffect !== "rarity" && <CardSpecialArtworkEffect effect={artworkEffect} color={activeEffectColor} />}
+        {showSparkles && artworkEffect === "rarity" && RARITY_SPARKLE_COUNT[rarity] > 0 && (
           <svg
             data-testid="card-rarity-sparkles"
             className="absolute inset-0 h-full w-full"
@@ -539,6 +549,7 @@ export default function CardPreview({
         draggable={false}
         style={{ position: "absolute", inset: 0, zIndex: 2, width: "100%", height: "100%", objectFit: "fill", pointerEvents: "none", transform: depth3d ? "translateZ(16px)" : undefined, backfaceVisibility: "hidden", filter: depth3d ? "drop-shadow(0 8px 12px rgba(0,0,0,.48))" : undefined }}
       />
+      {label && <CardCornerBanner label={label} depth3d={depth3d} />}
       {renderTextBox("name")}
       {renderTextBox("description")}
       <div
@@ -629,9 +640,7 @@ export default function CardPreview({
           animation: cardBorderGlint 2.15s ease-in-out infinite;
         }
         [data-card-title-rarity="4"] > span,
-        [data-card-title-rarity="5"] > span,
-        [data-card-title-rarity="4"] .card-curved-title-letter,
-        [data-card-title-rarity="5"] .card-curved-title-letter {
+        [data-card-title-rarity="4"] .card-curved-title-letter {
           color: #673b18;
           -webkit-text-fill-color: transparent;
           background-image: linear-gradient(100deg, #673b18 0%, #88511c 42%, #fff5cb 49%, #c18a2e 54%, #673b18 100%);
@@ -640,6 +649,18 @@ export default function CardPreview({
           background-clip: text;
           -webkit-background-clip: text;
           filter: drop-shadow(0 1px 1px rgba(45,24,8,.55));
+          transition: background-position 180ms ease-out;
+        }
+        [data-card-title-rarity="5"] > span,
+        [data-card-title-rarity="5"] .card-curved-title-letter {
+          color: #4a260f;
+          -webkit-text-fill-color: transparent;
+          background-image: linear-gradient(100deg, #3e200f 0%, #633616 42%, #9c7842 49%, #70401b 55%, #3e200f 100%);
+          background-size: 250% 100%;
+          background-position: var(--card-turn-position, 0%) 50%;
+          background-clip: text;
+          -webkit-background-clip: text;
+          filter: drop-shadow(0 1px 1px rgba(36,18,7,.7));
           transition: background-position 180ms ease-out;
         }
         .card-sparkle-swirl-line {

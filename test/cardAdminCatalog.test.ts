@@ -70,12 +70,13 @@ test("admin can pick and persist an effect color per card artwork", () => {
   assert.match(adminPanel, /data-testid="button-auto-card-effect-color"/);
   assert.match(adminPanel, /suggestArtworkEffectColor/);
   assert.match(adminPanel, /Drag the picker over this card's artwork/);
-  assert.match(adminPanel, /ARTWORK SWIRL COLOR/);
-  assert.match(adminPanel, /The gold border and title shine stay the same/);
+  assert.match(adminPanel, /ARTWORK EFFECT COLOR/);
+  assert.match(adminPanel, /The gold border stays the same/);
+  assert.match(adminPanel, /form\.specialEffect !== "stars"/);
   assert.match(adminPanel, /effectColor: form\.effectColor \|\| null/);
   assert.match(routes, /effectColor: row\.effect_color \?\? null/);
   assert.match(routes, /effectColorText\(req\.body\?\.effectColor\)/);
-  assert.match(routes, /INSERT INTO card_definitions \(name, description, second_description, artwork_url, effect_color, rarity\)/);
+  assert.match(routes, /INSERT INTO card_definitions \(name, description, second_description, artwork_url, effect_color, special_effect, card_label, rarity\)/);
   assert.match(routes, /const hasEffectColor = Object\.prototype\.hasOwnProperty\.call\(req\.body \?\? \{\}, "effectColor"\)/);
   assert.match(routes, /effect_color = CASE WHEN \$\{hasEffectColor\} THEN \$\{effectColor\} ELSE effect_color END/);
   assert.match(boot, /ALTER TABLE card_definitions ADD COLUMN IF NOT EXISTS effect_color TEXT/);

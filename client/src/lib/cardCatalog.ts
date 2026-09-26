@@ -3,6 +3,8 @@ import twoStarBorder from "@assets/uploads/2StarBorder.png";
 import threeStarBorder from "@assets/uploads/3StarBorder.png";
 import fourStarBorder from "@assets/uploads/4StarBorder.png";
 import fiveStarBorder from "@assets/uploads/5StarBorder.png";
+import type { CardSpecialEffect } from "@shared/cardSpecialEffect";
+import type { CardLabel } from "@shared/cardLabel";
 
 export type CardRarity = 1 | 2 | 3 | 4 | 5;
 export type CardLayoutField = "name" | "description" | "stars";
@@ -14,6 +16,8 @@ export interface CardDefinition {
   secondDescription: string;
   artworkUrl: string;
   effectColor?: string | null;
+  specialEffect?: CardSpecialEffect | null;
+  label?: CardLabel | null;
   rarity: CardRarity;
   createdAt: string;
   updatedAt: string;
