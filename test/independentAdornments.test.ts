@@ -6,7 +6,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { normalizeCostumePlacements, type CostumePlacement } from "../shared/costumeFeature";
 import { costumePlacementsSchema } from "../shared/costumeSchema";
-import { ADORNMENT_ANIMATIONS, adornmentMotion } from "../shared/adornmentAnimation";
+import { ADORNMENT_ANIMATIONS, ADORNMENT_ITEM_EFFECTS, adornmentItemEffectAnimation, adornmentMotion } from "../shared/adornmentAnimation";
 import { changeCostumePivot, detachCostumePlacement, getCostumeCanvasPosition, getCostumePlacementAnchorPoint, getDraggedCostumePosition } from "../client/src/lib/costumePlacement";
 
 const fitting: CostumePlacement = { view: "front", anchorPart: "independent", posX: 500, posY: 500, width: 200, height: 100, pivotX: 50, pivotY: 50, rotation: 25, flipX: true, depth: "front" };
@@ -52,6 +52,32 @@ test("all animation choices survive schema validation and runtime normalization"
   assert.equal(costumePlacementsSchema.safeParse([{ ...fitting, animation: "anything" }]).success, false);
   assert.equal(costumePlacementsSchema.safeParse([{ ...fitting, animationSpeed: -1 }]).success, false);
   assert.equal(normalizeCostumePlacements([{ ...fitting, animation: "bad", animationSpeed: Infinity }])[0].animation, "none");
+});
+
+test("item-level adornment effects map to lightweight CSS motion", () => {
+  assert.deepEqual(ADORNMENT_ITEM_EFFECTS, ["still", "float", "spin", "sway", "pulse"]);
+  assert.equal(adornmentItemEffectAnimation(null), null);
+  assert.equal(adornmentItemEffectAnimation("still"), "none");
+  assert.equal(adornmentItemEffectAnimation("float"), "float");
+  assert.equal(adornmentItemEffectAnimation("spin"), "rotate");
+  assert.equal(adornmentItemEffectAnimation("sway"), "sway");
+  assert.equal(adornmentItemEffectAnimation("pulse"), "breathe");
+  assert.match(adornmentMotion("rotate"), /adornment-rotate 16s linear infinite/);
+});
+
+test("item-level effect overrides fitted motion but keeps mirrored Wings pairing", async () => {
+  const result = await build({ entryPoints: ["client/src/components/AdornmentArtwork.tsx"], bundle: true, platform: "node", format: "cjs", packages: "external", write: false, jsx: "automatic" });
+  const module = { exports: {} as { default: any } };
+  new Function("require", "module", "exports", result.outputFiles[0].text)(createRequire(import.meta.url), module, module.exports);
+  const markup = renderToStaticMarkup(createElement(module.exports.default, {
+    src: "/wing.png",
+    placement: { ...fitting, animation: "wings" },
+    effect: "float",
+    animated: true,
+  }));
+  assert.equal((markup.match(/<img /g) ?? []).length, 2);
+  assert.equal((markup.match(/adornment-float 4s/g) ?? []).length, 2);
+  assert.doesNotMatch(markup, /adornment-wings 1\.8s/);
 });
 
 test("mirrored wing artwork uses synchronized motion with a reflected partner and static mode stops it", async () => {
