@@ -15,7 +15,7 @@ test("shared avatar triggers are semantic and never infer identity from display 
 
 test("forum posts, comments, and nested replies route stable author ids to one shared panel", () => {
   const client = read("client/src/pages/ForumPage.tsx");
-  const server = read("server/routes.ts");
+  const server = read("server/routes/forum.routes.ts");
   assert.match(server, /SELECT fp\.id[\s\S]*fp\.author_id, u\.username AS author_name/);
   assert.match(client, /userId=\{post\.author_id\}/);
   assert.match(client, /userId=\{c\.author_id\}/);
