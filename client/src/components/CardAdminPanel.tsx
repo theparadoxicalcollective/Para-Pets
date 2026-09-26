@@ -312,13 +312,19 @@ export default function CardAdminPanel() {
 
   const applyStarHorizontalToAll = useMutation({
     mutationFn: async () => {
-      const centerX = currentLayout.starX + currentLayout.starWidth / 2;
-      const perStarWidth = currentLayout.starWidth / layoutRarity;
+      const requestedCenterX = currentLayout.starX + currentLayout.starWidth / 2;
       const starY = currentLayout.starY;
+      const requestedPerStarWidth = currentLayout.starWidth / layoutRarity;
+      const maxPerStarWidthForFiveStars = 80 / 5;
+      const maxPerStarWidthForHeight = (100 - starY) * 3 / 2;
+      const perStarWidth = Math.min(requestedPerStarWidth, maxPerStarWidthForFiveStars, maxPerStarWidthForHeight);
+      const widestRow = perStarWidth * 5;
+      const centerX = Math.max(widestRow / 2, Math.min(100 - widestRow / 2, requestedCenterX));
+
       const updatedLayouts = CARD_RARITIES.map((rarity) => {
         const existing = layoutDrafts[rarity] ?? getCardBorderLayout(layouts, rarity);
-        const starWidth = Number(Math.min(80, perStarWidth * rarity).toFixed(1));
-        const starX = Number(Math.max(0, Math.min(100 - starWidth, centerX - starWidth / 2)).toFixed(1));
+        const starWidth = Number((perStarWidth * rarity).toFixed(1));
+        const starX = Number((centerX - starWidth / 2).toFixed(1));
         return {
           ...existing,
           starX,
@@ -635,7 +641,7 @@ export default function CardAdminPanel() {
                   {applyStarHorizontalToAll.isPending ? "Applying…" : "Apply Size + Placement to All"}
                 </button>
                 <p className="text-center text-[8px] leading-3 text-white/40">
-                  Uses the same individual star size, vertical position, and horizontal center for every 1–5★ border.
+                  Uses the same individual star size, vertical position, and horizontal center for every 1–5★ border. If needed, the shared size is reduced just enough for the 5★ row to fit safely.
                 </p>
                 <div className="grid grid-cols-[48px_1fr_48px] items-center gap-3">
                   <button
