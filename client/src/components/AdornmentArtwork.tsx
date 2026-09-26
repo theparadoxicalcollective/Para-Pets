@@ -15,9 +15,10 @@ export default function AdornmentArtwork({ src, placement, animated = true, effe
   wingPair?: boolean;
 }) {
   const fittedProfile = placement.anchorPart === "independent" ? normalizeAdornmentAnimation(placement.animation) : "none";
+  const safeFittedProfile = fittedProfile === "wings" ? "none" : fittedProfile;
   const overrideProfile = adornmentItemEffectAnimation(effect);
-  const profile = wingPair ? "wings" : overrideProfile ?? fittedProfile;
-  const mirroredPair = wingPair || fittedProfile === "wings";
+  const profile = wingPair ? "wings" : overrideProfile ?? safeFittedProfile;
+  const mirroredPair = wingPair;
   const origin = `${placement.pivotX}% ${placement.pivotY}%`;
 
   return <>{(mirroredPair ? [false, true] : [false]).map(mirrored => (
