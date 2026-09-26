@@ -4,6 +4,7 @@ import { ImagePlus, LayoutTemplate, Pencil, Plus, Save, Trash2, X } from "lucide
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import CardPreview from "@/components/CardPreview";
+import type { CardSpecialEffect } from "@shared/cardSpecialEffect";
 import {
   CARD_RARITIES,
   defaultCardBorderLayout,
@@ -22,6 +23,7 @@ interface CardFormState {
   artworkData: string;
   artworkPreview: string;
   effectColor: string;
+  specialEffect: CardSpecialEffect | "";
   effectPickerX: number;
   effectPickerY: number;
 }
@@ -34,6 +36,7 @@ const EMPTY_FORM: CardFormState = {
   artworkData: "",
   artworkPreview: "",
   effectColor: "",
+  specialEffect: "",
   effectPickerX: 50,
   effectPickerY: 50,
 };
@@ -108,11 +111,12 @@ async function suggestArtworkEffectColor(src: string): Promise<{ color: string; 
   return { color: best.color, x: best.x, y: best.y };
 }
 
-function ArtworkEffectColorPicker({ src, color, pickerX, pickerY, onChange, onAuto }: {
+function ArtworkEffectColorPicker({ src, color, pickerX, pickerY, specialEffect, onChange, onAuto }: {
   src: string;
   color: string;
   pickerX: number;
   pickerY: number;
+  specialEffect: CardSpecialEffect | "";
   onChange: (color: string, x: number, y: number) => void;
   onAuto: () => void;
 }) {
@@ -144,8 +148,8 @@ function ArtworkEffectColorPicker({ src, color, pickerX, pickerY, onChange, onAu
   return (
     <div data-testid="card-effect-color-picker" className="space-y-2 rounded-xl p-3" style={panelStyle}>
       <div>
-        <p className="font-fantasy text-[9px] tracking-wider text-[#ddc175]">ARTWORK SWIRL COLOR</p>
-        <p className="mt-1 text-[9px] leading-4 text-white/45">Drag the picker over this card's artwork to color its magical swirls. The gold border and title shine stay the same.</p>
+        <p className="font-fantasy text-[9px] tracking-wider text-[#ddc175]">ARTWORK EFFECT COLOR</p>
+        <p className="mt-1 text-[9px] leading-4 text-white/45">Drag the picker over this card's artwork to color its {specialEffect === "aurora" ? "aurora" : specialEffect === "wisps" ? "moonfire wisps" : "magical swirls"}. The gold border stays the same.</p>
       </div>
       <div
         className="relative mx-auto w-full max-w-[210px] overflow-hidden rounded-lg"
@@ -182,14 +186,14 @@ function ArtworkEffectColorPicker({ src, color, pickerX, pickerY, onChange, onAu
       <div className="grid grid-cols-[52px_1fr_auto] items-center gap-2">
         <input
           data-testid="input-card-effect-color"
-          aria-label="Artwork swirl color"
+          aria-label="Artwork effect color"
           type="color"
           value={color || "#FFF0B6"}
           onChange={(event) => onChange(event.target.value.toUpperCase(), pickerX, pickerY)}
           className="h-10 w-[52px] rounded-lg border-0 bg-transparent p-0"
         />
         <div className="rounded-lg px-3 py-2 text-center font-mono text-[10px] text-[#f5deb0]" style={{ background: "#0a1710", border: "1px solid rgba(224,181,74,.25)" }}>
-          {color || "DEFAULT SWIRL"}
+          {color || "DEFAULT COLOR"}
         </div>
         <button type="button" data-testid="button-auto-card-effect-color" onClick={onAuto} className="h-10 rounded-lg px-3 font-fantasy text-[8px] text-[#f8e7b0] active:scale-95" style={{ background: "rgba(118,76,10,.24)", border: "1px solid rgba(224,181,74,.4)" }}>
           Auto
@@ -244,6 +248,7 @@ export default function CardAdminPanel() {
         rarity: form.rarity,
         artworkData: form.artworkData || undefined,
         effectColor: form.effectColor || null,
+        specialEffect: form.specialEffect || null,
       };
       const response = editingCard
         ? await apiRequest("PATCH", `/api/admin/cards/${editingCard.id}`, body)
@@ -319,6 +324,7 @@ export default function CardAdminPanel() {
       artworkData: "",
       artworkPreview: card.artworkUrl,
       effectColor: card.effectColor ?? "",
+      specialEffect: card.specialEffect ?? "",
       effectPickerX: 50,
       effectPickerY: 50,
     });
@@ -490,6 +496,7 @@ export default function CardAdminPanel() {
                       rarity={card.rarity}
                       artworkUrl={card.artworkUrl}
                       effectColor={card.effectColor}
+                      specialEffect={card.specialEffect}
                       name={card.name}
                       description={card.description}
                       layout={getCardBorderLayout(layouts, card.rarity)}
@@ -747,6 +754,7 @@ export default function CardAdminPanel() {
                 rarity={form.rarity}
                 artworkUrl={form.artworkPreview}
                 effectColor={form.effectColor || null}
+                specialEffect={form.specialEffect || null}
                 name={form.name || "Card Name"}
                 description={form.description || "Card description"}
                 layout={getCardBorderLayout(layouts, form.rarity)}
@@ -762,12 +770,13 @@ export default function CardAdminPanel() {
                   <input data-testid="input-card-artwork" type="file" accept="image/*" onChange={onArtwork} className="sr-only" />
                 </span>
               </label>
-              {form.artworkPreview && (
+              {form.artworkPreview && form.specialEffect !== "stars" && (
                 <ArtworkEffectColorPicker
                   src={form.artworkPreview}
                   color={form.effectColor}
                   pickerX={form.effectPickerX}
                   pickerY={form.effectPickerY}
+                  specialEffect={form.specialEffect}
                   onChange={(effectColor, effectPickerX, effectPickerY) => setForm((current) => ({ ...current, effectColor, effectPickerX, effectPickerY }))}
                   onAuto={() => {
                     void suggestArtworkEffectColor(form.artworkPreview).then((suggestion) => {
@@ -785,6 +794,16 @@ export default function CardAdminPanel() {
                 <select data-testid="select-card-rarity" value={form.rarity} onChange={(event) => setForm((current) => ({ ...current, rarity: Number(event.target.value) as CardRarity }))} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none" style={{ color: "#fff0bd", background: "#0a1710", border: "1px solid rgba(224,181,74,.3)" }}>
                   {CARD_RARITIES.map((rarity) => <option key={rarity} value={rarity}>{rarity} Star — uses {rarity}StarBorder.png</option>)}
                 </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block font-fantasy text-[9px] tracking-wider text-[#ddc175]">ARTWORK EFFECT</span>
+                <select data-testid="select-card-special-effect" value={form.specialEffect} onChange={(event) => setForm((current) => ({ ...current, specialEffect: event.target.value as CardSpecialEffect | "" }))} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none" style={{ color: "#fff0bd", background: "#0a1710", border: "1px solid rgba(224,181,74,.3)" }}>
+                  <option value="">Standard rarity effect</option>
+                  <option value="stars">Stars — rainbow holographic starlight</option>
+                  <option value="aurora">Aurora Veil — drifting magical color</option>
+                  <option value="wisps">Moonfire Wisps — floating lights</option>
+                </select>
+                <span className="mt-1 block text-[9px] leading-4 text-white/45">A special effect replaces the usual artwork sparkles and swirls. The rarity border stays the same. Aurora Veil and Moonfire Wisps use the artwork color picker above.</span>
               </label>
               <label className="block">
                 <span className="mb-1 block font-fantasy text-[9px] tracking-wider text-[#ddc175]">SHORT DESCRIPTION — CARD FACE</span>

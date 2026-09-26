@@ -1,6 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import { sql } from "drizzle-orm";
 import type { db as database } from "../db";
+import { parseCardSpecialEffect } from "../../shared/cardSpecialEffect";
 
 type ProcessCardImage = (imageData: string, maxDimension: number) => Promise<string>;
 
@@ -96,6 +97,7 @@ export function serializeCard(row: any) {
     secondDescription: row.second_description ?? "",
     artworkUrl: row.artwork_url,
     effectColor: row.effect_color ?? null,
+    specialEffect: row.special_effect ?? null,
     rarity: Number(row.rarity),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -130,7 +132,7 @@ export function registerCardAdminRoutes(
   app.get("/api/admin/cards", isAdmin, async (_req, res) => {
     try {
       const result = await db.execute(sql`
-        SELECT id, name, description, second_description, artwork_url, effect_color, rarity, created_at, updated_at
+        SELECT id, name, description, second_description, artwork_url, effect_color, special_effect, rarity, created_at, updated_at
         FROM card_definitions
         ORDER BY rarity DESC, created_at DESC
       `);
@@ -149,19 +151,20 @@ export function registerCardAdminRoutes(
       const rarity = parseRarity(req.body?.rarity);
       if (!rarity) return res.status(400).json({ message: "Rarity must be between 1 and 5" });
       const effectColor = effectColorText(req.body?.effectColor);
+      const specialEffect = parseCardSpecialEffect(req.body?.specialEffect);
       if (typeof req.body?.artworkData !== "string" || !req.body.artworkData) {
         return res.status(400).json({ message: "Card artwork is required" });
       }
       const artworkUrl = await processCardImage(req.body.artworkData, 1600);
       const result = await db.execute(sql`
-        INSERT INTO card_definitions (name, description, second_description, artwork_url, effect_color, rarity)
-        VALUES (${name}, ${description}, ${secondDescription ?? ""}, ${artworkUrl}, ${effectColor}, ${rarity})
-        RETURNING id, name, description, second_description, artwork_url, effect_color, rarity, created_at, updated_at
+        INSERT INTO card_definitions (name, description, second_description, artwork_url, effect_color, special_effect, rarity)
+        VALUES (${name}, ${description}, ${secondDescription ?? ""}, ${artworkUrl}, ${effectColor}, ${specialEffect}, ${rarity})
+        RETURNING id, name, description, second_description, artwork_url, effect_color, special_effect, rarity, created_at, updated_at
       `);
       return res.status(201).json(serializeCard(result.rows[0]));
     } catch (error: any) {
       const message = error?.message || "Failed to create card";
-      const status = /required|characters|fewer|effect color|hex color/i.test(message) ? 400 : 500;
+      const status = /required|characters|fewer|effect color|special effect|hex color/i.test(message) ? 400 : 500;
       if (status === 500) console.error("[cards] create failed:", error);
       return res.status(status).json({ message });
     }
@@ -176,6 +179,8 @@ export function registerCardAdminRoutes(
       if (!rarity) return res.status(400).json({ message: "Rarity must be between 1 and 5" });
       const hasEffectColor = Object.prototype.hasOwnProperty.call(req.body ?? {}, "effectColor");
       const effectColor = hasEffectColor ? effectColorText(req.body?.effectColor) : null;
+      const hasSpecialEffect = Object.prototype.hasOwnProperty.call(req.body ?? {}, "specialEffect");
+      const specialEffect = hasSpecialEffect ? parseCardSpecialEffect(req.body?.specialEffect) : null;
       const artworkUrl = typeof req.body?.artworkData === "string" && req.body.artworkData
         ? await processCardImage(req.body.artworkData, 1600)
         : null;
@@ -184,15 +189,16 @@ export function registerCardAdminRoutes(
         SET name = ${name}, description = ${description}, rarity = ${rarity},
             second_description = COALESCE(${secondDescription}, second_description),
             effect_color = CASE WHEN ${hasEffectColor} THEN ${effectColor} ELSE effect_color END,
+            special_effect = CASE WHEN ${hasSpecialEffect} THEN ${specialEffect} ELSE special_effect END,
             artwork_url = COALESCE(${artworkUrl}, artwork_url), updated_at = now()
         WHERE id = ${req.params.id}
-        RETURNING id, name, description, second_description, artwork_url, effect_color, rarity, created_at, updated_at
+        RETURNING id, name, description, second_description, artwork_url, effect_color, special_effect, rarity, created_at, updated_at
       `);
       if (!result.rows[0]) return res.status(404).json({ message: "Card not found" });
       return res.json(serializeCard(result.rows[0]));
     } catch (error: any) {
       const message = error?.message || "Failed to update card";
-      const status = /required|characters|fewer|effect color|hex color/i.test(message) ? 400 : 500;
+      const status = /required|characters|fewer|effect color|special effect|hex color/i.test(message) ? 400 : 500;
       if (status === 500) console.error("[cards] update failed:", error);
       return res.status(status).json({ message });
     }
