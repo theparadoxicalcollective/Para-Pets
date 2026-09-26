@@ -36,17 +36,19 @@ interface TemplateData {
   idleStyle?: string | null;
 }
 
-interface EquippedCostume {
+export interface PetAnimatorPreviewCostume {
   id: string;
   slot: number;
-  copyIndex: number;
-  costumeInventoryId: string;
+  copyIndex?: number;
+  costumeInventoryId?: string;
   name: string;
   imageUrl: string | null;
   adornmentEffect?: AdornmentItemEffect | null;
   hideAboveHeadPart?: boolean;
   placements?: CostumePlacement[] | null;
 }
+
+type EquippedCostume = PetAnimatorPreviewCostume;
 
 interface CostumeResponse {
   equipped: EquippedCostume[];
@@ -72,6 +74,11 @@ export interface PetAnimatorProps {
   petInventoryId?: string;
   /** Public display mode uses the read-only costume endpoint for another player's pet. */
   costumeAccess?: "owner" | "public";
+  /**
+   * Admin-only/live-preview costume data. When provided, it is rendered instead
+   * of fetching equipped player costumes, so the fitter can preview draft motion.
+   */
+  previewCostumes?: PetAnimatorPreviewCostume[];
 }
 
 const CANVAS_SIZE = 1000;
@@ -366,7 +373,15 @@ function placementsForArtworkForm(placements: CostumePlacement[], artworkForm: P
   return placements.filter((placement) => (placement.form ?? "base") === "base" && inView(placement));
 }
 
-function semanticStillPartType(costume: EquippedCostume): "head" | "left_hand" | "right_hand" | null {
+function semanticFollowPartType(costume: EquippedCostume, placement: CostumePlacement): string | null {
+  // Explicit Head-layer choices are allowed for any Head adornment effect so
+  // duplicate hats/horns/etc. can follow Head 1, 2, or 3 independently.
+  if (costume.slot === ADORNMENT_SLOT_MAP.head && placement.followPartIndex) {
+    return ["head", "h2_head", "h3_head"][placement.followPartIndex - 1] ?? "head";
+  }
+
+  // Preserve the existing Still behavior for placements that do not opt into
+  // an explicit semantic layer target.
   if (costume.adornmentEffect !== "still") return null;
   if (costume.slot === ADORNMENT_SLOT_MAP.head) return "head";
   if (costume.slot === ADORNMENT_SLOT_MAP.left_hand) return "left_hand";
@@ -446,7 +461,7 @@ function CostumeLayer({
 
     return <>{placements.map((savedPlacement) => {
       const dontMove = savedPlacement.dontMove === true;
-      const followPartType = dontMove ? null : semanticStillPartType(costume);
+      const followPartType = dontMove ? null : semanticFollowPartType(costume, savedPlacement);
       const followPart = followPartType ? sortedParts.find((part) => part.partType === followPartType) : undefined;
       const placement = followPart ? rebasePlacementToPart(savedPlacement, followPart, sortedParts) : savedPlacement;
 
@@ -660,6 +675,7 @@ export default function PetAnimator({
   lowMemory = false,
   petInventoryId,
   costumeAccess = "owner",
+  previewCostumes,
 }: PetAnimatorProps) {
   const [canvasLayout, setCanvasLayout] = useState<PetCanvasLayout | null>(null);
   const receiveCanvasLayout = useCallback((next: PetCanvasLayout) => {
@@ -744,8 +760,9 @@ export default function PetAnimator({
   const effectiveSize = fillFull ? measuredSize : size;
   const innerSize = fillFull ? effectiveSize / partScale : size;
   const innerOffset = fillFull ? -((innerSize - effectiveSize) / 2) : 0;
-  const equipped = Array.isArray(costumeData?.equipped)
-    ? costumeData.equipped
+  const costumeSource = previewCostumes ?? costumeData?.equipped;
+  const equipped = Array.isArray(costumeSource)
+    ? costumeSource
         .filter((costume) => costume && typeof costume === "object")
         .map((costume) => ({ ...costume, placements: normalizeCostumePlacements(costume.placements) }))
     : [];
@@ -769,8 +786,8 @@ export default function PetAnimator({
       }
     }
     return hidden;
-  }, [costumeData?.equipped, resolvedView, resolvedArtworkForm, templateData?.parts]);
-  const renderCostumes = !!resolvedPetInventoryId && equipped.length > 0 && !!templateData;
+  }, [previewCostumes, costumeData?.equipped, resolvedView, resolvedArtworkForm, templateData?.parts]);
+  const renderCostumes = (previewCostumes !== undefined || !!resolvedPetInventoryId) && equipped.length > 0 && !!templateData;
   const hasAboveHead = viewParts.some(part => basePartType(part.partType) === "above_head");
   const costumeView = resolvedView === "back" ? "side" : "front";
   const hideAboveHeadPart = equipped.some((costume) => {
