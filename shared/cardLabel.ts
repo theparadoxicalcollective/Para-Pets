@@ -1,10 +1,10 @@
 export const CARD_LABELS = ["halloween", "christmas", "valentine"] as const;
 export type CardLabel = (typeof CARD_LABELS)[number];
 
-export const CARD_LABEL_DETAILS: Record<CardLabel, { text: string; background: string }> = {
-  halloween: { text: "Halloween Special", background: "#261432" },
-  christmas: { text: "Christmas Special", background: "#123a2c" },
-  valentine: { text: "Valentine Special", background: "#4b1829" },
+export const CARD_LABEL_DETAILS: Record<CardLabel, { text: string; background: string; highlight: string }> = {
+  halloween: { text: "Halloween Special", background: "#6D2F8E", highlight: "#934DB3" },
+  christmas: { text: "Christmas Special", background: "#176B43", highlight: "#258B59" },
+  valentine: { text: "Valentine Special", background: "#8F3042", highlight: "#B24759" },
 };
 
 export function parseCardLabel(value: unknown): CardLabel | null {
