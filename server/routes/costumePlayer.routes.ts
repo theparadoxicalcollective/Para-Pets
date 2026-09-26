@@ -27,10 +27,13 @@ async function ownedPet(petInventoryId: string, userId: string) {
 
 function placementsForPetForm(value: unknown, isEvolved: boolean) {
   const placements = normalizeCostumePlacements(value);
-  const desiredForm = isEvolved ? "evolution" : "base";
-  const exact = placements.filter((placement) => (placement.form ?? "base") === desiredForm);
-  if (exact.length > 0 || !isEvolved) return exact;
-  return placements.filter((placement) => (placement.form ?? "base") === "base");
+  const base = placements.filter((placement) => (placement.form ?? "base") === "base");
+  if (!isEvolved) return base;
+
+  return (["front", "side"] as const).flatMap((view) => {
+    const evolution = placements.filter((placement) => placement.form === "evolution" && placement.view === view);
+    return evolution.length > 0 ? evolution : base.filter((placement) => placement.view === view);
+  });
 }
 
 export function registerCostumePlayerRoutes(app: Express) {
