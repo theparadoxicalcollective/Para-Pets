@@ -1091,11 +1091,36 @@ export default function PetDatabasePanel({
 
         <div className="rounded-lg px-3 py-3 space-y-3" style={{ background: "rgba(52,28,72,.28)", border: "1px solid rgba(192,132,252,.3)" }}>
           <div>
-            <h3 className="font-fantasy text-[#c084fc] text-sm tracking-widest">{templateDetail.name} — Adornment Placement</h3>
+            <h3 className="font-fantasy text-[#c084fc] text-sm tracking-widest">{templateDetail.name} — {costumeArtworkForm === "evolution" ? "Evolution " : ""}Adornment Placement</h3>
             <p className="mt-1 text-[11px]" style={{ color: "#a89878" }}>
               Choose a view and adornment, then drag the artwork directly into place on the pet.
             </p>
           </div>
+          <div data-testid="adornment-form-selector" className="space-y-2">
+            <button
+              type="button"
+              data-testid="button-adornment-form-base"
+              onClick={() => changeCostumeArtworkForm("base")}
+              disabled={saveCostumeMutation.isPending}
+              className="w-full rounded-md px-3 py-2 text-left font-fantasy text-[10px] tracking-wider disabled:opacity-50"
+              style={{ background: costumeArtworkForm === "base" ? "rgba(192,132,252,.28)" : "rgba(0,0,0,.22)", border: "1px solid rgba(192,132,252,.32)", color: costumeArtworkForm === "base" ? "#f3e8ff" : "#a89878" }}
+            >
+              REGULAR PET ADORNMENTS
+              <span className="block mt-0.5 font-sans text-[9px] normal-case tracking-normal opacity-70">Fits adornments to the regular pet parts.</span>
+            </button>
+            <button
+              type="button"
+              data-testid="button-adornment-form-evolution"
+              onClick={() => changeCostumeArtworkForm("evolution")}
+              disabled={saveCostumeMutation.isPending || (templateDetail.evolutionParts ?? []).length === 0}
+              className="w-full rounded-md px-3 py-2 text-left font-fantasy text-[10px] tracking-wider disabled:opacity-40"
+              style={{ background: costumeArtworkForm === "evolution" ? "rgba(240,192,64,.2)" : "rgba(0,0,0,.22)", border: "1px solid rgba(240,192,64,.28)", color: costumeArtworkForm === "evolution" ? "#f7dfa0" : "#a89878" }}
+            >
+              EVOLUTION ADORNMENTS
+              <span className="block mt-0.5 font-sans text-[9px] normal-case tracking-normal opacity-70">Fits the same adornment separately to the evolution pet parts.</span>
+            </button>
+          </div>
+
           <div className="grid grid-cols-2 gap-2" role="group" aria-label="Adornment placement view">
             <button
               data-testid="button-costume-view-front"
@@ -1253,7 +1278,7 @@ export default function PetDatabasePanel({
                       pointerEvents: isActive ? "auto" : "none",
                     }}
                   >
-                    <AdornmentArtwork src={selectedCostumeItem.imageUrl!} placement={placement} animated={previewAdornmentMotion && !draggingCostume && placement.anchorPart === "independent"} />
+                    <AdornmentArtwork src={selectedCostumeItem.imageUrl!} placement={placement} animated={previewAdornmentMotion && !draggingCostume} effect={selectedCostumeItem.adornmentEffect as any} wingPair={selectedCostumeIsWings} />
                   </div>
                 );
               })}
