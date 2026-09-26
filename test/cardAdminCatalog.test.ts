@@ -314,7 +314,7 @@ test("detail cards preserve a 3D front, flat contained back, and stable full tur
   assert.match(detail, /inset: "10\.5% 9\.5% 9\.5%"/);
   assert.match(detail, /background: CARD_BACK_SURFACE_COLORS\[card\.rarity\]/);
   assert.match(detail, /src=\{CARD_BORDER_ASSETS\[card\.rarity\]\}/);
-  assert.doesNotMatch(detail, /translateZ\([^)]*\)[\s\S]*data-testid="card-back-face"/);
+  assert.match(detail, /data-testid="card-back-face"[\s\S]*?transform: "rotateY\(180deg\)"[\s\S]*?transformStyle: "flat"/);
 
   assert.match(detail, /data-testid="card-back-title"/);
   assert.match(detail, /<CardFittedText[\s\S]*text=\{card\.name\}[\s\S]*curve=\{layout\.nameCurve \?\? 0\}/);
