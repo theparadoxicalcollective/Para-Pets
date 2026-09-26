@@ -39,9 +39,19 @@ test("costume artwork inherits its configured pet-part motion instead of using a
 test("item-level effects compose with independent and pet-part-mounted adornments", () => {
   assert.ok((animator.match(/effect=\{costume\.adornmentEffect\}/g) ?? []).length >= 2);
   assert.ok((animator.match(/wingPair=\{costume\.slot === ADORNMENT_SLOT_MAP\.wings\}/g) ?? []).length >= 2);
-  assert.match(animator, /matchingPlacements\.slice\(0, 1\)/);
+  assert.match(animator, /viewPlacements\.slice\(0, 1\)/);
   assert.match(animator, /adornmentEffect\?: AdornmentItemEffect \| null/);
   assert.match(costumeRoutes, /adornmentEffect:\s*shopItems\.adornmentEffect/);
+});
+
+test("evolved pets prefer evolution adornment fittings and Still semantic slots follow their pet parts", () => {
+  assert.match(animator, /function placementsForArtworkForm/);
+  assert.match(animator, /artworkForm === "base"/);
+  assert.match(animator, /artworkForm=\{resolvedArtworkForm\}/);
+  assert.match(animator, /function semanticStillPartType/);
+  assert.match(animator, /ADORNMENT_SLOT_MAP\.left_hand\) return "left_hand"/);
+  assert.match(animator, /ADORNMENT_SLOT_MAP\.right_hand\) return "right_hand"/);
+  assert.match(animator, /rebasePlacementToPart\(savedPlacement, followPart, sortedParts\)/);
 });
 
 test("late-loading costume layers stay phase-locked to the pet animation clock", () => {
@@ -65,8 +75,10 @@ test("head-mounted costumes use the same alpha-aware bob geometry and seam-safe 
 
 test("animated costume renderer draws every fitted duplicate for the current view and depth", () => {
   assert.match(animator, /Array\.isArray\(costume\.placements\)/);
-  assert.match(animator, /\.filter\(item => item && item\.view === costumeView && item\.depth === depth\)/);
-  assert.match(animator, /placements\.map\(\(placement\) =>/);
+  assert.match(animator, /placementsForArtworkForm\(allPlacements, artworkForm\)/);
+  assert.match(animator, /viewPlacements\.filter\(\(item\) => item && item\.view === costumeView\)/);
+  assert.match(animator, /canonicalPlacements\.filter\(\(item\) => item\.depth === depth\)/);
+  assert.match(animator, /placements\.map\(\(savedPlacement\) =>/);
   assert.match(animator, /const placementInstance = placement\.instance \?\? 1/);
   assert.match(animator, /costume-piece-\$\{costume\.id\}-\$\{placementInstance\}/);
 });
