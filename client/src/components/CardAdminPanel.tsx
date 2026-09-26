@@ -310,6 +310,43 @@ export default function CardAdminPanel() {
     }),
   });
 
+  const applyStarHorizontalToAll = useMutation({
+    mutationFn: async () => {
+      const centerX = currentLayout.starX + currentLayout.starWidth / 2;
+      const updatedLayouts = CARD_RARITIES.map((rarity) => {
+        const existing = layoutDrafts[rarity] ?? getCardBorderLayout(layouts, rarity);
+        return {
+          ...existing,
+          starX: Number(Math.max(0, Math.min(100 - existing.starWidth, centerX - existing.starWidth / 2)).toFixed(1)),
+        };
+      });
+
+      return Promise.all(updatedLayouts.map(async (layout) => {
+        const response = await apiRequest(
+          "PUT",
+          `/api/admin/card-border-layouts/${layout.rarity}`,
+          layout,
+        );
+        return response.json() as Promise<CardBorderLayout>;
+      }));
+    },
+    onSuccess: (savedLayouts) => {
+      setLayoutDrafts((current) => {
+        const next = { ...current };
+        for (const saved of savedLayouts) next[saved.rarity] = saved;
+        return next;
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/card-border-layouts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cards"] });
+      toast({ title: "Star position applied to all rarities" });
+    },
+    onError: (error: any) => toast({
+      title: "Could not apply star position",
+      description: error?.message || "The current horizontal star position could not be saved to every rarity.",
+      variant: "destructive",
+    }),
+  });
+
   const openNewCard = () => {
     setEditingCard(null);
     setForm(EMPTY_FORM);
@@ -581,6 +618,19 @@ export default function CardAdminPanel() {
                 >
                   Center Stars
                 </button>
+                <button
+                  type="button"
+                  data-testid="button-apply-card-star-x-to-all"
+                  disabled={applyStarHorizontalToAll.isPending}
+                  onClick={() => applyStarHorizontalToAll.mutate()}
+                  className="min-h-11 w-full rounded-lg font-fantasy text-[10px] tracking-wider text-[#baf7d0] active:scale-[.99] disabled:opacity-45"
+                  style={{ background: "rgba(20,100,65,.28)", border: "1px solid rgba(110,231,183,.42)" }}
+                >
+                  {applyStarHorizontalToAll.isPending ? "Applying…" : "Apply to All"}
+                </button>
+                <p className="text-center text-[8px] leading-3 text-white/40">
+                  Copies this star row's horizontal center to all 1–5★ borders. Each rarity keeps its own height and star size.
+                </p>
                 <div className="grid grid-cols-[48px_1fr_48px] items-center gap-3">
                   <button
                     type="button"
