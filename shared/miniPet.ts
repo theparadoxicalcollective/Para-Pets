@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const MINI_PET_PART_TYPES = ["body", "tail", "left_wing", "right_wing", "head", "left_ear", "right_ear", "eyes", "closed_eyes"] as const;
+export const MINI_PET_PART_TYPES = ["body", "tail", "left_wing", "right_wing", "head", "left_ear", "right_ear", "eyes", "closed_eyes", "head_accessory"] as const;
 export type MiniPetPartType = typeof MINI_PET_PART_TYPES[number];
 
 export const MINI_PET_ANIMATIONS = ["breath", "float"] as const;

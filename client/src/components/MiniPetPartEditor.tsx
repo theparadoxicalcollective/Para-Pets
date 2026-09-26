@@ -15,6 +15,7 @@ const RENDER_ORDER: MiniPetPartType[] = [
   "right_ear",
   "eyes",
   "closed_eyes",
+  "head_accessory",
 ];
 
 type PreviewPart = {

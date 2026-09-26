@@ -3,9 +3,9 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { MINI_PET_PART_TYPES, miniPetCreateSchema, miniPetPartSchema } from "../shared/miniPet";
 
-test("Mini Pets expose the supported animation part types including optional Closed Eyes", () => {
+test("Mini Pets expose the supported animation part types including optional face and head layers", () => {
   assert.deepEqual(MINI_PET_PART_TYPES, [
-    "body", "tail", "left_wing", "right_wing", "head", "left_ear", "right_ear", "eyes", "closed_eyes",
+    "body", "tail", "left_wing", "right_wing", "head", "left_ear", "right_ear", "eyes", "closed_eyes", "head_accessory",
   ]);
   assert.equal(miniPetPartSchema.safeParse({
     partType: "closed_eyes",
@@ -22,7 +22,16 @@ test("Mini Pet blinking pairs open and closed eye frames with an eyes-only fallb
   assert.match(renderer, /mini-pet-eyes-closed/);
   assert.match(renderer, /mini-pet-eyes-fallback/);
   assert.match(renderer, /miniPetBlinkClosed/);
-  assert.match(editor, /"eyes",\s*"closed_eyes"/);
+  assert.match(editor, /"eyes",\s*"closed_eyes",\s*"head_accessory"/);
+});
+
+test("Mini Pet Head Accessory uses a subtle independent bob without changing the pet idle cycle", () => {
+  const renderer = readFileSync(new URL("../client/src/components/MiniPetRenderer.tsx", import.meta.url), "utf8");
+  assert.match(renderer, /case "head_accessory": return "mini-pet-head-accessory"/);
+  assert.match(renderer, /@keyframes miniPetHeadAccessoryBob/);
+  assert.match(renderer, /mini-pet-head-accessory\{animation:miniPetHeadAccessoryBob 4\.35s ease-in-out infinite -\.72s/);
+  assert.match(renderer, /mini-pet-breath\{animation:miniPetBreath 4\.8s/);
+  assert.match(renderer, /mini-pet-float\{animation:miniPetFloat 5\.2s/);
 });
 
 test("Mini Pet validation permits combined stat boosts and only subtle animation profiles", () => {
