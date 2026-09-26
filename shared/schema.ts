@@ -516,6 +516,9 @@ export const insertShopItemSchema = baseInsertShopItemSchema.superRefine((item, 
   if (item.type !== "costume" && item.adornmentEffect != null) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["adornmentEffect"], message: "Only adornments can use an adornment effect" });
   }
+  if (item.type === "costume" && item.adornmentSlot === "wings" && item.adornmentEffect != null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["adornmentEffect"], message: "Wings adornments use automatic mirrored wing motion instead of a selectable effect" });
+  }
   if (item.hideAboveHeadPart && (item.type !== "costume" || item.adornmentSlot !== "head")) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["hideAboveHeadPart"], message: "Only Head adornments can hide the Above Head pet part" });
   }
