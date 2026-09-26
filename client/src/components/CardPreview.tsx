@@ -75,17 +75,25 @@ const RARITY_SWIRL_COUNT: Record<CardRarity, number> = {
 };
 
 /**
- * CB1/CB2 have a lower artwork opening than the higher-rarity frames.
- * Let their artwork bleed farther beneath the bottom frame so no backing
- * peeks through while preserving the existing 3★–5★ composition.
+ * The artwork viewport is the hard clipping boundary. CB1/CB2 need a little
+ * more room near the lower opening, but the viewport itself must stay inside
+ * the decorative frame's transparent outer silhouette.
  */
 function artworkInsetForRarity(rarity: CardRarity, depth3d: boolean): string {
-  if (rarity <= 2) return depth3d ? "12% 7% 4.5%" : "12% 10% 4.5%";
+  if (rarity <= 2) return "12.5% 11.5% 8%";
   return depth3d ? "12% 7%" : "12% 10%";
 }
 
+/**
+ * Low-rarity artwork can overscan inside the safe viewport so it still reaches
+ * behind the lower frame without moving the clipping boundary outward.
+ */
+function artworkMediaInsetForRarity(rarity: CardRarity): string {
+  return rarity <= 2 ? "-1.5% -2% -5%" : "0";
+}
+
 function artworkBackingInsetForRarity(rarity: CardRarity): string {
-  return rarity <= 2 ? "11% 6% 4%" : "11% 6%";
+  return rarity <= 2 ? "11.5% 10.5% 7%" : "11% 6%";
 }
 
 const RARITY_SPARKLE_STYLE: Record<CardRarity, { opacity: number; glow: string; color: string }> = {
@@ -336,6 +344,11 @@ export default function CardPreview({
           zIndex: 0,
           overflow: "hidden",
           borderRadius: "9% / 7%",
+          // clip-path gives transformed/3D artwork a hard paint boundary even
+          // where the PNG frame itself is transparent.
+          clipPath: "inset(0 round 9% / 7%)",
+          WebkitClipPath: "inset(0 round 9% / 7%)",
+          contain: "paint",
           background: "linear-gradient(145deg, #162219, #070a08)",
           pointerEvents: "none",
           transform: depth3d ? "translateZ(-10px)" : undefined,
@@ -347,7 +360,15 @@ export default function CardPreview({
             src={artworkUrl}
             alt=""
             draggable={false}
-            style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }}
+            style={{
+              position: "absolute",
+              inset: artworkMediaInsetForRarity(rarity),
+              width: "auto",
+              height: "auto",
+              minWidth: "100%",
+              minHeight: "100%",
+              objectFit: "cover",
+            }}
           />
         ) : (
           <div
