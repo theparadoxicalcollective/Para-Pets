@@ -402,8 +402,11 @@ function CostumeLayer({
 
   const renderCostume = (costume: EquippedCostume) => {
     const costumeView = resolvedView === "back" ? "side" : "front";
-    const placements = (Array.isArray(costume.placements) ? costume.placements : [])
+    const matchingPlacements = (Array.isArray(costume.placements) ? costume.placements : [])
       .filter(item => item && item.view === costumeView && item.depth === depth);
+    const placements = costume.slot === ADORNMENT_SLOT_MAP.wings
+      ? matchingPlacements.slice(0, 1)
+      : matchingPlacements;
     if (!costume.imageUrl || placements.length === 0) return null;
 
     return <>{placements.map((placement) => {
