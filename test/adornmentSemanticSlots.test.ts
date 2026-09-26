@@ -44,10 +44,10 @@ test("administration can assign safe item-level effects to adornments", () => {
 
   assert.match(admin, /data-testid="select-adornment-effect"/);
   assert.match(admin, />Effects<\/label>/);
-  assert.match(admin, /Float — balloon-like loop/);
-  assert.match(admin, /Spin — slow clockwise/);
-  assert.match(admin, /Sway — gentle side to side/);
-  assert.match(admin, /Pulse — subtle magical breathing/);
+  assert.match(animation, /float: "Float — balloon-like loop"/);
+  assert.match(animation, /spin: "Spin — slow clockwise"/);
+  assert.match(animation, /sway: "Sway — gentle side to side"/);
+  assert.match(animation, /pulse: "Pulse — subtle magical breathing"/);
   assert.match(admin, /payload\.adornmentEffect = effectiveType === "costume" \? \(adornmentEffect \|\| null\) : null/);
 
   assert.match(animation, /ADORNMENT_ITEM_EFFECTS = \["still", "float", "spin", "sway", "pulse"\]/);
