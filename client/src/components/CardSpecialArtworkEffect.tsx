@@ -69,8 +69,8 @@ export default function CardSpecialArtworkEffect({ effect, color }: { effect: Ca
       @keyframes cardSpecialDrift { 0%, 100% { transform: translate3d(-7%, 3%, 0) scale(1.1); opacity: .55; } 50% { transform: translate3d(7%, -4%, 0) scale(1.18); opacity: .85; } }
       @keyframes cardSpecialHolo { 0%, 100% { background-position: -110% 0; } 50% { background-position: 110% 0; } }
       @keyframes cardSpecialStarShift {
-        0%, 100% { filter: hue-rotate(0deg) brightness(1.05) drop-shadow(0 0 1px rgba(255,255,255,.8)); opacity: .66; transform: translate3d(-.35%, 0, 0); }
-        50% { filter: hue-rotate(180deg) brightness(1.22) drop-shadow(0 0 2px rgba(255,255,255,.92)); opacity: .86; transform: translate3d(.35%, -.2%, 0); }
+        0%, 100% { filter: hue-rotate(0deg) brightness(1.05) drop-shadow(0 0 1px rgba(255,255,255,.72)); opacity: .48; transform: translate3d(-.35%, 0, 0); }
+        50% { filter: hue-rotate(180deg) brightness(1.16) drop-shadow(0 0 1.5px rgba(255,255,255,.82)); opacity: .64; transform: translate3d(.35%, -.2%, 0); }
       }
       .card-special-batch { animation: cardSpecialBreathe 3.6s ease-in-out infinite; }
       .card-special-batch-1 { animation-delay: -.9s; }
@@ -95,7 +95,7 @@ export default function CardSpecialArtworkEffect({ effect, color }: { effect: Ca
         .card-special-holo,
         .card-special-aurora { animation: none; }
         .card-special-batch { opacity: .7; }
-        .card-special-starfield { opacity: .74; transform: none; filter: drop-shadow(0 0 1px rgba(255,255,255,.8)); }
+        .card-special-starfield { opacity: .56; transform: none; filter: drop-shadow(0 0 1px rgba(255,255,255,.72)); }
       }
     `}</style>
   </div>;
