@@ -49,7 +49,7 @@ test("costume pointer movement only updates a local draft", () => {
 
 test("costume placement persists only from the explicit Save action", () => {
   assert.match(editor, /const saveCostumePlacement = \(\) => \{/);
-  assert.match(editor, /saveCostumeMutation\.mutate\(\{ itemId: selectedCostumeId, placement: \{ \.\.\.selectedCostumePlacement, instance: selectedCostumeInstance, rotation:/);
+  assert.match(editor, /saveCostumeMutation\.mutate\(\{ itemId: selectedCostumeId, placement: \{ \.\.\.selectedCostumePlacement, form: costumeArtworkForm, instance: selectedCostumeIsWings \? 1 : selectedCostumeInstance, rotation:/);
   assert.match(editor, /queryClient\.setQueryData<CostumeDefinition\[]>/);
   assert.match(editor, /data-testid="costume-save-dock"/);
   assert.match(editor, /fixed left-4 right-4/);
@@ -119,7 +119,8 @@ test("admin can fit one costume artwork as an original plus at most three duplic
   assert.match(editor, /data-testid="costume-copy-selector"/);
   assert.match(editor, /`COPY \${instance - 1}`/);
   assert.match(editor, /instance: selectedCostumeInstance/);
-  assert.match(editor, /current\.view !== placement\.view \|\| \(current\.instance \?\? 1\) !== placementInstance/);
+  assert.match(editor, /\(current\.form \?\? "base"\) !== \(placement\.form \?\? "base"\)/);
+  assert.match(editor, /current\.view !== placement\.view/);
   assert.match(editor, /Original \+ up to 3 duplicates per pet/);
   assert.match(editor, /data-testid="button-remove-costume-copy"/);
   assert.match(costumeSchema, /instance: z\.number\(\)\.int\(\)\.min\(1\)\.max\(COSTUME_MAX_PLACEMENT_INSTANCES\)\.default\(1\)/);
@@ -163,6 +164,25 @@ test("server accepts three duplicates, rejects a fourth, and preserves flip defa
     { ...placement, instance: 2 },
     { ...placement, instance: 2, anchorPart: "head" },
   ]).success, false);
+});
+
+test("adornment fitter has separate regular and evolution sections without a new database table", () => {
+  assert.match(editor, /data-testid="adornment-form-selector"/);
+  assert.match(editor, /button-adornment-form-base/);
+  assert.match(editor, /button-adornment-form-evolution/);
+  assert.match(editor, /REGULAR PET ADORNMENTS/);
+  assert.match(editor, /EVOLUTION ADORNMENTS/);
+  assert.match(editor, /form: costumeArtworkForm/);
+  assert.match(editor, /\(placement\.form \?\? "base"\) === costumeArtworkForm/);
+  assert.match(costumeSchema, /form: z\.enum\(\["base", "evolution"\]\)\.default\("base"\)/);
+});
+
+test("Wings fitting uses one source and does not expose legacy Wings animation", () => {
+  assert.match(editor, /selectedCostumeIsWings \? \[1\]/);
+  assert.match(editor, /!selectedCostumeIsWings && <button/);
+  assert.match(editor, /ADORNMENT_ANIMATIONS\.filter\(animation => animation !== "wings"\)/);
+  assert.doesNotMatch(editor, /<MirroredWingUpload/);
+  assert.match(editor, /one fitted image is mirrored into a front-facing pair/);
 });
 
 test("costume vault scales through search and a compact thumbnail grid", () => {

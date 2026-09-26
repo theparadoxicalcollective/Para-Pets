@@ -58,6 +58,7 @@ export const COSTUME_SLOT_UNLOCK_COSTS = [0, 0, 0, COSTUME_SLOT_4_COST, COSTUME_
 
 export type CostumeView = "front" | "side";
 export type CostumeDepth = "front" | "back";
+export type CostumeArtworkForm = "base" | "evolution";
 
 /**
  * The pet part to which a costume is attached. The value intentionally uses
@@ -73,6 +74,8 @@ export type CostumeAnchorPart = string;
  * the existing pet-template part editor. They are not device pixels.
  */
 export interface CostumePlacement {
+  /** Existing placements without a form are treated as base for backwards compatibility. */
+  form?: CostumeArtworkForm;
   view: CostumeView;
   /** "independent" uses the pet canvas; all other values retain legacy part attachment. */
   anchorPart: CostumeAnchorPart;
@@ -141,6 +144,7 @@ export function normalizeCostumePlacements(value: unknown): CostumePlacement[] {
   return value.flatMap((candidate) => {
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return [];
     const placement = candidate as Record<string, unknown>;
+    const form = placement.form === "evolution" ? "evolution" : "base";
     const view = placement.view === "front" || placement.view === "side" ? placement.view : null;
     const depth = placement.depth === "front" || placement.depth === "back" ? placement.depth : null;
     const anchorPart = typeof placement.anchorPart === "string" ? placement.anchorPart.trim() : "";
@@ -149,6 +153,7 @@ export function normalizeCostumePlacements(value: unknown): CostumePlacement[] {
     if (!view || !depth || !anchorPart || width <= 0 || height <= 0) return [];
 
     return [{
+      form,
       view,
       depth,
       anchorPart,

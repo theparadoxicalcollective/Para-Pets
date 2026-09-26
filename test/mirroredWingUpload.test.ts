@@ -116,23 +116,22 @@ test("processing failure preserves the saved fitting and hides internal error de
   assert.equal(handler.writes.length, 0);
 });
 
-test("custom opposite wing keeps orientation and synchronized motion; removal restores automatic mirroring", async () => {
+test("legacy opposite-wing uploads remain stored safely but runtime mirroring uses the single source artwork", async () => {
   const result = await build({ entryPoints: ["client/src/components/AdornmentArtwork.tsx"], bundle: true, platform: "node", format: "cjs", packages: "external", write: false, jsx: "automatic" });
   const module = { exports: {} as { default: any } };
   new Function("require", "module", "exports", result.outputFiles[0].text)(createRequire(import.meta.url), module, module.exports);
-  const render = (placement: CostumePlacement, animated = true) => renderToStaticMarkup(createElement(module.exports.default, { src: "/first.png", placement, animated }));
-  const custom = { ...fitting, mirroredWingImageUrl: url };
-  const markup = render(custom);
+
+  const placement = { ...fitting, animation: "none" as const, mirroredWingImageUrl: url };
+  const markup = renderToStaticMarkup(createElement(module.exports.default, {
+    src: "/first.png",
+    placement,
+    wingPair: true,
+    animated: true,
+  }));
+
   assert.equal((markup.match(/<img /g) ?? []).length, 2);
-  assert.equal((markup.match(/adornment-wings 1.8s/g) ?? []).length, 2);
-  assert.match(markup, /transform-origin:10% 75%/);
-  assert.match(markup, /<img[^>]+src="\/api\/media\/[^>]+transform:scaleX\(-1\);transform-origin:50% 50%/);
-  const automatic = render({ ...custom, mirroredWingImageUrl: undefined });
-  assert.equal((automatic.match(/src="\/first.png"/g) ?? []).length, 2);
-  assert.equal((automatic.match(/scaleX\(-1\)/g) ?? []).length, 1);
-  assert.doesNotMatch(render(custom, false), /animation:/);
-  for (const placement of [{ ...custom, animation: "float" as const }, { ...custom, anchorPart: "left_wing" }]) {
-    assert.equal((render(placement).match(/<img /g) ?? []).length, 1);
-    assert.doesNotMatch(render(placement), /src="\/api\/media\//);
-  }
+  assert.equal((markup.match(/src="\/first\.png"/g) ?? []).length, 2);
+  assert.doesNotMatch(markup, /src="\/api\/media\//);
+  assert.equal((markup.match(/adornment-wings 1\.8s/g) ?? []).length, 2);
+  assert.match(markup, /scaleX\(-1\)/);
 });

@@ -51,6 +51,7 @@ export const petCostumeDefinitions = pgTable("pet_costume_definitions", {
 ]);
 
 export const costumePlacementSchema = z.object({
+  form: z.enum(["base", "evolution"]).default("base"),
   view: z.enum(["front", "side"]),
   anchorPart: z.string().min(1),
   animation: z.enum(ADORNMENT_ANIMATIONS).optional(),
@@ -72,12 +73,12 @@ export const costumePlacementSchema = z.object({
 export const costumePlacementsSchema = z.array(costumePlacementSchema).superRefine((placements, ctx) => {
   const seen = new Set<string>();
   placements.forEach((placement, index) => {
-    const key = `${placement.view}:${placement.instance}`;
+    const key = `${placement.form}:${placement.view}:${placement.instance}`;
     if (seen.has(key)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: [index, "instance"],
-        message: "Each costume copy can only have one placement per view",
+        message: "Each adornment copy can only have one placement per form and view",
       });
     }
     seen.add(key);

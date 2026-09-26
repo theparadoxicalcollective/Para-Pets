@@ -6,7 +6,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { normalizeCostumePlacements, type CostumePlacement } from "../shared/costumeFeature";
 import { costumePlacementsSchema } from "../shared/costumeSchema";
-import { ADORNMENT_ANIMATIONS, adornmentMotion } from "../shared/adornmentAnimation";
+import { ADORNMENT_ANIMATIONS, ADORNMENT_ITEM_EFFECTS, adornmentItemEffectAnimation, adornmentMotion } from "../shared/adornmentAnimation";
 import { changeCostumePivot, detachCostumePlacement, getCostumeCanvasPosition, getCostumePlacementAnchorPoint, getDraggedCostumePosition } from "../client/src/lib/costumePlacement";
 
 const fitting: CostumePlacement = { view: "front", anchorPart: "independent", posX: 500, posY: 500, width: 200, height: 100, pivotX: 50, pivotY: 50, rotation: 25, flipX: true, depth: "front" };
@@ -54,14 +54,56 @@ test("all animation choices survive schema validation and runtime normalization"
   assert.equal(normalizeCostumePlacements([{ ...fitting, animation: "bad", animationSpeed: Infinity }])[0].animation, "none");
 });
 
-test("mirrored wing artwork uses synchronized motion with a reflected partner and static mode stops it", async () => {
+test("item-level adornment effects map to lightweight CSS motion", () => {
+  assert.deepEqual(ADORNMENT_ITEM_EFFECTS, ["still", "float", "spin", "sway", "pulse"]);
+  assert.equal(adornmentItemEffectAnimation(null), null);
+  assert.equal(adornmentItemEffectAnimation("still"), "none");
+  assert.equal(adornmentItemEffectAnimation("float"), "float");
+  assert.equal(adornmentItemEffectAnimation("spin"), "rotate");
+  assert.equal(adornmentItemEffectAnimation("sway"), "sway");
+  assert.equal(adornmentItemEffectAnimation("pulse"), "breathe");
+  assert.match(adornmentMotion("rotate") ?? "", /adornment-rotate 16s linear infinite/);
+});
+
+test("Wings slot flag creates a synchronized front-facing mirrored pair", async () => {
   const result = await build({ entryPoints: ["client/src/components/AdornmentArtwork.tsx"], bundle: true, platform: "node", format: "cjs", packages: "external", write: false, jsx: "automatic" });
   const module = { exports: {} as { default: any } };
   new Function("require", "module", "exports", result.outputFiles[0].text)(createRequire(import.meta.url), module, module.exports);
-  const render = (animated: boolean) => renderToStaticMarkup(createElement(module.exports.default, { src: "/wing.png", placement: { ...fitting, animation: "wings" }, animated }));
-  const moving = render(true);
-  assert.equal((moving.match(/<img /g) ?? []).length, 2);
-  assert.equal((moving.match(/adornment-wings 1.8s/g) ?? []).length, 2);
-  assert.match(moving, /scaleX\(-1\)/);
-  assert.equal((render(false).match(/animation:/g) ?? []).length, 0);
+  const markup = renderToStaticMarkup(createElement(module.exports.default, {
+    src: "/wing.png",
+    placement: { ...fitting, animation: "none" },
+    wingPair: true,
+    animated: true,
+  }));
+  assert.equal((markup.match(/<img /g) ?? []).length, 2);
+  assert.equal((markup.match(/adornment-wings 1.8s/g) ?? []).length, 2);
+  assert.match(markup, /scaleX\(-1\)/);
+});
+
+test("legacy fitted wing motion cannot create Wings behavior on a non-Wings adornment", async () => {
+  const result = await build({ entryPoints: ["client/src/components/AdornmentArtwork.tsx"], bundle: true, platform: "node", format: "cjs", packages: "external", write: false, jsx: "automatic" });
+  const module = { exports: {} as { default: any } };
+  new Function("require", "module", "exports", result.outputFiles[0].text)(createRequire(import.meta.url), module, module.exports);
+  const markup = renderToStaticMarkup(createElement(module.exports.default, {
+    src: "/wing.png",
+    placement: { ...fitting, animation: "wings" },
+    wingPair: false,
+    animated: true,
+  }));
+  assert.equal((markup.match(/<img /g) ?? []).length, 1);
+  assert.doesNotMatch(markup, /adornment-wings 1\.8s/);
+});
+
+test("semantic Wings pair stops motion in static mode", async () => {
+  const result = await build({ entryPoints: ["client/src/components/AdornmentArtwork.tsx"], bundle: true, platform: "node", format: "cjs", packages: "external", write: false, jsx: "automatic" });
+  const module = { exports: {} as { default: any } };
+  new Function("require", "module", "exports", result.outputFiles[0].text)(createRequire(import.meta.url), module, module.exports);
+  const markup = renderToStaticMarkup(createElement(module.exports.default, {
+    src: "/wing.png",
+    placement: { ...fitting, animation: "none" },
+    wingPair: true,
+    animated: false,
+  }));
+  assert.equal((markup.match(/<img /g) ?? []).length, 2);
+  assert.equal((markup.match(/animation:/g) ?? []).length, 0);
 });
