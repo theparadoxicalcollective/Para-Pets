@@ -62,7 +62,7 @@ test("item-level adornment effects map to lightweight CSS motion", () => {
   assert.equal(adornmentItemEffectAnimation("spin"), "rotate");
   assert.equal(adornmentItemEffectAnimation("sway"), "sway");
   assert.equal(adornmentItemEffectAnimation("pulse"), "breathe");
-  assert.match(adornmentMotion("rotate"), /adornment-rotate 16s linear infinite/);
+  assert.match(adornmentMotion("rotate") ?? "", /adornment-rotate 16s linear infinite/);
 });
 
 test("Wings slot flag creates a synchronized front-facing mirrored pair", async () => {
