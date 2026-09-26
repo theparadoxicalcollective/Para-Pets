@@ -22,39 +22,48 @@ test("stored special effect is included in the card sent to players", () => {
   assert.equal(serializeCard({ id: "two", name: "Sun", artwork_url: "/sun.png", rarity: 3 }).specialEffect, null);
 });
 
-test("each special effect stays in its artwork overlay and supports reduced motion", () => {
-  const render = (effect: "stars" | "aurora" | "wisps" | "pumpkin") =>
-    renderToStaticMarkup(createElement(CardSpecialArtworkEffect, { effect, color: "#9CEEFF" }));
-  const stars = render("stars");
-  const pumpkin = render("pumpkin");
-  const aurora = render("aurora");
-  const wisps = render("wisps");
+test("Stars uses visible varied outline stars without covering the artwork", () => {
+  const stars = renderToStaticMarkup(createElement(CardSpecialArtworkEffect, { effect: "stars", color: "#9CEEFF" }));
   assert.match(stars, /card-special-effect-stars/);
-  assert.match(stars, /card-special-starfield-a/);
-  assert.match(stars, /card-special-starfield-b/);
-  assert.match(stars, /mask-size:10\.5% 13\.2%/);
-  assert.match(stars, /mask-position:5\.25% 6\.6%/);
-  assert.match(stars, /opacity: \.48/);
-  assert.match(stars, /opacity: \.64/);
-  assert.doesNotMatch(stars, /fill%3D%22none%22/);
-  assert.doesNotMatch(stars, /<div class="card-special-holo"/);
+  assert.match(stars, /card-star-outline-field/);
+  assert.match(stars, /card-special-star-outlines/);
+  assert.match(stars, /fill="none"/);
+  assert.match(stars, /stroke-width="\.48"/);
+  assert.match(stars, /scale\(0\.82\)/);
+  assert.match(stars, /scale\(1\.18\)/);
+  assert.match(stars, /cardSpecialStarHue/);
+  assert.doesNotMatch(stars, /card-special-starfield/);
+});
+
+test("Pumpkin and Moonfire Wisps render as visible but transparent artwork-only overlays", () => {
+  const pumpkin = renderToStaticMarkup(createElement(CardSpecialArtworkEffect, { effect: "pumpkin", color: "#9CEEFF" }));
+  const wisps = renderToStaticMarkup(createElement(CardSpecialArtworkEffect, { effect: "wisps", color: "#9CEEFF" }));
+
   assert.ok(CARD_SPECIAL_EFFECTS.includes("pumpkin"));
   assert.equal(parseCardSpecialEffect("pumpkin"), "pumpkin");
   assert.match(pumpkin, /card-special-effect-pumpkin/);
   assert.match(pumpkin, /card-pumpkin-field/);
-  assert.match(pumpkin, /pumpkin-holo-gradient/);
-  assert.match(pumpkin, /#FFD27A/);
-  assert.match(pumpkin, /#E43B25/);
-  assert.match(pumpkin, /fill-opacity="\.52"/);
-  assert.match(pumpkin, /card-special-pumpkin-/);
+  assert.match(pumpkin, /fill-opacity="\.42"/);
+  assert.match(pumpkin, /stroke-opacity="\.78"/);
   assert.match(pumpkin, /cardPumpkinPop/);
-  assert.match(aurora, /card-special-aurora-a/);
-  assert.match(aurora, /<div class="card-special-holo"/);
-  assert.doesNotMatch(aurora, /<svg/);
-  assert.match(wisps, /card-special-mist/);
-  assert.match(wisps, /<circle/);
-  for (const markup of [stars, pumpkin, aurora, wisps]) {
+
+  assert.match(wisps, /card-special-effect-wisps/);
+  assert.match(wisps, /card-moonfire-wisp-field/);
+  assert.match(wisps, /card-special-wisp/);
+  assert.match(wisps, /cardWispFloat/);
+  assert.match(wisps, /rx="2\.25"/);
+  assert.match(wisps, /stop-opacity="\.92"/);
+
+  for (const markup of [pumpkin, wisps]) {
     assert.match(markup, /prefers-reduced-motion/);
     assert.doesNotMatch(markup, /card-border/);
   }
+});
+
+test("Aurora remains separate from the other artwork effects", () => {
+  const aurora = renderToStaticMarkup(createElement(CardSpecialArtworkEffect, { effect: "aurora", color: "#9CEEFF" }));
+  assert.match(aurora, /card-special-aurora-a/);
+  assert.match(aurora, /card-special-holo/);
+  assert.doesNotMatch(aurora, /card-pumpkin-field/);
+  assert.doesNotMatch(aurora, /card-moonfire-wisp-field/);
 });
