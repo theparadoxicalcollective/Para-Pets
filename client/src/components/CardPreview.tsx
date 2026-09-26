@@ -1,10 +1,9 @@
-import { useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { useId, useRef, type PointerEvent as ReactPointerEvent } from "react";
 import CardFittedText from "./CardFittedText";
 import CardSpecialArtworkEffect from "./CardSpecialArtworkEffect";
 import CardCornerBanner from "./CardCornerBanner";
 import { cardArtworkEffect, type CardSpecialEffect } from "@shared/cardSpecialEffect";
 import type { CardLabel } from "@shared/cardLabel";
-import starImg from "@assets/Photoroom_20260331_20947_PM_1774984267132.png";
 import {
   CARD_BORDER_ASSETS,
   type CardBorderLayout,
@@ -35,6 +34,45 @@ interface DragState {
   field: CardLayoutField;
   offsetX: number;
   offsetY: number;
+}
+const CARD_RARITY_STAR_PATH = "M50 4 L61.5 34.5 L94 36 L68.5 56.5 L77.5 89 L50 70.5 L22.5 89 L31.5 56.5 L6 36 L38.5 34.5 Z";
+
+function CardRarityStar({ gradientId }: { gradientId: string }) {
+  return <svg
+    data-testid="card-rarity-star"
+    viewBox="0 0 100 100"
+    aria-hidden="true"
+    style={{
+      width: "100%",
+      height: "100%",
+      overflow: "visible",
+      pointerEvents: "none",
+      filter: "drop-shadow(0 0 1.5px rgba(255,246,192,.95)) drop-shadow(0 0 4px rgba(255,190,42,.62)) drop-shadow(0 2px 2px rgba(92,47,4,.72))",
+    }}
+  >
+    <defs>
+      <linearGradient id={gradientId} x1="18" y1="10" x2="82" y2="90" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stopColor="#fff4b0" />
+        <stop offset="18%" stopColor="#ffd95a" />
+        <stop offset="48%" stopColor="#f4a91c" />
+        <stop offset="72%" stopColor="#d8800d" />
+        <stop offset="100%" stopColor="#ffd85a" />
+      </linearGradient>
+    </defs>
+
+    <path d={CARD_RARITY_STAR_PATH} fill={"url(#" + gradientId + ")"} stroke="#9b5508" strokeWidth="4.1" strokeLinejoin="round" />
+    <path d={CARD_RARITY_STAR_PATH} fill="none" stroke="rgba(255,239,150,.92)" strokeWidth="1.35" strokeLinejoin="round" />
+
+    <path d="M50 7 L50 50 L38.5 34.5 Z" fill="rgba(255,255,224,.74)" />
+    <path d="M50 50 L61.5 34.5 L94 36 L68.5 56.5 Z" fill="rgba(255,201,42,.72)" />
+    <path d="M50 50 L68.5 56.5 L77.5 89 L50 70.5 Z" fill="rgba(194,103,5,.38)" />
+    <path d="M50 50 L50 70.5 L22.5 89 L31.5 56.5 Z" fill="rgba(255,188,29,.44)" />
+    <path d="M50 50 L31.5 56.5 L6 36 L38.5 34.5 Z" fill="rgba(255,225,101,.58)" />
+
+    <path d="M50 17 L54 43 L81 39 L57 52 L68 76 L50 58 L32 76 L43 52 L19 39 L46 43 Z" fill="rgba(255,244,166,.17)" />
+    <path d="M50 36 L54.2 46 L65 50 L54.2 54 L50 64 L45.8 54 L35 50 L45.8 46 Z" fill="rgba(255,255,239,.92)" />
+    <circle cx="50" cy="50" r="4.1" fill="#fffbe1" opacity=".96" />
+  </svg>;
 }
 
 const RARITY_TEXT_STYLES: Record<CardRarity, { name: string; description: string }> = {
@@ -144,6 +182,7 @@ export default function CardPreview({
   onLayoutChange,
 }: CardPreviewProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const rarityStarId = useId().replace(/:/g, "");
   const dragRef = useRef<DragState | null>(null);
 
   // The saved per-card color belongs to the artwork swirls only.
@@ -568,9 +607,21 @@ export default function CardPreview({
           background: editable && selectedField === "stars" ? "rgba(22,90,58,.34)" : "transparent",
           cursor: editable ? "grab" : "default", touchAction: editable ? "none" : "auto", userSelect: "none" }}
       >
-        {Array.from({ length: rarity }, (_, index) => <img key={index} src={starImg} alt="" draggable={false}
-          style={{ width: `${100 / rarity}%`, height: "100%", objectFit: "contain", pointerEvents: "none",
-            filter: "brightness(1.2) saturate(1.12) drop-shadow(0 0 2px rgba(255,245,190,.95)) drop-shadow(0 0 6px rgba(255,196,54,.82)) drop-shadow(0 1px 2px rgba(0,0,0,.78))" }} />)}
+        {Array.from({ length: rarity }, (_, index) => (
+          <div
+            key={index}
+            style={{
+              width: `${100 / rarity}%`,
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              pointerEvents: "none",
+            }}
+          >
+            <CardRarityStar gradientId={"card-rarity-star-" + rarityStarId + "-" + index} />
+          </div>
+        ))}
       </div>
       {showSparkles && <style>{`
         @keyframes cardGlitterPulseA {
