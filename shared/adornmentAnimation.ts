@@ -31,13 +31,14 @@ export function isAdornmentItemEffect(value: unknown): value is AdornmentItemEff
 /** Item-level effect overrides legacy fitted motion while preserving its saved placement. */
 export function adornmentItemEffectAnimation(effect: AdornmentItemEffect | null | undefined): AdornmentAnimation | null {
   if (!effect) return null;
-  return {
+  const effectMap: Record<AdornmentItemEffect, AdornmentAnimation> = {
     still: "none",
     float: "float",
     spin: "rotate",
     sway: "sway",
     pulse: "breathe",
-  }[effect];
+  };
+  return effectMap[effect];
 }
 
 /** CSS-only motion: no animation timers or per-frame React updates. */
