@@ -151,13 +151,10 @@ test("4 and 5 star card titles share the same warm readable name color", () => {
 });
 
 test("detail cards use lightweight rarity-scaled magical glitter inside the artwork", () => {
+  assert.match(preview, /import cardStarImg from "@assets\/uploads\/CardStar\.png"/);
   assert.match(preview, /data-testid="card-rarity-star"/);
-  assert.match(preview, /CARD_RARITY_STAR_PATH/);
-  assert.match(preview, /stopColor="#fff4b0"/);
-  assert.match(preview, /stopColor="#f4a91c"/);
-  assert.match(preview, /stroke="#9b5508"/);
-  assert.match(preview, /fill="rgba\(255,255,239,\.92\)"/);
-  assert.match(preview, /drop-shadow\(0 0 4px rgba\(255,190,42,\.62\)\)/);
+  assert.match(preview, /src=\{cardStarImg\}/);
+  assert.doesNotMatch(preview, /CARD_RARITY_STAR_PATH/);
   assert.doesNotMatch(preview, /Photoroom_20260331_20947_PM_1774984267132\.png/);
   assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*44[\s\S]*?3:\s*96[\s\S]*?4:\s*148[\s\S]*?5:\s*220/);
   assert.match(preview, /RARITY_GLINT_COUNT[\s\S]*?2:\s*5[\s\S]*?3:\s*14[\s\S]*?4:\s*26[\s\S]*?5:\s*44/);
