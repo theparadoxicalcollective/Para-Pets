@@ -74,6 +74,20 @@ const RARITY_SWIRL_COUNT: Record<CardRarity, number> = {
   5: 3,
 };
 
+/**
+ * CB1/CB2 have a lower artwork opening than the higher-rarity frames.
+ * Let their artwork bleed farther beneath the bottom frame so no backing
+ * peeks through while preserving the existing 3★–5★ composition.
+ */
+function artworkInsetForRarity(rarity: CardRarity, depth3d: boolean): string {
+  if (rarity <= 2) return depth3d ? "12% 7% 4.5%" : "12% 10% 4.5%";
+  return depth3d ? "12% 7%" : "12% 10%";
+}
+
+function artworkBackingInsetForRarity(rarity: CardRarity): string {
+  return rarity <= 2 ? "11% 6% 4%" : "11% 6%";
+}
+
 const RARITY_SPARKLE_STYLE: Record<CardRarity, { opacity: number; glow: string; color: string }> = {
   1: { opacity: 0, glow: "none", color: "#fff4ca" },
   2: { opacity: .67, glow: "drop-shadow(0 0 1px rgba(252,241,180,.58))", color: "#e9f7cd" },
@@ -305,7 +319,7 @@ export default function CardPreview({
           aria-hidden="true"
           className="absolute"
           style={{
-            inset: "11% 6%",
+            inset: artworkBackingInsetForRarity(rarity),
             background: "#050604",
             boxShadow: "0 0 14px 8px rgba(0,0,0,.8)",
             transform: "translateZ(-14px)",
@@ -318,7 +332,7 @@ export default function CardPreview({
         data-testid="card-artwork-window"
         style={{
           position: "absolute",
-          inset: depth3d ? "12% 7%" : "12% 10%",
+          inset: artworkInsetForRarity(rarity, depth3d),
           zIndex: 0,
           overflow: "hidden",
           borderRadius: "9% / 7%",
@@ -569,6 +583,7 @@ export default function CardPreview({
               height: "100%",
               objectFit: "contain",
               pointerEvents: "none",
+              filter: "drop-shadow(0 0 1px rgba(64,30,2,.96)) drop-shadow(0 2px 2px rgba(42,20,2,.82)) drop-shadow(0 0 5px rgba(255,245,190,.9))",
             }}
           />
         ))}

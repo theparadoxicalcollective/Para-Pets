@@ -98,8 +98,13 @@ test("card text editor uses simple nudge, center, size, and title-only curve con
   assert.match(preview, /curve=\{isName \? \(layout\.nameCurve \?\? 0\) : 0\}/);
   assert.match(preview, /const curvedTitle = isName && \(layout\.nameCurve \?\? 0\) > 0/);
   assert.match(preview, /overflow: curvedTitle \? "visible" : "hidden"/);
+  assert.match(adminPanel, /Math\.min\(16, current \+ direction\)/);
+  assert.match(adminPanel, /nameCurve \?\? 0\) >= 16/);
+  assert.match(adminPanel, /Title curve:[\s\S]*\/ 16/);
   const fittedText = fs.readFileSync("client/src/components/CardFittedText.tsx", "utf8");
   assert.match(fittedText, /overflow: curve > 0 \? "visible" : "hidden"/);
+  assert.match(fittedText, /const y = curve \* \.035 \* progress \* progress/);
+  assert.match(fittedText, /const rotation = curve \* \.65 \* progress/);
 });
 
 test("admin can pick and persist an effect color per card artwork", () => {
@@ -166,7 +171,8 @@ test("server rejects invalid rarities and out-of-card layouts", () => {
   const { nameCurve: _omittedCurve, ...legacyValid } = valid;
   assert.deepEqual(cardAdminValidation.parseLayout(legacyValid), { ...layout, nameCurve: 0 });
   assert.throws(() => cardAdminValidation.parseLayout({ ...valid, starX: 99 }), /Stars must stay inside/);
-  assert.throws(() => cardAdminValidation.parseLayout({ ...valid, nameCurve: 9 }), /nameCurve must be between 0 and 8/);
+  assert.equal(cardAdminValidation.parseLayout({ ...valid, nameCurve: 16 }).nameCurve, 16);
+  assert.throws(() => cardAdminValidation.parseLayout({ ...valid, nameCurve: 17 }), /nameCurve must be between 0 and 16/);
   assert.throws(
     () => cardAdminValidation.parseLayout({ ...valid, descriptionY: 90 }),
     /inside the card/,
@@ -190,10 +196,17 @@ test("4 and 5 star card titles share the same warm readable name color", () => {
   assert.doesNotMatch(preview, /\[data-card-title-rarity="5"\] > span/);
 });
 
+test("1 and 2 star card artwork bleeds behind the lower CB frame without changing higher rarities", () => {
+  assert.match(preview, /if \(rarity <= 2\) return depth3d \? "12% 7% 4\.5%" : "12% 10% 4\.5%"/);
+  assert.match(preview, /return rarity <= 2 \? "11% 6% 4%" : "11% 6%"/);
+  assert.match(preview, /return depth3d \? "12% 7%" : "12% 10%"/);
+});
+
 test("detail cards use lightweight rarity-scaled magical glitter inside the artwork", () => {
   assert.match(preview, /import cardStarImg from "@assets\/uploads\/CardStar\.png"/);
   assert.match(preview, /data-testid="card-rarity-star"/);
   assert.match(preview, /src=\{cardStarImg\}/);
+  assert.match(preview, /drop-shadow\(0 0 1px rgba\(64,30,2,\.96\)\)[\s\S]*drop-shadow\(0 0 5px rgba\(255,245,190,\.9\)\)/);
   assert.doesNotMatch(preview, /CARD_RARITY_STAR_PATH/);
   assert.doesNotMatch(preview, /Photoroom_20260331_20947_PM_1774984267132\.png/);
   assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*44[\s\S]*?3:\s*96[\s\S]*?4:\s*148[\s\S]*?5:\s*220/);
@@ -242,7 +255,11 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.doesNotMatch(preview, /cardTitleFiveStarPulse/);
   assert.doesNotMatch(preview, /cardTitleHologoldSweep/);
   assert.match(preview, /prefers-reduced-motion: reduce/);
-  assert.match(preview, /inset: depth3d \? "12% 7%" : "12% 10%"/);
+  assert.match(preview, /function artworkInsetForRarity\(rarity: CardRarity, depth3d: boolean\)/);
+  assert.match(preview, /rarity <= 2\) return depth3d \? "12% 7% 4\.5%" : "12% 10% 4\.5%"/);
+  assert.match(preview, /return depth3d \? "12% 7%" : "12% 10%"/);
+  assert.match(preview, /inset: artworkInsetForRarity\(rarity, depth3d\)/);
+  assert.match(preview, /artworkBackingInsetForRarity\(rarity\)/);
   assert.match(preview, /inset 0 0 24px 8px/);
   assert.match(preview, /transform: depth3d \? "translateZ\(22px\)" : undefined/);
   assert.doesNotMatch(preview, /isName \? 26 : 22/);
@@ -272,23 +289,44 @@ test("card collection keeps the cleaner open layout and text heading", () => {
   assert.doesNotMatch(collection, /className="relative min-w-0 pb-8"/);
 });
 
-test("fast card turns flip to an in-card description back instead of opening a description modal", () => {
+test("detail cards preserve a 3D front, flat contained back, and stable full turns", () => {
   assert.match(detail, /data-testid="card-turn-surface"/);
   assert.match(detail, /requestAnimationFrame/);
   assert.match(detail, /cancelAnimationFrame/);
   assert.match(detail, /ref=\{turnCardRef\}/);
-  assert.doesNotMatch(detail, /setTurnAngle/);
-  assert.match(detail, /velocity >= 0\.35/);
-  assert.match(detail, /gesture\.width \* 0\.1/);
-  assert.match(detail, /queueTurn\(nextFlipped \? direction \* 180 : 0\)/);
+  assert.match(detail, /const settledAngleRef = useRef\(0\)/);
+  assert.match(detail, /const turnAnimatingRef = useRef\(false\)/);
+  assert.match(detail, /const needsAnimation = Math\.abs\(angleRef\.current - targetAngle\) > \.1/);
+  assert.match(detail, /turnAnimatingRef\.current = needsAnimation/);
+  assert.match(detail, /baseAngle: settledAngleRef\.current/);
+  assert.match(detail, /const previewTurn = Math\.max\(-180, Math\.min\(180, \(dx \/ gesture\.width\) \* 220\)\)/);
+  assert.match(detail, /const deliberateDrag = Math\.abs\(dx\) >= gesture\.width \* \.22/);
+  assert.match(detail, /const quickSwipe = Math\.abs\(dx\) >= gesture\.width \* \.08 && velocity >= \.32/);
+  assert.match(detail, /animateTurnTo\(gesture\.baseAngle \+ direction \* 180\)/);
+  assert.match(detail, /onTransitionEnd=/);
+  assert.match(detail, /turnAnimatingRef\.current = false/);
+
   assert.match(detail, /data-testid="card-front-face"/);
+  assert.match(detail, /transformStyle: "preserve-3d"/);
+  assert.match(detail, /<CardPreview[\s\S]*depth3d[\s\S]*showSparkles/);
+
   assert.match(detail, /data-testid="card-back-face"/);
-  assert.match(detail, /data-testid="card-back-description"/);
-  assert.match(detail, /CARD_BACK_SURFACE_COLORS\[card\.rarity\]/);
-  assert.match(detail, /color: CARD_TITLE_COLORS\[card\.rarity\]/);
-  assert.match(detail, /src=\{CARD_BORDER_ASSETS\[card\.rarity\]\}/);
   assert.match(detail, /transform: "rotateY\(180deg\)"/);
+  assert.match(detail, /data-testid="card-back-surface"/);
+  assert.match(detail, /inset: "10\.5% 9\.5% 9\.5%"/);
+  assert.match(detail, /background: CARD_BACK_SURFACE_COLORS\[card\.rarity\]/);
+  assert.match(detail, /src=\{CARD_BORDER_ASSETS\[card\.rarity\]\}/);
+  assert.match(detail, /data-testid="card-back-face"[\s\S]*?transform: "rotateY\(180deg\)"[\s\S]*?transformStyle: "flat"/);
+
+  assert.match(detail, /data-testid="card-back-title"/);
+  assert.match(detail, /<CardFittedText[\s\S]*text=\{card\.name\}[\s\S]*curve=\{layout\.nameCurve \?\? 0\}/);
+  assert.match(detail, /data-testid="card-back-description"/);
+  assert.match(detail, /inset: "23% 17% 19%"/);
+  assert.match(detail, /fontSize: "clamp\(10\.5px, 3cqw, 14\.5px\)"/);
+  assert.match(detail, /overflowY: "auto"/);
+  assert.match(detail, /color: CARD_TITLE_COLORS\[card\.rarity\]/);
   assert.match(detail, /card\.secondDescription \|\| card\.description/);
+
   assert.doesNotMatch(detail, /descriptionOpen/);
   assert.doesNotMatch(detail, /card-full-description/);
   assert.doesNotMatch(detail, /Close full description/);

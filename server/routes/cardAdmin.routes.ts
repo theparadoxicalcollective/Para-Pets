@@ -72,7 +72,7 @@ function parseLayout(body: Record<string, unknown>): LayoutInput {
     if (parsed[field] < 4 || parsed[field] > 100) throw new Error(`${field} must be between 4 and 100`);
   }
   if (parsed.starWidth < 5 || parsed.starWidth > 80) throw new Error("starWidth must be between 5 and 80");
-  if (nameCurve < 0 || nameCurve > 8) throw new Error("nameCurve must be between 0 and 8");
+  if (nameCurve < 0 || nameCurve > 16) throw new Error("nameCurve must be between 0 and 16");
   const rarity = parseRarity(body.rarity);
   if (!rarity) throw new Error("Invalid card rarity");
   if (parsed.starX + parsed.starWidth > 100 || parsed.starY + parsed.starWidth / rarity * 2 / 3 > 100) {
