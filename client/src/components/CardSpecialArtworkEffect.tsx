@@ -1,35 +1,50 @@
 import * as React from "react";
 import type { CardSpecialEffect } from "@shared/cardSpecialEffect";
 
-const STAR_COLORS = ["#9cecff", "#b9aaff", "#ffd4eb", "#ffeb9b", "#a9f5d7"];
-const POINTS = Array.from({ length: 72 }, (_, index) => ({
+const WISP_POINTS = Array.from({ length: 72 }, (_, index) => ({
   x: 4 + ((index * 47 + 19) % 92),
   y: 5 + ((index * 67 + 11) % 140),
   size: .16 + (index % 5) * .055,
   group: index % 4,
 }));
 
+const STAR_MASK_SVG = encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 1.6 14.6 8.9 22.4 9.2 16.2 13.9 18.4 21.4 12 17.1 5.6 21.4 7.8 13.9 1.6 9.2 9.4 8.9Z" fill="none" stroke="white" stroke-width="1.45" stroke-linejoin="round"/></svg>`,
+);
+const STAR_MASK = `url("data:image/svg+xml,${STAR_MASK_SVG}")`;
+
 /** Lightweight artwork-only overlays. The frame and title remain controlled by rarity. */
 export default function CardSpecialArtworkEffect({ effect, color }: { effect: CardSpecialEffect; color: string }) {
-  const layers = effect === "aurora" ? (
+  const layers = effect === "stars" ? (
+    <div
+      className="card-special-starfield"
+      style={{
+        WebkitMaskImage: STAR_MASK,
+        maskImage: STAR_MASK,
+        WebkitMaskRepeat: "repeat",
+        maskRepeat: "repeat",
+        WebkitMaskSize: "12% 8.6%",
+        maskSize: "12% 8.6%",
+        background: "linear-gradient(110deg, #8cecff 0%, #a994ff 18%, #ffb8e4 36%, #ffe36e 54%, #81f2c9 72%, #7dcaff 88%, #d5a7ff 100%)",
+        backgroundSize: "280% 160%",
+        backgroundPosition: "var(--card-turn-position, 0%) 50%",
+      }}
+    />
+  ) : effect === "aurora" ? (
     <>
+      <div className="card-special-holo" />
       <div className="card-special-aurora card-special-aurora-a" style={{ background: `radial-gradient(ellipse at 25% 45%, ${color}80, transparent 60%), radial-gradient(ellipse at 77% 55%, #9a80ed7a, transparent 55%)` }} />
       <div className="card-special-aurora card-special-aurora-b" style={{ background: "linear-gradient(125deg, transparent 17%, #74e3d64a 40%, #df9fe850 62%, transparent 83%)" }} />
     </>
   ) : (
     <>
-      {effect === "stars" && <div className="card-special-holo" />}
-      {effect === "wisps" && <div className="card-special-mist" style={{ background: `radial-gradient(ellipse at 50% 70%, ${color}38, transparent 65%)` }} />}
+      <div className="card-special-mist" style={{ background: `radial-gradient(ellipse at 50% 70%, ${color}38, transparent 65%)` }} />
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 150" preserveAspectRatio="none" aria-hidden="true">
         {[0, 1, 2, 3].map(group => (
           <g key={group} className={`card-special-batch card-special-batch-${group}`}>
-            {POINTS.filter(point => point.group === group && (effect === "stars" || point.x % 3 < 1)).map((point, index) => {
-              const size = effect === "stars" ? point.size : point.size * 2.1;
-              const fill = effect === "stars" ? STAR_COLORS[Math.min(4, Math.floor(point.x / 20))] : color;
-              return effect === "stars" ? (
-                <path key={index} d={`M ${point.x} ${point.y - size * 2} L ${point.x + size * .35} ${point.y - size * .35} L ${point.x + size * 2} ${point.y} L ${point.x + size * .35} ${point.y + size * .35} L ${point.x} ${point.y + size * 2} L ${point.x - size * .35} ${point.y + size * .35} L ${point.x - size * 2} ${point.y} L ${point.x - size * .35} ${point.y - size * .35} Z`} fill={fill} opacity={.48 + (index % 4) * .1} />
-              ) : <circle key={index} cx={point.x} cy={point.y} r={size} fill={fill} opacity={.28 + (index % 4) * .1} />;
-            })}
+            {WISP_POINTS.filter(point => point.group === group && point.x % 3 < 1).map((point, index) => (
+              <circle key={index} cx={point.x} cy={point.y} r={point.size * 2.1} fill={color} opacity={.28 + (index % 4) * .1} />
+            ))}
           </g>
         ))}
       </svg>
@@ -42,15 +57,34 @@ export default function CardSpecialArtworkEffect({ effect, color }: { effect: Ca
       @keyframes cardSpecialBreathe { 0%, 100% { opacity: .42; } 50% { opacity: .9; } }
       @keyframes cardSpecialDrift { 0%, 100% { transform: translate3d(-7%, 3%, 0) scale(1.1); opacity: .55; } 50% { transform: translate3d(7%, -4%, 0) scale(1.18); opacity: .85; } }
       @keyframes cardSpecialHolo { 0%, 100% { background-position: -110% 0; } 50% { background-position: 110% 0; } }
+      @keyframes cardSpecialStarShift {
+        0%, 100% { filter: hue-rotate(0deg) brightness(1.05) drop-shadow(0 0 1px rgba(255,255,255,.8)); opacity: .68; transform: translate3d(-.6%, 0, 0); }
+        50% { filter: hue-rotate(180deg) brightness(1.24) drop-shadow(0 0 2px rgba(255,255,255,.95)); opacity: .92; transform: translate3d(.6%, -.35%, 0); }
+      }
       .card-special-batch { animation: cardSpecialBreathe 3.6s ease-in-out infinite; }
       .card-special-batch-1 { animation-delay: -.9s; }
       .card-special-batch-2 { animation-delay: -1.8s; }
       .card-special-batch-3 { animation-delay: -2.7s; }
+      .card-special-starfield {
+        position: absolute;
+        inset: 1.5%;
+        mix-blend-mode: screen;
+        animation: cardSpecialStarShift 7.5s ease-in-out infinite;
+        transition: background-position 180ms ease-out;
+        will-change: filter, opacity, transform, background-position;
+      }
       .card-special-holo { position: absolute; inset: 0; background: linear-gradient(115deg, transparent 20%, #80e8ef35 37%, #bb9be93a 49%, #f6d2e238 58%, #f9e6a92c 66%, transparent 82%); background-size: 220% 100%; mix-blend-mode: screen; animation: cardSpecialHolo 7s ease-in-out infinite; }
       .card-special-aurora { position: absolute; inset: -20%; mix-blend-mode: screen; animation: cardSpecialDrift 9s ease-in-out infinite; }
       .card-special-aurora-b { animation-delay: -4.5s; animation-direction: reverse; opacity: .55; }
       .card-special-mist { position: absolute; inset: 0; mix-blend-mode: screen; opacity: .5; }
-      @media (prefers-reduced-motion: reduce) { .card-special-batch, .card-special-holo, .card-special-aurora { animation: none; } .card-special-batch { opacity: .7; } }
+      @media (prefers-reduced-motion: reduce) {
+        .card-special-batch,
+        .card-special-starfield,
+        .card-special-holo,
+        .card-special-aurora { animation: none; }
+        .card-special-batch { opacity: .7; }
+        .card-special-starfield { opacity: .78; transform: none; filter: drop-shadow(0 0 1px rgba(255,255,255,.8)); }
+      }
     `}</style>
   </div>;
 }
