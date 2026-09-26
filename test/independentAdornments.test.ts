@@ -55,25 +55,24 @@ test("all animation choices survive schema validation and runtime normalization"
 });
 
 test("item-level adornment effects map to lightweight CSS motion", () => {
-  assert.deepEqual(ADORNMENT_ITEM_EFFECTS, ["still", "float", "spin", "sway", "pulse", "wings"]);
+  assert.deepEqual(ADORNMENT_ITEM_EFFECTS, ["still", "float", "spin", "sway", "pulse"]);
   assert.equal(adornmentItemEffectAnimation(null), null);
   assert.equal(adornmentItemEffectAnimation("still"), "none");
   assert.equal(adornmentItemEffectAnimation("float"), "float");
   assert.equal(adornmentItemEffectAnimation("spin"), "rotate");
   assert.equal(adornmentItemEffectAnimation("sway"), "sway");
   assert.equal(adornmentItemEffectAnimation("pulse"), "breathe");
-  assert.equal(adornmentItemEffectAnimation("wings"), "wings");
   assert.match(adornmentMotion("rotate"), /adornment-rotate 16s linear infinite/);
 });
 
-test("Wings item effect creates a synchronized mirrored pair even without fitted wing motion", async () => {
+test("Wings slot flag creates a synchronized front-facing mirrored pair", async () => {
   const result = await build({ entryPoints: ["client/src/components/AdornmentArtwork.tsx"], bundle: true, platform: "node", format: "cjs", packages: "external", write: false, jsx: "automatic" });
   const module = { exports: {} as { default: any } };
   new Function("require", "module", "exports", result.outputFiles[0].text)(createRequire(import.meta.url), module, module.exports);
   const markup = renderToStaticMarkup(createElement(module.exports.default, {
     src: "/wing.png",
     placement: { ...fitting, animation: "none" },
-    effect: "wings",
+    wingPair: true,
     animated: true,
   }));
   assert.equal((markup.match(/<img /g) ?? []).length, 2);
