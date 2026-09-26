@@ -1,10 +1,11 @@
 import * as React from "react";
 import { CARD_LABEL_DETAILS, type CardLabel } from "@shared/cardLabel";
 
-/** Compact seasonal tag tucked into the upper-left so it stays clear of the card title. */
+/** Compact seasonal tag angled across the upper-left without clipping the card edge. */
 export default function CardCornerBanner({ label, depth3d = false }: { label: CardLabel; depth3d?: boolean }) {
   const { text, background, highlight } = CARD_LABEL_DETAILS[label];
   const gradientId = `card-label-gradient-${label}`;
+  const shadowId = `card-label-shadow-${label}`;
 
   return <svg
     data-testid={`card-label-${label}`}
@@ -12,30 +13,51 @@ export default function CardCornerBanner({ label, depth3d = false }: { label: Ca
     aria-label={text}
     viewBox="0 0 100 150"
     preserveAspectRatio="none"
-    style={{ position: "absolute", inset: 0, zIndex: 6, width: "100%", height: "100%", pointerEvents: "none", overflow: "hidden", transform: depth3d ? "translateZ(38px)" : undefined, backfaceVisibility: "hidden", filter: "drop-shadow(0 1px 1px rgba(0,0,0,.72))" }}
+    style={{
+      position: "absolute",
+      inset: 0,
+      zIndex: 6,
+      width: "100%",
+      height: "100%",
+      pointerEvents: "none",
+      overflow: "hidden",
+      transform: depth3d ? "translateZ(38px)" : undefined,
+      backfaceVisibility: "hidden",
+    }}
   >
     <defs>
       <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
         <stop offset="0%" stopColor={highlight} />
-        <stop offset="56%" stopColor={background} />
+        <stop offset="52%" stopColor={background} />
         <stop offset="100%" stopColor={background} />
       </linearGradient>
+      <filter id={shadowId} x="-25%" y="-65%" width="165%" height="230%">
+        <feDropShadow dx="0" dy=".75" stdDeviation=".7" floodColor="#000000" floodOpacity=".66" />
+        <feDropShadow dx="0" dy="0" stdDeviation=".9" floodColor={background} floodOpacity=".78" />
+      </filter>
     </defs>
-    <g transform="rotate(-10 19.5 19.5)">
+
+    <g transform="rotate(-18 23 20.5)" filter={`url(#${shadowId})`}>
       <path
-        d="M -4 15 L 36.8 15 L 42.5 19.5 L 36.8 24 L -4 24 L 1.2 19.5 Z"
+        d="M 4 16 L 41 16 L 47 20.5 L 41 25 L 4 25 L 8.6 20.5 Z"
         fill={`url(#${gradientId})`}
         stroke="#f0c96f"
         strokeWidth=".72"
         strokeLinejoin="round"
       />
-      <path d="M -.2 16.35 L 35.9 16.35 L 39.8 19.5 L 35.9 22.65 L -.2 22.65" fill="none" stroke="#ffe0a0" strokeWidth=".22" opacity=".82" />
+      <path
+        d="M 6 17.25 L 40.1 17.25 L 44.1 20.5 L 40.1 23.75 L 6 23.75"
+        fill="none"
+        stroke="#ffe0a0"
+        strokeWidth=".22"
+        opacity=".82"
+      />
       <text
-        x="19"
-        y="19.7"
+        x="23.3"
+        y="20.7"
         textAnchor="middle"
         dominantBaseline="middle"
-        textLength="34.5"
+        textLength="34.6"
         lengthAdjust="spacingAndGlyphs"
         fill="#ffe7a3"
         stroke="#3a1908"
