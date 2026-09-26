@@ -54,6 +54,15 @@ test("evolved pets prefer evolution adornment fittings and Still semantic slots 
   assert.match(animator, /rebasePlacementToPart\(savedPlacement, followPart, sortedParts\)/);
 });
 
+test("Don\'t Move placements stay fixed and bypass pet-part and item motion", () => {
+  assert.match(animator, /const dontMove = savedPlacement\.dontMove === true/);
+  assert.match(animator, /const followPartType = dontMove \? null : semanticStillPartType\(costume\)/);
+  assert.match(animator, /adornment-fixed-/);
+  assert.match(animator, /const fixedAnchor = placement\.anchorPart === "independent"/);
+  assert.match(animator, /getCostumeCanvasPosition\(fixedAnchor, placement\)/);
+  assert.match(animator, /animated=\{false\}/);
+});
+
 test("late-loading costume layers stay phase-locked to the pet animation clock", () => {
   assert.match(animator, /function syncAnimationDelay/);
   assert.match(animator, /const motionEpochRef = useRef/);

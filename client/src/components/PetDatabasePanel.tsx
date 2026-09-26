@@ -1279,7 +1279,7 @@ export default function PetDatabasePanel({
                       pointerEvents: isActive ? "auto" : "none",
                     }}
                   >
-                    <AdornmentArtwork src={selectedCostumeItem.imageUrl!} placement={placement} animated={previewAdornmentMotion && !draggingCostume} effect={selectedCostumeItem.adornmentEffect as any} wingPair={selectedCostumeIsWings} />
+                    <AdornmentArtwork src={selectedCostumeItem.imageUrl!} placement={placement} animated={previewAdornmentMotion && !draggingCostume && !placement.dontMove} effect={selectedCostumeItem.adornmentEffect as any} wingPair={selectedCostumeIsWings} />
                   </div>
                 );
               })}
@@ -1344,6 +1344,37 @@ export default function PetDatabasePanel({
                     )}
                   </div>
                 </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={!!selectedCostumePlacement.dontMove}
+                  data-testid="toggle-adornment-dont-move"
+                  onClick={() => updateCostumeDraft({ dontMove: !selectedCostumePlacement.dontMove })}
+                  disabled={saveCostumeMutation.isPending}
+                  className="flex w-full items-center justify-between gap-3 rounded-lg p-2.5 text-left disabled:opacity-50"
+                  style={{
+                    background: selectedCostumePlacement.dontMove ? "rgba(192,132,252,.18)" : "rgba(0,0,0,.24)",
+                    border: selectedCostumePlacement.dontMove ? "1px solid rgba(216,180,254,.52)" : "1px solid rgba(192,132,252,.22)",
+                    color: "#e7d7b5",
+                  }}
+                >
+                  <span>
+                    <span className="block font-fantasy text-[10px] tracking-wider">DON'T MOVE</span>
+                    <span className="mt-0.5 block text-[8px] leading-3" style={{ color: "#8f8198" }}>
+                      Locks this fitted adornment in place. It will not follow a moving pet part or play its own motion effect.
+                    </span>
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className="relative h-5 w-9 shrink-0 rounded-full transition-colors"
+                    style={{ background: selectedCostumePlacement.dontMove ? "#9b6cc6" : "#3a3040" }}
+                  >
+                    <span
+                      className="absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform"
+                      style={{ left: 2, transform: selectedCostumePlacement.dontMove ? "translateX(16px)" : "translateX(0)" }}
+                    />
+                  </span>
+                </button>
                 {selectedCostumePlacement.anchorPart !== "independent" ? (
                   <div className="space-y-2 text-xs" style={{ color: "#a89878" }}>
                     <p>This saved fitting follows {selectedCostumePlacement.anchorPart}. Give it its own placement to choose its motion.</p>

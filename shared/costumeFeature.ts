@@ -84,6 +84,8 @@ export interface CostumePlacement {
   /** Optional opposite-facing artwork, used only for independent Wings motion. */
   mirroredWingImageUrl?: string;
   replacesWings?: boolean;
+  /** Lock this fitted piece to the pet canvas so it never inherits part or item motion. */
+  dontMove?: boolean;
   /** 1 is the original fitted piece; 2-4 are admin-created visual duplicates. Front/side placements reuse the same instance number. */
   instance?: number;
   posX: number;
@@ -164,6 +166,7 @@ export function normalizeCostumePlacements(value: unknown): CostumePlacement[] {
         ...(typeof placement.mirroredWingImageUrl === "string" && ADORNMENT_IMAGE_URL_PATTERN.test(placement.mirroredWingImageUrl)
           ? { mirroredWingImageUrl: placement.mirroredWingImageUrl } : {}),
       } : {}),
+      ...(placement.dontMove === true ? { dontMove: true } : {}),
       instance: Math.max(1, Math.min(
         COSTUME_MAX_PLACEMENT_INSTANCES,
         Math.trunc(finitePlacementNumber(placement.instance, 1)),
