@@ -16,7 +16,7 @@ export default function AdornmentArtwork({ src, placement, animated = true, effe
   const fittedProfile = placement.anchorPart === "independent" ? normalizeAdornmentAnimation(placement.animation) : "none";
   const overrideProfile = adornmentItemEffectAnimation(effect);
   const profile = overrideProfile ?? fittedProfile;
-  const mirroredPair = fittedProfile === "wings";
+  const mirroredPair = profile === "wings";
   const origin = `${placement.pivotX}% ${placement.pivotY}%`;
 
   return <>{(mirroredPair ? [false, true] : [false]).map(mirrored => (
