@@ -82,7 +82,7 @@ test("Wings adornment type automatically uses front-facing mirrored open-close m
   assert.doesNotMatch(animation, /ADORNMENT_ITEM_EFFECTS = \[[^\]]*"wings"/);
   assert.match(animation, /@keyframes adornment-wings \{ 0%,100% \{ transform:rotate\(-10deg\) scaleX\(\.74\); \} 50% \{ transform:rotate\(8deg\) scaleX\(1\); \} \}/);
   assert.match(animator, /wingPair=\{costume\.slot === ADORNMENT_SLOT_MAP\.wings\}/);
-  assert.match(animator, /matchingPlacements\.slice\(0, 1\)/);
+  assert.match(animator, /viewPlacements\.slice\(0, 1\)/);
   assert.match(artwork, /const profile = wingPair \? "wings"/);
   assert.match(schema, /Wings adornments use automatic mirrored wing motion instead of a selectable effect/);
 });
