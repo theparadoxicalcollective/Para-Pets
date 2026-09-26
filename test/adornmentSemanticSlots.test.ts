@@ -20,14 +20,14 @@ test("adornment Closet spaces have fixed names and ordering", () => {
   assert.match(feature, /label:\s*"Back"/);
 });
 
-test("administration saves and exposes an adornment Closet-space selector", () => {
+test("administration saves and exposes a single adornment type selector", () => {
   const admin = read("client/src/components/ItemDatabaseSection.tsx");
   const schema = read("shared/schema.ts");
   const boot = read("server/startup/migrations/runEssentialBoot.ts");
 
   assert.match(admin, /data-testid="select-adornment-slot"/);
   assert.match(admin, /payload\.adornmentSlot = effectiveType === "costume" \? adornmentSlot : null/);
-  assert.match(admin, /Adornment Closet Space/);
+  assert.match(admin, /Adornment Type/);
   assert.match(admin, /Unassigned/);
   assert.match(schema, /adornmentSlot:\s*text\("adornment_slot"\)/);
   assert.match(boot, /ADD COLUMN IF NOT EXISTS adornment_slot TEXT/);
@@ -73,6 +73,8 @@ test("Wings Closet space uses a fixed mirrored open-close effect instead of the 
   const schema = read("shared/schema.ts");
 
   assert.match(admin, /data-testid="adornment-wings-effect"/);
+  assert.match(admin, /Upload the wing adornment once/);
+  assert.match(admin, /No separate wing spots are needed/);
   assert.match(admin, /adornmentSlot === "wings"/);
   assert.match(admin, /next === "wings" \? "wings" : current === "wings" \? "" : current/);
   assert.match(admin, /Wings are automatically mirrored into a front-facing pair and gently open and close together/);
