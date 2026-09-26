@@ -474,7 +474,7 @@ export default function CardAdminPanel() {
     const current = Number(currentLayout.nameCurve ?? 0);
     setCurrentLayout({
       ...currentLayout,
-      nameCurve: Number(Math.max(0, Math.min(8, current + direction)).toFixed(1)),
+      nameCurve: Number(Math.max(0, Math.min(16, current + direction)).toFixed(1)),
     });
   };
 
@@ -742,7 +742,7 @@ export default function CardAdminPanel() {
                 {selectedField === "name" && (
                   <div className="rounded-lg p-2.5" style={{ background: "rgba(0,0,0,.22)", border: "1px solid rgba(224,181,74,.18)" }}>
                     <p className="mb-2 text-center font-fantasy text-[9px] text-[#e7cb80]">
-                      Title curve: {(currentLayout.nameCurve ?? 0) > 0 ? (currentLayout.nameCurve ?? 0).toFixed(0) : "Flat"}
+                      Title curve: {(currentLayout.nameCurve ?? 0) > 0 ? `${(currentLayout.nameCurve ?? 0).toFixed(0)} / 16` : "Flat"}
                     </p>
                     <div className="grid grid-cols-[48px_1fr_48px] items-center gap-3">
                       <button
@@ -766,7 +766,7 @@ export default function CardAdminPanel() {
                         data-testid="button-card-title-curve-increase"
                         aria-label="Increase card title curve"
                         onClick={() => adjustTitleCurve(1)}
-                        disabled={(currentLayout.nameCurve ?? 0) >= 8}
+                        disabled={(currentLayout.nameCurve ?? 0) >= 16}
                         className="h-11 rounded-lg text-xl text-[#f8e7b0] active:scale-95 disabled:opacity-40"
                         style={{ background: "#0c1710", border: "1px solid rgba(224,181,74,.36)" }}
                       >+</button>
