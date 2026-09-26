@@ -13,6 +13,7 @@ export interface ShopItemFull {
   price: number;
   type: string;
   adornmentSlot?: string | null;
+  hideAboveHeadPart?: boolean;
   worldId: string;
   imageUrl: string | null;
   eggImageUrl: string | null;
@@ -593,6 +594,7 @@ function AdminItemForm({
   const [type, setType] = useState(defaultType);
   const initialAdornmentSlot = item?.adornmentSlot;
   const [adornmentSlot, setAdornmentSlot] = useState<AdornmentSlotKey>(isAdornmentSlotKey(initialAdornmentSlot) ? initialAdornmentSlot : "head");
+  const [hideAboveHeadPart, setHideAboveHeadPart] = useState(!!item?.hideAboveHeadPart);
   const [edibleLvlPoints, setEdibleLvlPoints] = useState(item?.statBoostAmount?.toString() || "5");
   const [giftPoints, setGiftPoints] = useState(item?.giftPoints?.toString() || "100");
   const [petExp, setPetExp] = useState(item?.petExp?.toString() || "0");
@@ -695,6 +697,7 @@ function AdminItemForm({
       const finalName = name.trim() || (petOnly ? "Unnamed Pet" : "Unnamed Item");
       const payload: any = { name: finalName, description: description.trim() || null, price: priceNum, type: effectiveType, worldId: "all" };
       payload.adornmentSlot = effectiveType === "costume" ? adornmentSlot : null;
+      payload.hideAboveHeadPart = effectiveType === "costume" && adornmentSlot === "head" ? hideAboveHeadPart : false;
       if (imageData) payload.imageData = imageData;
 
       if (effectiveType === "pet") {
@@ -997,6 +1000,41 @@ function AdminItemForm({
                 ))}
               </select>
               <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-1">Sets which of the five player Closet spaces can equip this adornment.</p>
+              {adornmentSlot === "head" && (
+                <div
+                  className="mt-3 flex items-center justify-between gap-3 rounded-md px-3 py-2"
+                  style={{ background: "rgba(0,0,0,.18)", border: "1px solid rgba(212,160,23,.22)" }}
+                >
+                  <div className="min-w-0">
+                    <p className="font-fantasy text-[#d9c291] text-[9px] tracking-wider">Hide Above Head Pet Part</p>
+                    <p className="mt-0.5 font-fantasy text-[#6a5840] text-[7px] leading-3 tracking-wide">When equipped, this Head adornment hides the pet part labeled Above Head.</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={hideAboveHeadPart}
+                    data-testid="toggle-head-adornment-hide-above-head"
+                    onClick={() => setHideAboveHeadPart((current) => !current)}
+                    className="relative h-6 w-11 shrink-0 rounded-full transition-colors"
+                    style={{
+                      background: hideAboveHeadPart ? "#2d6a4f" : "rgba(90,72,52,.8)",
+                      border: `1px solid ${hideAboveHeadPart ? "rgba(127,255,212,.55)" : "rgba(168,152,120,.45)"}`,
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="absolute top-0.5 h-4.5 w-4.5 rounded-full transition-all"
+                      style={{
+                        width: 18,
+                        height: 18,
+                        left: hideAboveHeadPart ? 21 : 2,
+                        background: hideAboveHeadPart ? "#b7f7dc" : "#d1c2a4",
+                        boxShadow: "0 1px 4px rgba(0,0,0,.5)",
+                      }}
+                    />
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

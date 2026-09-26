@@ -43,6 +43,7 @@ interface EquippedCostume {
   costumeInventoryId: string;
   name: string;
   imageUrl: string | null;
+  hideAboveHeadPart?: boolean;
   placements?: CostumePlacement[] | null;
 }
 
@@ -692,6 +693,13 @@ export default function PetAnimator({
   }, [costumeData?.equipped, resolvedView, templateData?.parts]);
   const renderCostumes = !!resolvedPetInventoryId && equipped.length > 0 && !!templateData;
   const hasAboveHead = viewParts.some(part => basePartType(part.partType) === "above_head");
+  const costumeView = resolvedView === "back" ? "side" : "front";
+  const hideAboveHeadPart = equipped.some((costume) =>
+    costume.slot === ADORNMENT_SLOT_MAP.head
+    && costume.hideAboveHeadPart === true
+    && Array.isArray(costume.placements)
+    && costume.placements.some((placement) => placement?.view === costumeView)
+  );
   // Above-head parts are intentionally re-rendered in the z=3 top layer while
   // costumes are visible so crowns/halos/hats stay above front costume pieces.
   // Hide those exact source parts from PetAnimatorCore at the same time.
@@ -775,7 +783,7 @@ export default function PetAnimator({
       </div>
       <style data-testid="pet-animation-seam-guard">{`${PET_ATTACHMENT_SEAM_GUARD}\n${SQUIRREL_FOX_IDLE_GUARD}\n${ADORNMENT_MOTION_CSS}`}</style>
       {renderCostumes && costumeLayer("front")}
-      {renderCostumes && hasAboveHead && (
+      {renderCostumes && hasAboveHead && !hideAboveHeadPart && (
         <div
           aria-hidden
           data-testid="pet-animator-above-head-top"

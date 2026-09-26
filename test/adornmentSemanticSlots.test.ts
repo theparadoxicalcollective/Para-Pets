@@ -33,6 +33,24 @@ test("administration saves and exposes an adornment Closet-space selector", () =
   assert.match(boot, /ADD COLUMN IF NOT EXISTS adornment_slot TEXT/);
 });
 
+test("Head adornments can optionally hide the native Above Head pet part", () => {
+  const admin = read("client/src/components/ItemDatabaseSection.tsx");
+  const schema = read("shared/schema.ts");
+  const boot = read("server/startup/migrations/runEssentialBoot.ts");
+  const routes = read("server/routes/costumePlayer.routes.ts");
+  const animator = read("client/src/components/PetAnimator.tsx");
+
+  assert.match(admin, /data-testid="toggle-head-adornment-hide-above-head"/);
+  assert.match(admin, /adornmentSlot === "head"/);
+  assert.match(admin, /payload\.hideAboveHeadPart = effectiveType === "costume" && adornmentSlot === "head" \? hideAboveHeadPart : false/);
+  assert.match(schema, /hideAboveHeadPart:\s*boolean\("hide_above_head_part"\)\.notNull\(\)\.default\(false\)/);
+  assert.match(boot, /ADD COLUMN IF NOT EXISTS hide_above_head_part BOOLEAN NOT NULL DEFAULT false/);
+  assert.match(routes, /hideAboveHeadPart:\s*shopItems\.hideAboveHeadPart/);
+  assert.match(animator, /costume\.slot === ADORNMENT_SLOT_MAP\.head/);
+  assert.match(animator, /costume\.hideAboveHeadPart === true/);
+  assert.match(animator, /hasAboveHead && !hideAboveHeadPart/);
+});
+
 test("player Closet filters assigned adornments by space and Wings replaces native wing parts", () => {
   const closet = read("client/src/components/PetCostumeEquipmentSection.tsx");
   const routes = read("server/routes/costumePlayer.routes.ts");
