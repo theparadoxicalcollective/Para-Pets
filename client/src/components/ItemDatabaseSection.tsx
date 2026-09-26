@@ -1031,7 +1031,7 @@ function AdminItemForm({
                     ))}
                   </select>
                   <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-1">
-                    Applies to this adornment wherever it is equipped. Existing fitted motion is preserved until an effect is chosen here.
+                    Applies wherever this adornment is equipped. Still adds no extra effect; Head, Left Hand, and Right Hand adornments still follow the matching animated pet part.
                   </p>
                 </div>
               )}
