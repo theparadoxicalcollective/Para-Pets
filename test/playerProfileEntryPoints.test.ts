@@ -101,11 +101,23 @@ test("admin item form saves a bounded accessory star rarity", () => {
   assert.match(schema, /Accessory star rarity must be from 1 through 5/);
 });
 
-test("shared player card animates template pets idly with a still-image fallback", () => {
+test("player detail cards show active-pet adornments with a lightweight static renderer", () => {
   const source = read("client/src/components/PlayerDetailPanel.tsx");
   assert.match(source, /import PetAnimator from "@\/components\/PetAnimator"/);
   assert.match(source, /profile\.activePet\.petTemplateId \? \(/);
-  assert.match(source, /mode="idle"/);
+  assert.match(source, /petInventoryId=\{profile\.activePet\.inventoryId\}/);
+  assert.match(source, /costumeAccess="public"/);
+  assert.match(source, /mode="static"/);
   assert.match(source, /fitVisible/);
   assert.match(source, /\) : petImg \? \(/);
+});
+
+test("compact friend profile cards also render active-pet adornments statically", () => {
+  const source = read("client/src/components/FriendProfileModal.tsx");
+  assert.match(source, /import PetAnimator from "\.\/PetAnimator"/);
+  assert.match(source, /data-testid="friend-profile-active-pet"/);
+  assert.match(source, /petInventoryId=\{activePet\.inventoryId\}/);
+  assert.match(source, /costumeAccess="public"/);
+  assert.match(source, /mode="static"/);
+  assert.match(source, /activePet\.hatchedImageUrl \|\| activePet\.imageUrl/);
 });

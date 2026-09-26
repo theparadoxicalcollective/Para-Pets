@@ -1,10 +1,9 @@
-import { useRef, type PointerEvent as ReactPointerEvent } from "react";
+import { useId, useRef, type PointerEvent as ReactPointerEvent } from "react";
 import CardFittedText from "./CardFittedText";
 import CardSpecialArtworkEffect from "./CardSpecialArtworkEffect";
 import CardCornerBanner from "./CardCornerBanner";
 import { cardArtworkEffect, type CardSpecialEffect } from "@shared/cardSpecialEffect";
 import type { CardLabel } from "@shared/cardLabel";
-import starImg from "@assets/Photoroom_20260331_20947_PM_1774984267132.png";
 import {
   CARD_BORDER_ASSETS,
   type CardBorderLayout,
@@ -36,12 +35,51 @@ interface DragState {
   offsetX: number;
   offsetY: number;
 }
+const CARD_RARITY_STAR_PATH = "M50 4 L61.5 34.5 L94 36 L68.5 56.5 L77.5 89 L50 70.5 L22.5 89 L31.5 56.5 L6 36 L38.5 34.5 Z";
+
+function CardRarityStar({ gradientId }: { gradientId: string }) {
+  return <svg
+    data-testid="card-rarity-star"
+    viewBox="0 0 100 100"
+    aria-hidden="true"
+    style={{
+      width: "100%",
+      height: "100%",
+      overflow: "visible",
+      pointerEvents: "none",
+      filter: "drop-shadow(0 0 1.5px rgba(255,246,192,.95)) drop-shadow(0 0 4px rgba(255,190,42,.62)) drop-shadow(0 2px 2px rgba(92,47,4,.72))",
+    }}
+  >
+    <defs>
+      <linearGradient id={gradientId} x1="18" y1="10" x2="82" y2="90" gradientUnits="userSpaceOnUse">
+        <stop offset="0%" stopColor="#fff4b0" />
+        <stop offset="18%" stopColor="#ffd95a" />
+        <stop offset="48%" stopColor="#f4a91c" />
+        <stop offset="72%" stopColor="#d8800d" />
+        <stop offset="100%" stopColor="#ffd85a" />
+      </linearGradient>
+    </defs>
+
+    <path d={CARD_RARITY_STAR_PATH} fill={"url(#" + gradientId + ")"} stroke="#9b5508" strokeWidth="4.1" strokeLinejoin="round" />
+    <path d={CARD_RARITY_STAR_PATH} fill="none" stroke="rgba(255,239,150,.92)" strokeWidth="1.35" strokeLinejoin="round" />
+
+    <path d="M50 7 L50 50 L38.5 34.5 Z" fill="rgba(255,255,224,.74)" />
+    <path d="M50 50 L61.5 34.5 L94 36 L68.5 56.5 Z" fill="rgba(255,201,42,.72)" />
+    <path d="M50 50 L68.5 56.5 L77.5 89 L50 70.5 Z" fill="rgba(194,103,5,.38)" />
+    <path d="M50 50 L50 70.5 L22.5 89 L31.5 56.5 Z" fill="rgba(255,188,29,.44)" />
+    <path d="M50 50 L31.5 56.5 L6 36 L38.5 34.5 Z" fill="rgba(255,225,101,.58)" />
+
+    <path d="M50 17 L54 43 L81 39 L57 52 L68 76 L50 58 L32 76 L43 52 L19 39 L46 43 Z" fill="rgba(255,244,166,.17)" />
+    <path d="M50 36 L54.2 46 L65 50 L54.2 54 L50 64 L45.8 54 L35 50 L45.8 46 Z" fill="rgba(255,255,239,.92)" />
+    <circle cx="50" cy="50" r="4.1" fill="#fffbe1" opacity=".96" />
+  </svg>;
+}
 
 const RARITY_TEXT_STYLES: Record<CardRarity, { name: string; description: string }> = {
   1: { name: "#4a4032", description: "#5b5143" },
   2: { name: "#4a4032", description: "#5b5143" },
   3: { name: "#4a4032", description: "#5b5143" },
-  4: { name: "#573b72", description: "#6b4c81" },
+  4: { name: "#7f5528", description: "#6b4c81" },
   5: { name: "#7f5528", description: "#7f5528" },
 };
 
@@ -144,14 +182,15 @@ export default function CardPreview({
   onLayoutChange,
 }: CardPreviewProps) {
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const rarityStarId = useId().replace(/:/g, "");
   const dragRef = useRef<DragState | null>(null);
 
   // The saved per-card color belongs to the artwork swirls only.
   const activeEffectColor = normalizeEffectColor(effectColor) ?? RARITY_SPARKLE_STYLE[rarity].color;
   const artworkEffect = cardArtworkEffect(specialEffect);
   const sparkleGlow = RARITY_SPARKLE_STYLE[rarity].glow;
-  const borderGlowBackground = "linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%), linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%)";
-  const borderGlowFilter = `drop-shadow(0 0 ${2.8 + rarity * .45}px rgba(255,224,116,.95)) drop-shadow(0 0 ${6.5 + rarity * .9}px rgba(255,184,34,.7)) drop-shadow(0 0 ${11 + rarity * 1.1}px rgba(255,146,18,.36))`;
+  const borderGlowBackground = "linear-gradient(108deg, transparent 0 43.5%, rgba(255,190,36,.04) 46%, rgba(255,220,94,.16) 48.2%, rgba(255,246,195,.68) 49.6%, rgba(255,255,226,.9) 50%, rgba(255,226,110,.24) 51.7%, rgba(255,182,27,.05) 54%, transparent 56.5% 100%)";
+  const borderGlowFilter = `drop-shadow(0 0 ${1.5 + rarity * .22}px rgba(255,239,177,.72)) drop-shadow(0 0 ${3.8 + rarity * .42}px rgba(255,188,42,.34))`;
 
   const fieldMetrics = (field: CardLayoutField) => field === "name"
     ? { x: layout.nameX, y: layout.nameY, width: layout.nameWidth, height: layout.nameHeight }
@@ -483,9 +522,9 @@ export default function CardPreview({
             WebkitMaskSize: "100% 100%",
             maskSize: "100% 100%",
             backgroundImage: borderGlowBackground,
-            backgroundSize: "190% 100%, 190% 100%",
-            backgroundRepeat: "no-repeat, no-repeat",
-            backgroundPosition: depth3d ? "var(--card-turn-position, 0%) 0, 190% 0" : "0% 0, 190% 0",
+            backgroundSize: "220% 100%",
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: depth3d ? "var(--card-turn-position, 0%) 0" : "145% 0",
             mixBlendMode: "screen",
             filter: borderGlowFilter,
             opacity: depth3d ? "var(--card-turn-opacity, 0)" : .82 + (rarity - 3) * .06,
@@ -568,9 +607,21 @@ export default function CardPreview({
           background: editable && selectedField === "stars" ? "rgba(22,90,58,.34)" : "transparent",
           cursor: editable ? "grab" : "default", touchAction: editable ? "none" : "auto", userSelect: "none" }}
       >
-        {Array.from({ length: rarity }, (_, index) => <img key={index} src={starImg} alt="" draggable={false}
-          style={{ width: `${100 / rarity}%`, height: "100%", objectFit: "contain", pointerEvents: "none",
-            filter: "brightness(1.2) saturate(1.12) drop-shadow(0 0 2px rgba(255,245,190,.95)) drop-shadow(0 0 6px rgba(255,196,54,.82)) drop-shadow(0 1px 2px rgba(0,0,0,.78))" }} />)}
+        {Array.from({ length: rarity }, (_, index) => (
+          <div
+            key={index}
+            style={{
+              width: `${100 / rarity}%`,
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              pointerEvents: "none",
+            }}
+          >
+            <CardRarityStar gradientId={"card-rarity-star-" + rarityStarId + "-" + index} />
+          </div>
+        ))}
       </div>
       {showSparkles && <style>{`
         @keyframes cardGlitterPulseA {
@@ -607,8 +658,8 @@ export default function CardPreview({
           70% { opacity: .42; }
         }
         @keyframes cardBorderGlowTravel {
-          from { background-position: 0% 0, 190% 0; }
-          to { background-position: -190% 0, 0% 0; }
+          from { background-position: 145% 0; }
+          to { background-position: -45% 0; }
         }
         @keyframes cardBorderGlint {
           0%, 100% { opacity: .08; transform: scale(.62) rotate(0deg); }
@@ -639,18 +690,6 @@ export default function CardPreview({
           filter: drop-shadow(0 0 1px rgba(255,255,240,.96)) drop-shadow(0 0 4px rgba(255,193,58,.8));
           animation: cardBorderGlint 2.15s ease-in-out infinite;
         }
-        [data-card-title-rarity="4"] > span,
-        [data-card-title-rarity="4"] .card-curved-title-letter {
-          color: #673b18;
-          -webkit-text-fill-color: transparent;
-          background-image: linear-gradient(100deg, #673b18 0%, #88511c 42%, #fff5cb 49%, #c18a2e 54%, #673b18 100%);
-          background-size: 250% 100%;
-          background-position: var(--card-turn-position, 0%) 50%;
-          background-clip: text;
-          -webkit-background-clip: text;
-          filter: drop-shadow(0 1px 1px rgba(45,24,8,.55));
-          transition: background-position 180ms ease-out;
-        }
         .card-sparkle-swirl-line {
           mix-blend-mode: screen;
           filter: drop-shadow(0 0 .7px rgba(255,255,240,.88)) drop-shadow(0 0 2px rgba(255,214,115,.5));
@@ -673,10 +712,8 @@ export default function CardPreview({
           .card-micro-glint,
           .card-border-glint { opacity: .6; }
           .card-sparkle-swirl-line { opacity: .56; }
-          .card-border-gold-glow { background-position: 0% 0, 190% 0; opacity: .88; }
-          .card-border-turn-glow,
-          [data-card-title-rarity="4"] > span,
-          [data-card-title-rarity="4"] .card-curved-title-letter { transition: none; }
+          .card-border-gold-glow { background-position: 50% 0; opacity: .62; }
+          .card-border-turn-glow { transition: none; }
         }
       `}</style>}
     </div>

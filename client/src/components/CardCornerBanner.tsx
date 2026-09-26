@@ -1,11 +1,12 @@
 import * as React from "react";
 import { CARD_LABEL_DETAILS, type CardLabel } from "@shared/cardLabel";
 
-/** Compact seasonal tag angled across the upper-left without clipping the card edge. */
+/** Seasonal corner tag kept fully inside the card with text clipped to the ribbon body. */
 export default function CardCornerBanner({ label, depth3d = false }: { label: CardLabel; depth3d?: boolean }) {
   const { text, background, highlight } = CARD_LABEL_DETAILS[label];
   const gradientId = `card-label-gradient-${label}`;
   const shadowId = `card-label-shadow-${label}`;
+  const textClipId = `card-label-text-clip-${label}`;
 
   return <svg
     data-testid={`card-label-${label}`}
@@ -35,35 +36,39 @@ export default function CardCornerBanner({ label, depth3d = false }: { label: Ca
         <feDropShadow dx="0" dy=".75" stdDeviation=".7" floodColor="#000000" floodOpacity=".66" />
         <feDropShadow dx="0" dy="0" stdDeviation=".9" floodColor={background} floodOpacity=".78" />
       </filter>
+      <clipPath id={textClipId} clipPathUnits="userSpaceOnUse">
+        <path d="M 8.5 13.5 L 48.2 13.5 L 53.2 17 L 48.2 20.5 L 8.5 20.5 L 12 17 Z" />
+      </clipPath>
     </defs>
 
-    <g transform="rotate(-18 23 20.5)" filter={`url(#${shadowId})`}>
+    <g transform="rotate(-17 29 17)" filter={`url(#${shadowId})`}>
       <path
-        d="M 4 16 L 41 16 L 47 20.5 L 41 25 L 4 25 L 8.6 20.5 Z"
+        d="M 4.5 12.5 L 50 12.5 L 56.5 17 L 50 21.5 L 4.5 21.5 L 9.5 17 Z"
         fill={`url(#${gradientId})`}
         stroke="#f0c96f"
         strokeWidth=".72"
         strokeLinejoin="round"
       />
       <path
-        d="M 6 17.25 L 40.1 17.25 L 44.1 20.5 L 40.1 23.75 L 6 23.75"
+        d="M 7 13.75 L 48.3 13.75 L 53 17 L 48.3 20.25 L 7 20.25"
         fill="none"
         stroke="#ffe0a0"
         strokeWidth=".22"
         opacity=".82"
       />
       <text
-        x="23.3"
-        y="20.7"
+        x="29"
+        y="17.2"
         textAnchor="middle"
         dominantBaseline="middle"
-        textLength="34.6"
+        textLength="35.5"
         lengthAdjust="spacingAndGlyphs"
+        clipPath={`url(#${textClipId})`}
         fill="#ffe7a3"
         stroke="#3a1908"
-        strokeWidth=".11"
+        strokeWidth=".1"
         paintOrder="stroke"
-        style={{ fontFamily: "'Cinzel', Georgia, serif", fontSize: "3.05px", fontWeight: 700, letterSpacing: ".018em" }}
+        style={{ fontFamily: "'Cinzel', Georgia, serif", fontSize: "2.82px", fontWeight: 700, letterSpacing: ".012em" }}
       >
         {text}
       </text>

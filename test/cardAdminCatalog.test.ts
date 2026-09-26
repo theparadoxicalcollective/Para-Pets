@@ -143,13 +143,22 @@ test("1, 2, and 3 star cards share the same neutral text colors", () => {
   assert.match(preview, /3: \{ name: "#4a4032", description: "#5b5143" \}/);
 });
 
-test("5 star card title uses the same warm readable tone as its description", () => {
+test("4 and 5 star card titles share the same warm readable name color", () => {
+  assert.match(preview, /4: \{ name: "#7f5528", description: "#6b4c81" \}/);
   assert.match(preview, /5: \{ name: "#7f5528", description: "#7f5528" \}/);
+  assert.doesNotMatch(preview, /\[data-card-title-rarity="4"\] > span/);
   assert.doesNotMatch(preview, /\[data-card-title-rarity="5"\] > span/);
 });
 
 test("detail cards use lightweight rarity-scaled magical glitter inside the artwork", () => {
-  assert.match(preview, /brightness\(1\.2\)/);
+  assert.match(preview, /data-testid="card-rarity-star"/);
+  assert.match(preview, /CARD_RARITY_STAR_PATH/);
+  assert.match(preview, /stopColor="#fff4b0"/);
+  assert.match(preview, /stopColor="#f4a91c"/);
+  assert.match(preview, /stroke="#9b5508"/);
+  assert.match(preview, /fill="rgba\(255,255,239,\.92\)"/);
+  assert.match(preview, /drop-shadow\(0 0 4px rgba\(255,190,42,\.62\)\)/);
+  assert.doesNotMatch(preview, /Photoroom_20260331_20947_PM_1774984267132\.png/);
   assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*44[\s\S]*?3:\s*96[\s\S]*?4:\s*148[\s\S]*?5:\s*220/);
   assert.match(preview, /RARITY_GLINT_COUNT[\s\S]*?2:\s*5[\s\S]*?3:\s*14[\s\S]*?4:\s*26[\s\S]*?5:\s*44/);
   assert.match(preview, /RARITY_SWIRL_COUNT[\s\S]*?2:\s*1[\s\S]*?3:\s*1[\s\S]*?4:\s*2[\s\S]*?5:\s*3/);
@@ -174,28 +183,27 @@ test("detail cards use lightweight rarity-scaled magical glitter inside the artw
   assert.doesNotMatch(preview, /stroke-dasharray: 17 83/);
   assert.match(preview, /showSparkles && rarity >= 3/);
   assert.match(preview, /data-testid="card-border-gold-glow"/);
+  assert.match(preview, /linear-gradient\(108deg/); // single narrow gold shine band
+  assert.doesNotMatch(preview, /\), linear-gradient\(108deg/);
   assert.match(preview, /zIndex: 3/);
   assert.match(preview, /maskImage: `url/);
   assert.match(preview, /mixBlendMode: "screen"/);
-  assert.match(preview, /backgroundRepeat: "no-repeat, no-repeat"/);
-  assert.match(preview, /backgroundPosition: depth3d \? "var\(--card-turn-position, 0%\) 0, 190% 0" : "0% 0, 190% 0"/);
-  assert.match(preview, /from \{ background-position: 0% 0, 190% 0; \}/);
-  assert.match(preview, /to \{ background-position: -190% 0, 0% 0; \}/);
+  assert.match(preview, /backgroundRepeat: "no-repeat"/);
+  assert.match(preview, /backgroundPosition: depth3d \? "var\(--card-turn-position, 0%\) 0" : "145% 0"/);
+  assert.match(preview, /from \{ background-position: 145% 0; \}/);
+  assert.match(preview, /to \{ background-position: -45% 0; \}/);
   assert.match(preview, /cardBorderGlowTravel 11\.5s linear infinite/);
-  assert.match(preview, /drop-shadow\(0 0 \$\{6\.5 \+ rarity \* \.9\}px rgba\(255,184,34,\.7\)\)/);
+  assert.match(preview, /drop-shadow\(0 0 \$\{3\.8 \+ rarity \* \.42\}px rgba\(255,188,42,\.34\)\)/);
   assert.match(preview, /showSparkles && rarity === 5/);
   assert.match(preview, /data-testid="card-border-sparkles"/);
   assert.match(preview, /animationDuration: "3\.2s"/);
   assert.match(preview, /CARD_BORDER_GLINT_POINTS\.length \* 3\.2/);
   assert.match(preview, /cardBorderGlint/);
   assert.match(preview, /data-card-title-rarity=\{highRarityTitle \? rarity : undefined\}/);
-  assert.match(preview, /background-position: var\(--card-turn-position, 0%\) 50%/);
-  assert.match(preview, /color: #673b18/);
   assert.match(preview, /card-border-turn-glow/);
   assert.match(detail, /--card-turn-intensity/);
   assert.doesNotMatch(preview, /cardTitleFiveStarPulse/);
   assert.doesNotMatch(preview, /cardTitleHologoldSweep/);
-  assert.match(preview, /background-clip: text/);
   assert.match(preview, /prefers-reduced-motion: reduce/);
   assert.match(preview, /inset: depth3d \? "12% 7%" : "12% 10%"/);
   assert.match(preview, /inset 0 0 24px 8px/);
