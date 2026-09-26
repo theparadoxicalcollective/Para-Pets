@@ -25,6 +25,14 @@ async function ownedPet(petInventoryId: string, userId: string) {
   return { pet, item };
 }
 
+function placementsForPetForm(value: unknown, isEvolved: boolean) {
+  const placements = normalizeCostumePlacements(value);
+  const desiredForm = isEvolved ? "evolution" : "base";
+  const exact = placements.filter((placement) => (placement.form ?? "base") === desiredForm);
+  if (exact.length > 0 || !isEvolved) return exact;
+  return placements.filter((placement) => (placement.form ?? "base") === "base");
+}
+
 export function registerCostumePlayerRoutes(app: Express) {
   app.get("/api/user/equipped-costume-counts", requireAuthenticated, async (req: Request, res: Response) => {
     try {
@@ -203,7 +211,7 @@ export function registerCostumePlayerRoutes(app: Express) {
           )).limit(1);
         if (!definition) throw new Error("This costume has not been fitted for this pet yet");
 
-        const requestedPlacements = normalizeCostumePlacements(definition.placements);
+        const requestedPlacements = placementsForPetForm(definition.placements, !!target.pet.isEvolved);
         if (requestedPlacements.length === 0) throw new Error("This costume fitting is incomplete");
         const requestedLayers = new Set(requestedPlacements.filter(placement => placement.anchorPart !== "independent").map((placement) => placement.anchorPart));
         const equippedLayers = await tx.select({
@@ -218,7 +226,7 @@ export function registerCostumePlayerRoutes(app: Express) {
           ))
           .where(eq(petEquippedCostumes.petInventoryId, petInventoryId));
         const layerConflict = equippedLayers.find((equippedCostume) =>
-          normalizeCostumePlacements(equippedCostume.placements)
+          placementsForPetForm(equippedCostume.placements, !!target.pet.isEvolved)
             .some((placement) => requestedLayers.has(placement.anchorPart))
         );
         if (layerConflict) {
