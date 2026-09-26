@@ -11,6 +11,23 @@ test("Mini Pets expose the supported animation part types including optional fac
     partType: "closed_eyes",
     imageData: "data:image/png;base64,AA==",
   }).success, true);
+  assert.equal(miniPetPartSchema.safeParse({
+    partType: "head_accessory",
+    imageData: "data:image/png;base64,AA==",
+  }).success, true);
+});
+
+test("Mini Pet boot permits every supported part on new and existing databases", () => {
+  const boot = readFileSync(new URL("../server/startup/migrations/runEssentialBoot.ts", import.meta.url), "utf8");
+  const partChecks = [...boot.matchAll(/CHECK\(part_type IN \(([^)]+)\)\)/g)];
+  assert.equal(partChecks.length, 2, "new-table and upgrade checks should stay in sync");
+  for (const [, values] of partChecks) {
+    const allowed = values.match(/'[^']+'/g)?.map(value => value.slice(1, -1)) ?? [];
+    assert.deepEqual(new Set(allowed), new Set(MINI_PET_PART_TYPES));
+  }
+  assert.match(boot, /pg_get_constraintdef\(oid\) NOT LIKE '%closed_eyes%'/);
+  assert.match(boot, /pg_get_constraintdef\(oid\) NOT LIKE '%head_accessory%'/);
+  assert.match(boot, /ALTER TABLE mini_pet_parts DROP CONSTRAINT mini_pet_parts_part_type_check/);
 });
 
 test("Mini Pet blinking pairs open and closed eye frames with an eyes-only fallback", () => {

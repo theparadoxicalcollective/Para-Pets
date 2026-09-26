@@ -70,7 +70,7 @@ export async function runEssentialBoot(): Promise<void> {
       CREATE TABLE IF NOT EXISTS mini_pet_parts (
         id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
         shop_item_id VARCHAR NOT NULL REFERENCES shop_items(id) ON DELETE CASCADE,
-        part_type TEXT NOT NULL CHECK(part_type IN ('eyes','head','left_ear','right_ear','body','tail','left_wing','right_wing')),
+        part_type TEXT NOT NULL CHECK(part_type IN ('eyes','closed_eyes','head','head_accessory','left_ear','right_ear','body','tail','left_wing','right_wing')),
         image_url TEXT NOT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT now(),
         UNIQUE(shop_item_id, part_type)
@@ -81,6 +81,23 @@ export async function runEssentialBoot(): Promise<void> {
         created_at TIMESTAMP NOT NULL DEFAULT now()
       );
       CREATE INDEX IF NOT EXISTS mini_pet_parts_item_idx ON mini_pet_parts(shop_item_id);
+      -- Existing installations retain the original check after CREATE TABLE IF NOT EXISTS.
+      -- Replace it only when the optional animation layers are not yet allowed.
+      DO $$ BEGIN
+        IF EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conrelid = 'mini_pet_parts'::regclass
+            AND conname = 'mini_pet_parts_part_type_check'
+            AND (
+              pg_get_constraintdef(oid) NOT LIKE '%closed_eyes%'
+              OR pg_get_constraintdef(oid) NOT LIKE '%head_accessory%'
+            )
+        ) THEN
+          ALTER TABLE mini_pet_parts DROP CONSTRAINT mini_pet_parts_part_type_check;
+          ALTER TABLE mini_pet_parts ADD CONSTRAINT mini_pet_parts_part_type_check
+            CHECK(part_type IN ('eyes','closed_eyes','head','head_accessory','left_ear','right_ear','body','tail','left_wing','right_wing'));
+        END IF;
+      END $$;
     `],
     ["Card catalog and border layout migration error (non-fatal):", sql`
       CREATE TABLE IF NOT EXISTS card_definitions (
