@@ -59,6 +59,7 @@ export const costumePlacementSchema = z.object({
   mirroredWingImageUrl: z.string().max(100).regex(ADORNMENT_IMAGE_URL_PATTERN).optional(),
   replacesWings: z.boolean().optional(),
   dontMove: z.boolean().optional(),
+  followPartIndex: z.number().int().min(1).max(3).optional(),
   instance: z.number().int().min(1).max(COSTUME_MAX_PLACEMENT_INSTANCES).default(1),
   posX: z.number(),
   posY: z.number(),
