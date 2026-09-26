@@ -142,6 +142,11 @@ test("1, 2, and 3 star cards share the same neutral text colors", () => {
   assert.match(preview, /3: \{ name: "#4a4032", description: "#5b5143" \}/);
 });
 
+test("5 star card title uses the same warm readable tone as its description", () => {
+  assert.match(preview, /5: \\{ name: "#7f5528", description: "#7f5528" \\}/);
+  assert.doesNotMatch(preview, /\\[data-card-title-rarity="5"\\] > span/);
+});
+
 test("detail cards use lightweight rarity-scaled magical glitter inside the artwork", () => {
   assert.match(preview, /brightness\(1\.2\)/);
   assert.match(preview, /RARITY_SPARKLE_COUNT[\s\S]*?1:\s*0[\s\S]*?2:\s*44[\s\S]*?3:\s*96[\s\S]*?4:\s*148[\s\S]*?5:\s*220/);
