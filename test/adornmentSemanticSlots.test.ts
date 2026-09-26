@@ -71,6 +71,7 @@ test("Wings adornment type automatically uses front-facing mirrored open-close m
   const animation = read("shared/adornmentAnimation.ts");
   const animator = read("client/src/components/PetAnimator.tsx");
   const artwork = read("client/src/components/AdornmentArtwork.tsx");
+  const schema = read("shared/schema.ts");
 
   assert.match(admin, /data-testid="adornment-wings-effect"/);
   assert.match(admin, /Upload the wing adornment once/);
@@ -84,6 +85,39 @@ test("Wings adornment type automatically uses front-facing mirrored open-close m
   assert.match(animator, /matchingPlacements\.slice\(0, 1\)/);
   assert.match(artwork, /const profile = wingPair \? "wings"/);
   assert.match(schema, /Wings adornments use automatic mirrored wing motion instead of a selectable effect/);
+});
+
+test("Still Head and hand adornments follow the matching animated pet part", () => {
+  const animator = read("client/src/components/PetAnimator.tsx");
+
+  assert.match(animator, /function semanticStillPartType/);
+  assert.match(animator, /costume\.adornmentEffect !== "still"/);
+  assert.match(animator, /ADORNMENT_SLOT_MAP\.head\) return "head"/);
+  assert.match(animator, /ADORNMENT_SLOT_MAP\.left_hand\) return "left_hand"/);
+  assert.match(animator, /ADORNMENT_SLOT_MAP\.right_hand\) return "right_hand"/);
+  assert.match(animator, /function rebasePlacementToPart/);
+  assert.match(animator, /const placement = followPart \? rebasePlacementToPart\(savedPlacement, followPart, sortedParts\) : savedPlacement/);
+  assert.match(animator, /animation: animName \? buildAnimation\(animName, duration, partDelay\) : undefined/);
+});
+
+test("base and evolution adornment fittings are stored separately with safe base fallback", () => {
+  const feature = read("shared/costumeFeature.ts");
+  const schema = read("shared/costumeSchema.ts");
+  const editor = read("client/src/components/PetDatabasePanel.tsx");
+  const animator = read("client/src/components/PetAnimator.tsx");
+
+  assert.match(feature, /CostumeArtworkForm = "base" \| "evolution"/);
+  assert.match(feature, /form\?: CostumeArtworkForm/);
+  assert.match(schema, /form: z\.enum\(\["base", "evolution"\]\)\.default\("base"\)/);
+  assert.match(schema, /\$\{placement\.form\}:\$\{placement\.view\}:\$\{placement\.instance\}/);
+  assert.match(editor, /data-testid="button-adornment-form-base"/);
+  assert.match(editor, /data-testid="button-adornment-form-evolution"/);
+  assert.match(editor, /REGULAR PET ADORNMENTS/);
+  assert.match(editor, /EVOLUTION ADORNMENTS/);
+  assert.match(editor, /\(placement\.form \?\? "base"\) === costumeArtworkForm/);
+  assert.match(animator, /function placementsForArtworkForm/);
+  assert.match(animator, /artworkForm === "base"/);
+  assert.match(animator, /resolvedArtworkForm/);
 });
 
 test("Head adornments can optionally hide the native Above Head pet part", () => {
