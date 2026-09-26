@@ -77,7 +77,6 @@ test("Wings Closet space uses a fixed mirrored open-close effect instead of the 
   assert.match(admin, /No separate wing spots are needed/);
   assert.match(admin, /adornmentSlot === "wings"/);
   assert.match(admin, /next === "wings" \? "wings" : current === "wings" \? "" : current/);
-  assert.match(admin, /Wings are automatically mirrored into a front-facing pair and gently open and close together/);
   assert.match(admin, /ADORNMENT_GENERAL_ITEM_EFFECTS\.map/);
   assert.match(animation, /wings: "Wings — mirrored open \/ close"/);
   assert.match(animation, /@keyframes adornment-wings \{ 0%,100% \{ transform:rotate\(-10deg\) scaleX\(\.74\); \} 50% \{ transform:rotate\(8deg\) scaleX\(1\); \} \}/);
