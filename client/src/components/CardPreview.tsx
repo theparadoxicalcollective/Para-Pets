@@ -19,11 +19,11 @@ interface CardPreviewProps {
   specialEffect?: CardSpecialEffect | null;
   label?: CardLabel | null;
   name: string;
-  description: string;
+  /** Legacy face description data is accepted for older callers but is no longer rendered on the card front. */
+  description?: string;
   layout: CardBorderLayout;
   editable?: boolean;
   textSize?: "scaled" | "inventory" | "detail";
-  onDescriptionClick?: () => void;
   depth3d?: boolean;
   showSparkles?: boolean;
   selectedField?: CardLayoutField;
@@ -131,11 +131,9 @@ export default function CardPreview({
   specialEffect,
   label,
   name,
-  description,
   layout,
   editable = false,
   textSize = "scaled",
-  onDescriptionClick,
   depth3d = false,
   showSparkles = false,
   selectedField = "name",
@@ -216,7 +214,7 @@ export default function CardPreview({
       ? (TITLE_Y_NUDGE[rarity] ?? 0)
       : 0;
     const selected = editable && selectedField === field;
-    const clickable = !editable && !isName && !!onDescriptionClick;
+    const clickable = false;
     const rarityTextStyle = RARITY_TEXT_STYLES[rarity];
     // Saved font sizes describe a 240px-wide card, rather than fixed screen pixels.
     const relativeFontSize = `${(isName ? layout.nameFontSize : layout.descriptionFontSize) / 240 * 100}cqw`;
@@ -241,14 +239,7 @@ export default function CardPreview({
         onPointerCancel={endDrag}
         role={clickable ? "button" : undefined}
         tabIndex={clickable ? 0 : undefined}
-        aria-label={clickable ? `Read full description of ${name}` : undefined}
-        onKeyDown={event => {
-          if (clickable && (event.key === "Enter" || event.key === " ")) {
-            event.preventDefault();
-            onDescriptionClick?.();
-          }
-        }}
-        onClick={() => clickable ? onDescriptionClick?.() : onSelectField?.(field)}
+        onClick={() => onSelectField?.(field)}
         style={{
           position: "absolute",
           left: `${metrics.x}%`,
@@ -280,7 +271,7 @@ export default function CardPreview({
           userSelect: "none",
         }}
       >
-        <CardFittedText text={isName ? (name || "CARD NAME") : (description || "Card description")} preferredFontSize={fontSize} minimumFontSize={minimumFontSize} curve={isName ? (layout.nameCurve ?? 0) : 0} />
+        <CardFittedText text={name || "CARD NAME"} preferredFontSize={fontSize} minimumFontSize={minimumFontSize} curve={isName ? (layout.nameCurve ?? 0) : 0} />
       </div>
     );
   };
@@ -550,7 +541,6 @@ export default function CardPreview({
       />
       {label && <CardCornerBanner label={label} depth3d={depth3d} />}
       {renderTextBox("name")}
-      {renderTextBox("description")}
       <div
         data-testid="card-layout-box-stars"
         onPointerDown={(event) => beginDrag("stars", event)}
