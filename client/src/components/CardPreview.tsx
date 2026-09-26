@@ -1,7 +1,9 @@
 import { useRef, type PointerEvent as ReactPointerEvent } from "react";
 import CardFittedText from "./CardFittedText";
 import CardSpecialArtworkEffect from "./CardSpecialArtworkEffect";
+import CardCornerBanner from "./CardCornerBanner";
 import { cardArtworkEffect, type CardSpecialEffect } from "@shared/cardSpecialEffect";
+import type { CardLabel } from "@shared/cardLabel";
 import starImg from "@assets/Photoroom_20260331_20947_PM_1774984267132.png";
 import {
   CARD_BORDER_ASSETS,
@@ -15,6 +17,7 @@ interface CardPreviewProps {
   artworkUrl?: string | null;
   effectColor?: string | null;
   specialEffect?: CardSpecialEffect | null;
+  label?: CardLabel | null;
   name: string;
   description: string;
   layout: CardBorderLayout;
@@ -127,6 +130,7 @@ export default function CardPreview({
   artworkUrl,
   effectColor,
   specialEffect,
+  label,
   name,
   description,
   layout,
@@ -545,6 +549,7 @@ export default function CardPreview({
         draggable={false}
         style={{ position: "absolute", inset: 0, zIndex: 2, width: "100%", height: "100%", objectFit: "fill", pointerEvents: "none", transform: depth3d ? "translateZ(16px)" : undefined, backfaceVisibility: "hidden", filter: depth3d ? "drop-shadow(0 8px 12px rgba(0,0,0,.48))" : undefined }}
       />
+      {label && <CardCornerBanner label={label} depth3d={depth3d} />}
       {renderTextBox("name")}
       {renderTextBox("description")}
       <div

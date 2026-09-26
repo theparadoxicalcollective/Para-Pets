@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import CardPreview from "@/components/CardPreview";
 import type { CardSpecialEffect } from "@shared/cardSpecialEffect";
+import { CARD_LABEL_DETAILS, CARD_LABELS, type CardLabel } from "@shared/cardLabel";
 import {
   CARD_RARITIES,
   defaultCardBorderLayout,
@@ -24,6 +25,7 @@ interface CardFormState {
   artworkPreview: string;
   effectColor: string;
   specialEffect: CardSpecialEffect | "";
+  label: CardLabel | "";
   effectPickerX: number;
   effectPickerY: number;
 }
@@ -37,6 +39,7 @@ const EMPTY_FORM: CardFormState = {
   artworkPreview: "",
   effectColor: "",
   specialEffect: "",
+  label: "",
   effectPickerX: 50,
   effectPickerY: 50,
 };
@@ -249,6 +252,7 @@ export default function CardAdminPanel() {
         artworkData: form.artworkData || undefined,
         effectColor: form.effectColor || null,
         specialEffect: form.specialEffect || null,
+        label: form.label || null,
       };
       const response = editingCard
         ? await apiRequest("PATCH", `/api/admin/cards/${editingCard.id}`, body)
@@ -325,6 +329,7 @@ export default function CardAdminPanel() {
       artworkPreview: card.artworkUrl,
       effectColor: card.effectColor ?? "",
       specialEffect: card.specialEffect ?? "",
+      label: card.label ?? "",
       effectPickerX: 50,
       effectPickerY: 50,
     });
@@ -497,6 +502,7 @@ export default function CardAdminPanel() {
                       artworkUrl={card.artworkUrl}
                       effectColor={card.effectColor}
                       specialEffect={card.specialEffect}
+                      label={card.label}
                       name={card.name}
                       description={card.description}
                       layout={getCardBorderLayout(layouts, card.rarity)}
@@ -755,6 +761,7 @@ export default function CardAdminPanel() {
                 artworkUrl={form.artworkPreview}
                 effectColor={form.effectColor || null}
                 specialEffect={form.specialEffect || null}
+                label={form.label || null}
                 name={form.name || "Card Name"}
                 description={form.description || "Card description"}
                 layout={getCardBorderLayout(layouts, form.rarity)}
@@ -804,6 +811,14 @@ export default function CardAdminPanel() {
                   <option value="wisps">Moonfire Wisps — floating lights</option>
                 </select>
                 <span className="mt-1 block text-[9px] leading-4 text-white/45">A special effect replaces the usual artwork sparkles and swirls. The rarity border stays the same. Aurora Veil and Moonfire Wisps use the artwork color picker above.</span>
+              </label>
+              <label className="block">
+                <span className="mb-1 block font-fantasy text-[9px] tracking-wider text-[#ddc175]">LABEL</span>
+                <select data-testid="select-card-label" value={form.label} onChange={(event) => setForm((current) => ({ ...current, label: event.target.value as CardLabel | "" }))} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none" style={{ color: "#fff0bd", background: "#0a1710", border: "1px solid rgba(224,181,74,.3)" }}>
+                  <option value="">No label</option>
+                  {CARD_LABELS.map((label) => <option key={label} value={label}>{CARD_LABEL_DETAILS[label].text}</option>)}
+                </select>
+                <span className="mt-1 block text-[9px] leading-4 text-white/45">The selected gold-trimmed banner appears diagonally across the card's upper-left corner.</span>
               </label>
               <label className="block">
                 <span className="mb-1 block font-fantasy text-[9px] tracking-wider text-[#ddc175]">SHORT DESCRIPTION — CARD FACE</span>
