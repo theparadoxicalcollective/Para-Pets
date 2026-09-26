@@ -150,8 +150,8 @@ export default function CardPreview({
   const activeEffectColor = normalizeEffectColor(effectColor) ?? RARITY_SPARKLE_STYLE[rarity].color;
   const artworkEffect = cardArtworkEffect(specialEffect);
   const sparkleGlow = RARITY_SPARKLE_STYLE[rarity].glow;
-  const borderGlowBackground = "linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%), linear-gradient(105deg, transparent 0 31%, rgba(255,188,32,.08) 37%, rgba(255,214,76,.52) 43%, rgba(255,244,177,1) 49%, rgba(255,202,49,.72) 55%, rgba(255,174,20,.16) 61%, transparent 68% 100%)";
-  const borderGlowFilter = `drop-shadow(0 0 ${2.8 + rarity * .45}px rgba(255,224,116,.95)) drop-shadow(0 0 ${6.5 + rarity * .9}px rgba(255,184,34,.7)) drop-shadow(0 0 ${11 + rarity * 1.1}px rgba(255,146,18,.36))`;
+  const borderGlowBackground = "linear-gradient(108deg, transparent 0 43.5%, rgba(255,190,36,.04) 46%, rgba(255,220,94,.16) 48.2%, rgba(255,246,195,.68) 49.6%, rgba(255,255,226,.9) 50%, rgba(255,226,110,.24) 51.7%, rgba(255,182,27,.05) 54%, transparent 56.5% 100%)";
+  const borderGlowFilter = `drop-shadow(0 0 ${1.5 + rarity * .22}px rgba(255,239,177,.72)) drop-shadow(0 0 ${3.8 + rarity * .42}px rgba(255,188,42,.34))`;
 
   const fieldMetrics = (field: CardLayoutField) => field === "name"
     ? { x: layout.nameX, y: layout.nameY, width: layout.nameWidth, height: layout.nameHeight }
@@ -483,9 +483,9 @@ export default function CardPreview({
             WebkitMaskSize: "100% 100%",
             maskSize: "100% 100%",
             backgroundImage: borderGlowBackground,
-            backgroundSize: "190% 100%, 190% 100%",
-            backgroundRepeat: "no-repeat, no-repeat",
-            backgroundPosition: depth3d ? "var(--card-turn-position, 0%) 0, 190% 0" : "0% 0, 190% 0",
+            backgroundSize: "220% 100%",
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: depth3d ? "var(--card-turn-position, 0%) 0" : "145% 0",
             mixBlendMode: "screen",
             filter: borderGlowFilter,
             opacity: depth3d ? "var(--card-turn-opacity, 0)" : .82 + (rarity - 3) * .06,
@@ -607,8 +607,8 @@ export default function CardPreview({
           70% { opacity: .42; }
         }
         @keyframes cardBorderGlowTravel {
-          from { background-position: 0% 0, 190% 0; }
-          to { background-position: -190% 0, 0% 0; }
+          from { background-position: 145% 0; }
+          to { background-position: -45% 0; }
         }
         @keyframes cardBorderGlint {
           0%, 100% { opacity: .08; transform: scale(.62) rotate(0deg); }
@@ -661,7 +661,7 @@ export default function CardPreview({
           .card-micro-glint,
           .card-border-glint { opacity: .6; }
           .card-sparkle-swirl-line { opacity: .56; }
-          .card-border-gold-glow { background-position: 0% 0, 190% 0; opacity: .88; }
+          .card-border-gold-glow { background-position: 50% 0; opacity: .62; }
           .card-border-turn-glow { transition: none; }
         }
       `}</style>}
