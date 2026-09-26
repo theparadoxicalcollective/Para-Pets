@@ -1,8 +1,8 @@
-import oneStarBorder from "@assets/uploads/1StarBorder.png";
-import twoStarBorder from "@assets/uploads/2StarBorder.png";
-import threeStarBorder from "@assets/uploads/3StarBorder.png";
-import fourStarBorder from "@assets/uploads/4StarBorder.png";
-import fiveStarBorder from "@assets/uploads/5StarBorder.png";
+import oneStarBorder from "@assets/uploads/CB1.png";
+import twoStarBorder from "@assets/uploads/CB2.png";
+import threeStarBorder from "@assets/uploads/CB3.png";
+import fourStarBorder from "@assets/uploads/CB4.png";
+import fiveStarBorder from "@assets/uploads/CB5.png";
 import type { CardSpecialEffect } from "@shared/cardSpecialEffect";
 import type { CardLabel } from "@shared/cardLabel";
 
@@ -43,6 +43,23 @@ export interface CardBorderLayout {
 }
 
 export const CARD_RARITIES: readonly CardRarity[] = [1, 2, 3, 4, 5];
+
+export const CARD_TITLE_COLORS: Record<CardRarity, string> = {
+  1: "#4a4032",
+  2: "#4a4032",
+  3: "#4a4032",
+  4: "#7f5528",
+  5: "#7f5528",
+};
+
+/** Warm parchment surfaces matched to the blank title/name plaques in the rarity frames. */
+export const CARD_BACK_SURFACE_COLORS: Record<CardRarity, string> = {
+  1: "#eee4d1",
+  2: "#eee4d1",
+  3: "#ece3d6",
+  4: "#f1e3c8",
+  5: "#f3e5c8",
+};
 
 export const CARD_BORDER_ASSETS: Record<CardRarity, string> = {
   1: oneStarBorder,

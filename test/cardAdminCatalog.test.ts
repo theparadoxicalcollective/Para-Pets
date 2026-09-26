@@ -24,12 +24,31 @@ test("Administration Realm exposes a focused Cards section", () => {
   assert.match(adminPanel, /input-card-description/);
 });
 
-test("each star rarity automatically maps to its matching bundled border", () => {
+test("card admin uses one full description field for the card back", () => {
+  assert.match(adminPanel, /DESCRIPTION — CARD BACK/);
+  assert.match(adminPanel, /This is the card's only description/);
+  assert.match(adminPanel, /input-card-description/);
+  assert.match(adminPanel, /maxLength=\{10000\}/);
+  assert.doesNotMatch(adminPanel, /SHORT DESCRIPTION — CARD FACE/);
+  assert.doesNotMatch(adminPanel, /input-card-second-description/);
+  assert.match(adminPanel, /description: ""/);
+  assert.match(adminPanel, /secondDescription: form\.description/);
+  assert.match(adminPanel, /card\.secondDescription \|\| card\.description \|\| ""/);
+  assert.doesNotMatch(preview, /\{renderTextBox\("description"\)\}/);
+  assert.match(routes, /const fullDescription = descriptionText/);
+  assert.match(routes, /VALUES \(\$\{name\}, \$\{""\}, \$\{fullDescription\}/);
+  assert.match(routes, /description = \$\{""\}/);
+  assert.match(routes, /second_description = \$\{fullDescription\}/);
+});
+
+test("each star rarity uses the new CB1 through CB5 border assets", () => {
   for (let rarity = 1; rarity <= 5; rarity++) {
-    assert.ok(fs.existsSync(`attached_assets/uploads/${rarity}StarBorder.png`));
-    assert.match(catalog, new RegExp(`${rarity}: \\w+StarBorder`));
+    assert.ok(fs.existsSync(`attached_assets/uploads/CB${rarity}.png`));
+    assert.match(catalog, new RegExp(`@assets/uploads/CB${rarity}\\.png`));
   }
   assert.match(preview, /CARD_BORDER_ASSETS\[rarity\]/);
+  assert.match(adminPanel, /uses CB\{rarity\}\.png/);
+  assert.doesNotMatch(catalog, /[1-5]StarBorder\.png/);
   assert.doesNotMatch(adminPanel, /borderData|borderUpload|input-card-border/);
 });
 
@@ -232,7 +251,7 @@ test("card collection keeps the cleaner open layout and text heading", () => {
   assert.doesNotMatch(collection, /className="relative min-w-0 pb-8"/);
 });
 
-test("card turn queues visual updates per frame and preserves fast swipe lore", () => {
+test("fast card turns flip to an in-card description back instead of opening a description modal", () => {
   assert.match(detail, /data-testid="card-turn-surface"/);
   assert.match(detail, /requestAnimationFrame/);
   assert.match(detail, /cancelAnimationFrame/);
@@ -240,6 +259,17 @@ test("card turn queues visual updates per frame and preserves fast swipe lore", 
   assert.doesNotMatch(detail, /setTurnAngle/);
   assert.match(detail, /velocity >= 0\.35/);
   assert.match(detail, /gesture\.width \* 0\.1/);
-  assert.doesNotMatch(detail, />Drag left or right to turn the card\. Swipe quickly to read more\.</);
+  assert.match(detail, /queueTurn\(nextFlipped \? direction \* 180 : 0\)/);
+  assert.match(detail, /data-testid="card-front-face"/);
+  assert.match(detail, /data-testid="card-back-face"/);
+  assert.match(detail, /data-testid="card-back-description"/);
+  assert.match(detail, /CARD_BACK_SURFACE_COLORS\[card\.rarity\]/);
+  assert.match(detail, /color: CARD_TITLE_COLORS\[card\.rarity\]/);
+  assert.match(detail, /src=\{CARD_BORDER_ASSETS\[card\.rarity\]\}/);
+  assert.match(detail, /transform: "rotateY\(180deg\)"/);
+  assert.match(detail, /card\.secondDescription \|\| card\.description/);
+  assert.doesNotMatch(detail, /descriptionOpen/);
+  assert.doesNotMatch(detail, /card-full-description/);
+  assert.doesNotMatch(detail, /Close full description/);
   assert.doesNotMatch(detail, /onDescriptionClick=/);
 });

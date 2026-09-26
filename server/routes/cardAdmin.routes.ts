@@ -148,8 +148,10 @@ export function registerCardAdminRoutes(
   app.post("/api/admin/cards", isAdmin, async (req, res) => {
     try {
       const name = requiredText(req.body?.name, "Name", 80);
-      const description = descriptionText(req.body?.description);
-      const secondDescription = req.body?.secondDescription === undefined ? null : descriptionText(req.body.secondDescription, 10000);
+      const fullDescription = descriptionText(
+        req.body?.secondDescription === undefined ? req.body?.description : req.body.secondDescription,
+        10000,
+      );
       const rarity = parseRarity(req.body?.rarity);
       if (!rarity) return res.status(400).json({ message: "Rarity must be between 1 and 5" });
       const effectColor = effectColorText(req.body?.effectColor);
@@ -161,7 +163,7 @@ export function registerCardAdminRoutes(
       const artworkUrl = await processCardImage(req.body.artworkData, 1600);
       const result = await db.execute(sql`
         INSERT INTO card_definitions (name, description, second_description, artwork_url, effect_color, special_effect, card_label, rarity)
-        VALUES (${name}, ${description}, ${secondDescription ?? ""}, ${artworkUrl}, ${effectColor}, ${specialEffect}, ${label}, ${rarity})
+        VALUES (${name}, ${""}, ${fullDescription}, ${artworkUrl}, ${effectColor}, ${specialEffect}, ${label}, ${rarity})
         RETURNING id, name, description, second_description, artwork_url, effect_color, special_effect, card_label, rarity, created_at, updated_at
       `);
       return res.status(201).json(serializeCard(result.rows[0]));
@@ -176,8 +178,10 @@ export function registerCardAdminRoutes(
   app.patch("/api/admin/cards/:id", isAdmin, async (req, res) => {
     try {
       const name = requiredText(req.body?.name, "Name", 80);
-      const description = descriptionText(req.body?.description);
-      const secondDescription = req.body?.secondDescription === undefined ? null : descriptionText(req.body.secondDescription, 10000);
+      const fullDescription = descriptionText(
+        req.body?.secondDescription === undefined ? req.body?.description : req.body.secondDescription,
+        10000,
+      );
       const rarity = parseRarity(req.body?.rarity);
       if (!rarity) return res.status(400).json({ message: "Rarity must be between 1 and 5" });
       const hasEffectColor = Object.prototype.hasOwnProperty.call(req.body ?? {}, "effectColor");
@@ -191,8 +195,8 @@ export function registerCardAdminRoutes(
         : null;
       const result = await db.execute(sql`
         UPDATE card_definitions
-        SET name = ${name}, description = ${description}, rarity = ${rarity},
-            second_description = COALESCE(${secondDescription}, second_description),
+        SET name = ${name}, description = ${""}, rarity = ${rarity},
+            second_description = ${fullDescription},
             effect_color = CASE WHEN ${hasEffectColor} THEN ${effectColor} ELSE effect_color END,
             special_effect = CASE WHEN ${hasSpecialEffect} THEN ${specialEffect} ELSE special_effect END,
             card_label = CASE WHEN ${hasLabel} THEN ${label} ELSE card_label END,

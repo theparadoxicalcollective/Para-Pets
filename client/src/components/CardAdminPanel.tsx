@@ -19,7 +19,6 @@ import {
 interface CardFormState {
   name: string;
   description: string;
-  secondDescription: string;
   rarity: CardRarity;
   artworkData: string;
   artworkPreview: string;
@@ -33,7 +32,6 @@ interface CardFormState {
 const EMPTY_FORM: CardFormState = {
   name: "",
   description: "",
-  secondDescription: "",
   rarity: 1,
   artworkData: "",
   artworkPreview: "",
@@ -246,8 +244,8 @@ export default function CardAdminPanel() {
     mutationFn: async () => {
       const body = {
         name: form.name,
-        description: form.description,
-        secondDescription: form.secondDescription,
+        description: "",
+        secondDescription: form.description,
         rarity: form.rarity,
         artworkData: form.artworkData || undefined,
         effectColor: form.effectColor || null,
@@ -322,8 +320,7 @@ export default function CardAdminPanel() {
     setEditingCard(card);
     setForm({
       name: card.name,
-      description: card.description,
-      secondDescription: card.secondDescription ?? "",
+      description: card.secondDescription || card.description || "",
       rarity: card.rarity,
       artworkData: "",
       artworkPreview: card.artworkUrl,
@@ -391,9 +388,7 @@ export default function CardAdminPanel() {
 
   const textFieldKeys = selectedField === "name"
     ? { x: "nameX", y: "nameY", width: "nameWidth", height: "nameHeight", fontSize: "nameFontSize" } as const
-    : selectedField === "description"
-      ? { x: "descriptionX", y: "descriptionY", width: "descriptionWidth", height: "descriptionHeight", fontSize: "descriptionFontSize" } as const
-      : null;
+    : null;
 
   const nudgeSelectedText = (dx: number, dy: number) => {
     if (!textFieldKeys) return;
@@ -511,7 +506,7 @@ export default function CardAdminPanel() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-fantasy text-[11px] text-[#f4dfa0]">{card.name}</p>
                     <p className="mt-1 text-[10px] text-[#f6c64c]">{"★".repeat(card.rarity)}</p>
-                    <p className="mt-1 line-clamp-2 text-[9px] leading-4 text-white/42">{card.description || "No description"}</p>
+                    <p className="mt-1 line-clamp-2 text-[9px] leading-4 text-white/42">{card.secondDescription || card.description || "No description"}</p>
                   </div>
                   <div className="flex shrink-0 flex-col gap-1.5">
                     <button type="button" aria-label={`Edit ${card.name}`} onClick={() => openEditCard(card)} className="grid h-8 w-8 place-items-center rounded-lg text-emerald-200 active:scale-95" style={{ background: "rgba(18,88,58,.38)", border: "1px solid rgba(110,231,183,.3)" }}><Pencil className="h-4 w-4" /></button>
@@ -535,11 +530,11 @@ export default function CardAdminPanel() {
             >
               {CARD_RARITIES.map((rarity) => <option key={rarity} value={rarity}>{rarity} Star Border</option>)}
             </select>
-            <p className="mt-2 text-[9px] leading-4 text-white/42">Choose a border and select the name, description, or stars. Drag on the card or use the simple nudge, center, and size buttons below.</p>
+            <p className="mt-2 text-[9px] leading-4 text-white/42">Choose a border and select the name or stars. Drag on the card or use the simple nudge, center, and size buttons below.</p>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            {(["name", "description", "stars"] as const).map((field) => (
+          <div className="grid grid-cols-2 gap-2">
+            {(["name", "stars"] as const).map((field) => (
               <button
                 key={field}
                 type="button"
@@ -552,7 +547,7 @@ export default function CardAdminPanel() {
                   border: selectedField === field ? "1px solid rgba(110,231,183,.55)" : "1px solid rgba(224,181,74,.2)",
                 }}
               >
-                {field === "name" ? "Name Box" : field === "description" ? "Description Box" : "Stars"}
+                {field === "name" ? "Name Box" : "Stars"}
               </button>
             ))}
           </div>
@@ -563,7 +558,6 @@ export default function CardAdminPanel() {
                 rarity={layoutRarity}
                 artworkUrl={previewCard?.artworkUrl}
                 name={previewCard?.name || "Sample Card Name"}
-                description={previewCard?.description || "Sample card description appears here."}
                 layout={currentLayout}
                 editable
                 selectedField={selectedField}
@@ -574,7 +568,7 @@ export default function CardAdminPanel() {
           </div>
 
           <div className="rounded-xl p-3" style={panelStyle}>
-            <p className="mb-3 font-fantasy text-[9px] tracking-wider text-[#e7cb80]">{selectedField === "name" ? "NAME BOX" : selectedField === "description" ? "DESCRIPTION BOX" : "STARS"} SETTINGS</p>
+            <p className="mb-3 font-fantasy text-[9px] tracking-wider text-[#e7cb80]">{selectedField === "name" ? "NAME BOX" : "STARS"} SETTINGS</p>
             {selectedField === "stars" ? (
               <div className="space-y-3">
                 <p className="text-[10px] leading-4 text-white/55">Drag the stars to set their height, then center them horizontally if needed.</p>
@@ -763,7 +757,6 @@ export default function CardAdminPanel() {
                 specialEffect={form.specialEffect || null}
                 label={form.label || null}
                 name={form.name || "Card Name"}
-                description={form.description || "Card description"}
                 layout={getCardBorderLayout(layouts, form.rarity)}
                 showSparkles
               />
@@ -799,7 +792,7 @@ export default function CardAdminPanel() {
               <label className="block">
                 <span className="mb-1 block font-fantasy text-[9px] tracking-wider text-[#ddc175]">RARITY</span>
                 <select data-testid="select-card-rarity" value={form.rarity} onChange={(event) => setForm((current) => ({ ...current, rarity: Number(event.target.value) as CardRarity }))} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none" style={{ color: "#fff0bd", background: "#0a1710", border: "1px solid rgba(224,181,74,.3)" }}>
-                  {CARD_RARITIES.map((rarity) => <option key={rarity} value={rarity}>{rarity} Star — uses {rarity}StarBorder.png</option>)}
+                  {CARD_RARITIES.map((rarity) => <option key={rarity} value={rarity}>{rarity} Star — uses CB{rarity}.png</option>)}
                 </select>
               </label>
               <label className="block">
@@ -822,15 +815,10 @@ export default function CardAdminPanel() {
                 <span className="mt-1 block text-[9px] leading-4 text-white/45">The selected gold-trimmed banner appears diagonally across the card's upper-left corner.</span>
               </label>
               <label className="block">
-                <span className="mb-1 block font-fantasy text-[9px] tracking-wider text-[#ddc175]">SHORT DESCRIPTION — CARD FACE</span>
-                <textarea data-testid="input-card-description" maxLength={600} rows={4} value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} className="w-full resize-none rounded-xl px-3 py-2.5 text-sm outline-none" style={{ color: "#fff0bd", background: "#0a1710", border: "1px solid rgba(224,181,74,.3)" }} />
-                <span className="mt-1 block text-right text-[8px] text-white/30">{form.description.length}/600</span>
-              </label>
-              <label className="block">
-                <span className="mb-1 block font-fantasy text-[9px] tracking-wider text-[#ddc175]">SECOND DESCRIPTION</span>
-                <p className="mb-2 text-xs text-white/50">Players tap the short description on the enlarged card to read this.</p>
-                <textarea data-testid="input-card-second-description" maxLength={10000} rows={7} value={form.secondDescription} onChange={event => setForm(current => ({ ...current, secondDescription: event.target.value }))} className="w-full rounded-xl border border-amber-200/30 bg-[#0a1710] px-3 py-2.5 text-sm text-[#fff0bd]" />
-                <span className="mt-1 block text-right text-[8px] text-white/30">{form.secondDescription.length}/10000</span>
+                <span className="mb-1 block font-fantasy text-[9px] tracking-wider text-[#ddc175]">DESCRIPTION — CARD BACK</span>
+                <p className="mb-2 text-xs text-white/50">This is the card's only description. Players see it on the back when they flip the card.</p>
+                <textarea data-testid="input-card-description" maxLength={10000} rows={8} value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} className="w-full rounded-xl border border-amber-200/30 bg-[#0a1710] px-3 py-2.5 text-sm text-[#fff0bd]" />
+                <span className="mt-1 block text-right text-[8px] text-white/30">{form.description.length}/10000</span>
               </label>
             </div>
 
