@@ -1,5 +1,5 @@
 import AdornmentArtwork from "./AdornmentArtwork";
-import { ADORNMENT_MOTION_CSS } from "@shared/adornmentAnimation";
+import { ADORNMENT_MOTION_CSS, type AdornmentItemEffect } from "@shared/adornmentAnimation";
 import { petTemplateQuery, type PetArtworkForm } from "@/lib/petTemplateQuery";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -43,6 +43,7 @@ interface EquippedCostume {
   costumeInventoryId: string;
   name: string;
   imageUrl: string | null;
+  adornmentEffect?: AdornmentItemEffect | null;
   hideAboveHeadPart?: boolean;
   placements?: CostumePlacement[] | null;
 }
@@ -414,7 +415,7 @@ function CostumeLayer({
             width: `${placement.width / CANVAS_SIZE * 100}%`, height: `${placement.height / CANVAS_SIZE * 100}%`,
             transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flipX ? -1 : 1})`,
             transformOrigin: `${placement.pivotX}% ${placement.pivotY}%`, pointerEvents: "none" }}>
-          <AdornmentArtwork src={costume.imageUrl!} placement={placement} animated={mode !== "static"} />
+          <AdornmentArtwork src={costume.imageUrl!} placement={placement} animated={mode !== "static"} effect={costume.adornmentEffect} />
         </div>;
       }
       const anchor = sortedParts.find(part => part.partType === placement.anchorPart);
@@ -455,10 +456,7 @@ function CostumeLayer({
             pointerEvents: "none",
           }}
         >
-          <img
-            src={costume.imageUrl ?? undefined}
-            alt=""
-            draggable={false}
+          <div
             data-testid={`costume-piece-${costume.id}-${placementInstance}`}
             style={{
               position: "absolute",
@@ -466,12 +464,18 @@ function CostumeLayer({
               top: `${localTop}%`,
               width: `${localWidth}%`,
               height: `${localHeight}%`,
-              objectFit: "contain",
               transform: `rotate(${placement.rotation ?? 0}deg) scaleX(${placement.flipX ? -1 : 1})`,
               transformOrigin: `${placement.pivotX}% ${placement.pivotY}%`,
               pointerEvents: "none",
             }}
-          />
+          >
+            <AdornmentArtwork
+              src={costume.imageUrl!}
+              placement={placement}
+              animated={mode !== "static"}
+              effect={costume.adornmentEffect}
+            />
+          </div>
         </div>
       );
 
