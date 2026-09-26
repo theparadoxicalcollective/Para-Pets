@@ -7,16 +7,17 @@ import {
 } from "@shared/adornmentAnimation";
 
 /** Shared by the fitting preview and player renderer; placement owns its pivot. */
-export default function AdornmentArtwork({ src, placement, animated = true, effect = null }: {
+export default function AdornmentArtwork({ src, placement, animated = true, effect = null, wingPair = false }: {
   src: string;
   placement: CostumePlacement;
   animated?: boolean;
   effect?: AdornmentItemEffect | null;
+  wingPair?: boolean;
 }) {
   const fittedProfile = placement.anchorPart === "independent" ? normalizeAdornmentAnimation(placement.animation) : "none";
   const overrideProfile = adornmentItemEffectAnimation(effect);
-  const profile = overrideProfile ?? fittedProfile;
-  const mirroredPair = profile === "wings";
+  const profile = wingPair ? "wings" : overrideProfile ?? fittedProfile;
+  const mirroredPair = wingPair || fittedProfile === "wings";
   const origin = `${placement.pivotX}% ${placement.pivotY}%`;
 
   return <>{(mirroredPair ? [false, true] : [false]).map(mirrored => (
