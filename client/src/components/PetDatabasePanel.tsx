@@ -340,8 +340,6 @@ export default function PetDatabasePanel({
   const [costumeSearch, setCostumeSearch] = useState("");
   const [costumeDraft, setCostumeDraft] = useState<CostumePlacement | null>(null);
   const [previewAdornmentMotion, setPreviewAdornmentMotion] = useState(false);
-  const [readingWingImage, setReadingWingImage] = useState(false);
-  const [wingUploadRevision, setWingUploadRevision] = useState(0);
   const [costumeDraftDirty, setCostumeDraftDirty] = useState(false);
   const [draggingCostume, setDraggingCostume] = useState(false);
   const costumeDragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
@@ -474,9 +472,11 @@ export default function PetDatabasePanel({
     ...savedCostumeInstances,
     ...(costumeDraft ? [costumeDraft.instance ?? selectedCostumeInstance] : []),
   ])).sort((a, b) => a - b);
-  const savedCostumePlacement = formPlacements.find(placement =>
-    placement.view === currentCostumeView && (placement.instance ?? 1) === selectedCostumeInstance
-  );
+  const savedCostumePlacement = selectedCostumeIsWings
+    ? formPlacements.find(placement => placement.view === currentCostumeView)
+    : formPlacements.find(placement =>
+        placement.view === currentCostumeView && (placement.instance ?? 1) === selectedCostumeInstance
+      );
   const defaultCostumePlacement = (): CostumePlacement => ({
     form: costumeArtworkForm,
     view: currentCostumeView,
@@ -808,12 +808,10 @@ export default function PetDatabasePanel({
     setCostumeDraftDirty(true);
   };
   const saveCostumePlacement = () => {
-    if (readingWingImage) return;
     if (!selectedCostumeId || !selectedCostumePlacement || !canSaveCostumePlacement || saveCostumeMutation.isPending) return;
     saveCostumeMutation.mutate({ itemId: selectedCostumeId, placement: { ...selectedCostumePlacement, form: costumeArtworkForm, instance: selectedCostumeIsWings ? 1 : selectedCostumeInstance, rotation: selectedCostumePlacement.rotation ?? 0, flipX: selectedCostumePlacement.flipX ?? false, animation: selectedCostumeIsWings ? "none" : selectedCostumePlacement.animation } });
   };
   const discardCostumeDraft = () => {
-    setWingUploadRevision(value => value + 1);
     costumeDragRef.current = null;
     setCostumeDraft(null);
     setCostumeDraftDirty(false);
