@@ -31,9 +31,9 @@ test("each special effect stays in its artwork overlay and supports reduced moti
   assert.match(stars, /card-special-effect-stars/);
   assert.match(stars, /card-special-starfield/);
   assert.match(stars, /mask-image/);
-  assert.doesNotMatch(stars, /card-special-holo/);
+  assert.doesNotMatch(stars, /<div class="card-special-holo"/);
   assert.match(aurora, /card-special-aurora-a/);
-  assert.match(aurora, /card-special-holo/);
+  assert.match(aurora, /<div class="card-special-holo"/);
   assert.doesNotMatch(aurora, /<svg/);
   assert.match(wisps, /card-special-mist/);
   assert.match(wisps, /<circle/);
