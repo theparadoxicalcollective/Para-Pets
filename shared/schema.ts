@@ -505,7 +505,7 @@ export const insertShopItemSchema = baseInsertShopItemSchema.superRefine((item, 
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["starRarity"], message: "Accessory star rarity must be from 1 through 5" });
   }
   if (item.type === "costume" && item.adornmentSlot != null && !isAdornmentSlotKey(item.adornmentSlot)) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["adornmentSlot"], message: "Adornment space must be Head, Hand L, Right Hand, Wings, or Back" });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["adornmentSlot"], message: "Adornment space must be Head, Left Hand, Right Hand, Wings, or Back" });
   }
   if (item.type !== "costume" && item.adornmentSlot != null) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["adornmentSlot"], message: "Only adornments can use an adornment space" });
