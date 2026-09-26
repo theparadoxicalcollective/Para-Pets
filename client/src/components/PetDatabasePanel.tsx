@@ -1,5 +1,4 @@
 import AdornmentArtwork from "./AdornmentArtwork";
-import MirroredWingUpload from "./MirroredWingUpload";
 import { ADORNMENT_ANIMATIONS, ADORNMENT_ANIMATION_LABELS, ADORNMENT_MOTION_CSS, type AdornmentAnimation } from "@shared/adornmentAnimation";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -65,7 +64,7 @@ interface PetTemplateWithParts extends PetTemplate {
   evolutionParts: PetTemplatePart[];
 }
 
-interface CostumeItem { id: string; name: string; imageUrl: string | null; }
+interface CostumeItem { id: string; name: string; imageUrl: string | null; adornmentSlot?: string | null; adornmentEffect?: string | null; }
 interface CostumeDefinition { shopItemId: string; templateId: string; placements: CostumePlacement[]; }
 
 interface LinkedShopPet {
@@ -316,7 +315,7 @@ export default function PetDatabasePanel({
     onSelectedTemplateChange?.(selectedTemplateId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTemplateId]);
-  useEffect(() => { setSelectedCostumeId(null); setSelectedCostumeInstance(1); }, [selectedTemplateId]);
+  useEffect(() => { setSelectedCostumeId(null); setSelectedCostumeInstance(1); setCostumeArtworkForm("base"); }, [selectedTemplateId]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newPetName, setNewPetName] = useState("");
   const [showRenameModal, setShowRenameModal] = useState(false);
@@ -336,6 +335,7 @@ export default function PetDatabasePanel({
   // Costume placement remains a third focused authoring surface.
   const [editorTab, setEditorTab] = useState<EditorTab>("parts");
   const [selectedCostumeId, setSelectedCostumeId] = useState<string | null>(null);
+  const [costumeArtworkForm, setCostumeArtworkForm] = useState<"base" | "evolution">("base");
   const [selectedCostumeInstance, setSelectedCostumeInstance] = useState(1);
   const [costumeSearch, setCostumeSearch] = useState("");
   const [costumeDraft, setCostumeDraft] = useState<CostumePlacement | null>(null);
@@ -448,7 +448,7 @@ export default function PetDatabasePanel({
   // This is the authoring surface, so preview the exact saved stack.
   // Runtime animation grouping can still use its semantic layers separately.
   const previewEffectiveZ = (p: { zIndex: number }): number => p.zIndex;
-  const activeParts = editorTab === "evolution"
+  const activeParts = editorTab === "evolution" || (editorTab === "costume" && costumeArtworkForm === "evolution")
     ? (templateDetail?.evolutionParts ?? [])
     : (templateDetail?.parts ?? []);
   const viewParts = activeParts
@@ -463,18 +463,22 @@ export default function PetDatabasePanel({
     .sort((a, b) => a.name.localeCompare(b.name));
   const selectedCostumeItem = costumeItems.find(item => item.id === selectedCostumeId);
   const selectedCostumeDefinition = costumeDefinitions.find(definition => definition.shopItemId === selectedCostumeId);
+  const selectedCostumeIsWings = selectedCostumeItem?.adornmentSlot === "wings";
+  const formPlacements = (selectedCostumeDefinition?.placements ?? [])
+    .filter((placement) => (placement.form ?? "base") === costumeArtworkForm);
   const savedCostumeInstances = Array.from(new Set(
-    (selectedCostumeDefinition?.placements ?? []).map(placement => placement.instance ?? 1),
+    formPlacements.map(placement => placement.instance ?? 1),
   )).sort((a, b) => a - b);
-  const costumeInstances = Array.from(new Set([
+  const costumeInstances = selectedCostumeIsWings ? [1] : Array.from(new Set([
     1,
     ...savedCostumeInstances,
     ...(costumeDraft ? [costumeDraft.instance ?? selectedCostumeInstance] : []),
   ])).sort((a, b) => a - b);
-  const savedCostumePlacement = selectedCostumeDefinition?.placements.find(placement =>
+  const savedCostumePlacement = formPlacements.find(placement =>
     placement.view === currentCostumeView && (placement.instance ?? 1) === selectedCostumeInstance
   );
   const defaultCostumePlacement = (): CostumePlacement => ({
+    form: costumeArtworkForm,
     view: currentCostumeView,
     anchorPart: "independent",
     animation: "none",
@@ -510,7 +514,7 @@ export default function PetDatabasePanel({
   const canSaveCostumePlacement = !costumeDefinitionsLoading && !costumeDefinitionsError && !!selectedCostumePlacement && (costumeDraftDirty || !savedCostumePlacement);
   const nextCostumeInstance = Array.from({ length: COSTUME_MAX_PLACEMENT_INSTANCES }, (_, index) => index + 1)
     .find(instance => !costumeInstances.includes(instance));
-  const canDuplicateCostumePlacement = !!selectedCostumeItem && !!savedCostumePlacement && !costumeDraftDirty && nextCostumeInstance !== undefined;
+  const canDuplicateCostumePlacement = !selectedCostumeIsWings && !!selectedCostumeItem && !!savedCostumePlacement && !costumeDraftDirty && nextCostumeInstance !== undefined;
 
   useEffect(() => {
     if (!selectedCostumeId) {
