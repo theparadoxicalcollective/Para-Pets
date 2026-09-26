@@ -996,7 +996,7 @@ function AdminItemForm({
 
           {!petOnly && effectiveType === "costume" && (
             <div>
-              <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Adornment Closet Space</label>
+              <label className="font-fantasy text-[#a89878] text-[10px] tracking-wider block mb-1">Adornment Type</label>
               <select
                 data-testid="select-adornment-slot"
                 value={adornmentSlot}
@@ -1008,16 +1008,16 @@ function AdminItemForm({
                   <option key={space.key} value={space.key}>{space.label}</option>
                 ))}
               </select>
-              <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-1">Sets which of the five player Closet spaces can equip this adornment.</p>
+              <p className="font-fantasy text-[#6a5840] text-[8px] tracking-wider mt-1">Choose how this adornment is equipped. Wings uses one Wings slot; the uploaded artwork is mirrored automatically into a left/right pair.</p>
               {adornmentSlot === "wings" ? (
                 <div
                   data-testid="adornment-wings-effect"
                   className="mt-3 rounded-md px-3 py-2"
                   style={{ background: "rgba(127,255,212,.06)", border: "1px solid rgba(127,255,212,.24)" }}
                 >
-                  <p className="font-fantasy text-[#d9c291] text-[9px] tracking-wider">Effect: Wings</p>
+                  <p className="font-fantasy text-[#d9c291] text-[9px] tracking-wider">Wings behavior</p>
                   <p className="mt-0.5 font-fantasy text-[#6a5840] text-[7px] leading-3 tracking-wide">
-                    Wings are automatically mirrored into a front-facing pair and gently open and close together.
+                    Upload the wing adornment once. The game mirrors it into a front-facing left/right pair and gently opens and closes the wings together. No separate wing spots are needed.
                   </p>
                 </div>
               ) : (
