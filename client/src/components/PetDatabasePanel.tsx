@@ -1471,7 +1471,7 @@ export default function PetDatabasePanel({
                   <button
                     data-testid="button-save-costume-placement"
                     onClick={saveCostumePlacement}
-                    disabled={!canSaveCostumePlacement || saveCostumeMutation.isPending || readingWingImage}
+                    disabled={!canSaveCostumePlacement || saveCostumeMutation.isPending}
                     className="flex w-full items-center justify-center gap-2 rounded-lg p-3 text-xs font-semibold disabled:opacity-50"
                     style={{ background: canSaveCostumePlacement ? "linear-gradient(135deg,rgba(126,34,206,.9),rgba(192,132,252,.72))" : "rgba(192,132,252,.16)", border: "1px solid rgba(216,180,254,.55)", color: "#fff", boxShadow: canSaveCostumePlacement ? "0 0 16px rgba(192,132,252,.24)" : "none" }}
                   >
