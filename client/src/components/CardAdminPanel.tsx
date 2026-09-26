@@ -777,7 +777,7 @@ export default function CardAdminPanel() {
                   <input data-testid="input-card-artwork" type="file" accept="image/*" onChange={onArtwork} className="sr-only" />
                 </span>
               </label>
-              {form.artworkPreview && form.specialEffect !== "stars" && (
+              {form.artworkPreview && !["stars", "pumpkin"].includes(form.specialEffect) && (
                 <ArtworkEffectColorPicker
                   src={form.artworkPreview}
                   color={form.effectColor}
@@ -807,10 +807,11 @@ export default function CardAdminPanel() {
                 <select data-testid="select-card-special-effect" value={form.specialEffect} onChange={(event) => setForm((current) => ({ ...current, specialEffect: event.target.value as CardSpecialEffect | "" }))} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none" style={{ color: "#fff0bd", background: "#0a1710", border: "1px solid rgba(224,181,74,.3)" }}>
                   <option value="">Standard rarity effect</option>
                   <option value="stars">Stars — shifting rainbow starfield</option>
+                  <option value="pumpkin">Pumpkin — warm holographic pumpkin pop</option>
                   <option value="aurora">Aurora Veil — drifting holographic color</option>
                   <option value="wisps">Moonfire Wisps — floating lights</option>
                 </select>
-                <span className="mt-1 block text-[9px] leading-4 text-white/45">A special effect replaces the usual artwork sparkles and swirls. Stars uses its own shifting rainbow palette. Aurora Veil and Moonfire Wisps use the artwork color picker above. The rarity border stays the same.</span>
+                <span className="mt-1 block text-[9px] leading-4 text-white/45">A special effect replaces the usual artwork sparkles and swirls. Stars uses its shifting rainbow palette, and Pumpkin uses its own warm orange-to-red holographic palette. Aurora Veil and Moonfire Wisps use the artwork color picker above. The rarity border stays the same.</span>
               </label>
               <label className="block">
                 <span className="mb-1 block font-fantasy text-[9px] tracking-wider text-[#ddc175]">LABEL</span>
