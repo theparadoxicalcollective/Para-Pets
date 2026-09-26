@@ -9,7 +9,7 @@ import petActionRingImg from "@assets/Photoroom_20260611_74428_AM_1781181905848.
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import bgImg from "@assets/bg_home_v2.png";
-import starImg from "@assets/Photoroom_20260331_20947_PM_1774984267132.png";
+import cardStarImg from "@assets/uploads/CardStar.png";
 import petPawIcon from "@assets/generated_images/icon_pet_placeholder.png";
 import eggMagicIcon from "@assets/generated_images/icon_egg_magic.png";
 import questIcon from "@assets/generated_images/nav_icon_map.png";
@@ -847,8 +847,9 @@ export default function HomePage({ user, isOverlayActive = false }: HomePageProp
               return (
                 <img
                   key={i}
-                  src={starImg}
-                  alt="star"
+                  data-testid="home-active-pet-rarity-star"
+                  src={cardStarImg}
+                  alt=""
                   width={64}
                   height={64}
                   style={{
