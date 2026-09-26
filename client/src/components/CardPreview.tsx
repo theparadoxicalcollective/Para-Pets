@@ -583,6 +583,7 @@ export default function CardPreview({
               height: "100%",
               objectFit: "contain",
               pointerEvents: "none",
+              filter: "drop-shadow(0 0 1px rgba(64,30,2,.96)) drop-shadow(0 2px 2px rgba(42,20,2,.82)) drop-shadow(0 0 5px rgba(255,245,190,.9))",
             }}
           />
         ))}
