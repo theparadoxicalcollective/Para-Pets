@@ -86,6 +86,11 @@ export interface CostumePlacement {
   replacesWings?: boolean;
   /** Lock this fitted piece to the pet canvas so it never inherits part or item motion. */
   dontMove?: boolean;
+  /**
+   * Optional semantic part target for duplicated adornments. For Head items:
+   * 1 = head, 2 = h2_head, 3 = h3_head. Missing values preserve legacy behavior.
+   */
+  followPartIndex?: number;
   /** 1 is the original fitted piece; 2-4 are admin-created visual duplicates. Front/side placements reuse the same instance number. */
   instance?: number;
   posX: number;
@@ -167,6 +172,9 @@ export function normalizeCostumePlacements(value: unknown): CostumePlacement[] {
           ? { mirroredWingImageUrl: placement.mirroredWingImageUrl } : {}),
       } : {}),
       ...(placement.dontMove === true ? { dontMove: true } : {}),
+      ...(Number.isFinite(Number(placement.followPartIndex))
+        ? { followPartIndex: Math.max(1, Math.min(3, Math.trunc(Number(placement.followPartIndex)))) }
+        : {}),
       instance: Math.max(1, Math.min(
         COSTUME_MAX_PLACEMENT_INSTANCES,
         Math.trunc(finitePlacementNumber(placement.instance, 1)),
