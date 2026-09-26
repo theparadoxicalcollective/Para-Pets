@@ -42,7 +42,7 @@ function parseAdminCodePayload(body: any): AdminCodePayload {
   return { code, name, message, coinAmount, shopItemIds, cards, maxRedemptions };
 }
 
-async function validateBundleChoices(tx: Parameters<Parameters<typeof db.transaction>[0]>[0], shopItemIds: string[], cards: CardBundleEntry[]) {
+async function validateBundleChoices(tx: any, shopItemIds: string[], cards: CardBundleEntry[]) {
   if (shopItemIds.length) {
     const uniqueItemIds = [...new Set(shopItemIds)];
     const found = await tx.execute(sql`SELECT id FROM shop_items WHERE id IN (${sql.join(uniqueItemIds.map(id => sql`${id}`), sql`, `)})`);
